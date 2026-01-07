@@ -31,10 +31,7 @@ export async function reconcileOrder(
   orderId: string
 ): Promise<ReconciliationResult> {
   try {
-    // P0: 优化查询 - 使用 PostgreSQL JSON 操作符直接过滤 orderId，避免 take=100 内存过滤
-    // 这确保即使数据量大时也能准确找到订单的所有事件
-    // 使用 Prisma 的 $queryRaw 执行原始 SQL，利用 PostgreSQL 的 JSON 操作符进行高效查询
-    // 如果原始 SQL 查询失败，会回退到应用层过滤（但移除 take 限制）
+
     let formattedEvents: Array<{
       id: string;
       eventId: string | null;
@@ -49,15 +46,15 @@ export async function reconcileOrder(
     }>;
 
     try {
-      // 尝试使用原始 SQL 查询以获得更好的性能
+
       const rawResults = await prisma.$queryRaw<Array<{
         id: string;
         eventId: string | null;
         eventName: string;
         normalizedEventJson: Prisma.JsonValue;
-        delivery_attempts: string; // JSON 字符串
+        delivery_attempts: string;
       }>>`
-        SELECT 
+        SELECT
           el.id,
           el."eventId",
           el."eventName",
@@ -74,7 +71,7 @@ export async function reconcileOrder(
             '[]'::json
           )::text as delivery_attempts
         FROM "EventLog" el
-        LEFT JOIN "DeliveryAttempt" da ON da."eventLogId" = el.id 
+        LEFT JOIN "DeliveryAttempt" da ON da."eventLogId" = el.id
           AND da.status IN ('ok', 'fail')
         WHERE el."shopId" = ${shopId}
           AND el."normalizedEventJson"->>'orderId' = ${orderId}
@@ -95,7 +92,7 @@ export async function reconcileOrder(
         }>,
       }));
     } catch (rawQueryError) {
-      // 回退到应用层过滤（移除 take 限制以确保找到所有匹配的事件）
+
       logger.warn("Raw SQL query failed, falling back to application-level filtering", {
         error: rawQueryError instanceof Error ? rawQueryError.message : String(rawQueryError),
         shopId,
@@ -118,10 +115,9 @@ export async function reconcileOrder(
           },
         },
         orderBy: { createdAt: "desc" },
-        // 移除 take 限制，在应用层过滤
+
       });
 
-      // 在应用层过滤 orderId
       formattedEvents = allEvents
         .filter(event => {
           const normalizedEvent = event.normalizedEventJson as Record<string, unknown> | null;
@@ -136,14 +132,13 @@ export async function reconcileOrder(
         }));
     }
 
-    // 从第一个匹配的事件中提取 Shopify 订单信息
     let shopifyOrder: { orderId: string; orderValue: number; currency: string } | null = null;
     if (formattedEvents.length > 0) {
       const firstEvent = formattedEvents[0];
       const normalizedEvent = firstEvent.normalizedEventJson as Record<string, unknown> | null;
       const value = (normalizedEvent?.value as number) || 0;
       const currency = (normalizedEvent?.currency as string) || "USD";
-      
+
       shopifyOrder = {
         orderId,
         orderValue: value,
@@ -151,7 +146,6 @@ export async function reconcileOrder(
       };
     }
 
-    // 从 DeliveryAttempt 中提取平台事件信息
     const platformEventsMap = new Map<string, {
       platform: string;
       eventValue: number;
@@ -169,13 +163,12 @@ export async function reconcileOrder(
       for (const attempt of eventLog.DeliveryAttempt) {
         const platform = attempt.destinationType;
         const key = `${platform}-${eventLog.eventName}`;
-        
-        // 如果该平台已有记录，保留状态为 "ok" 的记录
+
         if (!platformEventsMap.has(key) || attempt.status === "ok") {
-          // 尝试从 requestPayloadJson 中提取更准确的值
+
           let finalValue = eventValue;
           let finalCurrency = currency;
-          
+
           if (attempt.requestPayloadJson) {
             const requestPayload = attempt.requestPayloadJson as Record<string, unknown> | null;
             if (platform === "google") {
@@ -319,11 +312,11 @@ export async function getReconciliationSummary(
   >;
 }> {
   try {
-    // P0: 使用 EventLog + DeliveryAttempt 作为数据源
+
     const eventLogs = await prisma.eventLog.findMany({
       where: {
         shopId,
-        eventName: { in: ["checkout_completed", "purchase"] }, // 主要关注购买事件
+        eventName: { in: ["checkout_completed", "purchase"] },
         createdAt: {
           gte: startDate,
           lte: endDate,
@@ -352,16 +345,14 @@ export async function getReconciliationSummary(
       }
     > = {};
 
-    // 从 EventLog 中提取 orderId 和平台信息
     for (const eventLog of eventLogs) {
       const normalizedEvent = eventLog.normalizedEventJson as Record<string, unknown> | null;
       const orderId = normalizedEvent?.orderId as string | undefined;
-      
+
       if (orderId) {
         orderIds.add(orderId);
       }
 
-      // 统计每个平台的事件数
       for (const attempt of eventLog.DeliveryAttempt) {
         const platform = attempt.destinationType;
         if (!byPlatform[platform]) {

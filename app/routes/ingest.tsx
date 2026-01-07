@@ -1,42 +1,4 @@
-/**
- * P0-1: PRD 对齐 - POST /ingest 端点
- * 
- * PRD 8.2 要求：
- * - POST /ingest
- * - Body: { events: [...] } (批量)
- * - signed payload (HMAC + timestamp)
- * 
- * 此路由实现 PRD 要求的批量事件接口，完全符合 PRD 8.2 规范：
- * - 支持批量事件格式：{ events: [event1, event2, ...] }
- * - 支持 HMAC 签名验证（X-Tracking-Guardian-Signature header）
- * - 支持时间戳验证（X-Tracking-Guardian-Timestamp header 或 body 中的 timestamp）
- * - 同时保留对单事件格式的向后兼容（自动检测格式）
- * 
- * P0-1: 字段名兼容性
- * - ✅ 支持 PRD 格式：{ event_name, event_id, ts, context, data }
- * - ✅ 支持内部格式：{ eventName, nonce, timestamp, shopDomain, data }
- * - ✅ 自动检测并标准化字段名（通过 validateRequest 函数）
- * 
- * 审计结论对齐：
- * - ✅ 已实现 PRD 8.2 要求的批量事件接口格式
- * - ✅ Web Pixel Extension 使用批量格式发送事件到 /ingest 端点（extensions/tracking-pixel/src/events.ts）
- * - ✅ 支持 batched 性能目标（减少网络请求数，提高并发处理能力）
- * - ✅ 接口形态与 PRD 8.2 完全一致，解决了审计结论中的"Ingest API 形态不一致"问题
- * 
- * 接口格式：
- * - 批量格式：{ events: [event1, event2, ...], timestamp?: number }
- *   - 事件格式支持两种：
- *     - PRD 格式：{ event_name, event_id, ts, context, data }
- *     - 内部格式：{ eventName, nonce, timestamp, shopDomain, data }
- * - 单事件格式（向后兼容）：直接发送单个事件对象，委托给 /api/pixel-events
- * 
- * 端点说明：
- * - POST /ingest：PRD 推荐的主要端点，支持批量格式（符合 PRD 8.2）
- * - POST /api/ingest：向后兼容别名，委托给 /ingest
- * - POST /api/pixel-events：实际实现端点（内部使用），支持单事件格式
- * 
- * Web Pixel Extension 使用批量格式发送事件，提高性能
- */
+
 
 import type { ActionFunctionArgs, LoaderFunctionArgs } from "@remix-run/node";
 import { action as pixelEventsAction, loader as pixelEventsLoader } from "./api.pixel-events/route";
@@ -49,7 +11,7 @@ import { validatePixelEventHMAC } from "./api.pixel-events/hmac-validation";
 import { validateRequest, isPrimaryEvent } from "./api.pixel-events/validation";
 import { API_CONFIG, RATE_LIMIT_CONFIG } from "~/utils/config";
 import { isDevMode } from "~/utils/origin-validation";
-import { 
+import {
   generateEventIdForType,
   generateOrderMatchKey,
   isClientEventRecorded,
@@ -62,17 +24,12 @@ import { checkInitialConsent } from "./api.pixel-events/consent-filter";
 import { checkRateLimitAsync } from "~/middleware/rate-limit";
 import { safeFireAndForget } from "~/utils/helpers";
 
-const MAX_BATCH_SIZE = 100; // 批量事件最大数量
+const MAX_BATCH_SIZE = 100;
 const TIMESTAMP_WINDOW_MS = API_CONFIG.TIMESTAMP_WINDOW_MS;
 const INGEST_RATE_LIMIT = RATE_LIMIT_CONFIG.PIXEL_EVENTS;
 
-/**
- * PRD 定义的 POST /ingest 端点
- * 支持批量事件格式：{ events: [...] }
- * 同时保留对单事件格式的向后兼容
- */
 export const action = async ({ request }: ActionFunctionArgs) => {
-  // 检查 Content-Type
+
   const contentType = request.headers.get("Content-Type");
   if (!contentType || (!contentType.includes("application/json") && !contentType.includes("text/plain"))) {
     return jsonWithCors(
@@ -81,7 +38,6 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     );
   }
 
-  // 解析请求体
   let bodyText: string;
   let bodyData: unknown;
   try {
@@ -94,15 +50,14 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     );
   }
 
-  // 判断是批量格式还是单事件格式
-  const isBatchFormat = 
-    typeof bodyData === "object" && 
-    bodyData !== null && 
-    "events" in bodyData && 
+  const isBatchFormat =
+    typeof bodyData === "object" &&
+    bodyData !== null &&
+    "events" in bodyData &&
     Array.isArray((bodyData as { events?: unknown }).events);
 
   if (isBatchFormat) {
-    // PRD 要求的批量格式：{ events: [...] }
+
     const batchData = bodyData as { events: unknown[]; timestamp?: number };
     const events = batchData.events || [];
 
@@ -120,7 +75,6 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       );
     }
 
-    // 验证第一个事件以获取 shopDomain（用于 HMAC 验证）
     const firstEventValidation = validateRequest(events[0]);
     if (!firstEventValidation.valid) {
       return jsonWithCors(
@@ -133,7 +87,6 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     const shopDomain = firstPayload.shopDomain;
     const timestamp = batchData.timestamp || firstPayload.timestamp;
 
-    // HMAC 验证（使用批量请求的 timestamp）
     const signature = request.headers.get("X-Tracking-Guardian-Signature");
     const isProduction = !isDevMode();
     const environment = (firstPayload.data as { environment?: "test" | "live" })?.environment || "live";
@@ -203,18 +156,16 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       }
     }
 
-    // P0-4: 确定事件模式 - 优先从 pixelConfigs 读取，默认使用 purchase_only（隐私最小化）
     const pixelConfigs = shop.pixelConfigs;
-    let mode: "purchase_only" | "full_funnel" = "purchase_only"; // 默认 purchase_only，符合隐私最小化原则
-    
-    // 从所有配置中查找 mode 设置（优先 full_funnel）
+    let mode: "purchase_only" | "full_funnel" = "purchase_only";
+
     for (const config of pixelConfigs) {
       if (config.clientConfig && typeof config.clientConfig === 'object') {
         if ('mode' in config.clientConfig) {
           const configMode = config.clientConfig.mode;
           if (configMode === 'full_funnel') {
             mode = "full_funnel";
-            break; // 找到 full_funnel 就停止
+            break;
           } else if (configMode === 'purchase_only' && mode !== 'full_funnel') {
             mode = "purchase_only";
           }
@@ -222,37 +173,31 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       }
     }
 
-    // P0-4: 批量处理中的 purchase 事件需要写 receipt/nonce（强去重/强可靠）
-    // 非 purchase 事件只通过 processEventPipeline 写入 EventLog + DeliveryAttempt
-    // 这避免了 page_viewed 等高频事件导致数据库写入 QPS 过高的问题
-    
-    // 验证并处理批量事件
     const validatedEvents: Array<{
       payload: PixelEventPayload;
       eventId: string | null;
       destinations: string[];
     }> = [];
-    
+
     const origin = request.headers.get("Origin");
-    
-    // P0-4: 构建 keyValidation（基于 HMAC 验证结果）
+
     const keyValidation: KeyValidationResult = (() => {
       if (isProduction) {
-        // 生产环境：如果到达这里，HMAC 验证肯定已通过（失败会在上方返回 403）
+
         return {
           matched: true,
           reason: "hmac_verified",
         };
       } else {
-        // 开发环境：根据实际的 HMAC 验证结果设置
+
         if (signature && shop.ingestionSecret) {
-          // 开发环境：如果有 signature 且验证通过，标记为已验证
+
           return {
             matched: true,
             reason: "hmac_verified",
           };
         } else {
-          // 开发环境：如果没有 signature 或没有进行验证，允许通过但标记为未验证
+
           return {
             matched: !signature || !shop.ingestionSecret,
             reason: !signature ? "no_signature_in_dev" : (!shop.ingestionSecret ? "no_secret_in_dev" : "hmac_not_verified"),
@@ -268,12 +213,11 @@ export const action = async ({ request }: ActionFunctionArgs) => {
           shopDomain,
           error: eventValidation.error,
         });
-        continue; // 跳过无效事件，继续处理其他事件
+        continue;
       }
 
       const payload = eventValidation.payload;
-      
-      // 确保所有事件来自同一个 shop
+
       if (payload.shopDomain !== shopDomain) {
         logger.warn(`Event at index ${i} has different shopDomain`, {
           expected: shopDomain,
@@ -282,23 +226,18 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         continue;
       }
 
-      // P0-4: 在 purchase_only 模式下，非主事件应该直接跳过，不写任何数据库记录
-      // 这避免了 page_viewed 等高频事件导致数据库写入 QPS 过高的问题
       if (!isPrimaryEvent(payload.eventName, mode)) {
         logger.debug(`Event ${payload.eventName} at index ${i} not accepted for ${shopDomain} (mode: ${mode}) - skipping`);
-        continue; // 跳过非主事件，不加入 validatedEvents
+        continue;
       }
 
-      // P0-1: 优先使用 PRD 格式的 event_id（如果提供）
-      // 如果客户端提供了 event_id（通过 PRD 格式），优先使用它；否则生成新的 eventId
-      const prdEventId = payload.nonce; // validation.ts 已将 PRD 格式的 event_id 映射到 nonce 字段
-      
-      // 生成 eventId
+      const prdEventId = payload.nonce;
+
       const eventType = payload.eventName === "checkout_completed" ? "purchase" : payload.eventName;
       const isPurchaseEvent = eventType === "purchase";
-      
-      const items = payload.data.items as Array<{ 
-        id?: string; 
+
+      const items = payload.data.items as Array<{
+        id?: string;
         quantity?: number | string;
         variantId?: string;
         variant_id?: string;
@@ -307,25 +246,24 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       }> | undefined;
       const normalizedItems = items?.map(item => ({
         id: String(
-          item.variantId || 
-          item.variant_id || 
-          item.productId || 
-          item.product_id || 
-          item.id || 
+          item.variantId ||
+          item.variant_id ||
+          item.productId ||
+          item.product_id ||
+          item.id ||
           ""
         ).trim(),
-        quantity: typeof item.quantity === "number" 
+        quantity: typeof item.quantity === "number"
           ? Math.max(1, Math.floor(item.quantity))
           : typeof item.quantity === "string"
           ? Math.max(1, parseInt(item.quantity, 10) || 1)
           : 1,
       })).filter(item => item.id) || [];
 
-      // P0-4: 对于 purchase 事件，需要生成 orderId 并写 receipt/nonce
       let orderId: string | null = null;
       let usedCheckoutTokenAsFallback = false;
       let eventIdentifier: string | null = null;
-      
+
       if (isPurchaseEvent) {
         try {
           const matchKeyResult = generateOrderMatchKey(
@@ -336,8 +274,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
           orderId = matchKeyResult.orderId;
           usedCheckoutTokenAsFallback = matchKeyResult.usedCheckoutTokenAsFallback;
           eventIdentifier = orderId;
-          
-          // P0-4: 检查是否已记录（去重）
+
           const alreadyRecorded = await isClientEventRecorded(shop.id, orderId, eventType);
           if (alreadyRecorded) {
             logger.debug(`Purchase event already recorded for order ${orderId}, skipping`, {
@@ -345,11 +282,9 @@ export const action = async ({ request }: ActionFunctionArgs) => {
               orderId,
               eventType,
             });
-            continue; // 跳过已记录的事件
+            continue;
           }
-          
-          // P0-4: 创建 nonce（防重放）
-          // P0-1: 如果提供了 PRD 格式的 event_id，使用它作为 nonce
+
           const nonceFromBody = prdEventId || payload.nonce;
           const nonceResult = await createEventNonce(
             shop.id,
@@ -364,17 +299,17 @@ export const action = async ({ request }: ActionFunctionArgs) => {
               orderId,
               eventType,
             });
-            continue; // 跳过重放事件
+            continue;
           }
         } catch (error) {
           logger.warn(`Failed to process purchase event at index ${i}`, {
             shopDomain,
             error: error instanceof Error ? error.message : String(error),
           });
-          continue; // 跳过处理失败的事件
+          continue;
         }
       } else {
-        // 对于非 purchase 事件，使用 checkoutToken 或生成临时 identifier
+
         const checkoutToken = payload.data.checkoutToken;
         if (checkoutToken) {
           orderId = checkoutToken;
@@ -385,23 +320,20 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         }
       }
 
-      // P0-1: 优先使用 PRD 格式的 event_id，如果未提供则生成新的
-      // P1-4: 传递 nonce 参数用于 fallback 去重
       const eventId = prdEventId || generateEventIdForType(
         eventIdentifier,
         eventType,
         shopDomain,
         payload.data.checkoutToken,
         normalizedItems.length > 0 ? normalizedItems : undefined,
-        payload.nonce || null // P1-4: 传递 nonce 用于 fallback 去重
+        payload.nonce || null
       );
 
-      // P0-4: 对于 purchase 事件，写入 receipt
       if (isPurchaseEvent && orderId) {
         try {
           const trustResult = evaluateTrustLevel(keyValidation, !!payload.data.checkoutToken);
           const originHost = origin ? new URL(origin).host : null;
-          
+
           await upsertPixelEventReceipt(
             shop.id,
             orderId,
@@ -419,24 +351,20 @@ export const action = async ({ request }: ActionFunctionArgs) => {
             orderId,
             error: error instanceof Error ? error.message : String(error),
           });
-          // 继续处理，不阻塞事件发送
+
         }
       }
 
-      // 获取目标平台（从 shop 的 pixelConfigs）
-      // 注意：pixelConfigs 已在上面获取 mode 时使用
-      // P0-3: 只处理启用 client-side 的配置（因为事件来自 Web Pixel Extension）
       const clientSideConfigs = pixelConfigs.filter(config => config.clientSideEnabled === true);
       const destinations = clientSideConfigs.map(config => config.platform);
-      
-      // P0-4: 检查 consent（与单事件处理保持一致）
+
       const consentResult = checkInitialConsent(payload.consent);
       if (!consentResult.hasAnyConsent) {
         logger.debug(`Event at index ${i} has no consent, skipping`, {
           shopDomain,
           eventName: payload.eventName,
         });
-        continue; // 跳过无 consent 的事件
+        continue;
       }
 
       validatedEvents.push({
@@ -446,7 +374,6 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       });
     }
 
-    // P0-4: 如果所有事件都被过滤（purchase_only 模式下只有非主事件），返回成功但 accepted_count=0
     if (validatedEvents.length === 0) {
       logger.debug(`All events filtered for ${shopDomain} (mode: ${mode}) - returning empty accepted_count`);
       return jsonWithCors(
@@ -458,7 +385,6 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       );
     }
 
-    // 批量处理事件
     safeFireAndForget(
       processBatchEvents(shop.id, validatedEvents, environment).then((results) => {
         const successCount = results.filter(r => r.success).length;
@@ -480,10 +406,6 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       }
     );
 
-    // PRD 8.2: 返回格式严格符合 PRD 规范
-    // Response: { accepted_count: number, errors: Array<{ index: number, event_id?: string, event_name?: string, error: string }> }
-    // - accepted_count: 已接受处理的事件数量
-    // - errors: 失败事件的错误信息数组（异步处理时返回空数组）
     return jsonWithCors(
       {
         accepted_count: validatedEvents.length,
@@ -492,14 +414,11 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       { request }
     );
   } else {
-    // 单事件格式（向后兼容），委托给 /api/pixel-events
+
     return pixelEventsAction({ request, params: {}, context: {} as any });
   }
 };
 
-/**
- * GET /ingest 端点（用于健康检查）
- */
 export const loader = async (args: LoaderFunctionArgs) => {
   return pixelEventsLoader(args);
 };

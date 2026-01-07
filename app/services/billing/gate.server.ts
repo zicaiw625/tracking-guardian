@@ -263,10 +263,9 @@ export async function checkAndReserveBillingSlot(
     const planConfig = getPlanOrDefault(shopPlan);
     const limit = planConfig.monthlyOrderLimit;
 
-    // Retry logic for Serializable isolation level (can cause serialization failures P40001)
     const maxRetries = 3;
     let lastError: unknown;
-    
+
     for (let attempt = 0; attempt < maxRetries; attempt++) {
       try {
         const result = await prisma.$transaction(async (tx) => {
@@ -316,10 +315,10 @@ export async function checkAndReserveBillingSlot(
 
       await tx.monthlyUsage.upsert({
         where: { shopId_yearMonth: { shopId, yearMonth } },
-        create: { 
-          id: randomUUID(), 
-          shopId, 
-          yearMonth, 
+        create: {
+          id: randomUUID(),
+          shopId,
+          yearMonth,
           sentCount: 0,
           updatedAt: new Date(),
         },
@@ -360,7 +359,7 @@ export async function checkAndReserveBillingSlot(
       };
     }, {
           isolationLevel: "Serializable",
-          maxWait: 5000, // Maximum time to wait for a transaction slot
+          maxWait: 5000,
         });
 
         if (result.success && !result.alreadyCounted) {
@@ -370,27 +369,23 @@ export async function checkAndReserveBillingSlot(
         return ok(result);
       } catch (error) {
         lastError = error;
-        
-        // Check if it's a serialization failure (deadlock or serialization error)
+
         const isPrismaError_ = error && typeof error === 'object' && 'code' in error;
         const errorCode = isPrismaError_ ? (error as { code?: string }).code : null;
-        
-        // P40001 = serialization failure, P40xxx = deadlock
+
         const isSerializationError = errorCode === 'P40001' || (errorCode?.startsWith('P40') ?? false);
-        
+
         if (isSerializationError && attempt < maxRetries - 1) {
-          // Exponential backoff: 50ms, 100ms, 200ms
+
           const backoffMs = 50 * Math.pow(2, attempt);
           await new Promise(resolve => setTimeout(resolve, backoffMs));
-          continue; // Retry the transaction
+          continue;
         }
-        
-        // Not a retryable error or max retries exceeded
+
         throw error;
       }
     }
-    
-    // If we get here, all retries failed
+
     return err({
       type: "DATABASE_ERROR",
       message: lastError instanceof Error ? lastError.message : "Unknown database error after retries",

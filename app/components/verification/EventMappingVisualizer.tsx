@@ -50,7 +50,6 @@ export function EventMappingVisualizer({
 
         <Divider />
 
-        {}
         <BlockStack gap="300">
           <Text as="h4" variant="headingSm">
             📋 规范化事件（Canonical Schema）
@@ -141,7 +140,6 @@ export function EventMappingVisualizer({
 
         <Divider />
 
-        {}
         <BlockStack gap="300">
           <Text as="h4" variant="headingSm">
             🎯 平台映射
@@ -233,7 +231,6 @@ export function EventMappingVisualizer({
 
         <Divider />
 
-        {}
         <BlockStack gap="200">
           <Text as="h4" variant="headingSm">
             📦 原始 Shopify 事件 Payload

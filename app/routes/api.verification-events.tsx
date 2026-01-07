@@ -39,7 +39,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
           try {
             controller.close();
           } catch (error) {
-            // Stream may already be closed
+
           }
         }
       };
@@ -91,7 +91,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 
       const pollEvents = async () => {
         try {
-          // P0-T6: 使用 event_logs + delivery_attempts 作为数据源
+
           const whereClause: Prisma.EventLogWhereInput = {
             shopId: shop.id,
             ...(eventTypes.length > 0 && { eventName: { in: eventTypes } }),
@@ -165,7 +165,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
               trustLevel: string | null;
               hasConsent: boolean;
             };
-            // P0-T6: 添加 eventLogId 和 deliveryAttemptId 以便 UI 获取实际 payload
+
             eventLogId?: string;
             deliveryAttemptId?: string;
           }> = [];
@@ -173,19 +173,16 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
           for (const eventLog of eventLogs) {
             if (lastEventId && eventLog.id === lastEventId) continue;
 
-            // 从 shopifyContextJson 或 normalizedEventJson 中提取 orderId
             const shopifyContext = eventLog.shopifyContextJson as Record<string, unknown> | null;
             const normalizedEvent = eventLog.normalizedEventJson as Record<string, unknown> | null;
             const orderId = (shopifyContext?.orderId || normalizedEvent?.orderId || "") as string;
 
-            // 为每个 delivery attempt 创建一个事件
             for (const attempt of eventLog.DeliveryAttempt) {
-              // 从 requestPayloadJson 中提取参数
+
               const requestPayload = attempt.requestPayloadJson as Record<string, unknown> | null;
               let value: number | undefined;
               let currency: string | undefined;
 
-              // 根据平台解析 payload
               if (attempt.destinationType === "google") {
                 const body = requestPayload?.body as Record<string, unknown> | undefined;
                 const events = body?.events as Array<Record<string, unknown>> | undefined;
@@ -218,7 +215,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
               if (!currency) missingParams.push("currency");
               if (!hasEventId) missingParams.push("event_id");
 
-              const status = attempt.status === "ok" ? "success" : 
+              const status = attempt.status === "ok" ? "success" :
                            attempt.status === "fail" ? "failed" : "pending";
 
               events.push({
@@ -234,7 +231,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
                   hasEventId,
                 },
                 errors: attempt.errorDetail ? [attempt.errorDetail] : undefined,
-                // P0-T6: 添加 eventLogId 和 deliveryAttemptId 以便 UI 获取实际 payload
+
                 eventLogId: eventLog.id,
                 deliveryAttemptId: attempt.id,
               });
@@ -244,7 +241,6 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
               }
             }
 
-            // 如果没有 delivery attempts，仍然创建一个事件记录
             if (eventLog.DeliveryAttempt.length === 0) {
               events.push({
                 id: eventLog.id,
@@ -256,7 +252,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
                 params: {
                   hasEventId: !!eventLog.eventId,
                 },
-                // P0-T6: 添加 eventLogId 以便 UI 获取实际 payload
+
                 eventLogId: eventLog.id,
               });
 
@@ -274,7 +270,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
           sendMessage("error", {
             message: error instanceof Error ? error.message : "Failed to fetch events",
           });
-          // Don't close on single error, but cleanup if stream is broken
+
           if (isClosed) {
             cleanup();
           }
@@ -289,7 +285,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       });
     },
     cancel() {
-      // Ensure cleanup when stream is cancelled
+
       if (intervalId !== null) {
         clearInterval(intervalId);
         intervalId = null;

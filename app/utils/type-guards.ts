@@ -137,7 +137,6 @@ export function isPrismaError(error: unknown): error is Error & PrismaError {
     return false;
   }
 
-  // Error对象本身不是Record类型，但我们可以检查其属性
   const err = error as Error & { code?: unknown; meta?: unknown };
   return (
     typeof err.code === "string" &&

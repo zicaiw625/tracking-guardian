@@ -44,18 +44,16 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   const format = url.searchParams.get("format") || "html";
   const days = parseInt(url.searchParams.get("days") || "7", 10);
   const runId = url.searchParams.get("runId") || undefined;
-  
-  // PDF/CSV 导出需要 Go-Live 或 Agency 计划（报告导出功能）
-  // HTML 格式和分享链接是免费的
+
   if (format === "pdf" || format === "csv") {
-    // P1-5: 服务端 entitlement 硬门禁 - 使用 requireEntitlementOrThrow 确保无法绕过
+
     try {
       const { requireEntitlementOrThrow } = await import("../services/billing/entitlement.server");
       await requireEntitlementOrThrow(shop.id, "report_export");
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : "权限不足";
       return new Response(
-        JSON.stringify({ 
+        JSON.stringify({
           error: errorMessage || "报告导出（PDF/CSV）需要 Go-Live 或 Agency 套餐。免费版和 Migration 版只能查看和分享链接。",
           requiredPlan: "Go-Live",
         }),
@@ -66,7 +64,6 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       );
     }
 
-    // P2-9: PDF/CSV 导出改为异步任务（避免阻塞请求）
     const asyncParam = url.searchParams.get("async");
     if (asyncParam !== "false") {
       const job = await createReportJob({
@@ -87,7 +84,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       });
     }
   }
-  
+
   logger.info(`Report generation requested: ${reportType} (${format}) for ${shop.shopDomain}`);
   try {
     let html: string | undefined;

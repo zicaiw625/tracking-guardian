@@ -19,7 +19,7 @@ import {
 import {
   classifyHttpError,
   classifyJsError,
-  // P0-3: v1.0 版本不包含任何 PCD/PII 处理，因此移除 hashUserData 导入
+
 } from "./base-platform.service";
 
 const TWITTER_API_BASE_URL = "https://ads-api.twitter.com";
@@ -155,13 +155,10 @@ export class TwitterPlatformService implements IPlatformService {
   ): Promise<Record<string, unknown>> {
     const eventTime = new Date().toISOString();
 
-    // P0-3: v1.0 版本不包含任何 PCD/PII 处理，因此不包含任何用户标识符
-    // v1.0 仅依赖 Web Pixels 标准事件，不处理任何客户数据（包括 hash 形态）
-
     return {
       conversion_time: eventTime,
       event_id: eventId,
-      // P0-3: v1.0 版本 identifiers 数组为空，不包含任何 PII（包括 hashed_email/hashed_phone_number）
+
       identifiers: [],
       conversion_event: TWITTER_EVENT_TYPES.purchase,
       value: data.value.toString(),
@@ -184,8 +181,6 @@ export class TwitterPlatformService implements IPlatformService {
   ): Promise<ConversionApiResponse> {
     const eventTime = new Date().toISOString();
 
-    // P0-3: v1.0 版本不包含任何 PCD/PII 处理，因此 identifiers 数组为空
-    // v1.0 仅依赖 Web Pixels 标准事件，不处理任何客户数据（包括 hash 形态）
     const identifiers: Array<Record<string, string>> = [];
 
     const eventPayload = {

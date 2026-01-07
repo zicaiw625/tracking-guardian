@@ -104,7 +104,6 @@ export async function executeBatchScan(
 
       const scanResult = await scanShopTracking(admin, shopId);
 
-      // Create ScanReport record in database
       const scanReport = await prisma.scanReport.create({
         data: {
           id: randomUUID(),
@@ -145,7 +144,7 @@ export async function executeBatchScan(
   for (let i = 0; i < shopIds.length; i += concurrency) {
     const batch = shopIds.slice(i, i + concurrency);
     const batchResults = await Promise.all(batch.map(processShop));
-    
+
     for (const result of batchResults) {
       job.results.push(result);
       if (result.status === "success") {
@@ -205,7 +204,7 @@ export async function getBatchScanSummary(job: BatchScanJob): Promise<{
   };
 
   const successResults = job.results.filter((r) => r.status === "success" && r.scanReportId);
-  
+
   await Promise.all(
     successResults.map(async (result) => {
       try {

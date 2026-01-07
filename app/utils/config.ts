@@ -1,5 +1,5 @@
-// Use console for logging to avoid server-only module imports
-// These functions are safe to use in both client and server contexts
+
+
 function logWarn(message: string) {
   console.warn(message);
 }
@@ -426,20 +426,16 @@ export function isDevelopment(): boolean {
     return process.env.NODE_ENV !== "production";
 }
 
-// P0-2: v1.0 版本不包含任何 PCD/PII 处理，因此移除 PCD_CONFIG
-// v1.0 仅依赖 Web Pixels 标准事件，不处理任何客户数据
-
 export const     FEATURE_FLAGS = {
-    
+
     FUNNEL_EVENTS: getBoolEnv("FEATURE_FUNNEL_EVENTS", false),
-    
+
     DEBUG_LOGGING: getBoolEnv("FEATURE_DEBUG_LOGGING", false),
-    
+
     EXTENDED_PAYLOAD: getBoolEnv("FEATURE_EXTENDED_PAYLOAD", false),
-    
+
     TRACKING_API: getBoolEnv("FEATURE_TRACKING_API", false),
-    
-    // P0-2: v1.0 版本不包含任何 PCD/PII 处理，因此移除 PII_HASHING feature flag
+
     CHECKOUT_BLOCKS: getBoolEnv("FEATURE_CHECKOUT_BLOCKS", false),
 } as const;
 
@@ -461,7 +457,7 @@ export function getFeatureFlagsSummary(): Record<string, { enabled: boolean; sou
             enabled: FEATURE_FLAGS.TRACKING_API,
             source: process.env.FEATURE_TRACKING_API ? "env" : "default",
         },
-        // P0-2: v1.0 版本不包含任何 PCD/PII 处理，因此移除 PII_HASHING feature flag
+
         checkoutBlocks: {
             enabled: FEATURE_FLAGS.CHECKOUT_BLOCKS,
             source: process.env.FEATURE_CHECKOUT_BLOCKS ? "env" : "default",
@@ -474,21 +470,21 @@ export function logConfigStatus(): void {
 
     logInfo("\n=== Configuration Status ===");
     logInfo(`Environment: ${typeof process !== 'undefined' ? (process.env.NODE_ENV || "development") : "unknown"}`);
-    
+
     if (result.errors.length > 0) {
         logError("\n❌ Configuration Errors:");
         for (const error of result.errors) {
             logError(`   - ${error}`);
         }
     }
-    
+
     if (result.warnings.length > 0) {
         logWarn("\n⚠️ Configuration Warnings:");
         for (const warning of result.warnings) {
             logWarn(`   - ${warning}`);
         }
     }
-    
+
     if (result.valid && result.warnings.length === 0) {
         logInfo("\n✅ All configuration checks passed");
     }
@@ -544,8 +540,6 @@ export const CONFIG = {
     cron: CRON_CONFIG,
 
     features: FEATURE_FLAGS,
-
-    // P0-2: v1.0 版本不包含任何 PCD/PII 处理，因此移除 PCD_CONFIG
 
     getEnv,
     getRequiredEnv,
@@ -629,19 +623,9 @@ export function getPixelEventIngestionUrl(): {
     }
 }
 
-/**
- * P0-1: 获取像素事件端点 URL
- * 
- * 路径优先级（符合 PRD）：
- * - /ingest: PRD 中定义的主要端点（推荐）
- * - /api/ingest: 向后兼容别名
- * - /api/pixel-events: 实际实现端点（内部使用）
- * 
- * 默认返回 /ingest 以符合 PRD 要求
- */
 export function getPixelEventEndpoint(): string {
     const { url } = getPixelEventIngestionUrl();
-    // P0-1: 使用 PRD 中定义的 /ingest 端点作为默认
+
     return `${url}/ingest`;
 }
 
@@ -670,7 +654,7 @@ export function getConfigSummary(): Record<string, unknown> {
         },
         retention: getRetentionConfigSummary(),
         features: getFeatureFlagsSummary(),
-        // P0-2: v1.0 版本不包含任何 PCD/PII 处理，因此移除 PCD 配置摘要
+
         shopifyApiVersion: CONFIG.shopify.VERSION,
     };
 }

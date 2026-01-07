@@ -1,7 +1,3 @@
--- P0-4: v1.0 版本不包含任何 PCD/PII 处理，此文件中的 PII 字段已移除
--- v1.0 仅依赖 Web Pixels 标准事件，不处理任何客户数据
--- 已移除：Shop.piiEnabled, Shop.pcdAcknowledged, Shop.pcdAcknowledgedAt, AuditLog.ipAddress, AuditLog.userAgent
--- 注意：Session 表中的 firstName/lastName/email 是 Shopify 框架标准字段，需要保留
 
 
 CREATE TABLE "Session" (
@@ -35,7 +31,7 @@ CREATE TABLE "Shop" (
     "installedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "uninstalledAt" TIMESTAMP(3),
     "isActive" BOOLEAN NOT NULL DEFAULT true,
-    -- P0-4: v1.0 版本不包含任何 PCD/PII 处理，因此移除 piiEnabled, pcdAcknowledged, pcdAcknowledgedAt 字段
+
     "weakConsentMode" BOOLEAN NOT NULL DEFAULT false,
     "consentStrategy" TEXT NOT NULL DEFAULT 'strict',
     "dataRetentionDays" INTEGER NOT NULL DEFAULT 90,
@@ -184,7 +180,7 @@ CREATE TABLE "AuditLog" (
     "previousValue" JSONB,
     "newValue" JSONB,
     "metadata" JSONB,
-    -- P0-4: v1.0 版本不包含任何 PCD/PII 处理，因此移除 ipAddress 和 userAgent 字段
+
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT "AuditLog_pkey" PRIMARY KEY ("id")

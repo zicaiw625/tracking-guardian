@@ -372,8 +372,7 @@ export default function TemplatesPage() {
       showError("生成分享链接失败");
 
       if (process.env.NODE_ENV === "development") {
-        // 客户端调试输出：生成分享链接错误
-        // eslint-disable-next-line no-console
+
         console.error("Share link generation error", error);
       }
     } finally {
@@ -391,8 +390,7 @@ export default function TemplatesPage() {
       showError("复制失败，请手动复制");
 
       if (process.env.NODE_ENV === "development") {
-        // 客户端调试输出：复制错误
-        // eslint-disable-next-line no-console
+
         console.error("Copy error", error);
       }
     }
@@ -485,7 +483,6 @@ export default function TemplatesPage() {
           </BlockStack>
         </Banner>
 
-        {}
         <Card>
           <BlockStack gap="400">
             <InlineStack align="space-between" blockAlign="center">
@@ -585,7 +582,6 @@ export default function TemplatesPage() {
           </BlockStack>
         </Card>
 
-        {}
         {publicTemplates.length > 0 && (
           <Card>
             <BlockStack gap="400">
@@ -634,7 +630,6 @@ export default function TemplatesPage() {
           </Card>
         )}
 
-        {}
         <Modal
           open={showCreateModal || editingTemplate !== null}
           onClose={() => {
@@ -696,7 +691,6 @@ export default function TemplatesPage() {
           </Modal.Section>
         </Modal>
 
-        {}
         <Modal
           open={sharingTemplate !== null}
           onClose={() => {
@@ -802,7 +796,6 @@ export default function TemplatesPage() {
           </Modal.Section>
         </Modal>
 
-        {}
         <Modal
           open={previewingTemplate !== null}
           onClose={() => setPreviewingTemplate(null)}

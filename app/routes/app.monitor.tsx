@@ -73,15 +73,13 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
         });
     }
     const summary = await getDeliveryHealthSummary(shop.id);
-    // P2-9: 性能优化 - 默认只显示最近 24 小时的数据，避免加载过多数据
-    const history = await getDeliveryHealthHistory(shop.id, 1); // 改为 1 天，减少初始加载
 
-    // P0-T8: 使用 delivery_attempts 作为数据源
+    const history = await getDeliveryHealthHistory(shop.id, 1);
+
     const sevenDaysAgo = new Date();
     sevenDaysAgo.setUTCDate(sevenDaysAgo.getUTCDate() - 7);
     sevenDaysAgo.setUTCHours(0, 0, 0, 0);
-    
-    // 从 delivery_attempts 聚合统计
+
     const deliveryAttempts = await prisma.deliveryAttempt.findMany({
         where: {
             shopId: shop.id,
@@ -93,7 +91,6 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
         },
     });
 
-    // 手动聚合统计
     const conversionStats = deliveryAttempts.reduce((acc, attempt) => {
         const key = `${attempt.destinationType}:${attempt.status}`;
         if (!acc[key]) {
@@ -104,7 +101,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     }, {} as Record<string, { platform: string; status: string; _count: number; _sum: { orderValue: number } }>);
 
     const appUrl = process.env.SHOPIFY_APP_URL || "";
-    // P0-T8: 使用 EventLog 获取最新事件信息
+
     const latestEventLog = await prisma.eventLog.findFirst({
         where: { shopId: shop.id },
         orderBy: { createdAt: "desc" },
@@ -265,8 +262,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 };
 export default function MonitorPage() {
   const loaderData = useLoaderData<typeof loader>();
-  
-  // P2: 免责声明 - 明确说明我们只保证生成与发送成功，不保证平台侧归因一致
+
   const { summary, history, conversionStats, configHealth, monitoringStats, missingParamsStats, volumeStats, monitoringAlert, missingParamsDetailed, lastUpdated, shop } = loaderData;
   const alertConfigs = "alertConfigs" in loaderData ? loaderData.alertConfigs : false;
   const alertCount = "alertCount" in loaderData ? loaderData.alertCount : 0;
@@ -451,7 +447,6 @@ export default function MonitorPage() {
             }
         ]}>
       <BlockStack gap="500">
-        {/* P2-2: 像素隐私/同意逻辑说明 - 对齐 Shopify Pixel Privacy 文档 */}
         <Banner tone="info" title="像素隐私与同意过滤说明">
           <BlockStack gap="200">
             <Text as="p" variant="bodySm">
@@ -489,7 +484,6 @@ export default function MonitorPage() {
           </BlockStack>
         </Banner>
 
-        {/* P2: 免责声明 - 明确说明我们只保证生成与发送成功，不保证平台侧归因一致 */}
         <Banner tone="info" title="重要说明：事件发送与平台归因">
           <BlockStack gap="200">
             <Text as="p" variant="bodySm">
@@ -554,7 +548,6 @@ export default function MonitorPage() {
           </BlockStack>
         </Banner>
 
-        {/* P2-2: 像素隐私/同意逻辑详细说明 */}
         <Banner tone="info" title="像素加载与事件发送的同意策略说明">
           <BlockStack gap="200">
             <Text as="p" variant="bodySm">
@@ -639,7 +632,6 @@ export default function MonitorPage() {
           </Banner>
         )}
 
-        {}
         {missingParamsStats && missingParamsStats.length > 0 && monitoringStats && monitoringStats.totalEvents > 0 && (() => {
           const totalMissing = missingParamsStats.reduce((sum, s) => sum + s.count, 0);
           const missingRate = (totalMissing / monitoringStats.totalEvents) * 100;
@@ -678,7 +670,6 @@ export default function MonitorPage() {
           ) : null;
         })()}
 
-        {}
         {volumeStats && volumeStats.isDrop && (
           <Banner
             title="事件量下降"
@@ -722,7 +713,6 @@ export default function MonitorPage() {
           </Banner>
         )}
 
-        {}
         {diagnosticsReport && (
           <DiagnosticsPanel
             report={{
@@ -735,7 +725,6 @@ export default function MonitorPage() {
           />
         )}
 
-        {}
         {shop && (
           <RealtimeEventMonitor
             shopId={shop.id}
@@ -743,7 +732,6 @@ export default function MonitorPage() {
           />
         )}
 
-        {}
         {successRateHistory && successRateHistory.overall && Array.isArray(successRateHistory.overall) && successRateHistory.overall.length > 0 && (
           <SuccessRateChart
             overall={successRateHistory.overall.filter((item): item is NonNullable<typeof item> => item !== null)}
@@ -756,7 +744,6 @@ export default function MonitorPage() {
           />
         )}
 
-        {}
         {eventVolumeHistory && Array.isArray(eventVolumeHistory) && eventVolumeHistory.length > 0 && volumeStats && (
           <EventVolumeChart
             historyData={eventVolumeHistory.filter((item): item is NonNullable<typeof item> => item !== null)}
@@ -767,7 +754,6 @@ export default function MonitorPage() {
           />
         )}
 
-        {}
         {monitoringStats && missingParamsStats && (
           <Card>
             <BlockStack gap="400">
@@ -808,7 +794,6 @@ export default function MonitorPage() {
                 </Banner>
               ) : (
                 <BlockStack gap="300">
-                  {}
                   <Box background="bg-surface-secondary" padding="300" borderRadius="200">
                     <InlineStack align="space-between" blockAlign="center">
                       <BlockStack gap="100">
@@ -840,7 +825,6 @@ export default function MonitorPage() {
 
                   <Divider />
 
-                  {}
                   {monitoringStats.totalEvents > 0 && (
                     <Box
                       background={(() => {
@@ -903,7 +887,6 @@ export default function MonitorPage() {
                     </Box>
                   )}
 
-                  {}
                   <Text as="h3" variant="headingSm">
                     详细统计
                   </Text>
@@ -956,7 +939,6 @@ export default function MonitorPage() {
                 </BlockStack>
               )}
 
-              {}
               {missingParamsDetailed && (
                 <>
                   <Divider />
@@ -964,7 +946,6 @@ export default function MonitorPage() {
                 </>
               )}
 
-              {}
               {missingParamsHistory && missingParamsHistory.length > 0 && (
                 <>
                   <Divider />
@@ -1003,7 +984,6 @@ export default function MonitorPage() {
                 </>
               )}
 
-              {}
               {missingParamsDetailed && missingParamsDetailed.byEventType && Object.keys(missingParamsDetailed.byEventType).length > 0 && (
                 <>
                   <Divider />
@@ -1076,7 +1056,6 @@ export default function MonitorPage() {
           </Card>
         )}
 
-        {}
         {monitoringStats && (
           <Card>
             <BlockStack gap="400">
@@ -1177,7 +1156,6 @@ export default function MonitorPage() {
           </Card>
         )}
 
-        {}
         {channelReconciliation && channelReconciliation.length > 0 && (
           <Card>
             <BlockStack gap="400">
@@ -1273,7 +1251,6 @@ export default function MonitorPage() {
           </Card>
         )}
 
-        {}
 
         {dedupAnalysis && (
           <Card>
@@ -1435,7 +1412,6 @@ export default function MonitorPage() {
           </Card>
         )}
 
-        {}
         {(currentAlertStatus.length > 0 || !alertConfigs) && (
           <Card>
             <BlockStack gap="400">
@@ -1555,7 +1531,6 @@ export default function MonitorPage() {
                       </Button>
                     </InlineStack>
 
-                    {}
                     <AlertHistoryChart
                       alerts={recentAlerts}
                       timeRange={alertHistoryTimeRange}
@@ -1564,7 +1539,6 @@ export default function MonitorPage() {
 
                     <Divider />
 
-                    {}
                     <BlockStack gap="300">
                       <Text as="h4" variant="headingSm">
                         最近告警记录
@@ -1752,7 +1726,7 @@ export default function MonitorPage() {
                 "成功发送",
                 "失败率",
                 "状态",
-            ]} rows={filteredHistory.slice(0, 50).map((report) => [ // P2-9: 性能优化 - 使用服务端分页，前端只显示前 50 条
+            ]} rows={filteredHistory.slice(0, 50).map((report) => [
                 new Date(report.reportDate).toLocaleDateString("zh-CN"),
                 isValidPlatform(report.platform) ? PLATFORM_NAMES[report.platform] : report.platform,
                 report.shopifyOrders,
@@ -1763,7 +1737,6 @@ export default function MonitorPage() {
             </BlockStack>
           </Card>)}
 
-        {}
         <Card>
           <BlockStack gap="400">
             <InlineStack align="space-between">

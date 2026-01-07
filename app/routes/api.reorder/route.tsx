@@ -67,8 +67,6 @@ async function loaderImpl(request: Request) {
       return jsonWithCors({ error: "Missing orderId" }, { status: 400, request, staticCors: true });
     }
 
-    // P0-1: 使用官方 authenticate.public.checkout 处理 Checkout UI Extension 请求
-    // 这会自动处理 JWT 验证和 CORS，并返回 session 信息
     let session: { shop: string; [key: string]: unknown };
     try {
       const authResult = await authenticate.public.checkout(request) as unknown as { session: { shop: string; [key: string]: unknown } };
@@ -84,8 +82,7 @@ async function loaderImpl(request: Request) {
     }
 
     const shopDomain = session.shop;
-    
-    // P0-1: 从 session 中获取 customer ID（如果可用）
+
     const customerGidFromToken = session.customerId || null;
 
     const admin = await createAdminClientForShop(shopDomain);
@@ -95,7 +92,6 @@ async function loaderImpl(request: Request) {
       return jsonWithCors({ error: "Failed to authenticate admin" }, { status: 401, request, staticCors: true });
     }
 
-    // P2-14: 只查询构建 cart 所需的字段（variantId 和 quantity）
     const orderResponse = await admin.graphql(`
       query GetOrderLineItems($id: ID!) {
         order(id: $id) {
@@ -220,7 +216,6 @@ async function loaderImpl(request: Request) {
       });
     }
 
-    // P2-14: 返回字段最小化，只返回构建 cart 所需的 reorderUrl
     return jsonWithCors({ reorderUrl }, { request, staticCors: true });
   } catch (error) {
     logger.error("Failed to get reorder URL", {

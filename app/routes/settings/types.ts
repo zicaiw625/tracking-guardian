@@ -49,7 +49,7 @@ export interface ShopSettingsData {
   hasIngestionSecret: boolean;
   hasActiveGraceWindow: boolean;
   graceWindowExpiry: Date | null;
-  // P0-2: v1.0 版本不包含任何 PCD/PII 处理，因此移除 piiEnabled 和 pcdAcknowledged
+
   weakConsentMode: boolean;
   consentStrategy: string;
   dataRetentionDays: number;
@@ -63,7 +63,7 @@ export interface TokenIssues {
 export interface SettingsLoaderData {
   shop: ShopSettingsData | null;
   tokenIssues: TokenIssues;
-  // P0-2: v1.0 版本不包含任何 PCD/PII 处理，因此移除 pcdApproved 和 pcdStatusMessage
+
   currentMonitoringData?: {
     failureRate: number;
     missingParamsRate: number;

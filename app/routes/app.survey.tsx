@@ -207,7 +207,7 @@ export default function SurveyPage() {
   }
 
   const responseRows = recentResponses.map((response) => {
-    // 安全解析日期
+
     let dateStr = "-";
     if (response.createdAt) {
       try {
@@ -216,7 +216,7 @@ export default function SurveyPage() {
           dateStr = date.toLocaleDateString("zh-CN");
         }
       } catch {
-        // 如果日期解析失败，使用默认值
+
         dateStr = "-";
       }
     }
@@ -240,7 +240,6 @@ export default function SurveyPage() {
       }}
     >
       <BlockStack gap="500">
-        {}
         <Layout>
           <Layout.Section variant="oneThird">
             <Card>
@@ -298,7 +297,6 @@ export default function SurveyPage() {
           </Layout.Section>
         </Layout>
 
-        {}
         {stats.ratingBreakdown.length > 0 && (
           <Card>
             <BlockStack gap="400">
@@ -330,7 +328,6 @@ export default function SurveyPage() {
           </Card>
         )}
 
-        {}
         <Card>
           <BlockStack gap="400">
             <InlineStack align="space-between" blockAlign="center">

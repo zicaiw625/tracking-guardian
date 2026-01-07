@@ -231,7 +231,6 @@ export async function runBatchAuditSync(
 
           const scanResult = await scanShopTracking(adminContext, shop.id);
 
-          // Create ScanReport record (scanShopTracking doesn't return scanReportId directly)
           const scanReport = await prisma.scanReport.create({
             data: {
               id: randomUUID(),
@@ -402,7 +401,6 @@ async function scanShopWithRetry(
         member.shopId
       );
 
-      // Create ScanReport record (scanShopTracking doesn't return scanReportId directly)
       const scanReport = await prisma.scanReport.create({
         data: {
           id: randomUUID(),

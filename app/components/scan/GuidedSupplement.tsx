@@ -24,20 +24,16 @@ export interface GuidedSupplementProps {
   shopId: string;
 }
 
-// P0-6: v1.0 版本仅支持 GA4/Meta/TikTok，移除非 v1.0 平台入口
 const UPGRADE_WIZARD_CHECKLIST = [
   { id: "ga4", label: "Google Analytics 4 (GA4)", category: "pixel", platform: "google" },
   { id: "meta", label: "Meta Pixel (Facebook)", category: "pixel", platform: "meta" },
   { id: "tiktok", label: "TikTok Pixel", category: "pixel", platform: "tiktok" },
-  // P0-6: Pinterest/Snapchat 等平台将在 v1.1+ 版本支持，v1.0 中不显示
-  // { id: "pinterest", label: "Pinterest Tag", category: "pixel", platform: "pinterest" },
-  // { id: "snapchat", label: "Snapchat Pixel", category: "pixel", platform: "snapchat" },
+
   { id: "survey", label: "售后问卷 / 评价收集", category: "survey", platform: undefined },
   { id: "support", label: "客服入口 / 帮助中心", category: "support", platform: undefined },
   { id: "reorder", label: "再购功能", category: "other", platform: undefined },
   { id: "affiliate", label: "联盟追踪 / 分佣", category: "affiliate", platform: undefined },
-  // P0-6: Upsell 模块在 v1.0 中不可用，将在 v1.1+ 版本支持
-  // { id: "upsell", label: "追加销售 / 推荐商品", category: "other", platform: undefined },
+
   { id: "tracking", label: "订单追踪 / 物流查询", category: "support", platform: undefined },
   { id: "other", label: "其他脚本或功能", category: "other", platform: undefined },
 ];
@@ -228,7 +224,6 @@ export function GuidedSupplement({
     >
       <Modal.Section>
         <BlockStack gap="400">
-          {}
           <InlineStack gap="200" align="center">
             <Badge tone={step >= 1 ? "success" : "info"}>步骤 1</Badge>
             <Text as="span">→</Text>
@@ -237,7 +232,6 @@ export function GuidedSupplement({
             <Badge tone={step >= 3 ? "success" : undefined}>步骤 3</Badge>
           </InlineStack>
 
-          {}
           {step === 1 && (
             <BlockStack gap="400">
               <Text as="h3" variant="headingMd">
@@ -288,11 +282,11 @@ export function GuidedSupplement({
 
               <BlockStack gap="300">
                 {UPGRADE_WIZARD_CHECKLIST.map((item) => {
-                  // 标注 v1 支持的功能
-                  const isV1Supported = 
+
+                  const isV1Supported =
                     (item.id === "ga4" || item.id === "meta" || item.id === "tiktok") ||
                     (item.id === "survey" || item.id === "support");
-                  
+
                   return (
                     <Box
                       key={item.id}
@@ -330,7 +324,6 @@ export function GuidedSupplement({
             </BlockStack>
           )}
 
-          {}
           {step === 2 && (
             <BlockStack gap="400">
               <Text as="h3" variant="headingMd">
@@ -360,7 +353,6 @@ export function GuidedSupplement({
                 </BlockStack>
               </Banner>
 
-              {}
               <Card>
                 <BlockStack gap="300">
                   <Text as="p" variant="bodySm" fontWeight="semibold">
@@ -378,7 +370,6 @@ export function GuidedSupplement({
                 </BlockStack>
               </Card>
 
-              {}
               <Banner>
                 <Text as="p" variant="bodySm">
                   💡 <strong>提示：</strong>截图上传功能正在开发中。目前请使用文本粘贴方式。
@@ -401,7 +392,6 @@ export function GuidedSupplement({
             </BlockStack>
           )}
 
-          {}
           {step === 3 && (
             <BlockStack gap="400">
               <Text as="h3" variant="headingMd">

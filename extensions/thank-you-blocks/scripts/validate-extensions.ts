@@ -1,13 +1,5 @@
 #!/usr/bin/env tsx
-/**
- * Thank You Blocks 扩展验证脚本
- * 验证 Shopify UI Extension 的代码质量
- * 
- * 检查项：
- * 1. 禁止使用的浏览器 API（window, navigator, document）
- * 2. 扩展配置文件存在性和基本格式
- * 3. 源代码文件结构
- */
+
 
 import { readFileSync, existsSync, readdirSync, statSync } from "fs";
 import { join, relative, extname } from "path";
@@ -32,7 +24,6 @@ interface CheckResult {
 
 const results: CheckResult[] = [];
 
-// 禁止使用的浏览器 API 模式
 const FORBIDDEN_PATTERNS: Array<{ pattern: RegExp; description: string }> = [
     {
         pattern: /\bwindow\s*\./,
@@ -56,10 +47,9 @@ const FORBIDDEN_PATTERNS: Array<{ pattern: RegExp; description: string }> = [
     },
 ];
 
-// 允许的模式（注释中的使用是允许的）
 const ALLOWED_PATTERNS: RegExp[] = [
     /\/\/.*(window|navigator|document|localStorage|sessionStorage)/i,
-    /\/\*[\s\S]*?(window|navigator|document|localStorage|sessionStorage)[\s\S]*?\*\//i,
+    /\/\*[\s\S]*?(window|navigator|document|localStorage|sessionStorage)[\s\S]*?\*\
     /".*window.*"/,
     /'.*window.*'/,
     /`.*window.*`/,
@@ -89,7 +79,6 @@ function isAllowed(line: string): boolean {
     return ALLOWED_PATTERNS.some(pattern => pattern.test(line));
 }
 
-// 1. 检查禁止使用的浏览器 API
 function checkForbiddenAPIs(): CheckResult {
     const violations: Violation[] = [];
 
@@ -134,7 +123,7 @@ function checkForbiddenAPIs(): CheckResult {
                             }
                         }
                     } catch (error) {
-                        // 忽略读取错误
+
                     }
                 }
             }
@@ -153,7 +142,6 @@ function checkForbiddenAPIs(): CheckResult {
     };
 }
 
-// 2. 检查扩展配置文件
 function checkExtensionConfig(): CheckResult {
     const violations: Violation[] = [];
 
@@ -175,7 +163,6 @@ function checkExtensionConfig(): CheckResult {
     try {
         const content = readFileSync(CONFIG_FILE, "utf-8");
 
-        // 检查 api_version
         if (!content.includes("api_version")) {
             violations.push({
                 file: "shopify.extension.toml",
@@ -185,7 +172,6 @@ function checkExtensionConfig(): CheckResult {
             });
         }
 
-        // 检查 type
         if (!content.includes("type =")) {
             violations.push({
                 file: "shopify.extension.toml",
@@ -213,7 +199,6 @@ function checkExtensionConfig(): CheckResult {
     };
 }
 
-// 3. 检查源代码文件结构
 function checkSourceStructure(): CheckResult {
     const violations: Violation[] = [];
 
@@ -236,17 +221,14 @@ function checkSourceStructure(): CheckResult {
     };
 }
 
-// 主函数
 function main(): number {
     console.log("🔍 开始验证 Thank You Blocks 扩展...\n");
     console.log("=".repeat(60));
 
-    // 运行所有检查
     results.push(checkForbiddenAPIs());
     results.push(checkExtensionConfig());
     results.push(checkSourceStructure());
 
-    // 输出结果
     console.log("\n📊 检查结果汇总:\n");
 
     let allPassed = true;

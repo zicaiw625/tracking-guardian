@@ -13,10 +13,10 @@ export interface PixelConfigCredentials {
   platform: string;
   platformId: string | null;
   credentialsEncrypted: string | null;
-  credentials_legacy: Prisma.JsonValue | null; // P0-5: 修复字段名，与 Prisma schema 一致
+  credentials_legacy: Prisma.JsonValue | null;
   clientConfig: Prisma.JsonValue;
-  environment: string | null; // P0-5: 添加 environment 字段，用于 Test/Live 环境判断
-  eventMappings: Prisma.JsonValue | null; // P1-1: 添加 eventMappings 字段，用于事件映射配置
+  environment: string | null;
+  eventMappings: Prisma.JsonValue | null;
 }
 
 export type PixelConfigFull = PixelConfig;
@@ -41,19 +41,7 @@ export interface PixelConfigInput {
   serverSideEnabled?: boolean;
   eventMappings?: Prisma.InputJsonValue;
   isActive?: boolean;
-  /**
-   * 支持多目的地配置：同一平台、同一环境可以配置多个不同的 platformId
-   * 
-   * 数据模型约束：
-   * - @@unique([shopId, platform, environment, platformId])
-   * - 这意味着：如果 platformId 不同，可以有多条配置（例如多个 GA4 property、多个 Meta Pixel）
-   * - 如果 platformId 为空，同一平台同一环境只能有一条配置
-   * 
-   * 使用场景：
-   * - Agency 交付：同一商家可能需要向多个 GA4 property 发送事件
-   * - 多品牌：同一商家可能有多个 Meta Pixel ID
-   * - 测试/生产：通过 environment 字段区分（test/live）
-   */
+
   environment?: string;
 }
 
@@ -67,10 +55,10 @@ const CREDENTIALS_SELECT = {
   platform: true,
   platformId: true,
   credentialsEncrypted: true,
-  credentials_legacy: true, // P0-5: 修复字段名，与 Prisma schema 一致
+  credentials_legacy: true,
   clientConfig: true,
-  environment: true, // P0-5: 添加 environment 字段，用于 Test/Live 环境判断
-  eventMappings: true, // P1-1: 添加 eventMappings 字段，用于事件映射配置
+  environment: true,
+  eventMappings: true,
 } as const;
 
 const SUMMARY_SELECT = {
@@ -89,7 +77,7 @@ export async function getShopPixelConfigs(
   options: { serverSideOnly?: boolean; skipCache?: boolean; environment?: "test" | "live" } = {}
 ): Promise<PixelConfigCredentials[]> {
   const { serverSideOnly = false, skipCache = false, environment } = options;
-  // P0-4: 缓存 key 包含 environment，确保不同环境的配置不会混淆
+
   const cacheKey = `configs:${shopId}:${serverSideOnly ? "server" : "all"}:${environment || "live"}`;
 
   if (!skipCache) {
@@ -108,11 +96,10 @@ export async function getShopPixelConfigs(
     where.serverSideEnabled = true;
   }
 
-  // P0-4: 按 environment 过滤配置，默认使用 live 环境（向后兼容）
   if (environment) {
     where.environment = environment;
   } else {
-    // 默认只返回 live 环境的配置（向后兼容）
+
     where.environment = "live";
   }
 
@@ -162,8 +149,7 @@ export async function upsertPixelConfig(
   input: PixelConfigInput,
   options?: { saveSnapshot?: boolean }
 ): Promise<PixelConfigFull> {
-  // P0-4: v1.0 范围收敛 - 只支持 GA4/Meta/TikTok
-  // Snapchat/Twitter/Pinterest 等平台将在 v1.1+ 版本支持
+
   const v1SupportedPlatforms = ["google", "meta", "tiktok"];
   if (!v1SupportedPlatforms.includes(input.platform)) {
     throw new Error(
@@ -172,15 +158,12 @@ export async function upsertPixelConfig(
     );
   }
 
-  // P1-5: 服务端 entitlement 硬门禁
   const { requireEntitlementOrThrow } = await import("../billing/entitlement.server");
-  
-  // 检查像素目的地权限（如果是新配置或启用服务端）
+
   if (input.serverSideEnabled) {
     await requireEntitlementOrThrow(shopId, "pixel_destinations");
   }
 
-  // 检查 Full Funnel 模式权限
   if (input.clientConfig && typeof input.clientConfig === 'object' && 'mode' in input.clientConfig) {
     const mode = (input.clientConfig as { mode?: string }).mode;
     if (mode === 'full_funnel') {
@@ -199,14 +182,6 @@ export async function upsertPixelConfig(
   const environment = input.environment || "test";
   const platformId = data.platformId ?? null;
 
-  // P0-3: 支持多目的地配置
-  // - 如果提供了 platformId，使用包含 platformId 的唯一约束，允许同一平台多个配置
-  //   例如：多个 GA4 property（platformId = "G-XXXXX"）、多个 Meta Pixel（platformId = "123456789"）
-  // - 如果没有提供 platformId，使用不包含 platformId 的唯一约束（向后兼容）
-  //   注意：同一环境下同一平台只能有 1 个无 platformId 的配置
-  // - 对于需要多个同平台配置但平台不支持 platformId 的场景，建议：
-  //   1. 使用 displayName 作为区分标识（在 UI 中显示）
-  //   2. 或者为每个配置生成一个唯一的 platformId（例如基于 displayName 或时间戳）
   const existingConfig = platformId
     ? await prisma.pixelConfig.findUnique({
         where: {
@@ -227,9 +202,6 @@ export async function upsertPixelConfig(
         },
       });
 
-  // P1-1: 事件映射版本化 - 在更新配置前保存快照
-  // 当商家选择不同的 preset 或修改 eventMappings 时，会保存当前配置到 previousConfig
-  // configVersion 会递增，支持回滚到上一个版本
   if (existingConfig && saveSnapshot) {
     await saveConfigSnapshot(shopId, platform, environment as "test" | "live").catch((error) => {
       const errorMessage = error instanceof Error ? error.message : String(error);
@@ -241,7 +213,6 @@ export async function upsertPixelConfig(
     });
   }
 
-  // 使用包含 platformId 的唯一约束以支持多目的地配置
   const config = platformId
     ? await prisma.pixelConfig.upsert({
         where: {
@@ -449,7 +420,7 @@ export async function getConfiguredPlatforms(
 }
 
 export function invalidatePixelConfigCache(shopId: string): void {
-  // P0-4: 清除所有环境的缓存
+
   shopPixelConfigsCache.delete(`configs:${shopId}:all:live`);
   shopPixelConfigsCache.delete(`configs:${shopId}:all:test`);
   shopPixelConfigsCache.delete(`configs:${shopId}:server:live`);

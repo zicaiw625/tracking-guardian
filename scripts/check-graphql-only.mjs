@@ -52,7 +52,7 @@ const FORBIDDEN_PATTERNS = [
 const ALLOWED_PATTERNS = [
     /\/admin\/api\/\d{4}-\d{2}\/graphql\.json/,
     /\/\/.*rest/i,
-    /\/\*.*rest.*\*\//,
+    /\/\*.*rest.*\*\
     /".*REST.*"/i,
     /'.*REST.*'/i,
     /\.test\.ts$/,

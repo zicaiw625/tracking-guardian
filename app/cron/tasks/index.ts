@@ -141,8 +141,8 @@ export async function executeCronTasks(cronLogger: CronLogger): Promise<CronResu
     webhookLogsDeleted: 0,
     scanReportsDeleted: 0,
     reconciliationReportsDeleted: 0,
-    eventLogsDeleted: 0, // P0-T5
-    deliveryAttemptsDeleted: 0, // P0-T5
+    eventLogsDeleted: 0,
+    deliveryAttemptsDeleted: 0,
     gdprJobsDeleted: 0,
     eventNoncesDeleted: 0,
     migrationDraftsDeleted: 0,

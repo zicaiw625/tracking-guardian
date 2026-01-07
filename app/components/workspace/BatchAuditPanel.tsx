@@ -174,7 +174,6 @@ export function BatchAuditPanel({
 
         <Divider />
 
-        {}
         <BlockStack gap="300">
           <Select
             label="选择店铺组"
@@ -201,7 +200,6 @@ export function BatchAuditPanel({
           )}
         </BlockStack>
 
-        {}
         {isRunning && (
           <BlockStack gap="300">
             <Divider />
@@ -218,7 +216,6 @@ export function BatchAuditPanel({
           </BlockStack>
         )}
 
-        {}
         {summary && (
           <BlockStack gap="300">
             <Divider />
@@ -273,7 +270,6 @@ export function BatchAuditPanel({
           </BlockStack>
         )}
 
-        {}
         {results.length > 0 && (
           <BlockStack gap="300">
             {summary && <Divider />}
@@ -310,7 +306,6 @@ export function BatchAuditPanel({
 
         <Divider />
 
-        {}
         <InlineStack gap="200" align="end">
           {onRefresh && (
             <Button onClick={onRefresh} icon={RefreshIcon} disabled={isRunning}>

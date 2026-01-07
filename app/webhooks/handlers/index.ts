@@ -5,7 +5,7 @@ export {
   handleCustomersRedact,
   handleShopRedact,
 } from "./gdpr.handler";
-// P0-2: 订单/退款 webhook handlers（用于 Verification 和 Reconciliation）
+
 export {
   handleOrdersCreate,
   handleOrdersUpdated,

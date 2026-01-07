@@ -398,7 +398,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
             }>;
 
             for (const config of configs) {
-                // P0-6: v1.0 版本仅支持 GA4/Meta/TikTok
+
                 const platform = config.platform as "google" | "meta" | "tiktok";
 
                 let credentials: Record<string, string> = {};
@@ -418,17 +418,14 @@ export const action = async ({ request }: ActionFunctionArgs) => {
                 const encryptedCredentials = encryptJson(credentials);
 
                 const platformIdValue = config.platformId?.trim() || null;
-                
-                // P0-2: 根据 eventMappings 推断 mode
-                // 如果 eventMappings 包含 full_funnel 事件（page_viewed, product_viewed, product_added_to_cart, checkout_started），则 mode = full_funnel
-                // 否则 mode = purchase_only
+
                 const fullFunnelEvents = ["page_viewed", "product_viewed", "product_added_to_cart", "checkout_started"];
-                const hasFullFunnelEvents = Object.keys(config.eventMappings || {}).some(eventName => 
+                const hasFullFunnelEvents = Object.keys(config.eventMappings || {}).some(eventName =>
                     fullFunnelEvents.includes(eventName)
                 );
                 const mode: "purchase_only" | "full_funnel" = hasFullFunnelEvents ? "full_funnel" : "purchase_only";
                 const clientConfig = { mode };
-                
+
                 await prisma.pixelConfig.upsert({
                     where: {
                         shopId_platform_environment_platformId: {
@@ -464,10 +461,9 @@ export const action = async ({ request }: ActionFunctionArgs) => {
                 });
             }
 
-            // P0-2: 保存配置后同步 mode 到 Web Pixel settings
             if (shop.webPixelId && shop.ingestionSecret) {
                 const { syncWebPixelMode } = await import("~/services/migration.server");
-                // 同步所有环境的 mode（test 和 live）
+
                 for (const env of ["test", "live"] as const) {
                     await syncWebPixelMode(
                         admin,
@@ -505,7 +501,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         }
 
         try {
-            // P0-6: v1.0 版本仅支持 GA4/Meta/TikTok
+
             const result = await validateTestEnvironment(shopIdParam, platform as "google" | "meta" | "tiktok");
             return json(result);
         } catch (error) {
@@ -683,7 +679,7 @@ export default function MigratePage() {
     const [currentStep, setCurrentStep] = useState<SetupStep>(() => {
         if (!typOspStatus.enabled) return "typOsp";
         if (pixelStatus === "installed") {
-            return "complete"; // v1 移除 CAPI，像素迁移完成后直接完成
+            return "complete";
         }
         return "pixel";
     });
@@ -708,7 +704,7 @@ export default function MigratePage() {
         if (data?._action === "enablePixel") {
             if (data?.success) {
                 showSuccess(data?.message || "App Pixel 已启用");
-                setCurrentStep("complete"); // v1 移除 CAPI，直接完成
+                setCurrentStep("complete");
                 return;
             } else if (data?.error) {
                 showError(data.error);
@@ -740,7 +736,7 @@ export default function MigratePage() {
         }
 
         if (pixelStatus === "installed" && typOspStatus.enabled) {
-            setCurrentStep("complete"); // v1 移除 CAPI，像素迁移完成即完成
+            setCurrentStep("complete");
         } else if (!typOspStatus.enabled) {
             setCurrentStep("typOsp");
         } else {
@@ -771,8 +767,7 @@ export default function MigratePage() {
     const steps = [
         { id: "typOsp", label: "升级 Checkout", number: 1 },
         { id: "pixel", label: "启用像素迁移", number: 2 },
-        // v1 移除 CAPI 步骤（v1.1+ 规划）
-        // { id: "capi", label: "配置服务端追踪", number: 3 },
+
         { id: "complete", label: "完成设置", number: 3 },
     ];
 
@@ -780,8 +775,7 @@ export default function MigratePage() {
     if (stepIndex === -1) {
 
         if (process.env.NODE_ENV === "development") {
-            // 客户端调试输出：无效的当前步骤
-            // eslint-disable-next-line no-console
+
             console.error(`[MigratePage] Invalid currentStep: ${currentStep}. Available steps:`, steps.map(s => s.id));
         }
     }
@@ -870,7 +864,6 @@ export default function MigratePage() {
           </BlockStack>
         </Banner>
 
-        {}
         <Banner
           title="重要约束：ScriptTags 已弃用"
           tone="warning"
@@ -949,7 +942,6 @@ export default function MigratePage() {
           </Banner>
         )}
 
-        {}
         <Card>
           <BlockStack gap="300">
             <InlineStack align="space-between" blockAlign="center">
@@ -991,7 +983,6 @@ export default function MigratePage() {
           </BlockStack>
         </Card>
 
-        {}
         {needsSettingsUpgrade && pixelStatus === "installed" && (
           <Banner
             title="Pixel 设置需要升级"
@@ -1007,7 +998,6 @@ export default function MigratePage() {
                 检测到您的 App Pixel 使用旧版配置格式（缺少 shop_domain 或使用旧键名 ingestion_secret）。
                 请点击「一键升级设置」来更新到最新版本，以确保追踪功能正常工作。
               </Text>
-              {}
             </BlockStack>
           </Banner>
         )}
@@ -1151,7 +1141,6 @@ export default function MigratePage() {
                     </BlockStack>
                   </Box>
 
-                  {}
 
                   {!isStarterOrAbove && (
                     <Banner
@@ -1176,11 +1165,9 @@ export default function MigratePage() {
                 </BlockStack>
               </Card>)}
 
-            {/* v1 移除 CAPI 步骤（v1.1+ 规划）
-            {currentStep === "capi" && (
-              // ... CAPI 配置界面（已隐藏）
-            )}
-            */}
+            {
+
+}
 
             {currentStep === "complete" && (<Card>
                 <BlockStack gap="400">
@@ -1210,7 +1197,6 @@ export default function MigratePage() {
                           <Icon source={CheckCircleIcon} tone="success"/>
                           <Text as="span">Web Pixel 已启用</Text>
                         </InlineStack>
-                        {/* v1 移除 CAPI 状态显示（v1.1+ 规划） */}
                       </InlineStack>
                     </BlockStack>
                   </Box>
@@ -1239,7 +1225,6 @@ export default function MigratePage() {
           </Layout.Section>
 
           <Layout.Section variant="oneThird">
-            {}
             {pixelConfigs && pixelConfigs.length > 0 && (
               <Banner
                 title="重要提示：checkout_completed 事件触发位置"

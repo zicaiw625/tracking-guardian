@@ -111,7 +111,6 @@ function OverviewCard({
         </InlineStack>
 
         <InlineStack gap="400" align="space-between" wrap>
-          {}
           <Box
             background="bg-surface-secondary"
             padding="400"
@@ -128,12 +127,10 @@ function OverviewCard({
             </BlockStack>
           </Box>
 
-          {}
           <Text as="p" variant="headingLg" tone="subdued">
             vs
           </Text>
 
-          {}
           <Box
             background="bg-surface-secondary"
             padding="400"
@@ -150,12 +147,10 @@ function OverviewCard({
             </BlockStack>
           </Box>
 
-          {}
           <Text as="p" variant="headingLg" tone="subdued">
             =
           </Text>
 
-          {}
           <Box
             background={isHealthy ? "bg-fill-success" : isWarning ? "bg-fill-warning" : "bg-fill-critical"}
             padding="400"
@@ -558,7 +553,6 @@ export default function ReconciliationPage() {
       }}
     >
       <BlockStack gap="500">
-        {}
         <Card>
           <InlineStack align="space-between" blockAlign="center">
             <Text as="p" variant="bodySm">
@@ -578,17 +572,14 @@ export default function ReconciliationPage() {
           </InlineStack>
         </Card>
 
-        {}
         <OverviewCard overview={dashboardData.overview} />
 
         <Layout>
           <Layout.Section variant="oneHalf">
-            {}
             <GapAnalysisCard gapAnalysis={dashboardData.gapAnalysis} />
           </Layout.Section>
 
           <Layout.Section variant="oneHalf">
-            {}
             <RecommendationCard
               recommendation={dashboardData.recommendation}
               onChangeStrategy={handleStrategyChange}
@@ -597,13 +588,10 @@ export default function ReconciliationPage() {
           </Layout.Section>
         </Layout>
 
-        {}
         <PlatformBreakdownCard platformBreakdown={dashboardData.platformBreakdown} />
 
-        {}
         <TrendCard dailyTrend={dashboardData.dailyTrend} />
 
-        {}
         <Banner title="关于送达健康度" tone="info">
           <BlockStack gap="200">
             <p>
@@ -627,7 +615,6 @@ export default function ReconciliationPage() {
           </BlockStack>
         </Banner>
 
-        {/* P2: 免责声明 - 只保证生成与发送成功，不保证平台侧归因一致 */}
         <Banner title="重要说明：服务范围与限制" tone="warning">
           <BlockStack gap="200">
             <p>

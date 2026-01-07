@@ -22,7 +22,7 @@ interface ShopData {
   hasIngestionSecret: boolean;
   hasActiveGraceWindow: boolean;
   graceWindowExpiry: Date | string | null;
-  // P0-2: v1.0 版本不包含任何 PCD/PII 处理，因此移除 piiEnabled 和 pcdAcknowledged
+
   weakConsentMode: boolean;
   consentStrategy: string;
   dataRetentionDays: number;
@@ -30,7 +30,7 @@ interface ShopData {
 
 interface SecurityTabProps {
   shop: ShopData | null;
-  // P0-2: v1.0 版本不包含任何 PCD/PII 处理，因此移除 pcdApproved 和 pcdStatusMessage
+
   isSubmitting: boolean;
   onRotateSecret: () => void;
 }
@@ -42,13 +42,10 @@ export function SecurityTab({
 }: SecurityTabProps) {
   const submit = useSubmit();
 
-  // P0-2: v1.0 版本不包含任何 PCD/PII 处理，因此移除 handlePiiToggle 函数
-  // v1.0 仅依赖 Web Pixels 标准事件，不处理任何客户数据
-
   const handleDataRetentionChange = (value: string) => {
     const formData = new FormData();
     formData.append("_action", "updatePrivacySettings");
-    // P0-2: v1.0 版本不包含任何 PCD/PII 处理，因此不传递 piiEnabled
+
     formData.append("consentStrategy", shop?.consentStrategy || "balanced");
     formData.append("dataRetentionDays", value);
     submit(formData, { method: "post" });
@@ -63,7 +60,7 @@ export function SecurityTab({
     }
     const formData = new FormData();
     formData.append("_action", "updatePrivacySettings");
-    // P0-2: v1.0 版本不包含任何 PCD/PII 处理，因此不传递 piiEnabled
+
     formData.append("consentStrategy", value);
     formData.append("dataRetentionDays", String(shop?.dataRetentionDays || 90));
     submit(formData, { method: "post" });
@@ -83,7 +80,6 @@ export function SecurityTab({
 
             <Divider />
 
-            {}
             <BlockStack gap="300">
               <Text as="h3" variant="headingMd">
                 Ingestion Key（关联令牌）
@@ -175,10 +171,7 @@ export function SecurityTab({
 
             <Divider />
 
-            {/* P0-2: v1.0 版本不包含任何 PCD/PII 处理，因此移除所有 PII 增强匹配相关的 UI */}
-            {/* v1.0 仅依赖 Web Pixels 标准事件，不处理任何客户数据 */}
 
-            {}
             <BlockStack gap="300">
               <Text as="h3" variant="headingMd">
                 数据保留策略
@@ -252,7 +245,6 @@ export function SecurityTab({
 
             <Divider />
 
-            {/* P2-2: 像素隐私/同意逻辑说明 */}
             <BlockStack gap="300">
               <Text as="h3" variant="headingMd">
                 像素隐私与同意逻辑
@@ -340,7 +332,6 @@ export function SecurityTab({
 
             <Divider />
 
-            {}
             <BlockStack gap="300">
               <Text as="h3" variant="headingMd">
                 Consent 策略

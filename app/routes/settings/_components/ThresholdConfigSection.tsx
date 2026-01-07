@@ -25,14 +25,14 @@ export function ThresholdConfigSection({
 }: ThresholdConfigSectionProps) {
   const recommendationsFetcher = useFetcher<{ recommendations?: { failureRate?: number; missingParams?: number; volumeDrop?: number } }>();
   const currentFetcher = useFetcher<{ current?: { failureRate?: number; missingParams?: number; volumeDrop?: number } }>();
-  const testFetcher = useFetcher<{ 
-    testResult?: { 
-      passed?: boolean; 
+  const testFetcher = useFetcher<{
+    testResult?: {
+      passed?: boolean;
       message?: string;
       failureRate?: { wouldTrigger?: boolean; currentValue?: number; threshold?: number };
       missingParams?: { wouldTrigger?: boolean; currentValue?: number; threshold?: number };
       volumeDrop?: { wouldTrigger?: boolean; currentValue?: number; threshold?: number };
-    } 
+    }
   }>();
 
   const [missingParamsThreshold, setMissingParamsThreshold] = useState(5);
@@ -45,8 +45,8 @@ export function ThresholdConfigSection({
 
   const recommendations = recommendationsFetcher.data?.recommendations as { failureRate?: number; missingParams?: number; volumeDrop?: number } | undefined;
   const currentValues = currentFetcher.data?.current as { failureRate?: number; missingParams?: number; volumeDrop?: number } | undefined;
-  const testResult = testFetcher.data?.testResult as { 
-    passed?: boolean; 
+  const testResult = testFetcher.data?.testResult as {
+    passed?: boolean;
     message?: string;
     failureRate?: { wouldTrigger?: boolean; currentValue?: number; threshold?: number };
     missingParams?: { wouldTrigger?: boolean; currentValue?: number; threshold?: number };
@@ -61,7 +61,6 @@ export function ThresholdConfigSection({
 
   return (
     <BlockStack gap="400">
-      {}
       <Box>
         <ThresholdSlider
           label="事件失败率阈值"
@@ -112,7 +111,6 @@ export function ThresholdConfigSection({
 
       <Divider />
 
-      {}
       <Box>
         <ThresholdSlider
           label="缺参率阈值"
@@ -163,7 +161,6 @@ export function ThresholdConfigSection({
 
       <Divider />
 
-      {}
       <Box background="bg-surface-secondary" padding="300" borderRadius="200">
         <BlockStack gap="200">
           <InlineStack align="space-between" blockAlign="center">
@@ -178,7 +175,6 @@ export function ThresholdConfigSection({
         </BlockStack>
       </Box>
 
-      {}
       <Button
         variant="secondary"
         onClick={handleTest}
@@ -187,7 +183,6 @@ export function ThresholdConfigSection({
         测试阈值（查看过去24小时触发情况）
       </Button>
 
-      {}
       {testResult && testResult.failureRate && testResult.missingParams && testResult.volumeDrop && (
         <Banner tone={(testResult.failureRate.wouldTrigger || testResult.missingParams.wouldTrigger) ? "warning" : "success"}>
           <BlockStack gap="200">

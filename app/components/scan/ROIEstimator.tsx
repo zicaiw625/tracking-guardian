@@ -60,7 +60,6 @@ export function ROIEstimator({
             本工具无法预测具体数值影响，不构成任何效果保证或承诺。
           </Text>
         </Banner>
-        {                             }
         <Box background="bg-surface-secondary" padding="400" borderRadius="200">
           <BlockStack gap="300">
             <Text as="p" fontWeight="semibold">
@@ -82,7 +81,6 @@ export function ROIEstimator({
             />
           </BlockStack>
         </Box>
-        {                    }
         <Box background="bg-fill-critical-secondary" padding="400" borderRadius="200">
           <BlockStack gap="300">
             <InlineStack gap="200" blockAlign="center">
@@ -135,7 +133,6 @@ export function ROIEstimator({
           </BlockStack>
         </Box>
         <Divider />
-        {                              }
         <Box background="bg-fill-success-secondary" padding="400" borderRadius="200">
           <BlockStack gap="300">
             <InlineStack gap="200" blockAlign="center">
@@ -188,7 +185,6 @@ export function ROIEstimator({
           </BlockStack>
         </Box>
         <Divider />
-        {                      }
         <BlockStack gap="300">
           <Text as="h3" variant="headingMd">
             迁移前后对比

@@ -27,7 +27,7 @@ function normalizeHost(input: string): string {
 
     let cleaned = input.trim();
 
-    cleaned = cleaned.replace(/^https?:\/\//, "");
+    cleaned = cleaned.replace(/^https?:\/\
 
     const pathIndex = cleaned.indexOf("/");
     if (pathIndex !== -1) {
@@ -72,7 +72,7 @@ function normalizeIssuer(input: string): string {
         result = result.slice(1, -1).trim();
     }
 
-    result = result.replace(/^https?:\/\//, "");
+    result = result.replace(/^https?:\/\
 
     return result;
 }

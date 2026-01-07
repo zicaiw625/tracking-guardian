@@ -14,9 +14,7 @@ register(({ analytics, settings, init, customerPrivacy }: {
   customerPrivacy?: { subscribe?: (event: string, handler: (e: unknown) => void) => void };
 }) => {
 
-  // P0-4: ingestionSecret 仅用于生成 HMAC 签名，不会出现在请求体中
-  // 服务端通过 shopDomain 查找 shop.ingestionSecret 进行验证
-  const ingestionSecret = settings.ingestion_key; // 保持向后兼容，settings 中仍使用 ingestion_key 字段名
+  const ingestionSecret = settings.ingestion_key;
   const shopDomain = settings.shop_domain || init.data?.shop?.myshopifyDomain || "";
 
   const backendUrl = BACKEND_URL && isAllowedBackendUrl(BACKEND_URL) ? BACKEND_URL : null;
@@ -49,7 +47,6 @@ register(({ analytics, settings, init, customerPrivacy }: {
     subscribeToConsentChanges(customerPrivacy, consentManager, log);
   }
 
-  // P0-4: 从 settings 读取 environment，默认为 "live"
   const environment = (settings.environment as "test" | "live" | undefined) || "live";
 
   const sendToBackend = createEventSender({
@@ -62,9 +59,6 @@ register(({ analytics, settings, init, customerPrivacy }: {
     environment,
   });
 
-  // P0-2: 从 settings 读取 mode，如果没有则使用默认值 purchase_only
-  // 这允许后端通过更新 Web Pixel settings 来控制像素端订阅的事件类型
-  // 默认 purchase_only 符合隐私最小化原则
   const mode = (settings.mode === "full_funnel" ? "full_funnel" : "purchase_only") as "purchase_only" | "full_funnel";
 
   if (isDevMode) {

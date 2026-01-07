@@ -72,7 +72,6 @@ export function SubscriptionTab({ currentPlan, subscriptionStatus }: Subscriptio
 
             <Divider />
 
-            {}
             <Box
               background="bg-surface-selected"
               padding="400"
@@ -109,7 +108,6 @@ export function SubscriptionTab({ currentPlan, subscriptionStatus }: Subscriptio
               </BlockStack>
             </Box>
 
-            {}
             {upgradeOptions.length > 0 && (
               <>
                 <Divider />
@@ -167,7 +165,6 @@ export function SubscriptionTab({ currentPlan, subscriptionStatus }: Subscriptio
               </>
             )}
 
-            {}
             <Divider />
             <Text as="h3" variant="headingMd">
               套餐对比

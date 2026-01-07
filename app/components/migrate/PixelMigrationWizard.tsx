@@ -637,8 +637,7 @@ const allTemplates: WizardTemplate[] = [
     } catch (error) {
 
       if (process.env.NODE_ENV === "development") {
-        // 客户端调试输出：保存草稿到localStorage失败
-        // eslint-disable-next-line no-console
+
         console.warn("[PixelMigrationWizard] Failed to save draft to localStorage:", error);
       }
     }
@@ -657,16 +656,14 @@ const allTemplates: WizardTemplate[] = [
         if (!response.ok) {
 
           if (process.env.NODE_ENV === "development") {
-            // 客户端调试输出：保存草稿到数据库失败
-            // eslint-disable-next-line no-console
+
             console.warn("[PixelMigrationWizard] Failed to save draft to database");
           }
         }
       } catch (error) {
 
           if (process.env.NODE_ENV === "development") {
-            // 客户端调试输出：保存草稿到数据库失败
-            // eslint-disable-next-line no-console
+
             console.warn("[PixelMigrationWizard] Failed to save draft to database:", error);
           }
       }
@@ -681,8 +678,7 @@ const allTemplates: WizardTemplate[] = [
     } catch (error) {
 
         if (process.env.NODE_ENV === "development") {
-          // 客户端调试输出：清除localStorage草稿失败
-          // eslint-disable-next-line no-console
+
           console.warn("[PixelMigrationWizard] Failed to clear draft from localStorage:", error);
         }
     }
@@ -699,8 +695,7 @@ const allTemplates: WizardTemplate[] = [
       } catch (error) {
 
           if (process.env.NODE_ENV === "development") {
-            // 客户端调试输出：清除数据库草稿失败
-            // eslint-disable-next-line no-console
+
             console.warn("[PixelMigrationWizard] Failed to clear draft from database:", error);
           }
       }
@@ -767,8 +762,7 @@ const allTemplates: WizardTemplate[] = [
       } catch (error) {
 
           if (process.env.NODE_ENV === "development") {
-            // 客户端调试输出：同步草稿到localStorage失败
-            // eslint-disable-next-line no-console
+
             console.warn("[PixelMigrationWizard] Failed to sync draft to localStorage:", error);
           }
       }
@@ -800,13 +794,12 @@ const allTemplates: WizardTemplate[] = [
   }, [currentStep, selectedPlatforms, platformConfigs, selectedTemplate, saveDraft]);
 
   useEffect(() => {
-    // 清理之前的 interval
+
     if (intervalRef.current !== null) {
       clearInterval(intervalRef.current);
       intervalRef.current = null;
     }
 
-    // 创建新的 interval
     intervalRef.current = setInterval(() => {
       if (currentStep !== "select" || selectedPlatforms.size > 0) {
         saveDraft();
@@ -821,7 +814,6 @@ const allTemplates: WizardTemplate[] = [
     };
   }, [currentStep, selectedPlatforms, saveDraft]);
 
-  // 清理所有 timeout 引用
   useEffect(() => {
     return () => {
       timeoutRefs.current.forEach((timeout) => clearTimeout(timeout));
@@ -858,8 +850,7 @@ const allTemplates: WizardTemplate[] = [
         } catch (error) {
 
             if (process.env.NODE_ENV === "development") {
-              // 客户端调试输出：页面卸载前保存草稿失败
-              // eslint-disable-next-line no-console
+
               console.warn("[PixelMigrationWizard] Failed to save draft before unload:", error);
             }
         }
@@ -1184,7 +1175,6 @@ const allTemplates: WizardTemplate[] = [
   return (
     <Card>
       <BlockStack gap="500">
-        {}
         <BlockStack gap="300">
           <InlineStack align="space-between" blockAlign="center">
             <Text as="h2" variant="headingMd">
@@ -1200,7 +1190,6 @@ const allTemplates: WizardTemplate[] = [
             </InlineStack>
           </InlineStack>
           <ProgressBar progress={progress} tone="primary" size="small" />
-          {}
           <div
             style={{
               paddingBlockStart: "var(--p-space-300)",
@@ -1277,7 +1266,6 @@ const allTemplates: WizardTemplate[] = [
                           )}
                         </BlockStack>
                       </BlockStack>
-                      {}
                       {index < steps.length - 1 && (
                         <div
                           style={{
@@ -1303,12 +1291,10 @@ const allTemplates: WizardTemplate[] = [
 
         <Divider />
 
-        {}
         {renderStepContent()}
 
         <Divider />
 
-        {}
         <InlineStack align="space-between" wrap>
           <Button onClick={onCancel} disabled={isSubmitting}>
             取消
@@ -1325,7 +1311,6 @@ const allTemplates: WizardTemplate[] = [
                 上一步
               </Button>
             )}
-            {}
             {currentStep !== "select" &&
              currentStep !== "review" &&
              currentStep !== "testing" && (
@@ -1439,8 +1424,7 @@ function SelectPlatformStep({
           const info = PLATFORM_INFO[platform];
           if (!info) return null;
           const isSelected = selectedPlatforms.has(platform);
-          
-          // v1 只支持 GA4/Meta/TikTok
+
           const isV1Supported = platform === "google" || platform === "meta" || platform === "tiktok";
           const isDisabled = !isV1Supported;
 
@@ -1494,7 +1478,6 @@ function SelectPlatformStep({
         })}
       </BlockStack>
 
-      {}
       <Modal
         open={showTemplateModal}
         onClose={() => onShowTemplateModal(false)}
@@ -1774,8 +1757,7 @@ function ReviewStep({
       showError("保存模板失败");
 
       if (process.env.NODE_ENV === "development") {
-        // 客户端调试输出：保存模板错误
-        // eslint-disable-next-line no-console
+
         console.error("[PixelMigrationWizard] Save template error:", error);
       }
     } finally {
@@ -1860,11 +1842,10 @@ function ReviewStep({
         );
       })}
 
-      {}
       {shopId && Array.from(selectedPlatforms).map((platform) => {
 
         const existingConfig = platformConfigs[platform];
-        // 优先从 platformConfigs 获取，否则从 pixelConfigs prop 中查找
+
         let currentVersion = existingConfig?.configVersion;
         if (currentVersion === undefined && pixelConfigs) {
           const pixelConfig = pixelConfigs.find(
@@ -1881,13 +1862,12 @@ function ReviewStep({
             platform={platform}
             currentVersion={currentVersion}
             onRollbackComplete={() => {
-              // Rollback complete handler - no additional action needed
+
             }}
           />
         );
       })}
 
-      {}
       {shopId && (
         <Card>
           <BlockStack gap="300">
@@ -1907,7 +1887,6 @@ function ReviewStep({
         </Card>
       )}
 
-      {}
       <Modal
         open={showSaveTemplateModal}
         onClose={() => setShowSaveTemplateModal(false)}
@@ -2055,8 +2034,7 @@ function TestingStep({
       showError("验证过程中发生错误");
 
       if (process.env.NODE_ENV === "development") {
-        // 客户端调试输出：测试环境验证错误
-        // eslint-disable-next-line no-console
+
         console.error("[PixelMigrationWizard] Test environment validation error:", error);
       }
     } finally {
@@ -2095,8 +2073,7 @@ function TestingStep({
         } catch (error) {
           const errorMessage = error instanceof Error ? error.message : "Unknown error";
           if (process.env.NODE_ENV === "development") {
-            // 客户端调试输出：切换平台失败
-            // eslint-disable-next-line no-console
+
             console.error(`[PixelMigrationWizard] Failed to switch platform ${platform}:`, error);
           }
           return { platform, success: false, error: errorMessage };
@@ -2124,8 +2101,7 @@ function TestingStep({
       showError("切换环境时发生错误");
 
       if (process.env.NODE_ENV === "development") {
-        // 客户端调试输出：切换到生产环境错误
-        // eslint-disable-next-line no-console
+
         console.error("[PixelMigrationWizard] Switch to live error:", error);
       }
     } finally {
@@ -2137,7 +2113,6 @@ function TestingStep({
     window.location.href = "/app/verification";
   }, []);
 
-  // 清理所有 timeout 引用
   useEffect(() => {
     return () => {
       timeoutRefs.current.forEach((timeout) => clearTimeout(timeout));
@@ -2201,7 +2176,6 @@ function TestingStep({
         </BlockStack>
       </Banner>
 
-      {}
       {shopId && selectedPlatforms.size > 0 && (
         <Card>
           <BlockStack gap="300">
@@ -2248,7 +2222,6 @@ function TestingStep({
                         </InlineStack>
                         {result.details && (
                           <BlockStack gap="300">
-                            {}
                             {result.details.eventSent && (
                               <Box padding="300" background="bg-surface-success" borderRadius="200">
                                 <BlockStack gap="200">
@@ -2267,7 +2240,6 @@ function TestingStep({
                               </Box>
                             )}
 
-                            {}
                             {result.details.testEventCode && (
                               <Banner tone="info">
                                 <BlockStack gap="200">
@@ -2288,7 +2260,6 @@ function TestingStep({
                               </Banner>
                             )}
 
-                            {}
                             {result.details.debugViewUrl && (
                               <Banner tone="info">
                                 <BlockStack gap="200">
@@ -2305,7 +2276,6 @@ function TestingStep({
                               </Banner>
                             )}
 
-                            {}
                             {result.details.verificationInstructions && (
                               <Banner tone="info">
                                 <Text as="span" variant="bodySm">
@@ -2314,7 +2284,6 @@ function TestingStep({
                               </Banner>
                             )}
 
-                            {}
                             {result.details.error && (
                               <Banner tone="critical">
                                 <BlockStack gap="200">
@@ -2336,7 +2305,6 @@ function TestingStep({
                               </Banner>
                             )}
 
-                            {}
                             {result.valid && result.details.eventSent && (
                               <Box padding="300" background="bg-surface-secondary" borderRadius="200">
                                 <BlockStack gap="200">
@@ -2367,7 +2335,6 @@ function TestingStep({
         </Card>
       )}
 
-      {}
       {allInTestMode && Object.keys(validationResults).length > 0 &&
        Object.values(validationResults).every(r => r.valid) && (
         <Card>
@@ -2417,7 +2384,6 @@ function TestingStep({
         </Card>
       )}
 
-      {}
       {!allInTestMode && Object.keys(validationResults).length > 0 &&
        Object.values(validationResults).every(r => r.valid) && (
         <Banner tone="success">

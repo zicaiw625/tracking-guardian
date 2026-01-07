@@ -84,7 +84,6 @@ export async function processShopRedact(
     });
     deletedCounts.monthlyUsages = monthlyUsageResult.count;
 
-    // P0-T5: 删除事件证据链数据
     const eventLogResult = await prisma.eventLog.deleteMany({
       where: { shopId: shop.id },
     });

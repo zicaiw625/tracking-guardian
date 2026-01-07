@@ -20,8 +20,7 @@ export interface PixelEventPayload {
   eventName: PixelEventName;
   timestamp: number;
   shopDomain: string;
-  // P0-4: ingestionKey 已从 body 中移除，不再出现在请求体中
-  // 服务端通过 shopDomain 查找 shop.ingestionSecret 进行 HMAC 验证
+
   consent?: {
     marketing?: boolean;
     analytics?: boolean;
@@ -329,7 +328,7 @@ export function determineTrustLevel(
   if (!keyValidation.matched) {
     return {
       level: 'untrusted',
-      // P0-1: 使用 hmac_signature_invalid 替代 ingestion_key_invalid，更准确地反映验证方式
+
       reason: keyValidation.reason || 'hmac_signature_invalid',
     };
   }

@@ -36,7 +36,7 @@ import {
   SecureEmailSchema,
   SecureUrlSchema,
 } from "../../utils/security";
-// P0-2: v1.0 版本不包含任何 PCD/PII 处理，因此移除 PCD_CONFIG 导入
+
 import {
   switchEnvironment,
   rollbackConfig,
@@ -48,10 +48,10 @@ export async function handleSaveAlert(
   shopId: string,
   sessionShop: string
 ) {
-  // P1-5: 服务端 entitlement 硬门禁 - 检查告警权限
+
   const { requireEntitlementOrThrow } = await import("../../services/billing/entitlement.server");
   await requireEntitlementOrThrow(shopId, "alerts");
-  
+
   const channel = formData.get("channel") as string;
   const threshold = parseFloat(formData.get("threshold") as string) / 100;
   const enabled = formData.get("enabled") === "true";
@@ -217,13 +217,12 @@ export async function handleSaveServerSide(
   shopId: string,
   sessionShop: string
 ) {
-  // P1-5: 服务端 entitlement 硬门禁 - 检查像素目的地权限
+
   const { requireEntitlementOrThrow } = await import("../../services/billing/entitlement.server");
-  
+
   const platform = formData.get("platform") as string;
   const enabled = formData.get("enabled") === "true";
 
-  // 如果启用服务端追踪，检查权限
   if (enabled) {
     await requireEntitlementOrThrow(shopId, "pixel_destinations");
   }
@@ -338,7 +337,6 @@ export async function handleSaveServerSide(
 
   const environment = (formData.get("environment") as "test" | "live") || "live";
 
-  // Try to find existing config first
   const existing = await prisma.pixelConfig.findFirst({
     where: {
       shopId,
@@ -529,16 +527,12 @@ export async function handleRotateIngestionSecret(
   });
 }
 
-// P0-2: v1.0 版本不包含任何 PCD/PII 处理，因此完全移除 handleUpdatePrivacySettings 函数
-// v1.0 仅依赖 Web Pixels 标准事件，不处理任何客户数据，因此不需要隐私设置更新功能
-// 此函数将在 v1.1 中重新引入（当需要 PCD/PII 处理时）
 export async function handleUpdatePrivacySettings(
   formData: FormData,
   shopId: string,
   sessionShop: string
 ) {
-  // P0-2: v1.0 版本不包含任何 PCD/PII 处理
-  // 仅保留 consentStrategy 和 dataRetentionDays 的更新（这些不涉及 PII）
+
   const consentStrategy =
     (formData.get("consentStrategy") as string) || "strict";
   const dataRetentionDays =
@@ -549,8 +543,7 @@ export async function handleUpdatePrivacySettings(
     data: {
       consentStrategy,
       dataRetentionDays,
-      // P0-2: v1.0 版本不包含任何 PCD/PII 处理，因此不更新 piiEnabled、pcdAcknowledged 等字段
-      // v1.0 版本已从 schema 中完全移除这些字段，这些功能将在 v1.1 中重新引入（当需要 PCD/PII 处理时）
+
     },
   });
 
@@ -564,7 +557,7 @@ export async function handleUpdatePrivacySettings(
     metadata: {
       consentStrategy,
       dataRetentionDays,
-      // P0-2: v1.0 版本不包含任何 PCD/PII 处理，因此不记录 PII 相关元数据
+
     },
   });
 
@@ -632,19 +625,19 @@ export async function settingsAction({ request }: ActionFunctionArgs) {
       const result = await switchEnvironment(shop.id, platform, newEnvironment);
 
       if (result.success) {
-        // P0-4: 同步 environment 到 pixel settings
+
         try {
           const shopData = await prisma.shop.findUnique({
             where: { id: shop.id },
             select: { webPixelId: true, ingestionSecret: true, shopDomain: true },
           });
-          
+
           if (shopData?.webPixelId) {
             const { decryptIngestionSecret } = await import("../../utils/token-encryption");
-            const ingestionKey = shopData.ingestionSecret 
+            const ingestionKey = shopData.ingestionSecret
               ? decryptIngestionSecret(shopData.ingestionSecret)
               : undefined;
-            
+
             await updateWebPixel(
               admin,
               shopData.webPixelId,
@@ -661,7 +654,7 @@ export async function settingsAction({ request }: ActionFunctionArgs) {
             error: syncError instanceof Error ? syncError.message : String(syncError),
           });
         }
-        
+
         await invalidateAllShopCaches(session.shop, shop.id);
         await createAuditLog({
           shopId: shop.id,

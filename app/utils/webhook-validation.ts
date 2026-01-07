@@ -1,6 +1,4 @@
 import { logger } from "./logger.server";
-// P0-6: v1.0 版本不包含任何 PCD/PII 处理，因此移除 OrderWebhookPayload 导入
-// v1.0 仅依赖 Web Pixels 标准事件，不处理订单 webhooks
 
 export interface GDPRDataRequestPayload {
     shop_id: number;
@@ -123,6 +121,3 @@ export function parseGDPRShopRedactPayload(data: unknown, shopDomain: string): G
     };
 }
 
-// P0-6: v1.0 版本不包含任何 PCD/PII 处理，因此移除所有 Order webhook 验证函数
-// v1.0 仅依赖 Web Pixels 标准事件，不处理订单 webhooks
-// 已移除：validateOrderWebhookPayload, parseOrderWebhookPayload 及其所有辅助函数（sanitizeString, sanitizeNumber, sanitizeShippingPriceSet, sanitizeCustomer, sanitizeBillingAddress, sanitizeLineItems）

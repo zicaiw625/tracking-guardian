@@ -29,12 +29,11 @@ const ShippingTracker = memo(function ShippingTracker() {
     const [error, setError] = useState<string | null>(null);
     const [backendUrlError, setBackendUrlError] = useState(false);
 
-    // P0-1: PRD 对齐 - 使用本地化文本
-    const title = useMemo(() => 
+    const title = useMemo(() =>
         getLocalizedText(settings, "shipping_title", "订单状态", undefined, api as { locale?: string }),
         [settings, api]
     );
-    const tipText = useMemo(() => 
+    const tipText = useMemo(() =>
         getLocalizedText(settings, "shipping_tip_text", "发货后您将收到包含物流追踪信息的邮件通知。如有任何问题，请随时联系我们的客服团队。", undefined, api as { locale?: string }),
         [settings, api]
     );
@@ -42,7 +41,7 @@ const ShippingTracker = memo(function ShippingTracker() {
     useEffect(() => {
         async function fetchOrderInfo() {
             try {
-                // Type guard: orderConfirmation is only available in purchase.thank-you.block.render target
+
                 if ('orderConfirmation' in api && api.orderConfirmation) {
                     const orderData = api.orderConfirmation instanceof Promise
                         ? await api.orderConfirmation
@@ -55,8 +54,7 @@ const ShippingTracker = memo(function ShippingTracker() {
                     }
                 }
             } catch (err) {
-                // Silently handle order info fetch errors
-                // Order info may not be available in all contexts
+
             }
         }
         fetchOrderInfo();
@@ -79,9 +77,8 @@ const ShippingTracker = memo(function ShippingTracker() {
             setError(null);
             setIsLoading(true);
 
-            // BFS 性能优化：使用较短的超时和重试策略，避免阻塞页面渲染
             const retryDelays = [0, 500, 1500, 3000];
-            const REQUEST_TIMEOUT_MS = 5000; // 5秒超时，符合 BFS INP < 200ms 要求
+            const REQUEST_TIMEOUT_MS = 5000;
             let lastError: Error | null = null;
 
             for (let attempt = 0; attempt < retryDelays.length; attempt++) {
@@ -98,7 +95,6 @@ const ShippingTracker = memo(function ShippingTracker() {
                         continue;
                     }
 
-                    // 使用 AbortController 实现超时控制
                     const controller = new AbortController();
                     const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
 
@@ -157,25 +153,24 @@ const ShippingTracker = memo(function ShippingTracker() {
                         }
                     } catch (fetchError) {
                         clearTimeout(timeoutId);
-                        // P0-5: network access 失败时的降级处理
-                        // 如果 fetch 失败（可能是 network access 未获批），显示友好的错误信息
+
                         if (fetchError instanceof Error && fetchError.name === 'AbortError') {
                             lastError = new Error("请求超时");
                         } else if (fetchError instanceof Error && (fetchError.message.includes("fetch") || fetchError.message.includes("network") || fetchError.message.includes("Failed to fetch"))) {
-                            // Network access 未获批或网络连接失败
+
                             lastError = new Error("网络连接失败，请稍后刷新页面重试");
                         } else {
                             lastError = fetchError instanceof Error ? fetchError : new Error(String(fetchError));
                         }
                         if (attempt === retryDelays.length - 1) {
-                            // P0-5: 降级显示友好的错误信息，而不是空白或报错
+
                             const errorMessage = lastError?.message || "获取物流信息失败，请稍后刷新页面";
                             setError(errorMessage);
                         }
                     }
                 } catch (error) {
                     lastError = error instanceof Error ? error : new Error(String(error));
-                    
+
                     if (attempt === retryDelays.length - 1) {
                         setError("获取物流信息失败，请稍后刷新页面");
                     }

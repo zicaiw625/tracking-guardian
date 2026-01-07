@@ -81,7 +81,6 @@ export async function wrapApiCall<T>(
   let timeoutId: NodeJS.Timeout | null = null;
   const timeoutErrorSymbol = Symbol("TimeoutError");
 
-  // 清理定时器的辅助函数
   const cleanupTimeout = (): void => {
     if (timeoutId !== null) {
       clearTimeout(timeoutId);
@@ -100,24 +99,22 @@ export async function wrapApiCall<T>(
 
     const result = await Promise.race([
       operation().finally(() => {
-        // 确保在操作完成时清理定时器（无论成功还是失败）
+
         cleanupTimeout();
       }),
       timeoutPromise,
     ]);
 
-    // 如果到达这里，说明操作成功完成（定时器已在 finally 中清理）
     return ok(result);
   } catch (error) {
-    // 确保定时器被清理（即使已经在 finally 中清理过，这里再次清理也是安全的）
+
     cleanupTimeout();
 
-    // 检查是否是超时错误（使用符号标记更可靠）
-    const isTimeoutError = 
-      error instanceof Error && 
+    const isTimeoutError =
+      error instanceof Error &&
       (
         (timeoutErrorSymbol in error && (error as Error & { [timeoutErrorSymbol]: boolean })[timeoutErrorSymbol]) ||
-        error.message.includes("timed out") || 
+        error.message.includes("timed out") ||
         error.message.includes(`Request timed out after ${timeoutMs}ms`) ||
         error.name === "TimeoutError" ||
         error.message.toLowerCase().includes("timeout")
@@ -140,7 +137,6 @@ function handleApiError(error: unknown, serviceName: string): AppError {
     const message = error.message.toLowerCase();
     const errorName = error.name?.toLowerCase() || "";
 
-    // 处理超时和取消错误
     if (message.includes("timeout") || message.includes("abort") || errorName.includes("timeout") || errorName.includes("abort")) {
       return AppError.retryable(
         ErrorCode.PLATFORM_TIMEOUT,
@@ -149,10 +145,9 @@ function handleApiError(error: unknown, serviceName: string): AppError {
       );
     }
 
-    // 处理网络错误
     if (
-      message.includes("network") || 
-      message.includes("fetch") || 
+      message.includes("network") ||
+      message.includes("fetch") ||
       message.includes("econnrefused") ||
       message.includes("enotfound") ||
       message.includes("econnreset") ||
@@ -166,7 +161,6 @@ function handleApiError(error: unknown, serviceName: string): AppError {
       );
     }
 
-    // 处理认证错误
     if (message.includes("unauthorized") || message.includes("401") || message.includes("authentication")) {
       return new AppError(
         ErrorCode.PLATFORM_AUTH_ERROR,
@@ -176,7 +170,6 @@ function handleApiError(error: unknown, serviceName: string): AppError {
       );
     }
 
-    // 处理权限错误
     if (message.includes("forbidden") || message.includes("403") || message.includes("permission")) {
       return new AppError(
         ErrorCode.PLATFORM_AUTH_ERROR,
@@ -187,7 +180,6 @@ function handleApiError(error: unknown, serviceName: string): AppError {
     }
   }
 
-  // 处理非Error对象
   if (typeof error === "string") {
     return ensureAppError(new Error(error), ErrorCode.PLATFORM_UNKNOWN_ERROR).withMetadata({
       platform: serviceName,

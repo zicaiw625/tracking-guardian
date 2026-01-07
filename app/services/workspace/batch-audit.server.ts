@@ -71,7 +71,6 @@ export async function startBatchAudit(
 
       const scanResult = await scanShopTracking(admin, shopId);
 
-      // Get the scan report ID from the database
       const scanReport = await prisma.scanReport.findFirst({
         where: { shopId },
         orderBy: { createdAt: "desc" },

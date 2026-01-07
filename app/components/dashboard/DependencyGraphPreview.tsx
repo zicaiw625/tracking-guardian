@@ -74,8 +74,6 @@ export function DependencyGraphPreview({ dependencyGraph }: DependencyGraphPrevi
     return Object.entries(summary.nodesByCategory) as [string, number][];
   }, [summary]);
 
-  
-
   if (!dependencyGraph || dependencyGraph.nodes.length === 0) {
     return (
       <Card>

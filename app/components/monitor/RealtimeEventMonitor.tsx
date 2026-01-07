@@ -146,8 +146,7 @@ export function RealtimeEventMonitor({
           } catch (err) {
 
             if (process.env.NODE_ENV === "development") {
-              // 客户端调试输出：解析事件数据失败
-              // eslint-disable-next-line no-console
+
               console.error("Failed to parse event data:", err);
             }
           }
@@ -156,8 +155,7 @@ export function RealtimeEventMonitor({
         eventSource.onerror = (err) => {
 
           if (process.env.NODE_ENV === "development") {
-            // 客户端调试输出：SSE连接错误
-            // eslint-disable-next-line no-console
+
             console.error("SSE error:", err);
           }
           setIsConnected(false);
@@ -171,8 +169,7 @@ export function RealtimeEventMonitor({
         showErrorRef.current("无法建立实时监控连接");
 
         if (process.env.NODE_ENV === "development") {
-          // 客户端调试输出：SSE连接建立失败
-          // eslint-disable-next-line no-console
+
           console.error("SSE connection error:", err);
         }
       }
@@ -183,9 +180,9 @@ export function RealtimeEventMonitor({
         try {
           eventSourceRef.current.close();
         } catch (error) {
-          // EventSource may already be closed
+
           if (process.env.NODE_ENV === "development") {
-            // eslint-disable-next-line no-console
+
             console.warn("Error closing EventSource:", error);
           }
         }
@@ -201,7 +198,7 @@ export function RealtimeEventMonitor({
 
     return () => {
       disconnect();
-      // Clear refs to prevent memory leaks
+
       disconnectRef.current = null;
       connectRef.current = null;
     };
@@ -307,7 +304,6 @@ export function RealtimeEventMonitor({
   return (
     <Card>
       <BlockStack gap="400">
-        {}
         <InlineStack align="space-between" blockAlign="center">
           <BlockStack gap="100">
             <Text as="h3" variant="headingMd">
@@ -364,7 +360,6 @@ export function RealtimeEventMonitor({
           </InlineStack>
         </InlineStack>
 
-        {}
         {error && (
           <Banner tone="critical" onDismiss={() => setError(null)}>
             <Text as="p" variant="bodySm">
@@ -373,7 +368,6 @@ export function RealtimeEventMonitor({
           </Banner>
         )}
 
-        {}
         {events.length > 0 && (
           <BlockStack gap="300">
             <InlineStack gap="300" wrap>
@@ -424,7 +418,6 @@ export function RealtimeEventMonitor({
 
         <Divider />
 
-        {}
         {!isConnected && events.length === 0 ? (
           <Banner tone="info">
             <Text as="p" variant="bodySm">
@@ -450,7 +443,6 @@ export function RealtimeEventMonitor({
           </Scrollable>
         )}
 
-        {}
         {events.length > 0 && (
           <>
             <Divider />
@@ -483,7 +475,6 @@ export function RealtimeEventMonitor({
           </>
         )}
 
-        {}
         <Modal
           open={showDetailsModal}
           onClose={() => {

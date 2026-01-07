@@ -1,9 +1,5 @@
 
 
-// P0-5: v1.0 版本不包含任何 PCD/PII 处理，因此移除所有 Order webhook 相关的类型定义
-// v1.0 仅依赖 Web Pixels 标准事件，不处理订单 webhooks
-// 已移除：OrderWebhookPayload, MinimalOrderPayload, toMinimalOrderPayload
-
 export interface ApiResponse<T = unknown> {
   success: boolean;
   data?: T;
@@ -30,7 +26,7 @@ export interface ShopData {
   plan: string;
   monthlyOrderLimit: number;
   isActive: boolean;
-  // P0-2: v1.0 版本不包含任何 PCD/PII 处理，因此移除 piiEnabled 字段
+
   weakConsentMode?: boolean;
   consentStrategy?: string;
 }

@@ -63,7 +63,6 @@ export function UpgradeHealthCheck({
   return (
     <Card>
       <BlockStack gap="400">
-        {}
         <BlockStack gap="200">
           <InlineStack align="space-between" blockAlign="center">
             <Text as="h2" variant="headingLg">
@@ -80,7 +79,6 @@ export function UpgradeHealthCheck({
 
         <Divider />
 
-        {}
         <BlockStack gap="300">
           <Text as="h3" variant="headingMd">
             升级状态
@@ -111,7 +109,6 @@ export function UpgradeHealthCheck({
           </Box>
         </BlockStack>
 
-        {}
         <BlockStack gap="300">
           <InlineStack align="space-between" blockAlign="center">
             <Text as="h3" variant="headingMd">
@@ -135,7 +132,6 @@ export function UpgradeHealthCheck({
           </Text>
         </BlockStack>
 
-        {}
         <BlockStack gap="300">
           <Text as="h3" variant="headingMd">
             检测结果摘要
@@ -183,7 +179,6 @@ export function UpgradeHealthCheck({
           </Box>
         </BlockStack>
 
-        {}
         <Banner tone="info" title="下一步操作">
           <BlockStack gap="200">
             <Text as="p" variant="bodySm">
@@ -204,7 +199,6 @@ export function UpgradeHealthCheck({
 
         <Divider />
 
-        {}
         <InlineStack gap="200" align="end">
           <Button onClick={onViewDashboard}>查看仪表盘</Button>
           <Button variant="primary" onClick={onStartAudit} icon={ArrowRightIcon}>

@@ -4,11 +4,6 @@ import { authenticate } from "../shopify.server";
 import prisma from "../db.server";
 import { logger } from "../utils/logger.server";
 
-/**
- * P0-T6: 获取 EventLog 详情（包括所有 delivery attempts 的 payload）
- * 
- * 用于 Verification UI 显示实际发送的 payload
- */
 export const loader = async ({ request, params }: LoaderFunctionArgs) => {
   const { session } = await authenticate.admin(request);
   const shopDomain = session.shop;

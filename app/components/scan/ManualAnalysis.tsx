@@ -65,15 +65,14 @@ export function ManualAnalysis({ deprecationStatus }: ManualAnalysisProps) {
     setAnalysisError(null);
 
     try {
-      // 直接调用分析函数，移除不必要的setTimeout
+
       const result = analyzeScriptContent(trimmedContent);
-      
-      // 检查组件是否仍然挂载
+
       if (isMountedRef.current) {
         setAnalysisResult(result);
       }
     } catch (error) {
-      // 检查组件是否仍然挂载
+
       if (!isMountedRef.current) {
         return;
       }
@@ -84,8 +83,7 @@ export function ManualAnalysis({ deprecationStatus }: ManualAnalysisProps) {
 
       if (process.env.NODE_ENV === "development") {
         const errorDetails = error instanceof Error ? error.stack : String(error);
-        // 客户端调试输出：脚本分析错误
-        // eslint-disable-next-line no-console
+
         console.error("Script analysis error:", {
           message: errorMessage,
           details: errorDetails,
@@ -211,7 +209,6 @@ export function ManualAnalysis({ deprecationStatus }: ManualAnalysisProps) {
         </Card>
       </Box>
       {analysisResult && <AnalysisResultSummary analysisResult={analysisResult} />}
-      {                  }
       {analysisResult && analysisResult.risks.length > 0 && (
         <Card>
           <BlockStack gap="400">
@@ -260,7 +257,6 @@ export function ManualAnalysis({ deprecationStatus }: ManualAnalysisProps) {
           </BlockStack>
         </Card>
       )}
-      {                     }
       {analysisResult && analysisResult.recommendations.length > 0 && (
         <Card>
           <BlockStack gap="400">

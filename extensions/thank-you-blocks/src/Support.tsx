@@ -23,8 +23,7 @@ function SupportBlock() {
     return api.shop?.storefrontUrl || "";
   }, [api.shop?.storefrontUrl]);
 
-  // P0-1: PRD 对齐 - 使用本地化文本
-  const title = useMemo(() => 
+  const title = useMemo(() =>
     getLocalizedText(settings, "support_title", "订单帮助与售后", undefined, api as { locale?: string }),
     [settings, api]
   );

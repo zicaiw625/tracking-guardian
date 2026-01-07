@@ -257,7 +257,6 @@ export function SuccessRateChart({
 
   return (
     <BlockStack gap="400">
-      {}
       <Card>
         <BlockStack gap="400">
           <Text as="h3" variant="headingSm">
@@ -269,7 +268,6 @@ export function SuccessRateChart({
         </BlockStack>
       </Card>
 
-      {}
       {destinations.length > 0 && (
         <Card>
           <BlockStack gap="400">
@@ -299,7 +297,6 @@ export function SuccessRateChart({
         </Card>
       )}
 
-      {}
       {eventTypes.length > 0 && (
         <Card>
           <BlockStack gap="400">
@@ -329,7 +326,6 @@ export function SuccessRateChart({
         </Card>
       )}
 
-      {}
       {selectedTrendData && (
         <Card>
           <BlockStack gap="400">

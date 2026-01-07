@@ -79,7 +79,6 @@ export function ChannelReconciliationPanel({
 
   return (
     <BlockStack gap="500">
-      {}
       <Card>
         <BlockStack gap="400">
           <InlineStack align="space-between" blockAlign="center">
@@ -148,7 +147,6 @@ export function ChannelReconciliationPanel({
         </BlockStack>
       </Card>
 
-      {}
       {data.crossPlatformAnalysis.platformsWithDiscrepancies.length > 0 && (
         <Card>
           <BlockStack gap="300">
@@ -189,7 +187,6 @@ export function ChannelReconciliationPanel({
         </Card>
       )}
 
-      {}
       <Card>
         <BlockStack gap="300">
           <InlineStack align="space-between" blockAlign="center">
@@ -215,7 +212,6 @@ export function ChannelReconciliationPanel({
         </BlockStack>
       </Card>
 
-      {}
       <Card>
         <BlockStack gap="400">
           <DataTable
@@ -285,7 +281,6 @@ export function ChannelReconciliationPanel({
         </BlockStack>
       </Card>
 
-      {}
       {filteredPlatforms.map((comparison) => (
         <PlatformComparisonCard
           key={comparison.platform}
@@ -294,7 +289,6 @@ export function ChannelReconciliationPanel({
         />
       ))}
 
-      {}
       {showOrderDetails && selectedOrderId && (
         <Modal
           open={showOrderDetails}
@@ -371,7 +365,6 @@ function PlatformComparisonCard({
           <BlockStack gap="400">
             <Divider />
 
-            {}
             <BlockStack gap="300">
               <Text as="h4" variant="headingSm">
                 统计信息
@@ -440,7 +433,6 @@ function PlatformComparisonCard({
               </Box>
             </BlockStack>
 
-            {}
             {comparison.issues.length > 0 && (
               <BlockStack gap="300">
                 <Text as="h4" variant="headingSm">
@@ -462,7 +454,6 @@ function PlatformComparisonCard({
               </BlockStack>
             )}
 
-            {}
             {comparison.stats.missingOrders.length > 0 && (
               <BlockStack gap="300">
                 <Text as="h4" variant="headingSm">
@@ -492,7 +483,6 @@ function PlatformComparisonCard({
               </BlockStack>
             )}
 
-            {}
             {comparison.stats.duplicateOrders.length > 0 && (
               <BlockStack gap="300">
                 <Text as="h4" variant="headingSm">

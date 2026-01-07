@@ -1,31 +1,15 @@
-/**
- * P0-T7: checkout_completed 已知行为的产品内提示组件
- * 
- * 根据 Shopify 官方文档，checkout_completed 事件有以下已知行为：
- * 1. 有 upsell 时，在第一个 upsell 页触发且 Thank you 不再触发
- * 2. 若应触发页面加载失败则不触发
- * 3. 同意/隐私导致数据被过滤
- */
+
 
 import { Banner, BlockStack, Text, List, Collapsible } from "@shopify/polaris";
 import { useState } from "react";
 import { AlertCircleIcon, InfoIcon } from "~/components/icons";
 
 export interface CheckoutCompletedBehaviorHintProps {
-  /**
-   * 显示模式
-   * - "missing": 事件缺失时的提示
-   * - "drop": 事件量骤降告警时的提示
-   * - "info": 一般信息提示
-   */
+
   mode?: "missing" | "drop" | "info";
-  /**
-   * 是否可折叠（默认 true）
-   */
+
   collapsible?: boolean;
-  /**
-   * 自定义标题
-   */
+
   title?: string;
 }
 

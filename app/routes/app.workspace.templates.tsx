@@ -353,7 +353,6 @@ export default function WorkspaceTemplatesPage() {
       }}
     >
       <BlockStack gap="500">
-        {}
         <Card>
           <BlockStack gap="400">
             <InlineStack align="space-between" blockAlign="center">
@@ -413,7 +412,6 @@ export default function WorkspaceTemplatesPage() {
           </BlockStack>
         </Card>
 
-        {}
         <Card>
           <BlockStack gap="400">
             <InlineStack align="space-between" blockAlign="center">
@@ -485,7 +483,6 @@ export default function WorkspaceTemplatesPage() {
           </BlockStack>
         </Card>
 
-        {}
         {applyResult && (
           <BatchApplyProgress
             total={applyResult.totalShops}
@@ -498,7 +495,6 @@ export default function WorkspaceTemplatesPage() {
           />
         )}
 
-        {}
         <Card>
           <BlockStack gap="300">
             <Text as="h2" variant="headingMd">
@@ -525,7 +521,6 @@ export default function WorkspaceTemplatesPage() {
         </Card>
       </BlockStack>
 
-      {}
       <Modal
         open={showCreateModal}
         onClose={() => setShowCreateModal(false)}
@@ -583,7 +578,6 @@ export default function WorkspaceTemplatesPage() {
         </Modal.Section>
       </Modal>
 
-      {}
       <Modal
         open={showApplyModal}
         onClose={() => setShowApplyModal(false)}

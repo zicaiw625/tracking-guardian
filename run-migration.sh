@@ -1,18 +1,18 @@
 #!/bin/bash
-# 数据库迁移脚本
-# 使用方法: ./run-migration.sh
 
-# 设置数据库连接 URL
-# 注意：如果遇到 TLS 证书错误，可能需要：
-# 1. 检查 Render 数据库是否正在运行
-# 2. 确认连接字符串是否正确
-# 3. 尝试不同的 SSL 模式：sslmode=prefer, sslmode=require, sslmode=allow
+
+
+
+
+
+
+
 export DATABASE_URL="postgresql://tracking_guardian_user:xQI5eAKFVwYXmnrrVtngV3NpaLh2bQhx@dpg-d51ta6uuk2gs73a4a7l0-a.singapore-postgres.render.com/tracking_guardian?sslmode=require"
 
 echo "正在执行数据库迁移..."
 echo "数据库连接: $(echo $DATABASE_URL | sed 's/:[^:@]*@/:***@/')"
 
-# 尝试执行迁移
+
 pnpm prisma migrate deploy
 
 if [ $? -eq 0 ]; then

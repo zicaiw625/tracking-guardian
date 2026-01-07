@@ -219,7 +219,6 @@ export default function AcceptInvitationPage() {
     <Page title="接受工作区邀请">
       <Card>
         <BlockStack gap="500">
-          {}
           <BlockStack gap="200">
             <InlineStack align="center" gap="300">
               <Text as="span" variant="headingXl">
@@ -236,7 +235,6 @@ export default function AcceptInvitationPage() {
 
           <Divider />
 
-          {}
           <Box background="bg-surface-secondary" padding="400" borderRadius="200">
             <BlockStack gap="300">
               <InlineStack align="space-between">
@@ -277,7 +275,6 @@ export default function AcceptInvitationPage() {
             </BlockStack>
           </Box>
 
-          {}
           <BlockStack gap="200">
             <Text as="h3" variant="headingSm">
               您将获得的权限
@@ -297,14 +294,12 @@ export default function AcceptInvitationPage() {
 
           <Divider />
 
-          {}
           <Banner tone="info">
             <Text as="p" variant="bodySm">
               您将以 <strong>{shop?.shopDomain}</strong> 的身份加入此工作区。
             </Text>
           </Banner>
 
-          {}
           <InlineStack gap="300" align="end">
             <Button
               onClick={handleDecline}

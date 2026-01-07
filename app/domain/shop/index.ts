@@ -11,7 +11,7 @@ export {
   type ShopStatus,
   createShop,
   getShopStatus,
-  // P0-2: v1.0 版本不包含任何 PCD/PII 处理，因此移除 isPiiFullyEnabled 导出
+
   isWithinUsageLimits,
   getAllowedDomains,
   isDomainAllowed,

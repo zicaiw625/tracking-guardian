@@ -22,27 +22,26 @@ function SupportOrderStatus() {
 
   const faqUrl = useMemo(() => {
     const url = (settings.support_faq_url as string) || "/pages/faq";
-    // Customer Account UI Extensions: relative URLs are handled by Shopify
-    // Absolute URLs (http:// or https://) are returned as-is
+
     if (url.startsWith("http://") || url.startsWith("https://")) {
       return url;
     }
-    // Return relative URL as-is (Shopify will resolve it)
+
     return url;
   }, [settings.support_faq_url]);
 
   const contactEmail = settings.support_contact_email as string | undefined;
   const contactUrl = useMemo(() => {
     const url = (settings.support_contact_url as string) || (contactEmail ? `mailto:${contactEmail}` : "/pages/contact");
-    // mailto: links are returned as-is
+
     if (url.startsWith("mailto:")) {
       return url;
     }
-    // Absolute URLs (http:// or https://) are returned as-is
+
     if (url.startsWith("http://") || url.startsWith("https://")) {
       return url;
     }
-    // Return relative URL as-is (Shopify will resolve it)
+
     return url;
   }, [settings.support_contact_url, contactEmail]);
 
@@ -51,11 +50,11 @@ function SupportOrderStatus() {
 
   const continueShoppingUrl = useMemo(() => {
     const url = (settings.continue_shopping_url as string) || "/";
-    // Absolute URLs (http:// or https://) are returned as-is
+
     if (url.startsWith("http://") || url.startsWith("https://")) {
       return url;
     }
-    // Return relative URL as-is (Shopify will resolve it)
+
     return url;
   }, [settings.continue_shopping_url]);
 

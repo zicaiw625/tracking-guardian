@@ -162,8 +162,6 @@ export class TikTokPlatformService implements IPlatformService {
     eventId: string
   ): Promise<Record<string, unknown>> {
     const timestamp = new Date().toISOString();
-    // P0-3: v1.0 版本不包含任何 PCD/PII 处理，因此不包含 user 字段
-    // v1.0 仅依赖 Web Pixels 标准事件，不处理任何客户数据
 
     const contents =
       data.lineItems?.map((item) => ({
@@ -178,7 +176,7 @@ export class TikTokPlatformService implements IPlatformService {
       event_id: eventId,
       timestamp,
       context: {
-        // P0-3: v1.0 版本不包含 user 字段（不处理任何 PII）
+
       },
       properties: {
         currency: data.currency,
@@ -196,8 +194,6 @@ export class TikTokPlatformService implements IPlatformService {
     eventId: string
   ): Promise<ConversionApiResponse> {
     const timestamp = new Date().toISOString();
-    // P0-3: v1.0 版本不包含任何 PCD/PII 处理，因此不包含 user 字段
-    // v1.0 仅依赖 Web Pixels 标准事件，不处理任何客户数据
 
     const contents =
       data.lineItems?.map((item) => ({
@@ -213,7 +209,7 @@ export class TikTokPlatformService implements IPlatformService {
       event_id: eventId,
       timestamp,
       context: {
-        // P0-3: v1.0 版本不包含 user 字段（不处理任何 PII）
+
       },
       properties: {
         currency: data.currency,

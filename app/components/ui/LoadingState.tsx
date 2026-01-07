@@ -76,7 +76,6 @@ export function TableSkeleton({ rows = 5, columns = 4 }: TableSkeletonProps) {
   return (
     <Card>
       <BlockStack gap="300">
-        {}
         <InlineStack gap="400">
           {Array.from({ length: columns }).map((_, i) => (
             <Box key={i} minWidth="100px">
@@ -85,7 +84,6 @@ export function TableSkeleton({ rows = 5, columns = 4 }: TableSkeletonProps) {
           ))}
         </InlineStack>
 
-        {}
         {Array.from({ length: rows }).map((_, rowIndex) => (
           <InlineStack key={rowIndex} gap="400">
             {Array.from({ length: columns }).map((_, colIndex) => (

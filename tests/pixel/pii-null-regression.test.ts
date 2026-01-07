@@ -29,7 +29,6 @@ vi.mock("../../app/db.server", () => ({
 import prisma from "../../app/db.server";
 import { generateEventId, normalizeOrderId } from "../../app/utils/crypto.server";
 
-// P0-5: v1.0 版本不包含任何 PCD/PII 处理，因此更新测试以验证"不包含 PII"的行为
 describe("P0-02: v1.0 No PII Tests", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -206,7 +205,7 @@ describe("P0-02: v1.0 No PII Tests", () => {
         event_time: Math.floor(Date.now() / 1000),
         event_id: "evt_12345_purchase_test-shop",
         action_source: "website",
-        // P0-3: v1.0 版本不包含 user_data 字段（不处理任何 PII）
+
         custom_data: {
           currency: "USD",
           value: 99.99,
@@ -310,7 +309,7 @@ describe("P0-02: v1.0 No PII Tests", () => {
 
 describe("P0-02: v1.0 Documentation", () => {
   it("documents that v1.0 does not process any PII (including hashed data)", () => {
-    // P0-5: v1.0 版本不包含任何 PCD/PII 处理，仅发送订单金额和商品信息
+
     expect(true).toBe(true);
   });
 });

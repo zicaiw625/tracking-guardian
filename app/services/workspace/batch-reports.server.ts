@@ -54,7 +54,6 @@ export async function generateBatchReports(
         };
       }
 
-      // Get the latest verification run for this shop
       const latestRun = await prisma.verificationRun.findFirst({
         where: { shopId },
         orderBy: { createdAt: "desc" },

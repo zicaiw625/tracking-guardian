@@ -364,7 +364,7 @@ export interface ShopConfigCacheEntry {
   shopDomain: string;
   plan: string | null;
   consentStrategy: string | null;
-  // P0-2: v1.0 版本不包含任何 PCD/PII 处理，因此移除 piiEnabled 字段
+
   isActive: boolean;
 }
 

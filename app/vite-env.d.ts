@@ -1,4 +1,4 @@
-/// <reference types="vite/client" />
+
 
 declare module '@shopify/polaris/build/esm/styles.css?url' {
   const content: string;

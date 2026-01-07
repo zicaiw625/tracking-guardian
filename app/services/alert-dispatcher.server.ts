@@ -752,7 +752,7 @@ export async function runAlertChecks(shopId: string): Promise<{
       } as AlertData;
 
       try {
-        // 构建符合 AlertConfigWithEncryption 类型的配置对象
+
         const alertConfig = {
           id: config.id,
           channel: config.channel as "email" | "slack" | "telegram",

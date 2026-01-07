@@ -64,8 +64,7 @@ export function CommentSection({
     } catch (error) {
 
       if (process.env.NODE_ENV === "development") {
-        // 客户端调试输出：创建评论失败
-        // eslint-disable-next-line no-console
+
         console.error("Failed to create comment:", error);
       }
     } finally {
@@ -86,8 +85,7 @@ export function CommentSection({
       } catch (error) {
 
         if (process.env.NODE_ENV === "development") {
-          // 客户端调试输出：创建回复失败
-          // eslint-disable-next-line no-console
+
           console.error("Failed to create reply:", error);
         }
       } finally {

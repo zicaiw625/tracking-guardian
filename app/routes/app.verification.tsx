@@ -177,12 +177,11 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       const fiveMinutesAgo = new Date();
       fiveMinutesAgo.setMinutes(fiveMinutesAgo.getMinutes() - 5);
 
-      // P0: 使用 EventLog + DeliveryAttempt 作为数据源
       const eventLogs = await prisma.eventLog.findMany({
         where: {
           shopId: shop.id,
           createdAt: { gte: fiveMinutesAgo },
-          // 匹配 eventName 或通过 normalizedEventJson 中的 shopifyEventName
+
           OR: [
             { eventName: { in: expectedEvents } },
             { eventName: eventType },
@@ -191,7 +190,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         include: {
           DeliveryAttempt: {
             where: {
-              status: { in: ["ok", "fail"] }, // 只检查已发送的（成功或失败）
+              status: { in: ["ok", "fail"] },
             },
             select: {
               id: true,
@@ -201,25 +200,22 @@ export const action = async ({ request }: ActionFunctionArgs) => {
           },
         },
         orderBy: { createdAt: "desc" },
-        take: 50, // 增加查询数量以确保覆盖所有事件
+        take: 50,
       });
 
       const foundEvents = new Set<string>();
-      
-      // 从 EventLog 中提取事件名称（eventName 或从 normalizedEventJson 中提取）
+
       for (const eventLog of eventLogs) {
-        // 检查 eventName 是否匹配
+
         const eventName = eventLog.eventName;
-        
-        // 也尝试从 normalizedEventJson 中提取 shopifyEventName
+
         const normalizedEvent = eventLog.normalizedEventJson as Record<string, unknown> | null;
         const shopifyEventName = normalizedEvent?.shopifyEventName as string | undefined;
-        
-        // 只有当有 DeliveryAttempt 且状态为 ok 或 fail 时才认为事件已发生
+
         const hasValidDelivery = eventLog.DeliveryAttempt.length > 0;
-        
+
         if (hasValidDelivery) {
-          // 检查 eventName 是否匹配任何 expectedEvents
+
           for (const expected of expectedEvents) {
             if (eventName.toLowerCase() === expected.toLowerCase() ||
                 shopifyEventName?.toLowerCase() === expected.toLowerCase() ||
@@ -372,36 +368,28 @@ export default function VerificationPage() {
     navigator.clipboard.writeText(fullText);
   }, [testGuide]);
 
-  // P0-1: PRD 对齐 - v1.0 所有套餐均为月付，移除一次性购买逻辑
   const handleExportPdf = useCallback(() => {
     if (!latestRun) return;
 
-    // 如果已有权限，直接导出
     if (canExportReports) {
       window.location.href = `/api/reports/pdf?type=verification&runId=${latestRun.runId}&format=pdf`;
       return;
     }
 
-    // 未付费：跳转到计费页面升级到 Growth 套餐（月付 $79）
     window.location.href = "/app/billing?upgrade=growth";
   }, [latestRun, canExportReports]);
 
   const handleExportCsv = useCallback(() => {
     if (!latestRun) return;
 
-    // 如果已有权限，直接导出
     if (canExportReports) {
       window.location.href = `/api/reports?type=verification&runId=${latestRun.runId}&format=csv`;
       return;
     }
 
-    // 未付费：跳转到计费页面升级到 Growth 套餐（月付 $79）
     window.location.href = "/app/billing?upgrade=growth";
   }, [latestRun, canExportReports]);
 
-  // P0-1: PRD 对齐 - v1.0 验收范围收敛
-  // v1.0 仅支持 checkout/purchase 漏斗事件验收，不支持退款/取消/编辑/订阅等事件
-  // 这些功能将在 v1.1+ 中通过订单 webhooks 实现
   const tabs = [
     { id: "overview", content: "验收概览" },
     { id: "pixel-layer", content: "像素层验收（Web Pixels 标准事件）" },
@@ -476,7 +464,6 @@ export default function VerificationPage() {
       ]}
     >
       <BlockStack gap="500">
-        {/* P0-1: PRD 对齐 - v1.0 验收范围说明（放在最前面，确保用户首先看到） */}
         <Banner
           title="⚠️ v1.0 验收范围说明（重要）"
           tone="warning"
@@ -508,7 +495,6 @@ export default function VerificationPage() {
           </BlockStack>
         </Banner>
 
-        {/* P2: 免责声明 - 明确说明我们只保证生成与发送成功，不保证平台侧归因一致 */}
         <Banner tone="info" title="重要说明：事件发送与平台归因">
           <BlockStack gap="200">
             <Text as="p" variant="bodySm">
@@ -533,7 +519,6 @@ export default function VerificationPage() {
             </List>
           </BlockStack>
         </Banner>
-        {}
         <CheckoutExtensibilityWarning />
 
         {configuredPlatforms.length === 0 && (
@@ -550,8 +535,8 @@ export default function VerificationPage() {
           <Banner
             title="📄 生成验收报告（PDF/CSV）- 核心付费点"
             tone="warning"
-            action={{ 
-              content: "升级到 Growth 套餐（$79/月）", 
+            action={{
+              content: "升级到 Growth 套餐（$79/月）",
               url: "/app/billing?upgrade=growth"
             }}
           >
@@ -572,7 +557,6 @@ export default function VerificationPage() {
           </Banner>
         )}
 
-        {/* P0-1: PRD 对齐 - v1.0 验收范围说明 */}
         <Banner tone="info">
           <BlockStack gap="200">
             <Text as="p" variant="bodySm" fontWeight="semibold">
@@ -595,12 +579,8 @@ export default function VerificationPage() {
           </BlockStack>
         </Banner>
 
-        {}
-        {/* P0-T7: checkout_completed 已知行为的产品内提示 */}
         <CheckoutCompletedBehaviorHint mode="info" collapsible={true} />
 
-
-        {}
         <Card>
           <BlockStack gap="400">
             <InlineStack align="space-between" blockAlign="center">
@@ -685,7 +665,6 @@ export default function VerificationPage() {
           </BlockStack>
         </Card>
 
-        {}
         {testChecklist && testChecklist.items.length > 0 && (
           <Card>
             <BlockStack gap="400">
@@ -822,7 +801,6 @@ export default function VerificationPage() {
           </Card>
         )}
 
-        {/* P2: 免责声明 - 明确说明我们只保证生成与发送成功，不保证平台侧归因一致 */}
         <Banner tone="info" title="重要说明：事件发送与平台归因">
           <BlockStack gap="200">
             <Text as="p" variant="bodySm">
@@ -849,7 +827,6 @@ export default function VerificationPage() {
         </Banner>
 
         <Tabs tabs={tabs} selected={selectedTab} onSelect={setSelectedTab}>
-          {}
           {selectedTab === 0 && (
             <Box padding="400">
               <BlockStack gap="500">
@@ -866,7 +843,6 @@ export default function VerificationPage() {
 
                 {!isRunning && latestRun && (
                   <>
-                    {}
                     <Layout>
                       <Layout.Section variant="oneThird">
                         <ScoreCard
@@ -906,7 +882,6 @@ export default function VerificationPage() {
                       </Layout.Section>
                     </Layout>
 
-                    {}
                     <Card>
                       <BlockStack gap="400">
                         <InlineStack align="space-between" blockAlign="center">
@@ -949,7 +924,6 @@ export default function VerificationPage() {
                           </BlockStack>
                         </InlineStack>
 
-                        {}
                         <Box background="bg-surface-secondary" padding="400" borderRadius="200">
                           <InlineStack gap="400" align="space-between">
                             <BlockStack gap="100" align="center">
@@ -982,7 +956,6 @@ export default function VerificationPage() {
                           </InlineStack>
                         </Box>
 
-                        {}
                         {latestRun.failedTests > 0 && (
                           <Banner tone="critical" title="存在失败的测试项">
                             <BlockStack gap="100">
@@ -1015,7 +988,6 @@ export default function VerificationPage() {
                           </Banner>
                         )}
 
-                        {}
                         {latestRun.reconciliation && (
                           <Box padding="400">
                             <Divider />
@@ -1024,7 +996,6 @@ export default function VerificationPage() {
                                 📊 渠道对账
                               </Text>
 
-                              {}
                               <Suspense fallback={<CardSkeleton lines={3} />}>
                                 <ChannelReconciliationChart
                                   pixelVsCapi={latestRun.reconciliation.pixelVsCapi}
@@ -1033,7 +1004,6 @@ export default function VerificationPage() {
                                 />
                               </Suspense>
 
-                              {}
                               <Layout>
                                 <Layout.Section variant="oneThird">
                                   <Box background="bg-surface-secondary" padding="300" borderRadius="200">
@@ -1245,7 +1215,6 @@ export default function VerificationPage() {
                   </>
                 )}
 
-                {/* P2: 免责声明 - 明确说明我们只保证生成与发送成功，不保证平台侧归因一致 */}
                 <Banner tone="info" title="重要说明：事件发送与平台归因">
                   <BlockStack gap="200">
                     <Text as="p" variant="bodySm">
@@ -1287,7 +1256,6 @@ export default function VerificationPage() {
             </Box>
           )}
 
-          {}
           {selectedTab === 1 && (
             <Box padding="400">
               <Card>
@@ -1339,7 +1307,6 @@ export default function VerificationPage() {
             </Box>
           )}
 
-          {}
           {selectedTab === 2 && (
             <Box padding="400">
               <Suspense fallback={<CardSkeleton lines={3} />}>
@@ -1355,7 +1322,6 @@ export default function VerificationPage() {
             </Box>
           )}
 
-          {}
           {selectedTab === 3 && (
             <Box padding="400">
               <Suspense fallback={<CardSkeleton lines={5} />}>
@@ -1438,7 +1404,6 @@ export default function VerificationPage() {
           )}
         </Tabs>
 
-        {}
         <Card>
           <BlockStack gap="400">
             <InlineStack align="space-between" blockAlign="center">
@@ -1560,7 +1525,6 @@ export default function VerificationPage() {
           </BlockStack>
         </Card>
 
-        {}
         <Card>
           <BlockStack gap="400">
             <Text as="h2" variant="headingMd">
@@ -1576,7 +1540,6 @@ export default function VerificationPage() {
         </Card>
       </BlockStack>
 
-      {}
       <Modal
         open={showGuideModal}
         onClose={() => setShowGuideModal(false)}

@@ -44,7 +44,7 @@ export async function getWizardTemplates(shopId: string): Promise<{
       id: "advanced",
       name: "高级配置",
       description: "包含更多事件类型的完整映射，适合需要详细转化漏斗分析的店铺",
-      // P0-6: v1.0 版本仅支持 GA4/Meta/TikTok，移除 Pinterest
+
       platforms: ["google", "meta", "tiktok"],
       eventMappings: {
         google: {
@@ -62,10 +62,7 @@ export async function getWizardTemplates(shopId: string): Promise<{
           checkout_started: "InitiateCheckout",
           add_to_cart: "AddToCart",
         },
-        // P0-6: Pinterest 将在 v1.1+ 版本支持
-        // pinterest: {
-        //   checkout_completed: "checkout",
-        // },
+
       },
       isPublic: true,
       usageCount: 0,
@@ -74,7 +71,7 @@ export async function getWizardTemplates(shopId: string): Promise<{
       id: "ecommerce-optimized",
       name: "电商优化配置",
       description: "专为电商店铺优化的完整转化漏斗追踪，包含商品浏览、加购、结账、购买全流程",
-      // P0-6: v1.0 版本仅支持 GA4/Meta/TikTok，移除 Pinterest
+
       platforms: ["google", "meta", "tiktok"],
       eventMappings: {
         google: {
@@ -95,12 +92,7 @@ export async function getWizardTemplates(shopId: string): Promise<{
           add_to_cart: "AddToCart",
           view_item: "ViewContent",
         },
-        // P0-6: Pinterest 将在 v1.1+ 版本支持
-        // pinterest: {
-        //   checkout_completed: "checkout",
-        //   add_to_cart: "add_to_cart",
-        //   view_item: "page_visit",
-        // },
+
       },
       isPublic: true,
       usageCount: 0,
@@ -131,7 +123,7 @@ export async function getWizardTemplates(shopId: string): Promise<{
       id: "social-commerce",
       name: "社交电商配置",
       description: "专为社交电商优化的配置，包含 Meta 和 TikTok，适合依赖社交媒体流量的店铺",
-      // P0-6: v1.0 版本仅支持 GA4/Meta/TikTok，移除 Pinterest
+
       platforms: ["meta", "tiktok"],
       eventMappings: {
         meta: {
@@ -146,12 +138,7 @@ export async function getWizardTemplates(shopId: string): Promise<{
           add_to_cart: "AddToCart",
           view_item: "ViewContent",
         },
-        // P0-6: Pinterest 将在 v1.1+ 版本支持
-        // pinterest: {
-        //   checkout_completed: "checkout",
-        //   add_to_cart: "add_to_cart",
-        //   view_item: "page_visit",
-        // },
+
       },
       isPublic: true,
       usageCount: 0,
@@ -359,14 +346,13 @@ export async function importTemplateFromShare(
       return { success: true, templateId };
     }
 
-    // 安全地解析平台配置
     let platforms: Array<{
       platform: string;
       eventMappings?: Record<string, string>;
       clientSideEnabled?: boolean;
       serverSideEnabled?: boolean;
     }> = [];
-    
+
     if (Array.isArray(template.platforms)) {
       platforms = template.platforms
         .map((item: unknown) => {
@@ -382,19 +368,19 @@ export async function importTemplateFromShare(
           } = {
             platform: typeof obj.platform === "string" ? obj.platform : "",
           };
-          
+
           if (obj.eventMappings && typeof obj.eventMappings === "object" && !Array.isArray(obj.eventMappings)) {
             result.eventMappings = obj.eventMappings as Record<string, string>;
           }
-          
+
           if (typeof obj.clientSideEnabled === "boolean") {
             result.clientSideEnabled = obj.clientSideEnabled;
           }
-          
+
           if (typeof obj.serverSideEnabled === "boolean") {
             result.serverSideEnabled = obj.serverSideEnabled;
           }
-          
+
           return result.platform ? result : null;
         })
         .filter((p): p is NonNullable<typeof p> => p !== null);

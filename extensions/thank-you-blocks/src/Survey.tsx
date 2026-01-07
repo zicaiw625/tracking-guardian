@@ -3,9 +3,6 @@ import { useState, useEffect, useMemo, useCallback, memo } from "react";
 import { BACKEND_URL, isAllowedBackendUrl } from "./config";
 import { createLogger } from "./logger";
 import { getLocalizedText } from "./localization";
-// P0-4: PCD 安全处理（当前版本不使用 buyer 信息，保留以备未来扩展）
-// 如果未来需要使用 buyer 信息，取消注释并申请 PCD 权限
-// import { safeBuyer, canUseBuyerInfo } from "./safe-buyer";
 
 export default reactExtension("purchase.thank-you.block.render", () => <Survey />);
 const Survey = memo(function Survey() {
@@ -22,12 +19,11 @@ const Survey = memo(function Survey() {
     const [selectedSource, setSelectedSource] = useState<string | null>(null);
     const [error, setError] = useState<string | null>(null);
 
-    // P0-1: PRD 对齐 - 使用本地化文本
-    const title = useMemo(() => 
+    const title = useMemo(() =>
         getLocalizedText(settings, "survey_title", "我们想听听您的意见", undefined, api as { locale?: string }),
         [settings, api]
     );
-    const question = useMemo(() => 
+    const question = useMemo(() =>
         getLocalizedText(settings, "survey_question", "您是如何了解到我们的？", undefined, api as { locale?: string }),
         [settings, api]
     );
@@ -39,7 +35,7 @@ const Survey = memo(function Survey() {
     useEffect(() => {
         async function fetchOrderAndCheckoutInfo() {
             try {
-                // Type guard: orderConfirmation is only available in purchase.thank-you.block.render target
+
                 if ('orderConfirmation' in api && api.orderConfirmation) {
                     const orderData = api.orderConfirmation instanceof Promise
                         ? await api.orderConfirmation
@@ -53,11 +49,9 @@ const Survey = memo(function Survey() {
                     }
                 }
 
-                // Type guard: checkoutToken is only available in purchase.thank-you.block.render target
                 if ('checkoutToken' in api && api.checkoutToken) {
                     let tokenValue: unknown = api.checkoutToken;
 
-                    // Handle StatefulRemoteSubscribable<string>
                     if (typeof tokenValue === 'object' && tokenValue !== null && 'current' in tokenValue) {
                         tokenValue = (tokenValue as { current: unknown }).current;
                     }
@@ -139,8 +133,7 @@ const Survey = memo(function Survey() {
         }
         catch (err) {
             logger.error("Survey submission error:", err);
-            // P0-5: network access 失败时的降级处理
-            // 如果 fetch 失败（可能是 network access 未获批），显示友好的错误信息
+
             const errorMessage = err instanceof Error ? err.message : String(err);
             if (errorMessage.includes("fetch") || errorMessage.includes("network") || errorMessage.includes("Failed to fetch")) {
                 setError("网络连接失败，请稍后刷新页面重试");

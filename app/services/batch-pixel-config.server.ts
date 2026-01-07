@@ -14,9 +14,6 @@ export interface PlatformConfig {
   serverSideEnabled?: boolean;
 }
 
-/**
- * 安全地将未知类型转换为 PlatformConfig 数组
- */
 function parsePlatformConfigs(value: unknown): PlatformConfig[] {
   if (!Array.isArray(value)) {
     return [];
@@ -30,8 +27,8 @@ function parsePlatformConfigs(value: unknown): PlatformConfig[] {
 
       const obj = item as Record<string, unknown>;
       const platform = obj.platform;
-      
-      if (typeof platform !== "string" || 
+
+      if (typeof platform !== "string" ||
           !["google", "meta", "tiktok", "pinterest", "snapchat", "twitter"].includes(platform)) {
         return null;
       }

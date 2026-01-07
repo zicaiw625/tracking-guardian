@@ -67,10 +67,7 @@ export async function batchApplyPixelTemplate(
       const configIds: string[] = [];
 
       for (const platformConfig of template.platforms) {
-        // P0-3: 修复多 destination 支持 - 查找配置时需要考虑 platformId
-        // 查找 test 环境的配置（批量操作默认使用 test 环境）
-        // 如果提供了 platformId，使用包含 platformId 的唯一约束查找
-        // 如果没有提供 platformId，查找 platformId 为 null 的配置
+
         const platformId = platformConfig.platformId ?? null;
         const existing = platformId
           ? await prisma.pixelConfig.findUnique({

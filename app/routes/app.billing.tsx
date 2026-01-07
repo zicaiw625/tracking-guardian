@@ -9,7 +9,7 @@ import { authenticate } from "../shopify.server";
 import prisma from "../db.server";
 import { createSubscription, getSubscriptionStatus, cancelSubscription, checkOrderLimit, handleSubscriptionConfirmation, type PlanId } from "../services/billing.server";
 import { getUsageHistory } from "../services/billing/usage-history.server";
-// P0-1: PRD 对齐 - v1.0 所有套餐均为月付，移除一次性购买相关导入
+
 import { logger } from "../utils/logger.server";
 export const loader = async ({ request }: LoaderFunctionArgs) => {
     const { BILLING_PLANS, PLAN_IDS } = await import("../services/billing.server");
@@ -17,8 +17,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     const shopDomain = session.shop;
     const url = new URL(request.url);
     const chargeId = url.searchParams.get("charge_id");
-    // P0-1: PRD 对齐 - v1.0 所有套餐均为月付，移除一次性购买确认处理
-    
+
     if (chargeId) {
         await handleSubscriptionConfirmation(admin, shopDomain, chargeId);
         return redirect("/app/billing?success=true");
@@ -83,7 +82,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
                 error: result.error || "订阅创建失败",
             });
         }
-        // P0-1: PRD 对齐 - v1.0 所有套餐均为月付，移除一次性购买功能
+
         case "cancel": {
             const subscriptionId = formData.get("subscriptionId") as string;
             if (!subscriptionId) {
@@ -122,7 +121,7 @@ export default function BillingPage() {
     const [searchParams] = useSearchParams();
     const isSubmitting = navigation.state === "submitting";
     const showSuccessBanner = searchParams.get("success") === "true";
-    // P0-1: PRD 对齐 - v1.0 所有套餐均为月付，移除 isOneTime 相关逻辑
+
     const currentPlan = plans[subscription.plan as PlanId];
     const usagePercent = Math.min((usage.current / usage.limit) * 100, 100);
     const handleSubscribe = (planId: string) => {
@@ -263,7 +262,6 @@ export default function BillingPage() {
         })}
         </Layout>
 
-        {}
         {subscription.plan === "agency" && (
           <Card>
             <BlockStack gap="400">

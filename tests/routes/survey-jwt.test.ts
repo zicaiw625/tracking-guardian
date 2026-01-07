@@ -82,7 +82,7 @@ describe("P1-4: Survey API JWT Verification", () => {
 
   describe("Missing Token → 401 Unauthorized", () => {
     it("returns 401 when Authorization header is missing", async () => {
-      const request = new Request("https://example.com/api/survey", {//example.com/api/survey", {
+      const request = new Request("https://example.com/api/survey", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -102,7 +102,7 @@ describe("P1-4: Survey API JWT Verification", () => {
     });
 
     it("returns 401 when Authorization header is empty", async () => {
-      const request = new Request("https://example.com/api/survey", {//example.com/api/survey", {
+      const request = new Request("https://example.com/api/survey", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -123,7 +123,7 @@ describe("P1-4: Survey API JWT Verification", () => {
 
   describe("Invalid/Forged Token → 401 Unauthorized", () => {
     it("returns 401 for completely invalid JWT format", async () => {
-      const request = new Request("https://example.com/api/survey", {//example.com/api/survey", {
+      const request = new Request("https://example.com/api/survey", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -149,7 +149,7 @@ describe("P1-4: Survey API JWT Verification", () => {
         "wrong-secret-key-not-the-real-one"
       );
 
-      const request = new Request("https://example.com/api/survey", {//example.com/api/survey", {
+      const request = new Request("https://example.com/api/survey", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -172,13 +172,13 @@ describe("P1-4: Survey API JWT Verification", () => {
     it("returns 401 for expired JWT", async () => {
       const now = Math.floor(Date.now() / 1000);
       const expiredToken = generateMockJwt({
-        dest: "https://test-shop.myshopify.com",//test-shop.myshopify.com",
+        dest: "https://test-shop.myshopify.com",
         exp: now - 3600,
         nbf: now - 7200,
         iat: now - 7200,
       });
 
-      const request = new Request("https://example.com/api/survey", {//example.com/api/survey", {
+      const request = new Request("https://example.com/api/survey", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -201,13 +201,13 @@ describe("P1-4: Survey API JWT Verification", () => {
     it("returns 401 for JWT not yet valid (future nbf)", async () => {
       const now = Math.floor(Date.now() / 1000);
       const futureToken = generateMockJwt({
-        dest: "https://test-shop.myshopify.com",//test-shop.myshopify.com",
+        dest: "https://test-shop.myshopify.com",
         exp: now + 7200,
         nbf: now + 3600,
         iat: now,
       });
 
-      const request = new Request("https://example.com/api/survey", {//example.com/api/survey", {
+      const request = new Request("https://example.com/api/survey", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -230,10 +230,10 @@ describe("P1-4: Survey API JWT Verification", () => {
     it("returns 401 for JWT with invalid issuer", async () => {
       const badIssuerToken = generateMockJwt({
         iss: "https://test-shop.myshopify.com/admin",
-        dest: "https://test-shop.myshopify.com",//test-shop.myshopify.com",
+        dest: "https://test-shop.myshopify.com",
       });
 
-      const request = new Request("https://example.com/api/survey", {//example.com/api/survey", {
+      const request = new Request("https://example.com/api/survey", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -257,10 +257,10 @@ describe("P1-4: Survey API JWT Verification", () => {
   describe("Shop Domain Mismatch → 401 Unauthorized", () => {
     it("returns 401 when JWT dest doesn't match shop header", async () => {
       const token = generateMockJwt({
-        dest: "https://test-shop.myshopify.com",//test-shop.myshopify.com",
+        dest: "https://test-shop.myshopify.com",
       });
 
-      const request = new Request("https://example.com/api/survey", {//example.com/api/survey", {
+      const request = new Request("https://example.com/api/survey", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -282,10 +282,10 @@ describe("P1-4: Survey API JWT Verification", () => {
 
     it("returns 401 when shop header is missing", async () => {
       const token = generateMockJwt({
-        dest: "https://test-shop.myshopify.com",//test-shop.myshopify.com",
+        dest: "https://test-shop.myshopify.com",
       });
 
-      const request = new Request("https://example.com/api/survey", {//example.com/api/survey", {
+      const request = new Request("https://example.com/api/survey", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -306,10 +306,10 @@ describe("P1-4: Survey API JWT Verification", () => {
 
     it("returns 400 for invalid shop domain format", async () => {
       const token = generateMockJwt({
-        dest: "https://test-shop.myshopify.com",//test-shop.myshopify.com",
+        dest: "https://test-shop.myshopify.com",
       });
 
-      const request = new Request("https://example.com/api/survey", {//example.com/api/survey", {
+      const request = new Request("https://example.com/api/survey", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -333,7 +333,7 @@ describe("P1-4: Survey API JWT Verification", () => {
   describe("Valid Token → Request Processed", () => {
     it("returns 200 and creates survey response for valid JWT", async () => {
       const validToken = generateMockJwt({
-        dest: "https://test-shop.myshopify.com",//test-shop.myshopify.com",
+        dest: "https://test-shop.myshopify.com",
       });
 
       vi.mocked(prisma.shop.findUnique).mockResolvedValue({
@@ -355,7 +355,7 @@ describe("P1-4: Survey API JWT Verification", () => {
         rating: 5,
       } as any);
 
-      const request = new Request("https://example.com/api/survey", {//example.com/api/survey", {
+      const request = new Request("https://example.com/api/survey", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -379,7 +379,7 @@ describe("P1-4: Survey API JWT Verification", () => {
 
     it("accepts Bearer prefix in Authorization header", async () => {
       const validToken = generateMockJwt({
-        dest: "https://test-shop.myshopify.com",//test-shop.myshopify.com",
+        dest: "https://test-shop.myshopify.com",
       });
 
       vi.mocked(prisma.shop.findUnique).mockResolvedValue({
@@ -394,7 +394,7 @@ describe("P1-4: Survey API JWT Verification", () => {
         id: "survey-id",
       } as any);
 
-      const request = new Request("https://example.com/api/survey", {//example.com/api/survey", {
+      const request = new Request("https://example.com/api/survey", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -413,7 +413,7 @@ describe("P1-4: Survey API JWT Verification", () => {
 
     it("updates existing survey response instead of creating duplicate", async () => {
       const validToken = generateMockJwt({
-        dest: "https://test-shop.myshopify.com",//test-shop.myshopify.com",
+        dest: "https://test-shop.myshopify.com",
       });
 
       vi.mocked(prisma.shop.findUnique).mockResolvedValue({
@@ -438,7 +438,7 @@ describe("P1-4: Survey API JWT Verification", () => {
         rating: 5,
       } as any);
 
-      const request = new Request("https://example.com/api/survey", {//example.com/api/survey", {
+      const request = new Request("https://example.com/api/survey", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -463,12 +463,12 @@ describe("P1-4: Survey API JWT Verification", () => {
   describe("Shop Status Validation", () => {
     it("returns 404 when shop not found", async () => {
       const validToken = generateMockJwt({
-        dest: "https://test-shop.myshopify.com",//test-shop.myshopify.com",
+        dest: "https://test-shop.myshopify.com",
       });
 
       vi.mocked(prisma.shop.findUnique).mockResolvedValue(null);
 
-      const request = new Request("https://example.com/api/survey", {//example.com/api/survey", {
+      const request = new Request("https://example.com/api/survey", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -489,7 +489,7 @@ describe("P1-4: Survey API JWT Verification", () => {
 
     it("returns 403 when shop is not active", async () => {
       const validToken = generateMockJwt({
-        dest: "https://test-shop.myshopify.com",//test-shop.myshopify.com",
+        dest: "https://test-shop.myshopify.com",
       });
 
       vi.mocked(prisma.shop.findUnique).mockResolvedValue({
@@ -498,7 +498,7 @@ describe("P1-4: Survey API JWT Verification", () => {
         isActive: false,
       } as any);
 
-      const request = new Request("https://example.com/api/survey", {//example.com/api/survey", {
+      const request = new Request("https://example.com/api/survey", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -520,7 +520,7 @@ describe("P1-4: Survey API JWT Verification", () => {
 
   describe("Request Validation", () => {
     it("returns 415 for non-JSON Content-Type", async () => {
-      const request = new Request("https://example.com/api/survey", {//example.com/api/survey", {
+      const request = new Request("https://example.com/api/survey", {
         method: "POST",
         headers: {
           "Content-Type": "text/plain",
@@ -536,7 +536,7 @@ describe("P1-4: Survey API JWT Verification", () => {
     });
 
     it("returns 405 for non-POST methods (except OPTIONS)", async () => {
-      const request = new Request("https://example.com/api/survey", {//example.com/api/survey", {
+      const request = new Request("https://example.com/api/survey", {
         method: "GET",
         headers: {
           "X-Shopify-Shop-Domain": "test-shop.myshopify.com",
@@ -549,7 +549,7 @@ describe("P1-4: Survey API JWT Verification", () => {
     });
 
     it("returns 204 for OPTIONS (CORS preflight)", async () => {
-      const request = new Request("https://example.com/api/survey", {//example.com/api/survey", {
+      const request = new Request("https://example.com/api/survey", {
         method: "OPTIONS",
         headers: {
           "Origin": "https://test-shop.myshopify.com",

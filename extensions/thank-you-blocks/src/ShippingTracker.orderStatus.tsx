@@ -25,9 +25,8 @@ function ShippingTrackerOrderStatus() {
     const tipText = (settings.shipping_tip_text as string) ||
         "发货后您将收到包含物流追踪信息的邮件通知。如有任何问题，请随时联系我们的客服团队。";
 
-    // Type guard: status may not be directly available on order object
-    const orderStatus = (order && 'status' in order && typeof order.status === 'string') 
-      ? order.status 
+    const orderStatus = (order && 'status' in order && typeof order.status === 'string')
+      ? order.status
       : "UNFULFILLED";
 
     const getProgressFromStatus = (status: string) => {

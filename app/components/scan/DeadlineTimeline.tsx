@@ -111,7 +111,6 @@ export function DeadlineTimeline({
             {shopTier === "plus" ? "Shopify Plus" : shopTier === "non_plus" ? "标准版" : "检测中"}
           </Badge>
         </InlineStack>
-        {           }
         <Box
           background="bg-surface-secondary"
           padding="400"
@@ -128,10 +127,8 @@ export function DeadlineTimeline({
               return (
                 <Box key={event.id} paddingBlockEnd={isLast ? "0" : "400"}>
                   <InlineStack gap="300" blockAlign="start" wrap={false}>
-                    {               }
                     <Box minWidth="24px">
                       <BlockStack gap="100" inlineAlign="center">
-                        {          }
                         <Tooltip content={isPassed ? "已过" : `距今 ${Math.abs(daysUntil)} 天`}>
                           <Box
                             background={
@@ -149,7 +146,6 @@ export function DeadlineTimeline({
                             borderColor={isNext ? "border-critical" : "border"}
                           >
                             <Box minWidth="16px" minHeight="16px">
-                              {}
                               <svg
                                 viewBox="0 0 20 20"
                                 width="16"
@@ -173,7 +169,6 @@ export function DeadlineTimeline({
                             </Box>
                           </Box>
                         </Tooltip>
-                        {}
                         {!isLast && (
                           <Box
                             background={isPassed ? "bg-fill-success" : "bg-fill-disabled"}
@@ -183,7 +178,6 @@ export function DeadlineTimeline({
                         )}
                       </BlockStack>
                     </Box>
-                    {}
                     <Box paddingBlockStart="0" minWidth="0">
                       <BlockStack gap={compact ? "050" : "100"}>
                         <InlineStack gap="200" blockAlign="center" wrap>
@@ -231,7 +225,6 @@ export function DeadlineTimeline({
             })}
           </BlockStack>
         </Box>
-        {}
         {showCurrentTime && (
           <Text as="p" variant="bodySm" tone="subdued" alignment="end">
             当前时间：{now.toLocaleDateString("zh-CN", {

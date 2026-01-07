@@ -146,11 +146,8 @@ export const DataRetentionDaysSchema = z
     "数据保留天数必须是 30、60、90、180 或 365"
   );
 
-// P0-2: v1.0 版本不包含任何 PCD/PII 处理，因此完全删除 PrivacySettingsSchema
-// 此 Schema 将在 v1.1 中重新引入（当需要 PCD/PII 处理时）
-// 当前仅保留数据保留策略相关的配置
 export const PrivacySettingsSchema = z.object({
-  // P0-2: v1.0 版本不包含任何 PCD/PII 处理，因此移除 piiEnabled 和 pcdAcknowledged 字段
+
   consentStrategy: ConsentStrategySchema,
   dataRetentionDays: DataRetentionDaysSchema,
 });
@@ -168,8 +165,7 @@ export type PixelConfigV1 = z.infer<typeof PixelConfigSchemaV1>;
 
 export const DEFAULT_PIXEL_CONFIG: PixelConfigV1 = {
   schema_version: "1",
-  // v1 默认使用 purchase_only（仅收集结账完成事件），符合隐私最小化原则
-  // 商家可在设置中切换为 full_funnel（收集全漏斗事件）
+
   mode: "purchase_only",
   enabled_platforms: "meta,tiktok,google",
   strictness: "strict",
@@ -178,16 +174,12 @@ export const DEFAULT_PIXEL_CONFIG: PixelConfigV1 = {
 export const WebPixelSettingsSchema = z.object({
   ingestion_key: z.string().min(1, "Ingestion key is required"),
   shop_domain: z.string().min(1, "Shop domain is required"),
-  config_version: z.string().optional(), // P1-11: 配置版本号，用于向后兼容
-  // P0-2: 添加 mode 字段，用于控制像素端订阅的事件类型
-  // purchase_only: 仅订阅 checkout_completed 事件（默认，符合隐私最小化原则）
-  // full_funnel: 订阅全漏斗事件（page_viewed, product_viewed, product_added_to_cart, checkout_started, checkout_completed 等）
+  config_version: z.string().optional(),
+
   mode: z.enum(["purchase_only", "full_funnel"]).optional().default("purchase_only"),
-  // P1-11: pixel_config 已移除，不再在 settings 中存储大 JSON
-  // 像素端使用默认配置，完整配置由后端根据 shop_domain 提供
-  pixel_config: z.string().optional(), // 保留用于向后兼容，但不再使用
-  // P0-4: 默认环境（test 或 live），用于后端按环境过滤配置
-  // 默认为 "live"，商家可以在 Admin 中切换
+
+  pixel_config: z.string().optional(),
+
   environment: z.enum(["test", "live"]).optional().default("live"),
 });
 

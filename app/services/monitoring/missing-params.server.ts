@@ -86,8 +86,8 @@ const PARAM_DEFINITIONS: MissingParamDefinition[] = [
       if (log.orderValue === null || log.orderValue === undefined) {
         return true;
       }
-      const numValue = typeof log.orderValue === "number" 
-        ? log.orderValue 
+      const numValue = typeof log.orderValue === "number"
+        ? log.orderValue
         : Number(log.orderValue);
       return isNaN(numValue) || numValue === 0;
     },
@@ -97,9 +97,9 @@ const PARAM_DEFINITIONS: MissingParamDefinition[] = [
     label: "货币代码 (currency)",
     required: true,
     checkFunction: (log) => {
-      return !log.currency || 
-             log.currency === "" || 
-             log.currency === null || 
+      return !log.currency ||
+             log.currency === "" ||
+             log.currency === null ||
              typeof log.currency !== "string" ||
              log.currency.trim() === "";
     },
@@ -109,16 +109,16 @@ const PARAM_DEFINITIONS: MissingParamDefinition[] = [
     label: "商品信息 (items)",
     required: false,
     checkFunction: (log) => {
-      // items 不是必需参数，但如果有 eventData，检查其中是否包含 items
+
       if (log.eventData && typeof log.eventData === "object" && !Array.isArray(log.eventData)) {
         const eventData = log.eventData as Record<string, unknown>;
         const items = eventData.items;
-        // 如果 items 存在但不是数组或为空数组，视为缺失
+
         if (items !== undefined && items !== null && (!Array.isArray(items) || items.length === 0)) {
           return true;
         }
       }
-      // 默认返回 false，因为 items 不是必需参数
+
       return false;
     },
   },
@@ -127,9 +127,9 @@ const PARAM_DEFINITIONS: MissingParamDefinition[] = [
     label: "事件 ID (event_id)",
     required: false,
     checkFunction: (log) => {
-      return !log.eventId || 
-             log.eventId === "" || 
-             log.eventId === null || 
+      return !log.eventId ||
+             log.eventId === "" ||
+             log.eventId === null ||
              typeof log.eventId !== "string" ||
              log.eventId.trim() === "";
     },
@@ -174,7 +174,6 @@ export async function getMissingParamsStats(
   since.setHours(since.getHours() - hours);
   const now = new Date();
 
-  // P0-T8: 使用 delivery_attempts 作为数据源
   const attempts = await prisma.deliveryAttempt.findMany({
     where: {
       shopId,
@@ -192,7 +191,7 @@ export async function getMissingParamsStats(
       },
       createdAt: true,
     },
-    take: 10000, // 限制最大查询数量，避免超时
+    take: 10000,
   });
 
   let total = 0;
@@ -219,14 +218,12 @@ export async function getMissingParamsStats(
 
   attempts.forEach((attempt) => {
     total++;
-    
-    // 从 requestPayloadJson 中提取参数
+
     const payload = attempt.requestPayloadJson as Record<string, unknown>;
     let value: number | null = null;
     let currency: string | null = null;
     const eventId = attempt.EventLog.eventId || null;
 
-    // 根据平台解析 payload
     if (attempt.destinationType === "google") {
       const body = payload.body as Record<string, unknown> | undefined;
       const events = body?.events as Array<Record<string, unknown>> | undefined;
@@ -509,7 +506,6 @@ export async function getMissingParamsHistory(
   since.setDate(since.getDate() - days);
   since.setHours(0, 0, 0, 0);
 
-  // P0-T8: 使用 delivery_attempts 作为数据源
   const attempts = await prisma.deliveryAttempt.findMany({
     where: {
       shopId,
@@ -530,7 +526,7 @@ export async function getMissingParamsHistory(
     orderBy: {
       createdAt: "asc",
     },
-    take: 10000, // 限制最大查询数量，避免超时
+    take: 10000,
   });
 
   const dayMap = new Map<string, {
@@ -540,9 +536,9 @@ export async function getMissingParamsHistory(
   }>();
 
   attempts.forEach((attempt) => {
-    // 安全处理日期，避免空值错误
+
     if (!attempt.createdAt) {
-      return; // 跳过没有创建日期的记录
+      return;
     }
     const dateStr = attempt.createdAt.toISOString().split("T")[0];
     if (!dayMap.has(dateStr)) {
@@ -552,13 +548,11 @@ export async function getMissingParamsHistory(
     const dayStats = dayMap.get(dateStr)!;
     dayStats.total++;
 
-    // 从 requestPayloadJson 中提取参数
     const payload = attempt.requestPayloadJson as Record<string, unknown>;
     let value: number | null = null;
     let currency: string | null = null;
     const eventId = attempt.EventLog.eventId || null;
 
-    // 根据平台解析 payload
     if (attempt.destinationType === "google") {
       const body = payload.body as Record<string, unknown> | undefined;
       const events = body?.events as Array<Record<string, unknown>> | undefined;

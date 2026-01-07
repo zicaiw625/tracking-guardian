@@ -193,7 +193,6 @@ export function RiskDistributionChart({ distribution }: RiskDistributionChartPro
           </Box>
         ) : (
           <BlockStack gap="400">
-            {}
             {viewMode === "risk" && (
               <BlockStack gap="300">
                 <Box minHeight="250px">

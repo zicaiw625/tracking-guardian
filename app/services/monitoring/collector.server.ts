@@ -51,7 +51,7 @@ export async function collectEventSuccessRate(
   endDate: Date
 ): Promise<EventMetrics> {
   try {
-    // P0-T8: 使用 delivery_attempts 作为数据源
+
     const attempts = await prisma.deliveryAttempt.findMany({
       where: {
         shopId,
@@ -69,7 +69,7 @@ export async function collectEventSuccessRate(
           },
         },
       },
-      take: 10000, // 限制最大查询数量，避免超时
+      take: 10000,
     });
 
     const metrics: EventMetrics = {
@@ -155,7 +155,7 @@ export async function collectMissingParamsMetrics(
   endDate: Date
 ): Promise<MissingParamsMetrics> {
   try {
-    // P0-T8: 使用 delivery_attempts 作为数据源
+
     const attempts = await prisma.deliveryAttempt.findMany({
       where: {
         shopId,
@@ -177,7 +177,7 @@ export async function collectMissingParamsMetrics(
           },
         },
       },
-      take: 10000, // 限制最大查询数量，避免超时
+      take: 10000,
     });
 
     const metrics: MissingParamsMetrics = {
@@ -193,13 +193,12 @@ export async function collectMissingParamsMetrics(
     };
 
     for (const attempt of attempts) {
-      // 从 requestPayloadJson 中提取参数（根据平台不同，结构可能不同）
+
       const payload = attempt.requestPayloadJson as Record<string, unknown>;
       let value: number | undefined;
       let currency: string | undefined;
       let items: unknown[] | undefined;
 
-      // 根据平台解析 payload
       if (attempt.destinationType === "google") {
         const body = payload.body as Record<string, unknown> | undefined;
         const events = body?.events as Array<Record<string, unknown>> | undefined;
@@ -264,7 +263,7 @@ export async function collectDeduplicationMetrics(
   endDate: Date
 ): Promise<DeduplicationMetrics> {
   try {
-    // P0-T8: 使用 delivery_attempts 作为数据源
+
     const attempts = await prisma.deliveryAttempt.findMany({
       where: {
         shopId,
@@ -277,7 +276,7 @@ export async function collectDeduplicationMetrics(
         destinationType: true,
         status: true,
       },
-      take: 10000, // 限制最大查询数量，避免超时
+      take: 10000,
     });
 
     const metrics: DeduplicationMetrics = {
@@ -288,7 +287,7 @@ export async function collectDeduplicationMetrics(
     };
 
     for (const attempt of attempts) {
-      // P0-T8: DeliveryAttempt 有 skipped_dedup 状态
+
       if (attempt.status === "skipped_dedup") {
         metrics.duplicated++;
       }
@@ -339,7 +338,7 @@ export async function collectEventVolumeAnomaly(
   isAnomaly: boolean;
 }> {
   try {
-    // P0-T8: 使用 delivery_attempts 作为数据源
+
     const [currentEvents, previousEvents] = await Promise.all([
       prisma.deliveryAttempt.count({
         where: {

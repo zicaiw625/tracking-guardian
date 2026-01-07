@@ -12,7 +12,6 @@ import { RedisClientFactory } from "./utils/redis-client";
 import prisma from "./db.server";
 const ABORT_DELAY = 5000;
 
-// 全局未处理Promise rejection处理器
 if (typeof process !== "undefined") {
   process.on("unhandledRejection", (reason: unknown, promise: Promise<unknown>) => {
     const errorMessage = reason instanceof Error ? reason.message : String(reason);
@@ -29,18 +28,17 @@ if (typeof process !== "undefined") {
       errorMessage: error.message,
       errorStack: error.stack,
     });
-    // 在生产环境中，未捕获的异常应该导致进程退出
+
     if (process.env.NODE_ENV === "production") {
       process.exit(1);
     }
   });
 
-  // 应用关闭时的清理逻辑
   const cleanup = async (signal: string) => {
     logger.info(`Received ${signal}, starting graceful shutdown...`);
-    
+
     try {
-      // 清理 Redis 连接
+
       await RedisClientFactory.resetAsync();
       logger.info("Redis connections closed");
     } catch (error) {
@@ -48,7 +46,7 @@ if (typeof process !== "undefined") {
     }
 
     try {
-      // 清理数据库连接
+
       await prisma.$disconnect();
       logger.info("Database connections closed");
     } catch (error) {
@@ -124,13 +122,12 @@ export default async function handleRequest(request: Request, responseStatusCode
                 const body = new PassThrough();
                 const stream = createReadableStreamFromReadable(body);
                 responseHeaders.set("Content-Type", "text/html");
-                
-                // Clear the abort timeout since we've successfully rendered
+
                 if (abortTimeoutId !== null) {
                     clearTimeout(abortTimeoutId);
                     abortTimeoutId = null;
                 }
-                
+
                 resolve(new Response(stream, {
                     headers: responseHeaders,
                     status: responseStatusCode,
@@ -138,7 +135,7 @@ export default async function handleRequest(request: Request, responseStatusCode
                 pipe(body);
             },
             onShellError(error) {
-                // Clear the abort timeout on error
+
                 if (abortTimeoutId !== null) {
                     clearTimeout(abortTimeoutId);
                     abortTimeoutId = null;
@@ -150,8 +147,7 @@ export default async function handleRequest(request: Request, responseStatusCode
                 logger.error("React render error", error);
             },
         });
-        
-        // Set up abort timeout and store the timeout ID for cleanup
+
         let abortTimeoutId: NodeJS.Timeout | null = setTimeout(() => {
             abortTimeoutId = null;
             abort();

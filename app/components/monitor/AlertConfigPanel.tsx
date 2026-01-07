@@ -117,7 +117,6 @@ export function AlertConfigPanel({
 
           <Divider />
 
-          {}
           <BlockStack gap="300">
             <InlineStack align="space-between">
               <BlockStack gap="100">
@@ -159,7 +158,6 @@ export function AlertConfigPanel({
 
           <Divider />
 
-          {}
           <BlockStack gap="300">
             <InlineStack align="space-between">
               <BlockStack gap="100">
@@ -201,7 +199,6 @@ export function AlertConfigPanel({
 
           <Divider />
 
-          {}
           <BlockStack gap="300">
             <InlineStack align="space-between">
               <BlockStack gap="100">

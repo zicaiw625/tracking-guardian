@@ -78,11 +78,10 @@ function getMilestones(shopTier: ShopTier, now: Date = new Date()): CountdownMil
 function getDeadline(shopTier: ShopTier): Date {
   switch (shopTier) {
     case "plus":
-      // Plus商家从2025-08-28开始限制，2026-01开始自动升级，legacy定制会丢失
-      // 所以实际截止日期是2026-01之前必须完成迁移
+
       return DEPRECATION_DATES.plusAutoUpgradeStart;
     case "non_plus":
-      // 非Plus商家最晚2026-08-26截止（参考 Shopify Help Center）
+
       return DEPRECATION_DATES.nonPlusScriptTagExecutionOff;
     default:
       return DEPRECATION_DATES.nonPlusScriptTagExecutionOff;
@@ -176,7 +175,6 @@ export function MigrationCountdown({
   return (
     <Card>
       <BlockStack gap="500">
-        {               }
         <Box
           background={urgencyBg}
           padding="600"
@@ -197,7 +195,6 @@ export function MigrationCountdown({
                   截止日期：{deadlineLabel}
                 </Text>
               </BlockStack>
-              {             }
               <Box
                 background="bg-surface"
                 padding="400"
@@ -221,7 +218,6 @@ export function MigrationCountdown({
                 </BlockStack>
               </Box>
             </InlineStack>
-            {         }
             <BlockStack gap="200">
               <InlineStack align="space-between">
                 <Text as="span" variant="bodySm">
@@ -237,7 +233,6 @@ export function MigrationCountdown({
                 size="small"
               />
             </BlockStack>
-            {          }
             {hasScriptTags && (
               <InlineStack gap="400" align="start" wrap>
                 <Box background="bg-surface" padding="300" borderRadius="100">
@@ -276,7 +271,6 @@ export function MigrationCountdown({
             )}
           </BlockStack>
         </Box>
-        {                 }
         {daysRemaining <= 30 && daysRemaining > 0 && (
           <Banner tone="critical" title="⚠️ 紧急迁移提醒">
             <BlockStack gap="200">
@@ -303,7 +297,6 @@ export function MigrationCountdown({
           </Banner>
         )}
         <Divider />
-        {         }
         <BlockStack gap="300">
           <Text as="h3" variant="headingSm">
             📅 关键里程碑
@@ -320,7 +313,6 @@ export function MigrationCountdown({
               >
                 <InlineStack align="space-between" blockAlign="center">
                   <InlineStack gap="300" blockAlign="center">
-                    {          }
                     <Box
                       background={milestone.isPassed ? "bg-fill-success" : milestone.isNext ? "bg-fill-info" : "bg-surface"}
                       padding="100"
@@ -375,7 +367,6 @@ export function MigrationCountdown({
           </BlockStack>
         </BlockStack>
         <Divider />
-        {          }
         <InlineStack align="end" gap="200">
           <Button url="/app/diagnostics" variant="tertiary">
             查看诊断
@@ -384,7 +375,6 @@ export function MigrationCountdown({
             {daysRemaining <= 30 ? "🚀 立即迁移" : "开始迁移"}
           </Button>
         </InlineStack>
-        {               }
         {lastCheckedAt && (
           <Text as="p" variant="bodySm" tone="subdued" alignment="end">
             状态更新时间：{new Date(lastCheckedAt).toLocaleString("zh-CN")}

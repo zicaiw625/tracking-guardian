@@ -277,7 +277,6 @@ function ModuleCard({
                 {upgradeRequired && !module.isEnabled && (
                   <Badge tone="attention">需要升级</Badge>
                 )}
-                {/* v1 支持标记 */}
                 {(module.moduleKey === "survey" || module.moduleKey === "helpdesk") && (
                   <Badge tone="success" size="small">v1 支持</Badge>
                 )}
@@ -317,7 +316,6 @@ function ModuleCard({
           </InlineStack>
         </InlineStack>
 
-        {}
         <InlineStack gap="100">
           {info.targets.map((target) => (
             <Tag key={target}>
@@ -327,7 +325,6 @@ function ModuleCard({
           <Tag>{getCategoryLabel(info.category)}</Tag>
         </InlineStack>
 
-        {}
         {upgradeRequired && !module.isEnabled && (
           <Banner tone="warning">
             <Text as="p" variant="bodySm">
@@ -743,14 +740,11 @@ function OrderTrackingSettingsForm({
             label="物流追踪服务商"
             options={[
               { label: "Shopify 原生", value: "native" },
-              // P0-5: v1.0 版本不支持第三方物流集成（AfterShip/17Track），将在 v2.0+ 提供
-              // 暂时禁用这些选项，避免用户选择后功能不可用
-              // { label: "AfterShip", value: "aftership", disabled: true },
-              // { label: "17Track", value: "17track", disabled: true },
+
             ]}
             value={settings.provider || "native"}
             onChange={(value) => {
-              // P0-5: v1.0 版本只允许 native 提供商
+
               if (value === "native") {
                 onChange({ ...settings, provider: value as "native" });
               }
@@ -902,20 +896,6 @@ const COMMON_LOCALES = [
   { value: "it", label: "Italiano" },
 ];
 
-// P0-1: PRD 对齐 - 本地化支持
-// 
-// 审计结论对齐：本地化功能已完整实现，符合 PRD 4.4 的"可配置文案、本地化"要求
-// 
-// v1.0 实现状态：
-// - 配置端：支持按 locale 保存多语言配置（通过 LocalizationSettingsForm）
-//   - 支持的语言：en, zh-CN, zh-TW, ja, ko, es, fr, de, pt, it 等
-//   - 每个模块可独立配置多语言文案（title, subtitle, buttonText, question, description 等）
-// - 渲染端：checkout extension 中已实现 getLocalizedText 函数
-//   - 根据当前 locale 自动选择对应语言的文本
-//   - 回退机制：当前 locale -> 语言代码 (如 zh-CN -> zh) -> 默认值
-// - 数据存储：LocalizationSettings 类型支持 { [locale: string]: { ... } } 结构
-// 
-// 符合 PRD 4.4 的"可配置文案、本地化"要求
 function LocalizationSettingsForm({
   localization,
   onChange,
@@ -1153,7 +1133,7 @@ export default function UiBlocksPage() {
   ];
 
   const filterModules = (category?: string) => {
-    // P0-6: 过滤掉 disabled 的模块（如 Upsell），确保 v1.0 中不显示
+
     const availableModules = modules.filter((m) => !UI_MODULES[m.moduleKey].disabled);
     if (!category || category === "all") return availableModules;
     return availableModules.filter((m) => UI_MODULES[m.moduleKey].category === category);
@@ -1195,7 +1175,6 @@ export default function UiBlocksPage() {
       }}
     >
       <BlockStack gap="500">
-        {}
         <Card>
           <InlineStack align="space-between" blockAlign="center">
             <BlockStack gap="100">
@@ -1221,7 +1200,6 @@ export default function UiBlocksPage() {
           </InlineStack>
         </Card>
 
-        {}
         <Banner tone="info">
           <BlockStack gap="200">
             <Text as="p" variant="bodySm" fontWeight="semibold">
@@ -1278,7 +1256,6 @@ export default function UiBlocksPage() {
           </BlockStack>
         </Banner>
 
-        {}
         {selectedModules.size > 0 && (
           <Card>
             <InlineStack align="space-between" blockAlign="center">
@@ -1350,7 +1327,6 @@ export default function UiBlocksPage() {
           </Box>
         </Tabs>
 
-        {}
         <Card>
           <BlockStack gap="400">
             <Text as="h2" variant="headingMd">
@@ -1366,7 +1342,6 @@ export default function UiBlocksPage() {
         </Card>
       </BlockStack>
 
-      {}
       <Modal
         open={editingModule !== null}
             onClose={() => {
@@ -1406,7 +1381,6 @@ export default function UiBlocksPage() {
         size="large"
       >
         <Modal.Section>
-          {}
           {editingModule && isDevStore && modulePreviewUrls[editingModule] && (
             <Box paddingBlockEnd="400">
               <Banner tone="info">
@@ -1453,7 +1427,6 @@ export default function UiBlocksPage() {
             onSelect={setModalTab}
           >
             <Box paddingBlockStart="400">
-              {}
               {modalTab === 0 && (
                 <>
                   {editingModule === "survey" && editingSettings && (
@@ -1480,7 +1453,6 @@ export default function UiBlocksPage() {
                       onChange={(s) => setEditingSettings(s as Record<string, unknown>)}
                     />
                   )}
-                  {/* P0-6: Upsell 模块在 v1.0 中不可用，将在 v1.1+ 版本中提供 */}
                   {editingModule === "upsell" && editingSettings && UI_MODULES.upsell.disabled && (
                     <Banner tone="warning">
                       <Text as="p">
@@ -1491,7 +1463,6 @@ export default function UiBlocksPage() {
                 </>
               )}
 
-              {}
               {modalTab === 1 && editingModule && editingDisplayRules && (
                 <DisplayRulesEditor
                   displayRules={editingDisplayRules}

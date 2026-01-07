@@ -56,16 +56,13 @@ export function evaluateTrust(
     shop.storefrontDomains
   );
 
-  // P0-1: ingestionKeyMatched 现在基于 HMAC 签名验证结果
-  // signatureStatus 为 "key_matched" 或 "hmac_verified" 表示 HMAC 签名验证通过
-  // 不再依赖明文 ingestionKey 验证
-  const isHmacVerified = receipt?.signatureStatus === SignatureStatus.KEY_MATCHED || 
+  const isHmacVerified = receipt?.signatureStatus === SignatureStatus.KEY_MATCHED ||
                          receipt?.signatureStatus === "hmac_verified";
-  
+
   const trustResult = verifyReceiptTrust({
     receiptCheckoutToken: receipt?.checkoutToken,
     webhookCheckoutToken,
-    ingestionKeyMatched: isHmacVerified, // 参数名保持向后兼容，实际含义是 HMAC 验证通过
+    ingestionKeyMatched: isHmacVerified,
     receiptExists: !!receipt,
     receiptOriginHost: receipt?.originHost,
     allowedDomains: shopAllowedDomains,

@@ -369,7 +369,6 @@ export function EventMappingVisualEditor({
             alignItems: "start",
           }}
         >
-          {}
           <BlockStack gap="300">
             <Text as="h4" variant="headingSm" fontWeight="semibold">
               Shopify 标准事件
@@ -426,7 +425,6 @@ export function EventMappingVisualEditor({
             })}
           </BlockStack>
 
-          {}
           <div
             style={{
               display: "flex",
@@ -442,7 +440,6 @@ export function EventMappingVisualEditor({
             </Text>
           </div>
 
-          {}
           <BlockStack gap="300">
             <Text as="h4" variant="headingSm" fontWeight="semibold">
               {PLATFORM_NAMES[platform]} 事件
@@ -566,7 +563,6 @@ export function EventMappingVisualEditor({
               </Banner>
             )}
 
-            {}
             <Divider />
             <BlockStack gap="200">
               <Text as="span" variant="bodySm" fontWeight="semibold" tone="subdued">
@@ -621,7 +617,6 @@ export function EventMappingVisualEditor({
           </BlockStack>
         </div>
 
-        {}
         <Divider />
         <BlockStack gap="300">
           <Text as="h4" variant="headingSm">

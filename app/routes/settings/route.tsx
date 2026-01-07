@@ -485,7 +485,6 @@ export default function SettingsPage() {
       )}
 
       <BlockStack gap="500">
-        {}
 
         <Tabs tabs={tabs} selected={selectedTab} onSelect={setSelectedTab}>
           {selectedTab === 0 && (
@@ -561,7 +560,7 @@ export default function SettingsPage() {
           {selectedTab === 2 && (
             <SecurityTab
               shop={shop}
-              // P0-2: v1.0 版本不包含任何 PCD/PII 处理，因此移除 pcdApproved 和 pcdStatusMessage
+
               isSubmitting={isSubmitting}
               onRotateSecret={handleRotateSecret}
             />

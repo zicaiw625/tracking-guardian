@@ -109,7 +109,7 @@ export async function canUseModule(shopId: string, moduleKey: ModuleKey): Promis
   currentPlan: PlanId;
   reason?: string;
 }> {
-  // P0-5: v1.0 功能边界检查
+
   const { isModuleAvailableInV1 } = await import("../utils/version-gate");
   if (!isModuleAvailableInV1(moduleKey)) {
     return {
@@ -185,7 +185,7 @@ export async function getUiModuleConfigs(shopId: string): Promise<UiModuleConfig
     const existing = settings.find((s: { moduleKey: string }) => s.moduleKey === moduleKey);
 
     if (existing) {
-      // P0-8: 优先使用 settingsEncrypted，如果没有则回退到 settingsJson（向后兼容）
+
       let moduleSettings: ModuleSettings;
       if (existing.settingsEncrypted) {
         try {
@@ -201,7 +201,7 @@ export async function getUiModuleConfigs(shopId: string): Promise<UiModuleConfig
       } else {
         moduleSettings = (existing.settingsJson as ModuleSettings) || getDefaultSettings(moduleKey);
       }
-      
+
       return {
         moduleKey,
         isEnabled: existing.isEnabled,
@@ -231,11 +231,11 @@ export async function getUiModuleConfig(
   });
 
   if (setting) {
-    // P0-8: 优先使用 settingsEncrypted，如果没有则回退到 settingsJson（向后兼容）
+
     let settings: ModuleSettings;
-    
+
     if (setting.settingsEncrypted) {
-      // 使用加密字段
+
       try {
         settings = decryptJson<ModuleSettings>(setting.settingsEncrypted);
       } catch (error) {
@@ -244,14 +244,13 @@ export async function getUiModuleConfig(
           moduleKey,
           error: error instanceof Error ? error.message : String(error),
         });
-        // 解密失败，回退到默认设置
+
         settings = getDefaultSettings(moduleKey);
       }
     } else if (setting.settingsJson) {
-      // 向后兼容：使用明文 settingsJson（已废弃）
+
       settings = (setting.settingsJson as ModuleSettings) || getDefaultSettings(moduleKey);
-      
-      // 如果是 order_tracking 模块且 apiKey 已加密（旧格式），则解密
+
       if (moduleKey === "order_tracking" && settings && typeof settings === "object") {
         const settingsObj = settings as Record<string, unknown>;
         if (settingsObj._apiKeyEncrypted && settingsObj.apiKey && typeof settingsObj.apiKey === "string") {
@@ -260,7 +259,7 @@ export async function getUiModuleConfig(
             settings = {
               ...settingsObj,
               apiKey: decrypted.apiKey,
-              _apiKeyEncrypted: undefined, // 解密后移除标记
+              _apiKeyEncrypted: undefined,
             } as ModuleSettings;
           } catch (error) {
             logger.error("Failed to decrypt API key from legacy format", {
@@ -274,7 +273,7 @@ export async function getUiModuleConfig(
     } else {
       settings = getDefaultSettings(moduleKey);
     }
-    
+
     return {
       moduleKey,
       isEnabled: setting.isEnabled,
@@ -302,7 +301,6 @@ export async function updateUiModuleConfig(
 
     const { validateModuleSettings, validateDisplayRules, validateLocalizationSettings } = await import("../schemas/ui-module-settings");
 
-    // Map ModuleKey from ui-extension types to schema types
     const mapModuleKeyToSchema = (key: ModuleKey): "survey" | "reorder" | "support" | "shipping_tracker" | "upsell_offer" => {
       switch (key) {
         case "helpdesk":
@@ -315,7 +313,7 @@ export async function updateUiModuleConfig(
         case "reorder":
           return key;
         default:
-          return "survey"; // fallback
+          return "survey";
       }
     };
 
@@ -368,15 +366,13 @@ export async function updateUiModuleConfig(
     if (config.isEnabled !== undefined) {
       data.isEnabled = config.isEnabled;
     }
-    // P0-8: 使用 settingsEncrypted 存储加密后的设置（推荐方式）
-    // 对于包含敏感信息的设置（如 order_tracking 的 apiKey），加密整个 settings 对象
+
     if (config.settings) {
       try {
-        // 加密整个 settings 对象
+
         const encryptedSettings = encryptJson(config.settings);
         data.settingsEncrypted = encryptedSettings;
-        // 不再保存明文 settingsJson（为了安全）
-        // 但保留 settingsJson 字段为空，以便向后兼容
+
         data.settingsJson = null;
       } catch (error) {
         logger.error("Failed to encrypt settings", {
@@ -384,7 +380,7 @@ export async function updateUiModuleConfig(
           moduleKey,
           error: error instanceof Error ? error.message : String(error),
         });
-        // 如果加密失败，不保存设置（安全起见）
+
         return {
           success: false,
           error: "设置加密失败，请稍后重试",
@@ -408,8 +404,8 @@ export async function updateUiModuleConfig(
         shopId,
         moduleKey,
         isEnabled: config.isEnabled ?? false,
-        // P0-8: 使用 settingsEncrypted 而不是 settingsJson
-        settingsJson: null, // 不再保存明文
+
+        settingsJson: null,
         settingsEncrypted: data.settingsEncrypted || null,
         displayRules: (config.displayRules || getDefaultDisplayRules(moduleKey)) as object,
         localization: config.localization ? (config.localization as object) : undefined,
@@ -474,7 +470,7 @@ export async function resetModuleToDefault(
         shopId_moduleKey: { shopId, moduleKey },
       },
       update: {
-        // P0-8: 重置时也使用加密字段
+
         settingsJson: null,
         settingsEncrypted: null,
         displayRules: getDefaultDisplayRules(moduleKey) as object,
@@ -485,7 +481,7 @@ export async function resetModuleToDefault(
         shopId,
         moduleKey,
         isEnabled: false,
-        settingsJson: null, // P0-8: 不再保存明文
+        settingsJson: null,
         settingsEncrypted: null,
         displayRules: getDefaultDisplayRules(moduleKey) as object,
         updatedAt: new Date(),

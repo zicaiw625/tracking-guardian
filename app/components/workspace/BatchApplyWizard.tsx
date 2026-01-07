@@ -142,8 +142,7 @@ export function BatchApplyWizard({
     } catch (error) {
 
       if (process.env.NODE_ENV === "development") {
-        // 客户端调试输出：轮询任务状态失败
-        // eslint-disable-next-line no-console
+
         console.error("Failed to poll job status:", error);
       }
     }
@@ -305,7 +304,6 @@ export function BatchApplyWizard({
               </BlockStack>
             </Box>
 
-            {}
             {shopsWithConfig > 0 && (
               <Banner tone="warning">
                 <BlockStack gap="200">
@@ -579,7 +577,6 @@ export function BatchApplyWizard({
                 </BlockStack>
               </Box>
 
-              {}
               {results.summary?.changesBreakdown && (
                 <>
                   <Divider />
@@ -627,7 +624,6 @@ export function BatchApplyWizard({
                 </>
               )}
 
-              {}
               {results.summary?.platformsBreakdown && Object.keys(results.summary.platformsBreakdown).length > 0 && (
                 <>
                   <Divider />
@@ -685,7 +681,6 @@ export function BatchApplyWizard({
                     ])}
                   />
 
-                  {}
                   {results.details.some((d) => d.comparisons && d.comparisons.length > 0) && (
                     <>
                       <Divider />

@@ -55,8 +55,6 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
 
     if (typeof window !== "undefined" && window.console) {
 
-      // 客户端调试输出：错误边界捕获的错误
-      // eslint-disable-next-line no-console
       console.error("ErrorBoundary caught an error:", error, errorInfo);
     }
   }

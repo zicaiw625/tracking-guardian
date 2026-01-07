@@ -75,22 +75,20 @@ export interface ConversionJob {
   readonly completedAt: Date | null;
 }
 
-// P0-1: v1.0 版本不包含任何 PCD/PII 处理，因此移除 HashedIdentifiers 接口和 hashedIdentifiers 字段
-// v1.0 仅依赖 Web Pixels 标准事件，不处理任何客户数据
 export interface CapiInput {
   value: number;
   currency: string;
   orderId: string;
   checkoutToken?: string;
   items?: LineItem[];
-  // P0-1: v1.0 版本移除 hashedIdentifiers 字段（HashedIdentifiers 接口已删除）
+
 }
 
 export interface JobWithShop extends ConversionJob {
   readonly shop: {
     shopDomain: string;
     plan: string;
-    // P0-2: v1.0 版本不包含任何 PCD/PII 处理，因此移除 piiEnabled 字段
+
     consentStrategy: string;
   };
 }

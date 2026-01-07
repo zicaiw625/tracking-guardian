@@ -39,7 +39,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   const shop = await prisma.shop.findUnique({
     where: { shopDomain },
     select: {
-      // P0-2: v1.0 版本不包含任何 PCD/PII 处理，因此移除 piiEnabled 和 pcdAcknowledged 查询
+
       consentStrategy: true,
     },
   });
@@ -136,7 +136,6 @@ export default function PrivacyPage() {
       subtitle="了解本应用如何收集、使用和保护您店铺的数据"
     >
       <BlockStack gap="500">
-        {}
         <Banner title="数据处理概览" tone="info">
           <BlockStack gap="200">
             <p>
@@ -147,7 +146,6 @@ export default function PrivacyPage() {
           </BlockStack>
         </Banner>
 
-        {}
         <Card>
           <BlockStack gap="300">
             <Text as="h2" variant="headingMd">
@@ -164,15 +162,12 @@ export default function PrivacyPage() {
                   </Badge>
                 </BlockStack>
               </Box>
-              {/* P0-2: v1.0 版本不包含任何 PCD/PII 处理，因此移除 PII 高级开关和 PCD 确认 UI */}
-              {/* PII 增强匹配功能将在 v1.1 版本中提供（需通过 Shopify PCD 审核） */}
             </InlineStack>
           </BlockStack>
         </Card>
 
         <Layout>
           <Layout.Section variant="oneHalf">
-            {}
             <BlockStack gap="400">
               <Text as="h2" variant="headingLg">
                 <InlineStack gap="200" blockAlign="center">
@@ -204,13 +199,10 @@ export default function PrivacyPage() {
                 tone="success"
               />
 
-              {/* P0-2: v1.0 版本不包含任何 PCD/PII 处理，因此移除 PII 数据卡片 */}
-              {/* PII 增强匹配功能将在 v1.1 版本中提供（需通过 Shopify PCD 审核） */}
             </BlockStack>
           </Layout.Section>
 
           <Layout.Section variant="oneHalf">
-            {}
             <BlockStack gap="400">
               <Text as="h2" variant="headingLg">
                 <InlineStack gap="200" blockAlign="center">
@@ -256,7 +248,6 @@ export default function PrivacyPage() {
           </Layout.Section>
         </Layout>
 
-        {}
         <CollapsibleSection title="数据保存时长" defaultOpen>
           <BlockStack gap="300">
             <Banner tone="info">
@@ -321,7 +312,6 @@ export default function PrivacyPage() {
           </BlockStack>
         </CollapsibleSection>
 
-        {}
         <CollapsibleSection title="数据删除方式">
           <BlockStack gap="300">
             <Text as="p">
@@ -356,7 +346,6 @@ export default function PrivacyPage() {
                   当客户通过 Shopify 请求删除其数据时，我们会收到{" "}
                   <code>CUSTOMERS_DATA_REQUEST</code> 或{" "}
                   <code>CUSTOMERS_REDACT</code> webhook，并删除相关的数据。
-                  {/* P0-2: v1.0 版本不包含任何 PCD/PII 处理，因此不涉及 PII 哈希删除 */}
                 </Text>
               </BlockStack>
             </Box>
@@ -375,11 +364,9 @@ export default function PrivacyPage() {
               </BlockStack>
             </Box>
 
-            {/* P0-2: v1.0 版本不包含任何 PCD/PII 处理，因此移除 PII 哈希相关的警告 */}
           </BlockStack>
         </CollapsibleSection>
 
-        {}
         <CollapsibleSection title="安全措施">
           <BlockStack gap="300">
             <Box background="bg-surface-secondary" padding="400" borderRadius="200">
@@ -410,7 +397,6 @@ export default function PrivacyPage() {
               </BlockStack>
             </Box>
 
-            {/* P0-2: v1.0 版本不包含任何 PCD/PII 处理，因此移除 PII 哈希安全措施说明 */}
 
             <Box background="bg-surface-secondary" padding="400" borderRadius="200">
               <BlockStack gap="300">
@@ -428,7 +414,6 @@ export default function PrivacyPage() {
           </BlockStack>
         </CollapsibleSection>
 
-        {}
         <CollapsibleSection title="GDPR Webhooks 测试指引">
           <BlockStack gap="300">
             <Text as="p">
@@ -491,7 +476,6 @@ export default function PrivacyPage() {
           </BlockStack>
         </CollapsibleSection>
 
-        {}
         <CollapsibleSection title="数据导出与删除">
           <BlockStack gap="400">
             <Banner tone="info">
@@ -617,7 +601,6 @@ export default function PrivacyPage() {
           </BlockStack>
         </CollapsibleSection>
 
-        {}
         <Card>
           <BlockStack gap="300">
             <Text as="h2" variant="headingMd">

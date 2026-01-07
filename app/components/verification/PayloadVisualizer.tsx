@@ -59,8 +59,7 @@ export function PayloadVisualizer({
       platformMappings[platform] = mapToPlatformClient(canonical, platform);
     } catch (error) {
       if (process.env.NODE_ENV === "development") {
-        // 客户端调试输出：平台映射失败
-        // eslint-disable-next-line no-console
+
         console.error(`Failed to map to ${platform}:`, error);
       }
     }

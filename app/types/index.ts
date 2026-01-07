@@ -165,7 +165,7 @@ export type {
 } from "./consent";
 
 export type {
-  // P0-5: v1.0 版本移除 OrderWebhookPayload 和 MinimalOrderPayload 导出
+
   ApiResponse,
   SurveyResponseData,
   ShopData,
@@ -185,8 +185,6 @@ export type {
   ReconciliationSummary,
   ReconciliationReportData,
 } from "./webhook";
-
-// P0-5: v1.0 版本移除 toMinimalOrderPayload 导出
 
 export type {
   WebhookRegisterResult,

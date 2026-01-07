@@ -370,7 +370,6 @@ const UpgradeStatusCard = memo(function UpgradeStatusCard({
         </InlineStack>
 
         <BlockStack gap="300">
-          {}
           <InlineStack align="space-between" blockAlign="center">
             <Text as="span" variant="bodyMd" fontWeight="semibold">
               当前状态
@@ -382,7 +381,6 @@ const UpgradeStatusCard = memo(function UpgradeStatusCard({
 
           <Divider />
 
-          {}
           {upgradeStatus.shopTier === "plus" && (
             <BlockStack gap="200">
               <InlineStack align="space-between" blockAlign="center">
@@ -446,7 +444,6 @@ const UpgradeStatusCard = memo(function UpgradeStatusCard({
             </BlockStack>
           )}
 
-          {}
           {upgradeStatus.shopTier === "non_plus" && (
             <BlockStack gap="200">
               <InlineStack align="space-between" blockAlign="center">
@@ -709,7 +706,6 @@ const LatestScanCard = memo(function LatestScanCard({ latestScan }: { latestScan
           </Badge>
         </InlineStack>
 
-        {}
         <Box
           background={
             latestScan.riskScore >= 70
@@ -876,11 +872,11 @@ function ScriptTagMigrationBanner({
 }
 
 function MigrationDeadlineBanner({ scriptTagsCount }: { scriptTagsCount: number }) {
-  // P0-1: 使用统一的日期常量和官方链接
+
   const plusDeadline = formatDeadlineDate(DEPRECATION_DATES.plusScriptTagExecutionOff, "exact");
   const plusAutoUpgrade = formatDeadlineDate(DEPRECATION_DATES.plusAutoUpgradeStart, "month");
   const nonPlusDeadline = formatDeadlineDate(DEPRECATION_DATES.nonPlusScriptTagExecutionOff, "exact");
-  
+
   return (
     <Banner
       title="重要迁移截止日期"
@@ -985,7 +981,6 @@ function MigrationChecklistPreviewCard({
           <Badge tone="info">{`${checklist.totalItems} 项`}</Badge>
         </InlineStack>
 
-        {}
         <Box background="bg-surface-secondary" padding="400" borderRadius="200">
           <BlockStack gap="200">
             <InlineStack align="space-between">
@@ -1044,7 +1039,6 @@ function MigrationChecklistPreviewCard({
           </BlockStack>
         </Box>
 
-        {}
         {checklist.topItems.length > 0 && (
           <BlockStack gap="300">
             <Text as="h3" variant="headingSm">
@@ -1203,7 +1197,6 @@ export default function Index() {
       }
     >
       <BlockStack gap="500">
-        {}
         {showWelcomeBanner && (
           <Banner title="Shopify 升级迁移交付平台" tone="info" onDismiss={handleDismissWelcomeBanner}>
             <BlockStack gap="300">
@@ -1252,8 +1245,6 @@ export default function Index() {
           </Banner>
         )}
 
-        {}
-        {}
         {showScanProgress && data.showOnboarding && !data.latestScan && (
           <PostInstallScanProgress
             shopId={data.shopDomain}
@@ -1273,8 +1264,6 @@ export default function Index() {
           />
         )}
 
-        {}
-        {}
         <Layout>
           <Layout.Section variant="oneThird">
             <UpgradeStatusCard upgradeStatus={data.upgradeStatus} />
@@ -1291,9 +1280,6 @@ export default function Index() {
           </Layout.Section>
         </Layout>
 
-        {}
-        {}
-        {/* 免费 Audit 入口 - 核心获客点 */}
         <Card>
           <BlockStack gap="400">
             <InlineStack align="space-between" blockAlign="center">
@@ -1323,7 +1309,6 @@ export default function Index() {
           </BlockStack>
         </Card>
 
-        {/* 付费墙 CTA - 3个强触发点 */}
         {data.latestScan && (
           <Layout>
             <Layout.Section variant="oneThird">
@@ -1409,7 +1394,6 @@ export default function Index() {
             </Layout.Section>
           </Layout>
         )}
-        {}
         <Layout>
           <Layout.Section variant="oneThird">
             <HealthScoreCard score={data.healthScore} status={data.healthStatus} />
@@ -1429,8 +1413,6 @@ export default function Index() {
           </Layout.Section>
         </Layout>
 
-        {}
-        {}
         {data.migrationChecklist && (
           <Layout>
             <Layout.Section>
@@ -1442,7 +1424,6 @@ export default function Index() {
           </Layout>
         )}
 
-        {}
         {(data.dependencyGraph || data.riskDistribution) && (
           <Layout>
             {data.dependencyGraph && (
@@ -1458,7 +1439,6 @@ export default function Index() {
           </Layout>
         )}
 
-        {}
         <ScriptTagMigrationBanner
           scriptTagsCount={data.scriptTagsCount}
           hasOrderStatusScripts={data.hasOrderStatusScripts}

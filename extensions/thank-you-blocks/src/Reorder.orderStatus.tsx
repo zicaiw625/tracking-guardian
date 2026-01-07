@@ -26,11 +26,10 @@ function ReorderOrderStatus() {
   const buttonText = (settings.reorder_button_text as string) || "再次购买 →";
   const showItems = settings.reorder_show_items !== "false";
 
-  // Type-safe extraction of lineItems and totalPrice
-  const lineItems: any[] = (order && 'lineItems' in order && Array.isArray(order.lineItems)) 
-    ? order.lineItems as any[] 
+  const lineItems: any[] = (order && 'lineItems' in order && Array.isArray(order.lineItems))
+    ? order.lineItems as any[]
     : [];
-  const totalPrice: { amount: string; currencyCode: string } | null = 
+  const totalPrice: { amount: string; currencyCode: string } | null =
     (order && 'totalPrice' in order && order.totalPrice && typeof order.totalPrice === 'object' && order.totalPrice !== null)
       ? order.totalPrice as { amount: string; currencyCode: string }
       : null;
@@ -129,7 +128,6 @@ function ReorderOrderStatus() {
               }
             </Text>
           </BlockStack>
-          {}
           <Link to={reorderUrl}>
             <Button kind="primary">
               {buttonText}

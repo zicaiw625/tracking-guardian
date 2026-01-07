@@ -57,49 +57,7 @@ export const VERIFICATION_TEST_ITEMS: VerificationTestItem[] = [
     required: false,
     platforms: ["google", "meta", "tiktok"],
   },
-  // P0-2: PRD 对齐 - v1.0 验收范围（已启用订单/退款 webhooks）
-  // 
-  // v1.0 验收范围：
-  // - ✅ checkout/purchase 漏斗事件（checkout_started, checkout_completed, product_added_to_cart, product_viewed, page_viewed 等）
-  //   - 通过 Web Pixel Extension 订阅并上报
-  // - ✅ 订单侧事件（退款、取消、编辑订单）
-  //   - 通过 Shopify webhooks 获取（orders/cancelled, orders/edited, refunds/create）
-  //   - 仅存储订单摘要信息（orderId, orderNumber, totalValue, currency, financialStatus），不包含 PII
-  // 
-  // 注意：订阅事件（subscription）在 v1.0 中暂不支持，将在 v1.1+ 中实现
-  // 
-  // {
-  //   id: "refund",
-  //   name: "退款",
-  //   description: "对已完成订单进行退款，验证退款事件（通过 webhook）",
-  //   eventType: "refund",
-  //   required: false,
-  //   platforms: ["google", "meta"],
-  // },
-  // {
-  //   id: "cancel",
-  //   name: "订单取消",
-  //   description: "取消一个待处理订单，验证订单状态变化事件",
-  //   eventType: "order_cancelled",
-  //   required: false,
-  //   platforms: ["google", "meta"],
-  // },
-  // {
-  //   id: "order_edit",
-  //   name: "订单编辑",
-  //   description: "编辑已创建订单（如修改配送地址），验证事件更新",
-  //   eventType: "order_updated",
-  //   required: false,
-  //   platforms: ["google", "meta"],
-  // },
-  // {
-  //   id: "subscription",
-  //   name: "订阅订单",
-  //   description: "完成一个订阅类型订单（如 Shopify Subscription），验证订阅事件",
-  //   eventType: "subscription",
-  //   required: false,
-  //   platforms: ["google", "meta"],
-  // },
+
   {
     id: "currency_test",
     name: "多币种测试",
@@ -131,7 +89,7 @@ export interface VerificationEventResult {
   };
   discrepancies?: string[];
   errors?: string[];
-  // P0-T6: 添加 eventLogId 和 deliveryAttemptId 用于导出报告时获取 payload 证据
+
   eventLogId?: string;
   deliveryAttemptId?: string;
 }
@@ -292,15 +250,13 @@ export async function analyzeRecentEvents(
 
   const targetPlatforms = platforms || run.platforms;
 
-  // P0-T6: 使用 event_logs + delivery_attempts 作为数据源
   const eventLogs = await getEventLogs(shopId, {
     startDate: since,
     limit: 1000,
   });
 
-  // 过滤出目标平台的事件
   const filteredEventLogs = eventLogs.filter(log => {
-    return log.deliveryAttempts.some(attempt => 
+    return log.deliveryAttempts.some(attempt =>
       targetPlatforms.includes(attempt.destinationType)
     );
   });
@@ -312,20 +268,18 @@ export async function analyzeRecentEvents(
   let totalValueAccuracy = 0;
   let valueChecks = 0;
 
-  // P0-T6: 从 event_logs 和 delivery_attempts 提取数据
   const orderIds = new Set<string>();
 
   for (const eventLog of filteredEventLogs) {
-    // 从 normalizedEventJson 中提取 orderId
+
     const normalizedEvent = eventLog.normalizedEventJson as Record<string, unknown>;
     const data = normalizedEvent.data as Record<string, unknown> | undefined;
     const orderId = data?.orderId as string | undefined;
-    
+
     if (orderId) {
       orderIds.add(orderId);
     }
 
-    // 处理每个 delivery attempt
     for (const attempt of eventLog.deliveryAttempts) {
       if (!targetPlatforms.includes(attempt.destinationType)) {
         continue;
@@ -334,13 +288,11 @@ export async function analyzeRecentEvents(
       const discrepancies: string[] = [];
       const errors: string[] = [];
 
-      // 从 requestPayloadJson 中提取参数
       const requestPayload = attempt.requestPayloadJson as Record<string, unknown>;
       let value: number | undefined;
       let currency: string | undefined;
       let items: number | undefined;
 
-      // 根据平台解析 payload
       if (attempt.destinationType === "google") {
         const body = requestPayload.body as Record<string, unknown>;
         const events = body?.events as Array<Record<string, unknown>> | undefined;
@@ -370,7 +322,6 @@ export async function analyzeRecentEvents(
         }
       }
 
-      // 也可以从 normalizedEventJson 中获取
       if (value === undefined && data) {
         value = data.value as number | undefined;
       }
@@ -397,7 +348,7 @@ export async function analyzeRecentEvents(
 
         if (hasValue) {
           valueChecks++;
-          totalValueAccuracy += 100; // 简化处理，实际应该与 Shopify 订单对比
+          totalValueAccuracy += 100;
         }
 
         results.push({
@@ -405,7 +356,7 @@ export async function analyzeRecentEvents(
           eventType: eventLog.eventName,
           platform: attempt.destinationType,
           orderId: orderId || undefined,
-          orderNumber: undefined, // 可以从 Shopify API 获取
+          orderNumber: undefined,
           status: discrepancies.length > 0 ? "missing_params" : "success",
           triggeredAt: eventLog.occurredAt,
           params: {
@@ -416,7 +367,7 @@ export async function analyzeRecentEvents(
           },
           discrepancies: discrepancies.length > 0 ? discrepancies : undefined,
           errors: undefined,
-          // P0-T6: 添加 eventLogId 和 deliveryAttemptId 用于导出报告时获取 payload 证据
+
           eventLogId: eventLog.id,
           deliveryAttemptId: attempt.id,
         });
@@ -442,7 +393,7 @@ export async function analyzeRecentEvents(
           },
           discrepancies: discrepancies.length > 0 ? discrepancies : undefined,
           errors: errors.length > 0 ? errors : undefined,
-          // P0-T6: 添加 eventLogId 和 deliveryAttemptId 用于导出报告时获取 payload 证据
+
           eventLogId: eventLog.id,
           deliveryAttemptId: attempt.id,
         });
@@ -455,18 +406,17 @@ export async function analyzeRecentEvents(
     totalTests > 0 ? Math.round(((passedTests + missingParamTests) / totalTests) * 100) : 0;
   const valueAccuracy = valueChecks > 0 ? Math.round(totalValueAccuracy / valueChecks) : 100;
 
-  // P0-T6: 从 delivery_attempts 统计平台结果
   const platformResults: Record<string, { sent: number; failed: number }> = {};
   for (const eventLog of filteredEventLogs) {
     for (const attempt of eventLog.deliveryAttempts) {
       if (!targetPlatforms.includes(attempt.destinationType)) {
         continue;
       }
-      
+
       if (!platformResults[attempt.destinationType]) {
         platformResults[attempt.destinationType] = { sent: 0, failed: 0 };
       }
-      
+
       if (attempt.status === "ok") {
         platformResults[attempt.destinationType].sent++;
       } else if (attempt.status === "fail") {
@@ -486,20 +436,19 @@ export async function analyzeRecentEvents(
       type: "duplicate" | "missing" | "value_mismatch" | "currency_mismatch";
     }> = [];
 
-    // P0-T6: 从 delivery_attempts 统计重复发送
     const orderPlatformMap = new Map<string, Map<string, number>>();
     for (const eventLog of filteredEventLogs) {
       const normalizedEvent = eventLog.normalizedEventJson as Record<string, unknown>;
       const data = normalizedEvent.data as Record<string, unknown> | undefined;
       const orderId = data?.orderId as string | undefined;
-      
+
       if (!orderId) continue;
 
       for (const attempt of eventLog.deliveryAttempts) {
         if (!targetPlatforms.includes(attempt.destinationType)) {
           continue;
         }
-        
+
         const count = orderPlatformMap.get(orderId)?.get(attempt.destinationType) || 0;
         if (!orderPlatformMap.has(orderId)) {
           orderPlatformMap.set(orderId, new Map());
@@ -568,22 +517,22 @@ export async function analyzeRecentEvents(
     }
 
     localConsistencyChecks.forEach((check) => {
-      // Map status to the expected type
+
       let issueType: "duplicate" | "missing" | "value_mismatch" | "currency_mismatch" = "missing";
       if (check.status === "inconsistent") {
-        // Try to determine the specific issue type from the issues
+
         const issuesStr = check.issues.join("; ").toLowerCase();
         if (issuesStr.includes("currency") || issuesStr.includes("币种")) {
           issueType = "currency_mismatch";
         } else if (issuesStr.includes("value") || issuesStr.includes("金额") || issuesStr.includes("value")) {
           issueType = "value_mismatch";
         } else {
-          issueType = "value_mismatch"; // default for inconsistent
+          issueType = "value_mismatch";
         }
       } else if (check.status === "partial") {
         issueType = "missing";
       }
-      
+
       consistencyIssues.push({
         orderId: check.orderId,
         issue: check.issues.join("; "),
@@ -734,17 +683,7 @@ export function generateTestOrderGuide(runType: "quick" | "full" | "custom"): {
       description: "使用折扣码完成订单，验证折扣后金额正确传递。",
       testItemId: "purchase_discount",
     },
-    // P0-1: PRD 对齐 - v1.0 验收范围收敛
-    // 
-    // ⚠️ 退款测试在 v1.0 中不可验收
-    // 原因：Web Pixel Extension 无法获取退款事件（需要订单 webhooks，将在 v1.1+ 实现）
-    // 
-    // {
-    //   step: 6,
-    //   title: "测试退款",
-    //   description: "对测试订单进行部分或全额退款，验证退款事件触发。",
-    //   testItemId: "refund",
-    // },
+
   ];
 
   const steps = runType === "full" ? fullSteps : quickSteps;

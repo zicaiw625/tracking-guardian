@@ -47,7 +47,7 @@ const FIELD_DEFINITIONS = {
         action: { description: "Action performed", pii: false },
         resourceType: { description: "Type of resource affected", pii: false },
         resourceId: { description: "ID of affected resource", pii: false },
-        // P0-4: v1.0 版本不包含任何 PCD/PII 处理，因此移除 ipAddress 和 userAgent 字段
+
         createdAt: { description: "Action timestamp", pii: false },
     },
     receipts: {
@@ -169,7 +169,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
                         previousValue: true,
                         newValue: true,
                         metadata: true,
-                        // P0-4: v1.0 版本不包含任何 PCD/PII 处理，因此不导出 ipAddress 和 userAgent
+
                         createdAt: true,
                     },
                     orderBy: { createdAt: "desc" },
@@ -253,14 +253,14 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
             case "scan": {
 
                 if (format === "pdf") {
-                    // P1-5: 服务端 entitlement 硬门禁 - PDF 导出需要 Go-Live 或 Agency 套餐
+
                     try {
                         const { requireEntitlementOrThrow } = await import("../services/billing/entitlement.server");
                         await requireEntitlementOrThrow(shop.id, "report_export");
                     } catch (error) {
                         const errorMessage = error instanceof Error ? error.message : "权限不足";
                         return new Response(
-                            JSON.stringify({ 
+                            JSON.stringify({
                                 error: errorMessage || "PDF 导出需要 Go-Live 或 Agency 套餐",
                                 requiredPlan: "Go-Live",
                             }),
@@ -270,7 +270,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
                             }
                         );
                     }
-                    
+
                     const pdfResult = await generateScanReportPdf(shop.id);
                     if (!pdfResult) {
                         return new Response("PDF generation failed", { status: 500 });
@@ -312,7 +312,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
                     scriptTagCount: Array.isArray(latestScan.scriptTags) ? latestScan.scriptTags.length : 0,
                     recommendations: generateMigrationRecommendations(latestScan),
                     migrationDeadlines: {
-                        // P0-1: 使用统一的日期常量
+
                         scriptTagPlus: getDateDisplayLabel(DEPRECATION_DATES.plusScriptTagExecutionOff, "exact"),
                         scriptTagNonPlus: getDateDisplayLabel(DEPRECATION_DATES.nonPlusScriptTagExecutionOff, "exact"),
                         additionalScriptsPlus: getDateDisplayLabel(DEPRECATION_DATES.plusAdditionalScriptsReadOnly, "exact"),
@@ -350,14 +350,14 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
             case "reconciliation": {
 
                 if (format === "pdf") {
-                    // P1-5: 服务端 entitlement 硬门禁 - PDF 导出需要 Go-Live 或 Agency 套餐
+
                     try {
                         const { requireEntitlementOrThrow } = await import("../services/billing/entitlement.server");
                         await requireEntitlementOrThrow(shop.id, "report_export");
                     } catch (error) {
                         const errorMessage = error instanceof Error ? error.message : "权限不足";
                         return new Response(
-                            JSON.stringify({ 
+                            JSON.stringify({
                                 error: errorMessage || "PDF 导出需要 Go-Live 或 Agency 套餐",
                                 requiredPlan: "Go-Live",
                             }),
@@ -367,7 +367,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
                             }
                         );
                     }
-                    
+
                     const pdfResult = await generateReconciliationReportPdf(shop.id);
                     if (!pdfResult) {
                         return new Response("PDF generation failed", { status: 500 });
@@ -488,7 +488,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
             }
 
             case "events": {
-                // P0-T5: 使用 event_logs + delivery_attempts 导出事件日志
+
                 if (format === "csv") {
                     const csv = await exportEventLogsAsCSV(shop.id, {
                         startDate: dateFilter.gte,
@@ -505,7 +505,6 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
                     });
                 }
 
-                // JSON 格式导出
                 const eventLogs = await getEventLogs(shop.id, {
                     startDate: dateFilter.gte,
                     endDate: dateFilter.lte,
