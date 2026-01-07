@@ -33,6 +33,7 @@ import { SCANNER_CONFIG, SCRIPT_ANALYSIS_CONFIG } from "../utils/config";
 import type { ScriptTag, RiskItem } from "../types";
 import type { MigrationAction, EnhancedScanResult } from "../services/scanner/types";
 import { logger } from "../utils/logger.server";
+import { trackEvent } from "../services/analytics.server";
 import {
     validateScriptTagsArray,
     validateRiskItemsArray,
@@ -43,6 +44,7 @@ import {
     safeFormatDate,
 } from "../utils/scan-data-validation";
 import { containsSensitiveInfo, sanitizeSensitiveInfo } from "../utils/security";
+import { safeFireAndForget } from "../utils/helpers";
 
 const TIMEOUTS = {
     IDLE_CALLBACK: 100,
@@ -177,6 +179,19 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
         where: { shopId: shop.id },
         orderBy: { createdAt: "desc" },
     });
+    if (latestScanRaw?.status === "completed") {
+        safeFireAndForget(
+            trackEvent({
+                shopId: shop.id,
+                shopDomain: shop.shopDomain,
+                event: "app_audit_completed",
+                eventId: `app_audit_completed_${latestScanRaw.id}`,
+                metadata: {
+                    scanReportId: latestScanRaw.id,
+                },
+            })
+        );
+    }
 
     const shopTier: ShopTier = (shop.shopTier !== null && shop.shopTier !== undefined && isValidShopTier(shop.shopTier))
         ? shop.shopTier

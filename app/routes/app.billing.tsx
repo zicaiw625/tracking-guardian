@@ -11,6 +11,8 @@ import { createSubscription, getSubscriptionStatus, cancelSubscription, checkOrd
 import { getUsageHistory } from "../services/billing/usage-history.server";
 
 import { logger } from "../utils/logger.server";
+import { trackEvent } from "../services/analytics.server";
+import { safeFireAndForget } from "../utils/helpers";
 export const loader = async ({ request }: LoaderFunctionArgs) => {
     const { BILLING_PLANS, PLAN_IDS } = await import("../services/billing.server");
     const { session, admin } = await authenticate.admin(request);
@@ -19,7 +21,26 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     const chargeId = url.searchParams.get("charge_id");
 
     if (chargeId) {
-        await handleSubscriptionConfirmation(admin, shopDomain, chargeId);
+        const confirmation = await handleSubscriptionConfirmation(admin, shopDomain, chargeId);
+        const shop = await prisma.shop.findUnique({
+            where: { shopDomain },
+            select: { id: true, shopDomain: true },
+        });
+        if (shop) {
+            safeFireAndForget(
+                trackEvent({
+                    shopId: shop.id,
+                    shopDomain: shop.shopDomain,
+                    event: confirmation.success ? "app_subscription_created" : "app_subscription_failed",
+                    eventId: confirmation.success
+                        ? `app_subscription_created_${chargeId}`
+                        : `app_subscription_failed_${chargeId}`,
+                    metadata: confirmation.success
+                        ? { plan: confirmation.plan }
+                        : { error: confirmation.error },
+                })
+            );
+        }
         return redirect("/app/billing?success=true");
     }
     const shop = await prisma.shop.findUnique({
@@ -53,6 +74,17 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       });
       return null;
     });
+    safeFireAndForget(
+        trackEvent({
+            shopId: shop.id,
+            shopDomain,
+            event: "app_paywall_viewed",
+            metadata: {
+                plan: subscriptionStatus.plan,
+                hasActiveSubscription: subscriptionStatus.hasActiveSubscription,
+            },
+        })
+    );
     return json({
         shopDomain,
         subscription: subscriptionStatus,
@@ -68,12 +100,36 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     const shopDomain = session.shop;
     const formData = await request.formData();
     const action = formData.get("_action");
+    const shop = await prisma.shop.findUnique({
+        where: { shopDomain },
+        select: { id: true, shopDomain: true },
+    });
     switch (action) {
         case "subscribe": {
             const planId = formData.get("planId") as PlanId;
             const appUrl = process.env.SHOPIFY_APP_URL || "";
             const returnUrl = `${appUrl}/app/billing`;
+            if (shop) {
+                safeFireAndForget(
+                    trackEvent({
+                        shopId: shop.id,
+                        shopDomain: shop.shopDomain,
+                        event: "app_upgrade_clicked",
+                        metadata: { planId },
+                    })
+                );
+            }
             const result = await createSubscription(admin, shopDomain, planId, returnUrl, process.env.NODE_ENV !== "production");
+            if (shop && !result.success) {
+                safeFireAndForget(
+                    trackEvent({
+                        shopId: shop.id,
+                        shopDomain: shop.shopDomain,
+                        event: "app_subscription_failed",
+                        metadata: { planId, error: result.error },
+                    })
+                );
+            }
             if (result.success && result.confirmationUrl) {
                 return redirect(result.confirmationUrl);
             }

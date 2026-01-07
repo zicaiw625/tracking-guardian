@@ -30,7 +30,7 @@ import { authenticate } from "~/shopify.server";
 import prisma from "~/db.server";
 import { getWizardTemplates } from "~/services/pixel-template.server";
 import { encryptJson } from "~/utils/crypto.server";
-import { generateSimpleId } from "~/utils/helpers";
+import { generateSimpleId, safeFireAndForget } from "~/utils/helpers";
 import { isPlanAtLeast } from "~/utils/plans";
 import { createWebPixel, getExistingWebPixels, isOurWebPixel, updateWebPixel } from "~/services/migration.server";
 import { decryptIngestionSecret, encryptIngestionSecret, isTokenEncrypted } from "~/utils/token-encryption";
@@ -38,6 +38,7 @@ import { randomBytes } from "crypto";
 import { logger } from "~/utils/logger.server";
 import type { PlatformType } from "~/types/enums";
 import type { WizardTemplate } from "~/components/migrate/PixelMigrationWizard";
+import { trackEvent } from "~/services/analytics.server";
 
 const PRESET_TEMPLATES: WizardTemplate[] = [
   {
@@ -351,6 +352,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       }>;
 
       const configIds: string[] = [];
+      const createdPlatforms: string[] = [];
 
       for (const config of configs) {
         const platform = config.platform as "google" | "meta" | "tiktok" | "pinterest" | "snapchat";
@@ -371,6 +373,22 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 
         const encryptedCredentials = encryptJson(credentials);
         const platformIdValue = config.platformId?.trim() || null;
+        const existingConfig = await prisma.pixelConfig.findFirst({
+          where: {
+            shopId: shop.id,
+            platform,
+            environment: config.environment,
+            ...(platformIdValue
+              ? { platformId: platformIdValue }
+              : {
+                  OR: [
+                    { platformId: null },
+                    { platformId: "" },
+                  ],
+                }),
+          },
+          select: { id: true },
+        });
 
         const fullFunnelEvents = ["page_viewed", "product_viewed", "product_added_to_cart", "checkout_started"];
         const hasFullFunnelEvents = Object.keys(config.eventMappings || {}).some(eventName =>
@@ -415,6 +433,9 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         });
 
         configIds.push(savedConfig.id);
+        if (!existingConfig) {
+          createdPlatforms.push(platform);
+        }
       }
 
       let ingestionSecret: string | undefined = undefined;
@@ -469,6 +490,20 @@ export const action = async ({ request }: ActionFunctionArgs) => {
             data: { webPixelId: result.webPixelId },
           });
         }
+      }
+
+      if (createdPlatforms.length > 0) {
+        safeFireAndForget(
+          trackEvent({
+            shopId: shop.id,
+            shopDomain: shop.shopDomain,
+            event: "cfg_pixel_created",
+            metadata: {
+              count: createdPlatforms.length,
+              platforms: createdPlatforms,
+            },
+          })
+        );
       }
 
       return json({ success: true, configIds });
