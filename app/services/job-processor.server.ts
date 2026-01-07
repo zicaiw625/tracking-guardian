@@ -616,12 +616,16 @@ async function processSingleJob(
       quantity: item.quantity || 1,
     })).filter(item => item.id) || [];
     
+    // P1-4: 传递 nonce 参数（webhook job 通常没有 nonce，但函数签名需要）
+    // 由于此函数处理的是有 orderId 的 purchase 事件，不会进入 fallback 逻辑
     eventId = generateCanonicalEventId(
       job.orderId,
       webhookCheckoutToken || undefined,
       "purchase",
       job.shop.shopDomain,
-      normalizedItems
+      normalizedItems,
+      "v2", // 使用新版本
+      null // webhook job 通常没有 nonce
     );
     
     logger.debug(`Generated eventId for job ${job.id} using canonical logic`, {

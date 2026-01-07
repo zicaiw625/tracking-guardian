@@ -361,12 +361,14 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       }
 
       // P0-1: 优先使用 PRD 格式的 event_id，如果未提供则生成新的
+      // P1-4: 传递 nonce 参数用于 fallback 去重
       const eventId = prdEventId || generateEventIdForType(
         eventIdentifier,
         eventType,
         shopDomain,
         payload.data.checkoutToken,
-        normalizedItems.length > 0 ? normalizedItems : undefined
+        normalizedItems.length > 0 ? normalizedItems : undefined,
+        payload.nonce || null // P1-4: 传递 nonce 用于 fallback 去重
       );
 
       // P0-4: 对于 purchase 事件，写入 receipt

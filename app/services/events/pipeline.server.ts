@@ -413,12 +413,15 @@ export async function processEventPipeline(
       quantity: item.quantity,
     })) || [];
     
+    // P1-4: 传递 nonce 参数用于 fallback 去重
     finalEventId = generateCanonicalEventId(
       normalizedPayload.data?.orderId || null,
       normalizedPayload.data?.checkoutToken || null,
       normalizedPayload.eventName,
       normalizedPayload.shopDomain,
-      normalizedItemsForEventId.length > 0 ? normalizedItemsForEventId : undefined
+      normalizedItemsForEventId.length > 0 ? normalizedItemsForEventId : undefined,
+      "v2", // 使用新版本
+      payload.nonce || null // P1-4: 传递 nonce 用于 fallback 去重
     );
     
     logger.debug(`Generated canonical eventId for ${payload.eventName}`, {
@@ -507,12 +510,15 @@ export async function processEventPipeline(
             configId: destConfig.configId,
           });
           // 使用临时 ID 作为后备，但这种情况不应该发生
+          // P1-4: 传递 nonce 参数用于 fallback 去重
           eventIdForSend = generateCanonicalEventId(
             normalizedPayload.data?.orderId || null,
             normalizedPayload.data?.checkoutToken || null,
             normalizedPayload.eventName,
             normalizedPayload.shopDomain,
-            normalizedItems?.map(item => ({ id: item.id, quantity: item.quantity })) || undefined
+            normalizedItems?.map(item => ({ id: item.id, quantity: item.quantity })) || undefined,
+            "v2", // 使用新版本
+            payload.nonce || null // P1-4: 传递 nonce 用于 fallback 去重
           );
         }
         

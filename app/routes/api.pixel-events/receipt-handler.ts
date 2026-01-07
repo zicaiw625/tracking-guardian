@@ -327,17 +327,21 @@ export function generateEventIdForType(
   eventType: string,
   shopDomain: string,
   checkoutToken?: string | null,
-  items?: Array<{ id: string; quantity: number }>
+  items?: Array<{ id: string; quantity: number }>,
+  nonce?: string | null // P1-4: 添加 nonce 参数用于 fallback 去重
 ): string {
   // 使用与 pipeline.server.ts 相同的 generateCanonicalEventId 逻辑
   // 这确保了 client/server 端 event_id 生成的一致性
   // 同一笔订单在 client 端（pixel）和 server 端（webhook）生成的 event_id 应该一致
+  // P1-4: 传递 nonce 参数用于 fallback 去重
   return generateCanonicalEventId(
     identifier || null, // 确保传递 null 而不是空字符串，以保持与 pipeline 的一致性
     checkoutToken || null,
     eventType,
     shopDomain,
-    items
+    items,
+    "v2", // 使用新版本
+    nonce || null // P1-4: 传递 nonce 用于 fallback 去重
   );
 }
 

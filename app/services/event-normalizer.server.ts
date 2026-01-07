@@ -110,17 +110,17 @@ export function mapToPlatform(
 }
 
 /**
- * P0-T3: 生成 canonical event_id（可测试的纯函数，含版本号）
+ * P1-4: 生成 canonical event_id（可测试的纯函数，含版本号）
  * 
- * 版本: v1
+ * 版本: v2（修复了 fallback 冲突问题）
  * 
  * 生成规则:
  * 1. 对于 purchase/checkout_completed 事件: 使用 orderId 作为 identifier
  * 2. 对于其他事件: 使用 orderId 或 checkoutToken 作为 identifier
- * 3. 如果都没有: 使用时间戳+随机数（不推荐，但作为后备）
+ * 3. 如果都没有: 优先使用 nonce（如果提供），否则使用毫秒级时间戳 + 随机数
  * 4. 包含 items hash 以确保同一订单的不同商品组合有不同的 event_id
  * 
- * 输入格式: `${shopDomain}:${identifier}:${eventName}:${itemsHash}`
+ * 输入格式: `${version}:${shopDomain}:${identifier}:${eventName}:${itemsHash}`
  * 输出: SHA256 哈希的前 32 个字符
  * 
  * 注意: 此函数必须是纯函数，相同的输入必须产生相同的输出
@@ -131,7 +131,8 @@ export function generateCanonicalEventId(
   eventName: string,
   shopDomain: string,
   items?: Array<{ id: string; quantity: number }>,
-  version: string = "v1" // 版本号，用于未来兼容性
+  version: string = "v2", // 版本号更新为 v2（修复 fallback 冲突）
+  nonce?: string | null | undefined // P1-4: 添加 nonce 参数用于 fallback 去重
 ): string {
   const crypto = require("crypto");
 
@@ -141,17 +142,27 @@ export function generateCanonicalEventId(
   } else if (checkoutToken) {
     identifier = checkoutToken;
   } else {
-    // 后备方案：使用时间戳+随机数（不推荐，但作为后备）
-    // 注意：这会导致每次调用产生不同的 event_id，不符合幂等性
-    // 应该尽量避免这种情况
-    // P0-T3: 为了保持向后兼容，暂时保留此逻辑，但记录警告
-    logger.warn("Generating event ID without orderId or checkoutToken (non-idempotent, should be avoided)", {
-      eventName,
-      shopDomain,
-    });
-    // 使用固定值作为后备，确保至少在同一秒内是稳定的
-    const timestamp = Math.floor(Date.now() / 1000); // 秒级时间戳
-    identifier = `fallback_${timestamp}`;
+    // P1-4: 修复 fallback 冲突问题
+    // 优先使用 nonce（如果提供），确保去重准确性
+    // 如果没有 nonce，使用毫秒级时间戳 + 随机数，避免同一秒内冲突
+    if (nonce) {
+      identifier = `nonce_${nonce}`;
+      logger.debug("Using nonce for event ID generation (fallback)", {
+        eventName,
+        shopDomain,
+        noncePrefix: nonce.substring(0, 8),
+      });
+    } else {
+      // 使用毫秒级时间戳 + 随机数，确保唯一性
+      const timestampMs = Date.now(); // 毫秒级时间戳
+      const randomSuffix = crypto.randomBytes(4).toString("hex"); // 8 字符随机数
+      identifier = `fallback_${timestampMs}_${randomSuffix}`;
+      logger.warn("Generating event ID without orderId, checkoutToken, or nonce (non-idempotent, should be avoided)", {
+        eventName,
+        shopDomain,
+        identifierPrefix: identifier.substring(0, 30),
+      });
+    }
   }
 
   let itemsHash = "";

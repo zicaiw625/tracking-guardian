@@ -563,12 +563,14 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     // 使用与 pipeline.server.ts 相同的 generateCanonicalEventId 逻辑生成 eventId
     // 这确保了 client/server 端 event_id 生成的一致性
     // 同一笔订单在 client 端（pixel）和 server 端（webhook）生成的 event_id 应该一致
+    // P1-4: 传递 nonce 参数用于 fallback 去重
     const eventId = generateEventIdForType(
       eventIdentifier || null, // 如果没有 identifier，传递 null，generateCanonicalEventId 会内部处理
       eventType,
       shop.shopDomain,
       payload.data.checkoutToken,
-      normalizedItems.length > 0 ? normalizedItems : undefined
+      normalizedItems.length > 0 ? normalizedItems : undefined,
+      payload.nonce || null // P1-4: 传递 nonce 用于 fallback 去重
     );
 
     // P0-4: 只对 purchase 事件写入 receipt/nonce（强去重/强可靠）
