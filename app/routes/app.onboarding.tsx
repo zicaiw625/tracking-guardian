@@ -36,6 +36,8 @@ import { refreshTypOspStatus } from "../services/checkout-profile.server";
 import { getScriptTagDeprecationStatus, getAdditionalScriptsDeprecationStatus, getMigrationUrgencyStatus, type ShopTier } from "../utils/deprecation-dates";
 import type { ScriptTag, RiskItem } from "../types";
 import { logger } from "../utils/logger.server";
+import { trackEvent } from "../services/analytics.server";
+import { safeFireAndForget } from "../utils/helpers";
 
 function estimateMigrationTime(
   scriptTagCount: number,
@@ -185,6 +187,15 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   if (skipOnboarding) {
     return redirect("/app");
   }
+
+  safeFireAndForget(
+    trackEvent({
+      shopId: shop.id,
+      shopDomain: shop.shopDomain,
+      event: "app_onboarding_started",
+      eventId: `app_onboarding_started_${shop.id}`,
+    })
+  );
 
   const latestScan = shop.ScanReports?.[0];
   if (!latestScan && admin && !autoScan) {
@@ -883,4 +894,3 @@ export default function OnboardingPage() {
     </Page>
   );
 }
-

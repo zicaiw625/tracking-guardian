@@ -45,6 +45,7 @@ import {
 import { validatePixelEventHMAC } from "./hmac-validation";
 import { processEventPipeline } from "../../services/events/pipeline.server";
 import { safeFireAndForget } from "../../utils/helpers";
+import { trackEvent } from "../../services/analytics.server";
 
 const MAX_BODY_SIZE = API_CONFIG.MAX_BODY_SIZE;
 const TIMESTAMP_WINDOW_MS = API_CONFIG.TIMESTAMP_WINDOW_MS;
@@ -490,6 +491,19 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       payload.data.checkoutToken,
       normalizedItems.length > 0 ? normalizedItems : undefined,
       payload.nonce || null
+    );
+    safeFireAndForget(
+      trackEvent({
+        shopId: shop.id,
+        shopDomain: shop.shopDomain,
+        event: "px_event_received",
+        eventId: `px_event_received_${eventId}`,
+        metadata: {
+          pixelEventName: payload.eventName,
+          environment,
+          pixelEventId: eventId,
+        },
+      })
     );
 
     if (isPurchaseEvent) {

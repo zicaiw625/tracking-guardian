@@ -6,6 +6,8 @@ import { reconcilePixelVsCapi, performBulkLocalConsistencyCheck, performChannelR
 import type { AdminApiContext } from "@shopify/shopify-app-remix/server";
 import type { Prisma } from "@prisma/client";
 import { getEventLogs } from "./event-log.server";
+import { trackEvent } from "./analytics.server";
+import { safeFireAndForget } from "../utils/helpers";
 
 export interface VerificationTestItem {
   id: string;
@@ -583,6 +585,26 @@ export async function analyzeRecentEvents(
     },
   });
 
+  const shop = await prisma.shop.findUnique({
+    where: { id: shopId },
+    select: { shopDomain: true },
+  });
+  if (shop) {
+    safeFireAndForget(
+      trackEvent({
+        shopId,
+        shopDomain: shop.shopDomain,
+        event: "ver_run_completed",
+        eventId: `ver_run_completed_${runId}`,
+        metadata: {
+          runId,
+          runType: run.runType,
+          platforms: targetPlatforms,
+        },
+      })
+    );
+  }
+
   return {
     runId,
     shopId,
@@ -750,4 +772,3 @@ export async function exportVerificationReport(
     mimeType: "application/json",
   };
 }
-

@@ -10,6 +10,8 @@ import {
   type PixelEnvironment,
 } from "../services/pixel-rollback.server";
 import { logger } from "../utils/logger.server";
+import { trackEvent } from "../services/analytics.server";
+import { safeFireAndForget } from "../utils/helpers";
 
 export const action = async ({ request }: ActionFunctionArgs) => {
   const { session } = await authenticate.admin(request);
@@ -54,6 +56,24 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         }
 
         const result = await switchEnvironment(shop.id, platform, newEnvironment);
+        if (
+          result.success &&
+          result.previousEnvironment !== "live" &&
+          result.newEnvironment === "live"
+        ) {
+          safeFireAndForget(
+            trackEvent({
+              shopId: shop.id,
+              shopDomain,
+              event: "cfg_pixel_live_enabled",
+              metadata: {
+                platform,
+                previousEnvironment: result.previousEnvironment,
+                newEnvironment: result.newEnvironment,
+              },
+            })
+          );
+        }
         return json({
           success: result.success,
           message: result.message,
@@ -73,4 +93,3 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     }, { status: 500 });
   }
 };
-
