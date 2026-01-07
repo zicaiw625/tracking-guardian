@@ -78,13 +78,14 @@ services:
       - key: PIXEL_ALLOW_NULL_ORIGIN
         value: "true"  # 允许 Origin: null 的像素请求（Shopify Web Pixel 常见情况）
 
-cronJobs:
   # P0-1: Cron Job 服务 - 定时任务（Monitoring/清理/GDPR）
   # 注意：Render Blueprint 的 cron job 需要手动设置部分环境变量
   # 请在 Render Dashboard 中为 cron job 服务设置以下环境变量（从 web service 复制）：
   # - CRON_SECRET (必须与 web service 相同)
   # - SHOPIFY_APP_URL (web service 的完整 URL，格式：https://tracking-guardian.onrender.com)
-  - name: tracking-guardian-cron
+  - type: cron
+    name: tracking-guardian-cron
+    runtime: node
     region: singapore  # 与 web service 相同区域
     schedule: "*/5 * * * *"  # 每 5 分钟执行一次
     startCommand: >
