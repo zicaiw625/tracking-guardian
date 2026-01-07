@@ -63,7 +63,7 @@ export default function App() {
             <a href="/app/ui-blocks">Modules</a>
             <a href="/app/verification">Verification</a>
             <a href="/app/monitor">Monitoring</a>
-            <a href="/app/alerts">Alerts</a>
+            <a href="/app/alerts">Alerts/告警中心</a>
             <a href="/app/reports">Reports</a>
             <a href="/app/billing">Billing</a>
             <a href="/app/settings">Settings</a>
