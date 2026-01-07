@@ -485,6 +485,11 @@ export default function VerificationPage() {
               </List.Item>
               <List.Item>
                 <Text as="span" variant="bodySm">
+                  <strong>补充：</strong>Web Pixels 仅覆盖 checkout 漏斗，订单层事件（refund/cancel）需通过订单 webhook 才能验收。
+                </Text>
+              </List.Item>
+              <List.Item>
+                <Text as="span" variant="bodySm">
                   <strong>原因：</strong>Web Pixel Extension 运行在 strict sandbox 环境，只能订阅 Shopify 标准 checkout 漏斗事件。退款、取消、编辑订单、订阅等事件需要订单 webhooks 或后台定时对账才能获取，将在 v1.1+ 版本中通过订单 webhooks 实现（严格做 PII 最小化）
                 </Text>
               </List.Item>
@@ -520,6 +525,22 @@ export default function VerificationPage() {
           </BlockStack>
         </Banner>
         <CheckoutExtensibilityWarning />
+
+        <Card>
+          <BlockStack gap="300">
+            <InlineStack align="space-between" blockAlign="center">
+              <Text as="h2" variant="headingMd">
+                🧾 订单层验收
+              </Text>
+              <Button url="/app/verification/orders" variant="primary">
+                进入订单验收
+              </Button>
+            </InlineStack>
+            <Text as="p" variant="bodySm" tone="subdued">
+              订单层验收聚焦 refund/cancel 等订单事件与 webhook 送达情况，适合核对订单级缺口与一致性问题。
+            </Text>
+          </BlockStack>
+        </Card>
 
         {configuredPlatforms.length === 0 && (
           <Banner
