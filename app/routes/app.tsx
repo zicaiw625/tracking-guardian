@@ -52,7 +52,7 @@ export default function App() {
             <a href="/app/workspace">Workspaces</a>
             <a href="/app/workspace?tab=shops">Shops</a>
             <a href="/app/workspace/templates">Templates</a>
-            <a href="/app/reports?scope=agency">Reports</a>
+            <a href="/app/reports?scope=agency">报告中心</a>
             <a href="/app/workspace?tab=team">Team &amp; Roles</a>
           </>
         ) : (
@@ -64,7 +64,7 @@ export default function App() {
             <a href="/app/verification">Verification</a>
             <a href="/app/monitor">Monitoring</a>
             <a href="/app/alerts">Alerts/告警中心</a>
-            <a href="/app/reports">Reports</a>
+            <a href="/app/reports">报告中心</a>
             <a href="/app/billing">Billing</a>
             <a href="/app/settings">Settings</a>
             <a href="/app/support">Support</a>

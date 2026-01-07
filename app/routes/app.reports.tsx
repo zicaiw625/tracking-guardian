@@ -32,11 +32,11 @@ type ActionData = {
 };
 
 const REPORT_LABELS: Record<ReportType, string> = {
-  scan: "扫描报告",
+  scan: "Audit 报告",
   migration: "迁移报告",
-  reconciliation: "对账报告",
+  reconciliation: "Monitoring 报告",
   risk: "风险报告",
-  verification: "验收报告",
+  verification: "Verification 报告",
   comprehensive: "综合报告",
 };
 
@@ -114,6 +114,8 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   const reportType = formData.get("reportType") as ReportType | null;
   const format = formData.get("format") as ReportFormat | null;
   const runId = formData.get("runId") as string | null;
+  const daysValue = formData.get("days");
+  const days = typeof daysValue === "string" ? Number(daysValue) : undefined;
 
   if (!reportType || !format) {
     return json({ error: "缺少报告类型或格式" }, { status: 400 });
@@ -123,11 +125,19 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     return json({ error: "验收报告需要最新的 runId" }, { status: 400 });
   }
 
+  const metadata: Record<string, unknown> = {};
+  if (runId) {
+    metadata.runId = runId;
+  }
+  if (typeof days === "number" && Number.isFinite(days)) {
+    metadata.days = days;
+  }
+
   const job = await createReportJob({
     shopId: shop.id,
     reportType,
     format,
-    metadata: runId ? { runId } : undefined,
+    metadata: Object.keys(metadata).length > 0 ? metadata : undefined,
   });
 
   return json<ActionData>({
@@ -144,22 +154,23 @@ export default function ReportsPage() {
   const exportOptions = useMemo(() => ([
     {
       type: "scan" as const,
-      title: "扫描报告",
-      description: "输出最近一次扫描结果，支持 PDF/CSV。",
+      title: "Audit 报告",
+      description: "输出最近一次 Audit 扫描结果，支持 PDF/CSV。",
       supports: ["pdf", "csv"] as const,
     },
     {
       type: "verification" as const,
-      title: "验收报告",
+      title: "Verification 报告",
       description: "基于最新验收运行生成 PDF/CSV。",
       supports: ["pdf", "csv"] as const,
       requiresRunId: true,
     },
     {
-      type: "comprehensive" as const,
-      title: "综合报告",
-      description: "包含扫描、迁移、验收、风险与事件统计。",
+      type: "reconciliation" as const,
+      title: "Monitoring 报告",
+      description: "导出最近 7 天的监控对账数据。",
       supports: ["pdf", "csv"] as const,
+      metadata: { days: 7 },
     },
   ]), []);
 
@@ -168,7 +179,8 @@ export default function ReportsPage() {
     []
   );
 
-  const historyRows = jobs.map((job) => {
+  const filteredJobs = jobs.filter((job) => ["scan", "verification", "reconciliation"].includes(job.reportType));
+  const historyRows = filteredJobs.map((job) => {
     const label = REPORT_LABELS[job.reportType] || job.reportType;
     const createdAt = dateFormatter.format(new Date(job.createdAt));
     return [
@@ -196,7 +208,7 @@ export default function ReportsPage() {
   });
 
   return (
-    <Page title="报告中心" subtitle="导出 PDF/CSV 报告并查看历史记录">
+    <Page title="报告中心" subtitle="导出 Audit / Verification / Monitoring 报告并查看历史记录">
       <Layout>
         <Layout.Section>
           <BlockStack gap="500">
@@ -251,6 +263,9 @@ export default function ReportsPage() {
                               {option.requiresRunId && latestVerificationRunId && (
                                 <input type="hidden" name="runId" value={latestVerificationRunId} />
                               )}
+                              {option.metadata?.days && (
+                                <input type="hidden" name="days" value={option.metadata.days} />
+                              )}
                               <Button
                                 submit
                                 size="slim"
@@ -273,7 +288,7 @@ export default function ReportsPage() {
                   <Text as="h2" variant="headingMd">导出历史</Text>
                   <Badge tone="info">最近 20 条</Badge>
                 </InlineStack>
-                {jobs.length === 0 ? (
+                {filteredJobs.length === 0 ? (
                   <Text as="p" tone="subdued" variant="bodySm">
                     暂无导出记录。
                   </Text>
