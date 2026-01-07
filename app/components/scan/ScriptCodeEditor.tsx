@@ -337,7 +337,6 @@ export function ScriptCodeEditor({
             </InlineStack>
           </InlineStack>
 
-          {}
           {enableBatchPaste && fragments.length > 1 && (
             <Banner tone="info">
               <BlockStack gap="200">
@@ -358,7 +357,6 @@ export function ScriptCodeEditor({
             </Banner>
           )}
 
-          {}
           {enableRealtimeAnalysis && value.trim() && (
             <Banner tone="info">
               <Text as="p" variant="bodySm">
@@ -367,7 +365,6 @@ export function ScriptCodeEditor({
             </Banner>
           )}
 
-          {}
           <Banner>
             <BlockStack gap="200">
               <Text as="p" variant="bodySm" fontWeight="semibold">
@@ -393,7 +390,6 @@ export function ScriptCodeEditor({
             </BlockStack>
           </Banner>
 
-          {}
           <Box position="relative">
             <TextField
               label="粘贴脚本内容"
@@ -405,7 +401,6 @@ export function ScriptCodeEditor({
               helpText="支持检测 Google、Meta、TikTok、Pinterest 等平台的追踪代码"
             />
 
-            {}
             {value && showPreview && (
               <BlockStack gap="300">
                 <Box
@@ -443,7 +438,6 @@ export function ScriptCodeEditor({
             )}
           </Box>
 
-          {}
           {analysisResult && <PreviewPanel result={analysisResult} />}
 
           <InlineStack align="end">

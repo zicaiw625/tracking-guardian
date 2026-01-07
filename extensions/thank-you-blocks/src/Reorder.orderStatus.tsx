@@ -128,7 +128,6 @@ function ReorderOrderStatus() {
               }
             </Text>
           </BlockStack>
-          {}
           <Link to={reorderUrl}>
             <Button kind="primary">
               {buttonText}

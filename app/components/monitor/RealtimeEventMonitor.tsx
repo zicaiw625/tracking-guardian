@@ -304,7 +304,6 @@ export function RealtimeEventMonitor({
   return (
     <Card>
       <BlockStack gap="400">
-        {}
         <InlineStack align="space-between" blockAlign="center">
           <BlockStack gap="100">
             <Text as="h3" variant="headingMd">
@@ -361,7 +360,6 @@ export function RealtimeEventMonitor({
           </InlineStack>
         </InlineStack>
 
-        {}
         {error && (
           <Banner tone="critical" onDismiss={() => setError(null)}>
             <Text as="p" variant="bodySm">
@@ -370,7 +368,6 @@ export function RealtimeEventMonitor({
           </Banner>
         )}
 
-        {}
         {events.length > 0 && (
           <BlockStack gap="300">
             <InlineStack gap="300" wrap>
@@ -421,7 +418,6 @@ export function RealtimeEventMonitor({
 
         <Divider />
 
-        {}
         {!isConnected && events.length === 0 ? (
           <Banner tone="info">
             <Text as="p" variant="bodySm">
@@ -447,7 +443,6 @@ export function RealtimeEventMonitor({
           </Scrollable>
         )}
 
-        {}
         {events.length > 0 && (
           <>
             <Divider />
@@ -480,7 +475,6 @@ export function RealtimeEventMonitor({
           </>
         )}
 
-        {}
         <Modal
           open={showDetailsModal}
           onClose={() => {

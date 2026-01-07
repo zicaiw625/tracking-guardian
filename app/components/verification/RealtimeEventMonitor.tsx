@@ -445,7 +445,6 @@ export function RealtimeEventMonitor({
   return (
     <Card>
       <BlockStack gap="400">
-        {}
         <InlineStack align="space-between" blockAlign="center">
           <BlockStack gap="100">
             <Text as="h3" variant="headingMd">
@@ -476,7 +475,6 @@ export function RealtimeEventMonitor({
           </InlineStack>
         </InlineStack>
 
-        {}
         {error && (
           <Banner tone="critical" title="连接错误">
             {error}
@@ -490,10 +488,8 @@ export function RealtimeEventMonitor({
           </Banner>
         )}
 
-        {}
         {stats.total > 0 && (
           <BlockStack gap="400">
-            {}
             <BlockStack gap="300">
               <InlineStack gap="400" align="space-between">
                 <Text as="span" variant="bodySm" tone="subdued">
@@ -512,7 +508,6 @@ export function RealtimeEventMonitor({
               />
             </BlockStack>
 
-            {}
             <Divider />
             <BlockStack gap="300">
               <Text as="h3" variant="headingSm">
@@ -593,7 +588,6 @@ export function RealtimeEventMonitor({
               </BlockStack>
             </BlockStack>
 
-            {}
             <Divider />
             <BlockStack gap="300">
               <Text as="h3" variant="headingSm">
@@ -624,7 +618,6 @@ export function RealtimeEventMonitor({
                     </Text>
                   </InlineStack>
 
-                  {}
                   {stats.completenessRate && (
                     <BlockStack gap="200">
                       <Divider />
@@ -688,7 +681,6 @@ export function RealtimeEventMonitor({
               )}
             </BlockStack>
 
-            {}
             {stats.valueConsistency.total > 0 && (
               <>
                 <Divider />
@@ -731,7 +723,6 @@ export function RealtimeEventMonitor({
           </BlockStack>
         )}
 
-        {}
         {events.length > 0 && (
           <>
             <Divider />
@@ -808,7 +799,6 @@ export function RealtimeEventMonitor({
 
         <Divider />
 
-        {}
         {events.length === 0 ? (
           <Box background="bg-surface-secondary" padding="400" borderRadius="200">
             <BlockStack gap="200" align="center">
@@ -840,7 +830,6 @@ export function RealtimeEventMonitor({
           </BlockStack>
         )}
 
-        {}
         {selectedEvent && (
           <>
             <Divider />
@@ -1012,7 +1001,6 @@ function EventDetails({ event }: { event: RealtimeEvent }) {
 
       <Collapsible open={expanded} id="event-details">
         <BlockStack gap="300">
-          {}
           <Card>
             <BlockStack gap="200">
               <div
@@ -1076,7 +1064,6 @@ function EventDetails({ event }: { event: RealtimeEvent }) {
             </BlockStack>
           </Card>
 
-          {}
           {event.params && (
             <Card>
               <BlockStack gap="200">
@@ -1130,7 +1117,6 @@ function EventDetails({ event }: { event: RealtimeEvent }) {
             </Card>
           )}
 
-          {}
           <Card>
             <BlockStack gap="200">
               <div
@@ -1213,7 +1199,6 @@ function EventDetails({ event }: { event: RealtimeEvent }) {
             </BlockStack>
           </Card>
 
-          {}
           {event.shopifyOrder && (
             <Card>
               <BlockStack gap="200">
@@ -1255,12 +1240,10 @@ function EventDetails({ event }: { event: RealtimeEvent }) {
             </Card>
           )}
 
-          {}
           {event.eventType === "checkout_completed" && event.status !== "success" && (
             <CheckoutCompletedBehaviorHint mode="missing" />
           )}
 
-          {}
           {event.eventLogId && (
             <Card>
               <BlockStack gap="200">
@@ -1377,7 +1360,6 @@ function EventDetails({ event }: { event: RealtimeEvent }) {
             </Card>
           )}
 
-          {}
           {((event.discrepancies && event.discrepancies.length > 0) || (event.errors && event.errors.length > 0)) && (
             <Card>
               <BlockStack gap="200">

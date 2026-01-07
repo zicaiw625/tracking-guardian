@@ -483,7 +483,6 @@ export default function TemplatesPage() {
           </BlockStack>
         </Banner>
 
-        {}
         <Card>
           <BlockStack gap="400">
             <InlineStack align="space-between" blockAlign="center">
@@ -583,7 +582,6 @@ export default function TemplatesPage() {
           </BlockStack>
         </Card>
 
-        {}
         {publicTemplates.length > 0 && (
           <Card>
             <BlockStack gap="400">
@@ -632,7 +630,6 @@ export default function TemplatesPage() {
           </Card>
         )}
 
-        {}
         <Modal
           open={showCreateModal || editingTemplate !== null}
           onClose={() => {
@@ -694,7 +691,6 @@ export default function TemplatesPage() {
           </Modal.Section>
         </Modal>
 
-        {}
         <Modal
           open={sharingTemplate !== null}
           onClose={() => {
@@ -800,7 +796,6 @@ export default function TemplatesPage() {
           </Modal.Section>
         </Modal>
 
-        {}
         <Modal
           open={previewingTemplate !== null}
           onClose={() => setPreviewingTemplate(null)}

@@ -144,7 +144,6 @@ export function MigrationChecklist({
     <>
       <Card>
         <BlockStack gap="400">
-          {}
           <BlockStack gap="300">
             <InlineStack align="space-between" blockAlign="center">
               <BlockStack gap="100">
@@ -165,7 +164,6 @@ export function MigrationChecklist({
               </InlineStack>
             </InlineStack>
 
-            {}
             {items.length > 0 && (
               <BlockStack gap="200">
                 <ProgressBar progress={progressPercent} tone="primary" size="small" />
@@ -187,7 +185,6 @@ export function MigrationChecklist({
 
           <Divider />
 
-          {}
           <Banner
             title="从 Shopify 升级向导补充信息"
             tone="info"
@@ -202,7 +199,6 @@ export function MigrationChecklist({
             </Text>
           </Banner>
 
-          {}
           <BlockStack gap="300">
             {items.length === 0 ? (
               <Box background="bg-surface-secondary" padding="400" borderRadius="200">
@@ -295,7 +291,6 @@ export function MigrationChecklist({
 
           <Divider />
 
-          {}
           <BlockStack gap="200">
             <div
               role="button"
@@ -337,7 +332,6 @@ export function MigrationChecklist({
 
           <Divider />
 
-          {}
           <InlineStack gap="200" align="end">
             <Button onClick={onExportChecklist} icon={ClipboardIcon}>
               导出清单
@@ -354,7 +348,6 @@ export function MigrationChecklist({
         </BlockStack>
       </Card>
 
-      {}
       <Modal
         open={showAddModal}
         onClose={() => setShowAddModal(false)}
@@ -411,7 +404,6 @@ export function MigrationChecklist({
         </Modal.Section>
       </Modal>
 
-      {}
       <Modal
         open={showGuideModal}
         onClose={() => setShowGuideModal(false)}

@@ -80,7 +80,6 @@ export function SecurityTab({
 
             <Divider />
 
-            {}
             <BlockStack gap="300">
               <Text as="h3" variant="headingMd">
                 Ingestion Key（关联令牌）
@@ -172,10 +171,7 @@ export function SecurityTab({
 
             <Divider />
 
-            {}
-            {}
 
-            {}
             <BlockStack gap="300">
               <Text as="h3" variant="headingMd">
                 数据保留策略
@@ -249,7 +245,6 @@ export function SecurityTab({
 
             <Divider />
 
-            {}
             <BlockStack gap="300">
               <Text as="h3" variant="headingMd">
                 像素隐私与同意逻辑
@@ -337,7 +332,6 @@ export function SecurityTab({
 
             <Divider />
 
-            {}
             <BlockStack gap="300">
               <Text as="h3" variant="headingMd">
                 Consent 策略

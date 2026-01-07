@@ -447,7 +447,6 @@ export default function MonitorPage() {
             }
         ]}>
       <BlockStack gap="500">
-        {}
         <Banner tone="info" title="像素隐私与同意过滤说明">
           <BlockStack gap="200">
             <Text as="p" variant="bodySm">
@@ -485,7 +484,6 @@ export default function MonitorPage() {
           </BlockStack>
         </Banner>
 
-        {}
         <Banner tone="info" title="重要说明：事件发送与平台归因">
           <BlockStack gap="200">
             <Text as="p" variant="bodySm">
@@ -550,7 +548,6 @@ export default function MonitorPage() {
           </BlockStack>
         </Banner>
 
-        {}
         <Banner tone="info" title="像素加载与事件发送的同意策略说明">
           <BlockStack gap="200">
             <Text as="p" variant="bodySm">
@@ -635,7 +632,6 @@ export default function MonitorPage() {
           </Banner>
         )}
 
-        {}
         {missingParamsStats && missingParamsStats.length > 0 && monitoringStats && monitoringStats.totalEvents > 0 && (() => {
           const totalMissing = missingParamsStats.reduce((sum, s) => sum + s.count, 0);
           const missingRate = (totalMissing / monitoringStats.totalEvents) * 100;
@@ -674,7 +670,6 @@ export default function MonitorPage() {
           ) : null;
         })()}
 
-        {}
         {volumeStats && volumeStats.isDrop && (
           <Banner
             title="事件量下降"
@@ -718,7 +713,6 @@ export default function MonitorPage() {
           </Banner>
         )}
 
-        {}
         {diagnosticsReport && (
           <DiagnosticsPanel
             report={{
@@ -731,7 +725,6 @@ export default function MonitorPage() {
           />
         )}
 
-        {}
         {shop && (
           <RealtimeEventMonitor
             shopId={shop.id}
@@ -739,7 +732,6 @@ export default function MonitorPage() {
           />
         )}
 
-        {}
         {successRateHistory && successRateHistory.overall && Array.isArray(successRateHistory.overall) && successRateHistory.overall.length > 0 && (
           <SuccessRateChart
             overall={successRateHistory.overall.filter((item): item is NonNullable<typeof item> => item !== null)}
@@ -752,7 +744,6 @@ export default function MonitorPage() {
           />
         )}
 
-        {}
         {eventVolumeHistory && Array.isArray(eventVolumeHistory) && eventVolumeHistory.length > 0 && volumeStats && (
           <EventVolumeChart
             historyData={eventVolumeHistory.filter((item): item is NonNullable<typeof item> => item !== null)}
@@ -763,7 +754,6 @@ export default function MonitorPage() {
           />
         )}
 
-        {}
         {monitoringStats && missingParamsStats && (
           <Card>
             <BlockStack gap="400">
@@ -804,7 +794,6 @@ export default function MonitorPage() {
                 </Banner>
               ) : (
                 <BlockStack gap="300">
-                  {}
                   <Box background="bg-surface-secondary" padding="300" borderRadius="200">
                     <InlineStack align="space-between" blockAlign="center">
                       <BlockStack gap="100">
@@ -836,7 +825,6 @@ export default function MonitorPage() {
 
                   <Divider />
 
-                  {}
                   {monitoringStats.totalEvents > 0 && (
                     <Box
                       background={(() => {
@@ -899,7 +887,6 @@ export default function MonitorPage() {
                     </Box>
                   )}
 
-                  {}
                   <Text as="h3" variant="headingSm">
                     详细统计
                   </Text>
@@ -952,7 +939,6 @@ export default function MonitorPage() {
                 </BlockStack>
               )}
 
-              {}
               {missingParamsDetailed && (
                 <>
                   <Divider />
@@ -960,7 +946,6 @@ export default function MonitorPage() {
                 </>
               )}
 
-              {}
               {missingParamsHistory && missingParamsHistory.length > 0 && (
                 <>
                   <Divider />
@@ -999,7 +984,6 @@ export default function MonitorPage() {
                 </>
               )}
 
-              {}
               {missingParamsDetailed && missingParamsDetailed.byEventType && Object.keys(missingParamsDetailed.byEventType).length > 0 && (
                 <>
                   <Divider />
@@ -1072,7 +1056,6 @@ export default function MonitorPage() {
           </Card>
         )}
 
-        {}
         {monitoringStats && (
           <Card>
             <BlockStack gap="400">
@@ -1173,7 +1156,6 @@ export default function MonitorPage() {
           </Card>
         )}
 
-        {}
         {channelReconciliation && channelReconciliation.length > 0 && (
           <Card>
             <BlockStack gap="400">
@@ -1269,7 +1251,6 @@ export default function MonitorPage() {
           </Card>
         )}
 
-        {}
 
         {dedupAnalysis && (
           <Card>
@@ -1431,7 +1412,6 @@ export default function MonitorPage() {
           </Card>
         )}
 
-        {}
         {(currentAlertStatus.length > 0 || !alertConfigs) && (
           <Card>
             <BlockStack gap="400">
@@ -1551,7 +1531,6 @@ export default function MonitorPage() {
                       </Button>
                     </InlineStack>
 
-                    {}
                     <AlertHistoryChart
                       alerts={recentAlerts}
                       timeRange={alertHistoryTimeRange}
@@ -1560,7 +1539,6 @@ export default function MonitorPage() {
 
                     <Divider />
 
-                    {}
                     <BlockStack gap="300">
                       <Text as="h4" variant="headingSm">
                         最近告警记录
@@ -1759,7 +1737,6 @@ export default function MonitorPage() {
             </BlockStack>
           </Card>)}
 
-        {}
         <Card>
           <BlockStack gap="400">
             <InlineStack align="space-between">

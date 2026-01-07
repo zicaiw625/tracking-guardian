@@ -464,7 +464,6 @@ export default function VerificationPage() {
       ]}
     >
       <BlockStack gap="500">
-        {}
         <Banner
           title="⚠️ v1.0 验收范围说明（重要）"
           tone="warning"
@@ -496,7 +495,6 @@ export default function VerificationPage() {
           </BlockStack>
         </Banner>
 
-        {}
         <Banner tone="info" title="重要说明：事件发送与平台归因">
           <BlockStack gap="200">
             <Text as="p" variant="bodySm">
@@ -521,7 +519,6 @@ export default function VerificationPage() {
             </List>
           </BlockStack>
         </Banner>
-        {}
         <CheckoutExtensibilityWarning />
 
         {configuredPlatforms.length === 0 && (
@@ -560,7 +557,6 @@ export default function VerificationPage() {
           </Banner>
         )}
 
-        {}
         <Banner tone="info">
           <BlockStack gap="200">
             <Text as="p" variant="bodySm" fontWeight="semibold">
@@ -583,11 +579,8 @@ export default function VerificationPage() {
           </BlockStack>
         </Banner>
 
-        {}
-        {}
         <CheckoutCompletedBehaviorHint mode="info" collapsible={true} />
 
-        {}
         <Card>
           <BlockStack gap="400">
             <InlineStack align="space-between" blockAlign="center">
@@ -672,7 +665,6 @@ export default function VerificationPage() {
           </BlockStack>
         </Card>
 
-        {}
         {testChecklist && testChecklist.items.length > 0 && (
           <Card>
             <BlockStack gap="400">
@@ -809,7 +801,6 @@ export default function VerificationPage() {
           </Card>
         )}
 
-        {}
         <Banner tone="info" title="重要说明：事件发送与平台归因">
           <BlockStack gap="200">
             <Text as="p" variant="bodySm">
@@ -836,7 +827,6 @@ export default function VerificationPage() {
         </Banner>
 
         <Tabs tabs={tabs} selected={selectedTab} onSelect={setSelectedTab}>
-          {}
           {selectedTab === 0 && (
             <Box padding="400">
               <BlockStack gap="500">
@@ -853,7 +843,6 @@ export default function VerificationPage() {
 
                 {!isRunning && latestRun && (
                   <>
-                    {}
                     <Layout>
                       <Layout.Section variant="oneThird">
                         <ScoreCard
@@ -893,7 +882,6 @@ export default function VerificationPage() {
                       </Layout.Section>
                     </Layout>
 
-                    {}
                     <Card>
                       <BlockStack gap="400">
                         <InlineStack align="space-between" blockAlign="center">
@@ -936,7 +924,6 @@ export default function VerificationPage() {
                           </BlockStack>
                         </InlineStack>
 
-                        {}
                         <Box background="bg-surface-secondary" padding="400" borderRadius="200">
                           <InlineStack gap="400" align="space-between">
                             <BlockStack gap="100" align="center">
@@ -969,7 +956,6 @@ export default function VerificationPage() {
                           </InlineStack>
                         </Box>
 
-                        {}
                         {latestRun.failedTests > 0 && (
                           <Banner tone="critical" title="存在失败的测试项">
                             <BlockStack gap="100">
@@ -1002,7 +988,6 @@ export default function VerificationPage() {
                           </Banner>
                         )}
 
-                        {}
                         {latestRun.reconciliation && (
                           <Box padding="400">
                             <Divider />
@@ -1011,7 +996,6 @@ export default function VerificationPage() {
                                 📊 渠道对账
                               </Text>
 
-                              {}
                               <Suspense fallback={<CardSkeleton lines={3} />}>
                                 <ChannelReconciliationChart
                                   pixelVsCapi={latestRun.reconciliation.pixelVsCapi}
@@ -1020,7 +1004,6 @@ export default function VerificationPage() {
                                 />
                               </Suspense>
 
-                              {}
                               <Layout>
                                 <Layout.Section variant="oneThird">
                                   <Box background="bg-surface-secondary" padding="300" borderRadius="200">
@@ -1232,7 +1215,6 @@ export default function VerificationPage() {
                   </>
                 )}
 
-                {}
                 <Banner tone="info" title="重要说明：事件发送与平台归因">
                   <BlockStack gap="200">
                     <Text as="p" variant="bodySm">
@@ -1274,7 +1256,6 @@ export default function VerificationPage() {
             </Box>
           )}
 
-          {}
           {selectedTab === 1 && (
             <Box padding="400">
               <Card>
@@ -1326,7 +1307,6 @@ export default function VerificationPage() {
             </Box>
           )}
 
-          {}
           {selectedTab === 2 && (
             <Box padding="400">
               <Suspense fallback={<CardSkeleton lines={3} />}>
@@ -1342,7 +1322,6 @@ export default function VerificationPage() {
             </Box>
           )}
 
-          {}
           {selectedTab === 3 && (
             <Box padding="400">
               <Suspense fallback={<CardSkeleton lines={5} />}>
@@ -1425,7 +1404,6 @@ export default function VerificationPage() {
           )}
         </Tabs>
 
-        {}
         <Card>
           <BlockStack gap="400">
             <InlineStack align="space-between" blockAlign="center">
@@ -1547,7 +1525,6 @@ export default function VerificationPage() {
           </BlockStack>
         </Card>
 
-        {}
         <Card>
           <BlockStack gap="400">
             <Text as="h2" variant="headingMd">
@@ -1563,7 +1540,6 @@ export default function VerificationPage() {
         </Card>
       </BlockStack>
 
-      {}
       <Modal
         open={showGuideModal}
         onClose={() => setShowGuideModal(false)}

@@ -215,7 +215,6 @@ export function MigrationChecklistEnhanced({
   return (
     <Card>
       <BlockStack gap="400">
-        {}
         <InlineStack align="space-between" blockAlign="center">
           <Text as="h2" variant="headingMd">
             迁移清单
@@ -232,7 +231,6 @@ export function MigrationChecklistEnhanced({
           </InlineStack>
         </InlineStack>
 
-        {}
         <Box background="bg-surface-secondary" padding="400" borderRadius="200">
           <BlockStack gap="300">
             <InlineStack gap="400" wrap>
@@ -272,7 +270,6 @@ export function MigrationChecklistEnhanced({
           </BlockStack>
         </Box>
 
-        {}
         <BlockStack gap="300">
           <InlineStack gap="200" wrap>
             <Box minWidth="200px">
@@ -346,7 +343,6 @@ export function MigrationChecklistEnhanced({
 
         <Divider />
 
-        {}
         {filteredAndSortedItems.length === 0 ? (
           <Banner tone="info">
             <Text as="p" variant="bodySm">
@@ -402,7 +398,6 @@ export function MigrationChecklistEnhanced({
                         </Text>
                       </InlineStack>
 
-                      {}
                       {dependencyGraph && (() => {
                         const { dependencies, dependents } = getItemDependencies(item.assetId);
                         if (dependencies.length === 0 && dependents.length === 0) return null;
@@ -419,7 +414,6 @@ export function MigrationChecklistEnhanced({
                       })()}
                     </BlockStack>
 
-                    {}
                     {expandedItems.has(item.id) && dependencyGraph && (() => {
                       const { dependencies, dependents } = getItemDependencies(item.assetId);
                       if (dependencies.length === 0 && dependents.length === 0) return null;

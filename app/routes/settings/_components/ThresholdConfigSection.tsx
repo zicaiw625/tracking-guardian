@@ -61,7 +61,6 @@ export function ThresholdConfigSection({
 
   return (
     <BlockStack gap="400">
-      {}
       <Box>
         <ThresholdSlider
           label="事件失败率阈值"
@@ -112,7 +111,6 @@ export function ThresholdConfigSection({
 
       <Divider />
 
-      {}
       <Box>
         <ThresholdSlider
           label="缺参率阈值"
@@ -163,7 +161,6 @@ export function ThresholdConfigSection({
 
       <Divider />
 
-      {}
       <Box background="bg-surface-secondary" padding="300" borderRadius="200">
         <BlockStack gap="200">
           <InlineStack align="space-between" blockAlign="center">
@@ -178,7 +175,6 @@ export function ThresholdConfigSection({
         </BlockStack>
       </Box>
 
-      {}
       <Button
         variant="secondary"
         onClick={handleTest}
@@ -187,7 +183,6 @@ export function ThresholdConfigSection({
         测试阈值（查看过去24小时触发情况）
       </Button>
 
-      {}
       {testResult && testResult.failureRate && testResult.missingParams && testResult.volumeDrop && (
         <Banner tone={(testResult.failureRate.wouldTrigger || testResult.missingParams.wouldTrigger) ? "warning" : "success"}>
           <BlockStack gap="200">

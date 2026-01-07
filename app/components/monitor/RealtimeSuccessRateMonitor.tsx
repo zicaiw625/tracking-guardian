@@ -134,7 +134,6 @@ export function RealtimeSuccessRateMonitor({
           </InlineStack>
         </InlineStack>
 
-        {}
         <Box background="bg-surface-secondary" padding="400" borderRadius="200">
           <BlockStack gap="300">
             <InlineStack align="space-between" blockAlign="center">
@@ -164,7 +163,6 @@ export function RealtimeSuccessRateMonitor({
           </BlockStack>
         </Box>
 
-        {}
         {Object.keys(stats.byPlatform).length > 0 && (
           <BlockStack gap="300">
             <Text as="h4" variant="headingSm">
@@ -224,7 +222,6 @@ export function RealtimeSuccessRateMonitor({
           </BlockStack>
         )}
 
-        {}
         <Text as="p" variant="bodySm" tone="subdued" alignment="end">
           最后更新: {new Date(stats.timestamp).toLocaleTimeString("zh-CN")}
         </Text>

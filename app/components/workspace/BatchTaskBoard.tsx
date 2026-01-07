@@ -232,7 +232,6 @@ export function BatchTaskBoard({
               ])}
             />
 
-            {}
             {tasks.map((task) => (
               <Box key={task.id}>
                 <Card>

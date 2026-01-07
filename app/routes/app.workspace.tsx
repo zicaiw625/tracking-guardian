@@ -969,7 +969,6 @@ export default function WorkspacePage() {
       ]}
     >
       <BlockStack gap="500">
-        {}
         <Card>
           <InlineStack align="space-between" blockAlign="center">
             <BlockStack gap="100">
@@ -994,7 +993,6 @@ export default function WorkspacePage() {
           </InlineStack>
         </Card>
 
-        {}
         {groups.length === 0 ? (
           <EnhancedEmptyState
             icon="📁"
@@ -1007,7 +1005,6 @@ export default function WorkspacePage() {
           />
         ) : (
           <>
-            {}
             <Card>
               <BlockStack gap="300">
                 <Text as="h2" variant="headingMd">
@@ -1028,14 +1025,11 @@ export default function WorkspacePage() {
               </BlockStack>
             </Card>
 
-            {}
             {selectedGroup && (
               <Tabs tabs={tabs} selected={selectedTab} onSelect={setSelectedTab}>
-                {}
                 {selectedTab === 0 && (
                   <Box paddingBlockStart="400">
                     <BlockStack gap="500">
-                      {}
                       <Card>
                         <BlockStack gap="400">
                           <InlineStack align="space-between" blockAlign="center">
@@ -1069,7 +1063,6 @@ export default function WorkspacePage() {
 
                           <Divider />
 
-                          {}
                           <Banner tone="info">
                             <Text as="p" variant="bodySm">
                               💡 <strong>批量扫描</strong>：一键对分组内所有店铺运行 Audit 扫描，
@@ -1077,7 +1070,6 @@ export default function WorkspacePage() {
                             </Text>
                           </Banner>
 
-                          {}
                           {groupStats && (
                             <Layout>
                               <Layout.Section variant="oneThird">
@@ -1112,7 +1104,6 @@ export default function WorkspacePage() {
                         </BlockStack>
                       </Card>
 
-                      {}
                       {groupStats && Object.keys(groupStats.platformBreakdown).length > 0 && (
                         <Card>
                           <BlockStack gap="400">
@@ -1137,7 +1128,6 @@ export default function WorkspacePage() {
                   </Box>
                 )}
 
-                {}
                 {selectedTab === 1 && (
                   <Box paddingBlockStart="400">
                     <BlockStack gap="500">
@@ -1277,7 +1267,6 @@ export default function WorkspacePage() {
                   </Box>
                 )}
 
-                {}
                 {selectedTab === 2 && (
                   <Box paddingBlockStart="400">
                     <BlockStack gap="500">
@@ -1298,7 +1287,6 @@ export default function WorkspacePage() {
 
                           <Divider />
 
-                          {}
                           <BlockStack gap="300">
                             <Text as="h3" variant="headingSm">
                               系统预设模板
@@ -1411,7 +1399,6 @@ export default function WorkspacePage() {
                   </Box>
                 )}
 
-                {}
                 {selectedTab === 4 && (
                   <Box paddingBlockStart="400">
                     <BlockStack gap="500">
@@ -1477,7 +1464,6 @@ export default function WorkspacePage() {
                   </Box>
                 )}
 
-                {}
 
                 {selectedTab === 5 && (
                   <Box paddingBlockStart="400">
@@ -1578,7 +1564,6 @@ export default function WorkspacePage() {
                         </BlockStack>
                       </Card>
 
-                      {}
                       {exportResult && (
                         <Card>
                           <BlockStack gap="400">
@@ -1632,7 +1617,6 @@ export default function WorkspacePage() {
         )}
       </BlockStack>
 
-      {}
       <Modal
         open={showCreateModal}
         onClose={() => setShowCreateModal(false)}
@@ -1666,7 +1650,6 @@ export default function WorkspacePage() {
         </Modal.Section>
       </Modal>
 
-      {}
       <Modal
         open={showExportModal}
         onClose={() => {
@@ -1732,7 +1715,6 @@ export default function WorkspacePage() {
         </Modal.Section>
       </Modal>
 
-      {}
       <Modal
         open={showInviteModal}
         onClose={() => {
@@ -1815,7 +1797,6 @@ export default function WorkspacePage() {
         </Modal.Section>
       </Modal>
 
-      {}
       {showBatchApplyModal && selectedTemplate && selectedGroup && (
         <Modal
           open={showBatchApplyModal}
@@ -1848,7 +1829,6 @@ export default function WorkspacePage() {
         </Modal>
       )}
 
-      {}
 
       <Modal
         open={showCreateTaskModal}

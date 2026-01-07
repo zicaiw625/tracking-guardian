@@ -277,7 +277,6 @@ function ModuleCard({
                 {upgradeRequired && !module.isEnabled && (
                   <Badge tone="attention">需要升级</Badge>
                 )}
-                {}
                 {(module.moduleKey === "survey" || module.moduleKey === "helpdesk") && (
                   <Badge tone="success" size="small">v1 支持</Badge>
                 )}
@@ -317,7 +316,6 @@ function ModuleCard({
           </InlineStack>
         </InlineStack>
 
-        {}
         <InlineStack gap="100">
           {info.targets.map((target) => (
             <Tag key={target}>
@@ -327,7 +325,6 @@ function ModuleCard({
           <Tag>{getCategoryLabel(info.category)}</Tag>
         </InlineStack>
 
-        {}
         {upgradeRequired && !module.isEnabled && (
           <Banner tone="warning">
             <Text as="p" variant="bodySm">
@@ -1178,7 +1175,6 @@ export default function UiBlocksPage() {
       }}
     >
       <BlockStack gap="500">
-        {}
         <Card>
           <InlineStack align="space-between" blockAlign="center">
             <BlockStack gap="100">
@@ -1204,7 +1200,6 @@ export default function UiBlocksPage() {
           </InlineStack>
         </Card>
 
-        {}
         <Banner tone="info">
           <BlockStack gap="200">
             <Text as="p" variant="bodySm" fontWeight="semibold">
@@ -1261,7 +1256,6 @@ export default function UiBlocksPage() {
           </BlockStack>
         </Banner>
 
-        {}
         {selectedModules.size > 0 && (
           <Card>
             <InlineStack align="space-between" blockAlign="center">
@@ -1333,7 +1327,6 @@ export default function UiBlocksPage() {
           </Box>
         </Tabs>
 
-        {}
         <Card>
           <BlockStack gap="400">
             <Text as="h2" variant="headingMd">
@@ -1349,7 +1342,6 @@ export default function UiBlocksPage() {
         </Card>
       </BlockStack>
 
-      {}
       <Modal
         open={editingModule !== null}
             onClose={() => {
@@ -1389,7 +1381,6 @@ export default function UiBlocksPage() {
         size="large"
       >
         <Modal.Section>
-          {}
           {editingModule && isDevStore && modulePreviewUrls[editingModule] && (
             <Box paddingBlockEnd="400">
               <Banner tone="info">
@@ -1436,7 +1427,6 @@ export default function UiBlocksPage() {
             onSelect={setModalTab}
           >
             <Box paddingBlockStart="400">
-              {}
               {modalTab === 0 && (
                 <>
                   {editingModule === "survey" && editingSettings && (
@@ -1463,7 +1453,6 @@ export default function UiBlocksPage() {
                       onChange={(s) => setEditingSettings(s as Record<string, unknown>)}
                     />
                   )}
-                  {}
                   {editingModule === "upsell" && editingSettings && UI_MODULES.upsell.disabled && (
                     <Banner tone="warning">
                       <Text as="p">
@@ -1474,7 +1463,6 @@ export default function UiBlocksPage() {
                 </>
               )}
 
-              {}
               {modalTab === 1 && editingModule && editingDisplayRules && (
                 <DisplayRulesEditor
                   displayRules={editingDisplayRules}

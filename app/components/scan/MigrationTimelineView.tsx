@@ -149,7 +149,6 @@ export function MigrationTimelineView({
             </InlineStack>
           </InlineStack>
 
-          {}
           {item.blockingDependencies.length > 0 && (
             <Box paddingBlockStart="200">
               <Box background="bg-surface-secondary" padding="200" borderRadius="100">
@@ -177,7 +176,6 @@ export function MigrationTimelineView({
           </Badge>
         </InlineStack>
 
-        {}
         {timeline.criticalPath.length > 0 && (
           <Box background="bg-surface-secondary" padding="300" borderRadius="200">
             <BlockStack gap="200">
@@ -207,7 +205,6 @@ export function MigrationTimelineView({
           </Box>
         )}
 
-        {}
         {canStartItems.length > 0 && (
           <BlockStack gap="300">
             <Button
@@ -229,7 +226,6 @@ export function MigrationTimelineView({
           </BlockStack>
         )}
 
-        {}
         {blockedItems.length > 0 && (
           <BlockStack gap="300">
             <Button
@@ -251,7 +247,6 @@ export function MigrationTimelineView({
           </BlockStack>
         )}
 
-        {}
         {completedItems.length > 0 && (
           <BlockStack gap="300">
             <Button
@@ -273,7 +268,6 @@ export function MigrationTimelineView({
           </BlockStack>
         )}
 
-        {}
         {canStartItems.length === 0 && blockedItems.length === 0 && completedItems.length === 0 && (
           <Box padding="400">
             <Text as="p" tone="subdued" alignment="center">

@@ -180,7 +180,6 @@ export function MigrationDependencyGraph({
           </Badge>
         </InlineStack>
 
-        {}
         {cycles.length > 0 && (
           <Banner tone="critical">
             <BlockStack gap="200">
@@ -203,7 +202,6 @@ export function MigrationDependencyGraph({
           </Banner>
         )}
 
-        {}
         {criticalPath.length > 0 && (
           <Box
             background="bg-surface-secondary"
@@ -265,7 +263,6 @@ export function MigrationDependencyGraph({
           </Box>
         )}
 
-        {}
         <Box
           background="bg-surface-secondary"
           padding="400"
@@ -330,7 +327,6 @@ export function MigrationDependencyGraph({
           </BlockStack>
         </Box>
 
-        {}
         <Box
           background="bg-surface-secondary"
           padding="400"

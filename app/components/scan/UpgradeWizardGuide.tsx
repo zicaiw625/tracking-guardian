@@ -100,7 +100,6 @@ export function UpgradeWizardGuide({
     >
       <Modal.Section>
         <BlockStack gap="400">
-          {}
           <InlineStack gap="200" align="center">
             <Text
               as="span"
@@ -130,7 +129,6 @@ export function UpgradeWizardGuide({
             </Text>
           </InlineStack>
 
-          {}
           {step === 1 && (
             <BlockStack gap="400">
               <Text as="h3" variant="headingMd">
@@ -211,7 +209,6 @@ export function UpgradeWizardGuide({
             </BlockStack>
           )}
 
-          {}
           {step === 2 && (
             <BlockStack gap="400">
               <Text as="h3" variant="headingMd">
@@ -222,7 +219,6 @@ export function UpgradeWizardGuide({
               </Text>
 
               <BlockStack gap="300">
-                {}
                 {onImportFromWizard && (
                   <Card>
                     <BlockStack gap="300">
@@ -250,7 +246,6 @@ export function UpgradeWizardGuide({
                   </Card>
                 )}
 
-                {}
                 <Card>
                   <BlockStack gap="300">
                     <InlineStack gap="200" align="start">
@@ -273,7 +268,6 @@ export function UpgradeWizardGuide({
                   </BlockStack>
                 </Card>
 
-                {}
                 {onUploadScreenshot && (
                   <Card>
                     <BlockStack gap="300">
@@ -302,7 +296,6 @@ export function UpgradeWizardGuide({
             </BlockStack>
           )}
 
-          {}
           {step === 3 && (
             <BlockStack gap="400">
               <Text as="h3" variant="headingMd">

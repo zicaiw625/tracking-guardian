@@ -435,7 +435,6 @@ export default function OnboardingPage() {
       subtitle="升级不丢功能/不丢数据 • 可交付的验收报告 • 上线后有断档告警"
     >
       <BlockStack gap="500">
-        {}
         <Card>
           <StepIndicator currentStep={data.step} totalSteps={3} />
           <Divider />
@@ -463,7 +462,6 @@ export default function OnboardingPage() {
           </Box>
         </Card>
 
-        {}
         <Card>
           <BlockStack gap="400">
             <InlineStack align="space-between" blockAlign="center">
@@ -520,7 +518,6 @@ export default function OnboardingPage() {
           </BlockStack>
         </Card>
 
-        {}
         {!data.scanComplete && (
           <Card>
             <BlockStack gap="400">
@@ -587,10 +584,8 @@ export default function OnboardingPage() {
           </Card>
         )}
 
-        {}
         {data.scanComplete && data.scanResult && (
           <>
-            {}
             <Layout>
               <Layout.Section variant="oneThird">
                 <Card>
@@ -674,7 +669,6 @@ export default function OnboardingPage() {
               </Layout.Section>
             </Layout>
 
-            {}
             <Card>
               <BlockStack gap="400">
                 <Text as="h2" variant="headingMd">📊 检测结果摘要</Text>
@@ -722,7 +716,6 @@ export default function OnboardingPage() {
               </BlockStack>
             </Card>
 
-            {}
             {data.scanResult.riskItems.length > 0 && (
               <Card>
                 <BlockStack gap="400">
@@ -781,7 +774,6 @@ export default function OnboardingPage() {
               </Card>
             )}
 
-            {}
             <Card>
               <BlockStack gap="400">
                 <Text as="h2" variant="headingMd">🎯 下一步操作</Text>
@@ -871,7 +863,6 @@ export default function OnboardingPage() {
           </>
         )}
 
-        {}
         <Card>
           <BlockStack gap="300">
             <Text as="h2" variant="headingMd">💡 需要帮助？</Text>

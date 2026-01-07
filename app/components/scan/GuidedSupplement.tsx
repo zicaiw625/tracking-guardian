@@ -224,7 +224,6 @@ export function GuidedSupplement({
     >
       <Modal.Section>
         <BlockStack gap="400">
-          {}
           <InlineStack gap="200" align="center">
             <Badge tone={step >= 1 ? "success" : "info"}>步骤 1</Badge>
             <Text as="span">→</Text>
@@ -233,7 +232,6 @@ export function GuidedSupplement({
             <Badge tone={step >= 3 ? "success" : undefined}>步骤 3</Badge>
           </InlineStack>
 
-          {}
           {step === 1 && (
             <BlockStack gap="400">
               <Text as="h3" variant="headingMd">
@@ -326,7 +324,6 @@ export function GuidedSupplement({
             </BlockStack>
           )}
 
-          {}
           {step === 2 && (
             <BlockStack gap="400">
               <Text as="h3" variant="headingMd">
@@ -356,7 +353,6 @@ export function GuidedSupplement({
                 </BlockStack>
               </Banner>
 
-              {}
               <Card>
                 <BlockStack gap="300">
                   <Text as="p" variant="bodySm" fontWeight="semibold">
@@ -374,7 +370,6 @@ export function GuidedSupplement({
                 </BlockStack>
               </Card>
 
-              {}
               <Banner>
                 <Text as="p" variant="bodySm">
                   💡 <strong>提示：</strong>截图上传功能正在开发中。目前请使用文本粘贴方式。
@@ -397,7 +392,6 @@ export function GuidedSupplement({
             </BlockStack>
           )}
 
-          {}
           {step === 3 && (
             <BlockStack gap="400">
               <Text as="h3" variant="headingMd">

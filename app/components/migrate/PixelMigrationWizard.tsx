@@ -1175,7 +1175,6 @@ const allTemplates: WizardTemplate[] = [
   return (
     <Card>
       <BlockStack gap="500">
-        {}
         <BlockStack gap="300">
           <InlineStack align="space-between" blockAlign="center">
             <Text as="h2" variant="headingMd">
@@ -1191,7 +1190,6 @@ const allTemplates: WizardTemplate[] = [
             </InlineStack>
           </InlineStack>
           <ProgressBar progress={progress} tone="primary" size="small" />
-          {}
           <div
             style={{
               paddingBlockStart: "var(--p-space-300)",
@@ -1268,7 +1266,6 @@ const allTemplates: WizardTemplate[] = [
                           )}
                         </BlockStack>
                       </BlockStack>
-                      {}
                       {index < steps.length - 1 && (
                         <div
                           style={{
@@ -1294,12 +1291,10 @@ const allTemplates: WizardTemplate[] = [
 
         <Divider />
 
-        {}
         {renderStepContent()}
 
         <Divider />
 
-        {}
         <InlineStack align="space-between" wrap>
           <Button onClick={onCancel} disabled={isSubmitting}>
             取消
@@ -1316,7 +1311,6 @@ const allTemplates: WizardTemplate[] = [
                 上一步
               </Button>
             )}
-            {}
             {currentStep !== "select" &&
              currentStep !== "review" &&
              currentStep !== "testing" && (
@@ -1484,7 +1478,6 @@ function SelectPlatformStep({
         })}
       </BlockStack>
 
-      {}
       <Modal
         open={showTemplateModal}
         onClose={() => onShowTemplateModal(false)}
@@ -1849,7 +1842,6 @@ function ReviewStep({
         );
       })}
 
-      {}
       {shopId && Array.from(selectedPlatforms).map((platform) => {
 
         const existingConfig = platformConfigs[platform];
@@ -1876,7 +1868,6 @@ function ReviewStep({
         );
       })}
 
-      {}
       {shopId && (
         <Card>
           <BlockStack gap="300">
@@ -1896,7 +1887,6 @@ function ReviewStep({
         </Card>
       )}
 
-      {}
       <Modal
         open={showSaveTemplateModal}
         onClose={() => setShowSaveTemplateModal(false)}
@@ -2186,7 +2176,6 @@ function TestingStep({
         </BlockStack>
       </Banner>
 
-      {}
       {shopId && selectedPlatforms.size > 0 && (
         <Card>
           <BlockStack gap="300">
@@ -2233,7 +2222,6 @@ function TestingStep({
                         </InlineStack>
                         {result.details && (
                           <BlockStack gap="300">
-                            {}
                             {result.details.eventSent && (
                               <Box padding="300" background="bg-surface-success" borderRadius="200">
                                 <BlockStack gap="200">
@@ -2252,7 +2240,6 @@ function TestingStep({
                               </Box>
                             )}
 
-                            {}
                             {result.details.testEventCode && (
                               <Banner tone="info">
                                 <BlockStack gap="200">
@@ -2273,7 +2260,6 @@ function TestingStep({
                               </Banner>
                             )}
 
-                            {}
                             {result.details.debugViewUrl && (
                               <Banner tone="info">
                                 <BlockStack gap="200">
@@ -2290,7 +2276,6 @@ function TestingStep({
                               </Banner>
                             )}
 
-                            {}
                             {result.details.verificationInstructions && (
                               <Banner tone="info">
                                 <Text as="span" variant="bodySm">
@@ -2299,7 +2284,6 @@ function TestingStep({
                               </Banner>
                             )}
 
-                            {}
                             {result.details.error && (
                               <Banner tone="critical">
                                 <BlockStack gap="200">
@@ -2321,7 +2305,6 @@ function TestingStep({
                               </Banner>
                             )}
 
-                            {}
                             {result.valid && result.details.eventSent && (
                               <Box padding="300" background="bg-surface-secondary" borderRadius="200">
                                 <BlockStack gap="200">
@@ -2352,7 +2335,6 @@ function TestingStep({
         </Card>
       )}
 
-      {}
       {allInTestMode && Object.keys(validationResults).length > 0 &&
        Object.values(validationResults).every(r => r.valid) && (
         <Card>
@@ -2402,7 +2384,6 @@ function TestingStep({
         </Card>
       )}
 
-      {}
       {!allInTestMode && Object.keys(validationResults).length > 0 &&
        Object.values(validationResults).every(r => r.valid) && (
         <Banner tone="success">

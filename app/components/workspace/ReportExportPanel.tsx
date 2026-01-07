@@ -97,7 +97,6 @@ export function ReportExportPanel({
 
         <Divider />
 
-        {}
         <Select
           label="报告类型"
           options={[
@@ -109,7 +108,6 @@ export function ReportExportPanel({
           onChange={(value) => setReportType(value as typeof reportType)}
         />
 
-        {}
         {reportType === "verification" && verificationRuns.length > 0 && (
           <Select
             label="选择验收运行"
@@ -125,7 +123,6 @@ export function ReportExportPanel({
           />
         )}
 
-        {}
         {reportType === "audit" && (
           <BlockStack gap="300">
             <Text as="span" variant="bodySm">
@@ -153,7 +150,6 @@ export function ReportExportPanel({
           </BlockStack>
         )}
 
-        {}
         <Checkbox
           label="包含详细信息"
           checked={includeDetails}
@@ -162,7 +158,6 @@ export function ReportExportPanel({
 
         <Divider />
 
-        {}
         <InlineStack gap="200" align="end">
           <Button
             onClick={handleExportCsv}

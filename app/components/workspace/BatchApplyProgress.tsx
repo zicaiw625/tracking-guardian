@@ -59,7 +59,6 @@ export function BatchApplyProgress({
 
         <Divider />
 
-        {}
         <BlockStack gap="200">
           <ProgressBar progress={progress} tone="primary" />
           <InlineStack align="space-between">
@@ -72,7 +71,6 @@ export function BatchApplyProgress({
           </InlineStack>
         </BlockStack>
 
-        {}
         <Box background="bg-surface-secondary" padding="400" borderRadius="200">
           <InlineStack gap="400" align="space-between">
             <BlockStack gap="100" align="center">
@@ -105,7 +103,6 @@ export function BatchApplyProgress({
           </InlineStack>
         </Box>
 
-        {}
         {results.length > 0 && (
           <>
             <Divider />
@@ -147,7 +144,6 @@ export function BatchApplyProgress({
           </>
         )}
 
-        {}
         {!isRunning && completed === total && (
           <Banner tone={failed === 0 ? "success" : "warning"}>
             <Text as="p" variant="bodySm">

@@ -247,7 +247,6 @@ export function ManualPastePanel({ shopId, onAssetsCreated }: ManualPastePanelPr
           </BlockStack>
         </Banner>
 
-        {}
         {validationErrors.length > 0 && (
           <Banner tone="warning">
             <BlockStack gap="200">
@@ -267,7 +266,6 @@ export function ManualPastePanel({ shopId, onAssetsCreated }: ManualPastePanelPr
           </Banner>
         )}
 
-        {}
         <Suspense fallback={
           <TextField
             label="脚本内容"
@@ -293,7 +291,6 @@ export function ManualPastePanel({ shopId, onAssetsCreated }: ManualPastePanelPr
           />
         </Suspense>
 
-        {}
         {analysisResult && (
           <InlineStack gap="200">
             <Button
@@ -325,7 +322,6 @@ export function ManualPastePanel({ shopId, onAssetsCreated }: ManualPastePanelPr
               分析结果
             </Text>
 
-            {}
             <Box background="bg-surface-secondary" padding="400" borderRadius="200">
               <BlockStack gap="300">
                 <InlineStack align="space-between">

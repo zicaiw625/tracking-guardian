@@ -76,7 +76,6 @@ export function VerificationWizard({
 
           <Divider />
 
-          {}
           <Banner tone="info" title="重要提示：v1.0 验收范围（符合 PRD 4.5 要求）">
             <BlockStack gap="200">
               <Text variant="bodySm" as="p">

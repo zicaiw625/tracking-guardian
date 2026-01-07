@@ -485,7 +485,6 @@ export default function SettingsPage() {
       )}
 
       <BlockStack gap="500">
-        {}
 
         <Tabs tabs={tabs} selected={selectedTab} onSelect={setSelectedTab}>
           {selectedTab === 0 && (

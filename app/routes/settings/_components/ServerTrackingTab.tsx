@@ -187,7 +187,6 @@ export function ServerTrackingTab({
               </Banner>
             )}
 
-            {}
             <Banner
               title="受保护客户数据 (PCD) 访问权限说明"
               tone="warning"
@@ -236,7 +235,6 @@ export function ServerTrackingTab({
               onChange={setServerPlatform}
             />
 
-            {}
             <Box background="bg-surface-secondary" padding="400" borderRadius="200">
               <BlockStack gap="300">
                 <InlineStack align="space-between" blockAlign="center">
@@ -384,7 +382,6 @@ export function ServerTrackingTab({
               </>
             )}
 
-            {}
             {serverPlatform === "pinterest" && (
               <>
                 <Banner tone="info">

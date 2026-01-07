@@ -56,7 +56,6 @@ export function BatchOperationsPanel({
         <Divider />
 
         <BlockStack gap="400">
-          {}
           <Box
             background="bg-surface-secondary"
             padding="400"
@@ -95,7 +94,6 @@ export function BatchOperationsPanel({
             </BlockStack>
           </Box>
 
-          {}
           <Box
             background="bg-surface-secondary"
             padding="400"
@@ -133,7 +131,6 @@ export function BatchOperationsPanel({
             </BlockStack>
           </Box>
 
-          {}
           <Box
             background="bg-surface-secondary"
             padding="400"
@@ -186,7 +183,6 @@ export function BatchOperationsPanel({
             </BlockStack>
           </Box>
 
-          {}
           <Box
             background="bg-surface-secondary"
             padding="400"

@@ -197,7 +197,6 @@ export function AuditAssetsByRisk({
           <Badge tone="info">{`${totalAssets} 项`}</Badge>
         </InlineStack>
 
-        {}
         <Card>
           <BlockStack gap="300">
             <Text as="h3" variant="headingSm">
@@ -246,7 +245,6 @@ export function AuditAssetsByRisk({
               </Box>
               <Box minWidth="200px">
                 <BlockStack gap="200">
-                  {}
                   {totalHighRisk > 0 && (
                     <BlockStack gap="200">
                       <Button
@@ -275,7 +273,6 @@ export function AuditAssetsByRisk({
           </BlockStack>
         </Card>
 
-        {}
         {assetsByCategory.will_fail.length > 0 && (
           <BlockStack gap="300">
             <InlineStack align="space-between" blockAlign="center">
@@ -401,7 +398,6 @@ export function AuditAssetsByRisk({
                 );
               })}
 
-              {}
               {hiddenHighRiskCount > 0 && (
                 <Box
                   background="bg-surface-secondary"
@@ -436,7 +432,6 @@ export function AuditAssetsByRisk({
           </BlockStack>
         )}
 
-        {}
         {assetsByCategory.can_replace.length > 0 && (
           <>
             {assetsByCategory.will_fail.length > 0 && <Divider />}
@@ -568,7 +563,6 @@ export function AuditAssetsByRisk({
           </>
         )}
 
-        {}
         {assetsByCategory.no_migration_needed.length > 0 && (
           <>
             {(assetsByCategory.will_fail.length > 0 || assetsByCategory.can_replace.length > 0) && <Divider />}

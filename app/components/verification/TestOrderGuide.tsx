@@ -287,7 +287,6 @@ export function TestOrderGuide({
                           })}
                         </InlineStack>
 
-                        {}
                         {verificationResults[item.id] && (
                           <Box
                             background={
@@ -331,7 +330,6 @@ export function TestOrderGuide({
                                       )
                                     )}
                                   </List>
-                                  {}
                                   {verificationResults[item.id].missingEvents.some(
                                     (e) => e.toLowerCase().includes("checkout_completed") || e.toLowerCase().includes("purchase")
                                   ) && (

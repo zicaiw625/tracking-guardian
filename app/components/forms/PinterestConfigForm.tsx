@@ -132,7 +132,6 @@ export function PinterestConfigForm({
 
         <Divider />
 
-        {}
         <TextField
           label="Ad Account ID"
           value={adAccountId}
@@ -143,7 +142,6 @@ export function PinterestConfigForm({
           autoComplete="off"
         />
 
-        {}
         <TextField
           label="Access Token"
           value={accessToken}
@@ -164,7 +162,6 @@ export function PinterestConfigForm({
           }
         />
 
-        {}
         <Checkbox
           label="测试模式"
           checked={testMode}
@@ -174,7 +171,6 @@ export function PinterestConfigForm({
 
         <Divider />
 
-        {}
         <BlockStack gap="200">
           <Text as="p" variant="headingSm">
             如何获取 Pinterest API 凭证
@@ -212,7 +208,6 @@ export function PinterestConfigForm({
 
         <Divider />
 
-        {}
         {validationStatus === "validating" && (
           <Banner tone="info">
             <Text as="p">正在验证凭证...</Text>
@@ -229,7 +224,6 @@ export function PinterestConfigForm({
           </Banner>
         )}
 
-        {}
         <InlineStack gap="200" align="end">
           {onValidate && (
             <Button

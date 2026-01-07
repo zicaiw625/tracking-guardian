@@ -1879,7 +1879,6 @@ export default function ScanPage() {
         );
       })()}
 
-      {}
       {planId && planLabel && (
         <Banner
           title={`当前套餐：${planLabel}`}
@@ -1927,7 +1926,6 @@ export default function ScanPage() {
           {selectedTab === 0 && (<BlockStack gap="500">
               <Box paddingBlockStart="400">
                 <InlineStack align="space-between">
-                  {}
                   {latestScan && (
                     <InlineStack gap="200">
                       <Button
@@ -1960,7 +1958,6 @@ export default function ScanPage() {
                       >
                         导出风险报告 (PDF){!isGrowthOrAbove ? " (需 Go-Live)" : ""}
                       </Button>
-                      {}
                       <Button
                         icon={ShareIcon}
                         onClick={async () => {
@@ -2111,7 +2108,6 @@ export default function ScanPage() {
                       {latestScan.riskScore > 60 ? "High" : latestScan.riskScore > 30 ? "Med" : "Low"}
                     </Badge>
                   </InlineStack>
-                  {}
                   {(() => {
                     const estimatedTimeMinutes = riskItems.reduce((sum, item) => {
                       const timeMap: Record<string, number> = { high: 30, medium: 15, low: 5 };
@@ -2134,7 +2130,6 @@ export default function ScanPage() {
                     扫描时间:{" "}
                     {safeFormatDate(latestScan.createdAt)}
                   </Text>
-                  {}
                   <Divider />
                   <BlockStack gap="200">
                     <Button
@@ -2205,7 +2200,6 @@ export default function ScanPage() {
             </Layout.Section>
           </Layout>)}
 
-        {}
         {latestScan && !isScanning && latestScan.riskScore > 0 && (<Card>
             <BlockStack gap="400">
               <InlineStack align="space-between" blockAlign="center">
@@ -2223,7 +2217,6 @@ export default function ScanPage() {
                 </Text>
               </Banner>
 
-              {}
               <Box background="bg-surface-secondary" padding="400" borderRadius="200">
                 <BlockStack gap="300">
                   <Text as="p" fontWeight="semibold">
@@ -2242,7 +2235,6 @@ export default function ScanPage() {
                 </BlockStack>
               </Box>
 
-              {}
               <Box background="bg-fill-critical-secondary" padding="400" borderRadius="200">
                 <BlockStack gap="300">
                   <InlineStack gap="200" blockAlign="center">
@@ -2252,7 +2244,6 @@ export default function ScanPage() {
                     </Text>
                   </InlineStack>
 
-                  {}
                   <InlineStack gap="400" align="space-between" wrap>
                     <Box background="bg-surface" padding="300" borderRadius="100" minWidth="150px">
                       <BlockStack gap="100">
@@ -2324,7 +2315,6 @@ export default function ScanPage() {
 
               <Divider />
 
-              {}
               <Box background="bg-fill-success-secondary" padding="400" borderRadius="200">
                 <BlockStack gap="300">
                   <InlineStack gap="200" blockAlign="center">
@@ -2334,7 +2324,6 @@ export default function ScanPage() {
                     </Text>
                   </InlineStack>
 
-                  {}
                   <InlineStack gap="400" align="space-between" wrap>
                     <Box background="bg-surface" padding="300" borderRadius="100" minWidth="150px">
                       <BlockStack gap="100">
@@ -2406,7 +2395,6 @@ export default function ScanPage() {
 
               <Divider />
 
-              {}
               <BlockStack gap="300">
                 <Text as="h3" variant="headingMd">
                   迁移前后对比
@@ -2494,7 +2482,6 @@ export default function ScanPage() {
                 <Badge tone="info">{`${riskItems.length} 项`}</Badge>
               </InlineStack>
 
-              {}
               {(() => {
                 const isFreePlan = planId === "free";
                 const FREE_AUDIT_LIMIT = 3;
@@ -2550,7 +2537,6 @@ export default function ScanPage() {
                   </Box>))}
                     </BlockStack>
 
-                    {}
                     {isFreePlan && hiddenCount > 0 && (
                       <Banner tone="warning">
                         <BlockStack gap="200">
@@ -2576,7 +2562,6 @@ export default function ScanPage() {
                       </Banner>
                     )}
 
-                    {}
                     <Box background="bg-surface-secondary" padding="400" borderRadius="200">
                       <BlockStack gap="300">
                         <InlineStack align="space-between" blockAlign="center">
@@ -2607,7 +2592,6 @@ export default function ScanPage() {
             </BlockStack>
           </Card>)}
 
-        {}
         {latestScan && migrationActions && migrationActions.length > 0 && !isScanning && (<Card>
             <BlockStack gap="400">
               <InlineStack align="space-between" blockAlign="center">
@@ -2617,7 +2601,6 @@ export default function ScanPage() {
                 <Badge tone="attention">{`${migrationActions.length} 项待处理`}</Badge>
               </InlineStack>
 
-              {}
 
               <BlockStack gap="300">
                 {migrationActions.map((action, index) => (
@@ -2651,7 +2634,6 @@ export default function ScanPage() {
                       </Text>
 
                       <InlineStack gap="200" align="end">
-                        {}
                         {action.type === "migrate_script_tag" && action.scriptTagId && (
                           <Button
                             size="slim"
@@ -2710,9 +2692,6 @@ export default function ScanPage() {
             </BlockStack>
           </Card>)}
 
-        {}
-        {}
-        {}
         {latestScan && auditAssets && Array.isArray(auditAssets) && auditAssets.length > 0 && !isScanning && (
           <AuditAssetsByRisk
             assets={auditAssets.filter((a): a is NonNullable<typeof a> => a !== null).map((asset) => ({
@@ -2767,7 +2746,6 @@ export default function ScanPage() {
                 </InlineStack>
               </BlockStack>
 
-              {}
               {migrationTimeline.assets.length > 0 && (
                 <>
                   <Divider />
@@ -2873,7 +2851,6 @@ export default function ScanPage() {
           </Card>
         )}
 
-        {}
         {latestScan && !isScanning && (
           <Card>
             <BlockStack gap="400">
@@ -2890,7 +2867,6 @@ export default function ScanPage() {
 
               <Divider />
 
-              {}
               <BlockStack gap="300">
                 <Text as="h3" variant="headingSm">
                   📦 Web Pixel 设置
@@ -2944,7 +2920,6 @@ export default function ScanPage() {
 
               <Divider />
 
-              {}
               <BlockStack gap="300">
                 <Text as="h3" variant="headingSm">
                   📋 迁移清单
@@ -3127,7 +3102,6 @@ export default function ScanPage() {
 
               <Divider />
 
-              {}
               <BlockStack gap="300">
                 <Text as="h3" variant="headingSm">
                   🔄 替代方案一览
@@ -3463,7 +3437,6 @@ export default function ScanPage() {
                   </BlockStack>
                 </Card>)}
 
-              {}
               {analysisResult && (
                 <Card>
                   <BlockStack gap="400">
@@ -3578,7 +3551,6 @@ export default function ScanPage() {
           )}
         </Tabs>
 
-        {}
         <Modal
           open={guidanceModalOpen}
           onClose={closeGuidanceModal}
@@ -3706,7 +3678,6 @@ export default function ScanPage() {
           </Modal.Section>
         </Modal>
 
-        {}
         <Modal
           open={deleteModalOpen}
           onClose={closeDeleteModal}
@@ -3748,7 +3719,6 @@ export default function ScanPage() {
           </Modal.Section>
         </Modal>
 
-        {}
         <ManualInputWizard
           open={manualInputWizardOpen}
           onClose={() => setManualInputWizardOpen(false)}

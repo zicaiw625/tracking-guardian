@@ -75,7 +75,6 @@ export function MigrationWizard({ migrationActions, shopDomain }: MigrationWizar
           根据扫描结果，以下是完成迁移所需的步骤。点击各项可直接跳转到对应位置。
         </Text>
         <Divider />
-        {}
         <BlockStack gap="300">
           <Text as="h3" variant="headingSm">
             📦 Web Pixel 设置
@@ -97,7 +96,6 @@ export function MigrationWizard({ migrationActions, shopDomain }: MigrationWizar
           </InlineStack>
         </BlockStack>
         <Divider />
-        {}
         <BlockStack gap="300">
           <Text as="h3" variant="headingSm">
             🛒 Checkout Editor（Plus 专属）
@@ -123,7 +121,6 @@ export function MigrationWizard({ migrationActions, shopDomain }: MigrationWizar
           </InlineStack>
         </BlockStack>
         <Divider />
-        {}
         <BlockStack gap="300">
           <Text as="h3" variant="headingSm">
             📋 迁移清单
@@ -164,7 +161,6 @@ export function MigrationWizard({ migrationActions, shopDomain }: MigrationWizar
           </Box>
         </BlockStack>
         <Divider />
-        {}
         <BlockStack gap="300">
           <Text as="h3" variant="headingSm">
             🔄 替代方案一览

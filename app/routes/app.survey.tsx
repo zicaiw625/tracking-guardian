@@ -240,7 +240,6 @@ export default function SurveyPage() {
       }}
     >
       <BlockStack gap="500">
-        {}
         <Layout>
           <Layout.Section variant="oneThird">
             <Card>
@@ -298,7 +297,6 @@ export default function SurveyPage() {
           </Layout.Section>
         </Layout>
 
-        {}
         {stats.ratingBreakdown.length > 0 && (
           <Card>
             <BlockStack gap="400">
@@ -330,7 +328,6 @@ export default function SurveyPage() {
           </Card>
         )}
 
-        {}
         <Card>
           <BlockStack gap="400">
             <InlineStack align="space-between" blockAlign="center">

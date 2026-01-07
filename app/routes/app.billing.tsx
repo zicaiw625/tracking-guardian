@@ -262,7 +262,6 @@ export default function BillingPage() {
         })}
         </Layout>
 
-        {}
         {subscription.plan === "agency" && (
           <Card>
             <BlockStack gap="400">

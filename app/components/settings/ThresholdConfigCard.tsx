@@ -92,7 +92,6 @@ export function ThresholdConfigCard({
           colorRanges={config.colorRanges}
         />
 
-        {}
         {showPreview && config.currentValue !== undefined && (
           <Box background="bg-surface-secondary" padding="300" borderRadius="200">
             <BlockStack gap="200">
@@ -123,7 +122,6 @@ export function ThresholdConfigCard({
           </Box>
         )}
 
-        {}
         {showRecommendation && config.recommendedValue !== undefined && (
           <Banner tone="info">
             <BlockStack gap="200">
@@ -143,7 +141,6 @@ export function ThresholdConfigCard({
           </Banner>
         )}
 
-        {}
         {onTest && (
           <Button
             size="slim"

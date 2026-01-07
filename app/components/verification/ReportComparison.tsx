@@ -119,7 +119,6 @@ export function ReportComparison({ shopId, availableRuns }: ReportComparisonProp
                 对比结果
               </Text>
 
-              {}
               <Card>
                 <BlockStack gap="300">
                   <Text as="h5" variant="headingSm">
@@ -138,7 +137,6 @@ export function ReportComparison({ shopId, availableRuns }: ReportComparisonProp
                 </BlockStack>
               </Card>
 
-              {}
               {comparisonData.platforms.length > 0 && (
                 <Card>
                   <BlockStack gap="300">
@@ -159,7 +157,6 @@ export function ReportComparison({ shopId, availableRuns }: ReportComparisonProp
                 </Card>
               )}
 
-              {}
               {comparisonData.improvements.length > 0 && (
                 <Banner tone="info">
                   <BlockStack gap="200">

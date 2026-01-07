@@ -314,7 +314,6 @@ export function ConfigManagementCard({
         </Modal>
       )}
 
-      {}
       <Modal
         open={showEnvConfirmModal}
         onClose={cancelEnvironmentChange}

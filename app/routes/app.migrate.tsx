@@ -864,7 +864,6 @@ export default function MigratePage() {
           </BlockStack>
         </Banner>
 
-        {}
         <Banner
           title="重要约束：ScriptTags 已弃用"
           tone="warning"
@@ -943,7 +942,6 @@ export default function MigratePage() {
           </Banner>
         )}
 
-        {}
         <Card>
           <BlockStack gap="300">
             <InlineStack align="space-between" blockAlign="center">
@@ -985,7 +983,6 @@ export default function MigratePage() {
           </BlockStack>
         </Card>
 
-        {}
         {needsSettingsUpgrade && pixelStatus === "installed" && (
           <Banner
             title="Pixel 设置需要升级"
@@ -1001,7 +998,6 @@ export default function MigratePage() {
                 检测到您的 App Pixel 使用旧版配置格式（缺少 shop_domain 或使用旧键名 ingestion_secret）。
                 请点击「一键升级设置」来更新到最新版本，以确保追踪功能正常工作。
               </Text>
-              {}
             </BlockStack>
           </Banner>
         )}
@@ -1145,7 +1141,6 @@ export default function MigratePage() {
                     </BlockStack>
                   </Box>
 
-                  {}
 
                   {!isStarterOrAbove && (
                     <Banner
@@ -1202,7 +1197,6 @@ export default function MigratePage() {
                           <Icon source={CheckCircleIcon} tone="success"/>
                           <Text as="span">Web Pixel 已启用</Text>
                         </InlineStack>
-                        {}
                       </InlineStack>
                     </BlockStack>
                   </Box>
@@ -1231,7 +1225,6 @@ export default function MigratePage() {
           </Layout.Section>
 
           <Layout.Section variant="oneThird">
-            {}
             {pixelConfigs && pixelConfigs.length > 0 && (
               <Banner
                 title="重要提示：checkout_completed 事件触发位置"

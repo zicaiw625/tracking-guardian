@@ -138,7 +138,6 @@ export function ManualInputWizard({ open, onClose, onComplete }: ManualInputWiza
     >
       <Modal.Section>
         <BlockStack gap="400">
-          {}
           <InlineStack gap="200" align="center">
             <Badge tone={step >= 1 ? "success" : "info"}>步骤 1</Badge>
             <Text as="span">→</Text>
@@ -147,7 +146,6 @@ export function ManualInputWizard({ open, onClose, onComplete }: ManualInputWiza
             <Badge tone={step >= 3 ? "success" : undefined}>步骤 3</Badge>
           </InlineStack>
 
-          {}
           {step === 1 && (
             <BlockStack gap="400">
               <Text as="h3" variant="headingMd">
@@ -237,7 +235,6 @@ export function ManualInputWizard({ open, onClose, onComplete }: ManualInputWiza
             </BlockStack>
           )}
 
-          {}
           {step === 2 && (
             <BlockStack gap="400">
               <Text as="h3" variant="headingMd">
@@ -290,7 +287,6 @@ export function ManualInputWizard({ open, onClose, onComplete }: ManualInputWiza
             </BlockStack>
           )}
 
-          {}
           {step === 3 && (
             <BlockStack gap="400">
               <Text as="h3" variant="headingMd">
@@ -312,7 +308,6 @@ export function ManualInputWizard({ open, onClose, onComplete }: ManualInputWiza
 
               <Divider />
 
-              {}
               <Box background="bg-surface-secondary" padding="400" borderRadius="200">
                 <BlockStack gap="300">
                   <Text as="h3" variant="headingSm">

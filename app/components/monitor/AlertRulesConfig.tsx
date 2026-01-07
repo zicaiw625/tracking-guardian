@@ -230,7 +230,6 @@ export function AlertRulesConfig({
 
         <Divider />
 
-        {}
         <BlockStack gap="300">
           <div
             role="button"
@@ -323,7 +322,6 @@ export function AlertRulesConfig({
 
         <Divider />
 
-        {}
         <BlockStack gap="300">
           <div
             role="button"
@@ -462,7 +460,6 @@ export function AlertRulesConfig({
 
         <Divider />
 
-        {}
         <BlockStack gap="300">
           <div
             role="button"

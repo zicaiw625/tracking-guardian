@@ -519,8 +519,6 @@ export default function DiagnosticsPage() {
 
                 <FunnelStage label="3. 通过 Key 验证" count={data.eventFunnel.passedKey} total={data.eventFunnel.pixelRequests} description="Ingestion Key 匹配的请求"/>
 
-                {}
-                {}
 
                 <FunnelStage label="4. 成功发送到平台" count={data.eventFunnel.sentToPlatforms} total={data.eventFunnel.pixelRequests} description="通过 CAPI 发送到广告平台"/>
               </BlockStack>
@@ -540,7 +538,6 @@ export default function DiagnosticsPage() {
                   </Text>
                 </Banner>)}
 
-              {}
               {data.eventFunnel.pixelRequests > 0 && (
                 <Box background="bg-surface-secondary" padding="300" borderRadius="200">
                   <BlockStack gap="200">
@@ -555,8 +552,6 @@ export default function DiagnosticsPage() {
                           {Math.round((data.eventFunnel.passedKey / data.eventFunnel.pixelRequests) * 100)}%
                         </Text>
                       </Box>
-                      {}
-                      {}
                       <Box>
                         <Text as="span" variant="bodySm" tone="subdued">发送成功率: </Text>
                         <Text as="span" fontWeight="semibold" tone={
@@ -576,7 +571,6 @@ export default function DiagnosticsPage() {
           </Card>
         </Layout.Section>
 
-        {}
         <Layout.Section>
           <Card>
             <BlockStack gap="400">
@@ -593,7 +587,6 @@ export default function DiagnosticsPage() {
 
               <Divider />
 
-              {}
               <BlockStack gap="300">
                 <Box background={data.eventFunnel.sentToPlatforms > 0 ? "bg-fill-success-secondary" : "bg-fill-warning-secondary"} padding="400" borderRadius="200">
                   <BlockStack gap="200">
@@ -623,7 +616,6 @@ export default function DiagnosticsPage() {
 
               <Divider />
 
-              {}
               <BlockStack gap="300">
                 <Text as="h3" variant="headingMd">
                   💡 仅客户端追踪 vs 客户端+服务端追踪
@@ -633,7 +625,6 @@ export default function DiagnosticsPage() {
                 </Text>
 
                 <InlineStack gap="400" wrap={false} align="space-between">
-                  {}
                   <Box background="bg-fill-warning-secondary" padding="400" borderRadius="200" minWidth="45%">
                     <BlockStack gap="200">
                       <Text as="p" fontWeight="semibold" tone="caution">⚠️ 仅依赖客户端追踪</Text>
@@ -652,7 +643,6 @@ export default function DiagnosticsPage() {
                     </BlockStack>
                   </Box>
 
-                  {}
                   <Box background="bg-fill-success-secondary" padding="400" borderRadius="200" minWidth="45%">
                     <BlockStack gap="200">
                       <Text as="p" fontWeight="semibold" tone="success">✅ 客户端 + 服务端 CAPI</Text>
@@ -675,7 +665,6 @@ export default function DiagnosticsPage() {
 
               <Divider />
 
-              {}
               <BlockStack gap="300">
                 <Text as="h3" variant="headingMd">
                   📊 您当前的追踪状态
@@ -892,7 +881,6 @@ export default function DiagnosticsPage() {
           </Card>
         </Layout.Section>
 
-        {}
         <Layout.Section>
           <Card>
             <BlockStack gap="400">
@@ -956,7 +944,6 @@ export default function DiagnosticsPage() {
           </Card>
         </Layout.Section>
 
-        {}
         <Layout.Section>
           <Card>
             <BlockStack gap="400">
@@ -1030,7 +1017,6 @@ export default function DiagnosticsPage() {
           </Card>
         </Layout.Section>
 
-        {}
         <Layout.Section>
           <Card>
             <BlockStack gap="400">

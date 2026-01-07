@@ -209,7 +209,6 @@ export function ManualAnalysis({ deprecationStatus }: ManualAnalysisProps) {
         </Card>
       </Box>
       {analysisResult && <AnalysisResultSummary analysisResult={analysisResult} />}
-      {                  }
       {analysisResult && analysisResult.risks.length > 0 && (
         <Card>
           <BlockStack gap="400">
@@ -258,7 +257,6 @@ export function ManualAnalysis({ deprecationStatus }: ManualAnalysisProps) {
           </BlockStack>
         </Card>
       )}
-      {                     }
       {analysisResult && analysisResult.recommendations.length > 0 && (
         <Card>
           <BlockStack gap="400">
