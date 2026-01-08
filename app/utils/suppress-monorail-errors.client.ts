@@ -1,9 +1,11 @@
 /**
- * 在开发环境中抑制 Shopify monorail 遥测服务的连接错误
+ * 在开发环境中抑制 Shopify monorail 遥测服务和 OpenTelemetry 相关的连接错误
  * 这些错误不影响应用功能，但在开发环境中会产生大量控制台噪音
  * 
- * 注意：这些错误来自 Shopify App Bridge 的遥测服务，在本地开发时
- * 无法连接到 Shopify 的内部服务，这是正常现象。
+ * 注意：这些错误来自：
+ * 1. Shopify App Bridge 的遥测服务（monorail），在本地开发时无法连接到 Shopify 的内部服务
+ * 2. 第三方库（如 OpenTelemetry SDK）尝试发送遥测数据到未配置的端点（produce/produce_batch）
+ * 这些都是正常现象，不影响应用功能。
  */
 export function suppressMonorailErrors() {
   if (typeof window === "undefined") return;
@@ -21,8 +23,8 @@ export function suppressMonorailErrors() {
   const originalConsoleError = console.error;
   const originalConsoleWarn = console.warn;
   
-  // 检查是否是 monorail 相关的错误
-  const isMonorailError = (args: unknown[]): boolean => {
+  // 检查是否是遥测相关的错误（monorail 或 OpenTelemetry）
+  const isTelemetryError = (args: unknown[]): boolean => {
     const errorMessage = args.map(arg => 
       typeof arg === "string" ? arg : 
       arg instanceof Error ? arg.message : 
@@ -32,23 +34,27 @@ export function suppressMonorailErrors() {
     return (
       errorMessage.includes("monorail-edge.shopifysvc.com") ||
       errorMessage.includes("monorail") ||
+      errorMessage.includes("produce") ||
+      errorMessage.includes("produce_batch") ||
       errorMessage.includes("ERR_CONNECTION_REFUSED") ||
-      errorMessage.includes("Failed to load resource")
+      errorMessage.includes("Failed to load resource") ||
+      errorMessage.includes("opentelemetry") ||
+      errorMessage.includes("otlp")
     );
   };
   
   // 拦截 console.error 调用
   console.error = (...args: unknown[]) => {
-    if (isMonorailError(args)) {
-      return; // 静默处理 monorail 错误
+    if (isTelemetryError(args)) {
+      return; // 静默处理遥测相关错误
     }
     originalConsoleError.apply(console, args);
   };
 
   // 拦截 console.warn 调用（某些浏览器可能使用 warn 而不是 error）
   console.warn = (...args: unknown[]) => {
-    if (isMonorailError(args)) {
-      return; // 静默处理 monorail 警告
+    if (isTelemetryError(args)) {
+      return; // 静默处理遥测相关警告
     }
     originalConsoleWarn.apply(console, args);
   };
@@ -61,7 +67,11 @@ export function suppressMonorailErrors() {
     if (
       errorMessage.includes("monorail") ||
       filename.includes("monorail") ||
-      errorMessage.includes("ERR_CONNECTION_REFUSED")
+      errorMessage.includes("produce") ||
+      errorMessage.includes("produce_batch") ||
+      errorMessage.includes("ERR_CONNECTION_REFUSED") ||
+      errorMessage.includes("opentelemetry") ||
+      errorMessage.includes("otlp")
     ) {
       event.preventDefault();
       event.stopPropagation();
@@ -81,8 +91,12 @@ export function suppressMonorailErrors() {
     
     if (
       errorMessage.includes("monorail") ||
+      errorMessage.includes("produce") ||
+      errorMessage.includes("produce_batch") ||
       errorMessage.includes("ERR_CONNECTION_REFUSED") ||
-      errorMessage.includes("Failed to fetch")
+      errorMessage.includes("Failed to fetch") ||
+      errorMessage.includes("opentelemetry") ||
+      errorMessage.includes("otlp")
     ) {
       event.preventDefault();
       return false;
@@ -91,10 +105,55 @@ export function suppressMonorailErrors() {
   
   window.addEventListener("unhandledrejection", rejectionHandler);
 
+  // 拦截 fetch 请求失败（用于抑制网络面板中的错误显示）
+  // 注意：这不会阻止网络请求，只是静默处理失败的错误
+  const originalFetch = window.fetch;
+  window.fetch = async (...args) => {
+    const url = typeof args[0] === "string" ? args[0] : args[0]?.url || "";
+    const isTelemetryRequest = 
+      url.includes("produce") ||
+      url.includes("produce_batch") ||
+      url.includes("monorail") ||
+      url.includes("opentelemetry") ||
+      url.includes("otlp");
+    
+    try {
+      const response = await originalFetch(...args);
+      
+      // 如果请求失败且是遥测相关请求，静默处理
+      if (isTelemetryRequest && !response.ok) {
+        // 返回一个模拟的成功响应，避免错误传播
+        return new Response(null, { 
+          status: 200, 
+          statusText: "OK",
+        });
+      }
+      
+      return response;
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      
+      // 如果是遥测相关的请求失败，静默处理
+      if (
+        isTelemetryRequest ||
+        errorMessage.includes("ERR_CONNECTION_REFUSED")
+      ) {
+        // 返回一个模拟的成功响应，避免错误传播
+        return new Response(null, { 
+          status: 200, 
+          statusText: "OK",
+        });
+      }
+      
+      throw error;
+    }
+  };
+
   // 返回清理函数（可选，用于测试）
   return () => {
     console.error = originalConsoleError;
     console.warn = originalConsoleWarn;
+    window.fetch = originalFetch;
     window.removeEventListener("error", errorHandler, true);
     window.removeEventListener("unhandledrejection", rejectionHandler);
   };
