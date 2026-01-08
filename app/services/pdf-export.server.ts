@@ -52,7 +52,8 @@ export async function generateMigrationChecklistPDF(
       }
 
       doc.fontSize(12).font("Helvetica-Bold");
-      const itemTitle = `${index + 1}. ${item.title}`;
+      const fingerprint = item.fingerprint ? `(${item.fingerprint.substring(0, 8)}...)` : "";
+      const itemTitle = `${index + 1}. ${item.title} ${fingerprint}`.trim();
       doc.text(itemTitle, { continued: false });
 
       const priorityColors: Record<string, string> = {
@@ -69,15 +70,9 @@ export async function generateMigrationChecklistPDF(
       doc.moveDown(0.3);
 
       doc.fontSize(10).font("Helvetica");
-      doc.text(`类别: ${item.category}`);
-      if (item.platform) {
-        doc.text(`平台: ${item.platform}`);
-      }
-      doc.text(`迁移方式: ${getMigrationTypeName(item.suggestedMigration)}`);
-      doc.text(`优先级分数: ${item.priority.toFixed(1)}/10`);
-      doc.text(`预计时间: ${item.estimatedTime} 分钟`);
-      doc.text(`状态: ${getStatusName(item.status)}`);
-      doc.text(`描述: ${item.description}`);
+      doc.text(`风险等级 + 原因: ${getRiskLabel(item.riskLevel)} - ${item.riskReason}`);
+      doc.text(`推荐迁移路径: ${getMigrationTypeName(item.suggestedMigration)}`);
+      doc.text(`预估工时 + 需要的信息: ${formatEstimatedTime(item.estimatedTime)} | ${item.requiredInfo}`);
 
       doc.moveDown(0.5);
 
@@ -125,14 +120,22 @@ function getMigrationTypeName(type: string): string {
   return names[type] || type;
 }
 
-function getStatusName(status: string): string {
-  const names: Record<string, string> = {
-    pending: "待处理",
-    in_progress: "进行中",
-    completed: "已完成",
-    skipped: "已跳过",
+function getRiskLabel(riskLevel: MigrationChecklistItem["riskLevel"]): string {
+  const labels: Record<MigrationChecklistItem["riskLevel"], string> = {
+    high: "高风险",
+    medium: "中风险",
+    low: "低风险",
   };
-  return names[status] || status;
+  return labels[riskLevel];
+}
+
+function formatEstimatedTime(minutes: number): string {
+  if (minutes < 60) {
+    return `${minutes} 分钟`;
+  }
+  const hours = Math.floor(minutes / 60);
+  const mins = minutes % 60;
+  return mins > 0 ? `${hours} 小时 ${mins} 分钟` : `${hours} 小时`;
 }
 
 export async function generateEnhancedMigrationChecklistPDF(
@@ -143,4 +146,3 @@ export async function generateEnhancedMigrationChecklistPDF(
 
   return generateMigrationChecklistPDF(checklist, shopDomain);
 }
-

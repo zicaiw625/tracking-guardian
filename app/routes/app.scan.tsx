@@ -961,6 +961,20 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     if (actionType === "export_checklist_csv") {
         try {
             const checklist = await generateMigrationChecklist(shop.id);
+            const formatEstimatedTime = (minutes: number) => {
+                if (minutes < 60) {
+                    return `${minutes} 分钟`;
+                }
+                const hours = Math.floor(minutes / 60);
+                const mins = minutes % 60;
+                return mins > 0 ? `${hours} 小时 ${mins} 分钟` : `${hours} 小时`;
+            };
+            const migrationTypeLabels: Record<string, string> = {
+                web_pixel: "Web Pixel",
+                ui_extension: "UI Extension",
+                server_side: "服务端 CAPI",
+                none: "无需迁移",
+            };
 
             const csvLines: string[] = [];
             csvLines.push("迁移清单");
@@ -972,21 +986,21 @@ export const action = async ({ request }: ActionFunctionArgs) => {
             csvLines.push(`低风险项: ${checklist.lowPriorityItems}`);
             csvLines.push(`预计总时间: ${Math.floor(checklist.estimatedTotalTime / 60)} 小时 ${checklist.estimatedTotalTime % 60} 分钟`);
             csvLines.push("");
-            csvLines.push("优先级,风险等级,资产名称,平台,分类,建议迁移方式,预计时间(分钟),状态,描述");
+            csvLines.push("资产名称/指纹,风险等级+原因,推荐迁移路径,预估工时+需要的信息");
 
             checklist.items.forEach((item) => {
+                const fingerprint = item.fingerprint ? `(${item.fingerprint.substring(0, 8)}...)` : "";
+                const assetName = `${item.title} ${fingerprint}`.trim();
+                const riskDisplay = `${item.riskLevel} - ${item.riskReason}`;
+                const migrationPath = migrationTypeLabels[item.suggestedMigration] || item.suggestedMigration;
+                const timeAndInfo = `${formatEstimatedTime(item.estimatedTime)} | ${item.requiredInfo}`;
                 const row = [
-                    item.priority.toString(),
-                    item.riskLevel,
-                    `"${(item.title || "").replace(/"/g, '""')}"`,
-                    item.platform || "",
-                    item.category,
-                    item.suggestedMigration,
-                    item.estimatedTime.toString(),
-                    item.status,
-                    `"${(item.description || "").replace(/"/g, '""')}"`,
+                    assetName,
+                    riskDisplay,
+                    migrationPath,
+                    timeAndInfo,
                 ];
-                csvLines.push(row.join(","));
+                csvLines.push(row.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(","));
             });
 
             const csvContent = csvLines.join("\n");
