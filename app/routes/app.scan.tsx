@@ -1089,6 +1089,7 @@ export function ScanPage({
     const analysisSavedRef = useRef(false);
     const isReloadingRef = useRef(false);
     const isMountedRef = useRef(true);
+    const paywallViewTrackedRef = useRef(false);
     const reloadTimeoutRef = useRef<NodeJS.Timeout | null>(null);
     const exportTimeoutRef = useRef<NodeJS.Timeout | null>(null);
     const abortControllerRef = useRef<AbortController | null>(null);
@@ -1786,6 +1787,34 @@ export function ScanPage({
   ];
   const visibleTabs = showTabs ? tabs : [];
   const shouldShowMigrationButtons = showMigrationButtons && (!showTabs || selectedTab === 2 || pageTitle === "Audit 迁移清单");
+  const auditAssetCount = useMemo(
+    () => (Array.isArray(auditAssets) ? auditAssets.filter((asset): asset is NonNullable<typeof asset> => asset !== null).length : 0),
+    [auditAssets]
+  );
+
+  useEffect(() => {
+    if (paywallViewTrackedRef.current || !shouldShowMigrationButtons) {
+      return;
+    }
+
+    paywallViewTrackedRef.current = true;
+    const riskScore = latestScan?.riskScore ?? 0;
+    void fetch("/api/analytics.track", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        event: "app_paywall_viewed",
+        eventId: `app_paywall_viewed_${shop?.id ?? "unknown"}_audit_report`,
+        metadata: {
+          triggerPage: "audit_report",
+          plan: planIdSafe,
+          role: isAgency ? "agency" : "merchant",
+          risk_score: riskScore,
+          asset_count: auditAssetCount,
+        },
+      }),
+    });
+  }, [auditAssetCount, isAgency, latestScan?.riskScore, planIdSafe, shouldShowMigrationButtons, shop?.id]);
   const paginationLimitWarning = (
     <Banner tone="info" title="扫描分页说明">
       <BlockStack gap="200">
