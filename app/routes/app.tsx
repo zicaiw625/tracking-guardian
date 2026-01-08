@@ -101,8 +101,8 @@ export default function App() {
             <a href="/app/workspace">Workspaces</a>
             <a href="/app/workspace?tab=shops">Shops</a>
             <a href="/app/workspace/templates">Templates</a>
-            <a href="/app/reports?scope=agency">Reports</a>
-            <a href="/app/workspace?tab=team">Team &amp; Roles</a>
+            <a href="/app/reports">Reports</a>
+            <a href="/app/workspace?tab=shops">Team &amp; Roles</a>
           </>
         ) : (
           <>

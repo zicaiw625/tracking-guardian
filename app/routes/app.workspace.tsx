@@ -80,6 +80,7 @@ import {
   deleteMigrationTask,
   type CreateTaskInput,
 } from "../services/task-assignment.server";
+import { generateBatchReportPdf } from "../services/workspace/batch-report.server";
 import {
   getTaskComments,
   createTaskComment,
@@ -156,7 +157,10 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   }> | null = null;
 
   const url = new URL(request.url);
-  const groupId = url.searchParams.get("groupId") || (groups.length > 0 ? groups[0].id : null);
+  const tabParam = url.searchParams.get("tab");
+  // 如果 URL 中有 tab 参数但没有 groupId，且用户有分组，自动使用第一个分组
+  const groupIdFromUrl = url.searchParams.get("groupId");
+  const groupId = groupIdFromUrl || (groups.length > 0 ? groups[0].id : null);
 
   let tasks: Array<{
     id: string;
@@ -174,18 +178,31 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 
   if (groupId) {
     selectedGroup = await getShopGroupDetails(groupId, shop.id);
-    groupStats = await getGroupAggregatedStats(groupId, shop.id, 7);
-    shopBreakdown = await getGroupShopBreakdown(groupId, shop.id, 7);
+    // 如果 selectedGroup 为 null（可能是权限问题），但有 tab 参数，尝试使用第一个可访问的分组
+    if (!selectedGroup && tabParam && groups.length > 0) {
+      for (const group of groups) {
+        const testGroup = await getShopGroupDetails(group.id, shop.id);
+        if (testGroup) {
+          selectedGroup = testGroup;
+          break;
+        }
+      }
+    }
+    
+    if (selectedGroup) {
+      groupStats = await getGroupAggregatedStats(selectedGroup.id, shop.id, 7);
+      shopBreakdown = await getGroupShopBreakdown(selectedGroup.id, shop.id, 7);
 
-    const migrationTasks = await getMigrationTasks(shop.id, { groupId });
-    tasks = migrationTasks.map((t) => ({
-      id: t.id,
-      title: t.title,
-      status: t.status,
-      priority: t.priority,
-      assignedToShopDomain: t.assignedToShopDomain,
-      commentCount: t.commentCount,
-    }));
+      const migrationTasks = await getMigrationTasks(shop.id, { groupId: selectedGroup.id });
+      tasks = migrationTasks.map((t) => ({
+        id: t.id,
+        title: t.title,
+        status: t.status,
+        priority: t.priority,
+        assignedToShopDomain: t.assignedToShopDomain,
+        commentCount: t.commentCount,
+      }));
+    }
   }
 
   return json<LoaderData & { auditAssets: typeof auditAssets; availableMembers: Array<{ shopId: string; shopDomain: string; role: string }> }>({
@@ -344,31 +361,6 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       });
     }
 
-    case "startBatchAudit": {
-
-      const groupId = formData.get("groupId") as string;
-      if (!groupId) {
-        return json({ error: "请选择分组" }, { status: 400 });
-      }
-
-      const result = await startBatchAudit({
-        groupId,
-        requesterId: shop.id,
-        concurrency: 3,
-        skipRecentHours: 6,
-      });
-
-      if ("error" in result) {
-        return json({ error: result.error }, { status: 400 });
-      }
-
-      return json({
-        success: true,
-        actionType: "batch_audit",
-        jobId: result.jobId,
-        message: "批量扫描已启动",
-      });
-    }
 
     case "check_batch_audit": {
       const jobId = formData.get("jobId") as string;
@@ -560,6 +552,69 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       });
     }
 
+    case "delete_task": {
+      const taskId = formData.get("taskId") as string;
+      if (!taskId) {
+        return json({ error: "缺少任务 ID" }, { status: 400 });
+      }
+
+      const result = await deleteMigrationTask(taskId, shop.id);
+      if (typeof result === "object" && "error" in result) {
+        return json({ error: result.error }, { status: 400 });
+      }
+
+      return json({ success: true, actionType: "delete_task" });
+    }
+
+    case "generate_batch_report": {
+      const groupId = formData.get("groupId") as string;
+      const reportTypesStr = formData.get("reportTypes") as string;
+      const includeDetailsStr = formData.get("includeDetails") as string;
+      const whiteLabelStr = formData.get("whiteLabel") as string;
+
+      if (!groupId) {
+        return json({ error: "请选择分组" }, { status: 400 });
+      }
+
+      let reportTypes: Array<"audit" | "migration" | "verification" | "template_apply"> = ["audit", "migration", "verification"];
+      if (reportTypesStr) {
+        try {
+          reportTypes = JSON.parse(reportTypesStr);
+        } catch {
+          // 使用默认值
+        }
+      }
+
+      const includeDetails = includeDetailsStr !== "false";
+      let whiteLabel: { companyName?: string; logoUrl?: string; contactEmail?: string; contactPhone?: string } | undefined;
+      if (whiteLabelStr) {
+        try {
+          whiteLabel = JSON.parse(whiteLabelStr);
+        } catch {
+          // 忽略解析错误
+        }
+      }
+
+      const result = await generateBatchReportPdf({
+        groupId,
+        requesterId: shop.id,
+        reportTypes,
+        includeDetails,
+        whiteLabel,
+      });
+
+      if ("error" in result) {
+        return json({ error: result.error }, { status: 400 });
+      }
+
+      return new Response((result.buffer instanceof Buffer ? result.buffer : Buffer.from(result.buffer)) as BodyInit, {
+        headers: {
+          "Content-Type": result.contentType,
+          "Content-Disposition": `attachment; filename="${result.filename}"`,
+        },
+      });
+    }
+
     default:
       return json({ error: "未知操作" }, { status: 400 });
   }
@@ -675,6 +730,7 @@ export default function WorkspacePage() {
   const [showExportModal, setShowExportModal] = useState(false);
   const [exportReportType, setExportReportType] = useState<"verification" | "scan" | "migration">("verification");
   const [exportFormat, setExportFormat] = useState<"csv" | "json" | "pdf">("pdf");
+  const [isExporting, setIsExporting] = useState(false);
   const [exportResult, setExportResult] = useState<{
     success: boolean;
     totalShops?: number;
@@ -706,6 +762,8 @@ export default function WorkspacePage() {
   const [batchApplyTargetShops, setBatchApplyTargetShops] = useState<ShopInfo[]>([]);
 
   const [showCreateTaskModal, setShowCreateTaskModal] = useState(false);
+  const [newTaskTitle, setNewTaskTitle] = useState("");
+  const [newTaskDescription, setNewTaskDescription] = useState("");
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
   const [taskComments, setTaskComments] = useState<Array<{
     id: string;
@@ -742,9 +800,9 @@ export default function WorkspacePage() {
           showSuccess("店铺已添加到工作区");
         } else if (actionType === "remove_shop") {
           showSuccess("店铺已从工作区移除");
-        } else if (actionType === "export_batch") {
-          setExportResult(actionData as typeof exportResult);
-          showSuccess("批量导出完成");
+        } else if (actionType === "generate_batch_report") {
+          // generate_batch_report 返回的是文件流，已在 handleBatchExport 中处理
+          // 这里不需要额外处理
         } else if (actionType === "batch_apply_template") {
           const data = actionData as { jobId?: string; result?: BatchApplyResult };
           if (data.jobId) {
@@ -765,6 +823,14 @@ export default function WorkspacePage() {
             });
             showSuccess(`批量应用完成：成功 ${data.result.successCount}，失败 ${data.result.failedCount}`);
           }
+        } else if (actionType === "send_invitation") {
+          const data = actionData as { inviteUrl?: string };
+          if (data.inviteUrl) {
+            setGeneratedInviteUrl(data.inviteUrl);
+            showSuccess("邀请链接已生成");
+          }
+        } else if (actionType === "delete_task") {
+          showSuccess("任务已删除");
         } else {
           showSuccess("操作成功");
         }
@@ -775,68 +841,65 @@ export default function WorkspacePage() {
     }
   }, [actionData, showSuccess, showError, revalidator]);
 
-  const handleBatchExport = useCallback(() => {
-    if (!selectedGroup) return;
+  const handleBatchExport = useCallback(async () => {
+    if (!selectedGroup || isExporting) return;
 
+    setIsExporting(true);
     const formData = new FormData();
-    formData.append("_action", "export_batch");
-    formData.append("reportType", exportReportType);
-    formData.append("format", exportFormat);
+    formData.append("_action", "generate_batch_report");
     formData.append("groupId", selectedGroup.id);
+    
+    // 根据 exportReportType 映射到 reportTypes
+    const reportTypesMap: Record<string, Array<"audit" | "migration" | "verification" | "template_apply">> = {
+      verification: ["verification"],
+      scan: ["audit"],
+      migration: ["migration"],
+    };
+    const reportTypes = reportTypesMap[exportReportType] || ["audit", "migration", "verification"];
+    formData.append("reportTypes", JSON.stringify(reportTypes));
+    formData.append("includeDetails", "true");
+    
+    // 如果格式是 PDF，直接下载；否则需要特殊处理
+    if (exportFormat === "pdf") {
+      showSuccess("正在生成批量报告，请稍候...");
+      
+      try {
+        const response = await fetch("/app/workspace", {
+          method: "POST",
+          body: formData,
+        });
 
-    showSuccess("正在生成批量报告，请稍候...");
-
-    fetch("/api/batch-reports", {
-      method: "POST",
-      body: formData,
-    })
-      .then(async (res) => {
-        const contentType = res.headers.get("content-type");
-
-        if (contentType?.includes("application/json")) {
-          return res.json();
-        } else if (contentType?.includes("application/pdf") || contentType?.includes("text/csv") || contentType?.includes("application/json")) {
-          const blob = await res.blob();
-          const url = URL.createObjectURL(blob);
-          const a = document.createElement("a");
-          a.href = url;
-          const disposition = res.headers.get("content-disposition");
-          const filename = disposition?.match(/filename="?(.+)"?/)?.[1] ||
-            `batch-${exportReportType}-report-${Date.now()}.${exportFormat === "pdf" ? "pdf" : exportFormat === "csv" ? "csv" : "json"}`;
-          a.download = filename;
-          document.body.appendChild(a);
-          a.click();
-          document.body.removeChild(a);
-          URL.revokeObjectURL(url);
-          setShowExportModal(false);
-          showSuccess(`批量报告已下载: ${filename}`);
-          return { success: true, downloaded: true };
-        } else {
-          const blob = await res.blob();
-          return blob.text().then((text) => {
-            try {
-              return JSON.parse(text);
-            } catch {
-              throw new Error("无法解析服务器响应");
-            }
-          });
+        if (!response.ok) {
+          const error = await response.json();
+          showError(error.error || "报告生成失败");
+          setIsExporting(false);
+          return;
         }
-      })
-      .then((data) => {
-        if (data.success) {
-          if (!data.downloaded) {
-            setExportResult(data);
-            setShowExportModal(false);
-            showSuccess(`批量导出完成：成功 ${data.result?.successCount || 0} 个，失败 ${data.result?.failedCount || 0} 个`);
-          }
-        } else {
-          showError(data.error || "导出失败");
-        }
-      })
-      .catch((error) => {
-        showError("导出失败：" + (error.message || "未知错误"));
-      });
-  }, [selectedGroup, exportReportType, exportFormat, showSuccess, showError]);
+
+        const blob = await response.blob();
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        const disposition = response.headers.get("content-disposition");
+        const filename = disposition?.match(/filename="?(.+)"?/)?.[1] ||
+          `batch-${exportReportType}-report-${new Date().toISOString().split("T")[0]}.pdf`;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        setShowExportModal(false);
+        showSuccess(`批量报告已下载: ${filename}`);
+      } catch (error) {
+        showError("导出失败：" + (error instanceof Error ? error.message : "未知错误"));
+      } finally {
+        setIsExporting(false);
+      }
+    } else {
+      showError("当前仅支持 PDF 格式导出，CSV 和 JSON 格式功能开发中");
+      setIsExporting(false);
+    }
+  }, [selectedGroup, exportReportType, exportFormat, showSuccess, showError, isExporting]);
 
   const handleBatchApply = useCallback(async (options: {
     overwriteExisting: boolean;
@@ -881,28 +944,30 @@ export default function WorkspacePage() {
   }, [selectedTemplate, selectedGroup, showSuccess, showError]);
 
   const handleCreateGroup = useCallback(() => {
-    if (!newGroupName.trim()) return;
+    if (!newGroupName.trim() || isSubmitting) return;
     const formData = new FormData();
     formData.append("_action", "create_group");
     formData.append("name", newGroupName.trim());
     submit(formData, { method: "post" });
     setShowCreateModal(false);
     setNewGroupName("");
-  }, [newGroupName, submit]);
+  }, [newGroupName, submit, isSubmitting]);
 
   const handleDeleteGroup = useCallback(
     (groupId: string) => {
+      if (isSubmitting) return;
       if (!confirm("确定要删除此分组吗？所有成员关联将被移除。")) return;
       const formData = new FormData();
       formData.append("_action", "delete_group");
       formData.append("groupId", groupId);
       submit(formData, { method: "post" });
     },
-    [submit]
+    [submit, isSubmitting]
   );
 
   const handleRemoveShop = useCallback(
     (groupId: string, shopId: string) => {
+      if (isSubmitting) return;
       if (!confirm("确定要从分组中移除此店铺吗？")) return;
       const formData = new FormData();
       formData.append("_action", "remove_shop");
@@ -910,28 +975,28 @@ export default function WorkspacePage() {
       formData.append("shopId", shopId);
       submit(formData, { method: "post" });
     },
-    [submit]
+    [submit, isSubmitting]
   );
 
   const handleBatchAudit = useCallback(() => {
-    if (!selectedGroup) return;
+    if (!selectedGroup || isSubmitting) return;
     if (!confirm(`确定要对「${selectedGroup.name}」中的所有店铺运行扫描吗？\n\n这将扫描 ${selectedGroup.memberCount} 个店铺，可能需要几分钟时间。`)) return;
 
     const formData = new FormData();
     formData.append("_action", "batch_audit");
     formData.append("groupId", selectedGroup.id);
     submit(formData, { method: "post" });
-  }, [selectedGroup, submit]);
+  }, [selectedGroup, submit, isSubmitting]);
 
   const handleSendInvitation = useCallback(() => {
-    if (!selectedGroup || !inviteeEmail.trim()) return;
+    if (!selectedGroup || !inviteeEmail.trim() || isSubmitting) return;
     const formData = new FormData();
     formData.append("_action", "send_invitation");
     formData.append("groupId", selectedGroup.id);
     formData.append("inviteeEmail", inviteeEmail.trim());
     formData.append("role", inviteRole);
     submit(formData, { method: "post" });
-  }, [selectedGroup, inviteeEmail, inviteRole, submit]);
+  }, [selectedGroup, inviteeEmail, inviteRole, submit, isSubmitting]);
 
   // 当 URL 参数变化时，同步更新 selectedTab
   useEffect(() => {
@@ -948,6 +1013,29 @@ export default function WorkspacePage() {
       setSelectedTab(newTabIndex);
     }
   }, [searchParams, selectedTab]);
+
+  // 当 URL 中有 tab 参数但没有 selectedGroup 时，自动选择第一个分组
+  useEffect(() => {
+    const tabParam = searchParams.get("tab");
+    const groupIdParam = searchParams.get("groupId");
+    
+    // 如果有 tab 参数但没有 groupId，且用户有分组但没有 selectedGroup，自动重定向到第一个分组
+    // 这样可以确保用户点击导航菜单中的按钮时，能够正确显示对应的 tab 内容
+    if (tabParam && !groupIdParam && groups.length > 0 && !selectedGroup) {
+      const firstGroupId = groups[0].id;
+      const newSearchParams = new URLSearchParams(searchParams);
+      newSearchParams.set("groupId", firstGroupId);
+      newSearchParams.set("tab", tabParam);
+      navigate(`?${newSearchParams.toString()}`, { replace: true });
+      return;
+    }
+    
+    // 如果有 tab 参数和 groupId，但 selectedGroup 为 null（可能是权限问题），显示提示
+    if (tabParam && groupIdParam && !selectedGroup && groups.length > 0) {
+      // 这种情况已经在 loader 中处理了，这里不需要额外处理
+      // 但如果所有分组都无法访问，用户会看到空状态
+    }
+  }, [searchParams, groups, selectedGroup, navigate]);
 
   // 处理 tab 切换，同时更新 URL
   const handleTabChange = useCallback((tabIndex: number) => {
@@ -1088,6 +1176,7 @@ export default function WorkspacePage() {
                                 variant="primary"
                                 onClick={handleBatchAudit}
                                 loading={isSubmitting}
+                                disabled={isSubmitting || !selectedGroup}
                               >
                                 批量扫描
                               </Button>
@@ -1096,6 +1185,8 @@ export default function WorkspacePage() {
                                 tone="critical"
                                 variant="plain"
                                 onClick={() => handleDeleteGroup(selectedGroup.id)}
+                                loading={isSubmitting}
+                                disabled={isSubmitting}
                               >
                                 删除分组
                               </Button>
@@ -1246,6 +1337,7 @@ export default function WorkspacePage() {
                             onClick={() => setShowInviteModal(true)}
                             variant="primary"
                             size="slim"
+                            disabled={isSubmitting || !selectedGroup}
                           >
                             邀请店铺
                           </Button>
@@ -1279,6 +1371,8 @@ export default function WorkspacePage() {
                                   onClick={() =>
                                     handleRemoveShop(selectedGroup.id, member.shopId)
                                   }
+                                  loading={isSubmitting}
+                                  disabled={isSubmitting}
                                 >
                                   移除
                                 </Button>
@@ -1317,7 +1411,11 @@ export default function WorkspacePage() {
                             <Text as="h2" variant="headingMd">
                               🎨 像素配置模板
                             </Text>
-                            <Button variant="primary" size="slim">
+                            <Button 
+                              variant="primary" 
+                              size="slim"
+                              url="/app/workspace/templates"
+                            >
                               创建模板
                             </Button>
                           </InlineStack>
@@ -1346,6 +1444,7 @@ export default function WorkspacePage() {
                                 <Button
                               size="slim"
                               onClick={() => {
+                                if (!selectedGroup || isSubmitting) return;
                                 setSelectedTemplate({
                                   id: "basic-tracking",
                                   name: "基础追踪套件",
@@ -1357,6 +1456,7 @@ export default function WorkspacePage() {
                                 });
                                 setShowBatchApplyModal(true);
                               }}
+                              disabled={!selectedGroup || isSubmitting}
                             >
                               应用到分组
                             </Button>
@@ -1376,6 +1476,7 @@ export default function WorkspacePage() {
                                 <Button
                                   size="slim"
                                   onClick={() => {
+                                    if (!selectedGroup || isSubmitting) return;
                                     setSelectedTemplate({
                                       id: "full-channel",
                                       name: "全渠道追踪套件",
@@ -1389,6 +1490,7 @@ export default function WorkspacePage() {
                                     });
                                     setShowBatchApplyModal(true);
                                   }}
+                                  disabled={!selectedGroup || isSubmitting}
                                 >
                                   应用到分组
                                 </Button>
@@ -1408,6 +1510,7 @@ export default function WorkspacePage() {
                                 <Button
                                   size="slim"
                                   onClick={() => {
+                                    if (!selectedGroup || isSubmitting) return;
                                     setSelectedTemplate({
                                       id: "capi-only",
                                       name: "仅服务端追踪",
@@ -1419,6 +1522,7 @@ export default function WorkspacePage() {
                                     });
                                     setShowBatchApplyModal(true);
                                   }}
+                                  disabled={!selectedGroup || isSubmitting}
                                 >
                                   应用到分组
                                 </Button>
@@ -1492,6 +1596,7 @@ export default function WorkspacePage() {
                               setSelectedTaskId(taskId);
                             }}
                             onTaskDelete={async (taskId) => {
+                              if (isSubmitting) return;
                               if (!confirm("确定要删除此任务吗？")) return;
                               const formData = new FormData();
                               formData.append("_action", "delete_task");
@@ -1574,6 +1679,7 @@ export default function WorkspacePage() {
                               icon={ExportIcon}
                               onClick={() => setShowExportModal(true)}
                               variant="primary"
+                              disabled={isExporting || !selectedGroup}
                             >
                               批量导出
                             </Button>
@@ -1701,7 +1807,8 @@ export default function WorkspacePage() {
         primaryAction={{
           content: "导出",
           onAction: handleBatchExport,
-          loading: isSubmitting,
+          loading: isExporting,
+          disabled: isExporting,
         }}
         secondaryActions={[
           {
@@ -1769,7 +1876,7 @@ export default function WorkspacePage() {
                 content: "复制链接",
                 onAction: () => {
                   navigator.clipboard.writeText(generatedInviteUrl);
-
+                  showSuccess("链接已复制到剪贴板");
                 },
               }
             : {
@@ -1871,31 +1978,61 @@ export default function WorkspacePage() {
 
       <Modal
         open={showCreateTaskModal}
-        onClose={() => setShowCreateTaskModal(false)}
+        onClose={() => {
+          setShowCreateTaskModal(false);
+          setNewTaskTitle("");
+          setNewTaskDescription("");
+        }}
         title="创建迁移任务"
         primaryAction={{
           content: "创建",
           onAction: () => {
-            if (!selectedGroup || !shop) return;
+            if (!selectedGroup || !shop || !newTaskTitle.trim() || isSubmitting) return;
             const formData = new FormData();
             formData.append("_action", "create_task");
             formData.append("groupId", selectedGroup.id);
             formData.append("shopId", shop.id);
-            formData.append("title", "新迁移任务");
+            formData.append("title", newTaskTitle.trim());
+            if (newTaskDescription.trim()) {
+              formData.append("description", newTaskDescription.trim());
+            }
             submit(formData, { method: "post" });
             setShowCreateTaskModal(false);
+            setNewTaskTitle("");
+            setNewTaskDescription("");
           },
           loading: isSubmitting,
+          disabled: !newTaskTitle.trim() || isSubmitting,
         }}
         secondaryActions={[
           {
             content: "取消",
-            onAction: () => setShowCreateTaskModal(false),
+            onAction: () => {
+              setShowCreateTaskModal(false);
+              setNewTaskTitle("");
+              setNewTaskDescription("");
+            },
           },
         ]}
       >
         <Modal.Section>
           <BlockStack gap="400">
+            <TextField
+              label="任务标题"
+              value={newTaskTitle}
+              onChange={setNewTaskTitle}
+              placeholder="例如：迁移 Facebook Pixel 到 CAPI"
+              autoComplete="off"
+              requiredIndicator
+            />
+            <TextField
+              label="任务描述（可选）"
+              value={newTaskDescription}
+              onChange={setNewTaskDescription}
+              placeholder="描述任务的具体内容和要求"
+              multiline={3}
+              autoComplete="off"
+            />
             <Banner tone="info">
               <Text as="p" variant="bodySm">
                 创建任务后，您可以将任务分配给团队成员，并通过评论进行协作。
