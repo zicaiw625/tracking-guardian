@@ -26,9 +26,9 @@ export function UpgradeGuideHelper({ onAssetsCreated }: UpgradeGuideHelperProps)
   const handleFileUpload = useCallback(async (file: File) => {
     if (!file) return;
 
-    const validTypes = ["image/png", "image/jpeg", "image/jpg", "image/webp", "text/plain"];
+    const validTypes = ["text/plain", "application/json"];
     if (!validTypes.includes(file.type)) {
-      showError("不支持的文件类型。请上传 PNG、JPEG 或文本文件。");
+      showError("不支持的文件类型。请上传文本或 JSON 文件。");
       return;
     }
 
@@ -43,14 +43,11 @@ export function UpgradeGuideHelper({ onAssetsCreated }: UpgradeGuideHelperProps)
 
     try {
 
-      if (file.type === "text/plain") {
+      if (file.type === "text/plain" || file.type === "application/json") {
         const text = await file.text();
         await parseTextList(text);
       } else {
-
-        showError("图片 OCR 功能开发中。请将清单内容复制为文本文件上传，或手动粘贴到脚本编辑器。");
-        setUploading(false);
-        return;
+        throw new Error("Unsupported file type");
       }
     } catch (error) {
 
@@ -199,7 +196,7 @@ export function UpgradeGuideHelper({ onAssetsCreated }: UpgradeGuideHelperProps)
         <Box>
           <input
             type="file"
-            accept=".txt,.text,.json,image/png,image/jpeg,image/jpg"
+            accept=".txt,.text,.json,application/json,text/plain"
             onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
               const files = e.target.files;
               if (files && files.length > 0) {
@@ -246,14 +243,19 @@ export function UpgradeGuideHelper({ onAssetsCreated }: UpgradeGuideHelperProps)
               </List.Item>
               <List.Item>
                 <Text as="span" variant="bodySm">
-                  图片文件（PNG/JPEG）：OCR 功能开发中
+                  图片文件：图片 OCR 功能开发中，暂不支持
                 </Text>
               </List.Item>
             </List>
           </BlockStack>
         </Banner>
+
+        <Banner tone="warning">
+          <Text as="p" variant="bodySm">
+            截图上传暂不支持。如识别失败或没有文本文件，请改用“文本粘贴”作为回退方式。
+          </Text>
+        </Banner>
       </BlockStack>
     </Card>
   );
 }
-

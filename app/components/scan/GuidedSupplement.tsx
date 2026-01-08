@@ -345,9 +345,12 @@ export function GuidedSupplement({
                       </Text>
                     </List.Item>
                     <List.Item>
-                      <Text as="span" variant="bodySm">
-                        <strong>方式二：</strong>上传升级向导的截图（支持 PNG、JPG 格式）
-                      </Text>
+                      <InlineStack gap="100" blockAlign="center">
+                        <Text as="span" variant="bodySm" tone="subdued">
+                          <strong>方式二：</strong>上传升级向导的截图
+                        </Text>
+                        <Badge tone="info" size="small">即将上线</Badge>
+                      </InlineStack>
                     </List.Item>
                   </List>
                 </BlockStack>
@@ -372,7 +375,7 @@ export function GuidedSupplement({
 
               <Banner>
                 <Text as="p" variant="bodySm">
-                  💡 <strong>提示：</strong>截图上传功能正在开发中。目前请使用文本粘贴方式。
+                  💡 <strong>提示：</strong>截图上传功能暂不支持，图片 OCR 功能开发中。如截图识别失败，请回退到“文本粘贴”方式补充信息。
                 </Text>
               </Banner>
 
@@ -490,4 +493,3 @@ export function GuidedSupplement({
     </Modal>
   );
 }
-
