@@ -32,6 +32,9 @@ type ActionData = {
   jobId?: string;
 };
 
+const PAID_REPORT_TYPES: ReportType[] = ["verification", "reconciliation", "comprehensive"];
+const EXPORT_UPGRADE_MESSAGE = "Audit 基础报告免费，验收/监控报告需升级。";
+
 const REPORT_LABELS: Record<ReportType, string> = {
   scan: "Audit 报告",
   migration: "迁移报告",
@@ -105,13 +108,6 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     return json({ error: "Shop not found" }, { status: 404 });
   }
 
-  const planId = normalizePlanId(shop.plan || "free") as PlanId;
-  const gateResult = checkFeatureAccess(planId, "report_export");
-
-  if (!gateResult.allowed) {
-    return json({ error: gateResult.reason || "暂无导出权限" }, { status: 403 });
-  }
-
   const reportType = formData.get("reportType") as ReportType | null;
   const format = formData.get("format") as ReportFormat | null;
   const runId = formData.get("runId") as string | null;
@@ -120,6 +116,14 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 
   if (!reportType || !format) {
     return json({ error: "缺少报告类型或格式" }, { status: 400 });
+  }
+
+  const planId = normalizePlanId(shop.plan || "free") as PlanId;
+  const gateResult = checkFeatureAccess(planId, "report_export");
+  const requiresPaidExport = PAID_REPORT_TYPES.includes(reportType);
+
+  if (requiresPaidExport && !gateResult.allowed) {
+    return json({ error: gateResult.reason || EXPORT_UPGRADE_MESSAGE }, { status: 403 });
   }
 
   if (reportType === "verification" && !runId) {
@@ -242,7 +246,7 @@ export default function ReportsPage() {
               <Banner tone="warning" title="报告导出需要升级套餐">
                 <BlockStack gap="200">
                   <Text as="p" variant="bodySm">
-                    {gateResult.reason || "报告导出需要 Go-Live 或 Agency 套餐。"}
+                    {gateResult.reason || EXPORT_UPGRADE_MESSAGE}
                   </Text>
                   <Button url="/app/billing" variant="primary" size="slim">
                     查看套餐
@@ -281,7 +285,7 @@ export default function ReportsPage() {
                               <Button
                                 submit
                                 size="slim"
-                                disabled={!gateResult.allowed || isSubmitting || (option.requiresRunId && !latestVerificationRunId)}
+                                disabled={(PAID_REPORT_TYPES.includes(option.type) && !gateResult.allowed) || isSubmitting || (option.requiresRunId && !latestVerificationRunId)}
                               >
                                 导出 {format.toUpperCase()}
                               </Button>

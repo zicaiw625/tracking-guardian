@@ -22,7 +22,6 @@ import {
   generateVerificationReportCSV,
  generateVerificationReportPDF } from "../services/verification-report.server";
 import { exportComprehensiveReport } from "../services/comprehensive-report.server";
-import { normalizePlanId, planSupportsReportExport, type PlanId } from "../services/billing/plans";
 import { createReportJob } from "../services/report-job.server";
 
 type ReportType = "scan" | "migration" | "reconciliation" | "risk" | "verification" | "comprehensive";
@@ -44,8 +43,10 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   const format = url.searchParams.get("format") || "html";
   const days = parseInt(url.searchParams.get("days") || "7", 10);
   const runId = url.searchParams.get("runId") || undefined;
+  const paidExportTypes: ReportType[] = ["verification", "reconciliation", "comprehensive"];
+  const requiresPaidExport = paidExportTypes.includes(reportType);
 
-  if (format === "pdf" || format === "csv") {
+  if ((format === "pdf" || format === "csv") && requiresPaidExport) {
 
     try {
       const { requireEntitlementOrThrow } = await import("../services/billing/entitlement.server");
@@ -54,7 +55,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       const errorMessage = error instanceof Error ? error.message : "权限不足";
       return new Response(
         JSON.stringify({
-          error: errorMessage || "报告导出（PDF/CSV）需要 Go-Live 或 Agency 套餐。免费版和 Migration 版只能查看和分享链接。",
+          error: errorMessage || "Audit 基础报告免费，验收/监控/综合报告需升级。",
           requiredPlan: "Go-Live",
         }),
         {
@@ -63,7 +64,9 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
         }
       );
     }
+  }
 
+  if (format === "pdf" || format === "csv") {
     const asyncParam = url.searchParams.get("async");
     if (asyncParam !== "false") {
       const job = await createReportJob({
