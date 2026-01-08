@@ -1,6 +1,6 @@
 import type { ActionFunctionArgs, LoaderFunctionArgs } from "@remix-run/node";
 import { json } from "@remix-run/node";
-import { useLoaderData, useSubmit, useNavigation, useRevalidator, useActionData } from "@remix-run/react";
+import { useLoaderData, useSubmit, useNavigation, useRevalidator, useActionData, useSearchParams, useNavigate } from "@remix-run/react";
 import { useState, useCallback, useEffect, Suspense, lazy } from "react";
 import {
   Page,
@@ -638,9 +638,28 @@ export default function WorkspacePage() {
   const submit = useSubmit();
   const navigation = useNavigation();
   const revalidator = useRevalidator();
+  const navigate = useNavigate();
   const { showSuccess, showError } = useToastContext();
 
-  const [selectedTab, setSelectedTab] = useState(0);
+  const [searchParams] = useSearchParams();
+  const tabParam = searchParams.get("tab");
+  
+  const tabs = [
+    { id: "overview", content: "概览" },
+    { id: "batch", content: "批量操作" },
+    { id: "shops", content: "店铺管理" },
+    { id: "templates", content: "像素模板" },
+    { id: "tasks", content: "任务管理" },
+    { id: "reports", content: "汇总报告" },
+  ];
+
+  const getTabIndex = (tab: string | null): number => {
+    if (!tab) return 0;
+    const index = tabs.findIndex((t) => t.id === tab);
+    return index >= 0 ? index : 0;
+  };
+
+  const [selectedTab, setSelectedTab] = useState(() => getTabIndex(tabParam));
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showInviteModal, setShowInviteModal] = useState(false);
   const [inviteeEmail, setInviteeEmail] = useState("");
@@ -713,6 +732,21 @@ export default function WorkspacePage() {
   }>>([]);
 
   const isSubmitting = navigation.state === "submitting";
+
+  useEffect(() => {
+    const newTabIndex = getTabIndex(tabParam);
+    setSelectedTab(newTabIndex);
+  }, [tabParam]);
+
+  const handleTabChange = useCallback((tabIndex: number) => {
+    setSelectedTab(tabIndex);
+    const tabId = tabs[tabIndex]?.id;
+    if (tabId) {
+      const url = new URL(window.location.href);
+      url.searchParams.set("tab", tabId);
+      navigate(url.pathname + url.search, { replace: true });
+    }
+  }, [navigate]);
 
   useEffect(() => {
     if (actionData) {
@@ -917,15 +951,6 @@ export default function WorkspacePage() {
     submit(formData, { method: "post" });
   }, [selectedGroup, inviteeEmail, inviteRole, submit]);
 
-  const tabs = [
-    { id: "overview", content: "概览" },
-    { id: "batch", content: "批量操作" },
-    { id: "shops", content: "店铺管理" },
-    { id: "templates", content: "像素模板" },
-    { id: "tasks", content: "任务管理" },
-    { id: "reports", content: "汇总报告" },
-  ];
-
   if (!canManage) {
     return (
       <Page title="多店管理">
@@ -1026,7 +1051,7 @@ export default function WorkspacePage() {
             </Card>
 
             {selectedGroup && (
-              <Tabs tabs={tabs} selected={selectedTab} onSelect={setSelectedTab}>
+              <Tabs tabs={tabs} selected={selectedTab} onSelect={handleTabChange}>
                 {selectedTab === 0 && (
                   <Box paddingBlockStart="400">
                     <BlockStack gap="500">
