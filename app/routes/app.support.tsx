@@ -21,14 +21,14 @@ export default function SupportPage() {
       <BlockStack gap="500">
         <PageIntroCard
           title="支持与工单"
-          description="遇到迁移、像素、验收问题可通过工单与 FAQ 获取支持。"
+          description="遇到迁移、像素、验收问题可通过工单与 FAQ 获取支持。诊断包包含配置快照、像素/事件日志摘要与错误指标，不包含订单或客户 PII。"
           items={[
             "紧急问题请优先提交诊断包",
             "支持 PII/PCD 与隐私合规咨询",
             "迁移方案可预约专家协助",
           ]}
           primaryAction={{ content: "查看 FAQ", url: faqUrl }}
-          secondaryAction={{ content: "导出报告", url: "/app/reports" }}
+          secondaryAction={{ content: "诊断包导出", url: "/app/diagnostics" }}
         />
 
         <Layout>
