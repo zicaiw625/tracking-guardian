@@ -429,7 +429,7 @@ export interface BatchReportData {
  * PRD 2.2: 提取迁移所需的信息
  * 根据资产类型和迁移路径，提取需要的信息（如Pixel ID、Token、问卷题目等）
  */
-function extractRequiredInfo(
+export function extractRequiredInfo(
   asset: {
     category: string;
     platform: string | null;
@@ -440,7 +440,7 @@ function extractRequiredInfo(
   const info: string[] = [];
   const details = asset.details || {};
 
-    if (asset.suggestedMigration === "web_pixel") {
+  if (asset.suggestedMigration === "web_pixel") {
     if (asset.platform === "google" || asset.platform === "ga4") {
       if (details.pixelId) info.push(`Pixel ID: ${details.pixelId}`);
       if (details.measurementId) info.push(`Measurement ID: ${details.measurementId}`);
@@ -455,7 +455,7 @@ function extractRequiredInfo(
     }
   }
 
-    if (asset.suggestedMigration === "ui_extension") {
+  if (asset.suggestedMigration === "ui_extension") {
     if (asset.category === "survey") {
       if (details.questions) {
         const questions = Array.isArray(details.questions)
@@ -481,13 +481,13 @@ function extractRequiredInfo(
     }
   }
 
-    if (asset.suggestedMigration === "server_side") {
+  if (asset.suggestedMigration === "server_side") {
     if (details.apiKey) info.push(`API Key: [已配置]`);
     if (details.apiSecret) info.push(`API Secret: [已配置]`);
     if (details.endpoint) info.push(`Endpoint: ${details.endpoint}`);
   }
 
-    if (info.length === 0) {
+  if (info.length === 0) {
     if (asset.suggestedMigration === "web_pixel") {
       info.push("需要配置平台凭据（Pixel ID、Access Token等）");
     } else if (asset.suggestedMigration === "ui_extension") {
@@ -505,7 +505,7 @@ function extractRequiredInfo(
 /**
  * PRD 2.2: 获取风险原因
  */
-function getRiskReason(
+export function getRiskReason(
   asset: {
     category: string;
     platform: string | null;
@@ -534,7 +534,7 @@ function getRiskReason(
     reasons.push("低风险，可延后处理");
   }
 
-    if (asset.platform) {
+  if (asset.platform) {
     reasons.push(`平台: ${asset.platform}`);
   }
 

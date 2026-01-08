@@ -1,6 +1,7 @@
 
 import prisma from "../db.server";
 import { logger } from "../utils/logger.server";
+import { extractRequiredInfo, getRiskReason } from "./report-generator.server";
 import type { VerificationSummary } from "./verification.server";
 
 export interface ExportOptions {
@@ -488,12 +489,32 @@ async function exportChecklistToPDF(shopDomain: string, assets: Array<Record<str
     assets.forEach((asset, index) => {
       if (index > 0) doc.moveDown(0.5);
       doc.fontSize(10);
-      doc.text(`${index + 1}. ${asset.displayName || asset.category}`, { font: "Helvetica-Bold" });
-      doc.text(`   优先级: ${asset.priority || "N/A"} | 风险等级: ${asset.riskLevel || "N/A"}`);
-      doc.text(`   平台: ${asset.platform || "N/A"} | 分类: ${asset.category || "N/A"}`);
-      doc.text(`   建议迁移方式: ${asset.suggestedMigration || "N/A"}`);
-      doc.text(`   预计时间: ${asset.estimatedTimeMinutes || "N/A"} 分钟`);
-      doc.text(`   状态: ${asset.migrationStatus || "pending"}`);
+      const assetName = String(asset.displayName || asset.category || "");
+      const fingerprint = asset.fingerprint ? `(${String(asset.fingerprint).substring(0, 8)}...)` : "";
+      const assetNameWithFingerprint = `${assetName} ${fingerprint}`.trim();
+
+      const riskReason = getRiskReason({
+        category: String(asset.category || ""),
+        platform: asset.platform ? String(asset.platform) : null,
+        riskLevel: String(asset.riskLevel || ""),
+        details: asset.details as Record<string, unknown> | null,
+      });
+      const riskLabel = getRiskLevelLabel(String(asset.riskLevel || ""));
+      const migrationPath = getMigrationTypeLabel(String(asset.suggestedMigration || ""));
+      const estimatedTime = typeof asset.estimatedTimeMinutes === "number"
+        ? formatEstimatedTime(asset.estimatedTimeMinutes)
+        : "待估算";
+      const requiredInfo = extractRequiredInfo({
+        category: String(asset.category || ""),
+        platform: asset.platform ? String(asset.platform) : null,
+        suggestedMigration: String(asset.suggestedMigration || ""),
+        details: asset.details as Record<string, unknown> | null,
+      });
+
+      doc.text(`${index + 1}. ${assetNameWithFingerprint}`, { font: "Helvetica-Bold" });
+      doc.text(`   风险等级 + 原因: ${riskLabel} - ${riskReason}`);
+      doc.text(`   推荐迁移路径: ${migrationPath}`);
+      doc.text(`   预估工时 + 需要的信息: ${estimatedTime} | ${requiredInfo}`);
     });
 
     doc.moveDown(2);
@@ -536,19 +557,33 @@ function exportChecklistToCSV(shopDomain: string, assets: Array<Record<string, u
   lines.push(`生成时间: ${new Date().toLocaleString("zh-CN")}`);
   lines.push(`待迁移项: ${assets.length}`);
   lines.push("");
-  lines.push("优先级,风险等级,资产名称,平台,分类,建议迁移方式,预计时间(分钟),状态");
+  lines.push("资产名称/指纹,风险等级+原因,推荐迁移路径,预估工时+需要的信息");
 
   assets.forEach((asset) => {
-    const row = [
-      asset.priority || "",
-      asset.riskLevel || "",
-      asset.displayName || "",
-      asset.platform || "",
-      asset.category || "",
-      asset.suggestedMigration || "",
-      asset.estimatedTimeMinutes || "",
-      asset.migrationStatus || "",
-    ];
+    const assetName = String(asset.displayName || asset.category || "");
+    const fingerprint = asset.fingerprint ? `(${String(asset.fingerprint).substring(0, 8)}...)` : "";
+    const assetNameWithFingerprint = `${assetName} ${fingerprint}`.trim();
+
+    const riskReason = getRiskReason({
+      category: String(asset.category || ""),
+      platform: asset.platform ? String(asset.platform) : null,
+      riskLevel: String(asset.riskLevel || ""),
+      details: asset.details as Record<string, unknown> | null,
+    });
+    const riskDisplay = `${asset.riskLevel || ""} - ${riskReason}`;
+    const migrationPath = getMigrationTypeLabel(String(asset.suggestedMigration || ""));
+    const timeDisplay = typeof asset.estimatedTimeMinutes === "number"
+      ? formatEstimatedTime(asset.estimatedTimeMinutes)
+      : "待估算";
+    const requiredInfo = extractRequiredInfo({
+      category: String(asset.category || ""),
+      platform: asset.platform ? String(asset.platform) : null,
+      suggestedMigration: String(asset.suggestedMigration || ""),
+      details: asset.details as Record<string, unknown> | null,
+    });
+    const timeAndInfo = `${timeDisplay} | ${requiredInfo}`;
+
+    const row = [assetNameWithFingerprint, riskDisplay, migrationPath, timeAndInfo];
     lines.push(row.map((cell) => `"${cell}"`).join(","));
   });
 
@@ -566,14 +601,56 @@ function exportChecklistToJSON(shopDomain: string, assets: Array<Record<string, 
       platform: asset.platform,
       category: asset.category,
       riskLevel: asset.riskLevel,
+      riskReason: getRiskReason({
+        category: String(asset.category || ""),
+        platform: asset.platform ? String(asset.platform) : null,
+        riskLevel: String(asset.riskLevel || ""),
+        details: asset.details as Record<string, unknown> | null,
+      }),
       priority: asset.priority,
       suggestedMigration: asset.suggestedMigration,
+      migrationPath: getMigrationTypeLabel(String(asset.suggestedMigration || "")),
       estimatedTimeMinutes: asset.estimatedTimeMinutes,
+      requiredInfo: extractRequiredInfo({
+        category: String(asset.category || ""),
+        platform: asset.platform ? String(asset.platform) : null,
+        suggestedMigration: String(asset.suggestedMigration || ""),
+        details: asset.details as Record<string, unknown> | null,
+      }),
       migrationStatus: asset.migrationStatus,
+      fingerprint: asset.fingerprint,
     })),
   };
 
   return JSON.stringify(data, null, 2);
+}
+
+function getMigrationTypeLabel(type: string): string {
+  const labels: Record<string, string> = {
+    web_pixel: "Web Pixel",
+    ui_extension: "UI Extension",
+    server_side: "服务端 CAPI",
+    none: "无需迁移",
+  };
+  return labels[type] || type;
+}
+
+function getRiskLevelLabel(riskLevel: string): string {
+  const labels: Record<string, string> = {
+    high: "高风险",
+    medium: "中风险",
+    low: "低风险",
+  };
+  return labels[riskLevel] || riskLevel;
+}
+
+function formatEstimatedTime(minutes: number): string {
+  if (minutes < 60) {
+    return `${minutes} 分钟`;
+  }
+  const hours = Math.floor(minutes / 60);
+  const mins = minutes % 60;
+  return mins > 0 ? `${hours} 小时 ${mins} 分钟` : `${hours} 小时`;
 }
 
 export async function exportMultiShopReport(
@@ -797,4 +874,3 @@ async function exportMultiShopToPDF(
     return exportMultiShopToJSON(shops, shopAssets, options);
   }
 }
-

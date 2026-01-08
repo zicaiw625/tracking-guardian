@@ -2,6 +2,7 @@
 
 import prisma from "../db.server";
 import { logger } from "../utils/logger.server";
+import { extractRequiredInfo, getRiskReason } from "./report-generator.server";
 import type { AuditAsset } from "@prisma/client";
 
 export interface MigrationChecklistItem {
@@ -12,9 +13,11 @@ export interface MigrationChecklistItem {
   category: string;
   platform?: string;
   riskLevel: "high" | "medium" | "low";
+  riskReason: string;
   suggestedMigration: "web_pixel" | "ui_extension" | "server_side" | "none";
   priority: number;
   estimatedTime: number;
+  requiredInfo: string;
   status: "pending" | "in_progress" | "completed" | "skipped";
   fingerprint?: string | null;
 }
@@ -287,6 +290,19 @@ export async function generateMigrationChecklist(
       complexity
     );
 
+    const riskReason = getRiskReason({
+      category: asset.category,
+      platform: asset.platform,
+      riskLevel: asset.riskLevel,
+      details: asset.details as Record<string, unknown> | null,
+    });
+    const requiredInfo = extractRequiredInfo({
+      category: asset.category,
+      platform: asset.platform,
+      suggestedMigration: asset.suggestedMigration,
+      details: asset.details as Record<string, unknown> | null,
+    });
+
     return {
       id: `checklist-${asset.id}`,
       assetId: asset.id,
@@ -295,6 +311,7 @@ export async function generateMigrationChecklist(
       category: asset.category,
       platform: asset.platform || undefined,
       riskLevel: asset.riskLevel as "high" | "medium" | "low",
+      riskReason,
       suggestedMigration: asset.suggestedMigration as
         | "web_pixel"
         | "ui_extension"
@@ -302,6 +319,7 @@ export async function generateMigrationChecklist(
         | "none",
       priority,
       estimatedTime,
+      requiredInfo,
       status: asset.migrationStatus as
         | "pending"
         | "in_progress"
@@ -494,4 +512,3 @@ export async function updateChecklistItemStatus(
     },
   });
 }
-
