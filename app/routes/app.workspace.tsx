@@ -638,12 +638,10 @@ export default function WorkspacePage() {
   const submit = useSubmit();
   const navigation = useNavigation();
   const revalidator = useRevalidator();
-  const navigate = useNavigate();
   const { showSuccess, showError } = useToastContext();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const navigate = useNavigate();
 
-  const [searchParams] = useSearchParams();
-  const tabParam = searchParams.get("tab");
-  
   const tabs = [
     { id: "overview", content: "概览" },
     { id: "batch", content: "批量操作" },
@@ -653,13 +651,12 @@ export default function WorkspacePage() {
     { id: "reports", content: "汇总报告" },
   ];
 
-  const getTabIndex = (tab: string | null): number => {
-    if (!tab) return 0;
-    const index = tabs.findIndex((t) => t.id === tab);
-    return index >= 0 ? index : 0;
-  };
-
-  const [selectedTab, setSelectedTab] = useState(() => getTabIndex(tabParam));
+  const [selectedTab, setSelectedTab] = useState(() => {
+    const tabParam = searchParams.get("tab");
+    if (!tabParam) return 0;
+    const tabIndex = tabs.findIndex(t => t.id === tabParam);
+    return tabIndex >= 0 ? tabIndex : 0;
+  });
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showInviteModal, setShowInviteModal] = useState(false);
   const [inviteeEmail, setInviteeEmail] = useState("");
@@ -732,21 +729,6 @@ export default function WorkspacePage() {
   }>>([]);
 
   const isSubmitting = navigation.state === "submitting";
-
-  useEffect(() => {
-    const newTabIndex = getTabIndex(tabParam);
-    setSelectedTab(newTabIndex);
-  }, [tabParam]);
-
-  const handleTabChange = useCallback((tabIndex: number) => {
-    setSelectedTab(tabIndex);
-    const tabId = tabs[tabIndex]?.id;
-    if (tabId) {
-      const url = new URL(window.location.href);
-      url.searchParams.set("tab", tabId);
-      navigate(url.pathname + url.search, { replace: true });
-    }
-  }, [navigate]);
 
   useEffect(() => {
     if (actionData) {
@@ -950,6 +932,40 @@ export default function WorkspacePage() {
     formData.append("role", inviteRole);
     submit(formData, { method: "post" });
   }, [selectedGroup, inviteeEmail, inviteRole, submit]);
+
+  // 当 URL 参数变化时，同步更新 selectedTab
+  useEffect(() => {
+    const tabParam = searchParams.get("tab");
+    if (!tabParam) {
+      if (selectedTab !== 0) {
+        setSelectedTab(0);
+      }
+      return;
+    }
+    const tabIndex = tabs.findIndex(t => t.id === tabParam);
+    const newTabIndex = tabIndex >= 0 ? tabIndex : 0;
+    if (newTabIndex !== selectedTab) {
+      setSelectedTab(newTabIndex);
+    }
+  }, [searchParams, selectedTab]);
+
+  // 处理 tab 切换，同时更新 URL
+  const handleTabChange = useCallback((tabIndex: number) => {
+    setSelectedTab(tabIndex);
+    const newSearchParams = new URLSearchParams(searchParams);
+    const tabId = tabs[tabIndex]?.id;
+    if (tabId) {
+      newSearchParams.set("tab", tabId);
+    } else {
+      newSearchParams.delete("tab");
+    }
+    // 保留 groupId 参数
+    const groupId = searchParams.get("groupId");
+    if (groupId) {
+      newSearchParams.set("groupId", groupId);
+    }
+    navigate(`?${newSearchParams.toString()}`, { replace: true });
+  }, [searchParams, navigate]);
 
   if (!canManage) {
     return (
@@ -1212,7 +1228,7 @@ export default function WorkspacePage() {
                   </Box>
                 )}
 
-                {selectedTab === 3 && (
+                {selectedTab === 2 && (
                   <Box paddingBlockStart="400">
                     <Card>
                       <BlockStack gap="400">
@@ -1292,7 +1308,7 @@ export default function WorkspacePage() {
                   </Box>
                 )}
 
-                {selectedTab === 2 && (
+                {selectedTab === 3 && (
                   <Box paddingBlockStart="400">
                     <BlockStack gap="500">
                       <Card>
