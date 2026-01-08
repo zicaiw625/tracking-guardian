@@ -61,7 +61,7 @@ export default function UiModulePublishGuide() {
     <Page
       title={`${moduleName} 发布指引`}
       subtitle="在 Shopify Checkout Editor 中放置应用 block 并完成发布"
-      backAction={{ content: "返回模块列表", url: "/app/ui-blocks" }}
+      backAction={{ content: "返回模块列表", url: "/app/modules" }}
     >
       <Layout>
         <Layout.Section>
@@ -74,7 +74,7 @@ export default function UiModulePublishGuide() {
                 "完成配置后点击发布",
                 "发布完成可回到模块列表查看状态",
               ]}
-              primaryAction={{ content: "返回模块列表", url: "/app/ui-blocks" }}
+              primaryAction={{ content: "返回模块列表", url: "/app/modules" }}
             />
             <Banner tone="info">
               <BlockStack gap="200">

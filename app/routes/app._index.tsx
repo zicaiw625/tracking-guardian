@@ -1538,7 +1538,7 @@ export default function Index() {
                     <Icon source={LockIcon} />
                   </InlineStack>
                   <Button
-                    url={isPlanAtLeast(data.planId || "free", "starter") ? "/app/ui-blocks" : "/app/billing"}
+                    url={isPlanAtLeast(data.planId || "free", "starter") ? "/app/modules" : "/app/billing"}
                     variant={isPlanAtLeast(data.planId || "free", "starter") ? "primary" : "secondary"}
                     fullWidth
                   >

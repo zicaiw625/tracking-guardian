@@ -2073,7 +2073,7 @@ export function ScanPage({
                   </Button>
                   <Button
                     variant={isPlanAtLeast(planIdSafe, "starter") ? "primary" : "secondary"}
-                    url={isPlanAtLeast(planIdSafe, "starter") ? "/app/ui-blocks" : "/app/billing?upgrade=starter"}
+                    url={isPlanAtLeast(planIdSafe, "starter") ? "/app/modules" : "/app/billing?upgrade=starter"}
                     size="large"
                   >
                     {isPlanAtLeast(planIdSafe, "starter") ? "安装页面模块" : "安装页面模块（Starter $29/月）"}
@@ -3661,7 +3661,7 @@ export function ScanPage({
                       </Button>
                       <Button
                         variant={isPlanAtLeast(planIdSafe, "starter") ? "primary" : "secondary"}
-                        url={isPlanAtLeast(planIdSafe, "starter") ? "/app/ui-blocks" : "/app/billing?upgrade=starter"}
+                        url={isPlanAtLeast(planIdSafe, "starter") ? "/app/modules" : "/app/billing?upgrade=starter"}
                         size="large"
                       >
                         {isPlanAtLeast(planIdSafe, "starter") ? "安装页面模块" : "安装页面模块（Starter $29/月）"}

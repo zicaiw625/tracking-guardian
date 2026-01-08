@@ -144,7 +144,7 @@ export default function UiModuleConfigPage() {
     <Page
       title={`${moduleInfo.name} 配置`}
       subtitle="文案/本地化/显示规则"
-      backAction={{ content: "返回模块列表", url: "/app/ui-blocks" }}
+      backAction={{ content: "返回模块列表", url: "/app/modules" }}
     >
       <Layout>
         <Layout.Section>
@@ -157,7 +157,7 @@ export default function UiModuleConfigPage() {
                 "配置后需在 Checkout Editor 发布",
               ]}
               primaryAction={{ content: "发布指引", url: `/app/modules/${moduleKey}/publish` }}
-              secondaryAction={{ content: "返回模块列表", url: "/app/ui-blocks" }}
+              secondaryAction={{ content: "返回模块列表", url: "/app/modules" }}
             />
             {!canEdit && (
               <Banner tone="warning">
