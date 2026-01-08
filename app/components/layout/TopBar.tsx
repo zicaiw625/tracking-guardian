@@ -55,6 +55,20 @@ export function TopBar({
   const [loadingMetrics, setLoadingMetrics] = useState(false);
   const [alertPopoverActive, setAlertPopoverActive] = useState(false);
 
+  const handleUpgradeClick = useCallback(() => {
+    void fetch("/api/analytics.track", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        event: "app_upgrade_clicked",
+        metadata: {
+          plan: planId,
+          triggerPage: "top_bar",
+        },
+      }),
+    });
+  }, [planId]);
+
   const fetchAlertMetrics = useCallback(async () => {
     if (loadingMetrics || alertMetrics) return;
 
@@ -130,6 +144,7 @@ export function TopBar({
                 size="slim"
                 variant="plain"
                 url="/app/billing"
+                onClick={handleUpgradeClick}
               >
                 升级
               </Button>
@@ -242,4 +257,3 @@ export function TopBar({
     </Box>
   );
 }
-
