@@ -2,6 +2,7 @@ import { Links, Meta, Outlet, Scripts, ScrollRestoration, useRouteError, isRoute
 import { useEffect } from "react";
 import polarisStyles from "@shopify/polaris/build/esm/styles.css?url";
 import { reportWebVitals } from "./utils/web-vitals.client";
+import { suppressMonorailErrors } from "./utils/suppress-monorail-errors.client";
 
 export const links = () => [{ rel: "stylesheet", href: polarisStyles }];
 
@@ -9,6 +10,7 @@ function PerformanceMonitor() {
   useEffect(() => {
     if (typeof window !== "undefined") {
       reportWebVitals();
+      suppressMonorailErrors();
     }
   }, []);
   return null;

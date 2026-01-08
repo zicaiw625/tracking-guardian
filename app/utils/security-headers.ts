@@ -22,7 +22,6 @@ export const CSP_DIRECTIVES: Record<string, string[]> = {
   "connect-src": [
     "'self'",
     "https://cdn.shopify.com",
-    "https://cdn.shopify.com",
     "https://monorail-edge.shopifysvc.com",
   ],
   "frame-ancestors": ["https://admin.shopify.com"],
