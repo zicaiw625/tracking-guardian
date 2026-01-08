@@ -1814,7 +1814,7 @@ export function ScanPage({
 
     paywallViewTrackedRef.current = true;
     const riskScore = latestScan?.riskScore ?? 0;
-    void fetch("/api/analytics.track", {
+    void fetch("/api/analytics-track", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({

@@ -165,15 +165,19 @@ const CREATE_ONE_TIME_PURCHASE_MUTATION = `
 const GET_ONE_TIME_PURCHASES_QUERY = `
   query GetOneTimePurchases {
     appInstallation {
-      oneTimePurchases {
-        id
-        name
-        status
-        price {
-          amount
-          currencyCode
+      oneTimePurchases(first: 250) {
+        edges {
+          node {
+            id
+            name
+            status
+            price {
+              amount
+              currencyCode
+            }
+            createdAt
+          }
         }
-        createdAt
       }
     }
   }
@@ -192,7 +196,8 @@ export async function getBillingHistory(
     const purchaseData = await purchaseResponse.json();
 
     const subscriptions = subscriptionData.data?.appInstallation?.activeSubscriptions || [];
-    const purchases = purchaseData.data?.appInstallation?.oneTimePurchases || [];
+    const purchasesConnection = purchaseData.data?.appInstallation?.oneTimePurchases;
+    const purchases = purchasesConnection?.edges?.map((edge: { node: unknown }) => edge.node) || [];
 
     const subscriptionItems = subscriptions.flatMap(
       (subscription: {
@@ -583,7 +588,8 @@ export async function getOneTimePurchaseStatus(
   try {
     const response = await admin.graphql(GET_ONE_TIME_PURCHASES_QUERY);
     const data = await response.json();
-    const purchases = data.data?.appInstallation?.oneTimePurchases || [];
+    const purchasesConnection = data.data?.appInstallation?.oneTimePurchases;
+    const purchases = purchasesConnection?.edges?.map((edge: { node: unknown }) => edge.node) || [];
 
     const activePurchase = purchases.find(
       (p: { status: string }) => p.status === "ACTIVE"

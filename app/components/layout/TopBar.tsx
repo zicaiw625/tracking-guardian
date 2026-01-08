@@ -56,7 +56,7 @@ export function TopBar({
   const [alertPopoverActive, setAlertPopoverActive] = useState(false);
 
   const handleUpgradeClick = useCallback(() => {
-    void fetch("/api/analytics.track", {
+    void fetch("/api/analytics-track", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
