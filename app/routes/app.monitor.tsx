@@ -677,7 +677,7 @@ export default function MonitorPage() {
               </List.Item>
             </List>
             <Text as="p" variant="bodySm" tone="subdued">
-              参考：<Link url="https:
+              参考：<Link url="https://shopify.dev/docs/apps/online-store/customer-privacy-api" external>Shopify Customer Privacy API</Link>
             </Text>
           </BlockStack>
         </Banner>

@@ -197,7 +197,7 @@ export const SHOPIFY_API_CONFIG = {
 export const PLATFORM_ENDPOINTS = {
 
     GA4_MEASUREMENT_PROTOCOL: (measurementId: string, apiSecret: string): string =>
-        `https:
+        `https://www.google-analytics.com/mp/collect?measurement_id=${measurementId}&api_secret=${apiSecret}`,
 
     META_GRAPH_API: (pixelId: string, version: string = "v21.0"): string =>
         `https://graph.facebook.com/${version}/${pixelId}/events`,

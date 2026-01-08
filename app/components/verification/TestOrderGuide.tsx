@@ -167,7 +167,7 @@ export function TestOrderGuide({
               <br />
               • <a href="https://help.shopify.com/en/manual/checkout-settings/test-checkout" target="_blank" rel="noopener noreferrer">测试结账流程</a>
               <br />
-              • <a href="https:
+              • <a href="https://help.shopify.com/en/manual/online-store/themes/customizing-themes/checkout-extensibility/web-pixels-api/test-custom-pixels" target="_blank" rel="noopener noreferrer">测试自定义像素</a>
             </Text>
           </BlockStack>
         </Banner>
