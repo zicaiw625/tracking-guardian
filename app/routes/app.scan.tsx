@@ -15,6 +15,7 @@ import { generateMigrationChecklist } from "~/services/migration-checklist.serve
 import { ManualPastePanel } from "~/components/scan/ManualPastePanel";
 import { GuidedSupplement } from "~/components/scan/GuidedSupplement";
 import { PageIntroCard } from "~/components/layout/PageIntroCard";
+import { AuditPaywallCard } from "~/components/paywall/AuditPaywallCard";
 
 const ScriptCodeEditor = lazy(() => import("~/components/scan/ScriptCodeEditor").then(module => ({ default: module.ScriptCodeEditor })));
 import { authenticate } from "../shopify.server";
@@ -2062,39 +2063,7 @@ export function ScanPage({
         <Tabs tabs={visibleTabs} selected={selectedTab} onSelect={setSelectedTab}>
           {}
           {shouldShowMigrationButtons && (
-            <Card>
-              <BlockStack gap="400">
-                <Text as="h3" variant="headingMd">
-                  🎯 开始迁移（PRD 3: 付费转化节点1）
-                </Text>
-                <Banner tone="info">
-                  <BlockStack gap="200">
-                    <Text as="p" variant="bodySm">
-                      <strong>免费功能：</strong>可查看风险与清单、分享链接
-                    </Text>
-                    <Text as="p" variant="bodySm">
-                      <strong>付费解锁：</strong>一键生成像素 + Test/Live 环境 + 版本/回滚 + 验收报告导出
-                    </Text>
-                  </BlockStack>
-                </Banner>
-                <InlineStack gap="200" wrap>
-                  <Button
-                    variant={isPlanAtLeast(planIdSafe, "starter") ? "primary" : "secondary"}
-                    url={isPlanAtLeast(planIdSafe, "starter") ? "/app/migrate" : "/app/billing?upgrade=starter"}
-                    size="large"
-                  >
-                    {isPlanAtLeast(planIdSafe, "starter") ? "迁移像素" : "迁移像素（Starter $29/月）"}
-                  </Button>
-                  <Button
-                    variant={isPlanAtLeast(planIdSafe, "starter") ? "primary" : "secondary"}
-                    url={isPlanAtLeast(planIdSafe, "starter") ? "/app/modules" : "/app/billing?upgrade=starter"}
-                    size="large"
-                  >
-                    {isPlanAtLeast(planIdSafe, "starter") ? "安装页面模块" : "安装页面模块（Starter $29/月）"}
-                  </Button>
-                </InlineStack>
-              </BlockStack>
-            </Card>
+            <AuditPaywallCard planId={planIdSafe} />
           )}
           {selectedTab === 0 && (<BlockStack gap="500">
               <Box paddingBlockStart="400">
@@ -3650,39 +3619,7 @@ export function ScanPage({
             <BlockStack gap="500">
               {}
               {showTabs && (
-                <Card>
-                  <BlockStack gap="400">
-                    <Text as="h3" variant="headingMd">
-                      🎯 开始迁移（PRD 3: 付费转化节点1）
-                    </Text>
-                    <Banner tone="info">
-                      <BlockStack gap="200">
-                        <Text as="p" variant="bodySm">
-                          <strong>免费功能：</strong>可查看风险与清单、分享链接
-                        </Text>
-                        <Text as="p" variant="bodySm">
-                          <strong>付费解锁：</strong>一键生成像素 + Test/Live 环境 + 版本/回滚 + 验收报告导出
-                        </Text>
-                      </BlockStack>
-                    </Banner>
-                    <InlineStack gap="200" wrap>
-                      <Button
-                        variant={isPlanAtLeast(planIdSafe, "starter") ? "primary" : "secondary"}
-                        url={isPlanAtLeast(planIdSafe, "starter") ? "/app/migrate" : "/app/billing?upgrade=starter"}
-                        size="large"
-                      >
-                        {isPlanAtLeast(planIdSafe, "starter") ? "迁移像素" : "迁移像素（Starter $29/月）"}
-                      </Button>
-                      <Button
-                        variant={isPlanAtLeast(planIdSafe, "starter") ? "primary" : "secondary"}
-                        url={isPlanAtLeast(planIdSafe, "starter") ? "/app/modules" : "/app/billing?upgrade=starter"}
-                        size="large"
-                      >
-                        {isPlanAtLeast(planIdSafe, "starter") ? "安装页面模块" : "安装页面模块（Starter $29/月）"}
-                      </Button>
-                    </InlineStack>
-                  </BlockStack>
-                </Card>
+                <AuditPaywallCard planId={planIdSafe} />
               )}
               <Box paddingBlockStart="400">
                 {!latestScan ? (
