@@ -223,10 +223,15 @@ export default function BillingPage() {
         formData.append("subscriptionId", subscription.subscriptionId);
         submit(formData, { method: "post" });
     };
+    const hasError = actionData && !actionData.success && actionData.error;
     return (<Page title="订阅与计费">
       <BlockStack gap="500">
         {showSuccessBanner && (<Banner title="订阅成功！" tone="success" onDismiss={() => { }}>
             <p>您的订阅已激活，现在可以享受所有功能了。</p>
+          </Banner>)}
+        
+        {hasError && (<Banner title="订阅失败" tone="critical" onDismiss={() => { }}>
+            <p>{actionData.error}</p>
           </Banner>)}
 
         {subscription.isTrialing && (<Banner title="试用期" tone="info">
