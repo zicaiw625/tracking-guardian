@@ -43,16 +43,47 @@ export interface AnalyticsEventData {
   eventId?: string;
 }
 
+function toSnakeCaseKey(key: string): string {
+  return key
+    .replace(/([a-z0-9])([A-Z])/g, "$1_$2")
+    .replace(/[\s-]+/g, "_")
+    .toLowerCase();
+}
+
+function normalizeMetadataValue(value: unknown): unknown {
+  if (Array.isArray(value)) {
+    return value.map((item) => normalizeMetadataValue(item));
+  }
+
+  if (value instanceof Date || value === null || typeof value !== "object") {
+    return value;
+  }
+
+  const record = value as Record<string, unknown>;
+  return Object.fromEntries(
+    Object.entries(record).map(([key, entryValue]) => [
+      toSnakeCaseKey(key),
+      normalizeMetadataValue(entryValue),
+    ])
+  );
+}
+
+function normalizeMetadata(metadata?: Record<string, unknown>): Record<string, unknown> | undefined {
+  if (!metadata) return undefined;
+  return normalizeMetadataValue(metadata) as Record<string, unknown>;
+}
+
 export async function trackEvent(data: AnalyticsEventData): Promise<void> {
   try {
     const timestamp = data.timestamp || new Date();
     const eventId = data.eventId || generateSimpleId("app_event");
+    const normalizedMetadata = normalizeMetadata(data.metadata);
 
     logger.info("[Analytics] Track event", {
       shopId: data.shopId,
       shopDomain: data.shopDomain,
       event: data.event,
-      metadata: data.metadata,
+      metadata: normalizedMetadata,
       timestamp: timestamp.toISOString(),
     });
 
@@ -64,7 +95,7 @@ export async function trackEvent(data: AnalyticsEventData): Promise<void> {
       normalizedEventJson: {
         event: data.event,
         shopDomain: data.shopDomain,
-        metadata: data.metadata ?? null,
+        metadata: normalizedMetadata ?? null,
       },
       source: "app_analytics",
     });
