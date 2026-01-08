@@ -8,6 +8,7 @@ import { cleanupExpiredNonces } from "../../services/capi-dedup.server";
 import { logger } from "../../utils/logger.server";
 import { cleanupExpiredData } from "./cleanup";
 import { refreshAllShopsStatus } from "./shop-status";
+import { monitorStuckWebhooks } from "./webhook-monitor";
 import type { CronResult, CronLogger } from "../types";
 import type { GDPRComplianceResult } from "../../services/gdpr.server";
 
@@ -212,6 +213,30 @@ export async function executeCronTasks(cronLogger: CronLogger): Promise<CronResu
     cronLogger.error("Nonces cleanup failed", error);
   }
 
+  let webhookMonitorResult = {
+    checked: 0,
+    stuckFound: 0,
+    recovered: 0,
+    failed: 0,
+    oldestStuckAge: null as number | null,
+  };
+  try {
+    cronLogger.info("Monitoring stuck webhooks...");
+    webhookMonitorResult = await monitorStuckWebhooks();
+    if (webhookMonitorResult.stuckFound > 0) {
+      cronLogger.warn("Webhook monitor found stuck webhooks", {
+        stuckFound: webhookMonitorResult.stuckFound,
+        recovered: webhookMonitorResult.recovered,
+        failed: webhookMonitorResult.failed,
+        oldestStuckAgeSeconds: webhookMonitorResult.oldestStuckAge,
+      });
+    } else {
+      cronLogger.info("Webhook monitor completed - no stuck webhooks found");
+    }
+  } catch (error) {
+    cronLogger.error("Webhook monitor failed", error);
+  }
+
   return {
     gdpr: {
         processed: gdprResults.processed,
@@ -267,9 +292,11 @@ export async function executeCronTasks(cronLogger: CronLogger): Promise<CronResu
       triggered: alertResults.totalTriggered,
       sent: alertResults.totalSent,
     },
+    webhookMonitor: webhookMonitorResult,
     noncesCleanedUp,
   };
 }
 
 export { cleanupExpiredData } from "./cleanup";
 export { refreshAllShopsStatus } from "./shop-status";
+export { monitorStuckWebhooks } from "./webhook-monitor";

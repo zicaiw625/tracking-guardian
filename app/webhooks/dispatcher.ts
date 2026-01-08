@@ -70,7 +70,7 @@ export async function dispatchWebhook(
 
   if (GDPR_TOPICS.has(normalizeTopic(topic)) && !shopRecord) {
     logger.info(`GDPR webhook ${topic} received for non-existent shop ${shop} - acknowledging`);
-
+    return new Response("OK", { status: 200 });
   }
 
   const normalizedTopic = normalizeTopic(topic);

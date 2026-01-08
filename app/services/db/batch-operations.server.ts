@@ -60,24 +60,16 @@ export async function batchCompleteJobs(
     await db.$transaction(async (tx) => {
 
       if (completed.length > 0) {
-        const completedIds = completed.map((j) => j.jobId);
-
-        await tx.conversionJob.updateMany({
-          where: { id: { in: completedIds } },
-          data: {
-            status: JobStatus.COMPLETED,
-            processedAt: now,
-            completedAt: now,
-            lastAttemptAt: now,
-            errorMessage: null,
-          },
-        });
-
         const updateResults = await Promise.allSettled(
           completed.map((job) =>
             tx.conversionJob.update({
               where: { id: job.jobId },
               data: {
+                status: JobStatus.COMPLETED,
+                processedAt: now,
+                completedAt: now,
+                lastAttemptAt: now,
+                errorMessage: null,
                 platformResults: toInputJsonValue(job.platformResults),
                 trustMetadata: toInputJsonValue(job.trustMetadata),
                 consentEvidence: toInputJsonValue(job.consentEvidence),
@@ -87,15 +79,26 @@ export async function batchCompleteJobs(
         );
 
         updateResults.forEach((result, index) => {
+          // Promise.allSettled保证返回数组长度与输入数组相同，但为了防御性编程，检查索引有效性
+          // 注意：index总是小于updateResults.length，但我们需要确保completed数组长度匹配
+          if (index >= completed.length || index >= updateResults.length) {
+            logger.error('Index out of bounds: arrays length mismatch', { 
+              index, 
+              completedLength: completed.length,
+              updateResultsLength: updateResults.length 
+            });
+            return;
+          }
+          const job = completed[index];
+          
           if (result.status === 'rejected') {
-            const job = completed[index];
             const errorMsg = result.reason instanceof Error ? result.reason.message : String(result.reason);
             logger.warn('Failed to update job details', { jobId: job.jobId, error: errorMsg });
             errors.push({ id: job.jobId, error: `Failed to update details: ${errorMsg}` });
+          } else if (result.status === 'fulfilled') {
+            processed++;
           }
         });
-
-        processed += completed.length;
       }
 
       if (failed.length > 0) {
@@ -116,26 +119,38 @@ export async function batchCompleteJobs(
         );
 
         updateResults.forEach((result, index) => {
+          // Promise.allSettled保证返回数组长度与输入数组相同，但为了防御性编程，检查索引有效性
+          if (index >= failed.length || index >= updateResults.length) {
+            logger.error('Index out of bounds: arrays length mismatch', { 
+              index, 
+              failedLength: failed.length,
+              updateResultsLength: updateResults.length 
+            });
+            return;
+          }
+          const job = failed[index];
+          
           if (result.status === 'rejected') {
-            const job = failed[index];
             const errorMsg = result.reason instanceof Error ? result.reason.message : String(result.reason);
             logger.warn('Failed to update failed job', { jobId: job.jobId, error: errorMsg });
             errors.push({ id: job.jobId, error: `Failed to update: ${errorMsg}` });
+          } else if (result.status === 'fulfilled') {
+            processed++;
           }
         });
-
-        processed += failed.length;
       }
 
       if (limitExceeded.length > 0) {
         const limitExceededIds = limitExceeded.map((j) => j.jobId);
-        await tx.conversionJob.updateMany({
+        const updateManyResult = await tx.conversionJob.updateMany({
           where: { id: { in: limitExceededIds } },
           data: {
             status: JobStatus.LIMIT_EXCEEDED,
             lastAttemptAt: now,
           },
         });
+
+        processed += updateManyResult.count;
 
         const limitExceededWithErrors = limitExceeded.filter((j) => j.errorMessage);
         if (limitExceededWithErrors.length > 0) {
@@ -150,26 +165,37 @@ export async function batchCompleteJobs(
           );
 
           updateResults.forEach((result, index) => {
+            // Promise.allSettled保证返回数组长度与输入数组相同，但为了防御性编程，检查索引有效性
+            if (index >= limitExceededWithErrors.length || index >= updateResults.length) {
+              logger.error('Index out of bounds: arrays length mismatch', { 
+                index, 
+                limitExceededWithErrorsLength: limitExceededWithErrors.length,
+                updateResultsLength: updateResults.length 
+              });
+              return;
+            }
+            const job = limitExceededWithErrors[index];
+            
             if (result.status === 'rejected') {
-              const job = limitExceededWithErrors[index];
               const errorMsg = result.reason instanceof Error ? result.reason.message : String(result.reason);
               logger.warn('Failed to update limit exceeded job error message', { jobId: job.jobId, error: errorMsg });
               errors.push({ id: job.jobId, error: `Failed to update error message: ${errorMsg}` });
             }
           });
         }
-        processed += limitExceeded.length;
       }
 
       if (deadLetter.length > 0) {
         const deadLetterIds = deadLetter.map((j) => j.jobId);
-        await tx.conversionJob.updateMany({
+        const updateManyResult = await tx.conversionJob.updateMany({
           where: { id: { in: deadLetterIds } },
           data: {
             status: JobStatus.DEAD_LETTER,
             lastAttemptAt: now,
           },
         });
+
+        processed += updateManyResult.count;
 
         const updateResults = await Promise.allSettled(
           deadLetter.map((job) =>
@@ -184,14 +210,23 @@ export async function batchCompleteJobs(
         );
 
         updateResults.forEach((result, index) => {
+          // Promise.allSettled保证返回数组长度与输入数组相同，但为了防御性编程，检查索引有效性
+          if (index >= deadLetter.length || index >= updateResults.length) {
+            logger.error('Index out of bounds: arrays length mismatch', { 
+              index, 
+              deadLetterLength: deadLetter.length,
+              updateResultsLength: updateResults.length 
+            });
+            return;
+          }
+          const job = deadLetter[index];
+          
           if (result.status === 'rejected') {
-            const job = deadLetter[index];
             const errorMsg = result.reason instanceof Error ? result.reason.message : String(result.reason);
             logger.warn('Failed to update dead letter job', { jobId: job.jobId, error: errorMsg });
             errors.push({ id: job.jobId, error: `Failed to update: ${errorMsg}` });
           }
         });
-        processed += deadLetter.length;
       }
     });
   } catch (error) {
@@ -233,9 +268,10 @@ export async function batchInsertReceipts(
 
   try {
     await db.$transaction(async (tx) => {
-      for (const receipt of receipts) {
-        try {
-          await tx.pixelEventReceipt.upsert({
+      // 使用Promise.allSettled并行处理,提高性能并正确收集错误
+      const upsertResults = await Promise.allSettled(
+        receipts.map((receipt) =>
+          tx.pixelEventReceipt.upsert({
             where: {
               shopId_orderId_eventType: {
                 shopId: receipt.shopId,
@@ -258,29 +294,50 @@ export async function batchInsertReceipts(
               metadata: toInputJsonValue(receipt.capiInput),
             },
             update: {
-
               consentState: toInputJsonValue(receipt.consentState),
               trustLevel: receipt.trustLevel,
               signatureStatus: receipt.signatureStatus,
             },
+          })
+        )
+      );
+
+      upsertResults.forEach((result, index) => {
+        // Promise.allSettled保证返回数组长度与输入数组相同，但为了防御性编程，检查索引有效性
+        if (index >= receipts.length || index >= upsertResults.length) {
+          logger.error('Index out of bounds: arrays length mismatch', { 
+            index, 
+            receiptsLength: receipts.length,
+            upsertResultsLength: upsertResults.length 
           });
+          return;
+        }
+        const receipt = receipts[index];
+        
+        if (result.status === 'fulfilled') {
           processed++;
-        } catch (receiptError) {
+        } else {
           const errMsg =
-            receiptError instanceof Error ? receiptError.message : String(receiptError);
+            result.reason instanceof Error ? result.reason.message : String(result.reason);
           errors.push({ id: `${receipt.shopId}:${receipt.orderId}`, error: errMsg });
         }
-      }
+      });
     });
   } catch (error) {
     const errorMsg = error instanceof Error ? error.message : String(error);
-    logger.error('Batch insert receipts failed', { error: errorMsg, count: receipts.length });
+    logger.error('Batch insert receipts transaction failed', { error: errorMsg, count: receipts.length });
+
+    // 如果事务失败,所有操作都会回滚,所以所有receipts都失败
+    // 计算所有失败项(包括事务内已经记录的errors和事务失败导致的剩余项)
+    const allErrors = errors.length > 0 
+      ? errors 
+      : receipts.map((r) => ({ id: `${r.shopId}:${r.orderId}`, error: `Transaction failed: ${errorMsg}` }));
 
     return {
       success: false,
-      processed: 0,
-      failed: receipts.length,
-      errors: [{ id: 'transaction', error: errorMsg }],
+      processed: 0, // 事务回滚,所以没有成功处理的项
+      failed: receipts.length, // 所有项都失败
+      errors: allErrors,
     };
   }
 
@@ -313,23 +370,52 @@ export async function batchUpdateShops(
 
   try {
     await db.$transaction(async (tx) => {
-      for (const { shopId, data } of updates) {
-        await tx.shop.update({
-          where: { id: shopId },
-          data,
-        });
-        processed++;
-      }
+      // 使用Promise.allSettled以处理部分失败的情况
+      const updateResults = await Promise.allSettled(
+        updates.map(({ shopId, data }) =>
+          tx.shop.update({
+            where: { id: shopId },
+            data,
+          })
+        )
+      );
+
+      updateResults.forEach((result, index) => {
+        // Promise.allSettled保证返回数组长度与输入数组相同，但为了防御性编程，检查索引有效性
+        if (index >= updates.length || index >= updateResults.length) {
+          logger.error('Index out of bounds: arrays length mismatch', { 
+            index, 
+            updatesLength: updates.length,
+            updateResultsLength: updateResults.length 
+          });
+          return;
+        }
+        const { shopId } = updates[index];
+        
+        if (result.status === 'fulfilled') {
+          processed++;
+        } else {
+          const errorMsg =
+            result.reason instanceof Error ? result.reason.message : String(result.reason);
+          logger.warn('Failed to update shop', { shopId, error: errorMsg });
+          errors.push({ id: shopId, error: errorMsg });
+        }
+      });
     });
   } catch (error) {
     const errorMsg = error instanceof Error ? error.message : String(error);
-    logger.error('Batch update shops failed', { error: errorMsg, count: updates.length });
+    logger.error('Batch update shops transaction failed', { error: errorMsg, count: updates.length });
 
+    // 如果事务失败,记录所有未处理的shops
+    const remainingErrors = updates
+      .slice(processed)
+      .map((u) => ({ id: u.shopId, error: `Transaction failed: ${errorMsg}` }));
+    
     return {
       success: false,
-      processed: 0,
-      failed: updates.length,
-      errors: [{ id: 'transaction', error: errorMsg }],
+      processed,
+      failed: updates.length - processed,
+      errors: [...errors, ...remainingErrors],
     };
   }
 

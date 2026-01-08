@@ -290,6 +290,7 @@ async function sendToPlatformsParallel(
   trustResult: ReturnType<typeof evaluateTrust>["trustResult"],
   consentState: ReturnType<typeof evaluateTrust>["consentState"],
   strategy: string,
+  shopDomain: string,
   previousResults: Record<string, string> = {}
 ): Promise<PlatformSendResults> {
   const platformResults: Record<string, string> = { ...previousResults };
@@ -348,8 +349,10 @@ async function sendToPlatformsParallel(
   let anyFailed = false;
   let anySent = false;
   let skippedCount = 0;
+  let rejectedCount = 0;
 
-  for (const result of results) {
+  for (let i = 0; i < results.length; i++) {
+    const result = results[i];
     if (result.status === "fulfilled") {
       platformResults[result.value.platform] = result.value.status;
 
@@ -363,13 +366,27 @@ async function sendToPlatformsParallel(
         anyFailed = true;
       }
     } else {
-
-      logger.error("Platform send task rejected:", result.reason);
+      // 任务被rejected，记录错误并标记为失败
+      const platform = pixelConfigs[i]?.platform || "unknown";
+      const errorMsg = result.reason instanceof Error ? result.reason.message : String(result.reason);
+      logger.error("Platform send task rejected", {
+        platform,
+        reason: errorMsg,
+        stack: result.reason instanceof Error ? result.reason.stack : undefined,
+        jobId: job.id,
+        orderId: job.orderId,
+      });
       anyFailed = true;
+      rejectedCount++;
+      // 为被rejected的平台设置一个错误状态
+      platformResults[platform] = `failed:${errorMsg.substring(0, 50)}`;
     }
   }
 
-  const allSkipped = skippedCount === pixelConfigs.length && pixelConfigs.length > 0;
+  // allSkipped判断：所有任务都被跳过，或者所有任务都被rejected（意味着没有任何平台被处理）
+  // 如果所有任务都被rejected，也应该视为allSkipped，因为实际上没有任何平台被处理
+  const allSkipped = (skippedCount === pixelConfigs.length && pixelConfigs.length > 0) ||
+                     (rejectedCount === pixelConfigs.length && pixelConfigs.length > 0 && !anySent);
 
   return { platformResults, anyFailed, anySent, allSkipped };
 }
@@ -401,10 +418,17 @@ async function upsertConversionLogs(
       logStatus = "pending";
     }
 
-    const orderValue =
-      typeof job.orderValue === "number"
-        ? job.orderValue
-        : job.orderValue?.toNumber() ?? 0;
+    let orderValue = 0;
+    if (typeof job.orderValue === "number") {
+      orderValue = job.orderValue;
+    } else if (job.orderValue && typeof job.orderValue.toNumber === "function") {
+      orderValue = job.orderValue.toNumber();
+    } else {
+      logger.warn(`Invalid orderValue type for job ${job.id}`, {
+        orderValue: job.orderValue,
+        type: typeof job.orderValue,
+      });
+    }
 
     try {
       await prisma.conversionLog.upsert({
@@ -481,10 +505,17 @@ async function sendToPlatformWithCredentials(
       price: item.price || 0,
     }));
 
-    const orderValue =
-      typeof job.orderValue === "number"
-        ? job.orderValue
-        : job.orderValue?.toNumber() ?? 0;
+    let orderValue = 0;
+    if (typeof job.orderValue === "number") {
+      orderValue = job.orderValue;
+    } else if (job.orderValue && typeof job.orderValue.toNumber === "function") {
+      orderValue = job.orderValue.toNumber();
+    } else {
+      logger.warn(`Invalid orderValue type for job ${job.id}`, {
+        orderValue: job.orderValue,
+        type: typeof job.orderValue,
+      });
+    }
 
     const conversionData: ConversionData = {
       orderId: job.orderId,
@@ -504,20 +535,15 @@ async function sendToPlatformWithCredentials(
     );
     const sendLatencyMs = Date.now() - sendStartTime;
 
-        const shop = await prisma.shop.findUnique({
-      where: { id: job.shopId },
-      select: { shopDomain: true },
-    });
-    if (shop) {
-      const { metrics } = await import("../utils/metrics-collector");
-      const destination = pixelConfig.platform;
-      if (result.success) {
-        metrics.pxDestinationOk(shop.shopDomain, destination);
-      } else {
-        metrics.pxDestinationFail(shop.shopDomain, destination, result.error?.message || "unknown");
-      }
-      metrics.pxDestinationLatency(shop.shopDomain, destination, sendLatencyMs);
+    const { metrics } = await import("../utils/metrics-collector");
+    const destination = pixelConfig.platform;
+    const shopDomain = job.shop.shopDomain;
+    if (result.success) {
+      metrics.pxDestinationOk(shopDomain, destination);
+    } else {
+      metrics.pxDestinationFail(shopDomain, destination, result.error?.message || "unknown");
     }
+    metrics.pxDestinationLatency(shopDomain, destination, sendLatencyMs);
 
     if (result.success) {
       return { success: true, status: "sent" };
@@ -689,20 +715,11 @@ async function processSingleJob(
     trustResult,
     consentState,
     strategy,
+    job.shop.shopDomain,
     previousResults
   );
 
-  safeFireAndForget(
-    upsertConversionLogs(job, platformResults, eventId, now),
-    {
-      operation: "upsertConversionLogs",
-      metadata: {
-        jobId: job.id,
-        shopId: job.shopId,
-        orderId: job.orderId,
-      },
-    }
-  );
+  await upsertConversionLogs(job, platformResults, eventId, now);
 
   const consentEvidence = buildConsentEvidence(
     strategy,
@@ -714,9 +731,9 @@ async function processSingleJob(
   const newAttempts = job.attempts + 1;
 
   if (allSkipped) {
-
     if (!reservation.alreadyCounted) {
-      const releaseResult = await releaseBillingSlot(job.shopId);
+      // 使用预留时的yearMonth，确保释放正确的月份
+      const releaseResult = await releaseBillingSlot(job.shopId, reservation.yearMonth);
       if (!releaseResult.ok) {
         logger.error("Failed to release billing slot", {
           jobId: job.id,
@@ -724,7 +741,6 @@ async function processSingleJob(
           error: releaseResult.error.message,
           errorType: releaseResult.error.type,
         });
-
       }
     }
 
@@ -750,9 +766,24 @@ async function processSingleJob(
   }
 
   if (anySent) {
-
+    // 部分成功场景：有平台发送成功
     if (anyFailed) {
+      // 部分成功但有失败的平台
+      const failedPlatforms = Object.entries(platformResults)
+        .filter(([_, status]) => status.startsWith("failed:"))
+        .map(([platform]) => platform);
+      
       if (newAttempts >= job.maxAttempts) {
+        // 达到最大重试次数，标记为完成（部分成功）
+        logger.warn(`Job ${job.id}: Partial success after max attempts`, {
+          jobId: job.id,
+          orderId: job.orderId,
+          failedPlatforms,
+          platformResults,
+          attempts: newAttempts,
+          maxAttempts: job.maxAttempts,
+        });
+        
         return {
           result: "succeeded",
           update: {
@@ -772,8 +803,18 @@ async function processSingleJob(
         };
       }
 
+      // 未达到最大重试次数，标记为失败以便重试
+      logger.info(`Job ${job.id}: Partial success, will retry failed platforms`, {
+        jobId: job.id,
+        orderId: job.orderId,
+        failedPlatforms,
+        attempts: newAttempts,
+        maxAttempts: job.maxAttempts,
+        nextRetryAt: calculateNextRetryTime(newAttempts),
+      });
+
       return {
-        result: "succeeded",
+        result: "failed",
         update: {
           id: job.id,
           status: JobStatus.FAILED,
@@ -789,6 +830,13 @@ async function processSingleJob(
         },
       };
     }
+
+    // 全部成功
+    logger.info(`Job ${job.id}: All platforms sent successfully`, {
+      jobId: job.id,
+      orderId: job.orderId,
+      platforms: Object.keys(platformResults),
+    });
 
     return {
       result: "succeeded",
@@ -809,20 +857,52 @@ async function processSingleJob(
     };
   }
 
+  // 没有任何平台发送成功
+  const failedReasons = Object.entries(platformResults)
+    .map(([platform, status]) => `${platform}:${status}`)
+    .join(", ");
+
   if (!reservation.alreadyCounted) {
-    const releaseResult = await releaseBillingSlot(job.shopId);
+    // 使用预留时的yearMonth，确保释放正确的月份
+    logger.info(`Job ${job.id}: Releasing billing slot (no platforms sent)`, {
+      jobId: job.id,
+      orderId: job.orderId,
+      yearMonth: reservation.yearMonth,
+      shopId: job.shopId,
+    });
+    
+    const releaseResult = await releaseBillingSlot(job.shopId, reservation.yearMonth);
     if (!releaseResult.ok) {
       logger.error("Failed to release billing slot", {
         jobId: job.id,
         shopId: job.shopId,
+        yearMonth: reservation.yearMonth,
         error: releaseResult.error.message,
         errorType: releaseResult.error.type,
       });
-
+    } else {
+      logger.debug(`Job ${job.id}: Billing slot released successfully`, {
+        jobId: job.id,
+        orderId: job.orderId,
+        remainingUsage: releaseResult.value,
+      });
     }
+  } else {
+    logger.debug(`Job ${job.id}: Billing slot already counted, skipping release`, {
+      jobId: job.id,
+      orderId: job.orderId,
+    });
   }
 
   if (newAttempts >= job.maxAttempts) {
+    logger.warn(`Job ${job.id}: All platforms failed after max attempts`, {
+      jobId: job.id,
+      orderId: job.orderId,
+      attempts: newAttempts,
+      maxAttempts: job.maxAttempts,
+      failedReasons,
+    });
+    
     return {
       result: "failed",
       update: {
@@ -837,6 +917,15 @@ async function processSingleJob(
       },
     };
   }
+
+  logger.info(`Job ${job.id}: All platforms failed, will retry`, {
+    jobId: job.id,
+    orderId: job.orderId,
+    attempts: newAttempts,
+    maxAttempts: job.maxAttempts,
+    nextRetryAt: calculateNextRetryTime(newAttempts),
+    failedReasons,
+  });
 
   return {
     result: "failed",

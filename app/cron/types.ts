@@ -92,6 +92,14 @@ export interface AlertCheckResult {
   sent: number;
 }
 
+export interface WebhookMonitorResult {
+  checked: number;
+  stuckFound: number;
+  recovered: number;
+  failed: number;
+  oldestStuckAge: number | null;
+}
+
 export interface CronResult {
   gdpr: GDPRProcessingResult;
   gdprCompliance: GDPRComplianceCheckResult;
@@ -104,6 +112,7 @@ export interface CronResult {
   cleanup: CleanupResult;
   shopStatusRefresh?: ShopStatusRefreshResult;
   alerts?: AlertCheckResult;
+  webhookMonitor?: WebhookMonitorResult;
   noncesCleanedUp?: number;
 }
 
