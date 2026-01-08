@@ -536,9 +536,9 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         event: "px_event_received",
         eventId: `px_event_received_${eventId}`,
         metadata: {
-          pixelEventName: payload.eventName,
-          pixelEventId: eventId,
-                    plan: shopWithPlan?.plan ?? "free",
+          pixel_event_name: payload.eventName,
+          pixel_event_id: eventId,
+          plan: shopWithPlan?.plan ?? "free",
           role: isAgency ? "agency" : "merchant",
           destination_type: pixelConfigs.length > 0 ? pixelConfigs[0].platform : "none",
           environment: environment,
