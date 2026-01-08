@@ -1,7 +1,7 @@
 import type { LoaderFunctionArgs } from "@remix-run/node";
 import { json } from "@remix-run/node";
 import { useLoaderData } from "@remix-run/react";
-import { Page, Layout, Card, BlockStack, Text, List, Link } from "@shopify/polaris";
+import { Page, Layout, Card, BlockStack, InlineStack, Text, List, Link } from "@shopify/polaris";
 import { PageIntroCard } from "~/components/layout/PageIntroCard";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
@@ -28,29 +28,48 @@ export default function SupportPage() {
             "迁移方案可预约专家协助",
           ]}
           primaryAction={{ content: "查看 FAQ", url: faqUrl }}
-          secondaryAction={{ content: "诊断包导出", url: "/app/diagnostics" }}
+          secondaryAction={{ content: "诊断包导出", url: "/api/diagnostics.export" }}
         />
 
         <Layout>
           <Layout.Section>
-            <Card>
-              <BlockStack gap="300">
-                <Text as="h2" variant="headingMd">
-                  联系我们
-                </Text>
-                <List type="bullet">
-                  <List.Item>
-                    邮箱：<Link url={`mailto:${contactEmail}`}>{contactEmail}</Link>
-                  </List.Item>
-                  <List.Item>
-                    帮助中心：<Link url={faqUrl} external>{faqUrl}</Link>
-                  </List.Item>
-                  <List.Item>
-                    状态页：<Link url="https://status.tracking-guardian.app" external>status.tracking-guardian.app</Link>
-                  </List.Item>
-                </List>
-              </BlockStack>
-            </Card>
+            <BlockStack gap="300">
+              <Card>
+                <BlockStack gap="200">
+                  <Text as="h2" variant="headingMd">
+                    诊断包导出说明
+                  </Text>
+                  <Text as="p" variant="bodySm" tone="subdued">
+                    诊断包包含基础配置状态、事件健康度摘要、像素安装状态等信息，便于定位追踪问题。
+                    不包含订单明细、客户邮箱/电话等敏感数据。
+                  </Text>
+                  <InlineStack gap="200">
+                    <Link url="/app/diagnostics">查看诊断页</Link>
+                    <Link url="/api/diagnostics.export">下载诊断包</Link>
+                    <Link url="/app/reports">导出报告</Link>
+                  </InlineStack>
+                </BlockStack>
+              </Card>
+
+              <Card>
+                <BlockStack gap="300">
+                  <Text as="h2" variant="headingMd">
+                    联系我们
+                  </Text>
+                  <List type="bullet">
+                    <List.Item>
+                      邮箱：<Link url={`mailto:${contactEmail}`}>{contactEmail}</Link>
+                    </List.Item>
+                    <List.Item>
+                      帮助中心：<Link url={faqUrl} external>{faqUrl}</Link>
+                    </List.Item>
+                    <List.Item>
+                      状态页：<Link url="https://status.tracking-guardian.app" external>status.tracking-guardian.app</Link>
+                    </List.Item>
+                  </List>
+                </BlockStack>
+              </Card>
+            </BlockStack>
           </Layout.Section>
         </Layout>
       </BlockStack>

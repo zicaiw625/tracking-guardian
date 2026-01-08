@@ -257,7 +257,7 @@ export function GuidedSupplement({
                       查看升级向导中列出的脚本和功能清单
                     </List.Item>
                     <List.Item>
-                      勾选下方对应的功能（或截图保存后在此处勾选）
+                      勾选下方对应的功能
                     </List.Item>
                   </List>
                 </BlockStack>
@@ -330,7 +330,7 @@ export function GuidedSupplement({
                 补充信息（可选）
               </Text>
               <Text as="p" variant="bodySm" tone="subdued">
-                如果您从升级向导中截图了清单或复制了文本，可以在此处补充
+                如果您从升级向导中复制了清单文本，可以在此处补充
               </Text>
 
               <Banner tone="info">
@@ -375,7 +375,7 @@ export function GuidedSupplement({
 
               <Banner>
                 <Text as="p" variant="bodySm">
-                  💡 <strong>提示：</strong>截图上传功能暂不支持，图片 OCR 功能开发中。如截图识别失败，请回退到“文本粘贴”方式补充信息。
+                  💡 <strong>提示：</strong>截图识别暂未开放，请使用“文本粘贴”方式补充。若识别失败或内容缺失，请回退到方式一。
                 </Text>
               </Banner>
 
