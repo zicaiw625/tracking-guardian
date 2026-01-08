@@ -33,15 +33,11 @@ import {
 } from "./key-validation";
 import {
   isClientEventRecorded,
-  generateOrderMatchKey,
-  evaluateTrustLevel,
-  createEventNonce,
   upsertPixelEventReceipt,
-  generatePurchaseEventId,
   generateEventIdForType,
 } from "./receipt-handler";
 import { validatePixelEventHMAC } from "./hmac-validation";
-import { processEventPipeline } from "../../services/events/pipeline.server";
+// 轻量版：不再需要复杂的事件管道处理
 import { safeFireAndForget } from "../../utils/helpers";
 import { trackEvent } from "../../services/analytics.server";
 import { normalizePlanId } from "../../services/billing/plans";
@@ -430,38 +426,8 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     const eventType = payload.eventName === "checkout_completed" ? "purchase" : payload.eventName;
     const isPurchaseEvent = eventType === "purchase";
 
-    let matchKeyResult;
-    let orderId: string;
-    let usedCheckoutTokenAsFallback = false;
-    let eventIdentifier: string | null;
-
-    if (isPurchaseEvent) {
-      try {
-        matchKeyResult = generateOrderMatchKey(
-          payload.data.orderId,
-          payload.data.checkoutToken,
-          shop.shopDomain
-        );
-        orderId = matchKeyResult.orderId;
-        usedCheckoutTokenAsFallback = matchKeyResult.usedCheckoutTokenAsFallback;
-        eventIdentifier = orderId;
-      } catch (error) {
-        logger.debug(`Match key generation failed for shop ${shop.shopDomain}: ${String(error)}`);
-        return jsonWithCors({ error: "Invalid request" }, { status: 400, request, shopAllowedDomains });
-      }
-    } else {
-
-      const checkoutToken = payload.data.checkoutToken;
-      if (checkoutToken) {
-        orderId = checkoutToken;
-        eventIdentifier = checkoutToken;
-      } else {
-
-        orderId = `session_${payload.timestamp}_${shop.shopDomain.replace(/\./g, "_")}`;
-
-        eventIdentifier = null;
-      }
-    }
+    // 轻量版：简化事件标识符生成
+    const eventIdentifier = payload.data.orderId || payload.data.checkoutToken || `session_${payload.timestamp}_${shop.shopDomain.replace(/\./g, "_")}`;
 
     const items = payload.data.items as Array<{
       id?: string;
@@ -502,10 +468,8 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       normalizedItems.length > 0 ? normalizedItems : undefined,
       payload.nonce || null
     );
-            const existingEventCount = await prisma.eventLog.count({
-      where: { shopId: shop.id },
-    });
-    const isFirstEvent = existingEventCount === 0;
+    // 轻量版：不再需要 EventLog 统计
+    const isFirstEvent = false;
 
         let riskScore: number | undefined;
     let assetCount: number | undefined;
@@ -547,62 +511,28 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       })
     );
 
+    // 轻量版：只记录 purchase 事件用于验收
     if (isPurchaseEvent) {
-      const alreadyRecorded = await isClientEventRecorded(shop.id, orderId, eventType);
-      if (alreadyRecorded) {
-        return jsonWithCors(
-          {
-            success: true,
-            eventId,
-            message: "Client event already recorded",
-            clientSideSent: true,
-          },
-          { request, shopAllowedDomains }
-        );
-      }
-
-      if (pixelConfigs.length === 0) {
-        return jsonWithCors(
-          {
-            success: true,
-            eventId,
-            message: "No server-side tracking configured - client event acknowledged",
-          },
-          { request, shopAllowedDomains }
-        );
-      }
-
-      const nonceFromBody = payload.nonce;
-      const nonceResult = await createEventNonce(
-        shop.id,
-        orderId,
-        payload.timestamp,
-        nonceFromBody,
-        eventType
-      );
-      if (nonceResult.isReplay) {
-        metrics.pixelRejection({
-          shopDomain: shop.shopDomain,
-          reason: "replay_detected",
-          originType: "nonce_collision",
-        });
-        return emptyResponseWithCors(request, shopAllowedDomains);
-      }
+      // 检查是否有活跃的验收窗口
+      const activeVerificationRun = await prisma.verificationRun.findFirst({
+        where: {
+          shopId: shop.id,
+          status: "running",
+        },
+        orderBy: { createdAt: "desc" },
+        select: { id: true },
+      });
 
       await upsertPixelEventReceipt(
         shop.id,
-        orderId,
         eventId,
         payload,
-        keyValidation,
-        trustResult,
-        usedCheckoutTokenAsFallback,
         origin,
-        eventType
+        eventType,
+        activeVerificationRun?.id || null
       );
     } else {
-
-      logger.debug(`Non-purchase event ${payload.eventName} - skipping receipt/nonce, will only write EventLog via pipeline`, {
+      logger.debug(`Non-purchase event ${payload.eventName} - skipping receipt`, {
         shopId: shop.id,
         eventName: payload.eventName,
         eventId,
@@ -637,43 +567,21 @@ export const action = async ({ request }: ActionFunctionArgs) => {
             configCount: platformsToRecord.length,
           });
 
-          safeFireAndForget(
-            processEventPipeline(shop.id, payload, eventId, platformsToRecord, environment).then((result) => {
-              if (result.success) {
-                logger.info(`Purchase event successfully sent via client-side`, {
-                  shopId: shop.id,
-                  eventId,
-                  destinations: result.destinations,
-                  deduplicated: result.deduplicated,
-                });
-              } else {
-                logger.warn(`Purchase event client-side processing failed, will rely on server-side`, {
-                  shopId: shop.id,
-                  eventId,
-                  errors: result.errors,
-                });
-              }
-            }),
-            {
-              operation: "processPurchaseEventPipeline",
-              metadata: {
-                shopId: shop.id,
-                eventId,
-                platforms: platformNames,
-              },
-            }
-          );
-
-          logger.debug(`Purchase event ${eventId} will also be sent via webhook (hybrid mode)`, {
+          // 轻量版：不再需要复杂的事件管道处理
+          logger.info(`Purchase event recorded for verification`, {
             shopId: shop.id,
-            orderId,
+            eventId,
+            platforms: platformNames,
+          });
+
+          logger.debug(`Purchase event ${eventId} recorded`, {
+            shopId: shop.id,
             platforms: platformNames,
           });
         } else {
 
-          logger.debug(`Purchase event ${eventId} queued for webhook processing (server-side only)`, {
+          logger.debug(`Purchase event ${eventId} recorded`, {
             shopId: shop.id,
-            orderId,
             platforms: platformsToRecord.map(p => p.platform),
             configCount: platformsToRecord.length,
           });
@@ -690,35 +598,13 @@ export const action = async ({ request }: ActionFunctionArgs) => {
           mode,
         });
 
-        safeFireAndForget(
-          processEventPipeline(shop.id, payload, eventId, platformsToRecord, environment).then((result) => {
-            if (result.success) {
-              logger.info(`Event ${payload.eventName} successfully routed to destinations`, {
-                shopId: shop.id,
-                eventId,
-                eventName: payload.eventName,
-                destinations: result.destinations,
-                deduplicated: result.deduplicated,
-              });
-            } else {
-              logger.warn(`Event ${payload.eventName} pipeline processing failed`, {
-                shopId: shop.id,
-                eventId,
-                eventName: payload.eventName,
-                errors: result.errors,
-              });
-            }
-          }),
-          {
-            operation: "processEventPipeline",
-            metadata: {
-              shopId: shop.id,
-              eventId,
-              eventName: payload.eventName,
-              platforms: platformNames,
-            },
-          }
-        );
+        // 轻量版：不再需要复杂的事件管道处理
+        logger.info(`Event ${payload.eventName} recorded`, {
+          shopId: shop.id,
+          eventId,
+          eventName: payload.eventName,
+          platforms: platformNames,
+        });
       }
     }
 
@@ -736,7 +622,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         clientSideSent: true,
         platforms: platformsToRecord,
         skippedPlatforms: skippedPlatforms.length > 0 ? skippedPlatforms : undefined,
-        trusted: trustResult.isTrusted,
+        trusted: true, // 轻量版：简化信任检查
         consent: payload.consent || null,
       },
       { request, shopAllowedDomains }

@@ -31,154 +31,52 @@ export interface ConversionLogResult {
 
 export async function isClientEventRecorded(
   shopId: string,
-  orderId: string,
-  eventType: string
+  eventType: string,
+  verificationRunId?: string | null
 ): Promise<boolean> {
-  const existing = await prisma.pixelEventReceipt.findUnique({
-    where: {
-      shopId_orderId_eventType: {
-        shopId,
-        orderId,
-        eventType,
-      },
-    },
+  const where: any = {
+    shopId,
+    eventType,
+  };
+  if (verificationRunId) {
+    where.verificationRunId = verificationRunId;
+  }
+  
+  const existing = await prisma.pixelEventReceipt.findFirst({
+    where,
     select: { id: true },
+    orderBy: { pixelTimestamp: "desc" },
   });
   return !!existing;
 }
 
-export function generateOrderMatchKey(
-  rawOrderId: string | null | undefined,
-  checkoutToken: string | null | undefined,
-  shopDomain: string
-): MatchKeyResult {
-  const matchKeyResult = generateMatchKey({
-    orderId: rawOrderId,
-    checkoutToken: checkoutToken,
-  });
-
-  const orderId = matchKeyResult.matchKey;
-  const usedCheckoutTokenAsFallback = !matchKeyResult.isOrderId;
-
-  if (usedCheckoutTokenAsFallback) {
-    logger.info(
-      `Using checkoutToken as fallback for shop ${shopDomain}. ` +
-        `Webhook matching will use checkoutToken index.`
-    );
-  }
-
-  return { orderId, usedCheckoutTokenAsFallback };
-}
-
-export function evaluateTrustLevel(
-  keyValidation: KeyValidationResult,
-  hasCheckoutToken: boolean
-): TrustEvaluationResult {
-  const isTrusted = keyValidation.matched;
-  let trustLevel: TrustLevel = keyValidation.matched ? "partial" : "untrusted";
-  let untrustedReason: string | undefined;
-
-  if (keyValidation.matched && hasCheckoutToken) {
-    trustLevel = "partial";
-  } else if (!keyValidation.matched) {
-    trustLevel = "untrusted";
-
-    untrustedReason = keyValidation.reason || "hmac_signature_invalid";
-  } else if (!hasCheckoutToken) {
-    trustLevel = "partial";
-    untrustedReason = "missing_checkout_token";
-  }
-
-  return { isTrusted, trustLevel, untrustedReason };
-}
-
-export async function createEventNonce(
-  shopId: string,
-  orderId: string,
-  timestamp: number,
-  clientNonce?: string,
-  eventType: string = "purchase"
-): Promise<{ success: boolean; isReplay: boolean }> {
-
-  const nonceValue = clientNonce || `${orderId}:${eventType}:${timestamp}`;
-  const nonceExpiresAt = new Date(Date.now() + RETENTION_CONFIG.NONCE_EXPIRY_MS);
-
-  try {
-    await prisma.eventNonce.create({
-      data: {
-        id: generateSimpleId("nonce"),
-        shopId,
-        nonce: nonceValue,
-        eventType,
-        expiresAt: new Date(nonceExpiresAt),
-      },
-    });
-    return { success: true, isReplay: false };
-  } catch (nonceError) {
-    if ((nonceError as { code?: string })?.code === "P2002") {
-      logger.debug(`Replay detected for order ${orderId}, event ${eventType}, dropping duplicate`);
-      return { success: false, isReplay: true };
-    }
-    logger.warn(`Nonce check failed: ${String(nonceError)}`);
-    return { success: false, isReplay: false };
-  }
-}
+// 轻量版：不再需要复杂的 orderId 匹配和 nonce 检查
+// 简化逻辑，只记录事件用于验收
 
 export async function upsertPixelEventReceipt(
   shopId: string,
-  orderId: string,
   eventId: string,
   payload: PixelEventPayload,
-  keyValidation: KeyValidationResult,
-  trustResult: TrustEvaluationResult,
-  usedCheckoutTokenAsFallback: boolean,
   origin: string | null,
-  eventType: string = "purchase"
+  eventType: string = "purchase",
+  verificationRunId?: string | null
 ): Promise<ReceiptCreateResult> {
   const originHost = extractOriginHost(origin);
-  const checkoutToken = payload.data.checkoutToken;
 
   try {
-    await prisma.pixelEventReceipt.upsert({
-      where: {
-        shopId_orderId_eventType: {
-          shopId,
-          orderId,
-          eventType,
-        },
-      },
-      create: {
+    await prisma.pixelEventReceipt.create({
+      data: {
         id: generateSimpleId("receipt"),
         shopId,
-        orderId,
         eventType,
-        eventId,
-        checkoutToken: checkoutToken || null,
         pixelTimestamp: new Date(payload.timestamp),
-        consentState: payload.consent ? JSON.parse(JSON.stringify(payload.consent)) : undefined,
-        isTrusted: trustResult.isTrusted,
-        signatureStatus: keyValidation.matched ? (keyValidation.reason || "hmac_verified") : keyValidation.reason,
-        usedCheckoutTokenFallback: usedCheckoutTokenAsFallback,
-        trustLevel: trustResult.trustLevel,
-        untrustedReason: trustResult.untrustedReason || null,
         originHost: originHost || null,
-      },
-      update: {
-        eventId,
-        checkoutToken: checkoutToken || undefined,
-        pixelTimestamp: new Date(payload.timestamp),
-        consentState: payload.consent ? JSON.parse(JSON.stringify(payload.consent)) : undefined,
-        isTrusted: trustResult.isTrusted,
-        signatureStatus: keyValidation.matched ? (keyValidation.reason || "hmac_verified") : keyValidation.reason,
-        usedCheckoutTokenFallback: usedCheckoutTokenAsFallback,
-        trustLevel: trustResult.trustLevel,
-        untrustedReason: trustResult.untrustedReason,
-        originHost,
+        verificationRunId: verificationRunId || null,
       },
     });
     return { success: true, eventId };
   } catch (error) {
-    logger.warn(`Failed to write PixelEventReceipt for order ${orderId}, event ${eventType}`, {
+    logger.warn(`Failed to write PixelEventReceipt for event ${eventType}`, {
       error: String(error),
     });
     return { success: false, eventId };
@@ -197,102 +95,7 @@ function normalizeCurrencyForStorage(currency: unknown): string {
   return "USD";
 }
 
-export async function recordConversionLogs(
-  shopId: string,
-  orderId: string,
-  eventId: string,
-  payload: PixelEventPayload,
-  platformsToRecord: string[]
-): Promise<ConversionLogResult> {
-  const recordedPlatforms: string[] = [];
-  const failedPlatforms: string[] = [];
-
-  if (platformsToRecord.length === 0) {
-    return { recordedPlatforms, failedPlatforms };
-  }
-
-  try {
-
-    await prisma.$transaction(
-      platformsToRecord.map((platform) =>
-        prisma.conversionLog.upsert({
-          where: {
-            shopId_orderId_platform_eventType: {
-              shopId,
-              orderId,
-              platform,
-              eventType: "purchase",
-            },
-          },
-          update: {
-            clientSideSent: true,
-            eventId,
-          },
-          create: {
-            id: generateSimpleId("conv"),
-            shopId,
-            orderId,
-            orderNumber: payload.data.orderNumber || null,
-            orderValue: payload.data.value || 0,
-            currency: normalizeCurrencyForStorage(payload.data.currency),
-            platform,
-            eventType: "purchase",
-            eventId,
-            status: "pending",
-            attempts: 0,
-            clientSideSent: true,
-            serverSideSent: false,
-          },
-        })
-      )
-    );
-    recordedPlatforms.push(...platformsToRecord);
-  } catch (error) {
-    logger.warn(`Failed to record client events in transaction`, { error: String(error) });
-
-    for (const platform of platformsToRecord) {
-      try {
-        await prisma.conversionLog.upsert({
-          where: {
-            shopId_orderId_platform_eventType: {
-              shopId,
-              orderId,
-              platform,
-              eventType: "purchase",
-            },
-          },
-          update: {
-            clientSideSent: true,
-            eventId,
-          },
-          create: {
-            id: generateSimpleId("conv"),
-            shopId,
-            orderId,
-            orderNumber: payload.data.orderNumber || null,
-            orderValue: payload.data.value || 0,
-            currency: normalizeCurrencyForStorage(payload.data.currency),
-            platform,
-            eventType: "purchase",
-            eventId,
-            status: "pending",
-            attempts: 0,
-            clientSideSent: true,
-            serverSideSent: false,
-          },
-        });
-        recordedPlatforms.push(platform);
-      } catch (individualError) {
-        logger.warn(`Failed to record client event for ${platform}`, {
-          error: String(individualError),
-        });
-        failedPlatforms.push(platform);
-      }
-    }
-  }
-
-  return { recordedPlatforms, failedPlatforms };
-}
+// 轻量版：不再需要 ConversionLog，只记录 PixelEventReceipt 用于验收
 
 export async function getActivePixelConfigs(
   shopId: string

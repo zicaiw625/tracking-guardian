@@ -427,8 +427,9 @@ export function ScriptCodeEditor({
                           whiteSpace: "pre-wrap",
                           wordBreak: "break-word",
                         }}
-                        dangerouslySetInnerHTML={{ __html: highlightedCode }}
-                      />
+                      >
+                        {value}
+                      </pre>
                     </Box>
                   </BlockStack>
                 </Box>
