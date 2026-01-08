@@ -105,55 +105,141 @@ export function suppressMonorailErrors() {
   
   window.addEventListener("unhandledrejection", rejectionHandler);
 
-  // 拦截 fetch 请求失败（用于抑制网络面板中的错误显示）
-  // 注意：这不会阻止网络请求，只是静默处理失败的错误
-  const originalFetch = window.fetch;
-  window.fetch = async (...args) => {
-    const url = typeof args[0] === "string" ? args[0] : args[0]?.url || "";
-    const isTelemetryRequest = 
+  // 检查是否是遥测相关的请求 URL
+  const isTelemetryUrl = (url: string): boolean => {
+    if (!url) return false;
+    return (
       url.includes("produce") ||
       url.includes("produce_batch") ||
       url.includes("monorail") ||
       url.includes("opentelemetry") ||
-      url.includes("otlp");
+      url.includes("otlp") ||
+      url.includes("/events") && url.includes("monorail")
+    );
+  };
+
+  // 拦截 fetch 请求 - 在发送前就阻止遥测请求
+  const originalFetch = window.fetch;
+  window.fetch = async (...args) => {
+    const url = typeof args[0] === "string" ? args[0] : args[0]?.url || "";
+    
+    // 如果是遥测相关请求，直接返回成功响应，不发送实际请求
+    if (isTelemetryUrl(url)) {
+      return Promise.resolve(new Response(null, { 
+        status: 200, 
+        statusText: "OK",
+        headers: new Headers({ "Content-Type": "application/json" }),
+      }));
+    }
     
     try {
       const response = await originalFetch(...args);
-      
-      // 如果请求失败且是遥测相关请求，静默处理
-      if (isTelemetryRequest && !response.ok) {
-        // 返回一个模拟的成功响应，避免错误传播
-        return new Response(null, { 
-          status: 200, 
-          statusText: "OK",
-        });
-      }
-      
       return response;
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
       
-      // 如果是遥测相关的请求失败，静默处理
+      // 如果错误信息包含遥测相关关键词，也返回成功响应
       if (
-        isTelemetryRequest ||
-        errorMessage.includes("ERR_CONNECTION_REFUSED")
+        errorMessage.includes("ERR_CONNECTION_REFUSED") ||
+        errorMessage.includes("Failed to fetch") ||
+        errorMessage.includes("NetworkError")
       ) {
-        // 返回一个模拟的成功响应，避免错误传播
-        return new Response(null, { 
-          status: 200, 
-          statusText: "OK",
-        });
+        // 检查是否是遥测相关的错误（通过请求参数判断）
+        const requestInfo = args[0];
+        if (requestInfo && typeof requestInfo === "object" && "url" in requestInfo) {
+          if (isTelemetryUrl((requestInfo as { url: string }).url)) {
+            return Promise.resolve(new Response(null, { 
+              status: 200, 
+              statusText: "OK",
+              headers: new Headers({ "Content-Type": "application/json" }),
+            }));
+          }
+        }
       }
       
       throw error;
     }
   };
 
+  // 拦截 XMLHttpRequest（某些库可能使用 XHR 而不是 fetch）
+  const OriginalXHR = window.XMLHttpRequest;
+  window.XMLHttpRequest = class extends OriginalXHR {
+    private _url: string | null = null;
+    private _isTelemetryRequest = false;
+
+    open(method: string, url: string | URL, ...rest: unknown[]): void {
+      this._url = typeof url === "string" ? url : url.toString();
+      this._isTelemetryRequest = isTelemetryUrl(this._url);
+      
+      // 如果是遥测相关请求，不实际打开连接
+      if (this._isTelemetryRequest) {
+        // 调用父类 open 以初始化基本状态，但不连接
+        try {
+          super.open(method, "about:blank", ...rest);
+        } catch {
+          // 忽略错误
+        }
+        return;
+      }
+      
+      return super.open(method, url, ...rest);
+    }
+
+    send(...args: unknown[]): void {
+      // 如果是遥测相关请求，模拟成功响应而不实际发送
+      if (this._isTelemetryRequest) {
+        // 使用 Object.defineProperty 设置只读属性
+        try {
+          Object.defineProperty(this, "readyState", { 
+            value: 4, 
+            writable: false, 
+            configurable: true 
+          });
+          Object.defineProperty(this, "status", { 
+            value: 200, 
+            writable: false, 
+            configurable: true 
+          });
+          Object.defineProperty(this, "statusText", { 
+            value: "OK", 
+            writable: false, 
+            configurable: true 
+          });
+          Object.defineProperty(this, "responseText", { 
+            value: "{}", 
+            writable: false, 
+            configurable: true 
+          });
+          
+          // 延迟触发事件，模拟异步行为
+          setTimeout(() => {
+            try {
+              if (this.onreadystatechange) {
+                this.onreadystatechange(new Event("readystatechange") as unknown as Event);
+              }
+              if (this.onload) {
+                this.onload(new Event("load") as unknown as Event);
+              }
+            } catch {
+              // 忽略事件处理错误
+            }
+          }, 0);
+        } catch {
+          // 如果设置属性失败，至少不发送请求
+        }
+        return;
+      }
+      
+      return super.send(...args);
+    }
+  } as typeof XMLHttpRequest;
+
   // 返回清理函数（可选，用于测试）
   return () => {
     console.error = originalConsoleError;
     console.warn = originalConsoleWarn;
     window.fetch = originalFetch;
+    window.XMLHttpRequest = OriginalXHR;
     window.removeEventListener("error", errorHandler, true);
     window.removeEventListener("unhandledrejection", rejectionHandler);
   };
