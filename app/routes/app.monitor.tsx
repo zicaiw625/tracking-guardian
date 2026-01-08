@@ -582,6 +582,11 @@ export default function MonitorPage() {
                   </List.Item>
                   <List.Item>
                     <Text as="span" variant="bodySm">
+                      <strong>归因结论：</strong><code>PII</code> 为 <code>null</code> 不代表故障，而是合规过滤导致的数据缺失。
+                    </Text>
+                  </List.Item>
+                  <List.Item>
+                    <Text as="span" variant="bodySm">
                       <strong>业务字段（value/currency/event_id）为 null：</strong>归因到"真实故障"，需要检查配置
                     </Text>
                   </List.Item>
@@ -676,51 +681,6 @@ export default function MonitorPage() {
             </Text>
           </BlockStack>
         </Banner>
-
-        {}
-        {(() => {
-          const piiRegulationDate = new Date("2025-12-10");
-          const now = new Date();
-          const isAfterRegulationDate = now >= piiRegulationDate;
-
-          if (!isAfterRegulationDate) {
-            return null;
-          }
-
-          return (
-            <Banner tone="warning" title="⚠️ 隐私/PII 新规说明（2025-12-10 起生效）">
-              <BlockStack gap="200">
-                <Text as="p" variant="bodySm">
-                  <strong>从 2025-12-10 起：</strong>未获批 protected scopes 的 app，web pixel payload 里的 PII 字段会是 <code>null</code>（仍会收到事件）。
-                </Text>
-                <List type="bullet">
-                  <List.Item>
-                    <Text as="span" variant="bodySm">
-                      <strong>PII 字段为 null 的处理：</strong>监控里会把它归因到"隐私过滤/同意状态"，避免误报为"故障"。
-                    </Text>
-                  </List.Item>
-                  <List.Item>
-                    <Text as="span" variant="bodySm">
-                      <strong>事件仍会正常接收：</strong>即使 PII 字段为 <code>null</code>，事件本身仍会正常发送和接收，只是不包含客户个人信息。
-                    </Text>
-                  </List.Item>
-                  <List.Item>
-                    <Text as="span" variant="bodySm">
-                      <strong>如何区分：</strong>
-                      <ul style={{ marginTop: "0.5rem", paddingLeft: "1.5rem" }}>
-                        <li><strong>PII 字段（email/phone/name/address）为 null：</strong>归因到"隐私过滤/同意状态"，不是故障</li>
-                        <li><strong>业务字段（value/currency/event_id）为 null：</strong>归因到"真实故障"，需要检查配置</li>
-                      </ul>
-                    </Text>
-                  </List.Item>
-                </List>
-                <Text as="p" variant="bodySm" tone="subdued">
-                  参考：<Link url="https://shopify.dev/docs/apps/store/data-protection/protected-customer-data" external>Shopify Protected Customer Data 文档</Link>
-                </Text>
-              </BlockStack>
-            </Banner>
-          );
-        })()}
 
         <Banner tone="info" title="重要说明：事件发送与平台归因">
           <BlockStack gap="200">
