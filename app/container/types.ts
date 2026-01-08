@@ -1,5 +1,3 @@
-
-
 import type { PrismaClient } from "@prisma/client";
 
 export type LogLevel = "debug" | "info" | "warn" | "error";
@@ -129,4 +127,3 @@ export interface IContainer {
 
   resolveScoped<T>(key: string, scopedContext: IScopedContext): T;
 }
-

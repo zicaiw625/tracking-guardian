@@ -1,5 +1,3 @@
-
-
 import prisma from "../db.server";
 import type { MigrationStage, MigrationProgress } from "../types/dashboard";
 
@@ -120,4 +118,3 @@ export async function calculateMigrationProgress(shopId: string): Promise<Migrat
     verificationLatest,
   };
 }
-

@@ -1,5 +1,3 @@
-
-
 export interface WebPixelInfo {
     id: string;
     settings: string | null;
@@ -71,4 +69,3 @@ export interface EnhancedScanResult extends ScanResult {
 
     _refreshRecommended?: boolean;
 }
-

@@ -1,5 +1,3 @@
-
-
 import {
   Layout,
   Card,
@@ -374,4 +372,3 @@ export function AlertsTab({
     </Layout>
   );
 }
-

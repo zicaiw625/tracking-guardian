@@ -1,5 +1,3 @@
-
-
 import { z } from 'zod';
 
 export const MIN_REASONABLE_TIMESTAMP = 1577836800000;
@@ -281,4 +279,3 @@ export function hasAnyConsent(consent: ConsentInput | undefined): boolean {
   if (!consent) return false;
   return consent.marketing === true || consent.analytics === true;
 }
-

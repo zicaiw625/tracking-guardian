@@ -49,4 +49,3 @@ export function getMaskedAlertSettings(channel: string, settings: Record<string,
     }
     return masked;
 }
-

@@ -1,5 +1,3 @@
-
-
 import { useState, useCallback } from "react";
 import { useFetcher } from "@remix-run/react";
 
@@ -260,4 +258,3 @@ export function hasRequiredCredentials(
       return false;
   }
 }
-

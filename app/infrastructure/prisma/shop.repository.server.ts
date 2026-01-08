@@ -1,5 +1,3 @@
-
-
 import type { PrismaClient } from "@prisma/client";
 import { ok, err, type AsyncResult } from "../../types/result";
 import { AppError, ErrorCode } from "../../utils/errors";
@@ -413,4 +411,3 @@ export class PrismaShopRepository implements IShopRepository {
 export function createShopRepository(prisma: PrismaClient): IShopRepository {
   return new PrismaShopRepository(prisma);
 }
-

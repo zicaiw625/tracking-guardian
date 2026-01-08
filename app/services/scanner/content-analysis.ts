@@ -1,5 +1,3 @@
-
-
 import type { RiskItem, RiskSeverity } from "../../types";
 import type { ScriptAnalysisResult } from "./types";
 import { PLATFORM_PATTERNS, getPatternType } from "./patterns";
@@ -687,4 +685,3 @@ export function analyzeScriptContent(content: string): ScriptAnalysisResult {
 
     return result;
 }
-

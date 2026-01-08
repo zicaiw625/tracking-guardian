@@ -1,5 +1,3 @@
-
-
 import { BlockStack, TextField, Select, Checkbox } from "@shopify/polaris";
 
 export type AlertChannel = "email" | "slack" | "telegram";
@@ -167,4 +165,3 @@ export function getChannelSettings(
 }
 
 export default AlertConfigForm;
-

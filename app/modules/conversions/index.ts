@@ -1,5 +1,3 @@
-
-
 export {
   processConversionJobs,
   getBatchBackoffDelay,
@@ -43,4 +41,3 @@ export type {
   PlatformCredentials,
   ConversionApiResponse,
 } from "../../types";
-

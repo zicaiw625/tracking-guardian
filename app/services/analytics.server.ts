@@ -1,5 +1,3 @@
-
-
 import { Prisma } from "@prisma/client";
 import { logger } from "../utils/logger.server";
 import prisma from "../db.server";

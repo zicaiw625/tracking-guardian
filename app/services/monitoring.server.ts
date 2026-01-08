@@ -1,5 +1,3 @@
-
-
 import prisma from "../db.server";
 import { logger } from "../utils/logger.server";
 import { getDeliveryAttemptStats } from "./event-log.server";
@@ -57,30 +55,6 @@ export interface EventVolumeHistoryData {
   isDrop?: boolean;
 }
 
-/**
- * PRD 4.4: Reliability指标一致性说明
- *
- * 本函数从 DeliveryAttempt 表查询数据计算监控指标。
- * 这些指标与 metrics-collector.ts 中定义的 px_* 指标保持一致：
- *
- * - px_ingest_accepted_count: 对应所有成功接收的事件（EventLog表）
- * - px_validate_failed_count: 对应验证失败的事件（在ingest阶段被拒绝）
- * - px_dedup_dropped_count: 对应去重被丢弃的事件（在pipeline阶段）
- * - px_destination_ok_count: 对应 DeliveryAttempt 表中 status === "ok" 的记录
- * - px_destination_fail_count: 对应 DeliveryAttempt 表中 status === "fail" 的记录
- * - px_destination_latency_ms: 对应 DeliveryAttempt 表的 latencyMs 字段
- *
- * 数据一致性保证：
- * 1. metrics-collector.ts 中的 px_* 指标是实时计数器（内存中），在事件处理时立即更新
- * 2. 本函数从 DeliveryAttempt 表查询历史数据，计算相同指标
- * 3. 两者数据源相同（都基于 DeliveryAttempt 表），但 metrics-collector 是实时值，本函数是历史查询值
- * 4. 对于历史数据查询和报告，应使用本函数；对于实时监控面板，两者数据应该一致
- *
- * PRD 4.4要求：与 Monitoring UI 的指标完全一致
- * - Monitoring页面（app/routes/app.monitor.tsx）使用本函数获取指标
- * - 确保 Monitoring UI 显示的指标与 metrics-collector 定义的指标含义一致
- * - 如果发现不一致，请检查 DeliveryAttempt 表的写入逻辑和 metrics-collector 的更新逻辑
- */
 export async function getEventMonitoringStats(
   shopId: string,
   hours: number = 24
@@ -1100,4 +1074,3 @@ export async function getMissingParamsHistory(
 
   return result;
 }
-

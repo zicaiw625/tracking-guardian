@@ -1,4 +1,3 @@
-
 import { useMemo } from "react";
 import { Card, Text, BlockStack, InlineStack, Badge, Box, Select } from "@shopify/polaris";
 import { Line, Bar } from "react-chartjs-2";
@@ -337,4 +336,3 @@ function getSeverityLabel(severity: string): string {
   };
   return labels[severity] || severity;
 }
-

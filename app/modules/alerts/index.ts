@@ -1,5 +1,3 @@
-
-
 export {
   sendAlert,
   testNotification,
@@ -29,4 +27,3 @@ export type {
   SlackAlertSettings,
   TelegramAlertSettings,
 } from "../../types";
-

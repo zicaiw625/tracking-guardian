@@ -1,4 +1,3 @@
-
 import { Badge, InlineStack, Text } from "@shopify/polaris";
 
 interface FreeFeatureBadgeProps {
@@ -21,4 +20,3 @@ export function FreeFeatureBadge({ feature }: FreeFeatureBadgeProps) {
     </InlineStack>
   );
 }
-

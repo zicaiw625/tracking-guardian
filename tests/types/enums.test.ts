@@ -1,5 +1,3 @@
-
-
 import { describe, it, expect } from "vitest";
 import {
   JobStatus,
@@ -101,4 +99,3 @@ describe("GDPRJobStatus", () => {
     expect(GDPRJobStatus.FAILED).toBe("failed");
   });
 });
-

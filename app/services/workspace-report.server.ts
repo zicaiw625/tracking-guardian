@@ -1,4 +1,3 @@
-
 import prisma from "../db.server";
 import { logger } from "../utils/logger.server";
 import { generateVerificationReportPdf, htmlToPdf } from "./pdf-generator.server";
@@ -366,4 +365,3 @@ function generateReportHtml(
 </html>
   `.trim();
 }
-

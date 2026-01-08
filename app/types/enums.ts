@@ -1,5 +1,3 @@
-
-
 export const JobStatus = {
   QUEUED: 'queued',
   PROCESSING: 'processing',
@@ -186,4 +184,3 @@ export function isValidTrustLevel(value: string): value is TrustLevelType {
 export function isValidConsentStrategy(value: string): value is ConsentStrategyType {
   return Object.values(ConsentStrategy).includes(value as ConsentStrategyType);
 }
-

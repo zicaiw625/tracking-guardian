@@ -1,5 +1,3 @@
-
-
 import { json, type ActionFunctionArgs, type LoaderFunctionArgs } from "@remix-run/node";
 import { authenticate } from "../shopify.server";
 import { AppError, ErrorCode, ensureAppError } from "../utils/errors";
@@ -339,4 +337,3 @@ export function composeValidators<T>(
     return ok(data);
   };
 }
-

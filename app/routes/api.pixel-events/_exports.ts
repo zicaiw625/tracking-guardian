@@ -1,5 +1,3 @@
-
-
 export type {
   PixelEventName,
   PixelEventPayload,
@@ -56,4 +54,3 @@ export {
   getShopForPixelVerification,
   getShopForPixelVerificationWithConfigs,
 } from "./key-validation";
-

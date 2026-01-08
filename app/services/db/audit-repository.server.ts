@@ -1,5 +1,3 @@
-
-
 import { randomUUID } from "crypto";
 import prisma from "../../db.server";
 import { Prisma } from "@prisma/client";
@@ -289,4 +287,3 @@ export async function createAuditLog(
   const { shopId, ...logEntry } = entry;
   return createAuditLogEntry(shopId, logEntry);
 }
-

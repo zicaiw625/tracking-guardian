@@ -447,4 +447,3 @@ export function ManualPastePanel({ shopId, onAssetsCreated }: ManualPastePanelPr
     </Card>
   );
 }
-

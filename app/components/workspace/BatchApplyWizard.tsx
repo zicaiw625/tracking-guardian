@@ -1,5 +1,3 @@
-
-
 import {
   Card,
   Text,
@@ -778,4 +776,3 @@ export function BatchApplyWizard({
 
   return null;
 }
-

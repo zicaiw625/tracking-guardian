@@ -1,5 +1,3 @@
-
-
 export * from "./pixel-event";
 
 export * from "./settings";

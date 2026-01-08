@@ -1,5 +1,3 @@
-
-
 import { randomUUID } from "crypto";
 import prisma from "../../db.server";
 import { SimpleCache } from "../../utils/cache";
@@ -430,4 +428,3 @@ export function invalidatePixelConfigCache(shopId: string): void {
 export function clearPixelConfigCache(): void {
   shopPixelConfigsCache.clear();
 }
-

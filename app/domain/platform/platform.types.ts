@@ -1,5 +1,3 @@
-
-
 export type Platform = "google" | "meta" | "tiktok";
 
 export const PLATFORM_DISPLAY_NAMES: Record<Platform, string> = {
@@ -160,4 +158,3 @@ export function isRetryableErrorType(type: PlatformErrorType): boolean {
     type === "network_error"
   );
 }
-

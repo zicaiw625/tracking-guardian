@@ -1,5 +1,3 @@
-
-
 import type { LoaderFunctionArgs } from "@remix-run/node";
 import { json } from "@remix-run/node";
 import { authenticate } from "../../shopify.server";
@@ -158,4 +156,3 @@ export async function settingsLoader({ request }: LoaderFunctionArgs) {
 }
 
 export type { SettingsLoaderData };
-

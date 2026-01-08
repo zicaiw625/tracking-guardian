@@ -1,5 +1,3 @@
-
-
 export type {
   GDPRJobType,
   DataRequestPayload,

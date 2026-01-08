@@ -1,5 +1,3 @@
-
-
 import { randomUUID } from "crypto";
 import prisma from "../../db.server";
 import { logger } from "../../utils/logger.server";
@@ -268,4 +266,3 @@ export function getBatchMigrationSummary(job: BatchMigrationJob): {
 
   return summary;
 }
-

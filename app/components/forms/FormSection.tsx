@@ -1,5 +1,3 @@
-
-
 import { BlockStack, Text, Divider, Box } from "@shopify/polaris";
 import type { ReactNode } from "react";
 
@@ -41,4 +39,3 @@ export function FormSection({
 }
 
 export default FormSection;
-

@@ -677,7 +677,7 @@ export default function MonitorPage() {
               </List.Item>
             </List>
             <Text as="p" variant="bodySm" tone="subdued">
-              参考：<Link url="https://shopify.dev/docs/api/web-pixels-api/pixel-privacy" external>Shopify Pixel Privacy 文档</Link>
+              参考：<Link url="https:
             </Text>
           </BlockStack>
         </Banner>

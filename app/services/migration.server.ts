@@ -820,4 +820,3 @@ export async function checkAppScopes(admin: AdminApiContext): Promise<boolean> {
         return true;
     }
 }
-

@@ -1,4 +1,3 @@
-
 import { Component, type ReactNode } from "react";
 import {
   Page,
@@ -156,4 +155,3 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
     return this.props.children;
   }
 }
-

@@ -1,5 +1,3 @@
-
-
 import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import {
   Card,
@@ -1409,4 +1407,3 @@ function EventDetails({ event }: { event: RealtimeEvent }) {
     </BlockStack>
   );
 }
-

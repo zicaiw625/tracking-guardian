@@ -1,5 +1,3 @@
-
-
 export type JobStatus =
   | "queued"
   | "processing"
@@ -209,4 +207,3 @@ export function isValidPlatformResultStatus(value: unknown): value is PlatformRe
     value === "pending"
   );
 }
-

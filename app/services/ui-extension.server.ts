@@ -1,5 +1,3 @@
-
-
 import { randomUUID } from "crypto";
 import prisma from "../db.server";
 import { getPlanOrDefault, type PlanId } from "./billing/plans";

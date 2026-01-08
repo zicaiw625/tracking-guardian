@@ -1,5 +1,3 @@
-
-
 export const API_CSP_DIRECTIVES: Record<string, string[]> = {
   "default-src": ["'none'"],
   "frame-ancestors": ["'none'"],

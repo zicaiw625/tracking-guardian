@@ -95,4 +95,3 @@ export function AlertsTodoCard({ alerts }: AlertsTodoCardProps) {
     </Card>
   );
 }
-

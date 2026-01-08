@@ -1,5 +1,3 @@
-
-
 import { AppError, ErrorCode, type ErrorCodeType, type ErrorMetadata } from "./app-error";
 
 export abstract class ServiceError extends AppError {
@@ -478,4 +476,3 @@ export function isAuthError(error: unknown): error is AuthError {
 export function isNotFoundError(error: unknown): error is NotFoundError {
   return error instanceof NotFoundError;
 }
-

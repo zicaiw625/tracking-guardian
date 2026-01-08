@@ -1,5 +1,3 @@
-
-
 import {
   DEPRECATION_DATES as DEPRECATION_DATES_IMPORT,
   getDateDisplayLabel,
@@ -47,4 +45,3 @@ export const SHOPIFY_HELP_LINKS = {
   UPGRADE_GUIDE: "https://help.shopify.com/en/manual/checkout-settings/upgrade-guide",
   CHECKOUT_EXTENSIBILITY: "https://help.shopify.com/en/manual/checkout-settings/checkout-extensibility",
 } as const;
-

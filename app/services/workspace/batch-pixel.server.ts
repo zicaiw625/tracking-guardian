@@ -1,5 +1,3 @@
-
-
 import { randomUUID } from "crypto";
 import type { Prisma } from "@prisma/client";
 import prisma from "~/db.server";
@@ -176,4 +174,3 @@ export async function batchApplyPixelTemplate(
     results,
   };
 }
-

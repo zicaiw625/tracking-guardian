@@ -116,7 +116,7 @@ function injectBackendUrl() {
         }
     } catch (error) {
         console.error(`❌ Invalid SHOPIFY_APP_URL: ${backendUrl}`);
-        console.error("   Please provide a valid URL (e.g., https://your-app.onrender.com)");
+        console.error("   Please provide a valid URL (e.g., https:
         if (error instanceof Error) {
             console.error(`   Error: ${error.message}`);
         }

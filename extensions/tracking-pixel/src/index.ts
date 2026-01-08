@@ -1,5 +1,3 @@
-
-
 import { register } from "@shopify/web-pixels-extension";
 import { BACKEND_URL, isAllowedBackendUrl } from "../../shared/config";
 import { createConsentManager, subscribeToConsentChanges } from "./consent";

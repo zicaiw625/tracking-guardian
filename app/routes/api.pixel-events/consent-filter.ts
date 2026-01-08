@@ -1,5 +1,3 @@
-
-
 import { isMarketingPlatform, isAnalyticsPlatform, PLATFORM_CONSENT_CONFIG } from "../../utils/platform-consent";
 import { logger, metrics } from "../../utils/logger.server";
 import type { ConsentState } from "./types";
@@ -134,4 +132,3 @@ export function logConsentFilterMetrics(
     });
   }
 }
-

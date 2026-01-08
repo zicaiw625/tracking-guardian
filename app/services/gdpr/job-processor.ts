@@ -1,5 +1,3 @@
-
-
 import prisma from "../../db.server";
 import { logger } from "../../utils/logger.server";
 import { processDataRequest, processCustomerRedact, processShopRedact } from "./handlers";
@@ -178,4 +176,3 @@ export async function getGDPRJobStatus(shopDomain?: string): Promise<{
     recentJobs,
   };
 }
-

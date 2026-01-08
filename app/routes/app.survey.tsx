@@ -1,4 +1,3 @@
-
 import type { ActionFunctionArgs, LoaderFunctionArgs } from "@remix-run/node";
 import { json, redirect } from "@remix-run/node";
 import { useLoaderData, useSubmit, useNavigation } from "@remix-run/react";
@@ -357,4 +356,3 @@ export default function SurveyPage() {
     </Page>
   );
 }
-

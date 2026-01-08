@@ -1,5 +1,3 @@
-
-
 import { useState, useCallback, useRef, useEffect } from 'react';
 
 export interface UseFormDirtyOptions<T> {
@@ -122,4 +120,3 @@ export function useMultiFieldDirty<T extends Record<string, unknown>>(
     getInitialValues,
   };
 }
-

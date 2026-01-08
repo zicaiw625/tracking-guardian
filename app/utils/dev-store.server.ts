@@ -1,5 +1,3 @@
-
-
 export function isDevStore(shopDomain: string): boolean {
   if (!shopDomain) return false;
 
@@ -37,4 +35,3 @@ export function generateModulePreviewUrl(
 
   return null;
 }
-

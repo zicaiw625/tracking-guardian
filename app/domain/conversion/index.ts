@@ -1,5 +1,3 @@
-
-
 export {
   type ConversionJob,
   type JobWithShop,
@@ -40,4 +38,3 @@ export {
   type JobDeadLetteredEvent,
   type ConversionJobEvent,
 } from "./conversion.repository";
-

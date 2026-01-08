@@ -1,5 +1,3 @@
-
-
 export interface CleanupResult {
   shopsProcessed: number;
   conversionLogsDeleted: number;
@@ -177,4 +175,3 @@ export function isCronSkipped(response: CronResponse): response is CronSkippedRe
 export function isCronError(response: CronResponse): response is CronErrorResponse {
   return response.success === false;
 }
-

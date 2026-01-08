@@ -1,5 +1,3 @@
-
-
 import { logger } from '../utils/logger.server';
 import {
   validatePixelEvent as validateWithZod,
@@ -346,4 +344,3 @@ export function determineTrustLevel(
 export function getSignatureStatus(keyValidation: KeyValidationResult): string {
   return keyValidation.matched ? 'key_matched' : keyValidation.reason;
 }
-

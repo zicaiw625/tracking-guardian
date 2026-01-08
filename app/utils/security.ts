@@ -1,5 +1,3 @@
-
-
 import { z } from "zod";
 import { buildCspHeader, CSP_DIRECTIVES } from "./security-headers";
 
@@ -391,4 +389,3 @@ export function sanitizeSensitiveInfo(text: string): string {
 
   return sanitized;
 }
-

@@ -73,4 +73,3 @@ export const loader = async ({ request, params }: LoaderFunctionArgs) => {
     return new Response("Failed to load report", { status: 500 });
   }
 };
-

@@ -1,5 +1,3 @@
-
-
 export function safeJsonParse<T>(
   json: string | null | undefined,
   defaultValue: T
@@ -486,4 +484,3 @@ export function isDevelopment(): boolean {
 export function isTest(): boolean {
   return process.env.NODE_ENV === "test";
 }
-

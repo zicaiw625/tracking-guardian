@@ -1,5 +1,3 @@
-
-
 import type { PixelEventPayload } from "~/routes/api.pixel-events/types";
 
 export interface EventMapping {
@@ -409,4 +407,3 @@ export function normalizeParameterValue(
 
   return value;
 }
-

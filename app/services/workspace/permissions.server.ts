@@ -1,5 +1,3 @@
-
-
 import prisma from "~/db.server";
 import { logger } from "~/utils/logger.server";
 
@@ -144,4 +142,3 @@ export async function getUserWorkspaceRole(
     return null;
   }
 }
-

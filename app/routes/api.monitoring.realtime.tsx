@@ -1,5 +1,3 @@
-
-
 import type { LoaderFunctionArgs } from "@remix-run/node";
 import { authenticate } from "../shopify.server";
 import { getEventMonitoringStats } from "../services/monitoring.server";
@@ -120,4 +118,3 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 
   return new Response(stream, { headers });
 };
-

@@ -1,4 +1,3 @@
-
 import { randomUUID } from "crypto";
 import prisma from "../db.server";
 import { logger } from "../utils/logger.server";
@@ -394,4 +393,3 @@ export async function deleteMigrationTask(
     return { error: error instanceof Error ? error.message : "删除任务失败" };
   }
 }
-

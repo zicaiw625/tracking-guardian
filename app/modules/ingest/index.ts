@@ -1,5 +1,3 @@
-
-
 export {
   batchFetchReceipts,
   findReceiptForJob,
@@ -45,4 +43,3 @@ export {
   type ConsentState,
   type ConsentDecision,
 } from "../../utils/platform-consent";
-

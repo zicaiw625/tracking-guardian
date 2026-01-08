@@ -1,5 +1,3 @@
-
-
 export type {
 
   GDPRJobType,
@@ -65,4 +63,3 @@ export {
   checkGDPRCompliance,
   getGDPRDeletionSummary,
 } from "./compliance";
-

@@ -1,5 +1,3 @@
-
-
 import { JOB_PROCESSING_CONFIG } from "../utils/config";
 
 const { BASE_DELAY_MS, MAX_DELAY_MS, BACKOFF_MULTIPLIER } = JOB_PROCESSING_CONFIG;
@@ -15,4 +13,3 @@ export {
   type ProcessConversionJobsResult,
   getBatchBackoffDelay,
 } from './job-processor.server';
-

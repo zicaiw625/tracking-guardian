@@ -1,4 +1,3 @@
-
 import prisma from "../db.server";
 import { logger } from "../utils/logger.server";
 import { generateReportData, type ReportData } from "./report-generator.server";
@@ -6,9 +5,6 @@ import { exportVerificationReport, exportMigrationChecklist, exportMultiShopRepo
 import { generateScanReportPdf, generateVerificationReportPdf, generateBatchReports } from "./pdf-generator.server";
 import type { VerificationSummary } from "./verification.server";
 
-/**
- * PRD 2.2: 提取迁移所需的信息（CSV版本）
- */
 function extractRequiredInfoForCSV(asset: {
   category: string;
   platform: string | null;
@@ -71,9 +67,6 @@ function extractRequiredInfoForCSV(asset: {
   return info.join("; ");
 }
 
-/**
- * PRD 2.2: 获取风险原因（CSV版本）
- */
 function getRiskReasonForCSV(asset: {
   category: string;
   platform: string | null;
@@ -627,4 +620,3 @@ export async function exportBatchComprehensiveReports(
     throw error;
   }
 }
-

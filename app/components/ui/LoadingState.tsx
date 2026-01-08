@@ -1,5 +1,3 @@
-
-
 import {
   Card,
   SkeletonPage,
@@ -224,4 +222,3 @@ export function FormSkeleton({ fields = 4 }: FormSkeletonProps) {
     </Card>
   );
 }
-

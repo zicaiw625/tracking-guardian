@@ -1,5 +1,3 @@
-
-
 import { randomUUID } from "crypto";
 import prisma from "../../db.server";
 import { Prisma } from "@prisma/client";
@@ -332,4 +330,3 @@ export async function cleanupOldJobs(
 
   return result.count;
 }
-

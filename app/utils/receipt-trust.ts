@@ -203,4 +203,3 @@ export function buildTrustMetadata(trustResult: ReceiptTrustResult, additionalCo
         verifiedAt: new Date().toISOString(),
     };
 }
-

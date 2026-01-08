@@ -1,5 +1,3 @@
-
-
 function parseEnvDate(envVar: string | undefined, defaultDate: string): Date {
     if (envVar && /^\d{4}-\d{2}-\d{2}$/.test(envVar)) {
         const parsed = new Date(envVar);

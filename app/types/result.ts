@@ -1,5 +1,3 @@
-
-
 import type { AppError } from "../utils/errors/app-error";
 
 export interface Ok<T> {
@@ -205,4 +203,3 @@ export type AsyncVoidResult<E = AppError> = AsyncResult<void, E>;
 export type SimpleResult<T> = Result<T, string>;
 
 export type IdResult<E = AppError> = Result<string, E>;
-

@@ -1,5 +1,3 @@
-
-
 import {
   reactExtension,
   BlockStack,
@@ -147,4 +145,3 @@ function ReorderOrderStatus() {
     </BlockStack>
   );
 }
-

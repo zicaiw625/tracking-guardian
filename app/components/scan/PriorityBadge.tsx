@@ -1,4 +1,3 @@
-
 import { Badge } from "@shopify/polaris";
 
 export interface PriorityBadgeProps {
@@ -35,4 +34,3 @@ export function PriorityBadge({ priority, size = "medium" }: PriorityBadgeProps)
     </Badge>
   );
 }
-

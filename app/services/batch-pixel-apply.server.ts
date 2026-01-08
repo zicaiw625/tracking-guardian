@@ -1,5 +1,3 @@
-
-
 import { randomUUID } from "crypto";
 import { Prisma } from "@prisma/client";
 import prisma from "../db.server";
@@ -742,4 +740,3 @@ export async function applyPresetTemplate(
     platformsApplied: result.platformsApplied,
   };
 }
-

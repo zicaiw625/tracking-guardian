@@ -1,5 +1,3 @@
-
-
 import type { ZodError, ZodIssue } from "zod";
 import { AppError, ErrorCode } from "../errors/index";
 
@@ -65,4 +63,3 @@ export function zodErrorToAppError(zodError: ZodError<unknown>): AppError {
 }
 
 export const formatZodErrors = formatZodErrorsToArray;
-

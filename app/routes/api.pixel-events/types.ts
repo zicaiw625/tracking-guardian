@@ -1,5 +1,3 @@
-
-
 export type PixelEventName =
   | "checkout_completed"
   | "checkout_started"

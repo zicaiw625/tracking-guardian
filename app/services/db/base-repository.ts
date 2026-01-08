@@ -1,5 +1,3 @@
-
-
 import { type PrismaClient } from "@prisma/client";
 import { getDb } from "../../container";
 import { AppError, ErrorCode, Errors } from "../../utils/errors";
@@ -285,4 +283,3 @@ export abstract class BaseRepository<
     return Errors.dbQuery(`${this.modelName}.${operation}: ${String(error)}`);
   }
 }
-

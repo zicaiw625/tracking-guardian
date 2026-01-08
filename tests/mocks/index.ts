@@ -1,5 +1,3 @@
-
-
 export {
   createMockModel,
   createMockPrismaClient,
@@ -78,4 +76,3 @@ export {
   type MockAddress,
   type MockLineItem,
 } from "./shopify.mock";
-

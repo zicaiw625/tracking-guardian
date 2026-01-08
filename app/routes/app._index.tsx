@@ -1,5 +1,3 @@
-
-
 import type { LoaderFunctionArgs } from "@remix-run/node";
 import { json } from "@remix-run/node";
 import { useLoaderData , useNavigate } from "@remix-run/react";

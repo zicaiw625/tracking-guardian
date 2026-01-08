@@ -1,5 +1,3 @@
-
-
 import prisma from "../../db.server";
 import { logger } from "../../utils/logger.server";
 import type { CleanupResult, DeletableRecord, BatchDeleteResult } from "../types";
@@ -357,4 +355,3 @@ export async function cleanupExpiredData(): Promise<CleanupResult> {
     migrationDraftsDeleted: totalMigrationDrafts,
   };
 }
-

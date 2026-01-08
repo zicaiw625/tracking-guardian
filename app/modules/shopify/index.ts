@@ -1,5 +1,3 @@
-
-
 export {
   shopify,
   shopifyApp,
@@ -39,4 +37,3 @@ export {
   extractAuthToken,
   getShopifyApiSecret,
 } from "../../utils/shopify-jwt";
-

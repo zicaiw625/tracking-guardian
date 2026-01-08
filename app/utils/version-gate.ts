@@ -1,5 +1,3 @@
-
-
 const APP_VERSION = "1.0";
 
 export interface VersionGateResult {
@@ -55,4 +53,3 @@ export function canUseThirdPartyTracking(provider: "native" | "aftership" | "17t
 
   return checkV1FeatureBoundary("shipping_tracking_third_party");
 }
-

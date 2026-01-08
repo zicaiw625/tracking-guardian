@@ -1,5 +1,3 @@
-
-
 import type { Shop, PixelConfig } from "@prisma/client";
 import type { AdminApiContext } from "@shopify/shopify-app-remix/server";
 
@@ -41,4 +39,3 @@ export interface WebhookLockResult {
 }
 
 export type GDPRJobType = "data_request" | "customer_redact" | "shop_redact";
-

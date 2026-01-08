@@ -1,5 +1,3 @@
-
-
 export const ErrorCode = {
 
   AUTH_INVALID_TOKEN: "AUTH_INVALID_TOKEN",
@@ -481,4 +479,3 @@ export function isRecoverable(error: unknown): error is AppError & RecoverableEr
     typeof (error as RecoverableError).fallback === "function"
   );
 }
-

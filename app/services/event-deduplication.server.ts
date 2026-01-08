@@ -1,5 +1,3 @@
-
-
 import crypto from "crypto";
 import { logger } from "../utils/logger.server";
 
@@ -164,4 +162,3 @@ export function shouldSendEvent(
       return true;
   }
 }
-

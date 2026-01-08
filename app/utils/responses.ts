@@ -1,5 +1,3 @@
-
-
 export function createJsonResponse<T extends Record<string, unknown>>(
   data: T,
   options?: {
@@ -167,4 +165,3 @@ export function acceptedResponse<T extends Record<string, unknown>>(data?: T): R
   }
   return new Response(null, { status: 202 });
 }
-

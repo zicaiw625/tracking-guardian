@@ -1,5 +1,3 @@
-
-
 import type { AdminApiContext } from "@shopify/shopify-app-remix/server";
 import prisma from "../../db.server";
 import type { ScanResult, ScriptTag, CheckoutConfig } from "../../types";

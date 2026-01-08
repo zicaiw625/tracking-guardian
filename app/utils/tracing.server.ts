@@ -1,5 +1,3 @@
-
-
 import { randomBytes } from "crypto";
 import { AsyncLocalStorage } from "async_hooks";
 import { logger } from "./logger.server";
@@ -517,4 +515,3 @@ export const tracing = {
   registerSpanProcessor,
   removeSpanProcessor,
 };
-

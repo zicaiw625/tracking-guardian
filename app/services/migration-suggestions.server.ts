@@ -1,4 +1,3 @@
-
 import prisma from "../db.server";
 import { logger } from "../utils/logger.server";
 import type { AuditAsset } from "@prisma/client";
@@ -222,4 +221,3 @@ function getMigrationDescription(asset: AuditAsset): string {
 
   return `${categoryName} - ${migrationName}`;
 }
-

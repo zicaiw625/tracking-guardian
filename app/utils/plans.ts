@@ -1,5 +1,3 @@
-
-
 import {
   BILLING_PLANS,
   type PlanId as BillingPlanId,
@@ -67,4 +65,3 @@ export function isPlanAtLeast(
   return isHigherTier(currentActual as BillingPlanId, targetActual as BillingPlanId) ||
          currentActual === targetActual;
 }
-

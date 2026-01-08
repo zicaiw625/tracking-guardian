@@ -1,5 +1,3 @@
-
-
 type PolarisTranslations = Record<string, unknown>;
 
 export function getPolarisTranslations(
@@ -18,4 +16,3 @@ export function getPolarisTranslations(
 
   return translations as PolarisTranslations;
 }
-

@@ -1,5 +1,3 @@
-
-
 import type { PlanId } from "../../services/billing/plans";
 
 export type ShopTier = "plus" | "non_plus" | "unknown";

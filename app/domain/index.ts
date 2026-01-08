@@ -1,5 +1,3 @@
-
-
 export {
 
   type Shop,
@@ -114,4 +112,3 @@ export {
   type RateLimitEvent,
   type PlatformDomainEvent,
 } from "./platform";
-

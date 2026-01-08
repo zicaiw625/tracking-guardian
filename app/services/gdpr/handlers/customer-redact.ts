@@ -1,5 +1,3 @@
-
-
 import prisma from "../../../db.server";
 import { logger } from "../../../utils/logger.server";
 import { createAuditLog } from "../../audit.server";
@@ -153,4 +151,3 @@ export async function processCustomerRedact(
 
   return result;
 }
-

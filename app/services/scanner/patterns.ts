@@ -1,5 +1,3 @@
-
-
 export const PLATFORM_PATTERNS: Record<string, RegExp[]> = {
 
     google: [
@@ -549,4 +547,3 @@ export function getPatternType(platform: string, pattern: RegExp): string {
             return "追踪代码";
     }
 }
-

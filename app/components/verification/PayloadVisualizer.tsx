@@ -1,5 +1,3 @@
-
-
 import { useState } from "react";
 import {
   Card,
@@ -348,4 +346,3 @@ function mapToPlatformClient(
     parameters,
   };
 }
-

@@ -1,5 +1,3 @@
-
-
 import {
   Text,
   BlockStack,
@@ -204,4 +202,3 @@ export function ThresholdConfigSection({
     </BlockStack>
   );
 }
-

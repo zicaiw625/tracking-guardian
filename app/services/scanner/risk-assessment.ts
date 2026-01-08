@@ -1,5 +1,3 @@
-
-
 import type { RiskItem, RiskSeverity, ScriptTag } from "../../types";
 import type { EnhancedScanResult } from "./types";
 import { PLATFORM_PATTERNS, PLATFORM_INFO, identifyPlatformFromSrc } from "./patterns";
@@ -168,4 +166,3 @@ export function calculateRiskScore(riskItems: RiskItem[]): number {
 
     return normalizedScore;
 }
-

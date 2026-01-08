@@ -1,5 +1,3 @@
-
-
 import prisma from "../db.server";
 import { logger } from "../utils/logger.server";
 import { generateSimpleId } from "../utils/helpers";
@@ -538,9 +536,6 @@ export async function exportEventLogsAsCSV(
   }
 }
 
-/**
- * 获取 DeliveryAttempt 统计（用于 Monitoring）
- */
 export async function getDeliveryAttemptStats(
   shopId: string,
   options: {

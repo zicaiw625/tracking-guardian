@@ -1,5 +1,3 @@
-
-
 export interface CheckoutData {
   order?: {
     id?: string;

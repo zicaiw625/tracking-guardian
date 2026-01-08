@@ -1,5 +1,3 @@
-
-
 import type { PlanId } from "../services/billing/plans";
 
 export type ModuleKey =
@@ -163,4 +161,3 @@ export const UI_MODULES: Record<ModuleKey, ModuleInfo> = {
 };
 
 export const MODULE_KEYS = Object.keys(UI_MODULES) as ModuleKey[];
-

@@ -1,4 +1,3 @@
-
 module.exports = {
   root: true,
   parserOptions: {
@@ -65,4 +64,3 @@ module.exports = {
     },
   ],
 };
-

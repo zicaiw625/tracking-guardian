@@ -1,5 +1,3 @@
-
-
 import { getRedisClient, getRedisClientSync, type RedisClientWrapper } from "./redis-client";
 import { logger } from "./logger.server";
 

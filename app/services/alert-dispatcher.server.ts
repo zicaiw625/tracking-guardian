@@ -1,5 +1,3 @@
-
-
 import prisma from "../db.server";
 import { sendAlert } from "./notification.server";
 import { getEventMonitoringStats, getMissingParamsStats, getEventVolumeStats } from "./monitoring.server";
@@ -920,4 +918,3 @@ export async function acknowledgeAlert(
     return false;
   }
 }
-

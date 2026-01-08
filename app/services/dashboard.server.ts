@@ -1,5 +1,3 @@
-
-
 import prisma from "../db.server";
 import { getPlanDefinition, normalizePlan } from "../utils/plans";
 import { generateMigrationTimeline } from "./migration-priority.server";
@@ -503,4 +501,3 @@ export async function getDashboardData(shopDomain: string): Promise<DashboardDat
     topRiskSources,
   };
 }
-

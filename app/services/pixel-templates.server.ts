@@ -1,5 +1,3 @@
-
-
 import { logger } from "~/utils/logger.server";
 
 export interface PixelTemplate {
@@ -260,4 +258,3 @@ export function validateTemplateConfig(
     errors,
   };
 }
-

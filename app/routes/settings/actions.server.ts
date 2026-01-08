@@ -1,5 +1,3 @@
-
-
 import type { ActionFunctionArgs } from "@remix-run/node";
 import { json } from "@remix-run/node";
 import { Prisma } from "@prisma/client";

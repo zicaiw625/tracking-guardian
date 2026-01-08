@@ -1,5 +1,3 @@
-
-
 import type { AdminApiContext } from "@shopify/shopify-app-remix/server";
 import prisma from "../../db.server";
 import {
@@ -463,4 +461,3 @@ export async function handleAfterAuth(
     }
   }
 }
-

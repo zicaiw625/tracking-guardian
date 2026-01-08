@@ -1,5 +1,3 @@
-
-
 import { describe, it, expect, beforeEach, vi } from "vitest";
 
 vi.mock("../../app/utils/cache", () => ({
@@ -277,4 +275,3 @@ describe("Billing Gate Service", () => {
     });
   });
 });
-

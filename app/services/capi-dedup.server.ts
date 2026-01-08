@@ -1,5 +1,3 @@
-
-
 import { randomUUID, createHash } from "crypto";
 import prisma from "../db.server";
 import { logger } from "../utils/logger.server";
@@ -367,4 +365,3 @@ export function formatSnapchatDedupId(eventId: string): string {
 
   return eventId;
 }
-

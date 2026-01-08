@@ -1,5 +1,3 @@
-
-
 import {
   getPixelEventsCorsHeaders,
   getPixelEventsCorsHeadersForShop,
@@ -68,4 +66,3 @@ export function optionsResponse(request: Request): Response {
     headers: getCorsHeadersPreBody(request),
   });
 }
-

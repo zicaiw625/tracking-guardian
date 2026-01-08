@@ -1,4 +1,3 @@
-
 import type { LoaderFunctionArgs } from "@remix-run/node";
 import { authenticate } from "../shopify.server";
 import { generateMigrationChecklist } from "../services/migration-checklist.server";
@@ -60,4 +59,3 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     );
   }
 };
-

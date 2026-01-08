@@ -1,5 +1,3 @@
-
-
 import type {
   ConversionData,
   ConversionApiResponse,
@@ -248,4 +246,3 @@ export async function sendConversionToSnapchat(
 
   return result.response!;
 }
-

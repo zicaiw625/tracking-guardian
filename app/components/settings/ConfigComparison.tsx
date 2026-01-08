@@ -1,5 +1,3 @@
-
-
 import {
   Card,
   Text,
@@ -167,4 +165,3 @@ export function ConfigComparison({
     </Card>
   );
 }
-

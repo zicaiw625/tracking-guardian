@@ -1,5 +1,3 @@
-
-
 import { z } from 'zod';
 
 export const MoneySchema = z.object({
@@ -90,4 +88,3 @@ export function validateGDPRShopRedact(payload: unknown): ValidationResult<GDPRS
     issues: result.error.issues,
   };
 }
-

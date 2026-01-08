@@ -1,5 +1,3 @@
-
-
 import type { ActionFunctionArgs } from "@remix-run/node";
 import { json } from "@remix-run/node";
 import { authenticate } from "../shopify.server";
@@ -81,4 +79,3 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 
   return json({ error: "Unknown action" }, { status: 400 });
 };
-

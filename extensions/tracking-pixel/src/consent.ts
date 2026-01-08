@@ -1,5 +1,3 @@
-
-
 import type { CustomerPrivacyState, VisitorConsentCollectedEvent } from "./types";
 
 export interface ConsentManager {
@@ -101,4 +99,3 @@ export function subscribeToConsentChanges(
     log("customerPrivacy.subscribe not available, using initial state only");
   }
 }
-

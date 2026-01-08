@@ -276,4 +276,3 @@ export function generateRiskReportHtml(report: EnhancedRiskReport): string {
 </body>
 </html>`;
 }
-

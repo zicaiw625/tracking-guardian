@@ -89,4 +89,3 @@ console.log('Original:');
 console.log(testCode);
 console.log('\nAfter removing comments:');
 console.log(result);
-

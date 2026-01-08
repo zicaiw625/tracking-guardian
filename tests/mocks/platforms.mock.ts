@@ -1,5 +1,3 @@
-
-
 import { vi, type Mock } from "vitest";
 
 export interface MockPlatformResponse {
@@ -329,4 +327,3 @@ export function assertTikTokEventsCalled(
     expect(body.pixel_code).toBe(expectedPixelCode);
   }
 }
-

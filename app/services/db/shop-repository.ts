@@ -1,5 +1,3 @@
-
-
 import { type Shop, type Prisma, type PixelConfig } from "@prisma/client";
 import { BaseRepository, type TransactionClient, type PrismaDelegate } from "./base-repository";
 import { ok, err, type AsyncResult } from "../../types/result";
@@ -247,4 +245,3 @@ export function getShopRepository(): ShopRepository {
   }
   return shopRepositoryInstance;
 }
-

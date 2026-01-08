@@ -1,5 +1,3 @@
-
-
 import type {
   JobStatusType,
   TrustLevelType,
@@ -548,4 +546,3 @@ export function requireObject<T extends object>(value: unknown, fieldName: strin
   }
   return value as T;
 }
-

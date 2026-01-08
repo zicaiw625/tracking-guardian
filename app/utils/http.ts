@@ -1,5 +1,3 @@
-
-
 import { logger } from "./logger.server";
 
 export const DEFAULT_TIMEOUT_MS = 10000;
@@ -250,4 +248,3 @@ export async function measureDuration<T>(fn: () => Promise<T>): Promise<[T, numb
   const result = await fn();
   return [result, Date.now() - start];
 }
-

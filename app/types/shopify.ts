@@ -1,5 +1,3 @@
-
-
 import type { AdminApiContext } from "@shopify/shopify-app-remix/server";
 
 export interface WebhookRegisterResult {
@@ -280,4 +278,3 @@ export function extractGraphQLErrors(
     .map((e) => e.message)
     .filter((m): m is string => typeof m === "string");
 }
-

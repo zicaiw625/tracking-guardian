@@ -1,4 +1,3 @@
-
 import { Card, Text, BlockStack, InlineStack, Badge, Box, Button, List, Divider, Banner, Collapsible } from "@shopify/polaris";
 import { useState } from "react";
 import { ArrowRightIcon, CheckCircleIcon, AlertCircleIcon, WarningIcon } from "~/components/icons";
@@ -378,4 +377,3 @@ export function DiagnosticsPanel({ report, onRunDiagnostics }: DiagnosticsPanelP
     </BlockStack>
   );
 }
-

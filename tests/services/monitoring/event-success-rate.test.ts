@@ -1,4 +1,3 @@
-
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import {
   calculateSuccessRateByDestination,
@@ -114,4 +113,3 @@ describe("Event Success Rate Monitoring", () => {
     });
   });
 });
-

@@ -1,5 +1,3 @@
-
-
 import { useState, useEffect, useRef, useCallback } from "react";
 
 export function useDebounceValue<T>(value: T, delay: number): T {
@@ -79,4 +77,3 @@ export function useThrottle<T>(value: T, interval: number): T {
 }
 
 export default useDebounceValue;
-

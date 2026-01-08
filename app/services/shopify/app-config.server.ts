@@ -1,5 +1,3 @@
-
-
 import "@shopify/shopify-app-remix/adapters/node";
 import {
   ApiVersion,
@@ -176,4 +174,3 @@ export const unauthenticated = shopify.unauthenticated;
 export const login = shopify.login;
 export const registerWebhooks = shopify.registerWebhooks;
 export const sessionStorage = shopify.sessionStorage;
-

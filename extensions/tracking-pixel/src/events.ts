@@ -1,5 +1,3 @@
-
-
 import type { CheckoutData, CartLine } from "./types";
 import type { ConsentManager } from "./consent";
 
@@ -604,4 +602,3 @@ export function subscribeToAnalyticsEvents(
     log("Tracking Guardian pixel initialized - full_funnel mode enabled with all standard events");
   }
 }
-

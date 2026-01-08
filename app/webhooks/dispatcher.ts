@@ -1,5 +1,3 @@
-
-
 import { logger } from "../utils/logger.server";
 import { WebhookStatus } from "../types";
 import {
@@ -17,7 +15,7 @@ import { tryAcquireWebhookLock, updateWebhookStatus } from "./middleware";
 import type { WebhookContext, WebhookHandlerResult, ShopWithPixelConfigs } from "./types";
 
 function normalizeTopic(topic: string): string {
-  // Shopify topics are usually like "orders/create" — normalize to "ORDERS_CREATE"
+
   return topic
     .toUpperCase()
     .replace(/[^A-Z0-9_]+/g, "_")
@@ -144,4 +142,3 @@ export async function dispatchWebhook(
     return new Response("Webhook processing failed", { status: 500 });
   }
 }
-

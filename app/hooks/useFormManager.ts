@@ -1,5 +1,3 @@
-
-
 import { useState, useCallback, useRef, useMemo, useEffect } from "react";
 import { useNavigation } from "@remix-run/react";
 
@@ -386,4 +384,3 @@ export function requiredField<T>(
 ): FieldConfig<T> {
   return { initialValue, required: true, validate };
 }
-

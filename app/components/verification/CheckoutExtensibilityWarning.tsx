@@ -1,4 +1,3 @@
-
 import { Banner, BlockStack, Text, List, Link } from "@shopify/polaris";
 import { AlertTriangleIcon } from "~/components/icons";
 
@@ -72,4 +71,3 @@ export function getCheckoutExtensibilityWarningText(): string {
 建议：在验收测试中，请特别关注 upsell 场景和 consent 变化场景。
   `.trim();
 }
-

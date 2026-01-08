@@ -1,5 +1,3 @@
-
-
 import { createContext, useContext, ReactNode } from "react";
 import { ToastContainer, useToast, type Toast } from "./Toast";
 
@@ -38,4 +36,3 @@ export function ToastProvider({ children }: { children: ReactNode }) {
     </ToastContext.Provider>
   );
 }
-

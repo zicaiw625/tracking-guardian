@@ -1,5 +1,3 @@
-
-
 import { logger } from "../../utils/logger.server";
 import type {
   ITrackingProvider,
@@ -342,4 +340,3 @@ export class AfterShipProvider implements ITrackingProvider {
 }
 
 export const afterShipProvider = new AfterShipProvider();
-

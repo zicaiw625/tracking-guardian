@@ -1,5 +1,3 @@
-
-
 import { AppError, ErrorCode } from "../errors/index";
 import type { Result } from "../../types/result";
 import { ok, err } from "../../types/result";
@@ -143,4 +141,3 @@ export function validateOrderId(
     )
   );
 }
-

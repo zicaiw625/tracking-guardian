@@ -1,5 +1,3 @@
-
-
 import { z } from "zod";
 
 export const GoogleMeasurementIdSchema = z
@@ -195,4 +193,3 @@ export function isTikTokCredentialsInput(
 ): creds is TypedTikTokCredentials {
   return creds.platform === "tiktok";
 }
-

@@ -1,5 +1,3 @@
-
-
 import prisma from "../db.server";
 import { logger } from "../utils/logger.server";
 import { analyzeScriptContent } from "./scanner/content-analysis";
@@ -879,4 +877,3 @@ export async function processManualPasteAssets(
     return { created: 0, updated: 0, failed: 1, duplicates: 0 };
   }
 }
-

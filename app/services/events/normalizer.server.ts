@@ -1,5 +1,3 @@
-
-
 import type { PixelEventPayload } from "~/routes/api.pixel-events/types";
 import { normalizeParameterValue } from "./mapping.server";
 
@@ -315,4 +313,3 @@ export function validateCanonicalEvent(
     errors,
   };
 }
-

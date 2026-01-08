@@ -1,4 +1,3 @@
-
 import type { Platform } from "../types/platform";
 
 export type ShopifyEventType =
@@ -284,4 +283,3 @@ export function mergeEventMappings(
     ...customMappings,
   };
 }
-

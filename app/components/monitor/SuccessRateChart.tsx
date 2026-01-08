@@ -1,4 +1,3 @@
-
 import { useMemo } from "react";
 import { Card, Text, BlockStack, Box, Select } from "@shopify/polaris";
 import { Line, Bar } from "react-chartjs-2";
@@ -341,4 +340,3 @@ export function SuccessRateChart({
     </BlockStack>
   );
 }
-

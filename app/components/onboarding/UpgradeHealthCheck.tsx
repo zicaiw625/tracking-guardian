@@ -1,5 +1,3 @@
-
-
 import { useState, useEffect } from "react";
 import {
   Card,
@@ -209,4 +207,3 @@ export function UpgradeHealthCheck({
     </Card>
   );
 }
-

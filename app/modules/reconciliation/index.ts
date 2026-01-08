@@ -1,5 +1,3 @@
-
-
 export {
   type ReconciliationResult,
   type ReconciliationSummary,
@@ -26,4 +24,3 @@ export {
   type ReceiptTrustResult,
   type VerifyReceiptOptions,
 } from "../../utils/receipt-trust";
-

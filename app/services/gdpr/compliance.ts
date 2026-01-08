@@ -1,5 +1,3 @@
-
-
 import prisma from "../../db.server";
 import { logger } from "../../utils/logger.server";
 import type { GDPRComplianceResult, GDPRDeletionSummary } from "./types";
@@ -122,4 +120,3 @@ export async function getGDPRDeletionSummary(
     deletionsByTable,
   };
 }
-

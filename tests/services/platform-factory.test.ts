@@ -1,5 +1,3 @@
-
-
 import { describe, it, expect } from "vitest";
 import {
   getPlatformService,
@@ -230,4 +228,3 @@ describe("Error parsing", () => {
     });
   }
 });
-

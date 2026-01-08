@@ -1,4 +1,3 @@
-
 import {
   Card,
   Text,
@@ -249,4 +248,3 @@ export function CommentSection({
     </Card>
   );
 }
-

@@ -1,5 +1,3 @@
-
-
 import {
   Card,
   Text,
@@ -124,4 +122,3 @@ export function VersionHistory({ history, platform }: VersionHistoryProps) {
     </Card>
   );
 }
-

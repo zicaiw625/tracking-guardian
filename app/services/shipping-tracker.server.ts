@@ -1,4 +1,3 @@
-
 import { logger } from "../utils/logger.server";
 
 export type TrackingProvider = "aftership" | "17track" | "native";
@@ -280,4 +279,3 @@ export async function getTrackingFromShopifyOrder(
     events: [],
   };
 }
-

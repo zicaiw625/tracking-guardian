@@ -1,5 +1,3 @@
-
-
 import { AppError, ErrorCode, ensureAppError } from "../utils/errors";
 import { ok, err, type Result, type AsyncResult, isOk, isErr } from "../types/result";
 import { logger } from "../utils/logger.server";
@@ -383,4 +381,3 @@ export function logResult<T, E>(
 
 export { ok, err, isOk, isErr };
 export type { Result, AsyncResult };
-

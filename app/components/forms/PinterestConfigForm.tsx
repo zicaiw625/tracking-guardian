@@ -1,5 +1,3 @@
-
-
 import { useState, useCallback } from "react";
 import {
   BlockStack,
@@ -249,4 +247,3 @@ export function PinterestConfigForm({
 }
 
 export default PinterestConfigForm;
-

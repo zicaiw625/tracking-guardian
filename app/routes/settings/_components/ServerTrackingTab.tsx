@@ -1,5 +1,3 @@
-
-
 import {
   Layout,
   Card,
@@ -630,4 +628,3 @@ export function ServerTrackingTab({
     </Layout>
   );
 }
-

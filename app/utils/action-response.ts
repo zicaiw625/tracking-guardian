@@ -1,5 +1,3 @@
-
-
 import { json } from "@remix-run/node";
 
 export interface ActionSuccess<T = unknown> {
@@ -131,4 +129,3 @@ export function unwrapResponseOr<T>(
   }
   return response.data ?? defaultValue;
 }
-

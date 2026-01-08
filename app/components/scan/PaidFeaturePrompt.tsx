@@ -1,4 +1,3 @@
-
 import { Banner, Button, BlockStack, InlineStack, Text } from "@shopify/polaris";
 import { LockIcon } from "~/components/icons";
 import type { PlanId } from "~/services/billing/plans";
@@ -96,4 +95,3 @@ export function PaidFeaturePrompt({
     </Banner>
   );
 }
-

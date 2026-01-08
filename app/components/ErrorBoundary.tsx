@@ -1,5 +1,3 @@
-
-
 import { useRouteError, isRouteErrorResponse, Link } from "@remix-run/react";
 import {
   Page,
@@ -232,4 +230,3 @@ export function LoadingError({
 }
 
 export default RouteErrorBoundary;
-

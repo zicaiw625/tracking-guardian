@@ -1,5 +1,3 @@
-
-
 import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 
 export interface FormStateOptions<T> {
@@ -126,4 +124,3 @@ export function useFormState<T extends Record<string, unknown>>(
 }
 
 export default useFormState;
-

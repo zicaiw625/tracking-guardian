@@ -1,5 +1,3 @@
-
-
 import { json } from "@remix-run/node";
 import type { LoaderFunctionArgs, ActionFunctionArgs } from "@remix-run/node";
 import type { ZodSchema } from "zod";
@@ -109,4 +107,3 @@ export function createSimpleValidationErrorResponse(
 export const withValidation = withValidationMiddleware;
 
 export const validationErrorResponse = createValidationErrorResponse;
-

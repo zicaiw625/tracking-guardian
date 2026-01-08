@@ -1,5 +1,3 @@
-
-
 import type { AdminApiContext } from "@shopify/shopify-app-remix/server";
 import { logger } from "../utils/logger.server";
 
@@ -119,4 +117,3 @@ export async function deleteMultipleWebPixels(
 
     return { kept, results };
 }
-

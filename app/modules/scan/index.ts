@@ -1,5 +1,3 @@
-
-
 export {
   scanShopTracking,
   getScanHistory,
@@ -35,4 +33,3 @@ export {
   PLATFORM_PATTERNS,
   detectPlatforms,
 } from "../../services/scanner/patterns";
-

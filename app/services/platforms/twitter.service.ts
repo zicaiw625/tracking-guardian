@@ -1,5 +1,3 @@
-
-
 import type {
   ConversionData,
   ConversionApiResponse,
@@ -281,4 +279,3 @@ export async function sendConversionToTwitter(
 
   return result.response!;
 }
-

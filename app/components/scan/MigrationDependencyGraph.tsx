@@ -1,4 +1,3 @@
-
 import { useMemo } from "react";
 import {
   Card,
@@ -380,4 +379,3 @@ export function MigrationDependencyGraph({
     </Card>
   );
 }
-

@@ -1,5 +1,3 @@
-
-
 import {
   Card,
   Text,
@@ -157,4 +155,3 @@ export function BatchApplyProgress({
     </Card>
   );
 }
-

@@ -1,5 +1,3 @@
-
-
 export {
   shopify,
   shopifyApp,
@@ -118,4 +116,3 @@ export {
   type RollbackResult,
   type EnvironmentSwitchResult,
 } from "./pixel-rollback.server";
-

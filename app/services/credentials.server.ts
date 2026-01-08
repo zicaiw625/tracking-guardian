@@ -1,5 +1,3 @@
-
-
 import { decryptJson } from "../utils/crypto.server";
 import { logger } from "../utils/logger.server";
 import type { PlatformCredentials } from "../types";

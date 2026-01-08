@@ -1,4 +1,3 @@
-
 import prisma from "../../db.server";
 import { logger } from "../../utils/logger.server";
 import type { PlanId } from "./plans";
@@ -192,4 +191,3 @@ export async function getUsageTrend(
     platforms,
   };
 }
-

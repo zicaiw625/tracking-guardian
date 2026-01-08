@@ -1,5 +1,3 @@
-
-
 import { logger } from "~/utils/logger.server";
 import { checkUsageApproachingLimit } from "./usage-tracking.server";
 import type { PlanId } from "./plans";
@@ -87,4 +85,3 @@ export async function sendUsageAlertNotification(
     };
   }
 }
-

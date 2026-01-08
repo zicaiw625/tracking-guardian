@@ -1,5 +1,3 @@
-
-
 import prisma from "../../db.server";
 import { logger } from "../../utils/logger.server";
 import type { WebhookContext, WebhookHandlerResult, ShopWithPixelConfigs } from "../types";
@@ -110,4 +108,3 @@ export async function handleAppUninstalled(
     message: "App uninstalled",
   };
 }
-

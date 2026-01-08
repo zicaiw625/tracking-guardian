@@ -1,5 +1,3 @@
-
-
 import { logger } from "./logger.server";
 
 type MetricType = "counter" | "gauge" | "histogram";
@@ -223,4 +221,3 @@ if (process.env.NODE_ENV === "production") {
         }
     }, AGGREGATION_INTERVAL_MS);
 }
-

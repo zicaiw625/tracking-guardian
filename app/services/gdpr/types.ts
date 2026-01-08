@@ -1,5 +1,3 @@
-
-
 import { z } from "zod";
 
 export const GDPRJobTypeValues = ["data_request", "customer_redact", "shop_redact"] as const;
@@ -276,4 +274,3 @@ export function createEmptyShopRedactDeletionCounts(): ShopRedactDeletionCounts 
     shop: 0,
   };
 }
-

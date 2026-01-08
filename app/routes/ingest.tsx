@@ -1,5 +1,3 @@
-
-
 import type { ActionFunctionArgs, LoaderFunctionArgs } from "@remix-run/node";
 import { action as pixelEventsAction, loader as pixelEventsLoader } from "./api.pixel-events/route";
 import { jsonWithCors } from "./api.pixel-events/cors";

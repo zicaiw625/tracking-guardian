@@ -1,5 +1,3 @@
-
-
 import prisma from "../db.server";
 import { logger } from "../utils/logger.server";
 import { getPixelTemplates, createPixelTemplate } from "./batch-pixel-apply.server";
@@ -405,4 +403,3 @@ export async function importTemplateFromShare(
     return { success: false, error: "导入模板失败" };
   }
 }
-

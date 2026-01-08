@@ -1,5 +1,3 @@
-
-
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
 vi.mock("../../app/db.server", () => ({
@@ -638,4 +636,3 @@ describe("GDPR Processing Edge Cases", () => {
     expect(completionUpdate[0].data.payload).toEqual({});
   });
 });
-

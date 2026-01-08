@@ -1,4 +1,3 @@
-
 import { logger } from "../utils/logger.server";
 import type { BatchReportData } from "./workspace/batch-report.server";
 
@@ -404,4 +403,3 @@ export function createCustomTemplate(
     whiteLabel: options.whiteLabel,
   };
 }
-

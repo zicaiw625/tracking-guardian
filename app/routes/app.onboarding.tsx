@@ -1,5 +1,3 @@
-
-
 import type { ActionFunctionArgs, LoaderFunctionArgs } from "@remix-run/node";
 import { json, redirect } from "@remix-run/node";
 import { useLoaderData, useSubmit, useNavigation, useSearchParams, useActionData } from "@remix-run/react";
@@ -888,7 +886,7 @@ export default function OnboardingPage() {
               如果您在迁移过程中遇到问题，我们提供以下支持：
             </Text>
             <InlineStack gap="300" wrap>
-              <Button url="https://help.shopify.com/en/manual/checkout-settings" external>
+              <Button url="https:
                 Shopify 官方文档
               </Button>
               <Button url="/support">

@@ -1,5 +1,3 @@
-
-
 declare module '@shopify/polaris/build/esm/styles.css?url' {
   const content: string;
   export default content;
@@ -27,4 +25,3 @@ declare module 'html-pdf-node' {
     options?: HtmlPdfNodeOptions
   ): Promise<Buffer>;
 }
-

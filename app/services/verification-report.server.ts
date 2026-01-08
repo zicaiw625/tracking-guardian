@@ -1,4 +1,3 @@
-
 import prisma from "../db.server";
 import { logger } from "../utils/logger.server";
 import { htmlToPdf } from "./pdf-generator.server";

@@ -1,5 +1,3 @@
-
-
 import { Banner, Card, Text, BlockStack, Button, InlineStack } from "@shopify/polaris";
 
 export interface ErrorDisplayProps {
@@ -219,4 +217,3 @@ export function EmptyStateDisplay({
     </Card>
   );
 }
-

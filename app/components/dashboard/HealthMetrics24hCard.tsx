@@ -121,4 +121,3 @@ export function HealthMetrics24hCard({ metrics }: HealthMetrics24hCardProps) {
     </Card>
   );
 }
-

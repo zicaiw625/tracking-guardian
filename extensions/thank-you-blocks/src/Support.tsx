@@ -34,7 +34,7 @@ function SupportBlock() {
 
   const faqUrl = useMemo(() => {
     const url = (settings.support_faq_url as string) || "/pages/faq";
-    if (url.startsWith("http://") || url.startsWith("https://")) {
+    if (url.startsWith("http:
       return url;
     }
     return storefrontUrl ? `${storefrontUrl}${url.startsWith("/") ? url : `/${url}`}` : url;

@@ -1,5 +1,3 @@
-
-
 import prisma from "../db.server";
 import { logger } from "../utils/logger.server";
 import { getVerificationRun } from "./verification.server";
@@ -543,4 +541,3 @@ export function generateMultiShopSummaryHtml(
     </html>
   `;
 }
-

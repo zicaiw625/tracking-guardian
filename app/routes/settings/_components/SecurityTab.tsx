@@ -1,5 +1,3 @@
-
-
 import {
   Layout,
   Card,
@@ -410,4 +408,3 @@ export function SecurityTab({
     </Layout>
   );
 }
-

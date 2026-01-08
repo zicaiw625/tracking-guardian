@@ -1,5 +1,3 @@
-
-
 import { createCipheriv, createDecipheriv, randomBytes } from "crypto";
 import { getEncryptionKey, validateEncryptionConfig } from "./crypto.server";
 import { logger } from "./logger.server";

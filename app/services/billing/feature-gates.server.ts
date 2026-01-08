@@ -1,5 +1,3 @@
-
-
 import prisma from "~/db.server";
 import { logger } from "~/utils/logger.server";
 import { BILLING_PLANS, type PlanId, getPlanOrDefault, getPixelDestinationsLimit, getUiModulesLimit, planSupportsFeature } from "./plans";
@@ -251,4 +249,3 @@ export async function getFeatureLimitsSummary(
     },
   };
 }
-

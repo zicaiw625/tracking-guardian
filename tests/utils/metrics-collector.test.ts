@@ -1,5 +1,3 @@
-
-
 import { describe, it, expect, beforeEach } from "vitest";
 import {
     incrementCounter,
@@ -177,4 +175,3 @@ describe("Metrics Collector", () => {
         });
     });
 });
-

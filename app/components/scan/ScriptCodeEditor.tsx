@@ -1,5 +1,3 @@
-
-
 import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import {
   Card,
@@ -455,4 +453,3 @@ export function ScriptCodeEditor({
     </BlockStack>
   );
 }
-

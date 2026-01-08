@@ -1,5 +1,3 @@
-
-
 import { logger } from "../utils/logger.server";
 import type { EventMapping } from "./event-mapping";
 
@@ -262,4 +260,3 @@ export function normalizeValue(value: unknown): number {
 
   return 0;
 }
-

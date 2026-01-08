@@ -1,5 +1,3 @@
-
-
 import {
     reactExtension,
     BlockStack,
@@ -140,4 +138,3 @@ function ShippingTrackerOrderStatus() {
         </BlockStack>
     );
 }
-

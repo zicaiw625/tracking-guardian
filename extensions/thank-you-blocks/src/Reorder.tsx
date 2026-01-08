@@ -1,5 +1,3 @@
-
-
 import {
   reactExtension,
   BlockStack,
@@ -256,4 +254,3 @@ const Reorder = memo(function Reorder() {
     </BlockStack>
   );
 });
-

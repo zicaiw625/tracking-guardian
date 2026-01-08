@@ -1,5 +1,3 @@
-
-
 import { randomUUID } from "crypto";
 import { Prisma } from "@prisma/client";
 import prisma from "../db.server";
@@ -531,4 +529,3 @@ export function getPresetTemplates(): Array<Omit<PixelTemplate, "id" | "ownerId"
     },
   ];
 }
-

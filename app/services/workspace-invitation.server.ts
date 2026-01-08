@@ -1,5 +1,3 @@
-
-
 import { randomBytes, randomUUID } from "crypto";
 import type { Prisma } from "@prisma/client";
 import prisma from "../db.server";
@@ -591,4 +589,3 @@ ${inviteUrl}
 © ${new Date().getFullYear()} Tracking Guardian
   `.trim();
 }
-

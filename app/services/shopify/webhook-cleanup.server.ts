@@ -1,5 +1,3 @@
-
-
 import type { AdminApiContext } from "@shopify/shopify-app-remix/server";
 import { logger } from "../../utils/logger.server";
 import type {
@@ -155,4 +153,3 @@ export async function cleanupDeprecatedWebhookSubscriptions(
     });
   }
 }
-

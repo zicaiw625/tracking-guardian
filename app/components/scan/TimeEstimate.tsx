@@ -1,4 +1,3 @@
-
 import { Text, InlineStack , Icon } from "@shopify/polaris";
 import { ClockIcon } from "../icons";
 
@@ -37,4 +36,3 @@ export function TimeEstimate({
     </InlineStack>
   );
 }
-

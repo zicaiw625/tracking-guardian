@@ -1,4 +1,3 @@
-
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import {
   calculatePriority,
@@ -166,4 +165,3 @@ describe("Migration Priority Service", () => {
     });
   });
 });
-

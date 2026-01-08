@@ -1,5 +1,3 @@
-
-
 import { generateEventId as generateCryptoEventId } from "~/utils/crypto.server";
 import type { PixelEventPayload } from "~/routes/api.pixel-events/types";
 
@@ -91,4 +89,3 @@ export function generateHybridDeduplicationKey(
   }
   return `${destinationType}:server:${serverEventId}`;
 }
-

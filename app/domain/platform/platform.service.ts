@@ -1,5 +1,3 @@
-
-
 import type { AsyncResult } from "../../types/result";
 import type { AppError } from "../../utils/errors";
 import type {
@@ -105,4 +103,3 @@ export type PlatformDomainEvent =
   | ConversionSentEvent
   | ConversionFailedEvent
   | RateLimitEvent;
-

@@ -1,5 +1,3 @@
-
-
 import { vi, type Mock } from "vitest";
 import type { PrismaClient } from "@prisma/client";
 
@@ -315,4 +313,3 @@ export function resetGlobalMockPrisma(): void {
     setupMockPrisma(globalMockPrisma);
   }
 }
-

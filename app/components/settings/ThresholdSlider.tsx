@@ -1,5 +1,3 @@
-
-
 import {
   Box,
   Text,
@@ -150,4 +148,3 @@ export function ThresholdSlider({
     </BlockStack>
   );
 }
-

@@ -1,5 +1,3 @@
-
-
 import type { LoaderFunctionArgs } from "@remix-run/node";
 import { json } from "@remix-run/node";
 import prisma from "../db.server";
@@ -40,4 +38,3 @@ export const loader = async ({ request: _request }: LoaderFunctionArgs) => {
         },
     });
 };
-

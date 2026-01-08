@@ -1,5 +1,3 @@
-
-
 import type { ZodSchema } from "zod";
 import { logger } from "../logger.server";
 import { AppError, ErrorCode } from "../errors/index";
@@ -273,4 +271,3 @@ export function validateParamsResult<T>(
 
   return ok(result.data);
 }
-

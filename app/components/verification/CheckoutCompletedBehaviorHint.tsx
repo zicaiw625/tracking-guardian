@@ -1,5 +1,3 @@
-
-
 import { Banner, BlockStack, Text, List, Collapsible } from "@shopify/polaris";
 import { useState } from "react";
 import { AlertCircleIcon, InfoIcon } from "~/components/icons";
@@ -124,4 +122,3 @@ export function CheckoutCompletedBehaviorHint({
     </Banner>
   );
 }
-

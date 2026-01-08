@@ -1,5 +1,3 @@
-
-
 import {
   Card,
   BlockStack,
@@ -209,4 +207,3 @@ export function EventMetricsDashboard({
     </BlockStack>
   );
 }
-

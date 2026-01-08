@@ -1,5 +1,3 @@
-
-
 export interface MiddlewareContext {
 
   request: Request;
@@ -112,4 +110,3 @@ export function extractClientIp(request: Request): string {
 export function extractShopDomain(request: Request): string | undefined {
   return request.headers.get("x-shopify-shop-domain") ?? undefined;
 }
-

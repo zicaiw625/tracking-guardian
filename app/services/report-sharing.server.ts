@@ -1,4 +1,3 @@
-
 import prisma from "../db.server";
 import { randomBytes } from "crypto";
 import { logger } from "../utils/logger.server";
@@ -272,4 +271,3 @@ export async function deleteShareableReport(
     return false;
   }
 }
-

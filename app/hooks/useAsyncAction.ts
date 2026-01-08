@@ -1,5 +1,3 @@
-
-
 import { useState, useCallback, useRef, useEffect } from "react";
 
 export interface AsyncActionState<T = unknown, E = Error> {
@@ -163,4 +161,3 @@ export function useAsyncAction<T, Args extends unknown[] = []>(
 }
 
 export default useAsyncAction;
-

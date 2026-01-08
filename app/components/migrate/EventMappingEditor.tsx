@@ -812,4 +812,3 @@ export function EventMappingEditor({
     </Card>
   );
 }
-

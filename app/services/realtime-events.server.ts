@@ -1,4 +1,3 @@
-
 import { logger } from "../utils/logger.server";
 import prisma from "../db.server";
 
@@ -152,4 +151,3 @@ export async function subscribeToEvents(
 
   return cleanup;
 }
-

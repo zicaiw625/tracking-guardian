@@ -1,5 +1,3 @@
-
-
 import {
     reactExtension,
     BlockStack,

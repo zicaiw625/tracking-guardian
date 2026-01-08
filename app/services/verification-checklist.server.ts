@@ -1,5 +1,3 @@
-
-
 import { logger } from "../utils/logger.server";
 import type { VerificationTestItem } from "./verification.server";
 
@@ -522,4 +520,3 @@ export function generateChecklistCSV(checklist: TestChecklist): string {
 
   return csv;
 }
-

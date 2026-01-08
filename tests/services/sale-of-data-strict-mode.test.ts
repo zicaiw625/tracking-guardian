@@ -1,5 +1,3 @@
-
-
 import { describe, it, expect } from "vitest";
 
 function isStrictSaleOfDataAllowed(saleOfData: boolean | undefined | null): boolean {
@@ -264,4 +262,3 @@ describe("Web Pixel Settings Schema Validation", () => {
     expect(validType).toBe("single_line_text_field");
   });
 });
-

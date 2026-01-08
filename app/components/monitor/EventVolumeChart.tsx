@@ -1,5 +1,3 @@
-
-
 import { useMemo } from "react";
 import { Card, Text, BlockStack, Box, Banner } from "@shopify/polaris";
 import { Line } from "react-chartjs-2";
@@ -175,4 +173,3 @@ export function EventVolumeChart({
     </Card>
   );
 }
-

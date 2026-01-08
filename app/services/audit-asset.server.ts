@@ -1,5 +1,3 @@
-
-
 import crypto, { randomUUID } from "crypto";
 import prisma from "../db.server";
 import { logger } from "../utils/logger.server";
@@ -628,4 +626,3 @@ function mapToRecord(asset: {
     updatedAt: asset.updatedAt,
   };
 }
-

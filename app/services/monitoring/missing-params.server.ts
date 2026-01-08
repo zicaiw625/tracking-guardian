@@ -1,4 +1,3 @@
-
 import prisma from "../../db.server";
 import { logger } from "../../utils/logger.server";
 
@@ -602,4 +601,3 @@ export async function getMissingParamsHistory(
     byParam: stats.byParam,
   })).sort((a, b) => a.date.localeCompare(b.date));
 }
-

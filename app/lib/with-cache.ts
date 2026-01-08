@@ -1,5 +1,3 @@
-
-
 import { json } from "@remix-run/node";
 import type { LoaderFunctionArgs, ActionFunctionArgs } from "@remix-run/node";
 import { SimpleCache, TTL } from "../utils/cache";
@@ -236,4 +234,3 @@ export function noCacheJson<T>(data: T): Response {
 }
 
 export { defaultLoaderCache };
-

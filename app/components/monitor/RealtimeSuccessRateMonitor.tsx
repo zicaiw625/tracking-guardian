@@ -1,5 +1,3 @@
-
-
 import { useState, useEffect, useRef } from "react";
 import {
   Card,
@@ -229,4 +227,3 @@ export function RealtimeSuccessRateMonitor({
     </Card>
   );
 }
-

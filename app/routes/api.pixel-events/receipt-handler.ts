@@ -1,5 +1,3 @@
-
-
 import prisma from "../../db.server";
 import { generateEventId, generateMatchKey } from "../../utils/crypto.server";
 import { extractOriginHost } from "../../utils/origin-validation";
@@ -369,4 +367,3 @@ export function generateDeduplicationKeyForEvent(
     .digest("hex")
     .substring(0, 32);
 }
-

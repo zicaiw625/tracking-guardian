@@ -1,5 +1,3 @@
-
-
 import { useState, useCallback } from "react";
 import {
   Layout,
@@ -180,4 +178,3 @@ export function SubscriptionTab({ currentPlan, subscriptionStatus }: Subscriptio
     </Layout>
   );
 }
-

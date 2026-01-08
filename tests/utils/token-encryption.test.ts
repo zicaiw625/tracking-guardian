@@ -226,4 +226,3 @@ describe("Token Encryption Utils", () => {
     });
   });
 });
-

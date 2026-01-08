@@ -1,5 +1,3 @@
-
-
 import prisma from "../../db.server";
 import { WebhookStatus } from "../../types";
 import { logger } from "../../utils/logger.server";
@@ -133,4 +131,3 @@ export function withIdempotency<T>(
     return handler(context, ...args);
   };
 }
-

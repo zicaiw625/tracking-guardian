@@ -1,5 +1,3 @@
-
-
 import prisma from "../../db.server";
 import { logger } from "../../utils/logger.server";
 
@@ -260,4 +258,3 @@ export function getCacheStats(): Record<string, { size: number; keys: string[] }
     monthlyUsage: monthlyUsageCache.getStats(),
   };
 }
-

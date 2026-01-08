@@ -1,5 +1,3 @@
-
-
 import { describe, it, expect } from "vitest";
 import {
   parseCapiInput,
@@ -155,4 +153,3 @@ describe("parsePixelClientConfig", () => {
     expect(result).toBeNull();
   });
 });
-

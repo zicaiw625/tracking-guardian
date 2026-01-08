@@ -1,5 +1,3 @@
-
-
 import { BlockStack, TextField, Banner, Text } from "@shopify/polaris";
 
 export type PlatformType = "meta" | "google" | "tiktok";
@@ -235,4 +233,3 @@ export function areCredentialsComplete(
 }
 
 export default PlatformCredentialsForm;
-

@@ -1,4 +1,3 @@
-
 import { useState, useCallback } from "react";
 import {
   Card,
@@ -285,4 +284,3 @@ function calculatePlatformStats(report: VerificationReportData): Record<
 
   return stats;
 }
-

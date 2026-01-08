@@ -1,5 +1,3 @@
-
-
 import { z } from "zod";
 import { PlatformTypeSchema } from "./platform-credentials";
 import { OrderIdSchema } from "./pixel-event";
@@ -276,4 +274,3 @@ export function validateResponse<T>(
     error: result.error.issues.map((i) => i.message).join("; "),
   };
 }
-

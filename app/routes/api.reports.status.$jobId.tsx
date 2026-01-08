@@ -1,5 +1,3 @@
-
-
 import { json, type LoaderFunctionArgs } from "@remix-run/node";
 import { authenticate } from "../shopify.server";
 import prisma from "../db.server";
@@ -43,4 +41,3 @@ export const loader = async ({ request, params }: LoaderFunctionArgs) => {
     completedAt: job.completedAt?.toISOString(),
   });
 };
-

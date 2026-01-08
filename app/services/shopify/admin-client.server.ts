@@ -1,5 +1,3 @@
-
-
 import { ApiVersion, type AdminApiContext } from "@shopify/shopify-app-remix/server";
 import prisma from "../../db.server";
 import { decryptAccessToken } from "../../utils/token-encryption";

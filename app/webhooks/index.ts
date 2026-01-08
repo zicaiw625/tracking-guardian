@@ -1,5 +1,3 @@
-
-
 export type {
   WebhookContext,
   WebhookHandlerResult,
@@ -23,4 +21,3 @@ export {
   updateWebhookStatus,
   withIdempotency,
 } from "./middleware";
-

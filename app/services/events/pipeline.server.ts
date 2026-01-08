@@ -1,5 +1,3 @@
-
-
 import prisma from "~/db.server";
 import { logger } from "~/utils/logger.server";
 import type { PixelEventPayload } from "~/routes/api.pixel-events/types";
@@ -706,4 +704,3 @@ export async function getEventStats(
 
   return stats;
 }
-

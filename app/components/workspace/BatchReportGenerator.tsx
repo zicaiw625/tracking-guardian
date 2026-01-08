@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import {
   Card,
@@ -224,4 +223,3 @@ export function BatchReportGenerator({
     </Card>
   );
 }
-

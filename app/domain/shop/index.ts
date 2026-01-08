@@ -1,5 +1,3 @@
-
-
 export {
   type Shop,
   type ShopBasic,
@@ -34,4 +32,3 @@ export {
   type ShopReinstalledEvent,
   type ShopDomainEvent,
 } from "./shop.repository";
-

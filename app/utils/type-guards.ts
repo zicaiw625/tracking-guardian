@@ -1,5 +1,3 @@
-
-
 import type {
   EmailAlertSettings,
   SlackAlertSettings,
@@ -157,4 +155,3 @@ export function getPrismaErrorTarget(error: unknown): string[] | undefined {
   }
   return undefined;
 }
-

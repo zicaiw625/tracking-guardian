@@ -1,4 +1,3 @@
-
 import prisma from "../db.server";
 import { logger } from "../utils/logger.server";
 import { getEventMonitoringStats, getMissingParamsStats, getEventVolumeStats, reconcileChannels } from "./monitoring.server";
@@ -647,4 +646,3 @@ function calculateHealthScore(issues: DiagnosticIssue[]): number {
 
   return Math.max(0, Math.min(100, score));
 }
-

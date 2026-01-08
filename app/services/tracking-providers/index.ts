@@ -1,5 +1,3 @@
-
-
 export * from "./types";
 export * from "./aftership";
 
@@ -48,4 +46,3 @@ export function getSupportedProviders(): Array<{ code: ProviderCode; name: strin
     { code: "shipstation", name: "ShipStation" },
   ];
 }
-

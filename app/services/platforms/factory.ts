@@ -1,5 +1,3 @@
-
-
 import { Platform, type PlatformType } from '../../types/enums';
 import type { IPlatformService, PlatformSendResult } from './interface';
 import { googleService, GooglePlatformService } from './google.service';
@@ -135,4 +133,3 @@ export {
   type BatchSendResult,
   type PlatformServiceOptions,
 } from './base-platform.service';
-

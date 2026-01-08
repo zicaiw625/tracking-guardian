@@ -1,4 +1,3 @@
-
 import { createHmac, timingSafeEqual } from "crypto";
 import { logger } from "../../utils/logger.server";
 import type { KeyValidationResult } from "./types";
@@ -112,4 +111,3 @@ export async function validatePixelEventHMAC(
 
   return verifyHMACSignature(signature, secret, timestamp, bodyHash, timestampWindowMs);
 }
-

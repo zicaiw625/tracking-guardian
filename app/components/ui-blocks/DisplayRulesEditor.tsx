@@ -265,4 +265,3 @@ export function DisplayRulesEditor({
     </BlockStack>
   );
 }
-

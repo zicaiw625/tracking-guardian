@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import {
   Card,
@@ -161,4 +160,3 @@ export function PostInstallScanProgress({
     </Card>
   );
 }
-

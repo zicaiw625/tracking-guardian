@@ -1,5 +1,3 @@
-
-
 export type ConsentCategory = "marketing" | "analytics";
 
 export type ConsentStrategy = "strict" | "balanced" | "weak";
@@ -56,4 +54,3 @@ export interface TrustVerificationOptions {
   maxReceiptAgeMs: number;
   maxTimeSkewMs: number;
 }
-

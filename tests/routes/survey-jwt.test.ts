@@ -54,7 +54,7 @@ function generateMockJwt(
   const now = Math.floor(Date.now() / 1000);
   const fullPayload = {
     iss: "https://test-shop.myshopify.com/admin",
-    dest: "https://test-shop.myshopify.com",
+    dest: "https:
     aud: "test-client-id",
     sub: "12345",
     exp: now + 3600,
@@ -201,7 +201,7 @@ describe("P1-4: Survey API JWT Verification", () => {
     it("returns 401 for JWT not yet valid (future nbf)", async () => {
       const now = Math.floor(Date.now() / 1000);
       const futureToken = generateMockJwt({
-        dest: "https://test-shop.myshopify.com",
+        dest: "https:
         exp: now + 7200,
         nbf: now + 3600,
         iat: now,

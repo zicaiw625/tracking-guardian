@@ -437,4 +437,3 @@ export function extractShopifyId(gid: string | number): string {
   }
   return gid;
 }
-

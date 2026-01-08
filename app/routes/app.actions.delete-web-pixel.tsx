@@ -1,5 +1,3 @@
-
-
 import type { ActionFunctionArgs } from "@remix-run/node";
 import { json } from "@remix-run/node";
 import { authenticate } from "../shopify.server";
@@ -121,4 +119,3 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 export const loader = async () => {
     return json({ error: "Method not allowed" }, { status: 405 });
 };
-

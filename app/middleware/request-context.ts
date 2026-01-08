@@ -1,5 +1,3 @@
-
-
 import type { LoaderFunctionArgs, ActionFunctionArgs } from "@remix-run/node";
 import {
   container,
@@ -123,4 +121,3 @@ export function withShopDomain(): ContextMiddlewareOptions {
     logRequests: true,
   };
 }
-

@@ -1,5 +1,3 @@
-
-
 import { Badge, InlineStack, Text, Tooltip } from "@shopify/polaris";
 
 export type StatusType =
@@ -206,4 +204,3 @@ export function StatusWithCount({ status, label, count }: StatusWithCountProps) 
     </InlineStack>
   );
 }
-

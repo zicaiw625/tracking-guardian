@@ -1,5 +1,3 @@
-
-
 import {
   verifyReceiptTrust,
   isSendAllowedByTrust,
@@ -213,4 +211,3 @@ export function getTrustSummary(trustResult: ReceiptTrustResult): string {
   }
   return `untrusted (${trustResult.reason || 'unknown'})`;
 }
-

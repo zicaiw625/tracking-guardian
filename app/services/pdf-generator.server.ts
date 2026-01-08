@@ -1,5 +1,3 @@
-
-
 import { logger } from "../utils/logger.server";
 import {
   generateScanReportHtml,
@@ -234,4 +232,3 @@ export async function generateBatchReports(
     return null;
   }
 }
-

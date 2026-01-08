@@ -1,4 +1,3 @@
-
 import {
   Modal,
   Text,
@@ -149,4 +148,3 @@ export function PlanUpgradePrompt({
     </Modal>
   );
 }
-

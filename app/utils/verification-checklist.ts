@@ -100,4 +100,3 @@ export function generateChecklistCSV(checklist: TestChecklist): string {
 
   return csv;
 }
-

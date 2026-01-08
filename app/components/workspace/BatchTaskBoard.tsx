@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useCallback } from "react";
 import {
   Card,
@@ -307,4 +306,3 @@ export function BatchTaskBoard({
     </Card>
   );
 }
-

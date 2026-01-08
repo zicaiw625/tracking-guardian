@@ -1,5 +1,3 @@
-
-
 import {
   SkeletonPage,
   SkeletonBodyText,
@@ -215,4 +213,3 @@ export function DashboardSkeleton() {
     </BlockStack>
   );
 }
-

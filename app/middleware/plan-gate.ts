@@ -1,4 +1,3 @@
-
 import type { Middleware, MiddlewareContext, MiddlewareResult } from "./types";
 import { checkFeatureAccess } from "../services/billing/feature-gates.server";
 import { normalizePlanId, type PlanId } from "../services/billing/plans";
@@ -94,4 +93,3 @@ export async function checkPlanGate(
     currentPlan: planId,
   };
 }
-

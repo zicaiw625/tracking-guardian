@@ -1,4 +1,3 @@
-
 import { Fragment } from "react";
 import {
   Card,
@@ -228,4 +227,3 @@ export function RiskReport({ report, onItemClick }: RiskReportProps) {
     </BlockStack>
   );
 }
-

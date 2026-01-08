@@ -1,5 +1,3 @@
-
-
 import type { Middleware, MiddlewareContext, CorsOptions } from "./types";
 
 const DEFAULT_CORS_OPTIONS: Required<CorsOptions> = {
@@ -182,4 +180,3 @@ export function jsonWithCors<T>(
     headers,
   });
 }
-

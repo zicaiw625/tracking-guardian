@@ -1,5 +1,3 @@
-
-
 export enum TrackingStatus {
   PENDING = "pending",
   INFO_RECEIVED = "info_received",
@@ -139,4 +137,3 @@ export const COMMON_CARRIERS: CarrierInfo[] = [
   { code: "4px", name: "递四方", country: "CN", website: "https://www.4px.com" },
   { code: "cne", name: "CNE", country: "CN", website: "https://www.cne.com" },
 ];
-

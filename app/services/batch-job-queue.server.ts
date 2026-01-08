@@ -1,5 +1,3 @@
-
-
 import prisma from "../db.server";
 import { logger } from "../utils/logger.server";
 
@@ -112,4 +110,3 @@ export function stopCleanupInterval(): void {
 if (typeof setInterval !== "undefined") {
   startCleanupInterval();
 }
-

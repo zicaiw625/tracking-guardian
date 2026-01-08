@@ -1,4 +1,3 @@
-
 export { handleAppUninstalled } from "./app-uninstalled.handler";
 export {
   handleCustomersDataRequest,
@@ -13,4 +12,3 @@ export {
   handleOrdersEdited,
 } from "./orders.handler";
 export { handleRefundsCreate } from "./refunds.handler";
-

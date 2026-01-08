@@ -1,5 +1,3 @@
-
-
 export {
   shopify as default,
   apiVersion,

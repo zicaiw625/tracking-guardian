@@ -1,5 +1,3 @@
-
-
 import prisma from "~/db.server";
 import { logger } from "~/utils/logger.server";
 import { generateVerificationReportData } from "../verification-report.server";
@@ -128,4 +126,3 @@ export async function generateBatchReports(
     results,
   };
 }
-

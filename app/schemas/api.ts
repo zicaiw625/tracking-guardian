@@ -1,5 +1,3 @@
-
-
 import { z } from "zod";
 
 import { OrderIdSchema } from "./pixel-event";
@@ -121,4 +119,3 @@ export const RateLimitInfoSchema = z.object({
 });
 
 export type RateLimitInfo = z.infer<typeof RateLimitInfoSchema>;
-

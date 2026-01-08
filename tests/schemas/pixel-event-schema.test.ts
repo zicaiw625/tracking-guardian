@@ -1,5 +1,3 @@
-
-
 import { describe, it, expect } from "vitest";
 import {
   PixelEventSchema,
@@ -219,4 +217,3 @@ describe("isPrimaryEvent", () => {
     expect(isPrimaryEvent("checkout_started")).toBe(false);
   });
 });
-

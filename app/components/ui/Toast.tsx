@@ -1,5 +1,3 @@
-
-
 import { useCallback, useEffect, useState } from "react";
 import { Banner, InlineStack, Icon, Text, Box, BlockStack } from "@shopify/polaris";
 import { CheckCircleIcon, AlertCircleIcon, InfoIcon } from "../icons";
@@ -138,4 +136,3 @@ const toastStyles = `
 `;
 
 export { toastStyles };
-

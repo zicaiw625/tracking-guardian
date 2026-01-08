@@ -1,4 +1,3 @@
-
 import { useMemo } from "react";
 import { Card, Text, BlockStack, InlineStack, Badge, Box } from "@shopify/polaris";
 import { Pie, Bar } from "react-chartjs-2";
@@ -355,4 +354,3 @@ export function ChannelReconciliationChart({
     </BlockStack>
   );
 }
-

@@ -1,5 +1,3 @@
-
-
 export {
   getShopById,
   getShopIdByDomain,

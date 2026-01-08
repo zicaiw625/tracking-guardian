@@ -1,5 +1,3 @@
-
-
 import type { PrismaClient } from "@prisma/client";
 import prisma from "../db.server";
 import { logger as baseLogger } from "../utils/logger.server";
@@ -329,4 +327,3 @@ export function createMockScopedContext(
     requestLogger: appContext.logger,
   };
 }
-

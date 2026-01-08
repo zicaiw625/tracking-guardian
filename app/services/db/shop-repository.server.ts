@@ -1,5 +1,3 @@
-
-
 import { getDb } from "../../container";
 import { shopConfigCache, SimpleCache } from "../../utils/cache";
 import type { PixelConfig } from "@prisma/client";

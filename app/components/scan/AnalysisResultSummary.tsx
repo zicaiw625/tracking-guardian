@@ -115,4 +115,3 @@ export function AnalysisResultSummary({ analysisResult }: AnalysisResultSummaryP
     </Layout>
   );
 }
-

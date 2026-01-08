@@ -1,5 +1,3 @@
-
-
 export interface LocalizationSettings {
   [locale: string]: {
     title?: string;
@@ -66,4 +64,3 @@ export function getLocalizedText(
 
   return defaultValue;
 }
-

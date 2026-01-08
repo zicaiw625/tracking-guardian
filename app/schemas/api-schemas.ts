@@ -1,5 +1,3 @@
-
-
 import { z } from "zod";
 
 import { OrderIdSchema } from "./pixel-event";
@@ -279,4 +277,3 @@ export function createValidator<T>(schema: z.ZodType<T>) {
     return result.data;
   };
 }
-

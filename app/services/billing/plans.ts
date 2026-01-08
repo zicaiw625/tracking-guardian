@@ -1,5 +1,3 @@
-
-
 import { DEPRECATION_DATES, formatDeadlineDate, SHOPIFY_HELP_LINKS } from "../../utils/migration-deadlines";
 
 export interface PlanFeatures {
@@ -305,4 +303,3 @@ export function getUiModulesLimit(planId: PlanId): number {
 export function getPlanTagline(planId: PlanId): string | undefined {
   return BILLING_PLANS[planId].tagline;
 }
-

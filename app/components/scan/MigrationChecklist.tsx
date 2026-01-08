@@ -1,5 +1,3 @@
-
-
 import { useState, useCallback } from "react";
 import {
   Card,
@@ -491,4 +489,3 @@ export function MigrationChecklist({
 }
 
 export default MigrationChecklist;
-

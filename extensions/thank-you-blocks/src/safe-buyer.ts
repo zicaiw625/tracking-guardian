@@ -1,5 +1,3 @@
-
-
 export function canUseBuyerInfo(api: unknown): boolean {
 
   if (!api || typeof api !== "object") {

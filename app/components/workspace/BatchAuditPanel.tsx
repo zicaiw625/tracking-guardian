@@ -1,5 +1,3 @@
-
-
 import { useState, useEffect, useCallback } from "react";
 import {
   Card,
@@ -326,4 +324,3 @@ export function BatchAuditPanel({
     </Card>
   );
 }
-

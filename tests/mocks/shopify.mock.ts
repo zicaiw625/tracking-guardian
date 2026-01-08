@@ -1,5 +1,3 @@
-
-
 import { vi, type Mock } from "vitest";
 
 export interface MockSession {

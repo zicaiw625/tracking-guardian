@@ -1,5 +1,3 @@
-
-
 export {
   type Platform,
   type GoogleCredentials,
@@ -41,4 +39,3 @@ export {
   type RateLimitEvent,
   type PlatformDomainEvent,
 } from "./platform.service";
-

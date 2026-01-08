@@ -1,5 +1,3 @@
-
-
 import { Card, Text, BlockStack, InlineStack, Box, ProgressBar, Icon } from "@shopify/polaris";
 import { ArrowUpIcon, ArrowDownIcon, MinusIcon } from "~/components/icons";
 

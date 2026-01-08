@@ -1,4 +1,3 @@
-
 import { Card, BlockStack, Text, Box, InlineStack, Badge } from "@shopify/polaris";
 import { useMemo, useState } from "react";
 import { Bar, Doughnut } from "react-chartjs-2";
@@ -307,4 +306,3 @@ export function RiskDistributionChart({ distribution }: RiskDistributionChartPro
     </Card>
   );
 }
-

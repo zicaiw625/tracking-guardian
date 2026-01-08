@@ -1,5 +1,3 @@
-
-
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useLoaderData, useSubmit, useActionData, useNavigation, useSearchParams } from "@remix-run/react";
 import { Page, BlockStack, Banner, Tabs, ContextualSaveBar } from "@shopify/polaris";

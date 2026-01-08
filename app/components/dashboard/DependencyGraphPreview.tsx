@@ -1,4 +1,3 @@
-
 import { Card, BlockStack, Text, Box, Badge, InlineStack, Button, Banner } from "@shopify/polaris";
 import { useMemo, type ReactNode } from "react";
 import { ArrowRightIcon } from "~/components/icons";
@@ -252,4 +251,3 @@ export function DependencyGraphPreview({ dependencyGraph }: DependencyGraphPrevi
     </Card>
   );
 }
-

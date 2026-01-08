@@ -1,4 +1,3 @@
-
 import type { Middleware, MiddlewareContext, MiddlewareResult } from "./types";
 import { checkPixelDestinationsLimit, checkUiModulesLimit, checkMultiShopLimit } from "../services/billing/limits.server";
 import { normalizePlanId, type PlanId } from "../services/billing/plans";
@@ -85,4 +84,3 @@ export function withPlanLimit(config: PlanLimitConfig): Middleware {
     }
   };
 }
-

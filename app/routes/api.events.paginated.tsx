@@ -1,5 +1,3 @@
-
-
 import { json, type LoaderFunctionArgs } from "@remix-run/node";
 import { authenticate } from "../shopify.server";
 import prisma from "../db.server";
@@ -75,4 +73,3 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     return json({ error: "Failed to fetch events" }, { status: 500 });
   }
 };
-

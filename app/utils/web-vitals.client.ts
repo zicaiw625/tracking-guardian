@@ -72,4 +72,3 @@ export function reportWebVitals() {
   onLCP(reportMetric);
   onTTFB(reportMetric);
 }
-

@@ -120,4 +120,3 @@ export function parseGDPRShopRedactPayload(data: unknown, shopDomain: string): G
         shop_domain: raw.shop_domain as string,
     };
 }
-

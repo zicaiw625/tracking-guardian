@@ -1,4 +1,3 @@
-
 import {
   Card,
   Text,
@@ -686,4 +685,3 @@ export function AuditAssetsByRisk({
     </Card>
   );
 }
-

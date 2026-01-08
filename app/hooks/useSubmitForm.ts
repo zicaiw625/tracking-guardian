@@ -1,5 +1,3 @@
-
-
 import { useCallback, useRef } from 'react';
 import { useSubmit, useNavigation } from '@remix-run/react';
 
@@ -138,4 +136,3 @@ export function useDebouncedSubmit(options: {
     state,
   };
 }
-

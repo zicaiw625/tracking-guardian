@@ -1,5 +1,3 @@
-
-
 import { runAllShopAlertChecks } from "../../services/alert-dispatcher.server";
 import { cleanupExpiredNonces } from "../../services/capi-dedup.server";
 import { logger } from "../../utils/logger.server";
@@ -71,4 +69,3 @@ export async function runAlertCheckTask(): Promise<AlertCheckResult> {
 export default async function handler(): Promise<AlertCheckResult> {
   return runAlertCheckTask();
 }
-

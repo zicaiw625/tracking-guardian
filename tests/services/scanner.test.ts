@@ -68,7 +68,7 @@ describe("Scanner Service", () => {
       });
 
       it("should detect GA4 measurement ID", () => {
-        const content = "https://bat.bing.com/action/0?ti=123456";G-ABC123DEF4";
+        const content = "https:
         expect(detectPlatforms(content)).toContain("google");
       });
 
@@ -78,7 +78,7 @@ describe("Scanner Service", () => {
       });
 
       it("should detect GTM script", () => {
-        const content = "https://bat.bing.com/action/0?ti=123456";https:
+        const content = "https:
         expect(detectPlatforms(content)).toContain("google");
       });
 
@@ -90,7 +90,7 @@ describe("Scanner Service", () => {
 
     describe("Meta/Facebook Detection", () => {
       it("should detect fbq function calls", () => {
-        const content = "https://bat.bing.com/action/0?ti=123456";fbq('track', 'Purchase')";
+        const content = "https:
         expect(detectPlatforms(content)).toContain("meta");
       });
 
@@ -112,7 +112,7 @@ describe("Scanner Service", () => {
 
     describe("TikTok Detection", () => {
       it("should detect ttq function calls", () => {
-        const content = "https://bat.bing.com/action/0?ti=123456";ttq.track('CompletePayment')";
+        const content = "https:
         expect(detectPlatforms(content)).toContain("tiktok");
       });
 
@@ -129,7 +129,7 @@ describe("Scanner Service", () => {
       });
 
       it("should detect bat.bing.com", () => {
-        const content = "https://bat.bing.com/action/0?ti=123456";
+        const content = "https:
         expect(detectPlatforms(content)).toContain("bing");
       });
     });
@@ -141,7 +141,7 @@ describe("Scanner Service", () => {
       });
 
       it("should detect clarity.ms domain", () => {
-        const content = "https://bat.bing.com/action/0?ti=123456";https:
+        const content = "https:
         expect(detectPlatforms(content)).toContain("clarity");
       });
     });

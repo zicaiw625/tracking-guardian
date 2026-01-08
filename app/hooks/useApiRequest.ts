@@ -1,5 +1,3 @@
-
-
 import { useState, useCallback, useEffect, useRef } from "react";
 import { useNavigate } from "@remix-run/react";
 
@@ -278,4 +276,3 @@ export function useQuery<T>(
     refetch: fetch_,
   };
 }
-

@@ -1,5 +1,3 @@
-
-
 import { encrypt, decrypt, encryptJson, decryptJson } from "~/utils/crypto.server";
 import { logger } from "~/utils/logger.server";
 
@@ -55,4 +53,3 @@ export function decryptSensitiveData(encryptedData: string | null | undefined): 
     return null;
   }
 }
-

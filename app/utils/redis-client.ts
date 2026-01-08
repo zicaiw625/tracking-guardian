@@ -1,5 +1,3 @@
-
-
 import type { RedisClientType } from "redis";
 import { logger } from "./logger.server";
 
@@ -535,4 +533,3 @@ export async function closeRedisConnection(): Promise<void> {
 }
 
 export { RedisClientFactory };
-

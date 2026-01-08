@@ -1,4 +1,3 @@
-
 import { logger } from "../utils/logger.server";
 import type { PixelConfig } from "@prisma/client";
 
@@ -21,4 +20,3 @@ export function getCustomEventMappings(pixelConfig: PixelConfig): Record<string,
 
   return {};
 }
-

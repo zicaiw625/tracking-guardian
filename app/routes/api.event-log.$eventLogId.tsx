@@ -71,4 +71,3 @@ export const loader = async ({ request, params }: LoaderFunctionArgs) => {
     return json({ error: "Failed to fetch event log details" }, { status: 500 });
   }
 };
-

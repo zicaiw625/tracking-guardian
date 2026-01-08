@@ -1,5 +1,3 @@
-
-
 import {
   Card,
   Text,
@@ -155,4 +153,3 @@ export function ThresholdConfigCard({
     </Card>
   );
 }
-

@@ -370,4 +370,3 @@ export function ManualInputWizard({ open, onClose, onComplete }: ManualInputWiza
     </Modal>
   );
 }
-

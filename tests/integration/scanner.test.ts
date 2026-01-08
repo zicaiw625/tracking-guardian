@@ -1,5 +1,3 @@
-
-
 import { describe, it, expect } from "vitest";
 import { analyzeScriptContent } from "../../app/services/scanner/content-analysis";
 import { detectPlatforms, identifyPlatformFromSrc } from "../../app/services/scanner/patterns";
@@ -163,4 +161,3 @@ describe("Content Analysis", () => {
         });
     });
 });
-

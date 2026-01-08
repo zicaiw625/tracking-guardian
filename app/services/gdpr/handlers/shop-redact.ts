@@ -1,5 +1,3 @@
-
-
 import prisma from "../../../db.server";
 import { logger } from "../../../utils/logger.server";
 import type { ShopRedactPayload, ShopRedactResult } from "../types";
@@ -111,4 +109,3 @@ export async function processShopRedact(
 
   return result;
 }
-

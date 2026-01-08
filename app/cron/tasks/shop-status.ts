@@ -1,5 +1,3 @@
-
-
 import prisma from "../../db.server";
 import { refreshTypOspStatusWithOfflineToken } from "../../services/checkout-profile.server";
 import { refreshShopTier } from "../../services/shop-tier.server";
@@ -93,4 +91,3 @@ export async function refreshAllShopsStatus(
     errors,
   };
 }
-

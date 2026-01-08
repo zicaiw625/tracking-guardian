@@ -1,5 +1,3 @@
-
-
 import type {
   ConversionData,
   ConversionApiResponse,
@@ -408,4 +406,3 @@ export async function validatePinterestCredentials(
     };
   }
 }
-

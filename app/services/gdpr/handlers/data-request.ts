@@ -1,5 +1,3 @@
-
-
 import prisma from "../../../db.server";
 import { logger } from "../../../utils/logger.server";
 import type {
@@ -266,4 +264,3 @@ export async function processDataRequest(
 
   return result;
 }
-

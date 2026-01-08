@@ -1,4 +1,3 @@
-
 import {
   Banner,
   Button,
@@ -206,4 +205,3 @@ export function UpgradePrompt({
     </Card>
   );
 }
-

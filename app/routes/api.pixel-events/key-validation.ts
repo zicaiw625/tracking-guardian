@@ -1,5 +1,3 @@
-
-
 import {
   getShopForVerification,
   getShopForVerificationWithConfigs,
@@ -34,4 +32,3 @@ export async function getShopForPixelVerificationWithConfigs(
 
   return shop;
 }
-

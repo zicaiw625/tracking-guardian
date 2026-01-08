@@ -1,5 +1,3 @@
-
-
 import { Prisma } from "@prisma/client";
 import { randomUUID } from "crypto";
 import prisma from "../db.server";
@@ -519,4 +517,3 @@ export async function validateTestEnvironment(
     };
   }
 }
-

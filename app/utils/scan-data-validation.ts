@@ -1,5 +1,3 @@
-
-
 import type { ScriptTag, RiskItem } from "../types";
 
 export function isValidScriptTag(tag: unknown): tag is ScriptTag {
@@ -115,4 +113,3 @@ export function safeFormatDate(dateValue: unknown, locale: string = "zh-CN"): st
     const date = safeParseDate(dateValue);
     return date.toLocaleString(locale);
 }
-

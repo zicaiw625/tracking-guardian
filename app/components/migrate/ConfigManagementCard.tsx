@@ -1,4 +1,3 @@
-
 import { useState, useCallback, useEffect } from "react";
 import {
   Card,
@@ -385,4 +384,3 @@ export function ConfigManagementCard({
     </>
   );
 }
-

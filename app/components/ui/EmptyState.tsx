@@ -1,5 +1,3 @@
-
-
 import { memo } from "react";
 import { Card, BlockStack, Text, Button, InlineStack, Icon, Box } from "@shopify/polaris";
 import { EmptyStateDisplay } from "./ErrorDisplay";
@@ -196,4 +194,3 @@ export function EmptyStateNoPermission({
 }
 
 export { EmptyStateDisplay };
-

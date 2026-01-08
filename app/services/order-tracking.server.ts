@@ -1,4 +1,3 @@
-
 import { logger } from "../utils/logger.server";
 import prisma from "../db.server";
 import { getUiModuleConfig } from "./ui-extension.server";
@@ -301,4 +300,3 @@ function map17TrackStatus(status: string): TrackingInfo["status"] {
       return "pending";
   }
 }
-

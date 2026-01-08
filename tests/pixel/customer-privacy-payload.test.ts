@@ -1,5 +1,3 @@
-
-
 import { describe, it, expect } from "vitest";
 
 interface CustomerPrivacyState {
@@ -218,4 +216,3 @@ describe("边缘情况处理", () => {
     expect(result.saleOfDataAllowed).toBe(false);
   });
 });
-

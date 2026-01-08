@@ -1,4 +1,3 @@
-
 import type { RiskItem, RiskSeverity } from "../../types";
 import type { ScriptAnalysisResult } from "./types";
 import { analyzeScriptContent } from "./content-analysis";
@@ -178,4 +177,3 @@ export function generateRiskSummary(detectionResult: RiskDetectionResult): {
     recommendations,
   };
 }
-

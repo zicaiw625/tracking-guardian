@@ -1,4 +1,3 @@
-
 import { useState, useMemo } from "react";
 import {
   Card,
@@ -279,4 +278,3 @@ export function MigrationTimelineView({
     </Card>
   );
 }
-

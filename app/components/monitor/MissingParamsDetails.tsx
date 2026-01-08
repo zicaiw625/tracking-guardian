@@ -236,4 +236,3 @@ export function MissingParamsDetails({ stats }: MissingParamsDetailsProps) {
     </BlockStack>
   );
 }
-

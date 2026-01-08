@@ -1,5 +1,3 @@
-
-
 import { z } from "zod";
 import { logger } from "../utils/logger.server";
 
@@ -266,4 +264,3 @@ export function extractZodErrors(
   }
   return errors;
 }
-

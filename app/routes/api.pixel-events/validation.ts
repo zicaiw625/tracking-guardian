@@ -1,5 +1,3 @@
-
-
 import type {
   PixelEventPayload,
   PixelEventName,
@@ -385,4 +383,3 @@ export function isPlatformEnabled(config: PixelConfig, platform: string): boolea
 
   return enabledPlatforms.includes(normalizedPlatform);
 }
-

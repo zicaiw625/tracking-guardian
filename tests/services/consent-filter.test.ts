@@ -1,5 +1,3 @@
-
-
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
 vi.mock("../../app/utils/logger.server", () => ({
@@ -709,4 +707,3 @@ describe("Consent - Real-World Scenarios", () => {
     });
   });
 });
-

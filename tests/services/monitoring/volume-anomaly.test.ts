@@ -1,4 +1,3 @@
-
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import {
   detectVolumeAnomaly,
@@ -179,4 +178,3 @@ describe("Event Volume Anomaly Detection", () => {
     });
   });
 });
-

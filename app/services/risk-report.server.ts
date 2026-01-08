@@ -305,4 +305,3 @@ export async function generateRiskReportPDF(
   }
   return { data: report, format: "json" };
 }
-

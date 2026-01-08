@@ -1,5 +1,3 @@
-
-
 export type HealthStatus = "success" | "warning" | "critical" | "uninitialized";
 
 export type MigrationStage = "audit" | "pixel_test" | "verification" | "live" | "monitoring";

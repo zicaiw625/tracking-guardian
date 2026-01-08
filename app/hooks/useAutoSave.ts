@@ -1,5 +1,3 @@
-
-
 import { useEffect, useRef, useState, useCallback } from "react";
 import { useDebouncedValue } from "./useDebouncedValue";
 
@@ -112,4 +110,3 @@ export function useAutoSave<T>({
     setData,
   } as AutoSaveResult & { setData: (data: T) => void };
 }
-

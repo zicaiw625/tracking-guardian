@@ -1,5 +1,3 @@
-
-
 import { useMemo } from "react";
 import { Card, Text, BlockStack, InlineStack, Select, Box } from "@shopify/polaris";
 import { Line, Bar } from "react-chartjs-2";
@@ -250,4 +248,3 @@ export function MissingParamsChart({
     </BlockStack>
   );
 }
-

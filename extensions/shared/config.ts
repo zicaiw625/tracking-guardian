@@ -1,5 +1,3 @@
-
-
 const BUILD_TIME_URL = "__BACKEND_URL_PLACEHOLDER__";
 
 function resolveBackendUrl(): string | null {

@@ -1,5 +1,3 @@
-
-
 import type { PixelEventPayload } from "~/routes/api.pixel-events/types";
 import { logger } from "~/utils/logger.server";
 import { getShopPixelConfigs } from "../db/pixel-config-repository.server";
@@ -742,4 +740,3 @@ export async function sendPixelEventToPlatform(
     };
   }
 }
-

@@ -1,5 +1,3 @@
-
-
 import type { MigrationAction, EnhancedScanResult } from "./types";
 import {
     PLATFORM_PATTERNS,
@@ -355,4 +353,3 @@ function getConfiguredPlatforms(result: EnhancedScanResult): Set<string> {
 
     return configuredPlatforms;
 }
-

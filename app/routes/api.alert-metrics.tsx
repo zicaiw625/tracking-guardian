@@ -49,4 +49,3 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     return json({ error: "Failed to fetch metrics" }, { status: 500 });
   }
 };
-

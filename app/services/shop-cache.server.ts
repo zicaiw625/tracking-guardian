@@ -1,5 +1,3 @@
-
-
 import { RedisCache, SimpleCache, TTL } from "../utils/cache";
 import { logger } from "../utils/logger.server";
 import type { ShopVerificationData, ShopWithPixelConfigs } from "../utils/shop-access";
@@ -218,4 +216,3 @@ export async function warmShopCache(
   logger.info("Shop cache warming completed", { warmed, failed });
   return { warmed, failed };
 }
-

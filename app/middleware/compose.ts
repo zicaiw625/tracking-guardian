@@ -1,5 +1,3 @@
-
-
 import type {
   Middleware,
   MiddlewareContext,
@@ -104,4 +102,3 @@ export function createApiLoader<T = unknown>(
 ): (args: { request: Request }) => Promise<Response> {
   return createApiHandler(config);
 }
-

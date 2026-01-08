@@ -1,5 +1,3 @@
-
-
 export function formatNumber(num: number | string, decimals = 0): string {
   const n = typeof num === "string" ? parseFloat(num) : num;
   if (isNaN(n)) return "0";
@@ -163,4 +161,3 @@ export function getResponsiveColumns(
   if (width < 1024) return tablet;
   return desktop;
 }
-

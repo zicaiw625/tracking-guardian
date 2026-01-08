@@ -1,4 +1,3 @@
-
 import type { ActionFunctionArgs, LoaderFunctionArgs } from "@remix-run/node";
 import { createAdminClientForShop, authenticate } from "../../shopify.server";
 import { logger } from "../../utils/logger.server";
@@ -224,4 +223,3 @@ async function loaderImpl(request: Request) {
     return jsonWithCors({ error: "Failed to get reorder URL" }, { status: 500, request, staticCors: true });
   }
 }
-

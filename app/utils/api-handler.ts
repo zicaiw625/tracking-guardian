@@ -1,5 +1,3 @@
-
-
 import type { ActionFunctionArgs, LoaderFunctionArgs } from "@remix-run/node";
 import { json } from "@remix-run/node";
 import { logger } from "./logger.server";
@@ -186,4 +184,3 @@ export function createdResponse<T>(data: T): Response {
 export function acceptedResponse<T>(data?: T): Response {
   return data ? json(data, { status: 202 }) : new Response(null, { status: 202 });
 }
-

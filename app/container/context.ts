@@ -1,5 +1,3 @@
-
-
 import { AsyncLocalStorage } from "async_hooks";
 import { randomBytes } from "crypto";
 import type { PrismaClient } from "@prisma/client";
@@ -199,4 +197,3 @@ export function setJobId(jobId: string): void {
 export function setPlatform(platform: string): void {
   updateRequestContext({ platform });
 }
-

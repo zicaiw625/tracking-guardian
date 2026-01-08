@@ -1,5 +1,3 @@
-
-
 import type {
   IPlatformService,
   IPlatformRegistry,
@@ -229,4 +227,3 @@ export type {
 };
 
 export { PlatformRegistry, PlatformOrchestrator };
-

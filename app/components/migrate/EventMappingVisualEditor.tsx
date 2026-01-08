@@ -1,4 +1,3 @@
-
 import { useState, useCallback, useMemo } from "react";
 import {
   Card,
@@ -665,4 +664,3 @@ export function EventMappingVisualEditor({
     </Card>
   );
 }
-

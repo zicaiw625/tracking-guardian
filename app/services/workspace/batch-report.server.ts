@@ -1,4 +1,3 @@
-
 import prisma from "../../db.server";
 import { logger } from "../../utils/logger.server";
 import { canManageMultipleShops, getShopGroupDetails } from "../multi-shop.server";
@@ -532,4 +531,3 @@ function generateReportHtml(
 </html>
   `.trim();
 }
-

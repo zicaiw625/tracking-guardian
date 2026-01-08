@@ -1,5 +1,3 @@
-
-
 import prisma from "../db.server";
 import { logger } from "../utils/logger.server";
 
@@ -242,4 +240,3 @@ export async function getMissingParamsRate(
     details: details.sort((a, b) => b.count - a.count),
   };
 }
-

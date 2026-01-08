@@ -1,5 +1,3 @@
-
-
 import { Spinner, BlockStack, Text, Box } from "@shopify/polaris";
 import React from "react";
 
@@ -186,4 +184,3 @@ export function LazyLoadWrapper({
 
   return <>{children}</>;
 }
-

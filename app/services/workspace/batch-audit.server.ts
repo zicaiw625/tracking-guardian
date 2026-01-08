@@ -1,5 +1,3 @@
-
-
 import prisma from "~/db.server";
 import { logger } from "~/utils/logger.server";
 import { scanShopTracking } from "../scanner.server";
@@ -183,4 +181,3 @@ export async function getBatchAuditStatus(
 
   return null;
 }
-

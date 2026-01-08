@@ -1,5 +1,3 @@
-
-
 import type { ActionFunctionArgs, LoaderFunctionArgs } from "@remix-run/node";
 import { json } from "@remix-run/node";
 import { authenticate } from "../shopify.server";
@@ -255,4 +253,3 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     return json({ error: "Operation failed" }, { status: 500 });
   }
 };
-

@@ -1,5 +1,3 @@
-
-
 import type { LoaderFunctionArgs } from "@remix-run/node";
 import { json } from "@remix-run/node";
 import { timingSafeEqual } from "crypto";
@@ -189,4 +187,3 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
         },
     });
 };
-

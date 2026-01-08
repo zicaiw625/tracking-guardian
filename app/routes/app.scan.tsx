@@ -1281,7 +1281,7 @@ export function ScanPage({
             return;
         }
 
-        if (!pendingDelete.gid.startsWith("gid://")) {
+        if (!pendingDelete.gid.startsWith("gid:
             setDeleteError("WebPixel ID 格式不正确");
             return;
         }
@@ -2186,7 +2186,7 @@ export function ScanPage({
                   }}
                   secondaryAction={{
                     content: "了解更多",
-                    url: "https://help.shopify.com/en/manual/pixels/customer-events",
+                    url: "https:
                   }}
                 />
               )}
@@ -3020,7 +3020,7 @@ export function ScanPage({
                     打开 Checkout Editor
                   </Button>
                   <Button
-                    url="https://help.shopify.com/en/manual/checkout-settings"
+                    url="https:
                     external
                     icon={InfoIcon}
                   >

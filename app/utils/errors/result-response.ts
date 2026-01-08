@@ -1,5 +1,3 @@
-
-
 import { json } from "@remix-run/node";
 import type { Result, AsyncResult } from "../../types/result";
 import { isOk, isErr, err } from "../../types/result";
@@ -303,4 +301,3 @@ export function tooManyRequests(retryAfter?: number): Response {
 export function internalError(message: string = "An internal error occurred"): Response {
   return errorResponse(ErrorCode.INTERNAL_ERROR, message, 500);
 }
-

@@ -1,4 +1,3 @@
-
 import { useState, useCallback } from "react";
 import {
   Card,
@@ -126,4 +125,3 @@ export function ReportShare({ runId, shopId }: ReportShareProps) {
     </Card>
   );
 }
-

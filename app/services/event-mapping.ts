@@ -243,4 +243,3 @@ export function getRecommendedMappings(platforms: string[]): Record<string, Reco
 
   return result;
 }
-

@@ -1,5 +1,3 @@
-
-
 import prisma from '../db.server';
 import { matchKeysEqual } from '../utils/crypto.server';
 import { logger } from '../utils/logger.server';
@@ -225,4 +223,3 @@ export function extractCheckoutTokensFromJobs(
     })
     .filter((t): t is string => !!t);
 }
-

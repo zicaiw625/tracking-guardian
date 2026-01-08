@@ -1,4 +1,3 @@
-
 import type { ActionFunctionArgs, LoaderFunctionArgs } from "@remix-run/node";
 import { json } from "@remix-run/node";
 import { useLoaderData, useSubmit, useNavigation } from "@remix-run/react";
@@ -404,4 +403,3 @@ export default function AlertsPage() {
     </Page>
   );
 }
-
