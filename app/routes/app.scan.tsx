@@ -1785,6 +1785,7 @@ export function ScanPage({
     { id: "migration-checklist", content: "迁移清单" },
   ];
   const visibleTabs = showTabs ? tabs : [];
+  const shouldShowMigrationButtons = showMigrationButtons && (!showTabs || selectedTab === 2 || pageTitle === "Audit 迁移清单");
   const paginationLimitWarning = (
     <Banner tone="info" title="扫描分页说明">
       <BlockStack gap="200">
@@ -2017,7 +2018,7 @@ export function ScanPage({
 
         <Tabs tabs={visibleTabs} selected={selectedTab} onSelect={setSelectedTab}>
           {}
-          {showMigrationButtons && !showTabs && (
+          {shouldShowMigrationButtons && (
             <Card>
               <BlockStack gap="400">
                 <Text as="h3" variant="headingMd">
