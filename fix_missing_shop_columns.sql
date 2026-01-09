@@ -1,7 +1,7 @@
--- 快速修复：添加缺失的 Shop 表字段
--- 此脚本可以立即执行以修复数据库结构问题
 
--- 添加 shopTier 字段（如果不存在）
+
+
+
 DO $$
 BEGIN
     IF NOT EXISTS (
@@ -15,7 +15,7 @@ BEGIN
     END IF;
 END $$;
 
--- 添加 monthlyOrderLimit 字段（如果不存在）
+
 DO $$
 BEGIN
     IF NOT EXISTS (
@@ -29,10 +29,10 @@ BEGIN
     END IF;
 END $$;
 
--- 为现有记录设置默认值（如果字段刚刚添加且允许NULL）
+
 DO $$
 BEGIN
-    -- 确保所有记录的 monthlyOrderLimit 都有值
+    
     UPDATE "Shop" 
     SET "monthlyOrderLimit" = 100 
     WHERE "monthlyOrderLimit" IS NULL;
@@ -42,7 +42,7 @@ BEGIN
     END IF;
 END $$;
 
--- 验证字段是否已正确添加
+
 SELECT 
     column_name, 
     data_type, 

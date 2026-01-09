@@ -1,12 +1,12 @@
--- Add missing eventsJson column to VerificationRun table
--- This migration adds the eventsJson column that exists in the Prisma schema
--- but may be missing from the database
+
+
+
 
 DO $$
 BEGIN
-    -- Check if the table exists
+    
     IF EXISTS (SELECT FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'VerificationRun') THEN
-        -- Check if the column doesn't exist before adding it
+        
         IF NOT EXISTS (
             SELECT 1 FROM information_schema.columns 
             WHERE table_schema = 'public' 

@@ -32,7 +32,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       url?: string;
     };
 
-    // 记录性能指标（仅在开发环境或需要时记录详细信息）
+    
     if (process.env.NODE_ENV === "development") {
       logger.debug("Performance metric received", {
         name: metric.name,
@@ -42,8 +42,8 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       });
     }
 
-    // 在生产环境中，可以选择性地记录性能指标
-    // 这里只返回成功响应，不存储数据以节省资源
+    
+    
 
     return jsonWithCors(
       { success: true },

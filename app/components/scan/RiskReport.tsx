@@ -11,7 +11,32 @@ import {
   Divider,
 } from "@shopify/polaris";
 import { AlertCircleIcon, CheckCircleIcon, InfoIcon } from "~/components/icons";
-import type { EnhancedRiskReport } from "~/services/risk-report.server";
+
+export interface RiskReportItem {
+  id: string;
+  displayName: string;
+  riskLevel: "high" | "medium" | "low";
+  platform?: string;
+  description: string;
+  estimatedTimeMinutes: number;
+  suggestedMigration?: "web_pixel" | "ui_extension" | string;
+}
+
+export interface EnhancedRiskReport {
+  summary: {
+    totalItems: number;
+    highRiskCount: number;
+    mediumRiskCount: number;
+    lowRiskCount: number;
+    totalEstimatedTime: number;
+  };
+  items: RiskReportItem[];
+  categories: {
+    willFail: RiskReportItem[];
+    canReplace: RiskReportItem[];
+    noMigrationNeeded: RiskReportItem[];
+  };
+}
 
 export interface RiskReportProps {
   report: EnhancedRiskReport;
@@ -120,7 +145,7 @@ export function RiskReport({ report, onItemClick }: RiskReportProps) {
               <Badge tone="critical">{String(categories.willFail.length)}</Badge>
             </InlineStack>
             <List>
-              {categories.willFail.map((item) => (
+              {categories.willFail.map((item: RiskReportItem) => (
                 <List.Item key={item.id}>
                   <div onClick={onItemClick ? () => onItemClick(item.id) : undefined} style={{ cursor: onItemClick ? "pointer" : "default" }}>
                     <BlockStack gap="200">
@@ -160,7 +185,7 @@ export function RiskReport({ report, onItemClick }: RiskReportProps) {
               <Badge>{String(categories.canReplace.length)}</Badge>
             </InlineStack>
             <List>
-              {categories.canReplace.map((item) => (
+              {categories.canReplace.map((item: RiskReportItem) => (
                 <List.Item key={item.id}>
                   <div onClick={onItemClick ? () => onItemClick(item.id) : undefined} style={{ cursor: onItemClick ? "pointer" : "default" }}>
                     <BlockStack gap="200">

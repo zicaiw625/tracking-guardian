@@ -83,7 +83,9 @@ export const Platform = {
   GOOGLE: 'google',
   META: 'meta',
   TIKTOK: 'tiktok',
-
+  PINTEREST: 'pinterest',
+  SNAPCHAT: 'snapchat',
+  TWITTER: 'twitter',
 } as const;
 
 export type PlatformType = typeof Platform[keyof typeof Platform];
@@ -92,7 +94,9 @@ export const PLATFORM_DISPLAY_NAMES: Record<PlatformType, string> = {
   [Platform.GOOGLE]: 'Google Analytics 4 (GA4)',
   [Platform.META]: 'Meta (Facebook)',
   [Platform.TIKTOK]: 'TikTok',
-
+  [Platform.PINTEREST]: 'Pinterest',
+  [Platform.SNAPCHAT]: 'Snapchat',
+  [Platform.TWITTER]: 'Twitter/X',
 };
 
 export const EventType = {

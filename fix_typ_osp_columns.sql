@@ -1,7 +1,7 @@
--- 快速修复：添加缺失的 typOsp 相关字段到 Shop 表
--- 此脚本可以立即执行以修复数据库结构问题
 
--- 添加 typOspPagesEnabled 字段（如果不存在）
+
+
+
 DO $$
 BEGIN
     IF NOT EXISTS (
@@ -15,7 +15,7 @@ BEGIN
     END IF;
 END $$;
 
--- 添加 typOspUpdatedAt 字段（如果不存在）
+
 DO $$
 BEGIN
     IF NOT EXISTS (
@@ -29,7 +29,7 @@ BEGIN
     END IF;
 END $$;
 
--- 添加 typOspLastCheckedAt 字段（如果不存在）
+
 DO $$
 BEGIN
     IF NOT EXISTS (
@@ -43,7 +43,7 @@ BEGIN
     END IF;
 END $$;
 
--- 添加 typOspDetectedAt 字段（如果不存在）
+
 DO $$
 BEGIN
     IF NOT EXISTS (
@@ -57,7 +57,7 @@ BEGIN
     END IF;
 END $$;
 
--- 添加 typOspStatusReason 字段（如果不存在）
+
 DO $$
 BEGIN
     IF NOT EXISTS (
@@ -71,7 +71,7 @@ BEGIN
     END IF;
 END $$;
 
--- 验证字段是否已正确添加
+
 SELECT 
     column_name, 
     data_type, 

@@ -37,7 +37,6 @@ function removeJSComments(content) {
   let inMultiLineComment = false;
   let inString = false;
   let stringChar = null;
-  let stringStart = -1;
 
   for (let lineIdx = 0; lineIdx < lines.length; lineIdx++) {
     const line = lines[lineIdx];
@@ -61,6 +60,12 @@ function removeJSComments(content) {
         }
 
         if (char === '/' && nextChar === '/') {
+          const beforeContext = line.slice(Math.max(0, i - 20), i);
+          if (beforeContext.match(/[:a-zA-Z0-9]$/)) {
+            newLine += char;
+            i++;
+            continue;
+          }
           break;
         }
 

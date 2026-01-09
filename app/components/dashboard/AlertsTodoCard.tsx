@@ -21,10 +21,7 @@ export function AlertsTodoCard({ alerts }: AlertsTodoCardProps) {
               告警与待办
             </Text>
             <Badge tone="success">
-              <InlineStack gap="100" blockAlign="center">
-                <Icon source={CheckCircleIcon} />
-                <Text as="span">正常</Text>
-              </InlineStack>
+              正常
             </Badge>
           </InlineStack>
           <Text as="p" variant="bodySm" tone="subdued">
@@ -46,7 +43,7 @@ export function AlertsTodoCard({ alerts }: AlertsTodoCardProps) {
             告警与待办
           </Text>
           <Badge tone={criticalCount > 0 ? "critical" : warningCount > 0 ? "warning" : "info"}>
-            {alerts.length} 个活跃告警
+            {`${alerts.length} 个活跃告警`}
           </Badge>
         </InlineStack>
 

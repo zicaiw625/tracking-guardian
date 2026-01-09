@@ -1,6 +1,6 @@
--- 添加缺失的 typOsp 相关字段到 Shop 表
 
--- 添加 typOspPagesEnabled 字段（如果不存在）
+
+
 DO $$
 BEGIN
     IF NOT EXISTS (
@@ -14,7 +14,7 @@ BEGIN
     END IF;
 END $$;
 
--- 添加 typOspUpdatedAt 字段（如果不存在）
+
 DO $$
 BEGIN
     IF NOT EXISTS (
@@ -28,7 +28,7 @@ BEGIN
     END IF;
 END $$;
 
--- 添加 typOspLastCheckedAt 字段（如果不存在）
+
 DO $$
 BEGIN
     IF NOT EXISTS (
@@ -42,7 +42,7 @@ BEGIN
     END IF;
 END $$;
 
--- 添加 typOspDetectedAt 字段（如果不存在）
+
 DO $$
 BEGIN
     IF NOT EXISTS (
@@ -56,7 +56,7 @@ BEGIN
     END IF;
 END $$;
 
--- 添加 typOspStatusReason 字段（如果不存在）
+
 DO $$
 BEGIN
     IF NOT EXISTS (

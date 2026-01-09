@@ -49,11 +49,11 @@ export function HealthMetrics24hCard({ metrics }: HealthMetrics24hCardProps) {
               成功率
             </Text>
             <InlineStack gap="200" blockAlign="center">
-              <Text as="span" variant="headingMd" tone={getTone(100 - metrics.successRate, 2)}>
+              <Text as="span" variant="headingMd">
                 {metrics.successRate.toFixed(2)}%
               </Text>
-              <Badge tone={getTone(100 - metrics.successRate, 2)}>
-                {metrics.totalEvents} 事件
+              <Badge tone={getTone(100 - metrics.successRate, 2) as "success" | "warning" | "critical"}>
+                {`${metrics.totalEvents} 事件`}
               </Badge>
             </InlineStack>
           </InlineStack>
@@ -64,7 +64,7 @@ export function HealthMetrics24hCard({ metrics }: HealthMetrics24hCardProps) {
             <Text as="span" variant="bodyMd" fontWeight="semibold">
               失败率
             </Text>
-            <Text as="span" variant="headingMd" tone={getTone(metrics.failureRate, 2)}>
+            <Text as="span" variant="headingMd">
               {metrics.failureRate.toFixed(2)}%
             </Text>
           </InlineStack>
@@ -75,7 +75,7 @@ export function HealthMetrics24hCard({ metrics }: HealthMetrics24hCardProps) {
             <Text as="span" variant="bodyMd" fontWeight="semibold">
               缺参率
             </Text>
-            <Text as="span" variant="headingMd" tone={getTone(metrics.missingParamsRate, 5)}>
+            <Text as="span" variant="headingMd">
               {metrics.missingParamsRate.toFixed(2)}%
             </Text>
           </InlineStack>
@@ -91,19 +91,19 @@ export function HealthMetrics24hCard({ metrics }: HealthMetrics24hCardProps) {
                   {metrics.missingParamsByType.value > 0 && (
                     <InlineStack align="space-between">
                       <Text as="span" variant="bodySm">value</Text>
-                      <Badge tone="warning">{metrics.missingParamsByType.value}</Badge>
+                      <Badge tone="warning">{`${metrics.missingParamsByType.value}`}</Badge>
                     </InlineStack>
                   )}
                   {metrics.missingParamsByType.currency > 0 && (
                     <InlineStack align="space-between">
                       <Text as="span" variant="bodySm">currency</Text>
-                      <Badge tone="warning">{metrics.missingParamsByType.currency}</Badge>
+                      <Badge tone="warning">{`${metrics.missingParamsByType.currency}`}</Badge>
                     </InlineStack>
                   )}
                   {metrics.missingParamsByType.items > 0 && (
                     <InlineStack align="space-between">
                       <Text as="span" variant="bodySm">items</Text>
-                      <Badge tone="warning">{metrics.missingParamsByType.items}</Badge>
+                      <Badge tone="warning">{`${metrics.missingParamsByType.items}`}</Badge>
                     </InlineStack>
                   )}
                 </BlockStack>

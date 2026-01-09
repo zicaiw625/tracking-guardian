@@ -205,15 +205,15 @@ function generateComparisonData(
   const metrics: ComparisonData["metrics"] = [
     {
       label: "通过率",
-      value1: `${report1.summary.totalTests > 0 ? Math.round((report1.summary.passedTests / report1.summary.totalTests) * 100) : 0}%`,
-      value2: `${report2.summary.totalTests > 0 ? Math.round((report2.summary.passedTests / report2.summary.totalTests) * 100) : 0}%`,
-      change: (report2.summary.totalTests > 0 ? (report2.summary.passedTests / report2.summary.totalTests) * 100 : 0) - (report1.summary.totalTests > 0 ? (report1.summary.passedTests / report1.summary.totalTests) * 100 : 0),
+      value1: `${Math.round(report1.summary.successRate)}%`,
+      value2: `${Math.round(report2.summary.successRate)}%`,
+      change: report2.summary.successRate - report1.summary.successRate,
     },
     {
       label: "参数完整率",
-      value1: `${report1.summary.parameterCompleteness}%`,
-      value2: `${report2.summary.parameterCompleteness}%`,
-      change: report2.summary.parameterCompleteness - report1.summary.parameterCompleteness,
+      value1: "N/A",
+      value2: "N/A",
+      change: 0,
     },
     {
       label: "金额准确率",
@@ -222,10 +222,10 @@ function generateComparisonData(
       change: report2.summary.valueAccuracy - report1.summary.valueAccuracy,
     },
     {
-      label: "总测试数",
-      value1: report1.summary.totalTests.toString(),
-      value2: report2.summary.totalTests.toString(),
-      change: report1.summary.totalTests > 0 ? ((report2.summary.totalTests - report1.summary.totalTests) / report1.summary.totalTests) * 100 : 0,
+      label: "总事件数",
+      value1: report1.summary.totalEvents.toString(),
+      value2: report2.summary.totalEvents.toString(),
+      change: report1.summary.totalEvents > 0 ? ((report2.summary.totalEvents - report1.summary.totalEvents) / report1.summary.totalEvents) * 100 : 0,
     },
   ];
 
@@ -250,13 +250,10 @@ function generateComparisonData(
   });
 
   const improvements: string[] = [];
-  const passRate1 = report1.summary.totalTests > 0 ? (report1.summary.passedTests / report1.summary.totalTests) * 100 : 0;
-  const passRate2 = report2.summary.totalTests > 0 ? (report2.summary.passedTests / report2.summary.totalTests) * 100 : 0;
+  const passRate1 = report1.summary.successRate;
+  const passRate2 = report2.summary.successRate;
   if (passRate2 < passRate1) {
     improvements.push("通过率有所下降，建议检查最近的配置更改");
-  }
-  if (report2.summary.parameterCompleteness < report1.summary.parameterCompleteness) {
-    improvements.push("参数完整率下降，建议检查事件映射配置");
   }
   if (report2.summary.valueAccuracy < report1.summary.valueAccuracy) {
     improvements.push("金额准确率下降，建议检查订单数据处理逻辑");

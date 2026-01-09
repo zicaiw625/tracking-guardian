@@ -7,7 +7,7 @@ import {
   ActionList,
   Box,
 } from "@shopify/polaris";
-import { useCallback } from "react";
+import { useCallback, useState } from "react";
 import { QuestionCircleIcon } from "~/components/icons";
 import { SHOPIFY_HELP_LINKS } from "~/utils/migration-deadlines";
 import { getPlanConfig, type PlanId } from "~/services/billing/plans";
@@ -25,6 +25,7 @@ export function TopBar({
   planDisplayName,
   currentShopId,
 }: TopBarProps) {
+  const [popoverActive, setPopoverActive] = useState(false);
   const planConfig = getPlanConfig(planId);
   const planBadgeTone =
     planId === "free"
@@ -69,11 +70,13 @@ export function TopBar({
           </InlineStack>
 
           <Popover
+            active={popoverActive}
             activator={
-              <Button size="slim" variant="plain" icon={QuestionCircleIcon}>
+              <Button size="slim" variant="plain" icon={QuestionCircleIcon} onClick={() => setPopoverActive(!popoverActive)}>
                 帮助
               </Button>
             }
+            onClose={() => setPopoverActive(false)}
           >
             <ActionList
               items={[
