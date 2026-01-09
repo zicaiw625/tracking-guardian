@@ -1,0 +1,13 @@
+{
+  "name": "thank-you-blocks",
+  "private": true,
+  "version": "1.0.0",
+  "packageManager": "pnpm@10.11.0",
+  "dependencies": {
+    "@shopify/ui-extensions-react": "^2025.7.3",
+    "react": "^18.2.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.4.2"
+  }
+}

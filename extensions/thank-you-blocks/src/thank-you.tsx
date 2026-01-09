@@ -9,8 +9,6 @@ import {
   useSettings,
 } from "@shopify/ui-extensions-react/checkout";
 import { useState } from "react";
-
-
 import { BUILD_TIME_URL } from "./config";
 
 function SurveyModule({ 
@@ -63,7 +61,6 @@ function SurveyModule({
     </View>
   );
 }
-
 
 function HelpModule({ 
   faqUrl, 
@@ -120,7 +117,6 @@ function HelpModule({
     </View>
   );
 }
-
 
 function ReorderModule({ 
   buttonText 
@@ -182,18 +178,6 @@ function ReorderModule({
     </View>
   );
 }
-
-
-
-export default reactExtension(
-  "purchase.thank-you.block.render",
-  () => <ThankYouBlocks />
-);
-
-export const OrderStatusExtension = reactExtension(
-  "customer-account.order-status.block.render",
-  () => <ThankYouBlocks />
-);
 
 function ThankYouBlocks() {
   const api = useApi();
@@ -259,3 +243,8 @@ function ThankYouBlocks() {
     </BlockStack>
   );
 }
+
+export default reactExtension(
+  "purchase.thank-you.block.render",
+  () => <ThankYouBlocks />
+);
