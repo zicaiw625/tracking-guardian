@@ -102,15 +102,6 @@ async function loaderImpl(request: Request) {
       where: { shopDomain },
       select: {
         id: true,
-        UiExtensionSetting: {
-          where: {
-            moduleKey: "order_tracking",
-            isEnabled: true,
-          },
-          select: {
-            settingsJson: true,
-          },
-        },
       },
     });
 

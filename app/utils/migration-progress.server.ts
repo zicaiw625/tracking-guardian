@@ -2,36 +2,40 @@ import prisma from "../db.server";
 import type { MigrationStage, MigrationProgress } from "../types/dashboard";
 
 export async function calculateMigrationProgress(shopId: string): Promise<MigrationProgress> {
-  const shop = await prisma.shop.findUnique({
-    where: { id: shopId },
-    select: {
-      ScanReports: {
-        orderBy: { createdAt: "desc" },
-        take: 1,
-        select: { status: true },
-      },
-      pixelConfigs: {
-        where: { isActive: true },
-        select: { environment: true },
-      },
-      VerificationRun: {
-        orderBy: { createdAt: "desc" },
-        take: 1,
-        select: { status: true, completedAt: true },
-      },
-      UiExtensionSetting: {
-        where: { isEnabled: true },
-        select: { id: true },
-      },
-      _count: {
-        select: {
-          pixelConfigs: {
-            where: { environment: "live", isActive: true },
+  const [shop, modulesEnabled] = await Promise.all([
+    prisma.shop.findUnique({
+      where: { id: shopId },
+      select: {
+        ScanReports: {
+          orderBy: { createdAt: "desc" },
+          take: 1,
+          select: { status: true },
+        },
+        pixelConfigs: {
+          where: { isActive: true },
+          select: { environment: true },
+        },
+        VerificationRun: {
+          orderBy: { createdAt: "desc" },
+          take: 1,
+          select: { status: true, completedAt: true },
+        },
+        _count: {
+          select: {
+            pixelConfigs: {
+              where: { environment: "live", isActive: true },
+            },
           },
         },
       },
-    },
-  });
+    }),
+    prisma.uiExtensionSetting.count({
+      where: {
+        shopId,
+        isEnabled: true,
+      },
+    }),
+  ]);
 
   const stages: MigrationProgress["stages"] = [
     { stage: "audit", label: "体检", completed: false, inProgress: false },
@@ -98,7 +102,6 @@ export async function calculateMigrationProgress(shopId: string): Promise<Migrat
     live: shop && "_count" in shop ? (shop as typeof shop & { _count: { pixelConfigs: number } })._count.pixelConfigs : 0,
   };
 
-  const modulesEnabled = shop && "UiExtensionSetting" in shop ? (shop as typeof shop & { UiExtensionSetting: Array<{ id: string }> }).UiExtensionSetting.length : 0;
 
   const verificationLatest = verificationRuns[0] ? {
     status: verificationRuns[0].status === "completed" ? "completed" as const : (verificationRuns[0].status === "running" ? "running" as const : "pending" as const),
