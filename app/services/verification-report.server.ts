@@ -40,7 +40,16 @@ export async function generateVerificationReportData(
 ): Promise<VerificationReportData> {
   const run = await prisma.verificationRun.findUnique({
     where: { id: runId },
-    include: {
+    select: {
+      id: true,
+      shopId: true,
+      runName: true,
+      status: true,
+      platforms: true,
+      summaryJson: true,
+      startedAt: true,
+      completedAt: true,
+      createdAt: true,
       Shop: {
         select: {
           shopDomain: true,

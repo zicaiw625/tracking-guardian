@@ -197,7 +197,17 @@ export async function startVerificationRun(runId: string): Promise<void> {
 export async function getVerificationRun(runId: string): Promise<VerificationSummary | null> {
   const run = await prisma.verificationRun.findUnique({
     where: { id: runId },
-    include: {
+    select: {
+      id: true,
+      shopId: true,
+      runName: true,
+      runType: true,
+      status: true,
+      platforms: true,
+      summaryJson: true,
+      eventsJson: true,
+      startedAt: true,
+      completedAt: true,
       Shop: {
         select: { shopDomain: true },
       },
@@ -244,6 +254,11 @@ export async function analyzeRecentEvents(
 
   const run = await prisma.verificationRun.findUnique({
     where: { id: runId },
+    select: {
+      id: true,
+      shopId: true,
+      platforms: true,
+    },
   });
 
   if (!run) {
@@ -693,6 +708,18 @@ export async function getVerificationHistory(
     where: { shopId },
     orderBy: { createdAt: "desc" },
     take: limit,
+    select: {
+      id: true,
+      shopId: true,
+      runName: true,
+      runType: true,
+      status: true,
+      platforms: true,
+      summaryJson: true,
+      startedAt: true,
+      completedAt: true,
+      createdAt: true,
+    },
   });
 
   return runs.map((run) => {
