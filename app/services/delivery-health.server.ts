@@ -93,11 +93,17 @@ export async function runDailyDeliveryHealthCheck(shopId: string): Promise<Deliv
                 where: { isActive: true },
                 select: { platform: true },
             },
-            AlertConfig: {
-                where: { isEnabled: true },
-            },
         },
     });
+    // AlertConfig 表已被移除，使用空数组
+    const alertConfigs: Array<{
+        id: string;
+        channel: string;
+        settings: unknown;
+        discrepancyThreshold: number;
+        minOrdersForAlert: number;
+        isEnabled: boolean;
+    }> = [];
     if (!shop || !shop.isActive) {
         throw new Error("Shop not found or inactive");
     }
@@ -186,7 +192,8 @@ export async function runDailyDeliveryHealthCheck(shopId: string): Promise<Deliv
             },
         });
         const failureRate = 1 - successRate;
-        for (const alertConfig of shop.AlertConfig) {
+        // AlertConfig 表已被移除，跳过 alert 发送
+        for (const alertConfig of alertConfigs) {
             const typedAlertConfig = parseAlertConfig(alertConfig);
             if (!typedAlertConfig)
                 continue;

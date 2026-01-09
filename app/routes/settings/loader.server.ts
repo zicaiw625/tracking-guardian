@@ -25,17 +25,6 @@ export async function settingsLoader({ request }: LoaderFunctionArgs) {
       consentStrategy: true,
       dataRetentionDays: true,
 
-      AlertConfig: {
-        select: {
-          id: true,
-          channel: true,
-          settings: true,
-          frequency: true,
-          discrepancyThreshold: true,
-          isEnabled: true,
-        },
-      },
-
       pixelConfigs: {
         where: { isActive: true },
         select: {
@@ -50,6 +39,15 @@ export async function settingsLoader({ request }: LoaderFunctionArgs) {
       },
     },
   });
+  // AlertConfig 表已被移除，返回空数组
+  const alertConfigsFromShop: Array<{
+    id: string;
+    channel: string;
+    settings: unknown;
+    frequency: string;
+    discrepancyThreshold: number;
+    isEnabled: boolean;
+  }> = [];
 
   let tokenIssues = { hasIssues: false, affectedPlatforms: [] as string[] };
   if (shop) {
@@ -61,21 +59,8 @@ export async function settingsLoader({ request }: LoaderFunctionArgs) {
     shop?.previousSecretExpiry &&
     new Date() < shop.previousSecretExpiry;
 
-  const alertConfigs: AlertConfigDisplay[] = shop?.AlertConfig.map((config: {
-    id: string;
-    channel: string;
-    settings: unknown;
-    frequency: string;
-    discrepancyThreshold: number;
-    isEnabled: boolean;
-  }) => ({
-    id: config.id,
-    channel: config.channel,
-    settings: config.settings as Record<string, unknown> | null,
-    frequency: config.frequency,
-    discrepancyThreshold: config.discrepancyThreshold,
-    isEnabled: config.isEnabled,
-  })) ?? [];
+  // AlertConfig 表已被移除，返回空数组
+  const alertConfigs: AlertConfigDisplay[] = [];
 
   const pixelConfigs: PixelConfigDisplay[] = shop?.pixelConfigs?.map((config: {
     id: string;

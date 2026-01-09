@@ -184,18 +184,16 @@ export async function runDailyReconciliation(shopId: string): Promise<Reconcilia
                 where: { isActive: true, serverSideEnabled: true },
                 select: { platform: true },
             },
-            AlertConfig: {
-                where: { isEnabled: true },
-                select: {
-                    id: true,
-                    channel: true,
-                    settings: true,
-                    discrepancyThreshold: true,
-                    minOrdersForAlert: true,
-                },
-            },
         },
     });
+    // AlertConfig 表已被移除，使用空数组
+    const alertConfigs: Array<{
+        id: string;
+        channel: string;
+        settings: unknown;
+        discrepancyThreshold: number;
+        minOrdersForAlert: number;
+    }> = [];
     if (!shopWithRelations) {
         logger.debug(`Shop not found after decryption: ${shopId}`);
         return [];
@@ -250,7 +248,8 @@ export async function runDailyReconciliation(shopId: string): Promise<Reconcilia
             ? (totalRevenue - sentRevenue) / totalRevenue
             : 0;
         let alertSent = false;
-        const matchingAlerts = shopWithRelations.AlertConfig.filter(a => totalOrders >= a.minOrdersForAlert && orderDiscrepancy >= a.discrepancyThreshold);
+        // AlertConfig 表已被移除，跳过 alert 检查
+        const matchingAlerts: typeof alertConfigs = [];
         if (matchingAlerts.length > 0) {
             for (const alertConfig of matchingAlerts) {
                 try {

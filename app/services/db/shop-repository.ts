@@ -78,12 +78,11 @@ export class ShopRepository extends BaseRepository<Shop, ShopCreate, ShopUpdate>
             where: { isActive: true },
             orderBy: { platform: "asc" },
           },
-          AlertConfig: {
-            where: { isEnabled: true },
-          },
         },
       });
-      return ok(result);
+      // AlertConfig 表已被移除，返回空数组
+      const resultWithEmptyAlerts = result ? { ...result, alertConfigs: [] } : null;
+      return ok(resultWithEmptyAlerts);
     } catch (error) {
       return err(this.handleError(error, "findByDomainWithConfig"));
     }
