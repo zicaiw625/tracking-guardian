@@ -82,7 +82,7 @@ describe("P1-4: Survey API JWT Verification", () => {
 
   describe("Missing Token → 401 Unauthorized", () => {
     it("returns 401 when Authorization header is missing", async () => {
-      const request = new Request("https://example.com/api/survey", {
+      const request = new Request("https:
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -207,7 +207,7 @@ describe("P1-4: Survey API JWT Verification", () => {
         iat: now,
       });
 
-      const request = new Request("https://example.com/api/survey", {
+      const request = new Request("https:
         method: "POST",
         headers: {
           "Content-Type": "application/json",

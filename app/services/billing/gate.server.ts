@@ -249,7 +249,7 @@ export interface AtomicReservationResult {
   limit: number;
   remaining: number;
   alreadyCounted: boolean;
-  yearMonth: string; // 添加yearMonth字段，确保释放时使用相同的月份
+  yearMonth: string; 
 }
 
 export async function checkAndReserveBillingSlot(
@@ -299,7 +299,7 @@ export async function checkAndReserveBillingSlot(
         };
       }
 
-      // 使用 upsert 确保记录存在，避免并发创建问题
+      
       await tx.monthlyUsage.upsert({
         where: {
           shopId_yearMonth: {
@@ -317,8 +317,8 @@ export async function checkAndReserveBillingSlot(
         update: {},
       });
 
-      // 使用原子更新操作,WHERE条件提供并发保护
-      // 这样即使在高并发下也能确保不超过限制
+      
+      
       const updated = await tx.$executeRaw`
         UPDATE "MonthlyUsage"
         SET "sentCount" = "sentCount" + 1, "updatedAt" = NOW()
@@ -328,8 +328,8 @@ export async function checkAndReserveBillingSlot(
       `;
 
       if (updated === 0) {
-        // 更新失败,说明已经达到或超过限制
-        // 重新读取当前值以返回准确的current值
+        
+        
         const currentUsage = await tx.monthlyUsage.findUnique({
           where: { shopId_yearMonth: { shopId, yearMonth } },
           select: { sentCount: true },
@@ -346,7 +346,7 @@ export async function checkAndReserveBillingSlot(
         };
       }
 
-      // 更新成功,读取最终值进行验证
+      
       const finalUsage = await tx.monthlyUsage.findUnique({
         where: { shopId_yearMonth: { shopId, yearMonth } },
         select: { sentCount: true },
@@ -354,7 +354,7 @@ export async function checkAndReserveBillingSlot(
 
       const current = finalUsage?.sentCount || 0;
       
-      // 防御性检查: 验证更新后的值(虽然在Serializable隔离级别下不应该发生)
+      
       if (current > limit) {
         logger.error('Usage count exceeded limit after atomic update', {
           shopId,
@@ -386,8 +386,8 @@ export async function checkAndReserveBillingSlot(
           maxWait: 5000,
         });
 
-        // 无论是否成功保留或是否已计数，都删除缓存以确保一致性
-        // 因为查询操作可能改变了缓存状态
+        
+        
         billingCache.delete(`billing:${shopId}`);
 
         return ok(result);
@@ -502,31 +502,31 @@ export function getSuggestedUpgrade(
   currentPlan: PlanId,
   currentUsage: number
 ): PlanId | null {
-  // 如果已经是最高级计划，不需要升级
+  
   if (currentPlan === "agency") {
     return null;
   }
 
-  // 定义计划层级顺序
+  
   const planTiers: PlanId[] = ["free", "starter", "growth", "agency"];
   const currentIndex = planTiers.indexOf(currentPlan);
   
-  // 如果当前计划不在层级中（不应该发生），返回 null
+  
   if (currentIndex === -1) {
     return null;
   }
 
-  // 只检查比当前计划更高层级的计划
+  
   for (let i = currentIndex + 1; i < planTiers.length; i++) {
     const planId = planTiers[i];
     const plan = BILLING_PLANS[planId];
     
-    // 找到第一个限制大于当前使用量的更高层级计划
+    
     if (plan.monthlyOrderLimit > currentUsage) {
       return planId;
     }
   }
 
-  // 如果所有更高层级的计划都不满足，返回 null
+  
   return null;
 }

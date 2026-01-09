@@ -1,0 +1,4 @@
+
+
+
+export const BUILD_TIME_URL = "__BACKEND_URL_PLACEHOLDER__";

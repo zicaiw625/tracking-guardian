@@ -37,7 +37,7 @@ import {
   generateEventIdForType,
 } from "./receipt-handler";
 import { validatePixelEventHMAC } from "./hmac-validation";
-// 轻量版：不再需要复杂的事件管道处理
+
 import { safeFireAndForget } from "../../utils/helpers";
 import { trackEvent } from "../../services/analytics.server";
 import { normalizePlanId } from "../../services/billing/plans";
@@ -426,7 +426,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     const eventType = payload.eventName === "checkout_completed" ? "purchase" : payload.eventName;
     const isPurchaseEvent = eventType === "purchase";
 
-    // 轻量版：简化事件标识符生成
+    
     const eventIdentifier = payload.data.orderId || payload.data.checkoutToken || `session_${payload.timestamp}_${shop.shopDomain.replace(/\./g, "_")}`;
 
     const items = payload.data.items as Array<{
@@ -468,7 +468,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       normalizedItems.length > 0 ? normalizedItems : undefined,
       payload.nonce || null
     );
-    // 轻量版：不再需要 EventLog 统计
+    
     const isFirstEvent = false;
 
         let riskScore: number | undefined;
@@ -511,9 +511,9 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       })
     );
 
-    // 轻量版：只记录 purchase 事件用于验收
+    
     if (isPurchaseEvent) {
-      // 检查是否有活跃的验收窗口
+      
       const activeVerificationRun = await prisma.verificationRun.findFirst({
         where: {
           shopId: shop.id,
@@ -567,7 +567,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
             configCount: platformsToRecord.length,
           });
 
-          // 轻量版：不再需要复杂的事件管道处理
+          
           logger.info(`Purchase event recorded for verification`, {
             shopId: shop.id,
             eventId,
@@ -598,7 +598,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
           mode,
         });
 
-        // 轻量版：不再需要复杂的事件管道处理
+        
         logger.info(`Event ${payload.eventName} recorded`, {
           shopId: shop.id,
           eventId,
@@ -622,7 +622,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         clientSideSent: true,
         platforms: platformsToRecord,
         skippedPlatforms: skippedPlatforms.length > 0 ? skippedPlatforms : undefined,
-        trusted: true, // 轻量版：简化信任检查
+        trusted: true, 
         consent: payload.consent || null,
       },
       { request, shopAllowedDomains }

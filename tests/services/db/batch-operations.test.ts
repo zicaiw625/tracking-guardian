@@ -40,7 +40,7 @@ describe("Batch Operations", () => {
         { jobId: "job3", shopId: "shop3", orderId: "order3", status: "completed" as const },
       ];
 
-      // 模拟第一个成功,第二个失败,第三个成功
+      
       mockDb.$transaction.mockImplementation(async (callback) => {
         const tx = {
           conversionJob: {
@@ -56,8 +56,8 @@ describe("Batch Operations", () => {
       const result = await batchCompleteJobs(completions);
 
       expect(result.success).toBe(true);
-      expect(result.processed).toBe(2); // job1 and job3
-      expect(result.failed).toBe(1); // job2
+      expect(result.processed).toBe(2); 
+      expect(result.failed).toBe(1); 
       expect(result.errors).toHaveLength(1);
       expect(result.errors[0].id).toBe("job2");
     });
@@ -197,7 +197,7 @@ describe("Batch Operations", () => {
 
       const result = await batchUpdateShops(updates);
 
-      expect(result.success).toBe(true); // 事务成功,但部分更新失败
+      expect(result.success).toBe(true); 
       expect(result.processed).toBe(0);
       expect(result.failed).toBe(1);
       expect(result.errors).toHaveLength(1);

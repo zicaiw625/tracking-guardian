@@ -79,8 +79,8 @@ export async function batchCompleteJobs(
         );
 
         updateResults.forEach((result, index) => {
-          // Promise.allSettled保证返回数组长度与输入数组相同，但为了防御性编程，检查索引有效性
-          // 注意：index总是小于updateResults.length，但我们需要确保completed数组长度匹配
+          
+          
           if (index >= completed.length || index >= updateResults.length) {
             logger.error('Index out of bounds: arrays length mismatch', { 
               index, 
@@ -119,7 +119,7 @@ export async function batchCompleteJobs(
         );
 
         updateResults.forEach((result, index) => {
-          // Promise.allSettled保证返回数组长度与输入数组相同，但为了防御性编程，检查索引有效性
+          
           if (index >= failed.length || index >= updateResults.length) {
             logger.error('Index out of bounds: arrays length mismatch', { 
               index, 
@@ -165,7 +165,7 @@ export async function batchCompleteJobs(
           );
 
           updateResults.forEach((result, index) => {
-            // Promise.allSettled保证返回数组长度与输入数组相同，但为了防御性编程，检查索引有效性
+            
             if (index >= limitExceededWithErrors.length || index >= updateResults.length) {
               logger.error('Index out of bounds: arrays length mismatch', { 
                 index, 
@@ -210,7 +210,7 @@ export async function batchCompleteJobs(
         );
 
         updateResults.forEach((result, index) => {
-          // Promise.allSettled保证返回数组长度与输入数组相同，但为了防御性编程，检查索引有效性
+          
           if (index >= deadLetter.length || index >= updateResults.length) {
             logger.error('Index out of bounds: arrays length mismatch', { 
               index, 
@@ -268,7 +268,7 @@ export async function batchInsertReceipts(
 
   try {
     await db.$transaction(async (tx) => {
-      // 使用Promise.allSettled并行处理,提高性能并正确收集错误
+      
       const upsertResults = await Promise.allSettled(
         receipts.map((receipt) =>
           tx.pixelEventReceipt.upsert({
@@ -303,7 +303,7 @@ export async function batchInsertReceipts(
       );
 
       upsertResults.forEach((result, index) => {
-        // Promise.allSettled保证返回数组长度与输入数组相同，但为了防御性编程，检查索引有效性
+        
         if (index >= receipts.length || index >= upsertResults.length) {
           logger.error('Index out of bounds: arrays length mismatch', { 
             index, 
@@ -327,16 +327,16 @@ export async function batchInsertReceipts(
     const errorMsg = error instanceof Error ? error.message : String(error);
     logger.error('Batch insert receipts transaction failed', { error: errorMsg, count: receipts.length });
 
-    // 如果事务失败,所有操作都会回滚,所以所有receipts都失败
-    // 计算所有失败项(包括事务内已经记录的errors和事务失败导致的剩余项)
+    
+    
     const allErrors = errors.length > 0 
       ? errors 
       : receipts.map((r) => ({ id: `${r.shopId}:${r.orderId}`, error: `Transaction failed: ${errorMsg}` }));
 
     return {
       success: false,
-      processed: 0, // 事务回滚,所以没有成功处理的项
-      failed: receipts.length, // 所有项都失败
+      processed: 0, 
+      failed: receipts.length, 
       errors: allErrors,
     };
   }
@@ -370,7 +370,7 @@ export async function batchUpdateShops(
 
   try {
     await db.$transaction(async (tx) => {
-      // 使用Promise.allSettled以处理部分失败的情况
+      
       const updateResults = await Promise.allSettled(
         updates.map(({ shopId, data }) =>
           tx.shop.update({
@@ -381,7 +381,7 @@ export async function batchUpdateShops(
       );
 
       updateResults.forEach((result, index) => {
-        // Promise.allSettled保证返回数组长度与输入数组相同，但为了防御性编程，检查索引有效性
+        
         if (index >= updates.length || index >= updateResults.length) {
           logger.error('Index out of bounds: arrays length mismatch', { 
             index, 
@@ -406,7 +406,7 @@ export async function batchUpdateShops(
     const errorMsg = error instanceof Error ? error.message : String(error);
     logger.error('Batch update shops transaction failed', { error: errorMsg, count: updates.length });
 
-    // 如果事务失败,记录所有未处理的shops
+    
     const remainingErrors = updates
       .slice(processed)
       .map((u) => ({ id: u.shopId, error: `Transaction failed: ${errorMsg}` }));

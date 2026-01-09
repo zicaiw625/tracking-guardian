@@ -18,10 +18,8 @@ import type {
   TikTokCredentials,
   PinterestCredentials,
 } from "../../types/platform";
-import {
-  encryptAlertSettings,
-  encryptJson,
-} from "../../services/alert-settings.server";
+import { encryptAlertSettings } from "../../services/alert-settings.server";
+import { encryptJson } from "../../utils/crypto.server";
 import { logger } from "../../utils/logger.server";
 import { invalidateAllShopCaches } from "../../services/shop-cache.server";
 import type { AlertSettings } from "./types";
@@ -76,7 +74,7 @@ export async function handleSaveAlert(
     rawSettings.chatId = formData.get("chatId");
   }
 
-  const encryptedSettings = encryptAlertSettings(channel, rawSettings);
+  const encryptedSettings = await encryptAlertSettings(rawSettings as AlertSettings);
 
   const nonSensitiveSettings: Record<string, unknown> = {
     channel,

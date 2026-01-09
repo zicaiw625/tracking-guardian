@@ -7,10 +7,24 @@ import { generateSimpleId } from "../../utils/helpers";
 import type { TrustLevel } from "../../utils/receipt-trust";
 import type { PixelEventPayload, KeyValidationResult } from "./types";
 import { generateCanonicalEventId } from "../../services/event-normalizer.server";
+import { randomUUID } from "crypto";
 
 export interface MatchKeyResult {
   orderId: string;
   usedCheckoutTokenAsFallback: boolean;
+}
+
+export function generateOrderMatchKey(
+  orderId: string | null | undefined,
+  checkoutToken: string | null | undefined,
+  shopDomain?: string
+): MatchKeyResult {
+  const matchKeyResult = generateMatchKey({ orderId: orderId || null, checkoutToken: checkoutToken || null });
+  
+  return {
+    orderId: matchKeyResult.normalizedOrderId || matchKeyResult.matchKey,
+    usedCheckoutTokenAsFallback: !matchKeyResult.isOrderId && !!matchKeyResult.checkoutToken,
+  };
 }
 
 export interface TrustEvaluationResult {
@@ -50,8 +64,8 @@ export async function isClientEventRecorded(
   return !!existing;
 }
 
-// 轻量版：不再需要复杂的 orderId 匹配和 nonce 检查
-// 简化逻辑，只记录事件用于验收
+
+
 
 export async function upsertPixelEventReceipt(
   shopId: string,
@@ -95,7 +109,7 @@ function normalizeCurrencyForStorage(currency: unknown): string {
   return "USD";
 }
 
-// 轻量版：不再需要 ConversionLog，只记录 PixelEventReceipt 用于验收
+
 
 export async function getActivePixelConfigs(
   shopId: string
@@ -169,4 +183,72 @@ export function generateDeduplicationKeyForEvent(
     .update(keyInput, "utf8")
     .digest("hex")
     .substring(0, 32);
+}
+
+export async function createEventNonce(
+  shopId: string,
+  orderId: string,
+  timestamp: number,
+  nonce: string | null | undefined,
+  eventType: string
+): Promise<{ isReplay: boolean }> {
+  const eventId = nonce || generateCanonicalEventId(orderId, null, eventType, "", undefined, "v2", null);
+  const windowHours = 24;
+  
+  try {
+    await prisma.eventNonce.create({
+      data: {
+        id: randomUUID(),
+        shopId,
+        nonce: eventId,
+        eventType,
+        expiresAt: new Date(Date.now() + windowHours * 60 * 60 * 1000),
+      },
+    });
+    return { isReplay: false };
+  } catch (error) {
+    if ((error as { code?: string }).code === "P2002") {
+      logger.debug("Event nonce already exists (replay detected)", {
+        shopId,
+        orderId,
+        eventType,
+        eventId: eventId.substring(0, 16) + "...",
+      });
+      return { isReplay: true };
+    }
+    logger.warn("Failed to create event nonce", {
+      shopId,
+      orderId,
+      eventType,
+      error: error instanceof Error ? error.message : String(error),
+    });
+    return { isReplay: false };
+  }
+}
+
+export function evaluateTrustLevel(
+  keyValidation: KeyValidationResult,
+  hasCheckoutToken: boolean
+): TrustEvaluationResult {
+  if (!keyValidation.matched) {
+    return {
+      isTrusted: false,
+      trustLevel: "untrusted",
+      untrustedReason: keyValidation.reason || "key_validation_failed",
+    };
+  }
+
+  if (!hasCheckoutToken) {
+    return {
+      isTrusted: false,
+      trustLevel: "partial",
+      untrustedReason: "missing_checkout_token",
+    };
+  }
+
+  return {
+    isTrusted: true,
+    trustLevel: "trusted",
+    untrustedReason: undefined,
+  };
 }

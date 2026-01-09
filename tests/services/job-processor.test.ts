@@ -27,9 +27,9 @@ describe("Job Processor - Bug Fixes", () => {
 
   describe("Bug Fix: sendToPlatformWithCredentials - undefined shopDomain variable", () => {
     it("should use job.shop.shopDomain instead of undefined shopDomain variable", async () => {
-      // 这个测试确保 sendToPlatformWithCredentials 函数正确使用 job.shop.shopDomain
-      // 修复前：直接使用未定义的 shopDomain 变量
-      // 修复后：const shopDomain = job.shop.shopDomain;
+      
+      
+      
 
       const mockJob = {
         id: "job-123",
@@ -62,7 +62,7 @@ describe("Job Processor - Bug Fixes", () => {
       };
       const eventId = "event-123";
 
-      // Mock successful credential decryption
+      
       (decryptCredentials as ReturnType<typeof vi.fn>).mockResolvedValue({
         ok: true,
         value: {
@@ -70,17 +70,17 @@ describe("Job Processor - Bug Fixes", () => {
         },
       });
 
-      // Mock successful platform send
+      
       (sendConversionToPlatform as ReturnType<typeof vi.fn>).mockResolvedValue({
         success: true,
       });
 
-      // 模拟 sendToPlatformWithCredentials 函数的逻辑
-      // 这里我们测试修复后的行为：使用 job.shop.shopDomain
+      
+      
       const shopDomain = mockJob.shop.shopDomain;
       const destination = mockPixelConfig.platform;
 
-      // 验证 metrics 调用时使用了正确的 shopDomain
+      
       metrics.pxDestinationOk(shopDomain, destination);
       metrics.pxDestinationLatency(shopDomain, destination, 100);
 
@@ -94,7 +94,7 @@ describe("Job Processor - Bug Fixes", () => {
         100
       );
 
-      // 验证 shopDomain 不是 undefined
+      
       expect(shopDomain).toBeDefined();
       expect(shopDomain).toBe("test-shop.myshopify.com");
     });
@@ -111,7 +111,7 @@ describe("Job Processor - Bug Fixes", () => {
       const destination = "google";
       const errorMessage = "API error";
 
-      // 模拟失败情况
+      
       metrics.pxDestinationFail(shopDomain, destination, errorMessage);
 
       expect(metrics.pxDestinationFail).toHaveBeenCalledWith(
@@ -120,19 +120,19 @@ describe("Job Processor - Bug Fixes", () => {
         "API error"
       );
 
-      // 验证 shopDomain 不是 undefined
+      
       expect(shopDomain).toBeDefined();
     });
   });
 
   describe("Bug Fix: Partial success status consistency", () => {
     it("should return 'failed' result when status is FAILED in partial success scenario", () => {
-      // 修复前：部分成功但需要重试时，返回 result: "succeeded" 但 status: FAILED（不一致）
-      // 修复后：返回 result: "failed" 且 status: FAILED（一致）
       
-      // 模拟部分成功场景：anySent=true, anyFailed=true, 未达到maxAttempts
+      
+      
+      
       const partialSuccessResult = {
-        result: "failed" as const, // 修复后应该返回 "failed"
+        result: "failed" as const, 
         update: {
           id: "job-123",
           status: "failed" as const,
@@ -149,13 +149,13 @@ describe("Job Processor - Bug Fixes", () => {
         },
       };
 
-      // 验证结果和状态一致
+      
       expect(partialSuccessResult.result).toBe("failed");
       expect(partialSuccessResult.update.status).toBe("failed");
     });
 
     it("should return 'succeeded' result when status is COMPLETED after max attempts in partial success", () => {
-      // 部分成功但已达到最大重试次数，应该返回 succeeded + COMPLETED
+      
       const partialSuccessMaxAttempts = {
         result: "succeeded" as const,
         update: {
@@ -182,20 +182,20 @@ describe("Job Processor - Bug Fixes", () => {
 
   describe("Bug Fix: allSkipped logic for rejected tasks", () => {
     it("should mark as allSkipped when all tasks are rejected", () => {
-      // 修复前：如果所有任务都被rejected，allSkipped会是false
-      // 修复后：如果所有任务都被rejected且没有发送成功，allSkipped应该是true
+      
+      
       
       const pixelConfigs = [
         { platform: "google" },
         { platform: "facebook" },
       ];
       
-      // 模拟所有任务都被rejected的场景
+      
       const rejectedCount = 2;
       const skippedCount = 0;
       const anySent = false;
       
-      // 修复后的逻辑
+      
       const allSkipped = (skippedCount === pixelConfigs.length && pixelConfigs.length > 0) ||
                          (rejectedCount === pixelConfigs.length && pixelConfigs.length > 0 && !anySent);
       
@@ -210,7 +210,7 @@ describe("Job Processor - Bug Fixes", () => {
       
       const rejectedCount = 1;
       const skippedCount = 0;
-      const anySent = true; // 有平台发送成功
+      const anySent = true; 
       
       const allSkipped = (skippedCount === pixelConfigs.length && pixelConfigs.length > 0) ||
                          (rejectedCount === pixelConfigs.length && pixelConfigs.length > 0 && !anySent);
@@ -237,8 +237,8 @@ describe("Job Processor - Bug Fixes", () => {
 
   describe("Bug Fix: yearMonth in billing slot release", () => {
     it("should use same yearMonth when releasing billing slot", () => {
-      // 修复前：释放slot时使用默认的当前月份，可能跨月
-      // 修复后：使用预留时的yearMonth
+      
+      
       
       const reservation = {
         success: true,
@@ -246,10 +246,10 @@ describe("Job Processor - Bug Fixes", () => {
         limit: 100,
         remaining: 95,
         alreadyCounted: false,
-        yearMonth: "2024-01", // 预留时的月份
+        yearMonth: "2024-01", 
       };
       
-      // 释放slot时应该使用reservation.yearMonth
+      
       const expectedYearMonth = reservation.yearMonth;
       
       expect(expectedYearMonth).toBe("2024-01");
@@ -261,11 +261,11 @@ describe("Job Processor - Bug Fixes", () => {
         current: 5,
         limit: 100,
         remaining: 95,
-        alreadyCounted: true, // 已经计数，不需要释放
+        alreadyCounted: true, 
         yearMonth: "2024-01",
       };
       
-      // 如果alreadyCounted为true，不应该释放slot
+      
       const shouldRelease = !reservation.alreadyCounted;
       
       expect(shouldRelease).toBe(false);

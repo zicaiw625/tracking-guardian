@@ -301,7 +301,7 @@ export async function createSubscription(
         .join(", ");
       logger.error(`Billing API error: ${errorMessage}`);
       
-      // 将 Shopify 错误消息转换为更友好的中文提示
+      
       let friendlyError = errorMessage;
       if (errorMessage.includes("Apps without a public distribution cannot use the Billing API")) {
         friendlyError = "应用尚未在 Shopify App Store 公开发布，无法使用计费功能。请联系开发者或等待应用发布。";
@@ -555,7 +555,7 @@ export async function createOneTimePurchase(
         .join(", ");
       logger.error(`One-time purchase API error: ${errorMessage}`);
       
-      // 将 Shopify 错误消息转换为更友好的中文提示
+      
       let friendlyError = errorMessage;
       if (errorMessage.includes("Apps without a public distribution cannot use the Billing API")) {
         friendlyError = "应用尚未在 Shopify App Store 公开发布，无法使用计费功能。请联系开发者或等待应用发布。";

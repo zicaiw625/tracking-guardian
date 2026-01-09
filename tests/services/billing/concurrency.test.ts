@@ -45,7 +45,7 @@ describe("Billing Concurrency", () => {
       const orderId = "order1";
       const limit = 10;
 
-      // 模拟使用 upsert 创建记录，然后原子更新
+      
       prisma.$transaction.mockImplementation(async (callback, options) => {
         const tx = {
           conversionJob: {
@@ -57,9 +57,9 @@ describe("Billing Concurrency", () => {
           monthlyUsage: {
             upsert: vi.fn().mockResolvedValue({ sentCount: 0 }),
             findUnique: vi.fn()
-              .mockResolvedValueOnce(null) // 第一次查找不存在
-              .mockResolvedValueOnce({ sentCount: 10 }), // 更新后查找返回新值
-            $executeRaw: vi.fn().mockResolvedValue(1), // 成功更新
+              .mockResolvedValueOnce(null) 
+              .mockResolvedValueOnce({ sentCount: 10 }), 
+            $executeRaw: vi.fn().mockResolvedValue(1), 
           },
         };
         return callback(tx);
@@ -80,13 +80,13 @@ describe("Billing Concurrency", () => {
       prisma.$transaction.mockImplementation(async (callback, options) => {
         attemptCount++;
         if (attemptCount < 2) {
-          // 第一次尝试失败(模拟序列化错误)
+          
           const error = new Error("Serialization failure");
           (error as any).code = "P40001";
           throw error;
         }
         
-        // 第二次尝试成功
+        
         const tx = {
           conversionJob: {
             findUnique: vi.fn().mockResolvedValue(null),
@@ -116,7 +116,7 @@ describe("Billing Concurrency", () => {
       const orderId = "order1";
       const limit = 10;
 
-      // 模拟usage已达到限制
+      
       prisma.$transaction.mockImplementation(async (callback, options) => {
         const tx = {
           conversionJob: {
@@ -128,9 +128,9 @@ describe("Billing Concurrency", () => {
           monthlyUsage: {
             upsert: vi.fn().mockResolvedValue({ sentCount: 10 }),
             findUnique: vi.fn()
-              .mockResolvedValueOnce({ sentCount: 10 }) // 更新前查找
-              .mockResolvedValueOnce({ sentCount: 10 }), // 更新失败后查找
-            $executeRaw: vi.fn().mockResolvedValue(0), // 更新失败(因为WHERE条件)
+              .mockResolvedValueOnce({ sentCount: 10 }) 
+              .mockResolvedValueOnce({ sentCount: 10 }), 
+            $executeRaw: vi.fn().mockResolvedValue(0), 
           },
         };
         return callback(tx);
@@ -171,9 +171,9 @@ describe("Billing Concurrency", () => {
       const orderId = "order1";
       const limit = 10;
 
-      // 模拟并发场景：记录不存在，先upsert创建，然后原子更新
+      
       prisma.$transaction.mockImplementation(async (callback, options) => {
-        // 验证使用了正确的隔离级别
+        
         expect(options?.isolationLevel).toBe("Serializable");
         expect(options?.maxWait).toBe(5000);
         
@@ -187,9 +187,9 @@ describe("Billing Concurrency", () => {
           monthlyUsage: {
             upsert: vi.fn().mockResolvedValue({ sentCount: 0 }),
             findUnique: vi.fn()
-              .mockResolvedValueOnce(null) // 初始查找不存在
-              .mockResolvedValueOnce({ sentCount: 5 }), // 更新后查找
-            $executeRaw: vi.fn().mockResolvedValue(1), // 成功更新
+              .mockResolvedValueOnce(null) 
+              .mockResolvedValueOnce({ sentCount: 5 }), 
+            $executeRaw: vi.fn().mockResolvedValue(1), 
           },
         };
         return callback(tx);
@@ -209,7 +209,7 @@ describe("Billing Concurrency", () => {
       const shopPlan = "starter" as const;
 
       prisma.$transaction.mockImplementation(async (callback, options) => {
-        // 验证使用了正确的隔离级别
+        
         expect(options?.isolationLevel).toBe("Serializable");
         expect(options?.maxWait).toBe(5000);
         
@@ -223,9 +223,9 @@ describe("Billing Concurrency", () => {
           monthlyUsage: {
             upsert: vi.fn().mockResolvedValue({ sentCount: 0 }),
             findUnique: vi.fn()
-              .mockResolvedValueOnce(null) // 初始查找不存在
-              .mockResolvedValueOnce({ sentCount: 6 }), // 更新后查找
-            $executeRaw: vi.fn().mockResolvedValue(1), // 原子更新成功
+              .mockResolvedValueOnce(null) 
+              .mockResolvedValueOnce({ sentCount: 6 }), 
+            $executeRaw: vi.fn().mockResolvedValue(1), 
           },
         };
         return callback(tx);
@@ -250,13 +250,13 @@ describe("Billing Concurrency", () => {
       prisma.$transaction.mockImplementation(async (callback, options) => {
         attemptCount++;
         if (attemptCount < 2) {
-          // 第一次尝试失败(模拟序列化错误)
+          
           const error = new Error("Serialization failure");
           (error as any).code = "P40001";
           throw error;
         }
         
-        // 第二次尝试成功
+        
         const tx = {
           conversionJob: {
             findUnique: vi.fn().mockResolvedValue(null),
@@ -299,7 +299,7 @@ describe("Billing Concurrency", () => {
             findUnique: vi.fn()
               .mockResolvedValueOnce({ sentCount: 1000 })
               .mockResolvedValueOnce({ sentCount: 1000 }),
-            $executeRaw: vi.fn().mockResolvedValue(0), // 更新失败
+            $executeRaw: vi.fn().mockResolvedValue(0), 
           },
         };
         return callback(tx);

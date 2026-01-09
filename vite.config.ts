@@ -108,6 +108,8 @@ export default defineConfig({
       "@shopify/polaris",
       "@shopify/shopify-app-remix",
       "@shopify/app-bridge-react",
+      "react-chartjs-2",
+      "chart.js",
     ],
     external: ["html-pdf-node", "archiver"],
   },
