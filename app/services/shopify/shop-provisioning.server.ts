@@ -114,6 +114,7 @@ async function upsertShopRecord(
       primaryDomain: shopInfo.primaryDomain,
       storefrontDomains: [],
       shopTier: shopInfo.shopTier,
+      monthlyOrderLimit: 100,
       updatedAt: new Date(),
     },
   });

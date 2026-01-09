@@ -138,26 +138,6 @@ export async function getDashboardData(shopDomain: string): Promise<DashboardDat
         where: { isActive: true },
         select: { id: true, serverSideEnabled: true, credentialsEncrypted: true },
       },
-      ReconciliationReport: {
-        orderBy: { reportDate: "desc" },
-        take: 7,
-        select: { orderDiscrepancy: true },
-      },
-      AlertConfig: {
-        where: { isEnabled: true },
-        select: { id: true },
-      },
-      _count: {
-        select: {
-          ConversionLog: {
-            where: {
-              createdAt: {
-                gte: new Date(Date.now() - SEVEN_DAYS_MS),
-              },
-            },
-          },
-        },
-      },
 
     },
   });
@@ -184,7 +164,7 @@ export async function getDashboardData(shopDomain: string): Promise<DashboardDat
 
   const configuredPlatforms = shop.pixelConfigs?.length || 0;
 
-  let weeklyConversions = shop._count?.ConversionLog || 0;
+  let weeklyConversions = 0;
   try {
     const { getAggregatedMetrics } = await import("./dashboard-aggregation.server");
     const sevenDaysAgo = new Date();
@@ -192,8 +172,7 @@ export async function getDashboardData(shopDomain: string): Promise<DashboardDat
     const aggregated = await getAggregatedMetrics(shop.id, sevenDaysAgo, new Date());
     weeklyConversions = aggregated.totalOrders;
   } catch (error) {
-
-    logger.debug("Failed to get aggregated metrics, using real-time count", {
+    logger.debug("Failed to get aggregated metrics, using default value", {
       shopId: shop.id,
       error: error instanceof Error ? error.message : String(error),
     });
@@ -208,7 +187,7 @@ export async function getDashboardData(shopDomain: string): Promise<DashboardDat
   const hasServerSideConfig = serverSideConfigsCount > 0;
   const { score, status, factors } = await calculateHealthScore(
     shop.id,
-    shop.ReconciliationReport || [],
+    [],
     serverSideConfigsCount
   );
   const planId = normalizePlan(shop.plan);
@@ -466,8 +445,8 @@ export async function getDashboardData(shopDomain: string): Promise<DashboardDat
         }
       : null,
     configuredPlatforms,
-    weeklyConversions: shop._count?.ConversionLog || 0,
-    hasAlertConfig: (shop.AlertConfig?.length || 0) > 0,
+    weeklyConversions,
+    hasAlertConfig: false,
     hasServerSideConfig,
     plan: shop.plan || "free",
     planId,
