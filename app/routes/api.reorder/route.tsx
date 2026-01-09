@@ -2,7 +2,7 @@ import type { ActionFunctionArgs, LoaderFunctionArgs } from "@remix-run/node";
 import { createAdminClientForShop, authenticate } from "../../shopify.server";
 import { logger } from "../../utils/logger.server";
 import { optionsResponse, jsonWithCors } from "../../utils/cors";
-import { withRateLimit, pathShopKeyExtractor, type RateLimitedHandler } from "../../middleware/rate-limit";
+import { withRateLimit, pathShopKeyExtractor, type RateLimitedHandler, checkRateLimitAsync } from "../../middleware/rate-limit";
 import { withConditionalCache, createUrlCacheKey } from "../../lib/with-cache";
 import { TTL } from "../../utils/cache";
 import prisma from "../../db.server";
@@ -11,7 +11,79 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   if (request.method === "OPTIONS") {
     return optionsResponse(request, true);
   }
-  return jsonWithCors({ error: "Method not allowed" }, { status: 405, request, staticCors: true });
+
+  if (request.method !== "POST") {
+    return jsonWithCors({ error: "Method not allowed" }, { status: 405, request, staticCors: true });
+  }
+
+  let session: { shop: string; [key: string]: unknown };
+  try {
+    const authResult = await authenticate.public.checkout(request) as unknown as { 
+      session: { shop: string; [key: string]: unknown } 
+    };
+    session = authResult.session;
+  } catch (authError) {
+    logger.warn("Reorder action authentication failed", {
+      error: authError instanceof Error ? authError.message : String(authError),
+    });
+    return jsonWithCors(
+      { error: "Unauthorized: Invalid authentication" },
+      { status: 401, request, staticCors: true }
+    );
+  }
+
+  const shopDomain = session.shop;
+
+  const rateLimitKey = `reorder:${shopDomain}`;
+  const rateLimitResult = await checkRateLimitAsync(rateLimitKey, 60, 60 * 1000);
+
+  if (!rateLimitResult.allowed) {
+    const headers = new Headers();
+    headers.set("X-RateLimit-Limit", "60");
+    headers.set("X-RateLimit-Remaining", "0");
+    headers.set("X-RateLimit-Reset", String(Math.ceil(rateLimitResult.resetAt / 1000)));
+    if (rateLimitResult.retryAfter) {
+      headers.set("Retry-After", String(rateLimitResult.retryAfter));
+    }
+
+    logger.warn("Reorder rate limit exceeded", {
+      shopDomain,
+      retryAfter: rateLimitResult.retryAfter,
+    });
+
+    return jsonWithCors(
+      {
+        error: "Too many reorder requests",
+        retryAfter: rateLimitResult.retryAfter,
+      },
+      { status: 429, request, staticCors: true, headers }
+    );
+  }
+
+  try {
+    const body = await request.json().catch(() => null);
+    
+    const url = new URL(request.url);
+    const orderId = body?.orderId || url.searchParams.get("orderId");
+
+    if (!orderId) {
+      return jsonWithCors({ error: "Missing orderId" }, { status: 400, request, staticCors: true });
+    }
+
+    const newUrl = new URL(request.url);
+    newUrl.searchParams.set("orderId", orderId);
+    const newRequest = new Request(newUrl.toString(), {
+      method: "GET",
+      headers: request.headers,
+    });
+
+    return await loaderImpl(newRequest);
+  } catch (error) {
+    logger.error("Reorder action failed", {
+      error: error instanceof Error ? error.message : String(error),
+    });
+    return jsonWithCors({ error: "Failed to process reorder request" }, { status: 500, request, staticCors: true });
+  }
 };
 
 const reorderRateLimit = withRateLimit<Response>({
@@ -46,7 +118,6 @@ const cachedLoader = withConditionalCache(
     },
     ttl: TTL.SHORT,
     shouldCache: (result) => {
-
       if (result instanceof Response) {
         return result.status === 200;
       }
@@ -91,30 +162,63 @@ async function loaderImpl(request: Request) {
       return jsonWithCors({ error: "Failed to authenticate admin" }, { status: 401, request, staticCors: true });
     }
 
-    const orderResponse = await admin.graphql(`
-      query GetOrderLineItems($id: ID!) {
-        order(id: $id) {
-          id
-          customer {
+    let orderResponse: Response;
+    try {
+      orderResponse = await admin.graphql(`
+        query GetOrderLineItems($id: ID!) {
+          order(id: $id) {
             id
-          }
-          lineItems(first: 250) {
-            edges {
-              node {
-                variant {
-                  id
+            customer {
+              id
+            }
+            lineItems(first: 250) {
+              edges {
+                node {
+                  variant {
+                    id
+                  }
+                  quantity
                 }
-                quantity
               }
             }
           }
         }
+      `, {
+        variables: {
+          id: orderId,
+        },
+      });
+    } catch (graphqlError) {
+      const errorMessage = graphqlError instanceof Error ? graphqlError.message : String(graphqlError);
+      
+      if (errorMessage.includes("read_orders") || errorMessage.includes("Required access")) {
+        logger.warn("Reorder failed: Missing read_orders scope", {
+          shopDomain,
+          orderId,
+          error: errorMessage,
+        });
+        return jsonWithCors(
+          {
+            success: false,
+            error: "Missing required permission",
+            message: "此功能需要 read_orders 权限。请在 Shopify Partner Dashboard 中为应用添加 read_orders scope，并重新授权应用。",
+            requiresReauthorization: true,
+            requiredScope: "read_orders",
+          },
+          { status: 403, request, staticCors: true }
+        );
       }
-    `, {
-      variables: {
-        id: orderId,
-      },
-    });
+      
+      logger.error("Failed to query order from Shopify", {
+        error: errorMessage,
+        orderId,
+        shopDomain,
+      });
+      return jsonWithCors(
+        { error: "Failed to query order", message: "无法读取订单信息，请稍后重试" },
+        { status: 500, request, staticCors: true }
+      );
+    }
 
     const orderData = await orderResponse.json().catch((jsonError) => {
       logger.warn("Failed to parse GraphQL response as JSON", {
@@ -125,8 +229,31 @@ async function loaderImpl(request: Request) {
       return { data: null };
     });
 
-    if (!orderData.data?.order) {
+    if (orderData.errors) {
+      const hasAccessError = orderData.errors.some((err: { message?: string }) => 
+        err.message?.includes("read_orders") || err.message?.includes("Required access")
+      );
+      
+      if (hasAccessError) {
+        logger.warn("Reorder failed: Missing read_orders scope (from GraphQL errors)", {
+          shopDomain,
+          orderId,
+          errors: orderData.errors,
+        });
+        return jsonWithCors(
+          {
+            success: false,
+            error: "Missing required permission",
+            message: "此功能需要 read_orders 权限。请在 Shopify Partner Dashboard 中为应用添加 read_orders scope，并重新授权应用。",
+            requiresReauthorization: true,
+            requiredScope: "read_orders",
+          },
+          { status: 403, request, staticCors: true }
+        );
+      }
+    }
 
+    if (!orderData.data?.order) {
       logger.info(`Order not found (may be still creating) for orderId: ${orderId}, shop: ${shopDomain}`);
       return jsonWithCors(
         {
@@ -148,7 +275,6 @@ async function loaderImpl(request: Request) {
 
     const orderCustomerId = orderData.data.order.customer?.id || null;
     if (customerGidFromToken && orderCustomerId) {
-
       const tokenCustomerId = customerGidFromToken.includes("/")
         ? customerGidFromToken.split("/").pop()
         : customerGidFromToken;
@@ -194,13 +320,11 @@ async function loaderImpl(request: Request) {
       });
 
       if (shop?.primaryDomain) {
-
         const baseUrl = shop.primaryDomain.startsWith("http")
           ? shop.primaryDomain
           : `https://${shop.primaryDomain}`;
         reorderUrl = `${baseUrl}${relativeUrl}`;
       } else if (shop?.storefrontDomains && shop.storefrontDomains.length > 0) {
-
         const baseUrl = shop.storefrontDomains[0].startsWith("http")
           ? shop.storefrontDomains[0]
           : `https://${shop.storefrontDomains[0]}`;
@@ -208,7 +332,6 @@ async function loaderImpl(request: Request) {
       }
 
     } catch (error) {
-
       logger.warn("Failed to fetch shop domain for reorder URL, using relative path", {
         shopDomain,
         error: error instanceof Error ? error.message : String(error),

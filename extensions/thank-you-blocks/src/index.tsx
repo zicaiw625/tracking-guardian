@@ -14,7 +14,6 @@ import { useState } from "react";
 
 import { BUILD_TIME_URL } from "./config";
 
-
 function SurveyModule({ 
   question, 
   options, 
@@ -79,10 +78,6 @@ function HelpModule({
   const handleFaqClick = async () => {
     if (faqUrl) {
       try {
-        
-        
-        
-        
         await api.fetch(faqUrl, { method: "GET" });
       } catch (error) {
         console.error("Failed to open FAQ URL:", error);
@@ -139,24 +134,35 @@ function ReorderModule({
   const handleReorder = async () => {
     setLoading(true);
     try {
+      const purchase = (api as any).purchase;
+      let orderId: string | undefined;
       
-      
-      
+      if (purchase?.order?.id) {
+        orderId = purchase.order.id;
+      } else if (purchase?.orderId) {
+        orderId = purchase.orderId;
+      } else if ((api as any).order?.id) {
+        orderId = (api as any).order.id;
+      }
+
+      if (!orderId) {
+        console.error("Reorder failed: No order ID available from checkout API. Purchase object:", purchase);
+        setLoading(false);
+        return;
+      }
+
       const response = await api.fetch(`${BUILD_TIME_URL}/api/reorder`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          
-          
+          orderId: orderId,
         }),
       });
 
       if (response.ok) {
         const data = await response.json();
-        
-        
       }
     } catch (error) {
       console.error("Reorder failed:", error);
@@ -185,8 +191,6 @@ export default reactExtension(
   () => <ThankYouBlocks />
 );
 
-
-
 export const OrderStatusExtension = reactExtension(
   "customer-account.order-status.block.render",
   () => <ThankYouBlocks />
@@ -198,7 +202,6 @@ function ThankYouBlocks() {
   const target = useExtensionTarget();
   const [surveySubmitted, setSurveySubmitted] = useState(false);
 
-  
   const surveyEnabled = settings.survey_enabled ?? true;
   const surveyQuestion = settings.survey_question ?? "您对我们的服务满意吗？";
   const surveyOptions = (settings.survey_options as string)?.split(",") || 
@@ -208,7 +211,7 @@ function ThankYouBlocks() {
   const helpFaqUrl = settings.help_faq_url as string | undefined;
   const helpSupportUrl = settings.help_support_url as string | undefined;
   
-  const reorderEnabled = settings.reorder_enabled ?? true;
+  const reorderEnabled = settings.reorder_enabled ?? false;
   const reorderButtonText = (settings.reorder_button_text as string) || "再次购买";
 
   const handleSurveySubmit = async (selectedOption: string) => {
@@ -231,7 +234,6 @@ function ThankYouBlocks() {
 
   return (
     <BlockStack spacing="base">
-      {}
       {surveyEnabled && (
         <>
           <SurveyModule
@@ -243,7 +245,6 @@ function ThankYouBlocks() {
         </>
       )}
 
-      {}
       {helpEnabled && (
         <>
           <HelpModule
@@ -254,7 +255,6 @@ function ThankYouBlocks() {
         </>
       )}
 
-      {}
       {reorderEnabled && (
         <ReorderModule buttonText={reorderButtonText} />
       )}
