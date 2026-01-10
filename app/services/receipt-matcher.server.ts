@@ -28,7 +28,7 @@ const RECEIPT_SELECT_FIELDS = {
   pixelTimestamp: true,
   createdAt: true,
   eventType: true,
-  platform: true,
+  payloadJson: true,
 };
 
 const FUZZY_MATCH_WINDOW_MS = 60 * 60 * 1000;

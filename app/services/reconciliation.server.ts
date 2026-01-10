@@ -2,6 +2,17 @@ import prisma from "../db.server";
 import { logger } from "../utils/logger.server";
 import { getShopByIdWithDecryptedFields } from "../utils/shop-access";
 import { apiVersion } from "../shopify.server";
+
+function extractPlatformFromPayload(payload: Record<string, unknown> | null): string | null {
+    if (!payload) return null;
+    if (payload.platform && typeof payload.platform === "string") {
+        return payload.platform;
+    }
+    if (payload.destination && typeof payload.destination === "string") {
+        return payload.destination;
+    }
+    return null;
+}
 export interface ReconciliationResult {
     shopId: string;
     platform: string;
@@ -211,13 +222,15 @@ export async function runDailyReconciliation(shopId: string): Promise<Reconcilia
             },
         },
         select: {
-            platform: true,
             payloadJson: true,
             orderKey: true,
         },
     });
     for (const platform of platforms) {
-        const platformReceipts = pixelReceipts.filter(r => r.platform === platform);
+        const platformReceipts = pixelReceipts.filter(r => {
+            const payload = r.payloadJson as Record<string, unknown> | null;
+            return extractPlatformFromPayload(payload) === platform;
+        });
         const uniqueOrders = new Set(platformReceipts.map(r => r.orderKey).filter(Boolean));
         const sentOrders = uniqueOrders.size;
         let sentRevenue = 0;
@@ -476,9 +489,18 @@ export async function getReconciliationDashboardData(
         }
     }
     gapAnalysis.sort((a, b) => b.count - a.count);
-    const platforms = [...new Set(pixelReceipts.filter(r => r.platform).map(r => r.platform!))];
+    const platformsMap = new Map<string, boolean>();
+    for (const receipt of pixelReceipts) {
+      const payload = receipt.payloadJson as Record<string, unknown> | null;
+      const platform = extractPlatformFromPayload(payload);
+      if (platform) platformsMap.set(platform, true);
+    }
+    const platforms = Array.from(platformsMap.keys());
     const platformBreakdown = platforms.map(platform => {
-        const platformReceipts = pixelReceipts.filter(r => r.platform === platform);
+        const platformReceipts = pixelReceipts.filter(r => {
+          const payload = r.payloadJson as Record<string, unknown> | null;
+          return extractPlatformFromPayload(payload) === platform;
+        });
         const uniqueOrderCount = new Set(platformReceipts.filter(r => r.orderKey).map(r => r.orderKey!)).size;
         return {
             platform,

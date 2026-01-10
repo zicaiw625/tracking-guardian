@@ -18,6 +18,17 @@ import { PageIntroCard } from "~/components/layout/PageIntroCard";
 import { authenticate } from "~/shopify.server";
 import prisma from "~/db.server";
 
+function extractPlatformFromPayload(payload: Record<string, unknown> | null): string | null {
+  if (!payload) return null;
+  if (payload.platform && typeof payload.platform === "string") {
+    return payload.platform;
+  }
+  if (payload.destination && typeof payload.destination === "string") {
+    return payload.destination;
+  }
+  return null;
+}
+
 const PLATFORM_LABELS: Record<string, string> = {
   google: "Google Analytics 4",
   meta: "Meta (Facebook)",
@@ -53,11 +64,9 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     ? await prisma.pixelEventReceipt.findMany({
         where: {
           shopId: shop.id,
-          platform: { in: platforms },
         },
         orderBy: { createdAt: "desc" },
         select: {
-          platform: true,
           eventType: true,
           createdAt: true,
           payloadJson: true,
@@ -66,12 +75,14 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       })
     : [];
   const latestByKey = recentReceipts.reduce((acc, receipt) => {
-    if (!receipt.platform) return acc;
-    const key = `${receipt.platform}:live`;
+    const payload = receipt.payloadJson as Record<string, unknown> | null;
+    const platform = extractPlatformFromPayload(payload);
+    if (!platform || !platforms.includes(platform)) return acc;
+    const key = `${platform}:live`;
     if (!acc[key]) {
-      const payload = receipt.payloadJson as Record<string, unknown> | null;
-      const hasValue = payload?.data && typeof (payload.data as Record<string, unknown>).value === "number";
-      const hasCurrency = payload?.data && typeof (payload.data as Record<string, unknown>).currency === "string";
+      const data = payload?.data as Record<string, unknown> | undefined;
+      const hasValue = data && typeof data.value === "number";
+      const hasCurrency = !!data?.currency;
       const status = hasValue && hasCurrency ? "ok" : "pending";
       acc[key] = {
         status,

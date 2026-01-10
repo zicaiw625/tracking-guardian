@@ -1,6 +1,17 @@
 import prisma from "../../db.server";
 import { logger } from "../../utils/logger.server";
 
+function extractPlatformFromPayload(payload: Record<string, unknown> | null): string | null {
+  if (!payload) return null;
+  if (payload.platform && typeof payload.platform === "string") {
+    return payload.platform;
+  }
+  if (payload.destination && typeof payload.destination === "string") {
+    return payload.destination;
+  }
+  return null;
+}
+
 export interface ShopWithConfigs {
   id: string;
   shopDomain: string;
@@ -123,27 +134,32 @@ export async function fetchConversionLogsForReconciliation(
     where: {
       shopId,
       createdAt: { gte: startDate, lt: endDate },
-      platform: { in: platforms },
       eventType: { in: ["purchase", "checkout_completed"] },
     },
     select: {
-      platform: true,
       payloadJson: true,
     },
   });
-  return receipts.map(receipt => {
-    const payload = receipt.payloadJson as Record<string, unknown> | null;
-    const data = payload?.data as Record<string, unknown> | undefined;
-    const value = typeof data?.value === "number" ? data.value : 0;
-    const currency = (data?.currency as string) || "USD";
-    const hasValue = value > 0 && !!currency;
-    return {
-      platform: receipt.platform || "",
-      status: hasValue ? "sent" : "pending",
-      orderValue: value as any,
-      currency,
-    };
-  });
+  return receipts
+    .filter(receipt => {
+      const payload = receipt.payloadJson as Record<string, unknown> | null;
+      const platform = extractPlatformFromPayload(payload);
+      return platform && platforms.includes(platform);
+    })
+    .map(receipt => {
+      const payload = receipt.payloadJson as Record<string, unknown> | null;
+      const platform = extractPlatformFromPayload(payload) || "";
+      const data = payload?.data as Record<string, unknown> | undefined;
+      const value = typeof data?.value === "number" ? data.value : 0;
+      const currency = (data?.currency as string) || "USD";
+      const hasValue = value > 0 && !!currency;
+      return {
+        platform,
+        status: hasValue ? "sent" : "pending",
+        orderValue: value as any,
+        currency,
+      };
+    });
 }
 
 export async function countPendingJobsPerShop(
@@ -224,7 +240,6 @@ export async function getConversionStats(
       eventType: { in: ["purchase", "checkout_completed"] },
     },
     select: {
-      platform: true,
       payloadJson: true,
     },
   });
@@ -233,9 +248,10 @@ export async function getConversionStats(
   let successfulOrders = 0;
   let totalValue = 0;
   for (const receipt of receipts) {
-    if (!receipt.platform) continue;
-    totalOrders++;
     const payload = receipt.payloadJson as Record<string, unknown> | null;
+    const platform = extractPlatformFromPayload(payload);
+    if (!platform) continue;
+    totalOrders++;
     const data = payload?.data as Record<string, unknown> | undefined;
     const value = typeof data?.value === "number" ? data.value : 0;
     const hasValue = value > 0;
@@ -244,11 +260,11 @@ export async function getConversionStats(
       successfulOrders++;
     }
     totalValue += value;
-    if (!platformBreakdown[receipt.platform]) {
-      platformBreakdown[receipt.platform] = { count: 0, value: 0 };
+    if (!platformBreakdown[platform]) {
+      platformBreakdown[platform] = { count: 0, value: 0 };
     }
-    platformBreakdown[receipt.platform].count++;
-    platformBreakdown[receipt.platform].value += value;
+    platformBreakdown[platform].count++;
+    platformBreakdown[platform].value += value;
   }
   return {
     totalOrders,

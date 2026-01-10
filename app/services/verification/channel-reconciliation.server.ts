@@ -1,6 +1,17 @@
 import prisma from "../../db.server";
 import { logger } from "../../utils/logger.server";
 
+function extractPlatformFromPayload(payload: Record<string, unknown> | null): string | null {
+  if (!payload) return null;
+  if (payload.platform && typeof payload.platform === "string") {
+    return payload.platform;
+  }
+  if (payload.destination && typeof payload.destination === "string") {
+    return payload.destination;
+  }
+  return null;
+}
+
 export interface ChannelReconciliationDetail {
   platform: string;
   shopifyOrders: number;
@@ -92,7 +103,6 @@ export async function performEnhancedChannelReconciliation(
     },
     select: {
       orderKey: true,
-      platform: true,
       payloadJson: true,
       createdAt: true,
     },
@@ -121,7 +131,11 @@ export async function performEnhancedChannelReconciliation(
   const platformValueMaps: Record<string, Map<string, number>> = {};
   for (const config of shop.pixelConfigs) {
     const platform = config.platform;
-    const platformReceipts = receipts.filter(r => r.platform === platform);
+    const platformReceipts = receipts.filter(r => {
+      const payload = r.payloadJson as Record<string, unknown> | null;
+      const receiptPlatform = extractPlatformFromPayload(payload);
+      return receiptPlatform === platform;
+    });
     const platformLogs = platformReceipts.map((receipt) => {
       const payload = receipt.payloadJson as Record<string, unknown> | null;
       const data = payload?.data as Record<string, unknown> | undefined;
@@ -362,10 +376,10 @@ export async function getOrderCrossPlatformComparison(
     },
     select: {
       id: true,
-      platform: true,
       payloadJson: true,
       pixelTimestamp: true,
       createdAt: true,
+      orderKey: true,
     },
   });
   let shopifyOrder: { orderId: string; orderValue: number; currency: string; createdAt: Date } | null = null;
@@ -378,26 +392,27 @@ export async function getOrderCrossPlatformComparison(
     status: string;
   }> = [];
   for (const receipt of receipts) {
-    if (!receipt.platform) continue;
     const payload = receipt.payloadJson as Record<string, unknown> | null;
+    const platform = extractPlatformFromPayload(payload);
+    if (!platform) continue;
     const data = payload?.data as Record<string, unknown> | undefined;
     let value = (data?.value as number) || 0;
     let currency = (data?.currency as string) || "USD";
-    if (receipt.platform === "google") {
+    if (platform === "google") {
       const events = payload?.events as Array<Record<string, unknown>> | undefined;
       if (events && events.length > 0) {
         const params = events[0].params as Record<string, unknown> | undefined;
         if (params?.value !== undefined) value = (params.value as number) || 0;
         if (params?.currency) currency = String(params.currency);
       }
-    } else if (receipt.platform === "meta" || receipt.platform === "facebook") {
+    } else if (platform === "meta" || platform === "facebook") {
       const eventsData = payload?.data as Array<Record<string, unknown>> | undefined;
       if (eventsData && eventsData.length > 0) {
         const customData = eventsData[0].custom_data as Record<string, unknown> | undefined;
         if (customData?.value !== undefined) value = (customData.value as number) || 0;
         if (customData?.currency) currency = String(customData.currency);
       }
-    } else if (receipt.platform === "tiktok") {
+    } else if (platform === "tiktok") {
       const eventsData = payload?.data as Array<Record<string, unknown>> | undefined;
       if (eventsData && eventsData.length > 0) {
         const properties = eventsData[0].properties as Record<string, unknown> | undefined;
@@ -415,7 +430,7 @@ export async function getOrderCrossPlatformComparison(
     }
     const hasValue = value > 0 && !!currency;
     platformEvents.push({
-      platform: receipt.platform,
+      platform,
       orderId,
       orderValue: value,
       currency,

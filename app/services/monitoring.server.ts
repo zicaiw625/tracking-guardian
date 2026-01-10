@@ -1,6 +1,17 @@
 import prisma from "../db.server";
 import { logger } from "../utils/logger.server";
 
+function extractPlatformFromPayload(payload: Record<string, unknown> | null): string | null {
+  if (!payload) return null;
+  if (payload.platform && typeof payload.platform === "string") {
+    return payload.platform;
+  }
+  if (payload.destination && typeof payload.destination === "string") {
+    return payload.destination;
+  }
+  return null;
+}
+
 export interface EventMonitoringStats {
   totalEvents: number;
   successRate: number;
@@ -43,7 +54,6 @@ export async function getEventMonitoringStats(shopId: string, hours: number = 24
       },
     },
     select: {
-      platform: true,
       payloadJson: true,
     },
   });
@@ -54,13 +64,12 @@ export async function getEventMonitoringStats(shopId: string, hours: number = 24
   let retryingCount = 0;
   let deadLetterCount = 0;
   for (const receipt of receipts) {
-    if (!receipt.platform) continue;
-    const platform = receipt.platform;
+    const payload = receipt.payloadJson as Record<string, unknown> | null;
+    const platform = extractPlatformFromPayload(payload) || "unknown";
     if (!byPlatform[platform]) {
       byPlatform[platform] = { total: 0, success: 0, failure: 0 };
     }
     byPlatform[platform].total++;
-    const payload = receipt.payloadJson as Record<string, unknown> | null;
     const data = payload?.data as Record<string, unknown> | undefined;
     const hasValue = data?.value !== undefined && data?.value !== null;
     const hasCurrency = !!data?.currency;
@@ -128,20 +137,18 @@ export async function getMissingParamsStats(shopId: string, hours: number = 24):
       },
     },
     select: {
-      platform: true,
       payloadJson: true,
     },
   });
   const byPlatform: Record<string, { total: number; missing: number; rate: number }> = {};
   let totalMissing = 0;
   for (const receipt of receipts) {
-    if (!receipt.platform) continue;
-    const platform = receipt.platform;
+    const payload = receipt.payloadJson as Record<string, unknown> | null;
+    const platform = extractPlatformFromPayload(payload) || "unknown";
     if (!byPlatform[platform]) {
       byPlatform[platform] = { total: 0, missing: 0, rate: 0 };
     }
     byPlatform[platform].total++;
-    const payload = receipt.payloadJson as Record<string, unknown> | null;
     const data = payload?.data as Record<string, unknown> | undefined;
     const hasValue = data?.value !== undefined && data?.value !== null;
     const hasCurrency = !!data?.currency;

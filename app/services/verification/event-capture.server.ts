@@ -1,6 +1,17 @@
 import prisma from "~/db.server";
 import { logger } from "~/utils/logger.server";
 
+function extractPlatformFromPayload(payload: Record<string, unknown> | null): string | null {
+  if (!payload) return null;
+  if (payload.platform && typeof payload.platform === "string") {
+    return payload.platform;
+  }
+  if (payload.destination && typeof payload.destination === "string") {
+    return payload.destination;
+  }
+  return null;
+}
+
 export interface CapturedEvent {
   id: string;
   eventName: string;
@@ -40,26 +51,31 @@ export async function captureRecentEvents(
         createdAt: {
           gte: since,
         },
-        ...(destinationTypes && destinationTypes.length > 0
-          ? {
-              platform: { in: destinationTypes },
-            }
-          : {}),
       },
       orderBy: {
         createdAt: "desc",
       },
       take: 100,
+      select: {
+        id: true,
+        eventType: true,
+        payloadJson: true,
+        pixelTimestamp: true,
+        createdAt: true,
+      },
     });
     const capturedEvents: CapturedEvent[] = [];
     for (const receipt of receipts) {
-      if (!receipt.platform) continue;
       const payload = receipt.payloadJson as Record<string, unknown> | null;
+      const platform = extractPlatformFromPayload(payload);
+      if (!platform || (destinationTypes && destinationTypes.length > 0 && !destinationTypes.includes(platform))) {
+        continue;
+      }
       const data = payload?.data as Record<string, unknown> | undefined;
       let value = (data?.value as number) || 0;
       let currency = (data?.currency as string) || "USD";
       let items = (data?.items as Array<Record<string, unknown>>) || [];
-      if (receipt.platform === "google") {
+      if (platform === "google") {
         const events = payload?.events as Array<Record<string, unknown>> | undefined;
         if (events && events.length > 0) {
           const params = events[0].params as Record<string, unknown> | undefined;
@@ -67,7 +83,7 @@ export async function captureRecentEvents(
           if (params?.currency) currency = String(params.currency);
           if (Array.isArray(params?.items)) items = params.items as Array<Record<string, unknown>>;
         }
-      } else if (receipt.platform === "meta" || receipt.platform === "facebook") {
+      } else if (platform === "meta" || platform === "facebook") {
         const eventsData = payload?.data as Array<Record<string, unknown>> | undefined;
         if (eventsData && eventsData.length > 0) {
           const customData = eventsData[0].custom_data as Record<string, unknown> | undefined;
@@ -75,7 +91,7 @@ export async function captureRecentEvents(
           if (customData?.currency) currency = String(customData.currency);
           if (Array.isArray(customData?.contents)) items = customData.contents as Array<Record<string, unknown>>;
         }
-      } else if (receipt.platform === "tiktok") {
+      } else if (platform === "tiktok") {
         const eventsData = payload?.data as Array<Record<string, unknown>> | undefined;
         if (eventsData && eventsData.length > 0) {
           const properties = eventsData[0].properties as Record<string, unknown> | undefined;
@@ -93,7 +109,7 @@ export async function captureRecentEvents(
         id: receipt.id,
         eventName: receipt.eventType,
         eventId: receipt.id,
-        destinationType: receipt.platform,
+        destinationType: platform,
         payload: { ...(payload || {}), data: { value, currency, items } },
         status: hasValue && hasCurrency ? "ok" : "fail",
         errorCode: null,
@@ -185,15 +201,9 @@ export async function getEventStatistics(
           gte: startDate,
           lte: endDate,
         },
-        ...(destinationTypes && destinationTypes.length > 0
-          ? {
-              platform: { in: destinationTypes },
-            }
-          : {}),
       },
       select: {
         eventType: true,
-        platform: true,
         payloadJson: true,
       },
     });
@@ -205,18 +215,21 @@ export async function getEventStatistics(
     let eventsWithMissingParams = 0;
     let totalEvents = 0;
     for (const receipt of receipts) {
-      if (!receipt.platform) continue;
+      const payload = receipt.payloadJson as Record<string, unknown> | null;
+      const platform = extractPlatformFromPayload(payload);
+      if (!platform || (destinationTypes && destinationTypes.length > 0 && !destinationTypes.includes(platform))) {
+        continue;
+      }
       totalEvents++;
       const eventType = receipt.eventType;
       byEventType[eventType] = (byEventType[eventType] || 0) + 1;
-      const dest = receipt.platform;
+      const dest = platform;
       byDestination[dest] = (byDestination[dest] || 0) + 1;
-      const payload = receipt.payloadJson as Record<string, unknown> | null;
       const data = payload?.data as Record<string, unknown> | undefined;
       let value = (data?.value as number) || 0;
       let currency = (data?.currency as string) || "USD";
       let items = (data?.items as Array<Record<string, unknown>>) || [];
-      if (receipt.platform === "google") {
+      if (platform === "google") {
         const events = payload?.events as Array<Record<string, unknown>> | undefined;
         if (events && events.length > 0) {
           const params = events[0].params as Record<string, unknown> | undefined;
@@ -224,7 +237,7 @@ export async function getEventStatistics(
           if (params?.currency) currency = String(params.currency);
           if (Array.isArray(params?.items)) items = params.items as Array<Record<string, unknown>>;
         }
-      } else if (receipt.platform === "meta" || receipt.platform === "facebook") {
+      } else if (platform === "meta" || platform === "facebook") {
         const eventsData = payload?.data as Array<Record<string, unknown>> | undefined;
         if (eventsData && eventsData.length > 0) {
           const customData = eventsData[0].custom_data as Record<string, unknown> | undefined;
@@ -232,7 +245,7 @@ export async function getEventStatistics(
           if (customData?.currency) currency = String(customData.currency);
           if (Array.isArray(customData?.contents)) items = customData.contents as Array<Record<string, unknown>>;
         }
-      } else if (receipt.platform === "tiktok") {
+      } else if (platform === "tiktok") {
         const eventsData = payload?.data as Array<Record<string, unknown>> | undefined;
         if (eventsData && eventsData.length > 0) {
           const properties = eventsData[0].properties as Record<string, unknown> | undefined;

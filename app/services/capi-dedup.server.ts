@@ -3,6 +3,17 @@ import prisma from "../db.server";
 import { logger } from "../utils/logger.server";
 import { generateEventId as generateEventIdUnified } from "../utils/crypto.server";
 
+function extractPlatformFromPayload(payload: Record<string, unknown> | null): string | null {
+  if (!payload) return null;
+  if (payload.platform && typeof payload.platform === "string") {
+    return payload.platform;
+  }
+  if (payload.destination && typeof payload.destination === "string") {
+    return payload.destination;
+  }
+  return null;
+}
+
 export interface DedupResult {
   shouldSend: boolean;
   eventId: string;
@@ -71,22 +82,23 @@ export async function checkShouldSend(
   const windowStart = new Date();
   windowStart.setHours(windowStart.getHours() - windowHours);
   if (checkPixelReceipt) {
-    const receipt = await prisma.pixelEventReceipt.findFirst({
+    const receipts = await prisma.pixelEventReceipt.findMany({
       where: {
         shopId,
         orderKey: orderId,
-        platform,
         eventType: { in: ["checkout_completed", "purchase"] },
         createdAt: { gte: windowStart },
       },
       select: {
         payloadJson: true,
-        platform: true,
       },
       orderBy: { createdAt: "desc" },
+      take: 10,
     });
-    if (receipt && receipt.platform === platform) {
+    for (const receipt of receipts) {
       const payload = receipt.payloadJson as Record<string, unknown> | null;
+      const receiptPlatform = extractPlatformFromPayload(payload);
+      if (receiptPlatform !== platform) continue;
       const consent = payload?.consent as { marketing?: boolean; analytics?: boolean } | null;
       if (consent?.marketing === false && ["meta", "tiktok", "pinterest", "snapchat", "twitter"].includes(platform)) {
         logger.debug("Dedup: Consent blocked", { orderId, platform });
@@ -177,16 +189,19 @@ export async function analyzeDedupConflicts(
     select: {
       id: true,
       orderKey: true,
-      platform: true,
       eventType: true,
+      payloadJson: true,
     },
   });
   const groupedEvents = new Map<string, typeof receipts>();
   receipts.forEach(receipt => {
-    if (!receipt.orderKey || !receipt.platform) return;
-    const key = `${receipt.orderKey}:${receipt.platform}:${receipt.eventType}`;
+    if (!receipt.orderKey) return;
+    const payload = receipt.payloadJson as Record<string, unknown> | null;
+    const platform = extractPlatformFromPayload(payload);
+    if (!platform) return;
+    const key = `${receipt.orderKey}:${platform}:${receipt.eventType}`;
     const existing = groupedEvents.get(key) || [];
-    existing.push(receipt);
+    existing.push({ ...receipt, platform } as any);
     groupedEvents.set(key, existing);
   });
   let duplicateEvents = 0;
@@ -198,7 +213,8 @@ export async function analyzeDedupConflicts(
     count: number;
   }> = [];
   for (const [_key, events] of groupedEvents) {
-    const platform = events[0].platform || "unknown";
+    const payload = events[0].payloadJson as Record<string, unknown> | null;
+    const platform = extractPlatformFromPayload(payload) || "unknown";
     if (!duplicatesByPlatform[platform]) {
       duplicatesByPlatform[platform] = { total: 0, duplicates: 0 };
     }

@@ -28,22 +28,22 @@ model Session {
 }
 
 model Shop {
-  id                      String            @id
-  shopDomain              String            @unique
+  id                      String              @id
+  shopDomain              String              @unique
   accessToken             String?
   email                   String?
   name                    String?
-  plan                    String            @default("free")
-  monthlyOrderLimit       Int               @default(100)
-  installedAt             DateTime          @default(now())
+  plan                    String              @default("free")
+  monthlyOrderLimit       Int                 @default(100)
+  installedAt             DateTime            @default(now())
   uninstalledAt           DateTime?
-  isActive                Boolean           @default(true)
-  createdAt               DateTime          @default(now())
+  isActive                Boolean             @default(true)
+  createdAt               DateTime            @default(now())
   updatedAt               DateTime
-  dataRetentionDays       Int               @default(90)
+  dataRetentionDays       Int                 @default(90)
   ingestionSecret         String?
-  weakConsentMode         Boolean           @default(false)
-  consentStrategy         String            @default("strict")
+  weakConsentMode         Boolean             @default(false)
+  consentStrategy         String              @default("strict")
   previousIngestionSecret String?
   previousSecretExpiry    DateTime?
   webPixelId              String?
@@ -64,26 +64,26 @@ model Shop {
 }
 
 model AuditAsset {
-  id                   String     @id
+  id                   String    @id
   shopId               String
-  sourceType           String     @default("api_scan")
-  category             String     @default("other")
+  sourceType           String    @default("api_scan")
+  category             String    @default("other")
   platform             String?
   fingerprint          String?
   displayName          String?
-  riskLevel            String     @default("medium")
-  suggestedMigration   String     @default("web_pixel")
-  migrationStatus      String     @default("pending")
+  riskLevel            String    @default("medium")
+  suggestedMigration   String    @default("web_pixel")
+  migrationStatus      String    @default("pending")
   migratedAt           DateTime?
   details              Json?
   scanReportId         String?
-  createdAt            DateTime   @default(now())
+  createdAt            DateTime  @default(now())
   updatedAt            DateTime
   priority             Int?
   estimatedTimeMinutes Int?
   dependencies         Json?
   rawSnippetEncrypted  String?
-  Shop                 Shop       @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  Shop                 Shop      @relation(fields: [shopId], references: [id], onDelete: Cascade)
 
   @@unique([shopId, fingerprint])
   @@index([category])
@@ -158,7 +158,6 @@ model PixelEventReceipt {
   originHost        String?
   payloadJson       Json?
   orderKey          String?
-  platform          String?
   createdAt         DateTime         @default(now())
   Shop              Shop             @relation(fields: [shopId], references: [id], onDelete: Cascade)
   VerificationRun   VerificationRun? @relation(fields: [verificationRunId], references: [id], onDelete: SetNull)
@@ -169,27 +168,26 @@ model PixelEventReceipt {
   @@index([eventType])
   @@index([shopId, eventType, pixelTimestamp])
   @@index([orderKey])
-  @@index([platform])
 }
 
 model VerificationRun {
-  id                String              @id
-  shopId            String
-  runName           String               @default("验收测试")
-  runType           String               @default("quick")
-  status            String               @default("pending")
-  platforms         String[]
-  summaryJson       Json?
-  eventsJson        Json?
-  reportUrl         String?
-  publicId          String?              @unique
-  publicTokenHash   String?
+  id                  String              @id
+  shopId              String
+  runName             String              @default("验收测试")
+  runType             String              @default("quick")
+  status              String              @default("pending")
+  platforms           String[]
+  summaryJson         Json?
+  eventsJson          Json?
+  reportUrl           String?
+  publicId            String?             @unique
+  publicTokenHash     String?
   shareTokenExpiresAt DateTime?
-  startedAt         DateTime?
-  completedAt       DateTime?
-  createdAt         DateTime            @default(now())
-  Shop              Shop                @relation(fields: [shopId], references: [id], onDelete: Cascade)
-  PixelEventReceipt PixelEventReceipt[]
+  startedAt           DateTime?
+  completedAt         DateTime?
+  createdAt           DateTime            @default(now())
+  Shop                Shop                @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  PixelEventReceipt   PixelEventReceipt[]
 
   @@index([createdAt])
   @@index([shopId, createdAt])

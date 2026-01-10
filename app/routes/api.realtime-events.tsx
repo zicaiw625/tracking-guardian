@@ -3,6 +3,17 @@ import { authenticate } from "../shopify.server";
 import prisma from "../db.server";
 import { logger } from "../utils/logger.server";
 
+function extractPlatformFromPayload(payload: Record<string, unknown> | null): string | null {
+  if (!payload) return null;
+  if (payload.platform && typeof payload.platform === "string") {
+    return payload.platform;
+  }
+  if (payload.destination && typeof payload.destination === "string") {
+    return payload.destination;
+  }
+  return null;
+}
+
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   try {
     const { session } = await authenticate.admin(request);
@@ -72,7 +83,6 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
             const recentReceipts = await prisma.pixelEventReceipt.findMany({
               where: {
                 ...whereClause,
-                ...(platforms.length > 0 && { platform: { in: platforms } }),
                 createdAt: {
                   gt: new Date(Date.now() - 60000),
                 },
@@ -83,7 +93,6 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
                 id: true,
                 orderKey: true,
                 eventType: true,
-                platform: true,
                 pixelTimestamp: true,
                 createdAt: true,
                 payloadJson: true,
@@ -92,6 +101,10 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
             if (recentReceipts.length > 0) {
               for (const receipt of recentReceipts) {
                 const payload = receipt.payloadJson as Record<string, unknown> | null;
+                const platform = extractPlatformFromPayload(payload);
+                if (platforms.length > 0 && platform && !platforms.includes(platform)) {
+                  continue;
+                }
                 const data = payload?.data as Record<string, unknown> | undefined;
                 const value = typeof data?.value === "number" ? data.value : 0;
                 const currency = (data?.currency as string) || "USD";
@@ -102,7 +115,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
                   id: receipt.id,
                   eventType: receipt.eventType,
                   orderId: receipt.orderKey || "",
-                  platform: receipt.platform || "pixel",
+                  platform: platform || "pixel",
                   timestamp: receipt.pixelTimestamp.toISOString(),
                   status,
                   params: {

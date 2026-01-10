@@ -8,6 +8,17 @@ import { safeFireAndForget } from "../utils/helpers";
 import { normalizePlanId } from "../services/billing/plans";
 import { isPlanAtLeast } from "../utils/plans";
 
+function extractPlatformFromPayload(payload: Record<string, unknown> | null): string | null {
+  if (!payload) return null;
+  if (payload.platform && typeof payload.platform === "string") {
+    return payload.platform;
+  }
+  if (payload.destination && typeof payload.destination === "string") {
+    return payload.destination;
+  }
+  return null;
+}
+
 export interface VerificationTestItem {
   id: string;
   name: string;
@@ -254,12 +265,17 @@ export async function analyzeRecentEvents(
     where: {
       shopId,
       pixelTimestamp: { gte: since },
-      ...(targetPlatforms.length > 0 && {
-        platform: { in: targetPlatforms },
-      }),
     },
     orderBy: { pixelTimestamp: "desc" },
     take: 1000,
+    select: {
+      id: true,
+      eventType: true,
+      payloadJson: true,
+      pixelTimestamp: true,
+      createdAt: true,
+      orderKey: true,
+    },
   });
   const results: VerificationEventResult[] = [];
   let passedTests = 0;
@@ -269,10 +285,11 @@ export async function analyzeRecentEvents(
   let valueChecks = 0;
   const orderIds = new Set<string>();
   for (const receipt of receipts) {
-    if (!receipt.platform || !targetPlatforms.includes(receipt.platform)) {
+    const payload = receipt.payloadJson as Record<string, unknown> | null;
+    const platform = extractPlatformFromPayload(payload);
+    if (!platform || (targetPlatforms.length > 0 && !targetPlatforms.includes(platform))) {
       continue;
     }
-    const payload = receipt.payloadJson as Record<string, unknown> | null;
     const orderId = receipt.orderKey || (payload?.data as Record<string, unknown>)?.orderId as string | undefined;
     if (orderId) {
       orderIds.add(orderId);
@@ -288,7 +305,7 @@ export async function analyzeRecentEvents(
       currency = data?.currency as string | undefined;
       const dataItems = data?.items as Array<unknown> | undefined;
       items = dataItems ? dataItems.length : undefined;
-      if (receipt.platform === "google") {
+      if (platform === "google") {
         const events = payload.events as Array<Record<string, unknown>> | undefined;
         if (events && events.length > 0) {
           const params = events[0].params as Record<string, unknown> | undefined;
@@ -296,7 +313,7 @@ export async function analyzeRecentEvents(
           currency = params?.currency as string | undefined;
           items = Array.isArray(params?.items) ? params.items.length : undefined;
         }
-      } else if (receipt.platform === "meta" || receipt.platform === "facebook") {
+      } else if (platform === "meta" || platform === "facebook") {
         const eventsData = payload.data as Array<Record<string, unknown>> | undefined;
         if (eventsData && eventsData.length > 0) {
           const customData = eventsData[0].custom_data as Record<string, unknown> | undefined;
@@ -304,7 +321,7 @@ export async function analyzeRecentEvents(
           currency = customData?.currency as string | undefined;
           items = Array.isArray(customData?.contents) ? customData.contents.length : undefined;
         }
-      } else if (receipt.platform === "tiktok") {
+      } else if (platform === "tiktok") {
         const eventsData = payload.data as Array<Record<string, unknown>> | undefined;
         if (eventsData && eventsData.length > 0) {
           const properties = eventsData[0].properties as Record<string, unknown> | undefined;
@@ -324,7 +341,7 @@ export async function analyzeRecentEvents(
       results.push({
         testItemId: "purchase",
         eventType: receipt.eventType,
-        platform: receipt.platform || "unknown",
+        platform: platform || "unknown",
         orderId: orderId || undefined,
         orderNumber: undefined,
         status: "success",
@@ -345,7 +362,7 @@ export async function analyzeRecentEvents(
       results.push({
         testItemId: "purchase",
         eventType: receipt.eventType,
-        platform: receipt.platform || "unknown",
+        platform: platform || "unknown",
         orderId: orderId || undefined,
         orderNumber: undefined,
         status: "missing_params",
@@ -367,19 +384,20 @@ export async function analyzeRecentEvents(
   const valueAccuracy = valueChecks > 0 ? Math.round(totalValueAccuracy / valueChecks) : 100;
   const platformResults: Record<string, { sent: number; failed: number }> = {};
   for (const receipt of receipts) {
-    if (!receipt.platform || !targetPlatforms.includes(receipt.platform)) {
+    const payload = receipt.payloadJson as Record<string, unknown> | null;
+    const receiptPlatform = extractPlatformFromPayload(payload);
+    if (!receiptPlatform || (targetPlatforms.length > 0 && !targetPlatforms.includes(receiptPlatform))) {
       continue;
     }
-    if (!platformResults[receipt.platform]) {
-      platformResults[receipt.platform] = { sent: 0, failed: 0 };
+    if (!platformResults[receiptPlatform]) {
+      platformResults[receiptPlatform] = { sent: 0, failed: 0 };
     }
-    const payload = receipt.payloadJson as Record<string, unknown> | null;
     const hasValue = payload?.data && typeof (payload.data as Record<string, unknown>).value === "number";
     const hasCurrency = payload?.data && typeof (payload.data as Record<string, unknown>).currency === "string";
     if (hasValue && hasCurrency) {
-      platformResults[receipt.platform].sent++;
+      platformResults[receiptPlatform].sent++;
     } else {
-      platformResults[receipt.platform].failed++;
+      platformResults[receiptPlatform].failed++;
     }
   }
   let reconciliation: VerificationSummary["reconciliation"] | undefined;
@@ -393,18 +411,19 @@ export async function analyzeRecentEvents(
     }> = [];
     const orderPlatformMap = new Map<string, Map<string, number>>();
     for (const receipt of receipts) {
-      if (!receipt.platform || !targetPlatforms.includes(receipt.platform)) {
+      const payload = receipt.payloadJson as Record<string, unknown> | null;
+      const receiptPlatform = extractPlatformFromPayload(payload);
+      if (!receiptPlatform || (targetPlatforms.length > 0 && !targetPlatforms.includes(receiptPlatform))) {
         continue;
       }
-      const payload = receipt.payloadJson as Record<string, unknown> | null;
       const data = payload?.data as Record<string, unknown> | undefined;
       const orderId = receipt.orderKey || (data?.orderId as string | undefined);
       if (!orderId) continue;
-      const count = orderPlatformMap.get(orderId)?.get(receipt.platform) || 0;
+      const count = orderPlatformMap.get(orderId)?.get(receiptPlatform) || 0;
       if (!orderPlatformMap.has(orderId)) {
         orderPlatformMap.set(orderId, new Map());
       }
-      orderPlatformMap.get(orderId)!.set(receipt.platform, count + 1);
+      orderPlatformMap.get(orderId)!.set(receiptPlatform, count + 1);
     }
     for (const [orderId, platformMap] of orderPlatformMap) {
       for (const [platform, count] of platformMap) {

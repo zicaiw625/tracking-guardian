@@ -4,6 +4,17 @@ import type { PixelEventPayload } from "~/routes/api.pixel-events/types";
 import { sendPixelEventToPlatform } from "./pixel-event-sender.server";
 import { generateCanonicalEventId } from "../event-normalizer.server";
 
+function extractPlatformFromPayload(payload: Record<string, unknown> | null): string | null {
+  if (!payload) return null;
+  if (payload.platform && typeof payload.platform === "string") {
+    return payload.platform;
+  }
+  if (payload.destination && typeof payload.destination === "string") {
+    return payload.destination;
+  }
+  return null;
+}
+
 export interface EventPipelineResult {
   success: boolean;
   eventId?: string;
@@ -571,7 +582,6 @@ export async function getEventStats(
       },
     },
     select: {
-      platform: true,
       payloadJson: true,
     },
   });
@@ -592,7 +602,7 @@ export async function getEventStats(
     } else {
       stats.failed++;
     }
-    const dest = receipt.platform || "unknown";
+    const dest = extractPlatformFromPayload(payload) || "unknown";
     if (!stats.byDestination[dest]) {
       stats.byDestination[dest] = { total: 0, success: 0, failed: 0 };
     }

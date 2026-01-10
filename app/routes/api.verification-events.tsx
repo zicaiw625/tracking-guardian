@@ -91,9 +91,6 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
               whereClause.createdAt = { gt: lastEvent.createdAt };
             }
           }
-          if (platforms.length > 0) {
-            whereClause.platform = { in: platforms };
-          }
           if (runId) {
             whereClause.verificationRunId = runId;
           }
@@ -105,10 +102,10 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
               id: true,
               eventType: true,
               orderKey: true,
-              platform: true,
               pixelTimestamp: true,
               createdAt: true,
               payloadJson: true,
+              verificationRunId: true,
             },
           });
           const events: Array<{
@@ -141,11 +138,15 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
             if (lastEventId && receipt.id === lastEventId) continue;
             const orderId = receipt.orderKey || "";
             const payload = receipt.payloadJson as Record<string, unknown> | null;
+            const platform = extractPlatformFromPayload(payload);
+            if (platforms.length > 0 && platform && !platforms.includes(platform)) {
+              continue;
+            }
             let value: number | undefined;
             let currency: string | undefined;
             let items: number | undefined;
             const missingParams: string[] = [];
-            if (receipt.platform === "google") {
+            if (platform === "google") {
               const events = payload?.events as Array<Record<string, unknown>> | undefined;
               if (events && events.length > 0) {
                 const params = events[0].params as Record<string, unknown> | undefined;
@@ -155,7 +156,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
                   items = (params.items as Array<unknown>).length;
                 }
               }
-            } else if (receipt.platform === "meta" || receipt.platform === "facebook") {
+            } else if (platform === "meta" || platform === "facebook") {
               const data = payload?.data as Array<Record<string, unknown>> | undefined;
               if (data && data.length > 0) {
                 const customData = data[0].custom_data as Record<string, unknown> | undefined;
@@ -165,7 +166,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
                   items = (customData.contents as Array<unknown>).length;
                 }
               }
-            } else if (receipt.platform === "tiktok") {
+            } else if (platform === "tiktok") {
               const data = payload?.data as Array<Record<string, unknown>> | undefined;
               if (data && data.length > 0) {
                 const properties = data[0].properties as Record<string, unknown> | undefined;
@@ -178,12 +179,12 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
             }
             if (!value) missingParams.push("value");
             if (!currency) missingParams.push("currency");
-            const status: "success" | "failed" | "pending" = receipt.platform && (value !== undefined && value > 0) && currency ? "success" : "pending";
+            const status: "success" | "failed" | "pending" = platform && (value !== undefined && value > 0) && currency ? "success" : "pending";
             events.push({
               id: receipt.id,
               eventType: receipt.eventType,
               orderId,
-              platform: receipt.platform || "unknown",
+              platform: platform || "unknown",
               timestamp: receipt.pixelTimestamp || receipt.createdAt,
               status,
               params: {

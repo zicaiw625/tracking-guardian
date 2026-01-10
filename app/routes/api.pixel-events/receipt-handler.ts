@@ -75,7 +75,6 @@ export async function upsertPixelEventReceipt(
   const originHost = extractOriginHost(origin);
   const payloadData = payload?.data as Record<string, unknown> | undefined;
   const extractedOrderKey = orderKey || payloadData?.orderId as string | undefined;
-  const extractedPlatform = platform || (payloadData?.platform as string | undefined);
   try {
     await prisma.pixelEventReceipt.create({
       data: {
@@ -87,7 +86,6 @@ export async function upsertPixelEventReceipt(
         verificationRunId: verificationRunId || null,
         payloadJson: payload || null,
         orderKey: extractedOrderKey || null,
-        platform: extractedPlatform || null,
       },
     });
     return { success: true, eventId };
