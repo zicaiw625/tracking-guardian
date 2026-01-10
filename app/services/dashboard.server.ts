@@ -65,9 +65,10 @@ async function calculateHealthScore(
   try {
     const volumeStats = await getEventVolumeStats(shopId);
     let volumeScore = 100;
-    if (volumeStats.isDrop && Math.abs(volumeStats.changePercent || 0) > 50) {
+    const isDrop = volumeStats.changePercent < 0;
+    if (isDrop && Math.abs(volumeStats.changePercent || 0) > 50) {
       volumeScore = 50;
-    } else if (volumeStats.isDrop && Math.abs(volumeStats.changePercent || 0) > 30) {
+    } else if (isDrop && Math.abs(volumeStats.changePercent || 0) > 30) {
       volumeScore = 75;
     }
     factors.push({ label: "事件量稳定性", value: volumeScore, weight: 0.1 });

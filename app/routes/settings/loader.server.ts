@@ -88,15 +88,12 @@ export async function settingsLoader({ request }: LoaderFunctionArgs) {
           getMissingParamsStats(shop.id, 24),
           getEventVolumeStats(shop.id),
         ]);
-        const totalWithMissingParams = missingParamsStats.reduce((sum, s) => sum + s.count, 0);
-        const missingParamsRate =
-          monitoringStats.totalEvents > 0
-            ? (totalWithMissingParams / monitoringStats.totalEvents) * 100
-            : 0;
+        const missingParamsRate = missingParamsStats.missingParamsRate;
+        const volumeDrop = volumeStats.changePercent < 0 ? Math.abs(volumeStats.changePercent) : 0;
         currentMonitoringData = {
           failureRate: monitoringStats.failureRate,
           missingParamsRate,
-          volumeDrop: volumeStats.isDrop ? Math.abs(volumeStats.changePercent) : 0,
+          volumeDrop,
         };
       } catch (error) {
         logger.error("Failed to fetch monitoring data for preview", { error });

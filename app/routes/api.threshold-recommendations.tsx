@@ -37,14 +37,10 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       getEventMonitoringStats(shop.id, 24),
       getMissingParamsStats(shop.id, 24),
     ]);
-    const totalWithMissingParams = missingParamsStats.reduce((sum, s) => sum + s.count, 0);
-    const missingParamsRate = monitoringStats.totalEvents > 0
-      ? (totalWithMissingParams / monitoringStats.totalEvents) * 100
-      : 0;
     return json({
       current: {
         failureRate: monitoringStats.failureRate,
-        missingParams: missingParamsRate,
+        missingParams: missingParamsStats.missingParamsRate,
       },
     });
   }
