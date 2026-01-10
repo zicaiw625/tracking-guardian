@@ -44,42 +44,31 @@ export function createApiHandler<T = unknown>(
   config: ApiHandlerConfig<T>
 ): (args: { request: Request }) => Promise<Response> {
   const { middleware = [], handler, postMiddleware = [] } = config;
-
   return async ({ request }) => {
     const context = createContext(request);
-
     try {
-
       const middlewareResult = await runMiddleware(middleware, context);
-
       if ("response" in middlewareResult) {
         return middlewareResult.response;
       }
-
       const finalContext = middlewareResult.context;
-
       let response: Response;
       const handlerResult = await handler(finalContext);
-
       if (handlerResult instanceof Response) {
         response = handlerResult;
       } else {
-
         const corsHeaders =
           (finalContext.meta.corsHeaders as Record<string, string>) || {};
         const headers = new Headers(corsHeaders);
         headers.set("Content-Type", "application/json");
-
         response = new Response(JSON.stringify(handlerResult), {
           status: 200,
           headers,
         });
       }
-
       for (const postMw of postMiddleware) {
         response = postMw(response, finalContext);
       }
-
       const duration = Date.now() - context.startTime;
       if (duration > 1000) {
         logger.warn("Slow request", {
@@ -88,7 +77,6 @@ export function createApiHandler<T = unknown>(
           shopDomain: finalContext.shopDomain,
         });
       }
-
       return response;
     } catch (error) {
       const appError = ensureAppError(error);

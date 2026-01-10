@@ -29,7 +29,6 @@ export async function reconcileOrder(
   orderId: string
 ): Promise<ReconciliationResult> {
   try {
-
     let formattedEvents: Array<{
       id: string;
       eventId: string | null;
@@ -42,9 +41,7 @@ export async function reconcileOrder(
         requestPayloadJson: Prisma.JsonValue | null;
       }>;
     }>;
-
     try {
-
       const rawResults = await prisma.$queryRaw<Array<{
         id: string;
         eventId: string | null;
@@ -76,7 +73,6 @@ export async function reconcileOrder(
         GROUP BY el.id, el."eventId", el."eventName", el."normalizedEventJson"
         ORDER BY el."createdAt" DESC
       `;
-
       formattedEvents = rawResults.map(event => ({
         id: event.id,
         eventId: event.eventId,
@@ -90,13 +86,11 @@ export async function reconcileOrder(
         }>,
       }));
     } catch (rawQueryError) {
-
       logger.warn("Raw SQL query failed, falling back to application-level filtering", {
         error: rawQueryError instanceof Error ? rawQueryError.message : String(rawQueryError),
         shopId,
         orderId,
       });
-
       const allEvents = await prisma.eventLog.findMany({
         where: { shopId },
         include: {
@@ -113,9 +107,7 @@ export async function reconcileOrder(
           },
         },
         orderBy: { createdAt: "desc" },
-
       });
-
       formattedEvents = allEvents
         .filter(event => {
           const normalizedEvent = event.normalizedEventJson as Record<string, unknown> | null;
@@ -129,21 +121,18 @@ export async function reconcileOrder(
           DeliveryAttempt: event.DeliveryAttempt,
         }));
     }
-
     let shopifyOrder: { orderId: string; orderValue: number; currency: string } | null = null;
     if (formattedEvents.length > 0) {
       const firstEvent = formattedEvents[0];
       const normalizedEvent = firstEvent.normalizedEventJson as Record<string, unknown> | null;
       const value = (normalizedEvent?.value as number) || 0;
       const currency = (normalizedEvent?.currency as string) || "USD";
-
       shopifyOrder = {
         orderId,
         orderValue: value,
         currency,
       };
     }
-
     const platformEventsMap = new Map<string, {
       platform: string;
       eventValue: number;
@@ -151,22 +140,17 @@ export async function reconcileOrder(
       eventId: string | null;
       status: string;
     }>();
-
     for (const eventLog of formattedEvents) {
       const normalizedEvent = eventLog.normalizedEventJson as Record<string, unknown> | null;
       const eventValue = (normalizedEvent?.value as number) || 0;
       const currency = (normalizedEvent?.currency as string) || "USD";
       const eventId = eventLog.eventId;
-
       for (const attempt of eventLog.DeliveryAttempt) {
         const platform = attempt.destinationType;
         const key = `${platform}-${eventLog.eventName}`;
-
         if (!platformEventsMap.has(key) || attempt.status === "ok") {
-
           let finalValue = eventValue;
           let finalCurrency = currency;
-
           if (attempt.requestPayloadJson) {
             const requestPayload = attempt.requestPayloadJson as Record<string, unknown> | null;
             if (platform === "google") {
@@ -195,7 +179,6 @@ export async function reconcileOrder(
               }
             }
           }
-
           platformEventsMap.set(key, {
             platform,
             eventValue: finalValue,
@@ -206,11 +189,8 @@ export async function reconcileOrder(
         }
       }
     }
-
     const platformEvents = Array.from(platformEventsMap.values());
-
     const discrepancies: ReconciliationResult["discrepancies"] = [];
-
     if (!shopifyOrder) {
       discrepancies.push({
         platform: "all",
@@ -219,7 +199,6 @@ export async function reconcileOrder(
       });
     } else {
       for (const platformEvent of platformEvents) {
-
         const valueDiff = Math.abs(
           shopifyOrder.orderValue - platformEvent.eventValue
         );
@@ -227,16 +206,13 @@ export async function reconcileOrder(
           shopifyOrder.orderValue > 0
             ? (valueDiff / shopifyOrder.orderValue) * 100
             : 0;
-
         if (valueDiffRate > 1) {
-
           discrepancies.push({
             platform: platformEvent.platform,
             type: "value_mismatch",
             message: `金额差异 ${valueDiffRate.toFixed(2)}%（Shopify: ${shopifyOrder.orderValue}, 平台: ${platformEvent.eventValue}）`,
           });
         }
-
         if (
           shopifyOrder.currency.toUpperCase() !==
           platformEvent.currency.toUpperCase()
@@ -249,7 +225,6 @@ export async function reconcileOrder(
         }
       }
     }
-
     return {
       orderId,
       shopifyOrder,
@@ -272,7 +247,6 @@ export async function reconcileOrders(
   orderIds: string[]
 ): Promise<ReconciliationResult[]> {
   const results: ReconciliationResult[] = [];
-
   for (const orderId of orderIds) {
     try {
       const result = await reconcileOrder(shopId, orderId);
@@ -283,10 +257,8 @@ export async function reconcileOrders(
         orderId,
         error,
       });
-
     }
   }
-
   return results;
 }
 
@@ -310,7 +282,6 @@ export async function getReconciliationSummary(
   >;
 }> {
   try {
-
     const eventLogs = await prisma.eventLog.findMany({
       where: {
         shopId,
@@ -332,7 +303,6 @@ export async function getReconciliationSummary(
         },
       },
     });
-
     const orderIds = new Set<string>();
     const byPlatform: Record<
       string,
@@ -342,15 +312,12 @@ export async function getReconciliationSummary(
         inconsistent: number;
       }
     > = {};
-
     for (const eventLog of eventLogs) {
       const normalizedEvent = eventLog.normalizedEventJson as Record<string, unknown> | null;
       const orderId = normalizedEvent?.orderId as string | undefined;
-
       if (orderId) {
         orderIds.add(orderId);
       }
-
       for (const attempt of eventLog.DeliveryAttempt) {
         const platform = attempt.destinationType;
         if (!byPlatform[platform]) {
@@ -363,10 +330,8 @@ export async function getReconciliationSummary(
         byPlatform[platform].total++;
       }
     }
-
     let consistentOrders = 0;
     let inconsistentOrders = 0;
-
     for (const orderId of orderIds) {
       try {
         const result = await reconcileOrder(shopId, orderId);
@@ -394,11 +359,9 @@ export async function getReconciliationSummary(
         inconsistentOrders++;
       }
     }
-
     const totalOrders = orderIds.size;
     const consistencyRate =
       totalOrders > 0 ? (consistentOrders / totalOrders) * 100 : 0;
-
     const platformStats: Record<
       string,
       {
@@ -408,7 +371,6 @@ export async function getReconciliationSummary(
         consistencyRate: number;
       }
     > = {};
-
     for (const [platform, stats] of Object.entries(byPlatform)) {
       platformStats[platform] = {
         ...stats,
@@ -416,7 +378,6 @@ export async function getReconciliationSummary(
           stats.total > 0 ? (stats.consistent / stats.total) * 100 : 0,
       };
     }
-
     return {
       totalOrders,
       consistentOrders,

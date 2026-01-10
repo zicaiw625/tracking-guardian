@@ -86,7 +86,6 @@ export const PlatformConfigResponseSchema = z.object({
   migratedAt: z.string().datetime().nullable().optional(),
   createdAt: z.string().datetime(),
   updatedAt: z.string().datetime(),
-
   hasCredentials: z.boolean(),
   lastVerifiedAt: z.string().datetime().nullable().optional(),
 });
@@ -162,7 +161,6 @@ export const ShopSettingsResponseSchema = z.object({
   shopDomain: z.string(),
   plan: z.string(),
   monthlyOrderLimit: z.number(),
-
   consentStrategy: z.enum(["strict", "balanced", "weak"]),
   dataRetentionDays: z.number(),
   primaryDomain: z.string().nullable(),
@@ -185,7 +183,6 @@ export const AlertConfigResponseSchema = z.object({
   minOrdersForAlert: z.number(),
   frequency: z.enum(["daily", "weekly", "instant"]),
   lastAlertAt: z.string().datetime().nullable().optional(),
-
   settingsSummary: z.string().optional(),
   createdAt: z.string().datetime(),
   updatedAt: z.string().datetime(),

@@ -4,18 +4,13 @@ import type { ConsentState } from "./types";
 
 function platformRequiresSaleOfData(platform: string): boolean {
   const config = PLATFORM_CONSENT_CONFIG[platform];
-
   return config?.requiresSaleOfData ?? true;
 }
 
 export interface ConsentCheckResult {
-
   hasAnyConsent: boolean;
-
   hasMarketingConsent: boolean;
-
   hasAnalyticsConsent: boolean;
-
   saleOfDataAllowed: boolean;
 }
 
@@ -25,13 +20,10 @@ export interface PlatformFilterResult {
 }
 
 export function checkInitialConsent(consent: ConsentState | undefined): ConsentCheckResult {
-
   const hasMarketingConsent = consent?.marketing === true;
   const hasAnalyticsConsent = consent?.analytics === true;
   const hasAnyConsent = hasMarketingConsent || hasAnalyticsConsent;
-
   const saleOfDataAllowed = consent?.saleOfData === true;
-
   return {
     hasAnyConsent,
     hasMarketingConsent,
@@ -50,7 +42,6 @@ export function logNoConsentDrop(
     category: "validation",
     sampleRate: 1,
   });
-
   logger.debug(`Dropping pixel event - no consent at all`, {
     shopDomain,
     marketing: consent?.marketing,
@@ -70,11 +61,9 @@ export function filterPlatformsByConsent(
 ): PlatformFilterResult {
   const platformsToRecord: Array<{ platform: string; configId?: string; platformId?: string }> = [];
   const skippedPlatforms: string[] = [];
-
   for (const config of pixelConfigs) {
     const platform = config.platform;
     const requiresSaleOfData = platformRequiresSaleOfData(platform);
-
     if (requiresSaleOfData && !consentResult.saleOfDataAllowed) {
       logger.debug(
         `Skipping ${platform} ConversionLog: ` +
@@ -83,7 +72,6 @@ export function filterPlatformsByConsent(
       skippedPlatforms.push(platform);
       continue;
     }
-
     if (isMarketingPlatform(platform) && !consentResult.hasMarketingConsent) {
       logger.debug(
         `Skipping ${platform} ConversionLog: ` +
@@ -92,7 +80,6 @@ export function filterPlatformsByConsent(
       skippedPlatforms.push(platform);
       continue;
     }
-
     if (isAnalyticsPlatform(platform) && !consentResult.hasAnalyticsConsent) {
       logger.debug(
         `Skipping ${platform} ConversionLog: ` +
@@ -101,14 +88,12 @@ export function filterPlatformsByConsent(
       skippedPlatforms.push(platform);
       continue;
     }
-
     platformsToRecord.push({
       platform,
       configId: config.id,
       platformId: config.platformId || undefined,
     });
   }
-
   return { platformsToRecord, skippedPlatforms };
 }
 
@@ -120,7 +105,6 @@ export function logConsentFilterMetrics(
   consentResult: ConsentCheckResult
 ): void {
   if (skippedPlatforms.length > 0 || recordedPlatforms.length > 0) {
-
     const platformNames = recordedPlatforms.map(p => p.platform);
     metrics.consentFilter({
       shopDomain,

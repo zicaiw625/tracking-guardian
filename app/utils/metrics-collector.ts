@@ -40,14 +40,12 @@ export function incrementCounter(name: string, labels: Record<string, string> = 
     const key = metricKey(name, labels);
     const current = counters.get(key) || 0;
     counters.set(key, current + value);
-
     addMetric(name, "counter", value, labels);
 }
 
 export function setGauge(name: string, value: number, labels: Record<string, string> = {}): void {
     const key = metricKey(name, labels);
     gauges.set(key, value);
-
     addMetric(name, "gauge", value, labels);
 }
 
@@ -55,12 +53,10 @@ export function recordHistogram(name: string, value: number, labels: Record<stri
     const key = metricKey(name, labels);
     const values = histograms.get(key) || [];
     values.push(value);
-
     if (values.length > 1000) {
         values.shift();
     }
     histograms.set(key, values);
-
     addMetric(name, "histogram", value, labels);
 }
 
@@ -72,7 +68,6 @@ function addMetric(name: string, type: MetricType, value: number, labels: Record
         labels,
         timestamp: Date.now(),
     });
-
     if (metrics.length > MAX_METRICS_SIZE) {
         metrics.splice(0, metrics.length - MAX_METRICS_SIZE);
     }
@@ -81,10 +76,8 @@ function addMetric(name: string, type: MetricType, value: number, labels: Record
 export function getAggregatedMetrics(windowMs: number = 60000): Record<string, AggregatedMetric> {
     const now = Date.now();
     const windowStart = now - windowMs;
-
     const filtered = metrics.filter(m => m.timestamp >= windowStart);
     const aggregated: Record<string, AggregatedMetric> = {};
-
     for (const metric of filtered) {
         const key = metricKey(metric.name, metric.labels);
         if (!aggregated[key]) {
@@ -96,7 +89,6 @@ export function getAggregatedMetrics(windowMs: number = 60000): Record<string, A
                 avg: 0,
             };
         }
-
         const agg = aggregated[key];
         agg.count++;
         agg.sum += metric.value;
@@ -104,7 +96,6 @@ export function getAggregatedMetrics(windowMs: number = 60000): Record<string, A
         agg.max = Math.max(agg.max, metric.value);
         agg.avg = agg.sum / agg.count;
     }
-
     return aggregated;
 }
 
@@ -119,15 +110,12 @@ export function getGauges(): Record<string, number> {
 export function getHistogramStats(name: string, labels: Record<string, string> = {}): AggregatedMetric | null {
     const key = metricKey(name, labels);
     const values = histograms.get(key);
-
     if (!values || values.length === 0) {
         return null;
     }
-
     const sorted = [...values].sort((a, b) => a - b);
         const p50 = sorted[Math.floor(sorted.length * 0.5)] || 0;
     const p95 = sorted[Math.floor(sorted.length * 0.95)] || 0;
-
     return {
         count: values.length,
         sum: values.reduce((a, b) => a + b, 0),
@@ -147,58 +135,40 @@ export function resetMetrics(): void {
 }
 
 export const appMetrics = {
-
     httpRequestTotal: (method: string, path: string, status: number) =>
         incrementCounter("http_request_total", { method, path, status: String(status) }),
-
     httpRequestDuration: (method: string, path: string, durationMs: number) =>
         recordHistogram("http_request_duration_ms", durationMs, { method, path }),
-
     pixelEventReceived: (shopDomain: string) =>
         incrementCounter("pixel_event_received_total", { shop: shopDomain }),
-
     pixelEventRejected: (reason: string) =>
         incrementCounter("pixel_event_rejected_total", { reason }),
-
     webhookProcessed: (topic: string, status: "success" | "failed") =>
         incrementCounter("webhook_processed_total", { topic, status }),
-
     webhookDuration: (topic: string, durationMs: number) =>
         recordHistogram("webhook_duration_ms", durationMs, { topic }),
-
     capiEventSent: (platform: string, status: "success" | "failed") =>
         incrementCounter("capi_event_sent_total", { platform, status }),
-
     capiLatency: (platform: string, latencyMs: number) =>
         recordHistogram("capi_latency_ms", latencyMs, { platform }),
-
     dbQueryDuration: (operation: string, durationMs: number) =>
         recordHistogram("db_query_duration_ms", durationMs, { operation }),
-
     rateLimitHit: (endpoint: string) =>
         incrementCounter("rate_limit_hit_total", { endpoint }),
-
     activeJobs: (count: number) =>
         setGauge("active_jobs", count),
-
     pendingRetries: (count: number) =>
         setGauge("pending_retries", count),
-
         pxIngestAccepted: (shopDomain: string) =>
         incrementCounter("px_ingest_accepted_count", { shop: shopDomain }),
-
     pxValidateFailed: (shopDomain: string, reason: string) =>
         incrementCounter("px_validate_failed_count", { shop: shopDomain, reason }),
-
     pxDedupDropped: (shopDomain: string, destination: string) =>
         incrementCounter("px_dedup_dropped_count", { shop: shopDomain, destination }),
-
     pxDestinationOk: (shopDomain: string, destination: string) =>
         incrementCounter("px_destination_ok_count", { shop: shopDomain, destination }),
-
     pxDestinationFail: (shopDomain: string, destination: string, reason?: string) =>
         incrementCounter("px_destination_fail_count", { shop: shopDomain, destination, reason: reason || "unknown" }),
-
     pxDestinationLatency: (shopDomain: string, destination: string, latencyMs: number) =>
         recordHistogram("px_destination_latency_ms", latencyMs, { shop: shopDomain, destination }),
 };
@@ -207,7 +177,6 @@ if (process.env.NODE_ENV === "production") {
     setInterval(() => {
         const aggregated = getAggregatedMetrics(AGGREGATION_INTERVAL_MS);
         const metricsCount = Object.keys(aggregated).length;
-
         if (metricsCount > 0) {
             logger.info("[METRICS] Aggregated metrics", {
                 period_ms: AGGREGATION_INTERVAL_MS,

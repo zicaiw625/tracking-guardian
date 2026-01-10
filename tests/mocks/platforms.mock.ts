@@ -82,12 +82,9 @@ export function createMetaApiHandler(
   response: MockPlatformResponse = createMetaSuccessResponse()
 ): MockFetchHandler {
   return async (url: string, options?: RequestInit): Promise<Response> => {
-
     await new Promise((resolve) => setTimeout(resolve, 10));
-
     if (options?.body) {
       const body = JSON.parse(options.body as string);
-
       if (!body.data || !Array.isArray(body.data)) {
         return new Response(
           JSON.stringify({
@@ -101,11 +98,9 @@ export function createMetaApiHandler(
         );
       }
     }
-
     if (response.success) {
       return new Response(JSON.stringify(response.data), { status: 200 });
     }
-
     return new Response(
       JSON.stringify({
         error: response.error,
@@ -120,10 +115,8 @@ export function createGoogleApiHandler(
 ): MockFetchHandler {
   return async (url: string, options?: RequestInit): Promise<Response> => {
     await new Promise((resolve) => setTimeout(resolve, 10));
-
     if (options?.body) {
       const body = JSON.parse(options.body as string);
-
       if (!body.client_id) {
         return new Response(
           JSON.stringify({
@@ -135,11 +128,9 @@ export function createGoogleApiHandler(
         );
       }
     }
-
     if (response.success) {
       return new Response(JSON.stringify(response.data), { status: 204 });
     }
-
     return new Response(JSON.stringify(response.error), { status: 400 });
   };
 }
@@ -149,10 +140,8 @@ export function createTikTokApiHandler(
 ): MockFetchHandler {
   return async (url: string, options?: RequestInit): Promise<Response> => {
     await new Promise((resolve) => setTimeout(resolve, 10));
-
     if (options?.body) {
       const body = JSON.parse(options.body as string);
-
       if (!body.pixel_code) {
         return new Response(
           JSON.stringify({
@@ -163,11 +152,9 @@ export function createTikTokApiHandler(
         );
       }
     }
-
     if (response.success) {
       return new Response(JSON.stringify(response.data), { status: 200 });
     }
-
     return new Response(
       JSON.stringify({
         code: response.error?.code,
@@ -186,7 +173,6 @@ export function createCombinedPlatformHandler(options: {
   const metaHandler = createMetaApiHandler(options.meta);
   const googleHandler = createGoogleApiHandler(options.google);
   const tiktokHandler = createTikTokApiHandler(options.tiktok);
-
   return async (url: string, init?: RequestInit): Promise<Response> => {
     if (url.includes("graph.facebook.com")) {
       return metaHandler(url, init);
@@ -197,7 +183,6 @@ export function createCombinedPlatformHandler(options: {
     if (url.includes("business-api.tiktok.com")) {
       return tiktokHandler(url, init);
     }
-
     return new Response("Not Found", { status: 404 });
   };
 }
@@ -209,7 +194,6 @@ export function setupFetchMock(handler?: MockFetchHandler): Mock {
   if (!originalFetch) {
     originalFetch = globalThis.fetch;
   }
-
   mockFetch = vi.fn(
     handler ||
       createCombinedPlatformHandler({
@@ -218,7 +202,6 @@ export function setupFetchMock(handler?: MockFetchHandler): Mock {
         tiktok: createTikTokSuccessResponse(),
       })
   );
-
   globalThis.fetch = mockFetch as typeof fetch;
   return mockFetch;
 }
@@ -257,7 +240,6 @@ export function createRateLimitHandler(platform: "meta" | "google" | "tiktok"): 
         status: 429,
       },
     };
-
     const response = responses[platform];
     return new Response(JSON.stringify(response.body), {
       status: response.status,
@@ -287,12 +269,9 @@ export function assertMetaCapiCalled(
   const metaCalls = mockFetch.mock.calls.filter(([url]: [string]) =>
     url.includes("graph.facebook.com")
   );
-
   expect(metaCalls.length).toBeGreaterThan(0);
-
   const [url, options] = metaCalls[0];
   expect(url).toContain(expectedPixelId);
-
   if (expectedEventName && options?.body) {
     const body = JSON.parse(options.body as string);
     expect(body.data[0].event_name).toBe(expectedEventName);
@@ -306,7 +285,6 @@ export function assertGoogleAnalyticsCalled(
   const googleCalls = mockFetch.mock.calls.filter(([url]: [string]) =>
     url.includes("google-analytics.com")
   );
-
   expect(googleCalls.length).toBeGreaterThan(0);
   expect(googleCalls[0][0]).toContain(expectedMeasurementId);
 }
@@ -318,9 +296,7 @@ export function assertTikTokEventsCalled(
   const tiktokCalls = mockFetch.mock.calls.filter(([url]: [string]) =>
     url.includes("business-api.tiktok.com")
   );
-
   expect(tiktokCalls.length).toBeGreaterThan(0);
-
   if (expectedPixelCode) {
     const [, options] = tiktokCalls[0];
     const body = JSON.parse(options?.body as string);

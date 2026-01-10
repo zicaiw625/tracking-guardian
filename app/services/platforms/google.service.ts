@@ -29,16 +29,13 @@ const MEASUREMENT_ID_PATTERN = /^G-[A-Z0-9]+$/;
 export class GooglePlatformService implements IPlatformService {
   readonly platform = Platform.GOOGLE;
   readonly displayName = "GA4 (Measurement Protocol)";
-
   async sendConversion(
     credentials: PlatformCredentials,
     data: ConversionData,
     eventId: string
   ): Promise<PlatformSendResult> {
-
     const googleCreds = credentials as GoogleCredentials;
     const validation = this.validateCredentials(googleCreds);
-
     if (!validation.valid) {
       return {
         success: false,
@@ -49,20 +46,16 @@ export class GooglePlatformService implements IPlatformService {
         },
       };
     }
-
     const dedupeEventId = eventId || generateDedupeEventId(data.orderId);
-
     try {
       const [response, duration] = await measureDuration(() =>
         this.sendRequest(googleCreds, data, dedupeEventId)
       );
-
       logger.info(`GA4 MP: conversion sent successfully`, {
         orderId: data.orderId.slice(0, 8),
         eventId: dedupeEventId,
         durationMs: duration,
       });
-
       return {
         success: true,
         response,
@@ -70,29 +63,23 @@ export class GooglePlatformService implements IPlatformService {
       };
     } catch (error) {
       const platformError = this.parseError(error);
-
       logger.error(`GA4 MP: conversion failed`, {
         orderId: data.orderId.slice(0, 8),
         error: platformError.message,
         type: platformError.type,
       });
-
       return {
         success: false,
         error: platformError,
       };
     }
   }
-
   validateCredentials(credentials: unknown): CredentialsValidationResult {
     const errors: string[] = [];
-
     if (!credentials || typeof credentials !== "object") {
       return { valid: false, errors: ["Credentials must be an object"] };
     }
-
     const creds = credentials as Record<string, unknown>;
-
     if (!creds.measurementId || typeof creds.measurementId !== "string") {
       errors.push("measurementId is required");
     } else if (!MEASUREMENT_ID_PATTERN.test(creds.measurementId)) {
@@ -100,17 +87,14 @@ export class GooglePlatformService implements IPlatformService {
         `Invalid GA4 Measurement ID format: ${creds.measurementId}. Expected format: G-XXXXXXXXXX`
       );
     }
-
     if (!creds.apiSecret || typeof creds.apiSecret !== "string") {
       errors.push("apiSecret is required");
     }
-
     return {
       valid: errors.length === 0,
       errors,
     };
   }
-
   parseError(error: unknown): PlatformError {
     if (error instanceof Error) {
       if (error.name === "AbortError") {
@@ -120,23 +104,19 @@ export class GooglePlatformService implements IPlatformService {
           isRetryable: true,
         };
       }
-
       const httpMatch = error.message.match(/GA4.*error:\s*(\d+)/);
       if (httpMatch) {
         const statusCode = parseInt(httpMatch[1], 10);
         return this.classifyHttpError(statusCode, error.message);
       }
-
       return classifyJsError(error);
     }
-
     return {
       type: "unknown",
       message: String(error),
       isRetryable: true,
     };
   }
-
   async buildPayload(
     data: ConversionData,
     eventId: string
@@ -163,16 +143,13 @@ export class GooglePlatformService implements IPlatformService {
       ],
     };
   }
-
   private async sendRequest(
     credentials: GoogleCredentials,
     data: ConversionData,
     eventId: string
   ): Promise<ConversionApiResponse> {
     const payload = await this.buildPayload(data, eventId);
-
     const url = `${GA4_MEASUREMENT_PROTOCOL_URL}?measurement_id=${credentials.measurementId}&api_secret=${credentials.apiSecret}`;
-
     const response = await fetchWithTimeout(
       url,
       {
@@ -182,7 +159,6 @@ export class GooglePlatformService implements IPlatformService {
       },
       DEFAULT_API_TIMEOUT_MS
     );
-
     if (response.status === 204 || response.ok) {
       return {
         success: true,
@@ -190,11 +166,9 @@ export class GooglePlatformService implements IPlatformService {
         timestamp: new Date().toISOString(),
       };
     }
-
     const errorText = await response.text().catch(() => "");
     throw new Error(`GA4 Measurement Protocol error: ${response.status} ${errorText}`);
   }
-
   private classifyHttpError(statusCode: number, message: string): PlatformError {
     if (statusCode === 401 || statusCode === 403) {
       return {
@@ -204,7 +178,6 @@ export class GooglePlatformService implements IPlatformService {
         platformCode: String(statusCode),
       };
     }
-
     if (statusCode === 429) {
       return {
         type: "rate_limited",
@@ -214,7 +187,6 @@ export class GooglePlatformService implements IPlatformService {
         retryAfter: 60,
       };
     }
-
     if (statusCode >= 500) {
       return {
         type: "server_error",
@@ -223,7 +195,6 @@ export class GooglePlatformService implements IPlatformService {
         platformCode: String(statusCode),
       };
     }
-
     return {
       type: "unknown",
       message,
@@ -243,16 +214,13 @@ export async function sendConversionToGoogle(
   if (!credentials) {
     throw new Error("Google credentials not configured");
   }
-
   const result = await googleService.sendConversion(
     credentials,
     conversionData,
     eventId || generateDedupeEventId(conversionData.orderId)
   );
-
   if (!result.success) {
     throw new Error(result.error?.message || "Unknown error");
   }
-
   return result.response!;
 }

@@ -48,7 +48,6 @@ const FORBIDDEN_PATTERNS = [
         description: ".rest.resources.* REST API usage detected (use GraphQL instead)",
     },
 ];
-
 const ALLOWED_PATTERNS = [
     /\/admin\/api\/\d{4}-\d{2}\/graphql\.json/,
     /\/\/.*rest/i,
@@ -57,14 +56,11 @@ const ALLOWED_PATTERNS = [
     /'.*REST.*'/i,
     /\.test\.ts$/,
 ];
-
 const SCAN_DIRECTORIES = [
     "app",
     "extensions",
 ];
-
 const FILE_EXTENSIONS = [".ts", ".tsx", ".js", ".jsx"];
-
 const IGNORE_PATTERNS = [
     "node_modules",
     ".git",
@@ -73,11 +69,9 @@ const IGNORE_PATTERNS = [
     ".cache",
     "scripts/check-graphql-only.mjs",
 ];
-
 function shouldIgnore(filePath) {
     return IGNORE_PATTERNS.some(pattern => filePath.includes(pattern));
 }
-
 function isAllowed(line, filePath) {
     if (ALLOWED_PATTERNS.some(pattern => {
         if (pattern.source.endsWith("$")) {
@@ -89,19 +83,15 @@ function isAllowed(line, filePath) {
     }
     return false;
 }
-
 function scanFile(filePath) {
     const violations = [];
-
     try {
         const content = fs.readFileSync(filePath, "utf-8");
         const lines = content.split("\n");
-
         lines.forEach((line, index) => {
             if (isAllowed(line, filePath)) {
                 return;
             }
-
             for (const { pattern, description } of FORBIDDEN_PATTERNS) {
                 if (pattern.test(line)) {
                     violations.push({
@@ -117,46 +107,34 @@ function scanFile(filePath) {
     } catch (error) {
         console.error(`Error reading file ${filePath}:`, error);
     }
-
     return violations;
 }
-
 function scanDirectory(dirPath) {
     const violations = [];
-
     if (!fs.existsSync(dirPath)) {
         return violations;
     }
-
     const entries = fs.readdirSync(dirPath, { withFileTypes: true });
-
     for (const entry of entries) {
         const fullPath = path.join(dirPath, entry.name);
-
         if (shouldIgnore(fullPath)) {
             continue;
         }
-
         if (entry.isDirectory()) {
             violations.push(...scanDirectory(fullPath));
         } else if (entry.isFile() && FILE_EXTENSIONS.some(ext => entry.name.endsWith(ext))) {
             violations.push(...scanFile(fullPath));
         }
     }
-
     return violations;
 }
-
 function main() {
     console.log("🔍 Scanning for REST API usage (GraphQL-only compliance check)...\n");
-
     const allViolations = [];
-
     for (const dir of SCAN_DIRECTORIES) {
         const dirPath = path.join(process.cwd(), dir);
         allViolations.push(...scanDirectory(dirPath));
     }
-
     if (allViolations.length === 0) {
         console.log("✅ No REST API usage detected. GraphQL-only compliance check passed!\n");
         process.exit(0);
@@ -164,20 +142,16 @@ function main() {
         console.error("❌ REST API usage detected! GraphQL-only compliance check failed.\n");
         console.error("Shopify requires public apps to use GraphQL Admin API exclusively.\n");
         console.error("Violations found:\n");
-
         for (const violation of allViolations) {
             console.error(`  📍 ${violation.file}:${violation.line}`);
             console.error(`     ${violation.description}`);
             console.error(`     → ${violation.content}`);
             console.error("");
         }
-
         console.error(`\nTotal: ${allViolations.length} violation(s)`);
         console.error("\nPlease replace REST API calls with GraphQL equivalents.");
         console.error("Reference: https://shopify.dev/docs/api/admin-graphql");
-
         process.exit(1);
     }
 }
-
 main();

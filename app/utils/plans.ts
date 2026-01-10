@@ -23,10 +23,8 @@ const PLAN_ORDER_COMPAT: PlanId[] = ["free", "starter", "growth", "pro", "agency
 
 export function getPlanDefinition(plan: string | null | undefined): PlanDefinition {
   const normalized = normalizePlan(plan);
-
   const actualPlanId = normalized === "pro" ? "growth" : normalized;
   const planConfig = getPlanOrDefault(actualPlanId);
-
   return {
     id: normalized,
     name: planConfig.name,
@@ -38,17 +36,13 @@ export function getPlanDefinition(plan: string | null | undefined): PlanDefiniti
 
 export function normalizePlan(plan: string | null | undefined): PlanId {
   if (!plan) return "free";
-
   if (plan === "pro") {
     return "pro";
   }
-
   const normalized = normalizePlanId(plan);
-
   if (PLAN_ORDER.includes(normalized as PlanId)) {
     return normalized as PlanId;
   }
-
   return "free";
 }
 
@@ -58,10 +52,8 @@ export function isPlanAtLeast(
 ): boolean {
   const currentNormalized = normalizePlan(current);
   const targetNormalized = normalizePlan(target);
-
   const currentActual = currentNormalized === "pro" ? "growth" : currentNormalized;
   const targetActual = targetNormalized === "pro" ? "growth" : targetNormalized;
-
   return isHigherTier(currentActual as BillingPlanId, targetActual as BillingPlanId) ||
          currentActual === targetActual;
 }

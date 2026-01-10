@@ -34,30 +34,24 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
       errorInfo: null,
     };
   }
-
   static getDerivedStateFromError(error: Error): Partial<ErrorBoundaryState> {
     return {
       hasError: true,
       error,
     };
   }
-
   componentDidCatch(error: Error, errorInfo: { componentStack: string }) {
     this.setState({
       error,
       errorInfo,
     });
-
     if (this.props.onError) {
       this.props.onError(error, errorInfo);
     }
-
     if (typeof window !== "undefined" && window.console) {
-
       console.error("ErrorBoundary caught an error:", error, errorInfo);
     }
   }
-
   handleReset = () => {
     this.setState({
       hasError: false,
@@ -65,21 +59,17 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
       errorInfo: null,
     });
   };
-
   handleReload = () => {
     window.location.reload();
   };
-
   render() {
     if (this.state.hasError) {
       if (this.props.fallback) {
         return this.props.fallback;
       }
-
       const isDev = process.env.NODE_ENV === "development";
       const errorMessage = this.state.error?.message || "发生了未知错误";
       const errorStack = isDev && this.state.error?.stack ? this.state.error.stack : null;
-
       return (
         <Page>
           <Card>
@@ -90,7 +80,6 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
                   出错了
                 </Text>
               </InlineStack>
-
               <Banner tone="critical">
                 <BlockStack gap="200">
                   <Text as="p" variant="bodySm" fontWeight="semibold">
@@ -107,7 +96,6 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
                   </List>
                 </BlockStack>
               </Banner>
-
               {isDev && errorStack && (
                 <Card>
                   <BlockStack gap="200">
@@ -134,7 +122,6 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
                   </BlockStack>
                 </Card>
               )}
-
               <InlineStack gap="200">
                 <Button variant="primary" onClick={this.handleReload} icon={RefreshIcon}>
                   刷新页面
@@ -151,7 +138,6 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
         </Page>
       );
     }
-
     return this.props.children;
   }
 }

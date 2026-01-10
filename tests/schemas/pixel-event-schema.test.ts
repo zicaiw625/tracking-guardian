@@ -19,13 +19,11 @@ describe("PixelEventNameSchema", () => {
       "page_viewed",
       "product_added_to_cart",
     ];
-
     for (const name of validNames) {
       const result = PixelEventNameSchema.safeParse(name);
       expect(result.success).toBe(true);
     }
   });
-
   it("should reject invalid event names", () => {
     const invalidNames = [
       "invalid_event",
@@ -33,7 +31,6 @@ describe("PixelEventNameSchema", () => {
       "CHECKOUT_COMPLETED",
       "",
     ];
-
     for (const name of invalidNames) {
       const result = PixelEventNameSchema.safeParse(name);
       expect(result.success).toBe(false);
@@ -52,13 +49,11 @@ describe("ConsentSchema", () => {
       { marketing: true, analytics: true, saleOfData: false },
       {},
     ];
-
     for (const consent of validConsents) {
       const result = ConsentSchema.safeParse(consent);
       expect(result.success).toBe(true);
     }
   });
-
   it("should reject extra fields (strict mode)", () => {
     const invalidConsent = {
       marketing: true,
@@ -75,25 +70,21 @@ describe("CheckoutCompletedDataSchema", () => {
     const result = CheckoutCompletedDataSchema.safeParse(data);
     expect(result.success).toBe(true);
   });
-
   it("should accept data with checkoutToken", () => {
     const data = { checkoutToken: "token123" };
     const result = CheckoutCompletedDataSchema.safeParse(data);
     expect(result.success).toBe(true);
   });
-
   it("should accept data with both orderId and checkoutToken", () => {
     const data = { orderId: "12345", checkoutToken: "token123" };
     const result = CheckoutCompletedDataSchema.safeParse(data);
     expect(result.success).toBe(true);
   });
-
   it("should reject data without orderId or checkoutToken", () => {
     const data = { value: 99.99 };
     const result = CheckoutCompletedDataSchema.safeParse(data);
     expect(result.success).toBe(false);
   });
-
   it("should accept null orderId if checkoutToken exists", () => {
     const data = { orderId: null, checkoutToken: "token123" };
     const result = CheckoutCompletedDataSchema.safeParse(data);
@@ -111,12 +102,10 @@ describe("PixelEventSchema", () => {
       checkoutToken: "valid-checkout-token-123",
     },
   };
-
   it("should accept valid checkout_completed payload", () => {
     const result = PixelEventSchema.safeParse(validBasePayload);
     expect(result.success).toBe(true);
   });
-
   it("should accept payload with consent", () => {
     const payload = {
       ...validBasePayload,
@@ -128,14 +117,12 @@ describe("PixelEventSchema", () => {
     const result = PixelEventSchema.safeParse(payload);
     expect(result.success).toBe(true);
   });
-
   it("should reject invalid shop domain format", () => {
     const invalidDomains = [
       "invalid-domain.com",
       "test.notshopify.com",
       ".myshopify.com",
     ];
-
     for (const domain of invalidDomains) {
       const payload = {
         ...validBasePayload,
@@ -145,7 +132,6 @@ describe("PixelEventSchema", () => {
       expect(result.success).toBe(false);
     }
   });
-
   it("should accept page_viewed without orderId", () => {
     const payload = {
       eventName: "page_viewed",
@@ -159,7 +145,6 @@ describe("PixelEventSchema", () => {
     const result = PixelEventSchema.safeParse(payload);
     expect(result.success).toBe(true);
   });
-
   it("should accept product_added_to_cart", () => {
     const payload = {
       eventName: "product_added_to_cart",
@@ -185,14 +170,12 @@ describe("validatePixelEvent", () => {
       shopDomain: "test-shop.myshopify.com",
       data: { orderId: "12345" },
     };
-
     const result = validatePixelEvent(payload);
     expect(result.success).toBe(true);
     if (result.success) {
       expect(result.data.eventName).toBe("checkout_completed");
     }
   });
-
   it("should return success for page_viewed event", () => {
     const payload = {
       eventName: "page_viewed",
@@ -200,17 +183,14 @@ describe("validatePixelEvent", () => {
       shopDomain: "test-shop.myshopify.com",
       data: { url: "https:
     };
-
     const result = validatePixelEvent(payload);
     expect(result.success).toBe(true);
   });
 });
-
 describe("isPrimaryEvent", () => {
   it("should return true for checkout_completed", () => {
     expect(isPrimaryEvent("checkout_completed")).toBe(true);
   });
-
   it("should return false for other events", () => {
     expect(isPrimaryEvent("page_viewed")).toBe(false);
     expect(isPrimaryEvent("product_added_to_cart")).toBe(false);

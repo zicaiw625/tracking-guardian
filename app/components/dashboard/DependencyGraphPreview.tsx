@@ -21,32 +21,25 @@ export function DependencyGraphPreview({ dependencyGraph }: DependencyGraphPrevi
     if (!dependencyGraph || dependencyGraph.nodes.length === 0) {
       return null;
     }
-
     const nodesByRisk: Record<string, number> = { high: 0, medium: 0, low: 0 };
     const nodesByCategory: Record<string, number> = {};
     const dependencyCounts: number[] = [];
-
     dependencyGraph.nodes.forEach((node) => {
       const riskLevel = node.riskLevel.toLowerCase();
       if (riskLevel === "high" || riskLevel === "medium" || riskLevel === "low") {
         nodesByRisk[riskLevel] = (nodesByRisk[riskLevel] || 0) + 1;
       }
-
       const category = node.category || "other";
       nodesByCategory[category] = (nodesByCategory[category] || 0) + 1;
-
       const depCount = dependencyGraph.edges.filter(
         (e) => e.to === node.id && e.type === "depends_on"
       ).length;
       dependencyCounts.push(depCount);
     });
-
     const avgDependencies = dependencyCounts.length > 0
       ? (dependencyCounts.reduce((a, b) => a + b, 0) / dependencyCounts.length).toFixed(1)
       : "0";
-
     const criticalPath = dependencyGraph.edges.filter((e) => e.type === "depends_on").length;
-
     return {
       totalNodes: dependencyGraph.nodes.length,
       totalEdges: dependencyGraph.edges.length,
@@ -56,7 +49,6 @@ export function DependencyGraphPreview({ dependencyGraph }: DependencyGraphPrevi
       criticalPath,
     };
   }, [dependencyGraph]);
-
   const categoryLabels = {
     pixel: "像素追踪",
     affiliate: "联盟营销",
@@ -65,14 +57,12 @@ export function DependencyGraphPreview({ dependencyGraph }: DependencyGraphPrevi
     analytics: "分析工具",
     other: "其他",
   } as const;
-
   const categorySectionData = useMemo<[string, number][] | null>(() => {
     if (!summary || !summary.nodesByCategory || typeof summary.nodesByCategory !== "object" || Object.keys(summary.nodesByCategory).length === 0) {
       return null;
     }
     return Object.entries(summary.nodesByCategory) as [string, number][];
   }, [summary]);
-
   if (!dependencyGraph || dependencyGraph.nodes.length === 0) {
     return (
       <Card>
@@ -89,7 +79,6 @@ export function DependencyGraphPreview({ dependencyGraph }: DependencyGraphPrevi
       </Card>
     );
   }
-
   return (
     <Card>
       <BlockStack gap="400">
@@ -99,7 +88,6 @@ export function DependencyGraphPreview({ dependencyGraph }: DependencyGraphPrevi
           </Text>
           <Badge tone="info">{`${String(summary?.totalNodes || 0)} 个资产`}</Badge>
         </InlineStack>
-
         {summary && (
           <BlockStack gap="400">
             <Box background="bg-surface-secondary" padding="400" borderRadius="200">
@@ -130,7 +118,6 @@ export function DependencyGraphPreview({ dependencyGraph }: DependencyGraphPrevi
                 </InlineStack>
               </BlockStack>
             </Box>
-
             <BlockStack gap="200">
               <Text as="h3" variant="headingSm">
                 风险分布
@@ -153,7 +140,6 @@ export function DependencyGraphPreview({ dependencyGraph }: DependencyGraphPrevi
                 )}
               </InlineStack>
             </BlockStack>
-
             {(categorySectionData !== null && categorySectionData.length > 0 ? (
               <BlockStack gap="200">
                 <Text as="h3" variant="headingSm">
@@ -179,7 +165,6 @@ export function DependencyGraphPreview({ dependencyGraph }: DependencyGraphPrevi
                 </InlineStack>
               </BlockStack>
             ) : null) as ReactNode}
-
             {dependencyGraph.edges.length > 0 ? (
               <BlockStack gap="200">
                 <InlineStack align="space-between" blockAlign="center">
@@ -199,12 +184,10 @@ export function DependencyGraphPreview({ dependencyGraph }: DependencyGraphPrevi
                         const fromNode = dependencyGraph.nodes.find((n) => n.assetId === edge.from);
                         const toNode = dependencyGraph.nodes.find((n) => n.assetId === edge.to);
                         if (!fromNode || !toNode) return null;
-
                         const fromRiskBadge = fromNode.riskLevel === "high" ? "critical" :
                                             fromNode.riskLevel === "medium" ? "warning" : "info";
                         const toRiskBadge = toNode.riskLevel === "high" ? "critical" :
                                            toNode.riskLevel === "medium" ? "warning" : "info";
-
                         return (
                           <Box key={index} padding="200">
                             <InlineStack gap="200" blockAlign="center" wrap>
@@ -228,7 +211,6 @@ export function DependencyGraphPreview({ dependencyGraph }: DependencyGraphPrevi
                 </Box>
               </BlockStack>
             ) : null}
-
             {("cycles" in dependencyGraph && dependencyGraph.cycles && Array.isArray(dependencyGraph.cycles) && dependencyGraph.cycles.length > 0) ? (
               <Banner tone="warning">
                 <BlockStack gap="200">
@@ -241,7 +223,6 @@ export function DependencyGraphPreview({ dependencyGraph }: DependencyGraphPrevi
                 </BlockStack>
               </Banner>
             ) : null}
-
             <Button url="/app/scan" fullWidth icon={ArrowRightIcon}>
               查看完整依赖图
             </Button>

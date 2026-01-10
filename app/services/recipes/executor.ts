@@ -77,7 +77,6 @@ export async function startRecipe(
     logger.warn(`Recipe not found: ${recipeId}`);
     return null;
   }
-
   const existing = await prisma.appliedRecipe.findFirst({
     where: {
       shopId,
@@ -89,7 +88,6 @@ export async function startRecipe(
     logger.info(`Recipe ${recipeId} already in progress for shop ${shopId}`);
     return mapToAppliedRecipe(existing);
   }
-
   const applied = await prisma.appliedRecipe.create({
     data: {
       id: `${shopId}-${recipeId}-${Date.now()}`,
@@ -130,14 +128,11 @@ export function validateRecipeConfig(
   const errors: string[] = [];
   for (const field of recipe.configFields) {
     const value = config[field.key];
-
     if (field.required && (value === undefined || value === null || value === "")) {
       errors.push(`${field.label} 是必填项`);
       continue;
     }
-
     if (!value) continue;
-
     if (field.validationPattern && typeof value === "string") {
       const regex = new RegExp(field.validationPattern);
       if (!regex.test(value)) {
@@ -170,7 +165,6 @@ export async function executeRecipeStep(
   if (!step) {
     return { success: false, message: `Step ${stepOrder} not found` };
   }
-
   await prisma.appliedRecipe.update({
     where: { id: appliedRecipeId },
     data: { status: "in_progress" },
@@ -178,7 +172,6 @@ export async function executeRecipeStep(
   try {
     let result: RecipeStepResult;
     if (step.actionType === "auto" && step.autoAction) {
-
       result = await executeAutoAction(
         step.autoAction,
         {
@@ -191,11 +184,9 @@ export async function executeRecipeStep(
         }
       );
     } else {
-
       result = { success: true, message: "Step ready for user action" };
     }
     if (result.success) {
-
       const completedSteps = (applied.completedSteps as number[]) || [];
       if (!completedSteps.includes(stepOrder)) {
         completedSteps.push(stepOrder);
@@ -204,7 +195,6 @@ export async function executeRecipeStep(
           data: { completedSteps },
         });
       }
-
       if (completedSteps.length >= recipe.steps.length) {
         await prisma.appliedRecipe.update({
           where: { id: appliedRecipeId },
@@ -237,13 +227,11 @@ async function executeAutoAction(
 ): Promise<RecipeStepResult> {
   switch (actionName) {
     case "enable_web_pixel":
-
       return {
         success: true,
         message: "请在迁移页面点击「启用 App Pixel」按钮",
       };
     case "configure_platform":
-
       return {
         success: true,
         message: "请在设置页面配置平台凭证",
@@ -270,7 +258,6 @@ export async function completeRecipeStep(
   if (!completedSteps.includes(stepOrder)) {
     completedSteps.push(stepOrder);
   }
-
   const allCompleted = completedSteps.length >= recipe.steps.length;
   const newStatus: AppliedRecipeStatus = allCompleted ? "validating" : "in_progress";
   const updated = await prisma.appliedRecipe.update({
@@ -303,7 +290,6 @@ export async function runRecipeValidation(
     let result: RecipeValidationResult;
     switch (test.type) {
       case "event_received":
-
         result = await validateEventReceived(
           applied.shopId,
           test.expectedEvent || "",
@@ -311,14 +297,12 @@ export async function runRecipeValidation(
         );
         break;
       case "parameter_check":
-
         result = await validateEventParameters(
           applied.shopId,
           test.requiredParams || []
         );
         break;
       case "manual":
-
         result = {
           testName: test.name,
           passed: false,
@@ -335,7 +319,6 @@ export async function runRecipeValidation(
     result.testName = test.name;
     results.push(result);
   }
-
   const existingResults = Array.isArray(applied.validationResults)
     ? (applied.validationResults as unknown as RecipeValidationResult[])
     : [];
@@ -351,7 +334,6 @@ export async function runRecipeValidation(
       ] as unknown as Prisma.InputJsonValue,
     },
   });
-
   const allPassed = results.every(r => r.passed);
   if (allPassed) {
     await prisma.appliedRecipe.update({
@@ -411,7 +393,6 @@ async function validateEventParameters(
       message: "没有找到最近的事件",
     };
   }
-
   return {
     testName: "parameter_check",
     passed: true,

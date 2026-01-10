@@ -14,11 +14,9 @@ export function generateEventId(
   eventName: string,
   checkoutToken?: string | null
 ): string {
-
   if (orderId) {
     return generateCryptoEventId(orderId, eventName, shopDomain);
   }
-
   if (checkoutToken) {
     const hashInput = `${shopDomain}:${checkoutToken}:${eventName}`;
     return require("crypto")
@@ -27,7 +25,6 @@ export function generateEventId(
       .digest("hex")
       .substring(0, 32);
   }
-
   const timestamp = Date.now();
   const random = Math.random().toString(36).substring(2, 15);
   const hashInput = `${shopDomain}:${timestamp}:${random}:${eventName}`;
@@ -75,7 +72,6 @@ export function createDeduplicationResult(
 }
 
 export function isValidEventId(eventId: string): boolean {
-
   return /^[a-f0-9]{32}$/i.test(eventId);
 }
 

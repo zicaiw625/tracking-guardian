@@ -1,7 +1,7 @@
--- 修复缺失的 previousIngestionSecret 和 previousSecretExpiry 列
--- 这个文件可以直接在生产数据库中执行
 
--- 添加 previousIngestionSecret 列（如果不存在）
+
+
+
 DO $$
 BEGIN
     IF NOT EXISTS (
@@ -15,7 +15,7 @@ BEGIN
     END IF;
 END $$;
 
--- 添加 previousSecretExpiry 列（如果不存在）
+
 DO $$
 BEGIN
     IF NOT EXISTS (

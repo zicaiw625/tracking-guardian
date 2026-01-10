@@ -66,7 +66,6 @@ function buildDefaultPayload(data: ConversionData, eventId: string): Record<stri
     order_number: data.orderNumber,
     value: data.value,
     currency: data.currency,
-
     items: data.lineItems?.map(item => ({
       product_id: item.productId,
       variant_id: item.variantId,
@@ -131,7 +130,6 @@ export class WebhookPlatformService implements IPlatformService {
     }
     let payload: string;
     if (credentials.payloadTemplate) {
-
       const templateData = {
         ...data,
         eventId,
@@ -160,7 +158,6 @@ export class WebhookPlatformService implements IPlatformService {
         }
         break;
       case "header":
-
         if (credentials.authValue) {
           const [headerName, ...valueParts] = credentials.authValue.split(":");
           if (headerName && valueParts.length > 0) {
@@ -170,7 +167,6 @@ export class WebhookPlatformService implements IPlatformService {
         break;
       case "none":
       default:
-
         break;
     }
     const timeoutMs = credentials.timeoutMs || DEFAULT_TIMEOUT_MS;
@@ -247,7 +243,6 @@ export class WebhookPlatformService implements IPlatformService {
       return { valid: false, errors: ["Credentials must be an object"] };
     }
     const creds = credentials as Record<string, unknown>;
-
     if (!creds.endpointUrl || typeof creds.endpointUrl !== "string") {
       errors.push("Endpoint URL is required");
     } else {
@@ -256,20 +251,16 @@ export class WebhookPlatformService implements IPlatformService {
         errors.push(urlValidation.error || "Invalid endpoint URL");
       }
     }
-
     const validAuthTypes = ["none", "bearer", "basic", "header"];
     if (creds.authType && !validAuthTypes.includes(creds.authType as string)) {
       errors.push(`Auth type must be one of: ${validAuthTypes.join(", ")}`);
     }
-
     if (creds.authType && creds.authType !== "none" && !creds.authValue) {
       errors.push("Auth value is required for the selected auth type");
     }
-
     if (creds.customHeaders && typeof creds.customHeaders !== "object") {
       errors.push("Custom headers must be an object");
     }
-
     if (creds.payloadTemplate && typeof creds.payloadTemplate !== "string") {
       errors.push("Payload template must be a string");
     }
@@ -360,9 +351,7 @@ export class WebhookPlatformService implements IPlatformService {
     return buildDefaultPayload(data, eventId);
   }
 }
-
 export const webhookService = new WebhookPlatformService();
-
 export async function sendConversionToWebhook(
   credentials: WebhookCredentials,
   data: ConversionData,

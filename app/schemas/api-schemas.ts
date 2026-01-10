@@ -177,7 +177,6 @@ export const PixelConfigUpdateSchema = z.object({
 
 export const ShopSettingsUpdateSchema = z.object({
   consentStrategy: z.enum(["strict", "balanced", "weak"]).optional(),
-
   storefrontDomains: z.array(z.string().max(255)).max(10).optional(),
 });
 
@@ -239,16 +238,13 @@ export function validateInput<T>(
   input: unknown
 ): { success: true; data: T } | { success: false; errors: string[] } {
   const result = schema.safeParse(input);
-
   if (result.success) {
     return { success: true, data: result.data };
   }
-
   const errors = result.error.issues.map((issue) => {
     const path = issue.path.join(".");
     return path ? `${path}: ${issue.message}` : issue.message;
   });
-
   return { success: false, errors };
 }
 
@@ -260,7 +256,6 @@ export function formatZodError(error: z.ZodError): {
     field: issue.path.join(".") || "root",
     message: issue.message,
   }));
-
   return {
     message: details.map((d) => `${d.field}: ${d.message}`).join("; "),
     details,

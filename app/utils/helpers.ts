@@ -80,12 +80,9 @@ export function maskSensitive(
 ): string {
   if (!value) return "***";
   if (visibleChars <= 0) return "***";
-
   if (value.length <= 3) return "***";
-
   const minRequiredLength = visibleChars * 2 + 3;
   if (value.length < minRequiredLength) {
-
     const safeVisibleChars = Math.max(1, Math.floor((value.length - 3) / 2));
     return (
       value.substring(0, safeVisibleChars) +
@@ -93,7 +90,6 @@ export function maskSensitive(
       value.substring(value.length - safeVisibleChars)
     );
   }
-
   const safeVisibleChars = Math.min(visibleChars, Math.floor((value.length - 3) / 2));
   return (
     value.substring(0, safeVisibleChars) +
@@ -109,7 +105,6 @@ export function getNestedValue<T>(
 ): T | undefined {
   const keys = path.split(".");
   let current: unknown = obj;
-
   for (const key of keys) {
     if (current === null || current === undefined) {
       return fallback;
@@ -122,7 +117,6 @@ export function getNestedValue<T>(
     }
     current = current[key];
   }
-
   return (current as T) ?? fallback;
 }
 
@@ -136,7 +130,6 @@ export function removeNullish<T extends Record<string, unknown>>(
   const filtered = Object.fromEntries(
     Object.entries(obj).filter(([, v]) => v !== undefined && v !== null)
   );
-
   return filtered as Partial<T>;
 }
 
@@ -144,15 +137,12 @@ export function deepClone<T>(obj: T): T {
   if (obj === null || typeof obj !== "object") {
     return obj;
   }
-
   if (obj instanceof Date) {
     return new Date(obj.getTime()) as T;
   }
-
   if (obj instanceof RegExp) {
     return new RegExp(obj.source, obj.flags) as T;
   }
-
   if (obj instanceof Map) {
     const clonedMap = new Map();
     obj.forEach((val, key) => {
@@ -160,7 +150,6 @@ export function deepClone<T>(obj: T): T {
     });
     return clonedMap as T;
   }
-
   if (obj instanceof Set) {
     const clonedSet = new Set();
     obj.forEach((val) => {
@@ -168,22 +157,18 @@ export function deepClone<T>(obj: T): T {
     });
     return clonedSet as T;
   }
-
   if (Array.isArray(obj)) {
     return obj.map((item) => deepClone(item)) as T;
   }
-
   if (obj instanceof ArrayBuffer) {
     return obj.slice(0) as T;
   }
-
   if (obj instanceof Error) {
     const clonedError = new (obj.constructor as new (message: string) => Error)(obj.message);
     clonedError.name = obj.name;
     clonedError.stack = obj.stack;
     return clonedError as T;
   }
-
   const cloned = {} as T;
   for (const key in obj) {
     if (Object.prototype.hasOwnProperty.call(obj, key)) {
@@ -194,7 +179,6 @@ export function deepClone<T>(obj: T): T {
       }
     }
   }
-
   return cloned;
 }
 
@@ -215,7 +199,6 @@ export function groupBy<T, K extends string | number>(
   keyFn: (item: T) => K
 ): Record<K, T[]> {
   const groups: Partial<Record<K, T[]>> = {};
-
   for (const item of array) {
     const key = keyFn(item);
     if (!groups[key]) {
@@ -223,7 +206,6 @@ export function groupBy<T, K extends string | number>(
     }
     groups[key]!.push(item);
   }
-
   return groups as Record<K, T[]>;
 }
 
@@ -272,21 +254,16 @@ export async function retry<T>(
     maxDelayMs = 30000,
     shouldRetry = () => true,
   } = options;
-
   const safeMaxAttempts = Math.max(1, maxAttempts);
-
   let lastError: unknown;
-
   for (let attempt = 1; attempt <= safeMaxAttempts; attempt++) {
     try {
       return await fn();
     } catch (error) {
       lastError = error;
-
       if (attempt === safeMaxAttempts || !shouldRetry(error)) {
         throw error;
       }
-
       const delayMs = Math.min(
         initialDelayMs * Math.pow(2, attempt - 1),
         maxDelayMs
@@ -294,11 +271,9 @@ export async function retry<T>(
       await delay(delayMs);
     }
   }
-
   if (lastError !== undefined) {
     throw lastError;
   }
-
   throw new Error("Retry function failed without capturing an error");
 }
 
@@ -338,51 +313,38 @@ export async function parallelLimit<T, R>(
   if (concurrency <= 0) {
     throw new Error("parallelLimit: concurrency must be greater than 0");
   }
-
   const results: (R | undefined)[] = new Array(items.length);
   const errors: Array<{ index: number; error: unknown }> = [];
-
   const executing = new Map<number, Promise<{ index: number; result?: R; error?: unknown }>>();
   let nextIndex = 0;
-
   while (nextIndex < items.length && executing.size < concurrency) {
     const index = nextIndex++;
     const item = items[index];
-
     const promise = fn(item, index)
       .then((result) => ({ index, result }))
       .catch((error) => ({ index, error }));
-
     executing.set(index, promise);
   }
-
   while (executing.size > 0) {
-
     const settled = await Promise.race(
       Array.from(executing.values())
     );
-
     if (settled.error !== undefined) {
       errors.push({ index: settled.index, error: settled.error });
       results[settled.index] = undefined;
     } else {
       results[settled.index] = settled.result;
     }
-
     executing.delete(settled.index);
-
     if (nextIndex < items.length) {
       const index = nextIndex++;
       const item = items[index];
-
       const promise = fn(item, index)
         .then((result) => ({ index, result }))
         .catch((error) => ({ index, error }));
-
       executing.set(index, promise);
     }
   }
-
   if (errors.length > 0) {
     const errorMessages = errors.map(
       (e) => `Item ${e.index}: ${e.error instanceof Error ? e.error.message : String(e.error)}`
@@ -391,15 +353,12 @@ export async function parallelLimit<T, R>(
       `parallelLimit failed for ${errors.length} item(s):\n${errorMessages.join("\n")}`
     );
   }
-
   const validResults = results.filter((r): r is R => r !== undefined);
-
   if (validResults.length !== items.length) {
     throw new Error(
       `parallelLimit: Expected ${items.length} results but got ${validResults.length}. This indicates an internal error.`
     );
   }
-
   return validResults;
 }
 

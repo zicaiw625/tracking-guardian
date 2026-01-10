@@ -38,14 +38,11 @@ describe("Billing Concurrency", () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
-
   describe("tryReserveUsageSlot", () => {
     it("should prevent exceeding limit under concurrent access", async () => {
       const shopId = "shop1";
       const orderId = "order1";
       const limit = 10;
-
-      
       prisma.$transaction.mockImplementation(async (callback, options) => {
         const tx = {
           conversionJob: {
@@ -64,29 +61,22 @@ describe("Billing Concurrency", () => {
         };
         return callback(tx);
       });
-
       const result = await tryReserveUsageSlot(shopId, orderId, limit);
-
       expect(result.reserved).toBe(true);
       expect(result.current).toBeLessThanOrEqual(limit);
     });
-
     it("should handle serialization errors with retries", async () => {
       const shopId = "shop1";
       const orderId = "order1";
       const limit = 10;
-
       let attemptCount = 0;
       prisma.$transaction.mockImplementation(async (callback, options) => {
         attemptCount++;
         if (attemptCount < 2) {
-          
           const error = new Error("Serialization failure");
           (error as any).code = "P40001";
           throw error;
         }
-        
-        
         const tx = {
           conversionJob: {
             findUnique: vi.fn().mockResolvedValue(null),
@@ -104,19 +94,14 @@ describe("Billing Concurrency", () => {
         };
         return callback(tx);
       });
-
       const result = await tryReserveUsageSlot(shopId, orderId, limit);
-
       expect(result.reserved).toBe(true);
       expect(attemptCount).toBe(2);
     });
-
     it("should reject reservation when limit is reached", async () => {
       const shopId = "shop1";
       const orderId = "order1";
       const limit = 10;
-
-      
       prisma.$transaction.mockImplementation(async (callback, options) => {
         const tx = {
           conversionJob: {
@@ -135,19 +120,15 @@ describe("Billing Concurrency", () => {
         };
         return callback(tx);
       });
-
       const result = await tryReserveUsageSlot(shopId, orderId, limit);
-
       expect(result.reserved).toBe(false);
       expect(result.current).toBe(10);
       expect(result.remaining).toBe(0);
     });
-
     it("should handle already counted orders", async () => {
       const shopId = "shop1";
       const orderId = "order1";
       const limit = 10;
-
       prisma.$transaction.mockImplementation(async (callback, options) => {
         const tx = {
           conversionJob: {
@@ -159,24 +140,17 @@ describe("Billing Concurrency", () => {
         };
         return callback(tx);
       });
-
       const result = await tryReserveUsageSlot(shopId, orderId, limit);
-
       expect(result.reserved).toBe(false);
       expect(result.current).toBe(5);
     });
-
     it("should test concurrent reservations with upsert", async () => {
       const shopId = "shop1";
       const orderId = "order1";
       const limit = 10;
-
-      
       prisma.$transaction.mockImplementation(async (callback, options) => {
-        
         expect(options?.isolationLevel).toBe("Serializable");
         expect(options?.maxWait).toBe(5000);
-        
         const tx = {
           conversionJob: {
             findUnique: vi.fn().mockResolvedValue(null),
@@ -194,25 +168,19 @@ describe("Billing Concurrency", () => {
         };
         return callback(tx);
       });
-
       const result = await tryReserveUsageSlot(shopId, orderId, limit);
-
       expect(result.reserved).toBe(true);
       expect(result.current).toBe(5);
     });
   });
-
   describe("checkAndReserveBillingSlot", () => {
     it("should use atomic update to prevent race conditions", async () => {
       const shopId = "shop1";
       const orderId = "order1";
       const shopPlan = "starter" as const;
-
       prisma.$transaction.mockImplementation(async (callback, options) => {
-        
         expect(options?.isolationLevel).toBe("Serializable");
         expect(options?.maxWait).toBe(5000);
-        
         const tx = {
           conversionJob: {
             findUnique: vi.fn().mockResolvedValue(null),
@@ -230,9 +198,7 @@ describe("Billing Concurrency", () => {
         };
         return callback(tx);
       });
-
       const result = await checkAndReserveBillingSlot(shopId, shopPlan, orderId);
-
       expect(result.ok).toBe(true);
       if (result.ok) {
         expect(result.value.success).toBe(true);
@@ -240,23 +206,18 @@ describe("Billing Concurrency", () => {
         expect(result.value.current).toBeLessThanOrEqual(result.value.limit);
       }
     });
-
     it("should handle serialization errors with retries", async () => {
       const shopId = "shop1";
       const orderId = "order1";
       const shopPlan = "starter" as const;
-
       let attemptCount = 0;
       prisma.$transaction.mockImplementation(async (callback, options) => {
         attemptCount++;
         if (attemptCount < 2) {
-          
           const error = new Error("Serialization failure");
           (error as any).code = "P40001";
           throw error;
         }
-        
-        
         const tx = {
           conversionJob: {
             findUnique: vi.fn().mockResolvedValue(null),
@@ -274,18 +235,14 @@ describe("Billing Concurrency", () => {
         };
         return callback(tx);
       });
-
       const result = await checkAndReserveBillingSlot(shopId, shopPlan, orderId);
-
       expect(result.ok).toBe(true);
       expect(attemptCount).toBe(2);
     });
-
     it("should reject when limit is exceeded", async () => {
       const shopId = "shop1";
       const orderId = "order1";
       const shopPlan = "starter" as const;
-
       prisma.$transaction.mockImplementation(async (callback, options) => {
         const tx = {
           conversionJob: {
@@ -304,9 +261,7 @@ describe("Billing Concurrency", () => {
         };
         return callback(tx);
       });
-
       const result = await checkAndReserveBillingSlot(shopId, shopPlan, orderId);
-
       expect(result.ok).toBe(true);
       if (result.ok) {
         expect(result.value.success).toBe(false);

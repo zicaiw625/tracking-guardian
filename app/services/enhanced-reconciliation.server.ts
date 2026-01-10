@@ -92,9 +92,7 @@ export async function fetchShopifyOrders(
       }
     }
   `;
-
   const queryString = `created_at:>=${startDate.toISOString()} created_at:<=${endDate.toISOString()} financial_status:paid`;
-
   try {
     const response = await admin.graphql(query, {
       variables: {
@@ -102,7 +100,6 @@ export async function fetchShopifyOrders(
         first: limit,
       },
     });
-
     const data = await response.json().catch((jsonError) => {
       logger.error("Failed to parse GraphQL response as JSON", { error: jsonError });
       return { data: null };
@@ -127,9 +124,7 @@ export async function runReconciliation(
   endDate: Date
 ): Promise<ReconciliationResult> {
   logger.info("Starting reconciliation", { shopId, startDate, endDate });
-
   const shopifyOrders = await fetchShopifyOrders(admin, startDate, endDate);
-
   const conversionLogs = await prisma.conversionLog.findMany({
     where: {
       shopId,
@@ -137,7 +132,6 @@ export async function runReconciliation(
       eventType: "purchase",
     },
   });
-
   const pixelReceipts = await prisma.pixelEventReceipt.findMany({
     where: {
       shopId,
@@ -145,43 +139,34 @@ export async function runReconciliation(
       eventType: "checkout_completed",
     },
   });
-
   const shopifyOrderMap = new Map<string, ShopifyOrder>();
   shopifyOrders.forEach(order => {
     const orderId = extractOrderId(order.id);
     shopifyOrderMap.set(orderId, order);
   });
-
   const conversionMap = new Map<string, typeof conversionLogs[0][]>();
   conversionLogs.forEach(log => {
     const existing = conversionMap.get(log.orderId) || [];
     existing.push(log);
     conversionMap.set(log.orderId, existing);
   });
-
   const receiptMap = new Map<string, typeof pixelReceipts[0]>();
   pixelReceipts.forEach(receipt => {
     receiptMap.set(receipt.orderId, receipt);
   });
-
   const discrepancies: OrderDiscrepancy[] = [];
   const platformStats: Record<string, PlatformReconciliation> = {};
   const issues: ReconciliationIssue[] = [];
-
   let totalShopifyRevenue = 0;
   let totalTrackedRevenue = 0;
   let matchedOrders = 0;
-
   for (const [orderId, shopifyOrder] of shopifyOrderMap) {
     const shopifyValue = parseFloat(shopifyOrder.totalPriceSet.shopMoney.amount);
     const shopifyCurrency = shopifyOrder.totalPriceSet.shopMoney.currencyCode;
     totalShopifyRevenue += shopifyValue;
-
     const conversions = conversionMap.get(orderId);
     const receipt = receiptMap.get(orderId);
-
     if (!conversions || conversions.length === 0) {
-
       discrepancies.push({
         orderId,
         orderNumber: shopifyOrder.name,
@@ -194,7 +179,6 @@ export async function runReconciliation(
       });
     } else {
       matchedOrders++;
-
       for (const conversion of conversions) {
         const platform = conversion.platform;
         if (!platformStats[platform]) {
@@ -209,19 +193,15 @@ export async function runReconciliation(
             dedupConflicts: 0,
           };
         }
-
         platformStats[platform].ordersTracked++;
         platformStats[platform].revenueTracked += Number(conversion.orderValue);
-
         if (conversion.status === "sent") {
           platformStats[platform].ordersSent++;
         } else if (conversion.status === "failed") {
           platformStats[platform].ordersFailed++;
         }
-
         const trackedValue = Number(conversion.orderValue);
         totalTrackedRevenue += trackedValue;
-
         if (Math.abs(trackedValue - shopifyValue) > 0.01) {
           discrepancies.push({
             orderId,
@@ -234,7 +214,6 @@ export async function runReconciliation(
             details: `金额差异: Shopify ${shopifyValue} vs 追踪 ${trackedValue}`,
           });
         }
-
         if (conversion.currency !== shopifyCurrency) {
           discrepancies.push({
             orderId,
@@ -248,13 +227,11 @@ export async function runReconciliation(
           });
         }
       }
-
       if (conversions.length > 1) {
         const platformCounts = new Map<string, number>();
         conversions.forEach(c => {
           platformCounts.set(c.platform, (platformCounts.get(c.platform) || 0) + 1);
         });
-
         for (const [platform, count] of platformCounts) {
           if (count > 1) {
             if (platformStats[platform]) {
@@ -275,13 +252,11 @@ export async function runReconciliation(
       }
     }
   }
-
   for (const stats of Object.values(platformStats)) {
     stats.successRate = stats.ordersTracked > 0
       ? stats.ordersSent / stats.ordersTracked
       : 0;
   }
-
   const missingCount = discrepancies.filter(d => d.discrepancyType === "missing").length;
   if (missingCount > 0) {
     issues.push({
@@ -295,7 +270,6 @@ export async function runReconciliation(
         .map(d => d.orderId),
     });
   }
-
   const valueMismatchCount = discrepancies.filter(d => d.discrepancyType === "value_mismatch").length;
   if (valueMismatchCount > 0) {
     issues.push({
@@ -305,7 +279,6 @@ export async function runReconciliation(
       count: valueMismatchCount,
     });
   }
-
   const duplicateCount = discrepancies.filter(d => d.discrepancyType === "duplicate").length;
   if (duplicateCount > 0) {
     issues.push({
@@ -315,7 +288,6 @@ export async function runReconciliation(
       count: duplicateCount,
     });
   }
-
   const result: ReconciliationResult = {
     shopId,
     period: { start: startDate, end: endDate },
@@ -333,14 +305,12 @@ export async function runReconciliation(
     discrepancies,
     issues,
   };
-
   logger.info("Reconciliation completed", {
     shopId,
     totalOrders: shopifyOrders.length,
     matchRate: result.summary.matchRate,
     issueCount: issues.length,
   });
-
   return result;
 }
 
@@ -372,7 +342,6 @@ export async function reconcilePixelVsCapi(
       consentState: true,
     },
   });
-
   const capiLogs = await prisma.conversionLog.findMany({
     where: {
       shopId,
@@ -385,21 +354,17 @@ export async function reconcilePixelVsCapi(
       platform: true,
     },
   });
-
   const pixelMap = new Map<string, { marketing: boolean; analytics: boolean } | null>();
   pixelReceipts.forEach(r => {
     pixelMap.set(r.orderId, r.consentState as { marketing: boolean; analytics: boolean } | null);
   });
-
   const capiMap = new Map<string, string>();
   capiLogs.forEach(l => {
     if (!capiMap.has(l.orderId) || l.status === "sent") {
       capiMap.set(l.orderId, l.status);
     }
   });
-
   const allOrderIds = new Set([...pixelMap.keys(), ...capiMap.keys()]);
-
   let pixelOnly = 0;
   let capiOnly = 0;
   let both = 0;
@@ -411,25 +376,21 @@ export async function reconcilePixelVsCapi(
     pixelConsent: { marketing: boolean; analytics: boolean } | null;
     capiStatus: string | null;
   }> = [];
-
   for (const orderId of allOrderIds) {
     const hasPixel = pixelMap.has(orderId);
     const hasCapi = capiMap.has(orderId);
     const pixelConsent = pixelMap.get(orderId) || null;
     const capiStatus = capiMap.get(orderId) || null;
-
     if (hasPixel && hasCapi) {
       both++;
     } else if (hasPixel && !hasCapi) {
       pixelOnly++;
-
       if (pixelConsent && !pixelConsent.marketing) {
         consentBlocked++;
       }
     } else if (!hasPixel && hasCapi) {
       capiOnly++;
     }
-
     details.push({
       orderId,
       hasPixel,
@@ -438,7 +399,6 @@ export async function reconcilePixelVsCapi(
       capiStatus,
     });
   }
-
   return {
     pixelOnly,
     capiOnly,
@@ -451,7 +411,6 @@ export async function reconcilePixelVsCapi(
 export async function saveReconciliationReport(
   result: ReconciliationResult
 ): Promise<string> {
-
   for (const [platform, stats] of Object.entries(result.platforms)) {
     await prisma.reconciliationReport.upsert({
       where: {
@@ -485,7 +444,6 @@ export async function saveReconciliationReport(
       },
     });
   }
-
   return result.shopId;
 }
 
@@ -522,13 +480,10 @@ export async function checkLocalConsistency(
   admin?: AdminApiContext,
   signal?: AbortSignal
 ): Promise<LocalConsistencyCheck | null> {
-
   if (signal?.aborted) {
     return null;
   }
-
   let shopifyOrder: { value: number; currency: string; itemCount: number } | null = null;
-
   if (admin) {
     const orders = await fetchShopifyOrders(
       admin,
@@ -536,11 +491,9 @@ export async function checkLocalConsistency(
       new Date(),
       100
     );
-
     if (signal?.aborted) {
       return null;
     }
-
     const order = orders.find((o) => extractOrderId(o.id) === orderId);
     if (order) {
       shopifyOrder = {
@@ -550,11 +503,9 @@ export async function checkLocalConsistency(
       };
     }
   }
-
   if (signal?.aborted) {
     return null;
   }
-
   if (!shopifyOrder) {
     const job = await prisma.conversionJob.findFirst({
       where: {
@@ -563,11 +514,9 @@ export async function checkLocalConsistency(
       },
       orderBy: { createdAt: "desc" },
     });
-
     if (signal?.aborted) {
       return null;
     }
-
     if (job) {
       shopifyOrder = {
         value: Number(job.orderValue || 0),
@@ -576,19 +525,15 @@ export async function checkLocalConsistency(
       };
     }
   }
-
   if (!shopifyOrder) {
     return null;
   }
-
   if (signal?.aborted) {
     return null;
   }
-
   if (signal?.aborted) {
     return null;
   }
-
   const job = await prisma.conversionJob.findFirst({
     where: {
       shopId,
@@ -601,11 +546,9 @@ export async function checkLocalConsistency(
       orderNumber: true,
     },
   });
-
   if (signal?.aborted) {
     return null;
   }
-
   if (job?.capiInput) {
     try {
       const eventData = typeof job.capiInput === "string"
@@ -618,14 +561,11 @@ export async function checkLocalConsistency(
         );
       }
     } catch (error) {
-
     }
   }
-
   if (signal?.aborted) {
     return null;
   }
-
   const pixelReceipt = await prisma.pixelEventReceipt.findFirst({
     where: {
       shopId,
@@ -639,11 +579,9 @@ export async function checkLocalConsistency(
     },
     orderBy: { createdAt: "desc" },
   });
-
   if (signal?.aborted) {
     return null;
   }
-
   const capiEvents = await prisma.conversionLog.findMany({
     where: {
       shopId,
@@ -651,21 +589,16 @@ export async function checkLocalConsistency(
     },
     orderBy: { createdAt: "desc" },
   });
-
   if (signal?.aborted) {
     return null;
   }
-
   const issues: string[] = [];
   let consistencyStatus: "consistent" | "partial" | "inconsistent" = "consistent";
-
   let pixelPayloadValid = true;
   const pixelPayloadErrors: string[] = [];
-
   if (pixelReceipt) {
     const metadata = pixelReceipt.metadata as Record<string, unknown> | null;
     const payload = metadata?.payload || metadata;
-
     if (!payload) {
       pixelPayloadValid = false;
       pixelPayloadErrors.push("Pixel 收据缺少 payload");
@@ -674,7 +607,6 @@ export async function checkLocalConsistency(
         const parsedPayload = typeof payload === "string"
           ? JSON.parse(payload)
           : payload;
-
         if (parsedPayload && typeof parsedPayload === "object") {
           if (!("event_name" in parsedPayload)) {
             pixelPayloadErrors.push("缺少 event_name");
@@ -688,15 +620,12 @@ export async function checkLocalConsistency(
         pixelPayloadErrors.push("Payload 格式无效");
       }
     }
-
     const orderValue = metadata?.orderValue || metadata?.value;
     const currency = metadata?.currency;
-
     if (orderValue !== undefined && orderValue !== null) {
       const pixelValue = Number(orderValue);
       const valueMatch = Math.abs(pixelValue - shopifyOrder.value) < 0.01;
       const currencyMatch = currency ? String(currency) === shopifyOrder.currency : false;
-
       if (!valueMatch) {
         issues.push(`Pixel 金额不匹配: ${pixelValue} vs ${shopifyOrder.value}`);
       }
@@ -707,24 +636,20 @@ export async function checkLocalConsistency(
   } else {
     issues.push("缺少 Pixel 收据");
   }
-
   const capiEventChecks = capiEvents.map((event) => {
     const value = Number(event.orderValue || 0);
     const currency = event.currency || "";
     const valueMatch = Math.abs(value - shopifyOrder!.value) < 0.01;
     const currencyMatch = currency === shopifyOrder!.currency;
-
     if (!valueMatch) {
       issues.push(`${event.platform} CAPI 金额不匹配: ${value} vs ${shopifyOrder!.value}`);
     }
     if (!currencyMatch) {
       issues.push(`${event.platform} CAPI 币种不匹配: ${currency} vs ${shopifyOrder!.currency}`);
     }
-
     if (!event.eventId) {
       issues.push(`${event.platform} CAPI 缺少 event_id（可能影响去重）`);
     }
-
     if (event.sentAt) {
       const eventTime = new Date(event.sentAt).getTime();
       const orderTime = new Date(event.createdAt).getTime();
@@ -734,7 +659,6 @@ export async function checkLocalConsistency(
         issues.push(`${event.platform} CAPI 事件时间戳异常（延迟 ${Math.round(timeDiff / 1000 / 60)} 分钟）`);
       }
     }
-
     return {
       platform: event.platform,
       value,
@@ -744,7 +668,6 @@ export async function checkLocalConsistency(
       currencyMatch,
     };
   });
-
   const platformCounts = new Map<string, number>();
   capiEvents.forEach((event) => {
     const count = platformCounts.get(event.platform) || 0;
@@ -755,7 +678,6 @@ export async function checkLocalConsistency(
       issues.push(`${platform} CAPI 重复发送 ${count} 次（可能影响去重）`);
     }
   });
-
   if (capiEventChecks.length === 0) {
     issues.push("缺少 CAPI 事件");
     consistencyStatus = "inconsistent";
@@ -765,7 +687,6 @@ export async function checkLocalConsistency(
       consistencyStatus = "partial";
       issues.push(`${failedPlatforms.length} 个平台的 CAPI 发送失败`);
     }
-
     const valueMismatches = capiEventChecks.filter((c) => !c.valueMatch);
     const currencyMismatches = capiEventChecks.filter((c) => !c.currencyMatch);
     if (valueMismatches.length > 0 || currencyMismatches.length > 0) {
@@ -774,11 +695,9 @@ export async function checkLocalConsistency(
       }
     }
   }
-
   if (!pixelReceipt || !pixelPayloadValid || capiEventChecks.length === 0) {
     consistencyStatus = "inconsistent";
   }
-
   return {
     orderId,
     orderNumber: job?.orderNumber || null,
@@ -816,7 +735,6 @@ export async function performChannelReconciliation(
   const results: LocalConsistencyCheck[] = [];
   const maxConcurrent = options?.maxConcurrent || 5;
   const timeout = options?.timeout || 10000;
-
   for (let i = 0; i < orderIds.length; i += maxConcurrent) {
     const batch = orderIds.slice(i, i + maxConcurrent);
     const batchPromises = batch.map(async (orderId) => {
@@ -824,39 +742,29 @@ export async function performChannelReconciliation(
       let timeoutController: AbortController | null = null;
       let isTimedOut = false;
       let checkPromise: Promise<LocalConsistencyCheck | null> | null = null;
-
       try {
-
         timeoutController = new AbortController();
         const timeoutSignal = timeoutController.signal;
-
         checkPromise = checkLocalConsistency(shopId, orderId, admin, timeoutSignal);
-
         const timeoutPromise = new Promise<null>((resolve) => {
           if (timeoutSignal.aborted) {
             resolve(null);
             return;
           }
-
           timeoutId = setTimeout(() => {
             if (!timeoutSignal.aborted) {
               isTimedOut = true;
-
               timeoutController?.abort();
             }
             resolve(null);
           }, timeout);
         });
-
         const check = await Promise.race([checkPromise, timeoutPromise]);
-
         if (timeoutId !== null) {
           clearTimeout(timeoutId);
           timeoutId = null;
         }
-
         if (isTimedOut || (check === null && timeoutController?.signal.aborted)) {
-
           if (isTimedOut) {
             logger.warn("Local consistency check timed out", {
               shopId,
@@ -864,10 +772,8 @@ export async function performChannelReconciliation(
               timeoutMs: timeout
             });
           }
-
           if (checkPromise && timeoutController && !timeoutController.signal.aborted) {
             timeoutController.abort();
-
             let cleanupTimeoutId: NodeJS.Timeout | null = null;
             try {
               await Promise.race([
@@ -879,9 +785,7 @@ export async function performChannelReconciliation(
                 })
               ]);
             } catch {
-
             } finally {
-
               if (cleanupTimeoutId !== null) {
                 clearTimeout(cleanupTimeoutId);
               }
@@ -889,7 +793,6 @@ export async function performChannelReconciliation(
           }
           return null;
         }
-
         if (check === null) {
           logger.warn("Local consistency check returned null", {
             shopId,
@@ -898,37 +801,30 @@ export async function performChannelReconciliation(
           });
           return null;
         }
-
         return check;
       } catch (error) {
-
         if (timeoutId !== null) {
           clearTimeout(timeoutId);
           timeoutId = null;
         }
-
         if (!isTimedOut && !timeoutController?.signal.aborted) {
           logger.warn("Failed to check local consistency", { orderId, error });
         }
         return null;
       } finally {
-
         if (timeoutId !== null) {
           clearTimeout(timeoutId);
           timeoutId = null;
         }
-
         if (timeoutController && !timeoutController.signal.aborted) {
           timeoutController.abort();
         }
         timeoutController = null;
       }
     });
-
     const batchResults = await Promise.all(batchPromises);
     results.push(...batchResults.filter((r): r is LocalConsistencyCheck => r !== null));
   }
-
   return results;
 }
 
@@ -953,7 +849,6 @@ export async function performBulkLocalConsistencyCheck(
     issues: string[];
   }>;
 }> {
-
   const jobs = await prisma.conversionJob.findMany({
     where: {
       shopId,
@@ -965,22 +860,17 @@ export async function performBulkLocalConsistencyCheck(
     distinct: ["orderId"],
     take: options?.maxOrders || 100,
   });
-
   let orderIds = jobs.map((j) => j.orderId);
-
   if (options?.sampleRate && options.sampleRate < 1.0) {
     const sampleSize = Math.floor(orderIds.length * options.sampleRate);
     orderIds = orderIds.slice(0, sampleSize);
   }
-
   const checks = await performChannelReconciliation(shopId, orderIds, admin, {
     maxConcurrent: options?.maxConcurrent || 5,
   });
-
   const consistent = checks.filter((c) => c.consistencyStatus === "consistent").length;
   const partial = checks.filter((c) => c.consistencyStatus === "partial").length;
   const inconsistent = checks.filter((c) => c.consistencyStatus === "inconsistent").length;
-
   const issues = checks
     .filter((c) => c.consistencyStatus !== "consistent" || c.issues.length > 0)
     .map((c) => ({
@@ -988,7 +878,6 @@ export async function performBulkLocalConsistencyCheck(
       status: c.consistencyStatus,
       issues: c.issues,
     }));
-
   return {
     totalChecked: checks.length,
     consistent,

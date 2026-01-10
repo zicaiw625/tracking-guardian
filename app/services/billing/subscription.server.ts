@@ -191,14 +191,11 @@ export async function getBillingHistory(
       admin.graphql(GET_SUBSCRIPTION_QUERY),
       admin.graphql(GET_ONE_TIME_PURCHASES_QUERY),
     ]);
-
     const subscriptionData = await subscriptionResponse.json();
     const purchaseData = await purchaseResponse.json();
-
     const subscriptions = subscriptionData.data?.appInstallation?.activeSubscriptions || [];
     const purchasesConnection = purchaseData.data?.appInstallation?.oneTimePurchases;
     const purchases = purchasesConnection?.edges?.map((edge: { node: unknown }) => edge.node) || [];
-
     const subscriptionItems = subscriptions.flatMap(
       (subscription: {
         id: string;
@@ -227,7 +224,6 @@ export async function getBillingHistory(
         ];
       }
     );
-
     const purchaseItems = purchases.map((purchase: {
       id: string;
       name: string;
@@ -243,7 +239,6 @@ export async function getBillingHistory(
       currency: purchase.price?.currencyCode,
       createdAt: purchase.createdAt,
     }));
-
     return [...subscriptionItems, ...purchaseItems];
   } catch (error) {
     logger.error("Get billing history error", error);
@@ -258,20 +253,16 @@ export async function createSubscription(
   returnUrl: string,
   isTest = false
 ): Promise<SubscriptionResult> {
-
   if (planId === "monitor") {
     return {
       success: false,
       error: "Monitor 计划不在 v1.0 正式套餐中。Monitor 是可选叠加功能，将在后续版本中作为独立附加服务提供。"
     };
   }
-
   const plan = BILLING_PLANS[planId];
-
   if (!plan || planId === "free") {
     return { success: false, error: "Invalid plan selected" };
   }
-
   try {
     const response = await admin.graphql(CREATE_SUBSCRIPTION_MUTATION, {
       variables: {
@@ -291,17 +282,13 @@ export async function createSubscription(
         test: isTest || process.env.NODE_ENV !== "production",
       },
     });
-
     const data = await response.json();
     const result = data.data?.appSubscriptionCreate;
-
     if (result?.userErrors?.length > 0) {
       const errorMessage = result.userErrors
         .map((e: { message: string }) => e.message)
         .join(", ");
       logger.error(`Billing API error: ${errorMessage}`);
-      
-      
       let friendlyError = errorMessage;
       if (errorMessage.includes("Apps without a public distribution cannot use the Billing API")) {
         friendlyError = "应用尚未在 Shopify App Store 公开发布，无法使用计费功能。请联系开发者或等待应用发布。";
@@ -310,17 +297,13 @@ export async function createSubscription(
       } else if (errorMessage.includes("test mode") || errorMessage.includes("test subscription")) {
         friendlyError = "测试模式下无法创建真实订阅。";
       }
-      
       return { success: false, error: friendlyError };
     }
-
     if (result?.confirmationUrl) {
-
       const shop = await prisma.shop.findUnique({
         where: { shopDomain },
         select: { id: true },
       });
-
       if (shop) {
         await createAuditLog({
           shopId: shop.id,
@@ -332,14 +315,12 @@ export async function createSubscription(
           metadata: { planId, price: plan.price },
         });
       }
-
       return {
         success: true,
         confirmationUrl: result.confirmationUrl,
         subscriptionId: result.appSubscription?.id,
       };
     }
-
     return { success: false, error: "Failed to create subscription" };
   } catch (error) {
     logger.error("Subscription creation error", error);
@@ -358,29 +339,23 @@ export async function getSubscriptionStatus(
     const response = await admin.graphql(GET_SUBSCRIPTION_QUERY);
     const data = await response.json();
     const subscriptions = data.data?.appInstallation?.activeSubscriptions || [];
-
     if (subscriptions.length === 0) {
-
       const shop = await prisma.shop.findUnique({
         where: { shopDomain },
         select: { plan: true },
       });
-
       return {
         hasActiveSubscription: false,
         plan: (shop?.plan as PlanId) || "free",
       };
     }
-
     const subscription = subscriptions[0];
     const price = subscription.lineItems?.[0]?.plan?.pricingDetails?.price?.amount;
     const detectedPlan = price ? detectPlanFromPrice(parseFloat(price)) : "free";
-
     const isTrialing =
       subscription.status === "ACTIVE" &&
       subscription.trialDays > 0 &&
       new Date(subscription.currentPeriodEnd) > new Date();
-
     return {
       hasActiveSubscription: subscription.status === "ACTIVE",
       plan: detectedPlan,
@@ -408,17 +383,14 @@ export async function cancelSubscription(
     const response = await admin.graphql(CANCEL_SUBSCRIPTION_MUTATION, {
       variables: { id: subscriptionId },
     });
-
     const data = await response.json();
     const result = data.data?.appSubscriptionCancel;
-
     if (result?.userErrors?.length > 0) {
       const errorMessage = result.userErrors
         .map((e: { message: string }) => e.message)
         .join(", ");
       return { success: false, error: errorMessage };
     }
-
     await prisma.shop.update({
       where: { shopDomain },
       data: {
@@ -426,12 +398,10 @@ export async function cancelSubscription(
         monthlyOrderLimit: BILLING_PLANS.free.monthlyOrderLimit,
       },
     });
-
     const shop = await prisma.shop.findUnique({
       where: { shopDomain },
       select: { id: true },
     });
-
     if (shop) {
       await createAuditLog({
         shopId: shop.id,
@@ -443,7 +413,6 @@ export async function cancelSubscription(
         metadata: {},
       });
     }
-
     return { success: true };
   } catch (error) {
     logger.error("Cancel subscription error", error);
@@ -461,7 +430,6 @@ export async function syncSubscriptionStatus(
   const status = await getSubscriptionStatus(admin, shopDomain);
   const plan = status.hasActiveSubscription ? status.plan : "free";
   const planConfig = BILLING_PLANS[plan];
-
   await prisma.shop.update({
     where: { shopDomain },
     data: {
@@ -478,10 +446,8 @@ export async function handleSubscriptionConfirmation(
 ): Promise<ConfirmationResult> {
   try {
     const status = await getSubscriptionStatus(admin, shopDomain);
-
     if (status.hasActiveSubscription) {
       const planConfig = BILLING_PLANS[status.plan];
-
       await prisma.shop.update({
         where: { shopDomain },
         data: {
@@ -489,12 +455,10 @@ export async function handleSubscriptionConfirmation(
           monthlyOrderLimit: planConfig.monthlyOrderLimit,
         },
       });
-
       const shop = await prisma.shop.findUnique({
         where: { shopDomain },
         select: { id: true },
       });
-
       if (shop) {
         await createAuditLog({
           shopId: shop.id,
@@ -506,10 +470,8 @@ export async function handleSubscriptionConfirmation(
           metadata: { plan: status.plan, isTrialing: status.isTrialing },
         });
       }
-
       return { success: true, plan: status.plan };
     }
-
     return { success: false, error: "Subscription not active" };
   } catch (error) {
     logger.error("Subscription confirmation error", error);
@@ -528,11 +490,9 @@ export async function createOneTimePurchase(
   isTest = false
 ): Promise<OneTimePurchaseResult> {
   const plan = BILLING_PLANS[planId];
-
   if (!plan || !("isOneTime" in plan) || !plan.isOneTime) {
     return { success: false, error: "此套餐不支持一次性收费（v1.0 中所有计划均为月付，符合 PRD 11.1 要求）" };
   }
-
   try {
     const response = await admin.graphql(CREATE_ONE_TIME_PURCHASE_MUTATION, {
       variables: {
@@ -545,17 +505,13 @@ export async function createOneTimePurchase(
         test: isTest || process.env.NODE_ENV !== "production",
       },
     });
-
     const data = await response.json();
     const result = data.data?.appPurchaseOneTimeCreate;
-
     if (result?.userErrors?.length > 0) {
       const errorMessage = result.userErrors
         .map((e: { message: string }) => e.message)
         .join(", ");
       logger.error(`One-time purchase API error: ${errorMessage}`);
-      
-      
       let friendlyError = errorMessage;
       if (errorMessage.includes("Apps without a public distribution cannot use the Billing API")) {
         friendlyError = "应用尚未在 Shopify App Store 公开发布，无法使用计费功能。请联系开发者或等待应用发布。";
@@ -564,16 +520,13 @@ export async function createOneTimePurchase(
       } else if (errorMessage.includes("test mode") || errorMessage.includes("test purchase")) {
         friendlyError = "测试模式下无法创建真实购买。";
       }
-      
       return { success: false, error: friendlyError };
     }
-
     if (result?.confirmationUrl) {
       const shop = await prisma.shop.findUnique({
         where: { shopDomain },
         select: { id: true },
       });
-
       if (shop) {
         await createAuditLog({
           shopId: shop.id,
@@ -585,14 +538,12 @@ export async function createOneTimePurchase(
           metadata: { planId, price: plan.price },
         });
       }
-
       return {
         success: true,
         confirmationUrl: result.confirmationUrl,
         purchaseId: result.appPurchaseOneTime?.id,
       };
     }
-
     return { success: false, error: "Failed to create one-time purchase" };
   } catch (error) {
     logger.error("One-time purchase creation error", error);
@@ -612,15 +563,12 @@ export async function getOneTimePurchaseStatus(
     const data = await response.json();
     const purchasesConnection = data.data?.appInstallation?.oneTimePurchases;
     const purchases = purchasesConnection?.edges?.map((edge: { node: unknown }) => edge.node) || [];
-
     const activePurchase = purchases.find(
       (p: { status: string }) => p.status === "ACTIVE"
     );
-
     if (!activePurchase) {
       return { hasActivePurchase: false };
     }
-
     return {
       hasActivePurchase: true,
       purchaseId: activePurchase.id,
@@ -641,12 +589,9 @@ export async function handleOneTimePurchaseConfirmation(
 ): Promise<ConfirmationResult> {
   try {
     const status = await getOneTimePurchaseStatus(admin, shopDomain);
-
     if (status.hasActivePurchase && status.purchaseId === purchaseId) {
-
       const planId: PlanId = "growth";
       const planConfig = BILLING_PLANS[planId];
-
       await prisma.shop.update({
         where: { shopDomain },
         data: {
@@ -654,12 +599,10 @@ export async function handleOneTimePurchaseConfirmation(
           monthlyOrderLimit: planConfig.monthlyOrderLimit,
         },
       });
-
       const shop = await prisma.shop.findUnique({
         where: { shopDomain },
         select: { id: true },
       });
-
       if (shop) {
         await createAuditLog({
           shopId: shop.id,
@@ -671,10 +614,8 @@ export async function handleOneTimePurchaseConfirmation(
           metadata: { plan: planId, price: status.price },
         });
       }
-
       return { success: true, plan: planId };
     }
-
     return { success: false, error: "One-time purchase not active" };
   } catch (error) {
     logger.error("One-time purchase confirmation error", error);

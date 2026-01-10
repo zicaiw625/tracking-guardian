@@ -24,7 +24,6 @@ export async function calculateBaseline(
 ): Promise<BaselineStats> {
   const startDate = new Date();
   startDate.setDate(startDate.getDate() - days);
-
   const stats = await prisma.conversionLog.groupBy({
     by: ["createdAt"],
     where: {
@@ -36,9 +35,7 @@ export async function calculateBaseline(
       id: true,
     },
   });
-
   const counts = stats.map((s) => s._count.id).sort((a, b) => a - b);
-  
   if (counts.length === 0) {
     return {
       average: 0,
@@ -48,16 +45,13 @@ export async function calculateBaseline(
       stdDev: 0,
     };
   }
-
   const sum = counts.reduce((a, b) => a + b, 0);
   const average = sum / counts.length;
   const median = counts[Math.floor(counts.length / 2)] || 0;
   const min = counts[0] || 0;
   const max = counts[counts.length - 1] || 0;
-
   const variance = counts.reduce((acc, val) => acc + Math.pow(val - average, 2), 0) / counts.length;
   const stdDev = Math.sqrt(variance);
-
   return {
     average,
     median,
@@ -72,7 +66,6 @@ export async function detectVolumeAnomaly(
   currentPeriodHours: number = 24
 ): Promise<VolumeAnomalyResult> {
   const baseline = await calculateBaseline(shopId, 7);
-  
   const currentStart = new Date(Date.now() - currentPeriodHours * 60 * 60 * 1000);
   const current = await prisma.conversionLog.count({
     where: {
@@ -81,21 +74,17 @@ export async function detectVolumeAnomaly(
       status: "sent",
     },
   });
-
   const deviation = current - baseline.average;
   const deviationPercent = baseline.average > 0 
     ? (deviation / baseline.average) * 100 
     : 0;
-
   const isAnomaly = Math.abs(deviationPercent) > 20; 
-  
   let severity: "low" | "medium" | "high" = "low";
   if (Math.abs(deviationPercent) > 50) {
     severity = "high";
   } else if (Math.abs(deviationPercent) > 30) {
     severity = "medium";
   }
-
   return {
     isAnomaly,
     current,
@@ -111,10 +100,8 @@ export async function checkVolumeDropAlerts(
   threshold: number = 0.2
 ): Promise<{ alert: boolean; current: number; baseline: number; dropPercent: number }> {
   const anomaly = await detectVolumeAnomaly(shopId);
-  
   const dropPercent = -anomaly.deviationPercent; 
   const alert = dropPercent > threshold * 100;
-
   return {
     alert,
     current: anomaly.current,

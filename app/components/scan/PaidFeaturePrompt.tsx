@@ -52,11 +52,9 @@ export function PaidFeaturePrompt({
   const info = FEATURE_INFO[feature];
   const requiredPlan = getPlanDefinition(info.requiredPlan);
   const currentPlanDef = getPlanDefinition(currentPlan);
-
   const handleUpgrade = () => {
     window.location.href = "/app/billing";
   };
-
   if (compact) {
     return (
       <Banner tone="info">
@@ -72,7 +70,6 @@ export function PaidFeaturePrompt({
       </Banner>
     );
   }
-
   return (
     <Banner tone="info">
       <BlockStack gap="300">

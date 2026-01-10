@@ -44,14 +44,11 @@ export async function handleSaveAlert(
   shopId: string,
   sessionShop: string
 ) {
-
   const { requireEntitlementOrThrow } = await import("../../services/billing/entitlement.server");
   await requireEntitlementOrThrow(shopId, "alerts");
-
   const channel = formData.get("channel") as string;
   const threshold = parseFloat(formData.get("threshold") as string) / 100;
   const enabled = formData.get("enabled") === "true";
-
   const failureRateThreshold = formData.get("failureRateThreshold")
     ? parseFloat(formData.get("failureRateThreshold") as string) / 100
     : threshold;
@@ -61,9 +58,7 @@ export async function handleSaveAlert(
   const volumeDropThreshold = formData.get("volumeDropThreshold")
     ? parseFloat(formData.get("volumeDropThreshold") as string) / 100
     : 0.5;
-
   const frequency = (formData.get("frequency") as "instant" | "daily" | "weekly") || "daily";
-
   const rawSettings: Record<string, unknown> = {};
   if (channel === "email") {
     rawSettings.email = formData.get("email");
@@ -73,12 +68,9 @@ export async function handleSaveAlert(
     rawSettings.botToken = formData.get("botToken");
     rawSettings.chatId = formData.get("chatId");
   }
-
   const encryptedSettings = await encryptAlertSettings(rawSettings as AlertSettings);
-
   const nonSensitiveSettings: Record<string, unknown> = {
     channel,
-
     thresholds: {
       failureRate: failureRateThreshold,
       missingParams: missingParamsThreshold,
@@ -102,7 +94,6 @@ export async function handleSaveAlert(
         }
       : {}),
   };
-
   await prisma.alertConfig.upsert({
     where: {
       id: (formData.get("configId") as string) || "new",
@@ -126,7 +117,6 @@ export async function handleSaveAlert(
       isEnabled: enabled,
     } as unknown as Prisma.AlertConfigCreateInput,
   });
-
   await createAuditLog({
     shopId,
     actorType: "user",
@@ -143,24 +133,19 @@ export async function handleSaveAlert(
       frequency,
     },
   });
-
   return json({ success: true, message: "警报配置已保存" });
 }
 
 export async function handleTestAlert(request: Request, formData: FormData) {
-
   const { isLimited, retryAfter } = await checkRateLimitAsync(request, "alert-test", {
     maxRequests: 5,
     windowMs: 60 * 1000,
   });
-
   if (isLimited) {
     return createRateLimitResponse(retryAfter);
   }
-
   const channel = formData.get("channel") as string;
   let settings: AlertSettings;
-
   try {
     if (channel === "email") {
       const email = formData.get("email") as string;
@@ -179,11 +164,9 @@ export async function handleTestAlert(request: Request, formData: FormData) {
     } else if (channel === "telegram") {
       const botToken = formData.get("botToken") as string;
       const chatId = formData.get("chatId") as string;
-
       if (!/^\d+:[a-zA-Z0-9_-]+$/.test(botToken)) {
         return json({ success: false, error: "无效的 Bot Token 格式" });
       }
-
       settings = {
         botToken,
         chatId,
@@ -191,7 +174,6 @@ export async function handleTestAlert(request: Request, formData: FormData) {
     } else {
       return json({ success: false, error: "Invalid channel" });
     }
-
     const result = await testNotification(channel, settings);
     return json(result);
   } catch (error) {
@@ -213,30 +195,23 @@ export async function handleSaveServerSide(
   shopId: string,
   sessionShop: string
 ) {
-
   const { requireEntitlementOrThrow } = await import("../../services/billing/entitlement.server");
-
   const platform = formData.get("platform") as string;
   const enabled = formData.get("enabled") === "true";
-
   if (enabled) {
     await requireEntitlementOrThrow(shopId, "pixel_destinations");
   }
-
   let credentials: GoogleCredentials | MetaCredentials | TikTokCredentials | PinterestCredentials;
   let platformId = "";
-
   if (platform === "google") {
     const measurementId = (formData.get("measurementId") as string) || "";
     const apiSecret = (formData.get("apiSecret") as string) || "";
-
     if (enabled && (!measurementId || !apiSecret)) {
       return json(
         { error: "启用服务端追踪时必须填写 Measurement ID 和 API Secret" },
         { status: 400 }
       );
     }
-
     const googleCreds: GoogleCredentials = {
       measurementId,
       apiSecret,
@@ -247,14 +222,12 @@ export async function handleSaveServerSide(
     const pixelId = (formData.get("pixelId") as string) || "";
     const accessToken = (formData.get("accessToken") as string) || "";
     const testEventCode = (formData.get("testEventCode") as string) || undefined;
-
     if (enabled && (!pixelId || !accessToken)) {
       return json(
         { error: "启用服务端追踪时必须填写 Pixel ID 和 Access Token" },
         { status: 400 }
       );
     }
-
     const metaCreds: MetaCredentials = {
       pixelId,
       accessToken,
@@ -265,14 +238,12 @@ export async function handleSaveServerSide(
   } else if (platform === "tiktok") {
     const pixelId = (formData.get("pixelId") as string) || "";
     const accessToken = (formData.get("accessToken") as string) || "";
-
     if (enabled && (!pixelId || !accessToken)) {
       return json(
         { error: "启用服务端追踪时必须填写 Pixel ID 和 Access Token" },
         { status: 400 }
       );
     }
-
     const tiktokCreds: TikTokCredentials = {
       pixelId,
       accessToken,
@@ -282,14 +253,12 @@ export async function handleSaveServerSide(
   } else if (platform === "pinterest") {
     const adAccountId = (formData.get("adAccountId") as string) || "";
     const accessToken = (formData.get("accessToken") as string) || "";
-
     if (enabled && (!adAccountId || !accessToken)) {
       return json(
         { error: "启用服务端追踪时必须填写 Ad Account ID 和 Access Token" },
         { status: 400 }
       );
     }
-
     const pinterestCreds: PinterestCredentials = {
       adAccountId,
       accessToken,
@@ -299,7 +268,6 @@ export async function handleSaveServerSide(
   } else {
     return json({ error: "Unsupported platform" }, { status: 400 });
   }
-
   const hasNonEmptyCredentials = (() => {
     if (platform === "google") {
       const creds = credentials as GoogleCredentials;
@@ -316,23 +284,17 @@ export async function handleSaveServerSide(
     }
     return false;
   })();
-
   const encryptedCredentials = hasNonEmptyCredentials ? encryptJson(credentials) : null;
-
   const updateData: {
     credentialsEncrypted?: string | null;
     serverSideEnabled: boolean;
   } = {
     serverSideEnabled: enabled,
   };
-
   if (enabled || hasNonEmptyCredentials) {
-
     updateData.credentialsEncrypted = encryptedCredentials;
   }
-
   const environment = (formData.get("environment") as "test" | "live") || "live";
-
   const existing = await prisma.pixelConfig.findFirst({
     where: {
       shopId,
@@ -341,7 +303,6 @@ export async function handleSaveServerSide(
       platformId: platformId || null,
     },
   });
-
   if (existing) {
     await prisma.pixelConfig.update({
       where: { id: existing.id },
@@ -359,11 +320,8 @@ export async function handleSaveServerSide(
       } as unknown as Prisma.PixelConfigCreateInput,
     });
   }
-
   await invalidateAllShopCaches(sessionShop, shopId);
-
   const maskedPlatformId = platformId ? platformId.slice(0, 8) + "****" : "未设置";
-
   await createAuditLog({
     shopId,
     action: "pixel_config_updated",
@@ -378,20 +336,17 @@ export async function handleSaveServerSide(
       operationType: "credentials_updated",
     },
   });
-
   logger.info("Server-side tracking credentials updated", {
     shopId,
     platform,
     enabled,
     platformIdMasked: maskedPlatformId,
   });
-
   return json({ success: true, message: "服务端追踪配置已保存" });
 }
 
 export async function handleTestConnection(formData: FormData) {
   const platform = formData.get("platform") as string;
-
   if (platform === "meta") {
     const pixelId = formData.get("pixelId") as string;
     const accessToken = formData.get("accessToken") as string;
@@ -401,14 +356,12 @@ export async function handleTestConnection(formData: FormData) {
         message: "请填写 Pixel ID 和 Access Token",
       });
     }
-
     if (!/^\d+$/.test(pixelId)) {
       return json({
         success: false,
         message: "无效的 Pixel ID 格式（应为纯数字）",
       });
     }
-
     if (!accessToken.startsWith("EA")) {
       return json({
         success: false,
@@ -416,7 +369,6 @@ export async function handleTestConnection(formData: FormData) {
       });
     }
   }
-
   return json({
     success: true,
     message: "连接配置格式验证通过。请注意：这仅验证了格式，并未实际发送测试事件。",
@@ -432,15 +384,12 @@ export async function handleRotateIngestionSecret(
     where: { id: shopId },
     select: { ingestionSecret: true },
   });
-
   const { plain: newPlainSecret, encrypted: newEncryptedSecret } =
     generateEncryptedIngestionSecret();
-
   const graceWindowMinutes = 30;
   const graceWindowExpiry = new Date(
     Date.now() + graceWindowMinutes * 60 * 1000
   );
-
   await prisma.shop.update({
     where: { id: shopId },
     data: {
@@ -449,26 +398,19 @@ export async function handleRotateIngestionSecret(
       previousSecretExpiry: graceWindowExpiry,
     },
   });
-
   await invalidateAllShopCaches(sessionShop, shopId);
-
   let pixelSyncResult = { success: false, message: "" };
-
   try {
     const existingPixels = await getExistingWebPixels(admin);
-
     const ourPixel = existingPixels.find((p) => {
       try {
         const settings = JSON.parse(p.settings || "{}");
-
         return isOurWebPixel(settings, sessionShop);
       } catch {
         return false;
       }
     });
-
     if (ourPixel) {
-
       const result = await updateWebPixel(admin, ourPixel.id, newPlainSecret, sessionShop);
       if (result.success) {
         pixelSyncResult = {
@@ -494,7 +436,6 @@ export async function handleRotateIngestionSecret(
       message: "Web Pixel 同步失败，请手动重新配置",
     };
   }
-
   await createAuditLog({
     shopId,
     actorType: "user",
@@ -508,13 +449,11 @@ export async function handleRotateIngestionSecret(
       graceWindowExpiry: graceWindowExpiry.toISOString(),
     },
   });
-
   const baseMessage = "关联令牌已更新。";
   const graceMessage = ` 旧令牌将在 ${graceWindowMinutes} 分钟内继续有效。`;
   const syncMessage = pixelSyncResult.success
     ? pixelSyncResult.message
     : `⚠️ ${pixelSyncResult.message}`;
-
   return json({
     success: true,
     message: `${baseMessage}${graceMessage}${syncMessage}`,
@@ -528,21 +467,17 @@ export async function handleUpdatePrivacySettings(
   shopId: string,
   sessionShop: string
 ) {
-
   const consentStrategy =
     (formData.get("consentStrategy") as string) || "strict";
   const dataRetentionDays =
     parseInt(formData.get("dataRetentionDays") as string) || 90;
-
   await prisma.shop.update({
     where: { id: shopId },
     data: {
       consentStrategy,
       dataRetentionDays,
-
     },
   });
-
   await createAuditLog({
     shopId,
     actorType: "user",
@@ -553,10 +488,8 @@ export async function handleUpdatePrivacySettings(
     metadata: {
       consentStrategy,
       dataRetentionDays,
-
     },
   });
-
   return json({
     success: true,
     message: "隐私设置已更新",
@@ -566,74 +499,56 @@ export async function handleUpdatePrivacySettings(
 export async function settingsAction({ request }: ActionFunctionArgs) {
   const { session, admin } = await authenticate.admin(request);
   const shopDomain = session.shop;
-
   const shop = await prisma.shop.findUnique({
     where: { shopDomain },
   });
-
   if (!shop) {
     return json({ error: "Shop not found" }, { status: 404 });
   }
-
   const formData = await request.formData();
   const action = formData.get("_action");
-
   switch (action) {
     case "saveAlert":
       return handleSaveAlert(formData, shop.id, session.shop);
-
     case "testAlert":
       return handleTestAlert(request, formData);
-
     case "saveServerSide":
       return handleSaveServerSide(formData, shop.id, session.shop);
-
     case "deleteAlert":
       return handleDeleteAlert(formData);
-
     case "testConnection":
       return handleTestConnection(formData);
-
     case "rotateIngestionSecret":
       return handleRotateIngestionSecret(shop.id, session.shop, admin);
-
     case "updatePrivacySettings":
       return handleUpdatePrivacySettings(formData, shop.id, session.shop);
-
     case "switchEnvironment": {
       const platform = formData.get("platform") as string;
       const newEnvironment = formData.get("environment") as PixelEnvironment;
-
       if (!platform || !newEnvironment) {
         return json({
           success: false,
           error: "缺少 platform 或 environment 参数"
         }, { status: 400 });
       }
-
       if (!["test", "live"].includes(newEnvironment)) {
         return json({
           success: false,
           error: "无效的环境参数"
         }, { status: 400 });
       }
-
       const result = await switchEnvironment(shop.id, platform, newEnvironment);
-
       if (result.success) {
-
         try {
           const shopData = await prisma.shop.findUnique({
             where: { id: shop.id },
             select: { webPixelId: true, ingestionSecret: true, shopDomain: true },
           });
-
           if (shopData?.webPixelId) {
             const { decryptIngestionSecret } = await import("../../utils/token-encryption");
             const ingestionKey = shopData.ingestionSecret
               ? decryptIngestionSecret(shopData.ingestionSecret)
               : undefined;
-
             await updateWebPixel(
               admin,
               shopData.webPixelId,
@@ -650,7 +565,6 @@ export async function settingsAction({ request }: ActionFunctionArgs) {
             error: syncError instanceof Error ? syncError.message : String(syncError),
           });
         }
-
         await invalidateAllShopCaches(session.shop, shop.id);
         await createAuditLog({
           shopId: shop.id,
@@ -667,7 +581,6 @@ export async function settingsAction({ request }: ActionFunctionArgs) {
           },
         });
       }
-
       return json({
         success: result.success,
         message: result.message,
@@ -675,19 +588,15 @@ export async function settingsAction({ request }: ActionFunctionArgs) {
         newEnvironment: result.newEnvironment,
       });
     }
-
     case "rollbackEnvironment": {
       const platform = formData.get("platform") as string;
-
       if (!platform) {
         return json({
           success: false,
           error: "缺少 platform 参数"
         }, { status: 400 });
       }
-
       const result = await rollbackConfig(shop.id, platform);
-
       if (result.success) {
         await invalidateAllShopCaches(session.shop, shop.id);
         await createAuditLog({
@@ -705,7 +614,6 @@ export async function settingsAction({ request }: ActionFunctionArgs) {
           },
         });
       }
-
       return json({
         success: result.success,
         message: result.message,
@@ -713,7 +621,6 @@ export async function settingsAction({ request }: ActionFunctionArgs) {
         currentVersion: result.currentVersion,
       });
     }
-
     default:
       return json({ error: "Unknown action" }, { status: 400 });
   }

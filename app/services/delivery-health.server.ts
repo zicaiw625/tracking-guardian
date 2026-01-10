@@ -95,7 +95,6 @@ export async function runDailyDeliveryHealthCheck(shopId: string): Promise<Deliv
             },
         },
     });
-    // AlertConfig 表已被移除，使用空数组
     const alertConfigs: Array<{
         id: string;
         channel: string;
@@ -107,7 +106,6 @@ export async function runDailyDeliveryHealthCheck(shopId: string): Promise<Deliv
     if (!shop || !shop.isActive) {
         throw new Error("Shop not found or inactive");
     }
-
     const yesterday = new Date();
     yesterday.setUTCDate(yesterday.getUTCDate() - 1);
     yesterday.setUTCHours(0, 0, 0, 0);
@@ -192,7 +190,6 @@ export async function runDailyDeliveryHealthCheck(shopId: string): Promise<Deliv
             },
         });
         const failureRate = 1 - successRate;
-        // AlertConfig 表已被移除，跳过 alert 发送
         for (const alertConfig of alertConfigs) {
             const typedAlertConfig = parseAlertConfig(alertConfig);
             if (!typedAlertConfig)
@@ -220,7 +217,6 @@ export async function runDailyDeliveryHealthCheck(shopId: string): Promise<Deliv
     return results;
 }
 export async function getDeliveryHealthHistory(shopId: string, days = 30): Promise<DeliveryHealthReport[]> {
-
     const startDate = new Date();
     startDate.setUTCDate(startDate.getUTCDate() - days);
     startDate.setUTCHours(0, 0, 0, 0);
@@ -251,7 +247,6 @@ export async function getDeliveryHealthHistory(shopId: string, days = 30): Promi
     }));
 }
 export async function getDeliveryHealthSummary(shopId: string): Promise<Record<string, DeliveryHealthSummary>> {
-
     const sevenDaysAgo = new Date();
     sevenDaysAgo.setUTCDate(sevenDaysAgo.getUTCDate() - 7);
     sevenDaysAgo.setUTCHours(0, 0, 0, 0);

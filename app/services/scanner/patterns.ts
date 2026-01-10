@@ -1,19 +1,16 @@
 export const PLATFORM_PATTERNS: Record<string, RegExp[]> = {
-
     google: [
         /gtag\s*\(/i,
         /google-analytics/i,
         /G-[A-Z0-9]{10,}/i,
         /UA-\d+-\d+/i,
     ],
-
     google_ads: [
         /AW-\d{9,}/i,
         /google_conversion/i,
         /googleadservices/i,
         /gtag.*conversion/i,
     ],
-
     gtm: [
         /googletagmanager/i,
         /gtm\.js/i,
@@ -52,7 +49,6 @@ export const PLATFORM_PATTERNS: Record<string, RegExp[]> = {
         /twitter.*pixel/i,
         /static\.ads-twitter\.com/i,
     ],
-
     fairing: [
         /fairing/i,
         /enquirelabs/i,
@@ -65,7 +61,6 @@ export const PLATFORM_PATTERNS: Record<string, RegExp[]> = {
     zigpoll: [
         /zigpoll/i,
     ],
-
     carthook: [
         /carthook/i,
     ],
@@ -79,7 +74,6 @@ export const PLATFORM_PATTERNS: Record<string, RegExp[]> = {
         /zipify/i,
         /oneclickupsell/i,
     ],
-
     refersion: [
         /refersion/i,
     ],
@@ -96,7 +90,6 @@ export const PLATFORM_PATTERNS: Record<string, RegExp[]> = {
     partnerstack: [
         /partnerstack/i,
     ],
-
     hotjar: [
         /hotjar/i,
         /hj\s*\(/i,
@@ -115,7 +108,6 @@ export const PLATFORM_PATTERNS: Record<string, RegExp[]> = {
     postscript: [
         /postscript/i,
     ],
-
     shopify_analytics: [
         /shopify\.analytics/i,
         /shopify.*track/i,
@@ -195,16 +187,13 @@ export const PLATFORM_PATTERNS: Record<string, RegExp[]> = {
         /route.*track/i,
     ],
 };
-
 export type PlatformSupportLevel = "supported" | "partial" | "unsupported";
-
 export interface PlatformInfo {
     name: string;
     supportLevel: PlatformSupportLevel;
     recommendation: string;
     officialApp?: string;
 }
-
 export const PLATFORM_INFO: Record<string, PlatformInfo> = {
     google: {
         name: "Google Analytics (GA4)",
@@ -260,7 +249,6 @@ export const PLATFORM_INFO: Record<string, PlatformInfo> = {
         supportLevel: "unsupported",
         recommendation: "X 广告转化追踪目前没有官方 Shopify 应用，可考虑使用第三方集成或手动配置",
     },
-
     fairing: {
         name: "Fairing (Post-purchase Survey)",
         supportLevel: "unsupported",
@@ -279,7 +267,6 @@ export const PLATFORM_INFO: Record<string, PlatformInfo> = {
         recommendation: "Zigpoll 提供 Checkout UI Extension 集成。建议使用官方应用",
         officialApp: "https://apps.shopify.com/zigpoll",
     },
-
     carthook: {
         name: "CartHook (Post-purchase Upsell)",
         supportLevel: "unsupported",
@@ -304,7 +291,6 @@ export const PLATFORM_INFO: Record<string, PlatformInfo> = {
         recommendation: "Zipify OCU 支持 Checkout Extensibility。请确保使用最新版应用",
         officialApp: "https://apps.shopify.com/zipify-oneclickupsell",
     },
-
     refersion: {
         name: "Refersion (Affiliate)",
         supportLevel: "unsupported",
@@ -334,7 +320,6 @@ export const PLATFORM_INFO: Record<string, PlatformInfo> = {
         recommendation: "PartnerStack 支持 Webhook 集成，无需客户端脚本",
         officialApp: "https://apps.shopify.com/partnerstack",
     },
-
     hotjar: {
         name: "Hotjar (Heatmaps)",
         supportLevel: "unsupported",
@@ -478,11 +463,9 @@ export const PLATFORM_INFO: Record<string, PlatformInfo> = {
         recommendation: "无法识别的追踪代码，建议确认其用途后决定迁移方案",
     },
 };
-
 export function getPlatformInfo(platform: string): PlatformInfo {
     return PLATFORM_INFO[platform] || PLATFORM_INFO.unknown;
 }
-
 export function detectPlatforms(content: string): string[] {
     const detected: string[] = [];
     for (const [platform, patterns] of Object.entries(PLATFORM_PATTERNS)) {
@@ -497,7 +480,6 @@ export function detectPlatforms(content: string): string[] {
     }
     return detected;
 }
-
 export function identifyPlatformFromSrc(src: string): string {
     for (const [platform, patterns] of Object.entries(PLATFORM_PATTERNS)) {
         for (const pattern of patterns) {
@@ -508,7 +490,6 @@ export function identifyPlatformFromSrc(src: string): string {
     }
     return "unknown";
 }
-
 export function getPatternType(platform: string, pattern: RegExp): string {
     const patternStr = pattern.source;
     switch (platform) {

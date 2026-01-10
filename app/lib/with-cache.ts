@@ -8,22 +8,15 @@ export type CacheKeyFn = (args: LoaderFunctionArgs | ActionFunctionArgs) => stri
 export type CacheInvalidateFn = (args: ActionFunctionArgs, result: unknown) => string[] | null;
 
 export interface LoaderCacheOptions {
-
   key: CacheKeyFn;
-
   ttl?: number;
-
   staleWhileRevalidate?: boolean;
-
   cache?: SimpleCache<unknown>;
-
   methods?: string[];
 }
 
 export interface ActionCacheOptions {
-
   invalidate?: CacheInvalidateFn;
-
   cache?: SimpleCache<unknown>;
 }
 
@@ -39,25 +32,19 @@ export function withCache<T>(
   const cache = options.cache ?? defaultLoaderCache;
   const ttl = options.ttl ?? TTL.MEDIUM;
   const methods = options.methods ?? ["GET"];
-
   return async (args: LoaderFunctionArgs): Promise<Response | T> => {
     const { request } = args;
-
     if (!methods.includes(request.method.toUpperCase())) {
       return loader(args);
     }
-
     const cacheKey = options.key(args);
     if (!cacheKey) {
       return loader(args);
     }
-
     const cached = cache.get(cacheKey) as T | Response | undefined;
     if (cached !== undefined) {
       logger.debug("Cache hit", { key: cacheKey });
-
       if (options.staleWhileRevalidate && cache.isStale(cacheKey)) {
-
         loader(args)
           .then((result) => {
             cache.set(cacheKey, result, ttl);
@@ -67,18 +54,13 @@ export function withCache<T>(
             logger.error("Background cache refresh failed", { key: cacheKey, error });
           });
       }
-
       return cached;
     }
-
     logger.debug("Cache miss", { key: cacheKey });
-
     const result = await loader(args);
-
     if (result instanceof Response && result.status >= 400) {
       return result;
     }
-
     cache.set(cacheKey, result, ttl);
     return result;
   };
@@ -88,17 +70,14 @@ export function createUrlCacheKey(args: LoaderFunctionArgs): string | null {
   try {
     const url = new URL(args.request.url);
     const shop = url.searchParams.get("shop");
-
     if (!shop) {
       return null;
     }
-
     const relevantParams = ["platform", "page", "limit", "sort"];
     const params = relevantParams
       .map((p) => url.searchParams.get(p))
       .filter(Boolean)
       .join(":");
-
     return `${url.pathname}:${shop}${params ? `:${params}` : ""}`;
   } catch {
     return null;
@@ -110,10 +89,8 @@ export function withCacheInvalidation<T>(
   options: ActionCacheOptions
 ): (args: ActionFunctionArgs) => Promise<T> {
   const cache = options.cache ?? defaultLoaderCache;
-
   return async (args: ActionFunctionArgs): Promise<T> => {
     const result = await action(args);
-
     if (options.invalidate) {
       const keys = options.invalidate(args, result);
       if (keys) {
@@ -123,7 +100,6 @@ export function withCacheInvalidation<T>(
         }
       }
     }
-
     return result;
   };
 }
@@ -152,7 +128,6 @@ export function clearCache(): void {
 }
 
 export interface ConditionalCacheOptions extends LoaderCacheOptions {
-
   shouldCache?: (result: unknown) => boolean;
 }
 
@@ -163,9 +138,7 @@ export function withConditionalCache<T>(
   const cache = options.cache ?? defaultLoaderCache;
   const ttl = options.ttl ?? TTL.MEDIUM;
   const shouldCache = options.shouldCache ?? (() => true);
-
   return async (args: LoaderFunctionArgs): Promise<Response | T> => {
-
     if (!args || !args.request || typeof args.request.url !== "string") {
       logger.error("[withConditionalCache] Invalid args: missing request", {
         argsType: typeof args,
@@ -173,23 +146,18 @@ export function withConditionalCache<T>(
       });
       return loader(args);
     }
-
     const cacheKey = options.key(args);
     if (!cacheKey) {
       return loader(args);
     }
-
     const cached = cache.get(cacheKey) as T | Response | undefined;
     if (cached !== undefined) {
       return cached;
     }
-
     const result = await loader(args);
-
     if (shouldCache(result)) {
       cache.set(cacheKey, result, ttl);
     }
-
     return result;
   };
 }
@@ -207,7 +175,6 @@ export function cachedJson<T>(
     sMaxAge = 60,
     staleWhileRevalidate = 300,
   } = options;
-
   const cacheControl = [
     maxAge > 0 ? `max-age=${maxAge}` : "no-cache",
     sMaxAge > 0 ? `s-maxage=${sMaxAge}` : null,
@@ -215,7 +182,6 @@ export function cachedJson<T>(
   ]
     .filter(Boolean)
     .join(", ");
-
   return json(data, {
     headers: {
       "Cache-Control": cacheControl,

@@ -89,7 +89,6 @@ export function validateShopDomain(
   domain: string
 ): Result<string, AppError> {
   const normalized = domain.toLowerCase().trim();
-
   if (!normalized.endsWith(".myshopify.com")) {
     return err(
       new AppError(
@@ -100,7 +99,6 @@ export function validateShopDomain(
       )
     );
   }
-
   const shopName = normalized.replace(".myshopify.com", "");
   if (!shopName || !/^[a-z0-9-]+$/.test(shopName)) {
     return err(
@@ -112,7 +110,6 @@ export function validateShopDomain(
       )
     );
   }
-
   return ok(normalized);
 }
 
@@ -120,18 +117,15 @@ export function validateOrderId(
   orderId: string
 ): Result<string, AppError> {
   const trimmed = orderId.trim();
-
   if (/^\d+$/.test(trimmed)) {
     return ok(trimmed);
   }
-
   if (trimmed.startsWith("gid://")) {
-    const id = trimmed.replace(/^gid:\/\/shopify\/\w+\//, "");
+    const id = trimmed.replace(/^gid:\/\/shopify\/\w+\
     if (/^\d+$/.test(id)) {
       return ok(trimmed);
     }
   }
-
   return err(
     new AppError(
       ErrorCode.VALIDATION_INVALID_FORMAT,

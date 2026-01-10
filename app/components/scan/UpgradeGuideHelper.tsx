@@ -21,27 +21,21 @@ export function UpgradeGuideHelper({ onAssetsCreated }: UpgradeGuideHelperProps)
   const [uploading, setUploading] = useState(false);
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
   const { showSuccess, showError } = useToastContext();
-
   const handleFileUpload = useCallback(async (file: File) => {
     if (!file) return;
-
     const validTypes = ["text/plain", "application/json"];
     if (!validTypes.includes(file.type)) {
       showError("不支持的文件类型。请上传 TXT 或 JSON 文件。");
       return;
     }
-
     const MAX_SIZE = 5 * 1024 * 1024;
     if (file.size > MAX_SIZE) {
       showError("文件过大。请上传小于 5MB 的文件。");
       return;
     }
-
     setUploadedFile(file);
     setUploading(true);
-
     try {
-
       if (file.type === "text/plain" || file.type === "application/json") {
         const text = await file.text();
         await parseTextList(text);
@@ -49,23 +43,18 @@ export function UpgradeGuideHelper({ onAssetsCreated }: UpgradeGuideHelperProps)
         throw new Error("Unsupported file type");
       }
     } catch (error) {
-
       if (process.env.NODE_ENV === "development") {
-
         console.error("File upload error:", error);
       }
       showError("文件处理失败，请稍后重试。");
       setUploading(false);
     }
   }, [showSuccess, showError, onAssetsCreated]);
-
   const parseTextList = async (text: string) => {
     try {
-
       const lines = text.split("\n").map(line => line.trim()).filter(line => line.length > 0);
       const platforms: string[] = [];
       const items: Array<{ name: string; type: string }> = [];
-
       try {
         const json = JSON.parse(text);
         if (Array.isArray(json)) {
@@ -84,11 +73,8 @@ export function UpgradeGuideHelper({ onAssetsCreated }: UpgradeGuideHelperProps)
           });
         }
       } catch {
-
         lines.forEach(line => {
-
           const cleaned = line.replace(/^[-*•]\s*/, "").trim();
-
           const platformPatterns = [
             { pattern: /google|ga4|analytics/i, name: "google" },
             { pattern: /meta|facebook|fb/i, name: "meta" },
@@ -97,7 +83,6 @@ export function UpgradeGuideHelper({ onAssetsCreated }: UpgradeGuideHelperProps)
             { pattern: /snapchat|snap/i, name: "snapchat" },
             { pattern: /bing|microsoft/i, name: "bing" },
           ];
-
           let matched = false;
           for (const { pattern, name } of platformPatterns) {
             if (pattern.test(cleaned)) {
@@ -106,7 +91,6 @@ export function UpgradeGuideHelper({ onAssetsCreated }: UpgradeGuideHelperProps)
               break;
             }
           }
-
           if (!matched && cleaned.length > 0) {
             items.push({
               name: cleaned,
@@ -115,7 +99,6 @@ export function UpgradeGuideHelper({ onAssetsCreated }: UpgradeGuideHelperProps)
           }
         });
       }
-
       if (platforms.length > 0 || items.length > 0) {
         const response = await fetch("/api/audit-assets", {
           method: "POST",
@@ -126,23 +109,18 @@ export function UpgradeGuideHelper({ onAssetsCreated }: UpgradeGuideHelperProps)
             items,
           }),
         });
-
         if (!response.ok) {
           throw new Error("创建资产失败");
         }
-
         const result = await response.json();
         const createdCount = result.created || 0;
-
         showSuccess(`成功识别 ${platforms.length} 个平台，创建 ${createdCount} 个迁移项`);
         onAssetsCreated?.(createdCount);
       } else {
         showError("未能识别到有效的平台或脚本项。请检查文件格式。");
       }
     } catch (error) {
-
       if (process.env.NODE_ENV === "development") {
-
         console.error("Parse error:", error);
       }
       showError("解析文件失败，请稍后重试。");
@@ -151,7 +129,6 @@ export function UpgradeGuideHelper({ onAssetsCreated }: UpgradeGuideHelperProps)
       setUploadedFile(null);
     }
   };
-
   return (
     <Card>
       <BlockStack gap="400">
@@ -161,7 +138,6 @@ export function UpgradeGuideHelper({ onAssetsCreated }: UpgradeGuideHelperProps)
           </Text>
           <Icon source={InfoIcon} tone="info" />
         </InlineStack>
-
         <Banner tone="info">
           <BlockStack gap="200">
             <Text as="p" variant="bodySm" fontWeight="semibold">
@@ -191,7 +167,6 @@ export function UpgradeGuideHelper({ onAssetsCreated }: UpgradeGuideHelperProps)
             </List>
           </BlockStack>
         </Banner>
-
         <Box>
           <input
             type="file"
@@ -215,7 +190,6 @@ export function UpgradeGuideHelper({ onAssetsCreated }: UpgradeGuideHelperProps)
             上传清单文件
           </Button>
         </Box>
-
         {uploadedFile && (
           <Banner tone="success">
             <Text as="p" variant="bodySm">
@@ -223,7 +197,6 @@ export function UpgradeGuideHelper({ onAssetsCreated }: UpgradeGuideHelperProps)
             </Text>
           </Banner>
         )}
-
         <Banner>
           <BlockStack gap="200">
             <Text as="p" variant="bodySm" fontWeight="semibold">
@@ -243,7 +216,6 @@ export function UpgradeGuideHelper({ onAssetsCreated }: UpgradeGuideHelperProps)
             </List>
           </BlockStack>
         </Banner>
-
         <Banner tone="warning">
           <Text as="p" variant="bodySm">
             截图识别尚未开放。如没有文本文件，请改用“文本粘贴”作为回退方式。

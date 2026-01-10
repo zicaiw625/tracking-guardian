@@ -11,11 +11,9 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   if (request.method === "OPTIONS") {
     return optionsResponse(request, true);
   }
-
   if (request.method !== "POST") {
     return jsonWithCors({ error: "Method not allowed" }, { status: 405, request, staticCors: true });
   }
-
   let session: { shop: string; [key: string]: unknown };
   try {
     const authResult = await authenticate.public.checkout(request) as unknown as { 
@@ -31,12 +29,9 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       { status: 401, request, staticCors: true }
     );
   }
-
   const shopDomain = session.shop;
-
   const rateLimitKey = `reorder:${shopDomain}`;
   const rateLimitResult = await checkRateLimitAsync(rateLimitKey, 60, 60 * 1000);
-
   if (!rateLimitResult.allowed) {
     const headers = new Headers();
     headers.set("X-RateLimit-Limit", "60");
@@ -45,12 +40,10 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     if (rateLimitResult.retryAfter) {
       headers.set("Retry-After", String(rateLimitResult.retryAfter));
     }
-
     logger.warn("Reorder rate limit exceeded", {
       shopDomain,
       retryAfter: rateLimitResult.retryAfter,
     });
-
     return jsonWithCors(
       {
         error: "Too many reorder requests",
@@ -59,24 +52,19 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       { status: 429, request, staticCors: true, headers }
     );
   }
-
   try {
     const body = await request.json().catch(() => null);
-    
     const url = new URL(request.url);
     const orderId = body?.orderId || url.searchParams.get("orderId");
-
     if (!orderId) {
       return jsonWithCors({ error: "Missing orderId" }, { status: 400, request, staticCors: true });
     }
-
     const newUrl = new URL(request.url);
     newUrl.searchParams.set("orderId", orderId);
     const newRequest = new Request(newUrl.toString(), {
       method: "GET",
       headers: request.headers,
     });
-
     return await loaderImpl(newRequest);
   } catch (error) {
     logger.error("Reorder action failed", {
@@ -132,11 +120,9 @@ async function loaderImpl(request: Request) {
   try {
     const url = new URL(request.url);
     const orderId = url.searchParams.get("orderId");
-
     if (!orderId) {
       return jsonWithCors({ error: "Missing orderId" }, { status: 400, request, staticCors: true });
     }
-
     let session: { shop: string; [key: string]: unknown };
     try {
       const authResult = await authenticate.public.checkout(request) as unknown as { session: { shop: string; [key: string]: unknown } };
@@ -150,18 +136,13 @@ async function loaderImpl(request: Request) {
         { status: 401, request, staticCors: true }
       );
     }
-
     const shopDomain = session.shop;
-
     const customerGidFromToken = session.customerId || null;
-
     const admin = await createAdminClientForShop(shopDomain);
-
     if (!admin) {
       logger.warn(`Failed to create admin client for shop ${shopDomain}`);
       return jsonWithCors({ error: "Failed to authenticate admin" }, { status: 401, request, staticCors: true });
     }
-
     let orderResponse: Response;
     try {
       orderResponse = await admin.graphql(`
@@ -190,7 +171,6 @@ async function loaderImpl(request: Request) {
       });
     } catch (graphqlError) {
       const errorMessage = graphqlError instanceof Error ? graphqlError.message : String(graphqlError);
-      
       if (errorMessage.includes("read_orders") || errorMessage.includes("Required access")) {
         logger.warn("Reorder failed: Missing read_orders scope", {
           shopDomain,
@@ -208,7 +188,6 @@ async function loaderImpl(request: Request) {
           { status: 403, request, staticCors: true }
         );
       }
-      
       logger.error("Failed to query order from Shopify", {
         error: errorMessage,
         orderId,
@@ -219,7 +198,6 @@ async function loaderImpl(request: Request) {
         { status: 500, request, staticCors: true }
       );
     }
-
     const orderData = await orderResponse.json().catch((jsonError) => {
       logger.warn("Failed to parse GraphQL response as JSON", {
         error: jsonError instanceof Error ? jsonError.message : String(jsonError),
@@ -228,12 +206,10 @@ async function loaderImpl(request: Request) {
       });
       return { data: null };
     });
-
     if (orderData.errors) {
       const hasAccessError = orderData.errors.some((err: { message?: string }) => 
         err.message?.includes("read_orders") || err.message?.includes("Required access")
       );
-      
       if (hasAccessError) {
         logger.warn("Reorder failed: Missing read_orders scope (from GraphQL errors)", {
           shopDomain,
@@ -252,7 +228,6 @@ async function loaderImpl(request: Request) {
         );
       }
     }
-
     if (!orderData.data?.order) {
       logger.info(`Order not found (may be still creating) for orderId: ${orderId}, shop: ${shopDomain}`);
       return jsonWithCors(
@@ -272,7 +247,6 @@ async function loaderImpl(request: Request) {
         }
       );
     }
-
     const orderCustomerId = orderData.data.order.customer?.id || null;
     if (customerGidFromToken && orderCustomerId) {
       const tokenCustomerId = customerGidFromToken.includes("/")
@@ -281,7 +255,6 @@ async function loaderImpl(request: Request) {
       const orderCustomerIdNum = orderCustomerId.includes("/")
         ? orderCustomerId.split("/").pop()
         : orderCustomerId;
-
       if (tokenCustomerId !== orderCustomerIdNum) {
         logger.warn(`Order access denied: customer mismatch for orderId: ${orderId}, shop: ${shopDomain}`, {
           tokenCustomerId: tokenCustomerId,
@@ -290,16 +263,12 @@ async function loaderImpl(request: Request) {
         return jsonWithCors({ error: "Order access denied" }, { status: 403, request, staticCors: true });
       }
     }
-
     logger.info(`Reorder URL requested for orderId: ${orderId}, shop: ${shopDomain}`);
-
     const lineItems = orderData.data.order.lineItems.edges || [];
-
     const relativeUrl = (() => {
       if (lineItems.length === 0) {
         return "/cart";
       }
-
       const items = lineItems
         .map((edge: { node: { variant: { id: string }; quantity: number } }) => {
           const variantId = edge.node.variant?.id || "";
@@ -308,17 +277,14 @@ async function loaderImpl(request: Request) {
         })
         .filter((item: string) => item && !item.startsWith(":"))
         .join(",");
-
       return items ? `/cart/${items}` : "/cart";
     })();
-
     let reorderUrl = relativeUrl;
     try {
       const shop = await prisma.shop.findUnique({
         where: { shopDomain },
         select: { primaryDomain: true, storefrontDomains: true },
       });
-
       if (shop?.primaryDomain) {
         const baseUrl = shop.primaryDomain.startsWith("http")
           ? shop.primaryDomain
@@ -330,14 +296,12 @@ async function loaderImpl(request: Request) {
           : `https://${shop.storefrontDomains[0]}`;
         reorderUrl = `${baseUrl}${relativeUrl}`;
       }
-
     } catch (error) {
       logger.warn("Failed to fetch shop domain for reorder URL, using relative path", {
         shopDomain,
         error: error instanceof Error ? error.message : String(error),
       });
     }
-
     return jsonWithCors({ reorderUrl }, { request, staticCors: true });
   } catch (error) {
     logger.error("Failed to get reorder URL", {

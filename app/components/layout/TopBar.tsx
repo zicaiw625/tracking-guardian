@@ -35,7 +35,6 @@ export function TopBar({
         : planId === "growth"
           ? "success"
           : "new";
-
   const handleUpgradeClick = useCallback(() => {
     void fetch("/api/analytics-track", {
       method: "POST",
@@ -49,8 +48,6 @@ export function TopBar({
       }),
     });
   }, [planId]);
-
-
   return (
     <Box
       background="bg-surface"
@@ -63,12 +60,10 @@ export function TopBar({
         <Text as="span" variant="bodyMd" fontWeight="semibold">
           {shopDomain}
         </Text>
-
         <InlineStack gap="300" blockAlign="center">
           <InlineStack gap="200" blockAlign="center">
             <Badge tone={planBadgeTone}>{planConfig.name}</Badge>
           </InlineStack>
-
           <Popover
             active={popoverActive}
             activator={

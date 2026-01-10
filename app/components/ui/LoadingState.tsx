@@ -12,11 +12,8 @@ import {
 } from "@shopify/polaris";
 
 export interface PageSkeletonProps {
-
   cards?: number;
-
   showTabs?: boolean;
-
   primaryAction?: boolean;
 }
 
@@ -46,9 +43,7 @@ export function PageSkeleton({
 }
 
 export interface CardSkeletonProps {
-
   lines?: number;
-
   showTitle?: boolean;
 }
 
@@ -64,9 +59,7 @@ export function CardSkeleton({ lines = 3, showTitle = true }: CardSkeletonProps)
 }
 
 export interface TableSkeletonProps {
-
   rows?: number;
-
   columns?: number;
 }
 
@@ -81,7 +74,6 @@ export function TableSkeleton({ rows = 5, columns = 4 }: TableSkeletonProps) {
             </Box>
           ))}
         </InlineStack>
-
         {Array.from({ length: rows }).map((_, rowIndex) => (
           <InlineStack key={rowIndex} gap="400">
             {Array.from({ length: columns }).map((_, colIndex) => (
@@ -97,7 +89,6 @@ export function TableSkeleton({ rows = 5, columns = 4 }: TableSkeletonProps) {
 }
 
 export interface StatsSkeletonProps {
-
   count?: number;
 }
 
@@ -119,9 +110,7 @@ export function StatsSkeleton({ count = 3 }: StatsSkeletonProps) {
 }
 
 export interface InlineSpinnerProps {
-
   message?: string;
-
   size?: "small" | "large";
 }
 
@@ -142,7 +131,6 @@ export function InlineSpinner({
 }
 
 export interface FullScreenLoadingProps {
-
   message?: string;
 }
 
@@ -173,11 +161,8 @@ export function FullScreenLoading({ message = "加载中..." }: FullScreenLoadin
 }
 
 export interface ButtonLoadingProps {
-
   loading: boolean;
-
   loadingText?: string;
-
   children: React.ReactNode;
 }
 
@@ -190,7 +175,6 @@ export function buttonLoadingText(
 }
 
 export interface FormSkeletonProps {
-
   fields?: number;
 }
 

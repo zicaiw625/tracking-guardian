@@ -8,7 +8,6 @@ export function createJsonResponse<T extends Record<string, unknown>>(
   const status = options?.status ?? 200;
   const headers = new Headers(options?.headers);
   headers.set("Content-Type", "application/json");
-
   return new Response(JSON.stringify(data), {
     status,
     headers,
@@ -125,7 +124,6 @@ export function createExportResponse(
   const headers = new Headers();
   headers.set("Content-Type", "application/json");
   headers.set("Content-Disposition", `attachment; filename="${filename}"`);
-
   return new Response(JSON.stringify(data, null, 2), {
     status: 200,
     headers,
@@ -139,7 +137,6 @@ export function createCsvExportResponse(
   const headers = new Headers();
   headers.set("Content-Type", "text/csv");
   headers.set("Content-Disposition", `attachment; filename="${filename}"`);
-
   return new Response(csv, {
     status: 200,
     headers,

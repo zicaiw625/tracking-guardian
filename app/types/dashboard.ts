@@ -57,11 +57,9 @@ export interface DashboardData {
   planFeatures?: string[];
   scriptTagsCount: number;
   hasOrderStatusScripts: boolean;
-
   typOspPagesEnabled?: boolean;
   estimatedMigrationTimeMinutes?: number;
   showOnboarding?: boolean;
-
   upgradeStatus?: UpgradeStatus;
   migrationProgress?: MigrationProgress;
   riskScore?: number | null;
@@ -71,7 +69,6 @@ export interface DashboardData {
     count: number;
     category: string;
   }>;
-
   migrationChecklist?: {
     totalItems: number;
     highPriorityItems: number;
@@ -134,7 +131,6 @@ export function getSetupSteps(data: DashboardData): SetupStep[] {
       description: "扫描现有的追踪脚本和像素",
       cta: "开始扫描",
       url: "/app/scan",
-
       done: data.latestScan !== null,
     },
     {
@@ -143,7 +139,6 @@ export function getSetupSteps(data: DashboardData): SetupStep[] {
       description: "配置服务端转化追踪",
       cta: "配置迁移",
       url: "/app/pixels",
-
       done: data.hasServerSideConfig,
     },
     {
@@ -152,7 +147,6 @@ export function getSetupSteps(data: DashboardData): SetupStep[] {
       description: "配置健康监控警报",
       cta: "配置警报",
       url: "/app/settings?tab=alerts",
-
       done: data.hasAlertConfig,
     },
   ];

@@ -78,10 +78,8 @@ function getMilestones(shopTier: ShopTier, now: Date = new Date()): CountdownMil
 function getDeadline(shopTier: ShopTier): Date {
   switch (shopTier) {
     case "plus":
-
       return DEPRECATION_DATES.plusAutoUpgradeStart;
     case "non_plus":
-
       return DEPRECATION_DATES.nonPlusScriptTagExecutionOff;
     default:
       return DEPRECATION_DATES.nonPlusScriptTagExecutionOff;

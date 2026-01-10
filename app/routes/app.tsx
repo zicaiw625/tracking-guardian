@@ -32,7 +32,6 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     const planInfo = admin ? await getShopPlan(admin) : null;
     const planId = normalizePlan(shop?.plan);
     const planIdNormalized = normalizePlanId(shop?.plan || "free") as PlanId;
-
     return json({
         apiKey: process.env.SHOPIFY_API_KEY || "",
         planDisplayName: planInfo?.displayName ?? "Unknown",
@@ -43,7 +42,6 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 };
 export default function App() {
     const { apiKey, shopDomain, planId, planDisplayName, currentShopId } = useLoaderData<typeof loader>();
-
     return (<AppProvider isEmbeddedApp apiKey={apiKey} i18n={i18n as any}>
       <NavMenu>
         <a href="/app" rel="home">Dashboard</a>
@@ -67,7 +65,6 @@ export const headers: HeadersFunction = (headersArgs) => {
     return boundary.headers(headersArgs);
 };
 export function ErrorBoundary() {
-
     return (
         <PolarisAppProvider i18n={i18n as any}>
             {boundary.error(useRouteError())}

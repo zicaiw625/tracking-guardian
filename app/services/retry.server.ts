@@ -68,9 +68,7 @@ export function getRetryDelay(error: PlatformError, attempt: number): number {
 
 export function classifyFailureReason(errorMessage: string | null): FailureReason {
   if (!errorMessage) return "unknown";
-
   const lowerError = errorMessage.toLowerCase();
-
   if (
     lowerError.includes("401") ||
     lowerError.includes("unauthorized") ||
@@ -80,7 +78,6 @@ export function classifyFailureReason(errorMessage: string | null): FailureReaso
   ) {
     return "token_expired";
   }
-
   if (
     lowerError.includes("429") ||
     lowerError.includes("rate limit") ||
@@ -88,7 +85,6 @@ export function classifyFailureReason(errorMessage: string | null): FailureReaso
   ) {
     return "rate_limited";
   }
-
   if (
     lowerError.includes("500") ||
     lowerError.includes("502") ||
@@ -99,7 +95,6 @@ export function classifyFailureReason(errorMessage: string | null): FailureReaso
   ) {
     return "platform_error";
   }
-
   if (
     lowerError.includes("timeout") ||
     lowerError.includes("network") ||
@@ -109,7 +104,6 @@ export function classifyFailureReason(errorMessage: string | null): FailureReaso
   ) {
     return "network_error";
   }
-
   if (
     lowerError.includes("400") ||
     lowerError.includes("invalid") ||
@@ -118,7 +112,6 @@ export function classifyFailureReason(errorMessage: string | null): FailureReaso
   ) {
     return "validation_error";
   }
-
   if (
     lowerError.includes("credential") ||
     lowerError.includes("decrypt") ||
@@ -127,7 +120,6 @@ export function classifyFailureReason(errorMessage: string | null): FailureReaso
   ) {
     return "config_error";
   }
-
   return "unknown";
 }
 
@@ -152,13 +144,10 @@ export async function scheduleRetry(
   const log = await prisma.conversionLog.findUnique({
     where: { id: logId },
   });
-
   if (!log) return { scheduled: false, failureReason: "unknown" };
-
   const failureReason = classifyFailureReason(errorMessage);
   const currentAttempts = log.attempts;
   const maxAttempts = log.maxAttempts || MAX_ATTEMPTS;
-
   if (failureReason === "token_expired" || failureReason === "config_error") {
     await prisma.conversionLog.update({
       where: { id: logId },
@@ -172,7 +161,6 @@ export async function scheduleRetry(
     logger.warn(`Conversion ${logId} moved to dead letter: ${failureReason}`);
     return { scheduled: false, failureReason };
   }
-
   if (currentAttempts >= maxAttempts) {
     await prisma.conversionLog.update({
       where: { id: logId },
@@ -186,7 +174,6 @@ export async function scheduleRetry(
     logger.warn(`Conversion ${logId} moved to dead letter after ${currentAttempts} attempts`);
     return { scheduled: false, failureReason };
   }
-
   const nextRetryAt = calculateNextRetryTimeForLog(currentAttempts);
   await prisma.conversionLog.update({
     where: { id: logId },
@@ -197,12 +184,10 @@ export async function scheduleRetry(
       errorMessage: `[${failureReason}] ${errorMessage}`,
     },
   });
-
   logger.info(
     `Conversion ${logId} scheduled for retry at ${nextRetryAt.toISOString()} ` +
       `(attempt ${currentAttempts}, reason: ${failureReason})`
   );
-
   return { scheduled: true, failureReason };
 }
 
@@ -224,11 +209,9 @@ async function sendToPlatformFromLog(
     conversionData,
     eventId
   );
-
   if (!result.success) {
     throw new Error(result.error?.message || "Platform send failed");
   }
-
   return {
     success: true,
     response: result.response,
@@ -252,7 +235,6 @@ export async function processPendingConversions(): Promise<{
           id: true,
           shopDomain: true,
           plan: true,
-
           pixelConfigs: {
             where: { isActive: true, serverSideEnabled: true },
             select: {
@@ -268,21 +250,16 @@ export async function processPendingConversions(): Promise<{
     take: 100,
     orderBy: { createdAt: "asc" },
   });
-
   logger.info(`Processing ${pendingLogs.length} pending conversions`);
-
   let succeeded = 0;
   let failed = 0;
   let limitExceeded = 0;
-
   for (const log of pendingLogs) {
     try {
-
       const billingCheck = await checkBillingGate(
         log.shopId,
         (log.Shop.plan || "free") as PlanId
       );
-
       if (!billingCheck.allowed) {
         logger.info(
           `Billing gate blocked conversion ${log.id}: ${billingCheck.reason}, ` +
@@ -299,7 +276,6 @@ export async function processPendingConversions(): Promise<{
         limitExceeded++;
         continue;
       }
-
       const pixelConfig = log.Shop.pixelConfigs.find((pc) => pc.platform === log.platform);
       if (!pixelConfig) {
         await prisma.conversionLog.update({
@@ -314,7 +290,6 @@ export async function processPendingConversions(): Promise<{
         failed++;
         continue;
       }
-
       const credResult = decryptCredentials(pixelConfig, log.platform);
       if (!credResult.ok) {
         await prisma.conversionLog.update({
@@ -330,7 +305,6 @@ export async function processPendingConversions(): Promise<{
         continue;
       }
       const credentials = credResult.value.credentials;
-
       const eventId = log.eventId || generateEventId(log.orderId, log.eventType, log.Shop.shopDomain);
       const conversionData: ConversionData = {
         orderId: log.orderId,
@@ -338,9 +312,7 @@ export async function processPendingConversions(): Promise<{
         value: Number(log.orderValue),
         currency: log.currency,
       };
-
       const result = await sendToPlatformFromLog(log.platform, credentials, conversionData, eventId);
-
       await prisma.conversionLog.update({
         where: { id: log.id },
         data: {
@@ -353,7 +325,6 @@ export async function processPendingConversions(): Promise<{
           lastAttemptAt: new Date(),
         },
       });
-
       await incrementMonthlyUsage(log.shopId, log.orderId);
       succeeded++;
     } catch (error) {
@@ -366,7 +337,6 @@ export async function processPendingConversions(): Promise<{
       failed++;
     }
   }
-
   return { processed: pendingLogs.length, succeeded, failed, limitExceeded };
 }
 
@@ -377,7 +347,6 @@ export async function processRetries(): Promise<{
   limitExceeded: number;
 }> {
   const now = new Date();
-
   const logsToRetry = await prisma.conversionLog.findMany({
     where: {
       status: "retrying",
@@ -397,21 +366,16 @@ export async function processRetries(): Promise<{
     },
     take: 50,
   });
-
   logger.info(`Processing ${logsToRetry.length} pending retries`);
-
   let succeeded = 0;
   let failed = 0;
   let limitExceeded = 0;
-
   for (const log of logsToRetry) {
     try {
-
       const billingCheck = await checkBillingGate(
         log.shopId,
         (log.Shop.plan || "free") as PlanId
       );
-
       if (!billingCheck.allowed) {
         logger.info(
           `Billing gate blocked retry for ${log.id}: ${billingCheck.reason}, ` +
@@ -428,14 +392,12 @@ export async function processRetries(): Promise<{
         limitExceeded++;
         continue;
       }
-
       const pixelConfig = log.Shop.pixelConfigs.find((pc) => pc.platform === log.platform);
       if (!pixelConfig) {
         await scheduleRetry(log.id, "Pixel config not found or disabled");
         failed++;
         continue;
       }
-
       const credResult2 = decryptCredentials(pixelConfig, log.platform);
       if (!credResult2.ok) {
         try {
@@ -451,7 +413,6 @@ export async function processRetries(): Promise<{
         continue;
       }
       const credentials = credResult2.value.credentials;
-
       const eventId = log.eventId || generateEventId(log.orderId, log.eventType, log.Shop.shopDomain);
       const conversionData: ConversionData = {
         orderId: log.orderId,
@@ -459,9 +420,7 @@ export async function processRetries(): Promise<{
         value: Number(log.orderValue),
         currency: log.currency,
       };
-
       const result = await sendToPlatformFromLog(log.platform, credentials, conversionData, eventId);
-
       await prisma.conversionLog.update({
         where: { id: log.id },
         data: {
@@ -474,7 +433,6 @@ export async function processRetries(): Promise<{
           attempts: { increment: 1 },
         },
       });
-
       await incrementMonthlyUsage(log.shopId, log.orderId);
       succeeded++;
       logger.info(`Retry succeeded for ${log.id}`);
@@ -489,7 +447,6 @@ export async function processRetries(): Promise<{
       logger.error(`Retry failed for ${log.id}: ${errorMessage}`);
     }
   }
-
   return { processed: logsToRetry.length, succeeded, failed, limitExceeded };
 }
 
@@ -530,11 +487,9 @@ export async function retryDeadLetter(logId: string): Promise<boolean> {
   const log = await prisma.conversionLog.findUnique({
     where: { id: logId },
   });
-
   if (!log || log.status !== "dead_letter") {
     return false;
   }
-
   await prisma.conversionLog.update({
     where: { id: logId },
     data: {
@@ -546,7 +501,6 @@ export async function retryDeadLetter(logId: string): Promise<boolean> {
       errorMessage: null,
     },
   });
-
   logger.info(`Dead letter ${logId} queued for manual retry`);
   return true;
 }
@@ -566,7 +520,6 @@ export async function retryAllDeadLetters(shopId: string): Promise<number> {
       errorMessage: null,
     },
   });
-
   logger.info(`${result.count} dead letters queued for retry in shop ${shopId}`);
   return result.count;
 }
@@ -575,10 +528,8 @@ export async function checkTokenExpirationIssues(shopId: string): Promise<{
   hasIssues: boolean;
   affectedPlatforms: string[];
 }> {
-
   const oneDayAgo = new Date();
   oneDayAgo.setUTCDate(oneDayAgo.getUTCDate() - 1);
-
   const tokenExpiredLogs = await prisma.conversionLog.findMany({
     where: {
       shopId,
@@ -589,7 +540,6 @@ export async function checkTokenExpirationIssues(shopId: string): Promise<{
     select: { platform: true },
     distinct: ["platform"],
   });
-
   const affectedPlatforms = tokenExpiredLogs.map((l) => l.platform);
   return {
     hasIssues: affectedPlatforms.length > 0,
@@ -609,7 +559,6 @@ export async function getRetryStats(shopId: string): Promise<{
     where: { shopId },
     _count: true,
   });
-
   const result = {
     pending: 0,
     retrying: 0,
@@ -617,7 +566,6 @@ export async function getRetryStats(shopId: string): Promise<{
     sent: 0,
     failed: 0,
   };
-
   for (const stat of stats) {
     switch (stat.status) {
       case "pending":
@@ -637,6 +585,5 @@ export async function getRetryStats(shopId: string): Promise<{
         break;
     }
   }
-
   return result;
 }

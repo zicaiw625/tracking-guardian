@@ -71,21 +71,17 @@ function checkForbiddenAPIs() {
     const violations = [];
     const extensionsSrcDir = path.join(EXTENSIONS_DIR, "thank-you-blocks", "src");
     const pixelSrcDir = path.join(EXTENSIONS_DIR, "tracking-pixel", "src");
-
     function scanDirectory(dir) {
         if (!fs.existsSync(dir)) {
             return;
         }
-
         const entries = fs.readdirSync(dir, { withFileTypes: true });
         for (const entry of entries) {
             const fullPath = path.join(dir, entry.name);
             const relativePath = path.relative(PROJECT_ROOT, fullPath);
-
             if (shouldIgnore(relativePath)) {
                 continue;
             }
-
             if (entry.isDirectory()) {
                 scanDirectory(fullPath);
             } else if (entry.isFile()) {
@@ -94,13 +90,11 @@ function checkForbiddenAPIs() {
                     try {
                         const content = fs.readFileSync(fullPath, "utf-8");
                         const lines = content.split("\n");
-
                         for (let i = 0; i < lines.length; i++) {
                             const line = lines[i];
                             if (isAllowed(line)) {
                                 continue;
                             }
-
                             for (const { pattern, description } of FORBIDDEN_PATTERNS) {
                                 if (pattern.test(line)) {
                                     violations.push({
@@ -113,16 +107,13 @@ function checkForbiddenAPIs() {
                             }
                         }
                     } catch (error) {
-
                     }
                 }
             }
         }
     }
-
     scanDirectory(extensionsSrcDir);
     scanDirectory(pixelSrcDir);
-
     return {
         name: "禁止使用的浏览器 API",
         passed: violations.length === 0,
@@ -139,7 +130,6 @@ function checkExtensionConfigs() {
         path.join(EXTENSIONS_DIR, "thank-you-blocks", "shopify.extension.toml"),
         path.join(EXTENSIONS_DIR, "tracking-pixel", "shopify.extension.toml"),
     ];
-
     for (const configFile of configFiles) {
         if (!fs.existsSync(configFile)) {
             violations.push({
@@ -150,10 +140,8 @@ function checkExtensionConfigs() {
             });
             continue;
         }
-
         try {
             const content = fs.readFileSync(configFile, "utf-8");
-
             if (!content.includes("api_version")) {
                 violations.push({
                     file: path.relative(PROJECT_ROOT, configFile),
@@ -162,7 +150,6 @@ function checkExtensionConfigs() {
                     description: "缺少 api_version 配置",
                 });
             }
-
             if (!content.includes("type =")) {
                 violations.push({
                     file: path.relative(PROJECT_ROOT, configFile),
@@ -180,7 +167,6 @@ function checkExtensionConfigs() {
             });
         }
     }
-
     return {
         name: "扩展配置文件",
         passed: violations.length === 0,
@@ -197,7 +183,6 @@ function checkSourceStructure() {
         path.join(EXTENSIONS_DIR, "thank-you-blocks", "src"),
         path.join(EXTENSIONS_DIR, "tracking-pixel", "src"),
     ];
-
     for (const dir of expectedDirs) {
         if (!fs.existsSync(dir)) {
             violations.push({
@@ -208,7 +193,6 @@ function checkSourceStructure() {
             });
         }
     }
-
     return {
         name: "源代码文件结构",
         passed: violations.length === 0,
@@ -222,18 +206,14 @@ function checkSourceStructure() {
 function main() {
     console.log("🔍 开始验证 Shopify 扩展...\n");
     console.log("=".repeat(60));
-
     results.push(checkForbiddenAPIs());
     results.push(checkExtensionConfigs());
     results.push(checkSourceStructure());
-
     console.log("\n📊 检查结果汇总:\n");
-
     let allPassed = true;
     for (const result of results) {
         const icon = result.passed ? "✅" : "❌";
         console.log(`${icon} ${result.name}: ${result.message}`);
-
         if (!result.passed && result.violations.length > 0) {
             allPassed = false;
             console.log(`   发现 ${result.violations.length} 个问题:`);
@@ -249,12 +229,9 @@ function main() {
         }
         console.log("");
     }
-
     console.log("=".repeat(60));
-
     const passedCount = results.filter(r => r.passed).length;
     const totalCount = results.length;
-
     if (allPassed) {
         console.log(`\n✅ 所有检查通过 (${passedCount}/${totalCount})\n`);
         return 0;

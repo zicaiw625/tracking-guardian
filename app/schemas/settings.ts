@@ -30,7 +30,6 @@ export const AlertConfigSchema = z.object({
   threshold: z.number().min(0).max(100),
   enabled: z.boolean(),
   configId: z.string().optional(),
-
   email: z.string().email().optional(),
   webhookUrl: z.string().url().optional(),
   botToken: z.string().optional(),
@@ -51,7 +50,6 @@ export function validateAlertSettings(
     case "telegram":
       return AlertTelegramSchema.safeParse(data);
     default:
-
       return {
         success: false as const,
         error: {
@@ -121,7 +119,6 @@ export function validatePlatformCredentials(
     case "tiktok":
       return TikTokCredentialsSchema.safeParse(data);
     default:
-
       return {
         success: false as const,
         error: {
@@ -145,7 +142,6 @@ export const DataRetentionDaysSchema = z
   );
 
 export const PrivacySettingsSchema = z.object({
-
   consentStrategy: ConsentStrategySchema,
   dataRetentionDays: DataRetentionDaysSchema,
 });
@@ -163,7 +159,6 @@ export type PixelConfigV1 = z.infer<typeof PixelConfigSchemaV1>;
 
 export const DEFAULT_PIXEL_CONFIG: PixelConfigV1 = {
   schema_version: "1",
-
   mode: "purchase_only",
   enabled_platforms: "meta,tiktok,google",
   strictness: "strict",
@@ -173,11 +168,8 @@ export const WebPixelSettingsSchema = z.object({
   ingestion_key: z.string().min(1, "Ingestion key is required"),
   shop_domain: z.string().min(1, "Shop domain is required"),
   config_version: z.string().optional(),
-
   mode: z.enum(["purchase_only", "full_funnel"]).optional().default("purchase_only"),
-
   pixel_config: z.string().optional(),
-
   environment: z.enum(["test", "live"]).optional().default("live"),
 });
 
@@ -187,16 +179,13 @@ export function parseAndValidatePixelConfig(configStr?: string): PixelConfigV1 {
   if (!configStr) {
     return DEFAULT_PIXEL_CONFIG;
   }
-
   try {
     const parsed = JSON.parse(configStr);
     const result = PixelConfigSchemaV1.safeParse(parsed);
-
     if (!result.success) {
       logger.warn("[PixelConfig] Validation failed, using defaults", { issues: result.error.issues });
       return DEFAULT_PIXEL_CONFIG;
     }
-
     return result.data;
   } catch (e) {
     logger.warn("[PixelConfig] JSON parse failed, using defaults", { error: e });
@@ -210,7 +199,6 @@ export function buildPixelConfigString(config: Partial<PixelConfigV1>): string {
     ...config,
     schema_version: "1",
   };
-
   return JSON.stringify(fullConfig);
 }
 
@@ -218,18 +206,15 @@ export function validateWebPixelSettings(settings: unknown):
   | { ok: true; data: WebPixelSettings }
   | { ok: false; errors: Record<string, string> } {
   const result = WebPixelSettingsSchema.safeParse(settings);
-
   if (result.success) {
     return { ok: true, data: result.data };
   }
-
   return { ok: false, errors: extractZodErrors(result.error) };
 }
 
 export function parseFormDataToObject(formData: FormData): Record<string, unknown> {
   const result: Record<string, unknown> = {};
   for (const [key, value] of formData.entries()) {
-
     if (value === "true") {
       result[key] = true;
     } else if (value === "false") {
@@ -255,7 +240,6 @@ export function extractZodErrors(
 ): Record<string, string> {
   const errors: Record<string, string> = {};
   const issues = error.issues;
-
   for (const issue of issues) {
     const path = issue.path.join(".");
     if (!errors[path]) {

@@ -27,18 +27,14 @@ export async function fetchTrackingFromAfterShip(
   apiKey: string
 ): Promise<TrackingInfo | null> {
   try {
-
     const url = new URL("https://api.aftership.com/v4/trackings");
     url.searchParams.append("tracking_numbers", trackingNumber);
-
     const response = await fetch(url.toString(), {
       headers: {
-
         "as-api-key": apiKey,
         "Content-Type": "application/json",
       },
     });
-
     if (!response.ok) {
       logger.warn("AfterShip API error", {
         status: response.status,
@@ -46,15 +42,12 @@ export async function fetchTrackingFromAfterShip(
       });
       return null;
     }
-
     const data = await response.json();
-
     const trackings = data.data?.trackings || [];
     if (trackings.length === 0) {
       return null;
     }
     const tracking = trackings[0];
-
     return {
       trackingNumber: tracking.tracking_number || trackingNumber,
       carrier: tracking.slug || "unknown",
@@ -89,7 +82,6 @@ export async function fetchTrackingFrom17Track(
   apiKey: string
 ): Promise<TrackingInfo | null> {
   try {
-
     const response = await fetch(`https://api.17track.net/track/v2.2/register`, {
       method: "POST",
       headers: {
@@ -103,7 +95,6 @@ export async function fetchTrackingFrom17Track(
         },
       ]),
     });
-
     if (!response.ok) {
       logger.warn("17Track API error", {
         status: response.status,
@@ -111,20 +102,15 @@ export async function fetchTrackingFrom17Track(
       });
       return null;
     }
-
     const data = await response.json();
-
     if (data.code !== 0 || !data.data?.accepted || data.data.accepted.length === 0) {
       return null;
     }
-
     const track = data.data.accepted[0];
     const trackInfo = data.data.track?.[track.number];
-
     if (!trackInfo) {
       return null;
     }
-
     return {
       trackingNumber: track.number || trackingNumber,
       carrier: track.carrier || "unknown",
@@ -160,7 +146,6 @@ export async function getTrackingFromShopify(
   orderId: string
 ): Promise<TrackingInfo | null> {
   try {
-
     const order = await prisma.conversionJob.findFirst({
       where: {
         shopId,
@@ -170,11 +155,9 @@ export async function getTrackingFromShopify(
         orderNumber: true,
       },
     });
-
     if (!order) {
       return null;
     }
-
     return {
       trackingNumber: order.orderNumber || "",
       carrier: "shopify",
@@ -197,20 +180,15 @@ export async function getOrderTracking(
   trackingNumber?: string
 ): Promise<TrackingInfo | null> {
   try {
-
     const config = await getUiModuleConfig(shopId, "order_tracking");
-
     if (!config.isEnabled) {
       return null;
     }
-
     const settings = config.settings as {
       provider?: "aftership" | "17track" | "native";
       apiKey?: string;
     } | null;
-
     const provider = settings?.provider || "native";
-
     const { canUseThirdPartyTracking } = await import("../utils/version-gate");
     if (provider !== "native") {
       const gateResult = canUseThirdPartyTracking(provider);
@@ -220,39 +198,32 @@ export async function getOrderTracking(
           orderId,
           reason: gateResult.reason,
         });
-
       }
     }
-
     if (!trackingNumber) {
       const tracking = await getTrackingFromShopify(shopId, orderId);
       if (tracking?.trackingNumber) {
         trackingNumber = tracking.trackingNumber;
       }
     }
-
     if (!trackingNumber) {
       return null;
     }
-
     switch (provider) {
       case "aftership":
         if (settings?.apiKey) {
           return await fetchTrackingFromAfterShip(trackingNumber, settings.apiKey);
         }
         break;
-
       case "17track":
         if (settings?.apiKey) {
           return await fetchTrackingFrom17Track(trackingNumber, settings.apiKey);
         }
         break;
-
       case "native":
       default:
         return await getTrackingFromShopify(shopId, orderId);
     }
-
     return null;
   } catch (error) {
     logger.error("Failed to get order tracking", {

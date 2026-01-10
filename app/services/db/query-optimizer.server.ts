@@ -5,7 +5,6 @@ export interface ShopWithConfigs {
   id: string;
   shopDomain: string;
   plan: string | null;
-
   consentStrategy: string | null;
   primaryDomain: string | null;
   storefrontDomains: string[];
@@ -49,7 +48,6 @@ export async function fetchJobsWithRelations(
   jobIds: string[]
 ): Promise<JobWithRelations[]> {
   if (jobIds.length === 0) return [];
-
   const jobs = await prisma.conversionJob.findMany({
     where: { id: { in: jobIds } },
     include: {
@@ -58,7 +56,6 @@ export async function fetchJobsWithRelations(
           id: true,
           shopDomain: true,
           plan: true,
-
           consentStrategy: true,
           primaryDomain: true,
           storefrontDomains: true,
@@ -76,7 +73,6 @@ export async function fetchJobsWithRelations(
       },
     },
   });
-
   return jobs.map(job => ({
     ...job,
     shop: job.Shop as ShopWithConfigs,
@@ -87,14 +83,12 @@ export async function fetchShopsWithConfigs(
   shopDomains: string[]
 ): Promise<ShopWithConfigs[]> {
   if (shopDomains.length === 0) return [];
-
   return prisma.shop.findMany({
     where: { shopDomain: { in: shopDomains }, isActive: true },
     select: {
       id: true,
       shopDomain: true,
       plan: true,
-
       consentStrategy: true,
       primaryDomain: true,
       storefrontDomains: true,
@@ -116,12 +110,10 @@ export async function fetchReceiptsMap(
   queries: Array<{ shopId: string; orderId: string }>
 ): Promise<Map<string, { orderId: string; checkoutToken: string | null; consentState: unknown; trustLevel: string }>> {
   if (queries.length === 0) return new Map();
-
   const orConditions = queries.map(q => ({
     shopId: q.shopId,
     orderId: q.orderId,
   }));
-
   const receipts = await prisma.pixelEventReceipt.findMany({
     where: { OR: orConditions },
     select: {
@@ -132,7 +124,6 @@ export async function fetchReceiptsMap(
       trustLevel: true,
     },
   });
-
   const map = new Map<string, { orderId: string; checkoutToken: string | null; consentState: unknown; trustLevel: string }>();
   for (const receipt of receipts) {
     const key = `${receipt.shopId}:${receipt.orderId}`;
@@ -143,7 +134,6 @@ export async function fetchReceiptsMap(
       trustLevel: receipt.trustLevel,
     });
   }
-
   return map;
 }
 
@@ -177,7 +167,6 @@ export async function countPendingJobsPerShop(
   shopIds: string[]
 ): Promise<Map<string, number>> {
   if (shopIds.length === 0) return new Map();
-
   const results = await prisma.conversionJob.groupBy({
     by: ["shopId"],
     where: {
@@ -186,12 +175,10 @@ export async function countPendingJobsPerShop(
     },
     _count: { id: true },
   });
-
   const map = new Map<string, number>();
   for (const result of results) {
     map.set(result.shopId, result._count.id);
   }
-
   return map;
 }
 
@@ -212,7 +199,6 @@ export async function paginateConversionLogs(
   params: CursorPaginationParams
 ): Promise<CursorPaginationResult<{ id: string; orderId: string; status: string; createdAt: Date }>> {
   const { cursor, take, orderBy = "desc" } = params;
-
   const items = await prisma.conversionLog.findMany({
     where: { shopId },
     select: {
@@ -226,11 +212,9 @@ export async function paginateConversionLogs(
     skip: cursor ? 1 : 0,
     orderBy: { createdAt: orderBy },
   });
-
   const hasMore = items.length > take;
   const resultItems = hasMore ? items.slice(0, -1) : items;
   const nextCursor = hasMore ? resultItems[resultItems.length - 1]?.id : null;
-
   return {
     items: resultItems,
     nextCursor,
@@ -259,11 +243,9 @@ export async function getConversionStats(
       orderValue: true,
     },
   });
-
   const totalOrders = logs.length;
   const successfulOrders = logs.filter(l => l.status === "sent").length;
   const totalValue = logs.reduce((sum, l) => sum + Number(l.orderValue), 0);
-
   const platformBreakdown: Record<string, { count: number; value: number }> = {};
   for (const log of logs) {
     if (!platformBreakdown[log.platform]) {
@@ -272,7 +254,6 @@ export async function getConversionStats(
     platformBreakdown[log.platform].count++;
     platformBreakdown[log.platform].value += Number(log.orderValue);
   }
-
   return {
     totalOrders,
     totalValue,
@@ -299,9 +280,7 @@ export async function getJobQueueHealth(): Promise<{
       select: { createdAt: true },
     }),
   ]);
-
   const countMap = new Map(counts.map(c => [c.status, c._count.id]));
-
   return {
     queued: countMap.get("queued") ?? 0,
     processing: countMap.get("processing") ?? 0,

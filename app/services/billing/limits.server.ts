@@ -17,11 +17,9 @@ export async function checkPixelDestinationsLimit(
   shopPlan: PlanId
 ): Promise<PlanLimitResult> {
   const limit = getPixelDestinationsLimit(shopPlan);
-
   if (limit === -1) {
     return { allowed: true, unlimited: true };
   }
-
   const currentCount = await prisma.pixelConfig.count({
     where: {
       shopId,
@@ -29,7 +27,6 @@ export async function checkPixelDestinationsLimit(
       serverSideEnabled: true,
     },
   });
-
   if (currentCount >= limit) {
     return {
       allowed: false,
@@ -39,7 +36,6 @@ export async function checkPixelDestinationsLimit(
       unlimited: false,
     };
   }
-
   return {
     allowed: true,
     current: currentCount,
@@ -53,18 +49,15 @@ export async function checkUiModulesLimit(
   shopPlan: PlanId
 ): Promise<PlanLimitResult> {
   const limit = getUiModulesLimit(shopPlan);
-
   if (limit === -1) {
     return { allowed: true, unlimited: true };
   }
-
   const currentCount = await prisma.uiExtensionSetting.count({
     where: {
       shopId,
       isEnabled: true,
     },
   });
-
   if (currentCount >= limit) {
     return {
       allowed: false,
@@ -74,7 +67,6 @@ export async function checkUiModulesLimit(
       unlimited: false,
     };
   }
-
   return {
     allowed: true,
     current: currentCount,
@@ -88,13 +80,10 @@ export async function checkMultiShopLimit(
   shopPlan: PlanId
 ): Promise<PlanLimitResult> {
   const limit = getMaxShops(shopPlan);
-
   if (limit === -1 || limit >= 50) {
     return { allowed: true, unlimited: true };
   }
-
   const canManage = await canManageMultipleShops(shopId);
-
   if (!canManage) {
     return {
       allowed: false,
@@ -104,7 +93,6 @@ export async function checkMultiShopLimit(
       unlimited: false,
     };
   }
-
   const shopGroups = await prisma.shopGroup.findMany({
     where: { ownerId: shopId },
     include: {
@@ -113,16 +101,13 @@ export async function checkMultiShopLimit(
       },
     },
   });
-
   const uniqueShopIds = new Set<string>();
   shopGroups.forEach((group) => {
     group.ShopGroupMember.forEach((member: { shopId: string }) => {
       uniqueShopIds.add(member.shopId);
     });
   });
-
   const currentCount = uniqueShopIds.size;
-
   if (currentCount >= limit) {
     return {
       allowed: false,
@@ -132,7 +117,6 @@ export async function checkMultiShopLimit(
       unlimited: false,
     };
   }
-
   return {
     allowed: true,
     current: currentCount,
@@ -154,7 +138,6 @@ export async function getAllLimitsSummary(
     checkUiModulesLimit(shopId, shopPlan),
     checkMultiShopLimit(shopId, shopPlan),
   ]);
-
   return {
     pixelDestinations: pixelLimit,
     uiModules: uiLimit,

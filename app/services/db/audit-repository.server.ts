@@ -64,7 +64,6 @@ export interface AuditLogEntry {
   previousValue?: Record<string, unknown>;
   newValue?: Record<string, unknown>;
   metadata?: Record<string, unknown>;
-
 }
 
 export interface AuditLogQueryOptions {
@@ -90,7 +89,6 @@ export interface AuditLogFull extends AuditLogSummary {
   previousValue: unknown;
   newValue: unknown;
   metadata: unknown;
-
 }
 
 const SENSITIVE_FIELDS = [
@@ -109,12 +107,9 @@ function redactSensitiveFields(
   obj: Record<string, unknown> | undefined
 ): Record<string, unknown> | undefined {
   if (!obj) return obj;
-
   const redacted: Record<string, unknown> = {};
-
   for (const [key, value] of Object.entries(obj)) {
     const lowerKey = key.toLowerCase();
-
     if (SENSITIVE_FIELDS.some((f) => lowerKey.includes(f.toLowerCase()))) {
       redacted[key] = "[REDACTED]";
     } else if (typeof value === "object" && value !== null && !Array.isArray(value)) {
@@ -123,12 +118,10 @@ function redactSensitiveFields(
       redacted[key] = value;
     }
   }
-
   return redacted;
 }
 
 export function extractRequestContext(request: Request): Record<string, never> {
-
   return {};
 }
 
@@ -149,10 +142,8 @@ export async function createAuditLogEntry(
         previousValue: redactSensitiveFields(entry.previousValue) as Prisma.InputJsonValue | undefined,
         newValue: redactSensitiveFields(entry.newValue) as Prisma.InputJsonValue | undefined,
         metadata: entry.metadata as Prisma.InputJsonValue | undefined,
-
       },
     });
-
     logger.debug(`Audit log: ${entry.action} on ${entry.resourceType}`, {
       shopId,
       action: entry.action,
@@ -171,7 +162,6 @@ export async function batchCreateAuditLogs(
   entries: Array<AuditLogEntry & { shopId: string }>
 ): Promise<number> {
   if (entries.length === 0) return 0;
-
   try {
     const result = await prisma.auditLog.createMany({
       data: entries.map((entry) => ({
@@ -185,10 +175,8 @@ export async function batchCreateAuditLogs(
         previousValue: redactSensitiveFields(entry.previousValue) as Prisma.InputJsonValue | undefined,
         newValue: redactSensitiveFields(entry.newValue) as Prisma.InputJsonValue | undefined,
         metadata: entry.metadata as Prisma.InputJsonValue | undefined,
-
       })),
     });
-
     logger.debug(`Batch created ${result.count} audit log entries`);
     return result.count;
   } catch (error) {
@@ -202,7 +190,6 @@ export async function getAuditLogsForShop(
   options: AuditLogQueryOptions = {}
 ): Promise<AuditLogSummary[]> {
   const { limit = 100, action, resourceType, fromDate, toDate } = options;
-
   return prisma.auditLog.findMany({
     where: {
       shopId,
@@ -238,16 +225,13 @@ export async function getAuditLogById(id: string): Promise<AuditLogFull | null> 
 }
 
 export async function cleanupOldAuditLogs(retentionDays = 90): Promise<number> {
-
   const cutoffDate = new Date();
   cutoffDate.setUTCDate(cutoffDate.getUTCDate() - retentionDays);
-
   const result = await prisma.auditLog.deleteMany({
     where: {
       createdAt: { lt: cutoffDate },
     },
   });
-
   logger.info(`Cleaned up ${result.count} audit log entries older than ${retentionDays} days`);
   return result.count;
 }
@@ -264,7 +248,6 @@ export async function countAuditLogsByAction(
     },
     _count: true,
   });
-
   return results.reduce(
     (acc, { action, _count }) => {
       acc[action] = _count;

@@ -29,20 +29,17 @@ export function HealthMetrics24hCard({ metrics }: HealthMetrics24hCardProps) {
       </Card>
     );
   }
-
   const getTone = (rate: number, threshold: number) => {
     if (rate <= threshold) return "success";
     if (rate <= threshold * 2) return "warning";
     return "critical";
   };
-
   return (
     <Card>
       <BlockStack gap="400">
         <Text as="h2" variant="headingMd">
           最近24h健康度
         </Text>
-
         <BlockStack gap="300">
           <InlineStack align="space-between" blockAlign="center">
             <Text as="span" variant="bodyMd" fontWeight="semibold">
@@ -57,9 +54,7 @@ export function HealthMetrics24hCard({ metrics }: HealthMetrics24hCardProps) {
               </Badge>
             </InlineStack>
           </InlineStack>
-
           <Divider />
-
           <InlineStack align="space-between" blockAlign="center">
             <Text as="span" variant="bodyMd" fontWeight="semibold">
               失败率
@@ -68,9 +63,7 @@ export function HealthMetrics24hCard({ metrics }: HealthMetrics24hCardProps) {
               {metrics.failureRate.toFixed(2)}%
             </Text>
           </InlineStack>
-
           <Divider />
-
           <InlineStack align="space-between" blockAlign="center">
             <Text as="span" variant="bodyMd" fontWeight="semibold">
               缺参率
@@ -79,7 +72,6 @@ export function HealthMetrics24hCard({ metrics }: HealthMetrics24hCardProps) {
               {metrics.missingParamsRate.toFixed(2)}%
             </Text>
           </InlineStack>
-
           {metrics.missingParamsRate > 0 && (
             <>
               <Divider />
@@ -111,7 +103,6 @@ export function HealthMetrics24hCard({ metrics }: HealthMetrics24hCardProps) {
             </>
           )}
         </BlockStack>
-
         <Banner tone="info">
           <Text as="p" variant="bodySm">
             <strong>口径说明：</strong>checkout_started 在 extensible 店铺每次进入 checkout 都会触发，可能影响事件量统计。

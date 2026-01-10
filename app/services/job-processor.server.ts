@@ -23,7 +23,6 @@ export async function processConversionJobs(
     failed: 0,
     errors: [],
   };
-
   try {
     const jobs = await prisma.conversionJob.findMany({
       where: {
@@ -48,7 +47,6 @@ export async function processConversionJobs(
         createdAt: "asc",
       },
     });
-
     for (const job of jobs) {
       result.processed++;
       try {
@@ -68,7 +66,6 @@ export async function processConversionJobs(
   } catch (error) {
     logger.error("Error processing conversion jobs", { error });
   }
-
   return result;
 }
 
@@ -77,33 +74,25 @@ async function processSingleJob(job: ConversionJob & { Shop: { shopDomain: strin
     where: { id: job.id },
     data: { status: "processing", processedAt: new Date() },
   });
-
   try {
     if (!job.capiInput) {
       throw new Error("Missing capiInput");
     }
-
     const capiInput = job.capiInput as { platform: string; [key: string]: unknown };
     const platform = capiInput.platform;
-
     if (!platform) {
       throw new Error("Missing platform in capiInput");
     }
-
     const platformService = getPlatformService(platform);
     if (!platformService) {
       throw new Error(`Unsupported platform: ${platform}`);
     }
-
-    
     const response = await platformService.sendConversion({
       orderId: job.orderId,
       orderValue: Number(job.orderValue),
       currency: job.currency,
       ...capiInput,
     });
-
-    
     await prisma.conversionJob.update({
       where: { id: job.id },
       data: {
@@ -117,8 +106,6 @@ async function processSingleJob(job: ConversionJob & { Shop: { shopDomain: strin
         },
       },
     });
-
-    
     await prisma.conversionLog.create({
       data: {
         id: `log-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
@@ -137,7 +124,6 @@ async function processSingleJob(job: ConversionJob & { Shop: { shopDomain: strin
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
     const attempts = job.attempts + 1;
-
     if (attempts >= MAX_RETRIES) {
       await prisma.conversionJob.update({
         where: { id: job.id },

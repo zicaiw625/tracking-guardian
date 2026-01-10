@@ -7,7 +7,6 @@ export {
   decryptJson,
   hashValue,
   hashValueSync,
-
   normalizePhone,
   normalizeEmail,
   generateEventId,

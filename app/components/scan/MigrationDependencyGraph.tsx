@@ -34,38 +34,30 @@ export function MigrationDependencyGraph({
     if (!dependencyGraph) {
       return { sortedNodes: [], cycles: [], criticalPath: [] };
     }
-
     const inDegree = new Map<string, number>();
     const dependents = new Map<string, string[]>();
     const nodeMap = new Map<string, typeof dependencyGraph.nodes[0]>();
-
     dependencyGraph.nodes.forEach((node) => {
       inDegree.set(node.id, 0);
       dependents.set(node.id, []);
       nodeMap.set(node.id, node);
     });
-
     dependencyGraph.edges.forEach((edge) => {
-
       if (edge.type === "depends_on") {
         const current = inDegree.get(edge.to) || 0;
         inDegree.set(edge.to, current + 1);
-
         const deps = dependents.get(edge.from) || [];
         deps.push(edge.to);
         dependents.set(edge.from, deps);
       }
     });
-
     const sorted: typeof dependencyGraph.nodes = [];
     const queue: string[] = [];
-
     inDegree.forEach((degree, nodeId) => {
       if (degree === 0) {
         queue.push(nodeId);
       }
     });
-
     while (queue.length > 0) {
       const nodeId = queue.shift();
       if (!nodeId) break;
@@ -73,47 +65,37 @@ export function MigrationDependencyGraph({
       if (node) {
         sorted.push(node);
       }
-
       const dependentsList = dependents.get(nodeId) || [];
       dependentsList.forEach((dependentId) => {
         const current = inDegree.get(dependentId) || 0;
         inDegree.set(dependentId, Math.max(0, current - 1));
-
         if (inDegree.get(dependentId) === 0) {
           queue.push(dependentId);
         }
       });
     }
-
     const cycles: string[][] = [];
     const remaining = dependencyGraph.nodes.filter(
       (n) => !sorted.find((s) => s.id === n.id)
     );
     if (remaining.length > 0) {
-
       cycles.push(remaining.map((n) => n.id));
     }
-
     const criticalPath: string[] = [];
     const pathLengths = new Map<string, number>();
-
     const calculatePathLength = (nodeId: string): number => {
       if (pathLengths.has(nodeId)) {
         return pathLengths.get(nodeId)!;
       }
-
       const node = nodeMap.get(nodeId);
       if (!node) return 0;
-
       const incomingEdges = dependencyGraph.edges.filter(
         (e) => e.to === nodeId && e.type === "depends_on"
       );
-
       if (incomingEdges.length === 0) {
         pathLengths.set(nodeId, 1);
         return 1;
       }
-
       const maxLength =
         Math.max(
           ...incomingEdges.map((e) => calculatePathLength(e.from))
@@ -121,18 +103,14 @@ export function MigrationDependencyGraph({
       pathLengths.set(nodeId, maxLength);
       return maxLength;
     };
-
     dependencyGraph.nodes.forEach((node) => {
       calculatePathLength(node.id);
     });
-
     const maxLength = Math.max(...Array.from(pathLengths.values()));
     const criticalNode = Array.from(pathLengths.entries()).find(
       ([, length]) => length === maxLength
     )?.[0];
-
     if (criticalNode) {
-
       let current = criticalNode;
       while (current) {
         criticalPath.unshift(current);
@@ -146,10 +124,8 @@ export function MigrationDependencyGraph({
         }
       }
     }
-
     return { sortedNodes: sorted, cycles, criticalPath };
   }, [dependencyGraph]);
-
   if (!dependencyGraph || dependencyGraph.nodes.length === 0) {
     return (
       <Card>
@@ -166,7 +142,6 @@ export function MigrationDependencyGraph({
       </Card>
     );
   }
-
   return (
     <Card>
       <BlockStack gap="400">
@@ -178,7 +153,6 @@ export function MigrationDependencyGraph({
             {`${dependencyGraph.nodes.length} 个资产`}
           </Badge>
         </InlineStack>
-
         {cycles.length > 0 && (
           <Banner tone="critical">
             <BlockStack gap="200">
@@ -200,7 +174,6 @@ export function MigrationDependencyGraph({
             </BlockStack>
           </Banner>
         )}
-
         {criticalPath.length > 0 && (
           <Box
             background="bg-surface-secondary"
@@ -222,7 +195,6 @@ export function MigrationDependencyGraph({
                 {criticalPath.map((nodeId, index) => {
                   const node = dependencyGraph.nodes.find((n) => n.id === nodeId);
                   if (!node) return null;
-
                   return (
                     <List.Item key={nodeId}>
                       <InlineStack gap="200" blockAlign="center" wrap>
@@ -261,7 +233,6 @@ export function MigrationDependencyGraph({
             </BlockStack>
           </Box>
         )}
-
         <Box
           background="bg-surface-secondary"
           padding="400"
@@ -278,7 +249,6 @@ export function MigrationDependencyGraph({
                 const dependencies = dependencyGraph.edges
                   .filter((e) => e.to === node.id && e.type === "depends_on")
                   .map((e) => e.from);
-
                 return (
                   <List.Item key={node.id}>
                     <BlockStack gap="200">
@@ -325,7 +295,6 @@ export function MigrationDependencyGraph({
             </List>
           </BlockStack>
         </Box>
-
         <Box
           background="bg-surface-secondary"
           padding="400"
@@ -346,9 +315,7 @@ export function MigrationDependencyGraph({
                 const toNode = dependencyGraph.nodes.find(
                   (n) => n.id === edge.to
                 );
-
                 if (!fromNode || !toNode) return null;
-
                 return (
                   <Box
                     key={index}

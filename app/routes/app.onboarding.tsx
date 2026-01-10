@@ -45,29 +45,22 @@ function estimateMigrationTime(
   riskScore: number,
   riskItems?: RiskItem[]
 ): { hours: number; label: string; description: string } {
-
   const baseTime = 0.25;
-
   const highRiskScriptTags = riskItems?.filter(item => item.severity === "high").length || 0;
   const mediumRiskScriptTags = riskItems?.filter(item => item.severity === "medium").length || 0;
   const lowRiskScriptTags = (scriptTagCount - highRiskScriptTags - mediumRiskScriptTags) || 0;
-
   const perHighRiskScriptTag = 0.4;
   const perMediumRiskScriptTag = 0.25;
   const perLowRiskScriptTag = 0.15;
-
   const scriptTagTime =
     highRiskScriptTags * perHighRiskScriptTag +
     mediumRiskScriptTags * perMediumRiskScriptTag +
     lowRiskScriptTags * perLowRiskScriptTag;
-
   const complexPlatforms = ["pinterest", "snapchat", "twitter"];
   const simplePlatforms = ["google", "meta", "tiktok"];
   const perComplexPlatform = 0.5;
   const perSimplePlatform = 0.3;
-
   const platformTime = platformCount * perSimplePlatform;
-
   let riskMultiplier = 1.0;
   if (riskScore > 70) {
     riskMultiplier = 1.6;
@@ -78,13 +71,10 @@ function estimateMigrationTime(
   } else if (riskScore > 10) {
     riskMultiplier = 1.1;
   }
-
   const parallelFactor = platformCount > 1 ? 0.7 : 1.0;
-
   const sequentialTime = baseTime + scriptTagTime + platformTime;
   const parallelTime = baseTime + scriptTagTime + (platformTime * parallelFactor);
   const totalHours = Math.max(sequentialTime, parallelTime) * riskMultiplier;
-
   let description = "";
   if (totalHours <= 0.5) {
     description = "您的配置相对简单，迁移将非常快速。建议一次性完成所有步骤。";
@@ -95,7 +85,6 @@ function estimateMigrationTime(
   } else {
     description = "配置较为复杂，建议分阶段完成迁移。优先处理高风险项，确保每步验证后再继续。";
   }
-
   let label = "";
   if (totalHours <= 0.5) {
     label = "约 30 分钟";
@@ -108,7 +97,6 @@ function estimateMigrationTime(
   } else {
     label = "2+ 小时";
   }
-
   return {
     hours: Math.round(totalHours * 100) / 100,
     label,
@@ -151,11 +139,9 @@ interface OnboardingData {
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   const { session, admin } = await authenticate.admin(request);
   const shopDomain = session.shop;
-
   const url = new URL(request.url);
   const autoScan = url.searchParams.get("autoScan") === "true";
   const skipOnboarding = url.searchParams.get("skip") === "true";
-
   const shop = await prisma.shop.findUnique({
     where: { shopDomain },
     select: {
@@ -170,7 +156,6 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       },
     },
   });
-
   if (!shop) {
     return json<OnboardingData>({
       step: 1,
@@ -183,11 +168,9 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       onboardingComplete: false,
     });
   }
-
   if (skipOnboarding) {
     return redirect("/app");
   }
-
     const planId = normalizePlanId(shop.plan ?? "free");
   const isAgency = isPlanAtLeast(planId, "agency");
     safeFireAndForget(
@@ -202,10 +185,8 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
               },
     })
   );
-
   const latestScan = shop.ScanReports?.[0];
   if (!latestScan && admin && !autoScan) {
-
     scanShopTracking(admin, shop.id).catch((err) => {
       const errorMessage = err instanceof Error ? err.message : String(err);
       const errorStack = err instanceof Error ? err.stack : undefined;
@@ -219,13 +200,11 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   let scanResult: OnboardingData["scanResult"] = null;
   let migrationEstimate: OnboardingData["migrationEstimate"] = null;
   let urgency: OnboardingData["urgency"] = null;
-
   if (latestScan) {
     const scriptTags = (latestScan.scriptTags as ScriptTag[] | null) || [];
     const platforms = (latestScan.identifiedPlatforms as string[] | null) || [];
     const riskItems = (latestScan.riskItems as RiskItem[] | null) || [];
     const hasOrderStatusScripts = scriptTags.some(tag => tag.display_scope === "order_status");
-
     scanResult = {
       riskScore: latestScan.riskScore,
       scriptTagCount: scriptTags.length,
@@ -234,14 +213,12 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       hasOrderStatusScripts,
       riskItems,
     };
-
     migrationEstimate = estimateMigrationTime(
       scriptTags.length,
       platforms.length,
       latestScan.riskScore,
       riskItems
     );
-
     const shopTier = (shop.shopTier as ShopTier) || "unknown";
     const migrationUrgency = getMigrationUrgencyStatus(shopTier, scriptTags.length > 0, hasOrderStatusScripts);
     urgency = {
@@ -252,10 +229,8 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       description: migrationUrgency.primaryMessage,
     };
   }
-
   let typOspEnabled = shop.typOspPagesEnabled;
   let typOspReason = shop.typOspStatusReason;
-
   if (admin && typOspEnabled === null) {
     try {
       const typOspResult = await refreshTypOspStatus(admin, shop.id);
@@ -265,12 +240,10 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       }
     } catch (error) {
       logger.error("Failed to refresh TYP/OSP status", { error });
-
       typOspEnabled = false;
       typOspReason = "API错误，请稍后重试";
     }
   }
-
   const data: OnboardingData = {
     step: latestScan ? 3 : 1,
     isScanning: false,
@@ -287,7 +260,6 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     urgency,
     onboardingComplete: !!latestScan,
   };
-
   return json(data);
 };
 
@@ -296,15 +268,12 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   const shopDomain = session.shop;
   const formData = await request.formData();
   const actionType = formData.get("_action");
-
   const shop = await prisma.shop.findUnique({
     where: { shopDomain },
   });
-
   if (!shop) {
     return json({ error: "店铺未找到" }, { status: 404 });
   }
-
   if (actionType === "run_scan") {
     try {
       const scanResult = await scanShopTracking(admin, shop.id);
@@ -314,11 +283,9 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       return json({ error: "扫描失败，请稍后重试" }, { status: 500 });
     }
   }
-
   if (actionType === "complete_onboarding") {
     return redirect("/app/audit/start");
   }
-
   return json({ error: "未知操作" }, { status: 400 });
 };
 
@@ -382,10 +349,8 @@ export default function OnboardingPage() {
   const [searchParams] = useSearchParams();
   const { showSuccess, showError } = useToastContext();
   const [acknowledged, setAcknowledged] = useState(false);
-
   const isScanning = navigation.state === "submitting";
   const autoScan = searchParams.get("autoScan") === "true";
-
   useEffect(() => {
     if (actionData) {
       if ("success" in actionData && actionData.success) {
@@ -401,25 +366,21 @@ export default function OnboardingPage() {
       }
     }
   }, [actionData, showSuccess, showError]);
-
   useEffect(() => {
     if (autoScan && !data.scanComplete && !isScanning) {
       handleStartScan();
     }
   }, [autoScan]);
-
   const handleStartScan = useCallback(() => {
     const formData = new FormData();
     formData.append("_action", "run_scan");
     submit(formData, { method: "post" });
   }, [submit]);
-
   const handleCompleteOnboarding = useCallback(() => {
     const formData = new FormData();
     formData.append("_action", "complete_onboarding");
     submit(formData, { method: "post" });
   }, [submit]);
-
   const getPlatformName = (platform: string) => {
     const names: Record<string, string> = {
       google: "Google Analytics 4",
@@ -432,7 +393,6 @@ export default function OnboardingPage() {
     };
     return names[platform] || platform;
   };
-
   if (!data.shop) {
     return (
       <Page title="欢迎使用 Tracking Guardian">
@@ -444,7 +404,6 @@ export default function OnboardingPage() {
       </Page>
     );
   }
-
   return (
     <Page
       title="🚀 欢迎使用升级迁移交付平台"
@@ -477,7 +436,6 @@ export default function OnboardingPage() {
             </InlineStack>
           </Box>
         </Card>
-
         <Card>
           <BlockStack gap="400">
             <InlineStack align="space-between" blockAlign="center">
@@ -488,9 +446,7 @@ export default function OnboardingPage() {
                 {data.shop.typOspEnabled ? "已升级新页面" : "使用旧页面"}
               </Badge>
             </InlineStack>
-
             <Divider />
-
             <Layout>
               <Layout.Section variant="oneThird">
                 <Box background="bg-surface-secondary" padding="400" borderRadius="200">
@@ -523,7 +479,6 @@ export default function OnboardingPage() {
                 </Box>
               </Layout.Section>
             </Layout>
-
             {data.shop.typOspReason && !data.shop.typOspEnabled && (
               <Banner tone="info">
                 <Text as="p" variant="bodySm">
@@ -533,7 +488,6 @@ export default function OnboardingPage() {
             )}
           </BlockStack>
         </Card>
-
         {!data.scanComplete && (
           <Card>
             <BlockStack gap="400">
@@ -542,12 +496,10 @@ export default function OnboardingPage() {
                   🔍 自动体检
                 </Text>
               </InlineStack>
-
               <Text as="p" tone="subdued">
                 我们将自动扫描您店铺中的 ScriptTags、Web Pixels 和追踪配置，
                 识别需要迁移的脚本并评估风险等级。
               </Text>
-
               {isScanning ? (
                 <Card>
                   <BlockStack gap="400">
@@ -573,13 +525,11 @@ export default function OnboardingPage() {
                       </List>
                     </BlockStack>
                   </Box>
-
                   <Checkbox
                     label="我了解扫描不会修改任何店铺设置"
                     checked={acknowledged}
                     onChange={setAcknowledged}
                   />
-
                   <InlineStack gap="200">
                     <Button
                       variant="primary"
@@ -599,7 +549,6 @@ export default function OnboardingPage() {
             </BlockStack>
           </Card>
         )}
-
         {data.scanComplete && data.scanResult && (
           <>
             <Layout>
@@ -635,7 +584,6 @@ export default function OnboardingPage() {
                   </BlockStack>
                 </Card>
               </Layout.Section>
-
               <Layout.Section variant="oneThird">
                 <Card>
                   <BlockStack gap="400">
@@ -654,7 +602,6 @@ export default function OnboardingPage() {
                   </BlockStack>
                 </Card>
               </Layout.Section>
-
               <Layout.Section variant="oneThird">
                 <Card>
                   <BlockStack gap="400">
@@ -684,12 +631,10 @@ export default function OnboardingPage() {
                 </Card>
               </Layout.Section>
             </Layout>
-
             <Card>
               <BlockStack gap="400">
                 <Text as="h2" variant="headingMd">📊 检测结果摘要</Text>
                 <Divider />
-
                 <Layout>
                   <Layout.Section variant="oneHalf">
                     <BlockStack gap="300">
@@ -713,7 +658,6 @@ export default function OnboardingPage() {
                       </InlineStack>
                     </BlockStack>
                   </Layout.Section>
-
                   <Layout.Section variant="oneHalf">
                     <BlockStack gap="200">
                       <Text as="p" fontWeight="semibold">检测到的追踪平台：</Text>
@@ -731,13 +675,11 @@ export default function OnboardingPage() {
                 </Layout>
               </BlockStack>
             </Card>
-
             {data.scanResult.riskItems.length > 0 && (
               <Card>
                 <BlockStack gap="400">
                   <Text as="h2" variant="headingMd">⚠️ 风险项</Text>
                   <Divider />
-
                   <BlockStack gap="300">
                     {data.scanResult.riskItems.slice(0, 5).map((item, index) => (
                       <Box
@@ -789,12 +731,10 @@ export default function OnboardingPage() {
                 </BlockStack>
               </Card>
             )}
-
             <Card>
               <BlockStack gap="400">
                 <Text as="h2" variant="headingMd">🎯 下一步操作</Text>
                 <Divider />
-
                 <BlockStack gap="300">
                   <Box background="bg-surface-secondary" padding="400" borderRadius="200">
                     <InlineStack align="space-between" blockAlign="center">
@@ -812,7 +752,6 @@ export default function OnboardingPage() {
                       </Button>
                     </InlineStack>
                   </Box>
-
                   <Box background="bg-surface-secondary" padding="400" borderRadius="200">
                     <InlineStack align="space-between" blockAlign="center">
                       <BlockStack gap="100">
@@ -828,7 +767,6 @@ export default function OnboardingPage() {
                       </Button>
                     </InlineStack>
                   </Box>
-
                   <Box background="bg-surface-secondary" padding="400" borderRadius="200">
                     <InlineStack align="space-between" blockAlign="center">
                       <BlockStack gap="100">
@@ -844,7 +782,6 @@ export default function OnboardingPage() {
                       </Button>
                     </InlineStack>
                   </Box>
-
                   <Box background="bg-surface-secondary" padding="400" borderRadius="200">
                     <InlineStack align="space-between" blockAlign="center">
                       <BlockStack gap="100">
@@ -861,9 +798,7 @@ export default function OnboardingPage() {
                     </InlineStack>
                   </Box>
                 </BlockStack>
-
                 <Divider />
-
                 <InlineStack align="end">
                   <Button
                     variant="primary"
@@ -878,7 +813,6 @@ export default function OnboardingPage() {
             </Card>
           </>
         )}
-
         <Card>
           <BlockStack gap="300">
             <Text as="h2" variant="headingMd">💡 需要帮助？</Text>

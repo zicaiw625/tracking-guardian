@@ -1,25 +1,20 @@
 export type {
-
   GDPRJobType,
   GDPRJobStatus,
-
   DataRequestPayload,
   CustomerRedactPayload,
   ShopRedactPayload,
   GDPRPayload,
-
   DataRequestResult,
   CustomerRedactResult,
   ShopRedactResult,
   GDPRJobResult,
-
   ExportedConversionLog,
   ExportedSurveyResponse,
   ExportedPixelEventReceipt,
   DataLocatedSummary,
   CustomerRedactDeletionCounts,
   ShopRedactDeletionCounts,
-
   ProcessGDPRJobResult,
   ProcessGDPRJobsResult,
   GDPRJobStatusSummary,
@@ -28,20 +23,16 @@ export type {
 } from "./types";
 
 export {
-
   isDataRequestResult,
   isCustomerRedactResult,
   isShopRedactResult,
-
   parseDataRequestPayload,
   parseCustomerRedactPayload,
   parseShopRedactPayload,
   parseGDPRPayload,
-
   DataRequestPayloadSchema,
   CustomerRedactPayloadSchema,
   ShopRedactPayloadSchema,
-
   createEmptyDataRequestResult,
   createEmptyCustomerRedactResult,
   createEmptyShopRedactDeletionCounts,

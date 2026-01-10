@@ -33,7 +33,6 @@ export function UpgradeWizardGuide({
 }: UpgradeWizardGuideProps) {
   const [step, setStep] = useState<1 | 2 | 3>(1);
   const [pastedContent, setPastedContent] = useState("");
-
   const handleFileUpload = useCallback(
     (event: React.ChangeEvent<HTMLInputElement>) => {
       const file = event.target.files?.[0];
@@ -44,7 +43,6 @@ export function UpgradeWizardGuide({
     },
     [onUploadScreenshot, onClose]
   );
-
   const handlePasteSubmit = useCallback(() => {
     if (pastedContent.trim()) {
       onPasteContent?.(pastedContent.trim());
@@ -52,7 +50,6 @@ export function UpgradeWizardGuide({
       onClose();
     }
   }, [pastedContent, onPasteContent, onClose]);
-
   const handleNext = useCallback(() => {
     if (step === 1) {
       setStep(2);
@@ -60,7 +57,6 @@ export function UpgradeWizardGuide({
       setStep(3);
     }
   }, [step]);
-
   const handleBack = useCallback(() => {
     if (step === 2) {
       setStep(1);
@@ -68,13 +64,11 @@ export function UpgradeWizardGuide({
       setStep(2);
     }
   }, [step]);
-
   const handleCancel = useCallback(() => {
     setStep(1);
     setPastedContent("");
     onClose();
   }, [onClose]);
-
   return (
     <Modal
       open={open}
@@ -128,7 +122,6 @@ export function UpgradeWizardGuide({
               步骤 3
             </Text>
           </InlineStack>
-
           {step === 1 && (
             <BlockStack gap="400">
               <Text as="h3" variant="headingMd">
@@ -137,7 +130,6 @@ export function UpgradeWizardGuide({
               <Text as="p" variant="bodySm" tone="subdued">
                 按照以下步骤在 Shopify Admin 中找到升级向导和脚本清单
               </Text>
-
               <Card>
                 <BlockStack gap="300">
                   <List type="number">
@@ -171,7 +163,6 @@ export function UpgradeWizardGuide({
                   </List>
                 </BlockStack>
               </Card>
-
               <Banner tone="info">
                 <BlockStack gap="200">
                   <Text as="p" variant="bodySm" fontWeight="semibold">
@@ -192,7 +183,6 @@ export function UpgradeWizardGuide({
                   </List>
                 </BlockStack>
               </Banner>
-
               <Box paddingBlockStart="400">
                 <Link
                   url="https://help.shopify.com/en/manual/checkout-settings"
@@ -208,7 +198,6 @@ export function UpgradeWizardGuide({
               </Box>
             </BlockStack>
           )}
-
           {step === 2 && (
             <BlockStack gap="400">
               <Text as="h3" variant="headingMd">
@@ -217,7 +206,6 @@ export function UpgradeWizardGuide({
               <Text as="p" variant="bodySm" tone="subdued">
                 您可以通过以下方式将升级向导中的信息导入到 Tracking Guardian
               </Text>
-
               <BlockStack gap="300">
                 {onImportFromWizard && (
                   <Card>
@@ -245,7 +233,6 @@ export function UpgradeWizardGuide({
                     </BlockStack>
                   </Card>
                 )}
-
                 <Card>
                   <BlockStack gap="300">
                     <InlineStack gap="200" align="start">
@@ -267,7 +254,6 @@ export function UpgradeWizardGuide({
                     </InlineStack>
                   </BlockStack>
                 </Card>
-
                 {onUploadScreenshot && (
                   <Card>
                     <BlockStack gap="300">
@@ -295,7 +281,6 @@ export function UpgradeWizardGuide({
               </BlockStack>
             </BlockStack>
           )}
-
           {step === 3 && (
             <BlockStack gap="400">
               <Text as="h3" variant="headingMd">

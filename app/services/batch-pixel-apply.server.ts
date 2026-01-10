@@ -20,8 +20,6 @@ export async function createPixelTemplate(data: {
   shopId?: string;
   isPublic?: boolean;
 }): Promise<PixelTemplate> {
-  
-  
   const template: PixelTemplate = {
     id: `template-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
     name: data.name,
@@ -32,19 +30,15 @@ export async function createPixelTemplate(data: {
     createdAt: new Date(),
     updatedAt: new Date(),
   };
-
   logger.info("Pixel template created", { templateId: template.id });
   return template;
 }
 
 export async function getPixelTemplates(shopId?: string, includePublic: boolean = true): Promise<PixelTemplate[]> {
-  
-  
   return [];
 }
 
 export async function getPixelTemplate(templateId: string): Promise<PixelTemplate | null> {
-  
   return null;
 }
 
@@ -52,12 +46,10 @@ export async function updatePixelTemplate(
   templateId: string,
   data: Partial<PixelTemplate>
 ): Promise<PixelTemplate | null> {
-  
   return null;
 }
 
 export async function deletePixelTemplate(templateId: string): Promise<boolean> {
-  
   return true;
 }
 
@@ -70,15 +62,12 @@ export async function batchApplyPixelTemplate(
     failed: 0,
     errors: [] as Array<{ shopId: string; error: string }>,
   };
-
   const template = await getPixelTemplate(templateId);
   if (!template) {
     throw new Error("Template not found");
   }
-
   for (const shopId of shopIds) {
     try {
-      
       for (const platformConfig of template.platforms) {
         await prisma.pixelConfig.upsert({
           where: {
@@ -108,7 +97,6 @@ export async function batchApplyPixelTemplate(
           },
         });
       }
-
       result.succeeded++;
     } catch (error) {
       result.failed++;
@@ -118,7 +106,6 @@ export async function batchApplyPixelTemplate(
       });
     }
   }
-
   return result;
 }
 
@@ -145,7 +132,6 @@ export async function applyPresetTemplate(
   if (!template) {
     return { success: false, error: "Preset template not found" };
   }
-
   try {
     const result = await batchApplyPixelTemplate(templateId, [shopId]);
     return {

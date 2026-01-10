@@ -4,7 +4,6 @@ export { logger, createRequestLogger, type RequestLogger } from "./logger.server
 
 export {
   hashValue,
-
   normalizePhone,
   normalizeEmail,
   getEncryptionKey,
@@ -52,7 +51,6 @@ export {
   validationErrorResponse,
   withValidation,
   type ValidationResult,
-
   type ValidationError as ZodValidationError,
   type ValidateResult,
 } from "./validate-request";
@@ -75,14 +73,12 @@ export {
 } from "./api-handler";
 
 export {
-
   getEnv,
   getRequiredEnv,
   getBoolEnv,
   getNumEnv,
   isProduction,
   isDevelopment,
-
   CONFIG,
   API_CONFIG,
   RATE_LIMIT_CONFIG,
@@ -97,18 +93,14 @@ export {
   SCANNER_CONFIG,
   MONITORING_CONFIG,
   FEATURE_FLAGS,
-
   INGESTION_KEY_CONFIG,
-
   validateConfig,
   validateAllConfig,
   logConfigStatus,
-
   getConfigSummary,
   getRetentionConfigSummary,
   getFeatureFlagsSummary,
   getPcdConfigSummary,
-
   getApiTimeout,
   getRateLimitForEndpoint,
   isFeatureEnabled,
@@ -163,7 +155,6 @@ export {
 } from "./shop-access";
 
 export {
-
   parseGDPRDataRequestPayload,
   parseGDPRCustomerRedactPayload,
   parseGDPRShopRedactPayload,
@@ -174,34 +165,26 @@ export {
 } from "./webhook-validation";
 
 export {
-
   SimpleCache,
   RedisCache,
-
   TTL,
-
   memoizeAsync,
   memoize,
-
   billingCache,
   shopConfigCache,
   pixelConfigCache,
   secretCache,
-
   clearAllCaches,
   cleanupCaches,
   getCacheStats,
   invalidateShopCaches,
-
   CACHE_NAMESPACES,
   CacheKeyBuilder,
   CacheKeys,
-
   warmCache,
   warmRedisCache,
   registerCacheWarmer,
   runCacheWarmers,
-
   type CacheOptions,
   type CacheStats,
   type ShopConfigCacheEntry,
@@ -211,7 +194,6 @@ export {
 } from "./cache";
 
 export {
-
   checkRateLimit,
   checkRateLimitAsync,
   resetRateLimit,
@@ -220,17 +202,14 @@ export {
   withRateLimit,
   getRateLimitConfig,
   getRateLimitStats,
-
   trackAnomaly,
   unblockShop,
   clearAllTracking,
   getBlockedShops,
   getAnomalyStats,
   cleanupAnomalyTrackers,
-
   SECURITY_HEADERS,
   addSecurityHeaders as addRateLimiterSecurityHeaders,
-
   type RateLimitConfig,
   type RateLimitResult,
 } from "./rate-limiter";
@@ -263,38 +242,29 @@ export {
 } from "./cron-lock";
 
 export {
-
   safeParseFloat,
   safeParseInt,
   safeParseBool,
-
   truncate,
   normalizeShopDomain,
-
   getErrorMessage as getErrorMessageSimple,
   maskSensitive,
-
   getNestedValue,
   isObject,
   removeNullish,
-
   chunk,
   unique,
   groupBy,
-
   isWithinTimeWindow,
   getCurrentYearMonth,
   daysAgo,
   daysAgoUTC,
-
   delay,
   retry,
   parallelLimit,
-
   isValidEmail,
   isValidUrl,
   isShopifyDomain,
-
   generateSimpleId,
   extractShopifyId,
 } from "./helpers";
@@ -331,7 +301,6 @@ export {
 } from "./platform-consent";
 
 export {
-
   successResponse as actionSuccessResponse,
   successMessage,
   errorResponse as actionErrorResponse,
@@ -382,19 +351,16 @@ export {
 } from "./cors";
 
 export {
-
   safeJsonParse,
   safeJsonStringify,
   deepClone,
   deepMerge,
-
   capitalize,
   camelToKebab,
   kebabToCamel,
   slugify,
   truncate as truncateCommon,
   maskString,
-
   clamp,
   roundTo,
   formatCurrency,
@@ -402,7 +368,6 @@ export {
   formatPercentage,
   sum,
   average,
-
   formatDate,
   formatDateTime,
   getRelativeTime,
@@ -410,13 +375,11 @@ export {
   getUTCDayBounds,
   getMonthBounds,
   isDateInRange,
-
   pick,
   omit,
   isEmpty,
   isNullish,
   isNonEmptyString,
-
   flatten,
   uniqueBy,
   chunk as chunkCommon,
@@ -424,14 +387,11 @@ export {
   groupBy as groupByCommon,
   debounce,
   throttle,
-
   sleep,
   retry as retryCommon,
   parallelLimit as parallelLimitCommon,
-
   isValidEmail as isValidEmailCommon,
   isValidUrl as isValidUrlCommon,
-
   getEnv as getEnvCommon,
   getEnvBoolean,
   getEnvNumber,
@@ -455,7 +415,6 @@ export {
 export type MetricLabels = Record<string, string>;
 
 export {
-
   startSpan,
   withSpan,
   withSpanAsync,
@@ -463,26 +422,19 @@ export {
   getCurrentTraceId,
   addSpanEvent,
   setSpanAttributes,
-
   startServerSpan,
   endServerSpan,
   extractTraceContext,
   injectTraceContext,
-
   startDbSpan,
   traceDbOperation,
-
   startExternalHttpSpan,
   traceExternalHttp,
-
   registerSpanProcessor,
   removeSpanProcessor,
-
   tracing,
-
   SpanStatus,
   SpanKind,
-
   type Span,
   type ActiveSpan,
   type SpanContext,

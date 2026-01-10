@@ -35,7 +35,6 @@ export function jsonWithCors<T>(
   const corsHeaders = shopAllowedDomains
     ? getCorsHeadersForShop(request, shopAllowedDomains)
     : getCorsHeadersPreBody(request);
-
   return jsonWithCorsBase(data, {
     ...responseInit,
     request,
@@ -53,7 +52,6 @@ export function emptyResponseWithCors(
   const headers = shopAllowedDomains
     ? getCorsHeadersForShop(request, shopAllowedDomains)
     : getCorsHeadersPreBody(request);
-
   return new Response(null, {
     status: 204,
     headers,

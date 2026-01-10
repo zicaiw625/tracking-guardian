@@ -20,7 +20,6 @@ export async function getEventSuccessRate(
   hours: number = 24
 ): Promise<EventSuccessRateResult> {
   const startDate = new Date(Date.now() - hours * 60 * 60 * 1000);
-
   const stats = await prisma.conversionLog.groupBy({
     by: ["platform", "status"],
     where: {
@@ -31,20 +30,16 @@ export async function getEventSuccessRate(
       id: true,
     },
   });
-
   const byPlatform: Record<string, { total: number; success: number; failure: number; successRate: number }> = {};
   let totalSuccess = 0;
   let totalFailure = 0;
-
   for (const stat of stats) {
     const platform = stat.platform;
     if (!byPlatform[platform]) {
       byPlatform[platform] = { total: 0, success: 0, failure: 0, successRate: 0 };
     }
-
     const count = stat._count.id;
     byPlatform[platform].total += count;
-
     if (stat.status === "sent") {
       totalSuccess += count;
       byPlatform[platform].success += count;
@@ -53,17 +48,13 @@ export async function getEventSuccessRate(
       byPlatform[platform].failure += count;
     }
   }
-
-  
   for (const platform in byPlatform) {
     const stats = byPlatform[platform];
     stats.successRate = stats.total > 0 ? (stats.success / stats.total) * 100 : 0;
   }
-
   const total = totalSuccess + totalFailure;
   const successRate = total > 0 ? (totalSuccess / total) * 100 : 0;
   const failureRate = total > 0 ? (totalFailure / total) * 100 : 0;
-
   return {
     total,
     success: totalSuccess,

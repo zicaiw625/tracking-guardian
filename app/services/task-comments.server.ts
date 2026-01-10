@@ -28,7 +28,6 @@ export async function createTaskComment(
   authorShopId: string
 ): Promise<{ id: string } | { error: string }> {
   try {
-
     const task = await prisma.migrationTask.findUnique({
       where: { id: input.taskId },
       include: {
@@ -37,20 +36,16 @@ export async function createTaskComment(
         },
       },
     });
-
     if (!task) {
       return { error: "任务不存在" };
     }
-
     const isOwner = task.shopId === authorShopId;
     const isAssignedTo = task.assignedToShopId === authorShopId;
     const isGroupMember = task.ShopGroup?.ShopGroupMember.some((m: { shopId: string }) => m.shopId === authorShopId);
     const isGroupOwner = task.ShopGroup?.ownerId === authorShopId;
-
     if (!isOwner && !isAssignedTo && !isGroupMember && !isGroupOwner) {
       return { error: "无权在此任务中评论" };
     }
-
     if (input.parentCommentId) {
       const parentComment = await prisma.taskComment.findUnique({
         where: { id: input.parentCommentId },
@@ -59,7 +54,6 @@ export async function createTaskComment(
         return { error: "父评论不存在或不属于此任务" };
       }
     }
-
     const comment = await prisma.taskComment.create({
       data: {
         id: randomUUID(),
@@ -71,17 +65,13 @@ export async function createTaskComment(
         updatedAt: new Date(),
       },
     });
-
     if (input.mentionedShopIds && input.mentionedShopIds.length > 0) {
       logger.info("Comment mentions detected", {
         commentId: comment.id,
         mentionedShopIds: input.mentionedShopIds,
       });
-
     }
-
     logger.info(`Task comment created: ${comment.id} by ${authorShopId}`);
-
     return { id: comment.id };
   } catch (error) {
     logger.error("Failed to create task comment:", error);
@@ -90,7 +80,6 @@ export async function createTaskComment(
 }
 
 export async function getTaskComments(taskId: string, requesterShopId: string): Promise<CommentWithAuthor[]> {
-
   const task = await prisma.migrationTask.findUnique({
     where: { id: taskId },
     include: {
@@ -99,20 +88,16 @@ export async function getTaskComments(taskId: string, requesterShopId: string): 
       },
     },
   });
-
   if (!task) {
     return [];
   }
-
   const isOwner = task.shopId === requesterShopId;
   const isAssignedTo = task.assignedToShopId === requesterShopId;
     const isGroupMember = task.ShopGroup?.ShopGroupMember.some((m: { shopId: string }) => m.shopId === requesterShopId);
     const isGroupOwner = task.ShopGroup?.ownerId === requesterShopId;
-
   if (!isOwner && !isAssignedTo && !isGroupMember && !isGroupOwner) {
     return [];
   }
-
   const comments = await prisma.taskComment.findMany({
     where: {
       taskId,
@@ -125,20 +110,16 @@ export async function getTaskComments(taskId: string, requesterShopId: string): 
     },
     orderBy: { createdAt: "asc" },
   });
-
   const authorShopIds = new Set<string>();
   comments.forEach((c) => {
     authorShopIds.add(c.authorShopId);
     c.other_TaskComment.forEach((r) => authorShopIds.add(r.authorShopId));
   });
-
   const shops = await prisma.shop.findMany({
     where: { id: { in: Array.from(authorShopIds) } },
     select: { id: true, shopDomain: true },
   });
-
   const shopMap = new Map(shops.map((s) => [s.id, s.shopDomain]));
-
   const mapComment = (c: {
     id: string;
     taskId: string;
@@ -178,7 +159,6 @@ export async function getTaskComments(taskId: string, requesterShopId: string): 
       createdAt: reply.createdAt,
       updatedAt: reply.updatedAt,
     });
-
     return {
       id: c.id,
       taskId: c.taskId,
@@ -192,7 +172,6 @@ export async function getTaskComments(taskId: string, requesterShopId: string): 
       updatedAt: c.updatedAt,
     };
   };
-
   return comments.map(mapComment);
 }
 

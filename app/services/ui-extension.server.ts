@@ -52,7 +52,6 @@ export function getDefaultSettings(moduleKey: ModuleKey): ModuleSettings {
         showRating: true,
         ratingLabel: "请为本次购物体验打分",
       } as SurveySettings;
-
     case "helpdesk":
       return {
         title: "订单帮助与售后",
@@ -64,14 +63,12 @@ export function getDefaultSettings(moduleKey: ModuleKey): ModuleSettings {
         messengerUrl: undefined,
         continueShoppingUrl: "/",
       } as HelpdeskSettings;
-
     case "order_tracking":
       return {
         provider: "native",
         title: "物流追踪",
         showEstimatedDelivery: true,
       } as OrderTrackingSettings;
-
     case "reorder":
       return {
         title: "📦 再次购买",
@@ -80,7 +77,6 @@ export function getDefaultSettings(moduleKey: ModuleKey): ModuleSettings {
         showItems: true,
         maxItemsToShow: 3,
       } as ReorderSettings;
-
     case "upsell":
       return {
         title: "🎁 为您推荐",
@@ -88,7 +84,6 @@ export function getDefaultSettings(moduleKey: ModuleKey): ModuleSettings {
         products: [],
         discountPercent: 10,
       } as UpsellSettings;
-
     default:
       return {};
   }
@@ -107,7 +102,6 @@ export async function canUseModule(shopId: string, moduleKey: ModuleKey): Promis
   currentPlan: PlanId;
   reason?: string;
 }> {
-
   const { isModuleAvailableInV1 } = await import("../utils/version-gate");
   if (!isModuleAvailableInV1(moduleKey)) {
     return {
@@ -121,7 +115,6 @@ export async function canUseModule(shopId: string, moduleKey: ModuleKey): Promis
     where: { id: shopId },
     select: { plan: true },
   });
-
   if (!shop) {
     return {
       allowed: false,
@@ -130,16 +123,13 @@ export async function canUseModule(shopId: string, moduleKey: ModuleKey): Promis
       reason: "店铺不存在",
     };
   }
-
   const currentPlan = shop.plan as PlanId;
   const planConfig = getPlanOrDefault(currentPlan);
   const moduleInfo = UI_MODULES[moduleKey];
   const requiredPlanConfig = getPlanOrDefault(moduleInfo.requiredPlan);
-
   const planOrder: PlanId[] = ["free", "starter", "growth", "agency"];
   const currentIndex = planOrder.indexOf(currentPlan);
   const requiredIndex = planOrder.indexOf(moduleInfo.requiredPlan);
-
   if (currentIndex < requiredIndex) {
     return {
       allowed: false,
@@ -148,7 +138,6 @@ export async function canUseModule(shopId: string, moduleKey: ModuleKey): Promis
       reason: `需要 ${requiredPlanConfig.name} 或更高套餐`,
     };
   }
-
   if (planConfig.uiModules !== -1) {
     const enabledCount = await prisma.uiExtensionSetting.count({
       where: {
@@ -156,7 +145,6 @@ export async function canUseModule(shopId: string, moduleKey: ModuleKey): Promis
         isEnabled: true,
       },
     });
-
     if (enabledCount >= planConfig.uiModules) {
       return {
         allowed: false,
@@ -166,7 +154,6 @@ export async function canUseModule(shopId: string, moduleKey: ModuleKey): Promis
       };
     }
   }
-
   return {
     allowed: true,
     requiredPlan: moduleInfo.requiredPlan,
@@ -178,12 +165,9 @@ export async function getUiModuleConfigs(shopId: string): Promise<UiModuleConfig
   const settings = await prisma.uiExtensionSetting.findMany({
     where: { shopId },
   });
-
   return MODULE_KEYS.map((moduleKey) => {
     const existing = settings.find((s: { moduleKey: string }) => s.moduleKey === moduleKey);
-
     if (existing) {
-
       let moduleSettings: ModuleSettings;
       if (existing.settingsEncrypted) {
         try {
@@ -199,7 +183,6 @@ export async function getUiModuleConfigs(shopId: string): Promise<UiModuleConfig
       } else {
         moduleSettings = (existing.settingsJson as ModuleSettings) || getDefaultSettings(moduleKey);
       }
-
       return {
         moduleKey,
         isEnabled: existing.isEnabled,
@@ -208,7 +191,6 @@ export async function getUiModuleConfigs(shopId: string): Promise<UiModuleConfig
         localization: (existing.localization as unknown as LocalizationSettings) || undefined,
       };
     }
-
     return {
       moduleKey,
       isEnabled: false,
@@ -227,13 +209,9 @@ export async function getUiModuleConfig(
       shopId_moduleKey: { shopId, moduleKey },
     },
   });
-
   if (setting) {
-
     let settings: ModuleSettings;
-
     if (setting.settingsEncrypted) {
-
       try {
         settings = decryptJson<ModuleSettings>(setting.settingsEncrypted);
       } catch (error) {
@@ -242,13 +220,10 @@ export async function getUiModuleConfig(
           moduleKey,
           error: error instanceof Error ? error.message : String(error),
         });
-
         settings = getDefaultSettings(moduleKey);
       }
     } else if (setting.settingsJson) {
-
       settings = (setting.settingsJson as ModuleSettings) || getDefaultSettings(moduleKey);
-
       if (moduleKey === "order_tracking" && settings && typeof settings === "object") {
         const settingsObj = settings as Record<string, unknown>;
         if (settingsObj._apiKeyEncrypted && settingsObj.apiKey && typeof settingsObj.apiKey === "string") {
@@ -271,7 +246,6 @@ export async function getUiModuleConfig(
     } else {
       settings = getDefaultSettings(moduleKey);
     }
-
     return {
       moduleKey,
       isEnabled: setting.isEnabled,
@@ -280,7 +254,6 @@ export async function getUiModuleConfig(
       localization: (setting.localization as unknown as LocalizationSettings) || undefined,
     };
   }
-
   return {
     moduleKey,
     isEnabled: false,
@@ -296,9 +269,7 @@ export async function updateUiModuleConfig(
   options?: { syncToExtension?: boolean; admin?: AdminApiContext }
 ): Promise<{ success: boolean; error?: string }> {
   try {
-
     const { validateModuleSettings, validateDisplayRules, validateLocalizationSettings } = await import("../schemas/ui-module-settings");
-
     const mapModuleKeyToSchema = (key: ModuleKey): "survey" | "reorder" | "support" | "shipping_tracker" | "upsell_offer" => {
       switch (key) {
         case "helpdesk":
@@ -314,7 +285,6 @@ export async function updateUiModuleConfig(
           return "survey";
       }
     };
-
     if (config.settings) {
       const schemaModuleKey = mapModuleKeyToSchema(moduleKey);
       const settingsValidation = validateModuleSettings(schemaModuleKey, config.settings);
@@ -326,7 +296,6 @@ export async function updateUiModuleConfig(
       }
       config.settings = settingsValidation.normalized as ModuleSettings;
     }
-
     if (config.displayRules) {
       const displayRulesValidation = validateDisplayRules(config.displayRules);
       if (!displayRulesValidation.valid) {
@@ -337,7 +306,6 @@ export async function updateUiModuleConfig(
       }
       config.displayRules = displayRulesValidation.normalized;
     }
-
     if (config.localization) {
       const localizationValidation = validateLocalizationSettings(config.localization);
       if (!localizationValidation.valid) {
@@ -348,7 +316,6 @@ export async function updateUiModuleConfig(
       }
       config.localization = localizationValidation.normalized;
     }
-
     if (config.isEnabled) {
       const canUse = await canUseModule(shopId, moduleKey);
       if (!canUse.allowed) {
@@ -358,19 +325,14 @@ export async function updateUiModuleConfig(
         };
       }
     }
-
     const data: Parameters<typeof prisma.uiExtensionSetting.upsert>[0]["update"] = {};
-
     if (config.isEnabled !== undefined) {
       data.isEnabled = config.isEnabled;
     }
-
     if (config.settings) {
       try {
-
         const encryptedSettings = encryptJson(config.settings);
         data.settingsEncrypted = encryptedSettings;
-
         data.settingsJson = null;
       } catch (error) {
         logger.error("Failed to encrypt settings", {
@@ -378,7 +340,6 @@ export async function updateUiModuleConfig(
           moduleKey,
           error: error instanceof Error ? error.message : String(error),
         });
-
         return {
           success: false,
           error: "设置加密失败，请稍后重试",
@@ -391,7 +352,6 @@ export async function updateUiModuleConfig(
     if (config.localization) {
       data.localization = config.localization as object;
     }
-
     await prisma.uiExtensionSetting.upsert({
       where: {
         shopId_moduleKey: { shopId, moduleKey },
@@ -402,7 +362,6 @@ export async function updateUiModuleConfig(
         shopId,
         moduleKey,
         isEnabled: config.isEnabled ?? false,
-
         settingsJson: null,
         settingsEncrypted: data.settingsEncrypted || null,
         displayRules: (config.displayRules || getDefaultDisplayRules(moduleKey)) as object,
@@ -410,9 +369,7 @@ export async function updateUiModuleConfig(
         updatedAt: new Date(),
       },
     });
-
     logger.info(`UI module config updated`, { shopId, moduleKey, isEnabled: config.isEnabled });
-
     if (options?.syncToExtension && options?.admin) {
       const { syncSingleModule } = await import("./ui-extension-sync.server");
       const syncResult = await syncSingleModule(shopId, moduleKey, options.admin);
@@ -422,10 +379,8 @@ export async function updateUiModuleConfig(
           moduleKey,
           error: syncResult.error,
         });
-
       }
     }
-
     return { success: true };
   } catch (error) {
     logger.error(`Failed to update UI module config`, { shopId, moduleKey, error });
@@ -441,7 +396,6 @@ export async function batchToggleModules(
   updates: Array<{ moduleKey: ModuleKey; isEnabled: boolean }>
 ): Promise<{ success: boolean; results: Array<{ moduleKey: ModuleKey; success: boolean; error?: string }> }> {
   const results: Array<{ moduleKey: ModuleKey; success: boolean; error?: string }> = [];
-
   for (const update of updates) {
     const result = await updateUiModuleConfig(shopId, update.moduleKey, {
       isEnabled: update.isEnabled,
@@ -451,7 +405,6 @@ export async function batchToggleModules(
       ...result,
     });
   }
-
   return {
     success: results.every((r) => r.success),
     results,
@@ -468,7 +421,6 @@ export async function resetModuleToDefault(
         shopId_moduleKey: { shopId, moduleKey },
       },
       update: {
-
         settingsJson: null,
         settingsEncrypted: null,
         displayRules: getDefaultDisplayRules(moduleKey) as object,
@@ -485,7 +437,6 @@ export async function resetModuleToDefault(
         updatedAt: new Date(),
       },
     });
-
     return { success: true };
   } catch (error) {
     return {
@@ -512,10 +463,8 @@ export async function getModuleStats(shopId: string): Promise<{
   const settings = await prisma.uiExtensionSetting.findMany({
     where: { shopId },
   });
-
   const enabled = settings.filter((s: { isEnabled: boolean }) => s.isEnabled).length;
   const byCategory: Record<string, number> = {};
-
   settings
     .filter((s: { isEnabled: boolean }) => s.isEnabled)
     .forEach((s: { moduleKey: string }) => {
@@ -524,7 +473,6 @@ export async function getModuleStats(shopId: string): Promise<{
         byCategory[module.category] = (byCategory[module.category] || 0) + 1;
       }
     });
-
   return {
     total: MODULE_KEYS.length,
     enabled,

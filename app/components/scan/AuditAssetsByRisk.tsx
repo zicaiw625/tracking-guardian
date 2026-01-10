@@ -20,7 +20,6 @@ interface AuditAssetsByRiskProps {
   onAssetClick?: (assetId: string) => void;
   onMigrateClick?: (asset: AuditAssetRecord) => void;
   currentPlan?: PlanId;
-
   freeTierLimit?: number;
 }
 
@@ -28,11 +27,9 @@ function determineRiskCategory(
   asset: AuditAssetRecord,
   riskLevel: "high" | "medium" | "low"
 ): "will_fail" | "can_replace" | "no_migration_needed" {
-
   if (riskLevel === "high") {
     return "will_fail";
   }
-
   if (asset.details && typeof asset.details === "object") {
     const details = asset.details as Record<string, unknown>;
     const displayScope = details.display_scope as string | undefined;
@@ -40,19 +37,15 @@ function determineRiskCategory(
       return "will_fail";
     }
   }
-
   if (riskLevel === "medium") {
     return "can_replace";
   }
-
   if (riskLevel === "low" || asset.suggestedMigration === "none") {
     return "no_migration_needed";
   }
-
   if (asset.category === "analytics") {
     return "no_migration_needed";
   }
-
   return "can_replace";
 }
 
@@ -106,7 +99,6 @@ export function AuditAssetsByRisk({
   currentPlan = "free",
   freeTierLimit = 3,
 }: AuditAssetsByRiskProps) {
-
   const assetsByCategory = {
     will_fail: assets.filter((a) => {
       const category = determineRiskCategory(a, a.riskLevel as "high" | "medium" | "low");
@@ -121,15 +113,12 @@ export function AuditAssetsByRisk({
       return category === "no_migration_needed";
     }),
   };
-
   const highRiskAssets = assetsByCategory.will_fail;
   const mediumRiskAssets = assetsByCategory.can_replace;
   const totalHighRisk = highRiskAssets.length;
   const totalMediumRisk = mediumRiskAssets.length;
-
   const riskScore = totalHighRisk * 30 + totalMediumRisk * 15;
   const riskLevel = riskScore >= 60 ? "high" : riskScore >= 30 ? "medium" : "low";
-
   const getEstimatedTime = (asset: AuditAssetRecord): number => {
     if (asset.details && typeof asset.details === "object") {
       const details = asset.details as Record<string, unknown>;
@@ -138,13 +127,11 @@ export function AuditAssetsByRisk({
     }
     return asset.riskLevel === "high" ? 30 : 20;
   };
-
   const estimatedTimeMinutes = highRiskAssets.reduce((sum, asset) =>
     sum + getEstimatedTime(asset), 0
   ) + mediumRiskAssets.reduce((sum, asset) =>
     sum + getEstimatedTime(asset), 0
   );
-
   const isFreeTier = currentPlan === "free";
   const visibleHighRiskAssets = isFreeTier
     ? highRiskAssets.slice(0, freeTierLimit)
@@ -152,15 +139,12 @@ export function AuditAssetsByRisk({
   const hiddenHighRiskCount = isFreeTier
     ? Math.max(0, totalHighRisk - freeTierLimit)
     : 0;
-
   const totalAssets = assets.length;
   const hasAssets = totalAssets > 0;
-
   const handleMigrateClick = (asset: AuditAssetRecord) => {
     if (onMigrateClick) {
       onMigrateClick(asset);
     } else if (asset.suggestedMigration === "web_pixel" && asset.platform) {
-
       window.location.href = `/app/migrate?platform=${asset.platform}&assetId=${asset.id}`;
     } else if (asset.suggestedMigration === "ui_extension") {
       window.location.href = `/app/modules?assetId=${asset.id}`;
@@ -168,7 +152,6 @@ export function AuditAssetsByRisk({
       window.location.href = `/app/migrate?assetId=${asset.id}`;
     }
   };
-
   if (!hasAssets) {
     return (
       <Card>
@@ -185,7 +168,6 @@ export function AuditAssetsByRisk({
       </Card>
     );
   }
-
   return (
     <Card>
       <BlockStack gap="500">
@@ -195,7 +177,6 @@ export function AuditAssetsByRisk({
           </Text>
           <Badge tone="info">{`${totalAssets} 项`}</Badge>
         </InlineStack>
-
         <Card>
           <BlockStack gap="300">
             <Text as="h3" variant="headingSm">
@@ -271,7 +252,6 @@ export function AuditAssetsByRisk({
             </InlineStack>
           </BlockStack>
         </Card>
-
         {assetsByCategory.will_fail.length > 0 && (
           <BlockStack gap="300">
             <InlineStack align="space-between" blockAlign="center">
@@ -333,9 +313,7 @@ export function AuditAssetsByRisk({
                         </BlockStack>
                         <Badge tone="critical">高风险</Badge>
                       </InlineStack>
-
                       <Divider />
-
                       <BlockStack gap="200">
                         <InlineStack align="space-between" blockAlign="center">
                           <BlockStack gap="100">
@@ -363,7 +341,6 @@ export function AuditAssetsByRisk({
                             </Button>
                           )}
                         </InlineStack>
-
                         <InlineStack gap="200" blockAlign="center" wrap>
                           {(() => {
                             const time = getEstimatedTime(asset);
@@ -396,7 +373,6 @@ export function AuditAssetsByRisk({
                   </Box>
                 );
               })}
-
               {hiddenHighRiskCount > 0 && (
                 <Box
                   background="bg-surface-secondary"
@@ -430,7 +406,6 @@ export function AuditAssetsByRisk({
             </BlockStack>
           </BlockStack>
         )}
-
         {assetsByCategory.can_replace.length > 0 && (
           <>
             {assetsByCategory.will_fail.length > 0 && <Divider />}
@@ -494,9 +469,7 @@ export function AuditAssetsByRisk({
                           </BlockStack>
                           <Badge tone="warning">中风险</Badge>
                         </InlineStack>
-
                         <Divider />
-
                         <BlockStack gap="200">
                           <InlineStack align="space-between" blockAlign="center">
                             <BlockStack gap="100">
@@ -524,7 +497,6 @@ export function AuditAssetsByRisk({
                               </Button>
                             )}
                           </InlineStack>
-
                           <InlineStack gap="200" blockAlign="center" wrap>
                             {(() => {
                               const time = getEstimatedTime(asset);
@@ -561,7 +533,6 @@ export function AuditAssetsByRisk({
             </BlockStack>
           </>
         )}
-
         {assetsByCategory.no_migration_needed.length > 0 && (
           <>
             {(assetsByCategory.will_fail.length > 0 || assetsByCategory.can_replace.length > 0) && <Divider />}
@@ -625,9 +596,7 @@ export function AuditAssetsByRisk({
                           </BlockStack>
                           <Badge tone="success">低风险</Badge>
                         </InlineStack>
-
                         <Divider />
-
                         <BlockStack gap="200">
                           <InlineStack align="space-between" blockAlign="center">
                             <BlockStack gap="100">
@@ -655,7 +624,6 @@ export function AuditAssetsByRisk({
                               </Button>
                             )}
                           </InlineStack>
-
                           {(() => {
                             const time = getEstimatedTime(asset);
                             if (time > 0) {

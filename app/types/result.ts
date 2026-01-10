@@ -98,7 +98,6 @@ export function combine<T, E>(results: Result<T, E>[]): Result<T[], E> {
 export function combineAll<T, E>(results: Result<T, E>[]): Result<T[], E[]> {
   const values: T[] = [];
   const errors: E[] = [];
-
   for (const result of results) {
     if (result.ok) {
       values.push(result.value);
@@ -106,7 +105,6 @@ export function combineAll<T, E>(results: Result<T, E>[]): Result<T[], E[]> {
       errors.push(result.error);
     }
   }
-
   if (errors.length > 0) {
     return err(errors);
   }

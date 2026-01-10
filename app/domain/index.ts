@@ -1,5 +1,4 @@
 export {
-
   type Shop,
   type ShopBasic,
   type ShopWithBilling,
@@ -10,7 +9,6 @@ export {
   type ShopStatus,
   createShop,
   getShopStatus,
-
   isWithinUsageLimits,
   getAllowedDomains,
   isDomainAllowed,
@@ -18,7 +16,6 @@ export {
   getEffectiveConsentStrategy,
   isValidConsentStrategy,
   isValidShopTier,
-
   type IShopRepository,
   type FindShopOptions,
   type UpdateShopOptions,
@@ -33,7 +30,6 @@ export {
 } from "./shop";
 
 export {
-
   type ConversionJob,
   type JobWithShop,
   type JobStatus,
@@ -44,7 +40,6 @@ export {
   type TrustMetadata,
   type LineItem,
   type CapiInput,
-
   createConversionJob,
   canRetry,
   isExhausted,
@@ -57,7 +52,6 @@ export {
   getFailedPlatforms,
   isValidJobStatus,
   isValidPlatformResultStatus,
-
   type IConversionJobRepository,
   type QueryPendingJobsOptions,
   type QueryByStatusOptions,
@@ -73,7 +67,6 @@ export {
 } from "./conversion";
 
 export {
-
   type Platform,
   type GoogleCredentials,
   type MetaCredentials,
@@ -100,7 +93,6 @@ export {
   isTikTokCredentials,
   isRetryableError,
   isRetryableErrorType,
-
   type CredentialsValidationResult,
   type IPlatformService,
   type IPlatformRegistry,

@@ -20,7 +20,6 @@ import {
 
 export function classifyHttpError(status: number, body?: unknown): PlatformError {
   const bodyStr = typeof body === "string" ? body : JSON.stringify(body || {});
-
   switch (true) {
     case status === 401:
       return {
@@ -71,7 +70,6 @@ export function classifyHttpError(status: number, body?: unknown): PlatformError
 
 export function classifyJsError(error: Error): PlatformError {
   const message = error.message.toLowerCase();
-
   if (message.includes("timeout") || message.includes("aborted") || error.name === "AbortError") {
     return {
       type: "timeout",
@@ -79,7 +77,6 @@ export function classifyJsError(error: Error): PlatformError {
       isRetryable: true,
     };
   }
-
   if (message.includes("network") || message.includes("fetch") || message.includes("econnrefused")) {
     return {
       type: "network_error",
@@ -87,7 +84,6 @@ export function classifyJsError(error: Error): PlatformError {
       isRetryable: true,
     };
   }
-
   return {
     type: "unknown",
     message: error.message,
@@ -103,7 +99,6 @@ export function parseMetaError(response: unknown): PlatformError {
       fbtrace_id?: string;
     };
   };
-
   const error = data?.error;
   if (!error) {
     return {
@@ -112,11 +107,9 @@ export function parseMetaError(response: unknown): PlatformError {
       isRetryable: true,
     };
   }
-
   const code = error.code;
   const message = error.message || "Unknown error";
   const traceId = error.fbtrace_id;
-
   switch (true) {
     case code === 190:
     case code === 102:
@@ -175,7 +168,6 @@ export function parseGoogleError(response: unknown): PlatformError {
       validationCode?: string;
     }>;
   };
-
   const messages = data?.validationMessages;
   if (!messages || messages.length === 0) {
     return {
@@ -184,11 +176,9 @@ export function parseGoogleError(response: unknown): PlatformError {
       isRetryable: true,
     };
   }
-
   const firstError = messages[0];
   const code = firstError.validationCode || "UNKNOWN";
   const message = firstError.description || "Validation error";
-
   switch (code) {
     case "INVALID_API_SECRET":
     case "INVALID_MEASUREMENT_ID":
@@ -223,10 +213,8 @@ export function parseTikTokError(response: unknown): PlatformError {
     code?: number;
     message?: string;
   };
-
   const code = data?.code;
   const message = data?.message || "Unknown error";
-
   switch (true) {
     case code === 40001:
     case code === 40002:
@@ -316,19 +304,14 @@ export function formatErrorForLog(error: PlatformError): Record<string, unknown>
 export abstract class BasePlatformService implements IPlatformService {
   abstract readonly platform: PlatformType;
   abstract readonly displayName: string;
-
   protected abstract readonly apiUrl: string;
-
   protected readonly timeoutMs: number = DEFAULT_API_TIMEOUT_MS;
-
   async sendConversion(
     credentials: PlatformCredentials,
     data: ConversionData,
     eventId: string
   ): Promise<PlatformSendResult> {
-
     const validation = this.validateCredentials(credentials);
-
     if (!validation.valid) {
       return {
         success: false,
@@ -339,16 +322,12 @@ export abstract class BasePlatformService implements IPlatformService {
         },
       };
     }
-
     const dedupeEventId = eventId || generateDedupeEventId(data.orderId);
-
     try {
       const [response, duration] = await measureDuration(() =>
         this.executeRequest(credentials, data, dedupeEventId)
       );
-
       this.logSuccess(data.orderId, dedupeEventId, duration, response);
-
       return {
         success: true,
         response,
@@ -356,45 +335,36 @@ export abstract class BasePlatformService implements IPlatformService {
       };
     } catch (error) {
       const platformError = this.parseError(error);
-
       this.logError(data.orderId, platformError);
-
       return {
         success: false,
         error: platformError,
       };
     }
   }
-
   abstract validateCredentials(credentials: unknown): CredentialsValidationResult;
-
   abstract parseError(error: unknown): PlatformError;
-
   abstract buildPayload(
     data: ConversionData,
     eventId: string
   ): Promise<Record<string, unknown>>;
-
   protected abstract executeRequest(
     credentials: PlatformCredentials,
     data: ConversionData,
     eventId: string
   ): Promise<ConversionApiResponse>;
-
   protected async makeRequest(
     url: string,
     options: RequestInit
   ): Promise<Response> {
     return fetchWithTimeout(url, options, this.timeoutMs);
   }
-
   protected classifyHttpError(
     statusCode: number,
     message: string
   ): PlatformError {
     return classifyHttpError(statusCode, message);
   }
-
   protected createTimeoutError(): PlatformError {
     return {
       type: "timeout",
@@ -402,7 +372,6 @@ export abstract class BasePlatformService implements IPlatformService {
       isRetryable: true,
     };
   }
-
   protected logSuccess(
     orderId: string,
     eventId: string,
@@ -417,7 +386,6 @@ export abstract class BasePlatformService implements IPlatformService {
       ...(response?.events_received && { eventsReceived: response.events_received }),
     });
   }
-
   protected logError(orderId: string, error: PlatformError): void {
     logger.error(`${this.displayName}: conversion failed`, {
       platform: this.platform,
@@ -427,7 +395,6 @@ export abstract class BasePlatformService implements IPlatformService {
       isRetryable: error.isRetryable,
     });
   }
-
   protected validateRequired(
     credentials: Record<string, unknown>,
     field: string,
@@ -439,7 +406,6 @@ export abstract class BasePlatformService implements IPlatformService {
     }
     return true;
   }
-
   protected validatePattern(
     value: string,
     pattern: RegExp,
@@ -478,12 +444,10 @@ export async function sendToMultiplePlatforms(
   const results: Record<string, PlatformSendResult> = {};
   let totalSucceeded = 0;
   let totalFailed = 0;
-
   const promises = platforms.map(async ({ service, credentials }) => {
     try {
       const result = await service.sendConversion(credentials, data, eventId);
       results[service.platform] = result;
-
       if (result.success) {
         totalSucceeded++;
       } else {
@@ -501,9 +465,7 @@ export async function sendToMultiplePlatforms(
       totalFailed++;
     }
   });
-
   await Promise.all(promises);
-
   return {
     results,
     totalSucceeded,

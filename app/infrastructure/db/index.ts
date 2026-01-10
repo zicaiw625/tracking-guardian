@@ -1,7 +1,6 @@
 export { default as prisma } from "../../db.server";
 
 export {
-
   getShopById,
   getShopIdByDomain,
   getShopWithPixels,
@@ -14,7 +13,6 @@ export {
   type ShopBasic,
   type ShopWithPixels,
   type ShopWithBilling,
-
   getShopPixelConfigs,
   getPixelConfigByPlatform,
   getPixelConfigById,
@@ -31,7 +29,6 @@ export {
   type PixelConfigFull,
   type PixelConfigSummary,
   type PixelConfigInput,
-
   getPendingJobs,
   claimJobsForProcessing,
   updateJobStatus,
@@ -45,7 +42,6 @@ export {
   type JobForProcessing,
   type QueryPendingJobsOptions,
   type JobStatusUpdate,
-
   batchCompleteJobs,
   batchInsertReceipts,
   batchUpdateShops,
@@ -54,7 +50,6 @@ export {
   type JobCompletionData,
   type PixelReceiptData,
   type BatchResult,
-
   createAuditLogEntry,
   batchCreateAuditLogs,
   getAuditLogsForShop,
@@ -71,7 +66,6 @@ export {
   type AuditLogQueryOptions,
   type AuditLogSummary,
   type AuditLogFull,
-
   getCachedShop,
   getCachedShopWithConfigs,
   invalidateShopWithConfigsCache,

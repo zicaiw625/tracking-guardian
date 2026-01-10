@@ -16,17 +16,13 @@ export function TimeEstimate({
     if (minutes < 60) {
       return `${minutes} 分钟`;
     }
-
     const hours = Math.floor(minutes / 60);
     const remainingMinutes = minutes % 60;
-
     if (remainingMinutes === 0) {
       return `${hours} 小时`;
     }
-
     return `${hours} 小时 ${remainingMinutes} 分钟`;
   };
-
   return (
     <InlineStack gap="100" blockAlign="center">
       {showIcon && <Icon source={ClockIcon} tone="subdued" />}

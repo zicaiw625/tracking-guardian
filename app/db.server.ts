@@ -2,7 +2,6 @@ import { PrismaClient } from "@prisma/client";
 import { logger } from "./utils/logger.server";
 
 declare global {
-
   var prisma: PrismaClient;
 }
 
@@ -14,7 +13,6 @@ const DB_CONFIG = {
 function getDatabaseUrl(): string {
   const baseUrl = process.env.DATABASE_URL || "";
   const isProduction = process.env.NODE_ENV === "production";
-
   if (!baseUrl) {
     if (isProduction) {
       throw new Error(
@@ -22,10 +20,8 @@ function getDatabaseUrl(): string {
         "Please set DATABASE_URL to a valid PostgreSQL connection string."
       );
     }
-
     return baseUrl;
   }
-
   try {
     const url = new URL(baseUrl);
     if (!url.searchParams.has("connection_limit")) {
@@ -38,14 +34,12 @@ function getDatabaseUrl(): string {
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
     logger.error("[DB] Invalid DATABASE_URL format", { error: errorMessage });
-
     if (isProduction) {
       throw new Error(
         `Invalid DATABASE_URL format: ${errorMessage}. ` +
         "Please provide a valid PostgreSQL connection string."
       );
     }
-
     return baseUrl;
   }
 }

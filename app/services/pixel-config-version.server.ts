@@ -35,11 +35,9 @@ export async function saveConfigSnapshot(
         platformId: null,
       },
     });
-
     if (!config) {
       return { success: false, error: "配置不存在" };
     }
-
     const currentConfig = {
       platformId: config.platformId,
       credentialsEncrypted: config.credentialsEncrypted,
@@ -48,9 +46,7 @@ export async function saveConfigSnapshot(
       clientSideEnabled: config.clientSideEnabled,
       serverSideEnabled: config.serverSideEnabled,
     };
-
     const newVersion = config.configVersion + 1;
-
     await prisma.pixelConfig.update({
       where: { id: config.id },
       data: {
@@ -59,7 +55,6 @@ export async function saveConfigSnapshot(
         rollbackAllowed: true,
       },
     });
-
     logger.info("Config snapshot saved", { shopId, platform, version: newVersion });
     return { success: true, version: newVersion };
   } catch (error) {
@@ -85,13 +80,10 @@ export async function getConfigVersionHistory(
         platformId: null,
       },
     });
-
     if (!config) {
       return null;
     }
-
     const versions: ConfigVersion[] = [];
-
     versions.push({
       version: config.configVersion,
       config: {
@@ -104,7 +96,6 @@ export async function getConfigVersionHistory(
       },
       savedAt: config.updatedAt,
     });
-
     if (config.previousConfig) {
       const previous = config.previousConfig as {
         platformId?: string | null;
@@ -114,7 +105,6 @@ export async function getConfigVersionHistory(
         clientSideEnabled?: boolean;
         serverSideEnabled?: boolean;
       };
-
       versions.push({
         version: config.configVersion - 1,
         config: {
@@ -128,7 +118,6 @@ export async function getConfigVersionHistory(
         savedAt: config.updatedAt,
       });
     }
-
     return {
       currentVersion: config.configVersion,
       versions: versions.sort((a, b) => b.version - a.version),
@@ -154,15 +143,12 @@ export async function rollbackConfig(
         platformId: null,
       },
     });
-
     if (!config) {
       return { success: false, error: "配置不存在" };
     }
-
     if (!config.rollbackAllowed || !config.previousConfig) {
       return { success: false, error: "无法回滚：没有可用的上一个版本" };
     }
-
     const previous = config.previousConfig as {
       platformId?: string | null;
       credentialsEncrypted?: string | null;
@@ -171,7 +157,6 @@ export async function rollbackConfig(
       clientSideEnabled?: boolean;
       serverSideEnabled?: boolean;
     };
-
     const currentConfig = {
       platformId: config.platformId,
       credentialsEncrypted: config.credentialsEncrypted,
@@ -180,7 +165,6 @@ export async function rollbackConfig(
       clientSideEnabled: config.clientSideEnabled,
       serverSideEnabled: config.serverSideEnabled,
     };
-
     await prisma.pixelConfig.update({
       where: { id: config.id },
       data: {
@@ -195,7 +179,6 @@ export async function rollbackConfig(
         rollbackAllowed: true,
       },
     });
-
     logger.info("Config rolled back", { shopId, platform, newVersion: config.configVersion + 1 });
     return { success: true };
   } catch (error) {

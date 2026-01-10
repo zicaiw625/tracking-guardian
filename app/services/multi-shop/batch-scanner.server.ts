@@ -47,7 +47,6 @@ export async function createBatchScanJob(
     results: [],
     createdAt: new Date(),
   };
-
   activeJobs.set(job.id, job);
   return job;
 }
@@ -64,12 +63,10 @@ export async function executeBatchScan(
   if (!job) {
     throw new Error(`Batch scan job not found: ${jobId}`);
   }
-
   if (job.status === "running") {
     logger.warn(`Batch scan job ${jobId} is already running`);
     return job;
   }
-
   job.status = "running";
   job.startedAt = new Date();
   job.progress = {
@@ -78,30 +75,23 @@ export async function executeBatchScan(
     failed: 0,
   };
   job.results = [];
-
   logger.info(`Starting batch scan job ${jobId} for ${job.shopIds.length} shops`);
-
   const concurrency = 3;
   const shopIds = [...job.shopIds];
-
   async function processShop(shopId: string): Promise<BatchScanJob["results"][number]> {
     try {
       const admin = adminContexts.get(shopId);
       if (!admin) {
         throw new Error(`Admin context not found for shop ${shopId}`);
       }
-
       const shop = await prisma.shop.findUnique({
         where: { id: shopId },
         select: { shopDomain: true },
       });
-
       if (!shop) {
         throw new Error(`Shop not found: ${shopId}`);
       }
-
       const scanResult = await scanShopTracking(admin, shopId);
-
       const scanReport = await prisma.scanReport.create({
         data: {
           id: randomUUID(),
@@ -115,7 +105,6 @@ export async function executeBatchScan(
           completedAt: new Date(),
         },
       });
-
       return {
         shopId,
         shopDomain: shop.shopDomain,
@@ -124,12 +113,10 @@ export async function executeBatchScan(
       };
     } catch (error) {
       logger.error(`Batch scan failed for shop ${shopId}`, error);
-
       const shop = await prisma.shop.findUnique({
         where: { id: shopId },
         select: { shopDomain: true },
       });
-
       return {
         shopId,
         shopDomain: shop?.shopDomain || "unknown",
@@ -138,11 +125,9 @@ export async function executeBatchScan(
       };
     }
   }
-
   for (let i = 0; i < shopIds.length; i += concurrency) {
     const batch = shopIds.slice(i, i + concurrency);
     const batchResults = await Promise.all(batch.map(processShop));
-
     for (const result of batchResults) {
       job.results.push(result);
       if (result.status === "success") {
@@ -152,7 +137,6 @@ export async function executeBatchScan(
       }
     }
   }
-
   if (job.progress.failed === 0) {
     job.status = "completed";
   } else if (job.progress.completed === 0) {
@@ -160,13 +144,10 @@ export async function executeBatchScan(
   } else {
     job.status = "partial";
   }
-
   job.completedAt = new Date();
-
   logger.info(
     `Batch scan job ${jobId} completed: ${job.progress.completed} success, ${job.progress.failed} failed`
   );
-
   return job;
 }
 
@@ -174,12 +155,10 @@ export async function getBatchScanHistory(
   workspaceId: string,
   limit: number = 10
 ): Promise<BatchScanJob[]> {
-
   const jobs = Array.from(activeJobs.values())
     .filter((job) => job.workspaceId === workspaceId)
     .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
     .slice(0, limit);
-
   return jobs;
 }
 
@@ -200,9 +179,7 @@ export async function getBatchScanSummary(job: BatchScanJob): Promise<{
       : 0,
     platforms: {} as Record<string, number>,
   };
-
   const successResults = job.results.filter((r) => r.status === "success" && r.scanReportId);
-
   await Promise.all(
     successResults.map(async (result) => {
       try {
@@ -210,7 +187,6 @@ export async function getBatchScanSummary(job: BatchScanJob): Promise<{
           where: { id: result.scanReportId! },
           select: { identifiedPlatforms: true },
         });
-
         if (scanReport?.identifiedPlatforms) {
           const platforms = Array.isArray(scanReport.identifiedPlatforms)
             ? (scanReport.identifiedPlatforms as string[])
@@ -224,6 +200,5 @@ export async function getBatchScanSummary(job: BatchScanJob): Promise<{
       }
     })
   );
-
   return summary;
 }

@@ -23,7 +23,6 @@ function extractRefundSnapshot(payload: RefundWebhookPayload): {
   const amount = payload.amount ? parseFloat(payload.amount) : 0;
   const currency = payload.currency || "USD";
   const createdAt = payload.created_at ? new Date(payload.created_at) : new Date();
-
   return {
     refundId,
     orderId,
@@ -37,16 +36,13 @@ export async function handleRefundsCreate(
   context: WebhookContext
 ): Promise<WebhookHandlerResult> {
   const { shop, payload } = context;
-
   try {
     const refundPayload = payload as RefundWebhookPayload;
     const snapshot = extractRefundSnapshot(refundPayload);
-
     const shopRecord = await prisma.shop.findUnique({
       where: { shopDomain: shop },
       select: { id: true },
     });
-
     if (!shopRecord) {
       logger.warn(`Shop not found for refunds/create webhook: ${shop}`);
       return {
@@ -55,9 +51,7 @@ export async function handleRefundsCreate(
         status: 200,
       };
     }
-
     const snapshotId = randomUUID();
-
     await prisma.refundSnapshot.create({
       data: {
         id: snapshotId,
@@ -69,9 +63,7 @@ export async function handleRefundsCreate(
         createdAt: snapshot.createdAt,
       },
     });
-
     logger.info(`Refund snapshot created: ${snapshot.refundId} for order ${snapshot.orderId} in ${shop}`);
-
     return {
       success: true,
       message: "OK",
@@ -79,7 +71,6 @@ export async function handleRefundsCreate(
       orderId: snapshot.orderId,
     };
   } catch (error) {
-
     if (error instanceof Error && error.message.includes("Unique constraint")) {
       logger.debug(`Refund snapshot already exists: ${(payload as RefundWebhookPayload).id} for ${shop}`);
       return {
@@ -89,11 +80,9 @@ export async function handleRefundsCreate(
         orderId: String((payload as RefundWebhookPayload).order_id),
       };
     }
-
     logger.error(`Failed to process refunds/create webhook for ${shop}:`, {
       error: error instanceof Error ? error.message : String(error),
     });
-
     return {
       success: false,
       message: "Internal server error",

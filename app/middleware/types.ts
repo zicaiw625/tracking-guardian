@@ -1,15 +1,9 @@
 export interface MiddlewareContext {
-
   request: Request;
-
   body?: unknown;
-
   shopDomain?: string;
-
   clientIp?: string;
-
   startTime: number;
-
   meta: Record<string, unknown>;
 }
 
@@ -26,11 +20,8 @@ export type Handler<T = unknown> = (
 ) => Promise<T | Response>;
 
 export interface ApiHandlerConfig<T = unknown> {
-
   middleware?: Middleware[];
-
   handler: Handler<T>;
-
   postMiddleware?: Array<(response: Response, context: MiddlewareContext) => Response>;
 }
 
@@ -50,39 +41,25 @@ export interface ApiErrorResponse {
 export type ApiResponse<T = unknown> = ApiSuccessResponse<T> | ApiErrorResponse;
 
 export interface CorsOptions {
-
   origin?: string | string[] | ((origin: string | null) => string | null);
-
   methods?: string[];
-
   allowedHeaders?: string[];
-
   exposedHeaders?: string[];
-
   credentials?: boolean;
-
   maxAge?: number;
-
   customHeaders?: string[];
 }
 
 export interface RateLimitOptions {
-
   endpoint: string;
-
   maxRequests?: number;
-
   windowMs?: number;
 }
 
 export interface ValidationOptions<T = unknown> {
-
   schema?: import("zod").ZodType<T>;
-
   maxBodySize?: number;
-
   contentType?: string;
-
   validate?: (body: unknown) => T | Promise<T>;
 }
 
@@ -100,10 +77,8 @@ export function extractClientIp(request: Request): string {
     const firstIp = forwardedFor.split(",")[0]?.trim();
     if (firstIp) return firstIp;
   }
-
   const realIp = request.headers.get("x-real-ip");
   if (realIp) return realIp.trim();
-
   return "unknown";
 }
 

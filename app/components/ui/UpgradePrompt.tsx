@@ -112,15 +112,11 @@ export function UpgradePrompt({
   const requiredPlan = getPlanDefinition(info.requiredPlan);
   const currentPlanDef = getPlanDefinition(currentPlan);
   const isUpgradeNeeded = currentPlan !== "free" && !isPlanAtLeast(currentPlan, info.requiredPlan);
-
   const needsUpgrade = isUpgradeNeeded || (gateResult && !gateResult.allowed);
-
   if (!needsUpgrade && !gateResult) {
     return null;
   }
-
   const showLimitInfo = limit !== undefined && current !== undefined && current >= limit;
-
   const handleUpgrade = () => {
     if (onUpgrade) {
       onUpgrade();
@@ -128,7 +124,6 @@ export function UpgradePrompt({
       window.location.href = "/app/billing";
     }
   };
-
   if (compact) {
     return (
       <Banner tone={tone}>
@@ -144,7 +139,6 @@ export function UpgradePrompt({
       </Banner>
     );
   }
-
   return (
     <Card>
       <BlockStack gap="400">
@@ -154,11 +148,9 @@ export function UpgradePrompt({
             {info.name}需要升级套餐
           </Text>
         </InlineStack>
-
         <Text as="p" tone="subdued">
           {info.description}
         </Text>
-
         {showLimitInfo && (
           <Banner tone="warning">
             <Text as="p" variant="bodySm">
@@ -167,7 +159,6 @@ export function UpgradePrompt({
             </Text>
           </Banner>
         )}
-
         {gateResult?.reason && (
           <Banner tone={tone}>
             <Text as="p" variant="bodySm">
@@ -175,7 +166,6 @@ export function UpgradePrompt({
             </Text>
           </Banner>
         )}
-
         {info.featureList && (
           <BlockStack gap="200">
             <Text as="p" variant="bodySm" fontWeight="semibold">
@@ -188,7 +178,6 @@ export function UpgradePrompt({
             </List>
           </BlockStack>
         )}
-
         <BlockStack gap="200">
           <Text as="p" variant="bodySm" tone="subdued">
             当前套餐：<strong>{currentPlanDef.name}</strong>
@@ -197,7 +186,6 @@ export function UpgradePrompt({
             需要套餐：<strong>{requiredPlan.name}</strong>（{requiredPlan.priceLabel}/月）
           </Text>
         </BlockStack>
-
         <Button variant="primary" onClick={handleUpgrade} fullWidth>
           升级到 {requiredPlan.name}
         </Button>

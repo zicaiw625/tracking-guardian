@@ -36,7 +36,6 @@ export async function calculateMigrationProgress(shopId: string): Promise<Migrat
       },
     }),
   ]);
-
   const stages: MigrationProgress["stages"] = [
     { stage: "audit", label: "体检", completed: false, inProgress: false },
     { stage: "pixel_test", label: "像素测试", completed: false, inProgress: false },
@@ -44,7 +43,6 @@ export async function calculateMigrationProgress(shopId: string): Promise<Migrat
     { stage: "live", label: "上线", completed: false, inProgress: false },
     { stage: "monitoring", label: "监控", completed: false, inProgress: false },
   ];
-
   const scanReports = shop && "ScanReports" in shop ? (shop as typeof shop & { ScanReports: Array<{ status: string }> }).ScanReports : [];
   const hasCompletedAudit = scanReports[0]?.status === "completed";
   if (hasCompletedAudit) {
@@ -52,13 +50,11 @@ export async function calculateMigrationProgress(shopId: string): Promise<Migrat
   } else if (scanReports[0]?.status === "scanning" || scanReports[0]?.status === "pending") {
     stages[0].inProgress = true;
   }
-
   const pixelConfigs = shop && "pixelConfigs" in shop ? (shop as typeof shop & { pixelConfigs: Array<{ environment: string }> }).pixelConfigs : [];
   const hasTestPixel = pixelConfigs.some((c: { environment: string }) => c.environment === "test");
   if (hasTestPixel) {
     stages[1].completed = true;
   }
-
   const verificationRuns = shop && "VerificationRun" in shop ? (shop as typeof shop & { VerificationRun: Array<{ status: string; completedAt: Date | null }> }).VerificationRun : [];
   const hasCompletedVerification = verificationRuns[0]?.status === "completed";
   if (hasCompletedVerification) {
@@ -66,17 +62,14 @@ export async function calculateMigrationProgress(shopId: string): Promise<Migrat
   } else if (verificationRuns[0]?.status === "running") {
     stages[2].inProgress = true;
   }
-
   const pixelConfigsCount = shop && "_count" in shop ? (shop as typeof shop & { _count: { pixelConfigs: number } })._count.pixelConfigs : 0;
   const hasLivePixel = pixelConfigsCount > 0;
   if (hasLivePixel) {
     stages[3].completed = true;
   }
-
   if (hasLivePixel) {
     stages[4].completed = true;
   }
-
   let currentStage: MigrationStage = "audit";
   if (hasLivePixel) {
     currentStage = "monitoring";
@@ -87,22 +80,17 @@ export async function calculateMigrationProgress(shopId: string): Promise<Migrat
   } else if (hasCompletedAudit) {
     currentStage = "pixel_test";
   }
-
   const completedCount = stages.filter((s) => s.completed).length;
   const progressPercentage = Math.round((completedCount / stages.length) * 100);
-
     const auditStatus = scanReports[0]?.status;
   const auditCompletion = {
     completed: auditStatus === "completed",
     status: auditStatus === "completed" ? "completed" as const : (auditStatus === "scanning" || auditStatus === "pending" ? "in_progress" as const : "pending" as const),
   };
-
   const pixelsStatus = {
     test: pixelConfigs.filter((c: { environment: string }) => c.environment === "test").length,
     live: shop && "_count" in shop ? (shop as typeof shop & { _count: { pixelConfigs: number } })._count.pixelConfigs : 0,
   };
-
-
   const verificationLatest = verificationRuns[0] ? {
     status: verificationRuns[0].status === "completed" ? "completed" as const : (verificationRuns[0].status === "running" ? "running" as const : "pending" as const),
     completedAt: verificationRuns[0].completedAt,
@@ -110,7 +98,6 @@ export async function calculateMigrationProgress(shopId: string): Promise<Migrat
     status: null as const,
     completedAt: null as const,
   };
-
   return {
     currentStage,
     stages,

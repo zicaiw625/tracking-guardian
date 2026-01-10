@@ -89,7 +89,6 @@ export function safeParseDate(dateValue: unknown): Date {
         }
         return new Date();
     }
-
     if (typeof dateValue === "string") {
         const date = new Date(dateValue);
         if (!isNaN(date.getTime())) {
@@ -97,7 +96,6 @@ export function safeParseDate(dateValue: unknown): Date {
         }
         return new Date();
     }
-
     if (typeof dateValue === "number") {
         const date = new Date(dateValue);
         if (!isNaN(date.getTime())) {
@@ -105,7 +103,6 @@ export function safeParseDate(dateValue: unknown): Date {
         }
         return new Date();
     }
-
     return new Date();
 }
 

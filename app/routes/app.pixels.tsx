@@ -29,16 +29,13 @@ const PLATFORM_LABELS: Record<string, string> = {
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   const { session } = await authenticate.admin(request);
   const shopDomain = session.shop;
-
   const shop = await prisma.shop.findUnique({
     where: { shopDomain },
     select: { id: true, shopDomain: true },
   });
-
   if (!shop) {
     return json({ shop: null, pixelConfigs: [] });
   }
-
   const pixelConfigs = await prisma.pixelConfig.findMany({
     where: { shopId: shop.id, isActive: true },
     orderBy: { updatedAt: "desc" },
@@ -51,7 +48,6 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       updatedAt: true,
     },
   });
-
   const platforms = Array.from(new Set(pixelConfigs.map((config) => config.platform)));
   const environments = Array.from(new Set(pixelConfigs.map((config) => config.environment)));
   const recentAttempts = platforms.length
@@ -71,7 +67,6 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
         take: 200,
       })
     : [];
-
   const latestByKey = recentAttempts.reduce((acc, attempt) => {
     const key = `${attempt.destinationType}:${attempt.environment}`;
     if (!acc[key]) {
@@ -82,7 +77,6 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     }
     return acc;
   }, {} as Record<string, { status: string; createdAt: string }>);
-
   return json({
     shop: { id: shop.id, domain: shop.shopDomain },
     pixelConfigs,
@@ -92,7 +86,6 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 
 export default function PixelsListPage() {
   const { shop, pixelConfigs, latestByKey } = useLoaderData<typeof loader>();
-
   if (!shop) {
     return (
       <Page title="Pixels">
@@ -105,7 +98,6 @@ export default function PixelsListPage() {
       </Page>
     );
   }
-
   const rows = pixelConfigs.map((config) => {
     const statusKey = `${config.platform}:${config.environment}`;
     const latestAttempt = latestByKey?.[statusKey];
@@ -117,7 +109,6 @@ export default function PixelsListPage() {
           : latestAttempt?.status === "pending"
             ? { label: "处理中", tone: "warning" as const }
             : null;
-
     const statusCell = latestAttempt ? (
       <BlockStack gap="100">
         {statusLabel ? (
@@ -134,7 +125,6 @@ export default function PixelsListPage() {
         暂无发送记录
       </Text>
     );
-
     return [
       PLATFORM_LABELS[config.platform] || config.platform,
       config.platformId || "—",
@@ -156,7 +146,6 @@ export default function PixelsListPage() {
       </InlineStack>,
     ];
   });
-
   return (
     <Page
       title="Pixels"
@@ -202,7 +191,6 @@ export default function PixelsListPage() {
             </List>
           </BlockStack>
         </Card>
-
       <Layout>
         <Layout.Section>
           <Card>

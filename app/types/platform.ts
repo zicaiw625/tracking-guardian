@@ -314,7 +314,6 @@ export function upgradeCredentials(
         ...(creds as TwitterCredentials),
       };
     default: {
-
       const _exhaustiveCheck: never = platform;
       throw new Error(`Unknown platform: ${_exhaustiveCheck}`);
     }
@@ -363,7 +362,6 @@ export function validatePlatformCredentials(
       return { success: false, errors: [`Unknown platform: ${_exhaustiveCheck}`] };
     }
   }
-
   if (result.success) {
     return { success: true, data: result.data };
   }
@@ -394,7 +392,6 @@ export interface ConversionData {
   orderNumber: string | null;
   value: number;
   currency: string;
-
   lineItems?: LineItem[];
 }
 
@@ -403,7 +400,6 @@ export const ConversionDataSchema = z.object({
   orderNumber: z.string().nullable(),
   value: z.number().nonnegative(),
   currency: z.string().length(3),
-
   lineItems: z.array(LineItemSchema).optional(),
 });
 
@@ -456,23 +452,14 @@ export type PlatformErrorType =
   | "unknown";
 
 export interface PlatformError {
-
   type: PlatformErrorType;
-
   message: string;
-
   statusCode?: number;
-
   platformCode?: string;
-
   platformMessage?: string;
-
   retryAfter?: number;
-
   isRetryable: boolean;
-
   traceId?: string;
-
   rawError?: unknown;
 }
 

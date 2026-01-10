@@ -24,7 +24,6 @@ export interface ShopData {
   plan: string;
   monthlyOrderLimit: number;
   isActive: boolean;
-
   weakConsentMode?: boolean;
   consentStrategy?: string;
 }
@@ -53,9 +52,7 @@ export interface ScanResult {
 }
 
 export interface ScriptTag {
-
   id: number;
-
   gid?: string;
   src: string;
   event?: string;

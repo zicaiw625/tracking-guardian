@@ -3,29 +3,21 @@ import { Card, BlockStack, Text, Button, InlineStack, Icon, Box } from "@shopify
 import { EmptyStateDisplay } from "./ErrorDisplay";
 
 export interface EnhancedEmptyStateProps {
-
   title?: string;
-
   description?: string;
-
   primaryAction?: {
     content: string;
     onAction?: () => void;
     url?: string;
   };
-
   secondaryAction?: {
     content: string;
     onAction?: () => void;
     url?: string;
   };
-
   icon?: string;
-
   image?: string;
-
   helpText?: string;
-
   children?: React.ReactNode;
 }
 
@@ -40,7 +32,6 @@ export const EnhancedEmptyState = memo(function EnhancedEmptyState({
   children,
 }: EnhancedEmptyStateProps) {
   const hasActions = primaryAction || secondaryAction;
-
   return (
     <Card>
       <BlockStack gap="400" align="center">
@@ -57,7 +48,6 @@ export const EnhancedEmptyState = memo(function EnhancedEmptyState({
             {icon}
           </Text>
         ) : null}
-
         <BlockStack gap="200" align="center">
           <Text as="h2" variant="headingMd">
             {title}
@@ -71,9 +61,7 @@ export const EnhancedEmptyState = memo(function EnhancedEmptyState({
             </Text>
           )}
         </BlockStack>
-
         {children}
-
         {hasActions && (
           <InlineStack gap="200">
             {primaryAction && (
@@ -179,7 +167,6 @@ export function EmptyStateNoPermission({
     content: "查看套餐",
     url: "/app/billing",
   };
-
   return (
     <EnhancedEmptyState
       icon="🔒"

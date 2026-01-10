@@ -132,7 +132,6 @@ export const UI_MODULES: Record<ModuleKey, ModuleInfo> = {
     category: "support",
     requiredPlan: "growth",
     targets: ["thank_you", "order_status"],
-
   },
   reorder: {
     key: "reorder",
@@ -143,7 +142,6 @@ export const UI_MODULES: Record<ModuleKey, ModuleInfo> = {
     category: "conversion",
     requiredPlan: "growth",
     targets: ["thank_you", "order_status"],
-
   },
   upsell: {
     key: "upsell",
@@ -154,7 +152,6 @@ export const UI_MODULES: Record<ModuleKey, ModuleInfo> = {
     category: "conversion",
     requiredPlan: "growth",
     targets: ["thank_you", "order_status"],
-
     disabled: true,
     disabledReason: "v1.1+ 规划中",
   },

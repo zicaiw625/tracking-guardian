@@ -67,12 +67,10 @@ export default defineConfig({
   ],
   build: {
     assetsInlineLimit: 4096,
-
     sourcemap: process.env.NODE_ENV !== "production",
     rollupOptions: {
       external: ["html-pdf-node", "archiver"],
       onwarn(warning, warn) {
-
         if (
           warning.code === "INCONSISTENT_IMPORT_ATTRIBUTES" &&
           warning.message?.includes("en.json")
@@ -83,7 +81,6 @@ export default defineConfig({
       },
       output: {
         manualChunks: (id) => {
-
           if (id.includes("node_modules")) {
             if (id.includes("@shopify")) {
               return "vendor-shopify";
@@ -103,7 +100,6 @@ export default defineConfig({
     minify: "esbuild",
   },
   ssr: {
-
     noExternal: [
       "@shopify/polaris",
       "@shopify/shopify-app-remix",

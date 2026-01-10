@@ -33,7 +33,6 @@ const BASE_TIME_BY_MIGRATION_TYPE: Record<string, number> = {
 
 function getComplexityMultiplier(asset: AuditAsset): number {
   let multiplier = 1.0;
-
   switch (asset.riskLevel) {
     case "high":
       multiplier *= 1.5;
@@ -45,44 +44,36 @@ function getComplexityMultiplier(asset: AuditAsset): number {
       multiplier *= 1.0;
       break;
   }
-
   if (asset.platform) {
     const complexPlatforms = ["pinterest", "snapchat", "twitter", "linkedin"];
     if (complexPlatforms.includes(asset.platform)) {
       multiplier *= 1.3;
     }
   }
-
   const details = asset.details as Record<string, unknown> | null;
   if (details) {
-
     const scriptTagCount = (details.scriptTagCount as number) || 1;
     if (scriptTagCount > 1) {
       multiplier *= 1.2;
     }
-
     if (details.hasCustomConfig) {
       multiplier *= 1.3;
     }
-
     const eventMappingsCount = (details.eventMappingsCount as number) || 0;
     if (eventMappingsCount > 5) {
       multiplier *= 1.1;
     }
   }
-
   const dependencies = asset.dependencies as string[] | null;
   if (dependencies && Array.isArray(dependencies) && dependencies.length > 0) {
     multiplier *= 1.1;
   }
-
   return multiplier;
 }
 
 export async function estimateMigrationTime(
   asset: AuditAsset
 ): Promise<TimeEstimate> {
-
   if (asset.migrationStatus === "completed" || asset.migrationStatus === "skipped") {
     return {
       assetId: asset.id,
@@ -98,34 +89,25 @@ export async function estimateMigrationTime(
       reason: "资产已迁移或已跳过",
     };
   }
-
   const baseTime = BASE_TIME_BY_CATEGORY[asset.category] || 15;
-
   const categoryMultiplier = asset.category === "pixel" ? 1.0 : 1.2;
-
   const complexityMultiplier = getComplexityMultiplier(asset);
-
   const migrationTypeMultiplier = BASE_TIME_BY_MIGRATION_TYPE[asset.suggestedMigration]
     ? BASE_TIME_BY_MIGRATION_TYPE[asset.suggestedMigration] / baseTime
     : 1.0;
-
   const estimatedMinutes = Math.round(
     baseTime * categoryMultiplier * complexityMultiplier * migrationTypeMultiplier
   );
-
   const minMinutes = Math.max(5, Math.round(estimatedMinutes * 0.7));
   const maxMinutes = Math.round(estimatedMinutes * 1.3);
-
   const reasons: string[] = [];
   if (baseTime >= 25) reasons.push("复杂资产类型");
   if (complexityMultiplier >= 1.3) reasons.push("高复杂度");
   if (asset.riskLevel === "high") reasons.push("高风险需更多测试");
   if (asset.suggestedMigration === "server_side") reasons.push("需要服务端集成");
-
   const reason = reasons.length > 0
     ? reasons.join("、")
     : "标准迁移时间";
-
   return {
     assetId: asset.id,
     minMinutes,
@@ -144,18 +126,15 @@ export async function estimateMigrationTime(
 export async function estimateMigrationTimesForShop(
   shopId: string
 ): Promise<TimeEstimate[]> {
-
   const assets = await prisma.auditAsset.findMany({
     where: {
       shopId,
       migrationStatus: { not: "completed" },
     },
   });
-
   const estimates = await Promise.all(
     assets.map((asset) => estimateMigrationTime(asset))
   );
-
   return estimates;
 }
 
@@ -170,7 +149,6 @@ export function calculateTotalMigrationTime(
   const totalMin = estimates.reduce((sum, e) => sum + e.minMinutes, 0);
   const totalMax = estimates.reduce((sum, e) => sum + e.maxMinutes, 0);
   const totalEstimated = estimates.reduce((sum, e) => sum + e.estimatedMinutes, 0);
-
   const formatTime = (minutes: number): string => {
     if (minutes < 60) {
       return `${minutes} 分钟`;
@@ -182,7 +160,6 @@ export function calculateTotalMigrationTime(
     }
     return `${hours} 小时 ${mins} 分钟`;
   };
-
   return {
     totalMin,
     totalMax,
@@ -198,7 +175,6 @@ export async function updateAssetTimeEstimate(
   const asset = await prisma.auditAsset.findUnique({
     where: { id: assetId },
   });
-
   if (asset) {
     const details = (asset.details as Record<string, unknown>) || {};
     details.timeEstimate = {
@@ -209,7 +185,6 @@ export async function updateAssetTimeEstimate(
     details.timeEstimateFactors = estimate.factors;
     details.timeEstimateReason = estimate.reason;
     details.timeEstimateCalculatedAt = new Date().toISOString();
-
     await prisma.auditAsset.update({
       where: { id: assetId },
       data: {

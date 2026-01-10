@@ -7,28 +7,22 @@ import type { Prisma } from "@prisma/client";
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   const { session } = await authenticate.admin(request);
   const shopDomain = session.shop;
-
   const shop = await prisma.shop.findUnique({
     where: { shopDomain },
     select: { id: true },
   });
-
   if (!shop) {
     return new Response("Shop not found", { status: 404 });
   }
-
   const url = new URL(request.url);
   const platforms = url.searchParams.get("platforms")?.split(",") || [];
   const eventTypes = url.searchParams.get("eventTypes")?.split(",") || [];
   const runId = url.searchParams.get("runId") || null;
-
   let intervalId: ReturnType<typeof setInterval> | null = null;
   let isClosed = false;
-
   const stream = new ReadableStream({
     async start(controller) {
       const encoder = new TextEncoder();
-
       const cleanup = () => {
         if (intervalId !== null) {
           clearInterval(intervalId);
@@ -39,11 +33,9 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
           try {
             controller.close();
           } catch (error) {
-
           }
         }
       };
-
       const sendMessage = (type: string, data: unknown) => {
         if (isClosed) return;
         try {
@@ -57,7 +49,6 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
           cleanup();
         }
       };
-
       sendMessage("connected", {
         shopId: shop.id,
         platforms,
@@ -65,14 +56,12 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
         runId,
         timestamp: new Date().toISOString(),
       });
-
       if (runId) {
         try {
           const run = await prisma.verificationRun.findUnique({
             where: { id: runId },
             select: { status: true, startedAt: true, completedAt: true },
           });
-
           if (run) {
             sendMessage("verification_run_status", {
               runId,
@@ -85,18 +74,14 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
           logger.error("Failed to fetch verification run status", { runId, error });
         }
       }
-
       let lastEventId: string | null = null;
       const pollInterval = 2000;
-
       const pollEvents = async () => {
         try {
-
           const whereClause: Prisma.EventLogWhereInput = {
             shopId: shop.id,
             ...(eventTypes.length > 0 && { eventName: { in: eventTypes } }),
           };
-
           if (lastEventId) {
             const lastEvent = await prisma.eventLog.findUnique({
               where: { id: lastEventId },
@@ -106,7 +91,6 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
               whereClause.createdAt = { gt: lastEvent.createdAt };
             }
           }
-
           const eventLogs = await prisma.eventLog.findMany({
             where: whereClause,
             orderBy: { createdAt: "desc" },
@@ -139,7 +123,6 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
               },
             },
           });
-
           const events: Array<{
             id: string;
             eventType: string;
@@ -165,24 +148,18 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
               trustLevel: string | null;
               hasConsent: boolean;
             };
-
             eventLogId?: string;
             deliveryAttemptId?: string;
           }> = [];
-
           for (const eventLog of eventLogs) {
             if (lastEventId && eventLog.id === lastEventId) continue;
-
             const shopifyContext = eventLog.shopifyContextJson as Record<string, unknown> | null;
             const normalizedEvent = eventLog.normalizedEventJson as Record<string, unknown> | null;
             const orderId = (shopifyContext?.orderId || normalizedEvent?.orderId || "") as string;
-
             for (const attempt of eventLog.DeliveryAttempt) {
-
               const requestPayload = attempt.requestPayloadJson as Record<string, unknown> | null;
               let value: number | undefined;
               let currency: string | undefined;
-
               if (attempt.destinationType === "google") {
                 const body = requestPayload?.body as Record<string, unknown> | undefined;
                 const events = body?.events as Array<Record<string, unknown>> | undefined;
@@ -208,16 +185,13 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
                   currency = properties?.currency as string | undefined;
                 }
               }
-
               const hasEventId = !!eventLog.eventId;
               const missingParams: string[] = [];
               if (!value) missingParams.push("value");
               if (!currency) missingParams.push("currency");
               if (!hasEventId) missingParams.push("event_id");
-
               const status = attempt.status === "ok" ? "success" :
                            attempt.status === "fail" ? "failed" : "pending";
-
               events.push({
                 id: `${eventLog.id}-${attempt.id}`,
                 eventType: eventLog.eventName,
@@ -231,16 +205,13 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
                   hasEventId,
                 },
                 errors: attempt.errorDetail ? [attempt.errorDetail] : undefined,
-
                 eventLogId: eventLog.id,
                 deliveryAttemptId: attempt.id,
               });
-
               if (!lastEventId || attempt.createdAt > new Date()) {
                 lastEventId = eventLog.id;
               }
             }
-
             if (eventLog.DeliveryAttempt.length === 0) {
               events.push({
                 id: eventLog.id,
@@ -252,16 +223,13 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
                 params: {
                   hasEventId: !!eventLog.eventId,
                 },
-
                 eventLogId: eventLog.id,
               });
-
               if (!lastEventId || eventLog.createdAt > new Date()) {
                 lastEventId = eventLog.id;
               }
             }
           }
-
           for (const event of events) {
             sendMessage("event", event);
           }
@@ -270,22 +238,18 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
           sendMessage("error", {
             message: error instanceof Error ? error.message : "Failed to fetch events",
           });
-
           if (isClosed) {
             cleanup();
           }
         }
       };
-
       intervalId = setInterval(pollEvents, pollInterval);
       pollEvents();
-
       request.signal.addEventListener("abort", () => {
         cleanup();
       });
     },
     cancel() {
-
       if (intervalId !== null) {
         clearInterval(intervalId);
         intervalId = null;
@@ -295,7 +259,6 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       }
     },
   });
-
   return new Response(stream, {
     headers: {
       "Content-Type": "text/event-stream",

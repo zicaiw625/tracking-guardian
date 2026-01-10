@@ -27,7 +27,6 @@ const TIMESTAMP_WINDOW_MS = API_CONFIG.TIMESTAMP_WINDOW_MS;
 const INGEST_RATE_LIMIT = RATE_LIMIT_CONFIG.PIXEL_EVENTS;
 
 export const action = async ({ request }: ActionFunctionArgs) => {
-
   const contentType = request.headers.get("Content-Type");
   if (!contentType || (!contentType.includes("application/json") && !contentType.includes("text/plain"))) {
     return jsonWithCors(
@@ -35,7 +34,6 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       { status: 415, request }
     );
   }
-
   let bodyText: string;
   let bodyData: unknown;
   try {
@@ -47,32 +45,26 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       { status: 400, request }
     );
   }
-
   const isBatchFormat =
     typeof bodyData === "object" &&
     bodyData !== null &&
     "events" in bodyData &&
     Array.isArray((bodyData as { events?: unknown }).events);
-
   if (isBatchFormat) {
-
     const batchData = bodyData as { events: unknown[]; timestamp?: number };
     const events = batchData.events || [];
-
     if (events.length === 0) {
       return jsonWithCors(
         { error: "events array cannot be empty" },
         { status: 400, request }
       );
     }
-
     if (events.length > MAX_BATCH_SIZE) {
       return jsonWithCors(
         { error: `events array exceeds maximum size of ${MAX_BATCH_SIZE}` },
         { status: 400, request }
       );
     }
-
     const firstEventValidation = validateRequest(events[0]);
     if (!firstEventValidation.valid) {
       return jsonWithCors(
@@ -80,23 +72,19 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         { status: 400, request }
       );
     }
-
     const firstPayload = firstEventValidation.payload;
     const shopDomain = firstPayload.shopDomain;
     const timestamp = batchData.timestamp || firstPayload.timestamp;
-
     const signature = request.headers.get("X-Tracking-Guardian-Signature");
     const isProduction = !isDevMode();
     const environment = (firstPayload.data as { environment?: "test" | "live" })?.environment || "live";
     const shop = await getShopForPixelVerificationWithConfigs(shopDomain, environment);
-
     if (!shop || !shop.isActive) {
       return jsonWithCors(
         { error: "Shop not found or inactive" },
         { status: 404, request }
       );
     }
-
     const rateLimitKey = `ingest:${shopDomain}`;
     const rateLimit = await checkRateLimitAsync(
       rateLimitKey,
@@ -119,7 +107,6 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       response.headers.set("X-RateLimit-Key", rateLimitKey);
       return response;
     }
-
     if (isProduction) {
       if (!shop.ingestionSecret) {
         logger.error(`Missing ingestionSecret for ${shopDomain} in production`);
@@ -128,7 +115,6 @@ export const action = async ({ request }: ActionFunctionArgs) => {
           { status: 500, request }
         );
       }
-
       if (!signature) {
         logger.warn(`Missing HMAC signature for ${shopDomain} in production`);
         return jsonWithCors(
@@ -136,7 +122,6 @@ export const action = async ({ request }: ActionFunctionArgs) => {
           { status: 403, request }
         );
       }
-
       const hmacResult = await validatePixelEventHMAC(
         request,
         bodyText,
@@ -144,7 +129,6 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         timestamp,
         TIMESTAMP_WINDOW_MS
       );
-
       if (!hmacResult.valid) {
         logger.warn(`HMAC verification failed for ${shopDomain}: ${hmacResult.reason}`);
         return jsonWithCors(
@@ -153,10 +137,8 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         );
       }
     }
-
     const pixelConfigs = shop.pixelConfigs;
     let mode: "purchase_only" | "full_funnel" = "purchase_only";
-
     for (const config of pixelConfigs) {
       if (config.clientConfig && typeof config.clientConfig === 'object') {
         if ('mode' in config.clientConfig) {
@@ -170,32 +152,25 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         }
       }
     }
-
     const validatedEvents: Array<{
       payload: PixelEventPayload;
       eventId: string | null;
       destinations: string[];
     }> = [];
-
     const origin = request.headers.get("Origin");
-
     const keyValidation: KeyValidationResult = (() => {
       if (isProduction) {
-
         return {
           matched: true,
           reason: "hmac_verified",
         };
       } else {
-
         if (signature && shop.ingestionSecret) {
-
           return {
             matched: true,
             reason: "hmac_verified",
           };
         } else {
-
           return {
             matched: !signature || !shop.ingestionSecret,
             reason: !signature ? "no_signature_in_dev" : (!shop.ingestionSecret ? "no_secret_in_dev" : "hmac_not_verified"),
@@ -203,7 +178,6 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         }
       }
     })();
-
     for (let i = 0; i < events.length; i++) {
       const eventValidation = validateRequest(events[i]);
       if (!eventValidation.valid) {
@@ -213,9 +187,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         });
         continue;
       }
-
       const payload = eventValidation.payload;
-
       if (payload.shopDomain !== shopDomain) {
         logger.warn(`Event at index ${i} has different shopDomain`, {
           expected: shopDomain,
@@ -223,17 +195,13 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         });
         continue;
       }
-
       if (!isPrimaryEvent(payload.eventName, mode)) {
         logger.debug(`Event ${payload.eventName} at index ${i} not accepted for ${shopDomain} (mode: ${mode}) - skipping`);
         continue;
       }
-
       const prdEventId = payload.nonce;
-
       const eventType = payload.eventName === "checkout_completed" ? "purchase" : payload.eventName;
       const isPurchaseEvent = eventType === "purchase";
-
       const items = payload.data.items as Array<{
         id?: string;
         quantity?: number | string;
@@ -257,11 +225,9 @@ export const action = async ({ request }: ActionFunctionArgs) => {
           ? Math.max(1, parseInt(item.quantity, 10) || 1)
           : 1,
       })).filter(item => item.id) || [];
-
       let orderId: string | null = null;
       let usedCheckoutTokenAsFallback = false;
       let eventIdentifier: string | null = null;
-
       if (isPurchaseEvent) {
         try {
           const matchKeyResult = generateOrderMatchKey(
@@ -272,7 +238,6 @@ export const action = async ({ request }: ActionFunctionArgs) => {
           orderId = matchKeyResult.orderId;
           usedCheckoutTokenAsFallback = matchKeyResult.usedCheckoutTokenAsFallback;
           eventIdentifier = orderId;
-
           const alreadyRecorded = await isClientEventRecorded(shop.id, orderId, eventType);
           if (alreadyRecorded) {
             logger.debug(`Purchase event already recorded for order ${orderId}, skipping`, {
@@ -282,7 +247,6 @@ export const action = async ({ request }: ActionFunctionArgs) => {
             });
             continue;
           }
-
           const nonceFromBody = prdEventId || payload.nonce;
           const nonceResult = await createEventNonce(
             shop.id,
@@ -307,7 +271,6 @@ export const action = async ({ request }: ActionFunctionArgs) => {
           continue;
         }
       } else {
-
         const checkoutToken = payload.data.checkoutToken;
         if (checkoutToken) {
           orderId = checkoutToken;
@@ -317,7 +280,6 @@ export const action = async ({ request }: ActionFunctionArgs) => {
           eventIdentifier = null;
         }
       }
-
       const eventId = prdEventId || generateEventIdForType(
         eventIdentifier,
         eventType,
@@ -326,12 +288,10 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         normalizedItems.length > 0 ? normalizedItems : undefined,
         payload.nonce || null
       );
-
       if (isPurchaseEvent && orderId) {
         try {
           const trustResult = evaluateTrustLevel(keyValidation, !!payload.data.checkoutToken);
           const originHost = origin ? new URL(origin).host : null;
-
           await upsertPixelEventReceipt(
             shop.id,
             orderId,
@@ -349,13 +309,10 @@ export const action = async ({ request }: ActionFunctionArgs) => {
             orderId,
             error: error instanceof Error ? error.message : String(error),
           });
-
         }
       }
-
       const clientSideConfigs = pixelConfigs.filter(config => config.clientSideEnabled === true);
       const destinations = clientSideConfigs.map(config => config.platform);
-
       const consentResult = checkInitialConsent(payload.consent);
       if (!consentResult.hasAnyConsent) {
         logger.debug(`Event at index ${i} has no consent, skipping`, {
@@ -364,14 +321,12 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         });
         continue;
       }
-
       validatedEvents.push({
         payload,
         eventId,
         destinations,
       });
     }
-
     if (validatedEvents.length === 0) {
       logger.debug(`All events filtered for ${shopDomain} (mode: ${mode}) - returning empty accepted_count`);
       return jsonWithCors(
@@ -382,7 +337,6 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         { request }
       );
     }
-
     safeFireAndForget(
       processBatchEvents(shop.id, validatedEvents, environment).then((results) => {
         const successCount = results.filter(r => r.success).length;
@@ -403,7 +357,6 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         },
       }
     );
-
     return jsonWithCors(
       {
         accepted_count: validatedEvents.length,
@@ -412,7 +365,6 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       { request }
     );
   } else {
-
     return pixelEventsAction({ request, params: {}, context: {} as any });
   }
 };

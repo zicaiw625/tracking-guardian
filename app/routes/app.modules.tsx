@@ -80,12 +80,10 @@ interface LoaderData {
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   const { session } = await authenticate.admin(request);
   const shopDomain = session.shop;
-
   const shop = await prisma.shop.findUnique({
     where: { shopDomain },
     select: { id: true, plan: true },
   });
-
   if (!shop) {
     return json<LoaderData>({
       shop: null,
@@ -99,12 +97,10 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       surveySubmissionCount: 0,
     });
   }
-
   const planId = shop.plan as PlanId;
   const planInfo = getPlanOrDefault(planId);
   const modules = await getUiModuleConfigs(shop.id);
   const enabledCount = await getEnabledModulesCount(shop.id);
-
     let surveySubmissionCount = 0;
   try {
     const sevenDaysAgo = new Date();
@@ -118,10 +114,8 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   } catch (error) {
     logger.warn("Failed to get survey submission count", { shopId: shop.id, error });
   }
-
   const isDev = isDevStore(shopDomain);
   const modulePreviewUrls: Record<string, { thank_you?: string; order_status?: string }> = {};
-
   if (isDev) {
     for (const module of modules) {
       const urls: { thank_you?: string; order_status?: string } = {};
@@ -134,7 +128,6 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       modulePreviewUrls[module.moduleKey] = urls;
     }
   }
-
   return json<LoaderData>({
     shop: { id: shop.id, plan: planId },
     shopDomain,
@@ -153,33 +146,27 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   const shopDomain = session.shop;
   const formData = await request.formData();
   const actionType = formData.get("_action");
-
   const shop = await prisma.shop.findUnique({
     where: { shopDomain },
     select: { id: true },
   });
-
   if (!shop) {
     return json({ error: "店铺未找到" }, { status: 404 });
   }
-
   switch (actionType) {
     case "toggle_module": {
       const moduleKey = formData.get("moduleKey") as ModuleKey;
       const isEnabled = formData.get("isEnabled") === "true";
-
       const result = await updateUiModuleConfig(shop.id, moduleKey, { isEnabled });
       if (!result.success) {
         return json({ error: result.error }, { status: 400 });
       }
       return json({ success: true, actionType: "toggle_module", moduleKey, isEnabled });
     }
-
     case "update_settings": {
       const moduleKey = formData.get("moduleKey") as ModuleKey;
       const settingsJson = formData.get("settings") as string;
       const localizationJson = formData.get("localization") as string | null;
-
       try {
         const settings = JSON.parse(settingsJson);
         const localization = localizationJson ? JSON.parse(localizationJson) : undefined;
@@ -192,11 +179,9 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         return json({ error: "无效的设置数据" }, { status: 400 });
       }
     }
-
     case "update_display_rules": {
       const moduleKey = formData.get("moduleKey") as ModuleKey;
       const displayRulesJson = formData.get("displayRules") as string;
-
       try {
         const displayRules = JSON.parse(displayRulesJson);
         const result = await updateUiModuleConfig(shop.id, moduleKey, { displayRules });
@@ -208,7 +193,6 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         return json({ error: "无效的显示规则" }, { status: 400 });
       }
     }
-
     case "reset_module": {
       const moduleKey = formData.get("moduleKey") as ModuleKey;
       const result = await resetModuleToDefault(shop.id, moduleKey);
@@ -217,7 +201,6 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       }
       return json({ success: true, actionType: "reset_module", moduleKey });
     }
-
     case "batch_toggle_modules": {
       const updatesJson = formData.get("updates") as string;
       try {
@@ -235,7 +218,6 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         return json({ error: "无效的批量操作数据" }, { status: 400 });
       }
     }
-
     default:
       return json({ error: "未知操作" }, { status: 400 });
   }
@@ -263,7 +245,6 @@ function ModuleCard({
   surveySubmissionCount?: number;
 }) {
   const info = UI_MODULES[module.moduleKey];
-
   return (
     <Card>
       <BlockStack gap="400">
@@ -318,7 +299,6 @@ function ModuleCard({
               )}
             </BlockStack>
           </InlineStack>
-
           <InlineStack gap="200">
             {module.isEnabled && (
               <Button
@@ -347,7 +327,6 @@ function ModuleCard({
             </Button>
           </InlineStack>
         </InlineStack>
-
         <InlineStack gap="100">
           {info.targets.map((target) => (
             <Tag key={target}>
@@ -356,7 +335,6 @@ function ModuleCard({
           ))}
           <Tag>{getCategoryLabel(info.category)}</Tag>
         </InlineStack>
-
         {upgradeRequired && !module.isEnabled && (
           <Banner tone="warning">
             <Text as="p" variant="bodySm">
@@ -393,7 +371,6 @@ function SurveySettingsForm({
   onChange: (settings: SurveySettings) => void;
 }) {
   const [errors, setErrors] = useState<Record<string, string>>({});
-
   const validateField = (field: string, value: string) => {
     const newErrors = { ...errors };
     if (field === "title" && !value.trim()) {
@@ -405,7 +382,6 @@ function SurveySettingsForm({
     }
     setErrors(newErrors);
   };
-
   return (
     <BlockStack gap="400">
       <FormLayout>
@@ -424,7 +400,6 @@ function SurveySettingsForm({
             placeholder="我们想听听您的意见"
           />
         </FormLayout.Group>
-
         <FormLayout.Group>
           <TextField
             label="问题"
@@ -440,7 +415,6 @@ function SurveySettingsForm({
             placeholder="您是如何了解到我们的？"
           />
         </FormLayout.Group>
-
         <FormLayout.Group>
           <Checkbox
             label="显示评分选项"
@@ -449,7 +423,6 @@ function SurveySettingsForm({
             helpText="允许客户对购物体验进行评分（1-5 星）"
           />
         </FormLayout.Group>
-
         {settings.showRating !== false && (
           <FormLayout.Group>
             <TextField
@@ -462,9 +435,7 @@ function SurveySettingsForm({
             />
           </FormLayout.Group>
         )}
-
         <Divider />
-
         <FormLayout.Group>
           <BlockStack gap="200">
             <Text as="h4" variant="headingSm">
@@ -506,13 +477,11 @@ function HelpdeskSettingsForm({
   onChange: (settings: HelpdeskSettings) => void;
 }) {
   const [errors, setErrors] = useState<Record<string, string>>({});
-
   const validateEmail = (email: string | undefined) => {
     if (!email) return undefined;
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     return emailRegex.test(email) ? undefined : "请输入有效的邮箱地址";
   };
-
   const validateUrl = (url: string | undefined) => {
     if (!url) return undefined;
     if (!url.startsWith("/") && !url.startsWith("http")) {
@@ -520,7 +489,6 @@ function HelpdeskSettingsForm({
     }
     return undefined;
   };
-
   return (
     <BlockStack gap="400">
       <FormLayout>
@@ -534,7 +502,6 @@ function HelpdeskSettingsForm({
             placeholder="订单帮助与售后"
           />
         </FormLayout.Group>
-
         <FormLayout.Group>
           <TextField
             label="描述"
@@ -546,15 +513,12 @@ function HelpdeskSettingsForm({
             placeholder="如需修改收件信息、查看售后政策或联系人工客服，请使用下方入口。"
           />
         </FormLayout.Group>
-
         <Divider />
-
         <FormLayout.Group>
           <Text as="h4" variant="headingSm">
             链接配置
           </Text>
         </FormLayout.Group>
-
         <FormLayout.Group>
           <TextField
             label="FAQ 链接"
@@ -574,7 +538,6 @@ function HelpdeskSettingsForm({
             helpText="常见问题页面链接（相对路径或绝对路径）"
           />
         </FormLayout.Group>
-
         <FormLayout.Group>
           <TextField
             label="联系邮箱"
@@ -595,7 +558,6 @@ function HelpdeskSettingsForm({
             helpText="客服邮箱地址"
           />
         </FormLayout.Group>
-
         <FormLayout.Group>
           <TextField
             label="联系页面链接"
@@ -615,7 +577,6 @@ function HelpdeskSettingsForm({
             helpText="联系页面链接"
           />
         </FormLayout.Group>
-
         <FormLayout.Group>
           <TextField
             label="WhatsApp 号码"
@@ -626,7 +587,6 @@ function HelpdeskSettingsForm({
             helpText="WhatsApp 联系号码（包含国家代码）"
           />
         </FormLayout.Group>
-
         <FormLayout.Group>
           <TextField
             label="Facebook Messenger 链接"
@@ -646,7 +606,6 @@ function HelpdeskSettingsForm({
             helpText="Facebook Messenger 联系链接（可选）"
           />
         </FormLayout.Group>
-
         <FormLayout.Group>
           <TextField
             label="继续购物链接"
@@ -691,7 +650,6 @@ function ReorderSettingsForm({
             placeholder="📦 再次购买"
           />
         </FormLayout.Group>
-
         <FormLayout.Group>
           <TextField
             label="副标题"
@@ -702,7 +660,6 @@ function ReorderSettingsForm({
             placeholder="喜欢这次购物？一键再次订购相同商品"
           />
         </FormLayout.Group>
-
         <FormLayout.Group>
           <TextField
             label="按钮文字"
@@ -713,7 +670,6 @@ function ReorderSettingsForm({
             placeholder="再次购买 →"
           />
         </FormLayout.Group>
-
         <FormLayout.Group>
           <Checkbox
             label="显示商品列表"
@@ -722,7 +678,6 @@ function ReorderSettingsForm({
             helpText="是否在再购模块中显示商品列表"
           />
         </FormLayout.Group>
-
         {settings.showItems !== false && (
           <FormLayout.Group>
             <Select
@@ -752,7 +707,6 @@ function OrderTrackingSettingsForm({
   onChange: (settings: OrderTrackingSettings) => void;
 }) {
   const [errors, setErrors] = useState<Record<string, string>>({});
-
   return (
     <BlockStack gap="400">
       <FormLayout>
@@ -766,17 +720,14 @@ function OrderTrackingSettingsForm({
             placeholder="物流追踪"
           />
         </FormLayout.Group>
-
         <FormLayout.Group>
           <Select
             label="物流追踪服务商"
             options={[
               { label: "Shopify 原生", value: "native" },
-
             ]}
             value={settings.provider || "native"}
             onChange={(value) => {
-
               if (value === "native") {
                 onChange({ ...settings, provider: value as "native" });
               }
@@ -784,7 +735,6 @@ function OrderTrackingSettingsForm({
             helpText="v1.0 版本仅支持 Shopify 原生物流追踪。第三方服务商（AfterShip/17Track）将在 v2.0+ 版本中提供"
           />
         </FormLayout.Group>
-
         {settings.provider && settings.provider !== "native" && (
           <FormLayout.Group>
             <TextField
@@ -815,7 +765,6 @@ function OrderTrackingSettingsForm({
             />
           </FormLayout.Group>
         )}
-
         <FormLayout.Group>
           <Checkbox
             label="显示预计送达时间"
@@ -837,7 +786,6 @@ function UpsellSettingsForm({
   onChange: (settings: UpsellSettings) => void;
 }) {
   const [errors, setErrors] = useState<Record<string, string>>({});
-
   const validateDiscountPercent = (value: string) => {
     const num = parseInt(value);
     if (value && (isNaN(num) || num < 0 || num > 100)) {
@@ -845,7 +793,6 @@ function UpsellSettingsForm({
     }
     return undefined;
   };
-
   return (
     <BlockStack gap="400">
       <FormLayout>
@@ -859,7 +806,6 @@ function UpsellSettingsForm({
             placeholder="🎁 为您推荐"
           />
         </FormLayout.Group>
-
         <FormLayout.Group>
           <TextField
             label="副标题"
@@ -870,7 +816,6 @@ function UpsellSettingsForm({
             placeholder="您可能还喜欢这些商品"
           />
         </FormLayout.Group>
-
         <FormLayout.Group>
           <TextField
             label="折扣码"
@@ -881,7 +826,6 @@ function UpsellSettingsForm({
             placeholder="SUMMER10"
           />
         </FormLayout.Group>
-
         <FormLayout.Group>
           <TextField
             label="折扣百分比"
@@ -904,7 +848,6 @@ function UpsellSettingsForm({
           />
         </FormLayout.Group>
       </FormLayout>
-
       <Banner tone="info">
         <Text as="p" variant="bodySm">
           <strong>产品配置说明</strong>：推荐的商品需要在 Shopify Admin 的 Checkout Editor 中设置。
@@ -939,7 +882,6 @@ function LocalizationSettingsForm({
 }) {
   const [selectedLocale, setSelectedLocale] = useState<string>("en");
   const currentLocaleData = localization?.[selectedLocale] || {};
-
   const handleFieldChange = (field: string, value: string) => {
     const updated = {
       ...localization,
@@ -950,7 +892,6 @@ function LocalizationSettingsForm({
     };
     onChange(updated);
   };
-
   const getEditableFields = () => {
     switch (moduleKey) {
       case "survey":
@@ -982,7 +923,6 @@ function LocalizationSettingsForm({
         return [];
     }
   };
-
   return (
     <BlockStack gap="400">
       <Banner tone="info">
@@ -990,16 +930,13 @@ function LocalizationSettingsForm({
           为不同语言的客户提供本地化内容。选择语言后编辑对应的翻译文本。
         </Text>
       </Banner>
-
       <Select
         label="选择语言"
         options={COMMON_LOCALES}
         value={selectedLocale}
         onChange={setSelectedLocale}
       />
-
       <Divider />
-
       {getEditableFields().map((field) => (
         <TextField
           key={field.key}
@@ -1011,7 +948,6 @@ function LocalizationSettingsForm({
           helpText={`默认值将用于未翻译的语言`}
         />
       ))}
-
       {Object.keys(localization || {}).length > 0 && (
         <Collapsible
           open={true}
@@ -1043,7 +979,6 @@ export default function UiBlocksPage() {
   const navigation = useNavigation();
   const revalidator = useRevalidator();
   const { showSuccess, showError } = useToastContext();
-
   const [selectedTab, setSelectedTab] = useState(0);
   const [editingModule, setEditingModule] = useState<ModuleKey | null>(null);
   const [editingSettings, setEditingSettings] = useState<Record<string, unknown> | null>(null);
@@ -1051,9 +986,7 @@ export default function UiBlocksPage() {
   const [editingDisplayRules, setEditingDisplayRules] = useState<DisplayRules | null>(null);
   const [modalTab, setModalTab] = useState(0);
   const [selectedModules, setSelectedModules] = useState<Set<ModuleKey>>(new Set());
-
   const isSubmitting = navigation.state === "submitting";
-
   useEffect(() => {
     if (actionData) {
       const data = actionData as { success?: boolean; error?: string; actionType?: string };
@@ -1067,7 +1000,6 @@ export default function UiBlocksPage() {
       }
     }
   }, [actionData, showSuccess, showError, revalidator]);
-
   const handleToggleModule = useCallback(
     (moduleKey: ModuleKey, enabled: boolean) => {
       const formData = new FormData();
@@ -1078,7 +1010,6 @@ export default function UiBlocksPage() {
     },
     [submit]
   );
-
   const handleEditModule = useCallback((moduleKey: ModuleKey) => {
     const module = modules.find((m) => m.moduleKey === moduleKey);
     if (module) {
@@ -1089,7 +1020,6 @@ export default function UiBlocksPage() {
       setModalTab(0);
     }
   }, [modules]);
-
   const handleBatchEnable = useCallback(() => {
     if (selectedModules.size === 0) return;
     const updates = Array.from(selectedModules).map((moduleKey) => ({
@@ -1102,7 +1032,6 @@ export default function UiBlocksPage() {
     submit(formData, { method: "post" });
     setSelectedModules(new Set());
   }, [selectedModules, submit]);
-
   const handleBatchDisable = useCallback(() => {
     if (selectedModules.size === 0) return;
     const updates = Array.from(selectedModules).map((moduleKey) => ({
@@ -1115,15 +1044,12 @@ export default function UiBlocksPage() {
     submit(formData, { method: "post" });
     setSelectedModules(new Set());
   }, [selectedModules, submit]);
-
   const handleSaveSettings = useCallback(() => {
     if (!editingModule || !editingSettings) return;
-
     const formData = new FormData();
     formData.append("_action", "update_settings");
     formData.append("moduleKey", editingModule);
     formData.append("settings", JSON.stringify(editingSettings));
-
     if (editingLocalization) {
       formData.append("localization", JSON.stringify(editingLocalization));
     }
@@ -1133,20 +1059,16 @@ export default function UiBlocksPage() {
     setEditingLocalization(undefined);
     setEditingDisplayRules(null);
   }, [editingModule, editingSettings, editingLocalization, submit]);
-
   const handleSaveDisplayRules = useCallback(() => {
     if (!editingModule || !editingDisplayRules) return;
-
     const formData = new FormData();
     formData.append("_action", "update_display_rules");
     formData.append("moduleKey", editingModule);
     formData.append("displayRules", JSON.stringify(editingDisplayRules));
     submit(formData, { method: "post" });
   }, [editingModule, editingDisplayRules, submit]);
-
   const handleResetModule = useCallback(() => {
     if (!editingModule) return;
-
     const formData = new FormData();
     formData.append("_action", "reset_module");
     formData.append("moduleKey", editingModule);
@@ -1154,27 +1076,21 @@ export default function UiBlocksPage() {
     setEditingModule(null);
     setEditingSettings(null);
   }, [editingModule, submit]);
-
   const canEnableMore = maxModules === -1 || enabledCount < maxModules;
-
   const tabs = [
     { id: "all", content: "全部模块" },
     { id: "engagement", content: "用户互动" },
     { id: "support", content: "客户支持" },
     { id: "conversion", content: "转化提升" },
   ];
-
   const filterModules = (category?: string) => {
-
     const availableModules = modules.filter((m) => !UI_MODULES[m.moduleKey].disabled);
     if (!category || category === "all") return availableModules;
     return availableModules.filter((m) => UI_MODULES[m.moduleKey].category === category);
   };
-
   const filteredModules = filterModules(
     selectedTab === 0 ? undefined : tabs[selectedTab].id
   );
-
   if (!shop) {
     return (
       <Page title="UI 模块配置">
@@ -1184,7 +1100,6 @@ export default function UiBlocksPage() {
       </Page>
     );
   }
-
   const getRequiredPlan = (moduleKey: ModuleKey): PlanId | undefined => {
     const info = UI_MODULES[moduleKey];
     const planOrder: PlanId[] = ["free", "starter", "growth", "agency"];
@@ -1195,7 +1110,6 @@ export default function UiBlocksPage() {
     }
     return undefined;
   };
-
   return (
       <Page
       title="Thank you / Order status 模块"
@@ -1242,7 +1156,6 @@ export default function UiBlocksPage() {
             )}
           </InlineStack>
         </Card>
-
         <Banner tone="info">
           <BlockStack gap="200">
             <Text as="p" variant="bodySm" fontWeight="semibold">
@@ -1298,7 +1211,6 @@ export default function UiBlocksPage() {
             </Button>
           </BlockStack>
         </Banner>
-
         {selectedModules.size > 0 && (
           <Card>
             <InlineStack align="space-between" blockAlign="center">
@@ -1370,7 +1282,6 @@ export default function UiBlocksPage() {
             </BlockStack>
           </Box>
         </Tabs>
-
         <Card>
           <BlockStack gap="400">
             <Text as="h2" variant="headingMd">
@@ -1385,7 +1296,6 @@ export default function UiBlocksPage() {
           </BlockStack>
         </Card>
       </BlockStack>
-
       <Modal
         open={editingModule !== null}
             onClose={() => {
@@ -1572,7 +1482,6 @@ export default function UiBlocksPage() {
                   )}
                 </>
               )}
-
               {modalTab === 1 && editingModule && editingDisplayRules && (
                 <DisplayRulesEditor
                   displayRules={editingDisplayRules}
@@ -1580,7 +1489,6 @@ export default function UiBlocksPage() {
                   moduleKey={editingModule}
                 />
               )}
-
               {modalTab === 2 && editingModule && (
                 <LocalizationSettingsForm
                   localization={editingLocalization}

@@ -35,7 +35,6 @@ export default function AuditStartPage() {
             </InlineStack>
           </BlockStack>
         </Card>
-
         <Banner tone="info" title="预计耗时">
           <BlockStack gap="200">
             <Text as="p">中等体量店铺约 1-3 分钟完成扫描，大型店铺可能需要更久。</Text>
@@ -44,7 +43,6 @@ export default function AuditStartPage() {
             </Text>
           </BlockStack>
         </Banner>
-
         <Card>
           <BlockStack gap="300">
             <Text as="h3" variant="headingSm">

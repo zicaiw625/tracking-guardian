@@ -37,13 +37,10 @@ interface PlatformConfig {
   enabled: boolean;
   platformId: string;
   credentials: {
-
     measurementId?: string;
     apiSecret?: string;
-
     pixelId?: string;
     accessToken?: string;
-
     testEventCode?: string;
   };
   eventMappings: Record<string, string>;
@@ -338,44 +335,36 @@ export function PixelMigrationWizard({
   const submit = useSubmit();
   const navigation = useNavigation();
   const { showSuccess, showError } = useToastContext();
-
   const extractPlatformIdFromAsset = useCallback((asset: PrefillAsset, platform: PlatformType): string => {
     if (!asset.details) return "";
-
     const details = asset.details as Record<string, unknown>;
-
     const matchedPatterns = details.matchedPatterns as string[] | undefined;
     if (matchedPatterns && matchedPatterns.length > 0) {
       for (const pattern of matchedPatterns) {
-
         if (platform === "google") {
           const ga4Match = pattern.match(/G-[A-Z0-9]{10,}/i);
           if (ga4Match && ga4Match.length > 0 && ga4Match[0]) {
             return ga4Match[0];
           }
         }
-
         if (platform === "meta") {
           const metaMatch = pattern.match(/\d{15,16}/);
           if (metaMatch && metaMatch.length > 0 && metaMatch[0]) {
             return metaMatch[0];
           }
         }
-
         if (platform === "tiktok") {
           const tiktokMatch = pattern.match(/[A-Z0-9]{8,}/i);
           if (tiktokMatch && tiktokMatch.length > 0 && tiktokMatch[0]) {
             return tiktokMatch[0];
           }
         }
-
         if (platform === "pinterest") {
           const pinterestMatch = pattern.match(/[A-Z0-9]{8,}/i);
           if (pinterestMatch && pinterestMatch.length > 0 && pinterestMatch[0]) {
             return pinterestMatch[0];
           }
         }
-
         if (platform === "snapchat") {
           const snapchatMatch = pattern.match(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i);
           if (snapchatMatch && snapchatMatch.length > 0 && snapchatMatch[0]) {
@@ -384,7 +373,6 @@ export function PixelMigrationWizard({
         }
       }
     }
-
     const content = details.content as string | undefined;
     if (content) {
       if (platform === "google") {
@@ -418,10 +406,8 @@ export function PixelMigrationWizard({
         }
       }
     }
-
     return "";
   }, []);
-
   const initializeFromDraft = useCallback(() => {
     if (wizardDraft) {
       const draftPlatforms = new Set<PlatformType>(wizardDraft.selectedPlatforms as PlatformType[]);
@@ -475,17 +461,12 @@ export function PixelMigrationWizard({
     }
     return null;
   }, [wizardDraft]);
-
   const draftData = initializeFromDraft();
-
   const initializeFromAsset = useCallback(() => {
     if (!prefillAsset || !prefillAsset.platform) return null;
-
     const platform = prefillAsset.platform as PlatformType;
     if (!["google", "meta", "tiktok", "pinterest", "snapchat"].includes(platform)) return null;
-
     const platformId = extractPlatformIdFromAsset(prefillAsset, platform);
-
     return {
       platforms: new Set<PlatformType>([platform]),
       configs: {
@@ -532,7 +513,6 @@ export function PixelMigrationWizard({
       },
     };
   }, [prefillAsset, extractPlatformIdFromAsset]);
-
   const assetData = initializeFromAsset();
   const timeoutRefs = useRef<Array<NodeJS.Timeout>>([]);
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
@@ -590,7 +570,6 @@ export function PixelMigrationWizard({
   });
   const [selectedTemplate, setSelectedTemplate] = useState<string | null>(null);
   const [showTemplateModal, setShowTemplateModal] = useState(false);
-
 const allTemplates: WizardTemplate[] = [
     ...(templates?.presets || PRESET_TEMPLATES.map(t => ({
       id: t.id,
@@ -603,9 +582,7 @@ const allTemplates: WizardTemplate[] = [
     }))),
     ...(templates?.custom || []),
   ];
-
   const isSubmitting = navigation.state === "submitting";
-
   const saveDraft = useCallback(async () => {
     const draft = {
       step: currentStep,
@@ -625,7 +602,6 @@ const allTemplates: WizardTemplate[] = [
       ),
       selectedTemplate,
     };
-
     try {
       const DRAFT_STORAGE_KEY = shopId ? `pixel-wizard-draft-${shopId}` : "pixel-wizard-draft";
       localStorage.setItem(DRAFT_STORAGE_KEY, JSON.stringify({
@@ -633,73 +609,55 @@ const allTemplates: WizardTemplate[] = [
         timestamp: Date.now(),
       }));
     } catch (error) {
-
       if (process.env.NODE_ENV === "development") {
-
         console.warn("[PixelMigrationWizard] Failed to save draft to localStorage:", error);
       }
     }
-
     if (shopId) {
       try {
         const formData = new FormData();
         formData.append("_action", "saveWizardDraft");
         formData.append("draft", JSON.stringify(draft));
-
         const response = await fetch("/app/migrate", {
           method: "POST",
           body: formData,
         });
-
         if (!response.ok) {
-
           if (process.env.NODE_ENV === "development") {
-
             console.warn("[PixelMigrationWizard] Failed to save draft to database");
           }
         }
       } catch (error) {
-
           if (process.env.NODE_ENV === "development") {
-
             console.warn("[PixelMigrationWizard] Failed to save draft to database:", error);
           }
       }
     }
   }, [currentStep, selectedPlatforms, platformConfigs, selectedTemplate, shopId]);
-
   const clearDraft = useCallback(async () => {
-
     try {
       const DRAFT_STORAGE_KEY = shopId ? `pixel-wizard-draft-${shopId}` : "pixel-wizard-draft";
       localStorage.removeItem(DRAFT_STORAGE_KEY);
     } catch (error) {
-
         if (process.env.NODE_ENV === "development") {
-
           console.warn("[PixelMigrationWizard] Failed to clear draft from localStorage:", error);
         }
     }
-
     if (shopId) {
       try {
         const formData = new FormData();
         formData.append("_action", "clearWizardDraft");
-
         await fetch("/app/migrate", {
           method: "POST",
           body: formData,
         });
       } catch (error) {
-
           if (process.env.NODE_ENV === "development") {
-
             console.warn("[PixelMigrationWizard] Failed to clear draft from database:", error);
           }
       }
     }
   }, [shopId]);
-
   const steps: Array<{
     id: WizardStep;
     label: string;
@@ -743,10 +701,8 @@ const allTemplates: WizardTemplate[] = [
       estimatedTime: "2-3 分钟",
     },
   ];
-
   useEffect(() => {
     if (wizardDraft && wizardDraft.step !== "select") {
-
       try {
         const DRAFT_STORAGE_KEY = shopId ? `pixel-wizard-draft-${shopId}` : "pixel-wizard-draft";
         const draft = {
@@ -758,13 +714,10 @@ const allTemplates: WizardTemplate[] = [
         };
         localStorage.setItem(DRAFT_STORAGE_KEY, JSON.stringify(draft));
       } catch (error) {
-
           if (process.env.NODE_ENV === "development") {
-
             console.warn("[PixelMigrationWizard] Failed to sync draft to localStorage:", error);
           }
       }
-
       showSuccess(`检测到未完成的配置（停留在第 ${steps.findIndex(s => s.id === wizardDraft.step) + 1} 步），已自动恢复。您可以继续完成配置。`);
     } else if (initialPlatforms.length > 0 && !wizardDraft) {
       const configs = { ...platformConfigs };
@@ -780,30 +733,23 @@ const allTemplates: WizardTemplate[] = [
       });
       setPlatformConfigs(configs);
     }
-
   }, [wizardDraft, shopId, showSuccess, steps, initialPlatforms, platformConfigs, setPlatformConfigs]);
-
   useEffect(() => {
     const timeoutId = setTimeout(() => {
       saveDraft();
     }, 500);
-
     return () => clearTimeout(timeoutId);
   }, [currentStep, selectedPlatforms, platformConfigs, selectedTemplate, saveDraft]);
-
   useEffect(() => {
-
     if (intervalRef.current !== null) {
       clearInterval(intervalRef.current);
       intervalRef.current = null;
     }
-
     intervalRef.current = setInterval(() => {
       if (currentStep !== "select" || selectedPlatforms.size > 0) {
         saveDraft();
       }
     }, 30000);
-
     return () => {
       if (intervalRef.current !== null) {
         clearInterval(intervalRef.current);
@@ -811,18 +757,15 @@ const allTemplates: WizardTemplate[] = [
       }
     };
   }, [currentStep, selectedPlatforms, saveDraft]);
-
   useEffect(() => {
     return () => {
       timeoutRefs.current.forEach((timeout) => clearTimeout(timeout));
       timeoutRefs.current = [];
     };
   }, []);
-
   useEffect(() => {
     const handleBeforeUnload = () => {
       if (currentStep !== "select" || selectedPlatforms.size > 0) {
-
         try {
           const DRAFT_STORAGE_KEY = shopId ? `pixel-wizard-draft-${shopId}` : "pixel-wizard-draft";
           const draft = {
@@ -846,24 +789,19 @@ const allTemplates: WizardTemplate[] = [
           };
           localStorage.setItem(DRAFT_STORAGE_KEY, JSON.stringify(draft));
         } catch (error) {
-
             if (process.env.NODE_ENV === "development") {
-
               console.warn("[PixelMigrationWizard] Failed to save draft before unload:", error);
             }
         }
       }
     };
-
     window.addEventListener("beforeunload", handleBeforeUnload);
     return () => {
       window.removeEventListener("beforeunload", handleBeforeUnload);
     };
   }, [currentStep, selectedPlatforms, platformConfigs, selectedTemplate, shopId]);
-
   const currentStepIndex = steps.findIndex((s) => s.id === currentStep);
   const progress = ((currentStepIndex + 1) / steps.length) * 100;
-
   const handlePlatformToggle = useCallback(
     (platform: PlatformType, enabled: boolean) => {
       setSelectedPlatforms((prev) => {
@@ -875,7 +813,6 @@ const allTemplates: WizardTemplate[] = [
         }
         return next;
       });
-
       setPlatformConfigs((prev) => ({
         ...prev,
         [platform]: {
@@ -886,12 +823,10 @@ const allTemplates: WizardTemplate[] = [
     },
     []
   );
-
   const handleApplyTemplate = useCallback(
     (template: WizardTemplate) => {
       const configs = { ...platformConfigs };
       const platforms = new Set<PlatformType>();
-
       template.platforms.forEach((platform) => {
         const platformKey = platform as PlatformType;
         platforms.add(platformKey);
@@ -903,7 +838,6 @@ const allTemplates: WizardTemplate[] = [
             eventMappings: template.eventMappings[platform] || existingConfig.eventMappings,
           };
         } else {
-
           configs[platformKey] = {
             platform: platformKey,
             enabled: true,
@@ -914,7 +848,6 @@ const allTemplates: WizardTemplate[] = [
           };
         }
       });
-
       setSelectedPlatforms(platforms);
       setPlatformConfigs(configs);
       setSelectedTemplate(template.id);
@@ -923,7 +856,6 @@ const allTemplates: WizardTemplate[] = [
     },
     [platformConfigs, showSuccess]
   );
-
   const handleCredentialUpdate = useCallback(
     (platform: PlatformType, field: string, value: string) => {
       setPlatformConfigs((prev) => {
@@ -947,7 +879,6 @@ const allTemplates: WizardTemplate[] = [
     },
     []
   );
-
   const handleEventMappingUpdate = useCallback(
     (platform: PlatformType, shopifyEvent: string, platformEvent: string) => {
       setPlatformConfigs((prev) => {
@@ -967,7 +898,6 @@ const allTemplates: WizardTemplate[] = [
     },
     []
   );
-
   const handleEnvironmentToggle = useCallback(
     (platform: PlatformType, environment: "test" | "live") => {
       setPlatformConfigs((prev) => ({
@@ -980,28 +910,22 @@ const allTemplates: WizardTemplate[] = [
     },
     []
   );
-
   const validateConfig = useCallback((platform: PlatformType): string[] => {
     const config = platformConfigs[platform];
     const errors: string[] = [];
     const info = PLATFORM_INFO[platform];
-
     if (!config || !info) return errors;
     if (!config.enabled) return errors;
-
     info.credentialFields.forEach((field) => {
       if (field.key === "testEventCode") return;
       if (!config.credentials[field.key as keyof typeof config.credentials]) {
         errors.push(`${info.name}: 缺少 ${field.label}`);
       }
     });
-
     return errors;
   }, [platformConfigs]);
-
   const canProceedToNextStep = useCallback((): { canProceed: boolean; errors: string[] } => {
     const errors: string[] = [];
-
     switch (currentStep) {
       case "select":
         if (selectedPlatforms.size === 0) {
@@ -1012,9 +936,7 @@ const allTemplates: WizardTemplate[] = [
         Array.from(selectedPlatforms).forEach((platform) => {
           const config = platformConfigs[platform];
           const info = PLATFORM_INFO[platform];
-
           if (!config || !info) return;
-
           info.credentialFields.forEach((field) => {
             if (field.key === "testEventCode") return;
             if (!config.credentials[field.key as keyof typeof config.credentials]) {
@@ -1042,37 +964,30 @@ const allTemplates: WizardTemplate[] = [
         });
         break;
       case "testing":
-
         break;
     }
-
     return {
       canProceed: errors.length === 0,
       errors,
     };
   }, [currentStep, selectedPlatforms, platformConfigs, validateConfig]);
-
   const handleSkip = useCallback(() => {
     const nextStepIndex = currentStepIndex + 1;
     if (nextStepIndex < steps.length) {
       setCurrentStep(steps[nextStepIndex].id);
     }
   }, [currentStepIndex, steps]);
-
   const handleSave = useCallback(async () => {
     const enabledPlatforms = Array.from(selectedPlatforms);
     const allErrors: string[] = [];
-
     enabledPlatforms.forEach((platform) => {
       const errors = validateConfig(platform);
       allErrors.push(...errors);
     });
-
     if (allErrors.length > 0) {
       showError(`配置错误：${allErrors.join("; ")}`);
       return;
     }
-
     const configs = enabledPlatforms.map((platform) => {
       const config = platformConfigs[platform];
       if (!config) {
@@ -1086,33 +1001,27 @@ const allTemplates: WizardTemplate[] = [
         environment: config.environment,
       };
     });
-
     const formData = new FormData();
     formData.append("_action", "saveWizardConfigs");
     formData.append("configs", JSON.stringify(configs));
-
     submit(formData, {
       method: "post",
     });
-
     await clearDraft();
     showSuccess("配置已保存，正在验证...");
     setCurrentStep("testing");
   }, [selectedPlatforms, platformConfigs, validateConfig, submit, showSuccess, showError, clearDraft]);
-
   const handleNext = useCallback(() => {
     const validation = canProceedToNextStep();
     if (!validation.canProceed) {
       showError(`请先完成当前步骤：${validation.errors.join("; ")}`);
       return;
     }
-
     const nextStepIndex = currentStepIndex + 1;
     if (nextStepIndex < steps.length) {
       setCurrentStep(steps[nextStepIndex].id);
     }
   }, [currentStepIndex, steps, canProceedToNextStep, showError]);
-
   const renderStepContent = () => {
     switch (currentStep) {
       case "select":
@@ -1169,7 +1078,6 @@ const allTemplates: WizardTemplate[] = [
         return null;
     }
   };
-
   return (
     <Card>
       <BlockStack gap="500">
@@ -1202,7 +1110,6 @@ const allTemplates: WizardTemplate[] = [
                   const isCompleted = index < currentStepIndex;
                   const isCurrent = index === currentStepIndex;
                   const isUpcoming = index > currentStepIndex;
-
                   return (
                     <div
                       key={step.id}
@@ -1286,13 +1193,9 @@ const allTemplates: WizardTemplate[] = [
             </Box>
           </div>
         </BlockStack>
-
         <Divider />
-
         {renderStepContent()}
-
         <Divider />
-
         <InlineStack align="space-between" wrap>
           <Button onClick={onCancel} disabled={isSubmitting}>
             取消
@@ -1345,7 +1248,6 @@ const allTemplates: WizardTemplate[] = [
     </Card>
   );
 }
-
 function SelectPlatformStep({
   selectedPlatforms,
   platformConfigs,
@@ -1371,7 +1273,6 @@ function SelectPlatformStep({
       <Text as="p" tone="subdued">
         选择您要迁移的广告平台。您可以稍后在设置页面添加更多平台。
       </Text>
-
       <Banner tone="info">
         <BlockStack gap="200">
           <Text as="p" variant="bodySm">
@@ -1386,7 +1287,6 @@ function SelectPlatformStep({
           </Button>
         </BlockStack>
       </Banner>
-
       <Banner tone="info">
         <BlockStack gap="200">
           <Text as="p" variant="bodySm" fontWeight="semibold">
@@ -1416,16 +1316,13 @@ function SelectPlatformStep({
           </Text>
         </BlockStack>
       </Banner>
-
       <BlockStack gap="300">
         {(Object.keys(PLATFORM_INFO) as PlatformType[]).map((platform) => {
           const info = PLATFORM_INFO[platform];
           if (!info) return null;
           const isSelected = selectedPlatforms.has(platform);
-
           const isV1Supported = platform === "google" || platform === "meta" || platform === "tiktok";
           const isDisabled = !isV1Supported;
-
           return (
             <Card key={platform}>
               <BlockStack gap="300">
@@ -1475,7 +1372,6 @@ function SelectPlatformStep({
           );
         })}
       </BlockStack>
-
       <Modal
         open={showTemplateModal}
         onClose={() => onShowTemplateModal(false)}
@@ -1536,7 +1432,6 @@ function SelectPlatformStep({
     </BlockStack>
   );
 }
-
 function CredentialsStep({
   selectedPlatforms,
   platformConfigs,
@@ -1556,12 +1451,10 @@ function CredentialsStep({
       <Text as="p" tone="subdued">
         为每个选中的平台填写 API 凭证。这些凭证将加密存储，仅用于发送转化数据。
       </Text>
-
       {Array.from(selectedPlatforms).map((platform) => {
         const config = platformConfigs[platform];
         const info = PLATFORM_INFO[platform];
         if (!config || !info) return null;
-
         return (
           <Card key={platform}>
             <BlockStack gap="400">
@@ -1602,9 +1495,7 @@ function CredentialsStep({
                   />
                 </BlockStack>
               </InlineStack>
-
               <Divider />
-
               <BlockStack gap="300">
                 {info.credentialFields.map((field) => (
                   <BlockStack key={field.key} gap="100">
@@ -1627,7 +1518,6 @@ function CredentialsStep({
                 </BlockStack>
                 ))}
               </BlockStack>
-
               {config.environment === "test" && (
                 <Banner tone="info">
                   <Text as="p" variant="bodySm">
@@ -1642,7 +1532,6 @@ function CredentialsStep({
     </BlockStack>
   );
 }
-
 function EventMappingsStep({
   selectedPlatforms,
   platformConfigs,
@@ -1664,11 +1553,9 @@ function EventMappingsStep({
       <Text as="p" tone="subdued">
         将 Shopify 事件映射到各平台的事件名称。我们已为您配置了推荐映射。
       </Text>
-
       {Array.from(selectedPlatforms).map((platform) => {
         const config = platformConfigs[platform];
         if (!config) return null;
-
         return (
           <EventMappingEditor
             key={platform}
@@ -1683,7 +1570,6 @@ function EventMappingsStep({
     </BlockStack>
   );
 }
-
 function ReviewStep({
   selectedPlatforms,
   platformConfigs,
@@ -1712,31 +1598,26 @@ function ReviewStep({
   const [isSavingTemplate, setIsSavingTemplate] = useState(false);
   const { showSuccess, showError } = useToastContext();
   const submit = useSubmit();
-
   const allErrors: string[] = [];
   Array.from(selectedPlatforms).forEach((platform) => {
     const errors = onValidate(platform);
     allErrors.push(...errors);
   });
-
   const handleSaveAsTemplate = useCallback(async () => {
     if (!shopId || !templateName.trim()) {
       showError("请输入模板名称");
       return;
     }
-
     setIsSavingTemplate(true);
     try {
       const platforms = Array.from(selectedPlatforms);
       const eventMappings: Record<string, Record<string, string>> = {};
-
       platforms.forEach((platform) => {
         const config = platformConfigs[platform];
         if (config) {
           eventMappings[platform] = config.eventMappings || {};
         }
       });
-
       const formData = new FormData();
       formData.append("_action", "saveWizardConfigAsTemplate");
       formData.append("name", templateName.trim());
@@ -1744,7 +1625,6 @@ function ReviewStep({
       formData.append("platforms", JSON.stringify(platforms));
       formData.append("eventMappings", JSON.stringify(eventMappings));
       formData.append("isPublic", isPublic ? "true" : "false");
-
       submit(formData, { method: "post" });
       setShowSaveTemplateModal(false);
       setTemplateName("");
@@ -1753,16 +1633,13 @@ function ReviewStep({
       showSuccess("模板已保存！");
     } catch (error) {
       showError("保存模板失败");
-
       if (process.env.NODE_ENV === "development") {
-
         console.error("[PixelMigrationWizard] Save template error:", error);
       }
     } finally {
       setIsSavingTemplate(false);
     }
   }, [shopId, templateName, templateDescription, isPublic, selectedPlatforms, platformConfigs, submit, showSuccess, showError]);
-
   return (
     <BlockStack gap="500">
       <Text as="h3" variant="headingMd">
@@ -1771,7 +1648,6 @@ function ReviewStep({
       <Text as="p" tone="subdued">
         请检查以下配置是否正确。确认无误后点击「保存配置」。您也可以将当前配置保存为模板，方便后续使用。
       </Text>
-
       {allErrors.length > 0 && (
         <Banner tone="critical" title="配置错误">
           <List type="bullet">
@@ -1781,13 +1657,11 @@ function ReviewStep({
           </List>
         </Banner>
       )}
-
       {Array.from(selectedPlatforms).map((platform) => {
         const config = platformConfigs[platform];
         const info = PLATFORM_INFO[platform];
         if (!config || !info) return null;
         const errors = onValidate(platform);
-
         return (
           <Card key={platform}>
             <BlockStack gap="400">
@@ -1806,9 +1680,7 @@ function ReviewStep({
                   <Badge tone="critical">配置不完整</Badge>
                 )}
               </InlineStack>
-
               <Divider />
-
               <BlockStack gap="300">
                 <InlineStack align="space-between">
                   <Text as="span" variant="bodySm" tone="subdued">
@@ -1839,11 +1711,8 @@ function ReviewStep({
           </Card>
         );
       })}
-
       {shopId && Array.from(selectedPlatforms).map((platform) => {
-
         const existingConfig = platformConfigs[platform];
-
         let currentVersion = existingConfig?.configVersion;
         if (currentVersion === undefined && pixelConfigs) {
           const pixelConfig = pixelConfigs.find(
@@ -1852,7 +1721,6 @@ function ReviewStep({
           currentVersion = pixelConfig?.configVersion;
         }
         currentVersion = currentVersion ?? 1;
-
         return (
           <ConfigVersionManager
             key={platform}
@@ -1860,12 +1728,10 @@ function ReviewStep({
             platform={platform}
             currentVersion={currentVersion}
             onRollbackComplete={() => {
-
             }}
           />
         );
       })}
-
       {shopId && (
         <Card>
           <BlockStack gap="300">
@@ -1884,7 +1750,6 @@ function ReviewStep({
           </BlockStack>
         </Card>
       )}
-
       <Modal
         open={showSaveTemplateModal}
         onClose={() => setShowSaveTemplateModal(false)}
@@ -1947,7 +1812,6 @@ function ReviewStep({
     </BlockStack>
   );
 }
-
 function TestingStep({
   selectedPlatforms,
   platformConfigs,
@@ -1978,26 +1842,20 @@ function TestingStep({
   }>>({});
   const { showSuccess, showError } = useToastContext();
   const submit = useSubmit();
-
   const handleValidateTestEnvironment = useCallback(async () => {
     if (!shopId) return;
-
     setIsValidating(true);
     const results: Record<string, { valid: boolean; message: string; details?: { eventSent?: boolean; responseTime?: number; error?: string } }> = {};
-
     try {
-
       const validationPromises = Array.from(selectedPlatforms).map(async (platform) => {
         const formData = new FormData();
         formData.append("_action", "validateTestEnvironment");
         formData.append("platform", platform);
         formData.append("shopId", shopId);
-
         const response = await fetch("/app/migrate", {
           method: "POST",
           body: formData,
         });
-
         const data = await response.json().catch((error) => {
           if (process.env.NODE_ENV === "development") {
             console.error(`[PixelMigrationWizard] Failed to parse JSON for ${platform}:`, error);
@@ -2006,7 +1864,6 @@ function TestingStep({
         });
         return { platform, result: data };
       });
-
       const validationResults = await Promise.all(validationPromises);
       validationResults.forEach(({ platform, result }) => {
         results[platform] = {
@@ -2015,9 +1872,7 @@ function TestingStep({
           details: result.details || {},
         };
       });
-
       setValidationResults(results);
-
       const allValid = Object.values(results).every((r) => r.valid);
       if (allValid) {
         showSuccess("所有平台测试环境配置验证通过！测试事件已成功发送。");
@@ -2030,34 +1885,27 @@ function TestingStep({
       }
     } catch (error) {
       showError("验证过程中发生错误");
-
       if (process.env.NODE_ENV === "development") {
-
         console.error("[PixelMigrationWizard] Test environment validation error:", error);
       }
     } finally {
       setIsValidating(false);
     }
   }, [shopId, selectedPlatforms, showSuccess, showError]);
-
   const handleSwitchToLive = useCallback(async () => {
     if (!shopId || !onEnvironmentToggle) return;
-
     setIsSwitchingToLive(true);
     try {
-
       const switchPromises = Array.from(selectedPlatforms).map(async (platform) => {
         try {
           const formData = new FormData();
           formData.append("_action", "switchEnvironment");
           formData.append("platform", platform);
           formData.append("environment", "live");
-
           const response = await fetch("/app/actions/pixel-config", {
             method: "POST",
             body: formData,
           });
-
           const data = await response.json().catch((error) => {
             if (process.env.NODE_ENV === "development") {
               console.error(`[PixelMigrationWizard] Failed to parse JSON when switching ${platform} to live:`, error);
@@ -2071,19 +1919,15 @@ function TestingStep({
         } catch (error) {
           const errorMessage = error instanceof Error ? error.message : "Unknown error";
           if (process.env.NODE_ENV === "development") {
-
             console.error(`[PixelMigrationWizard] Failed to switch platform ${platform}:`, error);
           }
           return { platform, success: false, error: errorMessage };
         }
       });
-
       const results = await Promise.all(switchPromises);
       const allSuccess = results.every((r) => r.success);
-
       if (allSuccess) {
         showSuccess("所有平台已切换到生产模式！");
-
         const timeout = setTimeout(() => {
           window.location.href = "/app/verification";
         }, 1500);
@@ -2097,31 +1941,23 @@ function TestingStep({
       }
     } catch (error) {
       showError("切换环境时发生错误");
-
       if (process.env.NODE_ENV === "development") {
-
         console.error("[PixelMigrationWizard] Switch to live error:", error);
       }
     } finally {
       setIsSwitchingToLive(false);
     }
   }, [shopId, selectedPlatforms, onEnvironmentToggle, showSuccess, showError]);
-
   const handleGoToVerification = useCallback(() => {
     window.location.href = "/app/verification";
   }, []);
-
   const allInTestMode = Array.from(selectedPlatforms).every(
     (platform) => platformConfigs[platform]?.environment === "test"
   );
-
   useEffect(() => {
-
     const allValid = Object.keys(validationResults).length > 0 &&
                      Object.values(validationResults).every(r => r.valid);
-
     let timer: NodeJS.Timeout | null = null;
-
     if (
       allValid &&
       !isSwitchingToLive &&
@@ -2132,14 +1968,12 @@ function TestingStep({
         handleGoToVerification();
       }, 3000);
     }
-
     return () => {
       if (timer) {
         clearTimeout(timer);
       }
     };
   }, [validationResults, isSwitchingToLive, allInTestMode, handleGoToVerification, showSuccess]);
-
   return (
     <BlockStack gap="400">
       <InlineStack gap="200" blockAlign="center">
@@ -2148,7 +1982,6 @@ function TestingStep({
           配置已保存
         </Text>
       </InlineStack>
-
       <Banner tone="success">
         <BlockStack gap="200">
           <Text as="p" fontWeight="semibold">
@@ -2166,7 +1999,6 @@ function TestingStep({
           </List>
         </BlockStack>
       </Banner>
-
       {shopId && selectedPlatforms.size > 0 && (
         <Card>
           <BlockStack gap="300">
@@ -2189,13 +2021,11 @@ function TestingStep({
                 {isValidating ? "验证中..." : "发送测试事件"}
               </Button>
             </InlineStack>
-
             {Object.keys(validationResults).length > 0 && (
               <BlockStack gap="200">
                 {Array.from(selectedPlatforms).map((platform) => {
                   const result = validationResults[platform];
                   if (!result) return null;
-
                   return (
                     <Banner
                       key={platform}
@@ -2230,7 +2060,6 @@ function TestingStep({
                                 </BlockStack>
                               </Box>
                             )}
-
                             {result.details.testEventCode && (
                               <Banner tone="info">
                                 <BlockStack gap="200">
@@ -2242,7 +2071,7 @@ function TestingStep({
                                     如果看到测试事件，说明配置正确。
                                   </Text>
                                   <Link
-                                    url="https://business.facebook.com/events_manager2/list/pixel/"
+                                    url="https://business.facebook.com/events_manager2"
                                     external
                                   >
                                     打开 Meta Events Manager
@@ -2250,7 +2079,6 @@ function TestingStep({
                                 </BlockStack>
                               </Banner>
                             )}
-
                             {result.details.debugViewUrl && (
                               <Banner tone="info">
                                 <BlockStack gap="200">
@@ -2266,7 +2094,6 @@ function TestingStep({
                                 </BlockStack>
                               </Banner>
                             )}
-
                             {result.details.verificationInstructions && (
                               <Banner tone="info">
                                 <Text as="span" variant="bodySm">
@@ -2274,7 +2101,6 @@ function TestingStep({
                                 </Text>
                               </Banner>
                             )}
-
                             {result.details.error && (
                               <Banner tone="critical">
                                 <BlockStack gap="200">
@@ -2295,7 +2121,6 @@ function TestingStep({
                                 </BlockStack>
                               </Banner>
                             )}
-
                             {result.valid && result.details.eventSent && (
                               <Box padding="300" background="bg-surface-secondary" borderRadius="200">
                                 <BlockStack gap="200">
@@ -2325,7 +2150,6 @@ function TestingStep({
           </BlockStack>
         </Card>
       )}
-
       {allInTestMode && Object.keys(validationResults).length > 0 &&
        Object.values(validationResults).every(r => r.valid) && (
         <Card>
@@ -2374,7 +2198,6 @@ function TestingStep({
           </BlockStack>
         </Card>
       )}
-
       {!allInTestMode && Object.keys(validationResults).length > 0 &&
        Object.values(validationResults).every(r => r.valid) && (
         <Banner tone="success">
@@ -2388,7 +2211,6 @@ function TestingStep({
           </BlockStack>
         </Banner>
       )}
-
       <InlineStack gap="200">
         <Button
           url="/app/verification"
@@ -2405,7 +2227,6 @@ function TestingStep({
             variant="primary"
             onClick={() => {
               onComplete();
-
               const timeout = setTimeout(() => {
                 window.location.href = "/app/verification";
               }, 300);

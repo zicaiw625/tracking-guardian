@@ -10,11 +10,8 @@ import type {
 } from "./conversion.entity";
 
 export interface QueryPendingJobsOptions {
-
   limit?: number;
-
   includeRetrying?: boolean;
-
   shopId?: string;
 }
 
@@ -56,33 +53,19 @@ export interface BatchUpdateResult {
 }
 
 export interface IConversionJobRepository {
-
   findById(id: string): AsyncResult<ConversionJob | null, AppError>;
-
   findByShopAndOrder(shopId: string, orderId: string): AsyncResult<ConversionJob | null, AppError>;
-
   create(data: CreateJobData): AsyncResult<ConversionJob, AppError>;
-
   update(id: string, data: JobStatusUpdate): AsyncResult<ConversionJob, AppError>;
-
   exists(shopId: string, orderId: string): AsyncResult<boolean, AppError>;
-
   claimForProcessing(limit: number): AsyncResult<string[], AppError>;
-
   fetchForProcessing(ids: string[]): AsyncResult<ConversionJob[], AppError>;
-
   getPending(options?: QueryPendingJobsOptions): AsyncResult<ConversionJob[], AppError>;
-
   getByStatus(options: QueryByStatusOptions): AsyncResult<ConversionJob[], AppError>;
-
   getDeadLetter(shopId?: string, limit?: number): AsyncResult<ConversionJob[], AppError>;
-
   countByStatus(shopId?: string): AsyncResult<Record<JobStatus, number>, AppError>;
-
   batchUpdate(updates: Array<{ id: string; data: JobStatusUpdate }>): AsyncResult<BatchUpdateResult, AppError>;
-
   requeueDeadLetter(jobIds: string[]): AsyncResult<number, AppError>;
-
   cleanupOld(olderThan: Date): AsyncResult<number, AppError>;
 }
 

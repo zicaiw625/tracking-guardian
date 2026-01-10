@@ -15,11 +15,9 @@ export async function checkPixelDestinationsLimit(
 ): Promise<FeatureGateResult> {
   const planConfig = getPlanOrDefault(shopPlan);
   const limit = getPixelDestinationsLimit(shopPlan);
-
   if (limit === -1) {
     return { allowed: true };
   }
-
   const currentCount = await prisma.pixelConfig.count({
     where: {
       shopId,
@@ -27,7 +25,6 @@ export async function checkPixelDestinationsLimit(
       serverSideEnabled: true,
     },
   });
-
   if (currentCount >= limit) {
     return {
       allowed: false,
@@ -36,7 +33,6 @@ export async function checkPixelDestinationsLimit(
       limit,
     };
   }
-
   return {
     allowed: true,
     current: currentCount,
@@ -50,18 +46,15 @@ export async function checkUiModulesLimit(
 ): Promise<FeatureGateResult> {
   const planConfig = getPlanOrDefault(shopPlan);
   const limit = getUiModulesLimit(shopPlan);
-
   if (limit === -1) {
     return { allowed: true };
   }
-
   const currentCount = await prisma.uiExtensionSetting.count({
     where: {
       shopId,
       isEnabled: true,
     },
   });
-
   if (currentCount >= limit) {
     return {
       allowed: false,
@@ -70,7 +63,6 @@ export async function checkUiModulesLimit(
       limit,
     };
   }
-
   return {
     allowed: true,
     current: currentCount,
@@ -82,16 +74,13 @@ export function checkFeatureAccess(
   shopPlan: PlanId,
   feature: "verification" | "alerts" | "reconciliation" | "agency" | "pixel_migration" | "ui_modules" | "audit" | "report_export"
 ): FeatureGateResult {
-
   if (feature === "audit") {
     return { allowed: true };
   }
-
   if (feature === "pixel_migration" || feature === "ui_modules") {
     const hasAccess = isPlanAtLeast(shopPlan, "starter");
     if (!hasAccess) {
       const planConfig = getPlanOrDefault(shopPlan);
-
       return {
         allowed: false,
         reason: `${feature === "pixel_migration" ? "像素迁移" : "UI 模块"}功能需要 Starter 及以上套餐。当前套餐：${planConfig.name}`,
@@ -99,18 +88,14 @@ export function checkFeatureAccess(
     }
     return { allowed: true };
   }
-
   let hasAccess = false;
   const standardFeatures: readonly ("verification" | "alerts" | "reconciliation" | "agency" | "report_export")[] = ["verification", "alerts", "reconciliation", "agency", "report_export"] as const;
   const alwaysAvailableFeatures: readonly ("pixel_migration" | "ui_modules" | "audit")[] = ["pixel_migration", "ui_modules", "audit"] as const;
-
   if (alwaysAvailableFeatures.includes(feature as "pixel_migration" | "ui_modules" | "audit")) {
-
     hasAccess = true;
   } else if (standardFeatures.includes(feature as "verification" | "alerts" | "reconciliation" | "agency" | "report_export")) {
     hasAccess = planSupportsFeature(shopPlan, feature as "verification" | "alerts" | "reconciliation" | "agency" | "report_export");
   }
-
   if (!hasAccess) {
     const planConfig = getPlanOrDefault(shopPlan);
     const featureNames: Record<string, string> = {
@@ -123,18 +108,15 @@ export function checkFeatureAccess(
       audit: "Audit 扫描",
       report_export: "报告导出",
     };
-
     return {
       allowed: false,
       reason: `${featureNames[feature]}需要 ${getRequiredPlanName(feature)} 及以上套餐。当前套餐：${planConfig.name}`,
     };
   }
-
   return { allowed: true };
 }
 
 function getRequiredPlanName(feature: "verification" | "alerts" | "reconciliation" | "agency" | "pixel_migration" | "ui_modules" | "audit" | "report_export"): string {
-
   switch (feature) {
     case "audit":
       return "Free";
@@ -143,13 +125,10 @@ function getRequiredPlanName(feature: "verification" | "alerts" | "reconciliatio
     case "verification":
       return "Starter";
     case "alerts":
-
       return "Growth";
     case "report_export":
-
       return "Growth";
     case "reconciliation":
-
       return "Growth";
     case "agency":
       return "Agency";
@@ -157,7 +136,6 @@ function getRequiredPlanName(feature: "verification" | "alerts" | "reconciliatio
 }
 
 function isPlanAtLeast(current: PlanId, target: PlanId): boolean {
-
   if (current === "monitor" || target === "monitor") {
     return false;
   }
@@ -178,7 +156,6 @@ export async function canCreatePixelConfig(
   if (!pixelLimitCheck.allowed) {
     return pixelLimitCheck;
   }
-
   const planConfig = getPlanOrDefault(shopPlan);
   if (planConfig.pixelDestinations === 0) {
     return {
@@ -186,7 +163,6 @@ export async function canCreatePixelConfig(
       reason: `像素配置功能需要 Starter 及以上套餐。当前套餐：${planConfig.name}`,
     };
   }
-
   return { allowed: true };
 }
 
@@ -198,7 +174,6 @@ export async function canCreateUiModule(
   if (!uiLimitCheck.allowed) {
     return uiLimitCheck;
   }
-
   const planConfig = getPlanOrDefault(shopPlan);
   if (planConfig.uiModules === 0) {
     return {
@@ -206,7 +181,6 @@ export async function canCreateUiModule(
       reason: `UI 模块功能需要 Starter 及以上套餐。当前套餐：${planConfig.name}`,
     };
   }
-
   return { allowed: true };
 }
 
@@ -228,7 +202,6 @@ export async function getFeatureLimitsSummary(
     checkPixelDestinationsLimit(shopId, shopPlan),
     checkUiModulesLimit(shopId, shopPlan),
   ]);
-
   return {
     pixelDestinations: {
       current: pixelLimit.current || 0,

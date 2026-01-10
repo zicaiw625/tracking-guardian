@@ -62,10 +62,8 @@ export function ConfigComparison({
       </Card>
     );
   }
-
   const changedFields = differences.filter((d) => d.changed);
   const unchangedFields = differences.filter((d) => !d.changed);
-
   return (
     <Card>
       <BlockStack gap="400">
@@ -77,9 +75,7 @@ export function ConfigComparison({
             {`${changedFields.length} 项变更`}
           </Badge>
         </InlineStack>
-
         <Divider />
-
         {changedFields.length > 0 && (
           <BlockStack gap="300">
             <Text as="h4" variant="headingSm">
@@ -112,7 +108,6 @@ export function ConfigComparison({
             />
           </BlockStack>
         )}
-
         {unchangedFields.length > 0 && (
           <BlockStack gap="300">
             <Text as="h4" variant="headingSm">
@@ -134,9 +129,7 @@ export function ConfigComparison({
             </Box>
           </BlockStack>
         )}
-
         <Divider />
-
         <BlockStack gap="200">
           <InlineStack align="space-between">
             <Text as="span" variant="bodySm" tone="subdued">

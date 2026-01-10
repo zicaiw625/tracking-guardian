@@ -103,37 +103,28 @@ type IdleCallbackHandle = ReturnType<typeof requestIdleCallback>;
 
 function cancelIdleCallbackOrTimeout(handle: number | IdleCallbackHandle | null): void {
     if (handle === null) return;
-
     if (typeof window !== 'undefined' && 'cancelIdleCallback' in window) {
-
         if (typeof handle === 'number') {
             clearTimeout(handle);
         } else {
-
             cancelIdleCallback(handle);
         }
     } else {
-
         clearTimeout(handle as number);
     }
 }
 
 function checkSensitiveInfoInData(obj: unknown, depth: number = 0): boolean {
-
     if (depth > 10) return false;
-
     if (typeof obj === "string") {
         return containsSensitiveInfo(obj);
     }
-
     if (Array.isArray(obj)) {
         return obj.some(item => checkSensitiveInfoInData(item, depth + 1));
     }
-
     if (obj && typeof obj === "object") {
         return Object.values(obj).some(value => checkSensitiveInfoInData(value, depth + 1));
     }
-
     return false;
 }
 
@@ -204,17 +195,13 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
             })
         );
     }
-
     const shopTier: ShopTier = (shop.shopTier !== null && shop.shopTier !== undefined && isValidShopTier(shop.shopTier))
         ? shop.shopTier
         : "unknown";
-
     let migrationActions: MigrationAction[] = [];
     if (latestScanRaw) {
         try {
-
             const rawData = latestScanRaw;
-
             const scriptTags = validateScriptTagsArray(rawData.scriptTags);
             const identifiedPlatforms = validateStringArray(rawData.identifiedPlatforms);
             const riskItems = validateRiskItemsArray(rawData.riskItems);
@@ -222,7 +209,6 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
             const additionalScriptsPatterns = validateAdditionalScriptsPatterns(
                 (rawData as Record<string, unknown>).additionalScriptsPatterns
             );
-
             let webPixels: Array<{ id: string; settings: string | null }> = [];
             try {
                 const pixels = await getExistingWebPixels(admin);
@@ -259,7 +245,6 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
                 });
                 webPixels = [];
             }
-
             const enhancedResult: EnhancedScanResult = {
                 scriptTags: Array.isArray(scriptTags) ? scriptTags : [],
                 checkoutConfig: null,
@@ -271,13 +256,10 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
                 migrationActions: [],
                 additionalScriptsPatterns: Array.isArray(additionalScriptsPatterns) ? additionalScriptsPatterns : [],
             };
-
             migrationActions = generateMigrationActions(enhancedResult, shopTier);
         } catch (e) {
-
             const errorMessage = e instanceof Error ? e.message : "Unknown error";
             const errorType = e instanceof Error ? e.constructor.name : "Unknown";
-
             if (errorType === "TypeError" || errorMessage.includes("Cannot read")) {
                 logger.error("Data format error in scan data processing", {
                     shopId: shop.id,
@@ -295,9 +277,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
             migrationActions = [];
         }
     }
-
     const latestScan = latestScanRaw;
-
     let scanHistory: Awaited<ReturnType<typeof getScanHistory>> = [];
     try {
         scanHistory = await getScanHistory(shop.id, 5);
@@ -307,10 +287,8 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
             shopId: shop.id,
             error: errorMessage,
         });
-
         scanHistory = [];
     }
-
     const scriptTags: ScriptTag[] = latestScan
         ? validateScriptTagsArray(latestScan.scriptTags)
         : [];
@@ -351,10 +329,8 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
         typOspUnknownError,
     };
     const upgradeStatusMessage = getUpgradeStatusMessage(shopUpgradeStatus, hasScriptTags);
-
     const planId = normalizePlan(shop.plan);
     const planDef = getPlanDefinition(planId);
-
     const [migrationTimeline, migrationProgress, dependencyGraph, auditAssets, migrationChecklist] = await Promise.all([
         generateMigrationTimeline(shop.id).catch((error) => {
             const errorMessage = error instanceof Error ? error.message : String(error);
@@ -409,7 +385,6 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
             return null;
         }),
     ]);
-
     return json({
         shop: { id: shop.id, domain: shopDomain },
         latestScan,
@@ -453,10 +428,8 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     }
     const formData = await request.formData();
     const actionType = formData.get("_action");
-
     if (actionType === "save_analysis") {
         try {
-
             const analysisDataStr = formData.get("analysisData") as string;
             if (!analysisDataStr) {
                 return json({ error: "缺少分析数据" }, { status: 400 });
@@ -471,7 +444,6 @@ export const action = async ({ request }: ActionFunctionArgs) => {
                     error: `分析数据过大（最大 ${SAVE_ANALYSIS_LIMITS.MAX_INPUT_SIZE / 1024}KB）`
                 }, { status: 400 });
             }
-
             let parsedData: unknown;
             try {
                 parsedData = JSON.parse(analysisDataStr);
@@ -483,13 +455,10 @@ export const action = async ({ request }: ActionFunctionArgs) => {
                 });
                 return json({ error: "无法解析分析数据：无效的 JSON 格式" }, { status: 400 });
             }
-
             if (!parsedData || typeof parsedData !== "object") {
                 return json({ error: "无效的分析数据格式：必须是对象" }, { status: 400 });
             }
-
             const data = parsedData as Record<string, unknown>;
-
             if (checkSensitiveInfoInData(parsedData)) {
                 logger.warn("Analysis data contains potential sensitive information", {
                     shopId: shop.id,
@@ -500,47 +469,38 @@ export const action = async ({ request }: ActionFunctionArgs) => {
                     error: "检测到可能包含敏感信息的内容（如 API keys、tokens、客户信息等）。请先脱敏后再保存。"
                 }, { status: 400 });
             }
-
             if (!Array.isArray(data.identifiedPlatforms)) {
                 return json({ error: "无效的分析数据格式：identifiedPlatforms 必须是数组" }, { status: 400 });
             }
-
             if (!Array.isArray(data.platformDetails)) {
                 return json({ error: "无效的分析数据格式：platformDetails 必须是数组" }, { status: 400 });
             }
-
             if (!Array.isArray(data.risks)) {
                 return json({ error: "无效的分析数据格式：risks 必须是数组" }, { status: 400 });
             }
-
             if (!Array.isArray(data.recommendations)) {
                 return json({ error: "无效的分析数据格式：recommendations 必须是数组" }, { status: 400 });
             }
-
             if (data.identifiedPlatforms.length > SAVE_ANALYSIS_LIMITS.MAX_PLATFORMS) {
                 return json({
                     error: `identifiedPlatforms 数组过长（最多 ${SAVE_ANALYSIS_LIMITS.MAX_PLATFORMS} 个）`
                 }, { status: 400 });
             }
-
             if (data.platformDetails.length > SAVE_ANALYSIS_LIMITS.MAX_PLATFORM_DETAILS) {
                 return json({
                     error: `platformDetails 数组过长（最多 ${SAVE_ANALYSIS_LIMITS.MAX_PLATFORM_DETAILS} 个）`
                 }, { status: 400 });
             }
-
             if (data.risks.length > SAVE_ANALYSIS_LIMITS.MAX_RISKS) {
                 return json({
                     error: `risks 数组过长（最多 ${SAVE_ANALYSIS_LIMITS.MAX_RISKS} 个）`
                 }, { status: 400 });
             }
-
             if (data.recommendations.length > SAVE_ANALYSIS_LIMITS.MAX_RECOMMENDATIONS) {
                 return json({
                     error: `recommendations 数组过长（最多 ${SAVE_ANALYSIS_LIMITS.MAX_RECOMMENDATIONS} 个）`
                 }, { status: 400 });
             }
-
             if (
                 typeof data.riskScore !== "number" ||
                 !Number.isFinite(data.riskScore) ||
@@ -552,7 +512,6 @@ export const action = async ({ request }: ActionFunctionArgs) => {
                     error: "无效的分析数据格式：riskScore 必须是 0-100 之间的整数"
                 }, { status: 400 });
             }
-
             if (!data.identifiedPlatforms.every((p: unknown) => {
                 return (
                     typeof p === "string" &&
@@ -565,7 +524,6 @@ export const action = async ({ request }: ActionFunctionArgs) => {
                     error: `无效的分析数据格式：identifiedPlatforms 中的元素必须是有效的平台名称（小写字母、数字、下划线，${SAVE_ANALYSIS_LIMITS.MIN_PLATFORM_NAME_LENGTH}-${SAVE_ANALYSIS_LIMITS.MAX_PLATFORM_NAME_LENGTH}字符）`
                 }, { status: 400 });
             }
-
             if (!data.platformDetails.every((p: unknown) => {
                 if (typeof p !== "object" || p === null || Array.isArray(p)) return false;
                 const detail = p as Record<string, unknown>;
@@ -579,7 +537,6 @@ export const action = async ({ request }: ActionFunctionArgs) => {
             })) {
                 return json({ error: "无效的分析数据格式：platformDetails 中的元素结构不正确" }, { status: 400 });
             }
-
             if (!data.risks.every((r: unknown) => {
                 if (typeof r !== "object" || r === null || Array.isArray(r)) return false;
                 const risk = r as Record<string, unknown>;
@@ -593,7 +550,6 @@ export const action = async ({ request }: ActionFunctionArgs) => {
             })) {
                 return json({ error: "无效的分析数据格式：risks 中的元素结构不正确" }, { status: 400 });
             }
-
             if (!data.recommendations.every((r: unknown) => {
                 return (
                     typeof r === "string" &&
@@ -605,7 +561,6 @@ export const action = async ({ request }: ActionFunctionArgs) => {
                     error: `无效的分析数据格式：recommendations 中的元素必须是长度 1-${SAVE_ANALYSIS_LIMITS.MAX_RECOMMENDATION_LENGTH} 的字符串`
                 }, { status: 400 });
             }
-
             const platformDetailsRaw = data.platformDetails;
             const sanitizedPlatformDetails = Array.isArray(platformDetailsRaw)
                 ? platformDetailsRaw
@@ -627,25 +582,19 @@ export const action = async ({ request }: ActionFunctionArgs) => {
                     })
                     .map(detail => {
                         let pattern = detail.matchedPattern;
-
                         pattern = sanitizeSensitiveInfo(pattern);
-
                         if (containsSensitiveInfo(pattern)) {
                             pattern = "[REDACTED_PATTERN]";
                         }
-
                         if (pattern.length > SAVE_ANALYSIS_LIMITS.MAX_PATTERN_LENGTH) {
                             pattern = pattern.substring(0, SAVE_ANALYSIS_LIMITS.MAX_PATTERN_LENGTH) + "...";
                         }
-
                         return { ...detail, matchedPattern: pattern };
                     })
                 : [];
-
             const identifiedPlatforms = Array.isArray(data.identifiedPlatforms)
                 ? data.identifiedPlatforms.filter((p): p is string => typeof p === "string")
                 : [];
-
             const risks = Array.isArray(data.risks)
                 ? data.risks.filter((r): r is RiskItem => {
                     if (!r || typeof r !== "object" || Array.isArray(r)) {
@@ -659,15 +608,12 @@ export const action = async ({ request }: ActionFunctionArgs) => {
                     );
                 })
                 : [];
-
             const riskScore = typeof data.riskScore === "number" && !isNaN(data.riskScore)
                 ? Math.max(0, Math.min(100, data.riskScore))
                 : 0;
-
             const recommendations = Array.isArray(data.recommendations)
                 ? data.recommendations.filter((r): r is string => typeof r === "string")
                 : [];
-
             const analysisData: ScriptAnalysisResult = {
                 identifiedPlatforms,
                 platformDetails: sanitizedPlatformDetails,
@@ -675,17 +621,13 @@ export const action = async ({ request }: ActionFunctionArgs) => {
                 riskScore,
                 recommendations,
             };
-
             const createdAssets = [];
             const failedAssets: string[] = [];
-
             for (const platform of analysisData.identifiedPlatforms) {
-
                 const detectedPatterns = analysisData.platformDetails
                     .filter(d => d.platform === platform)
                     .slice(0, SAVE_ANALYSIS_LIMITS.MAX_DETECTED_PATTERNS)
                     .map(d => d.matchedPattern);
-
                 const asset = await createAuditAsset(shop.id, {
                     sourceType: "manual_paste",
                     category: "pixel",
@@ -699,7 +641,6 @@ export const action = async ({ request }: ActionFunctionArgs) => {
                         detectedPatterns,
                     },
                 });
-
                 if (asset) {
                     createdAssets.push(asset);
                 } else {
@@ -711,7 +652,6 @@ export const action = async ({ request }: ActionFunctionArgs) => {
                     });
                 }
             }
-
             if (analysisData.identifiedPlatforms.length === 0 && analysisData.riskScore > 0) {
                 const risksForDetails = analysisData.risks.slice(0, SAVE_ANALYSIS_LIMITS.MAX_RISKS_IN_DETAILS);
                 const asset = await createAuditAsset(shop.id, {
@@ -726,7 +666,6 @@ export const action = async ({ request }: ActionFunctionArgs) => {
                         risks: risksForDetails,
                     },
                 });
-
                 if (asset) {
                     createdAssets.push(asset);
                 } else {
@@ -737,7 +676,6 @@ export const action = async ({ request }: ActionFunctionArgs) => {
                     });
                 }
             }
-
             if (failedAssets.length > 0) {
                 logger.warn("Some assets failed to create", {
                     shopId: shop.id,
@@ -746,7 +684,6 @@ export const action = async ({ request }: ActionFunctionArgs) => {
                     actionType: "save_analysis"
                 });
             }
-
             return json({
                 success: true,
                 actionType: "save_analysis",
@@ -757,7 +694,6 @@ export const action = async ({ request }: ActionFunctionArgs) => {
                 ...(failedAssets.length > 0 && { warning: `${failedAssets.length} 个资产保存失败` })
             });
         } catch (error) {
-
             const randomBytes = new Uint8Array(4);
             globalThis.crypto.getRandomValues(randomBytes);
             const errorId = Array.from(randomBytes, byte => byte.toString(16).padStart(2, '0')).join('');
@@ -768,37 +704,31 @@ export const action = async ({ request }: ActionFunctionArgs) => {
                 stack: error instanceof Error ? error.stack : undefined,
                 actionType: "save_analysis"
             });
-
             return json({
                 error: "保存失败，请稍后重试",
                 errorId
             }, { status: 500 });
         }
     }
-
     if (actionType === "analyze_manual_paste" || actionType === "realtime_analyze_manual_paste") {
         try {
             const content = formData.get("content") as string;
             if (!content || !content.trim()) {
                 return json({ error: "缺少脚本内容" }, { status: 400 });
             }
-
             const MAX_CONTENT_LENGTH = 1024 * 1024;
             if (content.length > MAX_CONTENT_LENGTH) {
                 return json({
                     error: `脚本内容过长（最大 ${MAX_CONTENT_LENGTH / 1024}KB）`
                 }, { status: 400 });
             }
-
             if (containsSensitiveInfo(content)) {
                 return json({
                     error: "检测到可能包含敏感信息的内容（如 API keys、tokens、客户信息等）。请先脱敏后再分析。"
                 }, { status: 400 });
             }
-
             if (actionType === "realtime_analyze_manual_paste") {
                 const quickAnalysis = analyzeScriptContent(content);
-
                 return json({
                     success: true,
                     actionType: "realtime_analyze_manual_paste",
@@ -811,9 +741,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
                     },
                 });
             }
-
             const analysis = analyzeManualPaste(content, shop.id);
-
             return json({
                 success: true,
                 actionType: "analyze_manual_paste",
@@ -827,39 +755,33 @@ export const action = async ({ request }: ActionFunctionArgs) => {
             return json({ error: "分析失败，请稍后重试" }, { status: 500 });
         }
     }
-
     if (actionType === "process_manual_paste") {
         try {
             const content = formData.get("content") as string;
             if (!content || !content.trim()) {
                 return json({ error: "缺少脚本内容" }, { status: 400 });
             }
-
             const MAX_CONTENT_LENGTH = 1024 * 1024;
             if (content.length > MAX_CONTENT_LENGTH) {
                 return json({
                     error: `脚本内容过长（最大 ${MAX_CONTENT_LENGTH / 1024}KB）`
                 }, { status: 400 });
             }
-
             if (containsSensitiveInfo(content)) {
                 return json({
                     error: "检测到可能包含敏感信息的内容（如 API keys、tokens、客户信息等）。请先脱敏后再处理。"
                 }, { status: 400 });
             }
-
             const latestScan = await prisma.scanReport.findFirst({
                 where: { shopId: shop.id },
                 orderBy: { createdAt: "desc" },
                 select: { id: true },
             });
-
             const result = await processManualPasteAssets(
                 shop.id,
                 content,
                 latestScan?.id
             );
-
             return json({
                 success: true,
                 actionType: "process_manual_paste",
@@ -879,14 +801,12 @@ export const action = async ({ request }: ActionFunctionArgs) => {
             return json({ error: "处理失败，请稍后重试" }, { status: 500 });
         }
     }
-
     if (actionType === "create_from_wizard") {
         try {
             const assetsStr = formData.get("assets") as string;
             if (!assetsStr) {
                 return json({ error: "缺少资产数据" }, { status: 400 });
             }
-
             let assets: AuditAssetInput[];
             try {
                 const parsed = JSON.parse(assetsStr);
@@ -897,9 +817,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
             } catch {
                 return json({ error: "无效的资产数据格式" }, { status: 400 });
             }
-
             const result = await batchCreateAuditAssets(shop.id, assets);
-
             return json({
                 success: true,
                 actionType: "create_from_wizard",
@@ -916,27 +834,22 @@ export const action = async ({ request }: ActionFunctionArgs) => {
             return json({ error: "创建失败，请稍后重试" }, { status: 500 });
         }
     }
-
     if (actionType === "mark_asset_complete") {
         try {
             const assetId = formData.get("assetId") as string;
             if (!assetId) {
                 return json({ error: "缺少资产 ID" }, { status: 400 });
             }
-
             const asset = await prisma.auditAsset.findUnique({
                 where: { id: assetId },
                 select: { shopId: true, migrationStatus: true },
             });
-
             if (!asset) {
                 return json({ error: "资产不存在" }, { status: 404 });
             }
-
             if (asset.shopId !== shop.id) {
                 return json({ error: "无权访问此资产" }, { status: 403 });
             }
-
             await prisma.auditAsset.update({
                 where: { id: assetId },
                 data: {
@@ -944,7 +857,6 @@ export const action = async ({ request }: ActionFunctionArgs) => {
                     migratedAt: new Date(),
                 },
             });
-
             return json({
                 success: true,
                 actionType: "mark_asset_complete",
@@ -958,7 +870,6 @@ export const action = async ({ request }: ActionFunctionArgs) => {
             return json({ error: "标记失败，请稍后重试" }, { status: 500 });
         }
     }
-
     if (actionType === "export_checklist_csv") {
         try {
             const checklist = await generateMigrationChecklist(shop.id);
@@ -976,7 +887,6 @@ export const action = async ({ request }: ActionFunctionArgs) => {
                 server_side: "服务端 CAPI",
                 none: "无需迁移",
             };
-
             const csvLines: string[] = [];
             csvLines.push("迁移清单");
             csvLines.push(`店铺: ${shopDomain}`);
@@ -988,7 +898,6 @@ export const action = async ({ request }: ActionFunctionArgs) => {
             csvLines.push(`预计总时间: ${Math.floor(checklist.estimatedTotalTime / 60)} 小时 ${checklist.estimatedTotalTime % 60} 分钟`);
             csvLines.push("");
             csvLines.push("资产名称/指纹,风险等级+原因,推荐迁移路径,预估工时+需要的信息");
-
             checklist.items.forEach((item) => {
                 const fingerprint = item.fingerprint ? `(${item.fingerprint.substring(0, 8)}...)` : "";
                 const assetName = `${item.title} ${fingerprint}`.trim();
@@ -1003,10 +912,8 @@ export const action = async ({ request }: ActionFunctionArgs) => {
                 ];
                 csvLines.push(row.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(","));
             });
-
             const csvContent = csvLines.join("\n");
             const filename = `migration_checklist_${shopDomain}_${new Date().toISOString().split("T")[0]}.csv`;
-
             return new Response(csvContent, {
                 status: 200,
                 headers: {
@@ -1022,7 +929,6 @@ export const action = async ({ request }: ActionFunctionArgs) => {
             return json({ error: "导出失败，请稍后重试" }, { status: 500 });
         }
     }
-
     if (actionType && actionType !== "scan") {
         return json({ error: "不支持的操作类型" }, { status: 400 });
     }
@@ -1051,7 +957,6 @@ function getUpgradeBannerTone(
         case "resolved": return "success";
         case "low": return "info";
         default: {
-
             const _exhaustive: never = urgency;
             return "info";
         }
@@ -1110,7 +1015,6 @@ export function ScanPage({
     const abortControllerRef = useRef<AbortController | null>(null);
     const idleCallbackHandlesRef = useRef<Array<number | IdleCallbackHandle>>([]);
     const exportBlobUrlRef = useRef<string | null>(null);
-
     const introConfig = useMemo(() => {
         if (selectedTab === 1) {
             return {
@@ -1150,16 +1054,13 @@ export function ScanPage({
             secondaryAction: { content: "手动补充", url: "/app/audit/manual" },
         };
     }, [selectedTab]);
-
     useEffect(() => {
         setSelectedTab(initialTab);
     }, [initialTab]);
-
     const planIdSafe = planId || "free";
     const isGrowthOrAbove = isPlanAtLeast(planIdSafe, "growth");
     const isProOrAbove = isPlanAtLeast(planIdSafe, "pro");
     const isAgency = isPlanAtLeast(planIdSafe, "agency");
-
     const additionalScriptsWarning = (
       <Banner tone="warning" title="Additional Scripts 需手动粘贴">
         <BlockStack gap="200">
@@ -1187,18 +1088,14 @@ export function ScanPage({
         </BlockStack>
       </Banner>
     );
-
     const identifiedPlatforms = useMemo(() => {
         return validateStringArray(latestScan?.identifiedPlatforms);
     }, [latestScan?.identifiedPlatforms]);
-
     const scriptTags = useMemo(() => {
         return validateScriptTagsArray(latestScan?.scriptTags);
     }, [latestScan?.scriptTags]);
-
     const identifiedPlatformsCount = identifiedPlatforms.length;
     const scriptTagsCount = scriptTags.length;
-
     const roiEstimate = {
         eventsLostPerMonth: Math.max(0, monthlyOrders) * Math.max(0, identifiedPlatformsCount),
         platforms: Math.max(0, identifiedPlatformsCount),
@@ -1206,7 +1103,6 @@ export function ScanPage({
     };
     const isDeleting = deleteFetcher.state === "submitting";
     const isUpgrading = upgradeFetcher.state === "submitting";
-
     const handleShowScriptTagGuidance = useCallback((scriptTagId: number, platform?: string) => {
         setGuidanceContent({
             title: `清理 ScriptTag #${scriptTagId}`,
@@ -1215,14 +1111,11 @@ export function ScanPage({
         });
         setGuidanceModalOpen(true);
     }, []);
-
     const closeGuidanceModal = useCallback(() => {
         setGuidanceModalOpen(false);
         setGuidanceContent(null);
     }, []);
-
     const handleAnalysisError = useCallback((error: unknown, contentLength: number) => {
-
         if (error instanceof Error && error.message === "Analysis cancelled") {
             if (isMountedRef.current) {
                 setIsAnalyzing(false);
@@ -1234,7 +1127,6 @@ export function ScanPage({
             }
             return;
         }
-
         let errorMessage: string;
         if (error instanceof TypeError) {
             errorMessage = "脚本格式错误，请检查输入内容";
@@ -1243,16 +1135,13 @@ export function ScanPage({
         } else {
             errorMessage = error instanceof Error ? error.message : "分析失败，请稍后重试";
         }
-
         if (isMountedRef.current) {
             setAnalysisError(errorMessage);
             setAnalysisResult(null);
             setAnalysisSaved(false);
             analysisSavedRef.current = false;
         }
-
         if (process.env.NODE_ENV === "development") {
-
             console.error("Script analysis error", {
                 error: errorMessage,
                 errorType: error instanceof Error ? error.constructor.name : "Unknown",
@@ -1261,7 +1150,6 @@ export function ScanPage({
             });
         }
     }, []);
-
     const handleDeleteWebPixel = useCallback((webPixelGid: string, platform?: string) => {
         setPendingDelete({
             type: "webPixel",
@@ -1272,20 +1160,16 @@ export function ScanPage({
         setDeleteError(null);
         setDeleteModalOpen(true);
     }, []);
-
     const confirmDelete = useCallback(() => {
         if (!pendingDelete || isDeleting) return;
-
         if (!pendingDelete.gid || typeof pendingDelete.gid !== "string") {
             setDeleteError("无效的 WebPixel ID");
             return;
         }
-
         if (!pendingDelete.gid.startsWith("gid://shopify/WebPixel/")) {
             setDeleteError("WebPixel ID 格式不正确");
             return;
         }
-
         const formData = new FormData();
         formData.append("webPixelGid", pendingDelete.gid);
         setDeleteError(null);
@@ -1294,24 +1178,20 @@ export function ScanPage({
             action: "/app/actions/delete-web-pixel",
         });
     }, [pendingDelete, deleteFetcher, isDeleting]);
-
     const closeDeleteModal = useCallback(() => {
         if (isDeleting) return;
         setDeleteModalOpen(false);
         setPendingDelete(null);
         setDeleteError(null);
     }, [isDeleting]);
-
     const handleUpgradePixelSettings = useCallback(() => {
         if (isUpgrading) return;
-
         const formData = new FormData();
         upgradeFetcher.submit(formData, {
             method: "post",
             action: "/app/actions/upgrade-web-pixel",
         });
     }, [upgradeFetcher, isUpgrading]);
-
     const handleScan = () => {
         const formData = new FormData();
         formData.append("_action", "scan");
@@ -1319,46 +1199,35 @@ export function ScanPage({
     };
     const handleAnalyzeScript = useCallback(async () => {
         if (isAnalyzing) return;
-
         const MAX_CONTENT_LENGTH = SCRIPT_ANALYSIS_CONFIG.MAX_CONTENT_LENGTH;
         const trimmedContent = scriptContent.trim();
-
         if (!trimmedContent) {
             setAnalysisError("请输入脚本内容");
             return;
         }
-
         if (trimmedContent.length > MAX_CONTENT_LENGTH) {
             setAnalysisError(`脚本内容过长（最多 ${MAX_CONTENT_LENGTH} 个字符）。请分段分析或联系支持。`);
             return;
         }
-
         if (containsSensitiveInfo(trimmedContent)) {
             setAnalysisError("检测到可能包含敏感信息的内容（如 API keys、tokens、客户信息等）。请先脱敏后再分析。");
             return;
         }
-
         setIsAnalyzing(true);
         setAnalysisSaved(false);
         analysisSavedRef.current = false;
         setAnalysisError(null);
         setAnalysisProgress(null);
-
         try {
-
             if (abortControllerRef.current) {
                 abortControllerRef.current.abort();
             }
             abortControllerRef.current = new AbortController();
             const signal = abortControllerRef.current.signal;
-
             const CHUNK_SIZE = SCRIPT_ANALYSIS_CONFIG.CHUNK_SIZE;
             const isLargeContent = trimmedContent.length > CHUNK_SIZE;
-
             let result: ScriptAnalysisResult;
-
             if (isLargeContent) {
-
                 result = {
                     identifiedPlatforms: [],
                     platformDetails: [],
@@ -1366,16 +1235,12 @@ export function ScanPage({
                     riskScore: 0,
                     recommendations: [],
                 };
-
                 const platformDetailsMap = new Map<string, typeof result.platformDetails[0]>();
                 const risksMap = new Map<string, typeof result.risks[0]>();
                 const recommendationsSet = new Set<string>();
                 const platformsSet = new Set<string>();
-
                 const totalChunks = Math.ceil(trimmedContent.length / CHUNK_SIZE);
-
                 for (let i = 0; i < totalChunks; i++) {
-
                     if (signal.aborted || !isMountedRef.current) {
                         if (isMountedRef.current) {
                             setIsAnalyzing(false);
@@ -1384,14 +1249,11 @@ export function ScanPage({
                         }
                         return;
                     }
-
                     if (isMountedRef.current) {
                         setAnalysisProgress({ current: i + 1, total: totalChunks });
                     }
-
                     await new Promise<void>((resolve) => {
                         const processChunk = () => {
-
                             if (signal.aborted || !isMountedRef.current) {
                                 if (isMountedRef.current) {
                                     setIsAnalyzing(false);
@@ -1401,84 +1263,65 @@ export function ScanPage({
                                 resolve();
                                 return;
                             }
-
                             try {
-
                                 const start = i * CHUNK_SIZE;
                                 const end = Math.min(start + CHUNK_SIZE, trimmedContent.length);
                                 const chunk = trimmedContent.slice(start, end);
-
                                 let chunkResult: ScriptAnalysisResult;
                                 try {
                                     chunkResult = analyzeScriptContent(chunk);
                                 } catch (syncError) {
-
                                     if (process.env.NODE_ENV === "development") {
-
                                         console.warn(`Chunk ${i} synchronous analysis failed:`, syncError);
                                     }
                                     resolve();
                                     return;
                                 }
-
                                 for (const platform of chunkResult.identifiedPlatforms) {
                                     platformsSet.add(platform);
                                 }
-
                                 for (const detail of chunkResult.platformDetails) {
-
                                     const key = `${detail.platform}-${detail.type}-${detail.matchedPattern}`;
                                     if (!platformDetailsMap.has(key)) {
                                         platformDetailsMap.set(key, detail);
                                     }
                                 }
-
                                 for (const risk of chunkResult.risks) {
                                     if (!risksMap.has(risk.id)) {
                                         risksMap.set(risk.id, risk);
                                     }
                                 }
-
                                 for (const rec of chunkResult.recommendations) {
                                     recommendationsSet.add(rec);
                                 }
-
                                 resolve();
                             } catch (error) {
-
                                 if (process.env.NODE_ENV === "development") {
-
                                     console.warn(`Chunk ${i} analysis failed:`, error);
                                 }
                                 resolve();
                             }
                         };
-
                         if (typeof window !== 'undefined' && 'requestIdleCallback' in window) {
                             const handle = requestIdleCallback(processChunk, { timeout: TIMEOUTS.IDLE_CALLBACK });
                             idleCallbackHandlesRef.current.push(handle);
                         } else {
-
                             const handle = setTimeout(processChunk, TIMEOUTS.SET_TIMEOUT_FALLBACK) as unknown as number | IdleCallbackHandle;
                             idleCallbackHandlesRef.current.push(handle);
                         }
                     });
                 }
-
                 result.identifiedPlatforms = Array.from(platformsSet);
                 result.platformDetails = Array.from(platformDetailsMap.values());
                 result.risks = Array.from(risksMap.values());
                 result.recommendations = Array.from(recommendationsSet);
-
                 if (result.risks.length > 0) {
                     result.riskScore = calculateRiskScore(result.risks);
                 }
-
                 if (isMountedRef.current) {
                     setAnalysisProgress(null);
                 }
             } else {
-
                 if (signal.aborted || !isMountedRef.current) {
                     if (isMountedRef.current) {
                         setIsAnalyzing(false);
@@ -1486,10 +1329,8 @@ export function ScanPage({
                     }
                     return;
                 }
-
                 result = await new Promise<ScriptAnalysisResult>((resolve, reject) => {
                     const processContent = () => {
-
                         if (signal.aborted || !isMountedRef.current) {
                             if (isMountedRef.current) {
                                 setIsAnalyzing(false);
@@ -1499,38 +1340,31 @@ export function ScanPage({
                             reject(new Error("Analysis cancelled"));
                             return;
                         }
-
                         try {
                             resolve(analyzeScriptContent(trimmedContent));
                         } catch (error) {
                             reject(error);
                         }
                     };
-
                     if (typeof window !== 'undefined' && 'requestIdleCallback' in window) {
                         const handle = requestIdleCallback(processContent, { timeout: TIMEOUTS.IDLE_CALLBACK });
                         idleCallbackHandlesRef.current.push(handle);
                     } else {
-
                         const handle = setTimeout(processContent, TIMEOUTS.SET_TIMEOUT_FALLBACK) as unknown as number | IdleCallbackHandle;
                         idleCallbackHandlesRef.current.push(handle);
                     }
                 });
             }
-
             if (isMountedRef.current) {
                 setAnalysisResult(result);
-
                 if (result.identifiedPlatforms.length > 0 || result.risks.length > 0) {
                     const formData = new FormData();
                     formData.append("_action", "analyze_manual_script");
                     formData.append("scriptContent", trimmedContent);
-
                     submit(formData, { method: "post" });
                 }
             }
         } catch (error) {
-
             handleAnalysisError(error, trimmedContent.length);
         } finally {
             if (isMountedRef.current) {
@@ -1539,47 +1373,35 @@ export function ScanPage({
             }
         }
     }, [scriptContent, isAnalyzing, handleAnalysisError, submit]);
-
     const isSavingAnalysis = saveAnalysisFetcher.state === "submitting";
-
     const handleSaveAnalysis = useCallback(() => {
-
         if (!analysisResult) return;
-
         if (analysisSavedRef.current || isSavingAnalysis || saveAnalysisFetcher.state !== "idle") {
             return;
         }
-
         analysisSavedRef.current = true;
         setAnalysisSaved(true);
-
         const formData = new FormData();
         formData.append("_action", "save_analysis");
         formData.append("analysisData", JSON.stringify(analysisResult));
         saveAnalysisFetcher.submit(formData, { method: "post" });
     }, [analysisResult, saveAnalysisFetcher, isSavingAnalysis]);
-
     const handleProcessManualPaste = useCallback(() => {
         if (!scriptContent.trim() || processPasteFetcher.state !== "idle") {
             return;
         }
-
         const formData = new FormData();
         formData.append("_action", "process_manual_paste");
         formData.append("scriptContent", scriptContent);
         processPasteFetcher.submit(formData, { method: "post" });
     }, [scriptContent, processPasteFetcher]);
-
     const handleManualInputComplete = useCallback(async (data: ManualInputData) => {
         if (!shop) {
             showError("店铺信息未找到");
             return;
         }
-
         try {
-
             const assets = [];
-
             for (const platform of data.platforms) {
                 if (platform === "other") continue;
                 assets.push({
@@ -1596,7 +1418,6 @@ export function ScanPage({
                     },
                 });
             }
-
             for (const feature of data.features) {
                 if (feature === "other") continue;
                 const categoryMap: Record<string, "survey" | "support" | "affiliate" | "other"> = {
@@ -1628,7 +1449,6 @@ export function ScanPage({
                     },
                 });
             }
-
             if (assets.length > 0) {
                 const formData = new FormData();
                 formData.append("_action", "create_from_wizard");
@@ -1639,22 +1459,17 @@ export function ScanPage({
                 showError("请至少选择一个平台或功能");
             }
         } catch (error) {
-
             console.error("Failed to process manual input", error);
             showError("处理失败，请稍后重试");
         }
     }, [shop, showSuccess, showError, submit]);
-
     const isProcessingPaste = processPasteFetcher.state === "submitting";
-
     useEffect(() => {
         const result = isFetcherResult(processPasteFetcher.data) ? processPasteFetcher.data : undefined;
         if (!result || processPasteFetcher.state !== "idle" || !isMountedRef.current) return;
-
         if (result.success) {
             setPasteProcessed(true);
             showSuccess(result.message || "已成功处理粘贴内容");
-
             if (reloadTimeoutRef.current) {
                 clearTimeout(reloadTimeoutRef.current);
             }
@@ -1665,70 +1480,53 @@ export function ScanPage({
             showError(result.error);
         }
     }, [processPasteFetcher.data, processPasteFetcher.state, showSuccess, showError]);
-
     useEffect(() => {
-
         const result = isFetcherResult(saveAnalysisFetcher.data) ? saveAnalysisFetcher.data : undefined;
         if (!result || saveAnalysisFetcher.state !== "idle" || !isMountedRef.current) return;
-
         if (result.success) {
-
             if (!analysisSavedRef.current) {
                 analysisSavedRef.current = true;
             }
             setAnalysisSaved(true);
             showSuccess("分析结果已保存！");
         } else if (result.error) {
-
             analysisSavedRef.current = false;
             setAnalysisSaved(false);
             showError("保存失败：" + result.error);
         }
     }, [saveAnalysisFetcher.data, saveAnalysisFetcher.state, showSuccess, showError]);
-
     useEffect(() => {
         if (analysisResult) {
             analysisSavedRef.current = false;
             setAnalysisSaved(false);
         }
     }, [analysisResult]);
-
     const reloadData = useCallback(() => {
         if (isReloadingRef.current || !isMountedRef.current) return;
-
         if (reloadTimeoutRef.current) {
             clearTimeout(reloadTimeoutRef.current);
             reloadTimeoutRef.current = null;
         }
-
         isReloadingRef.current = true;
         submit(new FormData(), { method: "get" });
-
         const timeoutId = setTimeout(() => {
-
             if (isMountedRef.current && reloadTimeoutRef.current === timeoutId) {
                 isReloadingRef.current = false;
                 reloadTimeoutRef.current = null;
             }
         }, 1000);
-
         reloadTimeoutRef.current = timeoutId;
     }, [submit]);
-
     useEffect(() => {
-
         const deleteResult = isFetcherResult(deleteFetcher.data) ? deleteFetcher.data : undefined;
         if (!deleteResult || deleteFetcher.state !== "idle" || !isMountedRef.current) return;
-
         if (deleteResult.success) {
             showSuccess(deleteResult.message || "删除成功！");
             setDeleteModalOpen(false);
             setPendingDelete(null);
             setDeleteError(null);
-
             reloadData();
         } else {
-
             let errorMessage = deleteResult.error || "删除失败";
             if (deleteResult.details && typeof deleteResult.details === "object") {
                 const details = deleteResult.details as { message?: string };
@@ -1740,15 +1538,11 @@ export function ScanPage({
             showError(errorMessage);
         }
     }, [deleteFetcher.data, deleteFetcher.state, showSuccess, showError, reloadData]);
-
     useEffect(() => {
-
         const upgradeResult = isFetcherResult(upgradeFetcher.data) ? upgradeFetcher.data : undefined;
         if (!upgradeResult || upgradeFetcher.state !== "idle" || !isMountedRef.current) return;
-
         if (upgradeResult.success) {
             showSuccess(upgradeResult.message || "升级成功！");
-
             reloadData();
         } else {
             let errorMessage = upgradeResult.error || "升级失败";
@@ -1761,27 +1555,22 @@ export function ScanPage({
             showError(errorMessage);
         }
     }, [upgradeFetcher.data, upgradeFetcher.state, showSuccess, showError, reloadData]);
-
     useEffect(() => {
         isMountedRef.current = true;
         return () => {
             isMountedRef.current = false;
-
             if (abortControllerRef.current) {
                 abortControllerRef.current.abort();
                 abortControllerRef.current = null;
             }
-
             idleCallbackHandlesRef.current.forEach(handle => {
                 cancelIdleCallbackOrTimeout(handle);
             });
             idleCallbackHandlesRef.current = [];
-
             if (reloadTimeoutRef.current) {
                 clearTimeout(reloadTimeoutRef.current);
                 reloadTimeoutRef.current = null;
             }
-
             if (exportTimeoutRef.current) {
                 clearTimeout(exportTimeoutRef.current);
                 exportTimeoutRef.current = null;
@@ -1790,7 +1579,6 @@ export function ScanPage({
                 URL.revokeObjectURL(exportBlobUrlRef.current);
                 exportBlobUrlRef.current = null;
             }
-
             isReloadingRef.current = false;
             analysisSavedRef.current = false;
         };
@@ -1806,12 +1594,10 @@ export function ScanPage({
     () => (Array.isArray(auditAssets) ? auditAssets.filter((asset): asset is NonNullable<typeof asset> => asset !== null).length : 0),
     [auditAssets]
   );
-
   useEffect(() => {
     if (paywallViewTrackedRef.current || !shouldShowMigrationButtons) {
       return;
     }
-
     paywallViewTrackedRef.current = true;
     const riskScore = latestScan?.riskScore ?? 0;
     void fetch("/api/analytics-track", {
@@ -1859,7 +1645,6 @@ export function ScanPage({
         }
     };
     const getPlatformName = (platform: string) => {
-
         const names: Record<string, string> = {
             google: "GA4 (Measurement Protocol)",
             meta: "Meta (Facebook) Pixel",
@@ -1872,7 +1657,6 @@ export function ScanPage({
         };
         return names[platform] || platform;
     };
-
     const getStatusText = useCallback((status: string | null | undefined): string => {
         if (!status) return "未知";
         switch (status) {
@@ -1890,19 +1674,14 @@ export function ScanPage({
                 return status;
         }
     }, []);
-
     const processedScanHistory = useMemo(() => {
         return scanHistory
             .filter((scan): scan is NonNullable<typeof scan> => scan !== null)
             .map((scan) => {
-
                 const riskScore = validateRiskScore(scan.riskScore);
                 const platforms = validateStringArray(scan.identifiedPlatforms);
-
                 const createdAt = parseDateSafely(scan.createdAt);
-
                 const status = getStatusText(scan.status);
-
                 return [
                     createdAt ? safeFormatDate(createdAt) : "未知",
                     riskScore,
@@ -1911,9 +1690,7 @@ export function ScanPage({
                 ];
             });
     }, [scanHistory, getStatusText]);
-
     const MAX_VISIBLE_ACTIONS = 5;
-
     const generateChecklistText = useCallback((format: "markdown" | "plain"): string => {
         const items = migrationActions && migrationActions.length > 0
             ? migrationActions.map((a, i) => {
@@ -1924,7 +1701,6 @@ export function ScanPage({
                 return `${i + 1}. [${priorityText}] ${a.title}${platformText}`;
             })
             : ["无"];
-
         if (format === "markdown") {
             return [
                 "# 迁移清单",
@@ -1950,11 +1726,9 @@ export function ScanPage({
             ].join("\n");
         }
     }, [migrationActions, shop?.domain, getPlatformName]);
-
     const riskItems = useMemo(() => {
         return validateRiskItemsArray(latestScan?.riskItems);
     }, [latestScan?.riskItems]);
-
   const partialRefreshWarning = actionData &&
     typeof actionData === "object" &&
     actionData !== null &&
@@ -1971,16 +1745,13 @@ export function ScanPage({
       </BlockStack>
     </Banner>
   ) : null;
-
   return (<Page title={pageTitle} subtitle={pageSubtitle}>
     <BlockStack gap="500">
       {additionalScriptsWarning}
       {paginationLimitWarning}
       {partialRefreshWarning}
       {upgradeStatus && upgradeStatus.title && upgradeStatus.message && (() => {
-
         const lastUpdatedDate = parseDateSafely(upgradeStatus.lastUpdated);
-
         return (
           <Banner title={upgradeStatus.title} tone={getUpgradeBannerTone(upgradeStatus.urgency)}>
             <BlockStack gap="200">
@@ -2008,7 +1779,6 @@ export function ScanPage({
           </Banner>
         );
       })()}
-
       {planId && planLabel && (
         <Banner
           title={`当前套餐：${planLabel}`}
@@ -2051,7 +1821,6 @@ export function ScanPage({
           </BlockStack>
         </Banner>
       )}
-
       <PageIntroCard
         title={introConfig.title}
         description={introConfig.description}
@@ -2059,7 +1828,6 @@ export function ScanPage({
         primaryAction={introConfig.primaryAction}
         secondaryAction={introConfig.secondaryAction}
       />
-
         <Tabs tabs={visibleTabs} selected={selectedTab} onSelect={setSelectedTab}>
           {}
           {shouldShowMigrationButtons && (
@@ -2074,7 +1842,6 @@ export function ScanPage({
                         icon={ShareIcon}
                         onClick={async () => {
                           try {
-
                             const response = await fetch("/api/reports/share", {
                               method: "POST",
                               headers: { "Content-Type": "application/json" },
@@ -2083,19 +1850,15 @@ export function ScanPage({
                                 reportId: latestScan.id,
                               }),
                             });
-
                             if (response.ok) {
                               const data = await response.json().catch((error) => {
                                 showError("解析响应失败");
                                 throw error;
                               });
                               const shareUrl = data.shareUrl;
-
                               const validatedRiskScore = validateRiskScore(latestScan.riskScore);
                               const scanDate = safeParseDate(latestScan.createdAt);
-
                               const shareText = `店铺追踪扫描报告\n风险评分: ${validatedRiskScore}/100\n检测平台: ${identifiedPlatforms.join(", ") || "无"}\n扫描时间: ${scanDate.toLocaleString("zh-CN")}\n\n查看完整报告: ${shareUrl}`;
-
                               if (navigator.share) {
                                 try {
                                   await navigator.share({
@@ -2107,11 +1870,9 @@ export function ScanPage({
                                   return;
                                 } catch (error) {
                                   if (error instanceof Error && error.name !== 'AbortError') {
-
                                   }
                                 }
                               }
-
                               if (navigator.clipboard && navigator.clipboard.writeText) {
                                 await navigator.clipboard.writeText(shareUrl);
                                 showSuccess("报告链接已复制到剪贴板（7天内有效）");
@@ -2119,14 +1880,12 @@ export function ScanPage({
                                 showError("浏览器不支持分享或复制功能");
                               }
                             } else {
-
                               const validatedRiskScore = validateRiskScore(latestScan.riskScore);
                               const scanDate = safeParseDate(latestScan.createdAt);
                               const shareData = {
                                 title: "追踪脚本扫描报告",
                                 text: `店铺追踪扫描报告\n风险评分: ${validatedRiskScore}/100\n检测平台: ${identifiedPlatforms.join(", ") || "无"}\n扫描时间: ${scanDate.toLocaleString("zh-CN")}`,
                               };
-
                               if (navigator.share) {
                                 try {
                                   await navigator.share(shareData);
@@ -2134,11 +1893,9 @@ export function ScanPage({
                                   return;
                                 } catch (error) {
                                   if (error instanceof Error && error.name !== 'AbortError') {
-
                                   }
                                 }
                               }
-
                               if (navigator.clipboard && navigator.clipboard.writeText) {
                                 await navigator.clipboard.writeText(shareData.text);
                                 showSuccess("报告摘要已复制到剪贴板");
@@ -2162,7 +1919,6 @@ export function ScanPage({
                   </InlineStack>
                 </InlineStack>
               </Box>
-
               {isScanning && (
                 <Card>
                   <BlockStack gap="400">
@@ -2173,7 +1929,6 @@ export function ScanPage({
                   </BlockStack>
                 </Card>
               )}
-
               {!latestScan && !isScanning && (
                 <EnhancedEmptyState
                   icon="🔍"
@@ -2191,7 +1946,6 @@ export function ScanPage({
                   }}
                 />
               )}
-
         {latestScan && !isScanning && (<Layout>
             <Layout.Section variant="oneThird">
               <Card>
@@ -2267,7 +2021,6 @@ export function ScanPage({
                 </BlockStack>
               </Card>
             </Layout.Section>
-
             <Layout.Section variant="oneThird">
               <Card>
                 <BlockStack gap="400">
@@ -2285,7 +2038,6 @@ export function ScanPage({
                 </BlockStack>
               </Card>
             </Layout.Section>
-
             <Layout.Section variant="oneThird">
               <Card>
                 <BlockStack gap="400">
@@ -2312,7 +2064,6 @@ export function ScanPage({
               </Card>
             </Layout.Section>
           </Layout>)}
-
         {latestScan && !isScanning && latestScan.riskScore > 0 && (<Card>
             <BlockStack gap="400">
               <InlineStack align="space-between" blockAlign="center">
@@ -2321,7 +2072,6 @@ export function ScanPage({
                 </Text>
                 <Badge tone="info">示例估算</Badge>
               </InlineStack>
-
               <Banner tone="warning">
                 <Text as="p" variant="bodySm">
                   <strong>⚠️ 免责声明：</strong>以下为简化示意，仅帮助理解迁移的必要性。
@@ -2329,7 +2079,6 @@ export function ScanPage({
                   本工具无法预测具体数值影响，不构成任何效果保证或承诺。
                 </Text>
               </Banner>
-
               <Box background="bg-surface-secondary" padding="400" borderRadius="200">
                 <BlockStack gap="300">
                   <Text as="p" fontWeight="semibold">
@@ -2347,7 +2096,6 @@ export function ScanPage({
                   />
                 </BlockStack>
               </Box>
-
               <Box background="bg-fill-critical-secondary" padding="400" borderRadius="200">
                 <BlockStack gap="300">
                   <InlineStack gap="200" blockAlign="center">
@@ -2356,7 +2104,6 @@ export function ScanPage({
                       不迁移会丢失什么？（示意说明）
                     </Text>
                   </InlineStack>
-
                   <InlineStack gap="400" align="space-between" wrap>
                     <Box background="bg-surface" padding="300" borderRadius="100" minWidth="150px">
                       <BlockStack gap="100">
@@ -2392,7 +2139,6 @@ export function ScanPage({
                       </BlockStack>
                     </Box>
                   </InlineStack>
-
                   <BlockStack gap="200">
                     {identifiedPlatforms.length > 0 ? (
                       identifiedPlatforms.map((platform) => (
@@ -2414,7 +2160,6 @@ export function ScanPage({
                       </Text>
                     )}
                   </BlockStack>
-
                   <Banner tone="warning">
                     <Text as="p" variant="bodySm">
                       <strong>⚠️ 重要提醒：</strong>
@@ -2425,9 +2170,7 @@ export function ScanPage({
                   </Banner>
                 </BlockStack>
               </Box>
-
               <Divider />
-
               <Box background="bg-fill-success-secondary" padding="400" borderRadius="200">
                 <BlockStack gap="300">
                   <InlineStack gap="200" blockAlign="center">
@@ -2436,7 +2179,6 @@ export function ScanPage({
                       迁移后能恢复什么？（您的预期收益）
                     </Text>
                   </InlineStack>
-
                   <InlineStack gap="400" align="space-between" wrap>
                     <Box background="bg-surface" padding="300" borderRadius="100" minWidth="150px">
                       <BlockStack gap="100">
@@ -2472,7 +2214,6 @@ export function ScanPage({
                       </BlockStack>
                     </Box>
                   </InlineStack>
-
                   <BlockStack gap="200">
                     {identifiedPlatforms.length > 0 ? (
                       identifiedPlatforms.map((platform) => (
@@ -2494,7 +2235,6 @@ export function ScanPage({
                       </Text>
                     )}
                   </BlockStack>
-
                   <Banner tone="success">
                     <Text as="p" variant="bodySm">
                       <strong>✅ 迁移的核心价值：</strong>
@@ -2505,9 +2245,7 @@ export function ScanPage({
                   </Banner>
                 </BlockStack>
               </Box>
-
               <Divider />
-
               <BlockStack gap="300">
                 <Text as="h3" variant="headingMd">
                   迁移前后对比
@@ -2524,11 +2262,9 @@ export function ScanPage({
                       </Text>
                     </BlockStack>
                   </Box>
-
                   <Box padding="300">
                     <Icon source={ArrowRightIcon} tone="subdued" />
                   </Box>
-
                   <Box background="bg-surface-success" padding="300" borderRadius="200" minWidth="200px">
                     <BlockStack gap="100">
                       <Text as="p" variant="bodySm" tone="subdued">迁移后</Text>
@@ -2540,11 +2276,9 @@ export function ScanPage({
                       </Text>
                     </BlockStack>
                   </Box>
-
                   <Box padding="300">
                     <Icon source={ArrowRightIcon} tone="subdued" />
                   </Box>
-
                   <Box background="bg-surface-success" padding="300" borderRadius="200" minWidth="200px">
                     <BlockStack gap="100">
                       <Text as="p" variant="bodySm" tone="subdued">额外收益</Text>
@@ -2557,7 +2291,6 @@ export function ScanPage({
                     </BlockStack>
                   </Box>
                 </InlineStack>
-
                 <Banner tone="info" title="v1 最小可用迁移说明">
                   <Text as="p" variant="bodySm">
                     ✅ v1 支持：Web Pixel 标准事件映射（GA4/Meta/TikTok）
@@ -2574,7 +2307,6 @@ export function ScanPage({
                   </Text>
                 </Banner>
               </BlockStack>
-
               <InlineStack align="end" gap="200">
                 <Button url="/app/diagnostics">
                   查看追踪诊断
@@ -2585,7 +2317,6 @@ export function ScanPage({
               </InlineStack>
             </BlockStack>
           </Card>)}
-
         {latestScan && riskItems.length > 0 && !isScanning && (<Card>
             <BlockStack gap="400">
               <InlineStack align="space-between" blockAlign="center">
@@ -2594,7 +2325,6 @@ export function ScanPage({
                 </Text>
                 <Badge tone="info">{`${riskItems.length} 项`}</Badge>
               </InlineStack>
-
               {(() => {
                 const isFreePlan = planId === "free";
                 const FREE_AUDIT_LIMIT = 3;
@@ -2606,11 +2336,9 @@ export function ScanPage({
                   ? Math.max(0, riskItems.length - FREE_AUDIT_LIMIT)
                   : 0;
                 const estimatedTimeMinutes = riskItems.reduce((sum, item) => {
-
                   const timeMap = { high: 30, medium: 15, low: 5 };
                   return sum + (timeMap[item.severity] || 10);
                 }, 0);
-
                 return (
                   <>
                     <BlockStack gap="300">
@@ -2649,7 +2377,6 @@ export function ScanPage({
                     </BlockStack>
                   </Box>))}
                     </BlockStack>
-
                     {isFreePlan && hiddenCount > 0 && (
                       <Banner tone="warning">
                         <BlockStack gap="200">
@@ -2674,7 +2401,6 @@ export function ScanPage({
                         </BlockStack>
                       </Banner>
                     )}
-
                     <Box background="bg-surface-secondary" padding="400" borderRadius="200">
                       <BlockStack gap="300">
                         <InlineStack align="space-between" blockAlign="center">
@@ -2704,7 +2430,6 @@ export function ScanPage({
               })()}
             </BlockStack>
           </Card>)}
-
         {latestScan && migrationActions && migrationActions.length > 0 && !isScanning && (<Card>
             <BlockStack gap="400">
               <InlineStack align="space-between" blockAlign="center">
@@ -2713,7 +2438,6 @@ export function ScanPage({
                 </Text>
                 <Badge tone="attention">{`${migrationActions.length} 项待处理`}</Badge>
               </InlineStack>
-
               <BlockStack gap="300">
                 {migrationActions.map((action, index) => (
                   <Box key={`${action.type}-${action.platform || 'unknown'}-${action.scriptTagId || action.webPixelGid || index}`} background="bg-surface-secondary" padding="400" borderRadius="200">
@@ -2740,11 +2464,9 @@ export function ScanPage({
                           <Badge tone="warning">{`截止: ${action.deadline}`}</Badge>
                         )}
                       </InlineStack>
-
                       <Text as="p" variant="bodySm" tone="subdued">
                         {action.description}
                       </Text>
-
                       <InlineStack gap="200" align="end">
                         {action.type === "migrate_script_tag" && action.scriptTagId && (
                           <Button
@@ -2803,7 +2525,6 @@ export function ScanPage({
               </BlockStack>
             </BlockStack>
           </Card>)}
-
         {latestScan && auditAssets && Array.isArray(auditAssets) && auditAssets.length > 0 && !isScanning && (
           <AuditAssetsByRisk
             assets={auditAssets.filter((a): a is NonNullable<typeof a> => a !== null).map((asset) => ({
@@ -2819,7 +2540,6 @@ export function ScanPage({
             }}
           />
         )}
-
         {migrationProgress && migrationTimeline && (
           <Card>
             <BlockStack gap="400">
@@ -2831,7 +2551,6 @@ export function ScanPage({
                   {`${Math.round(migrationProgress.completionRate)}% 完成`}
                 </Badge>
               </InlineStack>
-
               <BlockStack gap="300">
                 <ProgressBar
                   progress={migrationProgress.completionRate}
@@ -2857,7 +2576,6 @@ export function ScanPage({
                   )}
                 </InlineStack>
               </BlockStack>
-
               {migrationTimeline.assets.length > 0 && (
                 <>
                   <Divider />
@@ -2962,7 +2680,6 @@ export function ScanPage({
             </BlockStack>
           </Card>
         )}
-
         {latestScan && !isScanning && (
           <Card>
             <BlockStack gap="400">
@@ -2972,13 +2689,10 @@ export function ScanPage({
                 </Text>
                 <Badge tone="info">P1-3 迁移闭环</Badge>
               </InlineStack>
-
               <Text as="p" tone="subdued">
                 根据扫描结果，以下是完成迁移所需的步骤。点击各项可直接跳转到对应位置。
               </Text>
-
               <Divider />
-
               <BlockStack gap="300">
                 <Text as="h3" variant="headingSm">
                   📦 Web Pixel 设置
@@ -3002,9 +2716,7 @@ export function ScanPage({
                   </Button>
                 </InlineStack>
               </BlockStack>
-
               <Divider />
-
               <BlockStack gap="300">
                 <Text as="h3" variant="headingSm">
                   🛒 Checkout Editor（Plus 专属）
@@ -3029,9 +2741,7 @@ export function ScanPage({
                   </Button>
                 </InlineStack>
               </BlockStack>
-
               <Divider />
-
               <BlockStack gap="300">
                 <Text as="h3" variant="headingSm">
                   📋 迁移清单
@@ -3039,7 +2749,6 @@ export function ScanPage({
                 <Text as="p" variant="bodySm" tone="subdued">
                   生成可导出的迁移步骤清单，方便团队协作或记录进度。
                 </Text>
-
                 <Box background="bg-surface-secondary" padding="400" borderRadius="200">
                   <BlockStack gap="200">
                     <Text as="p" fontWeight="semibold">待迁移项目：</Text>
@@ -3059,7 +2768,6 @@ export function ScanPage({
                         <List.Item>...还有 {migrationActions.length - MAX_VISIBLE_ACTIONS} 项</List.Item>
                       )}
                     </List>
-
                     <InlineStack gap="200" align="end">
                       <Button
                         icon={ClipboardIcon}
@@ -3076,9 +2784,7 @@ export function ScanPage({
                               showError("浏览器不支持复制功能");
                             }
                           } catch (error) {
-
                             if (process.env.NODE_ENV === "development") {
-
                                 console.error("复制失败:", error);
                             }
                             showError("复制失败，请手动复制");
@@ -3095,39 +2801,31 @@ export function ScanPage({
                         onClick={() => {
                           if (isExporting) return;
                           setIsExporting(true);
-
                           if (exportBlobUrlRef.current) {
                             URL.revokeObjectURL(exportBlobUrlRef.current);
                             exportBlobUrlRef.current = null;
                           }
-
                           try {
                             const checklist = generateChecklistText("plain");
                             const blob = new Blob([checklist], { type: "text/plain" });
                             const url = URL.createObjectURL(blob);
                             exportBlobUrlRef.current = url;
-
                             const a = document.createElement("a");
                             a.href = url;
                             a.download = `migration-checklist-${new Date().toISOString().split("T")[0]}.txt`;
-
                             try {
                               document.body.appendChild(a);
                               a.click();
-
                               exportTimeoutRef.current = setTimeout(() => {
                                 try {
                                   if (a.parentNode) {
                                     document.body.removeChild(a);
                                   }
                                 } catch (removeError) {
-
                                   if (process.env.NODE_ENV === "development") {
-
                                       console.warn("Failed to remove download link:", removeError);
                                   }
                                 }
-
                                 if (exportBlobUrlRef.current) {
                                   URL.revokeObjectURL(exportBlobUrlRef.current);
                                   exportBlobUrlRef.current = null;
@@ -3135,12 +2833,9 @@ export function ScanPage({
                                 exportTimeoutRef.current = null;
                               }, TIMEOUTS.EXPORT_CLEANUP);
                             } catch (domError) {
-
                               if (process.env.NODE_ENV === "development") {
-
                                   console.error("Failed to trigger download:", domError);
                               }
-
                               if (exportBlobUrlRef.current) {
                                 URL.revokeObjectURL(exportBlobUrlRef.current);
                                 exportBlobUrlRef.current = null;
@@ -3149,16 +2844,12 @@ export function ScanPage({
                               setIsExporting(false);
                               return;
                             }
-
                             showSuccess("清单导出成功");
                             setIsExporting(false);
                           } catch (error) {
-
                             if (process.env.NODE_ENV === "development") {
-
                                 console.error("导出失败:", error);
                             }
-
                             if (exportBlobUrlRef.current) {
                               URL.revokeObjectURL(exportBlobUrlRef.current);
                               exportBlobUrlRef.current = null;
@@ -3177,7 +2868,6 @@ export function ScanPage({
                           if (isExporting) return;
                           setIsExporting(true);
                           try {
-
                             const response = await fetch("/api/checklist-pdf");
                             if (!response.ok) {
                               const errorData = await response.json().catch(() => ({ error: "导出失败" }));
@@ -3194,9 +2884,7 @@ export function ScanPage({
                             URL.revokeObjectURL(url);
                             showSuccess("PDF 清单导出成功");
                           } catch (error) {
-
                             if (process.env.NODE_ENV === "development") {
-
                                 console.error("PDF 导出失败:", error);
                             }
                             showError(error instanceof Error ? error.message : "PDF 导出失败，请重试");
@@ -3211,9 +2899,7 @@ export function ScanPage({
                   </BlockStack>
                 </Box>
               </BlockStack>
-
               <Divider />
-
               <BlockStack gap="300">
                 <Text as="h3" variant="headingSm">
                   🔄 替代方案一览
@@ -3255,7 +2941,6 @@ export function ScanPage({
             </BlockStack>
           </Card>
         )}
-
         {processedScanHistory.length > 0 ? (
           <Card>
             <BlockStack gap="400">
@@ -3287,7 +2972,6 @@ export function ScanPage({
             </BlockStack>
           </Card>
         )}
-
               {latestScan && latestScan.riskScore > 0 && (<Banner title="建议进行迁移" tone="warning" action={{ content: "前往迁移工具", url: "/app/migrate" }}>
                   <p>
                     检测到您的店铺存在需要迁移的追踪脚本。
@@ -3295,7 +2979,6 @@ export function ScanPage({
                   </p>
                 </Banner>)}
             </BlockStack>)}
-
           {selectedTab === 1 && (<BlockStack gap="500">
               <Box paddingBlockStart="400">
                 <Card>
@@ -3325,7 +3008,6 @@ export function ScanPage({
                         </BlockStack>
                       </Banner>
                     </BlockStack>
-
                     <Banner tone="critical" title={`Plus：${getDateDisplayLabel(DEPRECATION_DATES.plusScriptTagExecutionOff, "exact")} / 非 Plus：${getDateDisplayLabel(DEPRECATION_DATES.nonPlusScriptTagExecutionOff, "exact")} 将失效`}>
                       <BlockStack gap="100">
                         <Text as="p" variant="bodySm">
@@ -3346,7 +3028,6 @@ export function ScanPage({
                         </InlineStack>
                       </BlockStack>
                     </Banner>
-
                     <Banner tone="info">
                       <BlockStack gap="200">
                         <InlineStack align="space-between" blockAlign="start">
@@ -3391,18 +3072,14 @@ export function ScanPage({
                         </InlineStack>
                       </BlockStack>
                     </Banner>
-
                     <ManualPastePanel
                       shopId={shop?.id || ""}
                       onAssetsCreated={(count) => {
                         showSuccess(`成功创建 ${count} 个迁移资产`);
-
                         window.location.reload();
                       }}
                     />
-
                     <Divider />
-
                     <Suspense fallback={<CardSkeleton lines={5} />}>
                       <ScriptCodeEditor
                         value={scriptContent}
@@ -3437,9 +3114,7 @@ export function ScanPage({
                   </BlockStack>
                 </Card>
               </Box>
-
               {analysisResult && <AnalysisResultSummary analysisResult={analysisResult} />}
-
               {analysisResult && analysisResult.risks.length > 0 && (<Card>
                   <BlockStack gap="400">
                     <Text as="h2" variant="headingMd">
@@ -3472,7 +3147,6 @@ export function ScanPage({
                     </BlockStack>
                   </BlockStack>
                 </Card>)}
-
               {analysisResult && analysisResult.recommendations.length > 0 && (<Card>
                   <BlockStack gap="400">
                     <InlineStack align="space-between">
@@ -3483,20 +3157,16 @@ export function ScanPage({
                     </InlineStack>
                     <BlockStack gap="300">
                       {analysisResult.recommendations.map((rec, index) => {
-
                         const lines = typeof rec === 'string' ? rec.split('\n') : [];
                         const titleLine = lines.length > 0 ? (lines[0] || "") : "";
                         const titleMatch = titleLine.match(/\*\*(.*?)\*\*/);
                         const title = titleMatch ? titleMatch[1] : titleLine.replace(/^[^\w\u4e00-\u9fa5]+/, '');
                         const details = lines.length > 1 ? lines.slice(1).map(l => l.trim()).filter(l => l.length > 0) : [];
-
                         const linkLine = details.find(l => l.includes("http"));
                         const urlMatch = linkLine?.match(/(https?:\/\/[^\s]+)/);
                         const url = urlMatch ? urlMatch[1] : null;
-
                         const isInternal = title.includes("Google Analytics") || title.includes("Meta Pixel") || title.includes("TikTok");
                         const isExternal = !!url;
-
                         if (rec.includes("迁移清单建议")) {
                            return (
                              <Box key={index} background="bg-surface-secondary" padding="400" borderRadius="200">
@@ -3513,7 +3183,6 @@ export function ScanPage({
                              </Box>
                            );
                         }
-
                         return (
                           <Box key={index} background="bg-surface-secondary" padding="400" borderRadius="200">
                             <BlockStack gap="300">
@@ -3548,7 +3217,6 @@ export function ScanPage({
                     </Button>
                   </BlockStack>
                 </Card>)}
-
               {analysisResult && (
                 <Card>
                   <BlockStack gap="400">
@@ -3565,31 +3233,26 @@ export function ScanPage({
                         <Badge tone="success">已保存</Badge>
                       ) : null}
                     </InlineStack>
-
                     {(saveAnalysisFetcher.data as FetcherResult | undefined)?.error && (
                       <Banner tone="critical">
                         <Text as="p">{(saveAnalysisFetcher.data as FetcherResult | undefined)?.error}</Text>
                       </Banner>
                     )}
-
                     {(saveAnalysisFetcher.data as FetcherResult | undefined)?.success && (
                       <Banner tone="success">
                         <Text as="p">{(saveAnalysisFetcher.data as FetcherResult | undefined)?.message}</Text>
                       </Banner>
                     )}
-
                     {(processPasteFetcher.data as FetcherResult | undefined)?.error && (
                       <Banner tone="critical">
                         <Text as="p">{(processPasteFetcher.data as FetcherResult | undefined)?.error}</Text>
                       </Banner>
                     )}
-
                     {(processPasteFetcher.data as FetcherResult | undefined)?.success && (
                       <Banner tone="success">
                         <Text as="p">{(processPasteFetcher.data as FetcherResult | undefined)?.message}</Text>
                       </Banner>
                     )}
-
                     <InlineStack gap="200" align="end">
                       {scriptContent.trim() && (
                         <Button
@@ -3615,7 +3278,6 @@ export function ScanPage({
                 </Card>
               )}
             </BlockStack>)}
-
           {selectedTab === 2 && (
             <BlockStack gap="500">
               {}
@@ -3666,7 +3328,6 @@ export function ScanPage({
             </BlockStack>
           )}
         </Tabs>
-
         <Modal
           open={guidanceModalOpen}
           onClose={closeGuidanceModal}
@@ -3736,7 +3397,6 @@ export function ScanPage({
                       请按照以下步骤手动清理，或等待原创建应用自动处理。
                     </Text>
                   </Banner>
-
               <BlockStack gap="200">
                 <Text as="p" fontWeight="semibold">推荐清理步骤：</Text>
                 <List type="number">
@@ -3762,9 +3422,7 @@ export function ScanPage({
                   </List.Item>
                 </List>
               </BlockStack>
-
               <Divider />
-
               <BlockStack gap="200">
                 <Text as="p" fontWeight="semibold">找不到创建应用？</Text>
                 <Text as="p" variant="bodySm" tone="subdued">
@@ -3776,7 +3434,6 @@ export function ScanPage({
                   <List.Item>等待 ScriptTag 自动过期（Plus 商家将于 {getDateDisplayLabel(DEPRECATION_DATES.plusScriptTagExecutionOff, "exact")} 停止执行，非 Plus 商家将于 {getDateDisplayLabel(DEPRECATION_DATES.nonPlusScriptTagExecutionOff, "exact")} 停止执行）</List.Item>
                 </List>
               </BlockStack>
-
               {guidanceContent?.platform && (
                 <>
                   <Divider />
@@ -3793,7 +3450,6 @@ export function ScanPage({
             </BlockStack>
           </Modal.Section>
         </Modal>
-
         <Modal
           open={deleteModalOpen}
           onClose={closeDeleteModal}
@@ -3834,7 +3490,6 @@ export function ScanPage({
             </BlockStack>
           </Modal.Section>
         </Modal>
-
         <ManualInputWizard
           open={manualInputWizardOpen}
           onClose={() => setManualInputWizardOpen(false)}

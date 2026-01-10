@@ -37,19 +37,16 @@ function removeJSComments(content) {
   let inMultiLineComment = false;
   let inString = false;
   let stringChar = null;
-
   for (let lineIdx = 0; lineIdx < lines.length; lineIdx++) {
     const line = lines[lineIdx];
     let newLine = '';
     let i = 0;
     let lineInString = inString;
     let lineStringChar = stringChar;
-
     while (i < line.length) {
       const char = line[i];
       const nextChar = line[i + 1] || '';
       const prevChar = line[i - 1] || '';
-
       if (!inMultiLineComment && !lineInString) {
         if ((char === '"' || char === "'" || char === '`') && prevChar !== '\\') {
           lineInString = true;
@@ -58,24 +55,15 @@ function removeJSComments(content) {
           i++;
           continue;
         }
-
         if (char === '/' && nextChar === '/') {
-          const beforeContext = line.slice(Math.max(0, i - 20), i);
-          if (beforeContext.match(/[:a-zA-Z0-9]$/)) {
-            newLine += char;
-            i++;
-            continue;
-          }
           break;
         }
-
         if (char === '/' && nextChar === '*') {
           inMultiLineComment = true;
           i += 2;
           continue;
         }
       }
-
       if (lineInString) {
         if (char === lineStringChar && prevChar !== '\\') {
           lineInString = false;
@@ -85,7 +73,6 @@ function removeJSComments(content) {
         i++;
         continue;
       }
-
       if (inMultiLineComment) {
         if (char === '*' && nextChar === '/') {
           inMultiLineComment = false;
@@ -95,19 +82,15 @@ function removeJSComments(content) {
         i++;
         continue;
       }
-
       newLine += char;
       i++;
     }
-
     inString = lineInString;
     stringChar = lineStringChar;
-
     if (newLine.trim() || !inMultiLineComment) {
       result.push(newLine);
     }
   }
-
   return result.join('\n');
 }
 
@@ -117,19 +100,16 @@ function removeSQLComments(content) {
   let inMultiLineComment = false;
   let inString = false;
   let stringChar = null;
-
   for (let lineIdx = 0; lineIdx < lines.length; lineIdx++) {
     const line = lines[lineIdx];
     let newLine = '';
     let i = 0;
     let lineInString = inString;
     let lineStringChar = stringChar;
-
     while (i < line.length) {
       const char = line[i];
       const nextChar = line[i + 1] || '';
       const prevChar = line[i - 1] || '';
-
       if (!inMultiLineComment && !lineInString) {
         if ((char === "'" || char === '"') && prevChar !== '\\') {
           lineInString = true;
@@ -138,18 +118,15 @@ function removeSQLComments(content) {
           i++;
           continue;
         }
-
         if (char === '-' && nextChar === '-') {
           break;
         }
-
         if (char === '/' && nextChar === '*') {
           inMultiLineComment = true;
           i += 2;
           continue;
         }
       }
-
       if (lineInString) {
         if (char === lineStringChar && prevChar !== '\\') {
           lineInString = false;
@@ -159,7 +136,6 @@ function removeSQLComments(content) {
         i++;
         continue;
       }
-
       if (inMultiLineComment) {
         if (char === '*' && nextChar === '/') {
           inMultiLineComment = false;
@@ -169,19 +145,15 @@ function removeSQLComments(content) {
         i++;
         continue;
       }
-
       newLine += char;
       i++;
     }
-
     inString = lineInString;
     stringChar = lineStringChar;
-
     if (newLine.trim() || !inMultiLineComment) {
       result.push(newLine);
     }
   }
-
   return result.join('\n');
 }
 

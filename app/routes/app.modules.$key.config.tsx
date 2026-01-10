@@ -30,34 +30,26 @@ export const loader = async ({ request, params }: LoaderFunctionArgs) => {
   const { session } = await authenticate.admin(request);
   const shopDomain = session.shop;
   const key = params.key;
-
   if (!key || !(key in UI_MODULES)) {
     throw new Response("模块不存在", { status: 404 });
   }
-
   const shop = await prisma.shop.findUnique({
     where: { shopDomain },
     select: { id: true, plan: true },
   });
-
   if (!shop) {
     throw new Response("店铺未找到", { status: 404 });
   }
-
   const moduleKey = key as ModuleKey;
   const moduleInfo = UI_MODULES[moduleKey];
   const planId = shop.plan as PlanId;
   const planInfo = getPlanOrDefault(planId);
-
   const modules = await getUiModuleConfigs(shop.id);
   const moduleConfig = modules.find((m) => m.moduleKey === moduleKey);
-
   if (!moduleConfig) {
     throw new Response("模块配置未找到", { status: 404 });
   }
-
   const canEdit = isPlanAtLeast(planId, moduleInfo.requiredPlan);
-
   return json({
     shop: { id: shop.id, plan: planId },
     moduleKey,
@@ -72,24 +64,19 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
   const { session } = await authenticate.admin(request);
   const shopDomain = session.shop;
   const key = params.key;
-
   if (!key || !(key in UI_MODULES)) {
     return json({ error: "模块不存在" }, { status: 404 });
   }
-
   const shop = await prisma.shop.findUnique({
     where: { shopDomain },
     select: { id: true },
   });
-
   if (!shop) {
     return json({ error: "店铺未找到" }, { status: 404 });
   }
-
   const moduleKey = key as ModuleKey;
   const formData = await request.formData();
   const actionType = formData.get("_action");
-
   if (actionType === "update_config") {
     const configJson = formData.get("config") as string;
     try {
@@ -103,7 +90,6 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
       return json({ error: "无效的配置数据" }, { status: 400 });
     }
   }
-
   if (actionType === "update_display_rules") {
     const displayRulesJson = formData.get("displayRules") as string;
     try {
@@ -123,7 +109,6 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
       return json({ error: "无效的显示规则" }, { status: 400 });
     }
   }
-
   return json({ error: "未知操作" }, { status: 400 });
 };
 
@@ -133,13 +118,11 @@ export default function UiModuleConfigPage() {
   const actionData = useActionData<typeof action>();
   const submit = useSubmit();
   const { showSuccess, showError } = useToastContext();
-
   if (actionData?.success) {
     showSuccess("配置已保存");
   } else if (actionData?.error) {
     showError(actionData.error);
   }
-
   return (
     <Page
       title={`${moduleInfo.name} 配置`}
@@ -172,7 +155,6 @@ export default function UiModuleConfigPage() {
                 </BlockStack>
               </Banner>
             )}
-
             <Card>
               <BlockStack gap="400">
                 <Text as="h2" variant="headingMd">
@@ -212,7 +194,6 @@ export default function UiModuleConfigPage() {
                 </BlockStack>
               </BlockStack>
             </Card>
-
             <Card>
               <BlockStack gap="400">
                 <Text as="h2" variant="headingMd">
@@ -235,7 +216,6 @@ export default function UiModuleConfigPage() {
                 />
               </BlockStack>
             </Card>
-
             {}
             <Banner tone="warning">
               <BlockStack gap="300">
@@ -287,7 +267,6 @@ export default function UiModuleConfigPage() {
                 </Text>
               </BlockStack>
             </Banner>
-
             <Card>
               <BlockStack gap="300">
                 <Text as="h3" variant="headingSm">

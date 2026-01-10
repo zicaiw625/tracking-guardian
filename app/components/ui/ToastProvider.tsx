@@ -14,7 +14,6 @@ const ToastContext = createContext<ToastContextType | undefined>(undefined);
 export function useToastContext() {
   const context = useContext(ToastContext);
   if (!context) {
-
     return {
       showToast: () => {},
       showSuccess: () => {},
@@ -28,7 +27,6 @@ export function useToastContext() {
 
 export function ToastProvider({ children }: { children: ReactNode }) {
   const { toasts, showToast, dismissToast, showSuccess, showError, showInfo, showWarning } = useToast();
-
   return (
     <ToastContext.Provider value={{ showToast, showSuccess, showError, showInfo, showWarning }}>
       {children}

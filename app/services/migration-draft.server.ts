@@ -57,7 +57,6 @@ export async function saveMigrationDraft(
   try {
     const expiresAt = new Date();
     expiresAt.setDate(expiresAt.getDate() + DRAFT_EXPIRY_DAYS);
-
     const draft = await prisma.migrationDraft.upsert({
       where: { shopId },
       create: {
@@ -75,15 +74,12 @@ export async function saveMigrationDraft(
         updatedAt: new Date(),
       },
     });
-
     logger.info("Migration draft saved", { shopId, step, draftId: draft.id });
     return { success: true, id: draft.id };
   } catch (error: unknown) {
-
     if (error && typeof error === "object" && "code" in error) {
       const prismaError = error as { code: string; meta?: { table?: string } };
       if (prismaError.code === "P2022" || prismaError.code === "P2021") {
-
         logger.warn("MigrationDraft table not found, migration may be pending", { shopId, step, code: prismaError.code });
         return {
           success: false,
@@ -106,40 +102,32 @@ export async function getMigrationDraft(
     const draft = await prisma.migrationDraft.findUnique({
       where: { shopId },
     });
-
     if (!draft) {
       return null;
     }
-
     if (draft.expiresAt < new Date()) {
-
       await prisma.migrationDraft.delete({
         where: { id: draft.id },
       });
       logger.info("Expired migration draft deleted", { shopId, draftId: draft.id });
       return null;
     }
-
     if (!isValidWizardStep(draft.step)) {
       logger.warn("Invalid wizard step in draft", { shopId, step: draft.step });
       return null;
     }
-
     if (!isMigrationDraftData(draft.configData)) {
       logger.warn("Invalid config data in draft", { shopId });
       return null;
     }
-
     return {
       step: draft.step,
       configData: draft.configData,
     };
   } catch (error: unknown) {
-
     if (error && typeof error === "object" && "code" in error) {
       const prismaError = error as { code: string; meta?: { table?: string } };
       if (prismaError.code === "P2022" || prismaError.code === "P2021") {
-
         logger.warn("MigrationDraft table not found, migration may be pending", { shopId, code: prismaError.code });
         return null;
       }
@@ -171,7 +159,6 @@ export async function cleanupExpiredDrafts(): Promise<number> {
         },
       },
     });
-
     logger.info("Expired migration drafts cleaned up", { count: result.count });
     return result.count;
   } catch (error) {

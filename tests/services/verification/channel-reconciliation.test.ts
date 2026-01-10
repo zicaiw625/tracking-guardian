@@ -29,12 +29,10 @@ describe("Channel Reconciliation Service", () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
-
   describe("performEnhancedChannelReconciliation", () => {
     it("should reconcile multiple platforms", async () => {
       const shopId = "shop-1";
       const hours = 24;
-
       vi.mocked(prisma.shop.findUnique).mockResolvedValueOnce({
         id: shopId,
         shopDomain: "test.myshopify.com",
@@ -43,7 +41,6 @@ describe("Channel Reconciliation Service", () => {
           { platform: "meta" },
         ],
       } as any);
-
       vi.mocked(prisma.conversionJob.findMany).mockResolvedValue([
         {
           orderId: "order-1",
@@ -60,7 +57,6 @@ describe("Channel Reconciliation Service", () => {
           createdAt: new Date(),
         },
       ] as any);
-
       vi.mocked(prisma.conversionLog.findMany).mockResolvedValueOnce([
         {
           orderId: "order-1",
@@ -78,18 +74,14 @@ describe("Channel Reconciliation Service", () => {
           createdAt: new Date(),
         },
       ] as any);
-
       const result = await performEnhancedChannelReconciliation(shopId, hours);
-
       expect(result).toBeDefined();
       expect(result.platforms).toBeDefined();
       expect(Array.isArray(result.platforms)).toBe(true);
     });
-
     it("should detect missing orders", async () => {
       const shopId = "shop-1";
       const hours = 24;
-
       vi.mocked(prisma.shop.findUnique).mockResolvedValue({
         id: shopId,
         shopDomain: "test.myshopify.com",
@@ -97,7 +89,6 @@ describe("Channel Reconciliation Service", () => {
           { platform: "google" },
         ],
       } as any);
-
       vi.mocked(prisma.conversionJob.findMany).mockResolvedValue([
         {
           orderId: "order-1",
@@ -114,7 +105,6 @@ describe("Channel Reconciliation Service", () => {
           createdAt: new Date(),
         },
       ] as any);
-
       vi.mocked(prisma.conversionLog.findMany).mockResolvedValue([
         {
           orderId: "order-1",
@@ -124,9 +114,7 @@ describe("Channel Reconciliation Service", () => {
           createdAt: new Date(),
         },
       ] as any);
-
       const result = await performEnhancedChannelReconciliation(shopId, hours);
-
       expect(result).toBeDefined();
       expect(result.platforms).toBeDefined();
       if (result.platforms.length > 0) {
@@ -134,11 +122,9 @@ describe("Channel Reconciliation Service", () => {
         expect(platform).toBeDefined();
       }
     });
-
     it("should detect value discrepancies", async () => {
       const shopId = "shop-1";
       const hours = 24;
-
       vi.mocked(prisma.shop.findUnique).mockResolvedValue({
         id: shopId,
         shopDomain: "test.myshopify.com",
@@ -146,7 +132,6 @@ describe("Channel Reconciliation Service", () => {
           { platform: "meta" },
         ],
       } as any);
-
       vi.mocked(prisma.conversionJob.findMany).mockResolvedValue([
         {
           orderId: "order-1",
@@ -156,7 +141,6 @@ describe("Channel Reconciliation Service", () => {
           createdAt: new Date(),
         },
       ] as any);
-
       vi.mocked(prisma.conversionLog.findMany).mockResolvedValue([
         {
           orderId: "order-1",
@@ -166,9 +150,7 @@ describe("Channel Reconciliation Service", () => {
           createdAt: new Date(),
         },
       ] as any);
-
       const result = await performEnhancedChannelReconciliation(shopId, hours);
-
       expect(result).toBeDefined();
       expect(result.platforms).toBeDefined();
       if (result.platforms.length > 0) {
@@ -177,12 +159,10 @@ describe("Channel Reconciliation Service", () => {
       }
     });
   });
-
   describe("getOrderCrossPlatformComparison", () => {
     it("should compare order across platforms", async () => {
       const shopId = "shop-1";
       const orderId = "order-123";
-
       vi.mocked(prisma.shop.findUnique).mockResolvedValue({
         id: shopId,
         shopDomain: "test.myshopify.com",
@@ -191,7 +171,6 @@ describe("Channel Reconciliation Service", () => {
           { platform: "meta" },
         ],
       } as any);
-
       vi.mocked(prisma.conversionJob.findFirst).mockResolvedValue({
         id: "job-1",
         shopId,
@@ -201,7 +180,6 @@ describe("Channel Reconciliation Service", () => {
         currency: "USD",
         createdAt: new Date(),
       } as any);
-
       vi.mocked(prisma.conversionLog.findMany).mockResolvedValue([
         {
           id: "log-1",
@@ -224,9 +202,7 @@ describe("Channel Reconciliation Service", () => {
           createdAt: new Date(),
         },
       ] as any);
-
       const result = await getOrderCrossPlatformComparison(shopId, orderId);
-
       expect(result).toBeDefined();
       expect(result.orderId).toBe(orderId);
       expect(result.platformEvents).toBeDefined();
@@ -234,11 +210,9 @@ describe("Channel Reconciliation Service", () => {
       expect(result.discrepancies).toBeDefined();
       expect(Array.isArray(result.discrepancies)).toBe(true);
     });
-
     it("should detect inconsistencies across platforms", async () => {
       const shopId = "shop-1";
       const orderId = "order-123";
-
       vi.mocked(prisma.shop.findUnique).mockResolvedValue({
         id: shopId,
         shopDomain: "test.myshopify.com",
@@ -247,7 +221,6 @@ describe("Channel Reconciliation Service", () => {
           { platform: "meta" },
         ],
       } as any);
-
       vi.mocked(prisma.conversionJob.findFirst).mockResolvedValue({
         id: "job-1",
         shopId,
@@ -257,7 +230,6 @@ describe("Channel Reconciliation Service", () => {
         currency: "USD",
         createdAt: new Date(),
       } as any);
-
       vi.mocked(prisma.conversionLog.findMany).mockResolvedValue([
         {
           id: "log-1",
@@ -280,9 +252,7 @@ describe("Channel Reconciliation Service", () => {
           createdAt: new Date(),
         },
       ] as any);
-
       const result = await getOrderCrossPlatformComparison(shopId, orderId);
-
       expect(result).toBeDefined();
       expect(result.discrepancies).toBeDefined();
       expect(Array.isArray(result.discrepancies)).toBe(true);

@@ -246,31 +246,25 @@ export function EventMappingEditor({
     SHOPIFY_EVENTS.map(e => e.id)
   );
   const platformEvents = PLATFORM_EVENTS[platform];
-
   const validateMapping = useCallback(
     (shopifyEvent: string, platformEvent: string): { valid: boolean; errors: string[] } => {
       const errors: string[] = [];
       const shopifyEventDef = SHOPIFY_EVENTS.find((e) => e.id === shopifyEvent);
       const platformEventDef = platformEvents.find((e) => e.id === platformEvent);
-
       if (!shopifyEventDef) {
         errors.push(`未知的 Shopify 事件: ${shopifyEvent}`);
         return { valid: false, errors };
       }
-
       if (!platformEventDef) {
         errors.push(`未知的平台事件: ${platformEvent}`);
         return { valid: false, errors };
       }
-
       const missingParams = platformEventDef.requiredParams.filter(
         (param) => !shopifyEventDef.availableParams.includes(param)
       );
-
       if (missingParams.length > 0) {
         errors.push(`缺少必需参数: ${missingParams.join(", ")}`);
       }
-
       return {
         valid: errors.length === 0,
         errors,
@@ -278,14 +272,12 @@ export function EventMappingEditor({
     },
     [platformEvents]
   );
-
   const applyRecommended = useCallback(() => {
     const recommended = RECOMMENDED_MAPPINGS[platform];
     Object.entries(recommended).forEach(([shopifyEvent, platformEvent]) => {
       onMappingChange(shopifyEvent, platformEvent);
     });
   }, [platform, onMappingChange]);
-
   const applyBulkMapping = useCallback(() => {
     if (!bulkMappingValue || selectedEvents.size === 0) return;
     selectedEvents.forEach((shopifyEvent: string) => {
@@ -294,7 +286,6 @@ export function EventMappingEditor({
     setSelectedEvents(new Set());
     setBulkMappingValue("");
   }, [bulkMappingValue, selectedEvents, onMappingChange]);
-
   const toggleEventSelection = useCallback((eventId: string) => {
     const newSelected = new Set(selectedEvents);
     if (newSelected.has(eventId)) {
@@ -304,15 +295,12 @@ export function EventMappingEditor({
     }
     setSelectedEvents(newSelected);
   }, [selectedEvents]);
-
   const selectAll = useCallback(() => {
     setSelectedEvents(new Set(SHOPIFY_EVENTS.map(e => e.id)));
   }, []);
-
   const clearSelection = useCallback(() => {
     setSelectedEvents(new Set());
   }, []);
-
   const getMappingStatus = useCallback(
     (shopifyEvent: string, platformEvent: string) => {
       const validation = validateMapping(shopifyEvent, platformEvent);
@@ -327,69 +315,56 @@ export function EventMappingEditor({
     },
     [platform, validateMapping]
   );
-
   const generateEventPreview = useCallback(
     (shopifyEventId: string, platformEventId: string) => {
       const shopifyEvent = SHOPIFY_EVENTS.find(e => e.id === shopifyEventId);
       const platformEvent = platformEvents.find(e => e.id === platformEventId);
-
       if (!shopifyEvent || !platformEvent) return null;
-
       const preview: Record<string, string | number | unknown[]> = {
         event_name: platformEventId,
         event_time: Math.floor(Date.now() / 1000),
         event_id: "preview_event_id_" + Date.now(),
       };
-
       platformEvent.requiredParams.forEach(param => {
         if (shopifyEvent.availableParams.includes(param)) {
           preview[param] = param === "value" ? "99.99" : param === "currency" ? "USD" : param === "items" ? [] : "sample_value";
         }
       });
-
       platformEvent.optionalParams.forEach(param => {
         if (shopifyEvent.availableParams.includes(param)) {
           preview[param] = param === "items" || param === "contents" || param === "line_items" ? [] : "sample_value";
         }
       });
-
       return preview;
     },
     [platformEvents]
   );
-
   const moveEventUp = useCallback((eventId: string) => {
     const currentIndex = eventOrder.indexOf(eventId);
     if (currentIndex <= 0) return;
-
     const newOrder = [...eventOrder];
     [newOrder[currentIndex - 1], newOrder[currentIndex]] = [newOrder[currentIndex], newOrder[currentIndex - 1]];
     setEventOrder(newOrder);
   }, [eventOrder]);
-
   const moveEventDown = useCallback((eventId: string) => {
     const currentIndex = eventOrder.indexOf(eventId);
     if (currentIndex >= eventOrder.length - 1) return;
-
     const newOrder = [...eventOrder];
     [newOrder[currentIndex], newOrder[currentIndex + 1]] = [newOrder[currentIndex + 1], newOrder[currentIndex]];
     setEventOrder(newOrder);
   }, [eventOrder]);
-
   const orderedEvents = useMemo(() => {
     const eventMap = new Map(SHOPIFY_EVENTS.map(e => [e.id, e]));
     return eventOrder
       .map((id: string) => eventMap.get(id))
       .filter((event: ShopifyEvent | undefined): event is ShopifyEvent => event !== undefined);
   }, [eventOrder]);
-
   const togglePreview = useCallback((eventId: string) => {
     setShowPreview((prev: Record<string, boolean>) => ({
       ...prev,
       [eventId]: !prev[eventId],
     }));
   }, []);
-
   return (
     <Card>
       <BlockStack gap="400">
@@ -442,7 +417,6 @@ export function EventMappingEditor({
             </Button>
           </InlineStack>
         </InlineStack>
-
         {selectedEvents.size > 0 && (
           <Banner tone="info">
             <BlockStack gap="200">
@@ -473,7 +447,6 @@ export function EventMappingEditor({
             </BlockStack>
           </Banner>
         )}
-
         <Banner tone="info">
           <BlockStack gap="200">
             <Text as="p" variant="bodySm">
@@ -504,9 +477,7 @@ export function EventMappingEditor({
             </Box>
           </BlockStack>
         </Banner>
-
         <Divider />
-
         {showComparison && (
           <Box paddingBlockEnd="400">
             <Card>
@@ -523,7 +494,6 @@ export function EventMappingEditor({
                     const isRecommended = currentMapping === recommendedMapping;
                     const platformEvent = platformEvents.find(e => e.id === currentMapping);
                     const recommendedPlatformEvent = platformEvents.find(e => e.id === recommendedMapping);
-
                     return [
                       shopifyEvent.name,
                       currentMapping ? `${platformEvent?.name || currentMapping}` : "未映射",
@@ -542,7 +512,6 @@ export function EventMappingEditor({
             </Card>
           </Box>
         )}
-
         <BlockStack gap="300">
           <InlineStack align="space-between" blockAlign="center">
             <Text as="span" variant="bodySm" tone="subdued">
@@ -559,7 +528,6 @@ export function EventMappingEditor({
               )}
             </InlineStack>
           </InlineStack>
-
           {orderedEvents.map((shopifyEvent: ShopifyEvent, index: number) => {
             const currentMapping = mappings[shopifyEvent.id] || "";
             const mappingStatus = currentMapping
@@ -569,7 +537,6 @@ export function EventMappingEditor({
             const recommendedMapping = RECOMMENDED_MAPPINGS[platform][shopifyEvent.id] || "";
             const eventPreview = currentMapping ? generateEventPreview(shopifyEvent.id, currentMapping) : null;
             const isPreviewOpen = showPreview[shopifyEvent.id];
-
             return (
               <Card key={shopifyEvent.id}>
                 <BlockStack gap="300">
@@ -626,7 +593,6 @@ export function EventMappingEditor({
                     </BlockStack>
                   </InlineStack>
                 </InlineStack>
-
                 <Box minWidth="100%">
                     <InlineStack gap="200" blockAlign="end">
                       <Box minWidth="300">
@@ -654,7 +620,6 @@ export function EventMappingEditor({
                       )}
                     </InlineStack>
                   </Box>
-
                   {currentMapping && isPreviewOpen && eventPreview && (
                     <Box padding="300" background="bg-surface-secondary" borderRadius="200">
                       <BlockStack gap="200">
@@ -689,13 +654,11 @@ export function EventMappingEditor({
                             {(() => {
                               const platformEventDef = platformEvents.find((e) => e.id === currentMapping);
                               if (!platformEventDef) return null;
-
                               const mappedParams = platformEventDef.requiredParams
                                 .concat(platformEventDef.optionalParams)
                                 .filter(param => shopifyEvent.availableParams.includes(param));
                               const missingParams = platformEventDef.requiredParams
                                 .filter(param => !shopifyEvent.availableParams.includes(param));
-
                               return (
                                 <>
                                   {mappedParams.length > 0 && (
@@ -722,7 +685,6 @@ export function EventMappingEditor({
                       </BlockStack>
                     </Box>
                   )}
-
                   {mappingStatus?.status === "error" && mappingStatus.errors.length > 0 && (
                     <Banner tone="critical">
                       <List type="bullet">
@@ -732,7 +694,6 @@ export function EventMappingEditor({
                       </List>
                     </Banner>
                   )}
-
                   {currentMapping && mappingStatus?.status !== "error" && (
                     <Box background="bg-surface-secondary" padding="300" borderRadius="200">
                       <BlockStack gap="300">

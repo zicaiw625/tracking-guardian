@@ -1,4 +1,4 @@
--- Add missing weakConsentMode column to Shop table
+
 DO $$
 BEGIN
     IF NOT EXISTS (

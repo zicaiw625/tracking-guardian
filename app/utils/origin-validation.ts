@@ -7,18 +7,15 @@ export const SHOPIFY_ALLOWLIST = [
 ] as const;
 
 function shouldAllowNullOrigin(): boolean {
-
     const envValue = process.env.PIXEL_ALLOW_NULL_ORIGIN;
     if (envValue) {
         const normalized = envValue.toLowerCase();
         return normalized === "true" || normalized === "1" || normalized === "yes";
     }
-
     const nodeEnv = process.env.NODE_ENV;
     if (nodeEnv === "development" || nodeEnv === "test") {
         return true;
     }
-
     return false;
 }
 const ALLOWED_ORIGIN_PATTERNS: Array<{
@@ -147,28 +144,22 @@ export function validatePixelOriginForShop(
 } {
     const devMode = isDevMode();
     const allowNullOrigin = shouldAllowNullOrigin();
-
     let effectiveOrigin = origin;
     let originSource = "origin_header";
-
     if ((origin === "null" || !origin) && options) {
-
         if (options.referer) {
             try {
                 const refererUrl = new URL(options.referer);
                 effectiveOrigin = refererUrl.origin;
                 originSource = "referer_header";
             } catch {
-
             }
         }
-
         if ((!effectiveOrigin || effectiveOrigin === "null") && options.shopDomain) {
             effectiveOrigin = `https://${options.shopDomain}`;
             originSource = "shop_domain_fallback";
         }
     }
-
     if (effectiveOrigin === "null" || effectiveOrigin === null) {
         const allowed = allowNullOrigin;
         return {
@@ -187,7 +178,6 @@ export function validatePixelOriginForShop(
     try {
         const url = new URL(effectiveOrigin);
         const hostname = url.hostname.toLowerCase();
-
         if (originSource !== "origin_header") {
             if (devMode) {
                 logger.debug(`[Origin Fallback] Using ${originSource} for origin validation (dev mode)`, {
@@ -197,7 +187,6 @@ export function validatePixelOriginForShop(
                     referer: options?.referer,
                 });
             } else {
-
                 logger.warn(`[Origin Fallback] Using ${originSource} for origin validation`, {
                     originalOrigin: origin,
                     effectiveOrigin,
@@ -205,10 +194,8 @@ export function validatePixelOriginForShop(
                     referer: options?.referer,
                     securityNote: "Origin header missing - using fallback. This may indicate a configuration issue or security concern.",
                     alertLevel: "warning",
-
                     timestamp: new Date().toISOString(),
                 });
-
             }
         }
         if (url.protocol !== "https:" && !isDevMode()) {
@@ -357,12 +344,9 @@ function trackRejectedOrigin(origin: string): void {
     const sanitizedOrigin = sanitizeOriginForLogging(origin);
     const existing = rejectedOrigins.get(sanitizedOrigin);
     if (!existing || (now - existing.firstSeen) > TRACKING_WINDOW_MS) {
-
         if (rejectedOrigins.size >= MAX_TRACKED_ORIGINS) {
-
             evictOldestEntries(Math.ceil(MAX_TRACKED_ORIGINS * 0.1));
         }
-
         rejectedOrigins.set(sanitizedOrigin, {
             count: 1,
             firstSeen: now,
@@ -385,15 +369,12 @@ function trackRejectedOrigin(origin: string): void {
 
 function evictOldestEntries(count: number): void {
     if (rejectedOrigins.size === 0) return;
-
     const entries = Array.from(rejectedOrigins.entries())
         .sort((a, b) => a[1].lastSeen - b[1].lastSeen);
-
     const toRemove = entries.slice(0, count);
     for (const [origin] of toRemove) {
         rejectedOrigins.delete(origin);
     }
-
     if (toRemove.length > 0) {
         logger.info(`[Origin Tracking] Evicted ${toRemove.length} stale entries (size limit: ${MAX_TRACKED_ORIGINS})`);
     }

@@ -51,7 +51,6 @@ describe("Reconciliation Service", () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
-
   describe("getReconciliationHistory", () => {
     it("should return formatted reconciliation history", async () => {
       const mockReports = [
@@ -68,11 +67,8 @@ describe("Reconciliation Service", () => {
           alertSent: false,
         },
       ];
-
       vi.mocked(prisma.reconciliationReport.findMany).mockResolvedValue(mockReports as any);
-
       const result = await getReconciliationHistory("shop1", 30);
-
       expect(result).toHaveLength(1);
       expect(result[0]).toEqual({
         id: "report1",
@@ -87,12 +83,9 @@ describe("Reconciliation Service", () => {
         alertSent: false,
       });
     });
-
     it("should query with correct date range", async () => {
       vi.mocked(prisma.reconciliationReport.findMany).mockResolvedValue([]);
-
       await getReconciliationHistory("shop1", 7);
-
       expect(prisma.reconciliationReport.findMany).toHaveBeenCalledWith(
         expect.objectContaining({
           where: {
@@ -106,7 +99,6 @@ describe("Reconciliation Service", () => {
       );
     });
   });
-
   describe("getReconciliationSummary", () => {
     it("should return summary grouped by platform", async () => {
       const mockReports = [
@@ -147,11 +139,8 @@ describe("Reconciliation Service", () => {
           alertSent: false,
         },
       ];
-
       vi.mocked(prisma.reconciliationReport.findMany).mockResolvedValue(mockReports as any);
-
       const result = await getReconciliationSummary("shop1");
-
       expect(result.meta).toBeDefined();
       expect(result.google).toBeDefined();
       expect(result.meta.totalShopifyOrders).toBe(110);
@@ -159,7 +148,6 @@ describe("Reconciliation Service", () => {
       expect(result.meta.reports).toHaveLength(2);
       expect(result.google.totalShopifyOrders).toBe(30);
     });
-
     it("should calculate average discrepancy correctly", async () => {
       const mockReports = [
         {
@@ -187,19 +175,13 @@ describe("Reconciliation Service", () => {
           alertSent: false,
         },
       ];
-
       vi.mocked(prisma.reconciliationReport.findMany).mockResolvedValue(mockReports as any);
-
       const result = await getReconciliationSummary("shop1");
-
       expect(result.meta.avgDiscrepancy).toBeCloseTo(0.15, 2);
     });
-
     it("should return empty object when no reports exist", async () => {
       vi.mocked(prisma.reconciliationReport.findMany).mockResolvedValue([]);
-
       const result = await getReconciliationSummary("shop1");
-
       expect(Object.keys(result)).toHaveLength(0);
     });
   });

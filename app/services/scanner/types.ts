@@ -4,18 +4,14 @@ export interface WebPixelInfo {
 }
 
 export interface MigrationAction {
-
     type: "migrate_script_tag" | "configure_pixel" | "remove_duplicate" | "enable_capi";
     priority: "high" | "medium" | "low";
     platform?: string;
     title: string;
     description: string;
-
     scriptTagId?: number;
-
     webPixelGid?: string;
     deadline?: string;
-
     estimatedTimeMinutes?: number;
 }
 
@@ -60,12 +56,8 @@ export interface EnhancedScanResult extends ScanResult {
         ids: string[];
     }>;
     migrationActions: MigrationAction[];
-
     _partialRefresh?: boolean;
-
     _auditAssetSyncFailed?: boolean;
-
     _cachedAt?: Date;
-
     _refreshRecommended?: boolean;
 }

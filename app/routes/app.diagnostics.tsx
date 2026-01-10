@@ -28,7 +28,6 @@ interface EventFunnel {
     pixelRequests: number;
     passedOrigin: number;
     passedKey: number;
-
     sentToPlatforms: number;
     period: string;
 }
@@ -41,16 +40,13 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
         select: {
             id: true,
             ingestionSecret: true,
-
             consentStrategy: true,
             dataRetentionDays: true,
-
             pixelConfigs: {
                 where: { isActive: true },
                 select: {
                     platform: true,
                     serverSideEnabled: true,
-
                 },
             },
         },
@@ -70,7 +66,6 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
                 pixelRequests: 0,
                 passedOrigin: 0,
                 passedKey: 0,
-
                 sentToPlatforms: 0,
                 period: "24h",
             } as EventFunnel,
@@ -116,7 +111,6 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
                 settingsNeedUpgrade = false;
             }
         }
-
         const hasShopDomain = typeof pixelSettings.shop_domain === "string" && pixelSettings.shop_domain.length > 0;
         const hasIngestionKey = typeof pixelSettings.ingestion_key === "string" && pixelSettings.ingestion_key.length > 0;
         if (ourPixel) {
@@ -255,7 +249,6 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
             isTrusted: true,
         },
     });
-
     const matchedWebhookCount = 0;
     const sentToPlatformsCount = await prisma.conversionLog.count({
         where: {
@@ -268,11 +261,9 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
         pixelRequests: pixelReceiptsCount,
         passedOrigin: pixelReceiptsCount,
         passedKey: trustedReceiptsCount,
-
         sentToPlatforms: sentToPlatformsCount,
         period: "24h",
     };
-
     const totalWebhooks24h = await prisma.webhookLog.count({
         where: {
             shopDomain,
@@ -286,10 +277,8 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
             status: "failed",
         },
     });
-
     const queuedJobs = 0;
     const deadLetterJobs = 0;
-
     const recentEventsRaw = await prisma.pixelEventReceipt.findMany({
         where: { shopId: shop.id },
         orderBy: { createdAt: "desc" },
@@ -303,14 +292,10 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
             signatureStatus: true,
         },
     });
-
     const orderIds = recentEventsRaw.map((e: { orderId: string | null }) => e.orderId).filter(Boolean) as string[];
-
     const relatedJobs: never[] = [];
-
     type RecentEvent = typeof recentEventsRaw[number];
     type RelatedJob = typeof relatedJobs[number];
-
     const recentEvents = recentEventsRaw.map((event: RecentEvent) => {
         const job = relatedJobs.find((j: RelatedJob) => j.orderId === event.orderId);
         return {
@@ -320,7 +305,6 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
             jobError: job?.errorMessage,
         };
     });
-
     return json({
         checks,
         summary,
@@ -415,7 +399,6 @@ export default function DiagnosticsPage() {
         revalidator.revalidate();
         showSuccess("诊断检查已刷新");
     };
-
     return (<Page title="诊断向导" subtitle="快速检查应用配置状态" primaryAction={{
             content: "刷新检查",
             onAction: handleRefresh,
@@ -437,9 +420,7 @@ export default function DiagnosticsPage() {
                 : "需要处理"}
                 </Badge>
               </InlineStack>
-
               <ProgressBar progress={progressPercent} tone={overallStatus}/>
-
               <InlineStack gap="400">
                 <Text as="span" variant="bodySm" tone="subdued">
                   通过: {data.summary.passed}
@@ -454,16 +435,13 @@ export default function DiagnosticsPage() {
             </BlockStack>
           </Card>
         </Layout.Section>
-
         <Layout.Section>
           <Card>
             <BlockStack gap="400">
               <Text as="h2" variant="headingMd">
                 检查项
               </Text>
-
               <Divider />
-
               {data.checks.length === 0 ? (
                 <EnhancedEmptyState
                   icon="🔍"
@@ -495,7 +473,6 @@ export default function DiagnosticsPage() {
             </BlockStack>
           </Card>
         </Layout.Section>
-
         <Layout.Section>
           <Card>
             <BlockStack gap="400">
@@ -505,29 +482,21 @@ export default function DiagnosticsPage() {
                 </Text>
                 <Badge tone="info">诊断</Badge>
               </InlineStack>
-
               <Text as="p" variant="bodySm" tone="subdued">
                 显示像素事件从接收到发送到广告平台的各个阶段
               </Text>
-
               <Divider />
-
               <BlockStack gap="300">
                 <FunnelStage label="1. Pixel 请求" count={data.eventFunnel.pixelRequests} total={data.eventFunnel.pixelRequests} description="收到的 checkout_completed 事件"/>
-
                 <FunnelStage label="2. 通过 Origin 验证" count={data.eventFunnel.passedOrigin} total={data.eventFunnel.pixelRequests} description="来自 Shopify 域名/沙箱的请求"/>
-
                 <FunnelStage label="3. 通过 Key 验证" count={data.eventFunnel.passedKey} total={data.eventFunnel.pixelRequests} description="Ingestion Key 匹配的请求"/>
-
                 <FunnelStage label="4. 成功发送到平台" count={data.eventFunnel.sentToPlatforms} total={data.eventFunnel.pixelRequests} description="通过 CAPI 发送到广告平台"/>
               </BlockStack>
-
               {data.eventFunnel.pixelRequests === 0 && (<Banner tone="info">
                   <Text as="p" variant="bodySm">
                     尚无事件数据。完成测试订单后，此漏斗将显示事件处理情况。
                   </Text>
                 </Banner>)}
-
               {data.eventFunnel.pixelRequests > 0 && data.eventFunnel.sentToPlatforms === 0 && (<Banner tone="warning">
                   <Text as="p" variant="bodySm">
                     有像素事件但未成功发送到平台。可能原因：
@@ -536,7 +505,6 @@ export default function DiagnosticsPage() {
                     <br />• Webhook 尚未到达
                   </Text>
                 </Banner>)}
-
               {data.eventFunnel.pixelRequests > 0 && (
                 <Box background="bg-surface-secondary" padding="300" borderRadius="200">
                   <BlockStack gap="200">
@@ -569,7 +537,6 @@ export default function DiagnosticsPage() {
             </BlockStack>
           </Card>
         </Layout.Section>
-
         <Layout.Section>
           <Card>
             <BlockStack gap="400">
@@ -579,13 +546,10 @@ export default function DiagnosticsPage() {
                 </Text>
                 <Badge tone="info">参考信息</Badge>
               </InlineStack>
-
               <Text as="p" variant="bodySm" tone="subdued">
                 展示当前追踪配置状态，实际效果因店铺情况而异
               </Text>
-
               <Divider />
-
               <BlockStack gap="300">
                 <Box background={data.eventFunnel.sentToPlatforms > 0 ? "bg-fill-success-secondary" : "bg-fill-warning-secondary"} padding="400" borderRadius="200">
                   <BlockStack gap="200">
@@ -612,9 +576,7 @@ export default function DiagnosticsPage() {
                   </BlockStack>
                 </Box>
               </BlockStack>
-
               <Divider />
-
               <BlockStack gap="300">
                 <Text as="h3" variant="headingMd">
                   💡 仅客户端追踪 vs 客户端+服务端追踪
@@ -622,7 +584,6 @@ export default function DiagnosticsPage() {
                 <Text as="p" variant="bodySm" tone="subdued">
                   以下为示意说明，实际效果因店铺流量来源、客户群体、地区分布等因素而异，不构成效果保证
                 </Text>
-
                 <InlineStack gap="400" wrap={false} align="space-between">
                   <Box background="bg-fill-warning-secondary" padding="400" borderRadius="200" minWidth="45%">
                     <BlockStack gap="200">
@@ -641,7 +602,6 @@ export default function DiagnosticsPage() {
                       </Text>
                     </BlockStack>
                   </Box>
-
                   <Box background="bg-fill-success-secondary" padding="400" borderRadius="200" minWidth="45%">
                     <BlockStack gap="200">
                       <Text as="p" fontWeight="semibold" tone="success">✅ 客户端 + 服务端 CAPI</Text>
@@ -661,14 +621,11 @@ export default function DiagnosticsPage() {
                   </Box>
                 </InlineStack>
               </BlockStack>
-
               <Divider />
-
               <BlockStack gap="300">
                 <Text as="h3" variant="headingMd">
                   📊 您当前的追踪状态
                 </Text>
-
                 <Box background="bg-surface-secondary" padding="400" borderRadius="200">
                   <BlockStack gap="200">
                     <InlineStack align="space-between" blockAlign="center">
@@ -686,7 +643,6 @@ export default function DiagnosticsPage() {
                     </Text>
                   </BlockStack>
                 </Box>
-
                 <Box background="bg-surface-secondary" padding="400" borderRadius="200">
                   <BlockStack gap="200">
                     <InlineStack align="space-between" blockAlign="center">
@@ -704,7 +660,6 @@ export default function DiagnosticsPage() {
                     </Text>
                   </BlockStack>
                 </Box>
-
                 <Box background="bg-surface-secondary" padding="400" borderRadius="200">
                   <BlockStack gap="200">
                     <InlineStack align="space-between" blockAlign="center">
@@ -719,7 +674,6 @@ export default function DiagnosticsPage() {
                   </BlockStack>
                 </Box>
               </BlockStack>
-
               {data.eventFunnel.pixelRequests === 0 && (
                 <Banner tone="info">
                   <BlockStack gap="200">
@@ -735,7 +689,6 @@ export default function DiagnosticsPage() {
                   </BlockStack>
                 </Banner>
               )}
-
               {data.eventFunnel.pixelRequests > 0 && data.eventFunnel.sentToPlatforms === 0 && (
                 <Banner tone="warning">
                   <BlockStack gap="200">
@@ -751,7 +704,6 @@ export default function DiagnosticsPage() {
                   </BlockStack>
                 </Banner>
               )}
-
               <InlineStack align="end" gap="200">
                 <Button url="/app/settings">配置 CAPI 凭证</Button>
                 <Button url="/app/migrate" variant="primary">安装/更新 Pixel</Button>
@@ -759,7 +711,6 @@ export default function DiagnosticsPage() {
             </BlockStack>
           </Card>
         </Layout.Section>
-
         <Layout.Section>
           <Card>
             <BlockStack gap="400">
@@ -772,7 +723,6 @@ export default function DiagnosticsPage() {
               <Text as="p" variant="bodySm" tone="subdued">
                 实时显示最近接收到的 Pixel 事件及其后端处理状态
               </Text>
-
               {data.recentEvents && data.recentEvents.length > 0 ? (
                 <DataTable
                   columnContentTypes={[
@@ -805,7 +755,6 @@ export default function DiagnosticsPage() {
                     const platforms = event.platformResults
                         ? Object.keys(event.platformResults as Record<string, string>).join(", ")
                         : "-";
-
                     return [
                         new Date(event.createdAt).toLocaleTimeString("zh-CN"),
                         event.eventType,
@@ -822,7 +771,6 @@ export default function DiagnosticsPage() {
             </BlockStack>
           </Card>
         </Layout.Section>
-
         <Layout.Section>
           <Card>
             <BlockStack gap="400">
@@ -879,7 +827,6 @@ export default function DiagnosticsPage() {
             </BlockStack>
           </Card>
         </Layout.Section>
-
         <Layout.Section>
           <Card>
             <BlockStack gap="400">
@@ -887,7 +834,6 @@ export default function DiagnosticsPage() {
                 常见问题 (FAQ)
               </Text>
               <Divider />
-
               <BlockStack gap="300">
                 <Box background="bg-surface-secondary" padding="400" borderRadius="200">
                   <BlockStack gap="200">
@@ -901,7 +847,6 @@ export default function DiagnosticsPage() {
                     </Text>
                   </BlockStack>
                 </Box>
-
                 <Box background="bg-surface-secondary" padding="400" borderRadius="200">
                   <BlockStack gap="200">
                     <Text as="p" fontWeight="semibold">
@@ -914,7 +859,6 @@ export default function DiagnosticsPage() {
                     </Text>
                   </BlockStack>
                 </Box>
-
                 <Box background="bg-surface-secondary" padding="400" borderRadius="200">
                   <BlockStack gap="200">
                     <Text as="p" fontWeight="semibold">
@@ -926,7 +870,6 @@ export default function DiagnosticsPage() {
                     </Text>
                   </BlockStack>
                 </Box>
-
                 <Box background="bg-surface-secondary" padding="400" borderRadius="200">
                   <BlockStack gap="200">
                     <Text as="p" fontWeight="semibold">
@@ -942,7 +885,6 @@ export default function DiagnosticsPage() {
             </BlockStack>
           </Card>
         </Layout.Section>
-
         <Layout.Section>
           <Card>
             <BlockStack gap="400">
@@ -950,7 +892,6 @@ export default function DiagnosticsPage() {
                 快速修复
               </Text>
               <Divider />
-
               <BlockStack gap="300">
                 {data.checks.some(c => c.name === "Web Pixel" && c.status !== "pass") && (
                   <Box background="bg-surface-warning" padding="400" borderRadius="200">
@@ -969,7 +910,6 @@ export default function DiagnosticsPage() {
                     </InlineStack>
                   </Box>
                 )}
-
                 {data.checks.some(c => c.name === "服务端追踪 (CAPI)" && c.status !== "pass") && (
                   <Box background="bg-surface-warning" padding="400" borderRadius="200">
                     <InlineStack align="space-between" blockAlign="center">
@@ -987,7 +927,6 @@ export default function DiagnosticsPage() {
                     </InlineStack>
                   </Box>
                 )}
-
                 {data.checks.some(c => c.name === "最近事件" && c.status === "pending") && (
                   <Box background="bg-surface-secondary" padding="400" borderRadius="200">
                     <InlineStack align="space-between" blockAlign="center">
@@ -1003,7 +942,6 @@ export default function DiagnosticsPage() {
                     </InlineStack>
                   </Box>
                 )}
-
                 {data.summary.failed === 0 && data.summary.warnings === 0 && (
                   <Banner tone="success">
                     <Text as="p">
@@ -1015,7 +953,6 @@ export default function DiagnosticsPage() {
             </BlockStack>
           </Card>
         </Layout.Section>
-
         <Layout.Section>
           <Card>
             <BlockStack gap="400">
@@ -1026,7 +963,6 @@ export default function DiagnosticsPage() {
                 使用 Shopify 官方工具验证您的 Web Pixel 是否正常工作。
               </Text>
               <Divider />
-
               <BlockStack gap="300">
                 <Box background="bg-surface-secondary" padding="400" borderRadius="200">
                   <BlockStack gap="200">
@@ -1049,7 +985,6 @@ export default function DiagnosticsPage() {
                     </InlineStack>
                   </BlockStack>
                 </Box>
-
                 <Box background="bg-surface-secondary" padding="400" borderRadius="200">
                   <BlockStack gap="200">
                     <Text as="p" fontWeight="semibold">
@@ -1068,7 +1003,6 @@ export default function DiagnosticsPage() {
                     </Text>
                   </BlockStack>
                 </Box>
-
                 <Box background="bg-surface-secondary" padding="400" borderRadius="200">
                   <BlockStack gap="200">
                     <Text as="p" fontWeight="semibold">
@@ -1109,7 +1043,6 @@ export default function DiagnosticsPage() {
             </BlockStack>
           </Card>
         </Layout.Section>
-
         <Layout.Section>
           <Banner title="审核人员提示" tone="info">
             <BlockStack gap="200">
@@ -1128,7 +1061,6 @@ export default function DiagnosticsPage() {
             </BlockStack>
           </Banner>
         </Layout.Section>
-
         <Layout.Section>
           <Text as="p" variant="bodySm" tone="subdued">
             最后更新: {new Date(data.lastUpdated).toLocaleString("zh-CN")}

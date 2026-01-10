@@ -33,49 +33,38 @@ function normalizeEventFields(
   nonce?: string;
   context?: unknown;
 } | null {
-
   const isPRDFormat = "event_name" in data;
-
   let eventName: string | undefined;
   let timestamp: number | undefined;
   let shopDomain: string | undefined;
   let eventId: string | undefined;
   let nonce: string | undefined;
   let context: unknown | undefined;
-
   if (isPRDFormat) {
-
     eventName = data.event_name as string | undefined;
     timestamp = data.ts as number | undefined;
     eventId = data.event_id as string | undefined;
     context = data.context;
-
     shopDomain = (data.shopDomain || (context as Record<string, unknown>)?.shopDomain) as string | undefined;
   } else {
-
     eventName = data.eventName as string | undefined;
     timestamp = data.timestamp as number | undefined;
     shopDomain = data.shopDomain as string | undefined;
     nonce = data.nonce as string | undefined;
     eventId = data.eventId as string | undefined;
   }
-
   if (!eventName || typeof eventName !== "string") {
     return null;
   }
-
   if (!shopDomain || typeof shopDomain !== "string") {
     return null;
   }
-
   if (timestamp === undefined || timestamp === null) {
     return null;
   }
-
   if (typeof timestamp !== "number") {
     return null;
   }
-
   return {
     eventName,
     timestamp,
@@ -89,10 +78,8 @@ function normalizeEventFields(
 function validateRequiredFields(
   data: Record<string, unknown>
 ): ValidationResult | null {
-
   const normalized = normalizeEventFields(data);
   if (!normalized) {
-
     const isPRDFormat = "event_name" in data;
     if (isPRDFormat) {
       if (!data.event_name || typeof data.event_name !== "string") {
@@ -115,17 +102,13 @@ function validateRequiredFields(
         return { valid: false, error: "Invalid timestamp type", code: "invalid_timestamp_type" };
       }
     }
-
     const shopDomain = data.shopDomain || (data.context as Record<string, unknown>)?.shopDomain;
     if (!shopDomain || typeof shopDomain !== "string") {
       return { valid: false, error: "Missing shopDomain", code: "missing_shop_domain" };
     }
-
     return { valid: false, error: "Invalid event format", code: "invalid_body" };
   }
-
   const { shopDomain, timestamp } = normalized;
-
   if (!SHOP_DOMAIN_PATTERN.test(shopDomain)) {
     return {
       valid: false,
@@ -133,7 +116,6 @@ function validateRequiredFields(
       code: "invalid_shop_domain_format",
     };
   }
-
   const now = Date.now();
   if (
     timestamp < MIN_REASONABLE_TIMESTAMP ||
@@ -145,7 +127,6 @@ function validateRequiredFields(
       code: "invalid_timestamp_value",
     };
   }
-
   return null;
 }
 
@@ -155,13 +136,10 @@ function validateConsentFormat(
   if (consent === undefined) {
     return null;
   }
-
   if (typeof consent !== "object" || consent === null) {
     return { valid: false, error: "Invalid consent format", code: "invalid_consent_format" };
   }
-
   const consentObj = consent as Record<string, unknown>;
-
   if (consentObj.marketing !== undefined && typeof consentObj.marketing !== "boolean") {
     return {
       valid: false,
@@ -169,7 +147,6 @@ function validateConsentFormat(
       code: "invalid_consent_format",
     };
   }
-
   if (consentObj.analytics !== undefined && typeof consentObj.analytics !== "boolean") {
     return {
       valid: false,
@@ -177,7 +154,6 @@ function validateConsentFormat(
       code: "invalid_consent_format",
     };
   }
-
   if (consentObj.saleOfData !== undefined && typeof consentObj.saleOfData !== "boolean") {
     return {
       valid: false,
@@ -185,7 +161,6 @@ function validateConsentFormat(
       code: "invalid_consent_format",
     };
   }
-
   return null;
 }
 
@@ -199,7 +174,6 @@ function validateCheckoutCompletedFields(
       code: "missing_order_identifiers",
     };
   }
-
   if (eventData?.checkoutToken) {
     const token = String(eventData.checkoutToken);
     if (
@@ -220,7 +194,6 @@ function validateCheckoutCompletedFields(
       };
     }
   }
-
   if (eventData?.orderId) {
     const orderIdStr = String(eventData.orderId);
     if (!ORDER_ID_PATTERN.test(orderIdStr)) {
@@ -231,7 +204,6 @@ function validateCheckoutCompletedFields(
       };
     }
   }
-
   if (eventData?.value !== undefined) {
     const val = Number(eventData.value);
     if (isNaN(val) || val < 0) {
@@ -242,7 +214,6 @@ function validateCheckoutCompletedFields(
       };
     }
   }
-
   if (eventData?.currency) {
     if (typeof eventData.currency !== "string" || !/^[A-Z]{3}$/.test(eventData.currency)) {
       return {
@@ -252,47 +223,37 @@ function validateCheckoutCompletedFields(
       };
     }
   }
-
   return null;
 }
 
 export function validateRequest(body: unknown): ValidationResult {
-
   const bodyResult = validateBodyStructure(body);
   if (!bodyResult.valid) {
     return bodyResult as ValidationResult;
   }
   const data = (bodyResult as { valid: true; data: Record<string, unknown> }).data;
-
   const requiredFieldsError = validateRequiredFields(data);
   if (requiredFieldsError) {
     return requiredFieldsError;
   }
-
   const normalized = normalizeEventFields(data);
   if (!normalized) {
     return { valid: false, error: "Invalid event format", code: "invalid_body" };
   }
-
   const { eventName, timestamp, shopDomain, eventId, nonce, context } = normalized;
-
   const consent = (data.consent || (context as Record<string, unknown>)?.consent) as PixelEventPayload["consent"] | undefined;
   const consentError = validateConsentFormat(consent);
   if (consentError) {
     return consentError;
   }
-
   const eventData = (data.data || (context as Record<string, unknown>)?.data) as PixelEventPayload["data"] | undefined;
-
   if (eventName === "checkout_completed") {
     const checkoutError = validateCheckoutCompletedFields(eventData as Record<string, unknown> | undefined);
     if (checkoutError) {
       return checkoutError;
     }
   }
-
   const finalEventId = eventId || nonce;
-
   return {
     valid: true,
     payload: {
@@ -308,7 +269,6 @@ export function validateRequest(body: unknown): ValidationResult {
 
 export function isPrimaryEvent(eventName: string, mode: "purchase_only" | "full_funnel" = "purchase_only"): boolean {
   if (mode === "full_funnel") {
-
     const fullFunnelEvents = [
       "checkout_completed",
       "checkout_started",
@@ -321,7 +281,6 @@ export function isPrimaryEvent(eventName: string, mode: "purchase_only" | "full_
     ];
     return fullFunnelEvents.includes(eventName);
   }
-
   return eventName === "checkout_completed";
 }
 
@@ -334,7 +293,6 @@ export interface PixelConfig {
 
 export const DEFAULT_PIXEL_CONFIG: PixelConfig = {
   schema_version: "1",
-
   mode: "purchase_only",
   enabled_platforms: "meta,tiktok,google",
   strictness: "strict",
@@ -344,14 +302,11 @@ export function parsePixelConfig(configStr?: string): PixelConfig {
   if (!configStr) {
     return DEFAULT_PIXEL_CONFIG;
   }
-
   try {
     const parsed = JSON.parse(configStr);
-
     if (parsed.schema_version !== "1") {
       return DEFAULT_PIXEL_CONFIG;
     }
-
     return {
       schema_version: "1",
       mode: parsed.mode === "full_funnel" ? "full_funnel" : "purchase_only",
@@ -368,18 +323,15 @@ export function parsePixelConfig(configStr?: string): PixelConfig {
 export function isPlatformEnabled(config: PixelConfig, platform: string): boolean {
   const normalizedPlatform = platform.toLowerCase();
   const enabledPlatforms = config.enabled_platforms.toLowerCase().split(",").map(p => p.trim());
-
   const platformAliases: Record<string, string[]> = {
     google: ["google", "ga4", "analytics"],
     meta: ["meta", "facebook", "fb"],
     tiktok: ["tiktok", "tt"],
   };
-
   for (const [canonical, aliases] of Object.entries(platformAliases)) {
     if (aliases.includes(normalizedPlatform)) {
       return enabledPlatforms.some(p => aliases.includes(p) || p === canonical);
     }
   }
-
   return enabledPlatforms.includes(normalizedPlatform);
 }

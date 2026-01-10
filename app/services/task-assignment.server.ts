@@ -52,18 +52,15 @@ export async function createMigrationTask(
   assignedByShopId: string
 ): Promise<{ id: string } | { error: string }> {
   try {
-
     if (input.groupId) {
       const group = await getShopGroupDetails(input.groupId, assignedByShopId);
       if (!group) {
         return { error: "分组不存在或无权访问" };
       }
-
       const isMember = group.members.some((m) => m.shopId === assignedByShopId);
       if (!isMember && group.ownerId !== assignedByShopId) {
         return { error: "无权在此分组中创建任务" };
       }
-
       if (input.assignedToShopId) {
         const canAssign = group.members.some((m) => m.shopId === input.assignedToShopId);
         if (!canAssign) {
@@ -71,7 +68,6 @@ export async function createMigrationTask(
         }
       }
     }
-
     if (input.assetId) {
       const asset = await prisma.auditAsset.findUnique({
         where: { id: input.assetId },
@@ -81,7 +77,6 @@ export async function createMigrationTask(
         return { error: "资产不存在或不属于该店铺" };
       }
     }
-
     const task = await prisma.migrationTask.create({
       data: {
         id: randomUUID(),
@@ -98,9 +93,7 @@ export async function createMigrationTask(
         updatedAt: new Date(),
       },
     });
-
     logger.info(`Migration task created: ${task.id} by ${assignedByShopId}`);
-
     return { id: task.id };
   } catch (error) {
     logger.error("Failed to create migration task:", error);
@@ -122,22 +115,18 @@ export async function updateMigrationTask(
         },
       },
     });
-
     if (!task) {
       return { error: "任务不存在" };
     }
-
     const isOwner = task.shopId === updatedByShopId;
     const isAssignedTo = task.assignedToShopId === updatedByShopId;
     const isGroupAdmin = task.ShopGroup?.ShopGroupMember.some(
       (m: { shopId: string; role: string }) => m.shopId === updatedByShopId && (m.role === "admin" || m.role === "owner")
     );
     const isGroupOwner = task.ShopGroup?.ownerId === updatedByShopId;
-
     if (!isOwner && !isAssignedTo && !isGroupAdmin && !isGroupOwner) {
       return { error: "无权修改此任务" };
     }
-
     const updateData: {
       title?: string;
       description?: string;
@@ -162,12 +151,10 @@ export async function updateMigrationTask(
     }
     if (input.priority !== undefined) updateData.priority = input.priority;
     if (input.dueDate !== undefined) updateData.dueDate = input.dueDate;
-
     await prisma.migrationTask.update({
       where: { id: taskId },
       data: updateData,
     });
-
     logger.info(`Migration task updated: ${taskId} by ${updatedByShopId}`);
     return true;
   } catch (error) {
@@ -193,21 +180,17 @@ export async function getMigrationTasks(
   } = {
     shopId,
   };
-
   if (options?.groupId) {
     where.groupId = options.groupId;
   }
-
   if (options?.assignedToShopId) {
     where.assignedToShopId = options.assignedToShopId;
   }
-
   if (options?.status) {
     where.status = options.status;
   } else if (!options?.includeCompleted) {
     where.status = { not: "completed" };
   }
-
   const tasks = await prisma.migrationTask.findMany({
     where,
     include: {
@@ -232,21 +215,17 @@ export async function getMigrationTasks(
       { createdAt: "desc" },
     ],
   });
-
   const shopIds = new Set<string>();
   tasks.forEach((t) => {
     shopIds.add(t.shopId);
     if (t.assignedToShopId) shopIds.add(t.assignedToShopId);
     if (t.assignedByShopId) shopIds.add(t.assignedByShopId);
   });
-
   const shops = await prisma.shop.findMany({
     where: { id: { in: Array.from(shopIds) } },
     select: { id: true, shopDomain: true },
   });
-
   const shopMap = new Map(shops.map((s) => [s.id, s.shopDomain]));
-
   return tasks.map((t) => ({
     id: t.id,
     shopId: t.shopId,
@@ -305,30 +284,23 @@ export async function getMigrationTask(
       },
     },
   });
-
   if (!task) {
     return null;
   }
-
   const isOwner = task.shopId === requesterShopId;
   const isAssignedTo = task.assignedToShopId === requesterShopId;
     const isGroupMember = task.ShopGroup?.ShopGroupMember.some((m: { shopId: string }) => m.shopId === requesterShopId);
     const isGroupOwner = task.ShopGroup?.ownerId === requesterShopId;
-
   if (!isOwner && !isAssignedTo && !isGroupMember && !isGroupOwner) {
     return null;
   }
-
   const shopIds = [task.shopId, task.assignedByShopId];
   if (task.assignedToShopId) shopIds.push(task.assignedToShopId);
-
   const shops = await prisma.shop.findMany({
     where: { id: { in: shopIds } },
     select: { id: true, shopDomain: true },
   });
-
   const shopMap = new Map(shops.map((s) => [s.id, s.shopDomain]));
-
   return {
     id: task.id,
     shopId: task.shopId,
@@ -367,25 +339,20 @@ export async function deleteMigrationTask(
         },
       },
     });
-
     if (!task) {
       return { error: "任务不存在" };
     }
-
     const isCreator = task.assignedByShopId === deletedByShopId;
     const isGroupOwner = task.ShopGroup?.ownerId === deletedByShopId;
     const isGroupAdmin = task.ShopGroup?.ShopGroupMember.some(
       (m: { shopId: string; role: string }) => m.shopId === deletedByShopId && m.role === "admin"
     );
-
     if (!isCreator && !isGroupOwner && !isGroupAdmin) {
       return { error: "无权删除此任务" };
     }
-
     await prisma.migrationTask.delete({
       where: { id: taskId },
     });
-
     logger.info(`Migration task deleted: ${taskId} by ${deletedByShopId}`);
     return true;
   } catch (error) {

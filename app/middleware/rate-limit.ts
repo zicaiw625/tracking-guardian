@@ -10,15 +10,10 @@ import {
 } from "../utils/redis-client";
 
 export interface RateLimitConfig {
-
   maxRequests: number;
-
   windowMs: number;
-
   keyExtractor?: (request: Request) => string;
-
   skip?: (request: Request) => boolean;
-
   message?: string;
 }
 
@@ -43,63 +38,49 @@ class InMemoryRateLimitStore {
   private cleanupInterval: ReturnType<typeof setInterval> | null = null;
   private readonly maxKeys: number;
   private readonly cleanupIntervalMs: number;
-
   constructor(maxKeys = 10000, cleanupIntervalMs = 60000) {
     this.maxKeys = maxKeys;
     this.cleanupIntervalMs = cleanupIntervalMs;
     this.startCleanup();
   }
-
   private startCleanup(): void {
     if (this.cleanupInterval) return;
-
     this.cleanupInterval = setInterval(() => {
       this.cleanup();
     }, this.cleanupIntervalMs);
-
     if (this.cleanupInterval.unref) {
       this.cleanupInterval.unref();
     }
   }
-
   private cleanup(): void {
     const now = Date.now();
     let cleaned = 0;
-
     for (const [key, entry] of this.store.entries()) {
-
       if (now - entry.windowStart > 5 * 60 * 1000) {
         this.store.delete(key);
         cleaned++;
       }
     }
-
     if (this.store.size > this.maxKeys) {
       const entries = Array.from(this.store.entries())
         .sort((a, b) => a[1].windowStart - b[1].windowStart);
-
       const toRemove = entries.slice(0, this.store.size - this.maxKeys);
       for (const [key] of toRemove) {
         this.store.delete(key);
         cleaned++;
       }
     }
-
     if (cleaned > 0) {
       logger.debug(`[Rate Limit] Memory store cleanup: removed ${cleaned} entries, size: ${this.store.size}`);
     }
   }
-
   check(key: string, maxRequests: number, windowMs: number): RateLimitResult {
     const now = Date.now();
     const entry = this.store.get(key);
-
     if (!entry || now - entry.windowStart >= windowMs) {
-
       if (this.store.size >= this.maxKeys && !entry) {
         this.cleanup();
       }
-
       this.store.set(key, { count: 1, windowStart: now });
       return {
         allowed: true,
@@ -107,10 +88,8 @@ class InMemoryRateLimitStore {
         resetAt: now + windowMs,
       };
     }
-
     entry.count++;
     const resetAt = entry.windowStart + windowMs;
-
     if (entry.count > maxRequests) {
       const retryAfter = Math.ceil((resetAt - now) / 1000);
       return {
@@ -120,22 +99,18 @@ class InMemoryRateLimitStore {
         retryAfter,
       };
     }
-
     return {
       allowed: true,
       remaining: maxRequests - entry.count,
       resetAt,
     };
   }
-
   getSize(): number {
     return this.store.size;
   }
-
   clear(): void {
     this.store.clear();
   }
-
   stopCleanup(): void {
     if (this.cleanupInterval) {
       clearInterval(this.cleanupInterval);
@@ -156,19 +131,16 @@ class DistributedRateLimitStore {
   private redisHealthy = true;
   private lastRedisError: number = 0;
   private readonly redisRetryIntervalMs = 30000;
-
   private async getClient(): Promise<RedisClientWrapper> {
     if (!this.pendingInit) {
       this.pendingInit = getRedisClient();
     }
     return this.pendingInit;
   }
-
   private shouldRetryRedis(): boolean {
     if (this.redisHealthy) return true;
     return Date.now() - this.lastRedisError > this.redisRetryIntervalMs;
   }
-
   private markRedisUnhealthy(): void {
     if (this.redisHealthy) {
       logger.warn("[Rate Limit] Redis unavailable, falling back to in-memory store");
@@ -176,14 +148,12 @@ class DistributedRateLimitStore {
     this.redisHealthy = false;
     this.lastRedisError = Date.now();
   }
-
   private markRedisHealthy(): void {
     if (!this.redisHealthy) {
       logger.info("[Rate Limit] Redis connection restored");
     }
     this.redisHealthy = true;
   }
-
   async checkAsync(
     key: string,
     maxRequests: number,
@@ -192,24 +162,18 @@ class DistributedRateLimitStore {
     const now = Date.now();
     const fullKey = `${RATE_LIMIT_PREFIX}${key}`;
     const windowSeconds = Math.ceil(windowMs / 1000);
-
     if (!this.shouldRetryRedis()) {
       return memoryRateLimitStore.check(key, maxRequests, windowMs);
     }
-
     try {
       const client = await this.getClient();
       const count = await client.incr(fullKey);
-
       if (count === 1) {
         await client.expire(fullKey, windowSeconds);
       }
-
       const ttl = await client.ttl(fullKey);
       const resetAt = now + (ttl > 0 ? ttl * 1000 : windowMs);
-
       this.markRedisHealthy();
-
       if (count > maxRequests) {
         const retryAfter = Math.ceil((resetAt - now) / 1000);
         return {
@@ -219,41 +183,31 @@ class DistributedRateLimitStore {
           retryAfter,
         };
       }
-
       return {
         allowed: true,
         remaining: maxRequests - count,
         resetAt,
       };
     } catch (error) {
-
       this.markRedisUnhealthy();
       logger.error("[Rate Limit] Redis error, using memory fallback", error);
-
       return memoryRateLimitStore.check(key, maxRequests, windowMs);
     }
   }
-
   check(key: string, maxRequests: number, windowMs: number): RateLimitResult {
-
     return memoryRateLimitStore.check(key, maxRequests, windowMs);
   }
-
   async getSize(): Promise<number> {
     try {
       const client = await this.getClient();
       const keys = await client.keys(`${RATE_LIMIT_PREFIX}*`);
       return keys.length;
     } catch {
-
       return memoryRateLimitStore.getSize();
     }
   }
-
   async clear(): Promise<void> {
-
     memoryRateLimitStore.clear();
-
     try {
       const client = await this.getClient();
       const keys = await client.keys(`${RATE_LIMIT_PREFIX}*`);
@@ -264,7 +218,6 @@ class DistributedRateLimitStore {
       logger.error("Failed to clear Redis rate limit entries", error);
     }
   }
-
   getConnectionInfo(): {
     mode: "redis" | "memory";
     connected: boolean;
@@ -277,7 +230,6 @@ class DistributedRateLimitStore {
       usingFallback: !this.redisHealthy,
     };
   }
-
   getMemoryStoreSize(): number {
     return memoryRateLimitStore.getSize();
   }
@@ -294,12 +246,10 @@ export function ipKeyExtractor(request: Request): string {
   if (forwardedFor) {
     return forwardedFor.split(",")[0]?.trim() ?? "unknown";
   }
-
   const realIp = request.headers.get("x-real-ip");
   if (realIp) {
     return realIp;
   }
-
   return "unknown";
 }
 
@@ -349,9 +299,7 @@ export function pathShopKeyExtractor(request: Request): string {
 
 function resolveRequest(args: unknown): Request | undefined {
   if (!args) return undefined;
-
   if (args instanceof Request) return args;
-
   if (typeof args === "object" && args !== null && "request" in args) {
     const request = (args as { request: unknown }).request;
     if (request instanceof Request) return request;
@@ -370,11 +318,9 @@ export function withRateLimit<T>(
     skip,
     message = "Too many requests",
   } = config;
-
   const createWrappedHandler = (handler: RateLimitedHandler<T>): RateLimitedHandler<T | Response> => {
     return async (args) => {
       const request = resolveRequest(args);
-
       if (!request || typeof request.url !== "string") {
         const errorMsg = `[rate-limit] Invalid args: expected Remix args { request }, got: ${args ? Object.keys(args).join(", ") : "undefined"}`;
         logger.error(errorMsg, {
@@ -383,7 +329,6 @@ export function withRateLimit<T>(
           hasRequest: !!args?.request,
           requestType: args?.request ? typeof args.request : "undefined",
         });
-
         return json(
           {
             success: false,
@@ -395,11 +340,9 @@ export function withRateLimit<T>(
           { status: 500 }
         );
       }
-
       if (skip?.(request)) {
         return handler(args);
       }
-
       let key: string;
       try {
         key = keyExtractor(request);
@@ -408,25 +351,19 @@ export function withRateLimit<T>(
           error: error instanceof Error ? error.message : String(error),
           requestUrl: request.url,
         });
-
         key = `fallback:${request.url || "unknown"}`;
       }
-
       const result = await rateLimitStore.checkAsync(key, maxRequests, windowMs);
-
       const headers = new Headers();
       headers.set("X-RateLimit-Limit", String(maxRequests));
       headers.set("X-RateLimit-Remaining", String(result.remaining));
       headers.set("X-RateLimit-Reset", String(Math.ceil(result.resetAt / 1000)));
-
       if (process.env.NODE_ENV !== "production") {
         const connInfo = rateLimitStore.getConnectionInfo();
         headers.set("X-RateLimit-Backend", connInfo.mode);
       }
-
       if (!result.allowed) {
         headers.set("Retry-After", String(result.retryAfter));
-
         logger.warn("Rate limit exceeded", {
           key,
           maxRequests,
@@ -434,7 +371,6 @@ export function withRateLimit<T>(
           retryAfter: result.retryAfter,
           backend: rateLimitStore.getConnectionInfo().mode,
         });
-
         return json(
           {
             success: false,
@@ -447,23 +383,18 @@ export function withRateLimit<T>(
           { status: 429, headers }
         );
       }
-
       const response = await handler(args);
-
       if (response instanceof Response) {
         for (const [key, value] of headers) {
           response.headers.set(key, value);
         }
       }
-
       return response;
     };
   };
-
   if (handler) {
     return createWrappedHandler(handler);
   }
-
   return (handler: RateLimitedHandler<T>) => createWrappedHandler(handler);
 }
 

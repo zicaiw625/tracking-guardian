@@ -17,7 +17,6 @@ export async function getWizardTemplates(shopId: string): Promise<{
   presets: WizardTemplate[];
   custom: WizardTemplate[];
 }> {
-
   const presets: WizardTemplate[] = [
     {
       id: "standard",
@@ -42,7 +41,6 @@ export async function getWizardTemplates(shopId: string): Promise<{
       id: "advanced",
       name: "高级配置",
       description: "包含更多事件类型的完整映射，适合需要详细转化漏斗分析的店铺",
-
       platforms: ["google", "meta", "tiktok"],
       eventMappings: {
         google: {
@@ -60,7 +58,6 @@ export async function getWizardTemplates(shopId: string): Promise<{
           checkout_started: "InitiateCheckout",
           add_to_cart: "AddToCart",
         },
-
       },
       isPublic: true,
       usageCount: 0,
@@ -69,7 +66,6 @@ export async function getWizardTemplates(shopId: string): Promise<{
       id: "ecommerce-optimized",
       name: "电商优化配置",
       description: "专为电商店铺优化的完整转化漏斗追踪，包含商品浏览、加购、结账、购买全流程",
-
       platforms: ["google", "meta", "tiktok"],
       eventMappings: {
         google: {
@@ -90,7 +86,6 @@ export async function getWizardTemplates(shopId: string): Promise<{
           add_to_cart: "AddToCart",
           view_item: "ViewContent",
         },
-
       },
       isPublic: true,
       usageCount: 0,
@@ -121,7 +116,6 @@ export async function getWizardTemplates(shopId: string): Promise<{
       id: "social-commerce",
       name: "社交电商配置",
       description: "专为社交电商优化的配置，包含 Meta 和 TikTok，适合依赖社交媒体流量的店铺",
-
       platforms: ["meta", "tiktok"],
       eventMappings: {
         meta: {
@@ -136,7 +130,6 @@ export async function getWizardTemplates(shopId: string): Promise<{
           add_to_cart: "AddToCart",
           view_item: "ViewContent",
         },
-
       },
       isPublic: true,
       usageCount: 0,
@@ -158,22 +151,18 @@ export async function getWizardTemplates(shopId: string): Promise<{
       usageCount: 0,
     },
   ];
-
   let custom: WizardTemplate[] = [];
   try {
     const dbTemplates = await getPixelTemplates(shopId, true);
     custom = dbTemplates.map((t) => {
-
       const platforms: string[] = [];
       const eventMappings: Record<string, Record<string, string>> = {};
-
       t.platforms.forEach((p: PixelTemplateConfig) => {
         platforms.push(p.platform);
         if (p.eventMappings) {
           eventMappings[p.platform] = p.eventMappings;
         }
       });
-
       return {
         id: t.id,
         name: t.name,
@@ -187,7 +176,6 @@ export async function getWizardTemplates(shopId: string): Promise<{
   } catch (error) {
     logger.error("Failed to load custom templates for wizard", { shopId, error });
   }
-
   return { presets, custom };
 }
 
@@ -205,7 +193,6 @@ export function applyTemplateToConfigs(
   currentConfigs: Record<string, PixelPlatformConfig>
 ): Record<string, PixelPlatformConfig> {
   const newConfigs = { ...currentConfigs };
-
   template.platforms.forEach((platform) => {
     if (!newConfigs[platform]) {
       newConfigs[platform] = {
@@ -217,7 +204,6 @@ export function applyTemplateToConfigs(
         environment: "test",
       };
     }
-
     if (template.eventMappings[platform]) {
       newConfigs[platform] = {
         ...newConfigs[platform],
@@ -226,7 +212,6 @@ export function applyTemplateToConfigs(
       };
     }
   });
-
   return newConfigs;
 }
 
@@ -239,7 +224,6 @@ export async function saveWizardConfigAsTemplate(
   isPublic: boolean = false
 ): Promise<{ success: boolean; templateId?: string; error?: string }> {
   try {
-
     const platformConfigs: Array<{
       platform: string;
       eventMappings?: Record<string, string>;
@@ -251,7 +235,6 @@ export async function saveWizardConfigAsTemplate(
       clientSideEnabled: true,
       serverSideEnabled: false,
     }));
-
     const result = await createPixelTemplate({
       ownerId: shopId,
       name,
@@ -259,11 +242,9 @@ export async function saveWizardConfigAsTemplate(
       platforms: platformConfigs,
       isPublic,
     });
-
     if (result.success) {
       logger.info("Wizard config saved as template", { templateId: result.templateId, shopId, name });
     }
-
     return result;
   } catch (error) {
     logger.error("Failed to save wizard config as template", { shopId, error });
@@ -294,19 +275,15 @@ export async function generateTemplateShareLink(
     const template = await prisma.pixelTemplate.findUnique({
       where: { id: templateId },
     });
-
     if (!template || template.ownerId !== ownerId) {
       return { success: false, error: "模板不存在或无权限" };
     }
-
     const { createHash } = await import("crypto");
     const shareToken = createHash("sha256")
       .update(`${templateId}-${template.updatedAt.getTime()}`)
       .digest("hex")
       .substring(0, 16);
-
     const shareLink = `/app/templates/import?templateId=${templateId}&token=${shareToken}`;
-
     return { success: true, shareLink };
   } catch (error) {
     logger.error("Failed to generate template share link", { templateId, error });
@@ -323,34 +300,27 @@ export async function importTemplateFromShare(
     const template = await prisma.pixelTemplate.findUnique({
       where: { id: templateId },
     });
-
     if (!template) {
       return { success: false, error: "模板不存在" };
     }
-
     const { createHash } = await import("crypto");
     const expectedToken = createHash("sha256")
       .update(`${templateId}-${template.updatedAt.getTime()}`)
       .digest("hex")
       .substring(0, 16);
-
     if (token !== expectedToken) {
       return { success: false, error: "无效的分享链接" };
     }
-
     if (template.isPublic || template.ownerId === targetShopId) {
-
       await incrementTemplateUsage(templateId);
       return { success: true, templateId };
     }
-
     let platforms: Array<{
       platform: string;
       eventMappings?: Record<string, string>;
       clientSideEnabled?: boolean;
       serverSideEnabled?: boolean;
     }> = [];
-
     if (Array.isArray(template.platforms)) {
       platforms = template.platforms
         .map((item: unknown) => {
@@ -366,24 +336,19 @@ export async function importTemplateFromShare(
           } = {
             platform: typeof obj.platform === "string" ? obj.platform : "",
           };
-
           if (obj.eventMappings && typeof obj.eventMappings === "object" && !Array.isArray(obj.eventMappings)) {
             result.eventMappings = obj.eventMappings as Record<string, string>;
           }
-
           if (typeof obj.clientSideEnabled === "boolean") {
             result.clientSideEnabled = obj.clientSideEnabled;
           }
-
           if (typeof obj.serverSideEnabled === "boolean") {
             result.serverSideEnabled = obj.serverSideEnabled;
           }
-
           return result.platform ? result : null;
         })
         .filter((p): p is NonNullable<typeof p> => p !== null);
     }
-
     const result = await createPixelTemplate({
       ownerId: targetShopId,
       name: `${template.name} (导入)`,
@@ -391,12 +356,9 @@ export async function importTemplateFromShare(
       platforms,
       isPublic: false,
     });
-
     if (result.success) {
-
       await incrementTemplateUsage(templateId);
     }
-
     return result;
   } catch (error) {
     logger.error("Failed to import template from share", { templateId, targetShopId, error });

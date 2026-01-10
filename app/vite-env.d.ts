@@ -15,11 +15,9 @@ declare module 'html-pdf-node' {
     printBackground?: boolean;
     landscape?: boolean;
   }
-
   interface HtmlPdfNodeFile {
     content: string;
   }
-
   export function generatePdf(
     file: HtmlPdfNodeFile,
     options?: HtmlPdfNodeOptions

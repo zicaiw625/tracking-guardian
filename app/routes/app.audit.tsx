@@ -29,22 +29,18 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     where: { shopDomain },
     select: { id: true, shopDomain: true },
   });
-
   if (!shop) {
     return json({ shop: null, scanResult: null, auditAssets: [] });
   }
-
   const latestScan = await prisma.scanReport.findFirst({
     where: { shopId: shop.id },
     orderBy: { createdAt: "desc" },
   });
-
   const auditAssets = await prisma.auditAsset.findMany({
     where: { shopId: shop.id },
     orderBy: { createdAt: "desc" },
     take: 100,
   });
-
   return json({
     shop,
     scanResult: latestScan,
@@ -59,18 +55,14 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     where: { shopDomain },
     select: { id: true },
   });
-
   if (!shop) {
     return json({ error: "Shop not found" }, { status: 404 });
   }
-
   const formData = await request.formData();
   const intent = formData.get("intent");
-
   if (intent === "scan") {
     try {
       const scanResult = await scanShopTracking(admin, shop.id, { force: true });
-      
       const scanReport = await prisma.scanReport.create({
         data: {
           id: `scan_${Date.now()}`,
@@ -83,13 +75,11 @@ export const action = async ({ request }: ActionFunctionArgs) => {
           completedAt: new Date(),
         },
       });
-
       return json({ success: true, scanReport });
     } catch (error) {
       return json({ error: String(error) }, { status: 500 });
     }
   }
-
   return json({ error: "Invalid intent" }, { status: 400 });
 };
 
@@ -99,7 +89,6 @@ export default function AuditPage() {
   const scanFetcher = useFetcher();
   const [currentStep, setCurrentStep] = useState<Step>("scan");
   const [isScanning, setIsScanning] = useState(false);
-
   const handleStartScan = () => {
     setIsScanning(true);
     scanFetcher.submit(
@@ -107,11 +96,9 @@ export default function AuditPage() {
       { method: "post" }
     );
   };
-
   const handleManualPasteComplete = () => {
     setCurrentStep("checklist");
   };
-
   if (!shop) {
     return (
       <Page title="Audit">
@@ -121,10 +108,8 @@ export default function AuditPage() {
       </Page>
     );
   }
-
   const hasScanResult = scanResult?.status === "completed";
   const hasManualAssets = auditAssets.some(a => a.sourceType === "manual_paste");
-
   return (
     <Page
       title="Audit 扫描"
@@ -140,7 +125,6 @@ export default function AuditPage() {
             "Step 3: 查看迁移清单与风险分级",
           ]}
         />
-
         {currentStep === "scan" && (
           <Card>
             <BlockStack gap="400">
@@ -150,7 +134,6 @@ export default function AuditPage() {
               <Text as="p" tone="subdued">
                 自动扫描 ScriptTags 和已安装的 Web Pixels，识别追踪平台和风险项。
               </Text>
-
               {scanFetcher.state === "submitting" || isScanning ? (
                 <BlockStack gap="300">
                   <ProgressBar progress={50} />
@@ -176,7 +159,6 @@ export default function AuditPage() {
             </BlockStack>
           </Card>
         )}
-
         {currentStep === "manual" && (
           <Card>
             <BlockStack gap="400">
@@ -198,7 +180,6 @@ export default function AuditPage() {
             </BlockStack>
           </Card>
         )}
-
         {currentStep === "checklist" && (
           <Card>
             <BlockStack gap="400">

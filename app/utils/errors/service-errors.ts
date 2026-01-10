@@ -1,9 +1,7 @@
 import { AppError, ErrorCode, type ErrorCodeType, type ErrorMetadata } from "./app-error";
 
 export abstract class ServiceError extends AppError {
-
   public readonly service: string;
-
   constructor(
     service: string,
     code: ErrorCodeType,
@@ -25,7 +23,6 @@ export class BillingError extends ServiceError {
   ) {
     super("billing", code, message, false, metadata);
   }
-
   static limitExceeded(current: number, limit: number, shopDomain?: string): BillingError {
     return new BillingError(
       ErrorCode.BILLING_LIMIT_EXCEEDED,
@@ -33,7 +30,6 @@ export class BillingError extends ServiceError {
       { current, limit, shopDomain }
     );
   }
-
   static subscriptionRequired(feature: string): BillingError {
     return new BillingError(
       ErrorCode.BILLING_PLAN_REQUIRED,
@@ -41,7 +37,6 @@ export class BillingError extends ServiceError {
       { feature }
     );
   }
-
   static subscriptionInactive(shopDomain: string): BillingError {
     return new BillingError(
       ErrorCode.BILLING_SUBSCRIPTION_INACTIVE,
@@ -53,7 +48,6 @@ export class BillingError extends ServiceError {
 
 export class PlatformServiceError extends ServiceError {
   public readonly platform: string;
-
   constructor(
     platform: string,
     code: ErrorCodeType,
@@ -64,7 +58,6 @@ export class PlatformServiceError extends ServiceError {
     super("platform", code, message, isRetryable, { platform, ...metadata });
     this.platform = platform;
   }
-
   static timeout(platform: string, timeoutMs: number): PlatformServiceError {
     return new PlatformServiceError(
       platform,
@@ -74,7 +67,6 @@ export class PlatformServiceError extends ServiceError {
       { timeout: timeoutMs }
     );
   }
-
   static rateLimited(platform: string, retryAfter?: number): PlatformServiceError {
     return new PlatformServiceError(
       platform,
@@ -84,7 +76,6 @@ export class PlatformServiceError extends ServiceError {
       { retryAfter }
     );
   }
-
   static authError(platform: string, message: string): PlatformServiceError {
     return new PlatformServiceError(
       platform,
@@ -93,7 +84,6 @@ export class PlatformServiceError extends ServiceError {
       false
     );
   }
-
   static serverError(platform: string, statusCode: number, message?: string): PlatformServiceError {
     return new PlatformServiceError(
       platform,
@@ -103,7 +93,6 @@ export class PlatformServiceError extends ServiceError {
       { httpStatus: statusCode }
     );
   }
-
   static networkError(platform: string, originalMessage: string): PlatformServiceError {
     return new PlatformServiceError(
       platform,
@@ -112,7 +101,6 @@ export class PlatformServiceError extends ServiceError {
       true
     );
   }
-
   static invalidConfig(platform: string, reason: string): PlatformServiceError {
     return new PlatformServiceError(
       platform,
@@ -126,7 +114,6 @@ export class PlatformServiceError extends ServiceError {
 export class WebhookError extends ServiceError {
   public readonly webhookId?: string;
   public readonly topic?: string;
-
   constructor(
     code: ErrorCodeType,
     message: string,
@@ -136,7 +123,6 @@ export class WebhookError extends ServiceError {
     this.webhookId = metadata.webhookId as string | undefined;
     this.topic = metadata.webhookTopic as string | undefined;
   }
-
   static duplicate(webhookId: string, topic: string): WebhookError {
     return new WebhookError(
       ErrorCode.WEBHOOK_DUPLICATE,
@@ -144,7 +130,6 @@ export class WebhookError extends ServiceError {
       { webhookId, webhookTopic: topic }
     );
   }
-
   static invalidPayload(reason: string, topic?: string): WebhookError {
     return new WebhookError(
       ErrorCode.WEBHOOK_INVALID_PAYLOAD,
@@ -152,7 +137,6 @@ export class WebhookError extends ServiceError {
       { webhookTopic: topic }
     );
   }
-
   static unsupportedTopic(topic: string): WebhookError {
     return new WebhookError(
       ErrorCode.WEBHOOK_TOPIC_UNSUPPORTED,
@@ -160,7 +144,6 @@ export class WebhookError extends ServiceError {
       { webhookTopic: topic }
     );
   }
-
   static processingFailed(reason: string, webhookId?: string): WebhookError {
     return new WebhookError(
       ErrorCode.WEBHOOK_PROCESSING_FAILED,
@@ -179,7 +162,6 @@ export class DatabaseError extends ServiceError {
   ) {
     super("database", code, message, isRetryable, metadata);
   }
-
   static connectionError(message: string): DatabaseError {
     return new DatabaseError(
       ErrorCode.DB_CONNECTION_ERROR,
@@ -187,7 +169,6 @@ export class DatabaseError extends ServiceError {
       true
     );
   }
-
   static queryError(query: string, message: string, cause?: Error): DatabaseError {
     const error = new DatabaseError(
       ErrorCode.DB_QUERY_ERROR,
@@ -197,7 +178,6 @@ export class DatabaseError extends ServiceError {
     );
     if (cause) {
       const wrapped = AppError.wrap(cause, ErrorCode.DB_QUERY_ERROR, error.message, error.metadata);
-
       return new DatabaseError(
         ErrorCode.DB_QUERY_ERROR,
         wrapped.message,
@@ -207,7 +187,6 @@ export class DatabaseError extends ServiceError {
     }
     return error;
   }
-
   static transactionFailed(message: string): DatabaseError {
     return new DatabaseError(
       ErrorCode.DB_TRANSACTION_FAILED,
@@ -215,7 +194,6 @@ export class DatabaseError extends ServiceError {
       true
     );
   }
-
   static uniqueConstraint(field: string, value?: string): DatabaseError {
     const msg = value
       ? `Unique constraint violation: ${field} = ${value}`
@@ -237,7 +215,6 @@ export class ConsentError extends ServiceError {
   ) {
     super("consent", code, message, false, metadata);
   }
-
   static notGranted(
     reason: string,
     context?: { shopDomain?: string; orderId?: string; platform?: string }
@@ -248,7 +225,6 @@ export class ConsentError extends ServiceError {
       context
     );
   }
-
   static receiptNotFound(orderId: string, shopDomain?: string): ConsentError {
     return new ConsentError(
       ErrorCode.CONSENT_RECEIPT_NOT_FOUND,
@@ -256,7 +232,6 @@ export class ConsentError extends ServiceError {
       { orderId, shopDomain }
     );
   }
-
   static trustVerificationFailed(
     reason: string,
     context?: { shopDomain?: string; orderId?: string }
@@ -273,7 +248,6 @@ export class ValidationError extends ServiceError {
   public readonly field?: string;
   public readonly expected?: string;
   public readonly received?: string;
-
   constructor(
     code: ErrorCodeType,
     message: string,
@@ -288,7 +262,6 @@ export class ValidationError extends ServiceError {
     this.expected = metadata.expected;
     this.received = metadata.received;
   }
-
   static missingField(field: string): ValidationError {
     return new ValidationError(
       ErrorCode.VALIDATION_MISSING_FIELD,
@@ -296,7 +269,6 @@ export class ValidationError extends ServiceError {
       { field }
     );
   }
-
   static invalidFormat(field: string, expected: string, received?: string): ValidationError {
     return new ValidationError(
       ErrorCode.VALIDATION_INVALID_FORMAT,
@@ -304,7 +276,6 @@ export class ValidationError extends ServiceError {
       { field, expected, received }
     );
   }
-
   static payloadTooLarge(size: number, maxSize: number): ValidationError {
     return new ValidationError(
       ErrorCode.VALIDATION_PAYLOAD_TOO_LARGE,
@@ -312,7 +283,6 @@ export class ValidationError extends ServiceError {
       { size, maxSize } as ErrorMetadata
     );
   }
-
   static timestampExpired(timestamp: number, windowMs: number): ValidationError {
     return new ValidationError(
       ErrorCode.VALIDATION_TIMESTAMP_EXPIRED,
@@ -320,7 +290,6 @@ export class ValidationError extends ServiceError {
       { timestamp, windowMs } as ErrorMetadata
     );
   }
-
   static custom(message: string, field?: string): ValidationError {
     return new ValidationError(
       ErrorCode.VALIDATION_ERROR,
@@ -338,21 +307,18 @@ export class AuthError extends ServiceError {
   ) {
     super("auth", code, message, false, metadata);
   }
-
   static invalidToken(reason?: string): AuthError {
     return new AuthError(
       ErrorCode.AUTH_INVALID_TOKEN,
       reason || "Invalid authentication token"
     );
   }
-
   static tokenExpired(): AuthError {
     return new AuthError(
       ErrorCode.AUTH_TOKEN_EXPIRED,
       "Authentication token has expired"
     );
   }
-
   static shopNotFound(shopDomain: string): AuthError {
     return new AuthError(
       ErrorCode.AUTH_SHOP_NOT_FOUND,
@@ -360,21 +326,18 @@ export class AuthError extends ServiceError {
       { shopDomain }
     );
   }
-
   static signatureInvalid(reason?: string): AuthError {
     return new AuthError(
       ErrorCode.AUTH_SIGNATURE_INVALID,
       reason || "Request signature is invalid"
     );
   }
-
   static hmacMismatch(): AuthError {
     return new AuthError(
       ErrorCode.AUTH_HMAC_MISMATCH,
       "HMAC signature verification failed"
     );
   }
-
   static insufficientPermissions(required: string): AuthError {
     return new AuthError(
       ErrorCode.AUTH_INSUFFICIENT_PERMISSIONS,
@@ -387,7 +350,6 @@ export class AuthError extends ServiceError {
 export class NotFoundError extends ServiceError {
   public readonly resource: string;
   public readonly resourceId?: string;
-
   constructor(
     resource: string,
     resourceId?: string,
@@ -396,31 +358,24 @@ export class NotFoundError extends ServiceError {
     const message = resourceId
       ? `${resource} with id '${resourceId}' not found`
       : `${resource} not found`;
-
     const code = getNotFoundCodeForResource(resource);
-
     super("resource", code, message, false, {
       resource,
       resourceId,
       ...metadata,
     });
-
     this.resource = resource;
     this.resourceId = resourceId;
   }
-
   static shop(shopDomain: string): NotFoundError {
     return new NotFoundError("Shop", shopDomain, { shopDomain });
   }
-
   static order(orderId: string): NotFoundError {
     return new NotFoundError("Order", orderId, { orderId });
   }
-
   static pixelConfig(platform: string, shopDomain?: string): NotFoundError {
     return new NotFoundError("PixelConfig", platform, { platform, shopDomain });
   }
-
   static job(jobId: string): NotFoundError {
     return new NotFoundError("Job", jobId, { jobId });
   }

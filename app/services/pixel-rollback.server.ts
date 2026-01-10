@@ -43,12 +43,10 @@ export async function saveConfigSnapshot(
         environment,
       },
     });
-
     if (!config) {
       logger.warn("No config to snapshot", { shopId, platform });
       return false;
     }
-
     const snapshot: PixelConfigSnapshot = {
       platformId: config.platformId,
       clientSideEnabled: config.clientSideEnabled,
@@ -58,7 +56,6 @@ export async function saveConfigSnapshot(
       environment: config.environment as PixelEnvironment,
       credentialsEncrypted: config.credentialsEncrypted,
     };
-
     await prisma.pixelConfig.update({
       where: { id: config.id },
       data: {
@@ -67,7 +64,6 @@ export async function saveConfigSnapshot(
         rollbackAllowed: true,
       },
     });
-
     logger.info("Config snapshot saved", {
       shopId,
       platform,
@@ -93,24 +89,20 @@ export async function rollbackConfig(
         environment,
       },
     });
-
     if (!config) {
       return {
         success: false,
         message: "配置不存在",
       };
     }
-
     if (!config.rollbackAllowed || !config.previousConfig) {
       return {
         success: false,
         message: "没有可回滚的版本",
       };
     }
-
     const snapshot = config.previousConfig as unknown as PixelConfigSnapshot;
     const previousVersion = config.configVersion;
-
     await prisma.pixelConfig.update({
       where: { id: config.id },
       data: {
@@ -121,13 +113,11 @@ export async function rollbackConfig(
         clientConfig: snapshot.clientConfig as Prisma.InputJsonValue,
         environment: snapshot.environment,
         credentialsEncrypted: snapshot.credentialsEncrypted,
-
         previousConfig: Prisma.JsonNull,
         rollbackAllowed: false,
         configVersion: { increment: 1 },
       },
     });
-
     await createAuditLogEntry(shopId, {
       actorType: "user",
       action: "pixel_config_updated",
@@ -140,14 +130,12 @@ export async function rollbackConfig(
         newVersion: config.configVersion + 1,
       },
     });
-
     logger.info("Config rolled back", {
       shopId,
       platform,
       fromVersion: previousVersion,
       toVersion: config.configVersion + 1,
     });
-
     return {
       success: true,
       message: `已回滚到版本 ${config.configVersion + 1}`,
@@ -170,7 +158,6 @@ export async function switchEnvironment(
   currentEnvironment?: PixelEnvironment
 ): Promise<EnvironmentSwitchResult> {
   try {
-
     let actualCurrentEnvironment = currentEnvironment;
     if (!actualCurrentEnvironment) {
       const activeConfig = await prisma.pixelConfig.findFirst({
@@ -185,7 +172,6 @@ export async function switchEnvironment(
       });
       actualCurrentEnvironment = (activeConfig?.environment as PixelEnvironment) || "test";
     }
-
     const config = await prisma.pixelConfig.findFirst({
       where: {
         shopId,
@@ -193,16 +179,13 @@ export async function switchEnvironment(
         environment: actualCurrentEnvironment,
       },
     });
-
     if (!config) {
       return {
         success: false,
         message: "配置不存在",
       };
     }
-
     const previousEnvironment = config.environment as PixelEnvironment;
-
     if (previousEnvironment === newEnvironment) {
       return {
         success: true,
@@ -211,9 +194,7 @@ export async function switchEnvironment(
         newEnvironment,
       };
     }
-
     await saveConfigSnapshot(shopId, platform, actualCurrentEnvironment);
-
     const targetConfig = await prisma.pixelConfig.findFirst({
       where: {
         shopId,
@@ -222,9 +203,7 @@ export async function switchEnvironment(
         platformId: config.platformId,
       },
     });
-
     if (targetConfig) {
-
       await prisma.pixelConfig.update({
         where: { id: targetConfig.id },
         data: {
@@ -237,7 +216,6 @@ export async function switchEnvironment(
           isActive: config.isActive,
         },
       });
-
       await prisma.pixelConfig.update({
         where: { id: config.id },
         data: {
@@ -245,7 +223,6 @@ export async function switchEnvironment(
         },
       });
     } else {
-
       await prisma.pixelConfig.update({
         where: { id: config.id },
         data: {
@@ -253,7 +230,6 @@ export async function switchEnvironment(
         },
       });
     }
-
     await createAuditLogEntry(shopId, {
       actorType: "user",
       action: "pixel_config_updated",
@@ -266,14 +242,12 @@ export async function switchEnvironment(
         newEnvironment,
       },
     });
-
     logger.info("Environment switched", {
       shopId,
       platform,
       from: previousEnvironment,
       to: newEnvironment
     });
-
     return {
       success: true,
       message: `已切换到 ${newEnvironment === "live" ? "生产" : "测试"} 环境`,
@@ -313,9 +287,7 @@ export async function getConfigVersionInfo(
       updatedAt: true,
     },
   });
-
   if (!config) return null;
-
   return {
     currentVersion: config.configVersion,
     hasRollback: config.rollbackAllowed && config.previousConfig !== null,
@@ -344,7 +316,6 @@ export async function getAllConfigVersions(
       isActive: true,
     },
   });
-
   return configs.map(c => ({
     platform: c.platform,
     currentVersion: c.configVersion,
@@ -387,9 +358,7 @@ export async function getConfigComparison(
       updatedAt: true,
     },
   });
-
   if (!config) return null;
-
   const current: PixelConfigSnapshot & { version: number; updatedAt: Date } = {
     platformId: config.platformId,
     clientSideEnabled: config.clientSideEnabled,
@@ -401,16 +370,13 @@ export async function getConfigComparison(
     version: config.configVersion,
     updatedAt: config.updatedAt,
   };
-
   const previous = config.previousConfig as PixelConfigSnapshot | null;
-
   const differences: Array<{
     field: string;
     current: unknown;
     previous: unknown;
     changed: boolean;
   }> = [];
-
   if (previous) {
     const fields: Array<keyof PixelConfigSnapshot> = [
       "platformId",
@@ -420,12 +386,10 @@ export async function getConfigComparison(
       "clientConfig",
       "environment",
     ];
-
     for (const field of fields) {
       const currentValue = current[field];
       const previousValue = previous[field];
       const changed = JSON.stringify(currentValue) !== JSON.stringify(previousValue);
-
       differences.push({
         field,
         current: currentValue,
@@ -433,7 +397,6 @@ export async function getConfigComparison(
         changed,
       });
     }
-
     differences.push({
       field: "credentialsEncrypted",
       current: current.credentialsEncrypted ? "***已设置***" : null,
@@ -441,7 +404,6 @@ export async function getConfigComparison(
       changed: !!current.credentialsEncrypted !== !!previous.credentialsEncrypted,
     });
   }
-
   return {
     current,
     previous,
@@ -479,7 +441,6 @@ export async function getConfigVersionHistory(
       action: true,
     },
   });
-
   return auditLogs.map((log, index) => {
     const metadata = log.metadata as Record<string, unknown>;
     return {

@@ -41,10 +41,8 @@ interface GraphQLResponse {
 }
 
 function parseTypOspFromResponse(response: GraphQLResponse): TypOspStatusResult {
-
   if (response.errors) {
     const errorMessages = response.errors.map(e => e.message || "").join(" ");
-
     if (errorMessages.includes("access") || errorMessages.includes("permission")) {
       return {
         status: "unknown",
@@ -54,7 +52,6 @@ function parseTypOspFromResponse(response: GraphQLResponse): TypOspStatusResult 
         error: "Requires access to checkout and accounts editor",
       };
     }
-
     if (errorMessages.includes("rate") || errorMessages.includes("throttle")) {
       return {
         status: "unknown",
@@ -64,7 +61,6 @@ function parseTypOspFromResponse(response: GraphQLResponse): TypOspStatusResult 
         error: "Rate limited, try again later",
       };
     }
-
     return {
       status: "unknown",
       typOspPagesEnabled: null,
@@ -73,11 +69,9 @@ function parseTypOspFromResponse(response: GraphQLResponse): TypOspStatusResult 
       error: errorMessages.substring(0, 200),
     };
   }
-
   const profiles = response.data?.checkoutProfiles?.nodes || [];
   const shop = response.data?.shop;
   const isPlus = shop?.plan?.shopifyPlus === true;
-
   if (profiles.length === 0) {
     if (!isPlus) {
       return {
@@ -88,7 +82,6 @@ function parseTypOspFromResponse(response: GraphQLResponse): TypOspStatusResult 
         error: "Non-Plus shops may not have checkoutProfiles access",
       };
     }
-
     return {
       status: "unknown",
       typOspPagesEnabled: null,
@@ -97,9 +90,7 @@ function parseTypOspFromResponse(response: GraphQLResponse): TypOspStatusResult 
       error: "No checkout profiles returned",
     };
   }
-
   const hasTypOspField = profiles.some(node => node.typOspPagesActive !== undefined);
-
   if (!hasTypOspField) {
     const checkoutApiSupported = shop?.checkoutApiSupported === true;
     return {
@@ -109,10 +100,8 @@ function parseTypOspFromResponse(response: GraphQLResponse): TypOspStatusResult 
       confidence: "medium",
     };
   }
-
   const publishedProfiles = profiles.filter(p => p.isPublished === true);
   const hasTypOspActive = publishedProfiles.some(p => p.typOspPagesActive === true);
-
   return {
     status: hasTypOspActive ? "enabled" : "disabled",
     typOspPagesEnabled: hasTypOspActive,
@@ -141,16 +130,13 @@ describe("checkoutProfiles typOspPagesActive 解析", () => {
           },
         },
       };
-
       const result = parseTypOspFromResponse(response);
-
       expect(result.status).toBe("enabled");
       expect(result.typOspPagesEnabled).toBe(true);
       expect(result.confidence).toBe("high");
       expect(result.unknownReason).toBeUndefined();
     });
   });
-
   describe("Plus 商家 - 未升级到新版页面", () => {
     it("published + typOspPagesActive=false → disabled", () => {
       const response: GraphQLResponse = {
@@ -171,14 +157,11 @@ describe("checkoutProfiles typOspPagesActive 解析", () => {
           },
         },
       };
-
       const result = parseTypOspFromResponse(response);
-
       expect(result.status).toBe("disabled");
       expect(result.typOspPagesEnabled).toBe(false);
       expect(result.confidence).toBe("high");
     });
-
     it("多个 profiles，只要有一个 published+active 就是 enabled", () => {
       const response: GraphQLResponse = {
         data: {
@@ -204,13 +187,10 @@ describe("checkoutProfiles typOspPagesActive 解析", () => {
           },
         },
       };
-
       const result = parseTypOspFromResponse(response);
-
       expect(result.status).toBe("enabled");
       expect(result.typOspPagesEnabled).toBe(true);
     });
-
     it("未发布的 profile 不计入判断", () => {
       const response: GraphQLResponse = {
         data: {
@@ -236,14 +216,11 @@ describe("checkoutProfiles typOspPagesActive 解析", () => {
           },
         },
       };
-
       const result = parseTypOspFromResponse(response);
-
       expect(result.status).toBe("disabled");
       expect(result.typOspPagesEnabled).toBe(false);
     });
   });
-
   describe("权限不足场景", () => {
     it("NO_EDITOR_ACCESS - 权限错误", () => {
       const response: GraphQLResponse = {
@@ -251,15 +228,12 @@ describe("checkoutProfiles typOspPagesActive 解析", () => {
           { message: "You do not have access to checkout and accounts editor" },
         ],
       };
-
       const result = parseTypOspFromResponse(response);
-
       expect(result.status).toBe("unknown");
       expect(result.typOspPagesEnabled).toBe(null);
       expect(result.unknownReason).toBe("NO_EDITOR_ACCESS");
       expect(result.confidence).toBe("low");
     });
-
     it("NOT_PLUS - 非 Plus 商家无 profiles", () => {
       const response: GraphQLResponse = {
         data: {
@@ -272,15 +246,12 @@ describe("checkoutProfiles typOspPagesActive 解析", () => {
           },
         },
       };
-
       const result = parseTypOspFromResponse(response);
-
       expect(result.status).toBe("unknown");
       expect(result.unknownReason).toBe("NOT_PLUS");
       expect(result.confidence).toBe("medium");
     });
   });
-
   describe("API 错误场景", () => {
     it("RATE_LIMIT - API 限流", () => {
       const response: GraphQLResponse = {
@@ -288,29 +259,23 @@ describe("checkoutProfiles typOspPagesActive 解析", () => {
           { message: "rate limit exceeded, throttle request" },
         ],
       };
-
       const result = parseTypOspFromResponse(response);
-
       expect(result.status).toBe("unknown");
       expect(result.unknownReason).toBe("RATE_LIMIT");
       expect(result.confidence).toBe("low");
     });
-
     it("API_ERROR - 一般 API 错误", () => {
       const response: GraphQLResponse = {
         errors: [
           { message: "Internal server error" },
         ],
       };
-
       const result = parseTypOspFromResponse(response);
-
       expect(result.status).toBe("unknown");
       expect(result.unknownReason).toBe("API_ERROR");
       expect(result.confidence).toBe("low");
     });
   });
-
   describe("字段缺失降级", () => {
     it("FIELD_NOT_AVAILABLE - 降级到 checkoutApiSupported", () => {
       const response: GraphQLResponse = {
@@ -321,7 +286,6 @@ describe("checkoutProfiles typOspPagesActive 解析", () => {
                 id: "gid://shopify/CheckoutProfile/123456",
                 name: "Default",
                 isPublished: true,
-
               },
             ],
           },
@@ -331,9 +295,7 @@ describe("checkoutProfiles typOspPagesActive 解析", () => {
           },
         },
       };
-
       const result = parseTypOspFromResponse(response);
-
       expect(result.status).toBe("enabled");
       expect(result.typOspPagesEnabled).toBe(true);
       expect(result.unknownReason).toBe("FIELD_NOT_AVAILABLE");
@@ -355,7 +317,6 @@ describe("状态变更检测", () => {
         shop: { checkoutApiSupported: true, plan: { shopifyPlus: true } },
       },
     });
-
     const hasChanged = newResult.typOspPagesEnabled !== oldStatus.typOspPagesEnabled;
     expect(hasChanged).toBe(true);
   });

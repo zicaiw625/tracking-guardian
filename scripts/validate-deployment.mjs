@@ -12,36 +12,29 @@ const ROOT_DIR = path.join(__dirname, "..");
 function validateBuildExtensionsScript() {
     const result = { passed: true, errors: [], warnings: [] };
     const scriptPath = path.join(__dirname, "build-extensions.mjs");
-
     try {
-
         if (!fs.existsSync(scriptPath)) {
             result.passed = false;
             result.errors.push(`build-extensions.mjs 文件不存在: ${scriptPath}`);
             return result;
         }
-
         const content = fs.readFileSync(scriptPath, "utf-8");
-
         const openBraces = (content.match(/{/g) || []).length;
         const closeBraces = (content.match(/}/g) || []).length;
         if (openBraces !== closeBraces) {
             result.passed = false;
             result.errors.push(`build-extensions.mjs 中大括号不匹配: 开括号 ${openBraces}, 闭括号 ${closeBraces}`);
         }
-
         const openParens = (content.match(/\(/g) || []).length;
         const closeParens = (content.match(/\)/g) || []).length;
         if (openParens !== closeParens) {
             result.passed = false;
             result.errors.push(`build-extensions.mjs 中括号不匹配: 开括号 ${openParens}, 闭括号 ${closeParens}`);
         }
-
         if (!content.includes("THANK_YOU_CONFIG_FILE")) {
             result.passed = false;
             result.errors.push("build-extensions.mjs 中缺少对 thank-you-blocks 配置文件的处理");
         }
-
         if (!content.includes("SHARED_CONFIG_FILE")) {
             result.passed = false;
             result.errors.push("build-extensions.mjs 中缺少对 shared 配置文件的处理");
@@ -50,50 +43,39 @@ function validateBuildExtensionsScript() {
         result.passed = false;
         result.errors.push(`检查 build-extensions.mjs 时出错: ${error instanceof Error ? error.message : String(error)}`);
     }
-
     return result;
 }
 
 function validateExtensionToml() {
     const result = { passed: true, errors: [], warnings: [] };
     const tomlPath = path.join(ROOT_DIR, "extensions/thank-you-blocks/shopify.extension.toml");
-
     try {
         if (!fs.existsSync(tomlPath)) {
             result.passed = false;
             result.errors.push(`shopify.extension.toml 文件不存在: ${tomlPath}`);
             return result;
         }
-
         const content = fs.readFileSync(tomlPath, "utf-8");
-
         const lines = content.split("\n");
         let inCommentBlock = false;
         let currentExtensionUid = null;
         let currentExtensionName = null;
-
         for (let i = 0; i < lines.length; i++) {
             const line = lines[i].trim();
-
             if (line.startsWith("# [[extensions]]")) {
                 inCommentBlock = true;
                 continue;
             }
-
             if (inCommentBlock && line.startsWith("[[extensions]]") && !line.startsWith("#")) {
                 inCommentBlock = false;
             }
-
             if (!inCommentBlock) {
                 if (line.startsWith("name = ")) {
                     currentExtensionName = line.match(/name = "(.+)"/)?.[1] || null;
                 }
-
                 if (line.startsWith("uid = ")) {
                     currentExtensionUid = line.match(/uid = "(.+)"/)?.[1] || null;
-
                     if (currentExtensionUid) {
-
                         if (
                             currentExtensionUid.includes("00000000") ||
                             currentExtensionUid.includes("PLACEHOLDER") ||
@@ -113,7 +95,6 @@ function validateExtensionToml() {
         result.passed = false;
         result.errors.push(`检查 shopify.extension.toml 时出错: ${error instanceof Error ? error.message : String(error)}`);
     }
-
     return result;
 }
 
@@ -123,7 +104,6 @@ function validateImports() {
         "app/routes/app.verification.tsx",
         "app/routes/app.workspace.tsx",
     ];
-
     for (const file of filesToCheck) {
         const filePath = path.join(ROOT_DIR, file);
         try {
@@ -131,10 +111,8 @@ function validateImports() {
                 result.warnings.push(`文件不存在: ${file}`);
                 continue;
             }
-
             const content = fs.readFileSync(filePath, "utf-8");
             const lines = content.split("\n");
-
             const reactImports = [];
             for (let i = 0; i < lines.length; i++) {
                 const line = lines[i];
@@ -142,9 +120,7 @@ function validateImports() {
                     reactImports.push({ line: i + 1, content: line.trim() });
                 }
             }
-
             if (reactImports.length > 1) {
-
                 const allImports = new Set();
                 for (const imp of reactImports) {
                     const match = imp.content.match(/import\s+\{([^}]+)\}\s+from/);
@@ -169,7 +145,6 @@ function validateImports() {
 
     return result;
 }
-
 function validateBackendUrlInjection() {
     const result = { passed: true, errors: [], warnings: [] };
     const configFiles = [
@@ -184,13 +159,10 @@ function validateBackendUrlInjection() {
                 result.warnings.push(`配置文件不存在: ${configFile}`);
                 continue;
             }
-
             const content = fs.readFileSync(filePath, "utf-8");
-
             if (!content.includes("__BACKEND_URL_PLACEHOLDER__")) {
                 result.warnings.push(`配置文件 ${configFile} 中未找到占位符，可能已被替换`);
             }
-
             if (!content.includes("BACKEND_URL")) {
                 result.passed = false;
                 result.errors.push(`配置文件 ${configFile} 中缺少 BACKEND_URL 导出`);
@@ -202,7 +174,6 @@ function validateBackendUrlInjection() {
 
     return result;
 }
-
 async function main() {
     console.log("🔍 开始部署前验证...\n");
 
@@ -231,7 +202,6 @@ async function main() {
                 });
             }
         }
-
         if (result.warnings.length > 0) {
             result.warnings.forEach(warn => {
                 console.log(`    ⚠️  ${warn}`);
@@ -250,7 +220,6 @@ async function main() {
         process.exit(1);
     }
 }
-
 main().catch(error => {
     console.error("验证脚本执行失败:", error);
     process.exit(1);

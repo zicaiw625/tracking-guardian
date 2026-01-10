@@ -6,15 +6,10 @@ export const DEFAULT_BASE_DELAY_MS = 1000;
 export const DEFAULT_MAX_DELAY_MS = 30000;
 
 export interface HttpRequestOptions extends RequestInit {
-
   timeout?: number;
-
   retries?: number;
-
   baseDelayMs?: number;
-
   maxDelayMs?: number;
-
   retryOn?: Array<"timeout" | "network" | "5xx" | "429">;
 }
 
@@ -42,7 +37,6 @@ export async function fetchWithTimeout(
 ): Promise<Response> {
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
-
   try {
     const response = await fetch(url, {
       ...options,
@@ -76,17 +70,14 @@ export function isRetryableStatus(
 export function extractRetryAfter(response: Response): number | undefined {
   const retryAfter = response.headers.get("retry-after");
   if (!retryAfter) return undefined;
-
   const seconds = parseInt(retryAfter, 10);
   if (!isNaN(seconds)) {
     return seconds * 1000;
   }
-
   const date = new Date(retryAfter);
   if (!isNaN(date.getTime())) {
     return Math.max(0, date.getTime() - Date.now());
   }
-
   return undefined;
 }
 
@@ -106,15 +97,12 @@ export async function httpRequest<T = unknown>(
     retryOn = ["timeout", "network", "5xx"],
     ...fetchOptions
   } = options;
-
   let lastError: Error | undefined;
   const startTime = Date.now();
-
   for (let attempt = 0; attempt <= retries; attempt++) {
     try {
       const response = await fetchWithTimeout(url, fetchOptions, timeout);
       const duration = Date.now() - startTime;
-
       if (!response.ok && isRetryableStatus(response.status, retryOn) && attempt < retries) {
         const retryAfter = extractRetryAfter(response) || calculateBackoffDelay(attempt + 1, baseDelayMs, maxDelayMs);
         logger.debug(`HTTP ${response.status} from ${url}, retrying in ${retryAfter}ms`, {
@@ -124,17 +112,14 @@ export async function httpRequest<T = unknown>(
         await sleep(retryAfter);
         continue;
       }
-
       let data: T;
       const contentType = response.headers.get("content-type");
       if (contentType?.includes("application/json")) {
         data = await response.json() as T;
       } else {
         const text = await response.text();
-
         data = (typeof text === "string" ? text : { type: "text", content: text }) as T;
       }
-
       return {
         ok: response.ok,
         status: response.status,
@@ -146,13 +131,11 @@ export async function httpRequest<T = unknown>(
     } catch (error) {
       lastError = error instanceof Error ? error : new Error(String(error));
       const duration = Date.now() - startTime;
-
       const isTimeout = lastError.name === "AbortError";
       const isNetwork = lastError.message.includes("fetch") || lastError.message.includes("network");
       const shouldRetry =
         attempt < retries &&
         ((isTimeout && retryOn.includes("timeout")) || (isNetwork && retryOn.includes("network")));
-
       if (shouldRetry) {
         const delay = calculateBackoffDelay(attempt + 1, baseDelayMs, maxDelayMs);
         logger.debug(`HTTP error: ${lastError.message}, retrying in ${delay}ms`, {
@@ -165,13 +148,11 @@ export async function httpRequest<T = unknown>(
         await sleep(delay);
         continue;
       }
-
       const httpError: HttpError = {
         type: isTimeout ? "timeout" : isNetwork ? "network" : "unknown",
         message: lastError.message,
         retryable: false,
       };
-
       return {
         ok: false,
         status: isTimeout ? 408 : 0,
@@ -182,7 +163,6 @@ export async function httpRequest<T = unknown>(
       };
     }
   }
-
   const duration = Date.now() - startTime;
   const errorData: HttpError = {
     type: "unknown",

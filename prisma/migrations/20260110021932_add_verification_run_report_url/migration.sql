@@ -1,9 +1,9 @@
--- Add reportUrl column to VerificationRun table
+
 DO $$
 BEGIN
-    -- Check if VerificationRun table exists
+    
     IF EXISTS (SELECT FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'VerificationRun') THEN
-        -- Check if reportUrl column doesn't exist
+        
         IF NOT EXISTS (
             SELECT 1 FROM information_schema.columns 
             WHERE table_schema = 'public' 

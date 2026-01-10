@@ -250,7 +250,6 @@ export function mapEventToPlatform(
   missingParameters: string[];
 } {
   const mapping = EVENT_MAPPINGS[platform]?.[shopifyEvent];
-
   if (!mapping) {
     return {
       eventName: shopifyEvent,
@@ -259,30 +258,25 @@ export function mapEventToPlatform(
       missingParameters: [],
     };
   }
-
   const parameters: Record<string, unknown> = {};
   const missingParameters: string[] = [];
-
   for (const [shopifyKey, platformKey] of Object.entries(mapping.parameterMapping)) {
     const value = getNestedValue(payload.data, shopifyKey);
     if (value !== undefined) {
       parameters[platformKey] = value;
     }
   }
-
   for (const requiredParam of mapping.requiredParameters) {
     if (parameters[requiredParam] === undefined) {
       missingParameters.push(requiredParam);
     }
   }
-
   if (payload.data?.items && Array.isArray(payload.data.items)) {
     if (platform === "meta") {
       parameters.content_ids = payload.data.items.map((item: unknown) => {
         const itemObj = item as Record<string, unknown>;
         return itemObj.product_id || itemObj.variant_id || itemObj.sku;
       }).filter(Boolean);
-
       parameters.contents = payload.data.items.map((item: unknown) => {
         const itemObj = item as Record<string, unknown>;
         return {
@@ -315,7 +309,6 @@ export function mapEventToPlatform(
         const itemObj = item as Record<string, unknown>;
         return itemObj.product_id || itemObj.variant_id || itemObj.sku;
       }).filter(Boolean);
-
       parameters.items = payload.data.items.map((item: unknown) => {
         const itemObj = item as Record<string, unknown>;
         return {
@@ -327,7 +320,6 @@ export function mapEventToPlatform(
       });
     }
   }
-
   return {
     eventName: mapping.platformEvent,
     parameters,
@@ -340,27 +332,21 @@ function getNestedValue(obj: unknown, path: string): unknown {
   if (!obj || typeof obj !== "object" || obj === null) {
     return undefined;
   }
-
   const keys = path.split(".").filter(key => key.length > 0);
   if (keys.length === 0) {
     return undefined;
   }
-
   let current: unknown = obj;
-
   for (const key of keys) {
     if (current === null || current === undefined) {
       return undefined;
     }
-
     if (typeof current !== "object") {
       return undefined;
     }
-
     if (Array.isArray(current)) {
       return undefined;
     }
-
     if (typeof current === "object" && current !== null && !Array.isArray(current)) {
       const record = current as Record<string, unknown>;
       if (key in record) {
@@ -372,7 +358,6 @@ function getNestedValue(obj: unknown, path: string): unknown {
       return undefined;
     }
   }
-
   return current;
 }
 
@@ -384,13 +369,11 @@ export function normalizeParameterValue(
   if (value === null || value === undefined) {
     return undefined;
   }
-
   if (parameterName === "currency") {
     if (typeof value === "string") {
       return value.toUpperCase().trim();
     }
   }
-
   if (parameterName === "value" || parameterName.includes("price")) {
     if (typeof value === "number") {
       return Math.round(value * 100) / 100;
@@ -400,10 +383,8 @@ export function normalizeParameterValue(
       return isNaN(num) ? undefined : Math.round(num * 100) / 100;
     }
   }
-
   if (Array.isArray(value)) {
     return value.filter(item => item !== null && item !== undefined);
   }
-
   return value;
 }

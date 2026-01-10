@@ -39,7 +39,6 @@ export interface PixelConfigInput {
   serverSideEnabled?: boolean;
   eventMappings?: Prisma.InputJsonValue;
   isActive?: boolean;
-
   environment?: string;
 }
 
@@ -75,37 +74,29 @@ export async function getShopPixelConfigs(
   options: { serverSideOnly?: boolean; skipCache?: boolean; environment?: "test" | "live" } = {}
 ): Promise<PixelConfigCredentials[]> {
   const { serverSideOnly = false, skipCache = false, environment } = options;
-
   const cacheKey = `configs:${shopId}:${serverSideOnly ? "server" : "all"}:${environment || "live"}`;
-
   if (!skipCache) {
     const cached = shopPixelConfigsCache.get(cacheKey);
     if (cached !== undefined) {
       return cached;
     }
   }
-
   const where: Prisma.PixelConfigWhereInput = {
     shopId,
     isActive: true,
   };
-
   if (serverSideOnly) {
     where.serverSideEnabled = true;
   }
-
   if (environment) {
     where.environment = environment;
   } else {
-
     where.environment = "live";
   }
-
   const configs = await prisma.pixelConfig.findMany({
     where,
     select: CREDENTIALS_SELECT,
   });
-
   shopPixelConfigsCache.set(cacheKey, configs);
   return configs;
 }
@@ -138,7 +129,6 @@ export async function getPixelConfigSummaries(
     select: SUMMARY_SELECT,
     orderBy: { platform: "asc" },
   });
-
   return configs;
 }
 
@@ -147,7 +137,6 @@ export async function upsertPixelConfig(
   input: PixelConfigInput,
   options?: { saveSnapshot?: boolean }
 ): Promise<PixelConfigFull> {
-
   const v1SupportedPlatforms = ["google", "meta", "tiktok"];
   if (!v1SupportedPlatforms.includes(input.platform)) {
     throw new Error(
@@ -155,13 +144,10 @@ export async function upsertPixelConfig(
       `其他平台（如 Snapchat、Twitter、Pinterest）将在 v1.1+ 版本中提供支持。`
     );
   }
-
   const { requireEntitlementOrThrow } = await import("../billing/entitlement.server");
-
   if (input.serverSideEnabled) {
     await requireEntitlementOrThrow(shopId, "pixel_destinations");
   }
-
   if (input.clientConfig && typeof input.clientConfig === 'object' && 'mode' in input.clientConfig) {
     const mode = (input.clientConfig as { mode?: string }).mode;
     if (mode === 'full_funnel') {
@@ -170,16 +156,13 @@ export async function upsertPixelConfig(
   }
   const { platform, ...data } = input;
   const { saveSnapshot = true } = options || {};
-
   if (data.serverSideEnabled === true && !data.credentialsEncrypted) {
     throw new Error(
       "启用服务端追踪时必须提供 credentialsEncrypted。如果只需要客户端追踪，请设置 serverSideEnabled: false。"
     );
   }
-
   const environment = input.environment || "test";
   const platformId = data.platformId ?? null;
-
   const existingConfig = platformId
     ? await prisma.pixelConfig.findUnique({
         where: {
@@ -199,7 +182,6 @@ export async function upsertPixelConfig(
           platformId: null,
         },
       });
-
   if (existingConfig && saveSnapshot) {
     await saveConfigSnapshot(shopId, platform, environment as "test" | "live").catch((error) => {
       const errorMessage = error instanceof Error ? error.message : String(error);
@@ -210,7 +192,6 @@ export async function upsertPixelConfig(
       });
     });
   }
-
   const config = platformId
     ? await prisma.pixelConfig.upsert({
         where: {
@@ -289,9 +270,7 @@ export async function upsertPixelConfig(
           });
         }
       })();
-
   invalidatePixelConfigCache(shopId);
-
   return config;
 }
 
@@ -309,7 +288,6 @@ export async function deactivatePixelConfig(
         isActive: false,
       },
     });
-
     invalidatePixelConfigCache(shopId);
     return true;
   } catch {
@@ -328,7 +306,6 @@ export async function deletePixelConfig(
         platform,
       },
     });
-
     invalidatePixelConfigCache(shopId);
     return true;
   } catch {
@@ -341,32 +318,24 @@ export async function batchGetPixelConfigs(
   serverSideOnly: boolean = false
 ): Promise<Map<string, PixelConfigCredentials[]>> {
   if (shopIds.length === 0) return new Map();
-
   const uniqueIds = [...new Set(shopIds)];
-
   const where: Prisma.PixelConfigWhereInput = {
     shopId: { in: uniqueIds },
     isActive: true,
   };
-
   if (serverSideOnly) {
     where.serverSideEnabled = true;
   }
-
   const configs = await prisma.pixelConfig.findMany({
     where,
     select: CREDENTIALS_SELECT,
   });
-
   const result = new Map<string, PixelConfigCredentials[]>();
   for (const shopId of uniqueIds) {
     result.set(shopId, []);
   }
-
   for (const config of configs) {
-
   }
-
   const configsWithShop = await prisma.pixelConfig.findMany({
     where,
     select: {
@@ -374,14 +343,12 @@ export async function batchGetPixelConfigs(
       shopId: true,
     },
   });
-
   for (const config of configsWithShop) {
     const shopConfigs = result.get(config.shopId);
     if (shopConfigs) {
       shopConfigs.push(config);
     }
   }
-
   return result;
 }
 
@@ -395,7 +362,6 @@ export async function hasServerSideConfigs(shopId: string): Promise<boolean> {
     },
     select: { credentialsEncrypted: true },
   });
-
   return configs.some(
     (config) =>
       config.credentialsEncrypted &&
@@ -413,12 +379,10 @@ export async function getConfiguredPlatforms(
     },
     select: { platform: true },
   });
-
   return configs.map((c) => c.platform as PlatformType);
 }
 
 export function invalidatePixelConfigCache(shopId: string): void {
-
   shopPixelConfigsCache.delete(`configs:${shopId}:all:live`);
   shopPixelConfigsCache.delete(`configs:${shopId}:all:test`);
   shopPixelConfigsCache.delete(`configs:${shopId}:server:live`);

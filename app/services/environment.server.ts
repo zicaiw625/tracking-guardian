@@ -28,7 +28,6 @@ export async function getEnvironmentConfig(
   environment: PixelEnvironment = "live",
   platformId?: string | null
 ): Promise<EnvironmentConfig | null> {
-
   const config = platformId !== undefined
     ? await prisma.pixelConfig.findFirst({
         where: {
@@ -59,9 +58,7 @@ export async function getEnvironmentConfig(
           rollbackAllowed: true,
         },
       });
-
   if (!config) return null;
-
   return {
     shopId: config.shopId,
     platform: config.platform,
@@ -76,7 +73,6 @@ export async function switchEnvironment(
   platform: string,
   targetEnvironment: PixelEnvironment
 ): Promise<EnvironmentSwitchResult> {
-
   const existingConfigs = await prisma.pixelConfig.findMany({
     where: {
       shopId,
@@ -92,13 +88,10 @@ export async function switchEnvironment(
       serverSideEnabled: true,
     },
   });
-
   let config = existingConfigs.find(c => c.environment === targetEnvironment);
   if (!config && existingConfigs.length > 0) {
-
     config = existingConfigs[0];
   }
-
   if (!config) {
     return {
       success: false,
@@ -109,9 +102,7 @@ export async function switchEnvironment(
       error: "Platform configuration not found. Please create configuration first.",
     };
   }
-
   const previousEnvironment = config.environment as PixelEnvironment;
-
   if (previousEnvironment === targetEnvironment) {
     return {
       success: true,
@@ -121,16 +112,13 @@ export async function switchEnvironment(
       rollbackAllowed: true,
     };
   }
-
   if (targetEnvironment === "live") {
     const validationErrors: string[] = [];
-
     if (config.serverSideEnabled) {
       if (!config.credentialsEncrypted || config.credentialsEncrypted.trim().length === 0) {
         validationErrors.push("切换到生产环境需要配置服务端凭证");
       }
     }
-
     if (config.clientConfig) {
       const clientConfig = config.clientConfig as Record<string, unknown>;
       if (platform === "google" && !clientConfig.measurementId) {
@@ -143,7 +131,6 @@ export async function switchEnvironment(
         validationErrors.push("TikTok Pixel 需要配置 Pixel ID");
       }
     }
-
     if (validationErrors.length > 0) {
       return {
         success: false,
@@ -154,7 +141,6 @@ export async function switchEnvironment(
         error: validationErrors.join("；"),
       };
     }
-
     logger.info("Switching to live environment", {
       shopId,
       platform,
@@ -163,7 +149,6 @@ export async function switchEnvironment(
       hasCredentials: !!config.credentialsEncrypted,
     });
   } else if (targetEnvironment === "test") {
-
     logger.warn("Switching to test environment", {
       shopId,
       platform,
@@ -171,21 +156,16 @@ export async function switchEnvironment(
       note: "Test mode should only be used for development and testing",
     });
   }
-
   const previousConfig = {
     environment: previousEnvironment,
     clientConfig: config.clientConfig,
     credentialsEncrypted: config.credentialsEncrypted,
     savedAt: new Date().toISOString(),
   };
-
   try {
-
     const targetConfig = existingConfigs.find(c => c.environment === targetEnvironment);
-
     let updated;
     if (targetConfig && targetConfig.id !== config.id) {
-
       updated = await prisma.pixelConfig.update({
         where: { id: targetConfig.id },
         data: {
@@ -201,7 +181,6 @@ export async function switchEnvironment(
         },
       });
     } else if (previousEnvironment !== targetEnvironment) {
-
       const newConfig = await prisma.pixelConfig.create({
         data: {
           id: randomUUID(),
@@ -226,7 +205,6 @@ export async function switchEnvironment(
       });
       updated = newConfig;
     } else {
-
       updated = await prisma.pixelConfig.update({
         where: { id: config.id },
         data: {
@@ -242,7 +220,6 @@ export async function switchEnvironment(
         },
       });
     }
-
     logger.info(`Environment switched`, {
       shopId,
       platform,
@@ -250,7 +227,6 @@ export async function switchEnvironment(
       to: targetEnvironment,
       newVersion: updated.configVersion,
     });
-
     return {
       success: true,
       previousEnvironment,
@@ -264,7 +240,6 @@ export async function switchEnvironment(
       platform,
       error: error instanceof Error ? error.message : String(error),
     });
-
     return {
       success: false,
       previousEnvironment,
@@ -281,7 +256,6 @@ export async function rollbackEnvironment(
   platform: string,
   environment: PixelEnvironment = "live"
 ): Promise<EnvironmentSwitchResult> {
-
   const config = await prisma.pixelConfig.findFirst({
     where: {
       shopId,
@@ -297,7 +271,6 @@ export async function rollbackEnvironment(
       rollbackAllowed: true,
     },
   });
-
   if (!config) {
     return {
       success: false,
@@ -308,7 +281,6 @@ export async function rollbackEnvironment(
       error: "Platform configuration not found",
     };
   }
-
   if (!config.rollbackAllowed || !config.previousConfig) {
     return {
       success: false,
@@ -319,15 +291,12 @@ export async function rollbackEnvironment(
       error: "Rollback not available - no previous configuration saved",
     };
   }
-
   const previousConfig = config.previousConfig as {
     environment: PixelEnvironment;
     clientConfig?: unknown;
     credentialsEncrypted?: string;
   };
-
   const currentEnvironment = config.environment as PixelEnvironment;
-
   try {
     const updated = await prisma.pixelConfig.update({
       where: { id: config.id },
@@ -344,7 +313,6 @@ export async function rollbackEnvironment(
         rollbackAllowed: true,
       },
     });
-
     logger.info(`Environment rolled back`, {
       shopId,
       platform,
@@ -352,7 +320,6 @@ export async function rollbackEnvironment(
       to: previousConfig.environment,
       newVersion: updated.configVersion,
     });
-
     return {
       success: true,
       previousEnvironment: currentEnvironment,
@@ -366,7 +333,6 @@ export async function rollbackEnvironment(
       platform,
       error: error instanceof Error ? error.message : String(error),
     });
-
     return {
       success: false,
       previousEnvironment: currentEnvironment,
@@ -391,7 +357,6 @@ export async function getAllEnvironmentConfigs(
       rollbackAllowed: true,
     },
   });
-
   return configs.map((config) => ({
     shopId: config.shopId,
     platform: config.platform,
@@ -412,10 +377,8 @@ export async function switchAllEnvironments(
     where: { shopId, isActive: true },
     select: { platform: true },
   });
-
   const results: Record<string, EnvironmentSwitchResult> = {};
   let allSuccess = true;
-
   for (const config of configs) {
     const result = await switchEnvironment(shopId, config.platform, targetEnvironment);
     results[config.platform] = result;
@@ -423,7 +386,6 @@ export async function switchAllEnvironments(
       allSuccess = false;
     }
   }
-
   return { success: allSuccess, results };
 }
 
@@ -436,7 +398,6 @@ export function getPlatformEndpoint(
   platform: string,
   environment: PixelEnvironment
 ): { baseUrl: string; testMode: boolean } {
-
   const endpoints: Record<string, { test: string; live: string }> = {
     meta: {
       test: "https://graph.facebook.com/v18.0",
@@ -455,12 +416,10 @@ export function getPlatformEndpoint(
       live: "https://ct.pinterest.com/v3",
     },
   };
-
   const platformEndpoints = endpoints[platform];
   if (!platformEndpoints) {
     throw new Error(`Unknown platform: ${platform}`);
   }
-
   return {
     baseUrl: environment === "test" ? platformEndpoints.test : platformEndpoints.live,
     testMode: environment === "test",

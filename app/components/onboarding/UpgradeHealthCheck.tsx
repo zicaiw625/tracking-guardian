@@ -40,7 +40,6 @@ export function UpgradeHealthCheck({
   onViewDashboard,
 }: UpgradeHealthCheckProps) {
   const [showDetails, setShowDetails] = useState(false);
-
   const getRiskLevel = (score: number): {
     level: "low" | "medium" | "high";
     label: string;
@@ -54,10 +53,8 @@ export function UpgradeHealthCheck({
       return { level: "low", label: "低风险", tone: "success" };
     }
   };
-
   const riskLevel = getRiskLevel(riskScore);
   const estimatedHours = Math.ceil(estimatedMigrationTimeMinutes / 60);
-
   return (
     <Card>
       <BlockStack gap="400">
@@ -74,9 +71,7 @@ export function UpgradeHealthCheck({
             我们已自动扫描您的店铺，评估迁移风险并生成迁移建议
           </Text>
         </BlockStack>
-
         <Divider />
-
         <BlockStack gap="300">
           <Text as="h3" variant="headingMd">
             升级状态
@@ -106,7 +101,6 @@ export function UpgradeHealthCheck({
             </InlineStack>
           </Box>
         </BlockStack>
-
         <BlockStack gap="300">
           <InlineStack align="space-between" blockAlign="center">
             <Text as="h3" variant="headingMd">
@@ -129,7 +123,6 @@ export function UpgradeHealthCheck({
                 : "风险较低，可以按计划完成迁移"}
           </Text>
         </BlockStack>
-
         <BlockStack gap="300">
           <Text as="h3" variant="headingMd">
             检测结果摘要
@@ -176,7 +169,6 @@ export function UpgradeHealthCheck({
             </BlockStack>
           </Box>
         </BlockStack>
-
         <Banner tone="info" title="下一步操作">
           <BlockStack gap="200">
             <Text as="p" variant="bodySm">
@@ -194,9 +186,7 @@ export function UpgradeHealthCheck({
             </List>
           </BlockStack>
         </Banner>
-
         <Divider />
-
         <InlineStack gap="200" align="end">
           <Button onClick={onViewDashboard}>查看仪表盘</Button>
           <Button variant="primary" onClick={onStartAudit} icon={ArrowRightIcon}>

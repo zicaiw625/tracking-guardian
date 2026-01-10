@@ -19,21 +19,16 @@ export function sanitizeString(input: unknown): string {
   if (typeof input !== "string") {
     return "";
   }
-
   let sanitized = input.replace(/\0/g, "");
-
   sanitized = sanitized.trim();
-
   if (sanitized.length > 10000) {
     sanitized = sanitized.substring(0, 10000);
   }
-
   return sanitized;
 }
 
 export function sanitizeObject<T extends Record<string, unknown>>(obj: T): T {
   const sanitized: Record<string, unknown> = {};
-
   for (const [key, value] of Object.entries(obj)) {
     if (typeof value === "string") {
       sanitized[key] = sanitizeString(value);
@@ -51,7 +46,6 @@ export function sanitizeObject<T extends Record<string, unknown>>(obj: T): T {
       sanitized[key] = value;
     }
   }
-
   return sanitized as T;
 }
 
@@ -64,22 +58,18 @@ export function escapeHtml(input: string): string {
     "'": "&#x27;",
     "/": "&#x2F;",
   };
-
   return input.replace(/[&<>"'/]/g, (char) => htmlEntities[char] || char);
 }
 
 export function sanitizeUrl(url: string): string | null {
   try {
     const parsed = new URL(url);
-
     if (!["http:", "https:"].includes(parsed.protocol)) {
       return null;
     }
-
     if (url.toLowerCase().includes("javascript:")) {
       return null;
     }
-
     return parsed.toString();
   } catch {
     return null;
@@ -93,19 +83,16 @@ export function validateBodySize(
   if (!contentLength) {
     return { valid: true };
   }
-
   const size = parseInt(contentLength, 10);
   if (isNaN(size)) {
     return { valid: false, error: "Invalid content-length header" };
   }
-
   if (size > maxSize) {
     return {
       valid: false,
       error: `Request body too large: ${size} bytes (max: ${maxSize})`,
     };
   }
-
   return { valid: true };
 }
 
@@ -116,16 +103,13 @@ export function validateContentType(
   if (!contentType) {
     return { valid: false, error: "Missing content-type header" };
   }
-
   const type = contentType.split(";")[0].trim().toLowerCase();
-
   if (!allowedTypes.includes(type)) {
     return {
       valid: false,
       error: `Invalid content-type: ${type}. Allowed: ${allowedTypes.join(", ")}`,
     };
   }
-
   return { valid: true };
 }
 
@@ -133,22 +117,17 @@ export function validateOrigin(
   origin: string | null,
   allowedOrigins: string[]
 ): { valid: boolean; error?: string } {
-
   if (!origin) {
     return { valid: true };
   }
-
   const normalizedOrigin = origin.toLowerCase();
-
   for (const allowed of allowedOrigins) {
     if (allowed === "*") {
       return { valid: true };
     }
-
     if (normalizedOrigin === allowed.toLowerCase()) {
       return { valid: true };
     }
-
     if (allowed.startsWith("*.")) {
       const domain = allowed.substring(2);
       if (
@@ -159,7 +138,6 @@ export function validateOrigin(
       }
     }
   }
-
   return {
     valid: false,
     error: `Origin ${origin} not allowed`,
@@ -184,11 +162,9 @@ export function applySecurityHeaders(
   headers: Record<string, string> = API_SECURITY_HEADERS
 ): Response {
   const newHeaders = new Headers(response.headers);
-
   for (const [key, value] of Object.entries(headers)) {
     newHeaders.set(key, value);
   }
-
   return new Response(response.body, {
     status: response.status,
     statusText: response.statusText,
@@ -198,39 +174,27 @@ export function applySecurityHeaders(
 
 export function containsSqlInjectionPattern(input: string): boolean {
   const patterns = [
-
     /(\b(SELECT|INSERT|UPDATE|DELETE|DROP|CREATE|ALTER|TRUNCATE|UNION|INTO|FROM|WHERE|OR|AND)\b.*\b(SELECT|INSERT|UPDATE|DELETE|DROP|CREATE|ALTER|TRUNCATE|UNION|FROM|WHERE)\b)/i,
-
     /(['"];\s*(DROP|DELETE|INSERT|UPDATE|CREATE))/i,
-
     /(\b(OR|AND)\s*['"]?\s*\d+\s*=\s*\d+)/i,
-
     /(--\s*$)/i,
-
     /(;\s*--)/i,
-
     /(\bEXEC\s*\()/i,
   ];
-
   return patterns.some((pattern) => pattern.test(input));
 }
-
 export function validateDatabaseInput(input: unknown): boolean {
   if (typeof input !== "string") {
     return true;
   }
-
   return !containsSqlInjectionPattern(input);
 }
-
 export const SafeStringSchema = z
   .string()
   .max(10000, "String too long")
-
   .refine((s) => !/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/.test(s), {
     message: "String contains invalid control characters",
   });
-
 export const SecureShopDomainSchema = z
   .string()
   .min(1)
@@ -238,7 +202,6 @@ export const SecureShopDomainSchema = z
   .regex(/^[a-z0-9][a-z0-9-]*\.myshopify\.com$/i, {
     message: "Invalid Shopify domain format",
   });
-
 export const SecureEmailSchema = z
   .string()
   .email()
@@ -250,7 +213,6 @@ export const SecureEmailSchema = z
     message: "Invalid email format",
   })
   .transform((email) => email.toLowerCase().trim());
-
 export const SecureOrderIdSchema = z
   .string()
   .min(1)
@@ -258,7 +220,6 @@ export const SecureOrderIdSchema = z
   .regex(/^[a-zA-Z0-9_:-]+$/, {
     message: "Invalid order ID format",
   });
-
 export const SecureUrlSchema = z
   .string()
   .url()
@@ -276,78 +237,51 @@ export const SecureUrlSchema = z
   .refine((url) => isPublicUrl(url), {
     message: "Internal or private URLs are not allowed",
   });
-
 export function isPublicUrl(urlStr: string): boolean {
   try {
     const url = new URL(urlStr);
     const hostname = url.hostname.toLowerCase();
-
     if (hostname === "localhost") return false;
-
     if (hostname === "::1" || hostname === "[::1]") return false;
-
     const ipv4Regex = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/;
     const match = hostname.match(ipv4Regex);
-
     if (match) {
       const octet1 = parseInt(match[1], 10);
       const octet2 = parseInt(match[2], 10);
-
       if (octet1 === 127) return false;
-
       if (octet1 === 10) return false;
-
       if (octet1 === 172 && octet2 >= 16 && octet2 <= 31) return false;
-
       if (octet1 === 192 && octet2 === 168) return false;
-
       if (octet1 === 169 && octet2 === 254) return false;
-
       if (octet1 === 0) return false;
     }
-
     return true;
   } catch {
     return false;
   }
 }
-
 export function containsSensitiveInfo(text: string): boolean {
   if (typeof text !== "string" || text.length === 0) {
     return false;
   }
-
   const sensitivePatterns = [
-
     /(?:api[_-]?key|apikey)[\s:=]+['"]?([a-zA-Z0-9_-]{20,})['"]?/gi,
-
     /(?:access[_-]?token|token|bearer)[\s:=]+['"]?([a-zA-Z0-9_-]{20,})['"]?/gi,
-
     /(?:secret|password|pwd|passwd)[\s:=]+['"]?([^\s'"]{10,})['"]?/gi,
-
     /(?:email|mailto)[\s:=]+['"]?([^\s'"]+@[^\s'"]+\.[a-z]{2,})['"]?/gi,
-
     /(?:phone|tel|mobile)[\s:=]+['"]?(\+?[0-9]{10,})['"]?/gi,
-
     /\b\d{4}[-\s]?\d{4}[-\s]?\d{4}[-\s]?\d{4}\b/gi,
-
     /AKIA[0-9A-Z]{16}/gi,
-
     /-----BEGIN\s+(RSA\s+)?PRIVATE\s+KEY-----/gi,
-
     /oauth[_-]?token[\s:=]+['"]?([a-zA-Z0-9_-]{20,})['"]?/gi,
   ];
-
   return sensitivePatterns.some((pattern) => pattern.test(text));
 }
-
 export function sanitizeSensitiveInfo(text: string): string {
   if (typeof text !== "string" || text.length === 0) {
     return text;
   }
-
   let sanitized = text;
-
   const replacementPatterns = [
     {
       pattern: /(?:api[_-]?key|apikey)[\s:=]+['"]?[^'"]+['"]?/gi,
@@ -382,10 +316,8 @@ export function sanitizeSensitiveInfo(text: string): string {
       replacement: "[PRIVATE_KEY_REDACTED]",
     },
   ];
-
   for (const { pattern, replacement } of replacementPatterns) {
     sanitized = sanitized.replace(pattern, replacement);
   }
-
   return sanitized;
 }

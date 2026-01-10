@@ -38,11 +38,9 @@ function tryDecryptEncrypted(
       platform,
     })
   );
-
   if (!result.ok) {
     logger.warn(`Failed to decrypt credentialsEncrypted for ${platform}: ${result.error.message}`);
   }
-
   return result;
 }
 
@@ -51,7 +49,6 @@ function tryReadLegacy(
   platform: string
 ): Result<PlatformCredentials, CredentialError> {
   if (typeof legacyCredentials === "string") {
-
     const result = fromThrowable(
       () => decryptJson<PlatformCredentials>(legacyCredentials),
       (e): CredentialError => ({
@@ -60,19 +57,15 @@ function tryReadLegacy(
         platform,
       })
     );
-
     if (result.ok) {
       logger.info(`Using legacy encrypted credentials for ${platform} - please migrate`);
     }
     return result;
   }
-
   if (typeof legacyCredentials === "object" && legacyCredentials !== null) {
-
     logger.info(`Using legacy plaintext credentials for ${platform} - please migrate`);
     return ok(legacyCredentials as PlatformCredentials);
   }
-
   return err({
     type: "NO_CREDENTIALS",
     message: "Invalid legacy credentials format",
@@ -84,15 +77,12 @@ export function decryptCredentials(
   pixelConfig: PixelConfigForCredentials,
   platform: string
 ): Result<CredentialsWithMetadata, CredentialError> {
-
   if (pixelConfig.credentialsEncrypted) {
     const encryptedResult = tryDecryptEncrypted(pixelConfig.credentialsEncrypted, platform);
     if (encryptedResult.ok) {
       return ok({ credentials: encryptedResult.value, usedLegacy: false });
     }
-
   }
-
   if (pixelConfig.credentials_legacy) {
     const legacyResult = tryReadLegacy(pixelConfig.credentials_legacy, platform);
     if (legacyResult.ok) {
@@ -100,7 +90,6 @@ export function decryptCredentials(
     }
     return err(legacyResult.error);
   }
-
   return err({
     type: "NO_CREDENTIALS",
     message: "No credentials found in configuration",
@@ -147,7 +136,6 @@ export function validatePlatformCredentials(
       break;
     }
   }
-
   return ok(credentials);
 }
 
@@ -156,19 +144,15 @@ export function getValidCredentials(
   platform: string
 ): Result<CredentialsWithMetadata, CredentialError> {
   const decryptResult = decryptCredentials(pixelConfig, platform);
-
   if (!decryptResult.ok) {
     return decryptResult;
   }
-
   const validationResult = validatePlatformCredentials(
     decryptResult.value.credentials,
     platform
   );
-
   if (!validationResult.ok) {
     return validationResult;
   }
-
   return ok(decryptResult.value);
 }

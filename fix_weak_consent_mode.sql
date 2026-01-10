@@ -1,5 +1,5 @@
--- Fix missing weakConsentMode column in Shop table
--- This script can be run directly on the database
+
+
 
 DO $$
 BEGIN
@@ -14,7 +14,7 @@ BEGIN
     END IF;
 END $$;
 
--- Verify the column was added
+
 SELECT 
     column_name, 
     data_type, 

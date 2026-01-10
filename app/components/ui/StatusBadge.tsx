@@ -24,21 +24,16 @@ export type HealthStatus = "healthy" | "degraded" | "unhealthy" | "unknown";
 export type PlatformStatus = "active" | "inactive" | "error" | "pending";
 
 export interface StatusBadgeProps {
-
   status: StatusType;
-
   label: string;
-
   tooltip?: string;
 }
 
 export function StatusBadge({ status, label, tooltip }: StatusBadgeProps) {
   const badge = <Badge tone={status}>{label}</Badge>;
-
   if (tooltip) {
     return <Tooltip content={tooltip}>{badge}</Tooltip>;
   }
-
   return badge;
 }
 
@@ -61,7 +56,6 @@ const JOB_STATUS_CONFIG: Record<JobStatus, { label: string; tone: StatusType; to
 
 export function JobStatusBadge({ status, showTooltip = true }: JobStatusBadgeProps) {
   const config = JOB_STATUS_CONFIG[status] || JOB_STATUS_CONFIG.pending;
-
   return (
     <StatusBadge
       status={config.tone}
@@ -87,7 +81,6 @@ const HEALTH_STATUS_CONFIG: Record<HealthStatus, { label: string; tone: StatusTy
 export function HealthStatusBadge({ status, score, showTooltip = true }: HealthStatusBadgeProps) {
   const config = HEALTH_STATUS_CONFIG[status] || HEALTH_STATUS_CONFIG.unknown;
   const label = score !== undefined ? `${config.label} (${score}分)` : config.label;
-
   return (
     <StatusBadge
       status={config.tone}
@@ -115,7 +108,6 @@ export function PlatformStatusBadge({ status, platform, showTooltip = true }: Pl
   const tooltip = platform
     ? `${platform}: ${config.tooltip}`
     : config.tooltip;
-
   return (
     <StatusBadge
       status={config.tone}
@@ -133,7 +125,6 @@ export interface RiskScoreBadgeProps {
 export function RiskScoreBadge({ score, showTooltip = true }: RiskScoreBadgeProps) {
   let tone: StatusType;
   let tooltip: string;
-
   if (score >= 70) {
     tone = "critical";
     tooltip = "高风险：建议立即采取行动";
@@ -144,7 +135,6 @@ export function RiskScoreBadge({ score, showTooltip = true }: RiskScoreBadgeProp
     tone = "success";
     tooltip = "低风险：状态良好";
   }
-
   return (
     <StatusBadge
       status={tone}

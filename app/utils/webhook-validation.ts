@@ -31,25 +31,20 @@ export function parseGDPRDataRequestPayload(data: unknown, shopDomain: string): 
         logger.warn(`[GDPR] Invalid data_request payload from ${shopDomain}: not an object`);
         return null;
     }
-
     const raw = data as Record<string, unknown>;
     const errors: string[] = [];
-
     if (typeof raw.shop_id !== "number") {
         errors.push("Missing or invalid 'shop_id'");
     }
     if (typeof raw.shop_domain !== "string") {
         errors.push("Missing or invalid 'shop_domain'");
     }
-
     if (errors.length > 0) {
         logger.warn(`[GDPR] Invalid data_request payload from ${shopDomain}`, { errors });
         return null;
     }
-
     const customer = raw.customer as Record<string, unknown> | undefined;
     const dataRequest = raw.data_request as Record<string, unknown> | undefined;
-
     return {
         shop_id: raw.shop_id as number,
         shop_domain: raw.shop_domain as string,
@@ -66,24 +61,19 @@ export function parseGDPRCustomerRedactPayload(data: unknown, shopDomain: string
         logger.warn(`[GDPR] Invalid customer_redact payload from ${shopDomain}: not an object`);
         return null;
     }
-
     const raw = data as Record<string, unknown>;
     const errors: string[] = [];
-
     if (typeof raw.shop_id !== "number") {
         errors.push("Missing or invalid 'shop_id'");
     }
     if (typeof raw.shop_domain !== "string") {
         errors.push("Missing or invalid 'shop_domain'");
     }
-
     if (errors.length > 0) {
         logger.warn(`[GDPR] Invalid customer_redact payload from ${shopDomain}`, { errors });
         return null;
     }
-
     const customer = raw.customer as Record<string, unknown> | undefined;
-
     return {
         shop_id: raw.shop_id as number,
         shop_domain: raw.shop_domain as string,
@@ -99,22 +89,18 @@ export function parseGDPRShopRedactPayload(data: unknown, shopDomain: string): G
         logger.warn(`[GDPR] Invalid shop_redact payload from ${shopDomain}: not an object`);
         return null;
     }
-
     const raw = data as Record<string, unknown>;
     const errors: string[] = [];
-
     if (typeof raw.shop_id !== "number") {
         errors.push("Missing or invalid 'shop_id'");
     }
     if (typeof raw.shop_domain !== "string") {
         errors.push("Missing or invalid 'shop_domain'");
     }
-
     if (errors.length > 0) {
         logger.warn(`[GDPR] Invalid shop_redact payload from ${shopDomain}`, { errors });
         return null;
     }
-
     return {
         shop_id: raw.shop_id as number,
         shop_domain: raw.shop_domain as string,

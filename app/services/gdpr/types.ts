@@ -126,7 +126,6 @@ export interface ShopRedactDeletionCounts {
   alertConfigs: number;
   pixelConfigs: number;
   monthlyUsages: number;
-
   eventLogs: number;
   deliveryAttempts: number;
   shop: number;
@@ -268,7 +267,6 @@ export function createEmptyShopRedactDeletionCounts(): ShopRedactDeletionCounts 
     alertConfigs: 0,
     pixelConfigs: 0,
     monthlyUsages: 0,
-
     eventLogs: 0,
     deliveryAttempts: 0,
     shop: 0,

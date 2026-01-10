@@ -40,7 +40,6 @@ export async function analyzeDependencies(
       displayName: true,
     },
   });
-
   const nodes = assets.map((asset) => ({
     id: `asset-${asset.id}`,
     assetId: asset.id,
@@ -51,9 +50,7 @@ export async function analyzeDependencies(
     estimatedTimeMinutes: asset.estimatedTimeMinutes,
     displayName: asset.displayName,
   }));
-
   const edges: DependencyGraph["edges"] = [];
-
   assets.forEach((asset) => {
     if (asset.dependencies && Array.isArray(asset.dependencies)) {
       const deps = asset.dependencies as string[];
@@ -70,7 +67,6 @@ export async function analyzeDependencies(
       });
     }
   });
-
   assets.forEach((asset) => {
     if (asset.platform && asset.riskLevel === "high") {
       const samePlatformLowRisk = assets.filter(
@@ -79,7 +75,6 @@ export async function analyzeDependencies(
           a.platform === asset.platform &&
           a.riskLevel === "low"
       );
-
       samePlatformLowRisk.forEach((lowRiskAsset) => {
         edges.push({
           from: `asset-${asset.id}`,
@@ -90,14 +85,12 @@ export async function analyzeDependencies(
       });
     }
   });
-
   const webPixelAssets = assets.filter(
     (a) => a.suggestedMigration === "web_pixel"
   );
   const uiExtensionAssets = assets.filter(
     (a) => a.suggestedMigration === "ui_extension"
   );
-
   webPixelAssets.forEach((webPixelAsset) => {
     uiExtensionAssets.forEach((uiExtensionAsset) => {
       if (webPixelAsset.platform === uiExtensionAsset.platform) {
@@ -110,7 +103,6 @@ export async function analyzeDependencies(
       }
     });
   });
-
   return { nodes, edges };
 }
 
@@ -123,83 +115,66 @@ export async function generateMigrationOrder(
   dependencies: string[];
 }>> {
   const graph = await analyzeDependencies(shopId);
-
   const inDegree = new Map<string, number>();
   const dependents = new Map<string, string[]>();
-
   graph.nodes.forEach((node) => {
     inDegree.set(node.id, 0);
     dependents.set(node.id, []);
   });
-
   graph.edges.forEach((edge) => {
     if (edge.type === "depends_on") {
       const current = inDegree.get(edge.to) || 0;
       inDegree.set(edge.to, current + 1);
-
       const deps = dependents.get(edge.from) || [];
       deps.push(edge.to);
       dependents.set(edge.from, deps);
     }
   });
-
   const ordered: Array<{
     assetId: string;
     order: number;
     reason: string;
     dependencies: string[];
   }> = [];
-
   const processed = new Set<string>();
   let currentOrder = 1;
-
   const noDependencyNodes = graph.nodes.filter(
     (node) => (inDegree.get(node.id) || 0) === 0
   );
-
   noDependencyNodes.sort((a, b) => {
     const priorityA = a.priority || 0;
     const priorityB = b.priority || 0;
     if (priorityA !== priorityB) {
       return priorityB - priorityA;
     }
-
     const riskOrder = { high: 3, medium: 2, low: 1 };
     return (
       riskOrder[b.riskLevel as keyof typeof riskOrder] -
       riskOrder[a.riskLevel as keyof typeof riskOrder]
     );
   });
-
   const queue = [...noDependencyNodes];
-
   while (queue.length > 0) {
     const node = queue.shift();
     if (!node || processed.has(node.id)) continue;
-
     const asset = await prisma.auditAsset.findUnique({
       where: { id: node.assetId },
       select: { dependencies: true },
     });
-
     const dependencies = asset?.dependencies
       ? (asset.dependencies as string[])
       : [];
-
     ordered.push({
       assetId: node.assetId,
       order: currentOrder++,
       reason: `优先级 ${node.priority || "N/A"}，${node.riskLevel} 风险`,
       dependencies,
     });
-
     processed.add(node.id);
-
     const dependentsList = dependents.get(node.id) || [];
     dependentsList.forEach((dependentId) => {
       const current = inDegree.get(dependentId) || 0;
       inDegree.set(dependentId, Math.max(0, current - 1));
-
       if (inDegree.get(dependentId) === 0) {
         const dependentNode = graph.nodes.find((n) => n.id === dependentId);
         if (dependentNode && !processed.has(dependentId)) {
@@ -208,18 +183,15 @@ export async function generateMigrationOrder(
       }
     });
   }
-
   for (const node of graph.nodes) {
     if (!processed.has(node.id)) {
       const asset = await prisma.auditAsset.findUnique({
         where: { id: node.assetId },
         select: { dependencies: true },
       });
-
       const dependencies = asset?.dependencies
         ? (asset.dependencies as string[])
         : [];
-
       ordered.push({
         assetId: node.assetId,
         order: currentOrder++,
@@ -228,6 +200,5 @@ export async function generateMigrationOrder(
       });
     }
   }
-
   return ordered;
 }

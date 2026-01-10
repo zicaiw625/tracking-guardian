@@ -26,7 +26,6 @@ export interface TrackingProviderConfig {
 
 function normalizeTrackingStatus(status: string): string {
   const normalized = status.toLowerCase().trim();
-
   if (normalized === "pending" || normalized === "inforeceived") {
     return "pending";
   }
@@ -39,27 +38,22 @@ function normalizeTrackingStatus(status: string): string {
   if (normalized === "exception" || normalized === "expired" || normalized === "attemptfail" || normalized === "undelivered") {
     return "exception";
   }
-
   return "pending";
 }
 
 export class AfterShipTracker {
   private apiKey: string;
   private baseUrl = "https://api.aftership.com/v4";
-
   constructor(apiKey: string) {
     this.apiKey = apiKey;
   }
-
   async getTracking(trackingNumber: string, carrier?: string): Promise<TrackingInfo | null> {
     try {
-
       const url = new URL(`${this.baseUrl}/trackings`);
       url.searchParams.append("tracking_numbers", trackingNumber);
       if (carrier) {
         url.searchParams.append("slug", carrier);
       }
-
       const response = await fetch(url.toString(), {
         method: "GET",
         headers: {
@@ -67,22 +61,18 @@ export class AfterShipTracker {
           "Content-Type": "application/json",
         },
       });
-
       if (!response.ok) {
         if (response.status === 404) {
           return null;
         }
         throw new Error(`AfterShip API error: ${response.statusText}`);
       }
-
       const data = await response.json();
-
       const trackings = data.data?.trackings || [];
       if (trackings.length === 0) {
         return null;
       }
       const tracking = trackings[0];
-
       return {
         trackingNumber: tracking.tracking_number,
         carrier: tracking.slug,
@@ -111,7 +101,6 @@ export class AfterShipTracker {
       return null;
     }
   }
-
   async createTracking(
     trackingNumber: string,
     carrier: string,
@@ -132,7 +121,6 @@ export class AfterShipTracker {
           },
         }),
       });
-
       return response.ok;
     } catch (error) {
       logger.error("Failed to create tracking in AfterShip", {
@@ -147,14 +135,11 @@ export class AfterShipTracker {
 export class SeventeenTrackTracker {
   private apiKey: string;
   private baseUrl = "https://api.17track.net";
-
   constructor(apiKey: string) {
     this.apiKey = apiKey;
   }
-
   async getTracking(trackingNumber: string, carrier?: string): Promise<TrackingInfo | null> {
     try {
-
       const response = await fetch(`${this.baseUrl}/gettrackinfo`, {
         method: "POST",
         headers: {
@@ -168,27 +153,21 @@ export class SeventeenTrackTracker {
           },
         ]),
       });
-
       if (!response.ok) {
         if (response.status === 404) {
           return null;
         }
         throw new Error(`17Track API error: ${response.statusText}`);
       }
-
       const data = await response.json();
-
       if (data.code !== 0 || !data.data?.accepted || data.data.accepted.length === 0) {
         return null;
       }
-
       const track = data.data.accepted[0];
       const trackInfo = data.data.track?.[track.number];
-
       if (!trackInfo) {
         return null;
       }
-
       const rawStatus = this.mapStatus(trackInfo.latest_status?.status || "Unknown");
       return {
         trackingNumber: track.number,
@@ -220,7 +199,6 @@ export class SeventeenTrackTracker {
       return null;
     }
   }
-
   private mapStatus(status: string): string {
     const statusMap: Record<string, string> = {
       "1": "InTransit",
@@ -242,7 +220,6 @@ export async function getTrackingInfo(
     logger.warn("Tracking provider API key not configured", { provider: config.provider });
     return null;
   }
-
   switch (config.provider) {
     case "aftership":
       const aftership = new AfterShipTracker(config.apiKey);
@@ -252,7 +229,6 @@ export async function getTrackingInfo(
       return seventeenTrack.getTracking(trackingNumber, carrier);
     case "native":
     default:
-
       return null;
   }
 }
@@ -269,12 +245,10 @@ export async function getTrackingFromShopifyOrder(
   if (!orderData.fulfillmentTrackingInfo || orderData.fulfillmentTrackingInfo.length === 0) {
     return null;
   }
-
   const tracking = orderData.fulfillmentTrackingInfo[0];
   return {
     trackingNumber: tracking.number,
     carrier: tracking.company || "unknown",
-
     status: "in_transit",
     events: [],
   };

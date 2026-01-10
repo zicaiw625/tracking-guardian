@@ -12,12 +12,10 @@ function checkBuildExtensionsSyntax() {
     const filePath = path.join(__dirname, "build-extensions.mjs");
     try {
         const content = fs.readFileSync(filePath, "utf-8");
-
         const openBraces = (content.match(/\{/g) || []).length;
         const closeBraces = (content.match(/\}/g) || []).length;
         const openParens = (content.match(/\(/g) || []).length;
         const closeParens = (content.match(/\)/g) || []).length;
-
         if (openBraces !== closeBraces) {
             return {
                 name: "build-extensions.mjs 语法检查",
@@ -25,7 +23,6 @@ function checkBuildExtensionsSyntax() {
                 message: `大括号不匹配：${openBraces} 个开括号，${closeBraces} 个闭括号`,
             };
         }
-
         if (openParens !== closeParens) {
             return {
                 name: "build-extensions.mjs 语法检查",
@@ -33,7 +30,6 @@ function checkBuildExtensionsSyntax() {
                 message: `圆括号不匹配：${openParens} 个开括号，${closeParens} 个闭括号`,
             };
         }
-
         if (!content.includes("injectBackendUrl")) {
             return {
                 name: "build-extensions.mjs 语法检查",
@@ -41,7 +37,6 @@ function checkBuildExtensionsSyntax() {
                 message: "缺少 injectBackendUrl 函数",
             };
         }
-
         if (!content.includes("restorePlaceholder")) {
             return {
                 name: "build-extensions.mjs 语法检查",
@@ -49,7 +44,6 @@ function checkBuildExtensionsSyntax() {
                 message: "缺少 restorePlaceholder 函数",
             };
         }
-
         return {
             name: "build-extensions.mjs 语法检查",
             passed: true,
@@ -68,50 +62,38 @@ function checkExtensionUids() {
     const filePath = path.join(__dirname, "../extensions/thank-you-blocks/shopify.extension.toml");
     try {
         const content = fs.readFileSync(filePath, "utf-8");
-
         const uidLines = content.match(/uid\s*=\s*"([^"]+)"/g) || [];
         const placeholderPattern = /^0{8,}|^[a-f0-9]{8}-0{4}-0{4}-0{4}-0{12,}$/i;
-
         const invalidUids = [];
-
         for (const line of uidLines) {
             const match = line.match(/uid\s*=\s*"([^"]+)"/);
             if (match && match[1]) {
                 const uid = match[1];
-
                 if (placeholderPattern.test(uid) || uid.includes("PLACEHOLDER") || uid.includes("placeholder")) {
                     invalidUids.push(uid);
                 }
             }
         }
-
         const lines = content.split("\n");
         const activeInvalidUids = [];
-
         for (let i = 0; i < lines.length; i++) {
             const line = lines[i];
             if (line.includes("uid =") && !line.trim().startsWith("#")) {
-
                 let isCommented = false;
-
                 for (let j = i - 1; j >= 0 && j >= i - 30; j--) {
                     const prevLine = lines[j].trim();
-
                     if (prevLine.startsWith("# [[extensions]]") || prevLine.startsWith("#[extensions]")) {
                         isCommented = true;
                         break;
                     }
-
                     if (prevLine === "[[extensions]]" || prevLine.startsWith("[[extensions]]")) {
                         break;
                     }
-
                     if (prevLine.startsWith("#") && prevLine.includes("uid")) {
                         isCommented = true;
                         break;
                     }
                 }
-
                 if (!isCommented) {
                     const match = line.match(/uid\s*=\s*"([^"]+)"/);
                     if (match && match[1]) {
@@ -123,7 +105,6 @@ function checkExtensionUids() {
                 }
             }
         }
-
         if (activeInvalidUids.length > 0) {
             return {
                 name: "扩展 UID 检查",
@@ -131,7 +112,6 @@ function checkExtensionUids() {
                 message: `发现 ${activeInvalidUids.length} 个未注释的占位符 UID: ${activeInvalidUids.slice(0, 3).join(", ")}`,
             };
         }
-
         if (invalidUids.length > 0 && activeInvalidUids.length === 0) {
             return {
                 name: "扩展 UID 检查",
@@ -139,7 +119,6 @@ function checkExtensionUids() {
                 message: `所有启用的扩展都有有效的 UID（发现 ${invalidUids.length} 个已注释的占位符，不影响部署）`,
             };
         }
-
         return {
             name: "扩展 UID 检查",
             passed: true,
@@ -159,39 +138,30 @@ function checkDuplicateImports() {
         "app/routes/app.verification.tsx",
         "app/routes/app.workspace.tsx",
     ];
-
     const issues = [];
-
     for (const file of filesToCheck) {
         const filePath = path.join(__dirname, "..", file);
         if (!fs.existsSync(filePath)) {
             issues.push(`${file}: 文件不存在`);
             continue;
         }
-
         const content = fs.readFileSync(filePath, "utf-8");
         const lines = content.split("\n");
-
         const reactImports = [];
-
         for (let i = 0; i < lines.length; i++) {
             const line = lines[i];
-
             if (line.includes("import") && /from\s+["']react["']/.test(line)) {
                 reactImports.push({ line: i + 1, content: line.trim() });
             }
         }
-
         if (reactImports.length > 1) {
             issues.push(`${file}: 发现 ${reactImports.length} 个 react 导入（第 ${reactImports.map(i => i.line).join(", ")} 行）`);
         }
-
         const importLines = content.match(/import\s+.*from\s+["']react["']/g) || [];
         if (importLines.length > 0) {
             const importContent = importLines.join(" ");
             const suspenseInImports = (importContent.match(/\bSuspense\b/g) || []).length;
             const lazyInImports = (importContent.match(/\blazy\b/g) || []).length;
-
             if (suspenseInImports > 1) {
                 issues.push(`${file}: Suspense 在导入语句中出现 ${suspenseInImports} 次`);
             }
@@ -200,7 +170,6 @@ function checkDuplicateImports() {
             }
         }
     }
-
     if (issues.length > 0) {
         return {
             name: "重复导入检查",
@@ -208,7 +177,6 @@ function checkDuplicateImports() {
             message: issues.join("; "),
         };
     }
-
     return {
         name: "重复导入检查",
         passed: true,
@@ -221,44 +189,34 @@ function checkBackendUrlInjection() {
         "extensions/shared/config.ts",
         "extensions/thank-you-blocks/src/config.ts",
     ];
-
     const missingFiles = [];
     const missingPlaceholder = [];
-
     for (const configFile of configFiles) {
         const filePath = path.join(__dirname, "..", configFile);
         if (!fs.existsSync(filePath)) {
             missingFiles.push(configFile);
             continue;
         }
-
         const content = fs.readFileSync(filePath, "utf-8");
         if (!content.includes("__BACKEND_URL_PLACEHOLDER__")) {
             missingPlaceholder.push(configFile);
         }
     }
-
     const buildScriptPath = path.join(__dirname, "build-extensions.mjs");
     const buildScriptContent = fs.readFileSync(buildScriptPath, "utf-8");
-
     const issues = [];
-
     if (missingFiles.length > 0) {
         issues.push(`缺少配置文件: ${missingFiles.join(", ")}`);
     }
-
     if (missingPlaceholder.length > 0) {
         issues.push(`配置文件缺少占位符: ${missingPlaceholder.join(", ")}`);
     }
-
     if (!buildScriptContent.includes("THANK_YOU_CONFIG_FILE")) {
         issues.push("build-extensions.mjs 未处理 thank-you-blocks 配置文件");
     }
-
     if (!buildScriptContent.includes("SHARED_CONFIG_FILE")) {
         issues.push("build-extensions.mjs 未处理 shared 配置文件");
     }
-
     if (issues.length > 0) {
         return {
             name: "BACKEND_URL 注入检查",
@@ -266,7 +224,6 @@ function checkBackendUrlInjection() {
             message: issues.join("; "),
         };
     }
-
     return {
         name: "BACKEND_URL 注入检查",
         passed: true,
@@ -290,7 +247,6 @@ for (const result of results) {
     console.log(`${icon} ${result.name}: ${status}`);
     console.log(`   ${result.message}`);
     console.log();
-
     if (!result.passed) {
         allPassed = false;
     }

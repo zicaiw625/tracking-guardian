@@ -8,7 +8,6 @@ export interface PlatformConsentConfig {
 }
 
 export const PLATFORM_CONSENT_CONFIG: Record<string, PlatformConsentConfig> = {
-
     meta: {
         category: "marketing",
         name: "Meta (Facebook/Instagram)",
@@ -30,7 +29,6 @@ export const PLATFORM_CONSENT_CONFIG: Record<string, PlatformConsentConfig> = {
         consentReason: "用于网站分析和用户行为理解",
         requiresSaleOfData: false,
     },
-
     bing: {
         category: "marketing",
         name: "Microsoft Ads (Bing) - 不支持 CAPI",
@@ -107,7 +105,6 @@ export function evaluatePlatformConsent(platform: string, consentState: ConsentS
         };
     }
     const requiresSaleOfData = config?.requiresSaleOfData ?? true;
-
     if (requiresSaleOfData && consentState.saleOfDataAllowed !== true) {
         return {
             allowed: false,
@@ -160,7 +157,6 @@ export function evaluatePlatformConsent(platform: string, consentState: ConsentS
 export function evaluatePlatformConsentWithStrategy(platform: string, consentStrategy: string, consentState: ConsentState | null, hasPixelReceipt: boolean, treatAsMarketing = false): ConsentDecision {
     const config = PLATFORM_CONSENT_CONFIG[platform];
     const requiresSaleOfData = config?.requiresSaleOfData ?? true;
-
     if (requiresSaleOfData && consentState?.saleOfDataAllowed !== true) {
         return {
             allowed: false,
@@ -246,7 +242,6 @@ export function getPlatformConsentRequirements(platform: string): {
     if (requiresMarketing) {
         explanation = `${config.name}: 需要营销同意（marketingAllowed=true）`;
         if (config.requiresSaleOfData) {
-
             explanation += ` + 数据共享同意（saleOfDataAllowed=true）`;
         }
     }

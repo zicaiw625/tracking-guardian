@@ -44,21 +44,16 @@ export async function batchCompleteJobs(
   if (completions.length === 0) {
     return { success: true, processed: 0, failed: 0, errors: [] };
   }
-
   const now = new Date();
   const errors: Array<{ id: string; error: string }> = [];
   let processed = 0;
-
   const completed = completions.filter(c => c.status === 'completed');
   const failed = completions.filter(c => c.status === 'failed');
   const limitExceeded = completions.filter(c => c.status === 'limit_exceeded');
   const deadLetter = completions.filter(c => c.status === 'dead_letter');
-
   const db = getDb();
-
   try {
     await db.$transaction(async (tx) => {
-
       if (completed.length > 0) {
         const updateResults = await Promise.allSettled(
           completed.map((job) =>
@@ -77,10 +72,7 @@ export async function batchCompleteJobs(
             })
           )
         );
-
         updateResults.forEach((result, index) => {
-          
-          
           if (index >= completed.length || index >= updateResults.length) {
             logger.error('Index out of bounds: arrays length mismatch', { 
               index, 
@@ -90,7 +82,6 @@ export async function batchCompleteJobs(
             return;
           }
           const job = completed[index];
-          
           if (result.status === 'rejected') {
             const errorMsg = result.reason instanceof Error ? result.reason.message : String(result.reason);
             logger.warn('Failed to update job details', { jobId: job.jobId, error: errorMsg });
@@ -100,9 +91,7 @@ export async function batchCompleteJobs(
           }
         });
       }
-
       if (failed.length > 0) {
-
         const updateResults = await Promise.allSettled(
           failed.map((job) =>
             tx.conversionJob.update({
@@ -117,9 +106,7 @@ export async function batchCompleteJobs(
             })
           )
         );
-
         updateResults.forEach((result, index) => {
-          
           if (index >= failed.length || index >= updateResults.length) {
             logger.error('Index out of bounds: arrays length mismatch', { 
               index, 
@@ -129,7 +116,6 @@ export async function batchCompleteJobs(
             return;
           }
           const job = failed[index];
-          
           if (result.status === 'rejected') {
             const errorMsg = result.reason instanceof Error ? result.reason.message : String(result.reason);
             logger.warn('Failed to update failed job', { jobId: job.jobId, error: errorMsg });
@@ -139,7 +125,6 @@ export async function batchCompleteJobs(
           }
         });
       }
-
       if (limitExceeded.length > 0) {
         const limitExceededIds = limitExceeded.map((j) => j.jobId);
         const updateManyResult = await tx.conversionJob.updateMany({
@@ -149,12 +134,9 @@ export async function batchCompleteJobs(
             lastAttemptAt: now,
           },
         });
-
         processed += updateManyResult.count;
-
         const limitExceededWithErrors = limitExceeded.filter((j) => j.errorMessage);
         if (limitExceededWithErrors.length > 0) {
-
           const updateResults = await Promise.allSettled(
             limitExceededWithErrors.map((job) =>
               tx.conversionJob.update({
@@ -163,9 +145,7 @@ export async function batchCompleteJobs(
               })
             )
           );
-
           updateResults.forEach((result, index) => {
-            
             if (index >= limitExceededWithErrors.length || index >= updateResults.length) {
               logger.error('Index out of bounds: arrays length mismatch', { 
                 index, 
@@ -175,7 +155,6 @@ export async function batchCompleteJobs(
               return;
             }
             const job = limitExceededWithErrors[index];
-            
             if (result.status === 'rejected') {
               const errorMsg = result.reason instanceof Error ? result.reason.message : String(result.reason);
               logger.warn('Failed to update limit exceeded job error message', { jobId: job.jobId, error: errorMsg });
@@ -184,7 +163,6 @@ export async function batchCompleteJobs(
           });
         }
       }
-
       if (deadLetter.length > 0) {
         const deadLetterIds = deadLetter.map((j) => j.jobId);
         const updateManyResult = await tx.conversionJob.updateMany({
@@ -194,9 +172,7 @@ export async function batchCompleteJobs(
             lastAttemptAt: now,
           },
         });
-
         processed += updateManyResult.count;
-
         const updateResults = await Promise.allSettled(
           deadLetter.map((job) =>
             tx.conversionJob.update({
@@ -208,9 +184,7 @@ export async function batchCompleteJobs(
             })
           )
         );
-
         updateResults.forEach((result, index) => {
-          
           if (index >= deadLetter.length || index >= updateResults.length) {
             logger.error('Index out of bounds: arrays length mismatch', { 
               index, 
@@ -220,7 +194,6 @@ export async function batchCompleteJobs(
             return;
           }
           const job = deadLetter[index];
-          
           if (result.status === 'rejected') {
             const errorMsg = result.reason instanceof Error ? result.reason.message : String(result.reason);
             logger.warn('Failed to update dead letter job', { jobId: job.jobId, error: errorMsg });
@@ -232,11 +205,9 @@ export async function batchCompleteJobs(
   } catch (error) {
     const errorMsg = error instanceof Error ? error.message : String(error);
     logger.error('Batch complete jobs failed', { error: errorMsg, count: completions.length });
-
     for (const job of completions) {
       errors.push({ id: job.jobId, error: errorMsg });
     }
-
     return {
       success: false,
       processed: 0,
@@ -244,7 +215,6 @@ export async function batchCompleteJobs(
       errors,
     };
   }
-
   return {
     success: true,
     processed,
@@ -259,16 +229,12 @@ export async function batchInsertReceipts(
   if (receipts.length === 0) {
     return { success: true, processed: 0, failed: 0, errors: [] };
   }
-
   const errors: Array<{ id: string; error: string }> = [];
   let processed = 0;
   const now = new Date();
-
   const db = getDb();
-
   try {
     await db.$transaction(async (tx) => {
-      
       const upsertResults = await Promise.allSettled(
         receipts.map((receipt) =>
           tx.pixelEventReceipt.upsert({
@@ -301,9 +267,7 @@ export async function batchInsertReceipts(
           })
         )
       );
-
       upsertResults.forEach((result, index) => {
-        
         if (index >= receipts.length || index >= upsertResults.length) {
           logger.error('Index out of bounds: arrays length mismatch', { 
             index, 
@@ -313,7 +277,6 @@ export async function batchInsertReceipts(
           return;
         }
         const receipt = receipts[index];
-        
         if (result.status === 'fulfilled') {
           processed++;
         } else {
@@ -326,13 +289,9 @@ export async function batchInsertReceipts(
   } catch (error) {
     const errorMsg = error instanceof Error ? error.message : String(error);
     logger.error('Batch insert receipts transaction failed', { error: errorMsg, count: receipts.length });
-
-    
-    
     const allErrors = errors.length > 0 
       ? errors 
       : receipts.map((r) => ({ id: `${r.shopId}:${r.orderId}`, error: `Transaction failed: ${errorMsg}` }));
-
     return {
       success: false,
       processed: 0, 
@@ -340,7 +299,6 @@ export async function batchInsertReceipts(
       errors: allErrors,
     };
   }
-
   return {
     success: errors.length === 0,
     processed,
@@ -354,7 +312,6 @@ export async function batchUpdateShops(
     shopId: string;
     data: Partial<{
       consentStrategy: string;
-
       isActive: boolean;
     }>;
   }>
@@ -362,15 +319,11 @@ export async function batchUpdateShops(
   if (updates.length === 0) {
     return { success: true, processed: 0, failed: 0, errors: [] };
   }
-
   const errors: Array<{ id: string; error: string }> = [];
   let processed = 0;
-
   const db = getDb();
-
   try {
     await db.$transaction(async (tx) => {
-      
       const updateResults = await Promise.allSettled(
         updates.map(({ shopId, data }) =>
           tx.shop.update({
@@ -379,9 +332,7 @@ export async function batchUpdateShops(
           })
         )
       );
-
       updateResults.forEach((result, index) => {
-        
         if (index >= updates.length || index >= updateResults.length) {
           logger.error('Index out of bounds: arrays length mismatch', { 
             index, 
@@ -391,7 +342,6 @@ export async function batchUpdateShops(
           return;
         }
         const { shopId } = updates[index];
-        
         if (result.status === 'fulfilled') {
           processed++;
         } else {
@@ -405,12 +355,9 @@ export async function batchUpdateShops(
   } catch (error) {
     const errorMsg = error instanceof Error ? error.message : String(error);
     logger.error('Batch update shops transaction failed', { error: errorMsg, count: updates.length });
-
-    
     const remainingErrors = updates
       .slice(processed)
       .map((u) => ({ id: u.shopId, error: `Transaction failed: ${errorMsg}` }));
-    
     return {
       success: false,
       processed,
@@ -418,7 +365,6 @@ export async function batchUpdateShops(
       errors: [...errors, ...remainingErrors],
     };
   }
-
   return {
     success: true,
     processed,
@@ -438,9 +384,7 @@ export async function batchCreateAuditLogs(
   if (entries.length === 0) {
     return { success: true, processed: 0, failed: 0, errors: [] };
   }
-
   const db = getDb();
-
   try {
     const result = await db.auditLog.createMany({
       data: entries.map((entry) => ({
@@ -454,7 +398,6 @@ export async function batchCreateAuditLogs(
       })),
       skipDuplicates: true,
     });
-
     return {
       success: true,
       processed: result.count,
@@ -464,7 +407,6 @@ export async function batchCreateAuditLogs(
   } catch (error) {
     const errorMsg = error instanceof Error ? error.message : String(error);
     logger.error('Batch create audit logs failed', { error: errorMsg, count: entries.length });
-
     return {
       success: false,
       processed: 0,
@@ -478,7 +420,6 @@ export async function executeInTransaction<T>(
   operations: (tx: Prisma.TransactionClient) => Promise<T>
 ): Promise<{ success: true; result: T } | { success: false; error: string }> {
   const db = getDb();
-
   try {
     const result = await db.$transaction(operations);
     return { success: true, result };
@@ -498,24 +439,19 @@ export async function processInChunks<T, R>(
   const allErrors: Array<{ id: string; error: string }> = [];
   let totalProcessed = 0;
   let totalFailed = 0;
-
   for (let i = 0; i < items.length; i += chunkSize) {
     const chunk = items.slice(i, i + chunkSize);
     const result = await processor(chunk);
-
     totalProcessed += result.processed;
     totalFailed += result.failed;
     allErrors.push(...result.errors);
-
     if (result.results) {
       allResults.push(...result.results);
     }
-
     if (i + chunkSize < items.length) {
       await new Promise(resolve => setTimeout(resolve, 100));
     }
   }
-
   return {
     success: allErrors.length === 0,
     processed: totalProcessed,

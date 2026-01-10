@@ -46,11 +46,9 @@ export function ThresholdSlider({
     if (!range) return "success";
     return range.tone === "warning" ? undefined : range.tone;
   };
-
   const percentage = ((value - min) / (max - min)) * 100;
   const wouldTrigger = currentValue !== undefined && currentValue > value;
   const diffFromCurrent = currentValue !== undefined ? (currentValue - value) : undefined;
-
   return (
     <BlockStack gap="300">
       <InlineStack align="space-between" blockAlign="center">
@@ -75,7 +73,6 @@ export function ThresholdSlider({
           </Badge>
         </InlineStack>
       </InlineStack>
-
       {currentValue !== undefined && (
         <Box background="bg-surface-secondary" padding="200" borderRadius="100">
           <InlineStack align="space-between" blockAlign="center">
@@ -98,7 +95,6 @@ export function ThresholdSlider({
           </InlineStack>
         </Box>
       )}
-
       {recommendedValue !== undefined && Math.abs(recommendedValue - value) > 0.1 && (
         <Box background="bg-fill-info-secondary" padding="200" borderRadius="100">
           <InlineStack align="space-between" blockAlign="center">
@@ -113,7 +109,6 @@ export function ThresholdSlider({
           </InlineStack>
         </Box>
       )}
-
       <Box position="relative">
         <input
           type="range"
@@ -134,7 +129,6 @@ export function ThresholdSlider({
           <ProgressBar progress={percentage} tone={getTone(value)} size="small" />
         </Box>
       </Box>
-
       <InlineStack align="space-between">
         <Text as="span" variant="bodySm" tone="subdued">
           {min}

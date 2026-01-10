@@ -22,41 +22,32 @@ if (typeof process !== "undefined") {
       promise: String(promise),
     });
   });
-
   process.on("uncaughtException", (error: Error) => {
     logger.error("Uncaught Exception", error, {
       errorMessage: error.message,
       errorStack: error.stack,
     });
-
     if (process.env.NODE_ENV === "production") {
       process.exit(1);
     }
   });
-
   const cleanup = async (signal: string) => {
     logger.info(`Received ${signal}, starting graceful shutdown...`);
-
     try {
-
       await RedisClientFactory.resetAsync();
       logger.info("Redis connections closed");
     } catch (error) {
       logger.error("Error closing Redis connections during shutdown", error);
     }
-
     try {
-
       await prisma.$disconnect();
       logger.info("Database connections closed");
     } catch (error) {
       logger.error("Error closing database connections during shutdown", error);
     }
-
     logger.info("Graceful shutdown completed");
     process.exit(0);
   };
-
   process.on("SIGTERM", () => cleanup("SIGTERM"));
   process.on("SIGINT", () => cleanup("SIGINT"));
 }
@@ -122,12 +113,10 @@ export default async function handleRequest(request: Request, responseStatusCode
                 const body = new PassThrough();
                 const stream = createReadableStreamFromReadable(body);
                 responseHeaders.set("Content-Type", "text/html");
-
                 if (abortTimeoutId !== null) {
                     clearTimeout(abortTimeoutId);
                     abortTimeoutId = null;
                 }
-
                 resolve(new Response(stream, {
                     headers: responseHeaders,
                     status: responseStatusCode,
@@ -135,7 +124,6 @@ export default async function handleRequest(request: Request, responseStatusCode
                 pipe(body);
             },
             onShellError(error) {
-
                 if (abortTimeoutId !== null) {
                     clearTimeout(abortTimeoutId);
                     abortTimeoutId = null;
@@ -147,7 +135,6 @@ export default async function handleRequest(request: Request, responseStatusCode
                 logger.error("React render error", error);
             },
         });
-
         let abortTimeoutId: NodeJS.Timeout | null = setTimeout(() => {
             abortTimeoutId = null;
             abort();

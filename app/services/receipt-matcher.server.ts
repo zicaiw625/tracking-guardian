@@ -12,7 +12,6 @@ export interface ReceiptFields {
   originHost: string | null;
   pixelTimestamp: Date | null;
   createdAt: Date;
-
   eventId: string | null;
 }
 
@@ -47,13 +46,11 @@ export async function batchFetchReceipts(
   if (jobs.length === 0) {
     return new Map();
   }
-
   const shopIds = [...new Set(jobs.map(j => j.shopId))];
   const orderIds = jobs.map(j => j.orderId);
   const checkoutTokens = jobs
     .map(j => j.checkoutToken)
     .filter((t): t is string => !!t);
-
   const receipts = await prisma.pixelEventReceipt.findMany({
     where: {
       shopId: { in: shopIds },
@@ -68,26 +65,20 @@ export async function batchFetchReceipts(
     },
     select: RECEIPT_SELECT_FIELDS,
   });
-
   const receiptMap = new Map<string, ReceiptFields>();
-
   for (const receipt of receipts) {
-
     const orderKey = buildReceiptKey(receipt.shopId, 'order', receipt.orderId);
     receiptMap.set(orderKey, receipt);
-
     if (receipt.checkoutToken) {
       const tokenKey = buildReceiptKey(receipt.shopId, 'token', receipt.checkoutToken);
       receiptMap.set(tokenKey, receipt);
     }
   }
-
   logger.debug(`Batch fetched ${receipts.length} receipts for ${jobs.length} jobs`, {
     shopCount: shopIds.length,
     orderIdCount: orderIds.length,
     tokenCount: checkoutTokens.length,
   });
-
   return receiptMap;
 }
 
@@ -105,13 +96,11 @@ export function findReceiptFromMap(
   orderId: string,
   webhookCheckoutToken: string | undefined
 ): ReceiptFields | null {
-
   const orderKey = buildReceiptKey(shopId, 'order', orderId);
   let receipt = receiptMap.get(orderKey);
   if (receipt) {
     return receipt;
   }
-
   if (webhookCheckoutToken) {
     const tokenKey = buildReceiptKey(shopId, 'token', webhookCheckoutToken);
     receipt = receiptMap.get(tokenKey);
@@ -119,7 +108,6 @@ export function findReceiptFromMap(
       return receipt;
     }
   }
-
   return null;
 }
 
@@ -130,19 +118,16 @@ export async function findReceiptForJob(
   webhookCheckoutToken: string | undefined,
   jobCreatedAt: Date
 ): Promise<ReceiptFields | null> {
-
   const fromMap = findReceiptFromMap(receiptMap, shopId, orderId, webhookCheckoutToken);
   if (fromMap) {
     return fromMap;
   }
-
   if (webhookCheckoutToken) {
     const potentialReceipts = await findReceiptsByTimeWindow(
       shopId,
       jobCreatedAt,
       FUZZY_MATCH_WINDOW_MS
     );
-
     for (const candidate of potentialReceipts) {
       if (
         matchKeysEqual(
@@ -158,7 +143,6 @@ export async function findReceiptForJob(
       }
     }
   }
-
   return null;
 }
 

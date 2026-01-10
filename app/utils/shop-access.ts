@@ -154,11 +154,9 @@ export async function getShopForVerificationWithConfigs(
             previousSecretExpiry: true,
             primaryDomain: true,
             storefrontDomains: true,
-
             pixelConfigs: {
                 where: {
                     isActive: true,
-
                     ...(environment ? { environment } : { environment: "live" }),
                 },
                 select: {
@@ -173,15 +171,12 @@ export async function getShopForVerificationWithConfigs(
             },
         },
     });
-
     if (!shop) {
         return null;
     }
-
     const currentSecret = shop.ingestionSecret
         ? decryptIngestionSecret(shop.ingestionSecret)
         : null;
-
     let previousSecret: string | null = null;
     if (
         shop.previousIngestionSecret &&
@@ -190,7 +185,6 @@ export async function getShopForVerificationWithConfigs(
     ) {
         previousSecret = decryptIngestionSecret(shop.previousIngestionSecret);
     }
-
     return {
         id: shop.id,
         shopDomain: shop.shopDomain,

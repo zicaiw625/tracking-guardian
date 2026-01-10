@@ -92,7 +92,6 @@ export interface RealtimeEvent {
   };
   discrepancies?: string[];
   platformResponse?: unknown;
-
   eventLogId?: string;
   deliveryAttemptId?: string;
 }
@@ -123,39 +122,31 @@ export function RealtimeEventMonitor({
   const eventSourceRef = useRef<EventSource | null>(null);
   const isPausedRef = useRef(isPaused);
   const showErrorRef = useRef(showError);
-
   const [filterPlatform, setFilterPlatform] = useState<string>("all");
   const [filterStatus, setFilterStatus] = useState<string[]>([]);
   const [filterEventType, setFilterEventType] = useState<string>("");
   const [searchQuery, setSearchQuery] = useState<string>("");
-
   useEffect(() => {
     isPausedRef.current = isPaused;
   }, [isPaused]);
-
   useEffect(() => {
     showErrorRef.current = showError;
   }, [showError]);
-
   const disconnectRef = useRef<(() => void) | null>(null);
   const connectRef = useRef<(() => void) | null>(null);
-
   useEffect(() => {
     if (!autoStart) {
       return;
     }
-
     if (eventSourceRef.current) {
       eventSourceRef.current.close();
       eventSourceRef.current = null;
     }
-
     const connect = () => {
       if (eventSourceRef.current) {
         eventSourceRef.current.close();
         eventSourceRef.current = null;
       }
-
       try {
         const endpoint = useVerificationEndpoint ? "/api/verification-events" : "/api/realtime-events";
         const params = new URLSearchParams({
@@ -165,119 +156,89 @@ export function RealtimeEventMonitor({
           ...(runId && { runId }),
         });
         const eventSource = new EventSource(`${endpoint}?${params.toString()}`);
-
         eventSource.onopen = () => {
           setIsConnected(true);
           setError(null);
         };
-
         eventSource.onmessage = (event) => {
           if (isPausedRef.current) return;
-
           try {
             const rawData = JSON.parse(event.data);
-
             if (useVerificationEndpoint && rawData.type) {
               if (rawData.type === "connected" || rawData.type === "error" || rawData.type === "verification_run_status") {
-
                 if (rawData.type === "verification_run_status" && rawData.status) {
-
                   if (process.env.NODE_ENV === "development") {
-
                     console.log("Verification run status:", rawData);
                   }
                 }
                 return;
               }
-
               const { type, ...eventData } = rawData;
               const data = eventData as RealtimeEvent;
-
               if (typeof data.timestamp === "string") {
                 data.timestamp = new Date(data.timestamp);
               }
-
               setEvents((prev) => {
                 const eventKey = data.id || `${data.timestamp}_${data.orderId || ""}`;
                 const existingIndex = prev.findIndex(e =>
                   e.id === eventKey ||
                   (e.timestamp === data.timestamp && e.orderId === data.orderId)
                 );
-
                 if (existingIndex >= 0) {
                   const updated = [...prev];
                   updated[existingIndex] = data;
-
                   return updated.slice(0, 200);
                 }
-
                 return [data, ...prev].slice(0, 200);
               });
             } else {
-
               const data = rawData as RealtimeEvent;
-
               if (typeof data.timestamp === "string") {
                 data.timestamp = new Date(data.timestamp);
               }
-
               setEvents((prev) => {
                 const eventKey = data.id || `${data.timestamp}_${data.orderId || ""}`;
                 const existingIndex = prev.findIndex(e =>
                   e.id === eventKey ||
                   (e.timestamp === data.timestamp && e.orderId === data.orderId)
                 );
-
                 if (existingIndex >= 0) {
                   const updated = [...prev];
                   updated[existingIndex] = data;
-
                   return updated.slice(0, 200);
                 }
-
                 return [data, ...prev].slice(0, 200);
               });
             }
           } catch (err) {
-
             if (process.env.NODE_ENV === "development") {
-
               console.error("Failed to parse event data:", err);
             }
           }
         };
-
         eventSource.onerror = (err) => {
-
           if (process.env.NODE_ENV === "development") {
-
             console.error("SSE error:", err);
           }
           setIsConnected(false);
           setError("连接中断，请刷新页面重试");
           eventSource.close();
         };
-
         eventSourceRef.current = eventSource;
       } catch (err) {
         setError("无法建立连接");
         showErrorRef.current("无法建立实时监控连接");
-
         if (process.env.NODE_ENV === "development") {
-
           console.error("SSE connection error:", err);
         }
       }
     };
-
     const disconnect = () => {
       if (eventSourceRef.current) {
         try {
           eventSourceRef.current.close();
         } catch (error) {
-
           if (process.env.NODE_ENV === "development") {
-
             console.warn("Error closing EventSource:", error);
           }
         }
@@ -286,54 +247,42 @@ export function RealtimeEventMonitor({
       setIsConnected(false);
       setError(null);
     };
-
     disconnectRef.current = disconnect;
     connectRef.current = connect;
     connect();
-
     return () => {
       disconnect();
-
       disconnectRef.current = null;
       connectRef.current = null;
     };
   }, [autoStart, shopId, platforms, runId, eventTypes, useVerificationEndpoint]);
-
   const connect = useCallback(() => {
     if (connectRef.current) {
       connectRef.current();
     }
   }, []);
-
   const disconnect = useCallback(() => {
     if (disconnectRef.current) {
       disconnectRef.current();
     }
   }, []);
-
   const handlePauseToggle = useCallback(() => {
     setIsPaused((prev) => !prev);
   }, []);
-
   const handleClear = useCallback(() => {
     setEvents([]);
   }, []);
-
   const filteredEvents = useMemo(() => {
     return events.filter((event) => {
-
       if (filterPlatform !== "all" && event.platform !== filterPlatform) {
         return false;
       }
-
       if (filterStatus.length > 0 && !filterStatus.includes(event.status)) {
         return false;
       }
-
       if (filterEventType && event.eventType !== filterEventType) {
         return false;
       }
-
       if (searchQuery) {
         const query = searchQuery.toLowerCase();
         const matchesType = event.eventType.toLowerCase().includes(query);
@@ -344,11 +293,9 @@ export function RealtimeEventMonitor({
           return false;
         }
       }
-
       return true;
     });
   }, [events, filterPlatform, filterStatus, filterEventType, searchQuery]);
-
   const stats = useMemo(() => {
     const total = filteredEvents.length;
     const byStatus = {
@@ -357,17 +304,14 @@ export function RealtimeEventMonitor({
       missing_params: filteredEvents.filter(e => e.status === "missing_params").length,
       not_tested: filteredEvents.filter(e => e.status === "not_tested").length,
     };
-
     const byPlatform = filteredEvents.reduce((acc, event) => {
       acc[event.platform] = (acc[event.platform] || 0) + 1;
       return acc;
     }, {} as Record<string, number>);
-
     const byEventType = filteredEvents.reduce((acc, event) => {
       acc[event.eventType] = (acc[event.eventType] || 0) + 1;
       return acc;
     }, {} as Record<string, number>);
-
     const eventsWithParams = filteredEvents.filter(e => e.params);
     const paramCompleteness = {
       hasValue: eventsWithParams.filter(e => e.params?.value !== undefined).length,
@@ -375,7 +319,6 @@ export function RealtimeEventMonitor({
       hasItems: eventsWithParams.filter(e => e.params?.items !== undefined && e.params?.items > 0).length,
       hasEventId: eventsWithParams.filter(e => e.params?.hasEventId).length,
     };
-
     const completenessRate = eventsWithParams.length > 0
       ? {
           value: (paramCompleteness.hasValue / eventsWithParams.length) * 100,
@@ -384,7 +327,6 @@ export function RealtimeEventMonitor({
           eventId: (paramCompleteness.hasEventId / eventsWithParams.length) * 100,
         }
       : { value: 0, currency: 0, items: 0, eventId: 0 };
-
     const eventsWithOrder = filteredEvents.filter(e => e.shopifyOrder && e.params?.value !== undefined);
     const valueConsistency = {
       total: eventsWithOrder.length,
@@ -399,11 +341,9 @@ export function RealtimeEventMonitor({
         return Math.abs(eventValue - orderValue) >= 0.01;
       }).length,
     };
-
     const consistencyRate = valueConsistency.total > 0
       ? (valueConsistency.consistent / valueConsistency.total) * 100
       : 0;
-
     return {
       total,
       byStatus,
@@ -415,11 +355,9 @@ export function RealtimeEventMonitor({
       consistencyRate,
     };
   }, [filteredEvents]);
-
   const successRate = stats.total > 0
     ? Math.round((stats.byStatus.success / stats.total) * 100)
     : 0;
-
   const eventStats = useMemo(() => {
     return calculateEventStats(
       filteredEvents.map((e) => ({
@@ -429,17 +367,14 @@ export function RealtimeEventMonitor({
       }))
     );
   }, [filteredEvents]);
-
   const uniquePlatforms = useMemo(() => {
     const platformsSet = new Set(events.map(e => e.platform));
     return Array.from(platformsSet).sort();
   }, [events]);
-
   const uniqueEventTypes = useMemo(() => {
     const typesSet = new Set(events.map(e => e.eventType));
     return Array.from(typesSet).sort();
   }, [events]);
-
   return (
     <Card>
       <BlockStack gap="400">
@@ -472,20 +407,17 @@ export function RealtimeEventMonitor({
             )}
           </InlineStack>
         </InlineStack>
-
         {error && (
           <Banner tone="critical" title="连接错误">
             {error}
           </Banner>
         )}
-
         {isConnected && !error && (
           <Banner tone="success" title="已连接">
             正在实时接收事件数据
             {isPaused && "（已暂停）"}
           </Banner>
         )}
-
         {stats.total > 0 && (
           <BlockStack gap="400">
             <BlockStack gap="300">
@@ -505,7 +437,6 @@ export function RealtimeEventMonitor({
                 size="small"
               />
             </BlockStack>
-
             <Divider />
             <BlockStack gap="300">
               <Text as="h3" variant="headingSm">
@@ -585,7 +516,6 @@ export function RealtimeEventMonitor({
                 )}
               </BlockStack>
             </BlockStack>
-
             <Divider />
             <BlockStack gap="300">
               <Text as="h3" variant="headingSm">
@@ -615,7 +545,6 @@ export function RealtimeEventMonitor({
                       不完整: {eventStats.paramCompleteness.incompleteCount} 条
                     </Text>
                   </InlineStack>
-
                   {stats.completenessRate && (
                     <BlockStack gap="200">
                       <Divider />
@@ -678,7 +607,6 @@ export function RealtimeEventMonitor({
                 </Card>
               )}
             </BlockStack>
-
             {stats.valueConsistency.total > 0 && (
               <>
                 <Divider />
@@ -720,7 +648,6 @@ export function RealtimeEventMonitor({
             )}
           </BlockStack>
         )}
-
         {events.length > 0 && (
           <>
             <Divider />
@@ -794,9 +721,7 @@ export function RealtimeEventMonitor({
             </BlockStack>
           </>
         )}
-
         <Divider />
-
         {events.length === 0 ? (
           <Box background="bg-surface-secondary" padding="400" borderRadius="200">
             <BlockStack gap="200" align="center">
@@ -827,7 +752,6 @@ export function RealtimeEventMonitor({
             ))}
           </BlockStack>
         )}
-
         {selectedEvent && (
           <>
             <Divider />
@@ -849,11 +773,9 @@ function EventItem({
   onSelect: () => void;
 }) {
   const timeStr = new Date(event.timestamp).toLocaleTimeString("zh-CN");
-
   const completeness = useMemo(() => {
     return checkParamCompleteness(event.eventType, event.platform, event.params);
   }, [event.eventType, event.platform, event.params]);
-
   return (
     <div onClick={onSelect} style={{ cursor: "pointer" }}>
       <Box
@@ -921,21 +843,17 @@ function EventDetails({ event }: { event: RealtimeEvent }) {
     errorDetail?: string;
   } | null>(null);
   const [loadingPayload, setLoadingPayload] = useState(false);
-
   const toggleSection = useCallback((section: string) => {
     setExpandedSections((prev) => ({
       ...prev,
       [section]: !prev[section],
     }));
   }, []);
-
   const completeness = useMemo(() => {
     return checkParamCompleteness(event.eventType, event.platform, event.params);
   }, [event.eventType, event.platform, event.params]);
-
   const loadPayload = useCallback(async () => {
     if (!event.eventLogId || loadingPayload) return;
-
     setLoadingPayload(true);
     try {
       const response = await fetch(`/app/api/event-log/${event.eventLogId}`);
@@ -943,11 +861,9 @@ function EventDetails({ event }: { event: RealtimeEvent }) {
         throw new Error("Failed to fetch event log details");
       }
       const data = await response.json();
-
       const attempt = data.deliveryAttempts?.find(
         (a: { id: string }) => a.id === event.deliveryAttemptId
       );
-
       if (attempt) {
         setPayloadData({
           requestPayload: attempt.requestPayloadJson,
@@ -964,20 +880,17 @@ function EventDetails({ event }: { event: RealtimeEvent }) {
       setLoadingPayload(false);
     }
   }, [event.eventLogId, event.deliveryAttemptId, loadingPayload]);
-
   useEffect(() => {
     if (expandedSections.payload && !payloadData && event.eventLogId) {
       loadPayload();
     }
   }, [expandedSections.payload, payloadData, event.eventLogId, loadPayload]);
-
   const copyPayload = useCallback(() => {
     if (payloadData?.requestPayload) {
       navigator.clipboard.writeText(JSON.stringify(payloadData.requestPayload, null, 2));
       showSuccess("Payload 已复制到剪贴板");
     }
   }, [payloadData, showSuccess]);
-
   return (
     <BlockStack gap="300">
       <div
@@ -996,7 +909,6 @@ function EventDetails({ event }: { event: RealtimeEvent }) {
           </Text>
         </InlineStack>
       </div>
-
       <Collapsible open={expanded} id="event-details">
         <BlockStack gap="300">
           <Card>
@@ -1061,7 +973,6 @@ function EventDetails({ event }: { event: RealtimeEvent }) {
               </Collapsible>
             </BlockStack>
           </Card>
-
           {event.params && (
             <Card>
               <BlockStack gap="200">
@@ -1114,7 +1025,6 @@ function EventDetails({ event }: { event: RealtimeEvent }) {
               </BlockStack>
             </Card>
           )}
-
           <Card>
             <BlockStack gap="200">
               <div
@@ -1196,7 +1106,6 @@ function EventDetails({ event }: { event: RealtimeEvent }) {
               </Collapsible>
             </BlockStack>
           </Card>
-
           {event.shopifyOrder && (
             <Card>
               <BlockStack gap="200">
@@ -1237,11 +1146,9 @@ function EventDetails({ event }: { event: RealtimeEvent }) {
               </BlockStack>
             </Card>
           )}
-
           {event.eventType === "checkout_completed" && event.status !== "success" && (
             <CheckoutCompletedBehaviorHint mode="missing" />
           )}
-
           {event.eventLogId && (
             <Card>
               <BlockStack gap="200">
@@ -1357,7 +1264,6 @@ function EventDetails({ event }: { event: RealtimeEvent }) {
               </BlockStack>
             </Card>
           )}
-
           {((event.discrepancies && event.discrepancies.length > 0) || (event.errors && event.errors.length > 0)) && (
             <Card>
               <BlockStack gap="200">

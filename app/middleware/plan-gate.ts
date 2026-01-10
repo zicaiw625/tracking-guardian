@@ -14,31 +14,24 @@ export interface PlanGateConfig {
 export function withPlanGate(config: PlanGateConfig): Middleware {
   return async (context: MiddlewareContext): Promise<MiddlewareResult> => {
     const { request } = context;
-
     try {
       const { authenticate } = await import("../shopify.server");
       const { session } = await authenticate.admin(request);
       const shopDomain = session.shop;
-
       const shop = await prisma.shop.findUnique({
         where: { shopDomain },
         select: { id: true, plan: true },
       });
-
       if (!shop) {
         return { continue: false, response: json({ error: "Shop not found" }, { status: 404 }) };
       }
-
       const planId = normalizePlanId(shop.plan || "free") as PlanId;
       const gateResult = checkFeatureAccess(planId, config.feature);
-
       if (!gateResult.allowed) {
-
         if (config.redirectTo) {
           const redirectUrl = new URL(config.redirectTo, request.url).toString();
           return { continue: false, response: redirect(redirectUrl) };
         }
-
         if (config.showUpgradePrompt) {
           return { continue: false, response: json(
             {
@@ -50,7 +43,6 @@ export function withPlanGate(config: PlanGateConfig): Middleware {
             { status: 403 }
           ) };
         }
-
         return { continue: false, response: json(
           {
             error: gateResult.reason || "Feature not available in current plan",
@@ -59,7 +51,6 @@ export function withPlanGate(config: PlanGateConfig): Middleware {
           { status: 403 }
         ) };
       }
-
       return { continue: true, context };
     } catch (error) {
       logger.warn("Plan gate authentication check failed", {
@@ -79,14 +70,11 @@ export async function checkPlanGate(
     where: { id: shopId },
     select: { plan: true },
   });
-
   if (!shop) {
     return { allowed: false, reason: "Shop not found" };
   }
-
   const planId = normalizePlanId(shop.plan || "free") as PlanId;
   const gateResult = checkFeatureAccess(planId, feature);
-
   return {
     allowed: gateResult.allowed,
     reason: gateResult.reason,

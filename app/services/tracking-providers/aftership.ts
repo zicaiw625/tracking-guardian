@@ -68,18 +68,14 @@ function mapAfterShipStatus(tag: string): TrackingStatus {
 export class AfterShipProvider implements ITrackingProvider {
   readonly name = "AfterShip";
   readonly code = "aftership";
-
   private apiKey: string = "";
   private webhookSecret: string = "";
-
   private baseUrl = "https://api.aftership.com";
-
   async initialize(credentials: TrackingProviderCredentials): Promise<void> {
     this.apiKey = credentials.apiKey;
     this.webhookSecret = credentials.webhookSecret || "";
     logger.info("AfterShip provider initialized");
   }
-
   private async request<T>(
     method: "GET" | "POST" | "DELETE",
     path: string,
@@ -87,38 +83,30 @@ export class AfterShipProvider implements ITrackingProvider {
   ): Promise<T> {
     const url = `${this.baseUrl}${path}`;
     const headers: Record<string, string> = {
-
       "as-api-key": this.apiKey,
       "Content-Type": "application/json",
     };
-
     const response = await fetch(url, {
       method,
       headers,
       body: body ? JSON.stringify(body) : undefined,
     });
-
     const data = (await response.json()) as AfterShipApiResponse<T>;
-
     if (data.meta.code !== 200 && data.meta.code !== 201) {
       throw new Error(`AfterShip API error: ${data.meta.message}`);
     }
-
     return data.data;
   }
-
   async getTracking(
     trackingNumber: string,
     carrier?: string
   ): Promise<TrackingResult | TrackingError> {
     try {
-
       const url = new URL(`${this.baseUrl}/trackings`);
       url.searchParams.append("tracking_numbers", trackingNumber);
       if (carrier) {
         url.searchParams.append("slug", carrier);
       }
-
       const response = await fetch(url.toString(), {
         method: "GET",
         headers: {
@@ -126,17 +114,13 @@ export class AfterShipProvider implements ITrackingProvider {
           "Content-Type": "application/json",
         },
       });
-
       if (!response.ok) {
         throw new Error(`AfterShip API error: ${response.statusText}`);
       }
-
       const data = (await response.json()) as AfterShipApiResponse<{ trackings: AfterShipTracking[] }>;
-
       if (data.meta.code !== 200 && data.meta.code !== 201) {
         throw new Error(`AfterShip API error: ${data.meta.message}`);
       }
-
       const trackings = data.data?.trackings || [];
       if (trackings.length === 0) {
         return {
@@ -145,7 +129,6 @@ export class AfterShipProvider implements ITrackingProvider {
           errorCode: "AFTERSHIP_NOT_FOUND",
         };
       }
-
       return this.transformTracking(trackings[0]);
     } catch (error) {
       logger.error(`AfterShip getTracking failed for ${trackingNumber}:`, error);
@@ -156,18 +139,14 @@ export class AfterShipProvider implements ITrackingProvider {
       };
     }
   }
-
   async batchGetTracking(request: BatchTrackingRequest): Promise<BatchTrackingResult> {
     const results: Array<TrackingResult | TrackingError> = [];
     let successCount = 0;
     let failureCount = 0;
-
     const promises = request.trackings.map((t) =>
       this.getTracking(t.trackingNumber, t.carrierCode)
     );
-
     const settled = await Promise.allSettled(promises);
-
     for (const result of settled) {
       if (result.status === "fulfilled") {
         results.push(result.value);
@@ -184,10 +163,8 @@ export class AfterShipProvider implements ITrackingProvider {
         });
       }
     }
-
     return { results, successCount, failureCount };
   }
-
   async registerTracking(
     trackingNumber: string,
     carrier?: string
@@ -199,7 +176,6 @@ export class AfterShipProvider implements ITrackingProvider {
           ...(carrier && { slug: carrier }),
         },
       };
-
       await this.request<{ tracking: AfterShipTracking }>("POST", "/trackings", body);
       return true;
     } catch (error) {
@@ -207,7 +183,6 @@ export class AfterShipProvider implements ITrackingProvider {
       return false;
     }
   }
-
   async unregisterTracking(trackingNumber: string): Promise<boolean> {
     try {
       await this.request<void>("DELETE", `/trackings/${trackingNumber}`);
@@ -217,7 +192,6 @@ export class AfterShipProvider implements ITrackingProvider {
       return false;
     }
   }
-
   parseWebhook(
     payload: Record<string, unknown>,
     _headers: Record<string, string>
@@ -227,9 +201,7 @@ export class AfterShipProvider implements ITrackingProvider {
       if (!msg || !msg.tracking_number) {
         return null;
       }
-
       const latestCheckpoint = msg.checkpoints?.[0];
-
       return {
         trackingNumber: msg.tracking_number,
         carrier: msg.title,
@@ -250,28 +222,23 @@ export class AfterShipProvider implements ITrackingProvider {
       return null;
     }
   }
-
   verifyWebhookSignature(payload: string, signature: string): boolean {
     if (!this.webhookSecret) {
       logger.warn("AfterShip webhook secret not configured");
       return true;
     }
-
     try {
-
       const crypto = require("crypto");
       const expectedSignature = crypto
         .createHmac("sha256", this.webhookSecret)
         .update(payload)
         .digest("hex");
-
       return expectedSignature === signature;
     } catch (error) {
       logger.error("AfterShip signature verification failed:", error);
       return false;
     }
   }
-
   async detectCarrier(trackingNumber: string): Promise<string | null> {
     try {
       const data = await this.request<{ couriers: Array<{ slug: string; name: string }> }>(
@@ -279,7 +246,6 @@ export class AfterShipProvider implements ITrackingProvider {
         "/couriers/detect",
         { tracking: { tracking_number: trackingNumber } }
       );
-
       if (data.couriers && data.couriers.length > 0) {
         return data.couriers[0].slug;
       }
@@ -289,9 +255,7 @@ export class AfterShipProvider implements ITrackingProvider {
       return null;
     }
   }
-
   private transformTracking(tracking: AfterShipTracking): TrackingResult {
-
     const rawData: Record<string, unknown> = {
       id: tracking.id,
       tracking_number: tracking.tracking_number,
@@ -307,7 +271,6 @@ export class AfterShipProvider implements ITrackingProvider {
       checkpoints: tracking.checkpoints,
       updated_at: tracking.updated_at,
     };
-
     return {
       trackingNumber: tracking.tracking_number,
       carrier: tracking.title,
@@ -323,12 +286,10 @@ export class AfterShipProvider implements ITrackingProvider {
       rawData,
     };
   }
-
   private transformCheckpoint(checkpoint: AfterShipCheckpoint): TrackingEvent {
     const location = [checkpoint.city, checkpoint.state, checkpoint.country_name]
       .filter(Boolean)
       .join(", ");
-
     return {
       timestamp: new Date(checkpoint.created_at),
       status: mapAfterShipStatus(checkpoint.tag),

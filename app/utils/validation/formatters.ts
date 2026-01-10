@@ -16,14 +16,12 @@ export function formatZodErrorsToRecord(
 ): Record<string, string> {
   const errors: Record<string, string> = {};
   const issues = getZodIssues(error);
-
   for (const issue of issues) {
     const path = issue.path.join(".");
     if (!errors[path]) {
       errors[path] = issue.message;
     }
   }
-
   return errors;
 }
 
@@ -51,11 +49,9 @@ export function getFirstZodError(error: ZodError<unknown>): string {
 export function zodErrorToAppError(zodError: ZodError<unknown>): AppError {
   const errors = formatZodErrorsToArray(zodError);
   const firstError = errors[0];
-
   const message = firstError
     ? `Validation error: ${firstError.field} - ${firstError.message}`
     : "Validation error";
-
   return new AppError(ErrorCode.VALIDATION_ERROR, message, false, {
     field: firstError?.field,
     errors,

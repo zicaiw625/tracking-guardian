@@ -71,7 +71,6 @@ function generateFingerprint(
     sourceType,
     category,
     platform: platform || "",
-
     scriptSrc: details?.scriptSrc || "",
     detectedPatterns: details?.detectedPatterns || [],
   });
@@ -84,17 +83,13 @@ function inferSuggestedMigration(
 ): SuggestedMigration {
   switch (category) {
     case "pixel":
-
       return "web_pixel";
     case "survey":
     case "support":
-
       return "ui_extension";
     case "analytics":
-
       return "none";
     case "affiliate":
-
       return "server_side";
     default:
       return "none";
@@ -110,19 +105,15 @@ async function calculatePriorityAndTimeEstimate(
     const asset = await prisma.auditAsset.findUnique({
       where: { id: assetId },
     });
-
     if (!asset) {
       logger.warn("Asset not found for priority calculation", { assetId });
       return;
     }
-
     const allAssets = await prisma.auditAsset.findMany({
       where: { shopId },
     });
-
     const priorityResult = await calculatePriority(asset, allAssets);
     await updateAssetPriority(assetId, priorityResult);
-
     logger.info("Priority and time estimate calculated", {
       assetId,
       priority: priorityResult.priority,
@@ -139,19 +130,15 @@ function inferRiskLevel(
   sourceType: AssetSourceType,
   platform?: string
 ): RiskLevel {
-
   if (sourceType === "api_scan" && category === "pixel") {
     return "high";
   }
-
   if (sourceType === "manual_paste" && category === "pixel") {
     return "high";
   }
-
   if (category === "survey" || category === "support") {
     return "medium";
   }
-
   return "medium";
 }
 
@@ -166,7 +153,6 @@ export async function createAuditAsset(
       input.platform,
       input.details
     );
-
     const existing = await prisma.auditAsset.findUnique({
       where: { shopId_fingerprint: { shopId, fingerprint } },
       select: {
@@ -187,7 +173,6 @@ export async function createAuditAsset(
         updatedAt: true,
       },
     });
-
     if (existing) {
       const updated = await prisma.auditAsset.update({
         where: { id: existing.id },
@@ -219,7 +204,6 @@ export async function createAuditAsset(
           updatedAt: true,
         },
       });
-
       calculatePriorityAndTimeEstimate(updated.id, shopId).catch((error) => {
         const errorMessage = error instanceof Error ? error.message : String(error);
         logger.error("Failed to calculate priority/time estimate asynchronously", error instanceof Error ? error : new Error(String(error)), {
@@ -228,11 +212,9 @@ export async function createAuditAsset(
           errorMessage,
         });
       });
-
       logger.info("AuditAsset updated", { id: updated.id, shopId, fingerprint });
       return mapToRecord(updated);
     }
-
     const asset = await prisma.auditAsset.create({
       data: {
         id: randomUUID(),
@@ -267,7 +249,6 @@ export async function createAuditAsset(
         updatedAt: true,
       },
     });
-
     calculatePriorityAndTimeEstimate(asset.id, shopId).catch((error) => {
       const errorMessage = error instanceof Error ? error.message : String(error);
       logger.error("Failed to calculate priority/time estimate asynchronously", error instanceof Error ? error : new Error(String(error)), {
@@ -276,7 +257,6 @@ export async function createAuditAsset(
         errorMessage,
       });
     });
-
     logger.info("AuditAsset created", { id: asset.id, shopId, category: input.category });
     return mapToRecord(asset);
   } catch (error) {
@@ -293,12 +273,10 @@ export async function batchCreateAuditAssets(
   if (assets.length === 0) {
     return { created: 0, updated: 0, failed: 0, duplicates: 0 };
   }
-
   let created = 0;
   let updated = 0;
   let failed = 0;
   const duplicates = 0;
-
   if (assets.length > 50) {
     try {
       await prisma.$transaction(async (tx) => {
@@ -310,11 +288,9 @@ export async function batchCreateAuditAssets(
               input.platform,
               input.details
             );
-
             const existing = await tx.auditAsset.findUnique({
               where: { shopId_fingerprint: { shopId, fingerprint } },
             });
-
             if (existing) {
               await tx.auditAsset.update({
                 where: { id: existing.id },
@@ -360,7 +336,6 @@ export async function batchCreateAuditAssets(
       });
     } catch (error) {
       logger.error("Batch AuditAssets transaction failed", { shopId, error, count: assets.length });
-
       for (const input of assets) {
         const result = await createAuditAsset(shopId, {
           ...input,
@@ -379,13 +354,11 @@ export async function batchCreateAuditAssets(
       }
     }
   } else {
-
     for (const input of assets) {
       const result = await createAuditAsset(shopId, {
         ...input,
         scanReportId: scanReportId || input.scanReportId,
       });
-
       if (result) {
         const isNew = Date.now() - result.createdAt.getTime() < 1000;
         if (isNew) {
@@ -398,7 +371,6 @@ export async function batchCreateAuditAssets(
       }
     }
   }
-
   logger.info("Batch AuditAssets processed", { shopId, created, updated, failed, duplicates, total: assets.length });
   return { created, updated, failed, duplicates };
 }
@@ -442,7 +414,6 @@ export async function getAuditAssets(
     ],
     take: options.limit || 100,
   });
-
   return assets.map(mapToRecord);
 }
 
@@ -472,7 +443,6 @@ export async function getAuditAssetSummary(shopId: string): Promise<AuditAssetSu
       _count: true,
     }),
   ]);
-
   const byCategory: Record<AssetCategory, number> = {
     pixel: 0,
     affiliate: 0,
@@ -484,7 +454,6 @@ export async function getAuditAssetSummary(shopId: string): Promise<AuditAssetSu
   categoryStats.forEach(s => {
     byCategory[s.category as AssetCategory] = s._count;
   });
-
   const byRiskLevel: Record<RiskLevel, number> = {
     high: 0,
     medium: 0,
@@ -493,7 +462,6 @@ export async function getAuditAssetSummary(shopId: string): Promise<AuditAssetSu
   riskStats.forEach(s => {
     byRiskLevel[s.riskLevel as RiskLevel] = s._count;
   });
-
   const byMigrationStatus: Record<MigrationStatus, number> = {
     pending: 0,
     in_progress: 0,
@@ -503,18 +471,15 @@ export async function getAuditAssetSummary(shopId: string): Promise<AuditAssetSu
   migrationStats.forEach(s => {
     byMigrationStatus[s.migrationStatus as MigrationStatus] = s._count;
   });
-
   const byPlatform: Record<string, number> = {};
   platformStats.forEach(s => {
     if (s.platform) {
       byPlatform[s.platform] = s._count;
     }
   });
-
   const total = Object.values(byCategory).reduce((a, b) => a + b, 0);
   const pendingMigrations = byMigrationStatus.pending + byMigrationStatus.in_progress;
   const completedMigrations = byMigrationStatus.completed;
-
   return {
     total,
     byCategory,
@@ -538,7 +503,6 @@ export async function updateMigrationStatus(
         migratedAt: status === "completed" ? new Date() : null,
       },
     });
-
     logger.info("AuditAsset migration status updated", { assetId, status });
     return true;
   } catch (error) {
@@ -558,7 +522,6 @@ export async function batchUpdateMigrationStatus(
       migratedAt: status === "completed" ? new Date() : null,
     },
   });
-
   logger.info("Batch migration status updated", { count: result.count, status });
   return result.count;
 }
@@ -586,7 +549,6 @@ export async function clearAssetsForScan(
       sourceType: "api_scan",
     },
   });
-
   logger.info("Cleared AuditAssets for scan", { shopId, scanReportId, count: result.count });
   return result.count;
 }

@@ -58,7 +58,6 @@ export interface IFeatureFlags {
   debugLogging: boolean;
   extendedPayload: boolean;
   trackingApi: boolean;
-
   checkoutBlocks: boolean;
 }
 
@@ -75,37 +74,24 @@ export interface IAppConfig {
 }
 
 export interface IRequestContext {
-
   requestId: string;
-
   correlationId: string;
-
   shopDomain?: string;
-
   orderId?: string;
-
   jobId?: string;
-
   platform?: string;
-
   startTime: number;
-
   [key: string]: unknown;
 }
 
 export interface IAppContext {
-
   db: IDatabase;
-
   logger: ILogger;
-
   config: IAppConfig;
 }
 
 export interface IScopedContext extends IAppContext {
-
   request: IRequestContext;
-
   requestLogger: ILogger;
 }
 
@@ -114,16 +100,10 @@ export type ServiceFactory<T> = (context: IAppContext) => T;
 export type ScopedServiceFactory<T> = (context: IScopedContext) => T;
 
 export interface IContainer {
-
   getContext(): IAppContext;
-
   createScopedContext(requestContext: IRequestContext): IScopedContext;
-
   registerSingleton<T>(key: string, factory: ServiceFactory<T>): void;
-
   registerScoped<T>(key: string, factory: ScopedServiceFactory<T>): void;
-
   resolve<T>(key: string): T;
-
   resolveScoped<T>(key: string, scopedContext: IScopedContext): T;
 }

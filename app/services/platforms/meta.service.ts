@@ -41,7 +41,6 @@ function isMetaCredentials(credentials: unknown): credentials is MetaCredentials
 export class MetaPlatformService implements IPlatformService {
   readonly platform = Platform.META;
   readonly displayName = "Meta (Facebook)";
-
   async sendConversion(
     credentials: PlatformCredentials,
     data: ConversionData,
@@ -59,7 +58,6 @@ export class MetaPlatformService implements IPlatformService {
     }
     const metaCreds = credentials;
     const validation = this.validateCredentials(metaCreds);
-
     if (!validation.valid) {
       return {
         success: false,
@@ -70,21 +68,17 @@ export class MetaPlatformService implements IPlatformService {
         },
       };
     }
-
     const dedupeEventId = eventId || generateDedupeEventId(data.orderId);
-
     try {
       const [response, duration] = await measureDuration(() =>
         this.sendRequest(metaCreds, data, dedupeEventId)
       );
-
       logger.info(`Meta CAPI: conversion sent successfully`, {
         orderId: data.orderId.slice(0, 8),
         eventId: dedupeEventId,
         eventsReceived: response.events_received,
         durationMs: duration,
       });
-
       return {
         success: true,
         response,
@@ -92,29 +86,23 @@ export class MetaPlatformService implements IPlatformService {
       };
     } catch (error) {
       const platformError = this.parseError(error);
-
       logger.error(`Meta CAPI: conversion failed`, {
         orderId: data.orderId.slice(0, 8),
         error: platformError.message,
         type: platformError.type,
       });
-
       return {
         success: false,
         error: platformError,
       };
     }
   }
-
   validateCredentials(credentials: unknown): CredentialsValidationResult {
     const errors: string[] = [];
-
     if (!credentials || typeof credentials !== "object") {
       return { valid: false, errors: ["Credentials must be an object"] };
     }
-
     const creds = credentials as Record<string, unknown>;
-
     if (!creds.pixelId || typeof creds.pixelId !== "string") {
       errors.push("pixelId is required");
     } else if (!PIXEL_ID_PATTERN.test(creds.pixelId)) {
@@ -122,25 +110,20 @@ export class MetaPlatformService implements IPlatformService {
         `Invalid Meta Pixel ID format: ${creds.pixelId}. Expected 15-16 digit number.`
       );
     }
-
     if (!creds.accessToken || typeof creds.accessToken !== "string") {
       errors.push("accessToken is required");
     }
-
     return {
       valid: errors.length === 0,
       errors,
     };
   }
-
   parseError(error: unknown): PlatformError {
     if (error instanceof Error) {
-
       const attachedError = (error as Error & { platformError?: PlatformError }).platformError;
       if (attachedError) {
         return attachedError;
       }
-
       if (error.name === "AbortError") {
         return {
           type: "timeout",
@@ -148,30 +131,25 @@ export class MetaPlatformService implements IPlatformService {
           isRetryable: true,
         };
       }
-
       return classifyJsError(error);
     }
-
     return {
       type: "unknown",
       message: String(error),
       isRetryable: true,
     };
   }
-
   async buildPayload(
     data: ConversionData,
     eventId: string
   ): Promise<Record<string, unknown>> {
     const eventTime = Math.floor(Date.now() / 1000);
-
     const contents =
       data.lineItems?.map((item) => ({
         id: item.productId,
         quantity: item.quantity,
         item_price: item.price,
       })) || [];
-
     return {
       data: [
         {
@@ -179,7 +157,6 @@ export class MetaPlatformService implements IPlatformService {
           event_time: eventTime,
           event_id: eventId,
           action_source: "website",
-
           custom_data: {
             currency: data.currency,
             value: data.value,
@@ -191,13 +168,11 @@ export class MetaPlatformService implements IPlatformService {
       ],
     };
   }
-
   private async sendRequest(
     credentials: MetaCredentials,
     data: ConversionData,
     eventId: string
   ): Promise<ConversionApiResponse> {
-
     const eventTime = Math.floor(Date.now() / 1000);
     const contents =
       data.lineItems?.map((item) => ({
@@ -205,7 +180,6 @@ export class MetaPlatformService implements IPlatformService {
         quantity: item.quantity,
         item_price: item.price,
       })) || [];
-
     const eventPayload = {
       data: [
         {
@@ -213,7 +187,6 @@ export class MetaPlatformService implements IPlatformService {
           event_time: eventTime,
           event_id: eventId,
           action_source: "website",
-
           custom_data: {
             currency: data.currency,
             value: data.value,
@@ -225,9 +198,7 @@ export class MetaPlatformService implements IPlatformService {
       ],
       ...(credentials.testEventCode && { test_event_code: credentials.testEventCode }),
     };
-
     const url = `${META_API_BASE_URL}/${META_API_VERSION}/${credentials.pixelId}/events`;
-
     const response = await fetchWithTimeout(
       url,
       {
@@ -243,26 +214,21 @@ export class MetaPlatformService implements IPlatformService {
       },
       DEFAULT_API_TIMEOUT_MS
     );
-
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
       let platformError: PlatformError;
-
       if (errorData.error) {
         platformError = parseMetaError(errorData);
       } else {
         platformError = classifyHttpError(response.status, errorData);
       }
-
       const enhancedError = new Error(`Meta API error: ${platformError.message}`) as Error & {
         platformError: PlatformError;
       };
       enhancedError.platformError = platformError;
       throw enhancedError;
     }
-
     const result = await response.json();
-
     return {
       success: true,
       events_received: result.events_received,
@@ -282,13 +248,11 @@ export async function sendConversionToMeta(
   if (!credentials?.pixelId || !credentials?.accessToken) {
     throw new Error("Meta Pixel credentials not configured");
   }
-
   const result = await metaService.sendConversion(
     credentials,
     conversionData,
     eventId || generateDedupeEventId(conversionData.orderId)
   );
-
   if (!result.success) {
     const enhancedError = new Error(result.error?.message || "Unknown error") as Error & {
       platformError?: PlatformError;
@@ -296,7 +260,6 @@ export async function sendConversionToMeta(
     enhancedError.platformError = result.error;
     throw enhancedError;
   }
-
   return result.response!;
 }
 

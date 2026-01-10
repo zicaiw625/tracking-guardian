@@ -62,7 +62,6 @@ const cachedLoader = withConditionalCache(
     },
     ttl: TTL.MEDIUM,
     shouldCache: (result) => {
-
       if (result instanceof Response) {
         return result.status === 200;
       }
@@ -78,11 +77,9 @@ async function loaderImpl(request: Request) {
     const url = new URL(request.url);
     const orderId = url.searchParams.get("orderId");
     const trackingNumber = url.searchParams.get("trackingNumber");
-
     if (!orderId) {
       return jsonWithCors({ error: "Missing orderId" }, { status: 400, request, staticCors: true });
     }
-
     let session: { shop: string; [key: string]: unknown };
     try {
       const authResult = await authenticate.public.checkout(request) as unknown as { session: { shop: string; [key: string]: unknown } };
@@ -96,7 +93,6 @@ async function loaderImpl(request: Request) {
         { status: 401, request, staticCors: true }
       );
     }
-
     const shopDomain = session.shop;
     const shop = await prisma.shop.findUnique({
       where: { shopDomain },
@@ -104,26 +100,21 @@ async function loaderImpl(request: Request) {
         id: true,
       },
     });
-
     if (!shop) {
       return jsonWithCors({ error: "Shop not found" }, { status: 404, request, staticCors: true });
     }
-
     const trackingModuleConfig = await getUiModuleConfig(shop.id, "order_tracking");
     const trackingSettings = trackingModuleConfig.isEnabled
       ? (trackingModuleConfig.settings as OrderTrackingSettings | undefined)
       : undefined;
-
     let trackingInfo: TrackingInfo | null = null;
     let trackingNumberFromShopify: string | null = null;
     let carrierFromShopify: string | null = null;
     let trackingUrlFromShopify: string | null = null;
-
     logger.info(`Tracking info requested for orderId: ${orderId}, shop: ${shopDomain}`, {
       hasTrackingNumber: !!trackingNumber,
       hasThirdPartyProvider: !!trackingSettings?.provider && trackingSettings.provider !== "native",
     });
-
     try {
       const admin = await createAdminClientForShop(shopDomain);
       if (admin) {
@@ -150,7 +141,6 @@ async function loaderImpl(request: Request) {
             id: orderId,
           },
         });
-
         const fulfillmentData = await fulfillmentResponse.json().catch((jsonError) => {
           logger.warn("Failed to parse fulfillment GraphQL response as JSON", {
             error: jsonError instanceof Error ? jsonError.message : String(jsonError),
@@ -159,9 +149,7 @@ async function loaderImpl(request: Request) {
           });
           return { data: null };
         });
-
         if (fulfillmentData.data?.order?.fulfillments?.edges?.length > 0) {
-
           const firstFulfillment = fulfillmentData.data.order.fulfillments.edges[0].node;
           if (firstFulfillment.trackingInfo) {
             trackingNumberFromShopify = firstFulfillment.trackingInfo.number || null;
@@ -175,16 +163,13 @@ async function loaderImpl(request: Request) {
         }
       }
     } catch (error) {
-
       logger.warn("Failed to query Shopify order fulfillments", {
         error: error instanceof Error ? error.message : String(error),
         orderId,
         shopDomain,
       });
     }
-
     const trackingNumberToUse = trackingNumber || trackingNumberFromShopify || null;
-
     if (!trackingNumberToUse) {
       return jsonWithCors(
         {
@@ -202,22 +187,18 @@ async function loaderImpl(request: Request) {
         { status: 200, request, staticCors: true }
       );
     }
-
     if (trackingSettings?.provider && trackingSettings.provider !== "native" && trackingNumberToUse) {
       const config: TrackingProviderConfig = {
         provider: trackingSettings.provider,
         apiKey: trackingSettings.apiKey,
       };
-
       try {
         const thirdPartyTracking = await getTrackingInfo(
           config,
           trackingNumberToUse,
           trackingSettings.provider
         );
-
         if (thirdPartyTracking) {
-
           const enrichedTracking = thirdPartyTracking;
           trackingInfo = {
             ...enrichedTracking,
@@ -226,21 +207,16 @@ async function loaderImpl(request: Request) {
           };
           logger.info(`Third-party tracking enrich successful for orderId: ${orderId}, provider: ${trackingSettings.provider}`);
         } else {
-
           logger.warn(`Third-party tracking enrich failed for orderId: ${orderId}, provider: ${trackingSettings.provider}, falling back to Shopify data`);
         }
       } catch (error) {
-
         logger.error(`Third-party tracking enrich error for orderId: ${orderId}`, {
           error: error instanceof Error ? error.message : String(error),
           provider: trackingSettings.provider,
         });
-
       }
     }
-
     if (!trackingInfo) {
-
       if (trackingNumberToUse) {
         return jsonWithCors(
           {
@@ -258,7 +234,6 @@ async function loaderImpl(request: Request) {
           { status: 200, request, staticCors: true }
         );
       }
-
       return jsonWithCors(
         {
           success: true,
@@ -274,7 +249,6 @@ async function loaderImpl(request: Request) {
         { status: 200, request, staticCors: true }
       );
     }
-
     return jsonWithCors({
       success: true,
       tracking: {

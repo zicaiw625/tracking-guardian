@@ -39,16 +39,13 @@ async function calculateHealthScore(
   if (recentReports.length === 0 || configuredPlatforms === 0) {
     return { score: null, status: "uninitialized", factors: [] };
   }
-
   const factors: { label: string; value: number; weight: number }[] = [];
-
   const avgDiscrepancy =
     recentReports.length > 0
       ? recentReports.reduce((sum, r) => sum + r.orderDiscrepancy, 0) / recentReports.length
       : 0;
   const discrepancyScore = Math.max(0, 100 - (avgDiscrepancy * 500));
   factors.push({ label: "对账一致性", value: discrepancyScore, weight: 0.4 });
-
   try {
     const stats = await getEventMonitoringStats(shopId, 24 * 7);
     const successRateScore = stats.successRate || 0;
@@ -57,7 +54,6 @@ async function calculateHealthScore(
     logger.warn("Failed to get event monitoring stats for health score", { shopId, error });
     factors.push({ label: "事件成功率", value: 100, weight: 0.3 });
   }
-
   try {
     const missingParamsRate = await getMissingParamsRate(shopId, 24 * 7);
     const completenessScore = 100 - (missingParamsRate?.rate || 0);
@@ -66,7 +62,6 @@ async function calculateHealthScore(
     logger.warn("Failed to get missing params rate for health score", { shopId, error });
     factors.push({ label: "参数完整性", value: 100, weight: 0.2 });
   }
-
   try {
     const volumeStats = await getEventVolumeStats(shopId);
     let volumeScore = 100;
@@ -80,10 +75,8 @@ async function calculateHealthScore(
     logger.warn("Failed to get event volume stats for health score", { shopId, error });
     factors.push({ label: "事件量稳定性", value: 100, weight: 0.1 });
   }
-
   const totalScore = factors.reduce((sum, factor) => sum + (factor.value * factor.weight), 0);
   const roundedScore = Math.round(totalScore);
-
   let status: HealthStatus;
   if (roundedScore >= 90) {
     status = "success";
@@ -94,7 +87,6 @@ async function calculateHealthScore(
   } else {
     status = "critical";
   }
-
   return { score: roundedScore, status, factors };
 }
 
@@ -104,7 +96,6 @@ function analyzeScriptTags(
   if (!scriptTags || !Array.isArray(scriptTags)) {
     return { count: 0, hasOrderStatusScripts: false };
   }
-
   const tags = scriptTags as Array<{ display_scope?: string }>;
   return {
     count: tags.length,
@@ -113,7 +104,6 @@ function analyzeScriptTags(
 }
 
 export async function getDashboardData(shopDomain: string): Promise<DashboardData> {
-
   const shop = await prisma.shop.findUnique({
     where: { shopDomain },
     select: {
@@ -138,10 +128,8 @@ export async function getDashboardData(shopDomain: string): Promise<DashboardDat
         where: { isActive: true },
         select: { id: true, serverSideEnabled: true, credentialsEncrypted: true },
       },
-
     },
   });
-
   if (!shop) {
     return {
       shopDomain,
@@ -161,9 +149,7 @@ export async function getDashboardData(shopDomain: string): Promise<DashboardDat
       hasOrderStatusScripts: false,
     };
   }
-
   const configuredPlatforms = shop.pixelConfigs?.length || 0;
-
   let weeklyConversions = 0;
   try {
     const { getAggregatedMetrics } = await import("./dashboard-aggregation.server");
@@ -177,7 +163,6 @@ export async function getDashboardData(shopDomain: string): Promise<DashboardDat
       error: error instanceof Error ? error.message : String(error),
     });
   }
-
   const serverSideConfigsCount = shop.pixelConfigs?.filter(
     (config: { serverSideEnabled: boolean; credentialsEncrypted: string | null }) =>
       config.serverSideEnabled &&
@@ -192,17 +177,14 @@ export async function getDashboardData(shopDomain: string): Promise<DashboardDat
   );
   const planId = normalizePlan(shop.plan);
   const planDef = getPlanDefinition(planId);
-
   const latestScan = shop.ScanReports?.[0];
   const scriptTagAnalysis = latestScan ? analyzeScriptTags(latestScan.scriptTags) : { count: 0, hasOrderStatusScripts: false };
-
   let estimatedMigrationTimeMinutes = 30;
   try {
     const migrationTimeline = await generateMigrationTimeline(shop.id);
     if (migrationTimeline && migrationTimeline.totalEstimatedTime > 0) {
       estimatedMigrationTimeMinutes = migrationTimeline.totalEstimatedTime;
     } else if (latestScan) {
-
       estimatedMigrationTimeMinutes = Math.max(
         30,
         scriptTagAnalysis.count * 15 +
@@ -211,7 +193,6 @@ export async function getDashboardData(shopDomain: string): Promise<DashboardDat
     }
   } catch (error) {
     logger.error("Failed to calculate migration timeline", { shopId: shop.id, error });
-
     if (latestScan) {
       estimatedMigrationTimeMinutes = Math.max(
         30,
@@ -220,33 +201,27 @@ export async function getDashboardData(shopDomain: string): Promise<DashboardDat
       );
     }
   }
-
   const isNewInstall = shop.installedAt &&
     (Date.now() - shop.installedAt.getTime()) < 24 * 60 * 60 * 1000;
-
   const showOnboarding = isNewInstall && (
     !latestScan ||
     latestScan.status === "pending" ||
     latestScan.status === "scanning"
   );
-
   let migrationChecklist = null;
   let dependencyGraph = null;
   let riskDistribution = null;
-
   if (latestScan) {
     try {
       migrationChecklist = await getMigrationChecklist(shop.id, false);
     } catch (error) {
       logger.error("Failed to get migration checklist", { shopId: shop.id, error });
     }
-
     try {
       dependencyGraph = await analyzeDependencies(shop.id);
     } catch (error) {
       logger.error("Failed to analyze dependencies", { shopId: shop.id, error });
     }
-
     try {
       const assetSummary = await getAuditAssetSummary(shop.id);
       riskDistribution = {
@@ -262,7 +237,6 @@ export async function getDashboardData(shopDomain: string): Promise<DashboardDat
       logger.error("Failed to get risk distribution", { shopId: shop.id, error });
     }
   }
-
   const shopTier = (shop.shopTier !== null && shop.shopTier !== undefined && isValidShopTier(shop.shopTier))
     ? shop.shopTier
     : "unknown";
@@ -270,7 +244,6 @@ export async function getDashboardData(shopDomain: string): Promise<DashboardDat
   const deadlineDate = new Date(tierInfo.deadlineDate);
   const now = new Date();
   const daysRemaining = Math.max(0, Math.ceil((deadlineDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)));
-
   let urgency: UpgradeStatus["urgency"] = "low";
   if (daysRemaining <= 0) {
     urgency = "critical";
@@ -281,9 +254,7 @@ export async function getDashboardData(shopDomain: string): Promise<DashboardDat
   } else if (shop.typOspPagesEnabled) {
     urgency = "resolved";
   }
-
   const autoUpgradeStartDate = shopTier === "plus" ? "2026-01" : undefined;
-
   const upgradeStatus: UpgradeStatus = {
     isUpgraded: shop.typOspPagesEnabled ?? false,
     shopTier,
@@ -292,14 +263,12 @@ export async function getDashboardData(shopDomain: string): Promise<DashboardDat
     daysRemaining,
     urgency,
   };
-
   let migrationProgress;
   try {
     migrationProgress = await calculateMigrationProgress(shop.id);
   } catch (error) {
     logger.error("Failed to calculate migration progress", { shopId: shop.id, error });
   }
-
   const riskScore = latestScan?.riskScore ?? null;
   let riskLevel: "high" | "medium" | "low" | null = null;
   if (riskScore !== null) {
@@ -311,7 +280,6 @@ export async function getDashboardData(shopDomain: string): Promise<DashboardDat
       riskLevel = "low";
     }
   }
-
     let topRiskSources: Array<{ source: string; count: number; category: string }> = [];
   try {
     if (latestScan) {
@@ -324,7 +292,6 @@ export async function getDashboardData(shopDomain: string): Promise<DashboardDat
         analytics: "分析工具",
         other: "其他",
       };
-
             const highRiskByCategory = await prisma.auditAsset.groupBy({
         by: ["category"],
         where: {
@@ -333,7 +300,6 @@ export async function getDashboardData(shopDomain: string): Promise<DashboardDat
         },
         _count: true,
       });
-
             const highRiskByPlatform = await prisma.auditAsset.groupBy({
         by: ["platform"],
         where: {
@@ -343,9 +309,7 @@ export async function getDashboardData(shopDomain: string): Promise<DashboardDat
         },
         _count: true,
       });
-
             const allSources: Array<{ source: string; count: number; category: string }> = [];
-
       highRiskByCategory.forEach((item) => {
         allSources.push({
           source: categoryLabels[item.category] || item.category,
@@ -353,7 +317,6 @@ export async function getDashboardData(shopDomain: string): Promise<DashboardDat
           category: item.category,
         });
       });
-
       highRiskByPlatform.forEach((item) => {
         if (item.platform) {
           allSources.push({
@@ -363,7 +326,6 @@ export async function getDashboardData(shopDomain: string): Promise<DashboardDat
           });
         }
       });
-
             topRiskSources = allSources
         .sort((a, b) => b.count - a.count)
         .slice(0, 3);
@@ -371,7 +333,6 @@ export async function getDashboardData(shopDomain: string): Promise<DashboardDat
   } catch (error) {
     logger.warn("Failed to get top risk sources", { shopId: shop.id, error });
   }
-
     let healthMetrics24h = null;
   let activeAlerts: Array<{
     id: string;
@@ -380,17 +341,14 @@ export async function getDashboardData(shopDomain: string): Promise<DashboardDat
     message: string;
     triggeredAt: Date;
   }> = [];
-
   try {
     const monitoringStats = await getEventMonitoringStats(shop.id, 24);
     const missingParamsData = await getMissingParamsRate(shop.id, 24);
-
         const missingParamsByType = {
       value: 0,
       currency: 0,
       items: 0,
     };
-
     if (missingParamsData.details) {
       missingParamsData.details.forEach((detail) => {
         if (detail.missingParams.includes("value")) {
@@ -404,7 +362,6 @@ export async function getDashboardData(shopDomain: string): Promise<DashboardDat
         }
       });
     }
-
     healthMetrics24h = {
       successRate: monitoringStats.successRate,
       failureRate: monitoringStats.failureRate,
@@ -415,7 +372,6 @@ export async function getDashboardData(shopDomain: string): Promise<DashboardDat
   } catch (error) {
     logger.warn("Failed to get 24h health metrics", { shopId: shop.id, error });
   }
-
     try {
     const alertCheckResult = await runAlertChecks(shop.id);
     activeAlerts = alertCheckResult.results
@@ -430,7 +386,6 @@ export async function getDashboardData(shopDomain: string): Promise<DashboardDat
   } catch (error) {
     logger.warn("Failed to get active alerts", { shopId: shop.id, error });
   }
-
   return {
     shopDomain,
     healthScore: score,
@@ -458,7 +413,6 @@ export async function getDashboardData(shopDomain: string): Promise<DashboardDat
     typOspPagesEnabled: shop.typOspPagesEnabled ?? false,
     estimatedMigrationTimeMinutes,
     showOnboarding,
-
     upgradeStatus,
     migrationProgress,
     riskScore,

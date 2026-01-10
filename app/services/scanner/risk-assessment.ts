@@ -44,7 +44,6 @@ export const RISK_RULES: RiskRule[] = [
 export function assessRisks(result: EnhancedScanResult): RiskItem[] {
     const risks: RiskItem[] = [];
     const seenRiskKeys = new Set<string>();
-
     function addRisk(risk: RiskItem, dedupeKey?: string): void {
         const key = dedupeKey || `${risk.id}_${risk.platform || ""}`;
         if (!seenRiskKeys.has(key)) {
@@ -52,17 +51,14 @@ export function assessRisks(result: EnhancedScanResult): RiskItem[] {
             risks.push(risk);
         }
     }
-
     if (result.scriptTags.length > 0) {
         const platformScriptTags: Record<string, {
             orderStatus: ScriptTag[];
             other: ScriptTag[];
         }> = {};
-
         for (const tag of result.scriptTags) {
             const src = tag.src || "";
             const platform = identifyPlatformFromSrc(src);
-
             if (!platformScriptTags[platform]) {
                 platformScriptTags[platform] = { orderStatus: [], other: [] };
             }
@@ -73,10 +69,8 @@ export function assessRisks(result: EnhancedScanResult): RiskItem[] {
                 platformScriptTags[platform].other.push(tag);
             }
         }
-
         for (const [platform, tags] of Object.entries(platformScriptTags)) {
             const platformName = PLATFORM_INFO[platform]?.name || platform;
-
             if (tags.orderStatus.length > 0) {
                 addRisk({
                     id: "deprecated_script_tag_order_status",
@@ -88,7 +82,6 @@ export function assessRisks(result: EnhancedScanResult): RiskItem[] {
                     platform,
                 }, `order_status_${platform}`);
             }
-
             if (tags.other.length > 0) {
                 addRisk({
                     id: "deprecated_script_tag",
@@ -102,9 +95,7 @@ export function assessRisks(result: EnhancedScanResult): RiskItem[] {
             }
         }
     }
-
     if (result.identifiedPlatforms.length > 0) {
-
         addRisk({
             id: "inline_tracking",
             name: "内联追踪代码",
@@ -114,9 +105,7 @@ export function assessRisks(result: EnhancedScanResult): RiskItem[] {
             details: `检测到平台: ${result.identifiedPlatforms.map(p => PLATFORM_INFO[p]?.name || p).join(", ")}`,
         }, "inline_tracking");
     }
-
     const supportedPlatforms = result.identifiedPlatforms.filter(p => PLATFORM_INFO[p]?.supportLevel === "supported");
-
     if (supportedPlatforms.length > 0) {
         addRisk({
             id: "no_server_side",
@@ -127,7 +116,6 @@ export function assessRisks(result: EnhancedScanResult): RiskItem[] {
             details: `支持平台: ${supportedPlatforms.map(p => PLATFORM_INFO[p]?.name || p).join(", ")}`,
         }, "no_server_side");
     }
-
     return risks;
 }
 
@@ -135,21 +123,17 @@ export function calculateRiskScore(riskItems: RiskItem[]): number {
     if (riskItems.length === 0) {
         return 0;
     }
-
     const severityWeight: Record<RiskSeverity, number> = {
         high: 1.5,
         medium: 1.0,
         low: 0.5,
     };
-
     const weightedPoints = riskItems.reduce((sum, item) => {
         const weight = severityWeight[item.severity] || 1.0;
         return sum + item.points * weight;
     }, 0);
-
     const highRiskCount = riskItems.filter(item => item.severity === "high").length;
     const mediumRiskCount = riskItems.filter(item => item.severity === "medium").length;
-
     let multiplier = 1.0;
     if (highRiskCount >= 3) {
         multiplier = 1.3;
@@ -158,11 +142,8 @@ export function calculateRiskScore(riskItems: RiskItem[]): number {
     } else if (highRiskCount === 1 && mediumRiskCount >= 3) {
         multiplier = 1.1;
     }
-
     const adjustedScore = weightedPoints * multiplier;
-
     const maxPossibleScore = 200;
     const normalizedScore = Math.min(100, Math.round((adjustedScore / maxPossibleScore) * 100));
-
     return normalizedScore;
 }

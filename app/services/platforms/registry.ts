@@ -15,7 +15,6 @@ import { logger, createTimer } from "../../utils/logger.server";
 
 class PlatformRegistry implements IPlatformRegistry {
   private readonly services = new Map<Platform, IPlatformService>();
-
   register(platform: Platform, service: IPlatformService): void {
     if (this.services.has(platform)) {
       logger.warn(`Platform ${platform} is being re-registered`);
@@ -23,27 +22,21 @@ class PlatformRegistry implements IPlatformRegistry {
     this.services.set(platform, service);
     logger.debug(`Registered platform service: ${platform}`);
   }
-
   get(platform: Platform): IPlatformService | undefined {
     return this.services.get(platform);
   }
-
   has(platform: Platform): boolean {
     return this.services.has(platform);
   }
-
   getPlatforms(): Platform[] {
     return Array.from(this.services.keys());
   }
-
   getAll(): Map<Platform, IPlatformService> {
     return new Map(this.services);
   }
-
   unregister(platform: Platform): boolean {
     return this.services.delete(platform);
   }
-
   clear(): void {
     this.services.clear();
   }
@@ -51,7 +44,6 @@ class PlatformRegistry implements IPlatformRegistry {
 
 class PlatformOrchestrator implements IPlatformOrchestrator {
   constructor(private readonly registry: IPlatformRegistry) {}
-
   async sendToOne(
     platform: Platform,
     credentials: PlatformCredentials,
@@ -59,7 +51,6 @@ class PlatformOrchestrator implements IPlatformOrchestrator {
     eventId: string
   ): AsyncResult<PlatformSendResult, AppError> {
     const service = this.registry.get(platform);
-
     if (!service) {
       return err(
         new AppError(
@@ -70,11 +61,9 @@ class PlatformOrchestrator implements IPlatformOrchestrator {
         )
       );
     }
-
     try {
       const timer = createTimer();
       const result = await service.sendConversion(credentials, data, eventId);
-
       return ok({
         ...result,
         duration: timer.elapsed(),
@@ -85,14 +74,12 @@ class PlatformOrchestrator implements IPlatformOrchestrator {
         message: error instanceof Error ? error.message : String(error),
         isRetryable: true,
       };
-
       return ok({
         success: false,
         error: platformError,
       });
     }
   }
-
   async sendToMany(
     platforms: Array<{
       platform: Platform;
@@ -103,10 +90,8 @@ class PlatformOrchestrator implements IPlatformOrchestrator {
   ): AsyncResult<MultiPlatformSendResult, AppError> {
     const overallTimer = createTimer();
     const results: Record<Platform, PlatformSendResult> = {} as Record<Platform, PlatformSendResult>;
-
     const promises = platforms.map(async ({ platform, credentials }) => {
       const result = await this.sendToOne(platform, credentials, data, eventId);
-
       if (result.ok) {
         results[platform] = result.value;
       } else {
@@ -120,12 +105,9 @@ class PlatformOrchestrator implements IPlatformOrchestrator {
         };
       }
     });
-
     await Promise.all(promises);
-
     let totalSucceeded = 0;
     let totalFailed = 0;
-
     for (const result of Object.values(results)) {
       if (result.success) {
         totalSucceeded++;
@@ -133,7 +115,6 @@ class PlatformOrchestrator implements IPlatformOrchestrator {
         totalFailed++;
       }
     }
-
     return ok({
       results,
       totalSucceeded,
@@ -150,26 +131,18 @@ export const platformOrchestrator = new PlatformOrchestrator(platformRegistry);
 export function initializePlatformRegistry(
   services?: Partial<Record<Platform, IPlatformService>>
 ): void {
-
   const { googleService } = require("./google.service");
-
   const { metaService } = require("./meta.service");
-
   const { tiktokService } = require("./tiktok.service");
-
   const { pinterestService } = require("./pinterest.service");
-
   const { snapchatService } = require("./snapchat.service");
-
   const { twitterService } = require("./twitter.service");
-
   platformRegistry.register("google", services?.google ?? googleService);
   platformRegistry.register("meta", services?.meta ?? metaService);
   platformRegistry.register("tiktok", services?.tiktok ?? tiktokService);
   platformRegistry.register("pinterest" as Platform, services?.["pinterest" as Platform] ?? pinterestService);
   platformRegistry.register("snapchat" as Platform, services?.["snapchat" as Platform] ?? snapchatService);
   platformRegistry.register("twitter" as Platform, services?.["twitter" as Platform] ?? twitterService);
-
   logger.info("Platform registry initialized", {
     platforms: platformRegistry.getPlatforms(),
   });

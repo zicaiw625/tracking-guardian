@@ -59,7 +59,6 @@ export interface ConversionData {
   value: number;
   currency: string;
   lineItems?: ConversionLineItem[];
-
 }
 
 export type PlatformErrorType =
@@ -102,27 +101,20 @@ export interface PixelConfig {
   shopId: string;
   platform: Platform;
   platformId: string | null;
-
   clientSideEnabled: boolean;
   serverSideEnabled: boolean;
   eventMappings: Record<string, string> | null;
-
   clientConfig: PixelClientConfig | null;
-
   isActive: boolean;
   migrationStatus: "not_started" | "in_progress" | "completed";
   migratedAt: Date | null;
-
   createdAt: Date;
   updatedAt: Date;
 }
 
 export interface PixelClientConfig {
-
   treatAsMarketing?: boolean;
-
   eventMappings?: Record<string, string>;
-
   [key: string]: unknown;
 }
 

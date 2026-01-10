@@ -23,11 +23,9 @@ const platformServices: Record<PlatformType, IPlatformService> = {
 
 export function getPlatformService(platform: PlatformType | string): IPlatformService {
   const service = platformServices[platform as PlatformType];
-
   if (!service) {
     throw new Error(`Unsupported platform: ${platform}`);
   }
-
   return service;
 }
 
@@ -62,7 +60,6 @@ export async function sendConversionToMultiplePlatforms(
   eventId: string
 ): Promise<Record<string, PlatformSendResult>> {
   const results: Record<string, PlatformSendResult> = {};
-
   const promises = platforms.map(async ({ platform, credentials }) => {
     try {
       const result = await sendConversionToPlatform(
@@ -83,9 +80,7 @@ export async function sendConversionToMultiplePlatforms(
       };
     }
   });
-
   await Promise.all(promises);
-
   return results;
 }
 
@@ -117,19 +112,15 @@ export { sendConversionToMeta, extractMetaError } from './meta.service';
 export { sendConversionToTikTok } from './tiktok.service';
 
 export {
-
   classifyHttpError,
   classifyJsError,
   parseMetaError,
   parseGoogleError,
   parseTikTokError,
-
   calculateBackoff,
   shouldRetry,
   formatErrorForLog,
-
   sendToMultiplePlatforms,
-
   type BatchSendResult,
   type PlatformServiceOptions,
 } from './base-platform.service';

@@ -13,15 +13,12 @@ export function toNumber(value: string | number | undefined | null, defaultValue
 }
 
 export interface EventSenderConfig {
-
   backendUrl: string | null;
   shopDomain: string;
-
   ingestionSecret?: string;
   isDevMode: boolean;
   consentManager: ConsentManager;
   logger?: (...args: unknown[]) => void;
-
   environment?: "test" | "live";
 }
 
@@ -31,7 +28,6 @@ function generateHMACSignature(
   bodyHash: string
 ): string {
   const message = `${timestamp}:${bodyHash}`;
-
   return bytesToHex(hmac(sha256, utf8ToBytes(secret), utf8ToBytes(message)));
 }
 
@@ -60,26 +56,21 @@ async function sendCheckoutCompletedWithRetry(
       keepalive: true,
       body,
     });
-
     if (isDevMode) {
       log(`checkout_completed sent, status: ${response.status}, attempt: ${retryIndex + 1}/${MAX_RETRIES}`);
     }
-
     if (response.ok) {
       if (isDevMode && retryIndex > 0) {
         log(`checkout_completed succeeded on retry attempt ${retryIndex + 1}`);
       }
       return;
     }
-
     if (response.status >= 400 && response.status < 500) {
-
       if (isDevMode) {
         log(`checkout_completed client error ${response.status}, not retrying`);
       }
       return;
     }
-
     if (retryIndex < MAX_RETRIES - 1) {
       const delay = RETRY_DELAYS_MS[retryIndex + 1];
       if (isDevMode) {
@@ -92,7 +83,6 @@ async function sendCheckoutCompletedWithRetry(
       log(`checkout_completed failed after ${MAX_RETRIES} attempts with server error ${response.status}`);
     }
   } catch (error) {
-
     if (retryIndex < MAX_RETRIES - 1) {
       const delay = RETRY_DELAYS_MS[retryIndex + 1];
       if (isDevMode) {
@@ -123,7 +113,6 @@ interface QueuedEvent {
 export function createEventSender(config: EventSenderConfig) {
   const { backendUrl, shopDomain, ingestionSecret, isDevMode, consentManager, logger, environment = "live" } = config;
   const log = logger || (() => {});
-
   if (!backendUrl) {
     if (isDevMode) {
       log("⚠️ BACKEND_URL not configured - event sending disabled. " +
@@ -133,29 +122,21 @@ export function createEventSender(config: EventSenderConfig) {
       _eventName: string,
       _data: Record<string, unknown>
     ): Promise<void> {
-
     };
   }
-
   const eventQueue: QueuedEvent[] = [];
   let flushTimer: ReturnType<typeof setTimeout> | null = null;
-
   const flushQueue = async (immediate = false) => {
     if (eventQueue.length === 0) return;
-
     const eventsToSend = [...eventQueue];
     eventQueue.length = 0;
-
     if (flushTimer) {
       clearTimeout(flushTimer);
       flushTimer = null;
     }
-
     if (eventsToSend.length === 0) return;
-
     try {
       const timestamp = Date.now();
-
       const batchPayload = {
         events: eventsToSend.map(event => ({
           eventName: event.eventName,
@@ -174,22 +155,17 @@ export function createEventSender(config: EventSenderConfig) {
         })),
         timestamp,
       };
-
       const body = JSON.stringify(batchPayload);
-
       const url = `${backendUrl}/ingest`;
-
       const headers: Record<string, string> = {
         "Content-Type": "application/json",
         "X-Tracking-Guardian-Timestamp": String(timestamp),
       };
-
       if (ingestionSecret) {
         try {
           const bodyHash = sha256Hex(body);
           const signature = generateHMACSignature(ingestionSecret, timestamp, bodyHash);
           headers["X-Tracking-Guardian-Signature"] = signature;
-
           if (isDevMode) {
             log(`Batch HMAC signature generated for ${eventsToSend.length} events`);
           }
@@ -199,9 +175,7 @@ export function createEventSender(config: EventSenderConfig) {
           }
         }
       }
-
       const hasCheckoutCompleted = eventsToSend.some(e => e.eventName === "checkout_completed");
-
       if (hasCheckoutCompleted && !immediate) {
         sendCheckoutCompletedWithRetry(url, body, isDevMode, log, 0, headers);
       } else {
@@ -216,7 +190,6 @@ export function createEventSender(config: EventSenderConfig) {
           }
         });
       }
-
       if (isDevMode) {
         log(`Batch sent: ${eventsToSend.length} events to /ingest`);
       }
@@ -226,10 +199,8 @@ export function createEventSender(config: EventSenderConfig) {
       }
     }
   };
-
   return async function sendToBackend(eventName: string, data: Record<string, unknown>): Promise<void> {
     const hasAnyConsent = consentManager.hasAnalyticsConsent() || consentManager.hasMarketingConsent();
-
     if (!hasAnyConsent) {
       log(
         `Skipping ${eventName} - no consent at all. ` +
@@ -237,31 +208,25 @@ export function createEventSender(config: EventSenderConfig) {
       );
       return;
     }
-
     log(
       `${eventName}: Queuing event with consent state. ` +
       `analytics=${consentManager.analyticsAllowed}, marketing=${consentManager.marketingAllowed}, saleOfData=${consentManager.saleOfDataAllowed}`
     );
-
     try {
       const timestamp = Date.now();
       const nonce = `${timestamp}-${Math.random().toString(36).substring(2, 10)}`;
-
       eventQueue.push({
         eventName,
         data,
         timestamp,
         nonce,
       });
-
       const shouldFlushImmediate =
         BATCH_CONFIG.FLUSH_IMMEDIATE_EVENTS.includes(eventName) ||
         eventQueue.length >= BATCH_CONFIG.MAX_BATCH_SIZE;
-
       if (shouldFlushImmediate) {
         await flushQueue(true);
       } else {
-
         if (!flushTimer) {
           flushTimer = setTimeout(() => {
             flushQueue(false);
@@ -284,24 +249,19 @@ export function subscribeToCheckoutCompleted(
   logger?: (...args: unknown[]) => void
 ): void {
   const log = logger || (() => {});
-
   analytics.subscribe("checkout_completed", (event: unknown) => {
     const typedEvent = event as { data?: { checkout?: CheckoutData } };
     const checkout = typedEvent.data?.checkout;
     if (!checkout) return;
-
     const orderId = checkout.order?.id;
     const checkoutToken = checkout.token;
-
     if (!orderId) {
       log("checkout_completed: No order.id available, using checkoutToken for fallback");
     }
-
     if (!orderId && !checkoutToken) {
       log("checkout_completed: No orderId or checkoutToken, skipping");
       return;
     }
-
     sendToBackend("checkout_completed", {
       orderId: orderId || null,
       checkoutToken: checkoutToken || null,
@@ -318,7 +278,6 @@ export function subscribeToCheckoutCompleted(
       })) || [],
     });
   });
-
   log("Tracking Guardian pixel initialized - checkout_completed subscribed");
 }
 
@@ -330,12 +289,10 @@ function subscribeToCheckoutStarted(
   logger?: (...args: unknown[]) => void
 ): void {
   const log = logger || (() => {});
-
   analytics.subscribe("checkout_started", (event: unknown) => {
     const typedEvent = event as { data?: { checkout?: CheckoutData } };
     const checkout = typedEvent.data?.checkout;
     if (!checkout) return;
-
     sendToBackend("checkout_started", {
       checkoutToken: checkout.token || null,
       value: toNumber(checkout.totalPrice?.amount),
@@ -351,7 +308,6 @@ function subscribeToCheckoutStarted(
       })) || [],
     });
   });
-
   log("checkout_started event subscribed");
 }
 
@@ -363,21 +319,17 @@ function subscribeToProductAddedToCart(
   logger?: (...args: unknown[]) => void
 ): void {
   const log = logger || (() => {});
-
   analytics.subscribe("product_added_to_cart", (event: unknown) => {
     const typedEvent = event as { data?: { cartLine?: CartLine; cart?: { currencyCode?: string } } };
     const cartLine = typedEvent.data?.cartLine;
     if (!cartLine) return;
-
     const price = toNumber(cartLine.merchandise?.price?.amount);
     const quantity = cartLine.quantity || 1;
     const currency = typedEvent.data?.cart?.currencyCode || null;
-
     const merchandise = cartLine.merchandise as { id?: string; variant?: { id?: string }; product?: { id?: string; title?: string } } | undefined;
     const variantId = merchandise?.variant?.id || merchandise?.id || null;
     const productId = merchandise?.product?.id || null;
     const itemId = variantId || productId || "";
-
     sendToBackend("product_added_to_cart", {
       value: price * quantity,
       currency: currency,
@@ -392,7 +344,6 @@ function subscribeToProductAddedToCart(
       }],
     });
   });
-
   log("product_added_to_cart event subscribed");
 }
 
@@ -404,7 +355,6 @@ function subscribeToPageViewed(
   logger?: (...args: unknown[]) => void
 ): void {
   const log = logger || (() => {});
-
   analytics.subscribe("page_viewed", (event: unknown) => {
     const typedEvent = event as {
       data?: {
@@ -414,9 +364,7 @@ function subscribeToPageViewed(
     };
     const page = typedEvent.data?.page;
     if (!page) return;
-
     const currency = page.currencyCode || typedEvent.data?.cart?.currencyCode || null;
-
     sendToBackend("page_viewed", {
       url: page.url || null,
       title: page.title || null,
@@ -425,7 +373,6 @@ function subscribeToPageViewed(
       items: [],
     });
   });
-
   log("page_viewed event subscribed");
 }
 
@@ -437,7 +384,6 @@ function subscribeToProductViewed(
   logger?: (...args: unknown[]) => void
 ): void {
   const log = logger || (() => {});
-
   analytics.subscribe("product_viewed", (event: unknown) => {
     const typedEvent = event as {
       data?: {
@@ -450,14 +396,11 @@ function subscribeToProductViewed(
     };
     const productVariant = typedEvent.data?.productVariant;
     if (!productVariant) return;
-
     const price = toNumber(productVariant.price?.amount);
     const currency = (productVariant.price as { currencyCode?: string } | undefined)?.currencyCode || null;
-
     const variantId = productVariant.id || null;
     const productId = productVariant.product?.id || null;
     const itemId = variantId || productId || "";
-
     sendToBackend("product_viewed", {
       value: price,
       currency: currency,
@@ -472,7 +415,6 @@ function subscribeToProductViewed(
       }],
     });
   });
-
   log("product_viewed event subscribed");
 }
 
@@ -484,12 +426,10 @@ function subscribeToCheckoutContactInfoSubmitted(
   logger?: (...args: unknown[]) => void
 ): void {
   const log = logger || (() => {});
-
   analytics.subscribe("checkout_contact_info_submitted", (event: unknown) => {
     const typedEvent = event as { data?: { checkout?: CheckoutData } };
     const checkout = typedEvent.data?.checkout;
     if (!checkout) return;
-
     sendToBackend("checkout_contact_info_submitted", {
       checkoutToken: checkout.token || null,
       value: toNumber(checkout.totalPrice?.amount),
@@ -505,7 +445,6 @@ function subscribeToCheckoutContactInfoSubmitted(
       })) || [],
     });
   });
-
   log("checkout_contact_info_submitted event subscribed");
 }
 
@@ -517,12 +456,10 @@ function subscribeToCheckoutShippingInfoSubmitted(
   logger?: (...args: unknown[]) => void
 ): void {
   const log = logger || (() => {});
-
   analytics.subscribe("checkout_shipping_info_submitted", (event: unknown) => {
     const typedEvent = event as { data?: { checkout?: CheckoutData } };
     const checkout = typedEvent.data?.checkout;
     if (!checkout) return;
-
     sendToBackend("checkout_shipping_info_submitted", {
       checkoutToken: checkout.token || null,
       value: toNumber(checkout.totalPrice?.amount),
@@ -538,7 +475,6 @@ function subscribeToCheckoutShippingInfoSubmitted(
       })) || [],
     });
   });
-
   log("checkout_shipping_info_submitted event subscribed");
 }
 
@@ -550,12 +486,10 @@ function subscribeToPaymentInfoSubmitted(
   logger?: (...args: unknown[]) => void
 ): void {
   const log = logger || (() => {});
-
   analytics.subscribe("payment_info_submitted", (event: unknown) => {
     const typedEvent = event as { data?: { checkout?: CheckoutData } };
     const checkout = typedEvent.data?.checkout;
     if (!checkout) return;
-
     sendToBackend("payment_info_submitted", {
       checkoutToken: checkout.token || null,
       value: toNumber(checkout.totalPrice?.amount),
@@ -571,7 +505,6 @@ function subscribeToPaymentInfoSubmitted(
       })) || [],
     });
   });
-
   log("payment_info_submitted event subscribed");
 }
 
@@ -583,21 +516,15 @@ export function subscribeToAnalyticsEvents(
   logger?: (...args: unknown[]) => void,
   mode: "purchase_only" | "full_funnel" = "purchase_only"
 ): void {
-
   subscribeToCheckoutCompleted(analytics, sendToBackend, logger);
-
   if (mode === "full_funnel") {
-
     subscribeToCheckoutStarted(analytics, sendToBackend, logger);
     subscribeToCheckoutContactInfoSubmitted(analytics, sendToBackend, logger);
     subscribeToCheckoutShippingInfoSubmitted(analytics, sendToBackend, logger);
     subscribeToPaymentInfoSubmitted(analytics, sendToBackend, logger);
-
     subscribeToProductAddedToCart(analytics, sendToBackend, logger);
     subscribeToProductViewed(analytics, sendToBackend, logger);
-
     subscribeToPageViewed(analytics, sendToBackend, logger);
-
     const log = logger || (() => {});
     log("Tracking Guardian pixel initialized - full_funnel mode enabled with all standard events");
   }

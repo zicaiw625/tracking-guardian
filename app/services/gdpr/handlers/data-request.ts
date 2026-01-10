@@ -130,48 +130,37 @@ export async function processDataRequest(
   const customerId = payload.customer_id;
   const ordersRequested = payload.orders_requested || [];
   const dataRequestId = payload.data_request_id;
-
   logger.info(`[GDPR] Processing data request for ${shopDomain}`, {
     dataRequestId,
     customerId,
     ordersCount: ordersRequested.length,
   });
-
   const shop = await prisma.shop.findUnique({
     where: { shopDomain },
     select: { id: true },
   });
-
   if (!shop) {
     logger.warn(`[GDPR] Shop not found for data request: ${shopDomain}`);
     return createEmptyDataRequestResult(dataRequestId, customerId);
   }
-
   const orderIdStrings = ordersRequested.map((id) => String(id));
-
   const orderBatches = batchArray(orderIdStrings, BATCH_SIZE);
-
   logger.debug(`[GDPR] Processing ${orderBatches.length} batches of orders`, {
     totalOrders: orderIdStrings.length,
     batchSize: BATCH_SIZE,
   });
-
   const allConversionLogs: Awaited<ReturnType<typeof fetchConversionLogsBatch>> = [];
   const allSurveyResponses: Awaited<ReturnType<typeof fetchSurveyResponsesBatch>> = [];
   const allPixelReceipts: Awaited<ReturnType<typeof fetchPixelReceiptsBatch>> = [];
-
   for (const batch of orderBatches) {
-
     const [conversionLogs, surveyResponses, pixelReceipts] = await Promise.all([
       fetchConversionLogsBatch(shop.id, batch),
       fetchSurveyResponsesBatch(shop.id, batch),
       fetchPixelReceiptsBatch(shop.id, batch),
     ]);
-
     allConversionLogs.push(...conversionLogs);
     allSurveyResponses.push(...surveyResponses);
     allPixelReceipts.push(...pixelReceipts);
-
     if (
       allConversionLogs.length >= MAX_RECORDS_PER_TABLE ||
       allSurveyResponses.length >= MAX_RECORDS_PER_TABLE ||
@@ -187,11 +176,9 @@ export async function processDataRequest(
       break;
     }
   }
-
   const conversionLogs = allConversionLogs.slice(0, MAX_RECORDS_PER_TABLE);
   const surveyResponses = allSurveyResponses.slice(0, MAX_RECORDS_PER_TABLE);
   const pixelReceipts = allPixelReceipts.slice(0, MAX_RECORDS_PER_TABLE);
-
   const exportedConversionLogs: ExportedConversionLog[] = conversionLogs.map((log) => ({
     orderId: log.orderId,
     orderNumber: log.orderNumber,
@@ -205,7 +192,6 @@ export async function processDataRequest(
     createdAt: log.createdAt.toISOString(),
     sentAt: log.sentAt?.toISOString() ?? null,
   }));
-
   const exportedSurveyResponses: ExportedSurveyResponse[] = surveyResponses.map((survey) => ({
     orderId: survey.orderId,
     orderNumber: survey.orderNumber,
@@ -214,7 +200,6 @@ export async function processDataRequest(
     feedback: survey.feedback,
     createdAt: survey.createdAt.toISOString(),
   }));
-
   const exportedPixelReceipts: ExportedPixelEventReceipt[] = pixelReceipts.map((receipt) => ({
     orderId: receipt.orderId,
     eventType: receipt.eventType,
@@ -224,7 +209,6 @@ export async function processDataRequest(
     pixelTimestamp: receipt.pixelTimestamp?.toISOString() ?? null,
     createdAt: receipt.createdAt.toISOString(),
   }));
-
   const result: DataRequestResult = {
     dataRequestId,
     customerId,
@@ -252,7 +236,6 @@ export async function processDataRequest(
     exportFormat: "json",
     exportVersion: "1.0",
   };
-
   logger.info(`[GDPR] Data request completed for ${shopDomain}`, {
     dataRequestId,
     conversionLogs: result.dataLocated.conversionLogs.count,
@@ -261,6 +244,5 @@ export async function processDataRequest(
     exportFormat: result.exportFormat,
     exportVersion: result.exportVersion,
   });
-
   return result;
 }

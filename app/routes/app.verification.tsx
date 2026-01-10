@@ -72,7 +72,6 @@ const ChannelReconciliationChart = lazy(() => import("~/components/verification/
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   const { session } = await authenticate.admin(request);
   const shopDomain = session.shop;
-
   const shop = await prisma.shop.findUnique({
     where: { shopDomain },
     select: {
@@ -84,7 +83,6 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       },
     },
   });
-
   if (!shop) {
     return json({
       shop: null,
@@ -100,19 +98,14 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       currentPlan: "free" as PlanId,
     });
   }
-
   const planId = normalizePlanId(shop.plan || "free") as PlanId;
   const gateResult = checkFeatureAccess(planId, "verification");
   const canAccessVerification = gateResult.allowed;
   const canExportReports = planSupportsReportExport(planId);
-
   const configuredPlatforms = shop.pixelConfigs.map((c) => c.platform);
   const history = await getVerificationHistory(shop.id, 5);
-
   const latestRun = history?.[0] ?? null;
-
   const testChecklist = generateTestChecklist(shop.id, "quick");
-
   return json({
     shop: { id: shop.id, domain: shopDomain },
     configuredPlatforms,
@@ -133,57 +126,45 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   const shopDomain = session.shop;
   const formData = await request.formData();
   const actionType = formData.get("_action");
-
   const shop = await prisma.shop.findUnique({
     where: { shopDomain },
     select: { id: true },
   });
-
   if (!shop) {
     return json({ error: "Shop not found" }, { status: 404 });
   }
-
   if (actionType === "create_run") {
     const runType = (formData.get("runType") as "quick" | "full") || "quick";
     const runId = await createVerificationRun(shop.id, { runType });
     return json({ success: true, runId, actionType: "create_run" });
   }
-
   if (actionType === "run_verification") {
     const runId = formData.get("runId") as string;
     if (!runId) {
-
       const newRunId = await createVerificationRun(shop.id, { runType: "quick" });
       await startVerificationRun(newRunId);
       const result = await analyzeRecentEvents(shop.id, newRunId);
       return json({ success: true, result, actionType: "run_verification" });
     }
-
     await startVerificationRun(runId);
     const result = await analyzeRecentEvents(shop.id, runId);
     return json({ success: true, result, actionType: "run_verification" });
   }
-
   if (actionType === "verifyTestItem") {
     try {
       const itemId = formData.get("itemId") as string;
       const eventType = formData.get("eventType") as string;
       const expectedEventsStr = formData.get("expectedEvents") as string;
-
       if (!itemId || !eventType || !expectedEventsStr) {
         return json({ success: false, error: "缺少必要参数" }, { status: 400 });
       }
-
       const expectedEvents = JSON.parse(expectedEventsStr) as string[];
-
       const fiveMinutesAgo = new Date();
       fiveMinutesAgo.setMinutes(fiveMinutesAgo.getMinutes() - 5);
-
       const eventLogs = await prisma.eventLog.findMany({
         where: {
           shopId: shop.id,
           createdAt: { gte: fiveMinutesAgo },
-
           OR: [
             { eventName: { in: expectedEvents } },
             { eventName: eventType },
@@ -204,20 +185,13 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         orderBy: { createdAt: "desc" },
         take: 50,
       });
-
       const foundEvents = new Set<string>();
-
       for (const eventLog of eventLogs) {
-
         const eventName = eventLog.eventName;
-
         const normalizedEvent = eventLog.normalizedEventJson as Record<string, unknown> | null;
         const shopifyEventName = normalizedEvent?.shopifyEventName as string | undefined;
-
         const hasValidDelivery = eventLog.DeliveryAttempt.length > 0;
-
         if (hasValidDelivery) {
-
           for (const expected of expectedEvents) {
             if (eventName.toLowerCase() === expected.toLowerCase() ||
                 shopifyEventName?.toLowerCase() === expected.toLowerCase() ||
@@ -230,10 +204,8 @@ export const action = async ({ request }: ActionFunctionArgs) => {
           }
         }
       }
-
       const verified = foundEvents.size === expectedEvents.length;
       const missingEvents = expectedEvents.filter((e) => !foundEvents.has(e));
-
       return json({
         success: true,
         itemId,
@@ -254,7 +226,6 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       }, { status: 500 });
     }
   }
-
   return json({ error: "Unknown action" }, { status: 400 });
 };
 
@@ -337,7 +308,6 @@ export default function VerificationPage() {
   const navigation = useNavigation();
   const revalidator = useRevalidator();
   const { showSuccess, showError } = useToastContext();
-
   useEffect(() => {
     if (actionData) {
       const data = actionData as { success?: boolean; error?: string; actionType?: string };
@@ -352,15 +322,12 @@ export default function VerificationPage() {
   const [selectedTab, setSelectedTab] = useState(0);
   const [showGuideModal, setShowGuideModal] = useState(false);
   const [guideExpanded, setGuideExpanded] = useState(true);
-
   const isRunning = navigation.state === "submitting";
-
   const handleRunVerification = useCallback(() => {
     const formData = new FormData();
     formData.append("_action", "run_verification");
     submit(formData, { method: "post" });
   }, [submit]);
-
   const copyTestGuide = useCallback(() => {
     const guideText = testGuide.steps
       .map((s) => `${s.step}. ${s.title}\n   ${s.description}`)
@@ -369,15 +336,12 @@ export default function VerificationPage() {
     const fullText = `# 验收测试指引\n\n预计时间: ${testGuide.estimatedTime}\n\n## 测试步骤\n\n${guideText}\n\n## 提示\n\n${tipsText}`;
     navigator.clipboard.writeText(fullText);
   }, [testGuide]);
-
   const handleExportPdf = useCallback(() => {
     if (!latestRun) return;
-
     if (canExportReports) {
       window.location.href = `/api/reports/pdf?type=verification&runId=${latestRun.runId}&format=pdf`;
       return;
     }
-
         const { trackEvent } = require("../services/analytics.server");
     const { safeFireAndForget } = require("../utils/helpers");
     safeFireAndForget(
@@ -393,18 +357,14 @@ export default function VerificationPage() {
         },
       })
     );
-
     window.location.href = "/app/billing?upgrade=growth";
   }, [latestRun, canExportReports, shop, shopDomain, currentPlan]);
-
   const handleExportCsv = useCallback(() => {
     if (!latestRun) return;
-
     if (canExportReports) {
       window.location.href = `/api/reports?type=verification&runId=${latestRun.runId}&format=csv`;
       return;
     }
-
         const { trackEvent } = require("../services/analytics.server");
     const { safeFireAndForget } = require("../utils/helpers");
     safeFireAndForget(
@@ -420,10 +380,8 @@ export default function VerificationPage() {
         },
       })
     );
-
     window.location.href = "/app/billing?upgrade=growth";
   }, [latestRun, canExportReports, shop, shopDomain, currentPlan]);
-
     const tabs = [
     { id: "overview", content: "验收概览" },
     { id: "pixel-layer", content: "像素层验收（Web Pixels 标准事件）" },
@@ -433,7 +391,6 @@ export default function VerificationPage() {
     { id: "test-guide", content: "测试订单指引" },
     { id: "history", content: "历史记录" },
   ];
-
   if (!shop) {
     return (
       <Page title="验收向导">
@@ -449,7 +406,6 @@ export default function VerificationPage() {
       </Page>
     );
   }
-
   if (!canAccessVerification && gateResult) {
     return (
       <Page title="验收向导">
@@ -461,13 +417,11 @@ export default function VerificationPage() {
       </Page>
     );
   }
-
   const passRate = latestRun
     ? latestRun.totalTests > 0
       ? Math.round((latestRun.passedTests / latestRun.totalTests) * 100)
       : 0
     : 0;
-
   return (
     <Page
       title="验收（Verification）+ 断档监控（Monitoring）"
@@ -603,7 +557,6 @@ export default function VerificationPage() {
             </Layout>
           </BlockStack>
         </Card>
-
         <Banner
           title="⚠️ v1.0 验收范围说明（重要）"
           tone="warning"
@@ -639,7 +592,6 @@ export default function VerificationPage() {
             </Text>
           </BlockStack>
         </Banner>
-
         <Banner tone="info" title="重要说明：事件发送与平台归因">
           <BlockStack gap="200">
             <Text as="p" variant="bodySm">
@@ -665,7 +617,6 @@ export default function VerificationPage() {
           </BlockStack>
         </Banner>
         <CheckoutExtensibilityWarning />
-
         {}
         {isPlanAtLeast(currentPlan || "free", "growth") ? (
           <Card>
@@ -714,7 +665,6 @@ export default function VerificationPage() {
             </BlockStack>
           </Card>
         )}
-
         {configuredPlatforms.length === 0 && (
           <Banner
             title="未配置服务端追踪"
@@ -724,7 +674,6 @@ export default function VerificationPage() {
             <p>请先在设置页面配置至少一个平台的 CAPI 凭证，然后再进行验收测试。</p>
           </Banner>
         )}
-
         {latestRun && !canExportReports && (
           <Banner
             title="📄 生成验收报告（PDF/CSV）- 核心付费点"
@@ -750,7 +699,6 @@ export default function VerificationPage() {
             </BlockStack>
           </Banner>
         )}
-
         <Banner tone="info">
           <BlockStack gap="200">
             <Text as="p" variant="bodySm" fontWeight="semibold">
@@ -772,9 +720,7 @@ export default function VerificationPage() {
             </Text>
           </BlockStack>
         </Banner>
-
         <CheckoutCompletedBehaviorHint mode="info" collapsible={true} />
-
         <Card>
           <BlockStack gap="400">
             <InlineStack align="space-between" blockAlign="center">
@@ -794,7 +740,6 @@ export default function VerificationPage() {
                 </Button>
               </InlineStack>
             </InlineStack>
-
             <Collapsible open={guideExpanded} id="guide-collapsible">
               <BlockStack gap="300">
                 <InlineStack gap="200">
@@ -803,9 +748,7 @@ export default function VerificationPage() {
                     <PlatformBadge key={p} platform={p} />
                   ))}
                 </InlineStack>
-
                 <Divider />
-
                 <BlockStack gap="300">
                   {testGuide.steps.map((step) => (
                     <Box
@@ -837,9 +780,7 @@ export default function VerificationPage() {
                     </Box>
                   ))}
                 </BlockStack>
-
                 <Divider />
-
                 <BlockStack gap="100">
                   <Text as="p" fontWeight="semibold">
                     💡 提示
@@ -858,7 +799,6 @@ export default function VerificationPage() {
             </Collapsible>
           </BlockStack>
         </Card>
-
         {testChecklist && testChecklist.items.length > 0 && (
           <Card>
             <BlockStack gap="400">
@@ -905,7 +845,6 @@ export default function VerificationPage() {
                   </Button>
                 </InlineStack>
               </InlineStack>
-
               <BlockStack gap="200">
                 <InlineStack gap="300" wrap>
                   <Badge tone="info">
@@ -919,9 +858,7 @@ export default function VerificationPage() {
                   </Badge>
                 </InlineStack>
               </BlockStack>
-
               <Divider />
-
               <BlockStack gap="300">
                 {testChecklist.items.map((item) => (
                   <Box
@@ -955,9 +892,7 @@ export default function VerificationPage() {
                           </InlineStack>
                         </BlockStack>
                       </InlineStack>
-
                       <Divider />
-
                       <BlockStack gap="200">
                         <Text as="h4" variant="headingSm">
                           操作步骤
@@ -972,7 +907,6 @@ export default function VerificationPage() {
                           ))}
                         </List>
                       </BlockStack>
-
                       <BlockStack gap="200">
                         <Text as="h4" variant="headingSm">
                           预期结果
@@ -994,7 +928,6 @@ export default function VerificationPage() {
             </BlockStack>
           </Card>
         )}
-
         <Banner tone="info" title="重要说明：事件发送与平台归因">
           <BlockStack gap="200">
             <Text as="p" variant="bodySm">
@@ -1019,7 +952,6 @@ export default function VerificationPage() {
             </List>
           </BlockStack>
         </Banner>
-
         <Tabs tabs={tabs} selected={selectedTab} onSelect={setSelectedTab}>
           {selectedTab === 0 && (
             <Box padding="400">
@@ -1034,7 +966,6 @@ export default function VerificationPage() {
                     </BlockStack>
                   </Card>
                 )}
-
                 {!isRunning && latestRun && (
                   <>
                     <Layout>
@@ -1075,7 +1006,6 @@ export default function VerificationPage() {
                         />
                       </Layout.Section>
                     </Layout>
-
                     <Card>
                       <BlockStack gap="400">
                         <InlineStack align="space-between" blockAlign="center">
@@ -1084,9 +1014,7 @@ export default function VerificationPage() {
                           </Text>
                           <StatusBadge status={latestRun.status} />
                         </InlineStack>
-
                         <Divider />
-
                         <InlineStack gap="400" align="space-between">
                           <BlockStack gap="100">
                             <Text as="p" variant="bodySm" tone="subdued">
@@ -1117,7 +1045,6 @@ export default function VerificationPage() {
                             </InlineStack>
                           </BlockStack>
                         </InlineStack>
-
                         <Box background="bg-surface-secondary" padding="400" borderRadius="200">
                           <InlineStack gap="400" align="space-between">
                             <BlockStack gap="100" align="center">
@@ -1149,7 +1076,6 @@ export default function VerificationPage() {
                             </BlockStack>
                           </InlineStack>
                         </Box>
-
                         {latestRun.failedTests > 0 && (
                           <Banner tone="critical" title="存在失败的测试项">
                             <BlockStack gap="100">
@@ -1164,7 +1090,6 @@ export default function VerificationPage() {
                             </BlockStack>
                           </Banner>
                         )}
-
                         {latestRun.missingParamTests > 0 && latestRun.failedTests === 0 && (
                           <Banner tone="warning" title="部分事件参数不完整">
                             <Text as="p" variant="bodySm">
@@ -1173,7 +1098,6 @@ export default function VerificationPage() {
                             </Text>
                           </Banner>
                         )}
-
                         {passRate >= 80 && (
                           <Banner tone="success" title="验收通过">
                             <Text as="p" variant="bodySm">
@@ -1181,7 +1105,6 @@ export default function VerificationPage() {
                             </Text>
                           </Banner>
                         )}
-
                         {latestRun.reconciliation && (
                           <Box padding="400">
                             <Divider />
@@ -1189,7 +1112,6 @@ export default function VerificationPage() {
                               <Text as="h3" variant="headingSm">
                                 📊 渠道对账
                               </Text>
-
                               <Suspense fallback={<CardSkeleton lines={3} />}>
                                 <ChannelReconciliationChart
                                   pixelVsCapi={latestRun.reconciliation.pixelVsCapi}
@@ -1197,7 +1119,6 @@ export default function VerificationPage() {
                                   localConsistency={latestRun.reconciliation.localConsistency}
                                 />
                               </Suspense>
-
                               <Layout>
                                 <Layout.Section variant="oneThird">
                                   <Box background="bg-surface-secondary" padding="300" borderRadius="200">
@@ -1408,7 +1329,6 @@ export default function VerificationPage() {
                     </Card>
                   </>
                 )}
-
                 <Banner tone="info" title="重要说明：事件发送与平台归因">
                   <BlockStack gap="200">
                     <Text as="p" variant="bodySm">
@@ -1433,7 +1353,6 @@ export default function VerificationPage() {
                     </List>
                   </BlockStack>
                 </Banner>
-
                 {!isRunning && !latestRun && (
                   <EnhancedEmptyState
                     icon="✅"
@@ -1449,7 +1368,6 @@ export default function VerificationPage() {
               </BlockStack>
             </Box>
           )}
-
           {selectedTab === 1 && (
             <Box padding="400">
               <Card>
@@ -1476,7 +1394,6 @@ export default function VerificationPage() {
                       </Button>
                     )}
                   </InlineStack>
-
                   {latestRun && latestRun.results.length > 0 ? (
                     <DataTable
                       columnContentTypes={["text", "text", "text", "text", "numeric", "text", "text"]}
@@ -1500,7 +1417,6 @@ export default function VerificationPage() {
               </Card>
             </Box>
           )}
-
           {selectedTab === 2 && (
             <Box padding="400">
               <BlockStack gap="500">
@@ -1531,7 +1447,6 @@ export default function VerificationPage() {
               </BlockStack>
             </Box>
           )}
-
           {selectedTab === 3 && (
             <Box padding="400">
               <Suspense fallback={<CardSkeleton lines={3} />}>
@@ -1546,7 +1461,6 @@ export default function VerificationPage() {
               </Suspense>
             </Box>
           )}
-
           {selectedTab === 4 && (
             <Box padding="400">
               <Suspense fallback={<CardSkeleton lines={5} />}>
@@ -1573,7 +1487,6 @@ export default function VerificationPage() {
               </Suspense>
             </Box>
           )}
-
           {selectedTab === 8 && (
             <Box padding="400">
               <BlockStack gap="500">
@@ -1582,7 +1495,6 @@ export default function VerificationPage() {
                     <Text as="h2" variant="headingMd">
                       验收历史
                     </Text>
-
                     {history.length > 0 ? (
                       <DataTable
                         columnContentTypes={["text", "text", "text", "numeric", "numeric", "numeric"]}
@@ -1611,7 +1523,6 @@ export default function VerificationPage() {
                     )}
                   </BlockStack>
                 </Card>
-
                 {history.length >= 2 && shop && (
                   <Suspense fallback={<CardSkeleton lines={3} />}>
                     <ReportComparison
@@ -1628,7 +1539,6 @@ export default function VerificationPage() {
             </Box>
           )}
         </Tabs>
-
         <Card>
           <BlockStack gap="400">
             <InlineStack align="space-between" blockAlign="center">
@@ -1642,10 +1552,8 @@ export default function VerificationPage() {
               )}
             </InlineStack>
             <Divider />
-
             <BlockStack gap="300">
               {testItems.map((item) => {
-
                 const itemResults = latestRun?.results?.filter(
                   (r) => r.testItemId === item.id
                 ) || [];
@@ -1658,7 +1566,6 @@ export default function VerificationPage() {
                         ? "missing_params"
                         : "failed"
                   : "not_tested";
-
                 return (
                   <Box
                     key={item.id}
@@ -1749,7 +1656,6 @@ export default function VerificationPage() {
             </BlockStack>
           </BlockStack>
         </Card>
-
         <Card>
           <BlockStack gap="400">
             <Text as="h2" variant="headingMd">
@@ -1764,7 +1670,6 @@ export default function VerificationPage() {
           </BlockStack>
         </Card>
       </BlockStack>
-
       <Modal
         open={showGuideModal}
         onClose={() => setShowGuideModal(false)}

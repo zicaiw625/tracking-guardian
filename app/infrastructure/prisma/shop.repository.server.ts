@@ -26,7 +26,6 @@ function mapToDomainShop(prismaShop: {
   plan: string;
   monthlyOrderLimit: number;
   isActive: boolean;
-
   consentStrategy: string;
   dataRetentionDays: number;
   ingestionSecret: string | null;
@@ -53,7 +52,6 @@ function mapToDomainShop(prismaShop: {
     plan: prismaShop.plan as PlanId,
     monthlyOrderLimit: prismaShop.monthlyOrderLimit,
     isActive: prismaShop.isActive,
-
     consentStrategy: prismaShop.consentStrategy as ConsentStrategy,
     dataRetentionDays: prismaShop.dataRetentionDays,
     ingestionSecret: prismaShop.ingestionSecret,
@@ -76,7 +74,6 @@ function mapToDomainShop(prismaShop: {
 
 export class PrismaShopRepository implements IShopRepository {
   constructor(private readonly prisma: PrismaClient) {}
-
   async findById(id: string): AsyncResult<Shop | null, AppError> {
     try {
       const shop = await this.prisma.shop.findUnique({
@@ -87,7 +84,6 @@ export class PrismaShopRepository implements IShopRepository {
       return err(AppError.wrap(error, ErrorCode.DB_QUERY_ERROR, "Failed to find shop by ID"));
     }
   }
-
   async findByDomain(
     shopDomain: string,
     options?: FindShopOptions
@@ -96,24 +92,20 @@ export class PrismaShopRepository implements IShopRepository {
       const shop = await this.prisma.shop.findUnique({
         where: { shopDomain },
       });
-
       if (!shop) {
         return ok(null);
       }
-
       if (!options?.includeInactive && !shop.isActive) {
         return ok(null);
       }
       if (!options?.includeUninstalled && shop.uninstalledAt) {
         return ok(null);
       }
-
       return ok(mapToDomainShop(shop));
     } catch (error) {
       return err(AppError.wrap(error, ErrorCode.DB_QUERY_ERROR, "Failed to find shop by domain"));
     }
   }
-
   async create(data: CreateShopData): AsyncResult<Shop, AppError> {
     try {
       const shop = await this.prisma.shop.create({
@@ -136,7 +128,6 @@ export class PrismaShopRepository implements IShopRepository {
       return err(AppError.wrap(error, ErrorCode.DB_QUERY_ERROR, "Failed to create shop"));
     }
   }
-
   async update(id: string, data: Partial<ShopUpdateData>): AsyncResult<Shop, AppError> {
     try {
       const shop = await this.prisma.shop.update({
@@ -148,7 +139,6 @@ export class PrismaShopRepository implements IShopRepository {
       return err(AppError.wrap(error, ErrorCode.DB_QUERY_ERROR, "Failed to update shop"));
     }
   }
-
   async updateByDomain(
     shopDomain: string,
     data: Partial<ShopUpdateData>
@@ -163,7 +153,6 @@ export class PrismaShopRepository implements IShopRepository {
       return err(AppError.wrap(error, ErrorCode.DB_QUERY_ERROR, "Failed to update shop"));
     }
   }
-
   async upsert(
     shopDomain: string,
     createData: CreateShopData,
@@ -192,7 +181,6 @@ export class PrismaShopRepository implements IShopRepository {
       return err(AppError.wrap(error, ErrorCode.DB_QUERY_ERROR, "Failed to upsert shop"));
     }
   }
-
   async softDelete(id: string): AsyncResult<void, AppError> {
     try {
       await this.prisma.shop.update({
@@ -207,7 +195,6 @@ export class PrismaShopRepository implements IShopRepository {
       return err(AppError.wrap(error, ErrorCode.DB_QUERY_ERROR, "Failed to soft delete shop"));
     }
   }
-
   async getBasicById(id: string): AsyncResult<ShopBasic | null, AppError> {
     try {
       const shop = await this.prisma.shop.findUnique({
@@ -225,7 +212,6 @@ export class PrismaShopRepository implements IShopRepository {
       return err(AppError.wrap(error, ErrorCode.DB_QUERY_ERROR));
     }
   }
-
   async getBasicByDomain(shopDomain: string): AsyncResult<ShopBasic | null, AppError> {
     try {
       const shop = await this.prisma.shop.findUnique({
@@ -243,7 +229,6 @@ export class PrismaShopRepository implements IShopRepository {
       return err(AppError.wrap(error, ErrorCode.DB_QUERY_ERROR));
     }
   }
-
   async getIdByDomain(shopDomain: string): AsyncResult<string | null, AppError> {
     try {
       const shop = await this.prisma.shop.findUnique({
@@ -255,7 +240,6 @@ export class PrismaShopRepository implements IShopRepository {
       return err(AppError.wrap(error, ErrorCode.DB_QUERY_ERROR));
     }
   }
-
   async getWithBilling(shopDomain: string): AsyncResult<ShopWithBilling | null, AppError> {
     try {
       const shop = await this.prisma.shop.findUnique({
@@ -282,7 +266,6 @@ export class PrismaShopRepository implements IShopRepository {
       return err(AppError.wrap(error, ErrorCode.DB_QUERY_ERROR));
     }
   }
-
   async getWithConsent(shopDomain: string): AsyncResult<ShopWithConsent | null, AppError> {
     try {
       const shop = await this.prisma.shop.findUnique({
@@ -292,7 +275,6 @@ export class PrismaShopRepository implements IShopRepository {
           shopDomain: true,
           isActive: true,
           plan: true,
-
           consentStrategy: true,
         },
       });
@@ -302,14 +284,12 @@ export class PrismaShopRepository implements IShopRepository {
         shopDomain: shop.shopDomain,
         isActive: shop.isActive,
         plan: shop.plan as PlanId,
-
         consentStrategy: shop.consentStrategy as ConsentStrategy,
       });
     } catch (error) {
       return err(AppError.wrap(error, ErrorCode.DB_QUERY_ERROR));
     }
   }
-
   async getWithSecurity(shopDomain: string): AsyncResult<ShopWithSecurity | null, AppError> {
     try {
       const shop = await this.prisma.shop.findUnique({
@@ -342,7 +322,6 @@ export class PrismaShopRepository implements IShopRepository {
       return err(AppError.wrap(error, ErrorCode.DB_QUERY_ERROR));
     }
   }
-
   async findManyByIds(ids: string[]): AsyncResult<Shop[], AppError> {
     try {
       const shops = await this.prisma.shop.findMany({
@@ -353,7 +332,6 @@ export class PrismaShopRepository implements IShopRepository {
       return err(AppError.wrap(error, ErrorCode.DB_QUERY_ERROR));
     }
   }
-
   async findManyByDomains(shopDomains: string[]): AsyncResult<Shop[], AppError> {
     try {
       const shops = await this.prisma.shop.findMany({
@@ -364,7 +342,6 @@ export class PrismaShopRepository implements IShopRepository {
       return err(AppError.wrap(error, ErrorCode.DB_QUERY_ERROR));
     }
   }
-
   async findAllActive(): AsyncResult<ShopBasic[], AppError> {
     try {
       const shops = await this.prisma.shop.findMany({
@@ -383,7 +360,6 @@ export class PrismaShopRepository implements IShopRepository {
       return err(AppError.wrap(error, ErrorCode.DB_QUERY_ERROR));
     }
   }
-
   async exists(shopDomain: string): AsyncResult<boolean, AppError> {
     try {
       const count = await this.prisma.shop.count({
@@ -394,7 +370,6 @@ export class PrismaShopRepository implements IShopRepository {
       return err(AppError.wrap(error, ErrorCode.DB_QUERY_ERROR));
     }
   }
-
   async isActive(shopDomain: string): AsyncResult<boolean, AppError> {
     try {
       const shop = await this.prisma.shop.findUnique({

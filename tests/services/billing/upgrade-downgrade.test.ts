@@ -38,7 +38,6 @@ describe("Plan Upgrade/Downgrade", () => {
     it("should have increasing prices", () => {
       expect(BILLING_PLANS.free.price).toBe(0);
       expect(BILLING_PLANS.starter.price).toBeLessThan(BILLING_PLANS.growth.price);
-
       expect(BILLING_PLANS.growth.price).toBeLessThanOrEqual(BILLING_PLANS.agency.price);
     });
     it("should have increasing order limits", () => {
@@ -147,7 +146,6 @@ describe("Plan Upgrade/Downgrade", () => {
       const starterFeatures = getPlanFeatures("starter");
       const growthFeatures = getPlanFeatures("growth");
       expect(starterFeatures.length).toBeGreaterThanOrEqual(freeFeatures.length);
-
       expect(growthFeatures.length).toBeGreaterThan(0);
     });
     it("should have agency-specific features", () => {

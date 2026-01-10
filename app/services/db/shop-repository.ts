@@ -19,18 +19,15 @@ export class ShopRepository extends BaseRepository<Shop, ShopCreate, ShopUpdate>
   constructor() {
     super("Shop");
   }
-
   protected getDelegate(client?: TransactionClient): PrismaDelegate<Shop> {
     const db = client || this.db;
     return db.shop as unknown as PrismaDelegate<Shop>;
   }
-
   async findByDomain(
     shopDomain: string
   ): AsyncResult<Shop | null, AppError> {
     return this.findFirst({ shopDomain });
   }
-
   async findByDomainOrFail(
     shopDomain: string
   ): AsyncResult<Shop, AppError> {
@@ -48,7 +45,6 @@ export class ShopRepository extends BaseRepository<Shop, ShopCreate, ShopUpdate>
     }
     return ok(result.value);
   }
-
   async findByDomainWithPixelConfigs(
     shopDomain: string
   ): AsyncResult<ShopWithPixelConfigs | null, AppError> {
@@ -66,7 +62,6 @@ export class ShopRepository extends BaseRepository<Shop, ShopCreate, ShopUpdate>
       return err(this.handleError(error, "findByDomainWithPixelConfigs"));
     }
   }
-
   async findByDomainWithConfig(
     shopDomain: string
   ): AsyncResult<ShopWithRelations | null, AppError> {
@@ -80,14 +75,12 @@ export class ShopRepository extends BaseRepository<Shop, ShopCreate, ShopUpdate>
           },
         },
       });
-      // AlertConfig 表已被移除，返回空数组
       const resultWithEmptyAlerts = result ? { ...result, alertConfigs: [] } : null;
       return ok(resultWithEmptyAlerts);
     } catch (error) {
       return err(this.handleError(error, "findByDomainWithConfig"));
     }
   }
-
   async upsertByDomain(
     shopDomain: string,
     createData: Omit<ShopCreate, "shopDomain">,
@@ -104,11 +97,9 @@ export class ShopRepository extends BaseRepository<Shop, ShopCreate, ShopUpdate>
       return err(this.handleError(error, "upsertByDomain"));
     }
   }
-
   async updateSettings(
     shopDomain: string,
     settings: {
-
       consentStrategy?: string;
       dataRetentionDays?: number;
       storefrontDomains?: string[];
@@ -124,7 +115,6 @@ export class ShopRepository extends BaseRepository<Shop, ShopCreate, ShopUpdate>
       return err(this.handleError(error, "updateSettings"));
     }
   }
-
   async updatePlan(
     shopDomain: string,
     plan: string,
@@ -140,7 +130,6 @@ export class ShopRepository extends BaseRepository<Shop, ShopCreate, ShopUpdate>
       return err(this.handleError(error, "updatePlan"));
     }
   }
-
   async setInactive(shopDomain: string): AsyncResult<Shop, AppError> {
     try {
       const result = await this.db.shop.update({
@@ -152,13 +141,11 @@ export class ShopRepository extends BaseRepository<Shop, ShopCreate, ShopUpdate>
       return err(this.handleError(error, "setInactive"));
     }
   }
-
   async findActiveShopsWithWebhooks(): AsyncResult<Shop[], AppError> {
     return this.findMany({
       isActive: true,
     });
   }
-
   async findShopsForReconciliation(
     minConfiguredPlatforms: number = 1
   ): AsyncResult<ShopWithPixelConfigs[], AppError> {
@@ -182,17 +169,14 @@ export class ShopRepository extends BaseRepository<Shop, ShopCreate, ShopUpdate>
           },
         },
       });
-
       const filtered = result.filter(
         (shop) => shop.pixelConfigs.length >= minConfiguredPlatforms
       );
-
       return ok(filtered);
     } catch (error) {
       return err(this.handleError(error, "findShopsForReconciliation"));
     }
   }
-
   async getStatistics(shopDomain: string): AsyncResult<{
     totalConversions: number;
     activePixelConfigs: number;
@@ -203,13 +187,11 @@ export class ShopRepository extends BaseRepository<Shop, ShopCreate, ShopUpdate>
         where: { shopDomain },
         select: { id: true },
       });
-
       if (!shop) {
         return err(
           new AppError(ErrorCode.NOT_FOUND_SHOP, `Shop ${shopDomain} not found`)
         );
       }
-
       const [totalConversions, activePixelConfigs, recentJobsCount] = await Promise.all([
         this.db.conversionLog.count({
           where: { shopId: shop.id, status: "sent" },
@@ -224,7 +206,6 @@ export class ShopRepository extends BaseRepository<Shop, ShopCreate, ShopUpdate>
           },
         }),
       ]);
-
       return ok({
         totalConversions,
         activePixelConfigs,

@@ -9,7 +9,6 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   if (!admin) {
     return new Response("Unauthorized", { status: 401 });
   }
-
   const shop = await prisma.shop.findUnique({
     where: { shopDomain: session.shop },
     select: {
@@ -27,18 +26,15 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       },
     },
   });
-
   if (!shop) {
     return new Response("Shop not found", { status: 404 });
   }
-
   let webPixelStatus = {
     installed: false,
     needsUpgrade: false,
     pixelId: null as string | null,
     missingFields: [] as string[],
   };
-
   try {
     const existingPixels = await getExistingWebPixels(admin);
     const ourPixel = existingPixels.find((p) => {
@@ -49,7 +45,6 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
         return false;
       }
     });
-
     let pixelSettings: Record<string, unknown> = {};
     let settingsNeedUpgrade = false;
     if (ourPixel?.settings) {
@@ -60,14 +55,12 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
         settingsNeedUpgrade = false;
       }
     }
-
     const hasShopDomain = typeof pixelSettings.shop_domain === "string" && pixelSettings.shop_domain.length > 0;
     const hasIngestionKey = typeof pixelSettings.ingestion_key === "string" && pixelSettings.ingestion_key.length > 0;
     const missingFields = [
       ...(hasShopDomain ? [] : ["shop_domain"]),
       ...(hasIngestionKey ? [] : ["ingestion_key"]),
     ];
-
     webPixelStatus = {
       installed: Boolean(ourPixel),
       needsUpgrade: settingsNeedUpgrade,
@@ -80,11 +73,9 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       error: error instanceof Error ? error.message : String(error),
     });
   }
-
   const serverSidePlatforms = shop.pixelConfigs
     .filter((c) => c.serverSideEnabled)
     .map((c) => c.platform);
-
   const recentReceipt = await prisma.pixelEventReceipt.findFirst({
     where: { shopId: shop.id },
     orderBy: { createdAt: "desc" },
@@ -94,14 +85,12 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       signatureStatus: true,
     },
   });
-
   const recentConversions = await prisma.conversionLog.count({
     where: {
       shopId: shop.id,
       createdAt: { gte: new Date(Date.now() - 24 * 60 * 60 * 1000) },
     },
   });
-
   const generatedAt = new Date();
   const exportData = {
     metadata: {
@@ -133,10 +122,8 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       conversions24h: recentConversions,
     },
   };
-
   const dateSuffix = generatedAt.toISOString().split("T")[0];
   const filename = `diagnostic-package-${shop.shopDomain}-${dateSuffix}.json`;
-
   return new Response(JSON.stringify(exportData, null, 2), {
     headers: {
       "Content-Type": "application/json; charset=utf-8",

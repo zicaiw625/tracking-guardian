@@ -52,7 +52,6 @@ export {
   batchCompleteJobs,
   batchInsertReceipts,
   batchUpdateShops,
-
   executeInTransaction,
   processInChunks,
   type JobCompletionData,

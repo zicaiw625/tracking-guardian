@@ -16,24 +16,19 @@ import { isPlanAtLeast } from "../utils/plans";
 export const action = async ({ request }: ActionFunctionArgs) => {
   const { session } = await authenticate.admin(request);
   const shopDomain = session.shop;
-
   const shop = await prisma.shop.findUnique({
     where: { shopDomain },
     select: { id: true },
   });
-
   if (!shop) {
     return json({ success: false, error: "Shop not found" }, { status: 404 });
   }
-
   const formData = await request.formData();
   const actionType = formData.get("_action") as string;
   const platform = formData.get("platform") as string;
-
   if (!platform) {
     return json({ success: false, error: "缺少 platform 参数" }, { status: 400 });
   }
-
   try {
     switch (actionType) {
       case "rollback": {
@@ -45,7 +40,6 @@ export const action = async ({ request }: ActionFunctionArgs) => {
           currentVersion: result.currentVersion,
         });
       }
-
       case "switch_environment": {
         const newEnvironment = formData.get("environment") as PixelEnvironment;
         if (!newEnvironment || !["test", "live"].includes(newEnvironment)) {
@@ -54,7 +48,6 @@ export const action = async ({ request }: ActionFunctionArgs) => {
             error: "无效的环境参数"
           }, { status: 400 });
         }
-
         const result = await switchEnvironment(shop.id, platform, newEnvironment);
         if (
           result.success &&
@@ -63,7 +56,6 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         ) {
                     const planId = normalizePlanId(shop.plan ?? "free");
           const isAgency = isPlanAtLeast(planId, "agency");
-
                     let riskScore: number | undefined;
           let assetCount: number | undefined;
           try {
@@ -81,7 +73,6 @@ export const action = async ({ request }: ActionFunctionArgs) => {
             }
           } catch (error) {
                       }
-
           safeFireAndForget(
             trackEvent({
               shopId: shop.id,
@@ -108,7 +99,6 @@ export const action = async ({ request }: ActionFunctionArgs) => {
           newEnvironment: result.newEnvironment,
         });
       }
-
       default:
         return json({ success: false, error: "未知操作" }, { status: 400 });
     }

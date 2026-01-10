@@ -20,7 +20,6 @@ export function generateOrderMatchKey(
   shopDomain?: string
 ): MatchKeyResult {
   const matchKeyResult = generateMatchKey({ orderId: orderId || null, checkoutToken: checkoutToken || null });
-  
   return {
     orderId: matchKeyResult.normalizedOrderId || matchKeyResult.matchKey,
     usedCheckoutTokenAsFallback: !matchKeyResult.isOrderId && !!matchKeyResult.checkoutToken,
@@ -55,7 +54,6 @@ export async function isClientEventRecorded(
   if (verificationRunId) {
     where.verificationRunId = verificationRunId;
   }
-  
   const existing = await prisma.pixelEventReceipt.findFirst({
     where,
     select: { id: true },
@@ -63,9 +61,6 @@ export async function isClientEventRecorded(
   });
   return !!existing;
 }
-
-
-
 
 export async function upsertPixelEventReceipt(
   shopId: string,
@@ -76,7 +71,6 @@ export async function upsertPixelEventReceipt(
   verificationRunId?: string | null
 ): Promise<ReceiptCreateResult> {
   const originHost = extractOriginHost(origin);
-
   try {
     await prisma.pixelEventReceipt.create({
       data: {
@@ -100,16 +94,12 @@ export async function upsertPixelEventReceipt(
 function normalizeCurrencyForStorage(currency: unknown): string {
   if (currency && typeof currency === 'string' && currency.trim()) {
     const normalized = currency.trim().toUpperCase();
-
     if (/^[A-Z]{3}$/.test(normalized)) {
       return normalized;
     }
   }
-
   return "USD";
 }
-
-
 
 export async function getActivePixelConfigs(
   shopId: string
@@ -141,7 +131,6 @@ export function generateEventIdForType(
   items?: Array<{ id: string; quantity: number }>,
   nonce?: string | null
 ): string {
-
   return generateCanonicalEventId(
     identifier || null,
     checkoutToken || null,
@@ -161,9 +150,7 @@ export function generateDeduplicationKeyForEvent(
   shopDomain: string
 ): string {
   const { createHash } = require("crypto");
-
   const identifier = orderId || checkoutToken || "";
-
   const itemsHash = items.length > 0
     ? createHash("sha256")
         .update(
@@ -176,9 +163,7 @@ export function generateDeduplicationKeyForEvent(
         .digest("hex")
         .substring(0, 16)
     : "empty";
-
   const keyInput = `${shopDomain}:${identifier}:${eventName}:${itemsHash}`;
-
   return createHash("sha256")
     .update(keyInput, "utf8")
     .digest("hex")
@@ -194,7 +179,6 @@ export async function createEventNonce(
 ): Promise<{ isReplay: boolean }> {
   const eventId = nonce || generateCanonicalEventId(orderId, null, eventType, "", undefined, "v2", null);
   const windowHours = 24;
-  
   try {
     await prisma.eventNonce.create({
       data: {
@@ -237,7 +221,6 @@ export function evaluateTrustLevel(
       untrustedReason: keyValidation.reason || "key_validation_failed",
     };
   }
-
   if (!hasCheckoutToken) {
     return {
       isTrusted: false,
@@ -245,7 +228,6 @@ export function evaluateTrustLevel(
       untrustedReason: "missing_checkout_token",
     };
   }
-
   return {
     isTrusted: true,
     trustLevel: "trusted",

@@ -29,11 +29,9 @@ function detectDependencies(
   allAssets: AuditAsset[]
 ): string[] {
   const dependencies: string[] = [];
-
   if (asset.dependencies && Array.isArray(asset.dependencies)) {
     dependencies.push(...(asset.dependencies as string[]));
   }
-
   const details = asset.details as Record<string, unknown> | null;
   if (details) {
     const explicitDeps = details.dependencies as string[] | undefined;
@@ -41,33 +39,27 @@ function detectDependencies(
       dependencies.push(...explicitDeps);
     }
   }
-
   switch (asset.category) {
     case "survey":
-
       const orderTracking = allAssets.find(
         (a) => a.category === "support" && a.platform === "order_tracking"
       );
       if (orderTracking) {
         dependencies.push(orderTracking.id);
       }
-
       const surveyPixels = allAssets.filter(
         (a) => a.category === "pixel" && a.migrationStatus !== "completed"
       );
       if (surveyPixels.length > 0) {
-
         const samePlatformPixel = surveyPixels.find(
           p => p.platform === asset.platform
         );
         if (samePlatformPixel) {
           dependencies.push(samePlatformPixel.id);
         } else if (surveyPixels.length > 0) {
-
           dependencies.push(surveyPixels[0].id);
         }
       }
-
       if (asset.details && typeof asset.details === "object") {
         const details = asset.details as Record<string, unknown>;
         const requiresPixel = details.requiresPixel as boolean | undefined;
@@ -80,9 +72,7 @@ function detectDependencies(
         }
       }
       break;
-
     case "affiliate":
-
       const pixelAssets = allAssets.filter(
         (a) => a.category === "pixel" &&
                a.platform === asset.platform &&
@@ -91,7 +81,6 @@ function detectDependencies(
       if (pixelAssets.length > 0) {
         dependencies.push(pixelAssets[0].id);
       } else {
-
         const anyPixel = allAssets.find(
           (a) => a.category === "pixel" && a.migrationStatus !== "completed"
         );
@@ -100,14 +89,11 @@ function detectDependencies(
         }
       }
       break;
-
     case "analytics":
-
       const analyticsPixels = allAssets.filter(
         (a) => a.category === "pixel" && a.migrationStatus !== "completed"
       );
       if (analyticsPixels.length > 0) {
-
         const criticalPlatforms = ["google", "meta", "tiktok"];
         const criticalPixel = analyticsPixels.find(
           p => p.platform && criticalPlatforms.includes(p.platform)
@@ -119,9 +105,7 @@ function detectDependencies(
         }
       }
       break;
-
     case "support":
-
       const supportOrderTracking = allAssets.find(
         (a) => a.category === "support" &&
                a.platform === "order_tracking" &&
@@ -132,9 +116,7 @@ function detectDependencies(
       }
       break;
   }
-
   if (asset.platform) {
-
     if (asset.category !== "pixel") {
       const samePlatformPixels = allAssets.filter(
         (a) => a.platform === asset.platform &&
@@ -146,12 +128,10 @@ function detectDependencies(
         dependencies.push(samePlatformPixels[0].id);
       }
     }
-
     if (asset.details && typeof asset.details === "object") {
       const details = asset.details as Record<string, unknown>;
       const containerType = details.containerType as string | undefined;
       if (containerType === "gtm" || containerType === "tag_manager") {
-
         const criticalPlatforms = ["google", "meta", "tiktok"];
         for (const platform of criticalPlatforms) {
           const platformPixel = allAssets.find(
@@ -168,7 +148,6 @@ function detectDependencies(
       }
     }
   }
-
   if (asset.suggestedMigration === "server_side") {
     const relatedWebPixel = allAssets.find(
       (a) => a.platform === asset.platform &&
@@ -181,12 +160,10 @@ function detectDependencies(
       dependencies.push(relatedWebPixel.id);
     }
   }
-
   const validDependencies = dependencies.filter(depId => {
     const depAsset = allAssets.find(a => a.id === depId);
     return depAsset && depAsset.migrationStatus !== "completed";
   });
-
   return [...new Set(validDependencies)];
 }
 
@@ -199,14 +176,11 @@ function topologicalSort(nodes: DependencyNode[]): {
   const visited = new Set<string>();
   const visiting = new Set<string>();
   const nodeMap = new Map<string, DependencyNode>();
-
   nodes.forEach(node => {
     nodeMap.set(node.assetId, node);
   });
-
   function visit(nodeId: string, path: string[]): void {
     if (visiting.has(nodeId)) {
-
       const cycleStart = path.indexOf(nodeId);
       if (cycleStart >= 0) {
         const cycle = path.slice(cycleStart).concat(nodeId);
@@ -214,11 +188,9 @@ function topologicalSort(nodes: DependencyNode[]): {
       }
       return;
     }
-
     if (visited.has(nodeId)) {
       return;
     }
-
     visiting.add(nodeId);
     const node = nodeMap.get(nodeId);
     if (node) {
@@ -230,13 +202,11 @@ function topologicalSort(nodes: DependencyNode[]): {
     visited.add(nodeId);
     order.push(nodeId);
   }
-
   nodes.forEach(node => {
     if (!visited.has(node.assetId)) {
       visit(node.assetId, []);
     }
   });
-
   return { order, cycles };
 }
 
@@ -249,10 +219,8 @@ export async function analyzeDependencies(
       migrationStatus: { not: "completed" },
     },
   });
-
   const nodes: DependencyNode[] = assets.map((asset) => {
     const dependencies = detectDependencies(asset, assets);
-
     return {
       assetId: asset.id,
       assetName: asset.displayName || asset.category,
@@ -264,7 +232,6 @@ export async function analyzeDependencies(
       dependents: [],
     };
   });
-
   nodes.forEach((node) => {
     node.dependencies.forEach((depId) => {
       const depNode = nodes.find((n) => n.assetId === depId);
@@ -273,11 +240,9 @@ export async function analyzeDependencies(
       }
     });
   });
-
   const edges: DependencyGraph["edges"] = [];
   nodes.forEach((node) => {
     node.dependencies.forEach((depId) => {
-
       const depNode = nodes.find(n => n.assetId === depId);
       if (depNode) {
         edges.push({
@@ -288,9 +253,7 @@ export async function analyzeDependencies(
       }
     });
   });
-
   const { order, cycles } = topologicalSort(nodes);
-
   for (let i = 0; i < order.length - 1; i++) {
     edges.push({
       from: order[i],
@@ -298,7 +261,6 @@ export async function analyzeDependencies(
       type: "suggested_order",
     });
   }
-
   return {
     nodes,
     edges,
@@ -316,26 +278,20 @@ export async function getAssetDependencies(
   const asset = await prisma.auditAsset.findUnique({
     where: { id: assetId },
   });
-
   if (!asset) {
     return { dependencies: [], dependents: [] };
   }
-
   const graph = await analyzeDependencies(asset.shopId);
   const node = graph.nodes.find((n) => n.assetId === assetId);
-
   if (!node) {
     return { dependencies: [], dependents: [] };
   }
-
   const dependencies = node.dependencies
     .map((depId) => graph.nodes.find((n) => n.assetId === depId))
     .filter((n): n is DependencyNode => n !== undefined);
-
   const dependents = node.dependents
     .map((depId) => graph.nodes.find((n) => n.assetId === depId))
     .filter((n): n is DependencyNode => n !== undefined);
-
   return { dependencies, dependents };
 }
 
@@ -373,7 +329,6 @@ export async function visualizeDependencyGraph(
   }>;
 }> {
   const graph = await analyzeDependencies(shopId);
-
   return {
     nodes: graph.nodes.map((node) => ({
       id: node.assetId,

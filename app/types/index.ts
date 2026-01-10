@@ -1,30 +1,23 @@
 export {
-
   JobStatus,
   ConversionLogStatus,
   WebhookStatus,
   GDPRJobStatus,
   ScanStatus,
   MigrationStatus,
-
   TrustLevel as TrustLevelEnum,
   SignatureStatus,
   ConsentStrategy as ConsentStrategyEnum,
-
   Platform as PlatformEnum,
   PLATFORM_DISPLAY_NAMES,
   EventType,
-
   ShopTier,
   PlanId,
-
   AlertChannel as AlertChannelEnum,
   AlertFrequency,
-
   ActorType,
   AuditAction,
   PlatformResultStatus,
-
   isValidJobStatus,
   isValidPlatform,
   isValidTrustLevel,
@@ -108,7 +101,6 @@ export type {
 } from "./platform";
 
 export {
-
   parseCapiInput,
   parseConsentState,
   parseConsentEvidence,
@@ -118,14 +110,12 @@ export {
   parseRiskItems,
   parseIdentifiedPlatforms,
   parsePlatformResponse,
-
   isCapiInputJson,
   isConsentStateJson,
 } from "./database";
 
 export {
   PLATFORM_NAMES,
-
   GoogleCredentialsSchema,
   MetaCredentialsSchema,
   TikTokCredentialsSchema,
@@ -135,14 +125,12 @@ export {
   PlatformCredentialsSchema,
   LineItemSchema,
   ConversionDataSchema,
-
   isGoogleCredentials,
   isMetaCredentials,
   isTikTokCredentials,
   isTypedGoogleCredentials,
   isTypedMetaCredentials,
   isTypedTikTokCredentials,
-
   upgradeCredentials,
   validateCredentials,
   validatePlatformCredentials,
@@ -155,7 +143,6 @@ export type {
   ConsentDecision,
   PlatformConsentConfig,
   GDPRJobType,
-
   GDPRJobData,
   TrustLevel,
   TrustResult,
@@ -163,7 +150,6 @@ export type {
 } from "./consent";
 
 export type {
-
   ApiResponse,
   SurveyResponseData,
   ShopData,
@@ -216,7 +202,6 @@ export {
 } from "./shopify";
 
 export {
-
   type Result,
   type AsyncResult,
   type Ok,
@@ -225,13 +210,10 @@ export {
   type AsyncVoidResult,
   type SimpleResult,
   type IdResult,
-
   ok,
   err,
-
   isOk,
   isErr,
-
   unwrap,
   unwrapOr,
   unwrapOrElse,
@@ -240,12 +222,10 @@ export {
   flatMap,
   combine,
   combineAll,
-
   fromPromise,
   fromThrowable,
   mapAsync,
   flatMapAsync,
-
   match,
   tap,
   tapErr,

@@ -8,15 +8,10 @@ interface CacheEntry<T> {
 }
 
 export interface CacheOptions {
-
   maxSize?: number;
-
   defaultTtlMs?: number;
-
   staleWindowMs?: number;
-
   prefix?: string;
-
   useRedis?: boolean;
 }
 
@@ -28,15 +23,10 @@ export interface CacheStats {
 }
 
 export const TTL = {
-
   VERY_SHORT: 30 * 1000,
-
   SHORT: 60 * 1000,
-
   MEDIUM: 5 * 60 * 1000,
-
   LONG: 15 * 60 * 1000,
-
   VERY_LONG: 60 * 60 * 1000,
 } as const;
 
@@ -46,7 +36,6 @@ export class SimpleCache<T> {
   private defaultTtlMs: number;
   private staleWindowMs: number;
   private stats: CacheStats;
-
   constructor(options: CacheOptions = {}) {
     this.cache = new Map();
     this.maxSize = options.maxSize ?? 1000;
@@ -54,115 +43,91 @@ export class SimpleCache<T> {
     this.staleWindowMs = options.staleWindowMs ?? 0;
     this.stats = { hits: 0, misses: 0, staleHits: 0, size: 0 };
   }
-
   get(key: string): T | undefined {
     const entry = this.cache.get(key);
     const now = Date.now();
-
     if (!entry) {
       this.stats.misses++;
       return undefined;
     }
-
     if (now > entry.expiresAt) {
       this.cache.delete(key);
       this.stats.size = this.cache.size;
       this.stats.misses++;
       return undefined;
     }
-
     this.cache.delete(key);
     this.cache.set(key, entry);
-
     if (entry.staleAt && now > entry.staleAt) {
       this.stats.staleHits++;
     } else {
       this.stats.hits++;
     }
-
     return entry.value;
   }
-
   isStale(key: string): boolean {
     const entry = this.cache.get(key);
     if (!entry || !entry.staleAt) return false;
     return Date.now() > entry.staleAt;
   }
-
   set(key: string, value: T, ttlMs?: number): void {
-
     if (this.cache.size >= this.maxSize) {
       const firstKey = this.cache.keys().next().value;
       if (firstKey !== undefined) {
         this.cache.delete(firstKey);
       }
     }
-
     const now = Date.now();
     const ttl = ttlMs ?? this.defaultTtlMs;
-
     this.cache.set(key, {
       value,
       expiresAt: now + ttl,
       staleAt: this.staleWindowMs > 0 ? now + (ttl - this.staleWindowMs) : undefined,
     });
-
     this.stats.size = this.cache.size;
   }
-
   delete(key: string): boolean {
     const result = this.cache.delete(key);
     this.stats.size = this.cache.size;
     return result;
   }
-
   deletePattern(pattern: string): number {
     const regex = new RegExp(pattern.replace(/\*/g, ".*"));
     let count = 0;
-
     for (const key of this.cache.keys()) {
       if (regex.test(key)) {
         this.cache.delete(key);
         count++;
       }
     }
-
     this.stats.size = this.cache.size;
     return count;
   }
-
   clear(): void {
     this.cache.clear();
     this.stats.size = 0;
   }
-
   get size(): number {
     return this.cache.size;
   }
-
   getStats(): CacheStats {
     return { ...this.stats };
   }
-
   resetStats(): void {
     this.stats = { hits: 0, misses: 0, staleHits: 0, size: this.cache.size };
   }
-
   cleanup(): number {
     const now = Date.now();
     let removed = 0;
-
     for (const [key, entry] of this.cache.entries()) {
       if (now > entry.expiresAt) {
         this.cache.delete(key);
         removed++;
       }
     }
-
     this.stats.size = this.cache.size;
     return removed;
   }
-
   keys(): string[] {
     return Array.from(this.cache.keys());
   }
@@ -173,33 +138,26 @@ export class RedisCache<T> {
   private prefix: string;
   private defaultTtlMs: number;
   private useRedis: boolean;
-
   constructor(options: CacheOptions = {}) {
     this.memoryCache = new SimpleCache<T>(options);
     this.prefix = options.prefix ?? "tg:cache:";
     this.defaultTtlMs = options.defaultTtlMs ?? TTL.MEDIUM;
     this.useRedis = options.useRedis ?? true;
   }
-
   private getRedisKey(key: string): string {
     return `${this.prefix}${key}`;
   }
-
   async get(key: string): Promise<T | undefined> {
-
     const memValue = this.memoryCache.get(key);
     if (memValue !== undefined) {
       return memValue;
     }
-
     if (this.useRedis) {
       try {
         const client = await getRedisClient();
         const redisValue = await client.get(this.getRedisKey(key));
-
         if (redisValue) {
           const parsed = JSON.parse(redisValue) as T;
-
           this.memoryCache.set(key, parsed);
           return parsed;
         }
@@ -207,15 +165,11 @@ export class RedisCache<T> {
         logger.debug("Redis cache get error", { key, error });
       }
     }
-
     return undefined;
   }
-
   async set(key: string, value: T, ttlMs?: number): Promise<void> {
     const ttl = ttlMs ?? this.defaultTtlMs;
-
     this.memoryCache.set(key, value, ttl);
-
     if (this.useRedis) {
       try {
         const client = await getRedisClient();
@@ -226,10 +180,8 @@ export class RedisCache<T> {
       }
     }
   }
-
   async delete(key: string): Promise<boolean> {
     const memDeleted = this.memoryCache.delete(key);
-
     if (this.useRedis) {
       try {
         const client = await getRedisClient();
@@ -238,13 +190,10 @@ export class RedisCache<T> {
         logger.debug("Redis cache delete error", { key, error });
       }
     }
-
     return memDeleted;
   }
-
   async deletePattern(pattern: string): Promise<number> {
     const memCount = this.memoryCache.deletePattern(pattern);
-
     if (this.useRedis) {
       try {
         const client = await getRedisClient();
@@ -256,13 +205,10 @@ export class RedisCache<T> {
         logger.debug("Redis cache deletePattern error", { pattern, error });
       }
     }
-
     return memCount;
   }
-
   async clear(): Promise<void> {
     this.memoryCache.clear();
-
     if (this.useRedis) {
       try {
         const client = await getRedisClient();
@@ -275,13 +221,11 @@ export class RedisCache<T> {
       }
     }
   }
-
   async getOrSet(key: string, factory: () => Promise<T>, ttlMs?: number): Promise<T> {
     const cached = await this.get(key);
     if (cached !== undefined) {
       return cached;
     }
-
     const value = await factory();
     await this.set(key, value, ttlMs);
     return value;
@@ -303,15 +247,12 @@ export function memoizeAsync<TArgs extends unknown[], TResult>(
       maxSize: options.maxSize ?? 1000,
       defaultTtlMs: options.ttlMs ?? TTL.SHORT,
     });
-
   return async function memoized(...args: TArgs): Promise<TResult> {
     const key = options.keyFn(...args);
-
     const cached = cache.get(key);
     if (cached !== undefined) {
       return cached;
     }
-
     const result = await fn(...args);
     cache.set(key, result, options.ttlMs);
     return result;
@@ -333,15 +274,12 @@ export function memoize<TArgs extends unknown[], TResult>(
       maxSize: options.maxSize ?? 1000,
       defaultTtlMs: options.ttlMs ?? TTL.SHORT,
     });
-
   return function memoized(...args: TArgs): TResult {
     const key = options.keyFn(...args);
-
     const cached = cache.get(key);
     if (cached !== undefined) {
       return cached;
     }
-
     const result = fn(...args);
     cache.set(key, result, options.ttlMs);
     return result;
@@ -362,7 +300,6 @@ export interface ShopConfigCacheEntry {
   shopDomain: string;
   plan: string | null;
   consentStrategy: string | null;
-
   isActive: boolean;
 }
 
@@ -436,23 +373,18 @@ type CacheNamespace = typeof CACHE_NAMESPACES[keyof typeof CACHE_NAMESPACES];
 
 export class CacheKeyBuilder {
   private namespace: CacheNamespace;
-
   constructor(namespace: CacheNamespace) {
     this.namespace = namespace;
   }
-
   simple(id: string): string {
     return `${this.namespace}:${id}`;
   }
-
   composite(...parts: string[]): string {
     return `${this.namespace}:${parts.join(":")}`;
   }
-
   typed(id: string, type: string): string {
     return `${this.namespace}:${id}:${type}`;
   }
-
   pattern(prefix: string = ""): string {
     return `${this.namespace}:${prefix}*`;
   }
@@ -469,11 +401,8 @@ export const CacheKeys = {
 } as const;
 
 export interface CacheWarmerOptions {
-
   concurrency?: number;
-
   verbose?: boolean;
-
   onError?: (key: string, error: unknown) => void;
 }
 
@@ -497,14 +426,11 @@ export async function warmCache<T>(
 ): Promise<CacheWarmResult> {
   const { concurrency = 5, verbose = false, onError } = options;
   const startTime = Date.now();
-
   let success = 0;
   let failed = 0;
   const errors: Array<{ key: string; error: string }> = [];
-
   for (let i = 0; i < entries.length; i += concurrency) {
     const batch = entries.slice(i, i + concurrency);
-
     const results = await Promise.allSettled(
       batch.map(async (entry) => {
         try {
@@ -516,7 +442,6 @@ export async function warmCache<T>(
         }
       })
     );
-
     for (const result of results) {
       if (result.status === "fulfilled") {
         success++;
@@ -532,9 +457,7 @@ export async function warmCache<T>(
       }
     }
   }
-
   const durationMs = Date.now() - startTime;
-
   if (verbose) {
     logger.info(`Cache warming completed`, {
       success,
@@ -542,7 +465,6 @@ export async function warmCache<T>(
       durationMs,
     });
   }
-
   return { success, failed, errors, durationMs };
 }
 
@@ -553,14 +475,11 @@ export async function warmRedisCache<T>(
 ): Promise<CacheWarmResult> {
   const { concurrency = 5, verbose = false, onError } = options;
   const startTime = Date.now();
-
   let success = 0;
   let failed = 0;
   const errors: Array<{ key: string; error: string }> = [];
-
   for (let i = 0; i < entries.length; i += concurrency) {
     const batch = entries.slice(i, i + concurrency);
-
     const results = await Promise.allSettled(
       batch.map(async (entry) => {
         try {
@@ -572,7 +491,6 @@ export async function warmRedisCache<T>(
         }
       })
     );
-
     for (const result of results) {
       if (result.status === "fulfilled") {
         success++;
@@ -588,9 +506,7 @@ export async function warmRedisCache<T>(
       }
     }
   }
-
   const durationMs = Date.now() - startTime;
-
   if (verbose) {
     logger.info(`Redis cache warming completed`, {
       success,
@@ -598,7 +514,6 @@ export async function warmRedisCache<T>(
       durationMs,
     });
   }
-
   return { success, failed, errors, durationMs };
 }
 
@@ -612,7 +527,6 @@ export function registerCacheWarmer(name: string, factory: WarmupFactory): void 
 
 export async function runCacheWarmers(): Promise<Record<string, CacheWarmResult>> {
   const results: Record<string, CacheWarmResult> = {};
-
   for (const [name, factory] of registeredWarmers) {
     try {
       results[name] = await factory();
@@ -627,6 +541,5 @@ export async function runCacheWarmers(): Promise<Record<string, CacheWarmResult>
       };
     }
   }
-
   return results;
 }

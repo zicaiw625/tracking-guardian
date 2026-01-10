@@ -42,17 +42,14 @@ interface AlertsTabProps {
   isSubmitting: boolean;
   onSaveAlert: () => void;
   onTestAlert: () => void;
-
   failureRateThreshold?: string;
   setFailureRateThreshold?: (value: string) => void;
   missingParamsThreshold?: string;
   setMissingParamsThreshold?: (value: string) => void;
   volumeDropThreshold?: string;
   setVolumeDropThreshold?: (value: string) => void;
-
   alertFrequency?: string;
   setAlertFrequency?: (value: string) => void;
-
   currentMonitoringData?: {
     failureRate: number;
     missingParamsRate: number;
@@ -101,9 +98,7 @@ export function AlertsTab({
             <Text as="p" tone="subdued">
               当追踪数据出现异常时，我们会通过您配置的渠道发送警报。
             </Text>
-
             <Divider />
-
             <Select
               label="通知渠道"
               options={[
@@ -114,7 +109,6 @@ export function AlertsTab({
               value={alertChannel}
               onChange={setAlertChannel}
             />
-
             {alertChannel === "email" && (
               <TextField
                 label="邮箱地址"
@@ -125,7 +119,6 @@ export function AlertsTab({
                 placeholder="your@email.com"
               />
             )}
-
             {alertChannel === "slack" && (
               <TextField
                 label="Slack Webhook URL"
@@ -136,7 +129,6 @@ export function AlertsTab({
                 helpText="在 Slack 中创建 Incoming Webhook 获取此 URL"
               />
             )}
-
             {alertChannel === "telegram" && (
               <>
                 <TextField
@@ -157,13 +149,10 @@ export function AlertsTab({
                 />
               </>
             )}
-
             <Divider />
-
             <Text as="h3" variant="headingSm">
               告警规则配置
             </Text>
-
             <BlockStack gap="400">
               <ThresholdConfigCard
                 config={{
@@ -187,9 +176,7 @@ export function AlertsTab({
                 showPreview={true}
                 showRecommendation={true}
               />
-
               <Divider />
-
               <ThresholdConfigCard
                 config={{
                   type: "missing_params",
@@ -212,9 +199,7 @@ export function AlertsTab({
                 showPreview={true}
                 showRecommendation={true}
               />
-
               <Divider />
-
               <ThresholdConfigCard
                 config={{
                   type: "volume_drop",
@@ -237,13 +222,10 @@ export function AlertsTab({
                 showPreview={true}
                 showRecommendation={true}
               />
-
               <Divider />
-
               <Text as="h4" variant="headingSm" tone="subdued">
                 告警频率配置
               </Text>
-
               <Select
                 label="告警频率"
                 options={[
@@ -256,7 +238,6 @@ export function AlertsTab({
                 helpText="选择告警通知的频率。即时通知会在检测到异常时立即发送，汇总模式会在指定时间发送所有告警的汇总报告。"
               />
             </BlockStack>
-
             <Box background="bg-surface-secondary" padding="400" borderRadius="200">
               <BlockStack gap="300">
                 <Text as="p" variant="bodySm" fontWeight="semibold">
@@ -291,13 +272,11 @@ export function AlertsTab({
                 </List>
               </BlockStack>
             </Box>
-
             <Checkbox
               label="启用警报通知"
               checked={alertEnabled}
               onChange={setAlertEnabled}
             />
-
             <InlineStack gap="200">
               <Button
                 variant="primary"
@@ -324,7 +303,6 @@ export function AlertsTab({
           </BlockStack>
         </Card>
       </Layout.Section>
-
       <Layout.Section variant="oneThird">
         <Card>
           <BlockStack gap="300">

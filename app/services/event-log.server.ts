@@ -7,15 +7,11 @@ function sanitizePII(payload: unknown): unknown {
   if (!payload || typeof payload !== "object") {
     return payload;
   }
-
   const sanitized = Array.isArray(payload) ? [...payload] : { ...payload as Record<string, unknown> };
-
   if (Array.isArray(sanitized)) {
     return sanitized.map(item => sanitizePII(item));
   }
-
   const obj = sanitized as Record<string, unknown>;
-
   const allowedFields = new Set([
     "event_name",
     "eventname",
@@ -60,7 +56,6 @@ function sanitizePII(payload: unknown): unknown {
     "variant_id",
     "variantid",
   ]);
-
   const piiFields = new Set([
     "email",
     "phone",
@@ -93,7 +88,6 @@ function sanitizePII(payload: unknown): unknown {
     "customerid",
     "user_id",
     "userid",
-
     "em",
     "ph",
     "fn",
@@ -105,7 +99,6 @@ function sanitizePII(payload: unknown): unknown {
     "userdata",
     "external_id",
     "externalid",
-
     "email_hash",
     "emailhash",
     "phone_hash",
@@ -123,7 +116,6 @@ function sanitizePII(payload: unknown): unknown {
     "customer_phone_hash",
     "customerphonehash",
   ]);
-
   const sensitiveKeys = new Set([
     "access_token",
     "accesstoken",
@@ -131,43 +123,31 @@ function sanitizePII(payload: unknown): unknown {
     "apisecret",
     "authorization",
   ]);
-
   const result: Record<string, unknown> = {};
-
   for (const key of Object.keys(obj)) {
     const lowerKey = key.toLowerCase();
-
     const piiKeywords = ["email", "phone", "address", "name", "customer", "user", "personal", "identify"];
     const containsPiiKeyword = piiKeywords.some(keyword => lowerKey.includes(keyword));
-
     const isAllowed = allowedFields.has(lowerKey);
-
     if (!isAllowed && containsPiiKeyword) {
-
       continue;
     }
-
     if (piiFields.has(lowerKey)) {
       continue;
     }
-
     if (sensitiveKeys.has(lowerKey)) {
       result[key] = "***REDACTED***";
       continue;
     }
-
     if (!isAllowed) {
-
       continue;
     }
-
     if (typeof obj[key] === "object" && obj[key] !== null) {
       result[key] = sanitizePII(obj[key]);
     } else {
       result[key] = obj[key];
     }
   }
-
   return result;
 }
 
@@ -175,13 +155,10 @@ function sanitizeCredentials(payload: unknown): unknown {
   if (!payload || typeof payload !== "object") {
     return payload;
   }
-
   const sanitized = Array.isArray(payload) ? [...payload] : { ...payload as Record<string, unknown> };
-
   if (Array.isArray(sanitized)) {
     return sanitized.map(item => sanitizeCredentials(item));
   }
-
   const obj = sanitized as Record<string, unknown>;
   const sensitiveKeys = [
     "access_token",
@@ -191,7 +168,6 @@ function sanitizeCredentials(payload: unknown): unknown {
     "test_event_code",
     "testEventCode",
   ];
-
   for (const key of Object.keys(obj)) {
     if (sensitiveKeys.includes(key.toLowerCase())) {
       obj[key] = "***REDACTED***";
@@ -199,7 +175,6 @@ function sanitizeCredentials(payload: unknown): unknown {
       obj[key] = sanitizeCredentials(obj[key]);
     }
   }
-
   return obj;
 }
 
@@ -215,13 +190,10 @@ export interface CreateEventLogOptions {
 
 export async function createEventLog(options: CreateEventLogOptions): Promise<string | null> {
   try {
-
     const sanitizedContext = options.shopifyContextJson
       ? sanitizePII(options.shopifyContextJson) as Record<string, unknown>
       : null;
-
     const sanitizedEvent = sanitizePII(options.normalizedEventJson) as Record<string, unknown>;
-
     const eventLog = await prisma.eventLog.create({
       data: {
         id: generateSimpleId("evtlog"),
@@ -234,17 +206,14 @@ export async function createEventLog(options: CreateEventLogOptions): Promise<st
         normalizedEventJson: sanitizedEvent,
       },
     });
-
     return eventLog.id;
   } catch (error) {
-
     if (error instanceof Error && error.message.includes("unique") || error instanceof Error && error.message.includes("Unique")) {
       logger.debug("EventLog already exists (deduplication)", {
         shopId: options.shopId,
         eventId: options.eventId,
         eventName: options.eventName,
       });
-
       const existing = await prisma.eventLog.findUnique({
         where: {
           shopId_eventId: {
@@ -255,7 +224,6 @@ export async function createEventLog(options: CreateEventLogOptions): Promise<st
       });
       return existing?.id || null;
     }
-
     logger.error("Failed to create EventLog", {
       shopId: options.shopId,
       eventId: options.eventId,
@@ -278,9 +246,7 @@ export async function createDeliveryAttempt(
   options: CreateDeliveryAttemptOptions
 ): Promise<string | null> {
   try {
-
     const sanitizedPayload = sanitizePII(sanitizeCredentials(options.requestPayloadJson));
-
     const attempt = await prisma.deliveryAttempt.create({
       data: {
         id: generateSimpleId("delivery"),
@@ -292,10 +258,8 @@ export async function createDeliveryAttempt(
         status: "pending",
       },
     });
-
     return attempt.id;
   } catch (error) {
-
     if (error instanceof Error && (error.message.includes("unique") || error.message.includes("Unique"))) {
       logger.debug("DeliveryAttempt already exists (deduplication)", {
         shopId: options.shopId,
@@ -303,7 +267,6 @@ export async function createDeliveryAttempt(
         destinationType: options.destinationType,
         environment: options.environment,
       });
-
       const existing = await prisma.deliveryAttempt.findUnique({
         where: {
           shopId_eventLogId_destinationType_environment: {
@@ -314,18 +277,14 @@ export async function createDeliveryAttempt(
           },
         },
       });
-
       if (existing && existing.status === "pending") {
-
         await prisma.deliveryAttempt.update({
           where: { id: existing.id },
           data: { status: "skipped_dedup" },
         });
       }
-
       return existing?.id || null;
     }
-
     logger.error("Failed to create DeliveryAttempt", {
       shopId: options.shopId,
       eventLogId: options.eventLogId,
@@ -422,7 +381,6 @@ export async function getEventLogs(
         },
       },
     });
-
     return logs.map(log => ({
       id: log.id,
       eventId: log.eventId,
@@ -471,7 +429,6 @@ export async function exportEventLogsAsCSV(
       eventName: options.eventName,
       limit: options.limit || 1000,
     });
-
     const headers = [
       "Event ID",
       "Event Name",
@@ -483,10 +440,8 @@ export async function exportEventLogsAsCSV(
       "Latency (ms)",
       "Created At",
     ];
-
     const rows = logs.flatMap(log => {
       if (log.deliveryAttempts.length === 0) {
-
         return [[
           log.eventId,
           log.eventName,
@@ -499,7 +454,6 @@ export async function exportEventLogsAsCSV(
           log.createdAt.toISOString(),
         ]];
       }
-
       return log.deliveryAttempts.map(attempt => [
         log.eventId,
         log.eventName,
@@ -512,19 +466,16 @@ export async function exportEventLogsAsCSV(
         attempt.createdAt.toISOString(),
       ]);
     });
-
     function escapeCSV(value: string): string {
       if (value.includes(",") || value.includes('"') || value.includes("\n")) {
         return `"${value.replace(/"/g, '""')}"`;
       }
       return value;
     }
-
         const csvLines = [
       headers.map(escapeCSV).join(","),
       ...rows.map(row => row.map(cell => escapeCSV(String(cell || ""))).join(",")),
     ];
-
     return csvLines.join("\n");
   } catch (error) {
     logger.error("Failed to export EventLogs as CSV", {
@@ -568,30 +519,24 @@ export async function getDeliveryAttemptStats(
         latencyMs: true,
       },
     });
-
     const total = attempts.length;
     const ok = attempts.filter(a => a.status === "ok").length;
     const fail = attempts.filter(a => a.status === "fail").length;
     const skipped = attempts.filter(a => a.status === "skipped").length;
     const skippedDedup = attempts.filter(a => a.status === "skipped_dedup").length;
-
     const latencies = attempts
       .filter(a => a.latencyMs !== null)
       .map(a => a.latencyMs!)
       .sort((a, b) => a - b);
-
     const avgLatencyMs = latencies.length > 0
       ? latencies.reduce((sum, l) => sum + l, 0) / latencies.length
       : null;
-
     const p50LatencyMs = latencies.length > 0
       ? latencies[Math.floor(latencies.length * 0.5)]
       : null;
-
     const p95LatencyMs = latencies.length > 0
       ? latencies[Math.floor(latencies.length * 0.95)]
       : null;
-
     return {
       total,
       ok,

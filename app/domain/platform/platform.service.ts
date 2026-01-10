@@ -14,21 +14,15 @@ export interface CredentialsValidationResult {
 }
 
 export interface IPlatformService {
-
   readonly platform: Platform;
-
   readonly displayName: string;
-
   sendConversion(
     credentials: PlatformCredentials,
     data: ConversionData,
     eventId: string
   ): Promise<PlatformSendResult>;
-
   validateCredentials(credentials: unknown): CredentialsValidationResult;
-
   parseError(error: unknown): PlatformError;
-
   buildPayload(
     data: ConversionData,
     eventId: string
@@ -36,15 +30,10 @@ export interface IPlatformService {
 }
 
 export interface IPlatformRegistry {
-
   register(platform: Platform, service: IPlatformService): void;
-
   get(platform: Platform): IPlatformService | undefined;
-
   has(platform: Platform): boolean;
-
   getPlatforms(): Platform[];
-
   getAll(): Map<Platform, IPlatformService>;
 }
 
@@ -56,14 +45,12 @@ export interface MultiPlatformSendResult {
 }
 
 export interface IPlatformOrchestrator {
-
   sendToOne(
     platform: Platform,
     credentials: PlatformCredentials,
     data: ConversionData,
     eventId: string
   ): AsyncResult<PlatformSendResult, AppError>;
-
   sendToMany(
     platforms: Array<{
       platform: Platform;

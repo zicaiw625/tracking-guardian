@@ -41,7 +41,6 @@ export function DisplayRulesEditor({
   moduleKey,
 }: DisplayRulesEditorProps) {
   const [customerTagInput, setCustomerTagInput] = useState("");
-
   const handleTargetToggle = useCallback(
     (target: "thank_you" | "order_status", checked: boolean) => {
       const currentTargets = displayRules.targets || [];
@@ -59,7 +58,6 @@ export function DisplayRulesEditor({
     },
     [displayRules, onChange]
   );
-
   const handleMinOrderValueChange = useCallback(
     (value: string) => {
       const numValue = value ? parseFloat(value) : undefined;
@@ -73,11 +71,9 @@ export function DisplayRulesEditor({
     },
     [displayRules, onChange]
   );
-
   const handleAddCustomerTag = useCallback(() => {
     const tag = customerTagInput.trim();
     if (!tag) return;
-
     const currentTags = displayRules.conditions?.customerTags || [];
     if (!currentTags.includes(tag)) {
       onChange({
@@ -90,7 +86,6 @@ export function DisplayRulesEditor({
       setCustomerTagInput("");
     }
   }, [customerTagInput, displayRules, onChange]);
-
   const handleRemoveCustomerTag = useCallback(
     (tag: string) => {
       const currentTags = displayRules.conditions?.customerTags || [];
@@ -104,7 +99,6 @@ export function DisplayRulesEditor({
     },
     [displayRules, onChange]
   );
-
   const handleCountryToggle = useCallback(
     (country: string, checked: boolean) => {
       const currentCountries = displayRules.conditions?.countries || [];
@@ -128,7 +122,6 @@ export function DisplayRulesEditor({
     },
     [displayRules, onChange]
   );
-
   return (
     <BlockStack gap="400">
       <Banner tone="info">
@@ -136,7 +129,6 @@ export function DisplayRulesEditor({
           配置模块在哪些页面显示，以及显示的条件。如果不设置条件，模块将在所有符合条件的页面显示。
         </Text>
       </Banner>
-
       <FormLayout>
         <FormLayout.Group>
           <BlockStack gap="300">
@@ -162,7 +154,6 @@ export function DisplayRulesEditor({
             </BlockStack>
           </BlockStack>
         </FormLayout.Group>
-
         <FormLayout.Group>
           <BlockStack gap="300">
             <Text as="h4" variant="headingSm">
@@ -171,7 +162,6 @@ export function DisplayRulesEditor({
             <Text as="p" variant="bodySm" tone="subdued">
               设置模块显示的条件，只有满足条件的订单才会显示此模块
             </Text>
-
             <TextField
               label="最小订单金额"
               type="number"
@@ -188,7 +178,6 @@ export function DisplayRulesEditor({
             />
           </BlockStack>
         </FormLayout.Group>
-
         <FormLayout.Group>
           <BlockStack gap="300">
             <Text as="h4" variant="headingSm">
@@ -226,7 +215,6 @@ export function DisplayRulesEditor({
               )}
           </BlockStack>
         </FormLayout.Group>
-
         <FormLayout.Group>
           <BlockStack gap="300">
             <Text as="h4" variant="headingSm">

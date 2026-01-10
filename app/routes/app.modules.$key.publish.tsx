@@ -38,14 +38,11 @@ const TARGET_DETAILS: Record<
 export const loader = async ({ request, params }: LoaderFunctionArgs) => {
   await authenticate.admin(request);
   const key = params.key;
-
   if (!key || !(key in UI_MODULES)) {
     throw new Response("模块不存在", { status: 404 });
   }
-
   const moduleKey = key as ModuleKey;
   const moduleInfo = UI_MODULES[moduleKey];
-
   return json({
     moduleKey,
     moduleName: moduleInfo.name,
@@ -56,7 +53,6 @@ export const loader = async ({ request, params }: LoaderFunctionArgs) => {
 export default function UiModulePublishGuide() {
   const { moduleName, targets } = useLoaderData<typeof loader>();
   const targetCards = targets.map((target) => TARGET_DETAILS[target]);
-
   return (
     <Page
       title={`${moduleName} 发布指引`}
@@ -84,7 +80,6 @@ export default function UiModulePublishGuide() {
                 </Text>
               </BlockStack>
             </Banner>
-
             <Card>
               <BlockStack gap="400">
                 <Text as="h2" variant="headingMd">
@@ -138,7 +133,6 @@ export default function UiModulePublishGuide() {
                 </BlockStack>
               </BlockStack>
             </Card>
-
             <Card>
               <BlockStack gap="400">
                 <Text as="h2" variant="headingMd">
@@ -260,7 +254,6 @@ export default function UiModulePublishGuide() {
                 </Button>
               </BlockStack>
             </Card>
-
             <Card>
               <BlockStack gap="400">
                 <Text as="h2" variant="headingMd">

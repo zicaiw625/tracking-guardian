@@ -8,13 +8,10 @@ export interface CanonicalEvent {
   eventName: string;
   timestamp: number;
   shopDomain: string;
-
   orderId?: string | null;
   checkoutToken?: string | null;
-
   value: number;
   currency: string;
-
   items?: Array<{
     id: string;
     name: string;
@@ -23,9 +20,7 @@ export interface CanonicalEvent {
     variantId?: string;
     sku?: string;
   }>;
-
   eventId: string;
-
   rawData: Record<string, unknown>;
 }
 
@@ -42,13 +37,9 @@ export function normalizeToCanonical(
   eventId: string
 ): CanonicalEvent {
   const data = payload.data || {};
-
   const value = normalizeValue(data.value);
-
   const currency = normalizeCurrency(data.currency, payload.eventName);
-
   const items = normalizeItems(data.items);
-
   return {
     eventName: payload.eventName,
     timestamp: payload.timestamp,
@@ -67,7 +58,6 @@ export function mapToPlatform(
   canonical: CanonicalEvent,
   platform: string
 ): PlatformEventParams {
-
   const payload: PixelEventPayload = {
     eventName: canonical.eventName as PixelEventName,
     timestamp: canonical.timestamp,
@@ -88,13 +78,11 @@ export function mapToPlatform(
       checkoutToken: canonical.checkoutToken,
     } as PixelEventData,
   };
-
   const mapped = mapEventToPlatform(
     canonical.eventName,
     platform,
     payload
   );
-
   return {
     eventName: mapped.eventName,
     parameters: {
@@ -117,14 +105,12 @@ export function generateCanonicalEventId(
   nonce?: string | null | undefined
 ): string {
   const crypto = require("crypto");
-
   let identifier: string;
   if (orderId) {
     identifier = normalizeOrderId(orderId);
   } else if (checkoutToken) {
     identifier = checkoutToken;
   } else {
-
     if (nonce) {
       identifier = `nonce_${nonce}`;
       logger.debug("Using nonce for event ID generation (fallback)", {
@@ -133,7 +119,6 @@ export function generateCanonicalEventId(
         noncePrefix: nonce.substring(0, 8),
       });
     } else {
-
       const timestampMs = Date.now();
       const randomSuffix = crypto.randomBytes(4).toString("hex");
       identifier = `fallback_${timestampMs}_${randomSuffix}`;
@@ -144,10 +129,8 @@ export function generateCanonicalEventId(
       });
     }
   }
-
   let itemsHash = "";
   if (items && items.length > 0) {
-
     const itemsKey = items
       .map(item => `${item.id}:${item.quantity}`)
       .sort()
@@ -158,7 +141,6 @@ export function generateCanonicalEventId(
       .digest("hex")
       .substring(0, 8);
   }
-
   const input = `${version}:${shopDomain}:${identifier}:${eventName}:${itemsHash}`;
   return crypto
     .createHash("sha256")
@@ -171,19 +153,15 @@ function normalizeValue(value: unknown): number {
   if (typeof value === "number") {
     return Math.max(0, Math.round(value * 100) / 100);
   }
-
   if (typeof value === "string") {
     const parsed = parseFloat(value);
     return isNaN(parsed) ? 0 : Math.max(0, Math.round(parsed * 100) / 100);
   }
-
   return 0;
 }
 
 function normalizeCurrency(currency: unknown, eventName: string): string {
-
   if (currency === null || currency === undefined) {
-
     const requiresCurrency = ["checkout_completed", "purchase", "product_added_to_cart", "checkout_started", "product_viewed"].includes(eventName);
     if (requiresCurrency) {
       logger.warn(`Missing currency for ${eventName} event, using USD as fallback. This may indicate a data quality issue.`, {
@@ -192,21 +170,17 @@ function normalizeCurrency(currency: unknown, eventName: string): string {
     }
     return "USD";
   }
-
   if (typeof currency === "string") {
     const upper = currency.toUpperCase().trim();
-
     if (/^[A-Z]{3}$/.test(upper)) {
       return upper;
     }
   }
-
   logger.warn("Invalid currency format, defaulting to USD", {
     currency,
     currencyType: typeof currency,
     eventName,
   });
-
   return "USD";
 }
 
@@ -216,32 +190,25 @@ function normalizeItems(
   if (!Array.isArray(items)) {
     return undefined;
   }
-
   return items
     .filter(item => item != null && typeof item === "object")
     .map(item => {
       const itemObj = item as Record<string, unknown>;
-
       const id =
         String(itemObj.id || itemObj.item_id || itemObj.variant_id || itemObj.sku || itemObj.product_id || "").trim();
-
       const name =
         String(itemObj.name || itemObj.item_name || itemObj.title || itemObj.product_name || "").trim();
-
       const price = normalizeValue(itemObj.price);
-
       const quantity =
         typeof itemObj.quantity === "number"
           ? Math.max(1, Math.floor(itemObj.quantity))
           : typeof itemObj.quantity === "string"
           ? Math.max(1, parseInt(itemObj.quantity, 10) || 1)
           : 1;
-
       const variantId = itemObj.variant_id
         ? String(itemObj.variant_id).trim()
         : undefined;
       const sku = itemObj.sku ? String(itemObj.sku).trim() : undefined;
-
       return {
         id,
         name,
@@ -255,12 +222,10 @@ function normalizeItems(
 }
 
 function normalizeOrderId(orderId: string): string {
-
   const gidMatch = orderId.match(/gid:\/\/shopify\/Order\/(\d+)/i);
   if (gidMatch) {
     return gidMatch[1];
   }
-
   return orderId.trim();
 }
 
@@ -271,19 +236,15 @@ export function validatePlatformEvent(
   errors: string[];
 } {
   const errors: string[] = [];
-
   if (!platformEvent.isValid) {
     errors.push(`Missing required parameters: ${platformEvent.missingParameters.join(", ")}`);
   }
-
   if (!platformEvent.eventName) {
     errors.push("Missing event name");
   }
-
   if (!platformEvent.eventId) {
     errors.push("Missing event ID");
   }
-
   return {
     isValid: errors.length === 0,
     errors,

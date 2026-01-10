@@ -11,36 +11,25 @@ export const MODULE_KEYS = [
 export type ModuleKey = typeof MODULE_KEYS[number];
 
 export const DisplayRuleSchema = z.object({
-
   showOnThankYou: z.boolean().default(true),
   showOnOrderStatus: z.boolean().default(true),
-
   minOrderValue: z.number().optional(),
   maxOrderValue: z.number().optional(),
-
   orderStatuses: z.array(z.string()).optional(),
-
   productTags: z.array(z.string()).optional(),
   productTypes: z.array(z.string()).optional(),
-
   customerTags: z.array(z.string()).optional(),
-
   showAfterHours: z.number().optional(),
   showBeforeHours: z.number().optional(),
-
   customConditions: z.record(z.string(), z.unknown()).optional(),
 });
 
 export type DisplayRule = z.infer<typeof DisplayRuleSchema>;
 
 export const LocalizationSchema = z.object({
-
   locale: z.string().default("en"),
-
   translations: z.record(z.string(), z.string()).optional(),
-
   dateFormat: z.string().default("YYYY-MM-DD"),
-
   currencyFormat: z.string().default("USD"),
 });
 
@@ -116,20 +105,15 @@ export const UpsellOfferSettingsSchema = z.object({
 export type UpsellOfferSettings = z.infer<typeof UpsellOfferSettingsSchema>;
 
 export const ModuleSettingsSchema = z.object({
-
   isEnabled: z.boolean().default(true),
   moduleKey: z.enum(MODULE_KEYS),
-
   survey: SurveySettingsSchema.optional(),
   reorder: ReorderSettingsSchema.optional(),
   support: SupportSettingsSchema.optional(),
   shipping_tracker: ShippingTrackerSettingsSchema.optional(),
   upsell_offer: UpsellOfferSettingsSchema.optional(),
-
   displayRules: DisplayRuleSchema.optional(),
-
   localization: z.array(LocalizationSchema).optional(),
-
   version: z.number().default(1),
   updatedAt: z.string().optional(),
 });
@@ -161,9 +145,7 @@ export function validateModuleSettings(
       default:
         return { valid: false, error: `Unknown module key: ${moduleKey}` };
     }
-
     const normalized = settingsSchema.parse(settings);
-
     return { valid: true, normalized: normalized as ModuleSettings };
   } catch (error) {
     if (error instanceof z.ZodError) {
@@ -189,7 +171,6 @@ export function getDefaultModuleSettings(moduleKey: ModuleKey): ModuleSettings {
     },
     version: 1,
   };
-
   switch (moduleKey) {
     case "survey":
       return {
@@ -288,7 +269,6 @@ export function mergeModuleSettings(
     showOnThankYou: true,
     showOnOrderStatus: true,
   };
-
   return {
     ...defaultSettings,
     ...existing,

@@ -198,17 +198,13 @@ const EXCLUDED_FIELDS = [
 
 function sanitizeContext(context: LogContext, depth: number = 0): LogContext {
   if (depth > 5) return { _truncated: true };
-
   const sanitized: LogContext = {};
-
   for (const [key, value] of Object.entries(context)) {
     const lowerKey = key.toLowerCase();
-
     if (EXCLUDED_FIELDS.some((f) => lowerKey.includes(f))) {
       sanitized[key] = "[EXCLUDED]";
       continue;
     }
-
     if (SENSITIVE_FIELD_PATTERNS.some((f) => lowerKey.includes(f))) {
       sanitized[key] = "[REDACTED]";
     } else if (typeof value === "object" && value !== null) {
@@ -231,7 +227,6 @@ function sanitizeContext(context: LogContext, depth: number = 0): LogContext {
       sanitized[key] = value;
     }
   }
-
   return sanitized;
 }
 
@@ -242,13 +237,11 @@ function buildLogEntry(
   error?: Error | unknown
 ): LogEntry {
   const correlationContext = correlationStorage.getStore();
-
   const entry: LogEntry = {
     timestamp: new Date().toISOString(),
     level,
     message,
   };
-
   if (correlationContext) {
     entry.correlationId = correlationContext.correlationId;
     if (correlationContext.shopDomain) entry.shopDomain = correlationContext.shopDomain;
@@ -256,7 +249,6 @@ function buildLogEntry(
     if (correlationContext.jobId) entry.jobId = correlationContext.jobId;
     if (correlationContext.platform) entry.platform = correlationContext.platform;
   }
-
   if (error) {
     if (error instanceof Error) {
       entry.error = {
@@ -268,25 +260,20 @@ function buildLogEntry(
       entry.error = { message: String(error) };
     }
   }
-
   if (context && Object.keys(context).length > 0) {
     const sanitized = sanitizeContext(context);
     Object.assign(entry, sanitized);
   }
-
   return entry;
 }
 
 function formatForConsole(entry: LogEntry): string {
   if (IS_PRODUCTION) {
-
     return JSON.stringify(entry);
   }
-
   const { timestamp, level, message, correlationId, ...rest } = entry;
   const prefix = `[${timestamp}] [${level.toUpperCase()}]`;
   const corrId = correlationId ? ` [${correlationId.substring(0, 8)}]` : "";
-
   if (Object.keys(rest).length > 0) {
     return `${prefix}${corrId} ${message} ${JSON.stringify(rest, null, 2)}`;
   }
@@ -330,33 +317,28 @@ const loggerImpl: Logger = {
       console.debug(formatForConsole(entry));
     }
   },
-
   info(message: string, context?: LogContext): void {
     if (shouldLog("info")) {
       const entry = buildLogEntry("info", message, context);
       console.info(formatForConsole(entry));
     }
   },
-
   warn(message: string, context?: LogContext): void {
     if (shouldLog("warn")) {
       const entry = buildLogEntry("warn", message, context);
       console.warn(formatForConsole(entry));
     }
   },
-
   error(message: string, error?: Error | unknown, context?: LogContext): void {
     if (shouldLog("error")) {
       const entry = buildLogEntry("error", message, context, error);
       console.error(formatForConsole(entry));
     }
   },
-
   log(level: LogLevel, message: string, context?: LogContext): void {
     if (shouldLog(level)) {
       const entry = buildLogEntry(level, message, context);
       const formatted = formatForConsole(entry);
-
       switch (level) {
         case "debug":
           console.debug(formatted);
@@ -373,7 +355,6 @@ const loggerImpl: Logger = {
       }
     }
   },
-
   child(additionalContext: LogContext): Logger {
     return createChildLogger(additionalContext);
   },
@@ -399,38 +380,30 @@ export function createRequestLogger(
     typeof requestOrId === "string"
       ? requestOrId
       : getRequestId(requestOrId);
-
   const correlationId =
     typeof requestOrId === "string"
       ? requestOrId
       : getCorrelationId(requestOrId);
-
   const contextWithIds: LogContext = {
     ...baseContext,
     requestId,
     correlationId,
   };
-
   return {
     requestId,
     correlationId,
-
     debug(message: string, context?: LogContext): void {
       logger.debug(message, { ...contextWithIds, ...context });
     },
-
     info(message: string, context?: LogContext): void {
       logger.info(message, { ...contextWithIds, ...context });
     },
-
     warn(message: string, context?: LogContext): void {
       logger.warn(message, { ...contextWithIds, ...context });
     },
-
     error(message: string, error?: Error | unknown, context?: LogContext): void {
       logger.error(message, error, { ...contextWithIds, ...context });
     },
-
     child(additionalContext: LogContext): RequestLogger {
       return createRequestLogger(requestId, {
         ...contextWithIds,
@@ -462,7 +435,6 @@ export const metrics = {
       _metric: "pixel_event",
     });
   },
-
   pixelRejection(context: {
     requestId?: string;
     shopDomain: string;
@@ -491,7 +463,6 @@ export const metrics = {
           : "info",
     });
   },
-
   silentDrop(context: {
     requestId?: string;
     shopDomain?: string;
@@ -507,7 +478,6 @@ export const metrics = {
       sampled: rate < 1,
     });
   },
-
   trustVerification(context: {
     shopDomain: string;
     orderId: string;
@@ -521,7 +491,6 @@ export const metrics = {
       _metric: "trust_verification",
     });
   },
-
   consentFilter(context: {
     shopDomain: string;
     orderId: string;
@@ -537,7 +506,6 @@ export const metrics = {
       });
     }
   },
-
   webhookProcessing(context: {
     requestId?: string;
     shopDomain: string;
@@ -552,7 +520,6 @@ export const metrics = {
       _metric: "webhook_processing",
     });
   },
-
   jobProcessing(context: {
     jobId: string;
     shopDomain: string;
@@ -567,7 +534,6 @@ export const metrics = {
       _metric: "job_processing",
     });
   },
-
   platformSend(context: {
     platform: string;
     shopDomain: string;
@@ -583,7 +549,6 @@ export const metrics = {
       _metric: "platform_send",
     });
   },
-
   retryQueue(context: {
     action: "scheduled" | "processed" | "dead_letter";
     platform: string;
@@ -595,7 +560,6 @@ export const metrics = {
       _metric: "retry_queue",
     });
   },
-
   rateLimit(context: {
     endpoint: string;
     key: string;
@@ -609,7 +573,6 @@ export const metrics = {
       });
     }
   },
-
   circuitBreaker(context: {
     shopDomain: string;
     action: "tripped" | "reset";
@@ -620,7 +583,6 @@ export const metrics = {
       _metric: "circuit_breaker",
     });
   },
-
   batchProcessing(context: {
     batchId?: string;
     operation: string;
@@ -705,14 +667,12 @@ export function logRequestStart(
 ): { requestId: string; startTime: number } {
   const requestId = getRequestId(request);
   const url = new URL(request.url);
-
   logger.info("Request started", {
     requestId,
     method: request.method,
     path: url.pathname,
     ...context,
   });
-
   return { requestId, startTime: Date.now() };
 }
 
@@ -724,7 +684,6 @@ export function logRequestEnd(
 ): void {
   const duration = Date.now() - startTime;
   const level = status >= 500 ? "error" : status >= 400 ? "warn" : "info";
-
   logger.log(level, "Request completed", {
     requestId,
     status,
@@ -790,7 +749,6 @@ export function logQueryPerformance(
   context?: LogContext
 ): void {
   const level = duration > 1000 ? "warn" : duration > 100 ? "info" : "debug";
-
   logger.log(level, "Database query", {
     query: query.substring(0, 100),
     duration,

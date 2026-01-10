@@ -18,7 +18,6 @@ export interface PixelEventPayload {
   eventName: PixelEventName;
   timestamp: number;
   shopDomain: string;
-
   consent?: {
     marketing?: boolean;
     analytics?: boolean;
@@ -101,15 +100,12 @@ export function validateCheckoutToken(token: string | null | undefined): {
   if (!token) {
     return { valid: true };
   }
-
   if (token.length < CHECKOUT_TOKEN_MIN_LENGTH || token.length > CHECKOUT_TOKEN_MAX_LENGTH) {
     return { valid: false, error: 'Invalid checkoutToken length' };
   }
-
   if (!CHECKOUT_TOKEN_PATTERN.test(token)) {
     return { valid: false, error: 'Invalid checkoutToken format' };
   }
-
   return { valid: true };
 }
 
@@ -120,12 +116,10 @@ export function validateOrderId(orderId: string | null | undefined): {
   if (!orderId) {
     return { valid: true };
   }
-
   const orderIdStr = String(orderId);
   if (!ORDER_ID_PATTERN.test(orderIdStr)) {
     return { valid: false, error: 'Invalid orderId format' };
   }
-
   return { valid: true };
 }
 
@@ -136,11 +130,9 @@ export function validateShopDomain(domain: string | null | undefined): {
   if (!domain || typeof domain !== 'string') {
     return { valid: false, error: 'Missing shopDomain' };
   }
-
   if (!SHOP_DOMAIN_PATTERN.test(domain)) {
     return { valid: false, error: 'Invalid shop domain format' };
   }
-
   return { valid: true };
 }
 
@@ -151,16 +143,13 @@ export function validateTimestamp(timestamp: unknown): {
   if (timestamp === undefined || timestamp === null) {
     return { valid: false, error: 'Missing timestamp' };
   }
-
   if (typeof timestamp !== 'number') {
     return { valid: false, error: 'Invalid timestamp type' };
   }
-
   const now = Date.now();
   if (timestamp < MIN_REASONABLE_TIMESTAMP || timestamp > now + MAX_FUTURE_TIMESTAMP_MS) {
     return { valid: false, error: 'Timestamp outside reasonable range' };
   }
-
   return { valid: true };
 }
 
@@ -171,46 +160,35 @@ export function validateConsentFormat(consent: unknown): {
   if (consent === undefined) {
     return { valid: true };
   }
-
   if (typeof consent !== 'object' || consent === null) {
     return { valid: false, error: 'Invalid consent format' };
   }
-
   const consentObj = consent as Record<string, unknown>;
-
   if (consentObj.marketing !== undefined && typeof consentObj.marketing !== 'boolean') {
     return { valid: false, error: 'consent.marketing must be boolean' };
   }
-
   if (consentObj.analytics !== undefined && typeof consentObj.analytics !== 'boolean') {
     return { valid: false, error: 'consent.analytics must be boolean' };
   }
-
   if (consentObj.saleOfData !== undefined && typeof consentObj.saleOfData !== 'boolean') {
     return { valid: false, error: 'consent.saleOfData must be boolean' };
   }
-
   return { valid: true };
 }
 
 export function validateRequest(body: unknown): ValidationResult {
-
   if (!body || typeof body !== 'object') {
     return { valid: false, error: 'Invalid request body', code: 'invalid_body' };
   }
-
   const data = body as Record<string, unknown>;
-
   if (!data.eventName || typeof data.eventName !== 'string') {
     return { valid: false, error: 'Missing eventName', code: 'missing_event_name' };
   }
-
   const shopDomainCheck = validateShopDomain(data.shopDomain as string);
   if (!shopDomainCheck.valid) {
     const code = !data.shopDomain ? 'missing_shop_domain' : 'invalid_shop_domain_format';
     return { valid: false, error: shopDomainCheck.error!, code };
   }
-
   const timestampCheck = validateTimestamp(data.timestamp);
   if (!timestampCheck.valid) {
     const code = data.timestamp === undefined || data.timestamp === null
@@ -220,15 +198,12 @@ export function validateRequest(body: unknown): ValidationResult {
         : 'invalid_timestamp_value';
     return { valid: false, error: timestampCheck.error!, code };
   }
-
   const consentCheck = validateConsentFormat(data.consent);
   if (!consentCheck.valid) {
     return { valid: false, error: consentCheck.error!, code: 'invalid_consent_format' };
   }
-
   if (data.eventName === 'checkout_completed') {
     const eventData = data.data as Record<string, unknown> | undefined;
-
     if (!eventData?.orderId && !eventData?.checkoutToken) {
       return {
         valid: false,
@@ -236,18 +211,15 @@ export function validateRequest(body: unknown): ValidationResult {
         code: 'missing_order_identifiers'
       };
     }
-
     const tokenCheck = validateCheckoutToken(eventData?.checkoutToken as string);
     if (!tokenCheck.valid) {
       return { valid: false, error: tokenCheck.error!, code: 'invalid_checkout_token_format' };
     }
-
     const orderIdCheck = validateOrderId(eventData?.orderId as string);
     if (!orderIdCheck.valid) {
       return { valid: false, error: orderIdCheck.error!, code: 'invalid_order_id_format' };
     }
   }
-
   return {
     valid: true,
     payload: {
@@ -262,9 +234,7 @@ export function validateRequest(body: unknown): ValidationResult {
 
 export function validateRequestWithZod(body: unknown): ValidationResult {
   const result = validateWithZod(body);
-
   if (result.success) {
-
     const zodPayload = result.data;
     return {
       valid: true,
@@ -277,7 +247,6 @@ export function validateRequestWithZod(body: unknown): ValidationResult {
       },
     };
   }
-
   return {
     valid: false,
     error: result.error,
@@ -304,12 +273,10 @@ export function isSaleOfDataAllowed(consent: PixelEventPayload['consent'] | unde
 
 export function getConsentSummary(consent: PixelEventPayload['consent'] | undefined): string {
   if (!consent) return 'no_consent';
-
   const parts: string[] = [];
   if (consent.marketing === true) parts.push('marketing');
   if (consent.analytics === true) parts.push('analytics');
   if (consent.saleOfData === true) parts.push('saleOfData');
-
   return parts.length > 0 ? parts.join(',') : 'none_granted';
 }
 
@@ -326,15 +293,12 @@ export function determineTrustLevel(
   if (!keyValidation.matched) {
     return {
       level: 'untrusted',
-
       reason: keyValidation.reason || 'hmac_signature_invalid',
     };
   }
-
   if (hasCheckoutToken) {
     return { level: 'partial' };
   }
-
   return {
     level: 'partial',
     reason: 'missing_checkout_token',

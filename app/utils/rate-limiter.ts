@@ -93,12 +93,10 @@ export function trackAnomaly(
   severity?: "warning" | "critical";
 } {
   const now = Date.now();
-
   const blocked = blockedShops.get(shopDomain);
   if (blocked && now - blocked.blockedAt < BLOCKED_SHOP_COOLDOWN_MS) {
     return { shouldBlock: true, reason: blocked.reason, severity: "critical" };
   }
-
   let tracker = anomalyTrackers.get(shopDomain);
   if (!tracker || now - tracker.lastReset > ANOMALY_WINDOW_MS) {
     tracker = {
@@ -109,7 +107,6 @@ export function trackAnomaly(
     };
     anomalyTrackers.set(shopDomain, tracker);
   }
-
   switch (type) {
     case "invalid_key":
       tracker.invalidKeyCount++;
@@ -121,7 +118,6 @@ export function trackAnomaly(
       tracker.invalidTimestampCount++;
       break;
   }
-
   const totalAnomalies =
     tracker.invalidKeyCount +
     tracker.invalidOriginCount +
@@ -129,7 +125,6 @@ export function trackAnomaly(
   const warningThreshold = Math.floor(
     ANOMALY_THRESHOLDS.composite * ANOMALY_THRESHOLDS.warningRatio
   );
-
   if (
     totalAnomalies >= warningThreshold &&
     totalAnomalies < ANOMALY_THRESHOLDS.composite
@@ -140,7 +135,6 @@ export function trackAnomaly(
       severity: "warning",
     };
   }
-
   if (totalAnomalies >= ANOMALY_THRESHOLDS.composite) {
     const reason =
       `Too many total anomalies (${totalAnomalies}): ` +
@@ -149,25 +143,21 @@ export function trackAnomaly(
     blockedShops.set(shopDomain, { blockedAt: now, reason });
     return { shouldBlock: true, reason, severity: "critical" };
   }
-
   if (tracker.invalidKeyCount >= ANOMALY_THRESHOLDS.invalidKey) {
     const reason = `Too many invalid key requests (${tracker.invalidKeyCount})`;
     blockedShops.set(shopDomain, { blockedAt: now, reason });
     return { shouldBlock: true, reason, severity: "critical" };
   }
-
   if (tracker.invalidOriginCount >= ANOMALY_THRESHOLDS.invalidOrigin) {
     const reason = `Too many invalid origin requests (${tracker.invalidOriginCount})`;
     blockedShops.set(shopDomain, { blockedAt: now, reason });
     return { shouldBlock: true, reason, severity: "critical" };
   }
-
   if (tracker.invalidTimestampCount >= ANOMALY_THRESHOLDS.invalidTimestamp) {
     const reason = `Too many invalid timestamp requests (${tracker.invalidTimestampCount})`;
     blockedShops.set(shopDomain, { blockedAt: now, reason });
     return { shouldBlock: true, reason, severity: "critical" };
   }
-
   return { shouldBlock: false };
 }
 
@@ -196,7 +186,6 @@ export function getBlockedShops(): Array<{
     reason: string;
     remainingMs: number;
   }> = [];
-
   blockedShops.forEach((info, shopDomain) => {
     const remainingMs = BLOCKED_SHOP_COOLDOWN_MS - (now - info.blockedAt);
     if (remainingMs > 0) {
@@ -210,7 +199,6 @@ export function getBlockedShops(): Array<{
       blockedShops.delete(shopDomain);
     }
   });
-
   return result;
 }
 
@@ -229,7 +217,6 @@ export function getAnomalyStats(): Array<{
     invalidTimestampCount: number;
     ageMs: number;
   }> = [];
-
   anomalyTrackers.forEach((tracker, shopDomain) => {
     if (now - tracker.lastReset <= ANOMALY_WINDOW_MS) {
       stats.push({
@@ -241,7 +228,6 @@ export function getAnomalyStats(): Array<{
       });
     }
   });
-
   return stats.sort(
     (a, b) =>
       b.invalidKeyCount +
@@ -254,14 +240,12 @@ export function getAnomalyStats(): Array<{
 export function cleanupAnomalyTrackers(): number {
   const now = Date.now();
   let cleaned = 0;
-
   anomalyTrackers.forEach((tracker, shopDomain) => {
     if (now - tracker.lastReset > ANOMALY_WINDOW_MS) {
       anomalyTrackers.delete(shopDomain);
       cleaned++;
     }
   });
-
   return cleaned;
 }
 
@@ -277,12 +261,10 @@ function getClientIP(request: Request): string {
       return sanitizeKeyPart(firstIP);
     }
   }
-
   const realIP = request.headers.get("x-real-ip");
   if (realIP) {
     return sanitizeKeyPart(realIP.trim());
   }
-
   return "unknown";
 }
 
@@ -290,12 +272,10 @@ function getRateLimitKey(request: Request, endpoint: string): string {
   const sanitizedEndpoint = sanitizeKeyPart(endpoint);
   const ip = getClientIP(request);
   const shop = request.headers.get("x-shopify-shop-domain");
-
   if (shop) {
     const sanitizedShop = sanitizeKeyPart(shop);
     return `${RATE_LIMIT_PREFIX}${sanitizedEndpoint}:${sanitizedShop}:${ip}`;
   }
-
   return `${RATE_LIMIT_PREFIX}${sanitizedEndpoint}:ip:${ip}`;
 }
 
@@ -308,29 +288,23 @@ export async function checkRateLimitAsync(
     ...(DEFAULT_CONFIGS[endpoint] || DEFAULT_CONFIGS.api),
     ...customConfig,
   };
-
   const key = getRateLimitKey(request, endpoint);
   const now = Date.now();
-
   try {
     const client = await getRedisClient();
     const count = await client.incr(key);
-
     if (count === 1) {
       const windowSeconds = Math.ceil(config.windowMs / 1000);
       await client.expire(key, windowSeconds);
     }
-
     const ttl = await client.ttl(key);
     const resetTime = now + (ttl > 0 ? ttl * 1000 : config.windowMs);
     const isLimited = count > config.maxRequests;
     const remaining = Math.max(0, config.maxRequests - count);
     const retryAfter = Math.ceil((resetTime - now) / 1000);
-
     return { isLimited, remaining, resetTime, retryAfter };
   } catch (error) {
     logger.error("Rate limit check error", error);
-
     return {
       isLimited: false,
       remaining: config.maxRequests,
@@ -349,14 +323,11 @@ export function checkRateLimit(
     ...(DEFAULT_CONFIGS[endpoint] || DEFAULT_CONFIGS.api),
     ...customConfig,
   };
-
   const key = getRateLimitKey(request, endpoint);
   const now = Date.now();
-
   logger.warn(
     "checkRateLimit called (sync version). This function has race conditions. Use checkRateLimitAsync instead."
   );
-
   return {
     isLimited: false,
     remaining: config.maxRequests,
@@ -377,13 +348,11 @@ export const SECURITY_HEADERS: Record<string, string> = {
 
 export function addSecurityHeaders(response: Response): Response {
   const headers = new Headers(response.headers);
-
   for (const [key, value] of Object.entries(SECURITY_HEADERS)) {
     if (!headers.has(key)) {
       headers.set(key, value);
     }
   }
-
   return new Response(response.body, {
     status: response.status,
     statusText: response.statusText,
@@ -421,11 +390,9 @@ export function addRateLimitHeaders(
   const headers = new Headers(response.headers);
   headers.set("X-RateLimit-Remaining", String(rateLimit.remaining));
   headers.set("X-RateLimit-Reset", String(rateLimit.resetTime));
-
   if (rateLimit.maxRequests) {
     headers.set("X-RateLimit-Limit", String(rateLimit.maxRequests));
   }
-
   return new Response(response.body, {
     status: response.status,
     statusText: response.statusText,
@@ -441,20 +408,16 @@ export function withRateLimit<T>(
   return async (args) => {
     const { isLimited, remaining, resetTime, retryAfter } =
       await checkRateLimitAsync(args.request, endpoint, customConfig);
-
     if (isLimited) {
       logger.warn(
         `Rate limit exceeded for ${endpoint}: ${getRateLimitKey(args.request, endpoint)}`
       );
       return createRateLimitResponse(retryAfter);
     }
-
     const response = await handler(args);
-
     if (response instanceof Response) {
       return addRateLimitHeaders(response, { remaining, resetTime });
     }
-
     return response;
   };
 }
@@ -484,7 +447,6 @@ export async function getRateLimitStats(): Promise<{
   try {
     const client = await getRedisClient();
     const keys = await client.keys(`${RATE_LIMIT_PREFIX}*`);
-
     return {
       totalKeys: keys.length,
       blockedShops: blockedShops.size,

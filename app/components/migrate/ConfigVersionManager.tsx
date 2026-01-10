@@ -50,38 +50,31 @@ export function ConfigVersionManager({
   const [isLoading, setIsLoading] = useState(true);
   const [rollbackModalOpen, setRollbackModalOpen] = useState(false);
   const fetcher = useFetcher();
-
   const loadVersionHistory = useCallback(async () => {
     setIsLoading(true);
     try {
       const formData = new FormData();
       formData.append("_action", "getConfigVersionHistory");
       formData.append("platform", platform);
-
       const response = await fetch(historyEndpoint || "/app/migrate", {
         method: "POST",
         body: formData,
       });
-
       const data = await response.json();
       if (data.success && data.history) {
         setVersionHistory(data.history);
       }
     } catch (error) {
-
       if (process.env.NODE_ENV === "development") {
-
         console.error("Failed to load version history", error);
       }
     } finally {
       setIsLoading(false);
     }
   }, [platform, historyEndpoint]);
-
   useEffect(() => {
     loadVersionHistory();
   }, [loadVersionHistory]);
-
   const handleRollback = useCallback(() => {
     const formData = new FormData();
     formData.append("_action", "rollbackConfig");
@@ -91,7 +84,6 @@ export function ConfigVersionManager({
       action: historyEndpoint || "/app/migrate",
     });
   }, [platform, fetcher, historyEndpoint]);
-
   useEffect(() => {
     if (fetcher.data && (fetcher.data as { success?: boolean }).success) {
       setRollbackModalOpen(false);
@@ -101,7 +93,6 @@ export function ConfigVersionManager({
       }
     }
   }, [fetcher.data, loadVersionHistory, onRollbackComplete]);
-
   if (isLoading) {
     return (
       <Card>
@@ -116,7 +107,6 @@ export function ConfigVersionManager({
       </Card>
     );
   }
-
   if (!versionHistory || versionHistory.versions.length === 0) {
     return (
       <Card>
@@ -131,14 +121,12 @@ export function ConfigVersionManager({
       </Card>
     );
   }
-
   const platformNames: Partial<Record<PlatformType, string>> = {
     google: "Google Analytics 4",
     meta: "Meta Pixel",
     tiktok: "TikTok Pixel",
     pinterest: "Pinterest Tag",
   };
-
   return (
     <>
       <Card>
@@ -158,18 +146,14 @@ export function ConfigVersionManager({
               </Button>
             )}
           </InlineStack>
-
           <Text as="p" variant="bodySm" tone="subdued">
             {platformNames[platform]} 的配置版本历史。当前版本：v{versionHistory.currentVersion}
           </Text>
-
           <Divider />
-
           <BlockStack gap="300">
             {versionHistory.versions.map((version, index) => {
               const isCurrent = version.version === versionHistory.currentVersion;
               const isLatest = index === 0;
-
               return (
                 <Box
                   key={version.version}
@@ -201,9 +185,7 @@ export function ConfigVersionManager({
                         </InlineStack>
                       </BlockStack>
                     </InlineStack>
-
                     <Divider />
-
                     <BlockStack gap="200">
                       <InlineStack gap="400" wrap>
                         <Text as="span" variant="bodySm">
@@ -239,7 +221,6 @@ export function ConfigVersionManager({
               );
             })}
           </BlockStack>
-
           {!versionHistory.canRollback && versionHistory.versions.length > 1 && (
             <Banner tone="info">
               <Text as="p" variant="bodySm">
@@ -249,7 +230,6 @@ export function ConfigVersionManager({
           )}
         </BlockStack>
       </Card>
-
       <Modal
         open={rollbackModalOpen}
         onClose={() => setRollbackModalOpen(false)}
@@ -274,13 +254,11 @@ export function ConfigVersionManager({
                 警告：回滚操作将恢复配置到上一个版本
               </Text>
             </Banner>
-
             <BlockStack gap="300">
               <Text as="p" variant="bodySm">
                 您即将将 <strong>{platformNames[platform]}</strong> 的配置回滚到版本{" "}
                 {versionHistory.currentVersion - 1}。
               </Text>
-
               <List>
                 <List.Item>
                   当前配置（版本 {versionHistory.currentVersion}）将被保存为新的快照
@@ -292,7 +270,6 @@ export function ConfigVersionManager({
                   此操作可以再次回滚（恢复到当前版本）
                 </List.Item>
               </List>
-
               {fetcher.data && (fetcher.data as { error?: string }).error ? (
                 <Banner tone="critical">
                   <Text as="p" variant="bodySm">

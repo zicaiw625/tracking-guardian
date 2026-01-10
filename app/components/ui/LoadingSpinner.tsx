@@ -2,13 +2,9 @@ import { Spinner, BlockStack, Text, Box } from "@shopify/polaris";
 import React from "react";
 
 interface LoadingSpinnerProps {
-
   size?: "small" | "large";
-
   label?: string;
-
   fullScreen?: boolean;
-
   style?: React.CSSProperties;
 }
 
@@ -28,7 +24,6 @@ export function LoadingSpinner({
       )}
     </BlockStack>
   );
-
   if (fullScreen) {
     return (
       <div
@@ -50,7 +45,6 @@ export function LoadingSpinner({
       </div>
     );
   }
-
   return (
     <div
       style={{
@@ -68,11 +62,8 @@ export function LoadingSpinner({
 }
 
 interface SkeletonProps {
-
   lines?: number;
-
   showAvatar?: boolean;
-
   showTitle?: boolean;
 }
 
@@ -181,6 +172,5 @@ export function LazyLoadWrapper({
       </div>
     );
   }
-
   return <>{children}</>;
 }

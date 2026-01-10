@@ -14,7 +14,6 @@ function extractTomlApiVersion(filePath) {
   try {
     const content = fs.readFileSync(fullPath, "utf-8");
     const lines = content.split("\n");
-
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i];
       const match = line.match(/^api_version\s*=\s*"([^"]+)"/);
@@ -26,7 +25,6 @@ function extractTomlApiVersion(filePath) {
         };
       }
     }
-
     return { file: filePath, version: null };
   } catch (error) {
     console.error(`Error reading ${filePath}:`, error);
@@ -39,7 +37,6 @@ function extractServerApiVersion(filePath) {
   try {
     const content = fs.readFileSync(fullPath, "utf-8");
     const lines = content.split("\n");
-
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i];
       const match = line.match(/apiVersion:\s*ApiVersion\.(\w+)/);
@@ -53,7 +50,6 @@ function extractServerApiVersion(filePath) {
         };
       }
     }
-
     return { file: filePath, version: null };
   } catch (error) {
     console.error(`Error reading ${filePath}:`, error);
@@ -64,9 +60,7 @@ function extractServerApiVersion(filePath) {
 function convertEnumToVersion(enumValue) {
   const match = enumValue.match(/^(\w+)(\d{2})$/);
   if (!match) return null;
-
   const [, month, year] = match;
-
   const monthMap = {
     January: "01",
     February: "02",
@@ -81,10 +75,8 @@ function convertEnumToVersion(enumValue) {
     November: "11",
     December: "12",
   };
-
   const monthNum = monthMap[month];
   if (!monthNum) return null;
-
   return `20${year}-${monthNum}`;
 }
 
@@ -94,15 +86,12 @@ const RELEASE_SCHEDULE_URL =
 function checkVersionAge(version) {
   const match = version.match(/^(\d{4})-(\d{2})$/);
   if (!match) return;
-
   const [, year, month] = match;
   const versionDate = new Date(parseInt(year, 10), parseInt(month, 10) - 1);
   const now = new Date();
-
   const monthsOld =
     (now.getFullYear() - versionDate.getFullYear()) * 12 +
     (now.getMonth() - versionDate.getMonth());
-
   if (monthsOld >= 9) {
     [
       `⚠️  Warning: API version ${version} is ${monthsOld} months old.`,
@@ -119,13 +108,11 @@ function checkVersionAge(version) {
 
 function main() {
   console.log("🔍 Checking Shopify API version consistency...\n");
-
   const sources = [
     extractTomlApiVersion("shopify.app.toml"),
     extractServerApiVersion("app/services/shopify/app-config.server.ts"),
     extractTomlApiVersion("extensions/tracking-pixel/shopify.extension.toml"),
   ];
-
   const hasReadErrors = sources.some((source) => source.version === null);
   if (hasReadErrors) {
     console.error("❌ Could not read version from some files:");
@@ -136,30 +123,25 @@ function main() {
       });
     return 2;
   }
-
   console.log("📋 Found versions:");
   sources.forEach((source) => {
     console.log(`   ${source.file}:${source.line} → ${source.version}`);
   });
   console.log("");
-
   const versions = new Set(sources.map((source) => source.version));
   if (versions.size === 1) {
     const version = sources[0].version;
     console.log(`✅ All files use API version: ${version}`);
-
     if (!version || !VERSION_PATTERN.test(version)) {
       console.warn(
         `⚠️  Warning: Version format "${version}" doesn't match expected YYYY-MM pattern`,
       );
     }
-
     if (version) {
       checkVersionAge(version);
     }
     return 0;
   }
-
   console.error("❌ API version mismatch detected!");
   console.error("");
   console.error("   All Shopify API versions must be identical across:");

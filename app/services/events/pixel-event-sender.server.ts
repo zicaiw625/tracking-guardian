@@ -30,16 +30,13 @@ function mapShopifyEventToPlatform(
   platform: string,
   customMappings?: Record<string, string> | null
 ): string {
-
   const normalizedEvent = shopifyEventName.toLowerCase().replace(/_/g, "_");
-
   if (customMappings && typeof customMappings === 'object' && normalizedEvent in customMappings) {
     const mapped = customMappings[normalizedEvent];
     if (mapped && typeof mapped === 'string') {
       return mapped;
     }
   }
-
   const eventMapping: Record<string, Record<string, string>> = {
     google: {
       checkout_completed: "purchase",
@@ -72,13 +69,11 @@ function mapShopifyEventToPlatform(
       payment_info_submitted: "AddPaymentInfo",
     },
   };
-
   const mapped = eventMapping[platform]?.[normalizedEvent];
   if (!mapped) {
     logger.warn(`No mapping found for event ${shopifyEventName} on platform ${platform}, using original name`);
     return shopifyEventName;
   }
-
   return mapped;
 }
 
@@ -98,14 +93,11 @@ async function sendToGA4(
         error: "Missing measurementId or apiSecret",
       };
     }
-
     const platformEventName = mapShopifyEventToPlatform(eventName, "google", customMappings);
     const data = payload.data || {};
-
     const params: Record<string, unknown> = {
       engagement_time_msec: "1",
     };
-
     if (platformEventName !== "page_view" && data.value !== undefined && data.value !== null) {
       params.value = data.value;
     }
@@ -120,7 +112,6 @@ async function sendToGA4(
         price: item.price || 0,
       }));
     }
-
     const ga4Payload = {
       client_id: `server.${eventId}`,
       events: [
@@ -130,16 +121,13 @@ async function sendToGA4(
         },
       ],
     };
-
     const url = `${GA4_MEASUREMENT_PROTOCOL_URL}?measurement_id=${googleCreds.measurementId}&api_secret=${googleCreds.apiSecret}`;
-
     const requestPayload = {
       url,
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: ga4Payload,
     };
-
     const response = await fetchWithTimeout(
       url,
       {
@@ -149,14 +137,11 @@ async function sendToGA4(
       },
       DEFAULT_API_TIMEOUT_MS
     );
-
     const errorText = await response.text().catch(() => "");
     const isSuccess = response.status === 204 || response.ok;
-
     if (isSuccess) {
       return { success: true, platform: "google", requestPayload, responseStatus: response.status };
     }
-
     return {
       success: false,
       platform: "google",
@@ -190,11 +175,9 @@ async function sendToMeta(
         error: "Missing pixelId or accessToken",
       };
     }
-
     const platformEventName = mapShopifyEventToPlatform(eventName, "meta", customMappings);
     const data = payload.data || {};
     const eventTime = Math.floor(Date.now() / 1000);
-
     const contents =
       data.items && Array.isArray(data.items) && data.items.length > 0
         ? data.items.map((item) => ({
@@ -203,9 +186,7 @@ async function sendToMeta(
             item_price: item.price || 0,
           }))
         : [];
-
     const customData: Record<string, unknown> = {};
-
     if (platformEventName !== "PageView" && data.value !== undefined && data.value !== null) {
       customData.value = data.value;
     }
@@ -219,7 +200,6 @@ async function sendToMeta(
     if (data.orderId) {
       customData.order_id = data.orderId;
     }
-
     const eventPayload = {
       data: [
         {
@@ -232,9 +212,7 @@ async function sendToMeta(
       ],
       ...(metaCreds.testEventCode && { test_event_code: metaCreds.testEventCode }),
     };
-
     const url = `${META_API_BASE_URL}/${META_API_VERSION}/${metaCreds.pixelId}/events`;
-
     const requestPayload = {
       url,
       method: "POST",
@@ -247,7 +225,6 @@ async function sendToMeta(
         access_token: "***REDACTED***",
       },
     };
-
     const response = await fetchWithTimeout(
       url,
       {
@@ -263,14 +240,11 @@ async function sendToMeta(
       },
       DEFAULT_API_TIMEOUT_MS
     );
-
     const errorData = await response.json().catch(() => ({}));
     const isSuccess = response.ok;
-
     if (isSuccess) {
       return { success: true, platform: "meta", requestPayload, responseStatus: response.status };
     }
-
     return {
       success: false,
       platform: "meta",
@@ -304,11 +278,9 @@ async function sendToTikTok(
         error: "Missing pixelId or accessToken",
       };
     }
-
     const platformEventName = mapShopifyEventToPlatform(eventName, "tiktok", customMappings);
     const data = payload.data || {};
     const timestamp = new Date().toISOString();
-
     const contents =
       data.items && Array.isArray(data.items) && data.items.length > 0
         ? data.items.map((item) => ({
@@ -318,9 +290,7 @@ async function sendToTikTok(
             price: item.price || 0,
           }))
         : [];
-
     const properties: Record<string, unknown> = {};
-
     if (platformEventName !== "PageView" && data.value !== undefined && data.value !== null) {
       properties.value = data.value;
     }
@@ -334,7 +304,6 @@ async function sendToTikTok(
     if (data.orderId) {
       properties.order_id = data.orderId;
     }
-
     const eventPayload = {
       pixel_code: tiktokCreds.pixelId,
       event: platformEventName,
@@ -346,7 +315,6 @@ async function sendToTikTok(
       properties,
       ...(tiktokCreds.testEventCode && { test_event_code: tiktokCreds.testEventCode }),
     };
-
     const requestPayload = {
       url: TIKTOK_API_URL,
       method: "POST",
@@ -356,7 +324,6 @@ async function sendToTikTok(
       },
       body: { data: [eventPayload] },
     };
-
     const response = await fetchWithTimeout(
       TIKTOK_API_URL,
       {
@@ -369,14 +336,11 @@ async function sendToTikTok(
       },
       DEFAULT_API_TIMEOUT_MS
     );
-
     const errorData = await response.json().catch(() => ({}));
     const isSuccess = response.ok;
-
     if (isSuccess) {
       return { success: true, platform: "tiktok", requestPayload, responseStatus: response.status };
     }
-
     return {
       success: false,
       platform: "tiktok",
@@ -414,18 +378,15 @@ export async function sendPixelEventToPlatform(
       platformId,
       environment,
     });
-
     const pixelConfigs = await getShopPixelConfigs(shopId, {
       serverSideOnly: true,
       environment: environment || "live"
     });
-
     let config = configId
       ? pixelConfigs.find((c) => c.id === configId && c.platform === platform)
       : platformId
       ? pixelConfigs.find((c) => c.platformId === platformId && c.platform === platform)
       : pixelConfigs.find((c) => c.platform === platform);
-
     if (!config && (configId || platformId)) {
       const matchingPlatformConfigs = pixelConfigs.filter((c) => c.platform === platform);
       if (matchingPlatformConfigs.length > 1) {
@@ -437,10 +398,8 @@ export async function sendPixelEventToPlatform(
           availableConfigs: matchingPlatformConfigs.map(c => ({ id: c.id, platformId: c.platformId })),
         });
       }
-
       config = matchingPlatformConfigs[0];
     }
-
     if (!config) {
       logger.warn(`Pixel config not found for platform ${platform}`, {
         shopId,
@@ -455,7 +414,6 @@ export async function sendPixelEventToPlatform(
         error: "Pixel config not found",
       };
     }
-
     const credResult = decryptCredentials(config, platform);
     if (!credResult.ok) {
       logger.warn(`Failed to decrypt credentials for platform ${platform}`, {
@@ -470,20 +428,14 @@ export async function sendPixelEventToPlatform(
         error: credResult.error.message,
       };
     }
-
     const credentials = credResult.value.credentials;
-
     const normalizedPlatform = platform.toLowerCase();
-
     const configEnvironment = (config.environment || environment || "live") as "test" | "live";
-
     let requestPayload: unknown = null;
     let attemptId: string | null = null;
-
     const eventMappings = config.eventMappings && typeof config.eventMappings === 'object'
       ? (config.eventMappings as Record<string, string>)
       : null;
-
     if (normalizedPlatform === "google") {
       const googleCreds = credentials as { measurementId?: string; apiSecret?: string };
       if (googleCreds.measurementId && googleCreds.apiSecret) {
@@ -616,7 +568,6 @@ export async function sendPixelEventToPlatform(
         error: `Unsupported platform: ${platform}`,
       };
     }
-
     if (eventLogId && requestPayload) {
       try {
         attemptId = await createDeliveryAttempt({
@@ -627,7 +578,6 @@ export async function sendPixelEventToPlatform(
           requestPayloadJson: requestPayload,
         });
       } catch (error) {
-
         logger.error("Failed to create DeliveryAttempt (non-blocking)", {
           shopId,
           eventLogId,
@@ -636,10 +586,8 @@ export async function sendPixelEventToPlatform(
         });
       }
     }
-
     const startTime = Date.now();
     let sendResult: PixelEventSendResult;
-
     try {
       if (normalizedPlatform === "google") {
         sendResult = await sendToGA4(credentials, payload.eventName, payload, eventId, eventMappings);
@@ -648,7 +596,6 @@ export async function sendPixelEventToPlatform(
       } else if (normalizedPlatform === "tiktok") {
         sendResult = await sendToTikTok(credentials, payload.eventName, payload, eventId, eventMappings);
       } else {
-
         return {
           success: false,
           platform,
@@ -656,7 +603,6 @@ export async function sendPixelEventToPlatform(
         };
       }
     } catch (error) {
-
       const errorMessage = error instanceof Error ? error.message : String(error);
       logger.error(`Failed to send event to ${platform}`, {
         shopId,
@@ -665,7 +611,6 @@ export async function sendPixelEventToPlatform(
         eventId,
         error: errorMessage,
       });
-
       sendResult = {
         success: false,
         platform,
@@ -674,17 +619,13 @@ export async function sendPixelEventToPlatform(
           : errorMessage,
       };
     }
-
     const latencyMs = Date.now() - startTime;
-
     if (attemptId) {
       try {
-
         let errorCode: string | null = null;
         if (!sendResult.success && sendResult.error) {
           const errorMsg = sendResult.error.toLowerCase();
           const status = sendResult.responseStatus;
-
           if (status === 401 || status === 403 || errorMsg.includes("unauthorized") || errorMsg.includes("token")) {
             errorCode = "auth_error";
           } else if (status === 429 || errorMsg.includes("rate limit")) {
@@ -701,7 +642,6 @@ export async function sendPixelEventToPlatform(
             errorCode = "send_failed";
           }
         }
-
         await updateDeliveryAttempt({
           attemptId,
           status: sendResult.success ? "ok" : "fail",
@@ -712,7 +652,6 @@ export async function sendPixelEventToPlatform(
           latencyMs,
         });
       } catch (error) {
-
         logger.error("Failed to update DeliveryAttempt (non-blocking)", {
           shopId,
           attemptId,
@@ -721,9 +660,7 @@ export async function sendPixelEventToPlatform(
         });
       }
     }
-
     return sendResult;
-
   } catch (error) {
     logger.error(`Failed to send pixel event to ${platform}`, {
       shopId,
@@ -732,7 +669,6 @@ export async function sendPixelEventToPlatform(
       eventId,
       error: error instanceof Error ? error.message : String(error),
     });
-
     return {
       success: false,
       platform,

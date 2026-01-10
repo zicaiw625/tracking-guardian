@@ -39,7 +39,6 @@ function isTikTokCredentials(credentials: unknown): credentials is TikTokCredent
 export class TikTokPlatformService implements IPlatformService {
   readonly platform = Platform.TIKTOK;
   readonly displayName = "TikTok";
-
   async sendConversion(
     credentials: PlatformCredentials,
     data: ConversionData,
@@ -57,7 +56,6 @@ export class TikTokPlatformService implements IPlatformService {
     }
     const tiktokCreds = credentials;
     const validation = this.validateCredentials(tiktokCreds);
-
     if (!validation.valid) {
       return {
         success: false,
@@ -68,20 +66,16 @@ export class TikTokPlatformService implements IPlatformService {
         },
       };
     }
-
     const dedupeEventId = eventId || generateDedupeEventId(data.orderId);
-
     try {
       const [response, duration] = await measureDuration(() =>
         this.sendRequest(tiktokCreds, data, dedupeEventId)
       );
-
       logger.info(`TikTok Events API: conversion sent successfully`, {
         orderId: data.orderId.slice(0, 8),
         eventId: dedupeEventId,
         durationMs: duration,
       });
-
       return {
         success: true,
         response,
@@ -89,29 +83,23 @@ export class TikTokPlatformService implements IPlatformService {
       };
     } catch (error) {
       const platformError = this.parseError(error);
-
       logger.error(`TikTok Events API: conversion failed`, {
         orderId: data.orderId.slice(0, 8),
         error: platformError.message,
         type: platformError.type,
       });
-
       return {
         success: false,
         error: platformError,
       };
     }
   }
-
   validateCredentials(credentials: unknown): CredentialsValidationResult {
     const errors: string[] = [];
-
     if (!credentials || typeof credentials !== "object") {
       return { valid: false, errors: ["Credentials must be an object"] };
     }
-
     const creds = credentials as Record<string, unknown>;
-
     if (!creds.pixelId || typeof creds.pixelId !== "string") {
       errors.push("pixelId is required");
     } else if (!PIXEL_ID_PATTERN.test(creds.pixelId)) {
@@ -119,17 +107,14 @@ export class TikTokPlatformService implements IPlatformService {
         `Invalid TikTok Pixel ID format: ${creds.pixelId}. Expected 20+ alphanumeric characters.`
       );
     }
-
     if (!creds.accessToken || typeof creds.accessToken !== "string") {
       errors.push("accessToken is required");
     }
-
     return {
       valid: errors.length === 0,
       errors,
     };
   }
-
   parseError(error: unknown): PlatformError {
     if (error instanceof Error) {
       if (error.name === "AbortError") {
@@ -139,28 +124,23 @@ export class TikTokPlatformService implements IPlatformService {
           isRetryable: true,
         };
       }
-
       const apiMatch = error.message.match(/TikTok API error:\s*(.+)/);
       if (apiMatch) {
         return this.classifyTikTokError(apiMatch[1]);
       }
-
       return classifyJsError(error);
     }
-
     return {
       type: "unknown",
       message: String(error),
       isRetryable: true,
     };
   }
-
   async buildPayload(
     data: ConversionData,
     eventId: string
   ): Promise<Record<string, unknown>> {
     const timestamp = new Date().toISOString();
-
     const contents =
       data.lineItems?.map((item) => ({
         content_id: item.productId,
@@ -168,13 +148,11 @@ export class TikTokPlatformService implements IPlatformService {
         quantity: item.quantity,
         price: item.price,
       })) || [];
-
     return {
       event: "CompletePayment",
       event_id: eventId,
       timestamp,
       context: {
-
       },
       properties: {
         currency: data.currency,
@@ -185,14 +163,12 @@ export class TikTokPlatformService implements IPlatformService {
       },
     };
   }
-
   private async sendRequest(
     credentials: TikTokCredentials,
     data: ConversionData,
     eventId: string
   ): Promise<ConversionApiResponse> {
     const timestamp = new Date().toISOString();
-
     const contents =
       data.lineItems?.map((item) => ({
         content_id: item.productId,
@@ -200,14 +176,12 @@ export class TikTokPlatformService implements IPlatformService {
         quantity: item.quantity,
         price: item.price,
       })) || [];
-
     const eventPayload = {
       pixel_code: credentials.pixelId,
       event: "CompletePayment",
       event_id: eventId,
       timestamp,
       context: {
-
       },
       properties: {
         currency: data.currency,
@@ -218,7 +192,6 @@ export class TikTokPlatformService implements IPlatformService {
       },
       ...(credentials.testEventCode && { test_event_code: credentials.testEventCode }),
     };
-
     const response = await fetchWithTimeout(
       TIKTOK_API_URL,
       {
@@ -231,25 +204,20 @@ export class TikTokPlatformService implements IPlatformService {
       },
       DEFAULT_API_TIMEOUT_MS
     );
-
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
       const errorMessage = errorData.message || "Unknown TikTok API error";
       throw new Error(`TikTok API error: ${errorMessage}`);
     }
-
     const result = await response.json();
-
     return {
       success: true,
       conversionId: data.orderId,
       timestamp: new Date().toISOString(),
     };
   }
-
   private classifyTikTokError(message: string): PlatformError {
     const lowerMessage = message.toLowerCase();
-
     if (lowerMessage.includes("unauthorized") || lowerMessage.includes("invalid token")) {
       return {
         type: "auth_error",
@@ -257,7 +225,6 @@ export class TikTokPlatformService implements IPlatformService {
         isRetryable: false,
       };
     }
-
     if (lowerMessage.includes("rate limit")) {
       return {
         type: "rate_limited",
@@ -266,7 +233,6 @@ export class TikTokPlatformService implements IPlatformService {
         retryAfter: 60,
       };
     }
-
     if (lowerMessage.includes("invalid pixel")) {
       return {
         type: "invalid_config",
@@ -274,7 +240,6 @@ export class TikTokPlatformService implements IPlatformService {
         isRetryable: false,
       };
     }
-
     return {
       type: "unknown",
       message,
@@ -293,16 +258,13 @@ export async function sendConversionToTikTok(
   if (!credentials?.pixelId || !credentials?.accessToken) {
     throw new Error("TikTok Pixel credentials not configured");
   }
-
   const result = await tiktokService.sendConversion(
     credentials,
     conversionData,
     eventId || generateDedupeEventId(conversionData.orderId)
   );
-
   if (!result.success) {
     throw new Error(result.error?.message || "Unknown error");
   }
-
   return result.response!;
 }

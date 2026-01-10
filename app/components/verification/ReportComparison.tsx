@@ -28,7 +28,6 @@ export function ReportComparison({ shopId, availableRuns }: ReportComparisonProp
   const [report1, setReport1] = useState<VerificationReportData | null>(null);
   const [report2, setReport2] = useState<VerificationReportData | null>(null);
   const [isLoading, setIsLoading] = useState(false);
-
   const handleLoadReport = useCallback(
     async (runId: string, setReport: (report: VerificationReportData) => void) => {
       try {
@@ -44,7 +43,6 @@ export function ReportComparison({ shopId, availableRuns }: ReportComparisonProp
     },
     [showError]
   );
-
   const handleCompare = useCallback(async () => {
     if (!run1Id || !run2Id) {
       showError("请选择两个报告进行对比");
@@ -54,7 +52,6 @@ export function ReportComparison({ shopId, availableRuns }: ReportComparisonProp
       showError("请选择两个不同的报告进行对比");
       return;
     }
-
     setIsLoading(true);
     try {
       await Promise.all([
@@ -65,16 +62,13 @@ export function ReportComparison({ shopId, availableRuns }: ReportComparisonProp
       setIsLoading(false);
     }
   }, [run1Id, run2Id, handleLoadReport, showError]);
-
   const comparisonData = report1 && report2 ? generateComparisonData(report1, report2) : null;
-
   return (
     <Card>
       <BlockStack gap="400">
         <Text as="h3" variant="headingMd">
           报告对比
         </Text>
-
         <BlockStack gap="300">
           <Select
             label="报告 1"
@@ -109,7 +103,6 @@ export function ReportComparison({ shopId, availableRuns }: ReportComparisonProp
             开始对比
           </Button>
         </BlockStack>
-
         {comparisonData && (
           <>
             <Divider />
@@ -117,7 +110,6 @@ export function ReportComparison({ shopId, availableRuns }: ReportComparisonProp
               <Text as="h4" variant="headingMd">
                 对比结果
               </Text>
-
               <Card>
                 <BlockStack gap="300">
                   <Text as="h5" variant="headingSm">
@@ -135,7 +127,6 @@ export function ReportComparison({ shopId, availableRuns }: ReportComparisonProp
                   />
                 </BlockStack>
               </Card>
-
               {comparisonData.platforms.length > 0 && (
                 <Card>
                   <BlockStack gap="300">
@@ -155,7 +146,6 @@ export function ReportComparison({ shopId, availableRuns }: ReportComparisonProp
                   </BlockStack>
                 </Card>
               )}
-
               {comparisonData.improvements.length > 0 && (
                 <Banner tone="info">
                   <BlockStack gap="200">
@@ -228,14 +218,12 @@ function generateComparisonData(
       change: report1.summary.totalEvents > 0 ? ((report2.summary.totalEvents - report1.summary.totalEvents) / report1.summary.totalEvents) * 100 : 0,
     },
   ];
-
   const platformStats1 = calculatePlatformStats(report1);
   const platformStats2 = calculatePlatformStats(report2);
   const allPlatforms = new Set([
     ...Object.keys(platformStats1),
     ...Object.keys(platformStats2),
   ]);
-
   const platforms: ComparisonData["platforms"] = Array.from(allPlatforms).map((platform) => {
     const stats1 = platformStats1[platform] || { passed: 0, total: 0 };
     const stats2 = platformStats2[platform] || { passed: 0, total: 0 };
@@ -248,7 +236,6 @@ function generateComparisonData(
       change: passRate2 - passRate1,
     };
   });
-
   const improvements: string[] = [];
   const passRate1 = report1.summary.successRate;
   const passRate2 = report2.summary.successRate;
@@ -261,7 +248,6 @@ function generateComparisonData(
   if (report2.summary.failedTests > report1.summary.failedTests) {
     improvements.push(`失败测试数从 ${report1.summary.failedTests} 增加到 ${report2.summary.failedTests}，需要关注错误日志`);
   }
-
   return { metrics, platforms, improvements };
 }
 
@@ -270,7 +256,6 @@ function calculatePlatformStats(report: VerificationReportData): Record<
   { passed: number; total: number }
 > {
   const stats: Record<string, { passed: number; total: number }> = {};
-
   for (const [platform, result] of Object.entries(report.platformResults)) {
     if (!stats[platform]) {
       stats[platform] = { passed: 0, total: 0 };
@@ -278,6 +263,5 @@ function calculatePlatformStats(report: VerificationReportData): Record<
     stats[platform].total += result.sent + result.failed;
     stats[platform].passed += result.sent;
   }
-
   return stats;
 }

@@ -93,7 +93,6 @@ export function createMockShop(overrides: Partial<MockShop> = {}): MockShop {
     shopDomain: "test-shop.myshopify.com",
     plan: "free",
     monthlyOrderLimit: 100,
-
     consentStrategy: "strict",
     dataRetentionDays: 90,
     isActive: true,
@@ -103,7 +102,6 @@ export function createMockShop(overrides: Partial<MockShop> = {}): MockShop {
     webPixelId: null,
     shopTier: "non_plus",
     typOspPagesEnabled: false,
-
     createdAt: new Date("2024-01-01"),
     updatedAt: new Date("2024-01-01"),
     ...overrides,
@@ -115,7 +113,6 @@ export interface MockShop {
   shopDomain: string;
   plan: string | null;
   monthlyOrderLimit: number;
-
   consentStrategy: string | null;
   dataRetentionDays: number;
   isActive: boolean;
@@ -125,7 +122,6 @@ export interface MockShop {
   webPixelId: string | null;
   shopTier: string | null;
   typOspPagesEnabled: boolean | null;
-
   createdAt: Date;
   updatedAt: Date;
 }
@@ -250,31 +246,25 @@ export interface MockPixelEventReceipt {
 }
 
 export function setupMockPrisma(mockPrisma: MockPrismaClient): void {
-
   mockPrisma.shop.findUnique.mockResolvedValue(null);
   mockPrisma.shop.findFirst.mockResolvedValue(null);
   mockPrisma.shop.findMany.mockResolvedValue([]);
   mockPrisma.shop.count.mockResolvedValue(0);
-
   mockPrisma.pixelConfig.findUnique.mockResolvedValue(null);
   mockPrisma.pixelConfig.findFirst.mockResolvedValue(null);
   mockPrisma.pixelConfig.findMany.mockResolvedValue([]);
   mockPrisma.pixelConfig.count.mockResolvedValue(0);
-
   mockPrisma.conversionJob.findUnique.mockResolvedValue(null);
   mockPrisma.conversionJob.findFirst.mockResolvedValue(null);
   mockPrisma.conversionJob.findMany.mockResolvedValue([]);
   mockPrisma.conversionJob.count.mockResolvedValue(0);
   mockPrisma.conversionJob.updateMany.mockResolvedValue({ count: 0 });
-
   mockPrisma.pixelEventReceipt.findFirst.mockResolvedValue(null);
   mockPrisma.pixelEventReceipt.findMany.mockResolvedValue([]);
-
   mockPrisma.eventNonce.findUnique.mockResolvedValue(null);
   mockPrisma.eventNonce.create.mockImplementation((args) =>
     Promise.resolve({ id: "nonce_123", ...args.data })
   );
-
   mockPrisma.monthlyUsage.findFirst.mockResolvedValue({
     id: "usage_123",
     shopId: "shop_123",

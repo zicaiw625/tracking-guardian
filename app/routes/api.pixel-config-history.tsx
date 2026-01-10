@@ -11,24 +11,19 @@ import prisma from "../db.server";
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   const { session } = await authenticate.admin(request);
   const shopDomain = session.shop;
-
   const url = new URL(request.url);
   const platform = url.searchParams.get("platform");
   const type = url.searchParams.get("type");
-
   if (!platform) {
     return json({ error: "缺少 platform 参数" }, { status: 400 });
   }
-
   const shop = await prisma.shop.findUnique({
     where: { shopDomain },
     select: { id: true },
   });
-
   if (!shop) {
     return json({ error: "Shop not found" }, { status: 404 });
   }
-
   try {
     if (type === "comparison") {
       const comparison = await getConfigComparison(shop.id, platform);

@@ -1,4 +1,4 @@
--- Add missing previousIngestionSecret and previousSecretExpiry columns if they don't exist
+
 DO $$
 BEGIN
     IF NOT EXISTS (

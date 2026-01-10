@@ -17,9 +17,7 @@ export {
   classifyHttpError,
   classifyJsError,
   formatErrorForLog,
-
   sendToMultiplePlatforms,
-
   type PlatformServiceOptions,
   type BatchSendResult,
 } from "../../services/platforms/base-platform.service";

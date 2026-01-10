@@ -37,7 +37,6 @@ export async function wrapDbFindRequired<T>(
 function handleDatabaseError(error: unknown, resourceName: string): AppError {
   if (isPrismaError(error)) {
     const errorCode = getPrismaErrorCode(error);
-
     if (errorCode === "P2002") {
       const target = getPrismaErrorTarget(error)?.join(", ") || "field";
       return new AppError(
@@ -47,7 +46,6 @@ function handleDatabaseError(error: unknown, resourceName: string): AppError {
         { resourceName, constraintTarget: target }
       );
     }
-
     if (errorCode === "P2025") {
       return new AppError(
         ErrorCode.NOT_FOUND_RESOURCE,
@@ -56,7 +54,6 @@ function handleDatabaseError(error: unknown, resourceName: string): AppError {
         { resourceName }
       );
     }
-
     if (errorCode?.startsWith("P2")) {
       const errorMessage = error instanceof Error ? error.message : String(error);
       return new AppError(
@@ -67,7 +64,6 @@ function handleDatabaseError(error: unknown, resourceName: string): AppError {
       );
     }
   }
-
   return ensureAppError(error, ErrorCode.DB_QUERY_ERROR);
 }
 
@@ -78,14 +74,12 @@ export async function wrapApiCall<T>(
 ): AsyncResult<T, AppError> {
   let timeoutId: NodeJS.Timeout | null = null;
   const timeoutErrorSymbol = Symbol("TimeoutError");
-
   const cleanupTimeout = (): void => {
     if (timeoutId !== null) {
       clearTimeout(timeoutId);
       timeoutId = null;
     }
   };
-
   try {
     const timeoutPromise = new Promise<never>((_, reject) => {
       timeoutId = setTimeout(() => {
@@ -94,20 +88,15 @@ export async function wrapApiCall<T>(
         reject(timeoutError);
       }, timeoutMs);
     });
-
     const result = await Promise.race([
       operation().finally(() => {
-
         cleanupTimeout();
       }),
       timeoutPromise,
     ]);
-
     return ok(result);
   } catch (error) {
-
     cleanupTimeout();
-
     const isTimeoutError =
       error instanceof Error &&
       (
@@ -117,14 +106,12 @@ export async function wrapApiCall<T>(
         error.name === "TimeoutError" ||
         error.message.toLowerCase().includes("timeout")
       );
-
     if (isTimeoutError) {
       logger.warn(`API call timed out: ${serviceName}`, {
         serviceName,
         timeoutMs,
       });
     }
-
     const appError = handleApiError(error, serviceName);
     return err(appError);
   }
@@ -134,7 +121,6 @@ function handleApiError(error: unknown, serviceName: string): AppError {
   if (error instanceof Error) {
     const message = error.message.toLowerCase();
     const errorName = error.name?.toLowerCase() || "";
-
     if (message.includes("timeout") || message.includes("abort") || errorName.includes("timeout") || errorName.includes("abort")) {
       return AppError.retryable(
         ErrorCode.PLATFORM_TIMEOUT,
@@ -142,7 +128,6 @@ function handleApiError(error: unknown, serviceName: string): AppError {
         { platform: serviceName, originalError: error.message }
       );
     }
-
     if (
       message.includes("network") ||
       message.includes("fetch") ||
@@ -158,7 +143,6 @@ function handleApiError(error: unknown, serviceName: string): AppError {
         { platform: serviceName, originalError: error.message }
       );
     }
-
     if (message.includes("unauthorized") || message.includes("401") || message.includes("authentication")) {
       return new AppError(
         ErrorCode.PLATFORM_AUTH_ERROR,
@@ -167,7 +151,6 @@ function handleApiError(error: unknown, serviceName: string): AppError {
         { platform: serviceName, originalError: error.message }
       );
     }
-
     if (message.includes("forbidden") || message.includes("403") || message.includes("permission")) {
       return new AppError(
         ErrorCode.PLATFORM_AUTH_ERROR,
@@ -177,14 +160,12 @@ function handleApiError(error: unknown, serviceName: string): AppError {
       );
     }
   }
-
   if (typeof error === "string") {
     return ensureAppError(new Error(error), ErrorCode.PLATFORM_UNKNOWN_ERROR).withMetadata({
       platform: serviceName,
       originalError: error,
     });
   }
-
   return ensureAppError(error, ErrorCode.PLATFORM_UNKNOWN_ERROR).withMetadata({
     platform: serviceName,
     errorType: typeof error,
@@ -224,7 +205,6 @@ export function parseJsonSafe<T>(
     }
     return ok(parsed.value);
   }
-
   if (validator && !validator(input)) {
     return err(
       new AppError(
@@ -234,7 +214,6 @@ export function parseJsonSafe<T>(
       )
     );
   }
-
   return ok(input as T);
 }
 
@@ -244,17 +223,14 @@ export async function collectResults<T extends readonly Result<unknown, AppError
   if (!Array.isArray(results) || results.length === 0) {
     return ok([] as { [K in keyof T]: T[K] extends Result<infer V, AppError> ? V : never });
   }
-
   const settled = await Promise.all(results);
   const values: unknown[] = [];
-
   for (const result of settled) {
     if (!result.ok) {
       return err(result.error);
     }
     values.push(result.value);
   }
-
   return ok(values as { [K in keyof T]: T[K] extends Result<infer V, AppError> ? V : never });
 }
 
@@ -264,11 +240,9 @@ export async function collectAllResults<T>(
   if (!Array.isArray(operations) || operations.length === 0) {
     return ok([]);
   }
-
   const results = await Promise.all(operations);
   const values: T[] = [];
   const errors: AppError[] = [];
-
   for (const result of results) {
     if (result.ok) {
       values.push(result.value);
@@ -276,11 +250,9 @@ export async function collectAllResults<T>(
       errors.push(result.error);
     }
   }
-
   if (errors.length > 0) {
     return err(errors);
   }
-
   return ok(values);
 }
 
@@ -294,10 +266,8 @@ export function resultToResponse<T>(
       headers: { "Content-Type": "application/json" },
     });
   }
-
   const status = result.error.getHttpStatus();
   const body = result.error.toClientResponse();
-
   return new Response(JSON.stringify({ success: false, ...body }), {
     status,
     headers: { "Content-Type": "application/json" },
@@ -310,7 +280,6 @@ export function resultToJson<T>(
   if (result.ok) {
     return { success: true, data: result.value };
   }
-
   const { code, message } = result.error.toClientResponse();
   return { success: false, error: message, code };
 }

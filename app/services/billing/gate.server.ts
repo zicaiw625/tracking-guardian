@@ -62,7 +62,6 @@ export async function checkOrderLimitResult(
       const limit = planConfig.monthlyOrderLimit;
       const usage = await getOrCreateMonthlyUsage(shopId);
       const current = usage.sentCount;
-
       return {
         exceeded: current >= limit,
         current,
@@ -76,7 +75,6 @@ export async function checkOrderLimitResult(
       shopId,
     })
   );
-
   return result;
 }
 
@@ -84,14 +82,11 @@ export async function checkBillingGateResult(
   shopId: string,
   shopPlan: PlanId
 ): AsyncResult<BillingGateResult, BillingError> {
-
   const cacheKey = `billing:${shopId}`;
   const cached = billingCache.get(cacheKey) as CachedBillingData | undefined;
-
   if (cached) {
     const remaining = Math.max(0, cached.usage.limit - cached.usage.current);
     const usage = { ...cached.usage, remaining };
-
     if (cached.allowed) {
       return ok({ allowed: true, usage });
     }
@@ -101,7 +96,6 @@ export async function checkBillingGateResult(
       usage,
     });
   }
-
   const result = await fromPromise(
     (async () => {
       const planConfig = getPlanOrDefault(shopPlan);
@@ -110,18 +104,15 @@ export async function checkBillingGateResult(
       const current = usageRecord.sentCount;
       const remaining = Math.max(0, limit - current);
       const usage = { current, limit, remaining };
-
       const gateResult: BillingGateResult =
         current >= limit
           ? { allowed: false, reason: "limit_exceeded", usage }
           : { allowed: true, usage };
-
       billingCache.set(cacheKey, {
         allowed: gateResult.allowed,
         reason: gateResult.allowed ? undefined : gateResult.reason,
         usage: { current, limit },
       });
-
       return gateResult;
     })(),
     (e): BillingError => ({
@@ -130,7 +121,6 @@ export async function checkBillingGateResult(
       shopId,
     })
   );
-
   return result;
 }
 
@@ -154,7 +144,6 @@ export async function checkOrderLimit(
   const limit = planConfig.monthlyOrderLimit;
   const usage = await getOrCreateMonthlyUsage(shopId);
   const current = usage.sentCount;
-
   return {
     exceeded: current >= limit,
     current,
@@ -167,14 +156,11 @@ export async function checkBillingGate(
   shopId: string,
   shopPlan: PlanId
 ): Promise<BillingGateResult> {
-
   const cacheKey = `billing:${shopId}`;
   const cached = billingCache.get(cacheKey) as CachedBillingData | undefined;
-
   if (cached) {
     const remaining = Math.max(0, cached.usage.limit - cached.usage.current);
     const usage = { ...cached.usage, remaining };
-
     if (cached.allowed) {
       return { allowed: true, usage };
     }
@@ -184,25 +170,21 @@ export async function checkBillingGate(
       usage,
     };
   }
-
   const planConfig = getPlanOrDefault(shopPlan);
   const limit = planConfig.monthlyOrderLimit;
   const usageRecord = await getOrCreateMonthlyUsage(shopId);
   const current = usageRecord.sentCount;
   const remaining = Math.max(0, limit - current);
   const usage = { current, limit, remaining };
-
   const result: BillingGateResult =
     current >= limit
       ? { allowed: false, reason: "limit_exceeded", usage }
       : { allowed: true, usage };
-
   billingCache.set(cacheKey, {
     allowed: result.allowed,
     reason: result.allowed ? undefined : result.reason,
     usage: { current, limit },
   });
-
   return result;
 }
 
@@ -258,14 +240,11 @@ export async function checkAndReserveBillingSlot(
   orderId: string
 ): AsyncResult<AtomicReservationResult, BillingError> {
   const yearMonth = getCurrentYearMonth();
-
   try {
     const planConfig = getPlanOrDefault(shopPlan);
     const limit = planConfig.monthlyOrderLimit;
-
     const maxRetries = 3;
     let lastError: unknown;
-
     for (let attempt = 0; attempt < maxRetries; attempt++) {
       try {
         const result = await prisma.$transaction(async (tx) => {
@@ -273,7 +252,6 @@ export async function checkAndReserveBillingSlot(
         where: { shopId_orderId: { shopId, orderId } },
         select: { status: true },
       });
-
       const existingLog = await tx.conversionLog.findFirst({
         where: {
           shopId,
@@ -282,7 +260,6 @@ export async function checkAndReserveBillingSlot(
         },
         select: { id: true },
       });
-
       if (existingJob?.status === "completed" || existingLog) {
         const usage = await tx.monthlyUsage.findUnique({
           where: { shopId_yearMonth: { shopId, yearMonth } },
@@ -298,8 +275,6 @@ export async function checkAndReserveBillingSlot(
           yearMonth,
         };
       }
-
-      
       await tx.monthlyUsage.upsert({
         where: {
           shopId_yearMonth: {
@@ -316,9 +291,6 @@ export async function checkAndReserveBillingSlot(
         },
         update: {},
       });
-
-      
-      
       const updated = await tx.$executeRaw`
         UPDATE "MonthlyUsage"
         SET "sentCount" = "sentCount" + 1, "updatedAt" = NOW()
@@ -326,15 +298,11 @@ export async function checkAndReserveBillingSlot(
           AND "yearMonth" = ${yearMonth}
           AND "sentCount" < ${limit}
       `;
-
       if (updated === 0) {
-        
-        
         const currentUsage = await tx.monthlyUsage.findUnique({
           where: { shopId_yearMonth: { shopId, yearMonth } },
           select: { sentCount: true },
         });
-        
         const current = currentUsage?.sentCount || 0;
         return {
           success: false,
@@ -345,16 +313,11 @@ export async function checkAndReserveBillingSlot(
           yearMonth,
         };
       }
-
-      
       const finalUsage = await tx.monthlyUsage.findUnique({
         where: { shopId_yearMonth: { shopId, yearMonth } },
         select: { sentCount: true },
       });
-
       const current = finalUsage?.sentCount || 0;
-      
-      
       if (current > limit) {
         logger.error('Usage count exceeded limit after atomic update', {
           shopId,
@@ -372,7 +335,6 @@ export async function checkAndReserveBillingSlot(
           yearMonth,
         };
       }
-
       return {
         success: true,
         current,
@@ -385,31 +347,21 @@ export async function checkAndReserveBillingSlot(
           isolationLevel: "Serializable",
           maxWait: 5000,
         });
-
-        
-        
         billingCache.delete(`billing:${shopId}`);
-
         return ok(result);
       } catch (error) {
         lastError = error;
-
         const isPrismaError_ = error && typeof error === 'object' && 'code' in error;
         const errorCode = isPrismaError_ ? (error as { code?: string }).code : null;
-
         const isSerializationError = errorCode === 'P40001' || (errorCode?.startsWith('P40') ?? false);
-
         if (isSerializationError && attempt < maxRetries - 1) {
-
           const backoffMs = 50 * Math.pow(2, attempt);
           await new Promise(resolve => setTimeout(resolve, backoffMs));
           continue;
         }
-
         throw error;
       }
     }
-
     return err({
       type: "DATABASE_ERROR",
       message: lastError instanceof Error ? lastError.message : "Unknown database error after retries",
@@ -429,25 +381,20 @@ export async function releaseBillingSlot(
   yearMonth?: string
 ): AsyncResult<number, BillingError> {
   const ym = yearMonth || getCurrentYearMonth();
-
   try {
     const result = await prisma.$transaction(async (tx) => {
-
       await tx.$executeRaw`
         UPDATE "MonthlyUsage"
         SET "sentCount" = GREATEST("sentCount" - 1, 0), "updatedAt" = NOW()
         WHERE "shopId" = ${shopId}
           AND "yearMonth" = ${ym}
       `;
-
       const usage = await tx.monthlyUsage.findUnique({
         where: { shopId_yearMonth: { shopId, yearMonth: ym } },
         select: { sentCount: true },
       });
-
       return usage?.sentCount || 0;
     });
-
     billingCache.delete(`billing:${shopId}`);
     return ok(result);
   } catch (error) {
@@ -483,7 +430,6 @@ export async function getUsageSummary(
     result.usage.limit > 0
       ? Math.round((result.usage.current / result.usage.limit) * 100)
       : 0;
-
   return {
     current: result.usage.current,
     limit: result.usage.limit,
@@ -502,31 +448,20 @@ export function getSuggestedUpgrade(
   currentPlan: PlanId,
   currentUsage: number
 ): PlanId | null {
-  
   if (currentPlan === "agency") {
     return null;
   }
-
-  
   const planTiers: PlanId[] = ["free", "starter", "growth", "agency"];
   const currentIndex = planTiers.indexOf(currentPlan);
-  
-  
   if (currentIndex === -1) {
     return null;
   }
-
-  
   for (let i = currentIndex + 1; i < planTiers.length; i++) {
     const planId = planTiers[i];
     const plan = BILLING_PLANS[planId];
-    
-    
     if (plan.monthlyOrderLimit > currentUsage) {
       return planId;
     }
   }
-
-  
   return null;
 }

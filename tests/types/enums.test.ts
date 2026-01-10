@@ -17,11 +17,9 @@ describe("JobStatus", () => {
     expect(JobStatus.LIMIT_EXCEEDED).toBe("limit_exceeded");
     expect(JobStatus.DEAD_LETTER).toBe("dead_letter");
   });
-
   it("should be usable in switch statements", () => {
     const status = JobStatus.COMPLETED;
     let result = "";
-
     switch (status) {
       case JobStatus.QUEUED:
         result = "waiting";
@@ -38,7 +36,6 @@ describe("JobStatus", () => {
       default:
         result = "unknown";
     }
-
     expect(result).toBe("done");
   });
 });
@@ -59,10 +56,8 @@ describe("TrustLevel", () => {
     expect(TrustLevel.UNTRUSTED).toBe("untrusted");
     expect(TrustLevel.UNKNOWN).toBe("unknown");
   });
-
   it("should support comparison logic", () => {
     const trustLevels = [TrustLevel.UNTRUSTED, TrustLevel.PARTIAL, TrustLevel.TRUSTED];
-
     expect(new Set(trustLevels).size).toBe(3);
   });
 });
@@ -73,7 +68,6 @@ describe("Platform", () => {
     expect(Platform.META).toBe("meta");
     expect(Platform.TIKTOK).toBe("tiktok");
   });
-
   it("should be usable for platform iteration", () => {
     const platforms = [Platform.GOOGLE, Platform.META, Platform.TIKTOK];
     expect(platforms).toHaveLength(3);

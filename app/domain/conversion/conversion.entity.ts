@@ -48,26 +48,20 @@ export interface LineItem {
 export interface ConversionJob {
   readonly id: string;
   readonly shopId: string;
-
   readonly orderId: string;
   readonly orderNumber: string | null;
   readonly orderValue: number;
   readonly currency: string;
-
   readonly capiInput: CapiInput | null;
-
   readonly consentEvidence: ConsentEvidence | null;
   readonly trustMetadata: TrustMetadata | null;
-
   readonly status: JobStatus;
   readonly attempts: number;
   readonly maxAttempts: number;
   readonly lastAttemptAt: Date | null;
   readonly nextRetryAt: Date | null;
   readonly errorMessage: string | null;
-
   readonly platformResults: Record<string, PlatformResultStatus> | null;
-
   readonly createdAt: Date;
   readonly processedAt: Date | null;
   readonly completedAt: Date | null;
@@ -79,14 +73,12 @@ export interface CapiInput {
   orderId: string;
   checkoutToken?: string;
   items?: LineItem[];
-
 }
 
 export interface JobWithShop extends ConversionJob {
   readonly shop: {
     shopDomain: string;
     plan: string;
-
     consentStrategy: string;
   };
 }

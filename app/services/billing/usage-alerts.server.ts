@@ -20,14 +20,12 @@ export async function checkUsageAlerts(
 }> {
   try {
     const result = await checkUsageApproachingLimit(shopId, planId, threshold);
-
     if (!result.approaching) {
       return {
         hasAlerts: false,
         alerts: [],
       };
     }
-
     const alerts: UsageAlert[] = result.items.map((item) => {
       const typeNames: Record<typeof item.type, string> = {
         pixelDestinations: "像素目的地",
@@ -35,7 +33,6 @@ export async function checkUsageAlerts(
         eventCount: "事件量",
         monthlyOrders: "月度订单数",
       };
-
       return {
         type: item.type,
         current: item.current,
@@ -44,7 +41,6 @@ export async function checkUsageAlerts(
         message: `${typeNames[item.type]}使用量已达到 ${item.percentage}%（${item.current}/${item.limit}）。请考虑升级套餐以避免功能受限。`,
       };
     });
-
     return {
       hasAlerts: true,
       alerts,
@@ -67,12 +63,10 @@ export async function sendUsageAlertNotification(
   alerts: UsageAlert[]
 ): Promise<{ success: boolean; error?: string }> {
   try {
-
     logger.info("Usage alerts generated", {
       shopId,
       alertCount: alerts.length,
     });
-
     return { success: true };
   } catch (error) {
     logger.error("Failed to send usage alert notification", {

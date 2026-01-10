@@ -7,33 +7,26 @@ import { paginateConversionLogs } from "../services/db/query-optimizer.server";
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   const { session } = await authenticate.admin(request);
   const shopDomain = session.shop;
-
   const shop = await prisma.shop.findUnique({
     where: { shopDomain },
     select: { id: true },
   });
-
   if (!shop) {
     return json({ error: "Shop not found" }, { status: 404 });
   }
-
   const url = new URL(request.url);
   const cursor = url.searchParams.get("cursor") || undefined;
   const take = Math.min(parseInt(url.searchParams.get("limit") || "50", 10), 100);
   const orderBy = (url.searchParams.get("orderBy") || "desc") as "asc" | "desc";
-
   const hours = parseInt(url.searchParams.get("hours") || "24", 10);
   const since = new Date();
   since.setHours(since.getHours() - hours);
-
   try {
-
     const result = await paginateConversionLogs(shop.id, {
       cursor,
       take,
       orderBy,
     });
-
     const eventIds = result.items.map((item) => item.id);
     const events = await prisma.conversionLog.findMany({
       where: {
@@ -53,7 +46,6 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       },
       orderBy: { createdAt: orderBy },
     });
-
     return json({
       items: events,
       pagination: {

@@ -64,7 +64,6 @@ export function createMockAdminApi(): MockAdminApi {
       },
     })
   );
-
   return {
     graphql,
     rest: {
@@ -343,13 +342,11 @@ export function createMockWebPixelCreateResponse(
     },
   });
 }
-
 let mockAuthenticate: {
   admin: Mock;
   webhook: Mock;
   public: { appProxy: Mock };
 } | null = null;
-
 export function createMockAuthenticate(): typeof mockAuthenticate {
   mockAuthenticate = {
     admin: vi.fn().mockResolvedValue(createMockAdminContext()),
@@ -367,14 +364,12 @@ export function createMockAuthenticate(): typeof mockAuthenticate {
   };
   return mockAuthenticate;
 }
-
 export function getMockAuthenticate(): NonNullable<typeof mockAuthenticate> {
   if (!mockAuthenticate) {
     createMockAuthenticate();
   }
   return mockAuthenticate!;
 }
-
 export function resetMockAuthenticate(): void {
   if (mockAuthenticate) {
     mockAuthenticate.admin.mockReset();

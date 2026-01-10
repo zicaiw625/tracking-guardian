@@ -55,19 +55,16 @@ export function ManualInputWizard({ open, onClose, onComplete }: ManualInputWiza
   const [selectedFeatures, setSelectedFeatures] = useState<string[]>([]);
   const [additionalInfo, setAdditionalInfo] = useState("");
   const [fromUpgradeWizard, setFromUpgradeWizard] = useState(false);
-
   const handlePlatformToggle = useCallback((platform: string) => {
     setSelectedPlatforms((prev) =>
       prev.includes(platform) ? prev.filter((p) => p !== platform) : [...prev, platform]
     );
   }, []);
-
   const handleFeatureToggle = useCallback((feature: string) => {
     setSelectedFeatures((prev) =>
       prev.includes(feature) ? prev.filter((f) => f !== feature) : [...prev, feature]
     );
   }, []);
-
   const handleNext = useCallback(() => {
     if (step === 1) {
       setStep(2);
@@ -75,7 +72,6 @@ export function ManualInputWizard({ open, onClose, onComplete }: ManualInputWiza
       setStep(3);
     }
   }, [step]);
-
   const handleBack = useCallback(() => {
     if (step === 2) {
       setStep(1);
@@ -83,7 +79,6 @@ export function ManualInputWizard({ open, onClose, onComplete }: ManualInputWiza
       setStep(2);
     }
   }, [step]);
-
   const handleComplete = useCallback(() => {
     onComplete({
       platforms: selectedPlatforms,
@@ -91,7 +86,6 @@ export function ManualInputWizard({ open, onClose, onComplete }: ManualInputWiza
       additionalInfo: additionalInfo.trim() || undefined,
       fromUpgradeWizard,
     });
-
     setStep(1);
     setSelectedPlatforms([]);
     setSelectedFeatures([]);
@@ -99,7 +93,6 @@ export function ManualInputWizard({ open, onClose, onComplete }: ManualInputWiza
     setFromUpgradeWizard(false);
     onClose();
   }, [selectedPlatforms, selectedFeatures, additionalInfo, fromUpgradeWizard, onComplete, onClose]);
-
   const handleCancel = useCallback(() => {
     setStep(1);
     setSelectedPlatforms([]);
@@ -108,11 +101,9 @@ export function ManualInputWizard({ open, onClose, onComplete }: ManualInputWiza
     setFromUpgradeWizard(false);
     onClose();
   }, [onClose]);
-
   const canProceedFromStep1 = selectedPlatforms.length > 0 || selectedFeatures.length > 0;
   const canProceedFromStep2 = true;
   const canComplete = selectedPlatforms.length > 0 || selectedFeatures.length > 0;
-
   return (
     <Modal
       open={open}
@@ -145,7 +136,6 @@ export function ManualInputWizard({ open, onClose, onComplete }: ManualInputWiza
             <Text as="span">→</Text>
             <Badge tone={step >= 3 ? "success" : undefined}>步骤 3</Badge>
           </InlineStack>
-
           {step === 1 && (
             <BlockStack gap="400">
               <Text as="h3" variant="headingMd">
@@ -154,20 +144,17 @@ export function ManualInputWizard({ open, onClose, onComplete }: ManualInputWiza
               <Text as="p" variant="bodySm" tone="subdued">
                 勾选所有在 Thank you / Order status 页面使用的追踪平台
               </Text>
-
               <Banner tone="warning">
                 <Text as="p" variant="bodySm">
                   <strong>v1 支持范围</strong>：GA4、Meta、TikTok（其他平台将在 v1.1+ 支持）。请选择所有您使用的平台，系统将在报告中标注 v1 可迁移的项目。
                 </Text>
               </Banner>
-
               <BlockStack gap="300">
                 {AVAILABLE_PLATFORMS.map((platform) => {
                   const isV1Supported =
                     platform.value === "google" ||
                     platform.value === "meta" ||
                     platform.value === "tiktok";
-
                   return (
                     <InlineStack key={platform.value} gap="200" blockAlign="center">
                       <Checkbox
@@ -185,28 +172,23 @@ export function ManualInputWizard({ open, onClose, onComplete }: ManualInputWiza
                   );
                 })}
               </BlockStack>
-
               <Divider />
-
               <Text as="h3" variant="headingMd">
                 您使用了哪些功能？
               </Text>
               <Text as="p" variant="bodySm" tone="subdued">
                 勾选所有在 Thank you / Order status 页面使用的功能
               </Text>
-
               <Banner tone="warning">
                 <Text as="p" variant="bodySm">
                   <strong>v1 支持范围</strong>：购后问卷（Survey）和帮助中心（Helpdesk）（其他功能将在 v1.1+ 支持）。请选择所有您使用的功能，系统将在报告中标注 v1 可迁移的项目。
                 </Text>
               </Banner>
-
               <BlockStack gap="300">
                 {AVAILABLE_FEATURES.map((feature) => {
                   const isV1Supported =
                     feature.value === "survey" ||
                     feature.value === "support";
-
                   return (
                     <InlineStack key={feature.value} gap="200" blockAlign="center">
                       <Checkbox
@@ -224,7 +206,6 @@ export function ManualInputWizard({ open, onClose, onComplete }: ManualInputWiza
                   );
                 })}
               </BlockStack>
-
               {selectedPlatforms.length === 0 && selectedFeatures.length === 0 && (
                 <Banner tone="info">
                   <Text as="p" variant="bodySm">
@@ -234,7 +215,6 @@ export function ManualInputWizard({ open, onClose, onComplete }: ManualInputWiza
               )}
             </BlockStack>
           )}
-
           {step === 2 && (
             <BlockStack gap="400">
               <Text as="h3" variant="headingMd">
@@ -243,14 +223,12 @@ export function ManualInputWizard({ open, onClose, onComplete }: ManualInputWiza
               <Text as="p" variant="bodySm" tone="subdued">
                 这些信息来自哪里？
               </Text>
-
               <Checkbox
                 label="来自 Shopify Admin 升级向导"
                 checked={fromUpgradeWizard}
                 onChange={(checked) => setFromUpgradeWizard(checked)}
                 helpText="如果您从 Shopify 后台的升级向导中获取了脚本清单，请勾选此项"
               />
-
               <Banner tone="info">
                 <BlockStack gap="200">
                   <Text as="p" variant="bodySm" fontWeight="semibold">
@@ -286,7 +264,6 @@ export function ManualInputWizard({ open, onClose, onComplete }: ManualInputWiza
               </Banner>
             </BlockStack>
           )}
-
           {step === 3 && (
             <BlockStack gap="400">
               <Text as="h3" variant="headingMd">
@@ -295,7 +272,6 @@ export function ManualInputWizard({ open, onClose, onComplete }: ManualInputWiza
               <Text as="p" variant="bodySm" tone="subdued">
                 如果您有其他需要补充的信息，请在此处填写
               </Text>
-
               <TextField
                 label="补充说明"
                 value={additionalInfo}
@@ -305,9 +281,7 @@ export function ManualInputWizard({ open, onClose, onComplete }: ManualInputWiza
                 placeholder="例如：使用了自定义的订单追踪系统、集成了第三方客服工具等"
                 helpText="这些信息将帮助我们更准确地评估迁移风险"
               />
-
               <Divider />
-
               <Box background="bg-surface-secondary" padding="400" borderRadius="200">
                 <BlockStack gap="300">
                   <Text as="h3" variant="headingSm">

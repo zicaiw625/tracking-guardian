@@ -89,7 +89,6 @@ export function createContextAwareLogger(
   const enrichContext = (context?: LogContext): LogContext => {
     const reqCtx = getContext();
     if (!reqCtx) return context || {};
-
     return {
       requestId: reqCtx.requestId,
       correlationId: reqCtx.correlationId,
@@ -100,7 +99,6 @@ export function createContextAwareLogger(
       ...context,
     };
   };
-
   return {
     debug(message: string, context?: LogContext): void {
       baseLogger.debug(message, enrichContext(context));
@@ -136,14 +134,12 @@ class AppContext implements IAppContext {
 
 class ScopedContext implements IScopedContext {
   public readonly requestLogger: ILogger;
-
   constructor(
     public readonly db: PrismaClient,
     public readonly logger: ILogger,
     public readonly config: IAppConfig,
     public readonly request: IRequestContext
   ) {
-
     this.requestLogger = logger.child({
       requestId: request.requestId,
       correlationId: request.correlationId,
@@ -157,12 +153,10 @@ export function createAppContext(
   logger: ILogger,
   config: IAppConfig
 ): IAppContext {
-
   const contextAwareLogger = createContextAwareLogger(
     logger,
     getCurrentRequestContext
   );
-
   return new AppContext(db, contextAwareLogger, config);
 }
 

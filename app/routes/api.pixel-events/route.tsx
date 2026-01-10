@@ -69,11 +69,9 @@ async function parseBodyAsJson(request: Request): Promise<{
 }> {
   try {
     const bodyText = await request.text();
-
     if (bodyText.length > MAX_BODY_SIZE) {
       return { success: false, error: "payload_too_large" };
     }
-
     const data = JSON.parse(bodyText);
     return { success: true, data, bodyText, bodyLength: bodyText.length };
   } catch {
@@ -83,15 +81,12 @@ async function parseBodyAsJson(request: Request): Promise<{
 
 export const action = async ({ request }: ActionFunctionArgs) => {
   const origin = request.headers.get("Origin");
-
   if (request.method === "OPTIONS") {
     return optionsResponse(request);
   }
-
   if (request.method !== "POST") {
     return jsonWithCors({ error: "Method not allowed" }, { status: 405, request });
   }
-
   const contentType = request.headers.get("Content-Type");
   if (!isAcceptableContentType(contentType)) {
     return jsonWithCors(
@@ -99,7 +94,6 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       { status: 415, request }
     );
   }
-
   const preBodyValidation = validatePixelOriginPreBody(origin);
   if (!preBodyValidation.valid) {
     const shopDomainHeader = request.headers.get("x-shopify-shop-domain") || "unknown";
@@ -120,10 +114,8 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     }
     return jsonWithCors({ error: "Invalid origin" }, { status: 403, request });
   }
-
   const timestampHeader = request.headers.get("X-Tracking-Guardian-Timestamp");
   const shopDomainHeader = request.headers.get("x-shopify-shop-domain") || "unknown";
-
   if (timestampHeader) {
     const timestamp = parseInt(timestampHeader, 10);
     if (isNaN(timestamp)) {
@@ -134,7 +126,6 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       logger.debug("Invalid timestamp format in header, dropping request");
       return emptyResponseWithCors(request);
     }
-
     const now = Date.now();
     const timeDiff = Math.abs(now - timestamp);
     if (timeDiff > TIMESTAMP_WINDOW_MS) {
@@ -146,7 +137,6 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       return emptyResponseWithCors(request);
     }
   }
-
   const rateLimit = await checkRateLimitAsync(request, "pixel-events", RATE_LIMIT_CONFIG);
   if (rateLimit.isLimited) {
     logger.warn(`Rate limit exceeded for pixel-events`, {
@@ -160,9 +150,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     });
     return rateLimitResponse;
   }
-
   try {
-
     const contentLength = parseInt(request.headers.get("Content-Length") || "0", 10);
     if (contentLength > MAX_BODY_SIZE) {
       logger.warn(`Payload too large: ${contentLength} bytes (max ${MAX_BODY_SIZE})`);
@@ -171,7 +159,6 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         { status: 413, request }
       );
     }
-
     const parseResult = await parseBodyAsJson(request);
     if (!parseResult.success) {
       if (parseResult.error === "payload_too_large") {
@@ -183,10 +170,8 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       }
       return jsonWithCors({ error: "Invalid JSON body" }, { status: 400, request });
     }
-
     const rawBody = parseResult.data;
     const bodyText = parseResult.bodyText;
-
     const basicValidation = validateRequest(rawBody);
     if (!basicValidation.valid) {
       logger.debug(
@@ -196,9 +181,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       metrics.pxValidateFailed(shopDomainFromPayload, basicValidation.code || "unknown");
       return jsonWithCors({ error: "Invalid request" }, { status: 400, request });
     }
-
     const { payload } = basicValidation;
-
     if (!timestampHeader) {
       const now = Date.now();
       const timeDiff = Math.abs(now - payload.timestamp);
@@ -211,7 +194,6 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         return emptyResponseWithCors(request);
       }
     }
-
     const circuitCheck = await checkCircuitBreaker(payload.shopDomain, CIRCUIT_BREAKER_CONFIG);
     if (circuitCheck.blocked) {
       logger.warn(`Circuit breaker blocked request for ${payload.shopDomain}`);
@@ -229,7 +211,6 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         }
       );
     }
-
     const environment = (payload.data as { environment?: "test" | "live" })?.environment || "live";
     const shop = await getShopForPixelVerificationWithConfigs(payload.shopDomain, environment);
     if (!shop || !shop.isActive) {
@@ -238,22 +219,18 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         { status: 404, request }
       );
     }
-
         const shopWithPlan = await prisma.shop.findUnique({
       where: { id: shop.id },
       select: { plan: true },
     });
-
     const shopAllowedDomains = buildShopAllowedDomains({
       shopDomain: shop.shopDomain,
       primaryDomain: shop.primaryDomain,
       storefrontDomains: shop.storefrontDomains,
     });
-
     const signature = request.headers.get("X-Tracking-Guardian-Signature");
     const isProduction = !isDevMode();
     let hmacValidationResult: { valid: boolean; reason?: string; errorCode?: string } | null = null;
-
     if (isProduction) {
       if (!shop.ingestionSecret) {
         logger.error(`Missing ingestionSecret for ${shop.shopDomain} in production - HMAC verification required`);
@@ -262,7 +239,6 @@ export const action = async ({ request }: ActionFunctionArgs) => {
           { status: 500, request, shopAllowedDomains }
         );
       }
-
       if (!signature) {
         const anomalyCheck = trackAnomaly(shop.shopDomain, "invalid_key");
         if (anomalyCheck.shouldBlock) {
@@ -279,7 +255,6 @@ export const action = async ({ request }: ActionFunctionArgs) => {
           { status: 403, request, shopAllowedDomains }
         );
       }
-
       const hmacResult = await validatePixelEventHMAC(
         request,
         bodyText,
@@ -287,9 +262,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         payload.timestamp,
         TIMESTAMP_WINDOW_MS
       );
-
       hmacValidationResult = hmacResult;
-
       if (!hmacResult.valid) {
         const anomalyCheck = trackAnomaly(shop.shopDomain, "invalid_key");
         if (anomalyCheck.shouldBlock) {
@@ -308,10 +281,8 @@ export const action = async ({ request }: ActionFunctionArgs) => {
           { status: 403, request, shopAllowedDomains }
         );
       }
-
       logger.debug(`HMAC signature verified for ${shop.shopDomain}`);
     } else if (shop.ingestionSecret && signature) {
-
       const hmacResult = await validatePixelEventHMAC(
         request,
         bodyText,
@@ -319,9 +290,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         payload.timestamp,
         TIMESTAMP_WINDOW_MS
       );
-
       hmacValidationResult = hmacResult;
-
       if (!hmacResult.valid) {
         logger.warn(`HMAC verification failed in dev mode for ${shop.shopDomain}: ${hmacResult.reason}`);
         logger.warn(`⚠️ This request would be rejected in production. Please ensure HMAC signature is valid.`);
@@ -329,11 +298,9 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         logger.debug(`HMAC signature verified in dev mode for ${shop.shopDomain}`);
       }
     }
-
     const pixelConfigs = shop.pixelConfigs;
     let mode: "purchase_only" | "full_funnel" = "purchase_only";
     let purchaseStrategy: "server_side_only" | "hybrid" = "hybrid";
-
     let foundPurchaseStrategy = false;
     for (const config of pixelConfigs) {
       if (config.clientConfig && typeof config.clientConfig === 'object') {
@@ -356,23 +323,19 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         }
       }
     }
-
     if (pixelConfigs.length === 0) {
       mode = "purchase_only";
       purchaseStrategy = "hybrid";
     }
-
     if (!isPrimaryEvent(payload.eventName, mode)) {
       logger.debug(`Event ${payload.eventName} not accepted for ${payload.shopDomain} (mode: ${mode}) - skipping all DB writes`);
       return emptyResponseWithCors(request);
     }
-
     const consentResult = checkInitialConsent(payload.consent);
     if (!consentResult.hasAnyConsent) {
       logNoConsentDrop(payload.shopDomain, payload.consent);
       return emptyResponseWithCors(request);
     }
-
     const referer = request.headers.get("Referer");
     const shopOriginValidation = validatePixelOriginForShop(origin, shopAllowedDomains, {
       referer,
@@ -394,23 +357,19 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       );
       return emptyResponseWithCors(request, shopAllowedDomains);
     }
-
     const keyValidation: KeyValidationResult = (() => {
       if (isProduction) {
-
         return {
           matched: true,
           reason: "hmac_verified",
         };
       } else {
-
         if (hmacValidationResult) {
           return {
             matched: hmacValidationResult.valid,
             reason: hmacValidationResult.valid ? "hmac_verified" : (hmacValidationResult.reason || "hmac_verification_failed"),
           };
         } else {
-
           return {
             matched: !signature || !shop.ingestionSecret,
             reason: !signature ? "no_signature_in_dev" : (!shop.ingestionSecret ? "no_secret_in_dev" : "hmac_not_verified"),
@@ -418,17 +377,11 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         }
       }
     })();
-
     const trustResult = evaluateTrustLevel(keyValidation, !!payload.data.checkoutToken);
-
         metrics.pxIngestAccepted(shop.shopDomain);
-
     const eventType = payload.eventName === "checkout_completed" ? "purchase" : payload.eventName;
     const isPurchaseEvent = eventType === "purchase";
-
-    
     const eventIdentifier = payload.data.orderId || payload.data.checkoutToken || `session_${payload.timestamp}_${shop.shopDomain.replace(/\./g, "_")}`;
-
     const items = payload.data.items as Array<{
       id?: string;
       quantity?: number | string;
@@ -438,7 +391,6 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       product_id?: string;
     }> | undefined;
     const normalizedItems = items?.map(item => {
-
       const itemId = String(
         item.variantId ||
         item.variant_id ||
@@ -447,19 +399,16 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         item.id ||
         ""
       ).trim();
-
       const quantity = typeof item.quantity === "number"
         ? Math.max(1, Math.floor(item.quantity))
         : typeof item.quantity === "string"
         ? Math.max(1, parseInt(item.quantity, 10) || 1)
         : 1;
-
       return {
         id: itemId,
         quantity,
       };
     }).filter(item => item.id) || [];
-
     const eventId = generateEventIdForType(
       eventIdentifier || null,
       eventType,
@@ -468,9 +417,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       normalizedItems.length > 0 ? normalizedItems : undefined,
       payload.nonce || null
     );
-    
     const isFirstEvent = false;
-
         let riskScore: number | undefined;
     let assetCount: number | undefined;
     try {
@@ -488,7 +435,6 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       }
     } catch (error) {
           }
-
     const planId = normalizePlanId(shopWithPlan?.plan ?? "free");
     const isAgency = isPlanAtLeast(planId, "agency");
     safeFireAndForget(
@@ -510,10 +456,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
                   },
       })
     );
-
-    
     if (isPurchaseEvent) {
-      
       const activeVerificationRun = await prisma.verificationRun.findFirst({
         where: {
           shopId: shop.id,
@@ -522,7 +465,6 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         orderBy: { createdAt: "desc" },
         select: { id: true },
       });
-
       await upsertPixelEventReceipt(
         shop.id,
         eventId,
@@ -538,14 +480,11 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         eventId,
       });
     }
-
     const clientSideConfigs = pixelConfigs.filter(config => config.clientSideEnabled === true);
-
     const { platformsToRecord, skippedPlatforms } = filterPlatformsByConsent(
       clientSideConfigs,
       consentResult
     );
-
     logConsentFilterMetrics(
       shop.shopDomain,
       orderId,
@@ -553,11 +492,9 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       skippedPlatforms,
       consentResult
     );
-
     if (platformsToRecord.length > 0) {
       if (isPurchaseEvent) {
         if (purchaseStrategy === "hybrid") {
-
           const platformNames = platformsToRecord.map(p => p.platform);
           logger.info(`Processing purchase event in hybrid mode (client-side + server-side)`, {
             shopId: shop.id,
@@ -566,20 +503,16 @@ export const action = async ({ request }: ActionFunctionArgs) => {
             platforms: platformNames,
             configCount: platformsToRecord.length,
           });
-
-          
           logger.info(`Purchase event recorded for verification`, {
             shopId: shop.id,
             eventId,
             platforms: platformNames,
           });
-
           logger.debug(`Purchase event ${eventId} recorded`, {
             shopId: shop.id,
             platforms: platformNames,
           });
         } else {
-
           logger.debug(`Purchase event ${eventId} recorded`, {
             shopId: shop.id,
             platforms: platformsToRecord.map(p => p.platform),
@@ -587,7 +520,6 @@ export const action = async ({ request }: ActionFunctionArgs) => {
           });
         }
       } else {
-
         const platformNames = platformsToRecord.map(p => p.platform);
         logger.info(`Processing ${payload.eventName} event through pipeline for routing to destinations`, {
           shopId: shop.id,
@@ -597,8 +529,6 @@ export const action = async ({ request }: ActionFunctionArgs) => {
           configCount: platformsToRecord.length,
           mode,
         });
-
-        
         logger.info(`Event ${payload.eventName} recorded`, {
           shopId: shop.id,
           eventId,
@@ -607,13 +537,11 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         });
       }
     }
-
     const message = isPurchaseEvent
       ? purchaseStrategy === "hybrid"
         ? `Pixel event recorded, sending via client-side and server-side (hybrid mode)`
         : "Pixel event recorded, CAPI will be sent via webhook"
       : `Pixel event recorded and routing to ${platformsToRecord.length} destination(s) (GA4/Meta/TikTok)`;
-
     return jsonWithCors(
       {
         success: true,

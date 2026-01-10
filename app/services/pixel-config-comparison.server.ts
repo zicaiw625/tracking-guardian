@@ -41,7 +41,6 @@ export async function compareConfigVersions(
         configVersion: true,
       },
     });
-
     if (!config || !config.previousConfig) {
       return {
         hasChanges: false,
@@ -54,7 +53,6 @@ export async function compareConfigVersions(
         },
       };
     }
-
     const current = {
       platformId: config.platformId,
       clientSideEnabled: config.clientSideEnabled,
@@ -63,11 +61,8 @@ export async function compareConfigVersions(
       clientConfig: config.clientConfig,
       environment: config.environment,
     };
-
     const previous = config.previousConfig as typeof current;
-
     const differences: ConfigComparisonResult["differences"] = [];
-
     const fieldsToCompare: Array<keyof typeof current> = [
       "platformId",
       "clientSideEnabled",
@@ -76,11 +71,9 @@ export async function compareConfigVersions(
       "clientConfig",
       "environment",
     ];
-
     for (const field of fieldsToCompare) {
       const currentValue = current[field];
       const previousValue = previous[field];
-
       if (currentValue === undefined && previousValue !== undefined) {
         differences.push({
           field,
@@ -104,14 +97,12 @@ export async function compareConfigVersions(
         });
       }
     }
-
     const summary = {
       totalChanges: differences.length,
       addedFields: differences.filter((d) => d.type === "added").length,
       removedFields: differences.filter((d) => d.type === "removed").length,
       modifiedFields: differences.filter((d) => d.type === "modified").length,
     };
-
     return {
       hasChanges: differences.length > 0,
       differences,
@@ -149,11 +140,9 @@ export async function getConfigVersionHistory(
         createdAt: true,
       },
     });
-
     if (!config) {
       return [];
     }
-
     const history: Array<{
       version: number;
       timestamp: Date;
@@ -167,7 +156,6 @@ export async function getConfigVersionHistory(
         environment: config.environment,
       },
     ];
-
     if (config.previousConfig) {
       history.push({
         version: config.configVersion - 1,
@@ -176,7 +164,6 @@ export async function getConfigVersionHistory(
         environment: (config.previousConfig as { environment?: string }).environment || "unknown",
       });
     }
-
     return history.sort((a, b) => b.version - a.version);
   } catch (error) {
     logger.error("Failed to get config version history", { shopId, platform, error });

@@ -31,12 +31,10 @@ import { VERIFICATION_TEST_ITEMS } from "../services/verification.server";
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   const { session } = await authenticate.admin(request);
   const shopDomain = session.shop;
-
   const shop = await prisma.shop.findUnique({
     where: { shopDomain },
     select: { id: true },
   });
-
   if (!shop) {
     return json({
       shop: null,
@@ -44,9 +42,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       testItems: VERIFICATION_TEST_ITEMS,
     });
   }
-
   const testChecklist = generateTestChecklist(shop.id, "quick");
-
   return json({
     shop: { id: shop.id, domain: shopDomain },
     testChecklist,
@@ -56,7 +52,6 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 
 export default function VerificationStartPage() {
   const { shop, testChecklist, testItems } = useLoaderData<typeof loader>();
-
   if (!shop || !testChecklist) {
     return (
       <Page title="验收测试清单">
@@ -66,7 +61,6 @@ export default function VerificationStartPage() {
       </Page>
     );
   }
-
   const handleCopyChecklist = async () => {
     const markdown = generateChecklistMarkdown(testChecklist);
     if (navigator.clipboard && navigator.clipboard.writeText) {
@@ -74,7 +68,6 @@ export default function VerificationStartPage() {
       alert("测试清单已复制到剪贴板");
     }
   };
-
   const handleDownloadCSV = () => {
     const csv = generateChecklistCSV(testChecklist);
     const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
@@ -83,7 +76,6 @@ export default function VerificationStartPage() {
     link.download = `verification-checklist-${new Date().toISOString().split("T")[0]}.csv`;
     link.click();
   };
-
   return (
     <Page
       title="验收测试清单生成"
@@ -109,7 +101,6 @@ export default function VerificationStartPage() {
             </Text>
           </BlockStack>
         </Banner>
-
         <Card>
           <BlockStack gap="400">
             <InlineStack align="space-between" blockAlign="center">
@@ -129,9 +120,7 @@ export default function VerificationStartPage() {
                 </Button>
               </InlineStack>
             </InlineStack>
-
             <Divider />
-
             <BlockStack gap="300">
               <Text as="h3" variant="headingSm">
                 像素层验收（Web Pixels 标准事件）
@@ -180,9 +169,7 @@ export default function VerificationStartPage() {
                 ))}
               </List>
             </BlockStack>
-
             <Divider />
-
             <BlockStack gap="300">
               <Text as="h3" variant="headingSm">
                 订单层验收（Webhook/Admin API 对账）
@@ -237,9 +224,7 @@ export default function VerificationStartPage() {
                 ))}
               </List>
             </BlockStack>
-
             <Divider />
-
             <BlockStack gap="300">
               <Text as="h3" variant="headingSm">
                 测试步骤
@@ -282,9 +267,7 @@ export default function VerificationStartPage() {
                 </List.Item>
               </List>
             </BlockStack>
-
             <Divider />
-
             <BlockStack gap="200">
               <Text as="h3" variant="headingSm">
                 下一步

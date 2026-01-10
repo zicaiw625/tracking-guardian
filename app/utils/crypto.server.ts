@@ -26,41 +26,32 @@ export function getEncryptionKey(): Buffer {
     const isProduction = process.env.NODE_ENV === "production";
     const isCI = process.env.CI === "true" || process.env.CI === "1";
     const isTest = process.env.NODE_ENV === "test";
-
     let effectiveSecret: string;
     let usingFallback = false;
-
     if (secret) {
-
         effectiveSecret = secret;
-
         if (secret.length < 32) {
             logger.warn("⚠️ [STARTUP] ENCRYPTION_SECRET is shorter than 32 characters.");
         }
     } else if (devSecret && !isProduction && !isCI) {
-
         effectiveSecret = devSecret;
-
         if (!hasWarnedAboutFallback) {
             logger.info("ℹ️ [STARTUP] Using DEV_ENCRYPTION_SECRET for development.");
             hasWarnedAboutFallback = true;
         }
     } else {
-
         if (isProduction || isCI) {
             throw new Error(
                 "ENCRYPTION_SECRET must be set in production and CI environments. " +
                 "Generate a secure secret using: openssl rand -base64 32"
             );
         }
-
         if (isTest && !process.env.ALLOW_INSECURE_TEST_SECRET) {
             throw new Error(
                 "ENCRYPTION_SECRET must be set in test environment. " +
                 "Set ENCRYPTION_SECRET, DEV_ENCRYPTION_SECRET, or ALLOW_INSECURE_TEST_SECRET=true for local tests."
             );
         }
-
         const hasShopifyCredentials = Boolean(process.env.SHOPIFY_API_SECRET);
         const hasShopifyAppUrl = Boolean(process.env.SHOPIFY_APP_URL?.includes(".myshopify."));
         if (hasShopifyCredentials && hasShopifyAppUrl) {
@@ -70,10 +61,8 @@ export function getEncryptionKey(): Buffer {
                 "Generate a secure secret using: openssl rand -base64 32"
             );
         }
-
         effectiveSecret = FALLBACK_DEV_SECRET;
         usingFallback = true;
-
         if (!hasWarnedAboutFallback) {
             logger.warn(
                 "⚠️ [STARTUP] No encryption secret configured. Using random fallback for local development only.\n" +
@@ -83,20 +72,16 @@ export function getEncryptionKey(): Buffer {
             hasWarnedAboutFallback = true;
         }
     }
-
     const effectiveSalt = usingFallback ? DEV_ENCRYPTION_SALT : salt;
     if (cachedKey && cachedKeySecret === effectiveSecret && cachedKeySalt === effectiveSalt) {
         return cachedKey;
     }
-
     if (!process.env.ENCRYPTION_SALT && isProduction) {
         logger.warn("⚠️ [STARTUP] ENCRYPTION_SALT not set. Using default salt.");
     }
-
     cachedKey = scryptSync(effectiveSecret, effectiveSalt, 32, SCRYPT_PARAMS);
     cachedKeySecret = effectiveSecret;
     cachedKeySalt = effectiveSalt;
-
     return cachedKey;
 }
 
@@ -116,9 +101,7 @@ export function validateEncryptionConfig(): {
     const isProduction = process.env.NODE_ENV === "production";
     const isCI = process.env.CI === "true" || process.env.CI === "1";
     const isTest = process.env.NODE_ENV === "test";
-
     let secretSource: "ENCRYPTION_SECRET" | "DEV_ENCRYPTION_SECRET" | "fallback" | "none" = "none";
-
     if (process.env.ENCRYPTION_SECRET) {
         secretSource = "ENCRYPTION_SECRET";
         if (process.env.ENCRYPTION_SECRET.length < 32) {
@@ -130,25 +113,21 @@ export function validateEncryptionConfig(): {
             warnings.push("DEV_ENCRYPTION_SECRET is shorter than recommended 32 characters");
         }
     } else {
-
         if (isProduction || isCI) {
             throw new Error("ENCRYPTION_SECRET must be set in production and CI environments");
         }
         if (isTest && !process.env.ALLOW_INSECURE_TEST_SECRET) {
             throw new Error("ENCRYPTION_SECRET or DEV_ENCRYPTION_SECRET must be set in test environment");
         }
-
         secretSource = "fallback";
         warnings.push(
             "No encryption secret configured. Using random fallback. " +
             "Set DEV_ENCRYPTION_SECRET in .env for consistent development encryption."
         );
     }
-
     if (!process.env.ENCRYPTION_SALT && isProduction) {
         warnings.push("ENCRYPTION_SALT not set - using default salt");
     }
-
     return { valid: true, warnings, secretSource };
 }
 const ALGORITHM = "aes-256-gcm";
@@ -205,7 +184,6 @@ export function generateEventId(orderId: string, eventType: string, shopDomain?:
     const hashInput = shopDomain
         ? `${shopDomain}:${normalizedOrderId}:${eventType}`
         : `${normalizedOrderId}:${eventType}`;
-
     return createHash("sha256")
         .update(hashInput, "utf8")
         .digest("hex")
@@ -221,7 +199,6 @@ export function normalizeOrderId(orderId: string | number): string {
     if (numericMatch) {
         return numericMatch[1];
     }
-
     logger.warn(`[normalizeOrderId] Unable to extract numeric ID from: ${orderIdStr}`);
     return orderIdStr;
 }

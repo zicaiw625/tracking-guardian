@@ -186,7 +186,6 @@ export async function runDailyReconciliation(shopId: string): Promise<Reconcilia
             },
         },
     });
-    // AlertConfig 表已被移除，使用空数组
     const alertConfigs: Array<{
         id: string;
         channel: string;
@@ -199,7 +198,6 @@ export async function runDailyReconciliation(shopId: string): Promise<Reconcilia
         return [];
     }
     const results: ReconciliationResult[] = [];
-
     const today = new Date();
     today.setUTCHours(0, 0, 0, 0);
     const yesterday = new Date(today);
@@ -248,12 +246,10 @@ export async function runDailyReconciliation(shopId: string): Promise<Reconcilia
             ? (totalRevenue - sentRevenue) / totalRevenue
             : 0;
         let alertSent = false;
-        // AlertConfig 表已被移除，跳过 alert 检查
         const matchingAlerts: typeof alertConfigs = [];
         if (matchingAlerts.length > 0) {
             for (const alertConfig of matchingAlerts) {
                 try {
-
                     const channel = alertConfig.channel as AlertChannel;
                     const settingsValidation = validateAlertSettings(
                         channel,
@@ -261,7 +257,6 @@ export async function runDailyReconciliation(shopId: string): Promise<Reconcilia
                             ? alertConfig.settings as Record<string, unknown>
                             : {}
                     );
-
                     if (!settingsValidation.success) {
                         logger.warn(`Invalid alert settings for config ${alertConfig.id}`, {
                             channel,
@@ -269,7 +264,6 @@ export async function runDailyReconciliation(shopId: string): Promise<Reconcilia
                         });
                         continue;
                     }
-
                     await sendAlert({
                         id: alertConfig.id,
                         channel,
@@ -399,7 +393,6 @@ export async function getReconciliationHistory(shopId: string, days: number = 30
     revenueDiscrepancy: number;
     alertSent: boolean;
 }>> {
-
     const cutoffDate = new Date();
     cutoffDate.setUTCDate(cutoffDate.getUTCDate() - days);
     cutoffDate.setUTCHours(0, 0, 0, 0);
@@ -454,7 +447,6 @@ export async function getReconciliationSummary(shopId: string, days: number = 30
         const platformSummary = summary[platform];
         if (platformSummary.reports.length > 0) {
             const totalDiscrepancy = platformSummary.reports.reduce((sum, r) => sum + r.orderDiscrepancy, 0);
-
             const reportCount = platformSummary.reports.length;
             platformSummary.avgDiscrepancy = reportCount > 0 ? totalDiscrepancy / reportCount : 0;
         }
@@ -502,13 +494,11 @@ export interface GapAnalysis {
 }
 
 export interface ReconciliationDashboardData {
-
     period: {
         startDate: Date;
         endDate: Date;
         days: number;
     };
-
     overview: {
         totalWebhookOrders: number;
         totalPixelReceipts: number;
@@ -517,9 +507,7 @@ export interface ReconciliationDashboardData {
         totalSentToPlatforms: number;
         matchRate: number;
     };
-
     gapAnalysis: GapAnalysis[];
-
     platformBreakdown: Array<{
         platform: string;
         webhookOrders: number;
@@ -528,14 +516,12 @@ export interface ReconciliationDashboardData {
         gap: number;
         gapPercentage: number;
     }>;
-
     dailyTrend: Array<{
         date: string;
         webhookOrders: number;
         pixelReceipts: number;
         gap: number;
     }>;
-
     recommendation: {
         currentStrategy: string;
         suggestedStrategy: string | null;
@@ -547,18 +533,15 @@ export async function getReconciliationDashboardData(
     shopId: string,
     days: number = 7
 ): Promise<ReconciliationDashboardData> {
-
     const endDate = new Date();
     endDate.setUTCHours(0, 0, 0, 0);
     const startDate = new Date(endDate);
     startDate.setUTCDate(startDate.getUTCDate() - days);
-
     const shop = await prisma.shop.findUnique({
         where: { id: shopId },
         select: { consentStrategy: true },
     });
     const currentStrategy = shop?.consentStrategy || "strict";
-
     const conversionJobs = await prisma.conversionJob.findMany({
         where: {
             shopId,
@@ -578,7 +561,6 @@ export async function getReconciliationDashboardData(
             capiInput: true,
         },
     });
-
     const pixelReceipts = await prisma.pixelEventReceipt.findMany({
         where: {
             shopId,
@@ -596,7 +578,6 @@ export async function getReconciliationDashboardData(
             checkoutToken: true,
         },
     });
-
     const conversionLogs = await prisma.conversionLog.findMany({
         where: {
             shopId,
@@ -614,22 +595,17 @@ export async function getReconciliationDashboardData(
             createdAt: true,
         },
     });
-
     const receiptByOrderId = new Map(
         pixelReceipts.map(r => [r.orderId, r])
     );
-
     const receiptByToken = new Map(
         pixelReceipts
             .filter(r => r.checkoutToken)
             .map(r => [r.checkoutToken!, r])
     );
-
     function findReceiptForJob(job: { orderId: string; capiInput: unknown }): typeof pixelReceipts[0] | undefined {
-
         const byOrderId = receiptByOrderId.get(job.orderId);
         if (byOrderId) return byOrderId;
-
         if (job.capiInput && typeof job.capiInput === 'object') {
             const capiInput = job.capiInput as Record<string, unknown>;
             const webhookCheckoutToken = typeof capiInput.checkoutToken === 'string'
@@ -640,10 +616,8 @@ export async function getReconciliationDashboardData(
                 if (byToken) return byToken;
             }
         }
-
         return undefined;
     }
-
     const gapReasonCounts: Record<GapReason, number> = {
         no_pixel_receipt: 0,
         consent_denied: 0,
@@ -653,13 +627,9 @@ export async function getReconciliationDashboardData(
         platform_error: 0,
         unknown: 0,
     };
-
     for (const job of conversionJobs) {
-
         const receipt = findReceiptForJob(job);
-
         if (!receipt) {
-
             gapReasonCounts.no_pixel_receipt++;
         } else if (job.status === "limit_exceeded") {
             gapReasonCounts.billing_limit++;
@@ -678,23 +648,19 @@ export async function getReconciliationDashboardData(
             }
         }
     }
-
     const totalWebhookOrders = conversionJobs.length;
     const totalPixelReceipts = pixelReceipts.length;
     const totalGap = Math.max(0, totalWebhookOrders - totalPixelReceipts);
     const gapPercentage = totalWebhookOrders > 0
         ? (totalGap / totalWebhookOrders) * 100
         : 0;
-
     const sentLogs = conversionLogs.filter(l => l.status === "sent");
     const totalSentToPlatforms = new Set(sentLogs.map(l => l.orderId)).size;
     const matchRate = totalWebhookOrders > 0
         ? (totalSentToPlatforms / totalWebhookOrders) * 100
         : 0;
-
     const totalGapCount = Object.values(gapReasonCounts).reduce((a, b) => a + b, 0);
     const gapAnalysis: GapAnalysis[] = [];
-
     const reasonDescriptions: Record<GapReason, string> = {
         no_pixel_receipt: "用户未到达感谢页（提前关闭、upsell 中断等）",
         consent_denied: "用户未授权追踪同意（GDPR/CCPA）",
@@ -704,7 +670,6 @@ export async function getReconciliationDashboardData(
         platform_error: "平台 API 发送失败",
         unknown: "未知原因",
     };
-
     for (const [reason, count] of Object.entries(gapReasonCounts)) {
         if (count > 0) {
             gapAnalysis.push({
@@ -716,14 +681,12 @@ export async function getReconciliationDashboardData(
         }
     }
     gapAnalysis.sort((a, b) => b.count - a.count);
-
     const platforms = [...new Set(conversionLogs.map(l => l.platform))];
     const platformBreakdown = platforms.map(platform => {
         const platformLogs = conversionLogs.filter(l => l.platform === platform);
         const sentCount = platformLogs.filter(l => l.status === "sent").length;
         const uniqueOrders = new Set(platformLogs.map(l => l.orderId)).size;
         const gap = uniqueOrders - sentCount;
-
         return {
             platform,
             webhookOrders: uniqueOrders,
@@ -733,35 +696,29 @@ export async function getReconciliationDashboardData(
             gapPercentage: uniqueOrders > 0 ? (gap / uniqueOrders) * 100 : 0,
         };
     });
-
     const dailyStats = new Map<string, { webhook: number; pixel: number }>();
     for (let d = new Date(startDate); d < endDate; d.setUTCDate(d.getUTCDate() + 1)) {
         const dateStr = d.toISOString().split("T")[0];
         dailyStats.set(dateStr, { webhook: 0, pixel: 0 });
     }
-
     for (const job of conversionJobs) {
         const dateStr = new Date(job.createdAt).toISOString().split("T")[0];
         const stat = dailyStats.get(dateStr);
         if (stat) stat.webhook++;
     }
-
     for (const receipt of pixelReceipts) {
         const dateStr = new Date(receipt.createdAt).toISOString().split("T")[0];
         const stat = dailyStats.get(dateStr);
         if (stat) stat.pixel++;
     }
-
     const dailyTrend = Array.from(dailyStats.entries()).map(([date, stat]) => ({
         date,
         webhookOrders: stat.webhook,
         pixelReceipts: stat.pixel,
         gap: Math.max(0, stat.webhook - stat.pixel),
     }));
-
     let suggestedStrategy: string | null = null;
     let suggestionReason: string | null = null;
-
     if (currentStrategy === "strict" && gapPercentage > 15) {
         suggestedStrategy = "balanced";
         suggestionReason = `当前缺口率 ${gapPercentage.toFixed(1)}% 较高，切换到 balanced 策略可提高覆盖率`;
@@ -769,7 +726,6 @@ export async function getReconciliationDashboardData(
         suggestedStrategy = "strict";
         suggestionReason = `当前匹配率良好（缺口 ${gapPercentage.toFixed(1)}%），可考虑切换到 strict 策略增强数据质量`;
     }
-
     return {
         period: {
             startDate,

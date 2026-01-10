@@ -12,7 +12,6 @@ export const ShippingPriceSetSchema = z.object({
 
 export const GDPRCustomerSchema = z.object({
   id: z.number().optional(),
-
 });
 
 export const GDPRDataRequestPayloadSchema = z.object({
@@ -49,11 +48,9 @@ export type ValidationResult<T> =
 
 export function validateGDPRDataRequest(payload: unknown): ValidationResult<GDPRDataRequestPayloadInput> {
   const result = GDPRDataRequestPayloadSchema.safeParse(payload);
-
   if (result.success) {
     return { success: true, data: result.data };
   }
-
   return {
     success: false,
     error: result.error.issues[0]?.message || 'Invalid GDPR data request payload',
@@ -63,11 +60,9 @@ export function validateGDPRDataRequest(payload: unknown): ValidationResult<GDPR
 
 export function validateGDPRCustomerRedact(payload: unknown): ValidationResult<GDPRCustomerRedactPayloadInput> {
   const result = GDPRCustomerRedactPayloadSchema.safeParse(payload);
-
   if (result.success) {
     return { success: true, data: result.data };
   }
-
   return {
     success: false,
     error: result.error.issues[0]?.message || 'Invalid GDPR customer redact payload',
@@ -77,11 +72,9 @@ export function validateGDPRCustomerRedact(payload: unknown): ValidationResult<G
 
 export function validateGDPRShopRedact(payload: unknown): ValidationResult<GDPRShopRedactPayloadInput> {
   const result = GDPRShopRedactPayloadSchema.safeParse(payload);
-
   if (result.success) {
     return { success: true, data: result.data };
   }
-
   return {
     success: false,
     error: result.error.issues[0]?.message || 'Invalid GDPR shop redact payload',

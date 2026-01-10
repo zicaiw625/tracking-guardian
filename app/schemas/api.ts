@@ -23,23 +23,18 @@ export const LineItemSchema = z.object({
 export type LineItem = z.infer<typeof LineItemSchema>;
 
 export const PixelEventSchema = z.object({
-
   event: z.string().min(1).max(100),
   shopDomain: z.string().min(1).max(255),
   orderId: OrderIdSchema,
   timestamp: z.number().int().positive(),
-
   checkoutToken: z.string().max(100).optional(),
   eventId: z.string().max(100).optional(),
   clientId: z.string().max(100).optional(),
-
   analyticsConsent: ConsentStateSchema.optional(),
   marketingConsent: ConsentStateSchema.optional(),
-
   currency: z.string().length(3).optional(),
   value: z.number().min(0).optional(),
   lineItems: z.array(LineItemSchema).max(100).optional(),
-
   userAgent: z.string().max(500).optional(),
   pageUrl: z.string().url().max(2000).optional(),
 });

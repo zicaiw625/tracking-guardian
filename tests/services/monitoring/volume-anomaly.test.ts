@@ -21,11 +21,9 @@ describe("Event Volume Anomaly Detection", () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
-
   describe("calculateBaseline", () => {
     it("should calculate 7-day average baseline", async () => {
       const shopId = "shop-1";
-
       vi.mocked(prisma.conversionLog.groupBy).mockResolvedValue([
         {
           day: new Date(),
@@ -40,85 +38,63 @@ describe("Event Volume Anomaly Detection", () => {
           _count: { id: 110 },
         },
       ] as any);
-
       const result = await calculateBaseline(shopId, 7);
-
       expect(result).toBeDefined();
       expect(result.average).toBeGreaterThan(0);
       expect(result.median).toBeGreaterThan(0);
     });
-
     it("should calculate 30-day baseline", async () => {
       const shopId = "shop-1";
-
       vi.mocked(prisma.conversionLog.groupBy).mockResolvedValue([]);
-
       const result = await calculateBaseline(shopId, 30);
-
       expect(result).toBeDefined();
       expect(result.average).toBeGreaterThanOrEqual(0);
     });
   });
-
   describe("detectVolumeAnomaly", () => {
     it("should detect significant volume drop", async () => {
       const shopId = "shop-1";
       const hours = 24;
-
       vi.mocked(prisma.conversionLog.groupBy).mockResolvedValueOnce([
         {
           day: new Date(),
           _count: { id: 100 },
         },
       ] as any);
-
       vi.mocked(prisma.conversionLog.count).mockResolvedValue(30);
-
       const result = await detectVolumeAnomaly(shopId, hours);
-
       expect(result).toBeDefined();
       expect(result.hasAnomaly).toBe(true);
       expect(result.dropPercentage).toBeGreaterThan(50);
     });
-
     it("should not detect anomaly for normal volume", async () => {
       const shopId = "shop-1";
       const hours = 24;
-
       vi.mocked(prisma.conversionLog.groupBy).mockResolvedValueOnce([
         {
           day: new Date(),
           _count: { id: 100 },
         },
       ] as any);
-
       vi.mocked(prisma.conversionLog.count).mockResolvedValue(95);
-
       const result = await detectVolumeAnomaly(shopId, hours);
-
       expect(result.hasAnomaly).toBe(false);
     });
-
     it("should calculate Z-Score correctly", async () => {
       const shopId = "shop-1";
       const hours = 24;
-
       vi.mocked(prisma.conversionLog.groupBy).mockResolvedValueOnce([
         {
           day: new Date(),
           _count: { id: 100 },
         },
       ] as any);
-
       vi.mocked(prisma.conversionLog.count).mockResolvedValue(30);
-
       const result = await detectVolumeAnomaly(shopId, hours);
-
       expect(result.zScore).toBeDefined();
       expect(typeof result.zScore).toBe("number");
     });
   });
-
   describe("checkVolumeDropAlerts", () => {
     it("should trigger alert when drop percentage exceeds threshold", () => {
       const anomaly: VolumeAnomalyResult = {
@@ -138,17 +114,14 @@ describe("Event Volume Anomaly Detection", () => {
           change: -70,
         },
       };
-
       const result = checkVolumeDropAlerts(anomaly, {
         dropThreshold: 0.5,
         zScoreThreshold: 2.0,
         minVolume: 10,
       });
-
       expect(result.hasAlert).toBe(true);
       expect(result.alertLevel).toBe("critical");
     });
-
     it("should not trigger alert when volume is too low", () => {
       const anomaly: VolumeAnomalyResult = {
         hasAnomaly: true,
@@ -167,13 +140,11 @@ describe("Event Volume Anomaly Detection", () => {
           change: -50,
         },
       };
-
       const result = checkVolumeDropAlerts(anomaly, {
         dropThreshold: 0.5,
         zScoreThreshold: 2.0,
         minVolume: 20,
       });
-
       expect(result.hasAlert).toBe(false);
     });
   });

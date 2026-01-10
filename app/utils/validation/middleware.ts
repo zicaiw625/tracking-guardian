@@ -28,7 +28,6 @@ export function withValidationMiddleware<TInput, TOutput>(
 ): (args: LoaderFunctionArgs | ActionFunctionArgs) => Promise<TOutput | Response> {
   return async (args) => {
     let result: Result<TInput, AppError>;
-
     switch (options.source) {
       case "json":
         result = await validateJsonBodyResult(args.request, schema);
@@ -43,11 +42,9 @@ export function withValidationMiddleware<TInput, TOutput>(
         result = validateParamsResult(args.params, schema);
         break;
     }
-
     if (!result.ok) {
       return createValidationErrorResponse(result.error, options.errorPrefix);
     }
-
     return handler(args, result.value);
   };
 }
@@ -57,21 +54,17 @@ export function createValidationErrorResponse(
   prefix?: string
 ): Response {
   const message = prefix ? `${prefix}: ${error.message}` : error.message;
-
   const errorDetail: ApiErrorResponse["error"] = {
     code: error.code,
     message,
   };
-
   if (error.metadata.field) {
     errorDetail.field = String(error.metadata.field);
   }
-
   const body: ApiErrorResponse = {
     success: false,
     error: errorDetail,
   };
-
   return json(body, { status: 400 });
 }
 
@@ -81,11 +74,9 @@ export function withValidationHandler<T, R>(
 ): (request: Request) => Promise<R | Response> {
   return async (request: Request) => {
     const result = await validator(request);
-
     if (!result.success) {
       return createSimpleValidationErrorResponse(result.error, result.details);
     }
-
     return handler(result.data, request);
   };
 }

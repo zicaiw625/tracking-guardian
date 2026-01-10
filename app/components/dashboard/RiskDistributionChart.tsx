@@ -43,7 +43,6 @@ interface RiskDistributionChartProps {
 
 export function RiskDistributionChart({ distribution }: RiskDistributionChartProps) {
   const [viewMode] = useState<"risk" | "category" | "platform">("risk");
-
   const riskLevelData = useMemo(() => {
     return {
       labels: ["高风险", "中风险", "低风险"],
@@ -70,7 +69,6 @@ export function RiskDistributionChart({ distribution }: RiskDistributionChartPro
       ],
     };
   }, [distribution.byRiskLevel]);
-
   const categoryData = useMemo(() => {
     const categoryLabels: Record<string, string> = {
       pixel: "像素追踪",
@@ -80,11 +78,9 @@ export function RiskDistributionChart({ distribution }: RiskDistributionChartPro
       analytics: "分析工具",
       other: "其他",
     };
-
     const categories = Object.entries(distribution.byCategory)
       .filter(([_, count]) => count > 0)
       .sort(([_, a], [__, b]) => b - a);
-
     return {
       labels: categories.map(([cat]) => categoryLabels[cat] || cat),
       datasets: [
@@ -112,17 +108,14 @@ export function RiskDistributionChart({ distribution }: RiskDistributionChartPro
       ],
     };
   }, [distribution.byCategory]);
-
   const platformData = useMemo(() => {
     const platforms = Object.entries(distribution.byPlatform)
       .filter(([_, count]) => count > 0)
       .sort(([_, a], [__, b]) => b - a)
       .slice(0, 8);
-
     if (platforms.length === 0) {
       return null;
     }
-
     return {
       labels: platforms.map(([platform]) => platform),
       datasets: [
@@ -136,7 +129,6 @@ export function RiskDistributionChart({ distribution }: RiskDistributionChartPro
       ],
     };
   }, [distribution.byPlatform]);
-
   const chartOptions = {
     responsive: true,
     maintainAspectRatio: false,
@@ -151,7 +143,6 @@ export function RiskDistributionChart({ distribution }: RiskDistributionChartPro
       },
     },
   };
-
   const doughnutOptions = {
     responsive: true,
     maintainAspectRatio: false,
@@ -177,11 +168,9 @@ export function RiskDistributionChart({ distribution }: RiskDistributionChartPro
       },
     },
   };
-
   const totalAssets = distribution.byRiskLevel.high +
     distribution.byRiskLevel.medium +
     distribution.byRiskLevel.low;
-
   return (
     <Card>
       {totalAssets === 0 ? (
@@ -248,7 +237,6 @@ export function RiskDistributionChart({ distribution }: RiskDistributionChartPro
                 </BlockStack>
               </BlockStack>
             )}
-
             {viewMode === "category" && Object.values(distribution.byCategory).some(count => count > 0) && (
               <BlockStack gap="300">
                 <Box minHeight="250px">
@@ -279,7 +267,6 @@ export function RiskDistributionChart({ distribution }: RiskDistributionChartPro
                 </BlockStack>
               </BlockStack>
             )}
-
             {viewMode === "platform" && platformData && (
               <BlockStack gap="300">
                 <Box minHeight="250px">

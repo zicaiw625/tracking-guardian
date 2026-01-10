@@ -4,6 +4,7 @@ import {
   View,
   Text,
   Button,
+  Link,
   Divider,
   useApi,
   useSettings,
@@ -22,7 +23,6 @@ function SurveyModule({
 }) {
   const [selectedOption, setSelectedOption] = useState<string | null>(null);
   const [submitted, setSubmitted] = useState(false);
-
   if (submitted) {
     return (
       <View>
@@ -30,7 +30,6 @@ function SurveyModule({
       </View>
     );
   }
-
   return (
     <View border="base" cornerRadius="base" padding="base">
       <BlockStack spacing="base">
@@ -69,48 +68,20 @@ function HelpModule({
   faqUrl?: string;
   supportUrl?: string;
 }) {
-  const api = useApi();
-  
-  const handleFaqClick = async () => {
-    if (faqUrl) {
-      try {
-        await api.fetch(faqUrl, { method: "GET" });
-      } catch (error) {
-        console.error("Failed to open FAQ URL:", error);
-      }
-    }
-  };
-
-  const handleSupportClick = async () => {
-    if (supportUrl) {
-      try {
-        await api.fetch(supportUrl, { method: "GET" });
-      } catch (error) {
-        console.error("Failed to open support URL:", error);
-      }
-    }
-  };
-
   return (
     <View border="base" cornerRadius="base" padding="base">
       <BlockStack spacing="base">
         <Text size="medium" emphasis="bold">需要帮助？</Text>
         <BlockStack spacing="tight">
           {faqUrl && (
-            <Button
-              kind="secondary"
-              onPress={handleFaqClick}
-            >
-              查看常见问题
-            </Button>
+            <Link to={faqUrl} external>
+              <Text>查看常见问题</Text>
+            </Link>
           )}
           {supportUrl && (
-            <Button
-              kind="secondary"
-              onPress={handleSupportClick}
-            >
-              联系客服
-            </Button>
+            <Link to={supportUrl} external>
+              <Text>联系客服</Text>
+            </Link>
           )}
         </BlockStack>
       </BlockStack>
@@ -125,13 +96,11 @@ function ReorderModule({
 }) {
   const api = useApi();
   const [loading, setLoading] = useState(false);
-
   const handleReorder = async () => {
     setLoading(true);
     try {
       const purchase = (api as any).purchase;
       let orderId: string | undefined;
-      
       if (purchase?.order?.id) {
         orderId = purchase.order.id;
       } else if (purchase?.orderId) {
@@ -139,13 +108,11 @@ function ReorderModule({
       } else if ((api as any).order?.id) {
         orderId = (api as any).order.id;
       }
-
       if (!orderId) {
         console.error("Reorder failed: No order ID available from checkout API. Purchase object:", purchase);
         setLoading(false);
         return;
       }
-
       const response = await api.fetch(`${BUILD_TIME_URL}/api/reorder`, {
         method: "POST",
         headers: {
@@ -155,7 +122,6 @@ function ReorderModule({
           orderId: orderId,
         }),
       });
-
       if (response.ok) {
         const data = await response.json();
       }
@@ -165,7 +131,6 @@ function ReorderModule({
       setLoading(false);
     }
   };
-
   return (
     <View border="base" cornerRadius="base" padding="base">
       <Button 
@@ -183,19 +148,15 @@ function ThankYouBlocks() {
   const api = useApi();
   const settings = useSettings();
   const [surveySubmitted, setSurveySubmitted] = useState(false);
-
   const surveyEnabled = settings.survey_enabled ?? true;
   const surveyQuestion = settings.survey_question ?? "您对我们的服务满意吗？";
   const surveyOptions = (settings.survey_options as string)?.split(",") || 
     ["非常满意", "满意", "一般", "不满意"];
-  
   const helpEnabled = settings.help_enabled ?? true;
   const helpFaqUrl = settings.help_faq_url as string | undefined;
   const helpSupportUrl = settings.help_support_url as string | undefined;
-  
   const reorderEnabled = settings.reorder_enabled ?? false;
   const reorderButtonText = (settings.reorder_button_text as string) || "再次购买";
-
   const handleSurveySubmit = async (selectedOption: string) => {
     try {
       await api.fetch(`${BUILD_TIME_URL}/api/survey`, {
@@ -213,7 +174,6 @@ function ThankYouBlocks() {
       console.error("Survey submission failed:", error);
     }
   };
-
   return (
     <BlockStack spacing="base">
       {surveyEnabled && (
@@ -226,7 +186,6 @@ function ThankYouBlocks() {
           <Divider />
         </>
       )}
-
       {helpEnabled && (
         <>
           <HelpModule
@@ -236,7 +195,6 @@ function ThankYouBlocks() {
           <Divider />
         </>
       )}
-
       {reorderEnabled && (
         <ReorderModule buttonText={reorderButtonText} />
       )}

@@ -9,7 +9,6 @@ export {
   type ShopStatus,
   createShop,
   getShopStatus,
-
   isWithinUsageLimits,
   getAllowedDomains,
   isDomainAllowed,

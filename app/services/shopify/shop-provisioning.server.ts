@@ -33,7 +33,6 @@ async function fetchShopInfo(
 ): Promise<ShopInfo> {
   let primaryDomainHost: string | null = null;
   let shopTier: ShopTierValue = "unknown";
-
   try {
     const shopQuery = await admin.graphql(`
       query {
@@ -50,23 +49,19 @@ async function fetchShopInfo(
         }
       }
     `);
-
     const shopData = (await shopQuery.json()) as ShopQueryResponse;
     primaryDomainHost = shopData?.data?.shop?.primaryDomain?.host || null;
-
     const plan = shopData?.data?.shop?.plan;
     if (plan?.shopifyPlus === true) {
       shopTier = "plus";
     } else if (plan) {
       shopTier = "non_plus";
     }
-
     if (primaryDomainHost) {
       logger.info(`[Shop] Fetched primary domain for ${shopDomain}`, {
         primaryDomain: primaryDomainHost,
       });
     }
-
     logger.info(`[Shop] Determined shopTier for ${shopDomain}`, {
       shopTier,
       isPlus: plan?.shopifyPlus,
@@ -77,7 +72,6 @@ async function fetchShopInfo(
       error: error instanceof Error ? error.message : String(error),
     });
   }
-
   return { primaryDomain: primaryDomainHost, shopTier };
 }
 
@@ -90,13 +84,10 @@ async function upsertShopRecord(
     where: { shopDomain },
     select: { ingestionSecret: true },
   });
-
   const encryptedAccessToken = accessToken
     ? encryptAccessToken(accessToken)
     : null;
-
   const newIngestionSecret = generateEncryptedIngestionSecret();
-
   await prisma.shop.upsert({
     where: { shopDomain },
     update: {
@@ -118,7 +109,6 @@ async function upsertShopRecord(
       updatedAt: new Date(),
     },
   });
-
   if (existingShop && !existingShop.ingestionSecret) {
     const secretForExisting = generateEncryptedIngestionSecret();
     await prisma.shop.update({
@@ -136,57 +126,43 @@ async function runPostInstallScan(
   const startTime = Date.now();
   const MAX_SCAN_TIME_MS = 10000;
   const FAST_TRACK_MS = 8000;
-
   try {
     logger.info(`[PostInstall] Starting automatic health check for ${shopDomain}`);
-
     type TypOspResult = Awaited<ReturnType<typeof refreshTypOspStatus>>;
     type ScanResult = Awaited<ReturnType<typeof scanShopTracking>>;
-
     const typOspPromise = refreshTypOspStatus(admin, shopId);
     const scanTrackingPromise = scanShopTracking(admin, shopId, {
       force: false,
       cacheTtlMs: 0,
     });
-
     const scanPromise = Promise.allSettled([
       typOspPromise,
       scanTrackingPromise,
     ]);
-
     let timeoutId: NodeJS.Timeout | null = null;
-
     const timeoutPromise = new Promise<never>((_, reject) => {
       timeoutId = setTimeout(() => {
         reject(new Error("Scan timeout"));
       }, MAX_SCAN_TIME_MS);
     });
-
     let typOspResult: PromiseSettledResult<TypOspResult> | null = null;
     let scanResult: PromiseSettledResult<ScanResult> | null = null;
-
     try {
-
       await Promise.race([scanPromise, timeoutPromise]);
-
       const results = await scanPromise;
       [typOspResult, scanResult] = results;
-
       if (timeoutId !== null) {
         clearTimeout(timeoutId);
         timeoutId = null;
       }
     } catch (timeoutError) {
-
       if (timeoutId !== null) {
         clearTimeout(timeoutId);
         timeoutId = null;
       }
-
       logger.warn(`[PostInstall] Scan timeout for ${shopDomain}, proceeding with partial results`, {
         elapsedMs: Date.now() - startTime,
       });
-
       try {
         const partialResults = await scanPromise;
         [typOspResult, scanResult] = partialResults;
@@ -196,7 +172,6 @@ async function runPostInstallScan(
         });
       }
     }
-
     if (typOspResult?.status === "fulfilled") {
       logger.info(`[PostInstall] TypOsp status checked for ${shopDomain}`, {
         enabled: typOspResult.value.typOspPagesEnabled,
@@ -207,7 +182,6 @@ async function runPostInstallScan(
         error: typOspResult.reason instanceof Error ? typOspResult.reason.message : String(typOspResult.reason),
       });
     }
-
     let scanData: Awaited<ReturnType<typeof scanShopTracking>> | null = null;
     if (scanResult?.status === "fulfilled") {
       scanData = scanResult.value;
@@ -222,22 +196,17 @@ async function runPostInstallScan(
         error: scanResult.reason instanceof Error ? scanResult.reason.message : String(scanResult.reason),
       });
     }
-
     const elapsedMs = Date.now() - startTime;
     const hasTimeForAssets = elapsedMs < FAST_TRACK_MS;
     const hasScanData = scanData && (scanData.scriptTags.length > 0 || scanData.identifiedPlatforms.length > 0);
-
     if (hasTimeForAssets && hasScanData) {
       try {
-
         const shop = await prisma.shop.findUnique({
           where: { id: shopId },
           select: { shopTier: true },
         });
-
         const shopTier = (shop?.shopTier as "plus" | "non_plus" | null) || null;
         const migrationActions = scanData ? generateMigrationActions(scanData, shopTier || "unknown") : [];
-
         const auditAssets: AuditAssetInput[] = migrationActions.map((action) => ({
           displayName: action.title,
           category: action.type === "configure_pixel" ? "pixel" : "other",
@@ -252,21 +221,17 @@ async function runPostInstallScan(
             estimatedTimeMinutes: action.estimatedTimeMinutes,
           },
         }));
-
         if (auditAssets.length > 0) {
           const latestScan = await prisma.scanReport.findFirst({
             where: { shopId },
             orderBy: { createdAt: "desc" },
             select: { id: true },
           });
-
           const result = await batchCreateAuditAssets(shopId, auditAssets, latestScan?.id);
           logger.info(`[PostInstall] Created ${result.created} audit assets, updated ${result.updated} for ${shopDomain}`, {
             elapsedMs: Date.now() - startTime,
           });
-
           if (result.created > 0 || result.updated > 0) {
-
             (async () => {
               try {
                 await calculateAllAssetPriorities(shopId, shopTier);
@@ -285,7 +250,6 @@ async function runPostInstallScan(
                 errorMessage,
               });
             });
-
             (async () => {
               try {
                 const migrationTimeline = await generateMigrationTimeline(shopId);
@@ -316,19 +280,15 @@ async function runPostInstallScan(
         });
       }
     } else if (hasScanData && !hasTimeForAssets) {
-
       logger.info(`[PostInstall] Time limit reached, deferring audit asset creation for ${shopDomain}`);
       (async () => {
         try {
-
           const shop = await prisma.shop.findUnique({
             where: { id: shopId },
             select: { shopTier: true },
           });
-
           const shopTier = (shop?.shopTier as "plus" | "non_plus" | null) || null;
           const migrationActions = generateMigrationActions(scanData!, shopTier || "unknown");
-
           const auditAssets: AuditAssetInput[] = migrationActions.map((action) => ({
             displayName: action.title,
             category: action.type === "configure_pixel" ? "pixel" : "other",
@@ -343,14 +303,12 @@ async function runPostInstallScan(
               estimatedTimeMinutes: action.estimatedTimeMinutes,
             },
           }));
-
           if (auditAssets.length > 0) {
             const latestScan = await prisma.scanReport.findFirst({
               where: { shopId },
               orderBy: { createdAt: "desc" },
               select: { id: true },
             });
-
             await batchCreateAuditAssets(shopId, auditAssets, latestScan?.id);
             logger.info(`[PostInstall] Deferred audit assets created for ${shopDomain}`);
           }
@@ -369,7 +327,6 @@ async function runPostInstallScan(
         });
       });
     }
-
     const totalElapsedMs = Date.now() - startTime;
     logger.info(`[PostInstall] Health check completed for ${shopDomain}`, {
       elapsedMs: totalElapsedMs,
@@ -388,7 +345,6 @@ export async function handleAfterAuth(
   params: AfterAuthParams
 ): Promise<void> {
   const { session, admin } = params;
-
   if (admin) {
     try {
       await cleanupDeprecatedWebhookSubscriptions(admin, session.shop);
@@ -401,26 +357,20 @@ export async function handleAfterAuth(
       });
     }
   }
-
   const shopInfo = admin
     ? await fetchShopInfo(admin, session.shop)
     : { primaryDomain: null, shopTier: "unknown" as ShopTierValue };
-
   const existingShop = await prisma.shop.findUnique({
     where: { shopDomain: session.shop },
     select: { id: true, installedAt: true },
   });
-
   const isNewInstall = !existingShop || !existingShop.installedAt;
-
   await upsertShopRecord(session.shop, session.accessToken, shopInfo);
-
   if (isNewInstall && admin) {
     const shop = await prisma.shop.findUnique({
       where: { shopDomain: session.shop },
       select: { id: true, plan: true },
     });
-
     if (shop) {
             safeFireAndForget(
         (async () => {
@@ -448,7 +398,6 @@ export async function handleAfterAuth(
           },
         }
       );
-
       safeFireAndForget(
         runPostInstallScan(session.shop, shop.id, admin),
         {

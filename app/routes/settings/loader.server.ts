@@ -12,7 +12,6 @@ export async function settingsLoader({ request }: LoaderFunctionArgs) {
   try {
     const { session } = await authenticate.admin(request);
     const shopDomain = session.shop;
-
     const shop = await prisma.shop.findUnique({
       where: { shopDomain },
       select: {
@@ -21,11 +20,9 @@ export async function settingsLoader({ request }: LoaderFunctionArgs) {
         ingestionSecret: true,
         previousIngestionSecret: true,
         previousSecretExpiry: true,
-
         weakConsentMode: true,
         consentStrategy: true,
         dataRetentionDays: true,
-
         pixelConfigs: {
           where: { isActive: true },
           select: {
@@ -43,7 +40,6 @@ export async function settingsLoader({ request }: LoaderFunctionArgs) {
         },
       },
     });
-    // AlertConfig 表已被移除，返回空数组
     const alertConfigsFromShop: Array<{
       id: string;
       channel: string;
@@ -52,7 +48,6 @@ export async function settingsLoader({ request }: LoaderFunctionArgs) {
       discrepancyThreshold: number;
       isEnabled: boolean;
     }> = [];
-
     let tokenIssues = { hasIssues: false, affectedPlatforms: [] as string[] };
     if (shop) {
       try {
@@ -61,15 +56,11 @@ export async function settingsLoader({ request }: LoaderFunctionArgs) {
         logger.error("Failed to check token expiration issues", { error, shopId: shop.id });
       }
     }
-
     const hasActiveGraceWindow =
       shop?.previousIngestionSecret &&
       shop?.previousSecretExpiry &&
       new Date() < shop.previousSecretExpiry;
-
-    // AlertConfig 表已被移除，返回空数组
     const alertConfigs: AlertConfigDisplay[] = [];
-
     const pixelConfigs: PixelConfigDisplay[] = shop?.pixelConfigs?.map((config: {
       id: string;
       platform: string;
@@ -93,13 +84,11 @@ export async function settingsLoader({ request }: LoaderFunctionArgs) {
       rollbackAllowed: config.rollbackAllowed,
       lastTestedAt: config.updatedAt,
     })) ?? [];
-
     let currentMonitoringData: {
       failureRate: number;
       missingParamsRate: number;
       volumeDrop: number;
     } | null = null;
-
     if (shop) {
       try {
         const [monitoringStats, missingParamsStats, volumeStats] = await Promise.all([
@@ -107,13 +96,11 @@ export async function settingsLoader({ request }: LoaderFunctionArgs) {
           getMissingParamsStats(shop.id, 24),
           getEventVolumeStats(shop.id),
         ]);
-
         const totalWithMissingParams = missingParamsStats.reduce((sum, s) => sum + s.count, 0);
         const missingParamsRate =
           monitoringStats.totalEvents > 0
             ? (totalWithMissingParams / monitoringStats.totalEvents) * 100
             : 0;
-
         currentMonitoringData = {
           failureRate: monitoringStats.failureRate,
           missingParamsRate,
@@ -123,7 +110,6 @@ export async function settingsLoader({ request }: LoaderFunctionArgs) {
         logger.error("Failed to fetch monitoring data for preview", { error });
       }
     }
-
     const data: SettingsLoaderData = {
       shop: shop
         ? {
@@ -138,19 +124,16 @@ export async function settingsLoader({ request }: LoaderFunctionArgs) {
             graceWindowExpiry: hasActiveGraceWindow && shop.previousSecretExpiry
               ? shop.previousSecretExpiry
               : null,
-
             weakConsentMode: shop.weakConsentMode,
             consentStrategy: shop.consentStrategy || "strict",
             dataRetentionDays: shop.dataRetentionDays,
           }
         : null,
       tokenIssues,
-
       pcdApproved: false,
       pcdStatusMessage: "v1.0 版本不包含任何 PCD/PII 处理功能",
       currentMonitoringData,
     };
-
     return json(data);
   } catch (error) {
     logger.error("Settings loader error", error);

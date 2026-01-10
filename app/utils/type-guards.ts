@@ -68,11 +68,9 @@ export function isPixelTemplateConfig(
   if (!isObject(value)) {
     return false;
   }
-
   if (typeof value.platform !== "string") {
     return false;
   }
-
   if (
     "eventMappings" in value &&
     value.eventMappings !== undefined &&
@@ -82,7 +80,6 @@ export function isPixelTemplateConfig(
   ) {
     return false;
   }
-
   if (
     "clientSideEnabled" in value &&
     value.clientSideEnabled !== undefined &&
@@ -90,7 +87,6 @@ export function isPixelTemplateConfig(
   ) {
     return false;
   }
-
   if (
     "serverSideEnabled" in value &&
     value.serverSideEnabled !== undefined &&
@@ -98,7 +94,6 @@ export function isPixelTemplateConfig(
   ) {
     return false;
   }
-
   return true;
 }
 
@@ -134,7 +129,6 @@ export function isPrismaError(error: unknown): error is Error & PrismaError {
   if (!(error instanceof Error)) {
     return false;
   }
-
   const err = error as Error & { code?: unknown; meta?: unknown };
   return (
     typeof err.code === "string" &&

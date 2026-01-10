@@ -26,37 +26,26 @@ export interface AlertHistory {
 
 export async function runAlertChecks(shopId: string): Promise<AlertCheckResult[]> {
   const results: AlertCheckResult[] = [];
-
-  
   const failureRateResult = await checkFailureRate(shopId);
   if (failureRateResult.triggered) {
     results.push(failureRateResult);
   }
-
-  
   const missingParamsResult = await checkMissingParams(shopId);
   if (missingParamsResult.triggered) {
     results.push(missingParamsResult);
   }
-
-  
   const volumeDropResult = await checkVolumeDrop(shopId);
   if (volumeDropResult.triggered) {
     results.push(volumeDropResult);
   }
-
-  
   const dedupResult = await checkDedupConflicts(shopId);
   if (dedupResult.triggered) {
     results.push(dedupResult);
   }
-
-  
   const heartbeatResult = await checkPixelHeartbeat(shopId);
   if (heartbeatResult.triggered) {
     results.push(heartbeatResult);
   }
-
   return results;
 }
 
@@ -65,7 +54,6 @@ export async function runAllShopAlertChecks(): Promise<void> {
     where: { isActive: true },
     select: { id: true },
   });
-
   for (const shop of shops) {
     try {
       const results = await runAlertChecks(shop.id);
@@ -81,7 +69,6 @@ export async function runAllShopAlertChecks(): Promise<void> {
 export async function checkFailureRate(shopId: string, threshold: number = 0.1): Promise<AlertCheckResult> {
   const stats = await getEventMonitoringStats(shopId);
   const failureRate = stats.failureRate / 100;
-
   if (failureRate > threshold) {
     return {
       triggered: true,
@@ -90,14 +77,12 @@ export async function checkFailureRate(shopId: string, threshold: number = 0.1):
       details: { failureRate, threshold, stats },
     };
   }
-
   return { triggered: false, severity: "low", message: "" };
 }
 
 export async function checkMissingParams(shopId: string, threshold: number = 0.1): Promise<AlertCheckResult> {
   const stats = await getMissingParamsStats(shopId);
   const missingRate = stats.missingParamsRate / 100;
-
   if (missingRate > threshold) {
     return {
       triggered: true,
@@ -106,14 +91,12 @@ export async function checkMissingParams(shopId: string, threshold: number = 0.1
       details: { missingRate, threshold, stats },
     };
   }
-
   return { triggered: false, severity: "low", message: "" };
 }
 
 export async function checkVolumeDrop(shopId: string, threshold: number = 0.2): Promise<AlertCheckResult> {
   const anomaly = await detectVolumeAnomaly(shopId);
   const dropPercent = -anomaly.deviationPercent / 100;
-
   if (dropPercent > threshold) {
     return {
       triggered: true,
@@ -122,12 +105,10 @@ export async function checkVolumeDrop(shopId: string, threshold: number = 0.2): 
       details: { dropPercent, threshold, anomaly },
     };
   }
-
   return { triggered: false, severity: "low", message: "" };
 }
 
 export async function checkDedupConflicts(shopId: string): Promise<AlertCheckResult> {
-  
   return { triggered: false, severity: "low", message: "" };
 }
 
@@ -139,7 +120,6 @@ export async function checkPixelHeartbeat(shopId: string): Promise<AlertCheckRes
       pixelTimestamp: { gte: oneHourAgo },
     },
   });
-
   if (recentEvents === 0) {
     return {
       triggered: true,
@@ -148,7 +128,6 @@ export async function checkPixelHeartbeat(shopId: string): Promise<AlertCheckRes
       details: { recentEvents },
     };
   }
-
   return { triggered: false, severity: "low", message: "" };
 }
 
@@ -159,15 +138,12 @@ async function dispatchAlerts(shopId: string, results: AlertCheckResult[]): Prom
       isEnabled: true,
     },
   });
-
   for (const config of configs) {
     try {
       const settings = config.settingsEncrypted
         ? await decryptAlertSettings(config.settingsEncrypted)
         : (config.settings as AlertSettings | null);
-
       if (!settings) continue;
-
       for (const result of results) {
         await sendAlert({
           channel: config.channel as "email" | "slack" | "telegram",
@@ -177,7 +153,6 @@ async function dispatchAlerts(shopId: string, results: AlertCheckResult[]): Prom
           severity: result.severity,
         });
       }
-
       await prisma.alertConfig.update({
         where: { id: config.id },
         data: { lastAlertAt: new Date() },
@@ -189,19 +164,16 @@ async function dispatchAlerts(shopId: string, results: AlertCheckResult[]): Prom
 }
 
 export async function getAlertHistory(shopId: string, limit: number = 50): Promise<AlertHistory[]> {
-  
   return [];
 }
 
 export async function acknowledgeAlert(alertId: string): Promise<void> {
-  
   logger.info("Alert acknowledged", { alertId });
 }
 
 export async function getThresholdRecommendations(shopId: string): Promise<Record<string, number>> {
   const stats = await getEventMonitoringStats(shopId);
   const volumeStats = await getEventVolumeStats(shopId);
-
   return {
     failureRate: Math.max(0.05, stats.failureRate / 100 * 1.5),
     missingParams: 0.1,
@@ -214,22 +186,18 @@ export async function testThresholds(
   thresholds: { failureRate?: number; missingParams?: number; volumeDrop?: number }
 ): Promise<{ triggered: boolean; results: AlertCheckResult[] }> {
   const results: AlertCheckResult[] = [];
-
   if (thresholds.failureRate !== undefined) {
     const result = await checkFailureRate(shopId, thresholds.failureRate);
     results.push(result);
   }
-
   if (thresholds.missingParams !== undefined) {
     const result = await checkMissingParams(shopId, thresholds.missingParams);
     results.push(result);
   }
-
   if (thresholds.volumeDrop !== undefined) {
     const result = await checkVolumeDrop(shopId, thresholds.volumeDrop);
     results.push(result);
   }
-
   return {
     triggered: results.some((r) => r.triggered),
     results,

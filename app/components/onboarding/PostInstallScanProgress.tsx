@@ -25,14 +25,12 @@ export function PostInstallScanProgress({
   const [currentStep, setCurrentStep] = useState(0);
   const [scanStatus, setScanStatus] = useState<"scanning" | "completed" | "error">("scanning");
   const revalidator = useRevalidator();
-
   const steps = [
     { label: "检查升级状态", duration: 2000 },
     { label: "扫描 ScriptTags", duration: 3000 },
     { label: "识别追踪平台", duration: 2000 },
     { label: "生成迁移清单", duration: 2000 },
   ];
-
   useEffect(() => {
     let accumulatedTime = 0;
     const totalDuration = steps.reduce((sum, step) => sum + step.duration, 0);
@@ -40,7 +38,6 @@ export function PostInstallScanProgress({
     let completionTimeout: ReturnType<typeof setTimeout> | null = null;
     let mainInterval: ReturnType<typeof setInterval> | null = null;
     let isMounted = true;
-
     mainInterval = setInterval(() => {
       if (!isMounted) {
         if (mainInterval) {
@@ -49,11 +46,9 @@ export function PostInstallScanProgress({
         }
         return;
       }
-
       accumulatedTime += 100;
       const newProgress = Math.min((accumulatedTime / totalDuration) * 100, 95);
       setProgress(newProgress);
-
       let stepAccumulated = 0;
       for (let i = 0; i < steps.length; i++) {
         stepAccumulated += steps[i].duration;
@@ -62,13 +57,11 @@ export function PostInstallScanProgress({
           break;
         }
       }
-
       if (accumulatedTime >= totalDuration) {
         if (mainInterval) {
           clearInterval(mainInterval);
           mainInterval = null;
         }
-
         if (isMounted) {
           checkInterval = setInterval(() => {
             if (!isMounted) {
@@ -80,7 +73,6 @@ export function PostInstallScanProgress({
             }
             revalidator.revalidate();
           }, 2000);
-
           completionTimeout = setTimeout(() => {
             if (!isMounted) return;
             if (checkInterval) {
@@ -96,10 +88,8 @@ export function PostInstallScanProgress({
         }
       }
     }, 100);
-
     return () => {
       isMounted = false;
-
       if (mainInterval) {
         clearInterval(mainInterval);
         mainInterval = null;
@@ -114,7 +104,6 @@ export function PostInstallScanProgress({
       }
     };
   }, [onComplete, revalidator]);
-
   return (
     <Card>
       <BlockStack gap="400">
@@ -124,9 +113,7 @@ export function PostInstallScanProgress({
           </Text>
           <Badge tone="info">进行中</Badge>
         </InlineStack>
-
         <ProgressBar progress={progress} size="large" />
-
         <BlockStack gap="200">
           {steps.map((step, index) => (
             <InlineStack
@@ -152,7 +139,6 @@ export function PostInstallScanProgress({
             </InlineStack>
           ))}
         </BlockStack>
-
         <Text as="p" variant="bodySm" tone="subdued">
           预计耗时约 10 秒，请稍候...
         </Text>

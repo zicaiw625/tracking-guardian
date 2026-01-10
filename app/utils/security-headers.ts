@@ -113,17 +113,14 @@ export function validateSecurityHeaders(): {
   issues: string[];
 } {
   const issues: string[] = [];
-
   if (EMBEDDED_APP_HEADERS["Content-Security-Policy"]) {
     issues.push(
       "EMBEDDED_APP_HEADERS should NOT include Content-Security-Policy - Shopify handles this"
     );
   }
-
   if (API_SECURITY_HEADERS["X-Frame-Options"] !== "DENY") {
     issues.push("API headers should set X-Frame-Options: DENY");
   }
-
   const allHeaders = [
     EMBEDDED_APP_HEADERS,
     API_SECURITY_HEADERS,
@@ -135,14 +132,12 @@ export function validateSecurityHeaders(): {
       break;
     }
   }
-
   if (!API_SECURITY_HEADERS["Content-Security-Policy"]) {
     issues.push("API headers should include Content-Security-Policy");
   }
   if (!WEBHOOK_SECURITY_HEADERS["Content-Security-Policy"]) {
     issues.push("Webhook headers should include Content-Security-Policy");
   }
-
   return {
     valid: issues.length === 0,
     issues,
@@ -155,11 +150,9 @@ export function getCorsPreflightHeaders(
 ): Record<string, string> {
   const isAllowed =
     allowedOrigins.length === 0 || allowedOrigins.includes(origin);
-
   if (!isAllowed) {
     return {};
   }
-
   return {
     "Access-Control-Allow-Origin": origin,
     "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
@@ -174,11 +167,9 @@ export function getCorsResponseHeaders(
 ): Record<string, string> {
   const isAllowed =
     allowedOrigins.length === 0 || allowedOrigins.includes(origin);
-
   if (!isAllowed) {
     return {};
   }
-
   return {
     "Access-Control-Allow-Origin": origin,
     "Access-Control-Allow-Credentials": "true",

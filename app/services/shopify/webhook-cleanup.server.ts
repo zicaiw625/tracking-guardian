@@ -24,7 +24,6 @@ async function fetchDeprecatedSubscriptions(
   let cursor: string | null = null;
   let hasNextPage = true;
   let pages = 0;
-
   while (hasNextPage && pages < MAX_CLEANUP_PAGES) {
     const response = await admin.graphql(
       `
@@ -46,9 +45,7 @@ async function fetchDeprecatedSubscriptions(
     `,
       { variables: { cursor } }
     );
-
     const data = (await response.json()) as WebhookSubscriptionsQueryResponse;
-
     if (data.errors) {
       logger.warn(
         `[Webhooks] Failed to query subscriptions for ${shopDomain}`,
@@ -56,27 +53,23 @@ async function fetchDeprecatedSubscriptions(
       );
       return [];
     }
-
     const edges = data.data?.webhookSubscriptions?.edges ?? [];
     for (const edge of edges) {
       if (DEPRECATED_TOPICS.has(edge.node.topic)) {
         deprecatedSubs.push({ id: edge.node.id, topic: edge.node.topic });
       }
     }
-
     const pageInfo = data.data?.webhookSubscriptions?.pageInfo;
     hasNextPage = pageInfo?.hasNextPage === true;
     cursor = pageInfo?.endCursor ?? null;
     pages++;
   }
-
   if (pages >= MAX_CLEANUP_PAGES && hasNextPage) {
     logger.warn(
       `[Webhooks] Pagination limit reached while querying webhook subscriptions for ${shopDomain}`,
       { pagesProcessed: pages }
     );
   }
-
   return deprecatedSubs;
 }
 
@@ -100,12 +93,10 @@ async function deleteSubscription(
     `,
       { variables: { id: sub.id } }
     );
-
     const deleteData =
       (await deleteResponse.json()) as WebhookDeleteMutationResponse;
     const userErrors =
       deleteData.data?.webhookSubscriptionDelete?.userErrors ?? [];
-
     if (userErrors.length > 0) {
       logger.warn(
         `[Webhooks] Error deleting ${sub.topic} for ${shopDomain}`,
@@ -113,7 +104,6 @@ async function deleteSubscription(
       );
       return false;
     }
-
     logger.info(`[Webhooks] Deleted deprecated webhook for ${shopDomain}`, {
       topic: sub.topic,
     });
@@ -134,16 +124,13 @@ export async function cleanupDeprecatedWebhookSubscriptions(
 ): Promise<void> {
   try {
     const deprecatedSubs = await fetchDeprecatedSubscriptions(admin, shopDomain);
-
     if (deprecatedSubs.length === 0) {
       return;
     }
-
     logger.info(
       `[Webhooks] Found deprecated webhooks for ${shopDomain}, cleaning up`,
       { count: deprecatedSubs.length }
     );
-
     for (const sub of deprecatedSubs) {
       await deleteSubscription(admin, shopDomain, sub);
     }

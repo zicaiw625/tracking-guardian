@@ -35,11 +35,9 @@ export function PlanUpgradePrompt({
 }: PlanUpgradePromptProps) {
   const currentPlanInfo = BILLING_PLANS[currentPlan];
   const targetPlanInfo = BILLING_PLANS[targetPlan];
-
   const usageText = currentUsage !== undefined && limit !== undefined
     ? `当前使用: ${currentUsage} / ${limit}`
     : "";
-
   return (
     <Modal
       open={open}
@@ -61,7 +59,6 @@ export function PlanUpgradePrompt({
           <Text as="p">
             您当前使用的 <strong>{currentPlanInfo.name}</strong> 套餐不支持此功能。
           </Text>
-
           {usageText && (
             <Box background="bg-surface-secondary" padding="400" borderRadius="200">
               <Text as="p" variant="bodySm" fontWeight="semibold">
@@ -69,14 +66,11 @@ export function PlanUpgradePrompt({
               </Text>
             </Box>
           )}
-
           <Divider />
-
           <BlockStack gap="300">
             <Text as="h3" variant="headingSm">
               功能对比
             </Text>
-
             <BlockStack gap="200">
               <InlineStack align="space-between" blockAlign="start">
                 <BlockStack gap="100">
@@ -96,9 +90,7 @@ export function PlanUpgradePrompt({
                   </Text>
                 </BlockStack>
               </InlineStack>
-
               <Divider />
-
               <InlineStack align="space-between" blockAlign="start">
                 <BlockStack gap="100">
                   <Text as="span" variant="bodySm" fontWeight="semibold">
@@ -119,9 +111,7 @@ export function PlanUpgradePrompt({
               </InlineStack>
             </BlockStack>
           </BlockStack>
-
           <Divider />
-
           <BlockStack gap="200">
             <Text as="h3" variant="headingSm">
               升级后您将获得：
@@ -137,7 +127,6 @@ export function PlanUpgradePrompt({
               ))}
             </List>
           </BlockStack>
-
           <Banner tone="info">
             <Text as="p" variant="bodySm">
               升级后立即生效，无需等待。您可以随时在设置页面管理您的套餐。

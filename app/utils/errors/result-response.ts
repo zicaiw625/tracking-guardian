@@ -24,28 +24,22 @@ export type ApiResponse<T> = ApiSuccessResponse<T> | ApiErrorResponse;
 export function resultToResponse<T>(
   result: Result<T, AppError>,
   options?: {
-
     successStatus?: number;
-
     headers?: HeadersInit;
-
     transform?: (data: T) => unknown;
   }
 ): Response {
   const headers = options?.headers;
   const successStatus = options?.successStatus ?? 200;
-
   if (isOk(result)) {
     const data = options?.transform
       ? options.transform(result.value)
       : result.value;
-
     return json<ApiSuccessResponse<typeof data>>(
       { success: true, data },
       { status: successStatus, headers }
     );
   }
-
   return errorToResponse(result.error, { headers });
 }
 
@@ -55,37 +49,30 @@ export function errorToResponse(
 ): Response {
   const status = error.getHttpStatus();
   const clientResponse = error.toClientResponse();
-
   if (error.isInternalError()) {
     logger.error("Internal error in response", error, {
       code: error.code,
       metadata: error.metadata,
     });
   }
-
   const errorDetail: ApiErrorResponse["error"] = {
     code: clientResponse.code,
     message: clientResponse.message,
   };
-
   if (error.metadata.field) {
     errorDetail.field = String(error.metadata.field);
   }
-
   if (error.metadata.retryAfter) {
     errorDetail.retryAfter = Number(error.metadata.retryAfter);
   }
-
   const response: ApiErrorResponse = {
     success: false,
     error: errorDetail,
   };
-
   const headers = new Headers(options?.headers);
   if (error.metadata.retryAfter && status === 429) {
     headers.set("Retry-After", String(Math.ceil(Number(error.metadata.retryAfter) / 1000)));
   }
-
   return json(response, { status, headers });
 }
 
@@ -98,13 +85,9 @@ export async function asyncResultToResponse<T>(
 }
 
 export interface ActionHandlerOptions<T> {
-
   successStatus?: number;
-
   headers?: HeadersInit;
-
   transform?: (data: T) => unknown;
-
   onError?: (error: AppError) => void;
 }
 
@@ -115,19 +98,15 @@ export function wrapAction<T>(
   return async ({ request }) => {
     try {
       const result = await handler({ request });
-
       if (isErr(result) && options?.onError) {
         options.onError(result.error);
       }
-
       return resultToResponse(result, options);
     } catch (error) {
       const appError = ensureAppError(error);
-
       if (options?.onError) {
         options.onError(appError);
       }
-
       logger.error("Unhandled error in action", error);
       return errorToResponse(appError, { headers: options?.headers });
     }
@@ -149,11 +128,9 @@ export async function unwrapOrThrow<T>(
   resultPromise: AsyncResult<T, AppError>
 ): Promise<T> {
   const result = await resultPromise;
-
   if (isOk(result)) {
     return result.value;
   }
-
   throw errorToResponse(result.error);
 }
 
@@ -161,7 +138,6 @@ export function unwrapOrThrowSync<T>(result: Result<T, AppError>): T {
   if (isOk(result)) {
     return result.value;
   }
-
   throw errorToResponse(result.error);
 }
 
@@ -284,7 +260,6 @@ export function tooManyRequests(retryAfter?: number): Response {
   if (retryAfter) {
     headers.set("Retry-After", String(retryAfter));
   }
-
   return json<ApiErrorResponse>(
     {
       success: false,

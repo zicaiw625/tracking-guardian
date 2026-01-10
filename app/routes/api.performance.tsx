@@ -7,32 +7,26 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   if (request.method === "OPTIONS") {
     return optionsResponse(request, true);
   }
-
   if (request.method !== "POST") {
     return jsonWithCors(
       { error: "Method not allowed" },
       { status: 405, request, staticCors: true }
     );
   }
-
   try {
     const body = await request.json().catch(() => null);
-
     if (!body || typeof body !== "object") {
       return jsonWithCors(
         { error: "Invalid request body" },
         { status: 400, request, staticCors: true }
       );
     }
-
     const metric = body as {
       name?: string;
       value?: number;
       rating?: string;
       url?: string;
     };
-
-    
     if (process.env.NODE_ENV === "development") {
       logger.debug("Performance metric received", {
         name: metric.name,
@@ -41,10 +35,6 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         url: metric.url,
       });
     }
-
-    
-    
-
     return jsonWithCors(
       { success: true },
       { request, staticCors: true }

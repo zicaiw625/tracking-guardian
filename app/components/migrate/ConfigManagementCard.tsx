@@ -61,46 +61,37 @@ export function ConfigManagementCard({
   const [environmentChanging, setEnvironmentChanging] = useState<string | null>(null);
   const [showEnvConfirmModal, setShowEnvConfirmModal] = useState(false);
   const [pendingEnvChange, setPendingEnvChange] = useState<{ platform: string; newEnv: string } | null>(null);
-
   const comparisonFetcher = useFetcher();
   const historyFetcher = useFetcher();
   const envFetcher = useFetcher();
-
   const handleViewConfig = useCallback(
     (platform: string) => {
       setSelectedPlatform(platform);
       setShowModal(true);
       setActiveTab(0);
-
       comparisonFetcher.load(
         `/api/pixel-config-history?platform=${platform}&type=comparison`
       );
-
       historyFetcher.load(
         `/api/pixel-config-history?platform=${platform}&type=history&limit=10`
       );
     },
     [comparisonFetcher, historyFetcher]
   );
-
   const handleEnvironmentChange = useCallback(
     (platform: string, newEnvironment: string) => {
       const config = pixelConfigs.find((c) => c.platform === platform);
       if (!config) return;
-
       if (config.environment === newEnvironment) {
         return;
       }
-
       setPendingEnvChange({ platform, newEnv: newEnvironment });
       setShowEnvConfirmModal(true);
     },
     [pixelConfigs]
   );
-
   const confirmEnvironmentChange = useCallback(() => {
     if (!pendingEnvChange) return;
-
     setEnvironmentChanging(pendingEnvChange.platform);
     const formData = new FormData();
     formData.append("_action", "switch_environment");
@@ -113,18 +104,15 @@ export function ConfigManagementCard({
     setShowEnvConfirmModal(false);
     setPendingEnvChange(null);
   }, [pendingEnvChange, envFetcher]);
-
   const cancelEnvironmentChange = useCallback(() => {
     setShowEnvConfirmModal(false);
     setPendingEnvChange(null);
   }, []);
-
   useEffect(() => {
     if (envFetcher.data && envFetcher.state === "idle") {
       const result = envFetcher.data as { success: boolean; message?: string; error?: string };
       if (result.success) {
         setEnvironmentChanging(null);
-
         window.location.reload();
       } else {
         setEnvironmentChanging(null);
@@ -132,11 +120,9 @@ export function ConfigManagementCard({
       }
     }
   }, [envFetcher.data, envFetcher.state]);
-
   if (pixelConfigs.length === 0) {
     return null;
   }
-
   return (
     <>
       <Card>
@@ -147,9 +133,7 @@ export function ConfigManagementCard({
             </Text>
             <Badge tone="success">{`${String(pixelConfigs.length)} 个`}</Badge>
           </InlineStack>
-
           <Divider />
-
           <BlockStack gap="300">
             {pixelConfigs.map((config) => (
               <Box
@@ -207,7 +191,6 @@ export function ConfigManagementCard({
                           size="slim"
                           variant="primary"
                           onClick={async () => {
-
                             if (confirm(`确定要回滚 ${PLATFORM_LABELS[config.platform] || config.platform} 的配置到上一个版本吗？`)) {
                               const formData = new FormData();
                               formData.append("_action", "rollback");
@@ -241,13 +224,11 @@ export function ConfigManagementCard({
               </Box>
             ))}
           </BlockStack>
-
           <Button url="/app/settings" fullWidth>
             前往设置页面管理
           </Button>
         </BlockStack>
       </Card>
-
       {showModal && selectedPlatform && (
         <Modal
           open={showModal}
@@ -302,7 +283,6 @@ export function ConfigManagementCard({
                         ?.configVersion || 1
                     }
                     onRollbackComplete={() => {
-
                       window.location.reload();
                     }}
                   />
@@ -312,7 +292,6 @@ export function ConfigManagementCard({
           </Modal.Section>
         </Modal>
       )}
-
       <Modal
         open={showEnvConfirmModal}
         onClose={cancelEnvironmentChange}

@@ -33,15 +33,12 @@ import prisma from "../db.server";
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   const { session } = await authenticate.admin(request);
   const shopDomain = session.shop;
-
   const shop = await prisma.shop.findUnique({
     where: { shopDomain },
     select: {
-
       consentStrategy: true,
     },
   });
-
   return json({
     shop: shop || { consentStrategy: "strict" },
     appDomain: process.env.APP_URL || "https://app.tracking-guardian.com"
@@ -91,7 +88,6 @@ function CollapsibleSection({
   defaultOpen?: boolean;
 }) {
   const [open, setOpen] = useState(defaultOpen);
-
   return (
     <Card>
       <BlockStack gap="300">
@@ -127,7 +123,6 @@ function CollapsibleSection({
 export default function PrivacyPage() {
   const { shop, appDomain } = useLoaderData<typeof loader>();
   const [showDeleteModal, setShowDeleteModal] = useState(false);
-
   return (
     <Page
       title="隐私与数据"
@@ -143,7 +138,6 @@ export default function PrivacyPage() {
             </p>
           </BlockStack>
         </Banner>
-
         <Card>
           <BlockStack gap="300">
             <Text as="h2" variant="headingMd">
@@ -163,7 +157,6 @@ export default function PrivacyPage() {
             </InlineStack>
           </BlockStack>
         </Card>
-
         <Layout>
           <Layout.Section variant="oneHalf">
             <BlockStack gap="400">
@@ -173,7 +166,6 @@ export default function PrivacyPage() {
                   收集的数据类型
                 </InlineStack>
               </Text>
-
               <DataTypeCard
                 title="订单数据"
                 description="用于转化追踪和归因"
@@ -185,7 +177,6 @@ export default function PrivacyPage() {
                 ]}
                 tone="info"
               />
-
               <DataTypeCard
                 title="客户同意状态"
                 description="尊重客户隐私选择"
@@ -196,10 +187,8 @@ export default function PrivacyPage() {
                 ]}
                 tone="success"
               />
-
             </BlockStack>
           </Layout.Section>
-
           <Layout.Section variant="oneHalf">
             <BlockStack gap="400">
               <Text as="h2" variant="headingLg">
@@ -208,7 +197,6 @@ export default function PrivacyPage() {
                   数据用途
                 </InlineStack>
               </Text>
-
               <Card>
                 <BlockStack gap="300">
                   <Text as="h3" variant="headingSm">
@@ -220,7 +208,6 @@ export default function PrivacyPage() {
                   </Text>
                 </BlockStack>
               </Card>
-
               <Card>
                 <BlockStack gap="300">
                   <Text as="h3" variant="headingSm">
@@ -231,7 +218,6 @@ export default function PrivacyPage() {
                   </Text>
                 </BlockStack>
               </Card>
-
               <Card>
                 <BlockStack gap="300">
                   <Text as="h3" variant="headingSm">
@@ -245,13 +231,11 @@ export default function PrivacyPage() {
             </BlockStack>
           </Layout.Section>
         </Layout>
-
         <CollapsibleSection title="数据保存时长" defaultOpen>
           <BlockStack gap="300">
             <Banner tone="info">
               <p>我们遵循数据最小化原则，仅保存必要的数据，并定期清理过期数据。</p>
             </Banner>
-
             <Box background="bg-surface-secondary" padding="400" borderRadius="200">
               <BlockStack gap="300">
                 <InlineStack gap="300" blockAlign="center">
@@ -265,7 +249,6 @@ export default function PrivacyPage() {
                 </Text>
               </BlockStack>
             </Box>
-
             <Box background="bg-surface-secondary" padding="400" borderRadius="200">
               <BlockStack gap="300">
                 <InlineStack gap="300" blockAlign="center">
@@ -279,7 +262,6 @@ export default function PrivacyPage() {
                 </Text>
               </BlockStack>
             </Box>
-
             <Box background="bg-surface-secondary" padding="400" borderRadius="200">
               <BlockStack gap="300">
                 <InlineStack gap="300" blockAlign="center">
@@ -293,7 +275,6 @@ export default function PrivacyPage() {
                 </Text>
               </BlockStack>
             </Box>
-
             <Box background="bg-surface-secondary" padding="400" borderRadius="200">
               <BlockStack gap="300">
                 <InlineStack gap="300" blockAlign="center">
@@ -309,13 +290,11 @@ export default function PrivacyPage() {
             </Box>
           </BlockStack>
         </CollapsibleSection>
-
         <CollapsibleSection title="数据删除方式">
           <BlockStack gap="300">
             <Text as="p">
               我们支持多种数据删除方式，确保您可以随时控制数据：
             </Text>
-
             <Box background="bg-surface-secondary" padding="400" borderRadius="200">
               <BlockStack gap="300">
                 <InlineStack gap="300" blockAlign="center">
@@ -331,7 +310,6 @@ export default function PrivacyPage() {
                 </Text>
               </BlockStack>
             </Box>
-
             <Box background="bg-surface-secondary" padding="400" borderRadius="200">
               <BlockStack gap="300">
                 <InlineStack gap="300" blockAlign="center">
@@ -347,7 +325,6 @@ export default function PrivacyPage() {
                 </Text>
               </BlockStack>
             </Box>
-
             <Box background="bg-surface-secondary" padding="400" borderRadius="200">
               <BlockStack gap="300">
                 <InlineStack gap="300" blockAlign="center">
@@ -361,10 +338,8 @@ export default function PrivacyPage() {
                 </Text>
               </BlockStack>
             </Box>
-
           </BlockStack>
         </CollapsibleSection>
-
         <CollapsibleSection title="安全措施">
           <BlockStack gap="300">
             <Box background="bg-surface-secondary" padding="400" borderRadius="200">
@@ -380,7 +355,6 @@ export default function PrivacyPage() {
                 </Text>
               </BlockStack>
             </Box>
-
             <Box background="bg-surface-secondary" padding="400" borderRadius="200">
               <BlockStack gap="300">
                 <InlineStack gap="300" blockAlign="center">
@@ -394,7 +368,6 @@ export default function PrivacyPage() {
                 </Text>
               </BlockStack>
             </Box>
-
             <Box background="bg-surface-secondary" padding="400" borderRadius="200">
               <BlockStack gap="300">
                 <InlineStack gap="300" blockAlign="center">
@@ -410,13 +383,11 @@ export default function PrivacyPage() {
             </Box>
           </BlockStack>
         </CollapsibleSection>
-
         <CollapsibleSection title="GDPR Webhooks 测试指引">
           <BlockStack gap="300">
             <Text as="p">
               Shopify 要求应用正确响应 GDPR 相关的强制 webhooks。以下是测试方法：
             </Text>
-
             <Box background="bg-surface-secondary" padding="400" borderRadius="200">
               <BlockStack gap="200">
                 <Text as="span" fontWeight="semibold">
@@ -427,7 +398,6 @@ export default function PrivacyPage() {
                 </Text>
               </BlockStack>
             </Box>
-
             <Box background="bg-surface-secondary" padding="400" borderRadius="200">
               <BlockStack gap="200">
                 <Text as="span" fontWeight="semibold">
@@ -449,7 +419,6 @@ export default function PrivacyPage() {
                 </List>
               </BlockStack>
             </Box>
-
             <Box background="bg-surface-secondary" padding="400" borderRadius="200">
               <BlockStack gap="200">
                 <Text as="span" fontWeight="semibold">
@@ -463,7 +432,6 @@ export default function PrivacyPage() {
                 </Box>
               </BlockStack>
             </Box>
-
             <Banner tone="success">
               <p>
                 本应用已实现所有 GDPR 强制 webhooks 处理程序。
@@ -472,7 +440,6 @@ export default function PrivacyPage() {
             </Banner>
           </BlockStack>
         </CollapsibleSection>
-
         <CollapsibleSection title="数据导出与删除">
           <BlockStack gap="400">
             <Banner tone="info">
@@ -480,7 +447,6 @@ export default function PrivacyPage() {
                 根据 GDPR 和 CCPA 法规，您有权导出或删除您的数据。我们提供以下工具：
               </Text>
             </Banner>
-
             <Card>
               <BlockStack gap="400">
                 <Text variant="headingSm" as="h3">
@@ -515,7 +481,6 @@ export default function PrivacyPage() {
                 </Text>
               </BlockStack>
             </Card>
-
             <Card>
               <BlockStack gap="400">
                 <Text variant="headingSm" as="h3">
@@ -551,9 +516,7 @@ export default function PrivacyPage() {
                     content: "确认删除",
                     destructive: true,
                     onAction: () => {
-
                       setShowDeleteModal(false);
-
                       alert("删除功能需要后端支持，请联系管理员或通过 GDPR webhook 处理");
                     },
                   }}
@@ -581,7 +544,6 @@ export default function PrivacyPage() {
                 </Modal>
               </BlockStack>
             </Card>
-
             <Card>
               <BlockStack gap="300">
                 <Text variant="headingSm" as="h3">
@@ -597,7 +559,6 @@ export default function PrivacyPage() {
             </Card>
           </BlockStack>
         </CollapsibleSection>
-
         <Card>
           <BlockStack gap="300">
             <Text as="h2" variant="headingMd">

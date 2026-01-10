@@ -20,73 +20,56 @@ describe("Missing Parameters Detection", () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
-
   describe("detectMissingParams", () => {
     it("should detect missing value parameter", async () => {
       const shopId = "shop-1";
       const since = new Date(Date.now() - 24 * 60 * 60 * 1000);
-
       vi.mocked(prisma.conversionLog.groupBy).mockResolvedValue([
         {
           destination: "google",
           _count: { id: 100 },
         },
       ] as any);
-
       vi.mocked(prisma.conversionLog.count).mockResolvedValue(120);
-
       const result = await detectMissingParams(shopId, since, ["value"]);
-
       expect(result).toBeDefined();
       expect(result.missingValue).toBeDefined();
     });
-
     it("should detect missing currency parameter", async () => {
       const shopId = "shop-1";
       const since = new Date(Date.now() - 24 * 60 * 60 * 1000);
-
       vi.mocked(prisma.conversionLog.groupBy).mockResolvedValue([
         {
           destination: "meta",
           _count: { id: 80 },
         },
       ] as any);
-
       vi.mocked(prisma.conversionLog.count).mockResolvedValue(100);
-
       const result = await detectMissingParams(shopId, since, ["currency"]);
-
       expect(result).toBeDefined();
       expect(result.missingCurrency).toBeDefined();
     });
-
     it("should detect multiple missing parameters", async () => {
       const shopId = "shop-1";
       const since = new Date(Date.now() - 24 * 60 * 60 * 1000);
-
       vi.mocked(prisma.conversionLog.groupBy).mockResolvedValue([
         {
           destination: "google",
           _count: { id: 50 },
         },
       ] as any);
-
       vi.mocked(prisma.conversionLog.count).mockResolvedValue(100);
-
       const result = await detectMissingParams(shopId, since, ["value", "currency", "items"]);
-
       expect(result).toBeDefined();
       expect(result.missingValue).toBeDefined();
       expect(result.missingCurrency).toBeDefined();
       expect(result.missingItems).toBeDefined();
     });
   });
-
   describe("getMissingParamsStats", () => {
     it("should return statistics by platform", async () => {
       const shopId = "shop-1";
       const since = new Date(Date.now() - 24 * 60 * 60 * 1000);
-
       vi.mocked(prisma.conversionLog.groupBy).mockResolvedValue([
         {
           destination: "google",
@@ -97,17 +80,13 @@ describe("Missing Parameters Detection", () => {
           _count: { id: 75 },
         },
       ] as any);
-
       vi.mocked(prisma.conversionLog.count).mockResolvedValue(100);
-
       const result = await getMissingParamsStats(shopId, since, ["value"]);
-
       expect(result).toBeDefined();
       expect(result.byPlatform).toBeDefined();
       expect(Array.isArray(result.byPlatform)).toBe(true);
     });
   });
-
   describe("checkMissingParamsAlerts", () => {
     it("should trigger alert when threshold is exceeded", () => {
       const stats: MissingParamsStats = {
@@ -121,16 +100,13 @@ describe("Missing Parameters Detection", () => {
         byPlatform: [],
         byEventType: [],
       };
-
       const result = checkMissingParamsAlerts(stats, {
         overallThreshold: 0.2,
         criticalThreshold: 0.5,
       });
-
       expect(result.hasAlert).toBe(true);
       expect(result.alertLevel).toBe("warning");
     });
-
     it("should trigger critical alert when critical threshold is exceeded", () => {
       const stats: MissingParamsStats = {
         overall: {
@@ -143,16 +119,13 @@ describe("Missing Parameters Detection", () => {
         byPlatform: [],
         byEventType: [],
       };
-
       const result = checkMissingParamsAlerts(stats, {
         overallThreshold: 0.2,
         criticalThreshold: 0.5,
       });
-
       expect(result.hasAlert).toBe(true);
       expect(result.alertLevel).toBe("critical");
     });
-
     it("should not trigger alert when below threshold", () => {
       const stats: MissingParamsStats = {
         overall: {
@@ -165,12 +138,10 @@ describe("Missing Parameters Detection", () => {
         byPlatform: [],
         byEventType: [],
       };
-
       const result = checkMissingParamsAlerts(stats, {
         overallThreshold: 0.2,
         criticalThreshold: 0.5,
       });
-
       expect(result.hasAlert).toBe(false);
     });
   });

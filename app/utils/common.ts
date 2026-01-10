@@ -3,7 +3,6 @@ export function safeJsonParse<T>(
   defaultValue: T
 ): T {
   if (!json) return defaultValue;
-
   try {
     return JSON.parse(json) as T;
   } catch {
@@ -23,15 +22,12 @@ export function deepClone<T>(value: T): T {
   if (value === null || typeof value !== "object") {
     return value;
   }
-
   if (value instanceof Date) {
     return new Date(value.getTime()) as T;
   }
-
   if (value instanceof RegExp) {
     return new RegExp(value.source, value.flags) as T;
   }
-
   if (value instanceof Map) {
     const clonedMap = new Map();
     value.forEach((val, key) => {
@@ -39,7 +35,6 @@ export function deepClone<T>(value: T): T {
     });
     return clonedMap as T;
   }
-
   if (value instanceof Set) {
     const clonedSet = new Set();
     value.forEach((val) => {
@@ -47,22 +42,18 @@ export function deepClone<T>(value: T): T {
     });
     return clonedSet as T;
   }
-
   if (Array.isArray(value)) {
     return value.map((item) => deepClone(item)) as T;
   }
-
   if (value instanceof ArrayBuffer) {
     return value.slice(0) as T;
   }
-
   if (value instanceof Error) {
     const clonedError = new (value.constructor as new (message: string) => Error)(value.message);
     clonedError.name = value.name;
     clonedError.stack = value.stack;
     return clonedError as T;
   }
-
   const cloned = {} as T;
   for (const key in value) {
     if (Object.prototype.hasOwnProperty.call(value, key)) {
@@ -73,7 +64,6 @@ export function deepClone<T>(value: T): T {
       }
     }
   }
-
   return cloned;
 }
 
@@ -183,9 +173,7 @@ export function getRelativeTime(date: Date | string, locale: string = "zh-CN"): 
   const diffMinutes = Math.floor(diffSeconds / 60);
   const diffHours = Math.floor(diffMinutes / 60);
   const diffDays = Math.floor(diffHours / 24);
-
   const rtf = new Intl.RelativeTimeFormat(locale, { numeric: "auto" });
-
   if (diffDays > 0) {
     return rtf.format(-diffDays, "day");
   }
@@ -209,20 +197,16 @@ export function isDateInRange(
 export function getDayBounds(date: Date): { start: Date; end: Date } {
   const start = new Date(date);
   start.setHours(0, 0, 0, 0);
-
   const end = new Date(date);
   end.setHours(23, 59, 59, 999);
-
   return { start, end };
 }
 
 export function getUTCDayBounds(date: Date): { start: Date; end: Date } {
   const start = new Date(date);
   start.setUTCHours(0, 0, 0, 0);
-
   const end = new Date(date);
   end.setUTCHours(23, 59, 59, 999);
-
   return { start, end };
 }
 
@@ -311,7 +295,6 @@ export function isEmpty(obj: object): boolean {
 
 export function deepMerge<T extends object>(...objects: Partial<T>[]): T {
   const result = {} as T;
-
   for (const obj of objects) {
     for (const key in obj) {
       const value = obj[key];
@@ -332,7 +315,6 @@ export function deepMerge<T extends object>(...objects: Partial<T>[]): T {
       }
     }
   }
-
   return result;
 }
 
@@ -355,26 +337,20 @@ export async function retry<T>(
     maxDelayMs = 30000,
     shouldRetry = () => true,
   } = options;
-
   const safeMaxAttempts = Math.max(1, maxAttempts);
-
   let lastError: unknown;
-
   for (let attempt = 1; attempt <= safeMaxAttempts; attempt++) {
     try {
       return await fn();
     } catch (error) {
       lastError = error;
-
       if (attempt === safeMaxAttempts || !shouldRetry(error)) {
         throw error;
       }
-
       const delay = Math.min(baseDelayMs * Math.pow(2, attempt - 1), maxDelayMs);
       await sleep(delay);
     }
   }
-
   throw lastError ?? new Error("Retry function failed without capturing an error");
 }
 
@@ -385,7 +361,6 @@ export async function parallelLimit<T, R>(
   limit: number,
   fn: (item: T) => Promise<R>
 ): Promise<R[]> {
-
   return parallelLimitWithIndex(items, limit, (item, _index) => fn(item));
 }
 
@@ -394,21 +369,18 @@ export function debounce<T extends (...args: unknown[]) => unknown>(
   delayMs: number
 ): ((...args: Parameters<T>) => void) & { cancel: () => void } {
   let timeoutId: ReturnType<typeof setTimeout> | undefined;
-
   const debouncedFn = (...args: Parameters<T>) => {
     if (timeoutId !== undefined) {
       clearTimeout(timeoutId);
     }
     timeoutId = setTimeout(() => fn(...args), delayMs);
   };
-
   debouncedFn.cancel = () => {
     if (timeoutId !== undefined) {
       clearTimeout(timeoutId);
       timeoutId = undefined;
     }
   };
-
   return debouncedFn;
 }
 
@@ -417,7 +389,6 @@ export function throttle<T extends (...args: unknown[]) => unknown>(
   limitMs: number
 ): (...args: Parameters<T>) => void {
   let lastCall = 0;
-
   return (...args: Parameters<T>) => {
     const now = Date.now();
     if (now - lastCall >= limitMs) {

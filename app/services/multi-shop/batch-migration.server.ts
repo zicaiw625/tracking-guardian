@@ -48,7 +48,6 @@ export async function createBatchMigrationJob(
     results: [],
     createdAt: new Date(),
   };
-
   activeJobs.set(job.id, job);
   return job;
 }
@@ -65,12 +64,10 @@ export async function executeBatchMigration(
   if (!job) {
     throw new Error(`Batch migration job not found: ${jobId}`);
   }
-
   if (job.status === "running") {
     logger.warn(`Batch migration job ${jobId} is already running`);
     return job;
   }
-
   job.status = "running";
   job.startedAt = new Date();
   job.progress = {
@@ -79,54 +76,42 @@ export async function executeBatchMigration(
     failed: 0,
   };
   job.results = [];
-
   const template = await prisma.pixelTemplate.findUnique({
     where: { id: job.templateId },
   });
-
   if (!template) {
     throw new Error(`Template not found: ${job.templateId}`);
   }
-
   logger.info(`Starting batch migration job ${jobId} for ${job.shopIds.length} shops`);
-
   const concurrency = 2;
   const shopIds = [...job.shopIds];
-
   async function processShop(shopId: string): Promise<void> {
     try {
       const admin = adminContexts.get(shopId);
       if (!admin) {
         throw new Error(`Admin context not found for shop ${shopId}`);
       }
-
       const shop = await prisma.shop.findUnique({
         where: { id: shopId },
         select: { shopDomain: true, ingestionSecret: true },
       });
-
       if (!shop) {
         throw new Error(`Shop not found: ${shopId}`);
       }
-
       if (!template) {
         throw new Error(`Template not found: ${jobId}`);
       }
-
       const currentJob = activeJobs.get(jobId);
       if (!currentJob) {
         throw new Error(`Job not found: ${jobId}`);
       }
-
       const platforms = template.platforms as Array<{
         platform: string;
         eventMappings?: Record<string, string>;
         clientSideEnabled?: boolean;
         serverSideEnabled?: boolean;
       }>;
-
       for (const platformConfig of platforms) {
-
         const existingConfig = await prisma.pixelConfig.findFirst({
           where: {
             shopId,
@@ -134,9 +119,7 @@ export async function executeBatchMigration(
             environment: "test",
           },
         });
-
         if (existingConfig) {
-
           await prisma.pixelConfig.update({
             where: { id: existingConfig.id },
             data: {
@@ -146,7 +129,6 @@ export async function executeBatchMigration(
             },
           });
         } else {
-
           await prisma.pixelConfig.create({
             data: {
               id: randomUUID(),
@@ -162,7 +144,6 @@ export async function executeBatchMigration(
           });
         }
       }
-
       let pixelId: string | undefined;
       try {
         const pixelResult = await createWebPixel(admin, shop.shopDomain, shopId);
@@ -170,27 +151,21 @@ export async function executeBatchMigration(
           pixelId = pixelResult.webPixelId;
         }
       } catch (error) {
-
         logger.warn(`Failed to create web pixel for ${shop.shopDomain}`, { error });
-
       }
-
       currentJob.results.push({
         shopId,
         shopDomain: shop.shopDomain,
         status: "success",
         pixelId,
       });
-
       currentJob.progress.completed++;
     } catch (error) {
       logger.error(`Batch migration failed for shop ${shopId}`, { error });
-
       const shop = await prisma.shop.findUnique({
         where: { id: shopId },
         select: { shopDomain: true },
       });
-
       const currentJob = activeJobs.get(jobId);
       if (!currentJob) {
         logger.error(`Job ${jobId} not found when recording failure`);
@@ -202,16 +177,13 @@ export async function executeBatchMigration(
         status: "failed",
         error: error instanceof Error ? error.message : "Unknown error",
       });
-
       currentJob.progress.failed++;
     }
   }
-
   for (let i = 0; i < shopIds.length; i += concurrency) {
     const batch = shopIds.slice(i, i + concurrency);
     await Promise.all(batch.map(processShop));
   }
-
   if (job.progress.failed === 0) {
     job.status = "completed";
   } else if (job.progress.completed === 0) {
@@ -219,13 +191,10 @@ export async function executeBatchMigration(
   } else {
     job.status = "partial";
   }
-
   job.completedAt = new Date();
-
   logger.info(
     `Batch migration job ${jobId} completed: ${job.progress.completed} success, ${job.progress.failed} failed`
   );
-
   return job;
 }
 
@@ -233,12 +202,10 @@ export async function getBatchMigrationHistory(
   workspaceId: string,
   limit: number = 10
 ): Promise<BatchMigrationJob[]> {
-
   const jobs = Array.from(activeJobs.values())
     .filter((job) => job.workspaceId === workspaceId)
     .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
     .slice(0, limit);
-
   return jobs;
 }
 
@@ -258,11 +225,8 @@ export function getBatchMigrationSummary(job: BatchMigrationJob): {
       : 0,
     platforms: {} as Record<string, number>,
   };
-
   const template = activeJobs.get(job.id);
   if (template) {
-
   }
-
   return summary;
 }

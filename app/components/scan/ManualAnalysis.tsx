@@ -39,51 +39,39 @@ export function ManualAnalysis({ deprecationStatus }: ManualAnalysisProps) {
   const [analysisError, setAnalysisError] = useState<string | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const isMountedRef = useRef(true);
-
   useEffect(() => {
     isMountedRef.current = true;
     return () => {
       isMountedRef.current = false;
     };
   }, []);
-
   const handleAnalyzeScript = useCallback(async () => {
     const MAX_CONTENT_LENGTH = SCRIPT_ANALYSIS_CONFIG.MAX_CONTENT_LENGTH;
     const trimmedContent = scriptContent.trim();
-
     if (!trimmedContent) {
       setAnalysisError("请输入脚本内容");
       return;
     }
-
     if (trimmedContent.length > MAX_CONTENT_LENGTH) {
       setAnalysisError(`脚本内容过长（最多 ${MAX_CONTENT_LENGTH} 个字符）。请分段分析或联系支持。`);
       return;
     }
-
     setIsAnalyzing(true);
     setAnalysisError(null);
-
     try {
-
       const result = analyzeScriptContent(trimmedContent);
-
       if (isMountedRef.current) {
         setAnalysisResult(result);
       }
     } catch (error) {
-
       if (!isMountedRef.current) {
         return;
       }
-
       const errorMessage = error instanceof Error ? error.message : "分析失败，请稍后重试";
       setAnalysisError(errorMessage);
       setAnalysisResult(null);
-
       if (process.env.NODE_ENV === "development") {
         const errorDetails = error instanceof Error ? error.stack : String(error);
-
         console.error("Script analysis error:", {
           message: errorMessage,
           details: errorDetails,

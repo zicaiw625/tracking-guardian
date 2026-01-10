@@ -45,7 +45,6 @@ export interface RiskReportProps {
 
 export function RiskReport({ report, onItemClick }: RiskReportProps) {
   const { summary, items, categories } = report;
-
   const getRiskBadge = (riskLevel: "high" | "medium" | "low") => {
     switch (riskLevel) {
       case "high":
@@ -56,7 +55,6 @@ export function RiskReport({ report, onItemClick }: RiskReportProps) {
         return <Badge tone="info">低风险</Badge>;
     }
   };
-
   const getRiskCategoryBadge = (category: string) => {
     switch (category) {
       case "will_fail":
@@ -69,7 +67,6 @@ export function RiskReport({ report, onItemClick }: RiskReportProps) {
         return null;
     }
   };
-
   const calculateRiskScore = () => {
     if (summary.totalItems === 0) return 0;
     const highRiskWeight = categories.willFail.length * 3;
@@ -79,10 +76,8 @@ export function RiskReport({ report, onItemClick }: RiskReportProps) {
     const maxWeight = summary.totalItems * 3;
     return Math.round((totalWeight / maxWeight) * 100);
   };
-
   const riskScore = calculateRiskScore();
   const riskLevel = riskScore >= 70 ? "high" : riskScore >= 40 ? "medium" : "low";
-
   return (
     <BlockStack gap="400">
       <Card>
@@ -93,7 +88,6 @@ export function RiskReport({ report, onItemClick }: RiskReportProps) {
             </Text>
             {getRiskBadge(riskLevel)}
           </InlineStack>
-
           <Box>
             <BlockStack gap="200">
               <InlineStack align="space-between">
@@ -107,9 +101,7 @@ export function RiskReport({ report, onItemClick }: RiskReportProps) {
               <ProgressBar progress={riskScore} size="small" />
             </BlockStack>
           </Box>
-
           <Divider />
-
           <BlockStack gap="300">
             <Text variant="headingSm" as="h3">
               统计摘要
@@ -134,7 +126,6 @@ export function RiskReport({ report, onItemClick }: RiskReportProps) {
           </BlockStack>
         </BlockStack>
       </Card>
-
       {categories.willFail.length > 0 && (
         <Card>
           <BlockStack gap="400">
@@ -174,7 +165,6 @@ export function RiskReport({ report, onItemClick }: RiskReportProps) {
           </BlockStack>
         </Card>
       )}
-
       {categories.canReplace.length > 0 && (
         <Card>
           <BlockStack gap="400">
@@ -214,7 +204,6 @@ export function RiskReport({ report, onItemClick }: RiskReportProps) {
           </BlockStack>
         </Card>
       )}
-
       {categories.noMigrationNeeded.length > 0 && (
         <Card>
           <BlockStack gap="400">

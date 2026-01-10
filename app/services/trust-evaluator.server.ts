@@ -47,16 +47,13 @@ export function evaluateTrust(
   webhookCheckoutToken: string | undefined,
   shop: ShopTrustContext
 ): TrustEvaluationResult {
-
   const shopAllowedDomains = buildShopAllowedDomains(
     shop.shopDomain,
     shop.primaryDomain,
     shop.storefrontDomains
   );
-
   const isHmacVerified = receipt?.signatureStatus === SignatureStatus.KEY_MATCHED ||
                          receipt?.signatureStatus === "hmac_verified";
-
   const trustResult = verifyReceiptTrust({
     receiptCheckoutToken: receipt?.checkoutToken,
     webhookCheckoutToken,
@@ -68,15 +65,12 @@ export function evaluateTrust(
     serverCreatedAt: receipt?.createdAt,
     options: DEFAULT_TRUST_OPTIONS,
   });
-
   const trustMetadata = buildTrustMetadata(trustResult, {
     hasReceipt: !!receipt,
     receiptTrustLevel: receipt?.trustLevel,
     webhookHasCheckoutToken: !!webhookCheckoutToken,
   });
-
   const rawConsentState = parseConsentState(receipt?.consentState);
-
   const consentState: ConsentState | null = rawConsentState
     ? {
         marketing: rawConsentState.marketing,
@@ -84,7 +78,6 @@ export function evaluateTrust(
         saleOfDataAllowed: rawConsentState.saleOfData === true,
       }
     : null;
-
   return {
     trustResult,
     trustMetadata,
@@ -100,7 +93,6 @@ export function checkPlatformEligibility(
   treatAsMarketing: boolean
 ): PlatformEligibilityResult {
   const platformCategory = getEffectiveConsentCategory(platform, treatAsMarketing);
-
   if (consentState?.saleOfDataAllowed === false) {
     logger.debug(`[P0-04] Platform blocked by explicit sale_of_data opt-out`, {
       platform,
@@ -110,14 +102,12 @@ export function checkPlatformEligibility(
       skipReason: 'sale_of_data_opted_out',
     };
   }
-
   const trustAllowed = isSendAllowedByTrust(
     trustResult,
     platform,
     platformCategory,
     strategy
   );
-
   if (!trustAllowed.allowed) {
     logger.debug(`[P0-01] Platform blocked by trust check`, {
       platform,
@@ -129,7 +119,6 @@ export function checkPlatformEligibility(
       skipReason: `trust_${trustAllowed.reason}`,
     };
   }
-
   const hasVerifiedReceipt = trustResult.trusted || trustResult.level === 'partial';
   const consentDecision = evaluatePlatformConsentWithStrategy(
     platform,
@@ -138,7 +127,6 @@ export function checkPlatformEligibility(
     hasVerifiedReceipt,
     treatAsMarketing
   );
-
   if (!consentDecision.allowed) {
     const skipReason = consentDecision.reason || 'consent_denied';
     logger.debug(`[P0-07] Platform blocked by consent check`, {
@@ -153,14 +141,12 @@ export function checkPlatformEligibility(
       usedConsent: consentDecision.usedConsent,
     };
   }
-
   logger.debug(`Platform consent check passed`, {
     platform,
     strategy,
     usedConsent: consentDecision.usedConsent,
     trustLevel: trustResult.level,
   });
-
   return {
     allowed: true,
     usedConsent: consentDecision.usedConsent,

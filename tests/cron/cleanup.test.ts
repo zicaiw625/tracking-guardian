@@ -65,23 +65,18 @@ import { logger } from "../../app/utils/logger.server";
 describe("Cleanup Task", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-
     (prisma.eventNonce.deleteMany as ReturnType<typeof vi.fn>).mockResolvedValue({ count: 0 });
     (prisma.migrationDraft.deleteMany as ReturnType<typeof vi.fn>).mockResolvedValue({ count: 0 });
     (prisma.gDPRJob.deleteMany as ReturnType<typeof vi.fn>).mockResolvedValue({ count: 0 });
     (prisma.shop.findMany as ReturnType<typeof vi.fn>).mockResolvedValue([]);
   });
-
   afterEach(() => {
     vi.restoreAllMocks();
   });
-
   describe("cleanupExpiredData", () => {
     it("should clean up expired event nonces", async () => {
       (prisma.eventNonce.deleteMany as ReturnType<typeof vi.fn>).mockResolvedValue({ count: 5 });
-
       const result = await cleanupExpiredData();
-
       expect(prisma.eventNonce.deleteMany).toHaveBeenCalledWith({
         where: {
           expiresAt: { lt: expect.any(Date) },
@@ -92,12 +87,9 @@ describe("Cleanup Task", () => {
         expect.stringContaining("5 expired event nonces")
       );
     });
-
     it("should clean up old GDPR jobs", async () => {
       (prisma.gDPRJob.deleteMany as ReturnType<typeof vi.fn>).mockResolvedValue({ count: 3 });
-
       const result = await cleanupExpiredData();
-
       expect(prisma.gDPRJob.deleteMany).toHaveBeenCalledWith({
         where: {
           status: { in: ["completed", "failed"] },
@@ -106,24 +98,19 @@ describe("Cleanup Task", () => {
       });
       expect(result.gdprJobsDeleted).toBe(3);
     });
-
     it("should return zero counts when no data to clean", async () => {
       const result = await cleanupExpiredData();
-
       expect(result.shopsProcessed).toBe(0);
       expect(result.conversionLogsDeleted).toBe(0);
       expect(result.surveyResponsesDeleted).toBe(0);
       expect(result.auditLogsDeleted).toBe(0);
     });
-
     it("should process shops with data retention configured", async () => {
       const mockShops = [
         { id: "shop1", shopDomain: "shop1.myshopify.com", dataRetentionDays: 90 },
         { id: "shop2", shopDomain: "shop2.myshopify.com", dataRetentionDays: 30 },
       ];
-
       (prisma.shop.findMany as ReturnType<typeof vi.fn>).mockResolvedValue(mockShops);
-
       (prisma.conversionLog.findMany as ReturnType<typeof vi.fn>).mockResolvedValue([]);
       (prisma.surveyResponse.findMany as ReturnType<typeof vi.fn>).mockResolvedValue([]);
       (prisma.auditLog.findMany as ReturnType<typeof vi.fn>).mockResolvedValue([]);
@@ -132,9 +119,7 @@ describe("Cleanup Task", () => {
       (prisma.webhookLog.findMany as ReturnType<typeof vi.fn>).mockResolvedValue([]);
       (prisma.reconciliationReport.findMany as ReturnType<typeof vi.fn>).mockResolvedValue([]);
       (prisma.scanReport.findMany as ReturnType<typeof vi.fn>).mockResolvedValue([]);
-
       const result = await cleanupExpiredData();
-
       expect(result.shopsProcessed).toBe(2);
       expect(prisma.shop.findMany).toHaveBeenCalledWith({
         where: {
@@ -148,17 +133,14 @@ describe("Cleanup Task", () => {
         },
       });
     });
-
     it("should batch delete conversion logs", async () => {
       const mockShops = [{ id: "shop1", shopDomain: "shop1.myshopify.com", dataRetentionDays: 90 }];
       const mockLogs = [{ id: "log1" }, { id: "log2" }];
-
       (prisma.shop.findMany as ReturnType<typeof vi.fn>).mockResolvedValue(mockShops);
       (prisma.conversionLog.findMany as ReturnType<typeof vi.fn>)
         .mockResolvedValueOnce(mockLogs)
         .mockResolvedValue([]);
       (prisma.conversionLog.deleteMany as ReturnType<typeof vi.fn>).mockResolvedValue({ count: 2 });
-
       (prisma.surveyResponse.findMany as ReturnType<typeof vi.fn>).mockResolvedValue([]);
       (prisma.auditLog.findMany as ReturnType<typeof vi.fn>).mockResolvedValue([]);
       (prisma.conversionJob.findMany as ReturnType<typeof vi.fn>).mockResolvedValue([]);
@@ -166,20 +148,15 @@ describe("Cleanup Task", () => {
       (prisma.webhookLog.findMany as ReturnType<typeof vi.fn>).mockResolvedValue([]);
       (prisma.reconciliationReport.findMany as ReturnType<typeof vi.fn>).mockResolvedValue([]);
       (prisma.scanReport.findMany as ReturnType<typeof vi.fn>).mockResolvedValue([]);
-
       const result = await cleanupExpiredData();
-
       expect(result.conversionLogsDeleted).toBe(2);
       expect(prisma.conversionLog.deleteMany).toHaveBeenCalledWith({
         where: { id: { in: ["log1", "log2"] } },
       });
     });
-
     it("should enforce minimum 180 day retention for audit logs", async () => {
       const mockShops = [{ id: "shop1", shopDomain: "shop1.myshopify.com", dataRetentionDays: 30 }];
-
       (prisma.shop.findMany as ReturnType<typeof vi.fn>).mockResolvedValue(mockShops);
-
       (prisma.conversionLog.findMany as ReturnType<typeof vi.fn>).mockResolvedValue([]);
       (prisma.surveyResponse.findMany as ReturnType<typeof vi.fn>).mockResolvedValue([]);
       (prisma.auditLog.findMany as ReturnType<typeof vi.fn>).mockResolvedValue([]);
@@ -188,25 +165,18 @@ describe("Cleanup Task", () => {
       (prisma.webhookLog.findMany as ReturnType<typeof vi.fn>).mockResolvedValue([]);
       (prisma.reconciliationReport.findMany as ReturnType<typeof vi.fn>).mockResolvedValue([]);
       (prisma.scanReport.findMany as ReturnType<typeof vi.fn>).mockResolvedValue([]);
-
       await cleanupExpiredData();
-
       expect(prisma.auditLog.findMany).toHaveBeenCalled();
       const auditLogCall = (prisma.auditLog.findMany as ReturnType<typeof vi.fn>).mock.calls[0][0];
       const cutoffDate = auditLogCall.where.createdAt.lt;
-
       const expectedMinCutoff = new Date();
       expectedMinCutoff.setDate(expectedMinCutoff.getDate() - 180);
-
       expect(cutoffDate.getTime()).toBeLessThanOrEqual(expectedMinCutoff.getTime() + 86400000);
     });
-
     it("should delete scan reports based on retention period", async () => {
       const mockShops = [{ id: "shop1", shopDomain: "shop1.myshopify.com", dataRetentionDays: 90 }];
       const oldScanReports = [{ id: "scan6" }, { id: "scan7" }];
-
       (prisma.shop.findMany as ReturnType<typeof vi.fn>).mockResolvedValue(mockShops);
-
       (prisma.conversionLog.findMany as ReturnType<typeof vi.fn>).mockResolvedValue([]);
       (prisma.surveyResponse.findMany as ReturnType<typeof vi.fn>).mockResolvedValue([]);
       (prisma.auditLog.findMany as ReturnType<typeof vi.fn>).mockResolvedValue([]);
@@ -214,14 +184,10 @@ describe("Cleanup Task", () => {
       (prisma.pixelEventReceipt.findMany as ReturnType<typeof vi.fn>).mockResolvedValue([]);
       (prisma.webhookLog.findMany as ReturnType<typeof vi.fn>).mockResolvedValue([]);
       (prisma.reconciliationReport.findMany as ReturnType<typeof vi.fn>).mockResolvedValue([]);
-
       (prisma.scanReport.findMany as ReturnType<typeof vi.fn>).mockResolvedValue(oldScanReports);
       (prisma.scanReport.deleteMany as ReturnType<typeof vi.fn>).mockResolvedValue({ count: 2 });
-
       const result = await cleanupExpiredData();
-
       expect(result.scanReportsDeleted).toBe(2);
-
       expect(prisma.scanReport.findMany).toHaveBeenCalled();
       const scanReportCall = (prisma.scanReport.findMany as ReturnType<typeof vi.fn>).mock.calls[0][0];
       expect(scanReportCall.where.shopId).toEqual({ in: ["shop1"] });

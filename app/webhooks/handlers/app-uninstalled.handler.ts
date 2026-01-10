@@ -9,18 +9,15 @@ async function tryCleanupWebPixel(
   shop: string
 ): Promise<void> {
   try {
-
     const typedAdmin = admin as {
       graphql: (
         query: string,
         options?: { variables?: Record<string, unknown> }
       ) => Promise<{ json: () => Promise<unknown> }>;
     };
-
     const webPixels = await getExistingWebPixels(
       typedAdmin as Parameters<typeof getExistingWebPixels>[0]
     );
-
     for (const pixel of webPixels) {
       if (pixel.settings) {
         try {
@@ -44,12 +41,10 @@ async function tryCleanupWebPixel(
             }
           }
         } catch {
-
         }
       }
     }
   } catch (cleanupError) {
-
     logger.warn(`WebPixel cleanup attempt failed for ${shop}`, {
       error:
         cleanupError instanceof Error
@@ -64,32 +59,25 @@ export async function handleAppUninstalled(
   shopRecord: ShopWithPixelConfigs | null
 ): Promise<WebhookHandlerResult> {
   const { shop, admin, session } = context;
-
   logger.info(`Processing APP_UNINSTALLED for shop ${shop}`);
-
   if (admin && typeof admin === "object" && "graphql" in admin) {
     await tryCleanupWebPixel(admin as NonNullable<WebhookContext["admin"]>, shop);
   }
-
   if (session) {
     await prisma.session.deleteMany({ where: { shop } });
     logger.info(`Deleted sessions for ${shop}`);
   }
-
   if (shopRecord) {
-
     const eventLogsDeleted = await prisma.eventLog.deleteMany({
       where: { shopId: shopRecord.id },
     });
     const deliveryAttemptsDeleted = await prisma.deliveryAttempt.deleteMany({
       where: { shopId: shopRecord.id },
     });
-
     logger.info(`Deleted event logs and delivery attempts for shop ${shop}`, {
       eventLogsDeleted: eventLogsDeleted.count,
       deliveryAttemptsDeleted: deliveryAttemptsDeleted.count,
     });
-
     await prisma.shop.update({
       where: { id: shopRecord.id },
       data: {
@@ -99,9 +87,7 @@ export async function handleAppUninstalled(
     });
     logger.info(`Marked shop ${shop} as inactive`);
   }
-
   logger.info(`Successfully processed APP_UNINSTALLED for shop ${shop}`);
-
   return {
     success: true,
     status: 200,

@@ -28,12 +28,10 @@ const UPGRADE_WIZARD_CHECKLIST = [
   { id: "ga4", label: "Google Analytics 4 (GA4)", category: "pixel", platform: "google" },
   { id: "meta", label: "Meta Pixel (Facebook)", category: "pixel", platform: "meta" },
   { id: "tiktok", label: "TikTok Pixel", category: "pixel", platform: "tiktok" },
-
   { id: "survey", label: "售后问卷 / 评价收集", category: "survey", platform: undefined },
   { id: "support", label: "客服入口 / 帮助中心", category: "support", platform: undefined },
   { id: "reorder", label: "再购功能", category: "other", platform: undefined },
   { id: "affiliate", label: "联盟追踪 / 分佣", category: "affiliate", platform: undefined },
-
   { id: "tracking", label: "订单追踪 / 物流查询", category: "support", platform: undefined },
   { id: "other", label: "其他脚本或功能", category: "other", platform: undefined },
 ];
@@ -48,13 +46,11 @@ export function GuidedSupplement({
   const [selectedItems, setSelectedItems] = useState<string[]>([]);
   const [additionalNotes, setAdditionalNotes] = useState("");
   const fetcher = useFetcher();
-
   const handleItemToggle = useCallback((itemId: string) => {
     setSelectedItems((prev) =>
       prev.includes(itemId) ? prev.filter((id) => id !== itemId) : [...prev, itemId]
     );
   }, []);
-
   const handleNext = useCallback(() => {
     if (step === 1) {
       setStep(2);
@@ -62,7 +58,6 @@ export function GuidedSupplement({
       setStep(3);
     }
   }, [step]);
-
   const handleBack = useCallback(() => {
     if (step === 2) {
       setStep(1);
@@ -70,11 +65,9 @@ export function GuidedSupplement({
       setStep(2);
     }
   }, []);
-
   const extractFeaturesFromText = useCallback((text: string): string[] => {
     const lowerText = text.toLowerCase();
     const detectedItems: string[] = [];
-
     const keywordMap: Record<string, string[]> = {
       ga4: ["ga4", "google analytics 4", "g-"],
       google: ["google analytics", "gtag", "google tag"],
@@ -89,10 +82,8 @@ export function GuidedSupplement({
       upsell: ["upsell", "追加销售", "推荐商品"],
       tracking: ["tracking", "追踪", "物流", "aftership", "17track"],
     };
-
     Object.entries(keywordMap).forEach(([key, keywords]) => {
       if (keywords.some(kw => lowerText.includes(kw))) {
-
         const itemId = key === "ga4" ? "ga4" :
                       key === "google" ? "ga4" :
                       key === "meta" ? "meta" :
@@ -105,36 +96,29 @@ export function GuidedSupplement({
                       key === "affiliate" ? "affiliate" :
                       key === "upsell" ? "upsell" :
                       key === "tracking" ? "tracking" : null;
-
         if (itemId && !detectedItems.includes(itemId)) {
           detectedItems.push(itemId);
         }
       }
     });
-
     return detectedItems;
   }, []);
-
   const handleComplete = useCallback(() => {
     if (selectedItems.length === 0) {
       return;
     }
-
     const finalSelectedItems = [...selectedItems];
     if (additionalNotes.trim()) {
       const detectedItems = extractFeaturesFromText(additionalNotes);
-
       detectedItems.forEach(itemId => {
         if (!finalSelectedItems.includes(itemId)) {
           finalSelectedItems.push(itemId);
         }
       });
     }
-
     const assets = finalSelectedItems.map((itemId) => {
       const item = UPGRADE_WIZARD_CHECKLIST.find((i) => i.id === itemId);
       if (!item) return null;
-
       return {
         sourceType: "merchant_confirmed" as const,
         category: item.category as
@@ -162,7 +146,6 @@ export function GuidedSupplement({
         },
       };
     }).filter((asset): asset is NonNullable<typeof asset> => asset !== null);
-
     fetcher.submit(
       {
         _action: "create_from_wizard",
@@ -171,14 +154,12 @@ export function GuidedSupplement({
       { method: "post" }
     );
   }, [selectedItems, additionalNotes, fetcher, extractFeaturesFromText]);
-
   if (fetcher.data && (fetcher.data as { success?: boolean }).success) {
     const result = fetcher.data as { created?: number; updated?: number };
     const totalCreated = (result.created || 0) + (result.updated || 0);
     if (onComplete && totalCreated > 0) {
       setTimeout(() => {
         onComplete(totalCreated);
-
         setStep(1);
         setSelectedItems([]);
         setAdditionalNotes("");
@@ -186,18 +167,15 @@ export function GuidedSupplement({
       }, 1000);
     }
   }
-
   const handleCancel = useCallback(() => {
     setStep(1);
     setSelectedItems([]);
     setAdditionalNotes("");
     onClose();
   }, [onClose]);
-
   const canProceedFromStep1 = selectedItems.length > 0;
   const canProceedFromStep2 = true;
   const canComplete = selectedItems.length > 0;
-
   return (
     <Modal
       open={open}
@@ -231,7 +209,6 @@ export function GuidedSupplement({
             <Text as="span">→</Text>
             <Badge tone={step >= 3 ? "success" : undefined}>步骤 3</Badge>
           </InlineStack>
-
           {step === 1 && (
             <BlockStack gap="400">
               <Text as="h3" variant="headingMd">
@@ -240,7 +217,6 @@ export function GuidedSupplement({
               <Text as="p" variant="bodySm" tone="subdued">
                 请根据 Shopify 升级向导中显示的清单，勾选所有在 Thank you / Order status 页面使用的功能
               </Text>
-
               <Banner tone="info">
                 <BlockStack gap="200">
                   <Text as="p" variant="bodySm" fontWeight="semibold">
@@ -262,7 +238,6 @@ export function GuidedSupplement({
                   </List>
                 </BlockStack>
               </Banner>
-
               <Banner tone="warning">
                 <BlockStack gap="100">
                   <Text as="p" variant="bodySm" fontWeight="semibold">
@@ -279,14 +254,11 @@ export function GuidedSupplement({
                   </Text>
                 </BlockStack>
               </Banner>
-
               <BlockStack gap="300">
                 {UPGRADE_WIZARD_CHECKLIST.map((item) => {
-
                   const isV1Supported =
                     (item.id === "ga4" || item.id === "meta" || item.id === "tiktok") ||
                     (item.id === "survey" || item.id === "support");
-
                   return (
                     <Box
                       key={item.id}
@@ -313,7 +285,6 @@ export function GuidedSupplement({
                   );
                 })}
               </BlockStack>
-
               {selectedItems.length === 0 && (
                 <Banner tone="info">
                   <Text as="p" variant="bodySm">
@@ -323,7 +294,6 @@ export function GuidedSupplement({
               )}
             </BlockStack>
           )}
-
           {step === 2 && (
             <BlockStack gap="400">
               <Text as="h3" variant="headingMd">
@@ -332,7 +302,6 @@ export function GuidedSupplement({
               <Text as="p" variant="bodySm" tone="subdued">
                 如果您从升级向导中复制了清单文本，可以在此处补充
               </Text>
-
               <Banner tone="info">
                 <BlockStack gap="200">
                   <Text as="p" variant="bodySm" fontWeight="semibold">
@@ -355,7 +324,6 @@ export function GuidedSupplement({
                   </List>
                 </BlockStack>
               </Banner>
-
               <Card>
                 <BlockStack gap="300">
                   <Text as="p" variant="bodySm" fontWeight="semibold">
@@ -372,13 +340,11 @@ export function GuidedSupplement({
                   />
                 </BlockStack>
               </Card>
-
               <Banner>
                 <Text as="p" variant="bodySm">
                   💡 <strong>提示：</strong>截图识别暂未开放，请使用“文本粘贴”方式补充。若识别失败或内容缺失，请回退到方式一。
                 </Text>
               </Banner>
-
               <Card>
                 <BlockStack gap="300">
                   <Text as="p" variant="bodySm" fontWeight="semibold">
@@ -394,7 +360,6 @@ export function GuidedSupplement({
               </Card>
             </BlockStack>
           )}
-
           {step === 3 && (
             <BlockStack gap="400">
               <Text as="h3" variant="headingMd">
@@ -403,7 +368,6 @@ export function GuidedSupplement({
               <Text as="p" variant="bodySm" tone="subdued">
                 如果您有其他需要补充的信息，请在此处填写
               </Text>
-
               <TextField
                 label="补充说明"
                 value={additionalNotes}
@@ -413,9 +377,7 @@ export function GuidedSupplement({
                 helpText="这些信息将帮助我们更准确地评估迁移风险"
                 autoComplete="off"
               />
-
               <Divider />
-
               <Box background="bg-surface-secondary" padding="400" borderRadius="200">
                 <BlockStack gap="300">
                   <Text as="h3" variant="headingSm">
@@ -470,7 +432,6 @@ export function GuidedSupplement({
                   </BlockStack>
                 </BlockStack>
               </Box>
-
               {fetcher.data && (fetcher.data as { error?: string }).error ? (
                 <Banner tone="critical">
                   <Text as="p" variant="bodySm">
@@ -478,7 +439,6 @@ export function GuidedSupplement({
                   </Text>
                 </Banner>
               ) : null}
-
               {fetcher.data && (fetcher.data as { success?: boolean }).success ? (
                 <Banner tone="success">
                   <Text as="p" variant="bodySm">

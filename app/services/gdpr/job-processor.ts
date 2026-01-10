@@ -17,14 +17,11 @@ export async function processGDPRJob(jobId: string): Promise<ProcessGDPRJobResul
   const job = await prisma.gDPRJob.findUnique({
     where: { id: jobId },
   });
-
   if (!job) {
     return { success: false, error: "Job not found" };
   }
-
   if (job.status === "completed") {
     logger.debug(`[GDPR] Job ${jobId} already completed, skipping`);
-
     const result = job.result;
     if (result && typeof result === "object" && !Array.isArray(result)) {
       return {
@@ -32,21 +29,17 @@ export async function processGDPRJob(jobId: string): Promise<ProcessGDPRJobResul
         result: result as unknown as GDPRJobResult,
       };
     }
-
     return {
       success: false,
       error: "Invalid job result format",
     };
   }
-
   await prisma.gDPRJob.update({
     where: { id: jobId },
     data: { status: "processing" },
   });
-
   try {
     let result: DataRequestResult | CustomerRedactResult | ShopRedactResult;
-
     switch (job.jobType) {
       case "data_request":
         result = await processDataRequest(job.shopDomain, job.payload as DataRequestPayload);
@@ -60,7 +53,6 @@ export async function processGDPRJob(jobId: string): Promise<ProcessGDPRJobResul
       default:
         throw new Error(`Unknown GDPR job type: ${job.jobType}`);
     }
-
     await prisma.gDPRJob.update({
       where: { id: jobId },
       data: {
@@ -71,16 +63,13 @@ export async function processGDPRJob(jobId: string): Promise<ProcessGDPRJobResul
         completedAt: new Date(),
       },
     });
-
     logger.info(`[GDPR] Job ${jobId} completed successfully`, {
       jobType: job.jobType,
       shopDomain: job.shopDomain,
     });
-
     return { success: true, result };
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : "Unknown error";
-
     await prisma.gDPRJob.update({
       where: { id: jobId },
       data: {
@@ -89,14 +78,12 @@ export async function processGDPRJob(jobId: string): Promise<ProcessGDPRJobResul
         processedAt: new Date(),
       },
     });
-
     logger.error(`[GDPR] Job ${jobId} failed: ${errorMessage}`, error);
     return { success: false, error: errorMessage };
   }
 }
 
 export async function processGDPRJobs(): Promise<ProcessGDPRJobsResult> {
-
   const pendingJobs = await prisma.gDPRJob.findMany({
     where: {
       status: { in: ["queued", "failed"] },
@@ -104,16 +91,12 @@ export async function processGDPRJobs(): Promise<ProcessGDPRJobsResult> {
     orderBy: { createdAt: "asc" },
     take: 10,
   });
-
   if (pendingJobs.length === 0) {
     return { processed: 0, succeeded: 0, failed: 0 };
   }
-
   logger.info(`[GDPR] Processing ${pendingJobs.length} GDPR jobs`);
-
   let succeeded = 0;
   let failed = 0;
-
   for (const job of pendingJobs) {
     const result = await processGDPRJob(job.id);
     if (result.success) {
@@ -122,9 +105,7 @@ export async function processGDPRJobs(): Promise<ProcessGDPRJobsResult> {
       failed++;
     }
   }
-
   logger.info(`[GDPR] Processed ${pendingJobs.length} jobs: ${succeeded} succeeded, ${failed} failed`);
-
   return {
     processed: pendingJobs.length,
     succeeded,
@@ -147,7 +128,6 @@ export async function getGDPRJobStatus(shopDomain?: string): Promise<{
   }>;
 }> {
   const where = shopDomain ? { shopDomain } : {};
-
   const [queued, processing, completed, failed, recentJobs] = await Promise.all([
     prisma.gDPRJob.count({ where: { ...where, status: "queued" } }),
     prisma.gDPRJob.count({ where: { ...where, status: "processing" } }),
@@ -167,7 +147,6 @@ export async function getGDPRJobStatus(shopDomain?: string): Promise<{
       },
     }),
   ]);
-
   return {
     queued,
     processing,

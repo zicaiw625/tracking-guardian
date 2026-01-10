@@ -31,10 +31,8 @@ export function AlertsTodoCard({ alerts }: AlertsTodoCardProps) {
       </Card>
     );
   }
-
   const criticalCount = alerts.filter((a) => a.severity === "critical").length;
   const warningCount = alerts.filter((a) => a.severity === "warning").length;
-
   return (
     <Card>
       <BlockStack gap="400">
@@ -46,7 +44,6 @@ export function AlertsTodoCard({ alerts }: AlertsTodoCardProps) {
             {`${alerts.length} 个活跃告警`}
           </Badge>
         </InlineStack>
-
         <List>
           {alerts.slice(0, 3).map((alert) => (
             <List.Item key={alert.id}>
@@ -78,13 +75,11 @@ export function AlertsTodoCard({ alerts }: AlertsTodoCardProps) {
             </List.Item>
           ))}
         </List>
-
         {alerts.length > 3 && (
           <Text as="p" variant="bodySm" tone="subdued">
             还有 {alerts.length - 3} 个告警未显示
           </Text>
         )}
-
         <Button url="/app/monitor" variant="primary" fullWidth>
           查看全部告警
         </Button>

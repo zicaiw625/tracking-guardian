@@ -13,18 +13,15 @@ export function AuditPaywallCard({ planId }: AuditPaywallCardProps) {
   const isStarter = isPlanAtLeast(planIdSafe, "starter");
   const isGrowth = isPlanAtLeast(planIdSafe, "growth");
   const isAgency = isPlanAtLeast(planIdSafe, "agency");
-
   const starterPlan = getPlanOrDefault("starter");
   const growthPlan = getPlanOrDefault("growth");
   const agencyPlan = getPlanOrDefault("agency");
-
   const migrationLabel = isStarter
     ? "迁移像素"
     : `迁移像素（${starterPlan.name} ${priceLabel(starterPlan.price)}）`;
   const moduleLabel = isStarter
     ? "安装页面模块"
     : `安装页面模块（${starterPlan.name} ${priceLabel(starterPlan.price)}）`;
-
   const bannerLines = (() => {
     if (!isStarter) {
       return [
@@ -38,7 +35,6 @@ export function AuditPaywallCard({ planId }: AuditPaywallCardProps) {
         },
       ];
     }
-
     if (!isGrowth) {
       return [
         {
@@ -51,7 +47,6 @@ export function AuditPaywallCard({ planId }: AuditPaywallCardProps) {
         },
       ];
     }
-
     if (!isAgency) {
       return [
         {
@@ -64,7 +59,6 @@ export function AuditPaywallCard({ planId }: AuditPaywallCardProps) {
         },
       ];
     }
-
     return [
       {
         label: "已解锁：",
@@ -76,7 +70,6 @@ export function AuditPaywallCard({ planId }: AuditPaywallCardProps) {
       },
     ];
   })();
-
   const upgradeTarget = !isStarter
     ? "starter"
     : !isGrowth
@@ -85,7 +78,6 @@ export function AuditPaywallCard({ planId }: AuditPaywallCardProps) {
         ? "agency"
         : null;
   const upgradePlan = upgradeTarget ? getPlanOrDefault(upgradeTarget) : null;
-
   return (
     <Card>
       <BlockStack gap="400">

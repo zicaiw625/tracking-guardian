@@ -7,30 +7,24 @@ import {
 export const DEPRECATION_DATES = DEPRECATION_DATES_IMPORT;
 
 export const PLUS_DEADLINES = {
-
   SCRIPT_TAG_OFF: DEPRECATION_DATES.plusScriptTagExecutionOff,
-
   AUTO_UPGRADE_START: DEPRECATION_DATES.plusAutoUpgradeStart,
 } as const;
 
 export const NON_PLUS_DEADLINES = {
-
   SCRIPT_TAG_OFF: DEPRECATION_DATES.nonPlusScriptTagExecutionOff,
 } as const;
 
 export const COMMON_DEADLINES = {
-
   SCRIPT_TAG_CREATION_BLOCKED: DEPRECATION_DATES.scriptTagCreationBlocked,
 } as const;
 
 export function getShopDeadline(shopTier: ShopTier): Date {
   switch (shopTier) {
     case "plus":
-
       return PLUS_DEADLINES.AUTO_UPGRADE_START;
     case "non_plus":
     case "unknown":
-
       return NON_PLUS_DEADLINES.SCRIPT_TAG_OFF;
     default:
       return NON_PLUS_DEADLINES.SCRIPT_TAG_OFF;

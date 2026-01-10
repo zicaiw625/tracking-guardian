@@ -170,14 +170,11 @@ export type ValidationResult<T> =
 
 export function validatePixelEvent(payload: unknown): ValidationResult<PixelEventInput> {
   const result = PixelEventSchema.safeParse(payload);
-
   if (result.success) {
     return { success: true, data: result.data };
   }
-
   const firstError = result.error.issues[0];
   const code = mapZodErrorToCode(firstError);
-
   return {
     success: false,
     error: firstError.message,
@@ -188,14 +185,11 @@ export function validatePixelEvent(payload: unknown): ValidationResult<PixelEven
 
 export function validateSimplePixelEvent(payload: unknown): ValidationResult<SimplePixelEventInput> {
   const result = SimplePixelEventSchema.safeParse(payload);
-
   if (result.success) {
     return { success: true, data: result.data };
   }
-
   const firstError = result.error.issues[0];
   const code = mapZodErrorToCode(firstError);
-
   return {
     success: false,
     error: firstError.message,
@@ -206,14 +200,11 @@ export function validateSimplePixelEvent(payload: unknown): ValidationResult<Sim
 
 export function validateCheckoutCompletedData(data: unknown): ValidationResult<CheckoutCompletedDataInput> {
   const result = CheckoutCompletedDataSchema.safeParse(data);
-
   if (result.success) {
     return { success: true, data: result.data };
   }
-
   const firstError = result.error.issues[0];
   const code = mapZodErrorToCode(firstError);
-
   return {
     success: false,
     error: firstError.message,
@@ -224,11 +215,9 @@ export function validateCheckoutCompletedData(data: unknown): ValidationResult<C
 
 export function validateConsent(consent: unknown): ValidationResult<ConsentInput> {
   const result = ConsentSchema.safeParse(consent);
-
   if (result.success) {
     return { success: true, data: result.data };
   }
-
   return {
     success: false,
     error: result.error.issues[0].message,
@@ -239,35 +228,29 @@ export function validateConsent(consent: unknown): ValidationResult<ConsentInput
 
 function mapZodErrorToCode(error: z.ZodIssue): string {
   const path = error.path.join('.');
-
   const code = error.code as string;
-
   if (code === 'invalid_type') {
     if (path === 'eventName') return 'missing_event_name';
     if (path === 'shopDomain') return 'missing_shop_domain';
     if (path === 'timestamp') return 'missing_timestamp';
     return `invalid_${path}_type`;
   }
-
   if (code === 'invalid_format' || code === 'invalid_string') {
     if (path === 'shopDomain') return 'invalid_shop_domain_format';
     if (path.includes('checkoutToken')) return 'invalid_checkout_token_format';
     if (path.includes('orderId')) return 'invalid_order_id_format';
     return `invalid_${path}_format`;
   }
-
   if (code === 'too_small' || code === 'too_big') {
     if (path === 'timestamp') return 'invalid_timestamp_value';
     return `invalid_${path}_range`;
   }
-
   if (code === 'custom') {
     if (error.message.includes('orderId') || error.message.includes('checkoutToken')) {
       return 'missing_order_identifiers';
     }
     return 'validation_error';
   }
-
   return 'invalid_body';
 }
 

@@ -32,15 +32,12 @@ export function ThresholdConfigSection({
       volumeDrop?: { wouldTrigger?: boolean; currentValue?: number; threshold?: number };
     }
   }>();
-
   const [missingParamsThreshold, setMissingParamsThreshold] = useState(5);
   const [volumeDropThreshold, setVolumeDropThreshold] = useState(50);
-
   useEffect(() => {
     recommendationsFetcher.load("/api/threshold-recommendations?action=recommendations");
     currentFetcher.load("/api/threshold-recommendations?action=current");
   }, []);
-
   const recommendations = recommendationsFetcher.data?.recommendations as { failureRate?: number; missingParams?: number; volumeDrop?: number } | undefined;
   const currentValues = currentFetcher.data?.current as { failureRate?: number; missingParams?: number; volumeDrop?: number } | undefined;
   const testResult = testFetcher.data?.testResult as {
@@ -50,13 +47,11 @@ export function ThresholdConfigSection({
     missingParams?: { wouldTrigger?: boolean; currentValue?: number; threshold?: number };
     volumeDrop?: { wouldTrigger?: boolean; currentValue?: number; threshold?: number };
   } | undefined;
-
   const handleTest = () => {
     testFetcher.load(
       `/api/threshold-recommendations?action=test&failureRate=${failureRateThreshold}&missingParams=${missingParamsThreshold}&volumeDrop=${volumeDropThreshold}`
     );
   };
-
   return (
     <BlockStack gap="400">
       <Box>
@@ -106,9 +101,7 @@ export function ThresholdConfigSection({
           </Banner>
         )}
       </Box>
-
       <Divider />
-
       <Box>
         <ThresholdSlider
           label="缺参率阈值"
@@ -156,9 +149,7 @@ export function ThresholdConfigSection({
           </Banner>
         )}
       </Box>
-
       <Divider />
-
       <Box background="bg-surface-secondary" padding="300" borderRadius="200">
         <BlockStack gap="200">
           <InlineStack align="space-between" blockAlign="center">
@@ -172,7 +163,6 @@ export function ThresholdConfigSection({
           </Text>
         </BlockStack>
       </Box>
-
       <Button
         variant="secondary"
         onClick={handleTest}
@@ -180,7 +170,6 @@ export function ThresholdConfigSection({
       >
         测试阈值（查看过去24小时触发情况）
       </Button>
-
       {testResult && testResult.failureRate && testResult.missingParams && testResult.volumeDrop && (
         <Banner tone={(testResult.failureRate.wouldTrigger || testResult.missingParams.wouldTrigger) ? "warning" : "success"}>
           <BlockStack gap="200">

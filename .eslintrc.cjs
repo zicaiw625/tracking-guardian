@@ -22,11 +22,8 @@ module.exports = {
     "extensions*.tsx",
     "extensions*.ts",
   ],
-
   extends: ["eslint:recommended"],
-
   overrides: [
-
     {
       files: ["**/*.{ts,tsx}"],
       plugins: ["@typescript-eslint", "import"],
@@ -55,7 +52,6 @@ module.exports = {
         ],
       },
     },
-
     {
       files: [".eslintrc.cjs"],
       env: {

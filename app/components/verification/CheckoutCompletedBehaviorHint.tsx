@@ -3,11 +3,8 @@ import { useState } from "react";
 import { AlertCircleIcon, InfoIcon } from "~/components/icons";
 
 export interface CheckoutCompletedBehaviorHintProps {
-
   mode?: "missing" | "drop" | "info";
-
   collapsible?: boolean;
-
   title?: string;
 }
 
@@ -17,18 +14,14 @@ export function CheckoutCompletedBehaviorHint({
   title,
 }: CheckoutCompletedBehaviorHintProps) {
   const [expanded, setExpanded] = useState(!collapsible);
-
   const tone = mode === "missing" ? "warning" : mode === "drop" ? "critical" : "info";
   const icon = mode === "missing" || mode === "drop" ? AlertCircleIcon : InfoIcon;
-
   const defaultTitle = mode === "missing"
     ? "checkout_completed 事件缺失的可能原因"
     : mode === "drop"
     ? "checkout_completed 事件量骤降的可能原因"
     : "checkout_completed 事件的已知行为";
-
   const displayTitle = title || defaultTitle;
-
   const content = (
     <BlockStack gap="200">
       <Text as="p" variant="bodySm">
@@ -83,7 +76,6 @@ export function CheckoutCompletedBehaviorHint({
       </List>
     </BlockStack>
   );
-
   if (!collapsible) {
     return (
       <Banner tone={tone} icon={icon} title={displayTitle}>
@@ -91,7 +83,6 @@ export function CheckoutCompletedBehaviorHint({
       </Banner>
     );
   }
-
   return (
     <Banner tone={tone} icon={icon}>
       <BlockStack gap="200">

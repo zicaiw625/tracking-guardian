@@ -47,7 +47,6 @@ export interface ShopSettingsData {
   hasIngestionSecret: boolean;
   hasActiveGraceWindow: boolean;
   graceWindowExpiry: Date | null;
-
   weakConsentMode: boolean;
   consentStrategy: string;
   dataRetentionDays: number;
@@ -61,7 +60,6 @@ export interface TokenIssues {
 export interface SettingsLoaderData {
   shop: ShopSettingsData | null;
   tokenIssues: TokenIssues;
-
   currentMonitoringData?: {
     failureRate: number;
     missingParamsRate: number;

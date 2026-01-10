@@ -86,7 +86,6 @@ interface SecurityViolation {
 export function checkSecurityViolations(): SecurityViolation[] {
     const isProduction = process.env.NODE_ENV === "production";
     const violations: SecurityViolation[] = [];
-
     if (isProduction && process.env.ALLOW_UNSIGNED_PIXEL_EVENTS === "true") {
         violations.push({
             type: "fatal",
@@ -97,7 +96,6 @@ export function checkSecurityViolations(): SecurityViolation[] {
                 "Remove this environment variable immediately to proceed.",
         });
     }
-
     if (!isProduction && process.env.ALLOW_UNSIGNED_PIXEL_EVENTS === "true") {
         violations.push({
             type: "warning",
@@ -106,9 +104,7 @@ export function checkSecurityViolations(): SecurityViolation[] {
                 "This is acceptable for development but MUST be removed before production deployment.",
         });
     }
-
     if (isProduction) {
-
         if (!process.env.ENCRYPTION_SECRET) {
             violations.push({
                 type: "fatal",
@@ -118,7 +114,6 @@ export function checkSecurityViolations(): SecurityViolation[] {
                     "Generate with: openssl rand -base64 32",
             });
         }
-
         if (!process.env.CRON_SECRET) {
             violations.push({
                 type: "fatal",
@@ -128,7 +123,6 @@ export function checkSecurityViolations(): SecurityViolation[] {
                     "Generate with: openssl rand -base64 32",
             });
         }
-
         const appUrl = process.env.SHOPIFY_APP_URL;
         if (appUrl && !appUrl.startsWith("https://")) {
             violations.push({
@@ -138,7 +132,6 @@ export function checkSecurityViolations(): SecurityViolation[] {
                     `Current value starts with: ${appUrl.substring(0, 10)}...`,
             });
         }
-
         if (process.env.FEATURE_DEBUG_LOGGING === "true") {
             violations.push({
                 type: "warning",
@@ -147,7 +140,6 @@ export function checkSecurityViolations(): SecurityViolation[] {
                     "This may expose sensitive information in logs. Consider disabling.",
             });
         }
-
         if (process.env.DEFAULT_CONSENT_STRATEGY === "weak") {
             violations.push({
                 type: "warning",
@@ -157,12 +149,10 @@ export function checkSecurityViolations(): SecurityViolation[] {
             });
         }
     }
-
     const suspiciousPatterns = [
         /^(test|demo|example|placeholder|changeme|secret|password|xxx+|000+)$/i,
         /^INSECURE.*DEV/i,
     ];
-
     const secretsToCheck = ["ENCRYPTION_SECRET", "CRON_SECRET", "SHOPIFY_API_SECRET"];
     for (const secretName of secretsToCheck) {
         const value = process.env[secretName];
@@ -180,18 +170,15 @@ export function checkSecurityViolations(): SecurityViolation[] {
             }
         }
     }
-
     return violations;
 }
 export function enforceSecurityChecks(): void {
     const violations = checkSecurityViolations();
     const fatalViolations = violations.filter(v => v.type === "fatal");
     const warnings = violations.filter(v => v.type === "warning");
-
     for (const warning of warnings) {
         logger.warn(warning.message, { code: warning.code });
     }
-
     if (violations.length > 0) {
         const summary = [
             "\n" + "=".repeat(80),
@@ -202,10 +189,8 @@ export function enforceSecurityChecks(): void {
             `Warnings: ${warnings.length}`,
             "=".repeat(80) + "\n"
         ].join("\n");
-
         logger.info(summary);
     }
-
     if (fatalViolations.length > 0) {
         const errorMessage = fatalViolations.map(v => `[${v.code}] ${v.message}`).join("\n\n");
         logger.error("FATAL SECURITY VIOLATION - Application startup aborted", undefined, {
@@ -217,7 +202,6 @@ export function enforceSecurityChecks(): void {
             `${errorMessage}\n\n` +
             `${"=".repeat(80)}\n`);
     }
-
     if (violations.length === 0) {
         logger.info("Security checks passed - no violations detected");
     }
@@ -237,10 +221,8 @@ export function validateSecrets(): ValidationResult {
     const warnings: string[] = [];
     const missingRequired: string[] = [];
     const missingRecommended: string[] = [];
-
     for (const secret of REQUIRED_SECRETS) {
         const value = process.env[secret.envVar];
-
         if (!value) {
             if (secret.required) {
                 missingRequired.push(secret.envVar);
@@ -252,12 +234,10 @@ export function validateSecrets(): ValidationResult {
             }
             continue;
         }
-
         if (secret.minLength && value.length < secret.minLength) {
             const message = `${secret.name} (${secret.envVar}) is shorter than recommended ${secret.minLength} characters`;
             warnings.push(message);
         }
-
         if (secret.pattern && !secret.pattern.test(value)) {
             const message = `${secret.name} (${secret.envVar}) does not match expected format`;
             if (isProduction) {
@@ -267,10 +247,8 @@ export function validateSecrets(): ValidationResult {
             }
         }
     }
-
     for (const secret of RECOMMENDED_SECRETS) {
         const value = process.env[secret.envVar];
-
         if (!value) {
             missingRecommended.push(secret.envVar);
             if (isProduction) {
@@ -280,14 +258,12 @@ export function validateSecrets(): ValidationResult {
             warnings.push(`${secret.name} (${secret.envVar}) does not match expected format`);
         }
     }
-
     for (const warning of warnings) {
         logger.warn(`Secret validation: ${warning}`);
     }
     for (const error of errors) {
         logger.error(`Secret validation: ${error}`);
     }
-
     return {
         valid: errors.length === 0,
         errors,
@@ -306,7 +282,6 @@ export function getSecretsSummary(): {
     const missing: string[] = [];
     const recommendedConfigured: string[] = [];
     const recommendedMissing: string[] = [];
-
     for (const secret of REQUIRED_SECRETS) {
         if (process.env[secret.envVar]) {
             configured.push(secret.envVar);
@@ -314,7 +289,6 @@ export function getSecretsSummary(): {
             missing.push(secret.envVar);
         }
     }
-
     for (const secret of RECOMMENDED_SECRETS) {
         if (process.env[secret.envVar]) {
             recommendedConfigured.push(secret.envVar);
@@ -322,7 +296,6 @@ export function getSecretsSummary(): {
             recommendedMissing.push(secret.envVar);
         }
     }
-
     return {
         configured,
         missing,

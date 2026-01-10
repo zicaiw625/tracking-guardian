@@ -60,7 +60,6 @@ interface PinterestEventData {
   event_id: string;
   event_source_url?: string;
   partner_name?: string;
-
   custom_data?: PinterestCustomData;
   app_id?: string;
   app_name?: string;
@@ -87,7 +86,6 @@ interface PinterestApiResponse {
 export class PinterestPlatformService implements IPlatformService {
   readonly platform = Platform.PINTEREST;
   readonly displayName = "Pinterest";
-
   async sendConversion(
     credentials: PlatformCredentials,
     data: ConversionData,
@@ -95,7 +93,6 @@ export class PinterestPlatformService implements IPlatformService {
   ): Promise<PlatformSendResult> {
     const pinterestCreds = credentials as PinterestCredentials;
     const validation = this.validateCredentials(pinterestCreds);
-
     if (!validation.valid) {
       return {
         success: false,
@@ -106,21 +103,17 @@ export class PinterestPlatformService implements IPlatformService {
         },
       };
     }
-
     const dedupeEventId = eventId || generateDedupeEventId(data.orderId);
-
     try {
       const [response, duration] = await measureDuration(() =>
         this.sendRequest(pinterestCreds, data, dedupeEventId)
       );
-
       logger.info(`Pinterest CAPI: conversion sent successfully`, {
         orderId: data.orderId.slice(0, 8),
         eventId: dedupeEventId,
         eventsProcessed: response.num_events_processed,
         durationMs: duration,
       });
-
       return {
         success: true,
         response: {
@@ -132,55 +125,44 @@ export class PinterestPlatformService implements IPlatformService {
       };
     } catch (error) {
       const platformError = this.parseError(error);
-
       logger.error(`Pinterest CAPI: conversion failed`, {
         orderId: data.orderId.slice(0, 8),
         error: platformError.message,
         type: platformError.type,
       });
-
       return {
         success: false,
         error: platformError,
       };
     }
   }
-
   validateCredentials(credentials: unknown): CredentialsValidationResult {
     const errors: string[] = [];
-
     if (!credentials || typeof credentials !== "object") {
       return { valid: false, errors: ["Credentials must be an object"] };
     }
-
     const creds = credentials as Record<string, unknown>;
-
     if (!creds.adAccountId || typeof creds.adAccountId !== "string") {
       errors.push("adAccountId is required");
     } else if (!/^\d+$/.test(creds.adAccountId)) {
       errors.push(`Invalid Pinterest Ad Account ID format: ${creds.adAccountId}. Expected numeric ID.`);
     }
-
     if (!creds.accessToken || typeof creds.accessToken !== "string") {
       errors.push("accessToken is required");
     } else if (creds.accessToken.length < 10) {
       errors.push("accessToken appears to be invalid (too short)");
     }
-
     return {
       valid: errors.length === 0,
       errors,
     };
   }
-
   parseError(error: unknown): PlatformError {
     if (error instanceof Error) {
-
       const attachedError = (error as Error & { platformError?: PlatformError }).platformError;
       if (attachedError) {
         return attachedError;
       }
-
       if (error.name === "AbortError") {
         return {
           type: "timeout",
@@ -188,36 +170,30 @@ export class PinterestPlatformService implements IPlatformService {
           isRetryable: true,
         };
       }
-
       return classifyJsError(error);
     }
-
     return {
       type: "unknown",
       message: String(error),
       isRetryable: true,
     };
   }
-
   async buildPayload(
     data: ConversionData,
     eventId: string
   ): Promise<Record<string, unknown>> {
     const eventTime = Math.floor(Date.now() / 1000);
-
     const contents =
       data.lineItems?.map((item) => ({
         id: item.productId,
         item_price: item.price.toString(),
         quantity: item.quantity,
       })) || [];
-
     const eventData: PinterestEventData = {
       event_name: "checkout",
       action_source: "web",
       event_time: eventTime,
       event_id: eventId,
-
       custom_data: {
         currency: data.currency,
         value: data.value.toString(),
@@ -226,28 +202,21 @@ export class PinterestPlatformService implements IPlatformService {
         num_items: contents.reduce((sum, c) => sum + (c.quantity || 1), 0),
       },
     };
-
     return { data: [eventData] };
   }
-
   private async sendRequest(
     credentials: PinterestCredentials,
     data: ConversionData,
     eventId: string
   ): Promise<PinterestApiResponse> {
-
     const payload = await this.buildPayload(data, eventId);
-
     const url = `${PINTEREST_API_BASE_URL}/${PINTEREST_API_VERSION}/ad_accounts/${credentials.adAccountId}/events`;
-
     const requestBody = payload;
-
     if (credentials.testMode) {
       logger.info(`Pinterest CAPI: sending in test mode`, {
         orderId: data.orderId.slice(0, 8),
       });
     }
-
     const response = await fetchWithTimeout(
       url,
       {
@@ -260,20 +229,16 @@ export class PinterestPlatformService implements IPlatformService {
       },
       DEFAULT_API_TIMEOUT_MS
     );
-
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
       const platformError = this.parsePinterestError(response.status, errorData);
-
       const enhancedError = new Error(`Pinterest API error: ${platformError.message}`) as Error & {
         platformError: PlatformError;
       };
       enhancedError.platformError = platformError;
       throw enhancedError;
     }
-
     const result: PinterestApiResponse = await response.json();
-
     if (result.events && result.events.length > 0) {
       const failedEvents = result.events.filter((e) => e.status === "failed");
       if (failedEvents.length > 0) {
@@ -283,7 +248,6 @@ export class PinterestPlatformService implements IPlatformService {
           errors: failedEvents.map((e) => e.error_message).filter(Boolean),
         });
       }
-
       const warningEvents = result.events.filter((e) => e.warning_message);
       if (warningEvents.length > 0) {
         logger.info(`Pinterest CAPI: events with warnings`, {
@@ -292,18 +256,14 @@ export class PinterestPlatformService implements IPlatformService {
         });
       }
     }
-
     return result;
   }
-
   private parsePinterestError(
     statusCode: number,
     errorData: Record<string, unknown>
   ): PlatformError {
-
     const code = errorData.code as number | undefined;
     const message = (errorData.message as string) || `HTTP ${statusCode}`;
-
     switch (code) {
       case 1:
         return {
@@ -352,13 +312,11 @@ export async function sendConversionToPinterest(
   if (!credentials?.adAccountId || !credentials?.accessToken) {
     throw new Error("Pinterest credentials not configured");
   }
-
   const result = await pinterestService.sendConversion(
     credentials,
     conversionData,
     eventId || generateDedupeEventId(conversionData.orderId)
   );
-
   if (!result.success) {
     const enhancedError = new Error(result.error?.message || "Unknown error") as Error & {
       platformError?: PlatformError;
@@ -366,7 +324,6 @@ export async function sendConversionToPinterest(
     enhancedError.platformError = result.error;
     throw enhancedError;
   }
-
   return result.response!;
 }
 
@@ -374,9 +331,7 @@ export async function validatePinterestCredentials(
   credentials: PinterestCredentials
 ): Promise<{ valid: boolean; error?: string }> {
   try {
-
     const url = `${PINTEREST_API_BASE_URL}/${PINTEREST_API_VERSION}/ad_accounts/${credentials.adAccountId}`;
-
     const response = await fetchWithTimeout(
       url,
       {
@@ -387,14 +342,11 @@ export async function validatePinterestCredentials(
       },
       DEFAULT_API_TIMEOUT_MS
     );
-
     if (response.ok) {
       return { valid: true };
     }
-
     const errorData = await response.json().catch(() => ({}));
     const message = (errorData.message as string) || `HTTP ${response.status}`;
-
     return {
       valid: false,
       error: `Pinterest API validation failed: ${message}`,

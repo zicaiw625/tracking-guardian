@@ -6,7 +6,6 @@ import { dispatchWebhook, type WebhookContext, type ShopWithPixelConfigs } from 
 import { tryAcquireWebhookLock } from "../webhooks/middleware/idempotency";
 
 export const action = async ({ request }: ActionFunctionArgs) => {
-
   let context: WebhookContext;
   try {
     const authResult = await authenticate.webhook(request);
@@ -19,7 +18,6 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       session: authResult.session,
     };
   } catch (error) {
-
     if (error instanceof Response) {
       const errorStatus = error.status;
       const topic = request.headers.get("X-Shopify-Topic") || "unknown";
@@ -27,7 +25,6 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         topic,
         shop: request.headers.get("X-Shopify-Shop-Domain") || "unknown",
       });
-
       if (errorStatus === 401 || errorStatus === 403) {
         return new Response("Unauthorized: Invalid HMAC", { status: 401 });
       }
@@ -40,10 +37,8 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     logger.error("[Webhook] Authentication error:", error);
     return new Response("Webhook authentication failed", { status: 500 });
   }
-
   let shopRecord: ShopWithPixelConfigs | null = null;
   try {
-
     if (context.webhookId) {
       const lock = await tryAcquireWebhookLock(context.shop, context.webhookId, context.topic);
       if (!lock.acquired) {
@@ -51,7 +46,6 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         return new Response("OK (duplicate)", { status: 200 });
       }
     }
-
     shopRecord = await prisma.shop.findUnique({
       where: { shopDomain: context.shop },
       include: {
@@ -62,8 +56,6 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     });
   } catch (error) {
     logger.error(`[Webhook] Failed to fetch shop record for ${context.shop}:`, error);
-
   }
-
   return dispatchWebhook(context, shopRecord, true);
 };

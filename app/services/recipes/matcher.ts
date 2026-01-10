@@ -108,7 +108,6 @@ export function matchAdditionalScriptsToRecipes(content: string): MatchResult {
       unmatched.push({ content: block, identifier: `block-${i}` });
     }
   }
-
   const recipeMap = new Map<string, RecipeMatch>();
   for (const match of allMatches) {
     const existing = recipeMap.get(match.recipe.id);
@@ -123,7 +122,6 @@ export function matchAdditionalScriptsToRecipes(content: string): MatchResult {
 }
 
 function splitIntoBlocks(content: string): string[] {
-
   const scriptRegex = /<script[^>]*>([\s\S]*?)<\/script>/gi;
   const blocks: string[] = [];
   let match;
@@ -132,9 +130,7 @@ function splitIntoBlocks(content: string): string[] {
       blocks.push(match[1]);
     }
   }
-
   if (blocks.length === 0) {
-
     blocks.push(content);
   }
   return blocks;

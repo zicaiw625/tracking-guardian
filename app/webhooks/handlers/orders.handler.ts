@@ -32,7 +32,6 @@ function extractOrderSnapshot(payload: OrderWebhookPayload): {
   const cancelledAt = payload.cancelled_at ? new Date(payload.cancelled_at) : null;
   const updatedAt = payload.updated_at ? new Date(payload.updated_at) : new Date();
   const createdAt = payload.created_at ? new Date(payload.created_at) : new Date();
-
   return {
     orderId,
     orderNumber,
@@ -49,16 +48,13 @@ export async function handleOrdersCreate(
   context: WebhookContext
 ): Promise<WebhookHandlerResult> {
   const { shop, payload } = context;
-
   try {
     const orderPayload = payload as OrderWebhookPayload;
     const snapshot = extractOrderSnapshot(orderPayload);
-
     const shopRecord = await prisma.shop.findUnique({
       where: { shopDomain: shop },
       select: { id: true },
     });
-
     if (!shopRecord) {
       logger.warn(`Shop not found for orders/create webhook: ${shop}`);
       return {
@@ -67,9 +63,7 @@ export async function handleOrdersCreate(
         status: 200,
       };
     }
-
     const snapshotId = randomUUID();
-
     await prisma.shopifyOrderSnapshot.upsert({
       where: {
         shopId_orderId: {
@@ -98,9 +92,7 @@ export async function handleOrdersCreate(
         updatedAt: snapshot.updatedAt,
       },
     });
-
     logger.info(`Order snapshot created/updated: ${snapshot.orderId} for ${shop}`);
-
     return {
       success: true,
       message: "OK",
@@ -111,7 +103,6 @@ export async function handleOrdersCreate(
     logger.error(`Failed to process orders/create webhook for ${shop}:`, {
       error: error instanceof Error ? error.message : String(error),
     });
-
     return {
       success: false,
       message: "Internal server error",
@@ -123,7 +114,6 @@ export async function handleOrdersCreate(
 export async function handleOrdersUpdated(
   context: WebhookContext
 ): Promise<WebhookHandlerResult> {
-
   return handleOrdersCreate(context);
 }
 
@@ -131,16 +121,13 @@ export async function handleOrdersCancelled(
   context: WebhookContext
 ): Promise<WebhookHandlerResult> {
   const { shop, payload } = context;
-
   try {
     const orderPayload = payload as OrderWebhookPayload;
     const snapshot = extractOrderSnapshot(orderPayload);
-
     const shopRecord = await prisma.shop.findUnique({
       where: { shopDomain: shop },
       select: { id: true },
     });
-
     if (!shopRecord) {
       logger.warn(`Shop not found for orders/cancelled webhook: ${shop}`);
       return {
@@ -149,9 +136,7 @@ export async function handleOrdersCancelled(
         status: 200,
       };
     }
-
     const snapshotId = randomUUID();
-
     await prisma.shopifyOrderSnapshot.upsert({
       where: {
         shopId_orderId: {
@@ -177,9 +162,7 @@ export async function handleOrdersCancelled(
         updatedAt: snapshot.updatedAt,
       },
     });
-
     logger.info(`Order cancelled: ${snapshot.orderId} for ${shop}`);
-
     return {
       success: true,
       message: "OK",
@@ -190,7 +173,6 @@ export async function handleOrdersCancelled(
     logger.error(`Failed to process orders/cancelled webhook for ${shop}:`, {
       error: error instanceof Error ? error.message : String(error),
     });
-
     return {
       success: false,
       message: "Internal server error",
@@ -202,6 +184,5 @@ export async function handleOrdersCancelled(
 export async function handleOrdersEdited(
   context: WebhookContext
 ): Promise<WebhookHandlerResult> {
-
   return handleOrdersUpdated(context);
 }

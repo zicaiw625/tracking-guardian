@@ -48,21 +48,17 @@ export function PayloadVisualizer({
 }: PayloadVisualizerProps) {
   const { showSuccess } = useToastContext();
   const [selectedTab, setSelectedTab] = useState(0);
-
   const canonical = normalizeEventClient(payload, shopDomain);
-
   const platformMappings: Record<string, PlatformEventData> = {};
   for (const platform of platforms) {
     try {
       platformMappings[platform] = mapToPlatformClient(canonical, platform);
     } catch (error) {
       if (process.env.NODE_ENV === "development") {
-
         console.error(`Failed to map to ${platform}:`, error);
       }
     }
   }
-
   const tabs = [
     { id: "canonical", content: "规范化格式 (Canonical)" },
     ...platforms.map((p) => ({
@@ -70,12 +66,10 @@ export function PayloadVisualizer({
       content: getPlatformDisplayName(p),
     })),
   ];
-
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text);
     showSuccess("已复制到剪贴板");
   };
-
   return (
     <Card>
       <BlockStack gap="400">
@@ -85,7 +79,6 @@ export function PayloadVisualizer({
           </Text>
           <Badge tone="info">P1-01: 规范化映射</Badge>
         </InlineStack>
-
         <Tabs tabs={tabs} selected={selectedTab} onSelect={setSelectedTab}>
           {selectedTab === 0 && (
             <Box paddingBlockStart="400">
@@ -95,7 +88,6 @@ export function PayloadVisualizer({
               />
             </Box>
           )}
-
           {platforms.map((platform, index) => {
             if (selectedTab === index + 1) {
               const mapping = platformMappings[platform];
@@ -108,7 +100,6 @@ export function PayloadVisualizer({
                   </Box>
                 );
               }
-
               return (
                 <Box key={platform} paddingBlockStart="400">
                   <PlatformView
@@ -144,7 +135,6 @@ function CanonicalView({
           复制
         </Button>
       </InlineStack>
-
       <Box
         padding="300"
         background="bg-surface-secondary"
@@ -164,7 +154,6 @@ function CanonicalView({
         </pre>
         </div>
       </Box>
-
       <BlockStack gap="200">
         <Text as="p" variant="bodySm" tone="subdued">
           <strong>Event ID 生成规则：</strong>{" "}
@@ -202,7 +191,6 @@ function PlatformView({
           复制
         </Button>
       </InlineStack>
-
       <Box
         padding="300"
         background="bg-surface-secondary"
@@ -222,7 +210,6 @@ function PlatformView({
         </pre>
         </div>
       </Box>
-
       <BlockStack gap="200">
         <Text as="p" variant="bodySm" tone="subdued">
           <strong>事件名称：</strong> {mapping.event_name}
@@ -248,7 +235,6 @@ function getPlatformDisplayName(platform: string): string {
     tiktok: "TikTok",
     tt: "TikTok",
   };
-
   return names[platform.toLowerCase()] || platform.toUpperCase();
 }
 
@@ -266,10 +252,8 @@ function normalizeEventClient(
         };
       })
     : [];
-
   const identifier = data.orderId || data.checkoutToken || `session_${Date.now()}`;
   const eventId = `${shopDomain}:${identifier}:${payload.eventName}`.substring(0, 32);
-
   return {
     event_name: payload.eventName,
     event_id: eventId,
@@ -291,9 +275,7 @@ function mapToPlatformClient(
     value: canonical.value,
     currency: canonical.currency,
   };
-
   let eventName = canonical.event_name;
-
   if (platformLower === "google" || platformLower === "ga4") {
     const eventNameMap: Record<string, string> = {
       checkout_completed: "purchase",
@@ -339,7 +321,6 @@ function mapToPlatformClient(
       }));
     }
   }
-
   return {
     event_name: eventName,
     event_id: canonical.event_id,

@@ -15,23 +15,19 @@ export interface RiskDetectionResult {
 
 export function detectRisksInContent(content: string): RiskDetectionResult {
   const analysis = analyzeScriptContent(content);
-
   const detectedIssues = {
     piiAccess: analysis.risks.some(r => r.id === "pii_access"),
     windowDocumentAccess: analysis.risks.some(r => r.id === "window_document_access"),
     blockingLoad: analysis.risks.some(r => r.id === "blocking_load"),
     duplicateTriggers: analysis.risks.some(r => r.id === "duplicate_triggers"),
   };
-
   const keyRisks = analysis.risks.filter(r =>
     r.id === "pii_access" ||
     r.id === "window_document_access" ||
     r.id === "blocking_load" ||
     r.id === "duplicate_triggers"
   );
-
   const enhancedRisks = keyRisks.map(risk => enhanceRiskDescription(risk, content));
-
   return {
     risks: enhancedRisks,
     riskScore: analysis.riskScore,
@@ -51,7 +47,6 @@ function enhanceRiskDescription(risk: RiskItem, content: string): RiskItem {
           `4. 考虑使用 Shopify Customer Events API 获取客户数据`,
         recommendation: "迁移到服务端 CAPI 或使用 Shopify Customer Events API",
       };
-
     case "window_document_access":
       return {
         ...risk,
@@ -64,7 +59,6 @@ function enhanceRiskDescription(risk: RiskItem, content: string): RiskItem {
           `3. 检查是否有第三方库依赖 window/document，需要替换`,
         recommendation: "使用 Shopify Web Pixel API 或迁移到 Checkout UI Extension",
       };
-
     case "blocking_load":
       return {
         ...risk,
@@ -75,7 +69,6 @@ function enhanceRiskDescription(risk: RiskItem, content: string): RiskItem {
           `4. 考虑使用服务端追踪减少客户端负担`,
         recommendation: "迁移到异步 Web Pixel 或服务端追踪",
       };
-
     case "duplicate_triggers":
       return {
         ...risk,
@@ -86,7 +79,6 @@ function enhanceRiskDescription(risk: RiskItem, content: string): RiskItem {
           `4. 在服务端实现去重逻辑`,
         recommendation: "实现事件去重机制，使用标准事件格式",
       };
-
     default:
       return risk;
   }
@@ -105,18 +97,15 @@ export function detectRisksInScripts(scripts: Array<{ content: string; id?: stri
 } {
   const byScript = new Map<string, RiskDetectionResult>();
   const allRisks: RiskItem[] = [];
-
   for (const script of scripts) {
     const scriptId = script.id || `script_${Math.random().toString(36).slice(2, 11)}`;
     const result = detectRisksInContent(script.content);
     byScript.set(scriptId, result);
     allRisks.push(...result.risks);
   }
-
   const highRiskCount = allRisks.filter(r => r.severity === "high").length;
   const mediumRiskCount = allRisks.filter(r => r.severity === "medium").length;
   const lowRiskCount = allRisks.filter(r => r.severity === "low").length;
-
   return {
     totalRisks: allRisks,
     byScript,
@@ -136,7 +125,6 @@ export function generateRiskSummary(detectionResult: RiskDetectionResult): {
   recommendations: string[];
 } {
   const { risks, detectedIssues } = detectionResult;
-
   if (risks.length === 0) {
     return {
       level: "none",
@@ -144,13 +132,10 @@ export function generateRiskSummary(detectionResult: RiskDetectionResult): {
       recommendations: [],
     };
   }
-
   const highRisks = risks.filter(r => r.severity === "high");
   const mediumRisks = risks.filter(r => r.severity === "medium");
-
   let level: "high" | "medium" | "low";
   let message: string;
-
   if (highRisks.length > 0) {
     level = "high";
     const issues: string[] = [];
@@ -165,12 +150,10 @@ export function generateRiskSummary(detectionResult: RiskDetectionResult): {
     level = "low";
     message = `检测到 ${risks.length} 个低风险项，建议优化`;
   }
-
   const recommendations = risks
     .filter(r => r.recommendation)
     .map(r => r.recommendation!)
     .filter((rec, index, self) => self.indexOf(rec) === index);
-
   return {
     level,
     message,

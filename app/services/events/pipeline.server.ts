@@ -24,36 +24,28 @@ export function validateEventPayload(
 ): EventValidationResult {
   const errors: string[] = [];
   const warnings: string[] = [];
-
   if (!payload.eventName) {
     errors.push("eventName is required");
   }
-
   if (!payload.timestamp) {
     errors.push("timestamp is required");
   }
-
   if (!payload.shopDomain) {
     errors.push("shopDomain is required");
   }
-
   if (payload.data) {
     const data = payload.data;
-
     if (payload.eventName === "checkout_completed") {
       if (!data.value && data.value !== 0) {
         errors.push("value is required for purchase events");
       }
-
       if (!data.currency) {
         errors.push("currency is required for purchase events");
       }
-
       if (!data.items || !Array.isArray(data.items) || data.items.length === 0) {
         warnings.push("items array is empty or missing for purchase event");
       }
     } else {
-
       if (payload.eventName !== "page_viewed") {
         if (data.value === undefined || data.value === null) {
           warnings.push(`value is recommended for ${payload.eventName} events`);
@@ -63,27 +55,22 @@ export function validateEventPayload(
         }
       }
     }
-
     if (data.items && Array.isArray(data.items)) {
       if (data.items.length === 0 && payload.eventName !== "page_viewed") {
         warnings.push(`items array is empty for ${payload.eventName} event`);
       }
-
       data.items.forEach((item: unknown, index: number) => {
         if (typeof item !== "object" || item === null) {
           errors.push(`items[${index}] must be an object`);
           return;
         }
-
         const itemObj = item as Record<string, unknown>;
-
         if (!itemObj.id && !itemObj.productId && !itemObj.variantId && !itemObj.product_id && !itemObj.variant_id) {
           warnings.push(`items[${index}] missing id, productId, or variantId`);
         }
       });
     }
   }
-
   return {
     valid: errors.length === 0,
     errors,
@@ -100,7 +87,6 @@ export async function checkEventDeduplication(
   if (!eventId) {
     return { isDuplicate: false };
   }
-
   try {
     const existing = await prisma.pixelEventReceipt.findFirst({
       where: {
@@ -113,14 +99,12 @@ export async function checkEventDeduplication(
         eventId: true,
       },
     });
-
     if (existing) {
       return {
         isDuplicate: true,
         existingEventId: existing.eventId || undefined,
       };
     }
-
     return { isDuplicate: false };
   } catch (error) {
     logger.error("Failed to check event deduplication", {
@@ -128,7 +112,6 @@ export async function checkEventDeduplication(
       eventId,
       error,
     });
-
     return { isDuplicate: false };
   }
 }
@@ -147,7 +130,6 @@ export async function logEvent(
   errorCode?: string,
   errorDetail?: string
 ): Promise<void> {
-
 }
 
 export async function processEventPipeline(
@@ -157,7 +139,6 @@ export async function processEventPipeline(
   destinations: string[] | Array<{ platform: string; configId?: string; platformId?: string }>,
   environment?: "test" | "live"
 ): Promise<EventPipelineResult> {
-
   const validation = validateEventPayload(payload);
   if (!validation.valid) {
     await logEvent(
@@ -170,7 +151,6 @@ export async function processEventPipeline(
       "validation_failed",
       validation.errors.join("; ")
     );
-
         const shop = await prisma.shop.findUnique({
       where: { id: shopId },
       select: { shopDomain: true },
@@ -179,21 +159,17 @@ export async function processEventPipeline(
       const { metrics } = await import("../../utils/metrics-collector");
       metrics.pxValidateFailed(shop.shopDomain, "pipeline_validation_failed");
     }
-
     return {
       success: false,
       errors: validation.errors,
     };
   }
-
   const destinationConfigs: Array<{ platform: string; configId?: string; platformId?: string }> =
     destinations.length > 0 && typeof destinations[0] === 'string'
       ? (destinations as string[]).map(d => ({ platform: d }))
       : (destinations as Array<{ platform: string; configId?: string; platformId?: string }>);
-
   const deduplicationResults: boolean[] = [];
   for (const destConfig of destinationConfigs) {
-
     const dedupKey = destConfig.configId || destConfig.platform;
     const dedupResult = await checkEventDeduplication(
       shopId,
@@ -201,7 +177,6 @@ export async function processEventPipeline(
       payload.eventName,
       dedupKey
     );
-
     if (dedupResult.isDuplicate) {
       logger.info("Event deduplicated", {
         shopId,
@@ -229,9 +204,7 @@ export async function processEventPipeline(
       deduplicationResults.push(false);
     }
   }
-
   const isDeduplicated = deduplicationResults.some((dup) => dup);
-
   function normalizeValue(value: unknown): number {
     if (typeof value === "number") {
       return Math.max(0, Math.round(value * 100) / 100);
@@ -242,10 +215,8 @@ export async function processEventPipeline(
     }
     return 0;
   }
-
   function normalizeCurrency(currency: unknown, eventName: string): string {
     if (currency === null || currency === undefined) {
-
       const requiresCurrency = ["checkout_completed", "purchase", "product_added_to_cart", "checkout_started", "product_viewed"].includes(eventName);
       if (requiresCurrency) {
         logger.warn(`Missing currency for ${eventName} event, using USD as fallback. This may indicate a data quality issue. Pixel should always send currency from checkout/cart data.`, {
@@ -255,32 +226,26 @@ export async function processEventPipeline(
       }
       return "USD";
     }
-
     if (typeof currency === "string") {
       const upper = currency.toUpperCase().trim();
-
       if (/^[A-Z]{3}$/.test(upper)) {
         return upper;
       }
     }
-
     logger.warn("Invalid currency format, defaulting to USD", {
       currency,
       currencyType: typeof currency,
       eventName,
       shopId,
     });
-
     return "USD";
   }
-
   let normalizedValue: number | undefined;
   if (payload.eventName === "page_viewed") {
     normalizedValue = 0;
   } else if (payload.data?.value !== undefined) {
     normalizedValue = normalizeValue(payload.data.value);
   } else if (payload.data?.items && Array.isArray(payload.data.items) && payload.data.items.length > 0) {
-
     normalizedValue = payload.data.items.reduce((sum: number, item: unknown) => {
       const itemObj = item as Record<string, unknown>;
       const price = normalizeValue(itemObj.price);
@@ -292,19 +257,15 @@ export async function processEventPipeline(
       return sum + (price * quantity);
     }, 0);
   } else {
-
     normalizedValue = 0;
   }
-
   const normalizedCurrency = normalizeCurrency(payload.data?.currency, payload.eventName);
-
   let normalizedItems: Array<{
     id: string;
     name: string;
     price: number;
     quantity: number;
   }> | undefined;
-
   if (payload.eventName === "page_viewed") {
     normalizedItems = [];
   } else if (payload.data?.items && Array.isArray(payload.data.items)) {
@@ -312,7 +273,6 @@ export async function processEventPipeline(
       .filter(item => item != null && typeof item === "object")
       .map(item => {
         const itemObj = item as Record<string, unknown>;
-
         const id = String(
           itemObj.variantId ||
           itemObj.variant_id ||
@@ -335,7 +295,6 @@ export async function processEventPipeline(
           : typeof itemObj.quantity === "string"
           ? Math.max(1, parseInt(itemObj.quantity, 10) || 1)
           : 1;
-
         return {
           id,
           name,
@@ -345,28 +304,21 @@ export async function processEventPipeline(
       })
       .filter(item => item.id);
   }
-
   const normalizedPayload: PixelEventPayload = {
     ...payload,
     data: {
       ...payload.data,
-
       value: normalizedValue !== undefined ? normalizedValue : 0,
-
       currency: normalizedCurrency,
-
       items: normalizedItems || [],
     },
   };
-
   let finalEventId = eventId;
   if (!finalEventId) {
-
     const normalizedItemsForEventId = normalizedItems?.map(item => ({
       id: item.id,
       quantity: item.quantity,
     })) || [];
-
     finalEventId = generateCanonicalEventId(
       normalizedPayload.data?.orderId || null,
       normalizedPayload.data?.checkoutToken || null,
@@ -376,7 +328,6 @@ export async function processEventPipeline(
       "v2",
       payload.nonce || null
     );
-
     logger.debug(`Generated canonical eventId for ${payload.eventName}`, {
       shopId,
       eventName: payload.eventName,
@@ -386,7 +337,6 @@ export async function processEventPipeline(
       checkoutToken: normalizedPayload.data?.checkoutToken || null,
     });
   } else {
-
     logger.debug(`Using provided eventId for ${payload.eventName}`, {
       shopId,
       eventName: payload.eventName,
@@ -395,7 +345,6 @@ export async function processEventPipeline(
       checkoutToken: normalizedPayload.data?.checkoutToken || null,
     });
   }
-
   let eventLogId: string | null = null;
   if (!isDeduplicated && finalEventId) {
     try {
@@ -415,10 +364,8 @@ export async function processEventPipeline(
         eventName: normalizedPayload.eventName,
         error: error instanceof Error ? error.message : String(error),
       });
-
     }
   }
-
   if (!isDeduplicated) {
     const destinationNames = destinationConfigs.map(d => d.platform);
     logger.info(`Routing ${normalizedPayload.eventName} event to ${destinationConfigs.length} destination(s)`, {
@@ -433,7 +380,6 @@ export async function processEventPipeline(
       hasOrderId: !!normalizedPayload.data.orderId,
       hasCheckoutToken: !!normalizedPayload.data.checkoutToken,
     });
-
     const sendPromises = destinationConfigs.map(async (destConfig) => {
       const destination = destConfig.platform;
       try {
@@ -445,7 +391,6 @@ export async function processEventPipeline(
           configId: destConfig.configId,
           platformId: destConfig.platformId,
         });
-
         let eventIdForSend = finalEventId;
         if (!eventIdForSend) {
           logger.error(`Missing eventId for ${normalizedPayload.eventName} event, generating fallback ID`, {
@@ -454,7 +399,6 @@ export async function processEventPipeline(
             destination,
             configId: destConfig.configId,
           });
-
           eventIdForSend = generateCanonicalEventId(
             normalizedPayload.data?.orderId || null,
             normalizedPayload.data?.checkoutToken || null,
@@ -465,7 +409,6 @@ export async function processEventPipeline(
             payload.nonce || null
           );
         }
-
                 const sendStartTime = Date.now();
         const sendResult = await sendPixelEventToPlatform(
           shopId,
@@ -478,13 +421,11 @@ export async function processEventPipeline(
           environment
         );
         const sendLatencyMs = Date.now() - sendStartTime;
-
         const destinationType = destConfig.configId
           ? `${destination}:${destConfig.configId}`
           : destConfig.platformId
           ? `${destination}:${destConfig.platformId}`
           : destination;
-
                                                 const shop = await prisma.shop.findUnique({
           where: { id: shopId },
           select: { shopDomain: true },
@@ -498,7 +439,6 @@ export async function processEventPipeline(
           }
           metrics.pxDestinationLatency(shop.shopDomain, destinationType, sendLatencyMs);
         }
-
         await logEvent(
           shopId,
           normalizedPayload.eventName,
@@ -509,7 +449,6 @@ export async function processEventPipeline(
           sendResult.success ? undefined : "send_failed",
           sendResult.error
         );
-
         if (sendResult.success) {
           logger.info(`Successfully sent ${normalizedPayload.eventName} to ${destination}`, {
             shopId,
@@ -532,7 +471,6 @@ export async function processEventPipeline(
             latencyMs: sendLatencyMs,
           });
         }
-
         return sendResult;
       } catch (error) {
         logger.error(`Error sending ${normalizedPayload.eventName} to ${destination}`, {
@@ -544,13 +482,11 @@ export async function processEventPipeline(
           platformId: destConfig.platformId,
           error: error instanceof Error ? error.message : String(error),
         });
-
         const destinationType = destConfig.configId
           ? `${destination}:${destConfig.configId}`
           : destConfig.platformId
           ? `${destination}:${destConfig.platformId}`
           : destination;
-
         await logEvent(
           shopId,
           normalizedPayload.eventName,
@@ -561,7 +497,6 @@ export async function processEventPipeline(
           "send_error",
           error instanceof Error ? error.message : String(error)
         );
-
         return {
           success: false,
           platform: destination,
@@ -569,12 +504,10 @@ export async function processEventPipeline(
         };
       }
     });
-
     const results = await Promise.allSettled(sendPromises);
     const successCount = results.filter(
       (r) => r.status === "fulfilled" && r.value.success
     ).length;
-
     logger.info(`Event ${normalizedPayload.eventName} routing completed - sent to destinations`, {
       shopId,
       eventId: finalEventId,
@@ -585,13 +518,11 @@ export async function processEventPipeline(
       normalizedValue: normalizedPayload.data.value,
       normalizedCurrency: normalizedPayload.data.currency,
       itemsCount: normalizedPayload.data.items?.length || 0,
-
       eventIdSource: eventId ? "from_client" : "generated_by_server",
       hasOrderId: !!normalizedPayload.data.orderId,
       hasCheckoutToken: !!normalizedPayload.data.checkoutToken,
     });
   } else {
-
     const logPromises = destinationConfigs.map((destConfig) => {
       const destinationType = destConfig.configId
         ? `${destConfig.platform}:${destConfig.configId}`
@@ -609,10 +540,8 @@ export async function processEventPipeline(
         "Event was deduplicated"
       );
     });
-
     await Promise.allSettled(logPromises);
   }
-
   const destinationNames = destinationConfigs.map(d => d.platform);
   return {
     success: true,
@@ -632,7 +561,6 @@ export async function processBatchEvents(
   environment?: "test" | "live"
 ): Promise<EventPipelineResult[]> {
   const results: EventPipelineResult[] = [];
-
   for (const event of events) {
     const result = await processEventPipeline(
       shopId,
@@ -643,7 +571,6 @@ export async function processBatchEvents(
     );
     results.push(result);
   }
-
   return results;
 }
 
@@ -658,7 +585,6 @@ export async function getEventStats(
   deduplicated: number;
   byDestination: Record<string, { total: number; success: number; failed: number }>;
 }> {
-
   const events = await prisma.conversionLog.findMany({
     where: {
       shopId,
@@ -673,7 +599,6 @@ export async function getEventStats(
       errorMessage: true,
     },
   });
-
   const stats = {
     total: events.length,
     success: 0,
@@ -681,19 +606,16 @@ export async function getEventStats(
     deduplicated: 0,
     byDestination: {} as Record<string, { total: number; success: number; failed: number }>,
   };
-
   for (const event of events) {
     if (event.status === "sent" || event.status === "pending") {
       stats.success++;
     } else {
       stats.failed++;
     }
-
     const dest = event.platform || "unknown";
     if (!stats.byDestination[dest]) {
       stats.byDestination[dest] = { total: 0, success: 0, failed: 0 };
     }
-
     stats.byDestination[dest].total++;
     if (event.status === "sent" || event.status === "pending") {
       stats.byDestination[dest].success++;
@@ -701,6 +623,5 @@ export async function getEventStats(
       stats.byDestination[dest].failed++;
     }
   }
-
   return stats;
 }

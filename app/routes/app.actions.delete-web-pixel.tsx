@@ -6,17 +6,14 @@ import { logger } from "../utils/logger.server";
 
 export const action = async ({ request }: ActionFunctionArgs) => {
     const { admin, session } = await authenticate.admin(request);
-
     if (request.method !== "POST") {
         return json({ success: false, error: "Method not allowed" }, { status: 405 });
     }
-
     try {
         const formData = await request.formData();
         const webPixelGid = formData.get("webPixelGid") as string;
         const webPixelGids = formData.get("webPixelGids") as string;
         const keepFirst = formData.get("keepFirst") === "true";
-
         if (webPixelGids) {
             let gids: string[];
             try {
@@ -27,24 +24,19 @@ export const action = async ({ request }: ActionFunctionArgs) => {
                     error: "Invalid webPixelGids format - expected JSON array",
                 }, { status: 400 });
             }
-
             if (!Array.isArray(gids) || gids.length === 0) {
                 return json({
                     success: false,
                     error: "webPixelGids must be a non-empty array",
                 }, { status: 400 });
             }
-
             logger.info(`Attempting to delete ${gids.length} WebPixels (keepFirst=${keepFirst})`, {
                 shop: session.shop,
                 count: gids.length,
             });
-
             const { kept, results } = await deleteMultipleWebPixels(admin, gids, keepFirst);
-
             const successCount = results.filter(r => r.success).length;
             const failures = results.filter(r => !r.success);
-
             return json({
                 success: failures.length === 0,
                 keptPixelGid: kept,
@@ -54,21 +46,17 @@ export const action = async ({ request }: ActionFunctionArgs) => {
                 message: `删除了 ${successCount}/${results.length} 个重复像素${kept ? `，保留了 ${kept}` : ""}`,
             });
         }
-
         if (!webPixelGid) {
             return json({
                 success: false,
                 error: "Missing webPixelGid",
             }, { status: 400 });
         }
-
         logger.info(`Attempting to delete WebPixel`, {
             shop: session.shop,
             webPixelGid,
         });
-
         const result = await deleteWebPixel(admin, webPixelGid);
-
         if (result.success) {
             logger.info(`WebPixel deleted successfully`, {
                 shop: session.shop,
@@ -80,10 +68,8 @@ export const action = async ({ request }: ActionFunctionArgs) => {
                 message: "WebPixel 删除成功",
             });
         }
-
         if (result.userErrors && result.userErrors.length > 0) {
             const firstError = result.userErrors[0];
-
             if (firstError.message.includes("not found")) {
                 return json({
                     success: false,
@@ -91,7 +77,6 @@ export const action = async ({ request }: ActionFunctionArgs) => {
                     details: result.userErrors,
                 }, { status: 404 });
             }
-
             if (firstError.message.includes("permission") || firstError.message.includes("access")) {
                 return json({
                     success: false,
@@ -100,13 +85,11 @@ export const action = async ({ request }: ActionFunctionArgs) => {
                 }, { status: 403 });
             }
         }
-
         return json({
             success: false,
             error: result.error || "删除失败",
             details: result.userErrors,
         }, { status: 400 });
-
     } catch (error) {
         logger.error("Delete WebPixel action error", error);
         return json({

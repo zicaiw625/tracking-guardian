@@ -51,7 +51,6 @@ export function verifyReceiptTrust(options: VerifyReceiptOptions): ReceiptTrustR
             details: "No pixel event receipt found for this order",
         };
     }
-
     if (!ingestionKeyMatched) {
         return {
             trusted: false,

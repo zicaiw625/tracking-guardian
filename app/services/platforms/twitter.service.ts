@@ -17,7 +17,6 @@ import {
 import {
   classifyHttpError,
   classifyJsError,
-
 } from "./base-platform.service";
 
 const TWITTER_API_BASE_URL = "https://ads-api.twitter.com";
@@ -44,7 +43,6 @@ const TWITTER_EVENT_TYPES = {
 export class TwitterPlatformService implements IPlatformService {
   readonly platform = "twitter" as const;
   readonly displayName = "Twitter/X";
-
   async sendConversion(
     credentials: PlatformCredentials,
     data: ConversionData,
@@ -52,7 +50,6 @@ export class TwitterPlatformService implements IPlatformService {
   ): Promise<PlatformSendResult> {
     const twitterCreds = credentials as TwitterCredentials;
     const validation = this.validateCredentials(twitterCreds);
-
     if (!validation.valid) {
       return {
         success: false,
@@ -63,21 +60,17 @@ export class TwitterPlatformService implements IPlatformService {
         },
       };
     }
-
     const dedupeEventId = eventId || generateDedupeEventId(data.orderId);
-
     try {
       const [response, duration] = await measureDuration(() =>
         this.sendRequest(twitterCreds, data, dedupeEventId)
       );
-
       logger.info(`Twitter CAPI: conversion sent successfully`, {
         orderId: data.orderId.slice(0, 8),
         eventId: dedupeEventId,
         status: response.success,
         durationMs: duration,
       });
-
       return {
         success: true,
         response,
@@ -85,50 +78,40 @@ export class TwitterPlatformService implements IPlatformService {
       };
     } catch (error) {
       const platformError = this.parseError(error);
-
       logger.error(`Twitter CAPI: conversion failed`, {
         orderId: data.orderId.slice(0, 8),
         error: platformError.message,
         type: platformError.type,
       });
-
       return {
         success: false,
         error: platformError,
       };
     }
   }
-
   validateCredentials(credentials: unknown): CredentialsValidationResult {
     const errors: string[] = [];
-
     if (!credentials || typeof credentials !== "object") {
       return { valid: false, errors: ["Credentials must be an object"] };
     }
-
     const creds = credentials as Record<string, unknown>;
-
     if (!creds.pixelId || typeof creds.pixelId !== "string") {
       errors.push("Twitter Pixel ID is required");
     }
-
     if (!creds.accessToken || typeof creds.accessToken !== "string") {
       errors.push("OAuth Bearer Token is required");
     }
-
     return {
       valid: errors.length === 0,
       errors,
     };
   }
-
   parseError(error: unknown): PlatformError {
     if (error instanceof Error) {
       const attachedError = (error as Error & { platformError?: PlatformError }).platformError;
       if (attachedError) {
         return attachedError;
       }
-
       if (error.name === "AbortError") {
         return {
           type: "timeout",
@@ -136,27 +119,22 @@ export class TwitterPlatformService implements IPlatformService {
           isRetryable: true,
         };
       }
-
       return classifyJsError(error);
     }
-
     return {
       type: "unknown",
       message: String(error),
       isRetryable: true,
     };
   }
-
   async buildPayload(
     data: ConversionData,
     eventId: string
   ): Promise<Record<string, unknown>> {
     const eventTime = new Date().toISOString();
-
     return {
       conversion_time: eventTime,
       event_id: eventId,
-
       identifiers: [],
       conversion_event: TWITTER_EVENT_TYPES.purchase,
       value: data.value.toString(),
@@ -171,16 +149,13 @@ export class TwitterPlatformService implements IPlatformService {
       })) || [],
     };
   }
-
   private async sendRequest(
     credentials: TwitterCredentials,
     data: ConversionData,
     eventId: string
   ): Promise<ConversionApiResponse> {
     const eventTime = new Date().toISOString();
-
     const identifiers: Array<Record<string, string>> = [];
-
     const eventPayload = {
       conversions: [
         {
@@ -201,9 +176,7 @@ export class TwitterPlatformService implements IPlatformService {
         },
       ],
     };
-
     const url = `${TWITTER_API_BASE_URL}/${credentials.pixelId}`;
-
     const response = await fetchWithTimeout(
       url,
       {
@@ -216,11 +189,9 @@ export class TwitterPlatformService implements IPlatformService {
       },
       DEFAULT_API_TIMEOUT_MS
     );
-
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
       let platformError: PlatformError;
-
       if (errorData.errors && Array.isArray(errorData.errors)) {
         const twitterErrors = errorData.errors.map((e: { message?: string }) => e.message).join("; ");
         platformError = {
@@ -234,16 +205,13 @@ export class TwitterPlatformService implements IPlatformService {
       } else {
         platformError = classifyHttpError(response.status, errorData);
       }
-
       const enhancedError = new Error(`Twitter API error: ${platformError.message}`) as Error & {
         platformError: PlatformError;
       };
       enhancedError.platformError = platformError;
       throw enhancedError;
     }
-
     const result = await response.json();
-
     return {
       success: true,
       conversionId: result.data?.id || eventId,
@@ -262,13 +230,11 @@ export async function sendConversionToTwitter(
   if (!credentials?.pixelId || !credentials?.accessToken) {
     throw new Error("Twitter Pixel credentials not configured");
   }
-
   const result = await twitterService.sendConversion(
     credentials,
     conversionData,
     eventId || generateDedupeEventId(conversionData.orderId)
   );
-
   if (!result.success) {
     const enhancedError = new Error(result.error?.message || "Unknown error") as Error & {
       platformError?: PlatformError;
@@ -276,6 +242,5 @@ export async function sendConversionToTwitter(
     enhancedError.platformError = result.error;
     throw enhancedError;
   }
-
   return result.response!;
 }

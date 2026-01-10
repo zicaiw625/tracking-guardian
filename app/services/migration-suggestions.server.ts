@@ -32,7 +32,6 @@ function generateMigrationSteps(
   platform?: string | null
 ): string[] {
   const steps: string[] = [];
-
   switch (migrationType) {
     case "web_pixel":
       steps.push("1. 前往「像素迁移」页面");
@@ -42,7 +41,6 @@ function generateMigrationSteps(
       steps.push("5. 在测试环境验证");
       steps.push("6. 切换到生产模式");
       break;
-
     case "ui_extension":
       steps.push("1. 前往「UI 模块」页面");
       if (asset.category === "survey") {
@@ -55,7 +53,6 @@ function generateMigrationSteps(
       steps.push("4. 设置显示规则和本地化");
       steps.push("5. 预览并发布");
       break;
-
     case "server_side":
       steps.push("1. 前往「像素迁移」页面");
       steps.push("2. 选择对应的广告平台");
@@ -63,17 +60,14 @@ function generateMigrationSteps(
       steps.push("4. 测试服务端事件发送");
       steps.push("5. 验证事件去重");
       break;
-
     case "none":
       steps.push("1. 确认该资产无需迁移");
       steps.push("2. 标记为「已跳过」");
       break;
-
     default:
       steps.push("1. 评估迁移方案");
       steps.push("2. 根据建议选择迁移方式");
   }
-
   return steps;
 }
 
@@ -82,7 +76,6 @@ export async function generateMigrationSuggestions(
 ): Promise<MigrationSuggestions> {
   const checklist = await getMigrationChecklist(shopId, false);
   const timeline = await generateMigrationTimeline(shopId);
-
   const completedAssetIds = new Set(
     (await prisma.auditAsset.findMany({
       where: {
@@ -92,12 +85,10 @@ export async function generateMigrationSuggestions(
       select: { id: true },
     })).map((a) => a.id)
   );
-
   const suggestions: MigrationSuggestion[] = checklist.items.map((item) => {
     const timelineAsset = timeline.assets.find((a) => a.asset.id === item.assetId);
     const dependencies = timelineAsset?.blockingDependencies || [];
     const canStart = dependencies.length === 0 && !completedAssetIds.has(item.assetId);
-
     return {
       assetId: item.assetId,
       title: item.title,
@@ -120,14 +111,12 @@ export async function generateMigrationSuggestions(
       canStart,
     };
   });
-
   const highPriorityCount = suggestions.filter((s) => s.priority >= 8).length;
   const canStartCount = suggestions.filter((s) => s.canStart).length;
   const totalEstimatedTime = suggestions.reduce(
     (sum, s) => sum + s.estimatedTimeMinutes,
     0
   );
-
   return {
     shopId,
     suggestions,
@@ -149,18 +138,14 @@ export async function getMigrationSuggestionForAsset(
       },
     },
   });
-
   if (!asset) {
     return null;
   }
-
   const timeline = await generateMigrationTimeline(asset.shopId);
   const timelineAsset = timeline.assets.find((a) => a.asset.id === assetId);
-
   if (!timelineAsset) {
     return null;
   }
-
   const dependencies = timelineAsset.blockingDependencies || [];
   const completedAssetIds = new Set(
     (await prisma.auditAsset.findMany({
@@ -171,9 +156,7 @@ export async function getMigrationSuggestionForAsset(
       select: { id: true },
     })).map((a) => a.id)
   );
-
   const canStart = dependencies.length === 0 && !completedAssetIds.has(assetId);
-
   return {
     assetId: asset.id,
     title: asset.displayName || `${asset.category} - ${asset.platform || "未知"}`,
@@ -197,17 +180,14 @@ function getMigrationDescription(asset: AuditAsset): string {
     analytics: "站内分析",
     other: "其他",
   };
-
   const migrationNames: Record<string, string> = {
     web_pixel: "迁移到 Web Pixel",
     ui_extension: "迁移到 UI Extension",
     server_side: "迁移到服务端 CAPI",
     none: "无需迁移",
   };
-
   const categoryName = categoryNames[asset.category] || "其他";
   const migrationName = migrationNames[asset.suggestedMigration] || "未知";
-
   if (asset.platform) {
     const platformNames: Record<string, string> = {
       google: "Google Analytics",
@@ -218,6 +198,5 @@ function getMigrationDescription(asset: AuditAsset): string {
     const platformName = platformNames[asset.platform] || asset.platform;
     return `${categoryName} (${platformName}) - ${migrationName}`;
   }
-
   return `${categoryName} - ${migrationName}`;
 }

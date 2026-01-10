@@ -10,7 +10,6 @@ const providers: Map<ProviderCode, ITrackingProvider> = new Map();
 
 const providerClasses: Record<ProviderCode, new () => ITrackingProvider> = {
   aftership: AfterShipProvider,
-
   track17: AfterShipProvider,
   shipstation: AfterShipProvider,
 };
@@ -23,11 +22,9 @@ export async function initializeProvider(
   if (!ProviderClass) {
     throw new Error(`Unknown tracking provider: ${code}`);
   }
-
   const provider = new ProviderClass();
   await provider.initialize(credentials);
   providers.set(code, provider);
-
   return provider;
 }
 

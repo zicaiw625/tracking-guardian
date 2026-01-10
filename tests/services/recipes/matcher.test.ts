@@ -35,7 +35,6 @@ describe("Recipe Matcher", () => {
       it("should have high confidence for gtag with keywords", () => {
         const content = `
           gtag('config', 'G-XXXXXXXX');
-
         `;
         const matches = matchScriptToRecipes(content);
         expect(matches.length).toBeGreaterThan(0);

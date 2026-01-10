@@ -61,7 +61,6 @@ export function ChannelReconciliationChart({
 }: ChannelReconciliationChartProps) {
   const pieData = useMemo(() => {
     const total = pixelVsCapi.both + pixelVsCapi.pixelOnly + pixelVsCapi.capiOnly + pixelVsCapi.consentBlocked;
-
     return {
       labels: ["两者都有", "仅 Pixel", "仅 CAPI", "因同意阻止"],
       datasets: [
@@ -89,10 +88,8 @@ export function ChannelReconciliationChart({
       ],
     };
   }, [pixelVsCapi]);
-
   const consistencyBarData = useMemo(() => {
     if (!localConsistency) return null;
-
     return {
       labels: ["一致", "部分一致", "不一致"],
       datasets: [
@@ -118,7 +115,6 @@ export function ChannelReconciliationChart({
       ],
     };
   }, [localConsistency]);
-
   const issuesByType = useMemo(() => {
     const typeCounts: Record<string, number> = {};
     consistencyIssues.forEach((issue) => {
@@ -135,7 +131,6 @@ export function ChannelReconciliationChart({
                 : "警告";
       typeCounts[type] = (typeCounts[type] || 0) + 1;
     });
-
     return {
       labels: Object.keys(typeCounts),
       datasets: [
@@ -149,7 +144,6 @@ export function ChannelReconciliationChart({
       ],
     };
   }, [consistencyIssues]);
-
   const pieOptions: ChartOptions<"pie"> = {
     responsive: true,
     maintainAspectRatio: false,
@@ -173,7 +167,6 @@ export function ChannelReconciliationChart({
       },
     },
   };
-
   const barOptions: ChartOptions<"bar"> = {
     responsive: true,
     maintainAspectRatio: false,
@@ -202,7 +195,6 @@ export function ChannelReconciliationChart({
       },
     },
   };
-
   const issuesBarOptions: ChartOptions<"bar"> = {
     responsive: true,
     maintainAspectRatio: false,
@@ -231,7 +223,6 @@ export function ChannelReconciliationChart({
       },
     },
   };
-
   return (
     <BlockStack gap="400">
       <Card>
@@ -280,7 +271,6 @@ export function ChannelReconciliationChart({
           </BlockStack>
         </BlockStack>
       </Card>
-
       {localConsistency && consistencyBarData && (
         <Card>
           <BlockStack gap="400">
@@ -321,7 +311,6 @@ export function ChannelReconciliationChart({
           </BlockStack>
         </Card>
       )}
-
       {consistencyIssues.length > 0 && (
         <Card>
           <BlockStack gap="400">

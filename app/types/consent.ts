@@ -15,11 +15,8 @@ export interface ConsentDecision {
 }
 
 export interface PlatformConsentConfig {
-
   category: ConsentCategory;
-
   dualUse: boolean;
-
   requiresSaleOfData: boolean;
 }
 

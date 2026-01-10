@@ -30,7 +30,6 @@ export function VerificationWizard({
 }: VerificationWizardProps) {
   const [completedItems, setCompletedItems] = useState<Set<string>>(new Set());
   const [currentStep, setCurrentStep] = useState<number>(0);
-
   const handleItemComplete = useCallback((itemId: string) => {
     setCompletedItems((prev) => {
       const next = new Set(prev);
@@ -38,13 +37,10 @@ export function VerificationWizard({
       return next;
     });
   }, []);
-
   const progress = testChecklist.items.length > 0
     ? (completedItems.size / testChecklist.items.length) * 100
     : 0;
-
   const allCompleted = completedItems.size === testChecklist.items.length;
-
   return (
     <BlockStack gap="400">
       <Card>
@@ -57,7 +53,6 @@ export function VerificationWizard({
               {`${completedItems.size} / ${testChecklist.items.length}`}
             </Badge>
           </InlineStack>
-
           <Box>
             <BlockStack gap="200">
               <InlineStack align="space-between">
@@ -71,9 +66,7 @@ export function VerificationWizard({
               <ProgressBar progress={progress} size="small" />
             </BlockStack>
           </Box>
-
           <Divider />
-
           <Banner tone="info" title="重要提示：v1.0 验收范围（符合 PRD 4.5 要求）">
             <BlockStack gap="200">
               <Text variant="bodySm" as="p">
@@ -103,7 +96,6 @@ export function VerificationWizard({
               </Text>
             </BlockStack>
           </Banner>
-
           <BlockStack gap="300">
             <Text variant="headingSm" as="h3">
               测试清单
@@ -164,7 +156,6 @@ export function VerificationWizard({
               })}
             </List>
           </BlockStack>
-
           {allCompleted && (
             <Banner tone="success">
               <BlockStack gap="200">
@@ -177,9 +168,7 @@ export function VerificationWizard({
               </BlockStack>
             </Banner>
           )}
-
           <Divider />
-
           <InlineStack align="end">
             {onStartTest && (
               <Button onClick={onStartTest} icon={PlayIcon}>

@@ -22,8 +22,6 @@ export async function decryptAlertSettings(encrypted: string): Promise<AlertSett
 
 export function getMaskedAlertSettings(settings: AlertSettings): Partial<AlertSettings> {
   const masked: Partial<AlertSettings> = { ...settings };
-
-  
   if ("apiKey" in masked && typeof masked.apiKey === "string") {
     masked.apiKey = "***";
   }
@@ -36,6 +34,5 @@ export function getMaskedAlertSettings(settings: AlertSettings): Partial<AlertSe
       masked.webhookUrl = `${url.substring(0, 10)}...${url.substring(url.length - 10)}` as any;
     }
   }
-
   return masked;
 }

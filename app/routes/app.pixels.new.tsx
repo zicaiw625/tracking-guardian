@@ -271,7 +271,6 @@ function generateIngestionSecret(): string {
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   const { session, admin } = await authenticate.admin(request);
   const shopDomain = session.shop;
-
   const shop = await prisma.shop.findUnique({
     where: { shopDomain },
     select: {
@@ -282,7 +281,6 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       webPixelId: true,
     },
   });
-
   if (!shop) {
     return json({
       shop: null,
@@ -293,10 +291,8 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       isStarterOrAbove: false,
     });
   }
-
   const templates = await getWizardTemplates(shop.id);
   const isStarterOrAbove = isPlanAtLeast(shop.plan, "starter");
-
   return json({
     shop: {
       id: shop.id,
@@ -314,7 +310,6 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   const shopDomain = session.shop;
   const formData = await request.formData();
   const actionType = formData.get("_action");
-
   const shop = await prisma.shop.findUnique({
     where: { shopDomain },
     select: {
@@ -325,25 +320,20 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       plan: true,
     },
   });
-
   if (!shop) {
     return json({ error: "Shop not found" }, { status: 404 });
   }
-
   if (actionType === "savePixelConfigs") {
     const configsJson = formData.get("configs") as string;
-
     if (!configsJson) {
       return json({ error: "缺少配置数据" }, { status: 400 });
     }
-
     if (!isPlanAtLeast(shop.plan, "starter")) {
       return json({
         success: false,
         error: "启用像素迁移需要 Migration ($49/月) 及以上套餐。请先升级套餐。",
       }, { status: 403 });
     }
-
     try {
       const configs = JSON.parse(configsJson) as Array<{
         platform: string;
@@ -352,13 +342,10 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         eventMappings: Record<string, string>;
         environment: "test" | "live";
       }>;
-
       const configIds: string[] = [];
       const createdPlatforms: string[] = [];
-
       for (const config of configs) {
         const platform = config.platform as "google" | "meta" | "tiktok" | "pinterest" | "snapchat";
-
         let credentials: Record<string, string> = {};
         if (platform === "google") {
           credentials = {
@@ -372,7 +359,6 @@ export const action = async ({ request }: ActionFunctionArgs) => {
             ...(config.credentials.testEventCode && { testEventCode: config.credentials.testEventCode }),
           };
         }
-
         const encryptedCredentials = encryptJson(credentials);
         const platformIdValue = config.platformId?.trim() || null;
         const existingConfig = await prisma.pixelConfig.findFirst({
@@ -391,14 +377,12 @@ export const action = async ({ request }: ActionFunctionArgs) => {
           },
           select: { id: true },
         });
-
         const fullFunnelEvents = ["page_viewed", "product_viewed", "product_added_to_cart", "checkout_started"];
         const hasFullFunnelEvents = Object.keys(config.eventMappings || {}).some(eventName =>
           fullFunnelEvents.includes(eventName)
         );
         const mode: "purchase_only" | "full_funnel" = hasFullFunnelEvents ? "full_funnel" : "purchase_only";
         const clientConfig = { mode };
-
         const savedConfig = await prisma.pixelConfig.upsert({
           where: {
             shopId_platform_environment_platformId: {
@@ -433,13 +417,11 @@ export const action = async ({ request }: ActionFunctionArgs) => {
           },
           select: { id: true },
         });
-
         configIds.push(savedConfig.id);
         if (!existingConfig) {
           createdPlatforms.push(platform);
         }
       }
-
       let ingestionSecret: string | undefined = undefined;
       if (shop.ingestionSecret) {
         try {
@@ -457,7 +439,6 @@ export const action = async ({ request }: ActionFunctionArgs) => {
           logger.error(`[PixelsNew] Failed to decrypt ingestionSecret for ${shopDomain}`, error);
         }
       }
-
       if (!ingestionSecret) {
         ingestionSecret = generateIngestionSecret();
         const encryptedSecret = encryptIngestionSecret(ingestionSecret);
@@ -466,7 +447,6 @@ export const action = async ({ request }: ActionFunctionArgs) => {
           data: { ingestionSecret: encryptedSecret },
         });
       }
-
       let ourPixelId = shop.webPixelId;
       if (!ourPixelId) {
         const existingPixels = await getExistingWebPixels(admin);
@@ -481,7 +461,6 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         });
         ourPixelId = ourPixel?.id ?? null;
       }
-
       if (ourPixelId) {
         await updateWebPixel(admin, ourPixelId, ingestionSecret, shopDomain);
       } else {
@@ -493,12 +472,10 @@ export const action = async ({ request }: ActionFunctionArgs) => {
           });
         }
       }
-
       if (createdPlatforms.length > 0) {
                 const planId = normalizePlanId(shop.plan ?? "free");
         const isAgency = isPlanAtLeast(planId, "agency");
         const firstPlatform = createdPlatforms[0];
-
                 let riskScore: number | undefined;
         let assetCount: number | undefined;
         try {
@@ -516,7 +493,6 @@ export const action = async ({ request }: ActionFunctionArgs) => {
           }
         } catch (error) {
                   }
-
         safeFireAndForget(
           trackEvent({
             shopId: shop.id,
@@ -535,7 +511,6 @@ export const action = async ({ request }: ActionFunctionArgs) => {
           })
         );
       }
-
       return json({ success: true, configIds });
     } catch (error) {
       logger.error("Failed to save pixel configs", error);
@@ -545,7 +520,6 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       }, { status: 500 });
     }
   }
-
   return json({ error: "Unknown action" }, { status: 400 });
 };
 
@@ -556,7 +530,6 @@ export default function PixelsNewPage() {
   const submit = useSubmit();
   const navigate = useNavigate();
   const { showSuccess, showError } = useToastContext();
-
   const [currentStep, setCurrentStep] = useState<SetupStep>("select");
   const [selectedPlatforms, setSelectedPlatforms] = useState<Set<PlatformType>>(new Set());
   const [platformConfigs, setPlatformConfigs] = useState<Partial<Record<PlatformType, PlatformConfig>>>(() => ({
@@ -602,14 +575,12 @@ export default function PixelsNewPage() {
     },
   }));
   const [showTemplateModal, setShowTemplateModal] = useState(false);
-
   const steps = useMemo(() => ([
     { id: "select", label: "选择平台" },
     { id: "credentials", label: "填写凭证" },
     { id: "mappings", label: "事件映射" },
     { id: "review", label: "检查配置" },
   ]), []);
-
   useEffect(() => {
     if (actionData && actionData.success) {
       const configIds = actionData.configIds || [];
@@ -623,7 +594,6 @@ export default function PixelsNewPage() {
       showError(actionData.error);
     }
   }, [actionData, navigate, showSuccess, showError]);
-
   const handlePlatformToggle = useCallback((platform: PlatformType, enabled: boolean) => {
     setSelectedPlatforms((prev) => {
       const next = new Set(prev);
@@ -634,7 +604,6 @@ export default function PixelsNewPage() {
       }
       return next;
     });
-
     setPlatformConfigs((prev) => ({
       ...prev,
       [platform]: {
@@ -643,11 +612,9 @@ export default function PixelsNewPage() {
       } as PlatformConfig,
     }));
   }, []);
-
   const handleApplyTemplate = useCallback((template: WizardTemplate) => {
     const configs = { ...platformConfigs };
     const platforms = new Set<PlatformType>();
-
     template.platforms.forEach((platform) => {
       const platformKey = platform as PlatformType;
       platforms.add(platformKey);
@@ -669,13 +636,11 @@ export default function PixelsNewPage() {
         };
       }
     });
-
     setSelectedPlatforms(platforms);
     setPlatformConfigs(configs);
     setShowTemplateModal(false);
     showSuccess(`已应用模板「${template.name}」`);
   }, [platformConfigs, showSuccess]);
-
   const handleCredentialUpdate = useCallback((platform: PlatformType, field: string, value: string) => {
     setPlatformConfigs((prev) => {
       const currentConfig = prev[platform];
@@ -696,7 +661,6 @@ export default function PixelsNewPage() {
       };
     });
   }, []);
-
   const handleEventMappingUpdate = useCallback((platform: PlatformType, shopifyEvent: string, platformEvent: string) => {
     setPlatformConfigs((prev) => {
       const currentConfig = prev[platform];
@@ -713,7 +677,6 @@ export default function PixelsNewPage() {
       };
     });
   }, []);
-
   const handleEnvironmentToggle = useCallback((platform: PlatformType, environment: "test" | "live") => {
     setPlatformConfigs((prev) => ({
       ...prev,
@@ -723,13 +686,11 @@ export default function PixelsNewPage() {
       } as PlatformConfig,
     }));
   }, []);
-
   const validateStep = useCallback((step: SetupStep) => {
     const errors: string[] = [];
     if (step === "select" && selectedPlatforms.size === 0) {
       errors.push("请至少选择一个平台");
     }
-
     if (step === "credentials") {
       Array.from(selectedPlatforms).forEach((platform) => {
         const config = platformConfigs[platform];
@@ -743,7 +704,6 @@ export default function PixelsNewPage() {
         });
       });
     }
-
     if (step === "mappings") {
       Array.from(selectedPlatforms).forEach((platform) => {
         const config = platformConfigs[platform];
@@ -752,30 +712,25 @@ export default function PixelsNewPage() {
         }
       });
     }
-
     return errors;
   }, [platformConfigs, selectedPlatforms]);
-
   const handleNext = useCallback(() => {
     const errors = validateStep(currentStep);
     if (errors.length > 0) {
       showError(`请先完成当前步骤：${errors.join("; ")}`);
       return;
     }
-
     const currentIndex = steps.findIndex((step) => step.id === currentStep);
     if (currentIndex < steps.length - 1) {
       setCurrentStep(steps[currentIndex + 1].id as SetupStep);
     }
   }, [currentStep, steps, validateStep, showError]);
-
   const handleSave = useCallback(() => {
     const errors = validateStep("credentials").concat(validateStep("mappings"));
     if (errors.length > 0) {
       showError(`配置错误：${errors.join("; ")}`);
       return;
     }
-
     const enabledPlatforms = Array.from(selectedPlatforms);
     const configs = enabledPlatforms.map((platform) => {
       const config = platformConfigs[platform] as PlatformConfig;
@@ -787,22 +742,18 @@ export default function PixelsNewPage() {
         environment: config.environment,
       };
     });
-
     const formData = new FormData();
     formData.append("_action", "savePixelConfigs");
     formData.append("configs", JSON.stringify(configs));
     submit(formData, { method: "post" });
   }, [platformConfigs, selectedPlatforms, submit, validateStep, showError]);
-
   const currentIndex = steps.findIndex((step) => step.id === currentStep);
   const isSubmitting = navigation.state === "submitting";
-
   const availableTemplates = useMemo(() => {
     const presetTemplates = templates?.presets?.length ? templates.presets : PRESET_TEMPLATES;
     const customTemplates = templates?.custom || [];
     return [...presetTemplates, ...customTemplates];
   }, [templates]);
-
   if (!shop) {
     return (
       <Page title="新建 Pixel">
@@ -812,7 +763,6 @@ export default function PixelsNewPage() {
       </Page>
     );
   }
-
   return (
     <Page
       title="新建 Pixel 配置"
@@ -837,7 +787,6 @@ export default function PixelsNewPage() {
             </Text>
           </Banner>
         )}
-
         <Card>
           <BlockStack gap="400">
             <InlineStack align="space-between" blockAlign="center">
@@ -856,7 +805,6 @@ export default function PixelsNewPage() {
             </InlineStack>
           </BlockStack>
         </Card>
-
         {currentStep === "select" && (
           <Card>
             <BlockStack gap="400">
@@ -869,14 +817,12 @@ export default function PixelsNewPage() {
               <Text as="p" tone="subdued">
                 选择您要迁移的广告平台，可使用预设模板快速配置事件映射。
               </Text>
-
               <BlockStack gap="300">
                 {(Object.keys(PLATFORM_INFO) as PlatformType[]).map((platform) => {
                   const info = PLATFORM_INFO[platform];
                   const isSelected = selectedPlatforms.has(platform);
                   const isV1Supported = platform === "google" || platform === "meta" || platform === "tiktok";
                   const isDisabled = !isV1Supported;
-
                   return (
                     <Card key={platform}>
                       <BlockStack gap="300">
@@ -924,7 +870,6 @@ export default function PixelsNewPage() {
             </BlockStack>
           </Card>
         )}
-
         {currentStep === "credentials" && (
           <Card>
             <BlockStack gap="400">
@@ -932,12 +877,10 @@ export default function PixelsNewPage() {
               <Text as="p" tone="subdued">
                 为每个选中的平台填写 API 凭证，并设置环境。
               </Text>
-
               {Array.from(selectedPlatforms).map((platform) => {
                 const config = platformConfigs[platform];
                 const info = PLATFORM_INFO[platform];
                 if (!config || !info) return null;
-
                 return (
                   <Card key={platform}>
                     <BlockStack gap="400">
@@ -950,7 +893,6 @@ export default function PixelsNewPage() {
                           {config.environment === "live" ? "🔴 生产模式" : "🟡 测试模式"}
                         </Badge>
                       </InlineStack>
-
                       <Select
                         label="切换环境"
                         options={[
@@ -965,9 +907,7 @@ export default function PixelsNewPage() {
                             : "生产模式：事件发送到正式端点，将影响广告归因和优化"
                         }
                       />
-
                       <Divider />
-
                       <BlockStack gap="300">
                         {info.credentialFields.map((field) => (
                           <TextField
@@ -989,7 +929,6 @@ export default function PixelsNewPage() {
             </BlockStack>
           </Card>
         )}
-
         {currentStep === "mappings" && (
           <Card>
             <BlockStack gap="400">
@@ -1014,7 +953,6 @@ export default function PixelsNewPage() {
             </BlockStack>
           </Card>
         )}
-
         {currentStep === "review" && (
           <Card>
             <BlockStack gap="400">
@@ -1022,12 +960,10 @@ export default function PixelsNewPage() {
               <Text as="p" tone="subdued">
                 确认平台、凭证与事件映射无误后保存配置。
               </Text>
-
               {Array.from(selectedPlatforms).map((platform) => {
                 const config = platformConfigs[platform];
                 const info = PLATFORM_INFO[platform];
                 if (!config || !info) return null;
-
                 return (
                   <Card key={platform}>
                     <BlockStack gap="200">
@@ -1056,7 +992,6 @@ export default function PixelsNewPage() {
             </BlockStack>
           </Card>
         )}
-
         <Card>
           <InlineStack align="space-between" wrap>
             <Button url="/app/pixels" disabled={isSubmitting}>
@@ -1095,7 +1030,6 @@ export default function PixelsNewPage() {
           </InlineStack>
         </Card>
       </BlockStack>
-
       <Modal
         open={showTemplateModal}
         onClose={() => setShowTemplateModal(false)}

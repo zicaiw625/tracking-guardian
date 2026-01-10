@@ -23,7 +23,6 @@ export function ReportShare({ runId, shopId }: ReportShareProps) {
   const [shareUrl, setShareUrl] = useState<string | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
   const [expiresAt, setExpiresAt] = useState<Date | null>(null);
-
   const handleGenerateShare = useCallback(async () => {
     setIsGenerating(true);
     try {
@@ -35,11 +34,9 @@ export function ReportShare({ runId, shopId }: ReportShareProps) {
           reportId: runId,
         }),
       });
-
       if (!response.ok) {
         throw new Error("生成分享链接失败");
       }
-
       const data = await response.json().catch((error) => {
         throw new Error("解析响应失败：" + (error instanceof Error ? error.message : "未知错误"));
       });
@@ -52,13 +49,11 @@ export function ReportShare({ runId, shopId }: ReportShareProps) {
       setIsGenerating(false);
     }
   }, [runId, showSuccess, showError]);
-
   const handleCopyUrl = useCallback(() => {
     if (!shareUrl) return;
     navigator.clipboard.writeText(shareUrl);
     showSuccess("链接已复制到剪贴板");
   }, [shareUrl, showSuccess]);
-
   return (
     <Card>
       <BlockStack gap="400">
@@ -68,7 +63,6 @@ export function ReportShare({ runId, shopId }: ReportShareProps) {
           </Text>
           <Badge tone="info">7 天有效</Badge>
         </InlineStack>
-
         {!shareUrl ? (
           <BlockStack gap="300">
             <Text as="p" tone="subdued">
@@ -87,7 +81,6 @@ export function ReportShare({ runId, shopId }: ReportShareProps) {
             <Banner tone="success">
               <Text as="p">分享链接已生成，7 天后自动过期</Text>
             </Banner>
-
             <Box background="bg-surface-secondary" padding="400" borderRadius="200">
               <BlockStack gap="200">
                 <Text as="span" variant="bodySm" fontWeight="semibold">
@@ -115,7 +108,6 @@ export function ReportShare({ runId, shopId }: ReportShareProps) {
                 )}
               </BlockStack>
             </Box>
-
             <Button onClick={handleGenerateShare} variant="secondary">
               重新生成链接
             </Button>

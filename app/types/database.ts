@@ -30,20 +30,16 @@ export interface CapiInputJson {
   webhookReceivedAt?: string;
   checkoutToken?: string | null;
   shopifyOrderId?: number | string;
-
 }
 
 export function parseCapiInput(json: unknown): CapiInputJson | null {
   if (!json || typeof json !== 'object') {
     return null;
   }
-
   const data = json as Record<string, unknown>;
-
   if (typeof data.orderId !== 'string' || typeof data.value !== 'number') {
     return null;
   }
-
   return {
     orderId: data.orderId,
     value: data.value,
@@ -60,14 +56,12 @@ export function parseCapiInput(json: unknown): CapiInputJson | null {
     shopifyOrderId: typeof data.shopifyOrderId === 'number' || typeof data.shopifyOrderId === 'string'
       ? data.shopifyOrderId
       : undefined,
-
   };
 }
 
 function parseCapiLineItem(item: unknown): CapiLineItem | null {
   if (!item || typeof item !== 'object') return null;
   const data = item as Record<string, unknown>;
-
   return {
     productId: typeof data.productId === 'string' ? data.productId : undefined,
     variantId: typeof data.variantId === 'string' ? data.variantId : undefined,
@@ -88,9 +82,7 @@ export function parseConsentState(json: unknown): ConsentStateJson | null {
   if (!json || typeof json !== 'object') {
     return null;
   }
-
   const data = json as Record<string, unknown>;
-
   return {
     marketing: typeof data.marketing === 'boolean' ? data.marketing : undefined,
     analytics: typeof data.analytics === 'boolean' ? data.analytics : undefined,
@@ -112,9 +104,7 @@ export function parseConsentEvidence(json: unknown): ConsentEvidenceJson | null 
   if (!json || typeof json !== 'object') {
     return null;
   }
-
   const data = json as Record<string, unknown>;
-
   return {
     strategy: (data.strategy as ConsentStrategyType) || 'strict',
     hasReceipt: data.hasReceipt === true,
@@ -141,9 +131,7 @@ export function parseTrustMetadata(json: unknown): TrustMetadataJson | null {
   if (!json || typeof json !== 'object') {
     return null;
   }
-
   const data = json as Record<string, unknown>;
-
   return {
     trustLevel: (data.trustLevel as TrustLevelType) || 'unknown',
     reason: typeof data.reason === 'string' ? data.reason : undefined,
@@ -162,16 +150,13 @@ export function parsePlatformResults(json: unknown): PlatformResultsJson {
   if (!json || typeof json !== 'object') {
     return {};
   }
-
   const data = json as Record<string, unknown>;
   const results: PlatformResultsJson = {};
-
   for (const [key, value] of Object.entries(data)) {
     if (typeof value === 'string') {
       results[key] = value;
     }
   }
-
   return results;
 }
 
@@ -206,9 +191,7 @@ export function parsePixelClientConfig(json: unknown): PixelClientConfigJson | n
   if (!json || typeof json !== 'object') {
     return null;
   }
-
   const data = json as Record<string, unknown>;
-
   return {
     treatAsMarketing: typeof data.treatAsMarketing === 'boolean' ? data.treatAsMarketing : undefined,
     conversionLabels: Array.isArray(data.conversionLabels)
@@ -233,7 +216,6 @@ export function parseRiskItems(json: unknown): RiskItemJson[] {
   if (!Array.isArray(json)) {
     return [];
   }
-
   return json
     .filter((item): item is Record<string, unknown> =>
       item !== null && typeof item === 'object' && !Array.isArray(item)
@@ -244,7 +226,6 @@ export function parseRiskItems(json: unknown): RiskItemJson[] {
       const severity: RiskItemJson['severity'] = validSeverities.includes(severityValue as RiskItemJson['severity'])
         ? severityValue as RiskItemJson['severity']
         : 'low';
-
       return {
         id: typeof item.id === 'string' ? item.id : '',
         severity,
@@ -261,7 +242,6 @@ export function parseIdentifiedPlatforms(json: unknown): string[] {
   if (!Array.isArray(json)) {
     return [];
   }
-
   return json.filter((p): p is string => typeof p === 'string');
 }
 
@@ -281,9 +261,7 @@ export function parsePlatformResponse(json: unknown): PlatformResponseJson | nul
   if (!json || typeof json !== 'object') {
     return null;
   }
-
   const data = json as Record<string, unknown>;
-
   return {
     success: typeof data.success === 'boolean' ? data.success : undefined,
     events_received: typeof data.events_received === 'number' ? data.events_received : undefined,
@@ -397,9 +375,7 @@ export function asArray<T>(value: unknown, fallback: T[] = []): T[] {
 }
 
 export interface ParserOptions<T> {
-
   fallback?: T;
-
   logErrors?: boolean;
 }
 
@@ -411,18 +387,14 @@ export function createJsonParser<T>(
     if (!json || typeof json !== 'object' || Array.isArray(json)) {
       return options?.fallback ?? null;
     }
-
     const data = json as Record<string, unknown>;
-
     if (validator && !validator(data)) {
       return options?.fallback ?? null;
     }
-
     try {
       return mapper(data);
     } catch (error) {
       if (options?.logErrors) {
-
         console.error('JSON parsing error', { error, context: 'createJsonParser' });
       }
       return options?.fallback ?? null;
@@ -437,7 +409,6 @@ export function createJsonArrayParser<T>(
     if (!Array.isArray(json)) {
       return [];
     }
-
     return json
       .map(itemParser)
       .filter((item): item is T => item !== null);
@@ -454,17 +425,13 @@ export function parseCapiInputResult(json: unknown): Result<CapiInputJson, JsonP
   if (!json || typeof json !== 'object') {
     return err({ type: 'INVALID_JSON', message: 'Expected object' });
   }
-
   const data = json as Record<string, unknown>;
-
   if (typeof data.orderId !== 'string') {
     return err({ type: 'MISSING_FIELD', message: 'orderId is required', field: 'orderId' });
   }
-
   if (typeof data.value !== 'number') {
     return err({ type: 'MISSING_FIELD', message: 'value is required', field: 'value' });
   }
-
   return ok({
     orderId: data.orderId,
     value: data.value,
@@ -492,9 +459,7 @@ export function parseConsentStateResult(json: unknown): Result<ConsentStateJson,
   if (!json || typeof json !== 'object') {
     return err({ type: 'INVALID_JSON', message: 'Expected object' });
   }
-
   const data = json as Record<string, unknown>;
-
   if (data.marketing !== undefined && typeof data.marketing !== 'boolean') {
     return err({ type: 'INVALID_TYPE', message: 'marketing must be boolean', field: 'marketing' });
   }
@@ -504,7 +469,6 @@ export function parseConsentStateResult(json: unknown): Result<ConsentStateJson,
   if (data.saleOfData !== undefined && typeof data.saleOfData !== 'boolean') {
     return err({ type: 'INVALID_TYPE', message: 'saleOfData must be boolean', field: 'saleOfData' });
   }
-
   return ok({
     marketing: typeof data.marketing === 'boolean' ? data.marketing : undefined,
     analytics: typeof data.analytics === 'boolean' ? data.analytics : undefined,

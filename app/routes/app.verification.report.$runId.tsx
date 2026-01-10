@@ -55,11 +55,9 @@ export const loader = async ({ request, params }: LoaderFunctionArgs) => {
   const { session } = await authenticate.admin(request);
   const shopDomain = session.shop;
   const runId = params.runId;
-
   if (!runId) {
     throw new Response("Missing runId", { status: 400 });
   }
-
   const shop = await prisma.shop.findUnique({
     where: { shopDomain },
     select: {
@@ -67,7 +65,6 @@ export const loader = async ({ request, params }: LoaderFunctionArgs) => {
       plan: true,
     },
   });
-
   if (!shop) {
     return json({
       shop: null,
@@ -78,11 +75,9 @@ export const loader = async ({ request, params }: LoaderFunctionArgs) => {
       currentPlan: "free" as PlanId,
     });
   }
-
   const planId = normalizePlanId(shop.plan || "free") as PlanId;
   const gateResult = checkFeatureAccess(planId, "verification");
   const canExportReports = planSupportsReportExport(planId);
-
   const run = await getVerificationRun(runId);
   if (!run || run.shopId !== shop.id) {
     return json({
@@ -94,9 +89,7 @@ export const loader = async ({ request, params }: LoaderFunctionArgs) => {
       currentPlan: planId,
     });
   }
-
   const reportData = await generateVerificationReportData(shop.id, runId);
-
     if (!canExportReports && reportData) {
     safeFireAndForget(
       trackEvent({
@@ -111,7 +104,6 @@ export const loader = async ({ request, params }: LoaderFunctionArgs) => {
       })
     );
   }
-
   return json({
     shop: { id: shop.id, domain: shopDomain },
     run,
@@ -128,62 +120,51 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
   const runId = params.runId;
   const formData = await request.formData();
   const actionType = formData.get("_action");
-
   if (!runId) {
     return json({ success: false, error: "Missing runId" }, { status: 400 });
   }
-
   const shop = await prisma.shop.findUnique({
     where: { shopDomain },
     select: { id: true, plan: true },
   });
-
   if (!shop) {
     return json({ success: false, error: "Shop not found" }, { status: 404 });
   }
-
   const planId = normalizePlanId(shop.plan || "free") as PlanId;
   const canExportReports = planSupportsReportExport(planId);
-
   if (actionType === "export_pdf") {
     if (!canExportReports) {
       return json({ success: false, error: "需要 Growth 或 Agency 套餐才能导出报告" }, { status: 403 });
     }
-
     const reportData = await generateVerificationReportData(shop.id, runId);
     if (!reportData) {
       return json({ success: false, error: "报告数据未找到" }, { status: 404 });
     }
-
     const { generateVerificationReportPDF } = await import("../services/verification-report.server");
-    const pdfResult = await generateVerificationReportPDF(reportData);
-
-    if (!pdfResult) {
+    const pdfBuffer = await generateVerificationReportPDF(reportData);
+    if (!pdfBuffer) {
       return json({ success: false, error: "PDF生成失败" }, { status: 500 });
     }
-
-    return new Response(pdfResult.buffer, {
+    const timestamp = new Date().toISOString().split("T")[0];
+    const filename = `verification-report-${shopDomain.replace(/\./g, "_")}-${timestamp}.pdf`;
+    return new Response(pdfBuffer, {
       headers: {
         "Content-Type": "application/pdf",
-        "Content-Disposition": `attachment; filename="${pdfResult.filename}"`,
+        "Content-Disposition": `attachment; filename="${filename}"`,
       },
     });
   }
-
   if (actionType === "export_csv") {
     if (!canExportReports) {
       return json({ success: false, error: "需要 Growth 或 Agency 套餐才能导出报告" }, { status: 403 });
     }
-
     const reportData = await generateVerificationReportData(shop.id, runId);
     if (!reportData) {
       return json({ success: false, error: "报告数据未找到" }, { status: 404 });
     }
-
     const csv = generateVerificationReportCSV(reportData);
     const timestamp = new Date().toISOString().split("T")[0];
     const filename = `verification-report-${shopDomain.replace(/\./g, "_")}-${timestamp}.csv`;
-
     return new Response(csv, {
       headers: {
         "Content-Type": "text/csv; charset=utf-8",
@@ -191,7 +172,6 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
       },
     });
   }
-
   return json({ success: false, error: "Unknown action" }, { status: 400 });
 };
 
@@ -201,7 +181,6 @@ export default function VerificationReportPage() {
   const actionData = useActionData<typeof action>();
   const { showError } = useToastContext();
   const [isExporting, setIsExporting] = useState(false);
-
   if (!shop) {
     return (
       <Page title="验收报告">
@@ -211,7 +190,6 @@ export default function VerificationReportPage() {
       </Page>
     );
   }
-
   if (!run || !reportData) {
     return (
       <Page title="验收报告">
@@ -224,7 +202,6 @@ export default function VerificationReportPage() {
       </Page>
     );
   }
-
   const handleExportPDF = () => {
     setIsExporting(true);
     const formData = new FormData();
@@ -232,7 +209,6 @@ export default function VerificationReportPage() {
     submit(formData, { method: "post" });
     setTimeout(() => setIsExporting(false), 2000);
   };
-
   const handleExportCSV = () => {
     setIsExporting(true);
     const formData = new FormData();
@@ -240,7 +216,6 @@ export default function VerificationReportPage() {
     submit(formData, { method: "post" });
     setTimeout(() => setIsExporting(false), 2000);
   };
-
   const getStatusBadge = (status: string) => {
     switch (status) {
       case "completed":
@@ -253,12 +228,10 @@ export default function VerificationReportPage() {
         return <Badge>待开始</Badge>;
     }
   };
-
   const formatDate = (date?: Date) => {
     if (!date) return "未开始";
     return new Date(date).toLocaleString("zh-CN");
   };
-
   return (
     <Page
       title={`验收报告 - ${reportData.runName}`}
@@ -305,7 +278,6 @@ export default function VerificationReportPage() {
             gateResult={gateResult}
           />
         )}
-
         <Card>
           <BlockStack gap="400">
             <InlineStack align="space-between" blockAlign="center">
@@ -314,9 +286,7 @@ export default function VerificationReportPage() {
               </Text>
               {getStatusBadge(reportData.status)}
             </InlineStack>
-
             <Divider />
-
             <Layout>
               <Layout.Section variant="oneThird">
                 <BlockStack gap="200">
@@ -328,7 +298,6 @@ export default function VerificationReportPage() {
                   </Text>
                 </BlockStack>
               </Layout.Section>
-
               <Layout.Section variant="oneThird">
                 <BlockStack gap="200">
                   <Text as="span" variant="bodySm" tone="subdued">
@@ -339,7 +308,6 @@ export default function VerificationReportPage() {
                   </Text>
                 </BlockStack>
               </Layout.Section>
-
               <Layout.Section variant="oneThird">
                 <BlockStack gap="200">
                   <Text as="span" variant="bodySm" tone="subdued">
@@ -353,13 +321,11 @@ export default function VerificationReportPage() {
             </Layout>
           </BlockStack>
         </Card>
-
         <Card>
           <BlockStack gap="400">
             <Text as="h2" variant="headingMd">
               测试摘要
             </Text>
-
             <Layout>
               <Layout.Section variant="oneThird">
                 <Box background="bg-surface-secondary" padding="400" borderRadius="200">
@@ -373,7 +339,6 @@ export default function VerificationReportPage() {
                   </BlockStack>
                 </Box>
               </Layout.Section>
-
               <Layout.Section variant="oneThird">
                 <Box background="bg-surface-secondary" padding="400" borderRadius="200">
                   <BlockStack gap="200" align="center">
@@ -386,7 +351,6 @@ export default function VerificationReportPage() {
                   </BlockStack>
                 </Box>
               </Layout.Section>
-
               <Layout.Section variant="oneThird">
                 <Box background="bg-surface-secondary" padding="400" borderRadius="200">
                   <BlockStack gap="200" align="center">
@@ -400,9 +364,7 @@ export default function VerificationReportPage() {
                 </Box>
               </Layout.Section>
             </Layout>
-
             <Divider />
-
             <BlockStack gap="300">
               <BlockStack gap="200">
                 <InlineStack align="space-between" blockAlign="center">
@@ -418,7 +380,6 @@ export default function VerificationReportPage() {
                   tone={reportData.summary.parameterCompleteness >= 90 ? "success" : reportData.summary.parameterCompleteness >= 70 ? "highlight" : "critical"}
                 />
               </BlockStack>
-
               <BlockStack gap="200">
                 <InlineStack align="space-between" blockAlign="center">
                   <Text as="span" variant="bodyMd" fontWeight="semibold">
@@ -436,7 +397,6 @@ export default function VerificationReportPage() {
             </BlockStack>
           </BlockStack>
         </Card>
-
         {Object.keys(reportData.platformResults).length > 0 && (
           <Card>
             <BlockStack gap="400">
@@ -460,7 +420,6 @@ export default function VerificationReportPage() {
             </BlockStack>
           </Card>
         )}
-
         {reportData.events.length > 0 && (
           <Card>
             <BlockStack gap="400">
@@ -494,7 +453,6 @@ export default function VerificationReportPage() {
             </BlockStack>
           </Card>
         )}
-
         {reportData.reconciliation && (
           <Card>
             <BlockStack gap="400">
@@ -549,7 +507,6 @@ export default function VerificationReportPage() {
             </BlockStack>
           </Card>
         )}
-
         {!canExportReports && (
           <Banner tone="warning">
             <BlockStack gap="200">

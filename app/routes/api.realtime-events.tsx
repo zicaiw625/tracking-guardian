@@ -7,27 +7,21 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   try {
     const { session } = await authenticate.admin(request);
     const shopDomain = session.shop;
-
     const shop = await prisma.shop.findUnique({
       where: { shopDomain },
       select: { id: true },
     });
-
     if (!shop) {
       return new Response("Shop not found", { status: 404 });
     }
-
     const url = new URL(request.url);
     const platformsParam = url.searchParams.get("platforms");
     const platforms = platformsParam ? platformsParam.split(",") : [];
-
     let pollInterval: ReturnType<typeof setInterval> | null = null;
     let isClosed = false;
-
     const stream = new ReadableStream({
       async start(controller) {
         const encoder = new TextEncoder();
-
         const cleanup = () => {
           if (pollInterval !== null) {
             clearInterval(pollInterval);
@@ -38,11 +32,9 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
             try {
               controller.close();
             } catch (error) {
-
             }
           }
         };
-
         const sendMessage = (data: unknown) => {
           if (isClosed) return;
           try {
@@ -56,20 +48,16 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
             cleanup();
           }
         };
-
         sendMessage({ type: "connected", timestamp: new Date().toISOString() });
-
         let lastEventId: string | null = null;
         pollInterval = setInterval(async () => {
           try {
-
             const whereClause: {
               shopId: string;
               createdAt?: { gt: Date };
             } = {
               shopId: shop.id,
             };
-
             if (lastEventId) {
               const lastEvent = await prisma.conversionLog.findUnique({
                 where: { id: lastEventId },
@@ -78,11 +66,9 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
               if (lastEvent) {
                 whereClause.createdAt = { gt: lastEvent.createdAt };
               } else {
-
                 lastEventId = null;
               }
             }
-
             const recentLogs = await prisma.conversionLog.findMany({
               where: {
                 ...whereClause,
@@ -105,7 +91,6 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
                 createdAt: true,
               },
             });
-
             if (recentLogs.length > 0) {
               for (const log of recentLogs) {
                 let attemptDetails: {
@@ -115,7 +100,6 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
                   latencyMs?: number | null;
                   requestPayloadJson?: unknown;
                 } | null = null;
-
                 if (log.eventId) {
                   const eventLog = await prisma.eventLog.findFirst({
                     where: {
@@ -124,7 +108,6 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
                     },
                     select: { id: true },
                   });
-
                   if (eventLog) {
                     attemptDetails = await prisma.deliveryAttempt.findFirst({
                       where: {
@@ -143,7 +126,6 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
                     });
                   }
                 }
-
                 const event = {
                   id: log.id,
                   eventType: log.eventType,
@@ -169,13 +151,10 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
                   },
                   ...(log.errorMessage && { errorMessage: log.errorMessage }),
                 };
-
                 sendMessage(event);
               }
-
               lastEventId = recentLogs[recentLogs.length - 1].id;
             }
-
             const recentReceipts = await prisma.pixelEventReceipt.findMany({
               where: {
                 shopId: shop.id,
@@ -194,7 +173,6 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
                 trustLevel: true,
               },
             });
-
             for (const receipt of recentReceipts) {
               const event = {
                 id: `receipt_${receipt.id}`,
@@ -207,7 +185,6 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
                   hasEventId: true,
                 },
               };
-
               sendMessage(event);
             }
           } catch (error) {
@@ -216,19 +193,16 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
               type: "error",
               message: "Failed to fetch events",
             });
-
             if (isClosed) {
               cleanup();
             }
           }
         }, 2000);
-
         request.signal.addEventListener("abort", () => {
           cleanup();
         });
       },
       cancel() {
-
         if (pollInterval !== null) {
           clearInterval(pollInterval);
           pollInterval = null;
@@ -238,7 +212,6 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
         }
       },
     });
-
     return new Response(stream, {
       headers: {
         "Content-Type": "text/event-stream",

@@ -14,11 +14,8 @@ export interface ApiError {
 }
 
 export interface UseApiRequestOptions {
-
   redirectOnUnauthorized?: boolean;
-
   onSuccess?: () => void;
-
   onError?: (error: ApiError) => void;
 }
 
@@ -36,16 +33,13 @@ export function useApiRequest<T = unknown>(options: UseApiRequestOptions = {}) {
     loading: false,
     error: null,
   });
-
   const navigate = useNavigate();
-
   const execute = useCallback(
     async (
       url: string,
       init?: RequestInit
     ): Promise<T | null> => {
       setState((prev) => ({ ...prev, loading: true, error: null }));
-
       try {
         const response = await fetch(url, {
           headers: {
@@ -54,26 +48,21 @@ export function useApiRequest<T = unknown>(options: UseApiRequestOptions = {}) {
           },
           ...init,
         });
-
         if (response.status === 401 && options.redirectOnUnauthorized !== false) {
           navigate("/auth/login");
           return null;
         }
-
         const json = (await response.json()) as ApiResponse<T>;
-
         if (!json.success) {
           const error: ApiError = {
             message: json.error || "请求失败",
             code: json.code,
             details: json.details,
           };
-
           setState({ data: null, loading: false, error });
           options.onError?.(error);
           return null;
         }
-
         const data = json.data as T;
         setState({ data, loading: false, error: null });
         options.onSuccess?.();
@@ -83,7 +72,6 @@ export function useApiRequest<T = unknown>(options: UseApiRequestOptions = {}) {
           message: error instanceof Error ? error.message : "网络错误",
           code: "NETWORK_ERROR",
         };
-
         setState({ data: null, loading: false, error: apiError });
         options.onError?.(apiError);
         return null;
@@ -91,15 +79,12 @@ export function useApiRequest<T = unknown>(options: UseApiRequestOptions = {}) {
     },
     [navigate, options]
   );
-
   const reset = useCallback(() => {
     setState({ data: null, loading: false, error: null });
   }, []);
-
   const clearError = useCallback(() => {
     setState((prev) => ({ ...prev, error: null }));
   }, []);
-
   return {
     ...state,
     execute,
@@ -109,13 +94,9 @@ export function useApiRequest<T = unknown>(options: UseApiRequestOptions = {}) {
 }
 
 export interface UseMutationOptions<TInput, TOutput> {
-
   url: string;
-
   method?: "POST" | "PUT" | "PATCH" | "DELETE";
-
   transformInput?: (input: TInput) => unknown;
-
   onSuccess?: (data: TOutput) => void;
   onError?: (error: ApiError) => void;
 }
@@ -126,30 +107,24 @@ export function useMutation<TInput = unknown, TOutput = unknown>(
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<ApiError | null>(null);
   const navigate = useNavigate();
-
   const mutate = useCallback(
     async (input: TInput): Promise<TOutput | null> => {
       setLoading(true);
       setError(null);
-
       try {
         const body = options.transformInput
           ? options.transformInput(input)
           : input;
-
         const response = await fetch(options.url, {
           method: options.method || "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(body),
         });
-
         if (response.status === 401) {
           navigate("/auth/login");
           return null;
         }
-
         const json = (await response.json()) as ApiResponse<TOutput>;
-
         if (!json.success) {
           const apiError: ApiError = {
             message: json.error || "操作失败",
@@ -160,7 +135,6 @@ export function useMutation<TInput = unknown, TOutput = unknown>(
           options.onError?.(apiError);
           return null;
         }
-
         const data = json.data as TOutput;
         options.onSuccess?.(data);
         return data;
@@ -178,7 +152,6 @@ export function useMutation<TInput = unknown, TOutput = unknown>(
     },
     [options, navigate]
   );
-
   return {
     mutate,
     loading,
@@ -188,11 +161,8 @@ export function useMutation<TInput = unknown, TOutput = unknown>(
 }
 
 export interface UseQueryOptions<T> {
-
   enabled?: boolean;
-
   refetchInterval?: number;
-
   onSuccess?: (data: T) => void;
   onError?: (error: ApiError) => void;
 }
@@ -202,39 +172,29 @@ export function useQuery<T>(
   options: UseQueryOptions<T> = {}
 ) {
   const { enabled = true, refetchInterval, onSuccess, onError } = options;
-
   const [state, setState] = useState<ApiState<T>>({
     data: null,
     loading: enabled,
     error: null,
   });
-
   const navigate = useNavigate();
-
   const onSuccessRef = useRef(onSuccess);
   const onErrorRef = useRef(onError);
-
   useEffect(() => {
     onSuccessRef.current = onSuccess;
   }, [onSuccess]);
-
   useEffect(() => {
     onErrorRef.current = onError;
   }, [onError]);
-
   const fetch_ = useCallback(async () => {
     setState((prev) => ({ ...prev, loading: true, error: null }));
-
     try {
       const response = await fetch(url);
-
       if (response.status === 401) {
         navigate("/auth/login");
         return;
       }
-
       const json = (await response.json()) as ApiResponse<T>;
-
       if (!json.success) {
         const error: ApiError = {
           message: json.error || "获取数据失败",
@@ -244,7 +204,6 @@ export function useQuery<T>(
         onErrorRef.current?.(error);
         return;
       }
-
       const data = json.data as T;
       setState({ data, loading: false, error: null });
       onSuccessRef.current?.(data);
@@ -257,20 +216,17 @@ export function useQuery<T>(
       onErrorRef.current?.(error);
     }
   }, [url, navigate]);
-
   useEffect(() => {
     if (enabled) {
       fetch_();
     }
   }, [enabled, fetch_]);
-
   useEffect(() => {
     if (refetchInterval && enabled) {
       const intervalId = setInterval(fetch_, refetchInterval);
       return () => clearInterval(intervalId);
     }
   }, [refetchInterval, enabled, fetch_]);
-
   return {
     ...state,
     refetch: fetch_,

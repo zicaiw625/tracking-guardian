@@ -9,18 +9,12 @@ function parseEnvDate(envVar: string | undefined, defaultDate: string): Date {
 }
 
 const DEFAULT_DATES = {
-
     scriptTagCreationBlocked: "2025-02-01",
-
     plusScriptTagExecutionOff: "2025-08-28",
-
     nonPlusScriptTagExecutionOff: "2026-08-26",
-
     plusAdditionalScriptsReadOnly: "2025-08-28",
-
     nonPlusAdditionalScriptsReadOnly: "2026-08-26",
     scriptTagBlocked: "2025-02-01",
-
     plusAutoUpgradeStart: "2026-01-01",
 } as const;
 
@@ -49,7 +43,6 @@ export const DEPRECATION_DATES = {
         process.env.DEPRECATION_SCRIPT_TAG_BLOCKED,
         DEFAULT_DATES.scriptTagBlocked
     ),
-
     plusAutoUpgradeStart: parseEnvDate(
         process.env.DEPRECATION_PLUS_AUTO_UPGRADE,
         DEFAULT_DATES.plusAutoUpgradeStart
@@ -174,13 +167,11 @@ export function getScriptTagCreationStatus(now: Date = new Date()): DeprecationS
     };
 }
 export function getScriptTagExecutionStatus(tier: ShopTier, now: Date = new Date()): DeprecationStatus {
-
     const deadline = tier === "plus"
         ? DEPRECATION_DATES.plusScriptTagExecutionOff
         : DEPRECATION_DATES.nonPlusScriptTagExecutionOff;
     const daysRemaining = getDaysRemaining(deadline, now);
     const tierLabel = tier === "plus" ? "Plus 商家" : tier === "non_plus" ? "非 Plus 商家" : "商家";
-
     const dateLabel = getDateDisplayLabel(deadline, "exact");
     if (daysRemaining <= 0) {
         return {
@@ -218,13 +209,11 @@ export function getScriptTagDeprecationStatus(now: Date = new Date()): Deprecati
     return getScriptTagCreationStatus(now);
 }
 export function getAdditionalScriptsDeprecationStatus(tier: ShopTier, now: Date = new Date()): DeprecationStatus {
-
     const deadline = tier === "plus"
         ? DEPRECATION_DATES.plusAdditionalScriptsReadOnly
         : DEPRECATION_DATES.nonPlusAdditionalScriptsReadOnly;
     const daysRemaining = getDaysRemaining(deadline, now);
     const tierLabel = tier === "plus" ? "Plus 商家" : tier === "non_plus" ? "非 Plus 商家" : "商家";
-
     const dateLabel = getDateDisplayLabel(deadline, "exact");
     if (daysRemaining <= 0) {
         return {
@@ -325,19 +314,15 @@ export function getUpgradeStatusMessage(upgradeStatus: ShopUpgradeStatus, hasScr
     title: string;
     message: string;
     actions: string[];
-
     autoUpgradeInfo?: {
         isInAutoUpgradeWindow: boolean;
         autoUpgradeMessage: string;
     };
 } {
     const { tier, typOspPagesEnabled } = upgradeStatus;
-
     const plusDeadlineLabel = getDateDisplayLabel(DEPRECATION_DATES.plusAdditionalScriptsReadOnly, "exact");
     const nonPlusDeadlineLabel = getDateDisplayLabel(DEPRECATION_DATES.nonPlusAdditionalScriptsReadOnly, "exact");
-
     const deadlineLabel = tier === "plus" ? plusDeadlineLabel : nonPlusDeadlineLabel;
-
     const isInPlusAutoUpgradeWindow = tier === "plus" && now >= DEPRECATION_DATES.plusAutoUpgradeStart;
     const autoUpgradeStartLabel = getDateDisplayLabel(DEPRECATION_DATES.plusAutoUpgradeStart, "month");
     const plusAutoUpgradeMessage = isInPlusAutoUpgradeWindow
@@ -358,7 +343,6 @@ export function getUpgradeStatusMessage(upgradeStatus: ShopUpgradeStatus, hasScr
             } : undefined,
         };
     }
-
     const deadline = tier === "plus"
         ? DEPRECATION_DATES.plusAdditionalScriptsReadOnly
         : DEPRECATION_DATES.nonPlusAdditionalScriptsReadOnly;
@@ -418,7 +402,6 @@ export function getUpgradeStatusMessage(upgradeStatus: ShopUpgradeStatus, hasScr
         };
     }
     if (tier === "plus" && isPlusDeadlinePassed) {
-
         const autoUpgradeNote = isInPlusAutoUpgradeWindow
             ? `\n\n⚡ 自动升级窗口已开始：Shopify 正在将 Plus 商家自动迁移到新版页面（${autoUpgradeStartLabel}起，Shopify 会提前通知）。`
             : `\n\n📅 ${autoUpgradeStartLabel}起，Shopify 将开始自动迁移 Plus 商家到新版页面（Shopify 会提前通知）。`;

@@ -20,7 +20,6 @@ interface ShopData {
   hasIngestionSecret: boolean;
   hasActiveGraceWindow: boolean;
   graceWindowExpiry: Date | string | null;
-
   weakConsentMode: boolean;
   consentStrategy: string;
   dataRetentionDays: number;
@@ -28,7 +27,6 @@ interface ShopData {
 
 interface SecurityTabProps {
   shop: ShopData | null;
-
   isSubmitting: boolean;
   onRotateSecret: () => void;
 }
@@ -39,16 +37,13 @@ export function SecurityTab({
   onRotateSecret,
 }: SecurityTabProps) {
   const submit = useSubmit();
-
   const handleDataRetentionChange = (value: string) => {
     const formData = new FormData();
     formData.append("_action", "updatePrivacySettings");
-
     formData.append("consentStrategy", shop?.consentStrategy || "balanced");
     formData.append("dataRetentionDays", value);
     submit(formData, { method: "post" });
   };
-
   const handleConsentStrategyChange = (value: string) => {
     if (value !== "strict") {
       const warning = `平衡模式仍要求像素回执与明确同意，但允许"部分可信"的回执（trust=partial）。\n\n在 GDPR 等严格隐私法规地区，推荐使用严格模式。\n\n确定要切换吗？`;
@@ -58,12 +53,10 @@ export function SecurityTab({
     }
     const formData = new FormData();
     formData.append("_action", "updatePrivacySettings");
-
     formData.append("consentStrategy", value);
     formData.append("dataRetentionDays", String(shop?.dataRetentionDays || 90));
     submit(formData, { method: "post" });
   };
-
   return (
     <Layout>
       <Layout.Section>
@@ -75,9 +68,7 @@ export function SecurityTab({
             <Text as="p" tone="subdued">
               管理 Pixel 事件关联令牌和数据安全设置。
             </Text>
-
             <Divider />
-
             <BlockStack gap="300">
               <Text as="h3" variant="headingMd">
                 Ingestion Key（关联令牌）
@@ -108,7 +99,6 @@ export function SecurityTab({
                 <strong>关于 HMAC 签名密钥：</strong>由于 ingestion_key 通过 Web Pixel settings 下发到客户端，无法做到真正保密。
                 此 HMAC 签名机制的主要目的是防误报/防跨店伪造和基础抗滥用，不承诺"强防伪造"。
               </Text>
-
               <Box
                 background="bg-surface-secondary"
                 padding="300"
@@ -146,7 +136,6 @@ export function SecurityTab({
                   </Button>
                 </InlineStack>
               </Box>
-
               {shop?.hasActiveGraceWindow && shop.graceWindowExpiry && (
                 <Banner tone="warning">
                   <p>
@@ -156,7 +145,6 @@ export function SecurityTab({
                   </p>
                 </Banner>
               )}
-
               <Banner tone="info">
                 <p>
                   <strong>工作原理：</strong>
@@ -166,9 +154,7 @@ export function SecurityTab({
                 </p>
               </Banner>
             </BlockStack>
-
             <Divider />
-
             <BlockStack gap="300">
               <Text as="h3" variant="headingMd">
                 数据保留策略
@@ -176,7 +162,6 @@ export function SecurityTab({
               <Text as="p" variant="bodySm" tone="subdued">
                 配置数据保留期限，控制转化日志和相关记录的存储时间。
               </Text>
-
               <Select
                 label="数据保留天数"
                 options={[
@@ -190,7 +175,6 @@ export function SecurityTab({
                 onChange={handleDataRetentionChange}
                 helpText="超过此期限的数据将被自动清理"
               />
-
               <Banner tone="info">
                 <BlockStack gap="200">
                   <Text as="span" fontWeight="semibold">
@@ -219,7 +203,6 @@ export function SecurityTab({
                   </Text>
                 </BlockStack>
               </Banner>
-
               <Banner tone="warning">
                 <BlockStack gap="100">
                   <Text as="span" fontWeight="semibold">
@@ -239,9 +222,7 @@ export function SecurityTab({
                 </BlockStack>
               </Banner>
             </BlockStack>
-
             <Divider />
-
             <BlockStack gap="300">
               <Text as="h3" variant="headingMd">
                 像素隐私与同意逻辑
@@ -249,7 +230,6 @@ export function SecurityTab({
               <Text as="p" variant="bodySm" tone="subdued">
                 了解像素加载策略与后端过滤逻辑，以及为什么某些平台事件可能被过滤。
               </Text>
-
               <Banner tone="info">
                 <BlockStack gap="200">
                   <Text as="span" fontWeight="semibold">
@@ -268,7 +248,6 @@ export function SecurityTab({
                   </Text>
                 </BlockStack>
               </Banner>
-
               <Banner tone="warning">
                 <BlockStack gap="200">
                   <Text as="span" fontWeight="semibold">
@@ -290,7 +269,6 @@ export function SecurityTab({
                   </Text>
                 </BlockStack>
               </Banner>
-
               <Banner tone="success">
                 <BlockStack gap="200">
                   <Text as="span" fontWeight="semibold">
@@ -311,7 +289,6 @@ export function SecurityTab({
                   </Text>
                 </BlockStack>
               </Banner>
-
               <Banner tone="info">
                 <BlockStack gap="100">
                   <Text as="span" fontWeight="semibold">
@@ -326,9 +303,7 @@ export function SecurityTab({
                 </BlockStack>
               </Banner>
             </BlockStack>
-
             <Divider />
-
             <BlockStack gap="300">
               <Text as="h3" variant="headingMd">
                 Consent 策略
@@ -336,7 +311,6 @@ export function SecurityTab({
               <Text as="p" variant="bodySm" tone="subdued">
                 控制何时发送转化数据到广告平台。不同策略适用于不同地区的合规要求。
               </Text>
-
               <Select
                 label="策略选择"
                 options={[
@@ -357,7 +331,6 @@ export function SecurityTab({
                     : "仍要求像素回执与明确同意；仅在回执信任等级为 partial 时也可发送（比严格模式略宽）。"
                 }
               />
-
               <Banner
                 tone={
                   shop?.consentStrategy === "strict" ? "success" : "info"

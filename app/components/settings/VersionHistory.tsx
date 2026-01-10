@@ -37,23 +37,19 @@ function formatOperation(operation: string): string {
 
 function formatChanges(changes: Record<string, unknown>): string {
   const parts: string[] = [];
-
   if (changes.previousEnvironment && changes.newEnvironment) {
     parts.push(
       `环境: ${changes.previousEnvironment} → ${changes.newEnvironment}`
     );
   }
-
   if (changes.previousVersion && changes.newVersion) {
     parts.push(
       `版本: v${changes.previousVersion} → v${changes.newVersion}`
     );
   }
-
   if (changes.operation) {
     parts.push(`操作: ${formatOperation(changes.operation as string)}`);
   }
-
   return parts.join(", ") || "配置变更";
 }
 
@@ -70,7 +66,6 @@ export function VersionHistory({ history, platform }: VersionHistoryProps) {
       </Card>
     );
   }
-
   return (
     <Card>
       <BlockStack gap="400">
@@ -80,9 +75,7 @@ export function VersionHistory({ history, platform }: VersionHistoryProps) {
           </Text>
           <Badge tone="info">{`${history.length} 条记录`}</Badge>
         </InlineStack>
-
         <Divider />
-
         <DataTable
           columnContentTypes={["text", "text", "text", "text"]}
           headings={["版本", "时间", "操作", "变更详情"]}
@@ -112,7 +105,6 @@ export function VersionHistory({ history, platform }: VersionHistoryProps) {
             </Text>,
           ])}
         />
-
         <Banner tone="info">
           <Text as="p" variant="bodySm">
             💡 版本历史记录最近 {history.length} 次配置变更。每次环境切换或配置更新都会创建新版本。

@@ -29,7 +29,6 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 
 export default function PublicPrivacyPolicy() {
   const { lastUpdated, contactEmail } = useLoaderData<typeof loader>();
-
   return (
     <AppProvider i18n={i18n as any}>
       <div style={{ maxWidth: "800px", margin: "0 auto", padding: "2rem" }}>
@@ -42,7 +41,6 @@ export default function PublicPrivacyPolicy() {
               Last Updated: {lastUpdated}
             </Text>
           </BlockStack>
-
           <Card>
             <BlockStack gap="400">
               <Text as="p">
@@ -50,7 +48,6 @@ export default function PublicPrivacyPolicy() {
                 &quot;the App&quot;) collects, uses, and protects data when merchants
                 install and use our Shopify application.
               </Text>
-
               <Banner tone="info">
                 <Text as="p" variant="bodySm">
                   <strong>隐私优先设计：</strong>本应用（v1.0）采用<strong>完全隐私最小化</strong>设计。v1.0 版本<strong>不包含任何 PII 处理功能</strong>，不收集、不处理、不发送任何个人身份信息（包括哈希值）。
@@ -61,7 +58,6 @@ export default function PublicPrivacyPolicy() {
                   </Text>
                 </div>
               </Banner>
-
               <BlockStack gap="200">
                 <Text as="h2" variant="headingLg">
                   第一部分：默认数据处理模式（隐私最小化）
@@ -138,7 +134,6 @@ export default function PublicPrivacyPolicy() {
                     <strong>数据分享：</strong> 默认模式下，我们<strong>不分享</strong>任何客户 PII 给第三方（因为默认模式下我们不收集 PII）。所有数据仅用于转化追踪和报告生成，不会用于广告投放、用户画像构建或其他营销目的。如果商家启用了增强匹配功能，哈希后的 PII 会通过服务端 API 发送到商家配置的广告平台，但不会用于其他目的或出售给第三方。
                   </List.Item>
                 </List>
-
                 <Text as="h2" variant="headingLg">
                   第二部分：可选增强功能（需商家主动启用并确认合规）
                 </Text>
@@ -212,7 +207,7 @@ export default function PublicPrivacyPolicy() {
                     <strong>服务端 API 传输：</strong>所有事件数据（包括哈希后的 PII，如果启用增强匹配）都通过服务端 API 发送到广告平台，而不是通过客户端 JavaScript 代码。这确保了数据传输的安全性和可靠性，并符合各平台的 Server-Side API 最佳实践。我们使用以下服务端 API：
                     <ul style={{ marginTop: "8px", marginLeft: "20px" }}>
                       <li><strong>Google Analytics 4：</strong> Measurement Protocol API（<code>https://www.google-analytics.com/mp/collect</code>）</li>
-                      <li><strong>Meta：</strong> Conversions API（<code>https://graph.facebook.com/v21.0/</code>）</li>
+                      <li><strong>Meta：</strong> Conversions API（<code>https://graph.facebook.com</code>）</li>
                       <li><strong>TikTok：</strong> Events API（<code>https://business-api.tiktok.com/open_api/v1.3/event/track/</code>）</li>
                       <li><strong>其他平台（Snapchat、Twitter/X 等）：</strong> 代码实现中包含这些平台的服务端 API 支持（在 <code>app/services/platforms/registry.ts</code> 中注册），但在 v1.0 中默认不启用（默认配置 <code>enabled_platforms = "meta,tiktok,google"</code>），不推荐在生产环境使用。这些平台将在 v1.1+ 版本中正式支持。</li>
                     </ul>
@@ -234,7 +229,6 @@ export default function PublicPrivacyPolicy() {
                     <strong>默认关闭：</strong>增强匹配功能默认关闭，必须由商家在应用设置中明确启用并确认合规。我们不会在未获得商家明确同意的情况下启用此功能。
                   </List.Item>
                 </List>
-
                 <Text as="h3" variant="headingMd">
                   2.1 Full Funnel 追踪（可选，需付费套餐）
                 </Text>
@@ -257,7 +251,6 @@ export default function PublicPrivacyPolicy() {
                 <Text as="p" variant="bodySm" tone="subdued">
                   <strong>注意：</strong>Full Funnel 模式必须在应用设置中明确启用，且需要 Growth 及以上套餐。默认情况下（purchase_only 模式），仅收集 <code>checkout_completed</code> 事件。Full Funnel 模式启用后，会额外收集上述 7 种标准 Shopify 事件（<code>checkout_started</code>、<code>checkout_contact_info_submitted</code>、<code>checkout_shipping_info_submitted</code>、<code>payment_info_submitted</code>、<code>product_added_to_cart</code>、<code>product_viewed</code>、<code>page_viewed</code>）。所有 Full Funnel 事件<strong>不包含任何 PII</strong>，仅包含商品和交易信息。这些事件仅用于 analytics 目的，除非商家明确启用 marketing 用途。
                 </Text>
-
                 <Text as="h3" variant="headingMd">
                   2.2 Analytics vs Marketing 用途分级（P0-3 合规要求）
                 </Text>
@@ -276,7 +269,6 @@ export default function PublicPrivacyPolicy() {
                   </List.Item>
                 </List>
               </BlockStack>
-
               <BlockStack gap="200">
                 <Text as="h2" variant="headingLg">
                   第三部分：透明披露与合规
@@ -286,7 +278,6 @@ export default function PublicPrivacyPolicy() {
                     📋 数据使用、保留、删除和合规机制
                   </Text>
                 </Banner>
-
                 <Text as="h3" variant="headingMd">
                   3.1 数据使用方式
                 </Text>
@@ -311,7 +302,6 @@ export default function PublicPrivacyPolicy() {
                 <Text as="p" variant="bodySm" tone="subdued">
                   <strong>注意：</strong>我们<strong>不会</strong>将数据用于广告投放、用户画像构建或其他营销目的。数据仅用于转化追踪和报告生成。
                 </Text>
-
                 <Text as="h3" variant="headingMd">
                   3.2 数据保留期限
                 </Text>
@@ -339,7 +329,6 @@ export default function PublicPrivacyPolicy() {
                     </ul>
                   </List.Item>
                 </List>
-
                 <Text as="h3" variant="headingMd">
                   3.3 数据删除与 GDPR 合规
                 </Text>
@@ -374,7 +363,6 @@ export default function PublicPrivacyPolicy() {
                     商家可通过 {contactEmail} 联系我们请求手动数据删除或验证删除状态
                   </List.Item>
                 </List>
-
                 <Text as="h3" variant="headingMd">
                   3.4 联系方式
                 </Text>

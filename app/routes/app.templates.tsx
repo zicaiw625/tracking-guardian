@@ -45,7 +45,6 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       plan: true,
     },
   });
-
   if (!shop) {
     return json({
       shop: null,
@@ -56,12 +55,9 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       workspaceId: undefined,
     });
   }
-
   const planId = normalizePlan(shop.plan);
   const canManageTemplates = isPlanAtLeast(planId, "agency");
-
   const templates = await getPixelTemplates(shop.id, true);
-
   const workspaceShop = await prisma.workspaceShop.findFirst({
     where: {
       shopId: shop.id,
@@ -75,7 +71,6 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       },
     },
   });
-
   const workspace = workspaceShop
     ? {
         id: workspaceShop.Workspace.id,
@@ -83,7 +78,6 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
         WorkspaceShop: [workspaceShop],
       }
     : null;
-
   return json({
     shop: { id: shop.id, domain: shopDomain },
     templates,
@@ -101,37 +95,29 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     where: { shopDomain },
     select: { id: true, plan: true },
   });
-
   if (!shop) {
     return json({ success: false, error: "Shop not found" }, { status: 404 });
   }
-
   const formData = await request.formData();
   const actionType = formData.get("_action");
-
   const planId = normalizePlan(shop.plan);
   const canManageTemplates = isPlanAtLeast(planId, "agency");
-
   if (!canManageTemplates) {
     return json(
       { success: false, error: "模板管理功能需要 Agency 套餐" },
       { status: 403 }
     );
   }
-
   if (actionType === "createTemplate") {
     try {
       const name = formData.get("name") as string;
       const description = formData.get("description") as string;
       const platformsJson = formData.get("platforms") as string;
       const isPublic = formData.get("isPublic") === "true";
-
       if (!name || !platformsJson) {
         return json({ success: false, error: "缺少必要参数" }, { status: 400 });
       }
-
       const platforms = JSON.parse(platformsJson) as PixelTemplateConfig[];
-
       const result = await createPixelTemplate({
         ownerId: shop.id,
         name,
@@ -139,11 +125,9 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         platforms,
         isPublic,
       });
-
       if (result.success) {
         logger.info("Template created", { templateId: result.templateId, shopId: shop.id });
       }
-
       return json(result);
     } catch (error) {
       logger.error("Failed to create template", error);
@@ -153,7 +137,6 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       );
     }
   }
-
   if (actionType === "updateTemplate") {
     try {
       const templateId = formData.get("templateId") as string;
@@ -161,20 +144,16 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       const description = formData.get("description") as string;
       const platformsJson = formData.get("platforms") as string;
       const isPublic = formData.get("isPublic") === "true";
-
       if (!templateId || !name || !platformsJson) {
         return json({ success: false, error: "缺少必要参数" }, { status: 400 });
       }
-
       const platforms = JSON.parse(platformsJson) as PixelTemplateConfig[];
-
       const result = await updatePixelTemplate(templateId, shop.id, {
         name,
         description: description || undefined,
         platforms,
         isPublic,
       });
-
       return json(result);
     } catch (error) {
       logger.error("Failed to update template", error);
@@ -184,17 +163,13 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       );
     }
   }
-
   if (actionType === "deleteTemplate") {
     try {
       const templateId = formData.get("templateId") as string;
-
       if (!templateId) {
         return json({ success: false, error: "缺少模板 ID" }, { status: 400 });
       }
-
       const result = await deletePixelTemplate(templateId, shop.id);
-
       return json(result);
     } catch (error) {
       logger.error("Failed to delete template", error);
@@ -204,23 +179,18 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       );
     }
   }
-
   if (actionType === "generateShareLink") {
     try {
       const templateId = formData.get("templateId") as string;
-
       if (!templateId) {
         return json({ success: false, error: "缺少模板 ID" }, { status: 400 });
       }
-
       const result = await generateTemplateShareLink(templateId, shop.id);
-
       if (result.success && result.shareLink) {
         const baseUrl = process.env.SHOPIFY_APP_URL || "https://app.tracking-guardian.com"
         const fullShareLink = `${baseUrl}${result.shareLink}`;
         return json({ success: true, shareLink: fullShareLink });
       }
-
       return json(result);
     } catch (error) {
       logger.error("Failed to generate share link", error);
@@ -230,7 +200,6 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       );
     }
   }
-
   if (actionType === "saveWizardConfigAsTemplate") {
     try {
       const name = formData.get("name") as string;
@@ -238,14 +207,11 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       const platformsJson = formData.get("platforms") as string;
       const eventMappingsJson = formData.get("eventMappings") as string;
       const isPublic = formData.get("isPublic") === "true";
-
       if (!name || !platformsJson || !eventMappingsJson) {
         return json({ success: false, error: "缺少必要参数" }, { status: 400 });
       }
-
       const platforms = JSON.parse(platformsJson) as string[];
       const eventMappings = JSON.parse(eventMappingsJson) as Record<string, Record<string, string>>;
-
       const result = await saveWizardConfigAsTemplate(
         shop.id,
         name,
@@ -254,7 +220,6 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         eventMappings,
         isPublic
       );
-
       return json(result);
     } catch (error) {
       logger.error("Failed to save wizard config as template", error);
@@ -264,7 +229,6 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       );
     }
   }
-
   return json({ success: false, error: "Unknown action" }, { status: 400 });
 };
 
@@ -274,7 +238,6 @@ export default function TemplatesPage() {
   const submit = useSubmit();
   const navigation = useNavigation();
   const { showSuccess, showError } = useToastContext();
-
   const [editingTemplate, setEditingTemplate] = useState<typeof templates[0] | null>(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [templateName, setTemplateName] = useState("");
@@ -285,9 +248,7 @@ export default function TemplatesPage() {
   const [sharingTemplate, setSharingTemplate] = useState<typeof templates[0] | null>(null);
   const [shareLink, setShareLink] = useState<string | null>(null);
   const [isGeneratingShareLink, setIsGeneratingShareLink] = useState(false);
-
   const planDef = getPlanDefinition(planId);
-
   if (actionData) {
     if (actionData.success) {
       if ("message" in actionData && typeof actionData.message === "string") {
@@ -306,12 +267,9 @@ export default function TemplatesPage() {
       showError(actionData.error);
     }
   }
-
   const handleCreateTemplate = useCallback(() => {
-
     setShowCreateModal(true);
   }, []);
-
   const handleEditTemplate = useCallback((template: typeof templates[0]) => {
     if (!template) return;
     setEditingTemplate(template);
@@ -319,7 +277,6 @@ export default function TemplatesPage() {
     setTemplateDescription(template.description || "");
     setTemplateIsPublic(template.isPublic);
   }, []);
-
   const handleDeleteTemplate = useCallback((templateId: string) => {
     if (confirm("确定要删除此模板吗？此操作不可撤销。")) {
       setDeletingTemplateId(templateId);
@@ -329,12 +286,10 @@ export default function TemplatesPage() {
       submit(formData, { method: "post" });
     }
   }, [submit]);
-
   const handlePreviewTemplate = useCallback((template: typeof templates[0]) => {
     if (!template) return;
     setPreviewingTemplate(template);
   }, []);
-
   const handleApplyTemplate = useCallback((template: typeof templates[0]) => {
     if (!template) return;
     if (typeof window !== "undefined") {
@@ -342,23 +297,19 @@ export default function TemplatesPage() {
       window.location.href = "/app/migrate?applyTemplate=" + template.id;
     }
   }, []);
-
   const handleShareTemplate = useCallback(async (template: typeof templates[0]) => {
     if (!template) return;
     setSharingTemplate(template);
     setIsGeneratingShareLink(true);
     setShareLink(null);
-
     try {
       const formData = new FormData();
       formData.append("_action", "generateShareLink");
       formData.append("templateId", template.id);
-
       const response = await fetch("/app/templates", {
         method: "POST",
         body: formData,
       });
-
       const data = await response.json();
       if (data.success && "shareLink" in data && typeof data.shareLink === "string") {
         setShareLink(data.shareLink);
@@ -369,38 +320,30 @@ export default function TemplatesPage() {
       }
     } catch (error) {
       showError("生成分享链接失败");
-
       if (process.env.NODE_ENV === "development") {
-
         console.error("Share link generation error", error);
       }
     } finally {
       setIsGeneratingShareLink(false);
     }
   }, [showError]);
-
   const handleCopyShareLink = useCallback(async () => {
     if (!shareLink) return;
-
     try {
       await navigator.clipboard.writeText(shareLink);
       showSuccess("分享链接已复制到剪贴板");
     } catch (error) {
       showError("复制失败，请手动复制");
-
       if (process.env.NODE_ENV === "development") {
-
         console.error("Copy error", error);
       }
     }
   }, [shareLink, showSuccess, showError]);
-
   const handleSaveTemplate = useCallback(() => {
     if (!templateName.trim()) {
       showError("请输入模板名称");
       return;
     }
-
     const platforms: PixelTemplateConfig[] = [
       {
         platform: "google",
@@ -411,7 +354,6 @@ export default function TemplatesPage() {
         serverSideEnabled: true,
       },
     ];
-
     const formData = new FormData();
     formData.append("_action", editingTemplate ? "updateTemplate" : "createTemplate");
     if (editingTemplate) {
@@ -421,13 +363,10 @@ export default function TemplatesPage() {
     formData.append("description", templateDescription);
     formData.append("platforms", JSON.stringify(platforms));
     formData.append("isPublic", templateIsPublic.toString());
-
     submit(formData, { method: "post" });
   }, [templateName, templateDescription, templateIsPublic, editingTemplate, submit, showError]);
-
   const myTemplates = templates.filter((t): t is NonNullable<typeof t> => t !== null && (t.id.startsWith("clx") || !t.isPublic));
   const publicTemplates = templates.filter((t): t is NonNullable<typeof t> => t !== null && t.isPublic && !myTemplates.includes(t));
-
   if (!shop) {
     return (
       <Page title="模板库">
@@ -439,7 +378,6 @@ export default function TemplatesPage() {
       </Page>
     );
   }
-
   if (!canManageTemplates) {
     return (
       <Page title="模板库">
@@ -460,7 +398,6 @@ export default function TemplatesPage() {
       </Page>
     );
   }
-
   return (
     <Page
       title="像素配置模板库"
@@ -481,7 +418,6 @@ export default function TemplatesPage() {
             </Text>
           </BlockStack>
         </Banner>
-
         <Card>
           <BlockStack gap="400">
             <InlineStack align="space-between" blockAlign="center">
@@ -490,7 +426,6 @@ export default function TemplatesPage() {
               </Text>
               <Badge tone="info">{`${myTemplates.length} 个`}</Badge>
             </InlineStack>
-
             {myTemplates.length === 0 ? (
               <EmptyState
                 image=""
@@ -534,7 +469,6 @@ export default function TemplatesPage() {
                         <Button
                           size="slim"
                           onClick={() => {
-
                             window.location.href = `/app/workspace/templates?templateId=${template.id}`;
                           }}
                         >
@@ -580,7 +514,6 @@ export default function TemplatesPage() {
             )}
           </BlockStack>
         </Card>
-
         {publicTemplates.length > 0 && (
           <Card>
             <BlockStack gap="400">
@@ -590,7 +523,6 @@ export default function TemplatesPage() {
                 </Text>
                 <Badge tone="info">{`${publicTemplates.length} 个`}</Badge>
               </InlineStack>
-
               <DataTable
                 columnContentTypes={["text", "text", "text", "text", "text"]}
                 headings={["模板名称", "描述", "平台", "使用次数", "操作"]}
@@ -628,7 +560,6 @@ export default function TemplatesPage() {
             </BlockStack>
           </Card>
         )}
-
         <Modal
           open={showCreateModal || editingTemplate !== null}
           onClose={() => {
@@ -689,7 +620,6 @@ export default function TemplatesPage() {
             </BlockStack>
           </Modal.Section>
         </Modal>
-
         <Modal
           open={sharingTemplate !== null}
           onClose={() => {
@@ -725,7 +655,6 @@ export default function TemplatesPage() {
                       分享链接可以让其他用户通过链接导入此模板。链接包含模板 ID 和验证 token，确保安全性。
                     </Text>
                   </Banner>
-
                   {shareLink ? (
                     <BlockStack gap="300">
                       <TextField
@@ -755,9 +684,7 @@ export default function TemplatesPage() {
                       </Text>
                     </Banner>
                   )}
-
                   <Divider />
-
                   <BlockStack gap="200">
                     <Text as="h4" variant="headingSm">
                       模板信息
@@ -794,7 +721,6 @@ export default function TemplatesPage() {
             </BlockStack>
           </Modal.Section>
         </Modal>
-
         <Modal
           open={previewingTemplate !== null}
           onClose={() => setPreviewingTemplate(null)}
@@ -855,9 +781,7 @@ export default function TemplatesPage() {
                     </InlineStack>
                   </BlockStack>
                 </BlockStack>
-
                 <Divider />
-
                 <BlockStack gap="300">
                   <Text as="h3" variant="headingSm">
                     平台配置
@@ -873,7 +797,6 @@ export default function TemplatesPage() {
                         </Banner>
                       );
                     }
-
                     return platforms.map((platformConfig, index) => (
                       <Card key={index}>
                         <BlockStack gap="300">
@@ -890,7 +813,6 @@ export default function TemplatesPage() {
                               )}
                             </InlineStack>
                           </InlineStack>
-
                           {platformConfig.eventMappings && (
                             <BlockStack gap="200">
                               <Text as="span" variant="bodySm" fontWeight="semibold">
@@ -918,7 +840,6 @@ export default function TemplatesPage() {
                     ));
                   })()}
                 </BlockStack>
-
                 <Banner tone="info">
                   <Text as="p" variant="bodySm">
                     应用模板后，您需要在迁移向导中配置各平台的 API 凭证。模板仅包含事件映射配置，不包含敏感信息。

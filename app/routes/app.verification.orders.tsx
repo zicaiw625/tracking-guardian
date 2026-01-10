@@ -33,12 +33,10 @@ import type { PlanId } from "../services/billing/plans";
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   const { session } = await authenticate.admin(request);
   const shopDomain = session.shop;
-
   const shop = await prisma.shop.findUnique({
     where: { shopDomain },
     select: { id: true, plan: true },
   });
-
   if (!shop) {
     return json({
       shop: null,
@@ -49,17 +47,13 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       gateResult: undefined,
     });
   }
-
   const planId = normalizePlanId(shop.plan || "free") as PlanId;
     const canAccessOrderLayer = isPlanAtLeast(planId, "growth");
   const gateResult = checkFeatureAccess(planId, "reconciliation");
-
   const url = new URL(request.url);
   const days = parseInt(url.searchParams.get("days") || "7", 10);
   const validDays = [7, 14, 30].includes(days) ? days : 7;
-
   const dashboardData = await getReconciliationDashboardData(shop.id, validDays);
-
   return json({
     shop: { id: shop.id },
     dashboardData,
@@ -77,7 +71,6 @@ function OverviewCard({
 }) {
   const isHealthy = overview.gapPercentage < 10;
   const isWarning = overview.gapPercentage >= 10 && overview.gapPercentage < 20;
-
   return (
     <Card>
       <BlockStack gap="400">
@@ -91,7 +84,6 @@ function OverviewCard({
             {isHealthy ? "健康" : isWarning ? "需关注" : "需干预"}
           </Badge>
         </InlineStack>
-
         <InlineStack gap="400" align="space-between" wrap>
           <Box
             background="bg-surface-secondary"
@@ -108,11 +100,9 @@ function OverviewCard({
               </Text>
             </BlockStack>
           </Box>
-
           <Text as="p" variant="headingLg" tone="subdued">
             vs
           </Text>
-
           <Box
             background="bg-surface-secondary"
             padding="400"
@@ -128,11 +118,9 @@ function OverviewCard({
               </Text>
             </BlockStack>
           </Box>
-
           <Text as="p" variant="headingLg" tone="subdued">
             =
           </Text>
-
           <Box
             background={isHealthy ? "bg-fill-success" : isWarning ? "bg-fill-warning" : "bg-fill-critical"}
             padding="400"
@@ -152,9 +140,7 @@ function OverviewCard({
             </BlockStack>
           </Box>
         </InlineStack>
-
         <Divider />
-
         <InlineStack gap="400" align="space-between">
           <BlockStack gap="100">
             <Text as="p" variant="bodySm" tone="subdued">
@@ -187,7 +173,6 @@ export default function VerificationOrdersPage() {
   const loaderData = useLoaderData<typeof loader>();
   const { shop, dashboardData, selectedDays, canAccessOrderLayer, currentPlan } = loaderData;
   const gateResult = "gateResult" in loaderData ? loaderData.gateResult : undefined;
-
   if (!shop) {
     return (
       <Page title="订单层验收">
@@ -203,7 +188,6 @@ export default function VerificationOrdersPage() {
       </Page>
     );
   }
-
     if (!canAccessOrderLayer && gateResult) {
     return (
       <Page title="订单层验收">
@@ -215,7 +199,6 @@ export default function VerificationOrdersPage() {
       </Page>
     );
   }
-
   return (
     <Page
       title="订单层验收"
@@ -274,7 +257,6 @@ export default function VerificationOrdersPage() {
             </Text>
           </BlockStack>
         </Banner>
-
         {dashboardData ? (
           <Layout>
             <Layout.Section>

@@ -80,7 +80,6 @@ function isValidRiskItem(item: unknown): item is import("../../types").RiskItem 
     if (!isRecord(item)) {
         return false;
     }
-
     if (!("id" in item) || !("name" in item) || !("description" in item) || !("severity" in item)) {
         return false;
     }
@@ -111,7 +110,6 @@ function isCheckoutConfig(value: unknown): value is CheckoutConfig {
     if (!isRecord(value)) {
         return false;
     }
-
     return (
         typeof value.checkoutApiSupported === "boolean" ||
         (value.features !== undefined && isRecord(value.features))
@@ -124,11 +122,9 @@ async function fetchAllScriptTags(admin: AdminApiContext): Promise<ScriptTag[]> 
     let cursor: string | null = null;
     let previousCursor: string | null = null;
     let iterationCount = 0;
-
     try {
         while (hasNextPage && iterationCount < MAX_PAGINATION_ITERATIONS) {
             iterationCount++;
-
             const response = await admin.graphql(`
                 query GetScriptTags($cursor: String) {
                     scriptTags(first: 100, after: $cursor) {
@@ -150,7 +146,6 @@ async function fetchAllScriptTags(admin: AdminApiContext): Promise<ScriptTag[]> 
                     }
                 }
             `, { variables: { cursor } });
-
             let data: {
                 data?: {
                     scriptTags?: {
@@ -178,23 +173,19 @@ async function fetchAllScriptTags(admin: AdminApiContext): Promise<ScriptTag[]> 
             } catch (error) {
                 const errorMessage = error instanceof Error ? error.message : "Unknown error";
                 logger.error("Failed to parse GraphQL response as JSON:", errorMessage);
-
                 if (allTags.length > 0) {
                     logger.warn(`Returning ${allTags.length} ScriptTags despite JSON parse error`);
                 }
                 return allTags;
             }
-
             if (data.errors && data.errors.length > 0) {
                 const errorMessage = data.errors[0]?.message || "Unknown GraphQL error";
                 logger.error("GraphQL error fetching ScriptTags:", errorMessage);
-
                 if (allTags.length > 0) {
                     logger.warn(`Returning ${allTags.length} ScriptTags despite errors`);
                 }
                 return allTags;
             }
-
             const scriptTagsData = data.data?.scriptTags;
             if (!scriptTagsData || typeof scriptTagsData !== "object") {
                 logger.warn("Invalid GraphQL response structure for scriptTags");
@@ -203,7 +194,6 @@ async function fetchAllScriptTags(admin: AdminApiContext): Promise<ScriptTag[]> 
                 }
                 return allTags;
             }
-
             const edges = scriptTagsData.edges;
             if (!validateGraphQLEdges<{
                 id: string;
@@ -219,13 +209,11 @@ async function fetchAllScriptTags(admin: AdminApiContext): Promise<ScriptTag[]> 
                 }
                 return allTags;
             }
-
             let pageInfo: GraphQLPageInfo = scriptTagsData.pageInfo || { hasNextPage: false, endCursor: null };
             if (typeof pageInfo !== "object" || pageInfo === null) {
                 logger.warn("Invalid pageInfo structure, using defaults");
                 pageInfo = { hasNextPage: false, endCursor: null };
             }
-
             for (const edge of edges) {
                 const gidMatch = edge.node.id.match(/ScriptTag\/(\d+)/);
                 const numericId = gidMatch ? parseInt(gidMatch[1], 10) : 0;
@@ -240,40 +228,32 @@ async function fetchAllScriptTags(admin: AdminApiContext): Promise<ScriptTag[]> 
                     updated_at: edge.node.updatedAt,
                 } as ScriptTag);
             }
-
             hasNextPage = pageInfo.hasNextPage;
             cursor = pageInfo.endCursor;
-
             if (cursor === previousCursor && hasNextPage) {
                 logger.warn("ScriptTags pagination cursor did not advance, stopping to avoid loop");
                 break;
             }
-
             if (edges.length === 0 && hasNextPage) {
                 logger.warn("Received empty edges but hasNextPage is true, stopping to avoid infinite loop");
                 break;
             }
-
             previousCursor = cursor;
-
             if (allTags.length >= MAX_SCRIPT_TAGS) {
                 logger.warn(`ScriptTags pagination limit reached (${MAX_SCRIPT_TAGS})`);
                 break;
             }
         }
-
         if (iterationCount >= MAX_PAGINATION_ITERATIONS) {
             logger.warn(`ScriptTags pagination reached max iterations (${MAX_PAGINATION_ITERATIONS})`);
         }
     } catch (error) {
         const errorMessage = error instanceof Error ? error.message : "Unknown error";
         logger.error("Failed to fetch ScriptTags:", errorMessage);
-
         if (allTags.length > 0) {
             logger.warn(`Returning ${allTags.length} ScriptTags despite error`);
         }
     }
-
     return allTags;
 }
 
@@ -283,7 +263,6 @@ async function fetchAllWebPixels(admin: AdminApiContext): Promise<WebPixelInfo[]
     let cursor: string | null = null;
     let previousCursor: string | null = null;
     let iterationCount = 0;
-
     try {
         while (hasNextPage && iterationCount < MAX_PAGINATION_ITERATIONS) {
             iterationCount++;
@@ -304,7 +283,6 @@ async function fetchAllWebPixels(admin: AdminApiContext): Promise<WebPixelInfo[]
                     }
                 }
             `, { variables: { cursor } });
-
             let data: {
                 data?: {
                     webPixels?: {
@@ -325,13 +303,11 @@ async function fetchAllWebPixels(admin: AdminApiContext): Promise<WebPixelInfo[]
             } catch (error) {
                 const errorMessage = error instanceof Error ? error.message : "Unknown error";
                 logger.error("Failed to parse GraphQL response as JSON in fetchAllWebPixels:", errorMessage);
-
                 if (allPixels.length > 0) {
                     logger.warn(`Returning ${allPixels.length} WebPixels despite JSON parse error`);
                 }
                 return allPixels;
             }
-
             if (data.errors && data.errors.length > 0) {
                 const errorMessage = data.errors[0]?.message || "Unknown GraphQL error";
                 if (errorMessage.includes("doesn't exist") || errorMessage.includes("access")) {
@@ -341,25 +317,21 @@ async function fetchAllWebPixels(admin: AdminApiContext): Promise<WebPixelInfo[]
                 }
                 return allPixels;
             }
-
             const webPixelsData = data.data?.webPixels;
             if (!webPixelsData || typeof webPixelsData !== "object") {
                 logger.warn("Invalid GraphQL response structure for webPixels");
                 return allPixels;
             }
-
             const edges = webPixelsData.edges;
             if (!validateGraphQLEdges<WebPixelInfo>(edges)) {
                 logger.warn("Invalid edges structure in webPixels GraphQL response");
                 return allPixels;
             }
-
             let pageInfo: GraphQLPageInfo = webPixelsData.pageInfo || { hasNextPage: false, endCursor: null };
             if (typeof pageInfo !== "object" || pageInfo === null) {
                 logger.warn("Invalid pageInfo structure in webPixels, using defaults");
                 pageInfo = { hasNextPage: false, endCursor: null };
             }
-
             for (const edge of edges) {
                 if (edge?.node?.id) {
                     allPixels.push({
@@ -368,33 +340,26 @@ async function fetchAllWebPixels(admin: AdminApiContext): Promise<WebPixelInfo[]
                     });
                 }
             }
-
             hasNextPage = pageInfo.hasNextPage;
             cursor = pageInfo.endCursor;
-
             if (cursor === previousCursor && hasNextPage) {
                 logger.warn("WebPixels pagination cursor did not advance, stopping to avoid loop");
                 break;
             }
-
             if (edges.length === 0 && hasNextPage) {
                 logger.warn("Received empty edges but hasNextPage is true, stopping to avoid infinite loop");
                 break;
             }
-
             previousCursor = cursor;
-
             if (allPixels.length >= MAX_WEB_PIXELS) {
                 logger.warn(`WebPixels pagination limit reached (${MAX_WEB_PIXELS})`);
                 break;
             }
         }
-
         if (iterationCount >= MAX_PAGINATION_ITERATIONS) {
             logger.warn(`WebPixels pagination reached max iterations (${MAX_PAGINATION_ITERATIONS})`);
         }
     } catch (error) {
-
         const errorMessage = error instanceof Error ? error.message : String(error);
         if (errorMessage.includes("doesn't exist") || errorMessage.includes("access")) {
             logger.warn("WebPixels API call failed (scope issue, app may need reinstall):", { error: errorMessage });
@@ -402,12 +367,10 @@ async function fetchAllWebPixels(admin: AdminApiContext): Promise<WebPixelInfo[]
             logger.error("Failed to fetch WebPixels (paginated):", error);
         }
     }
-
     return allPixels;
 }
 
 function collectScriptContent(result: EnhancedScanResult): string {
-
     const parts: string[] = [];
     for (const tag of result.scriptTags) {
         parts.push(tag.src || "", tag.event || "");
@@ -425,12 +388,9 @@ function detectDuplicatePixels(result: EnhancedScanResult): Array<{
         count: number;
         ids: string[];
     }> = [];
-
     const platformIdentifiers: Record<string, { sources: string[]; platform: string }> = {};
-
     for (const tag of result.scriptTags) {
         const src = tag.src || "";
-
         const ga4Match = src.match(/G-[A-Z0-9]+/);
         if (ga4Match) {
             const key = `google:${ga4Match[0]}`;
@@ -439,7 +399,6 @@ function detectDuplicatePixels(result: EnhancedScanResult): Array<{
             }
             platformIdentifiers[key].sources.push(`scripttag_${tag.id}_${tag.gid || ""}`);
         }
-
         const adsMatch = src.match(/AW-\d+/);
         if (adsMatch) {
             const key = `google_ads:${adsMatch[0]}`;
@@ -448,19 +407,15 @@ function detectDuplicatePixels(result: EnhancedScanResult): Array<{
             }
             platformIdentifiers[key].sources.push(`scripttag_${tag.id}_${tag.gid || ""}`);
         }
-
         const metaMatch = src.match(/\b(\d{15,16})\b/);
         if (metaMatch) {
-
             const hasMetaContext = src.includes("facebook") ||
                                    src.includes("fbq") ||
                                    src.includes("connect.facebook") ||
                                    src.includes("fbevents") ||
                                    src.includes("facebook.net");
-
             if (hasMetaContext) {
                 const pixelId = metaMatch[1];
-
                 if (pixelId.length === 15 || pixelId.length === 16) {
                     const key = `meta:${pixelId}`;
                     if (!platformIdentifiers[key]) {
@@ -470,18 +425,14 @@ function detectDuplicatePixels(result: EnhancedScanResult): Array<{
                 }
             }
         }
-
         const tiktokMatch = src.match(/[A-Z0-9]{20,}/i);
         if (tiktokMatch) {
-
             const hasTiktokContext = src.includes("tiktok") ||
                                      src.includes("ttq") ||
                                      src.includes("analytics.tiktok") ||
                                      src.includes("tiktok.com");
-
             if (hasTiktokContext) {
                 const pixelCode = tiktokMatch[0];
-
                 if (pixelCode.length >= 20 && pixelCode.length <= 30 && !pixelCode.includes(":")) {
                     const key = `tiktok:${pixelCode}`;
                     if (!platformIdentifiers[key]) {
@@ -492,11 +443,8 @@ function detectDuplicatePixels(result: EnhancedScanResult): Array<{
             }
         }
     }
-
     for (const pixel of result.webPixels) {
-
         if (!pixel.settings) continue;
-
         let settings: Record<string, unknown> | null = null;
         try {
             if (typeof pixel.settings === "string") {
@@ -507,12 +455,9 @@ function detectDuplicatePixels(result: EnhancedScanResult): Array<{
             } else if (isRecord(pixel.settings)) {
                 settings = pixel.settings;
             }
-
             if (!settings) continue;
-
             for (const [settingKey, value] of Object.entries(settings)) {
                 if (typeof value !== "string") continue;
-
                 if (/^G-[A-Z0-9]+$/.test(value)) {
                     const key = `google:${value}`;
                     if (!platformIdentifiers[key]) {
@@ -520,7 +465,6 @@ function detectDuplicatePixels(result: EnhancedScanResult): Array<{
                     }
                     platformIdentifiers[key].sources.push(`webpixel_${pixel.id}_${settingKey}`);
                 }
-
                 else if (/^AW-\d+$/.test(value)) {
                     const key = `google_ads:${value}`;
                     if (!platformIdentifiers[key]) {
@@ -528,7 +472,6 @@ function detectDuplicatePixels(result: EnhancedScanResult): Array<{
                     }
                     platformIdentifiers[key].sources.push(`webpixel_${pixel.id}_${settingKey}`);
                 }
-
                 else if (/^\d{15,16}$/.test(value) &&
                          (settingKey.toLowerCase().includes("pixel") ||
                           settingKey.toLowerCase().includes("meta") ||
@@ -539,7 +482,6 @@ function detectDuplicatePixels(result: EnhancedScanResult): Array<{
                     }
                     platformIdentifiers[key].sources.push(`webpixel_${pixel.id}_${settingKey}`);
                 }
-
                 else if (/^[A-Z0-9]{20,30}$/i.test(value) &&
                         !value.includes(":") &&
                         (settingKey.toLowerCase().includes("pixel") ||
@@ -554,11 +496,9 @@ function detectDuplicatePixels(result: EnhancedScanResult): Array<{
         } catch (error) {
             const errorMessage = error instanceof Error ? error.message : String(error);
             logger.warn(`Failed to parse pixel settings for pixel ${pixel.id} in detectDuplicatePixels:`, { error: errorMessage, pixelId: pixel.id });
-
             continue;
         }
     }
-
     for (const [key, data] of Object.entries(platformIdentifiers)) {
         if (data.sources.length > 1) {
             const [platform, identifier] = key.split(":");
@@ -570,7 +510,6 @@ function detectDuplicatePixels(result: EnhancedScanResult): Array<{
             logger.info(`Duplicate detected: ${platform} identifier ${identifier?.substring(0, 8)}... appears ${data.sources.length} times`);
         }
     }
-
     return duplicates;
 }
 
@@ -588,23 +527,18 @@ export async function getCachedScanResult(
         where: { shopId },
         orderBy: { createdAt: "desc" },
     });
-
     if (!cached || !cached.completedAt) {
         return null;
     }
-
     if (!isScanCacheValid(cached.completedAt, ttlMs)) {
         logger.debug(`Scan cache expired for shop ${shopId}, age: ${Date.now() - cached.completedAt.getTime()}ms`);
         return null;
     }
-
     logger.debug(`Using cached scan result for shop ${shopId}, age: ${Date.now() - cached.completedAt.getTime()}ms`);
-
     const scriptTags = isScriptTagArray(cached.scriptTags) ? cached.scriptTags : [];
     const checkoutConfig = isCheckoutConfig(cached.checkoutConfig) ? cached.checkoutConfig : null;
     const identifiedPlatforms = isStringArray(cached.identifiedPlatforms) ? cached.identifiedPlatforms : [];
     const riskItems = validateRiskItemsArray(cached.riskItems);
-
     return {
         scriptTags,
         checkoutConfig,
@@ -625,27 +559,21 @@ export async function scanShopTracking(
     options: { force?: boolean; cacheTtlMs?: number } = {}
 ): Promise<EnhancedScanResult> {
     const { force = false, cacheTtlMs = SCAN_CACHE_TTL_MS } = options;
-
     const shop = await prisma.shop.findUnique({
         where: { id: shopId },
         select: { shopTier: true }
     });
     const shopTier = shop?.shopTier || "unknown";
-
     if (!force) {
         const cached = await getCachedScanResult(shopId, cacheTtlMs);
         if (cached) {
-
             const cacheAge = Date.now() - (cached._cachedAt?.getTime() || 0);
             const shouldRefreshScriptTags = cacheAge > 5 * 60 * 1000;
-
             let refreshFailed = false;
             try {
-
                 cached.webPixels = await fetchAllWebPixels(admin);
                 cached.duplicatePixels = detectDuplicatePixels(cached);
                 cached.migrationActions = generateMigrationActions(cached, shopTier);
-
                 if (shouldRefreshScriptTags) {
                     cached._partialRefresh = true;
                     cached._refreshRecommended = true;
@@ -660,19 +588,15 @@ export async function scanShopTracking(
                     shopId,
                     error: errorMessage,
                 });
-
                 cached.webPixels = [];
                 cached.duplicatePixels = [];
                 cached.migrationActions = [];
-
                 cached._partialRefresh = true;
                 cached._refreshRecommended = true;
             }
-
             if (refreshFailed) {
                 logger.info(`Returning cached scan with partial refresh for shop ${shopId}`);
             }
-
             return cached;
         }
     }
@@ -688,9 +612,7 @@ export async function scanShopTracking(
         duplicatePixels: [],
         migrationActions: [],
     };
-
     logger.info(`Starting enhanced scan for shop ${shopId}`);
-
     try {
         await refreshTypOspStatus(admin, shopId);
     } catch (error) {
@@ -702,7 +624,6 @@ export async function scanShopTracking(
             timestamp: new Date(),
         });
     }
-
     try {
         result.scriptTags = await fetchAllScriptTags(admin);
         logger.info(`Found ${result.scriptTags.length} script tags (with pagination)`);
@@ -715,7 +636,6 @@ export async function scanShopTracking(
             timestamp: new Date(),
         });
     }
-
     try {
         const checkoutResponse = await admin.graphql(`
             query GetCheckoutConfig {
@@ -739,7 +659,6 @@ export async function scanShopTracking(
             timestamp: new Date(),
         });
     }
-
     try {
         result.webPixels = await fetchAllWebPixels(admin);
         logger.info(`Found ${result.webPixels.length} web pixels (with pagination)`);
@@ -752,34 +671,26 @@ export async function scanShopTracking(
             timestamp: new Date(),
         });
     }
-
     const allScriptContent = collectScriptContent(result);
     result.identifiedPlatforms = detectPlatforms(allScriptContent);
     logger.info(`Identified platforms: ${result.identifiedPlatforms.join(", ") || "none"}`);
-
     result.duplicatePixels = detectDuplicatePixels(result);
     logger.info(`Duplicate pixels found: ${result.duplicatePixels.length}`);
-
     result.riskItems = assessRisks(result);
     result.riskScore = calculateRiskScore(result.riskItems);
     logger.info(`Risk assessment complete: score=${result.riskScore}, items=${result.riskItems.length}`);
-
     result.migrationActions = generateMigrationActions(result, shopTier);
     logger.info(`Generated ${result.migrationActions.length} migration actions`);
-
     let scanReportId: string | undefined;
     try {
-
         function safeJsonClone<T>(obj: T): T {
             try {
                 return JSON.parse(JSON.stringify(obj)) as T;
             } catch (error) {
                 logger.warn("Failed to clone object for database storage, using original:", { error: error instanceof Error ? error.message : String(error) });
-
                 return obj;
             }
         }
-
         const savedReport = await prisma.scanReport.create({
             data: {
                 id: `${shopId}-${Date.now()}`,
@@ -801,19 +712,15 @@ export async function scanShopTracking(
         logger.error("Error saving scan report:", error);
         throw new Error(`Failed to save scan report: ${errorMessage}`);
     }
-
     let auditAssetSyncFailed = false;
     try {
         const auditAssets: AuditAssetInput[] = [];
-
         for (const tag of result.scriptTags) {
             const platforms = detectPlatforms(tag.src || "");
             const platform = platforms[0];
-
             let riskDetection: ReturnType<typeof detectRisksInContent> | null = null;
             if (tag.src) {
                 try {
-
                     riskDetection = detectRisksInContent(tag.src);
                 } catch (error) {
                     logger.warn("Failed to detect risks in ScriptTag", {
@@ -822,7 +729,6 @@ export async function scanShopTracking(
                     });
                 }
             }
-
             let riskLevel: "high" | "medium" | "low" = tag.display_scope === "order_status" ? "high" : "medium";
             if (riskDetection) {
                 if (riskDetection.detectedIssues.piiAccess ||
@@ -830,13 +736,10 @@ export async function scanShopTracking(
                     riskDetection.detectedIssues.blockingLoad) {
                     riskLevel = "high";
                 } else if (riskDetection.detectedIssues.duplicateTriggers) {
-
                     if (riskLevel === "medium") {
-
                     }
                 }
             }
-
             auditAssets.push({
                 sourceType: "api_scan",
                 category: platform ? "pixel" : "other",
@@ -851,7 +754,6 @@ export async function scanShopTracking(
                     scriptTagGid: tag.gid,
                     src: tag.src,
                     displayScope: tag.display_scope,
-
                     detectedRisks: riskDetection ? {
                         piiAccess: riskDetection.detectedIssues.piiAccess,
                         windowDocumentAccess: riskDetection.detectedIssues.windowDocumentAccess,
@@ -863,12 +765,10 @@ export async function scanShopTracking(
                 scanReportId,
             });
         }
-
         for (const platform of result.identifiedPlatforms) {
             const hasScriptTag = result.scriptTags.some(tag =>
                 detectPlatforms(tag.src || "").includes(platform)
             );
-
             if (!hasScriptTag) {
                 auditAssets.push({
                     sourceType: "api_scan",
@@ -884,7 +784,6 @@ export async function scanShopTracking(
                 });
             }
         }
-
         if (auditAssets.length > 0) {
             const auditResult = await batchCreateAuditAssets(shopId, auditAssets, scanReportId);
             logger.info(`AuditAssets synced from scan`, {
@@ -893,15 +792,12 @@ export async function scanShopTracking(
                 created: auditResult.created,
                 updated: auditResult.updated,
             });
-
             try {
                 const { calculatePrioritiesForShop, updateAssetPriority } = await import("./priority-calculator");
                 const priorities = await calculatePrioritiesForShop(shopId);
-
                 for (const priorityScore of priorities) {
                     await updateAssetPriority(priorityScore.assetId, priorityScore);
                 }
-
                 logger.info(`Priority and time estimates calculated for shop ${shopId}`, {
                     shopId,
                     assetCount: priorities.length,
@@ -914,16 +810,13 @@ export async function scanShopTracking(
             }
         }
     } catch (error) {
-
         auditAssetSyncFailed = true;
         const errorMessage = error instanceof Error ? error.message : "Unknown error";
         logger.error("Failed to sync AuditAssets from scan", { shopId, error: errorMessage });
     }
-
     if (auditAssetSyncFailed) {
         result._auditAssetSyncFailed = true;
     }
-
     return result;
 }
 
@@ -931,9 +824,7 @@ export async function getScanHistory(
     shopId: string,
     limit: number = 10
 ): Promise<Awaited<ReturnType<typeof prisma.scanReport.findMany>>> {
-
     const validLimit = Math.max(1, Math.min(limit, 100));
-
     return prisma.scanReport.findMany({
         where: { shopId },
         orderBy: { createdAt: "desc" },

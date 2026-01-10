@@ -30,12 +30,10 @@ export function generateEventId(
   shopDomain: string,
   platform?: string
 ): string {
-
   if (platform) {
     const input = `${shopDomain}:${orderId}:${eventType}:${platform}`;
     return createHash("sha256").update(input).digest("hex").substring(0, 32);
   }
-
   return generateEventIdUnified(orderId, eventType, shopDomain);
 }
 
@@ -62,20 +60,16 @@ export async function checkShouldSend(
     ...DEFAULT_CONFIG,
     ...config,
   };
-
   const shop = await prisma.shop.findUnique({
     where: { id: shopId },
     select: { shopDomain: true },
   });
-
   if (!shop) {
     return { shouldSend: false, eventId: "", reason: "rate_limited" };
   }
-
   const eventId = generateEventId(orderId, eventType, shop.shopDomain, platform);
   const windowStart = new Date();
   windowStart.setHours(windowStart.getHours() - windowHours);
-
   const existingLog = await prisma.conversionLog.findFirst({
     where: {
       shopId,
@@ -86,9 +80,7 @@ export async function checkShouldSend(
     },
     orderBy: { createdAt: "desc" },
   });
-
   if (existingLog) {
-
     if (existingLog.status === "sent") {
       logger.debug("Dedup: Already sent", { orderId, platform, eventId });
       return {
@@ -98,7 +90,6 @@ export async function checkShouldSend(
         existingLogId: existingLog.id,
       };
     }
-
     if (existingLog.attempts >= maxAttempts) {
       logger.debug("Dedup: Max attempts reached", { orderId, platform, attempts: existingLog.attempts });
       return {
@@ -108,7 +99,6 @@ export async function checkShouldSend(
         existingLogId: existingLog.id,
       };
     }
-
     if (strictMode && existingLog.status !== "failed") {
       return {
         shouldSend: false,
@@ -118,7 +108,6 @@ export async function checkShouldSend(
       };
     }
   }
-
   if (checkPixelReceipt) {
     const receipt = await prisma.pixelEventReceipt.findFirst({
       where: {
@@ -128,10 +117,8 @@ export async function checkShouldSend(
       },
       select: { consentState: true },
     });
-
     if (receipt?.consentState) {
       const consent = receipt.consentState as { marketing?: boolean; analytics?: boolean };
-
       if (consent.marketing === false && ["meta", "tiktok", "pinterest", "snapchat", "twitter"].includes(platform)) {
         logger.debug("Dedup: Consent blocked", { orderId, platform });
         return {
@@ -142,7 +129,6 @@ export async function checkShouldSend(
       }
     }
   }
-
   try {
     await prisma.eventNonce.create({
       data: {
@@ -162,7 +148,6 @@ export async function checkShouldSend(
         reason: "duplicate",
       };
     }
-
     logger.warn("Failed to create event nonce", {
       orderId,
       platform,
@@ -170,7 +155,6 @@ export async function checkShouldSend(
       error: error instanceof Error ? error.message : String(error),
     });
   }
-
   logger.debug("Dedup: Should send", { orderId, platform, eventId });
   return {
     shouldSend: true,
@@ -254,7 +238,6 @@ export async function analyzeDedupConflicts(
     count: number;
   }>;
 }> {
-
   const logs = await prisma.conversionLog.findMany({
     where: {
       shopId,
@@ -268,7 +251,6 @@ export async function analyzeDedupConflicts(
       eventId: true,
     },
   });
-
   const groupedEvents = new Map<string, typeof logs>();
   logs.forEach(log => {
     const key = `${log.orderId}:${log.platform}:${log.eventType}`;
@@ -276,7 +258,6 @@ export async function analyzeDedupConflicts(
     existing.push(log);
     groupedEvents.set(key, existing);
   });
-
   let duplicateEvents = 0;
   const duplicatesByPlatform: Record<string, { total: number; duplicates: number }> = {};
   const topDuplicates: Array<{
@@ -285,19 +266,15 @@ export async function analyzeDedupConflicts(
     platform: string;
     count: number;
   }> = [];
-
   for (const [_key, events] of groupedEvents) {
     const platform = events[0].platform;
-
     if (!duplicatesByPlatform[platform]) {
       duplicatesByPlatform[platform] = { total: 0, duplicates: 0 };
     }
     duplicatesByPlatform[platform].total += events.length;
-
     if (events.length > 1) {
       duplicateEvents += events.length - 1;
       duplicatesByPlatform[platform].duplicates += events.length - 1;
-
       topDuplicates.push({
         eventId: events[0].eventId || "",
         orderId: events[0].orderId,
@@ -306,9 +283,7 @@ export async function analyzeDedupConflicts(
       });
     }
   }
-
   topDuplicates.sort((a, b) => b.count - a.count);
-
   const byPlatform: Record<string, { total: number; duplicates: number; duplicateRate: number }> = {};
   for (const [platform, stats] of Object.entries(duplicatesByPlatform)) {
     byPlatform[platform] = {
@@ -316,7 +291,6 @@ export async function analyzeDedupConflicts(
       duplicateRate: stats.total > 0 ? stats.duplicates / stats.total : 0,
     };
   }
-
   return {
     totalEvents: logs.length,
     uniqueEvents: groupedEvents.size,
@@ -333,35 +307,28 @@ export async function cleanupExpiredNonces(): Promise<number> {
       expiresAt: { lt: new Date() },
     },
   });
-
   if (result.count > 0) {
     logger.info("Cleaned up expired nonces", { count: result.count });
   }
-
   return result.count;
 }
 
 export function formatMetaEventId(eventId: string): string {
-
   return eventId;
 }
 
 export function formatGA4TransactionId(orderId: string): string {
-
   return orderId.replace(/[^a-zA-Z0-9]/g, "");
 }
 
 export function formatTikTokEventId(eventId: string): string {
-
   return eventId;
 }
 
 export function formatPinterestEventId(eventId: string): string {
-
   return eventId;
 }
 
 export function formatSnapchatDedupId(eventId: string): string {
-
   return eventId;
 }

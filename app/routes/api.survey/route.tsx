@@ -9,11 +9,9 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   if (request.method === "OPTIONS") {
     return optionsResponse(request, true);
   }
-
   if (request.method !== "POST") {
     return jsonWithCors({ error: "Method not allowed" }, { status: 405, request, staticCors: true });
   }
-
   let session: { shop: string; [key: string]: unknown };
   try {
     const authResult = await authenticate.public.checkout(request) as unknown as { 
@@ -29,12 +27,9 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       { status: 401, request, staticCors: true }
     );
   }
-
   const shopDomain = session.shop;
-
   const rateLimitKey = `survey:${shopDomain}`;
   const rateLimitResult = await checkRateLimitAsync(rateLimitKey, 100, 60 * 1000);
-
   if (!rateLimitResult.allowed) {
     const headers = new Headers();
     headers.set("X-RateLimit-Limit", "100");
@@ -43,12 +38,10 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     if (rateLimitResult.retryAfter) {
       headers.set("Retry-After", String(rateLimitResult.retryAfter));
     }
-
     logger.warn("Survey rate limit exceeded", {
       shopDomain,
       retryAfter: rateLimitResult.retryAfter,
     });
-
     return jsonWithCors(
       {
         error: "Too many survey requests",
@@ -57,31 +50,25 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       { status: 429, request, staticCors: true, headers }
     );
   }
-
   try {
     const body = await request.json().catch(() => null);
-
     if (!body || typeof body !== "object") {
       return jsonWithCors(
         { error: "Invalid request body" },
         { status: 400, request, staticCors: true }
       );
     }
-
     const { option, timestamp } = body as { option?: string; timestamp?: string };
-
     if (!option) {
       return jsonWithCors(
         { error: "Missing survey option" },
         { status: 400, request, staticCors: true }
       );
     }
-
     const shop = await prisma.shop.findUnique({
       where: { shopDomain },
       select: { id: true },
     });
-
     if (!shop) {
       logger.warn(`Survey submission for unknown shop: ${shopDomain}`);
       return jsonWithCors(
@@ -89,13 +76,11 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         { status: 404, request, staticCors: true }
       );
     }
-
     logger.info("Survey response received", {
       shopDomain,
       option,
       timestamp,
     });
-
     return jsonWithCors(
       { success: true, message: "Survey response recorded" },
       { request, staticCors: true }

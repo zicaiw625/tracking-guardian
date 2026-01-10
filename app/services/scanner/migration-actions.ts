@@ -18,7 +18,6 @@ import { logger } from "../../utils/logger.server";
 
 export function estimateMigrationTime(action: MigrationAction): number {
     let baseTime = 0;
-
     switch (action.type) {
         case "migrate_script_tag":
             baseTime = 15;
@@ -35,13 +34,11 @@ export function estimateMigrationTime(action: MigrationAction): number {
         default:
             baseTime = 10;
     }
-
     if (action.priority === "high") {
         baseTime += 10;
     } else if (action.priority === "low") {
         baseTime -= 2;
     }
-
     if (action.platform) {
         const platformInfo = getPlatformInfo(action.platform);
         if (platformInfo.supportLevel === "partial") {
@@ -50,7 +47,6 @@ export function estimateMigrationTime(action: MigrationAction): number {
             baseTime += 30;
         }
     }
-
     return Math.max(5, baseTime);
 }
 
@@ -78,26 +74,20 @@ export function getActionId(action: MigrationAction): string {
 
 export function generateMigrationActions(result: EnhancedScanResult, shopTier: string): MigrationAction[] {
     const actions: MigrationAction[] = [];
-
     const creationStatus = getScriptTagCreationStatus();
     const plusExecutionStatus = getScriptTagExecutionStatus("plus");
     const nonPlusExecutionStatus = getScriptTagExecutionStatus("non_plus");
-
     for (const tag of result.scriptTags) {
         const platform = identifyPlatformFromSrc(tag.src || "");
         const isOrderStatusScript = tag.display_scope === "order_status";
-
         let deadlineNote: string;
         let priority: "high" | "medium" | "low" = "high";
         let deadline: string | undefined;
-
         const PLUS_SCRIPT_TAG_OFF_LABEL = getDateDisplayLabel(DEPRECATION_DATES.plusScriptTagExecutionOff, "exact");
         const NON_PLUS_SCRIPT_TAG_OFF_LABEL = getDateDisplayLabel(DEPRECATION_DATES.nonPlusScriptTagExecutionOff, "exact");
-
         const isPlus = shopTier === "plus";
         const primaryStatus = isPlus ? plusExecutionStatus : nonPlusExecutionStatus;
         const primaryDeadlineLabel = isPlus ? PLUS_SCRIPT_TAG_OFF_LABEL : NON_PLUS_SCRIPT_TAG_OFF_LABEL;
-
         if (primaryStatus.isExpired) {
             deadlineNote = `⚠️ ${isPlus ? "Plus" : "非 Plus"} 商家的 ScriptTag 已于 ${primaryDeadlineLabel} 停止执行！`;
             if (isPlus) {
@@ -120,7 +110,6 @@ export function generateMigrationActions(result: EnhancedScanResult, shopTier: s
             priority = "medium";
             deadline = primaryDeadlineLabel;
         }
-
         const estimatedTime = estimateMigrationTime({
             type: "migrate_script_tag",
             priority,
@@ -130,7 +119,6 @@ export function generateMigrationActions(result: EnhancedScanResult, shopTier: s
             scriptTagId: tag.id,
             deadline,
         });
-
         actions.push({
             type: "migrate_script_tag",
             priority,
@@ -142,12 +130,9 @@ export function generateMigrationActions(result: EnhancedScanResult, shopTier: s
             estimatedTimeMinutes: estimatedTime,
         });
     }
-
     const configuredPlatforms = getConfiguredPlatforms(result);
-
     for (const platform of result.identifiedPlatforms) {
         const platformInfo = getPlatformInfo(platform);
-
         if (platformInfo.supportLevel === "unsupported") {
             const action: MigrationAction = {
                 type: "configure_pixel",
@@ -181,13 +166,10 @@ export function generateMigrationActions(result: EnhancedScanResult, shopTier: s
             actions.push(action);
         }
     }
-
     for (const dup of result.duplicatePixels) {
-
         const webPixelGids = dup.ids
             .filter(id => id.startsWith("webpixel_"))
             .map(id => {
-
                 const parts = id.split("_");
                 if (parts.length >= 2) {
                     return parts[1];
@@ -195,9 +177,7 @@ export function generateMigrationActions(result: EnhancedScanResult, shopTier: s
                 return null;
             })
             .filter((gid): gid is string => gid !== null);
-
         const gidsToDelete = webPixelGids.slice(1);
-
         const duplicateAction: MigrationAction = {
             type: "remove_duplicate",
             priority: "medium",
@@ -210,9 +190,7 @@ export function generateMigrationActions(result: EnhancedScanResult, shopTier: s
         duplicateAction.estimatedTimeMinutes = estimateMigrationTime(duplicateAction);
         actions.push(duplicateAction);
     }
-
     const hasAppPixelConfigured = result.webPixels.some(p => {
-
         if (!p.settings || typeof p.settings !== "string") return false;
         try {
             const settings = JSON.parse(p.settings);
@@ -222,9 +200,7 @@ export function generateMigrationActions(result: EnhancedScanResult, shopTier: s
             return false;
         }
     });
-
     const pixelNeedsUpgrade = result.webPixels.some(p => {
-
         if (!p.settings || typeof p.settings !== "string") return false;
         try {
             const settings = JSON.parse(p.settings);
@@ -234,7 +210,6 @@ export function generateMigrationActions(result: EnhancedScanResult, shopTier: s
             return false;
         }
     });
-
     if (pixelNeedsUpgrade) {
         const upgradeAction: MigrationAction = {
             type: "configure_pixel",
@@ -245,7 +220,6 @@ export function generateMigrationActions(result: EnhancedScanResult, shopTier: s
         upgradeAction.estimatedTimeMinutes = estimateMigrationTime(upgradeAction);
         actions.push(upgradeAction);
     }
-
     if (!hasAppPixelConfigured && result.identifiedPlatforms.length > 0) {
         const capiAction: MigrationAction = {
             type: "enable_capi",
@@ -256,15 +230,12 @@ export function generateMigrationActions(result: EnhancedScanResult, shopTier: s
         capiAction.estimatedTimeMinutes = estimateMigrationTime(capiAction);
         actions.push(capiAction);
     }
-
     const now = new Date();
     const autoUpgradeStart = DEPRECATION_DATES.plusAutoUpgradeStart;
     const daysToAutoUpgrade = Math.ceil((autoUpgradeStart.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
     const isInAutoUpgradeWindow = now >= autoUpgradeStart;
-
     const hasLegacyTracking = result.scriptTags.length > 0 ||
         result.additionalScriptsPatterns.some(p => p.platform !== "unknown");
-
     if (hasLegacyTracking && shopTier === "plus") {
         if (isInAutoUpgradeWindow) {
             const autoUpgradeAction: MigrationAction = {
@@ -290,66 +261,50 @@ export function generateMigrationActions(result: EnhancedScanResult, shopTier: s
             actions.push(countdownAction);
         }
     }
-
     const priorityOrder: Record<string, number> = { high: 0, medium: 1, low: 2 };
     actions.sort((a, b) => priorityOrder[a.priority] - priorityOrder[b.priority]);
-
     return actions;
 }
-
 function getConfiguredPlatforms(result: EnhancedScanResult): Set<string> {
     const configuredPlatforms = new Set<string>();
-
     for (const pixel of result.webPixels) {
-
         if (pixel.settings && typeof pixel.settings === "string") {
             try {
                 const settings = JSON.parse(pixel.settings);
-
                 if (Array.isArray(settings.platforms_enabled)) {
                     for (const platform of settings.platforms_enabled) {
                         configuredPlatforms.add(platform);
                     }
                     continue;
                 }
-
                 if (settings.ingestion_key || settings.ingestion_secret) {
-
                     if (settings.shop_domain) {
                         continue;
                     }
                 }
-
                 for (const [key, value] of Object.entries(settings as Record<string, unknown>)) {
                     if (typeof value !== "string") continue;
-
                     if (value.includes(":")) {
                         continue;
                     }
-
                     if (/^G-[A-Z0-9]{7,12}$/.test(value)) {
                         configuredPlatforms.add("google");
                     }
-
                     else if (/^AW-\d{9,12}$/.test(value)) {
                         configuredPlatforms.add("google");
                     }
-
                     else if (/^\d{15,16}$/.test(value) && key.toLowerCase().includes("pixel")) {
                         configuredPlatforms.add("meta");
                     }
-
                     else if (/^[A-Z0-9]{20,30}$/.test(value) && key.toLowerCase().includes("pixel")) {
                         configuredPlatforms.add("tiktok");
                     }
                 }
             } catch (error) {
                 logger.warn(`Failed to parse pixel settings for pixel ${pixel.id} in getConfiguredPlatforms:`, { error: error instanceof Error ? error.message : String(error), pixelId: pixel.id });
-
                 continue;
             }
         }
     }
-
     return configuredPlatforms;
 }

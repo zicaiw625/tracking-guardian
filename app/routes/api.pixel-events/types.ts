@@ -53,7 +53,6 @@ export interface PixelEventPayload {
   eventName: PixelEventName;
   timestamp: number;
   shopDomain: string;
-
   nonce?: string;
   consent?: ConsentState;
   data: PixelEventData;

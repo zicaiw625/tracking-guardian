@@ -26,16 +26,13 @@ export function EventMappingVisualizer({
   platforms,
 }: EventMappingVisualizerProps) {
   const [expandedPlatforms, setExpandedPlatforms] = useState<Record<string, boolean>>({});
-
   const canonicalEvent = normalizeEvent(shopifyEvent);
-
   const togglePlatform = (platform: string) => {
     setExpandedPlatforms((prev) => ({
       ...prev,
       [platform]: !prev[platform],
     }));
   };
-
   return (
     <Card>
       <BlockStack gap="400">
@@ -45,9 +42,7 @@ export function EventMappingVisualizer({
           </Text>
           <Badge>{canonicalEvent.eventName}</Badge>
         </InlineStack>
-
         <Divider />
-
         <BlockStack gap="300">
           <Text as="h4" variant="headingSm">
             📋 规范化事件（Canonical Schema）
@@ -84,7 +79,6 @@ export function EventMappingVisualizer({
                   </Text>
                 </Box>
               </InlineStack>
-
               {canonicalEvent.items.length > 0 && (
                 <Box paddingBlockStart="200">
                   <Text as="p" variant="bodySm" tone="subdued" fontWeight="semibold">
@@ -101,7 +95,6 @@ export function EventMappingVisualizer({
                   </List>
                 </Box>
               )}
-
               <Collapsible
                 open={expandedPlatforms["canonical"] || false}
                 id="canonical-details"
@@ -135,23 +128,18 @@ export function EventMappingVisualizer({
             </BlockStack>
           </Box>
         </BlockStack>
-
         <Divider />
-
         <BlockStack gap="300">
           <Text as="h4" variant="headingSm">
             🎯 平台映射
           </Text>
-
           {platforms.map((platform) => {
             const mapping = mapEventToPlatform(
               canonicalEvent.eventName,
               platform,
               shopifyEvent
             );
-
             const isExpanded = expandedPlatforms[platform] || false;
-
             return (
               <Box
                 key={platform}
@@ -180,7 +168,6 @@ export function EventMappingVisualizer({
                       {isExpanded ? "收起" : "展开"}
                     </Button>
                   </InlineStack>
-
                   {mapping.missingParameters.length > 0 && (
                     <Banner tone="warning">
                       <Text as="p" variant="bodySm">
@@ -188,7 +175,6 @@ export function EventMappingVisualizer({
                       </Text>
                     </Banner>
                   )}
-
                   <Collapsible
                     open={isExpanded}
                     id={`platform-${platform}`}
@@ -226,9 +212,7 @@ export function EventMappingVisualizer({
             );
           })}
         </BlockStack>
-
         <Divider />
-
         <BlockStack gap="200">
           <Text as="h4" variant="headingSm">
             📦 原始 Shopify 事件 Payload

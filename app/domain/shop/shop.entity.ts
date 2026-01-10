@@ -11,29 +11,22 @@ export interface Shop {
   readonly shopDomain: string;
   readonly email: string | null;
   readonly name: string | null;
-
   readonly plan: PlanId;
   readonly monthlyOrderLimit: number;
   readonly isActive: boolean;
-
   readonly consentStrategy: ConsentStrategy;
   readonly dataRetentionDays: number;
-
   readonly ingestionSecret: string | null;
   readonly previousIngestionSecret: string | null;
   readonly previousSecretExpiry: Date | null;
-
   readonly primaryDomain: string | null;
   readonly storefrontDomains: string[];
-
   readonly webPixelId: string | null;
-
   readonly shopTier: ShopTier | null;
   readonly typOspPagesEnabled: boolean | null;
   readonly typOspLastCheckedAt: Date | null;
   readonly typOspDetectedAt: Date | null;
   readonly typOspStatusReason: string | null;
-
   readonly installedAt: Date;
   readonly uninstalledAt: Date | null;
   readonly createdAt: Date;
@@ -53,7 +46,6 @@ export interface ShopWithBilling extends ShopBasic {
 }
 
 export interface ShopWithConsent extends ShopBasic {
-
   readonly consentStrategy: ConsentStrategy;
 }
 
@@ -77,35 +69,27 @@ export function createShop(params: {
   shopTier?: ShopTier | null;
 }): Shop {
   const now = new Date();
-
   return {
     id: params.id,
     shopDomain: params.shopDomain,
     email: params.email ?? null,
     name: params.name ?? null,
-
     plan: params.plan ?? "free",
     monthlyOrderLimit: 100,
     isActive: true,
-
     consentStrategy: "strict",
     dataRetentionDays: 90,
-
     ingestionSecret: params.ingestionSecret ?? null,
     previousIngestionSecret: null,
     previousSecretExpiry: null,
-
     primaryDomain: params.primaryDomain ?? null,
     storefrontDomains: [],
-
     webPixelId: null,
-
     shopTier: params.shopTier ?? null,
     typOspPagesEnabled: null,
     typOspLastCheckedAt: null,
     typOspDetectedAt: null,
     typOspStatusReason: null,
-
     installedAt: now,
     uninstalledAt: null,
     createdAt: now,
@@ -126,24 +110,19 @@ export function isWithinUsageLimits(shop: ShopWithBilling, currentUsage: number)
 
 export function getAllowedDomains(shop: ShopWithSecurity): string[] {
   const domains = new Set<string>();
-
   domains.add(shop.shopDomain);
-
   if (shop.primaryDomain) {
     domains.add(shop.primaryDomain);
   }
-
   for (const domain of shop.storefrontDomains) {
     domains.add(domain);
   }
-
   return Array.from(domains);
 }
 
 export function isDomainAllowed(shop: ShopWithSecurity, domain: string): boolean {
   const normalizedDomain = domain.toLowerCase().replace(/^www\./, "");
   const allowedDomains = getAllowedDomains(shop);
-
   return allowedDomains.some((allowed) => {
     const normalizedAllowed = allowed.toLowerCase().replace(/^www\./, "");
     return normalizedDomain === normalizedAllowed || normalizedDomain.endsWith(`.${normalizedAllowed}`);
@@ -158,7 +137,6 @@ export function isInSecretGracePeriod(shop: ShopWithSecurity): boolean {
 }
 
 export function getEffectiveConsentStrategy(shop: ShopWithConsent | Shop): ConsentStrategy {
-
   const strategy = shop.consentStrategy;
   if (strategy === "strict" || strategy === "balanced" || strategy === "weak") {
     return strategy;

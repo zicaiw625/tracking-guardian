@@ -13,13 +13,9 @@ export type RouteHandler<T> = (
 ) => Promise<T>;
 
 export interface ErrorHandlerOptions {
-
   logErrors?: boolean;
-
   includeStackInDev?: boolean;
-
   transformError?: (error: AppError) => AppError;
-
   buildResponse?: (error: AppError) => Response;
 }
 
@@ -28,11 +24,9 @@ function processError(
   options: ErrorHandlerOptions,
   request?: Request
 ): Response {
-
   if (error instanceof Response) {
     throw error;
   }
-
   let appError: AppError;
   if (error === null || error === undefined) {
     const nullError = new Error("Unknown error: null or undefined");
@@ -40,11 +34,9 @@ function processError(
   } else {
     appError = ensureAppError(error);
   }
-
   if (options.transformError) {
     appError = options.transformError(appError);
   }
-
   const shouldLog = options.logErrors !== false;
   if (shouldLog) {
     if (request) {
@@ -56,11 +48,9 @@ function processError(
       });
     }
   }
-
   if (options.buildResponse) {
     return options.buildResponse(appError);
   }
-
   return buildErrorResponse(appError, options.includeStackInDev);
 }
 
@@ -73,7 +63,6 @@ export function withErrorHandling<T>(
     includeStackInDev: true,
     ...options,
   };
-
   return async (args) => {
     try {
       return await handler(args);
@@ -105,25 +94,20 @@ export function buildErrorResponse(
 ): Response {
   const status = error.getHttpStatus();
   const clientResponse = error.toClientResponse();
-
   const errorDetails: ApiErrorResponse["error"] = {
     code: clientResponse.code,
     message: clientResponse.message,
   };
-
   if (error.metadata.field) {
     errorDetails.field = String(error.metadata.field);
   }
-
   if (error.metadata.retryAfter) {
     errorDetails.retryAfter = Number(error.metadata.retryAfter);
   }
-
   const body: ApiErrorResponse & { stack?: string } = {
     success: false,
     error: errorDetails,
   };
-
   if (
     includeStackInDev &&
     process.env.NODE_ENV !== "production" &&
@@ -131,7 +115,6 @@ export function buildErrorResponse(
   ) {
     body.stack = error.stack;
   }
-
   const headers = new Headers();
   if (error.metadata.retryAfter && status === 429) {
     headers.set(
@@ -139,7 +122,6 @@ export function buildErrorResponse(
       String(Math.ceil(Number(error.metadata.retryAfter) / 1000))
     );
   }
-
   return json(body, { status, headers });
 }
 
@@ -147,9 +129,7 @@ function logError(error: AppError, request: Request): void {
   const url = new URL(request.url);
   const method = request.method;
   const pathname = url.pathname;
-
   if (error.isInternalError()) {
-
     logger.error(`[${error.code}] ${error.message}`, error, {
       method,
       pathname,
@@ -157,7 +137,6 @@ function logError(error: AppError, request: Request): void {
       metadata: error.metadata,
     });
   } else {
-
     logger.warn(`[${error.code}] ${error.message}`, {
       path: url.pathname,
       method: request.method,

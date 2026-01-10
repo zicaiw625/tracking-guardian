@@ -121,7 +121,6 @@ function createConfigAdapter(): IAppConfig {
       debugLogging: FEATURE_FLAGS.DEBUG_LOGGING,
       extendedPayload: FEATURE_FLAGS.EXTENDED_PAYLOAD,
       trackingApi: FEATURE_FLAGS.TRACKING_API,
-
       checkoutBlocks: FEATURE_FLAGS.CHECKOUT_BLOCKS,
     },
     getEnv,
@@ -136,7 +135,6 @@ class Container implements IContainer {
   private singletons = new Map<string, unknown>();
   private singletonFactories = new Map<string, ServiceFactory<unknown>>();
   private scopedFactories = new Map<string, ScopedServiceFactory<unknown>>();
-
   initialize(
     db: PrismaClient,
     logger: ILogger,
@@ -144,42 +142,33 @@ class Container implements IContainer {
   ): void {
     this.appContext = createAppContext(db, logger, config);
   }
-
   getContext(): IAppContext {
     if (!this.appContext) {
       throw new Error("Container not initialized. Call initialize() first.");
     }
     return this.appContext;
   }
-
   createScopedContext(requestContext: IRequestContext): IScopedContext {
     return createScopedContext(this.getContext(), requestContext);
   }
-
   registerSingleton<T>(key: string, factory: ServiceFactory<T>): void {
     this.singletonFactories.set(key, factory as ServiceFactory<unknown>);
   }
-
   registerScoped<T>(key: string, factory: ScopedServiceFactory<T>): void {
     this.scopedFactories.set(key, factory as ScopedServiceFactory<unknown>);
   }
-
   resolve<T>(key: string): T {
-
     if (this.singletons.has(key)) {
       return this.singletons.get(key) as T;
     }
-
     const factory = this.singletonFactories.get(key);
     if (!factory) {
       throw new Error(`Service "${key}" not registered`);
     }
-
     const instance = factory(this.getContext());
     this.singletons.set(key, instance);
     return instance as T;
   }
-
   resolveScoped<T>(key: string, scopedContext: IScopedContext): T {
     const factory = this.scopedFactories.get(key);
     if (!factory) {
@@ -187,11 +176,9 @@ class Container implements IContainer {
     }
     return factory(scopedContext) as T;
   }
-
   clearSingletons(): void {
     this.singletons.clear();
   }
-
   reset(): void {
     this.appContext = null;
     this.singletons.clear();
@@ -229,22 +216,17 @@ export function withContext<T>(
 ): (args: { request: Request }) => Promise<T> {
   return async ({ request }) => {
     const requestCtx = createRequestContext(request);
-
     return withRequestContextAsync(requestCtx, async () => {
       const scopedCtx = container.createScopedContext(requestCtx);
-
       scopedCtx.requestLogger.debug("Request started", {
         method: request.method,
         url: new URL(request.url).pathname,
       });
-
       try {
         const result = await handler(request, scopedCtx);
-
         scopedCtx.requestLogger.debug("Request completed", {
           durationMs: getRequestElapsedMs(requestCtx),
         });
-
         return result;
       } catch (error) {
         scopedCtx.requestLogger.error("Request failed", error, {
@@ -288,7 +270,6 @@ export function createMockContext(overrides?: {
     child: () => mockLogger,
     ...overrides?.logger,
   };
-
   const mockConfig: IAppConfig = {
     env: { nodeEnv: "test", isProduction: false, isDevelopment: false },
     api: { maxBodySize: 32768, timestampWindowMs: 600000, defaultTimeoutMs: 30000, jwtExpiryBufferMs: 300000 },
@@ -301,7 +282,6 @@ export function createMockContext(overrides?: {
     getNumEnv: () => 0,
     ...overrides?.config,
   };
-
   return {
     db: (overrides?.db || {}) as PrismaClient,
     logger: mockLogger,
@@ -320,7 +300,6 @@ export function createMockScopedContext(
     startTime: Date.now(),
     ...requestOverrides,
   };
-
   return {
     ...appContext,
     request: requestContext,

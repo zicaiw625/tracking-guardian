@@ -56,21 +56,17 @@ export function TestOrderGuide({
     errors?: string[];
   }>>({});
   const fetcher = useFetcher();
-
   const handleCopy = useCallback(async (text: string, itemId: string) => {
     try {
       await navigator.clipboard.writeText(text);
       setCopiedItem(itemId);
       setTimeout(() => setCopiedItem(null), 2000);
     } catch (error) {
-
       if (process.env.NODE_ENV === "development") {
-
         console.error("Failed to copy:", error);
       }
     }
   }, []);
-
   const toggleExpanded = useCallback((itemId: string) => {
     setExpandedItems((prev) => {
       const next = new Set(prev);
@@ -82,22 +78,17 @@ export function TestOrderGuide({
       return next;
     });
   }, []);
-
   const handleVerifyTest = useCallback((itemId: string) => {
     const item = testItems.find((i) => i.id === itemId);
     if (!item) return;
-
     setTestStatuses((prev) => ({ ...prev, [itemId]: "verifying" }));
-
     const formData = new FormData();
     formData.append("_action", "verifyTestItem");
     formData.append("itemId", itemId);
     formData.append("eventType", item.eventType || "purchase");
     formData.append("expectedEvents", JSON.stringify(item.expectedEvents));
-
     fetcher.submit(formData, { method: "post" });
   }, [testItems, fetcher]);
-
   useEffect(() => {
     if (fetcher.data && (fetcher.data as { success?: boolean; itemId?: string }).success) {
       const data = fetcher.data as {
@@ -108,12 +99,10 @@ export function TestOrderGuide({
         missingEvents: string[];
         errors?: string[];
       };
-
       setTestStatuses((prev) => ({
         ...prev,
         [data.itemId]: data.verified ? "verified" : "failed",
       }));
-
       setVerificationResults((prev) => ({
         ...prev,
         [data.itemId]: {
@@ -124,16 +113,13 @@ export function TestOrderGuide({
           errors: data.errors,
         },
       }));
-
       if (onTestComplete) {
         onTestComplete(data.itemId, data.verified);
       }
     }
   }, [fetcher.data, onTestComplete]);
-
   const testStoreUrl = `https://${shopDomain}`;
   const testCheckoutUrl = `${testStoreUrl}/checkout/test`;
-
   return (
     <Card>
       <BlockStack gap="400">
@@ -145,7 +131,6 @@ export function TestOrderGuide({
             按照以下步骤创建测试订单，验证像素追踪是否正常工作。
           </Text>
         </BlockStack>
-
         <Banner tone="info">
           <BlockStack gap="200">
             <Text as="p" variant="bodySm" fontWeight="semibold">
@@ -171,14 +156,11 @@ export function TestOrderGuide({
             </Text>
           </BlockStack>
         </Banner>
-
         <Divider />
-
         <BlockStack gap="400">
           {testItems.map((item) => {
             const isExpanded = expandedItems.has(item.id);
             const isCopied = copiedItem === item.id;
-
             return (
               <Card key={item.id}>
                 <BlockStack gap="300">
@@ -202,7 +184,6 @@ export function TestOrderGuide({
                       {isExpanded ? "收起" : "展开"}
                     </Button>
                   </InlineStack>
-
                   <Collapsible
                     open={isExpanded}
                     id={`test-item-${item.id}`}
@@ -210,7 +191,6 @@ export function TestOrderGuide({
                   >
                     <BlockStack gap="300">
                       <Divider />
-
                       <BlockStack gap="200">
                         <InlineStack align="space-between" blockAlign="center">
                           <Text as="h4" variant="headingSm">
@@ -246,7 +226,6 @@ export function TestOrderGuide({
                           ))}
                         </List>
                       </BlockStack>
-
                       <BlockStack gap="200">
                         <InlineStack align="space-between" blockAlign="center">
                           <Text as="h4" variant="headingSm">
@@ -275,7 +254,6 @@ export function TestOrderGuide({
                             const isFound = result?.missingEvents
                               ? !result.missingEvents.includes(event)
                               : undefined;
-
                             return (
                               <Badge
                                 key={event}
@@ -292,7 +270,6 @@ export function TestOrderGuide({
                             );
                           })}
                         </InlineStack>
-
                         {verificationResults[item.id] && (
                           <Box
                             background={
@@ -357,7 +334,6 @@ export function TestOrderGuide({
                           </Box>
                         )}
                       </BlockStack>
-
                       <Box
                         background="bg-surface-secondary"
                         padding="300"
@@ -389,9 +365,7 @@ export function TestOrderGuide({
             );
           })}
         </BlockStack>
-
         <Divider />
-
         <Banner tone="warning">
           <BlockStack gap="200">
             <Text as="p" variant="bodySm" fontWeight="semibold">

@@ -38,11 +38,9 @@ async function getShopPlan(shopId: string): Promise<PlanId> {
     where: { id: shopId },
     select: { plan: true },
   });
-
   if (!shop) {
     throw new Error(`Shop not found: ${shopId}`);
   }
-
   return (shop.plan || "free") as PlanId;
 }
 
@@ -52,10 +50,8 @@ export async function checkEntitlement(
 ): Promise<EntitlementCheckResult> {
   const shopPlan = await getShopPlan(shopId);
   const planConfig = getPlanOrDefault(shopPlan);
-
   switch (entitlement) {
     case "full_funnel":
-
       if (shopPlan === "free" || shopPlan === "starter") {
         return {
           allowed: false,
@@ -64,46 +60,35 @@ export async function checkEntitlement(
         };
       }
       return { allowed: true };
-
     case "alerts":
       return checkFeatureAccess(shopPlan, "alerts");
-
     case "report_export": {
-
       const planCheck = checkFeatureAccess(shopPlan, "report_export");
       if (planCheck.allowed) {
         return planCheck;
       }
-
       try {
         const shop = await prisma.shop.findUnique({
           where: { id: shopId },
           select: { shopDomain: true },
         });
-
         if (shop) {
-
           if (shopPlan === "growth") {
             return { allowed: true };
           }
         }
       } catch (error) {
-
         logger.warn("Failed to check one-time purchase status (backward compatibility)", {
           shopId,
           error: error instanceof Error ? error.message : String(error),
         });
       }
-
       return planCheck;
     }
-
     case "reconciliation":
       return checkFeatureAccess(shopPlan, "reconciliation");
-
     case "agency":
       return checkFeatureAccess(shopPlan, "agency");
-
     case "pixel_destinations": {
       const result = await checkPixelDestinationsLimit(shopId, shopPlan);
       return {
@@ -111,7 +96,6 @@ export async function checkEntitlement(
         requiredPlan: result.allowed ? undefined : "Starter",
       };
     }
-
     case "ui_modules": {
       const result = await checkUiModulesLimit(shopId, shopPlan);
       return {
@@ -119,14 +103,10 @@ export async function checkEntitlement(
         requiredPlan: result.allowed ? undefined : "Starter",
       };
     }
-
     case "verification":
       return checkFeatureAccess(shopPlan, "verification");
-
     case "audit_unlimited":
-
       return { allowed: true };
-
     default:
       logger.warn(`Unknown entitlement: ${entitlement}`);
       return {
@@ -141,11 +121,9 @@ export async function requireEntitlementOrThrow(
   entitlement: Entitlement
 ): Promise<void> {
   const result = await checkEntitlement(shopId, entitlement);
-
   if (!result.allowed) {
     const shopPlan = await getShopPlan(shopId);
     const planConfig = getPlanOrDefault(shopPlan);
-
     logger.warn(`Entitlement check failed`, {
       shopId,
       entitlement,
@@ -153,7 +131,6 @@ export async function requireEntitlementOrThrow(
       reason: result.reason,
       requiredPlan: result.requiredPlan,
     });
-
     throw new Response(
       JSON.stringify({
         error: "Feature not available",
@@ -197,7 +174,6 @@ export async function getEntitlementsSummary(shopId: string): Promise<{
   [K in Entitlement]: boolean;
 }> {
   const shopPlan = await getShopPlan(shopId);
-
   return {
     full_funnel: shopPlan !== "free" && shopPlan !== "starter",
     alerts: planSupportsFeature(shopPlan, "alerts"),

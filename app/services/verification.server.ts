@@ -59,7 +59,6 @@ export const VERIFICATION_TEST_ITEMS: VerificationTestItem[] = [
     required: false,
     platforms: ["google", "meta", "tiktok"],
   },
-
   {
     id: "currency_test",
     name: "多币种测试",
@@ -91,7 +90,6 @@ export interface VerificationEventResult {
   };
   discrepancies?: string[];
   errors?: string[];
-
   eventLogId?: string;
   deliveryAttemptId?: string;
 }
@@ -113,9 +111,7 @@ export interface VerificationSummary {
   parameterCompleteness: number;
   valueAccuracy: number;
   results: VerificationEventResult[];
-
   platformResults?: Record<string, { sent: number; failed: number }>;
-
   reconciliation?: {
     pixelVsCapi: {
       pixelOnly: number;
@@ -152,7 +148,6 @@ export async function createVerificationRun(
   }
 ): Promise<string> {
   const { runName = "验收测试", runType = "quick", platforms = [], testItems = [] } = options;
-
   let targetPlatforms = platforms;
   if (targetPlatforms.length === 0) {
     const configs = await prisma.pixelConfig.findMany({
@@ -161,7 +156,6 @@ export async function createVerificationRun(
     });
     targetPlatforms = configs.map((c: { platform: string }) => c.platform);
   }
-
   const run = await prisma.verificationRun.create({
     data: {
       id: `${shopId}-${Date.now()}-${Math.random().toString(36).substring(7)}`,
@@ -179,7 +173,6 @@ export async function createVerificationRun(
       eventsJson: [],
     },
   });
-
   logger.info("Created verification run", { runId: run.id, shopId, runType });
   return run.id;
 }
@@ -213,13 +206,10 @@ export async function getVerificationRun(runId: string): Promise<VerificationSum
       },
     },
   });
-
   if (!run) return null;
-
   const summary = run.summaryJson as Record<string, unknown> | null;
   const events = ((run.eventsJson as unknown) as VerificationEventResult[]) || [];
   const reconciliation = summary?.reconciliation as VerificationSummary["reconciliation"] | undefined;
-
   return {
     runId: run.id,
     shopId: run.shopId,
@@ -251,7 +241,6 @@ export async function analyzeRecentEvents(
   } = {}
 ): Promise<VerificationSummary> {
   const { since = new Date(Date.now() - 24 * 60 * 60 * 1000), platforms, admin } = options;
-
   const run = await prisma.verificationRun.findUnique({
     where: { id: runId },
     select: {
@@ -260,56 +249,43 @@ export async function analyzeRecentEvents(
       platforms: true,
     },
   });
-
   if (!run) {
     throw new Error("Verification run not found");
   }
-
   const targetPlatforms = platforms || run.platforms;
-
   const eventLogs = await getEventLogs(shopId, {
     startDate: since,
     limit: 1000,
   });
-
   const filteredEventLogs = eventLogs.filter(log => {
     return log.deliveryAttempts.some(attempt =>
       targetPlatforms.includes(attempt.destinationType)
     );
   });
-
   const results: VerificationEventResult[] = [];
   let passedTests = 0;
   let failedTests = 0;
   let missingParamTests = 0;
   let totalValueAccuracy = 0;
   let valueChecks = 0;
-
   const orderIds = new Set<string>();
-
   for (const eventLog of filteredEventLogs) {
-
     const normalizedEvent = eventLog.normalizedEventJson as Record<string, unknown>;
     const data = normalizedEvent.data as Record<string, unknown> | undefined;
     const orderId = data?.orderId as string | undefined;
-
     if (orderId) {
       orderIds.add(orderId);
     }
-
     for (const attempt of eventLog.deliveryAttempts) {
       if (!targetPlatforms.includes(attempt.destinationType)) {
         continue;
       }
-
       const discrepancies: string[] = [];
       const errors: string[] = [];
-
       const requestPayload = attempt.requestPayloadJson as Record<string, unknown>;
       let value: number | undefined;
       let currency: string | undefined;
       let items: number | undefined;
-
       if (attempt.destinationType === "google") {
         const body = requestPayload.body as Record<string, unknown>;
         const events = body?.events as Array<Record<string, unknown>> | undefined;
@@ -338,7 +314,6 @@ export async function analyzeRecentEvents(
           items = Array.isArray(properties?.contents) ? properties.contents.length : undefined;
         }
       }
-
       if (value === undefined && data) {
         value = data.value as number | undefined;
       }
@@ -349,11 +324,9 @@ export async function analyzeRecentEvents(
         const dataItems = data.items as Array<unknown> | undefined;
         items = dataItems ? dataItems.length : undefined;
       }
-
       const hasValue = value !== undefined && value !== null;
       const hasCurrency = !!currency;
       const hasEventId = !!eventLog.eventId;
-
       if (attempt.status === "ok") {
         if (!hasValue || !hasCurrency) {
           missingParamTests++;
@@ -362,12 +335,10 @@ export async function analyzeRecentEvents(
         } else {
           passedTests++;
         }
-
         if (hasValue) {
           valueChecks++;
           totalValueAccuracy += 100;
         }
-
         results.push({
           testItemId: "purchase",
           eventType: eventLog.eventName,
@@ -384,7 +355,6 @@ export async function analyzeRecentEvents(
           },
           discrepancies: discrepancies.length > 0 ? discrepancies : undefined,
           errors: undefined,
-
           eventLogId: eventLog.id,
           deliveryAttemptId: attempt.id,
         });
@@ -393,7 +363,6 @@ export async function analyzeRecentEvents(
         if (attempt.errorDetail) {
           errors.push(attempt.errorDetail);
         }
-
         results.push({
           testItemId: "purchase",
           eventType: eventLog.eventName,
@@ -410,30 +379,25 @@ export async function analyzeRecentEvents(
           },
           discrepancies: discrepancies.length > 0 ? discrepancies : undefined,
           errors: errors.length > 0 ? errors : undefined,
-
           eventLogId: eventLog.id,
           deliveryAttemptId: attempt.id,
         });
       }
     }
   }
-
   const totalTests = results.length;
   const parameterCompleteness =
     totalTests > 0 ? Math.round(((passedTests + missingParamTests) / totalTests) * 100) : 0;
   const valueAccuracy = valueChecks > 0 ? Math.round(totalValueAccuracy / valueChecks) : 100;
-
   const platformResults: Record<string, { sent: number; failed: number }> = {};
   for (const eventLog of filteredEventLogs) {
     for (const attempt of eventLog.deliveryAttempts) {
       if (!targetPlatforms.includes(attempt.destinationType)) {
         continue;
       }
-
       if (!platformResults[attempt.destinationType]) {
         platformResults[attempt.destinationType] = { sent: 0, failed: 0 };
       }
-
       if (attempt.status === "ok") {
         platformResults[attempt.destinationType].sent++;
       } else if (attempt.status === "fail") {
@@ -441,31 +405,25 @@ export async function analyzeRecentEvents(
       }
     }
   }
-
   let reconciliation: VerificationSummary["reconciliation"] | undefined;
   try {
     const endDate = new Date();
     const pixelVsCapi = await reconcilePixelVsCapi(shopId, since, endDate);
-
     const consistencyIssues: Array<{
       orderId: string;
       issue: string;
       type: "duplicate" | "missing" | "value_mismatch" | "currency_mismatch";
     }> = [];
-
     const orderPlatformMap = new Map<string, Map<string, number>>();
     for (const eventLog of filteredEventLogs) {
       const normalizedEvent = eventLog.normalizedEventJson as Record<string, unknown>;
       const data = normalizedEvent.data as Record<string, unknown> | undefined;
       const orderId = data?.orderId as string | undefined;
-
       if (!orderId) continue;
-
       for (const attempt of eventLog.deliveryAttempts) {
         if (!targetPlatforms.includes(attempt.destinationType)) {
           continue;
         }
-
         const count = orderPlatformMap.get(orderId)?.get(attempt.destinationType) || 0;
         if (!orderPlatformMap.has(orderId)) {
           orderPlatformMap.set(orderId, new Map());
@@ -473,7 +431,6 @@ export async function analyzeRecentEvents(
         orderPlatformMap.get(orderId)!.set(attempt.destinationType, count + 1);
       }
     }
-
     for (const [orderId, platformMap] of orderPlatformMap) {
       for (const [platform, count] of platformMap) {
         if (count > 1) {
@@ -485,17 +442,14 @@ export async function analyzeRecentEvents(
         }
       }
     }
-
     const localConsistencyChecks: Array<{
       orderId: string;
       status: "consistent" | "partial" | "inconsistent";
       issues: string[];
     }> = [];
-
     try {
       const maxCheckOrders = Math.min(orderIds.length, 50);
       const sampleOrderIds = orderIds.slice(0, maxCheckOrders);
-
       const bulkCheckResult = await performBulkLocalConsistencyCheck(
         shopId,
         since,
@@ -507,11 +461,9 @@ export async function analyzeRecentEvents(
           sampleRate: sampleOrderIds.length > 20 ? 0.8 : 1.0,
         }
       );
-
       localConsistencyChecks.push(...bulkCheckResult.issues);
     } catch (error) {
       logger.warn("Failed to perform bulk local consistency check, falling back to individual checks", { error });
-
       const orderIdsArray = Array.from(orderIds);
       const sampleOrderIds = orderIdsArray.slice(0, 10);
       for (const orderId of sampleOrderIds) {
@@ -532,12 +484,9 @@ export async function analyzeRecentEvents(
         }
       }
     }
-
     localConsistencyChecks.forEach((check) => {
-
       let issueType: "duplicate" | "missing" | "value_mismatch" | "currency_mismatch" = "missing";
       if (check.status === "inconsistent") {
-
         const issuesStr = check.issues.join("; ").toLowerCase();
         if (issuesStr.includes("currency") || issuesStr.includes("币种")) {
           issueType = "currency_mismatch";
@@ -549,20 +498,17 @@ export async function analyzeRecentEvents(
       } else if (check.status === "partial") {
         issueType = "missing";
       }
-
       consistencyIssues.push({
         orderId: check.orderId,
         issue: check.issues.join("; "),
         type: issueType,
       });
     });
-
     const orderIdsArray = Array.from(orderIds);
     const totalChecked = Math.min(orderIdsArray.length, 50);
     const consistent = totalChecked - localConsistencyChecks.length;
     const partial = localConsistencyChecks.filter((c) => c.status === "partial").length;
     const inconsistent = localConsistencyChecks.filter((c) => c.status === "inconsistent").length;
-
     reconciliation = {
       pixelVsCapi,
       consistencyIssues: consistencyIssues.length > 0 ? consistencyIssues : undefined,
@@ -578,9 +524,7 @@ export async function analyzeRecentEvents(
     };
   } catch (error) {
     logger.error("Failed to perform reconciliation during verification", { error, shopId, runId });
-
   }
-
   await prisma.verificationRun.update({
     where: { id: runId },
     data: {
@@ -599,7 +543,6 @@ export async function analyzeRecentEvents(
       eventsJson: results as unknown as Prisma.InputJsonValue,
     },
   });
-
   const shop = await prisma.shop.findUnique({
     where: { id: shopId },
     select: { shopDomain: true },
@@ -612,7 +555,6 @@ export async function analyzeRecentEvents(
     const planId = normalizePlanId(shopRecord?.plan ?? "free");
     const isAgency = isPlanAtLeast(planId, "agency");
     const verificationPassRate = totalTests > 0 ? (passedTests / totalTests) * 100 : 0;
-
         const pixelConfigs = await prisma.pixelConfig.findMany({
       where: {
         shopId,
@@ -625,12 +567,9 @@ export async function analyzeRecentEvents(
       },
       take: 1,
     });
-
     const destinationType = pixelConfigs.length > 0 ? pixelConfigs[0].platform : targetPlatforms[0] || "none";
     const environment = pixelConfigs.length > 0 ? pixelConfigs[0].environment : "live";
-
         const firstEventName = filteredEventLogs.length > 0 ? filteredEventLogs[0].eventName : undefined;
-
         let riskScore: number | undefined;
     let assetCount: number | undefined;
     try {
@@ -648,7 +587,6 @@ export async function analyzeRecentEvents(
       }
     } catch (error) {
           }
-
         safeFireAndForget(
       trackEvent({
         shopId,
@@ -677,7 +615,6 @@ export async function analyzeRecentEvents(
       })
     );
   }
-
   return {
     runId,
     shopId,
@@ -721,7 +658,6 @@ export async function getVerificationHistory(
       createdAt: true,
     },
   });
-
   return runs.map((run) => {
     const summary = run.summaryJson as Record<string, unknown> | null;
     return {
@@ -775,7 +711,6 @@ export function generateTestOrderGuide(runType: "quick" | "full" | "custom"): {
       testItemId: "purchase",
     },
   ];
-
   const fullSteps = [
     ...quickSteps,
     {
@@ -790,11 +725,8 @@ export function generateTestOrderGuide(runType: "quick" | "full" | "custom"): {
       description: "使用折扣码完成订单，验证折扣后金额正确传递。",
       testItemId: "purchase_discount",
     },
-
   ];
-
   const steps = runType === "full" ? fullSteps : quickSteps;
-
   return {
     steps,
     estimatedTime: runType === "full" ? "15-20 分钟" : "5-10 分钟",
@@ -812,14 +744,11 @@ export async function exportVerificationReport(
   format: "json" | "csv" = "json"
 ): Promise<{ content: string; filename: string; mimeType: string }> {
   const summary = await getVerificationRun(runId);
-
   if (!summary) {
     throw new Error("Verification run not found");
   }
-
   const timestamp = new Date().toISOString().split("T")[0];
   const filename = `verification-report-${timestamp}`;
-
   if (format === "csv") {
     const headers = [
       "测试项",
@@ -841,16 +770,13 @@ export async function exportVerificationReport(
       r.params?.currency || "",
       r.discrepancies?.join("; ") || r.errors?.join("; ") || "",
     ]);
-
     const csvContent = [headers.join(","), ...rows.map((r) => r.join(","))].join("\n");
-
     return {
       content: csvContent,
       filename: `${filename}.csv`,
       mimeType: "text/csv",
     };
   }
-
   return {
     content: JSON.stringify(summary, null, 2),
     filename: `${filename}.json`,

@@ -48,13 +48,11 @@ export function MigrationChecklistEnhanced({
   const submit = useSubmit();
   const { showSuccess, showError } = useToastContext();
   const [isExportingPdf, setIsExportingPdf] = useState(false);
-
   const handleExportCSV = () => {
     const formData = new FormData();
     formData.append("_action", "export_checklist_csv");
     submit(formData, { method: "post" });
   };
-
   const handleExportPdf = async () => {
     if (isExportingPdf) return;
     setIsExportingPdf(true);
@@ -80,15 +78,12 @@ export function MigrationChecklistEnhanced({
       setIsExportingPdf(false);
     }
   };
-
   const categories = useMemo(() => {
     const cats = new Set(items.map((item) => item.category));
     return Array.from(cats);
   }, [items]);
-
   const filteredAndSortedItems = useMemo(() => {
     let filtered = items;
-
     if (searchQuery.trim()) {
       const query = searchQuery.toLowerCase();
       filtered = filtered.filter(
@@ -99,19 +94,15 @@ export function MigrationChecklistEnhanced({
           item.category.toLowerCase().includes(query)
       );
     }
-
     if (filterRisk !== "all") {
       filtered = filtered.filter((item) => item.riskLevel === filterRisk);
     }
-
     if (filterCategory !== "all") {
       filtered = filtered.filter((item) => item.category === filterCategory);
     }
-
     if (filterStatus !== "all") {
       filtered = filtered.filter((item) => item.status === filterStatus);
     }
-
     const sorted = [...filtered].sort((a, b) => {
       switch (sortBy) {
         case "priority":
@@ -128,10 +119,8 @@ export function MigrationChecklistEnhanced({
           return 0;
       }
     });
-
     return sorted;
   }, [items, searchQuery, filterRisk, filterCategory, filterStatus, sortBy]);
-
   const stats = useMemo(() => {
     const total = items.length;
     const high = items.filter((i) => i.riskLevel === "high").length;
@@ -141,7 +130,6 @@ export function MigrationChecklistEnhanced({
     const inProgress = items.filter((i) => i.status === "in_progress").length;
     const completed = items.filter((i) => i.status === "completed").length;
     const totalTime = items.reduce((sum, item) => sum + item.estimatedTime, 0);
-
     return {
       total,
       high,
@@ -153,7 +141,6 @@ export function MigrationChecklistEnhanced({
       totalTime,
     };
   }, [items]);
-
   const formatTime = (minutes: number) => {
     if (minutes < 60) {
       return `${minutes} 分钟`;
@@ -162,7 +149,6 @@ export function MigrationChecklistEnhanced({
     const mins = minutes % 60;
     return mins > 0 ? `${hours} 小时 ${mins} 分钟` : `${hours} 小时`;
   };
-
   const getRiskBadgeTone = (risk: string): "critical" | "info" | undefined => {
     switch (risk) {
       case "high":
@@ -175,7 +161,6 @@ export function MigrationChecklistEnhanced({
         return undefined;
     }
   };
-
   const getStatusBadge = (status: string) => {
     switch (status) {
       case "completed":
@@ -190,7 +175,6 @@ export function MigrationChecklistEnhanced({
         return <Badge>{status}</Badge>;
     }
   };
-
   const getMigrationBadge = (migration: string) => {
     switch (migration) {
       case "web_pixel":
@@ -205,10 +189,8 @@ export function MigrationChecklistEnhanced({
         return <Badge>{migration}</Badge>;
     }
   };
-
   const getItemDependencies = (assetId: string) => {
     if (!dependencyGraph) return { dependencies: [], dependents: [] };
-
     const nodeId = `asset-${assetId}`;
     const dependencies = dependencyGraph.edges
       .filter(e => e.to === nodeId && e.type === "depends_on")
@@ -217,7 +199,6 @@ export function MigrationChecklistEnhanced({
         return depNode ? { assetId: depNode.assetId, name: depNode.assetId.substring(0, 8) + "..." } : null;
       })
       .filter((d): d is NonNullable<typeof d> => d !== null);
-
     const dependents = dependencyGraph.edges
       .filter(e => e.from === nodeId && e.type === "depends_on")
       .map(e => {
@@ -225,10 +206,8 @@ export function MigrationChecklistEnhanced({
         return depNode ? { assetId: depNode.assetId, name: depNode.assetId.substring(0, 8) + "..." } : null;
       })
       .filter((d): d is NonNullable<typeof d> => d !== null);
-
     return { dependencies, dependents };
   };
-
   const toggleExpanded = (itemId: string) => {
     setExpandedItems(prev => {
       const next = new Set(prev);
@@ -240,7 +219,6 @@ export function MigrationChecklistEnhanced({
       return next;
     });
   };
-
   return (
     <Card>
       <BlockStack gap="400">
@@ -267,7 +245,6 @@ export function MigrationChecklistEnhanced({
             <Badge tone="info">{`${filteredAndSortedItems.length} / ${stats.total} 项`}</Badge>
           </InlineStack>
         </InlineStack>
-
         <Box background="bg-surface-secondary" padding="400" borderRadius="200">
           <BlockStack gap="300">
             <InlineStack gap="400" wrap>
@@ -306,7 +283,6 @@ export function MigrationChecklistEnhanced({
             </InlineStack>
           </BlockStack>
         </Box>
-
         <BlockStack gap="300">
           <InlineStack gap="200" wrap>
             <Box minWidth="200px">
@@ -377,9 +353,7 @@ export function MigrationChecklistEnhanced({
             </Box>
           </InlineStack>
         </BlockStack>
-
         <Divider />
-
         {}
         <Banner tone="info">
           <BlockStack gap="200">
@@ -394,7 +368,6 @@ export function MigrationChecklistEnhanced({
             </List>
           </BlockStack>
         </Banner>
-
         {filteredAndSortedItems.length === 0 ? (
           <Banner tone="info">
             <Text as="p" variant="bodySm">
@@ -422,20 +395,16 @@ export function MigrationChecklistEnhanced({
                     : item.suggestedMigration === "server_side"
                       ? "Server-side"
                       : "None";
-
                 const needsInfo: string[] = [];
                 if (item.platform) needsInfo.push(`平台: ${item.platform}`);
                 if (item.category === "pixel") needsInfo.push("需要 Pixel ID");
                 if (item.category === "survey") needsInfo.push("需要问卷题目");
                 const needsInfoText = needsInfo.length > 0 ? needsInfo.join(", ") : "无特殊要求";
-
                                 const assetNameWithFingerprint = item.fingerprint
                   ? `${item.title || item.assetId || "未命名资产"} (${item.fingerprint.slice(0, 8)}...)`
                   : item.title || item.assetId || "未命名资产";
-
                 const riskLevelText = item.riskLevel === "high" ? "高" : item.riskLevel === "medium" ? "中" : "低";
                 const riskReason = item.description || "无描述";
-
                 return [
                   assetNameWithFingerprint,
                   `${riskLevelText}风险 - ${riskReason}`,
@@ -491,11 +460,9 @@ export function MigrationChecklistEnhanced({
                           • {item.category}
                         </Text>
                       </InlineStack>
-
                       {dependencyGraph && (() => {
                         const { dependencies, dependents } = getItemDependencies(item.assetId);
                         if (dependencies.length === 0 && dependents.length === 0) return null;
-
                         return (
                           <Button
                             size="micro"
@@ -507,11 +474,9 @@ export function MigrationChecklistEnhanced({
                         );
                       })()}
                     </BlockStack>
-
                     {expandedItems.has(item.id) && dependencyGraph && (() => {
                       const { dependencies, dependents } = getItemDependencies(item.assetId);
                       if (dependencies.length === 0 && dependents.length === 0) return null;
-
                       return (
                         <Box paddingBlockStart="300">
                           <Collapsible

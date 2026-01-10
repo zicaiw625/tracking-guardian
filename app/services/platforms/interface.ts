@@ -33,21 +33,15 @@ export interface PlatformHealthStatus {
 }
 
 export interface IPlatformService {
-
   readonly platform: PlatformType;
-
   readonly displayName: string;
-
   sendConversion(
     credentials: PlatformCredentials,
     data: ConversionData,
     eventId: string
   ): Promise<PlatformSendResult>;
-
   validateCredentials(credentials: unknown): CredentialsValidationResult;
-
   parseError(error: unknown): PlatformError;
-
   buildPayload(
     data: ConversionData,
     eventId: string
@@ -73,7 +67,6 @@ export async function fetchWithTimeout(
 ): Promise<Response> {
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
-
   try {
     return await fetch(url, {
       ...options,

@@ -29,77 +29,59 @@ interface ScriptCodeEditorProps {
 
 function highlightCode(content: string): string {
   if (!content) return "";
-
   let highlighted = content
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;")
     .replace(/'/g, "&#x27;");
-
   const patterns = [
-
     {
       regex: /(&lt;\/?[\w\s="'-]+&gt;)/g,
       replacement: '<span style="color: #800000; font-weight: 500">$1</span>',
     },
-
     {
       regex: /\b(gtag|fbq|ttq|pintrk|snap|twq|dataLayer\.push)\b/gi,
       replacement: '<span style="color: #0451A5; font-weight: 600">$1</span>',
     },
-
     {
-
       regex: /(&#x27;|&quot;)(purchase|Purchase|CompletePayment|PageView|ViewContent|AddToCart|InitiateCheckout|BeginCheckout|Search|ViewItem)(&#x27;|&quot;)/gi,
       replacement: '<span style="color: #811F3F; font-weight: 600">$1$2$3</span>',
     },
-
     {
       regex: /\b(G-[A-Z0-9]+|AW-\d+|\d{15,16}|[A-Z0-9]{20,30})\b/g,
       replacement: '<span style="color: #098658; font-weight: 500">$1</span>',
     },
-
     {
-
       regex: /(&#x27;|&quot;)(?:(?=(\\?))\2.)*?\1/g,
       replacement: '<span style="color: #A31515">$&</span>',
     },
-
     {
       regex: /\b\d+\.?\d*\b/g,
       replacement: '<span style="color: #098658">$&</span>',
     },
-
     {
       regex: /(\w+)\s*\(/g,
       replacement: '<span style="color: #795E26; font-weight: 600">$1</span>(',
     },
-
     {
       regex: /(&lt;!--[\s\S]*?--&gt;|\/\/.*|\/\*[\s\S]*?\*\/)/g,
       replacement: '<span style="color: #6A9955; font-style: italic">$1</span>',
     },
   ];
-
   patterns.forEach(({ regex, replacement }) => {
     highlighted = highlighted.replace(regex, replacement);
   });
-
   return highlighted;
 }
-
 function detectScriptFragments(content: string): string[] {
   if (!content.trim()) return [];
-
   const fragments: string[] = [];
   const lines = content.split('\n');
   let currentFragment = '';
-
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
     const trimmedLine = line.trim();
-
     if (trimmedLine.includes('<script') || trimmedLine.includes('&lt;script')) {
       if (currentFragment.trim()) {
         fragments.push(currentFragment.trim());
@@ -107,7 +89,6 @@ function detectScriptFragments(content: string): string[] {
       }
       currentFragment += line + '\n';
     }
-
     else if (trimmedLine.includes('</script>') || trimmedLine.includes('&lt;/script&gt;')) {
       currentFragment += line + '\n';
       if (currentFragment.trim()) {
@@ -115,7 +96,6 @@ function detectScriptFragments(content: string): string[] {
         currentFragment = '';
       }
     }
-
     else if (trimmedLine === '' && lines[i + 1]?.trim() === '') {
       if (currentFragment.trim()) {
         fragments.push(currentFragment.trim());
@@ -126,23 +106,18 @@ function detectScriptFragments(content: string): string[] {
       currentFragment += line + '\n';
     }
   }
-
   if (currentFragment.trim()) {
     fragments.push(currentFragment.trim());
   }
-
   if (fragments.length === 0 && content.trim()) {
     return [content.trim()];
   }
-
   return fragments.filter(f => f.length > 0);
 }
-
 function PreviewPanel({ result }: { result: ScriptAnalysisResult | null }) {
   if (!result || result.identifiedPlatforms.length === 0) {
     return null;
   }
-
   return (
     <Box
       background="bg-surface-secondary"
@@ -160,7 +135,6 @@ function PreviewPanel({ result }: { result: ScriptAnalysisResult | null }) {
             {`${result.identifiedPlatforms.length} 个平台`}
           </Badge>
         </InlineStack>
-
         <BlockStack gap="200">
           {result.identifiedPlatforms.map((platform) => {
             const platformNames: Record<string, string> = {
@@ -171,11 +145,9 @@ function PreviewPanel({ result }: { result: ScriptAnalysisResult | null }) {
               bing: "Microsoft Ads",
               snapchat: "Snapchat",
             };
-
             const details = result.platformDetails.filter(
               (d) => d.platform === platform
             );
-
             return (
               <Box
                 key={platform}
@@ -208,7 +180,6 @@ function PreviewPanel({ result }: { result: ScriptAnalysisResult | null }) {
             );
           })}
         </BlockStack>
-
         {result.riskScore > 0 && (
           <Box paddingBlockStart="200">
             <InlineStack align="space-between">
@@ -233,7 +204,6 @@ function PreviewPanel({ result }: { result: ScriptAnalysisResult | null }) {
     </Box>
   );
 }
-
 export function ScriptCodeEditor({
   value,
   onChange,
@@ -250,34 +220,27 @@ export function ScriptCodeEditor({
   const [fragments, setFragments] = useState<string[]>([]);
   const [activeFragmentIndex, setActiveFragmentIndex] = useState<number | null>(null);
   const analysisTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-
   const highlightedCode = useMemo(() => highlightCode(value), [value]);
-
   const detectedFragments = useMemo(() => {
     if (!enableBatchPaste || !value.trim()) return [];
     return detectScriptFragments(value);
   }, [value, enableBatchPaste]);
-
   useEffect(() => {
     if (!enableRealtimeAnalysis || !onRealtimeAnalysis || !value.trim()) {
       return;
     }
-
     if (analysisTimeoutRef.current) {
       clearTimeout(analysisTimeoutRef.current);
     }
-
     analysisTimeoutRef.current = setTimeout(() => {
       onRealtimeAnalysis(value);
     }, 500);
-
     return () => {
       if (analysisTimeoutRef.current) {
         clearTimeout(analysisTimeoutRef.current);
       }
     };
   }, [value, enableRealtimeAnalysis, onRealtimeAnalysis]);
-
   useEffect(() => {
     if (enableBatchPaste && detectedFragments.length > 0) {
       setFragments(detectedFragments);
@@ -285,25 +248,20 @@ export function ScriptCodeEditor({
       setFragments([]);
     }
   }, [detectedFragments, enableBatchPaste]);
-
   const handleCopy = async () => {
     try {
       await navigator.clipboard.writeText(value);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch (err) {
-
       if (process.env.NODE_ENV === "development") {
-
         console.error("Failed to copy:", err);
       }
     }
   };
-
   const handleFragmentClick = useCallback((index: number) => {
     setActiveFragmentIndex(index === activeFragmentIndex ? null : index);
   }, [activeFragmentIndex]);
-
   return (
     <BlockStack gap="400">
       <Card>
@@ -334,7 +292,6 @@ export function ScriptCodeEditor({
               )}
             </InlineStack>
           </InlineStack>
-
           {enableBatchPaste && fragments.length > 1 && (
             <Banner tone="info">
               <BlockStack gap="200">
@@ -354,7 +311,6 @@ export function ScriptCodeEditor({
               </BlockStack>
             </Banner>
           )}
-
           {enableRealtimeAnalysis && value.trim() && (
             <Banner tone="info">
               <Text as="p" variant="bodySm">
@@ -362,7 +318,6 @@ export function ScriptCodeEditor({
               </Text>
             </Banner>
           )}
-
           <Banner>
             <BlockStack gap="200">
               <Text as="p" variant="bodySm" fontWeight="semibold">
@@ -387,7 +342,6 @@ export function ScriptCodeEditor({
               </List>
             </BlockStack>
           </Banner>
-
           <Box position="relative">
             <TextField
               label="粘贴脚本内容"
@@ -398,7 +352,6 @@ export function ScriptCodeEditor({
               placeholder={placeholder}
               helpText="支持检测 Google、Meta、TikTok、Pinterest 等平台的追踪代码"
             />
-
             {value && showPreview && (
               <BlockStack gap="300">
                 <Box
@@ -436,9 +389,7 @@ export function ScriptCodeEditor({
               </BlockStack>
             )}
           </Box>
-
           {analysisResult && <PreviewPanel result={analysisResult} />}
-
           <InlineStack align="end">
             <Button
               variant="primary"

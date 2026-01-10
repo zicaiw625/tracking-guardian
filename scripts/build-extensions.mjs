@@ -26,16 +26,13 @@ function replaceBuildTimeUrl(content, nextValue, allowOverride = false) {
     if (!match) {
         return { updated: false, reason: "pattern_not_found" };
     }
-
     const [, quote, currentValue] = match;
     if (!allowOverride && currentValue !== PLACEHOLDER) {
         return { updated: false, reason: "placeholder_missing", currentValue };
     }
-
     if (currentValue === nextValue) {
         return { updated: false, reason: "already_set" };
     }
-
     return {
         updated: true,
         nextContent: content.replace(BUILD_TIME_URL_PATTERN, `const BUILD_TIME_URL = ${quote}${nextValue}${quote};`),
@@ -48,7 +45,6 @@ function restoreBuildTimeUrl(content) {
     if (!match || match[2] === PLACEHOLDER) {
         return { updated: false };
     }
-
     const [, quote, previousValue] = match;
     return {
         updated: true,
@@ -59,7 +55,6 @@ function restoreBuildTimeUrl(content) {
 
 function processConfigFiles(targets, handler) {
     let updatedCount = 0;
-
     targets.forEach(({ path: filePath, label, required }) => {
         if (!fs.existsSync(filePath)) {
             const prefix = required ? "❌" : "⚠️ ";
@@ -67,11 +62,9 @@ function processConfigFiles(targets, handler) {
             if (required) process.exit(1);
             return;
         }
-
         try {
             const content = readConfig(filePath);
             const result = handler(content);
-
             if (result.updated) {
                 writeConfig(filePath, result.nextContent);
                 console.log(`✅ ${label} updated (${result.previousValue ?? "placeholder"} -> ${result.nextValue ?? PLACEHOLDER})`);
@@ -89,14 +82,12 @@ function processConfigFiles(targets, handler) {
             process.exit(1);
         }
     });
-
     return updatedCount;
 }
 
 function injectBackendUrl() {
     const backendUrl = process.env.SHOPIFY_APP_URL;
     const isCI = process.env.CI === "true" || process.env.GITHUB_ACTIONS === "true" || process.env.RENDER === "true";
-
     if (!backendUrl) {
         if (isCI) {
             console.error("❌ SHOPIFY_APP_URL is required in CI/CD environment!");
@@ -108,7 +99,6 @@ function injectBackendUrl() {
         console.log("   Note: In production, always set SHOPIFY_APP_URL to avoid misdirected events.");
         return;
     }
-
     try {
         const url = new URL(backendUrl);
         if (url.hostname === "localhost" || url.hostname === "127.0.0.1") {
@@ -122,7 +112,6 @@ function injectBackendUrl() {
         }
         process.exit(1);
     }
-
     const updatedCount = processConfigFiles(
         [
             { path: SHARED_CONFIG_FILE, label: "Shared config (extensions/shared/config.ts)", required: true },
@@ -137,14 +126,12 @@ function injectBackendUrl() {
                 : result;
         },
     );
-
     if (updatedCount === 0) {
         console.warn("⚠️  No placeholders were replaced. Please check that config files contain the placeholder.");
     } else {
         console.log(`✅ Successfully injected BACKEND_URL to ${updatedCount} config file(s)`);
     }
 }
-
 function restorePlaceholder() {
     const restoredCount = processConfigFiles(
         [
@@ -155,14 +142,12 @@ function restorePlaceholder() {
         ],
         (content) => restoreBuildTimeUrl(content),
     );
-
     if (restoredCount === 0) {
         console.log("ℹ️  No placeholders were restored (files may already contain the placeholder).");
     } else {
         console.log(`✅ Restored placeholder in ${restoredCount} config file(s)`);
     }
 }
-
 const command = process.argv[2];
 switch (command) {
     case "inject":
@@ -174,14 +159,11 @@ switch (command) {
     default:
         console.log(`
 Extension Build Helper
-
 Usage:
   node scripts/build-extensions.mjs inject   - Replace placeholder with SHOPIFY_APP_URL
   node scripts/build-extensions.mjs restore  - Restore placeholder for version control
-
 Environment Variables:
   SHOPIFY_APP_URL  - The backend URL to inject (required for inject command)
-
 Example:
   SHOPIFY_APP_URL=https://your-app.onrender.com
   npm run deploy  # Shopify CLI builds extensions

@@ -11,14 +11,11 @@ import type {
 } from "./shop.entity";
 
 export interface FindShopOptions {
-
   includeInactive?: boolean;
-
   includeUninstalled?: boolean;
 }
 
 export interface UpdateShopOptions {
-
   updates: Partial<ShopUpdateData>;
 }
 
@@ -28,7 +25,6 @@ export interface ShopUpdateData {
   plan: PlanId;
   monthlyOrderLimit: number;
   isActive: boolean;
-
   consentStrategy: ConsentStrategy;
   dataRetentionDays: number;
   ingestionSecret: string | null;
@@ -57,41 +53,23 @@ export interface CreateShopData {
 }
 
 export interface IShopRepository {
-
   findById(id: string): AsyncResult<Shop | null, AppError>;
-
   findByDomain(shopDomain: string, options?: FindShopOptions): AsyncResult<Shop | null, AppError>;
-
   create(data: CreateShopData): AsyncResult<Shop, AppError>;
-
   update(id: string, data: Partial<ShopUpdateData>): AsyncResult<Shop, AppError>;
-
   updateByDomain(shopDomain: string, data: Partial<ShopUpdateData>): AsyncResult<Shop, AppError>;
-
   upsert(shopDomain: string, createData: CreateShopData, updateData: Partial<ShopUpdateData>): AsyncResult<Shop, AppError>;
-
   softDelete(id: string): AsyncResult<void, AppError>;
-
   getBasicById(id: string): AsyncResult<ShopBasic | null, AppError>;
-
   getBasicByDomain(shopDomain: string): AsyncResult<ShopBasic | null, AppError>;
-
   getIdByDomain(shopDomain: string): AsyncResult<string | null, AppError>;
-
   getWithBilling(shopDomain: string): AsyncResult<ShopWithBilling | null, AppError>;
-
   getWithConsent(shopDomain: string): AsyncResult<ShopWithConsent | null, AppError>;
-
   getWithSecurity(shopDomain: string): AsyncResult<ShopWithSecurity | null, AppError>;
-
   findManyByIds(ids: string[]): AsyncResult<Shop[], AppError>;
-
   findManyByDomains(shopDomains: string[]): AsyncResult<Shop[], AppError>;
-
   findAllActive(): AsyncResult<ShopBasic[], AppError>;
-
   exists(shopDomain: string): AsyncResult<boolean, AppError>;
-
   isActive(shopDomain: string): AsyncResult<boolean, AppError>;
 }
 

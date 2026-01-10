@@ -55,7 +55,6 @@ export async function cacheShopVerification(
   const key = getVerificationKey(shopDomain);
   try {
     if (data === null) {
-
       await shopVerificationCache.delete(key);
     } else {
       await shopVerificationCache.set(key, data, ttlMs);
@@ -95,7 +94,6 @@ export async function cacheShopWithConfigs(
   const key = getConfigsKey(shopDomain);
   try {
     if (data === null) {
-
       await shopWithConfigsCache.delete(key);
     } else {
       await shopWithConfigsCache.set(key, data, ttlMs);
@@ -109,7 +107,6 @@ export async function invalidateShopConfigs(shopDomain: string): Promise<void> {
   const key = getConfigsKey(shopDomain);
   try {
     await shopWithConfigsCache.delete(key);
-
     await invalidateShopVerification(shopDomain);
     logger.debug("Invalidated shop configs cache", { shopDomain });
   } catch (error) {
@@ -145,7 +142,6 @@ export function invalidateBillingCache(shopId: string, yearMonth?: string): void
     const key = getBillingKey(shopId, yearMonth);
     billingCheckCache.delete(key);
   } else {
-
     billingCheckCache.deletePattern(`${shopId}:`);
   }
 }
@@ -155,11 +151,9 @@ export async function invalidateAllShopCaches(shopDomain: string, shopId?: strin
     invalidateShopVerification(shopDomain),
     invalidateShopConfigs(shopDomain),
   ]);
-
   if (shopId) {
     invalidateBillingCache(shopId);
   }
-
   logger.info("Invalidated all caches for shop", { shopDomain, shopId });
 }
 
@@ -168,7 +162,6 @@ export async function getShopCacheStats(): Promise<{
   configs: { available: boolean };
   billing: { size: number; hits: number; misses: number };
 }> {
-
   return {
     verification: {
       available: true,
@@ -190,7 +183,6 @@ export async function warmShopCache(
 ): Promise<{ warmed: number; failed: number }> {
   let warmed = 0;
   let failed = 0;
-
   const batchSize = 10;
   for (let i = 0; i < shopDomains.length; i += batchSize) {
     const batch = shopDomains.slice(i, i + batchSize);
@@ -203,7 +195,6 @@ export async function warmShopCache(
         return domain;
       })
     );
-
     for (const result of results) {
       if (result.status === "fulfilled") {
         warmed++;
@@ -212,7 +203,6 @@ export async function warmShopCache(
       }
     }
   }
-
   logger.info("Shop cache warming completed", { warmed, failed });
   return { warmed, failed };
 }

@@ -7,9 +7,7 @@ interface CacheEntry<T> {
 }
 
 interface CacheOptions {
-
   ttlMs?: number;
-
   staleWhileRevalidate?: boolean;
 }
 
@@ -19,7 +17,6 @@ const STALE_THRESHOLD_MS = 10_000;
 class QueryCache<T> {
   private cache = new Map<string, CacheEntry<T>>();
   private pendingRefresh = new Set<string>();
-
   async getOrFetch(
     key: string,
     fetcher: () => Promise<T>,
@@ -28,9 +25,7 @@ class QueryCache<T> {
     const { ttlMs = DEFAULT_TTL_MS, staleWhileRevalidate = true } = options;
     const now = Date.now();
     const cached = this.cache.get(key);
-
     if (cached && cached.expiry > now) {
-
       if (
         staleWhileRevalidate &&
         cached.expiry - now < STALE_THRESHOLD_MS &&
@@ -40,23 +35,19 @@ class QueryCache<T> {
       }
       return cached.data;
     }
-
     const data = await fetcher();
     this.cache.set(key, {
       data,
       expiry: now + ttlMs,
     });
-
     return data;
   }
-
   private async refreshInBackground(
     key: string,
     fetcher: () => Promise<T>,
     ttlMs: number
   ): Promise<void> {
     this.pendingRefresh.add(key);
-
     try {
       const data = await fetcher();
       this.cache.set(key, {
@@ -71,11 +62,9 @@ class QueryCache<T> {
       this.pendingRefresh.delete(key);
     }
   }
-
   invalidate(key: string): void {
     this.cache.delete(key);
   }
-
   invalidatePattern(pattern: string): void {
     const regex = new RegExp(pattern);
     for (const key of this.cache.keys()) {
@@ -84,12 +73,10 @@ class QueryCache<T> {
       }
     }
   }
-
   clear(): void {
     this.cache.clear();
     this.pendingRefresh.clear();
   }
-
   getStats(): { size: number; keys: string[] } {
     return {
       size: this.cache.size,
@@ -107,7 +94,6 @@ async function fetchShop(shopDomain: string) {
       id: true,
       shopDomain: true,
       plan: true,
-
       consentStrategy: true,
       dataRetentionDays: true,
       isActive: true,
@@ -213,7 +199,6 @@ async function fetchMonthlyUsage(shopId: string) {
   const year = now.getFullYear();
   const month = String(now.getMonth() + 1).padStart(2, '0');
   const yearMonth = `${year}-${month}`;
-
   return prisma.monthlyUsage.findUnique({
     where: {
       shopId_yearMonth: {
@@ -230,7 +215,6 @@ export async function getCachedMonthlyUsage(
 ) {
   const now = new Date();
   const key = `monthlyUsage:${shopId}:${now.getFullYear()}-${now.getMonth() + 1}`;
-
   return monthlyUsageCache.getOrFetch(
     key,
     () => fetchMonthlyUsage(shopId),

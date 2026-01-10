@@ -41,7 +41,6 @@ export function ThresholdConfigCard({
   showRecommendation = true,
 }: ThresholdConfigCardProps) {
   const [isTesting, setIsTesting] = useState(false);
-
   const handleTest = async () => {
     if (onTest) {
       setIsTesting(true);
@@ -52,18 +51,14 @@ export function ThresholdConfigCard({
       }
     }
   };
-
   const getStatus = (): "success" | "warning" | "critical" | undefined => {
     if (!config.currentValue) return undefined;
-
     const range = config.colorRanges.find(
       (r) => config.currentValue! >= r.min && config.currentValue! < r.max
     );
     return range?.tone;
   };
-
   const isExceedingThreshold = config.currentValue !== undefined && config.currentValue > config.value;
-
   return (
     <Card>
       <BlockStack gap="400">
@@ -77,7 +72,6 @@ export function ThresholdConfigCard({
             </Badge>
           )}
         </InlineStack>
-
         <ThresholdSlider
           label=""
           value={config.value}
@@ -89,7 +83,6 @@ export function ThresholdConfigCard({
           helpText={config.helpText}
           colorRanges={config.colorRanges}
         />
-
         {showPreview && config.currentValue !== undefined && (
           <Box background="bg-surface-secondary" padding="300" borderRadius="200">
             <BlockStack gap="200">
@@ -119,7 +112,6 @@ export function ThresholdConfigCard({
             </BlockStack>
           </Box>
         )}
-
         {showRecommendation && config.recommendedValue !== undefined && (
           <Banner tone="info">
             <BlockStack gap="200">
@@ -138,7 +130,6 @@ export function ThresholdConfigCard({
             </BlockStack>
           </Banner>
         )}
-
         {onTest && (
           <Button
             size="slim"

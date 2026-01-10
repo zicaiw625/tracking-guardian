@@ -29,7 +29,6 @@ const RealtimeEventMonitor = lazy(() => import("~/components/verification/Realti
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   const { session } = await authenticate.admin(request);
   const shopDomain = session.shop;
-
   const shop = await prisma.shop.findUnique({
     where: { shopDomain },
     select: {
@@ -41,7 +40,6 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       },
     },
   });
-
   if (!shop) {
     return json({
       shop: null,
@@ -51,12 +49,10 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       currentPlan: "free" as PlanId,
     });
   }
-
   const planId = normalizePlanId(shop.plan || "free") as PlanId;
   const gateResult = checkFeatureAccess(planId, "verification");
   const canAccessVerification = gateResult.allowed;
   const configuredPlatforms = shop.pixelConfigs.map((c) => c.platform);
-
     if (!canAccessVerification) {
     safeFireAndForget(
       trackEvent({
@@ -70,7 +66,6 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       })
     );
   }
-
   return json({
     shop: { id: shop.id, domain: shopDomain },
     configuredPlatforms,
@@ -82,7 +77,6 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 
 export default function VerificationLivePage() {
   const { shop, configuredPlatforms, canAccessVerification, gateResult, currentPlan } = useLoaderData<typeof loader>();
-
   if (!shop) {
     return (
       <Page title="实时事件流">
@@ -92,7 +86,6 @@ export default function VerificationLivePage() {
       </Page>
     );
   }
-
   return (
     <Page
       title="实时事件流"
@@ -117,7 +110,6 @@ export default function VerificationLivePage() {
             gateResult={gateResult}
           />
         )}
-
         {canAccessVerification ? (
           <Card>
             <BlockStack gap="400">

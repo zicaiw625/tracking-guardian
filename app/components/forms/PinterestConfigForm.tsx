@@ -20,21 +20,15 @@ export interface PinterestCredentialsInput {
 }
 
 export interface PinterestConfigFormProps {
-
   config?: {
     adAccountId: string;
     hasAccessToken: boolean;
     testMode: boolean;
   };
-
   onSave: (data: PinterestCredentialsInput) => void;
-
   isLoading?: boolean;
-
   validationStatus?: "idle" | "validating" | "valid" | "invalid";
-
   validationError?: string;
-
   onValidate?: (data: PinterestCredentialsInput) => void;
 }
 
@@ -50,49 +44,39 @@ export function PinterestConfigForm({
   const [accessToken, setAccessToken] = useState("");
   const [testMode, setTestMode] = useState(config?.testMode ?? true);
   const [showToken, setShowToken] = useState(false);
-
   const [errors, setErrors] = useState<Record<string, string>>({});
-
   const validateForm = useCallback((): boolean => {
     const newErrors: Record<string, string> = {};
-
     if (!adAccountId.trim()) {
       newErrors.adAccountId = "请输入 Pinterest Ad Account ID";
     } else if (!/^\d+$/.test(adAccountId.trim())) {
       newErrors.adAccountId = "Ad Account ID 应为纯数字";
     }
-
     if (!config?.hasAccessToken && !accessToken.trim()) {
       newErrors.accessToken = "请输入 Pinterest Access Token";
     } else if (accessToken.trim() && accessToken.trim().length < 20) {
       newErrors.accessToken = "Access Token 格式不正确";
     }
-
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   }, [adAccountId, accessToken, config?.hasAccessToken]);
-
   const handleSave = useCallback(() => {
     if (!validateForm()) return;
-
     onSave({
       adAccountId: adAccountId.trim(),
       accessToken: accessToken.trim(),
       testMode,
     });
   }, [adAccountId, accessToken, testMode, validateForm, onSave]);
-
   const handleValidate = useCallback(() => {
     if (!validateForm()) return;
     if (!onValidate) return;
-
     onValidate({
       adAccountId: adAccountId.trim(),
       accessToken: accessToken.trim() || "(使用已保存的 token)",
       testMode,
     });
   }, [adAccountId, accessToken, testMode, validateForm, onValidate]);
-
   return (
     <Card>
       <BlockStack gap="400">
@@ -112,7 +96,6 @@ export function PinterestConfigForm({
             </Box>
           )}
         </InlineStack>
-
         <Banner tone="info">
           <BlockStack gap="200">
             <Text as="p" variant="bodySm">
@@ -127,9 +110,7 @@ export function PinterestConfigForm({
             </Link>
           </BlockStack>
         </Banner>
-
         <Divider />
-
         <TextField
           label="Ad Account ID"
           value={adAccountId}
@@ -139,7 +120,6 @@ export function PinterestConfigForm({
           error={errors.adAccountId}
           autoComplete="off"
         />
-
         <TextField
           label="Access Token"
           value={accessToken}
@@ -159,16 +139,13 @@ export function PinterestConfigForm({
             </Button>
           }
         />
-
         <Checkbox
           label="测试模式"
           checked={testMode}
           onChange={setTestMode}
           helpText="启用后，事件将以测试模式发送，不会影响实际广告数据"
         />
-
         <Divider />
-
         <BlockStack gap="200">
           <Text as="p" variant="headingSm">
             如何获取 Pinterest API 凭证
@@ -203,9 +180,7 @@ export function PinterestConfigForm({
             </li>
           </ol>
         </BlockStack>
-
         <Divider />
-
         {validationStatus === "validating" && (
           <Banner tone="info">
             <Text as="p">正在验证凭证...</Text>
@@ -221,7 +196,6 @@ export function PinterestConfigForm({
             <Text as="p">凭证验证失败: {validationError}</Text>
           </Banner>
         )}
-
         <InlineStack gap="200" align="end">
           {onValidate && (
             <Button

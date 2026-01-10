@@ -10,21 +10,13 @@ export interface MetricValue {
 }
 
 export interface MetricCardProps {
-
   title: string;
-
   value: number | string;
-
   unit?: string;
-
   description?: string;
-
   trend?: TrendDirection;
-
   trendValue?: string;
-
   trendPeriod?: string;
-
   loading?: boolean;
 }
 
@@ -48,7 +40,6 @@ export function MetricCard({
         return "subdued";
     }
   };
-
   const getTrendIcon = () => {
     switch (trend) {
       case "up":
@@ -59,14 +50,12 @@ export function MetricCard({
         return MinusIcon;
     }
   };
-
   return (
     <Card>
       <BlockStack gap="300">
         <Text as="h3" variant="headingSm" tone="subdued">
           {title}
         </Text>
-
         <InlineStack align="start" blockAlign="end" gap="100">
           <Text as="p" variant="heading2xl" fontWeight="bold">
             {loading ? "-" : value}
@@ -77,7 +66,6 @@ export function MetricCard({
             </Text>
           )}
         </InlineStack>
-
         {trend && trendValue && (
           <InlineStack gap="100" align="start">
             <Box>
@@ -91,7 +79,6 @@ export function MetricCard({
             </Text>
           </InlineStack>
         )}
-
         {description && (
           <Text as="p" variant="bodySm" tone="subdued">
             {description}
@@ -103,19 +90,12 @@ export function MetricCard({
 }
 
 export interface ProgressMetricCardProps {
-
   title: string;
-
   current: number;
-
   total: number;
-
   unit?: string;
-
   tone?: "primary" | "success" | "warning" | "critical";
-
   showPercentage?: boolean;
-
   description?: string;
 }
 
@@ -129,7 +109,6 @@ export function ProgressMetricCard({
   description,
 }: ProgressMetricCardProps) {
   const percentage = total > 0 ? Math.round((current / total) * 100) : 0;
-
   const getProgressTone = (): "highlight" | "success" | "critical" | undefined => {
     if (percentage >= 90) return "critical";
     if (percentage >= 70) return "highlight";
@@ -137,7 +116,6 @@ export function ProgressMetricCard({
     if (tone === "critical") return "critical";
     return undefined;
   };
-
   return (
     <Card>
       <BlockStack gap="300">
@@ -151,9 +129,7 @@ export function ProgressMetricCard({
             </Text>
           )}
         </InlineStack>
-
         <ProgressBar progress={percentage} tone={getProgressTone()} size="small" />
-
         <Text as="p" variant="bodySm">
           <Text as="span" fontWeight="semibold">
             {current.toLocaleString()}
@@ -162,7 +138,6 @@ export function ProgressMetricCard({
             {" "}/ {total.toLocaleString()} {unit}
           </Text>
         </Text>
-
         {description && (
           <Text as="p" variant="bodySm" tone="subdued">
             {description}
@@ -174,19 +149,12 @@ export function ProgressMetricCard({
 }
 
 export interface ComparisonMetricCardProps {
-
   title: string;
-
   leftLabel: string;
-
   leftValue: number | string;
-
   rightLabel: string;
-
   rightValue: number | string;
-
   unit?: string;
-
   highlightDifference?: boolean;
 }
 
@@ -203,14 +171,12 @@ export function ComparisonMetricCard({
   const rightNum = typeof rightValue === "number" ? rightValue : parseFloat(String(rightValue)) || 0;
   const difference = leftNum - rightNum;
   const differencePercent = rightNum !== 0 ? ((difference / rightNum) * 100).toFixed(1) : "0";
-
   return (
     <Card>
       <BlockStack gap="300">
         <Text as="h3" variant="headingSm" tone="subdued">
           {title}
         </Text>
-
         <InlineStack gap="400" align="space-between">
           <BlockStack gap="100">
             <Text as="span" variant="bodySm" tone="subdued">
@@ -221,7 +187,6 @@ export function ComparisonMetricCard({
               {unit && <Text as="span" variant="bodySm" tone="subdued"> {unit}</Text>}
             </Text>
           </BlockStack>
-
           <BlockStack gap="100">
             <Text as="span" variant="bodySm" tone="subdued">
               {rightLabel}
@@ -232,7 +197,6 @@ export function ComparisonMetricCard({
             </Text>
           </BlockStack>
         </InlineStack>
-
         {highlightDifference && (
           <Text
             as="p"
@@ -248,7 +212,6 @@ export function ComparisonMetricCard({
 }
 
 export interface MetricGridProps {
-
   items: Array<{
     title: string;
     value: number | string;
@@ -256,7 +219,6 @@ export interface MetricGridProps {
     trend?: TrendDirection;
     trendValue?: string;
   }>;
-
   columns?: 2 | 3 | 4;
 }
 

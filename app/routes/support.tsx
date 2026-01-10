@@ -31,7 +31,6 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 
 export default function PublicSupportPage() {
   const { contactEmail } = useLoaderData<typeof loader>();
-
   return (
     <AppProvider i18n={i18n as any}>
       <Page title="Support & FAQ" subtitle="Tracking Guardian Help Center">
@@ -70,7 +69,6 @@ export default function PublicSupportPage() {
                     </List.Item>
                   </List>
                 </BlockStack>
-
                 <BlockStack gap="200">
                   <Text as="h2" variant="headingLg">
                     Quick FAQ
@@ -109,7 +107,6 @@ export default function PublicSupportPage() {
                     </List.Item>
                   </List>
                 </BlockStack>
-
                 <BlockStack gap="200">
                   <Text as="h2" variant="headingLg">
                     Migration tips
@@ -131,7 +128,6 @@ export default function PublicSupportPage() {
                     </List.Item>
                   </List>
                 </BlockStack>
-
                 <InlineStack gap="200">
                   <Badge tone="success">Public</Badge>
                   <Badge tone="info">No login required</Badge>

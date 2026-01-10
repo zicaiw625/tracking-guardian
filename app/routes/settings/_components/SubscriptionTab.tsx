@@ -31,7 +31,6 @@ export function SubscriptionTab({ currentPlan, subscriptionStatus }: Subscriptio
   const navigation = useNavigation();
   const { showSuccess, showError } = useToastContext();
   const [upgradingPlan, setUpgradingPlan] = useState<PlanId | null>(null);
-
   const handleUpgrade = useCallback((planId: PlanId) => {
     setUpgradingPlan(planId);
     const formData = new FormData();
@@ -39,10 +38,8 @@ export function SubscriptionTab({ currentPlan, subscriptionStatus }: Subscriptio
     formData.append("planId", planId);
     submit(formData, { method: "post" });
   }, [submit]);
-
   const currentPlanConfig = BILLING_PLANS[currentPlan];
   const upgradeOptions = getUpgradeOptions(currentPlan);
-
   return (
     <Layout>
       <Layout.Section>
@@ -56,7 +53,6 @@ export function SubscriptionTab({ currentPlan, subscriptionStatus }: Subscriptio
                 {currentPlanConfig.name}
               </Badge>
             </InlineStack>
-
             {subscriptionStatus?.isTrialing && (
               <Banner tone="info">
                 <Text as="p" variant="bodySm">
@@ -67,9 +63,7 @@ export function SubscriptionTab({ currentPlan, subscriptionStatus }: Subscriptio
                 </Text>
               </Banner>
             )}
-
             <Divider />
-
             <Box
               background="bg-surface-selected"
               padding="400"
@@ -105,7 +99,6 @@ export function SubscriptionTab({ currentPlan, subscriptionStatus }: Subscriptio
                 )}
               </BlockStack>
             </Box>
-
             {upgradeOptions.length > 0 && (
               <>
                 <Divider />
@@ -162,7 +155,6 @@ export function SubscriptionTab({ currentPlan, subscriptionStatus }: Subscriptio
                 </BlockStack>
               </>
             )}
-
             <Divider />
             <Text as="h3" variant="headingMd">
               套餐对比

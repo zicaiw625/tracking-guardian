@@ -32,23 +32,19 @@ export async function getUsageTracking(
   try {
     const now = new Date();
     const currentMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
-
     const [pixelConfigs, uiModules, eventLogs, conversionLogs] = await Promise.all([
-
       prisma.pixelConfig.count({
         where: {
           shopId,
           isActive: true,
         },
       }),
-
       prisma.uiExtensionSetting.count({
         where: {
           shopId,
           isEnabled: true,
         },
       }),
-
       prisma.pixelEventReceipt.count({
         where: {
           shopId,
@@ -57,7 +53,6 @@ export async function getUsageTracking(
           },
         },
       }),
-
       prisma.conversionLog.findMany({
         where: {
           shopId,
@@ -72,16 +67,12 @@ export async function getUsageTracking(
         distinct: ["orderId"],
       }),
     ]);
-
     const monthlyOrders = new Set(conversionLogs.map((log: { orderId: string }) => log.orderId)).size;
-
     const { getPixelDestinationsLimit, getUiModulesLimit, getPlanLimit } = await import("./plans");
-
     const pixelLimit = getPixelDestinationsLimit(planId);
     const uiLimit = getUiModulesLimit(planId);
     const orderLimit = getPlanLimit(planId);
     const eventLimit = -1;
-
     return {
       pixelDestinations: {
         current: pixelConfigs,
@@ -128,14 +119,12 @@ export async function checkUsageApproachingLimit(
   }>;
 }> {
   const usage = await getUsageTracking(shopId, planId);
-
   const items: Array<{
     type: "pixelDestinations" | "uiModules" | "eventCount" | "monthlyOrders";
     current: number;
     limit: number;
     percentage: number;
   }> = [];
-
   if (!usage.pixelDestinations.unlimited) {
     const percentage =
       usage.pixelDestinations.limit > 0
@@ -150,7 +139,6 @@ export async function checkUsageApproachingLimit(
       });
     }
   }
-
   if (!usage.uiModules.unlimited) {
     const percentage =
       usage.uiModules.limit > 0
@@ -165,7 +153,6 @@ export async function checkUsageApproachingLimit(
       });
     }
   }
-
   if (!usage.monthlyOrders.unlimited) {
     const percentage =
       usage.monthlyOrders.limit > 0
@@ -180,7 +167,6 @@ export async function checkUsageApproachingLimit(
       });
     }
   }
-
   return {
     approaching: items.length > 0,
     items,

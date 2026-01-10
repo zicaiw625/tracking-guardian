@@ -19,11 +19,8 @@ export interface JobForProcessing {
 }
 
 export interface QueryPendingJobsOptions {
-
   limit?: number;
-
   maxAgeMs?: number;
-
   includeRetries?: boolean;
 }
 
@@ -61,7 +58,6 @@ const JOB_WITH_SHOP_SELECT = {
       shopDomain: true,
       plan: true,
       consentStrategy: true,
-
       isActive: true,
       primaryDomain: true,
       storefrontDomains: true,
@@ -77,7 +73,6 @@ interface JobShopData {
   shopDomain: string;
   plan: string | null;
   consentStrategy: string;
-
   isActive: boolean;
   primaryDomain: string | null;
   storefrontDomains: Prisma.JsonValue;
@@ -108,24 +103,18 @@ export async function getPendingJobs(
     maxAgeMs = 24 * 60 * 60 * 1000,
     includeRetries = true,
   } = options;
-
   const now = new Date();
   const minCreatedAt = new Date(now.getTime() - maxAgeMs);
-
   const whereConditions: Prisma.ConversionJobWhereInput[] = [
-
     { status: JobStatus.QUEUED },
     { status: JobStatus.PROCESSING },
   ];
-
   if (includeRetries) {
-
     whereConditions.push({
       status: JobStatus.FAILED,
       nextRetryAt: { lte: now },
     });
   }
-
   const jobs = await prisma.conversionJob.findMany({
     where: {
       createdAt: { gte: minCreatedAt },
@@ -138,7 +127,6 @@ export async function getPendingJobs(
     ],
     take: limit,
   });
-
   return jobs as Array<JobForProcessing & { shop: JobShopData }>;
 }
 
@@ -147,7 +135,6 @@ export async function claimJobsForProcessing(
   processedBy?: string
 ): Promise<number> {
   if (jobIds.length === 0) return 0;
-
   const result = await prisma.conversionJob.updateMany({
     where: {
       id: { in: jobIds },
@@ -159,7 +146,6 @@ export async function claimJobsForProcessing(
       ...(processedBy && { processedBy }),
     },
   });
-
   return result.count;
 }
 
@@ -189,7 +175,6 @@ export async function batchUpdateJobStatus(
   update: JobStatusUpdate
 ): Promise<number> {
   if (jobIds.length === 0) return 0;
-
   const result = await prisma.conversionJob.updateMany({
     where: { id: { in: jobIds } },
     data: {
@@ -205,7 +190,6 @@ export async function batchUpdateJobStatus(
       consentEvidence: toInputJsonValue(update.consentEvidence),
     },
   });
-
   return result.count;
 }
 
@@ -244,7 +228,6 @@ export async function jobExistsForOrder(
     },
     select: { id: true },
   });
-
   return existing !== null;
 }
 
@@ -253,21 +236,17 @@ export async function getJobCountsByStatus(
   sinceDate?: Date
 ): Promise<Record<string, number>> {
   const where: Prisma.ConversionJobWhereInput = {};
-
   if (shopId) {
     where.shopId = shopId;
   }
-
   if (sinceDate) {
     where.createdAt = { gte: sinceDate };
   }
-
   const results = await prisma.conversionJob.groupBy({
     by: ['status'],
     where,
     _count: { status: true },
   });
-
   return Object.fromEntries(
     results.map(r => [r.status, r._count.status])
   );
@@ -281,7 +260,6 @@ export async function getDeadLetterJobs(
   } = {}
 ): Promise<ConversionJob[]> {
   const { limit = 50, offset = 0, shopId } = options;
-
   return prisma.conversionJob.findMany({
     where: {
       status: JobStatus.DEAD_LETTER,
@@ -297,7 +275,6 @@ export async function requeueDeadLetterJobs(
   jobIds: string[]
 ): Promise<number> {
   if (jobIds.length === 0) return 0;
-
   const result = await prisma.conversionJob.updateMany({
     where: {
       id: { in: jobIds },
@@ -310,23 +287,19 @@ export async function requeueDeadLetterJobs(
       errorMessage: null,
     },
   });
-
   return result.count;
 }
 
 export async function cleanupOldJobs(
   retentionDays: number = 90
 ): Promise<number> {
-
   const cutoffDate = new Date();
   cutoffDate.setUTCDate(cutoffDate.getUTCDate() - retentionDays);
-
   const result = await prisma.conversionJob.deleteMany({
     where: {
       status: { in: [JobStatus.COMPLETED, JobStatus.LIMIT_EXCEEDED] },
       completedAt: { lt: cutoffDate },
     },
   });
-
   return result.count;
 }

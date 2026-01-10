@@ -78,7 +78,6 @@ const HealthScoreCard = memo(function HealthScoreCard({
           : "bg-fill-critical",
     [score]
   );
-
   return (
     <Card>
       <BlockStack gap="400">
@@ -138,7 +137,6 @@ const QuickStatsCard = memo(function QuickStatsCard({
 }) {
   const displayFeatures = useMemo(() => planFeatures?.slice(0, 3) || [], [planFeatures]);
   const hasMoreFeatures = useMemo(() => (planFeatures?.length || 0) > 3, [planFeatures]);
-
   return (
     <Card>
       <BlockStack gap="400">
@@ -222,7 +220,6 @@ const MigrationStatusCard = memo(function MigrationStatusCard({
   const upgradeStatusBadge = typOspPagesEnabled
     ? { tone: "success" as const, label: "已升级" }
     : { tone: "warning" as const, label: "未升级" };
-
   const riskBadge =
     riskScore === null
       ? { tone: "info" as const, label: "待评估" }
@@ -231,7 +228,6 @@ const MigrationStatusCard = memo(function MigrationStatusCard({
         : riskScore >= 40
           ? { tone: "warning" as const, label: "中风险" }
           : { tone: "success" as const, label: "低风险" };
-
   const formatEstimatedTime = (minutes: number | null): string => {
     if (minutes === null) return "待计算";
     if (minutes < 60) return `${minutes} 分钟`;
@@ -239,7 +235,6 @@ const MigrationStatusCard = memo(function MigrationStatusCard({
     const mins = minutes % 60;
     return mins > 0 ? `${hours} 小时 ${mins} 分钟` : `${hours} 小时`;
   };
-
   return (
     <Card>
       <BlockStack gap="400">
@@ -248,7 +243,6 @@ const MigrationStatusCard = memo(function MigrationStatusCard({
             升级状态概览
           </Text>
         </InlineStack>
-
         <BlockStack gap="300">
           <InlineStack align="space-between" blockAlign="center">
             <Text as="span" variant="bodyMd" fontWeight="semibold">
@@ -256,9 +250,7 @@ const MigrationStatusCard = memo(function MigrationStatusCard({
             </Text>
             <Badge tone={upgradeStatusBadge.tone}>{upgradeStatusBadge.label}</Badge>
           </InlineStack>
-
           <Divider />
-
           <InlineStack align="space-between" blockAlign="center">
             <Text as="span" variant="bodyMd" fontWeight="semibold">
               风险评分
@@ -272,9 +264,7 @@ const MigrationStatusCard = memo(function MigrationStatusCard({
               <Badge tone={riskBadge.tone}>{riskBadge.label}</Badge>
             </InlineStack>
           </InlineStack>
-
           <Divider />
-
           <InlineStack align="space-between" blockAlign="center">
             <Text as="span" variant="bodyMd" fontWeight="semibold">
               预计迁移时间
@@ -283,7 +273,6 @@ const MigrationStatusCard = memo(function MigrationStatusCard({
               {formatEstimatedTime(estimatedMigrationTimeMinutes)}
             </Text>
           </InlineStack>
-
           {scriptTagsCount > 0 && (
             <>
               <Divider />
@@ -295,7 +284,6 @@ const MigrationStatusCard = memo(function MigrationStatusCard({
               </InlineStack>
             </>
           )}
-
           {identifiedPlatforms.length > 0 && (
             <>
               <Divider />
@@ -311,7 +299,6 @@ const MigrationStatusCard = memo(function MigrationStatusCard({
               </BlockStack>
             </>
           )}
-
           {!typOspPagesEnabled && (
             <>
               <Divider />
@@ -347,11 +334,9 @@ const UpgradeStatusCard = memo(function UpgradeStatusCard({
       </Card>
     );
   }
-
   const statusBadge = upgradeStatus.isUpgraded
     ? { tone: "success" as const, label: "已升级（新版本）" }
     : { tone: "warning" as const, label: "未升级（旧版本）" };
-
   const urgencyBadge = {
     critical: { tone: "critical" as const, label: "紧急" },
     high: { tone: "critical" as const, label: "高" },
@@ -359,10 +344,8 @@ const UpgradeStatusCard = memo(function UpgradeStatusCard({
     low: { tone: "info" as const, label: "低" },
     resolved: { tone: "success" as const, label: "已完成" },
   }[upgradeStatus.urgency];
-
   const deadlineLabel = upgradeStatus.deadlineDate;
   const autoUpgradeLabel = upgradeStatus.autoUpgradeStartDate || "";
-
   return (
     <Card>
       <BlockStack gap="400">
@@ -370,7 +353,6 @@ const UpgradeStatusCard = memo(function UpgradeStatusCard({
           <Text as="h2" variant="headingMd">升级状态</Text>
           <Badge tone={statusBadge.tone}>{statusBadge.label}</Badge>
         </InlineStack>
-
         <BlockStack gap="300">
           {}
           <InlineStack align="space-between" blockAlign="center">
@@ -388,7 +370,6 @@ const UpgradeStatusCard = memo(function UpgradeStatusCard({
               {upgradeStatus.isUpgraded ? "新版本" : "旧版本"}
             </Badge>
           </InlineStack>
-
           {}
           {!upgradeStatus.isUpgraded && (
             <>
@@ -419,7 +400,6 @@ const UpgradeStatusCard = memo(function UpgradeStatusCard({
               </Banner>
             </>
           )}
-
           {}
           <Button
             url="/app/audit/start"
@@ -429,9 +409,7 @@ const UpgradeStatusCard = memo(function UpgradeStatusCard({
           >
             开始 Audit
           </Button>
-
           <Divider />
-
           {upgradeStatus.shopTier === "plus" && (
             <BlockStack gap="200">
               <InlineStack align="space-between" blockAlign="center">
@@ -494,7 +472,6 @@ const UpgradeStatusCard = memo(function UpgradeStatusCard({
               )}
             </BlockStack>
           )}
-
           {upgradeStatus.shopTier === "non_plus" && (
             <BlockStack gap="200">
               <InlineStack align="space-between" blockAlign="center">
@@ -533,7 +510,6 @@ const UpgradeStatusCard = memo(function UpgradeStatusCard({
               )}
             </BlockStack>
           )}
-
           {upgradeStatus.daysRemaining <= 0 && (
             <>
               <Divider />
@@ -569,7 +545,6 @@ const RiskScoreCard = memo(function RiskScoreCard({
         : riskLevel === "low"
           ? { tone: "success" as const, label: "低风险" }
           : { tone: "info" as const, label: "待评估" };
-
   const formatEstimatedTime = (minutes: number | null): string => {
     if (minutes === null) return "待计算";
     if (minutes < 60) return `${minutes} 分钟`;
@@ -577,7 +552,6 @@ const RiskScoreCard = memo(function RiskScoreCard({
     const mins = minutes % 60;
     return mins > 0 ? `${hours} 小时 ${mins} 分钟` : `${hours} 小时`;
   };
-
   const riskColor = riskLevel === "high"
     ? "bg-fill-critical"
     : riskLevel === "medium"
@@ -585,14 +559,12 @@ const RiskScoreCard = memo(function RiskScoreCard({
       : riskLevel === "low"
         ? "bg-fill-success"
         : "bg-surface-secondary";
-
   return (
     <Card>
       <BlockStack gap="400">
         <Text as="h2" variant="headingMd">
           风险分数
         </Text>
-
         <Box background={riskColor} padding="600" borderRadius="200">
           <BlockStack gap="200" align="center">
             {riskScore !== null ? (
@@ -614,16 +586,13 @@ const RiskScoreCard = memo(function RiskScoreCard({
             )}
           </BlockStack>
         </Box>
-
         <InlineStack align="space-between" blockAlign="center">
           <Text as="span" variant="bodyMd" fontWeight="semibold">
             风险等级
           </Text>
           <Badge tone={riskBadge.tone}>{riskBadge.label}</Badge>
         </InlineStack>
-
         <Divider />
-
         <InlineStack align="space-between" blockAlign="center">
           <Text as="span" variant="bodyMd" fontWeight="semibold">
             预计迁移时长
@@ -632,7 +601,6 @@ const RiskScoreCard = memo(function RiskScoreCard({
             {formatEstimatedTime(estimatedMigrationTimeMinutes ?? null)}
           </Text>
         </InlineStack>
-
         {}
         {topRiskSources && topRiskSources.length > 0 && (
           <>
@@ -686,7 +654,6 @@ const MigrationProgressCard = memo(function MigrationProgressCard({
       </Card>
     );
   }
-
   return (
     <Card>
       <BlockStack gap="400">
@@ -698,9 +665,7 @@ const MigrationProgressCard = memo(function MigrationProgressCard({
             {migrationProgress.progressPercentage}%
           </Text>
         </InlineStack>
-
         <ProgressBar progress={migrationProgress.progressPercentage} />
-
         {}
         {(migrationProgress.auditCompletion || migrationProgress.pixelsStatus || migrationProgress.modulesEnabled !== undefined || migrationProgress.verificationLatest) && (
           <BlockStack gap="300">
@@ -749,13 +714,11 @@ const MigrationProgressCard = memo(function MigrationProgressCard({
             </BlockStack>
           </BlockStack>
         )}
-
         <BlockStack gap="200">
           {migrationProgress.stages.map((stage, index) => {
             const isCompleted = stage.completed;
             const isCurrent = stage.stage === migrationProgress.currentStage;
             const isPending = !isCompleted && !isCurrent && !stage.inProgress;
-
             return (
               <InlineStack key={stage.stage} gap="300" blockAlign="center">
                 {isCompleted ? (
@@ -780,7 +743,6 @@ const MigrationProgressCard = memo(function MigrationProgressCard({
             );
           })}
         </BlockStack>
-
         {migrationProgress.progressPercentage < 100 && (
           <Button url="/app/audit/start" variant="primary">
             {migrationProgress.currentStage === "audit" ? "开始体检" : "继续迁移"}
@@ -812,14 +774,12 @@ const LatestScanCard = memo(function LatestScanCard({ latestScan }: { latestScan
       </Card>
     );
   }
-
   const riskLevel =
     latestScan.riskScore >= 70
       ? { level: "高风险", tone: "critical" as const }
       : latestScan.riskScore >= 40
         ? { level: "中风险", tone: "warning" as const }
         : { level: "低风险", tone: "success" as const };
-
   return (
     <Card>
       <BlockStack gap="400">
@@ -831,7 +791,6 @@ const LatestScanCard = memo(function LatestScanCard({ latestScan }: { latestScan
             {riskLevel.level}
           </Badge>
         </InlineStack>
-
         <Box
           background={
             latestScan.riskScore >= 70
@@ -852,7 +811,6 @@ const LatestScanCard = memo(function LatestScanCard({ latestScan }: { latestScan
             </Text>
           </BlockStack>
         </Box>
-
         <BlockStack gap="200">
           <Text as="p" variant="bodySm" tone="subdued">
             扫描时间: {new Date(latestScan.createdAt).toLocaleDateString("zh-CN")}
@@ -874,7 +832,6 @@ const LatestScanCard = memo(function LatestScanCard({ latestScan }: { latestScan
             </Text>
           )}
         </BlockStack>
-
         <Button url="/app/audit/report" fullWidth>
           查看完整报告
         </Button>
@@ -891,7 +848,6 @@ const SetupProgressCard = memo(function SetupProgressCard({
   nextStep: SetupStep | undefined;
 }) {
   const progress = useMemo(() => getSetupProgress(steps), [steps]);
-
   return (
     <Card>
       <BlockStack gap="400">
@@ -960,7 +916,6 @@ function ScriptTagMigrationBanner({
   hasOrderStatusScripts: boolean;
 }) {
   if (scriptTagsCount === 0) return null;
-
   return (
     <Banner
       title={`检测到 ${scriptTagsCount} 个 ScriptTag 需要迁移`}
@@ -998,11 +953,9 @@ function ScriptTagMigrationBanner({
 }
 
 function MigrationDeadlineBanner({ scriptTagsCount }: { scriptTagsCount: number }) {
-
   const plusDeadline = formatDeadlineDate(DEPRECATION_DATES.plusScriptTagExecutionOff, "exact");
   const plusAutoUpgrade = formatDeadlineDate(DEPRECATION_DATES.plusAutoUpgradeStart, "month");
   const nonPlusDeadline = formatDeadlineDate(DEPRECATION_DATES.nonPlusScriptTagExecutionOff, "exact");
-
   return (
     <Banner
       title="重要迁移截止日期"
@@ -1076,14 +1029,12 @@ function MigrationChecklistPreviewCard({
       </Card>
     );
   }
-
   const estimatedHours = Math.floor(checklist.estimatedTotalTime / 60);
   const estimatedMinutes = checklist.estimatedTotalTime % 60;
   const timeText =
     estimatedHours > 0
       ? `${estimatedHours} 小时 ${estimatedMinutes > 0 ? estimatedMinutes + " 分钟" : ""}`
       : `${estimatedMinutes} 分钟`;
-
   const completedItems = checklist.topItems.filter((item) => item.status === "completed").length;
   const remainingItems = checklist.totalItems - completedItems;
   const avgTimePerItem = checklist.totalItems > 0
@@ -1096,7 +1047,6 @@ function MigrationChecklistPreviewCard({
     remainingHours > 0
       ? `${remainingHours} 小时 ${remainingMinutes > 0 ? remainingMinutes + " 分钟" : ""}`
       : `${remainingMinutes} 分钟`;
-
   return (
     <Card>
       <BlockStack gap="400">
@@ -1106,7 +1056,6 @@ function MigrationChecklistPreviewCard({
           </Text>
           <Badge tone="info">{`${checklist.totalItems} 项`}</Badge>
         </InlineStack>
-
         <Box background="bg-surface-secondary" padding="400" borderRadius="200">
           <BlockStack gap="200">
             <InlineStack align="space-between">
@@ -1164,7 +1113,6 @@ function MigrationChecklistPreviewCard({
             )}
           </BlockStack>
         </Box>
-
         {checklist.topItems.length > 0 && (
           <BlockStack gap="300">
             <Text as="h3" variant="headingSm">
@@ -1176,13 +1124,11 @@ function MigrationChecklistPreviewCard({
                   item.priority >= 8 ? "critical" :
                   item.priority >= 5 ? "warning" :
                   "info";
-
                 const estimatedTimeText = item.estimatedTime
                   ? item.estimatedTime < 60
                     ? `${item.estimatedTime} 分钟`
                     : `${Math.floor(item.estimatedTime / 60)} 小时 ${item.estimatedTime % 60} 分钟`
                   : "待估算";
-
                 return (
                   <Box
                     key={item.id}
@@ -1246,7 +1192,6 @@ function MigrationChecklistPreviewCard({
             )}
           </BlockStack>
         )}
-
         <Button url="/app/audit/report" fullWidth icon={ArrowRightIcon}>
           查看完整清单
         </Button>
@@ -1263,7 +1208,6 @@ export default function Index() {
   const [showWelcomeBanner, setShowWelcomeBanner] = useState(true);
   const [showScanProgress, setShowScanProgress] = useState(false);
   const [scanStartedAt] = useState(() => new Date());
-
   const data: DashboardData = {
     ...loaderData,
     latestScan: loaderData.latestScan
@@ -1273,45 +1217,35 @@ export default function Index() {
         }
       : null,
   };
-
   useEffect(() => {
     const dismissed = localStorage.getItem(WELCOME_BANNER_DISMISSED_KEY);
     if (dismissed === "true") {
       setShowWelcomeBanner(false);
     }
-
     const isNewInstall = data.showOnboarding && !data.latestScan;
     if (isNewInstall) {
       setShowScanProgress(true);
-
       const timer = setTimeout(() => {
         setShowScanProgress(false);
       }, 12000);
       return () => clearTimeout(timer);
     }
   }, [data.showOnboarding, data.latestScan]);
-
   const handleDismissWelcomeBanner = () => {
     localStorage.setItem(WELCOME_BANNER_DISMISSED_KEY, "true");
     setShowWelcomeBanner(false);
   };
-
   const handleScanComplete = () => {
     setShowScanProgress(false);
   };
-
   const setupSteps = getSetupSteps(data);
   const nextStep = getNextSetupStep(setupSteps);
   const progress = getSetupProgress(setupSteps);
-
   const handleStartAudit = () => {
     navigate("/app/audit/start");
   };
-
   const handleViewDashboard = () => {
-
   };
-
   return (
     <Page
       title="升级迁移交付平台"
@@ -1370,7 +1304,6 @@ export default function Index() {
             </BlockStack>
           </Banner>
         )}
-
         <PageIntroCard
           title="30 秒看懂迁移进度"
           description="快速确认升级风险、迁移进度、最近 24h 健康度，并获取下一步行动建议。"
@@ -1382,7 +1315,6 @@ export default function Index() {
           primaryAction={{ content: "开始 Audit", url: "/app/audit/start" }}
           secondaryAction={{ content: "查看报告", url: "/app/reports" }}
         />
-
         {showScanProgress && data.showOnboarding && !data.latestScan && (
           <PostInstallScanProgress
             shopId={data.shopDomain}
@@ -1401,7 +1333,6 @@ export default function Index() {
             onViewDashboard={handleViewDashboard}
           />
         )}
-
         {}
         {}
         <Layout>
@@ -1422,7 +1353,6 @@ export default function Index() {
             <MigrationProgressCard migrationProgress={data.migrationProgress} />
           </Layout.Section>
         </Layout>
-
         {}
         {data.healthMetrics24h && (
           <Layout>
@@ -1431,7 +1361,6 @@ export default function Index() {
             </Layout.Section>
           </Layout>
         )}
-
         {}
         <Banner tone="info" title="事件口径说明">
           <BlockStack gap="200">
@@ -1444,7 +1373,6 @@ export default function Index() {
             </Text>
           </BlockStack>
         </Banner>
-
         {}
         {data.activeAlerts && data.activeAlerts.length > 0 && (
           <Layout>
@@ -1453,7 +1381,6 @@ export default function Index() {
             </Layout.Section>
           </Layout>
         )}
-
         <Card>
           <BlockStack gap="400">
             <InlineStack align="space-between" blockAlign="center">
@@ -1486,7 +1413,6 @@ export default function Index() {
             </InlineStack>
           </BlockStack>
         </Card>
-
         {data.latestScan && (
           <Layout>
             <Layout.Section variant="oneThird">
@@ -1607,7 +1533,6 @@ export default function Index() {
             <LatestScanCard latestScan={loaderData.latestScan} />
           </Layout.Section>
         </Layout>
-
         {data.migrationChecklist && (
           <Layout>
             <Layout.Section>
@@ -1618,7 +1543,6 @@ export default function Index() {
             </Layout.Section>
           </Layout>
         )}
-
         {(data.dependencyGraph || data.riskDistribution) && (
           <Layout>
             {data.dependencyGraph && (
@@ -1637,7 +1561,6 @@ export default function Index() {
             )}
           </Layout>
         )}
-
         <ScriptTagMigrationBanner
           scriptTagsCount={data.scriptTagsCount}
           hasOrderStatusScripts={data.hasOrderStatusScripts}

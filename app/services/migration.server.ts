@@ -29,12 +29,10 @@ export interface MigrationResult {
 
 export function generatePixelCode(config: MigrationConfig): MigrationResult {
     try {
-
         const supportedPlatforms = ["google", "meta", "tiktok"];
         if (!supportedPlatforms.includes(config.platform)) {
             throw new Error(`Unsupported platform: ${config.platform}. Tracking Guardian supports Google, Meta, and TikTok.`);
         }
-
         const serverSideInstructions = [
             "1. 前往 Tracking Guardian「迁移」页面，点击「一键启用 App Pixel」",
             "2. 前往「设置」页面，在「服务端追踪」部分配置平台凭证",
@@ -43,7 +41,6 @@ export function generatePixelCode(config: MigrationConfig): MigrationResult {
             "",
             "💡 Tracking Guardian 使用服务端 Conversions API，无需粘贴任何客户端代码。",
         ];
-
         return {
             success: true,
             platform: config.platform,
@@ -71,7 +68,6 @@ export interface SavePixelConfigOptions {
 
 export async function savePixelConfig(shopId: string, platform: Platform, platformId: string, options?: SavePixelConfigOptions) {
     const { clientConfig, credentialsEncrypted, serverSideEnabled } = options || {};
-
     const v1SupportedPlatforms = ["google", "meta", "tiktok"];
     if (!v1SupportedPlatforms.includes(platform)) {
         throw new Error(
@@ -79,15 +75,12 @@ export async function savePixelConfig(shopId: string, platform: Platform, platfo
             `其他平台（如 Snapchat、Twitter、Pinterest）将在 v1.1+ 版本中提供支持。`
         );
     }
-
     if (serverSideEnabled === true && !credentialsEncrypted) {
         throw new Error(
             `启用服务端追踪时必须提供 credentialsEncrypted。平台: ${platform}, shopId: ${shopId}`
         );
     }
-
     const environment = options?.environment || "live";
-
     const existingConfig = await prisma.pixelConfig.findUnique({
         where: {
             shopId_platform_environment_platformId: {
@@ -98,12 +91,10 @@ export async function savePixelConfig(shopId: string, platform: Platform, platfo
             },
         },
     });
-
     if (!existingConfig && serverSideEnabled) {
         const { requireEntitlementOrThrow } = await import("./billing/entitlement.server");
         await requireEntitlementOrThrow(shopId, "pixel_destinations");
     }
-
     if (clientConfig && typeof clientConfig === 'object' && 'mode' in clientConfig) {
         const mode = (clientConfig as { mode?: string }).mode;
         if (mode === 'full_funnel') {
@@ -111,11 +102,9 @@ export async function savePixelConfig(shopId: string, platform: Platform, platfo
             await requireEntitlementOrThrow(shopId, "full_funnel");
         }
     }
-
     if (existingConfig) {
         await saveConfigSnapshot(shopId, platform, environment as "test" | "live");
     }
-
     return prisma.pixelConfig.upsert({
         where: {
             shopId_platform_environment_platformId: {
@@ -151,7 +140,6 @@ export async function savePixelConfig(shopId: string, platform: Platform, platfo
 }
 
 export async function completeMigration(shopId: string, platform: Platform, environment: string = "live", platformId?: string | null) {
-
     if (platformId === undefined) {
         const config = await prisma.pixelConfig.findFirst({
             where: {
@@ -165,9 +153,7 @@ export async function completeMigration(shopId: string, platform: Platform, envi
         }
         platformId = config.platformId;
     }
-
     if (platformId === null || platformId === undefined) {
-
         const config = await prisma.pixelConfig.findFirst({
             where: {
                 shopId,
@@ -187,7 +173,6 @@ export async function completeMigration(shopId: string, platform: Platform, envi
             },
         });
     }
-
     return prisma.pixelConfig.update({
         where: {
             shopId_platform_environment_platformId: {
@@ -240,19 +225,13 @@ export function buildWebPixelSettings(
     environment: "test" | "live" = "live",
     mode?: "purchase_only" | "full_funnel"
 ): WebPixelSettings {
-
     const configVersion = "1";
-
     const pixelMode = mode || pixelConfig?.mode || "purchase_only";
-
     return {
         ingestion_key: ingestionKey,
         shop_domain: shopDomain,
-
         config_version: configVersion,
-
         mode: pixelMode,
-
         environment,
     };
 }
@@ -278,11 +257,9 @@ export function needsSettingsUpgrade(settings: unknown): boolean {
     if (!settings || typeof settings !== "object")
         return false;
     const s = settings as Record<string, unknown>;
-
     if (typeof s.ingestion_secret === "string" && typeof s.ingestion_key !== "string") {
         return true;
     }
-
     if ((typeof s.ingestion_key === "string" || typeof s.ingestion_secret === "string")
         && typeof s.shop_domain !== "string") {
         return true;
@@ -349,7 +326,6 @@ export async function createWebPixel(admin: AdminApiContext, ingestionKey?: stri
 }
 
 export async function updateWebPixel(admin: AdminApiContext, webPixelId: string, ingestionKey?: string, shopDomain?: string, environment: "test" | "live" = "live", mode?: "purchase_only" | "full_funnel"): Promise<CreateWebPixelResult> {
-
     const pixelSettings = buildWebPixelSettings(ingestionKey || "", shopDomain || "", undefined, environment, mode);
     const settings = JSON.stringify(pixelSettings);
     try {
@@ -421,20 +397,16 @@ export async function upgradeWebPixelSettings(
             error: "Invalid current settings",
         };
     }
-
     const s = currentSettings as Record<string, unknown>;
-
     const existingKey = (s.ingestion_key as string) || (s.ingestion_secret as string) || ingestionKey;
     const existingEnvironment = (s.environment as "test" | "live") || "live";
     const existingMode = (s.mode as "purchase_only" | "full_funnel") || "purchase_only";
-
     logger.info(`Upgrading WebPixel settings for ${shopDomain}`, {
         webPixelId,
         hadIngestionSecret: typeof s.ingestion_secret === "string",
         hadShopDomain: typeof s.shop_domain === "string",
         existingMode,
     });
-
     return updateWebPixel(admin, webPixelId, existingKey, shopDomain, existingEnvironment, existingMode);
 }
 
@@ -447,7 +419,6 @@ export async function syncWebPixelMode(
     environment: "test" | "live" = "live"
 ): Promise<CreateWebPixelResult> {
     try {
-
         const pixelConfigs = await prisma.pixelConfig.findMany({
             where: {
                 shopId,
@@ -458,7 +429,6 @@ export async function syncWebPixelMode(
                 clientConfig: true,
             },
         });
-
         let mode: "purchase_only" | "full_funnel" = "purchase_only";
         for (const config of pixelConfigs) {
             if (config.clientConfig && typeof config.clientConfig === 'object') {
@@ -468,7 +438,6 @@ export async function syncWebPixelMode(
                 }
             }
         }
-
         logger.info(`Syncing WebPixel mode for ${shopDomain}`, {
             shopId,
             webPixelId,
@@ -476,7 +445,6 @@ export async function syncWebPixelMode(
             environment,
             configCount: pixelConfigs.length,
         });
-
         return updateWebPixel(admin, webPixelId, ingestionKey, shopDomain, environment, mode);
     } catch (error) {
         logger.error("Failed to sync WebPixel mode", {
@@ -519,10 +487,8 @@ export async function getExistingWebPixels(admin: AdminApiContext): Promise<Arra
         }
         `, { variables: { cursor } });
             const result = await response.json();
-
             if (result && typeof result === 'object' && 'errors' in result && Array.isArray(result.errors) && result.errors.length > 0) {
                 const errorMessage = (result.errors[0] as { message?: string })?.message || "Unknown GraphQL error";
-
                 if (errorMessage.includes("doesn't exist") || errorMessage.includes("access")) {
                     logger.warn("WebPixels API not available (may need to reinstall app for read_pixels scope):", { error: errorMessage });
                 } else {
@@ -530,7 +496,6 @@ export async function getExistingWebPixels(admin: AdminApiContext): Promise<Arra
                 }
                 return pixels;
             }
-
             const edges = (result.data?.webPixels?.edges || []) as Array<{
                 node: {
                     id: string;
@@ -562,7 +527,6 @@ export async function getExistingWebPixels(admin: AdminApiContext): Promise<Arra
         }
     }
     catch (error) {
-
         const errorMessage = error instanceof Error ? error.message : String(error);
         if (errorMessage.includes("doesn't exist") || errorMessage.includes("access")) {
             logger.warn("WebPixels API call failed (scope issue, app may need reinstall):", { error: errorMessage });
@@ -642,7 +606,6 @@ export function getScriptTagMigrationGuidance(platform: string, scriptTagId: num
                 "• 配置 Pixel ID 和 Access Token",
             ],
         },
-
     };
     const guidance = platformGuidance[platform] || {
         title: `${platform} 平台迁移`,
@@ -694,7 +657,6 @@ export async function migrateCredentialsToEncrypted(): Promise<{
                 logger.warn(`P0-09: Skipping ${config.id} - invalid credentials format`);
                 continue;
             }
-
             const credsValidation = validateCredentials(legacyCreds);
             if (!credsValidation.success) {
                 logger.warn(`P0-09: Skipping ${config.id} - invalid credentials: ${credsValidation.errors.join(", ")}`);
@@ -816,7 +778,6 @@ export async function checkAppScopes(admin: AdminApiContext): Promise<boolean> {
         return scopes.includes("read_customer_events");
     } catch (error) {
         logger.error("Failed to check app scopes:", error);
-
         return true;
     }
 }

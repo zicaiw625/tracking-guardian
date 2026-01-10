@@ -25,12 +25,10 @@ export function MigrationTimelineView({
   onItemClick,
 }: MigrationTimelineViewProps) {
   const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set(["canStart", "blocked"]));
-
   const { canStartItems, blockedItems, completedItems } = useMemo(() => {
     const canStart: typeof timeline.assets = [];
     const blocked: typeof timeline.assets = [];
     const completed: typeof timeline.assets = [];
-
     timeline.assets.forEach((item) => {
       if (item.asset.migrationStatus === "completed") {
         completed.push(item);
@@ -40,14 +38,12 @@ export function MigrationTimelineView({
         blocked.push(item);
       }
     });
-
     return {
       canStartItems: canStart,
       blockedItems: blocked,
       completedItems: completed,
     };
   }, [timeline.assets]);
-
   const toggleSection = (section: string) => {
     setExpandedSections((prev) => {
       const next = new Set(prev);
@@ -59,7 +55,6 @@ export function MigrationTimelineView({
       return next;
     });
   };
-
   const formatTime = (minutes: number) => {
     if (minutes < 60) {
       return `${minutes} 分钟`;
@@ -68,7 +63,6 @@ export function MigrationTimelineView({
     const mins = minutes % 60;
     return mins > 0 ? `${hours} 小时 ${mins} 分钟` : `${hours} 小时`;
   };
-
   const getRiskBadgeTone = (risk: string): "critical" | "info" | undefined => {
     switch (risk) {
       case "high":
@@ -81,11 +75,9 @@ export function MigrationTimelineView({
         return undefined;
     }
   };
-
   const renderTimelineItem = (item: typeof timeline.assets[0], index: number) => {
     const isCompleted = item.asset.migrationStatus === "completed";
     const riskBadgeTone = getRiskBadgeTone(item.asset.riskLevel);
-
     return (
       <Box
         key={item.asset.id}
@@ -147,7 +139,6 @@ export function MigrationTimelineView({
               )}
             </InlineStack>
           </InlineStack>
-
           {item.blockingDependencies.length > 0 && (
             <Box paddingBlockStart="200">
               <Box background="bg-surface-secondary" padding="200" borderRadius="100">
@@ -162,7 +153,6 @@ export function MigrationTimelineView({
       </Box>
     );
   };
-
   return (
     <Card>
       <BlockStack gap="400">
@@ -174,7 +164,6 @@ export function MigrationTimelineView({
             {`预计总时间: ${formatTime(timeline.totalEstimatedTime)}`}
           </Badge>
         </InlineStack>
-
         {timeline.criticalPath.length > 0 && (
           <Box background="bg-surface-secondary" padding="300" borderRadius="200">
             <BlockStack gap="200">
@@ -203,7 +192,6 @@ export function MigrationTimelineView({
             </BlockStack>
           </Box>
         )}
-
         {canStartItems.length > 0 && (
           <BlockStack gap="300">
             <Button
@@ -224,7 +212,6 @@ export function MigrationTimelineView({
             </Collapsible>
           </BlockStack>
         )}
-
         {blockedItems.length > 0 && (
           <BlockStack gap="300">
             <Button
@@ -245,7 +232,6 @@ export function MigrationTimelineView({
             </Collapsible>
           </BlockStack>
         )}
-
         {completedItems.length > 0 && (
           <BlockStack gap="300">
             <Button
@@ -266,7 +252,6 @@ export function MigrationTimelineView({
             </Collapsible>
           </BlockStack>
         )}
-
         {canStartItems.length === 0 && blockedItems.length === 0 && completedItems.length === 0 && (
           <Box padding="400">
             <Text as="p" tone="subdued" alignment="center">

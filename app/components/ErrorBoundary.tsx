@@ -41,7 +41,6 @@ export function ErrorCard({
               )}
             </BlockStack>
           </Banner>
-
           <InlineStack gap="200">
             {showHomeButton && (
               <Link to="/app">
@@ -108,7 +107,6 @@ function getHttpErrorInfo(status: number): { title: string; message: string } {
 
 export function RouteErrorBoundary() {
   const error = useRouteError();
-
   if (isRouteErrorResponse(error)) {
     const { title, message } = getHttpErrorInfo(error.status);
     return (
@@ -122,7 +120,6 @@ export function RouteErrorBoundary() {
       />
     );
   }
-
   if (error instanceof Error) {
     const isDev = process.env.NODE_ENV !== "production";
     return (
@@ -139,7 +136,6 @@ export function RouteErrorBoundary() {
       />
     );
   }
-
   return (
     <ErrorCard
       title="未知错误"
@@ -214,7 +210,6 @@ export function LoadingError({
     typeof error === "string"
       ? error
       : error?.message || "加载数据时发生错误";
-
   return (
     <Banner title="加载失败" tone="critical">
       <BlockStack gap="200">

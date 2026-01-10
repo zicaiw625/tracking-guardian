@@ -237,14 +237,12 @@ export function validateTemplateConfig(
   credentials: Record<string, Record<string, string>>
 ): { valid: boolean; errors: string[] } {
   const errors: string[] = [];
-
   for (const platform of template.platforms) {
     const platformCreds = credentials[platform];
     if (!platformCreds) {
       errors.push(`缺少 ${platform} 平台的凭证`);
       continue;
     }
-
     const required = template.defaultCredentials[platform]?.required || [];
     for (const field of required) {
       if (!platformCreds[field] || platformCreds[field].trim() === "") {
@@ -252,7 +250,6 @@ export function validateTemplateConfig(
       }
     }
   }
-
   return {
     valid: errors.length === 0,
     errors,

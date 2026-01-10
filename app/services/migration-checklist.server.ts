@@ -36,20 +36,16 @@ function calculatePriority(
   category: string,
   allAssets: AuditAsset[] = []
 ): number {
-
   if (asset.priority !== null && asset.priority !== undefined) {
     return asset.priority;
   }
-
   let priority = 5;
-
   const riskWeights: Record<string, number> = {
     high: 3.5,
     medium: 1.5,
     low: 0.5,
   };
   priority += riskWeights[asset.riskLevel] || 1.5;
-
   const categoryWeights: Record<string, number> = {
     pixel: 2.0,
     affiliate: 1.5,
@@ -59,7 +55,6 @@ function calculatePriority(
     other: 0.5,
   };
   priority += categoryWeights[category] || 0.5;
-
   const criticalPlatforms = ["google", "meta", "tiktok"];
   const importantPlatforms = ["pinterest", "snapchat"];
   if (asset.platform) {
@@ -69,23 +64,19 @@ function calculatePriority(
       priority += 0.8;
     }
   }
-
   const sourceWeights: Record<string, number> = {
     merchant_confirmed: 1.5,
     api_scan: 0.8,
     manual_paste: 0.5,
   };
   priority += sourceWeights[asset.sourceType] || 0.5;
-
   if (asset.migrationStatus === "pending") {
     priority += 0.5;
   } else if (asset.migrationStatus === "in_progress") {
     priority += 0.3;
   }
-
   const dependencies = (asset.dependencies as string[] | null) || [];
   if (dependencies.length > 0) {
-
     const incompleteDeps = dependencies.filter(depId => {
       const depAsset = allAssets.find(a => a.id === depId);
       return depAsset && depAsset.migrationStatus !== "completed";
@@ -94,7 +85,6 @@ function calculatePriority(
       priority += 1.0;
     }
   }
-
   const isDependencyOf = allAssets.some(a => {
     const deps = (a.dependencies as string[] | null) || [];
     return deps.includes(asset.id) && a.migrationStatus !== "completed";
@@ -102,7 +92,6 @@ function calculatePriority(
   if (isDependencyOf) {
     priority += 1.2;
   }
-
   if (asset.details && typeof asset.details === "object") {
     const details = asset.details as Record<string, unknown>;
     const displayScope = details.display_scope as string | undefined;
@@ -113,7 +102,6 @@ function calculatePriority(
     } else if (displayScope === "all") {
       priority += 1.2;
     }
-
     const orderImpact = details.orderImpact as number | undefined;
     const revenueImpact = details.revenueImpact as number | undefined;
     if (orderImpact && orderImpact > 100) {
@@ -122,31 +110,26 @@ function calculatePriority(
     if (revenueImpact && revenueImpact > 10000) {
       priority += 0.5;
     }
-
     const hasCriticalEvents = details.hasCriticalEvents as boolean | undefined;
     if (hasCriticalEvents) {
       priority += 0.4;
     }
-
     const platformCount = details.platformCount as number | undefined;
     if (platformCount && platformCount > 1) {
       priority += 0.2 * Math.min(platformCount, 3);
     }
   }
-
   const migrationDifficultyWeights: Record<string, number> = {
     web_pixel: 0.5,
     ui_extension: 0.3,
     server_side: -0.2,
     none: -1.0,
   };
-
   const baseMigrationWeight = migrationDifficultyWeights[asset.suggestedMigration] || 0;
   const migrationWeight = asset.riskLevel === "high"
     ? Math.max(0, baseMigrationWeight)
     : baseMigrationWeight;
   priority += migrationWeight;
-
   if (asset.details && typeof asset.details === "object") {
     const details = asset.details as Record<string, unknown>;
     const enhancedRiskScore = details.enhancedRiskScore as number | undefined;
@@ -154,7 +137,6 @@ function calculatePriority(
       priority += 0.5;
     }
   }
-
   return Math.min(10, Math.max(1, Math.round(priority * 10) / 10));
 }
 
@@ -166,7 +148,6 @@ function estimateMigrationTime(
   hasDependencies?: boolean,
   complexity?: number
 ): number {
-
   const baseTimes: Record<string, Record<string, number>> = {
     pixel: {
       web_pixel: 12,
@@ -197,10 +178,8 @@ function estimateMigrationTime(
       none: 0,
     },
   };
-
   const categoryTimes = baseTimes[category] || baseTimes.other;
   let migrationTime = categoryTimes[suggestedMigration] || 15;
-
   if (platform) {
     const complexPlatforms = ["google", "meta"];
     if (complexPlatforms.includes(platform) && suggestedMigration === "server_side") {
@@ -209,29 +188,24 @@ function estimateMigrationTime(
       migrationTime += 5;
     }
   }
-
   if (riskLevel === "high") {
     migrationTime = Math.round(migrationTime * 1.25);
   } else if (riskLevel === "low") {
     migrationTime = Math.round(migrationTime * 0.9);
   }
-
   if (complexity !== undefined) {
     const complexityMultiplier = 1 + (complexity / 20) * 0.4;
     migrationTime = Math.round(migrationTime * complexityMultiplier);
   }
-
   if (hasDependencies) {
     migrationTime += 3;
   }
-
   return Math.max(5, Math.min(120, migrationTime));
 }
 
 export async function generateMigrationChecklist(
   shopId: string
 ): Promise<MigrationChecklist> {
-
   const assets = await prisma.auditAsset.findMany({
     where: {
       shopId,
@@ -257,12 +231,9 @@ export async function generateMigrationChecklist(
       createdAt: "desc",
     },
   });
-
   const items: MigrationChecklistItem[] = await Promise.all(assets.map(async (asset) => {
-
     const dependencies = (asset.dependencies as string[] | null) || [];
     const hasDependencies = dependencies.length > 0;
-
     let complexity = 5;
     if (asset.details && typeof asset.details === "object") {
       const details = asset.details as Record<string, unknown>;
@@ -271,7 +242,6 @@ export async function generateMigrationChecklist(
         complexity = 8;
       }
     }
-
     const priority = asset.priority ?? (
       asset.riskLevel === "high" ? 9 :
       asset.riskLevel === "medium" ? 6 :
@@ -287,7 +257,6 @@ export async function generateMigrationChecklist(
       hasDependencies,
       complexity
     );
-
     const riskReason = getRiskReason({
       category: asset.category,
       platform: asset.platform,
@@ -300,7 +269,6 @@ export async function generateMigrationChecklist(
       suggestedMigration: asset.suggestedMigration,
       details: asset.details as Record<string, unknown> | null,
     });
-
     return {
       id: `checklist-${asset.id}`,
       assetId: asset.id,
@@ -326,10 +294,8 @@ export async function generateMigrationChecklist(
       fingerprint: asset.fingerprint || null,
     };
   }));
-
   const dependencyMap = new Map<string, string[]>();
   const dependentsMap = new Map<string, string[]>();
-
   assets.forEach(asset => {
     const deps = (asset.dependencies as string[] | null) || [];
     dependencyMap.set(asset.id, deps);
@@ -340,7 +306,6 @@ export async function generateMigrationChecklist(
       dependentsMap.get(depId)!.push(asset.id);
     });
   });
-
   const inDegree = new Map<string, number>();
   items.forEach(item => {
     const deps = dependencyMap.get(item.assetId) || [];
@@ -348,24 +313,19 @@ export async function generateMigrationChecklist(
       items.some(i => i.assetId === depId)
     ).length);
   });
-
   const topologicalOrder: string[] = [];
   const queue: string[] = [];
-
   inDegree.forEach((degree, assetId) => {
     if (degree === 0) {
       queue.push(assetId);
     }
   });
-
   while (queue.length > 0) {
     const assetId = queue.shift();
-
     if (assetId === undefined) {
       break;
     }
     topologicalOrder.push(assetId);
-
     const dependents = dependentsMap.get(assetId) || [];
     dependents.forEach(depId => {
       const current = inDegree.get(depId) ?? 0;
@@ -375,45 +335,35 @@ export async function generateMigrationChecklist(
       }
     });
   }
-
   const topologicalIndex = new Map<string, number>();
   topologicalOrder.forEach((assetId, index) => {
     topologicalIndex.set(assetId, index);
   });
-
   items.sort((a, b) => {
-
     const priorityDiff = b.priority - a.priority;
     if (Math.abs(priorityDiff) > 0.5) {
       return priorityDiff;
     }
-
     const aTopoIndex = topologicalIndex.get(a.assetId) ?? 999;
     const bTopoIndex = topologicalIndex.get(b.assetId) ?? 999;
     if (aTopoIndex !== bTopoIndex) {
       return aTopoIndex - bTopoIndex;
     }
-
     const aAsset = assets.find(asset => asset.id === a.assetId);
     const bAsset = assets.find(asset => asset.id === b.assetId);
-
     if (aAsset && bAsset) {
       const aIsDependencyOf = (dependentsMap.get(aAsset.id) || []).length > 0;
       const bIsDependencyOf = (dependentsMap.get(bAsset.id) || []).length > 0;
-
       if (aIsDependencyOf && !bIsDependencyOf) return -1;
       if (!aIsDependencyOf && bIsDependencyOf) return 1;
     }
-
     const riskOrder = { high: 3, medium: 2, low: 1 };
     return riskOrder[b.riskLevel] - riskOrder[a.riskLevel];
   });
-
   const highPriorityItems = items.filter((i) => i.riskLevel === "high").length;
   const mediumPriorityItems = items.filter((i) => i.riskLevel === "medium").length;
   const lowPriorityItems = items.filter((i) => i.riskLevel === "low").length;
   const estimatedTotalTime = items.reduce((sum, item) => sum + item.estimatedTime, 0);
-
   return {
     shopId,
     totalItems: items.length,
@@ -435,17 +385,14 @@ function getMigrationDescription(asset: AuditAsset): string {
     analytics: "站内分析",
     other: "其他",
   };
-
   const migrationNames: Record<string, string> = {
     web_pixel: "迁移到 Web Pixel",
     ui_extension: "迁移到 UI Extension",
     server_side: "迁移到服务端 CAPI",
     none: "无需迁移",
   };
-
   const categoryName = categoryNames[asset.category] || "其他";
   const migrationName = migrationNames[asset.suggestedMigration] || "未知";
-
   if (asset.platform) {
     const platformNames: Record<string, string> = {
       google: "Google Analytics",
@@ -456,7 +403,6 @@ function getMigrationDescription(asset: AuditAsset): string {
     const platformName = platformNames[asset.platform] || asset.platform;
     return `${categoryName} (${platformName}) - ${migrationName}`;
   }
-
   return `${categoryName} - ${migrationName}`;
 }
 
@@ -464,11 +410,9 @@ export async function getMigrationChecklist(
   shopId: string,
   forceRefresh = false
 ): Promise<MigrationChecklist> {
-
   if (forceRefresh) {
     return generateMigrationChecklist(shopId);
   }
-
   const recentScan = await prisma.scanReport.findFirst({
     where: {
       shopId,
@@ -481,11 +425,9 @@ export async function getMigrationChecklist(
       createdAt: "desc",
     },
   });
-
   if (recentScan) {
     return generateMigrationChecklist(shopId);
   }
-
   return {
     shopId,
     totalItems: 0,

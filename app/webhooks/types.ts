@@ -2,17 +2,11 @@ import type { Shop, PixelConfig } from "@prisma/client";
 import type { AdminApiContext } from "@shopify/shopify-app-remix/server";
 
 export interface WebhookContext {
-
   shop: string;
-
   topic: string;
-
   webhookId: string | null;
-
   payload: unknown;
-
   admin: AdminApiContext | null;
-
   session: unknown;
 }
 
@@ -24,7 +18,6 @@ export interface WebhookHandlerResult {
   success: boolean;
   status: number;
   message: string;
-
   orderId?: string;
 }
 

@@ -24,15 +24,10 @@ export type PlatformCredentials =
   | TikTokCredentials;
 
 export interface PlatformCredentialsFormProps {
-
   platform: PlatformType;
-
   values: PlatformCredentials;
-
   onChange: (values: PlatformCredentials) => void;
-
   errors?: Record<string, string>;
-
   disabled?: boolean;
 }
 
@@ -91,7 +86,6 @@ function GoogleForm({ values, onChange, errors, disabled }: GoogleFormProps) {
     (values.measurementId && !values.measurementId.match(/^G-[A-Z0-9]+$/i)
       ? "格式应为 G-XXXXXXXXXX"
       : undefined);
-
   return (
     <BlockStack gap="300">
       <Banner tone="info">

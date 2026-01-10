@@ -19,10 +19,8 @@ function getRating(metric: Metric): "good" | "needs-improvement" | "poor" {
     LCP: { good: 2500, poor: 4000 },
     TTFB: { good: 800, poor: 1800 },
   };
-
   const threshold = thresholds[metric.name];
   if (!threshold) return "good";
-
   if (metric.value <= threshold.good) return "good";
   if (metric.value <= threshold.poor) return "needs-improvement";
   return "poor";
@@ -30,7 +28,6 @@ function getRating(metric: Metric): "good" | "needs-improvement" | "poor" {
 
 function sendToAnalytics(metric: WebVitalsMetric) {
   const body = JSON.stringify(metric);
-
   if (navigator.sendBeacon) {
     navigator.sendBeacon("/api/performance", body);
   } else {
@@ -42,7 +39,6 @@ function sendToAnalytics(metric: WebVitalsMetric) {
         "Content-Type": "application/json",
       },
     }).catch((err) => {
-
       console.error("Failed to send performance metric:", err);
     });
   }
@@ -50,7 +46,6 @@ function sendToAnalytics(metric: WebVitalsMetric) {
 
 export function reportWebVitals() {
   if (typeof window === "undefined") return;
-
   const reportMetric = (metric: Metric) => {
     const webVitalsMetric: WebVitalsMetric = {
       name: metric.name,
@@ -62,10 +57,8 @@ export function reportWebVitals() {
       url: window.location.href,
       timestamp: Date.now(),
     };
-
     sendToAnalytics(webVitalsMetric);
   };
-
   onCLS(reportMetric);
   onFCP(reportMetric);
   onINP(reportMetric);

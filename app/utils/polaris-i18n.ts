@@ -3,7 +3,6 @@ type PolarisTranslations = Record<string, unknown>;
 export function getPolarisTranslations(
   translations: PolarisTranslations | { default: PolarisTranslations }
 ): PolarisTranslations {
-
   if (
     typeof translations === "object" &&
     translations !== null &&
@@ -13,6 +12,5 @@ export function getPolarisTranslations(
   ) {
     return translations.default as PolarisTranslations;
   }
-
   return translations as PolarisTranslations;
 }

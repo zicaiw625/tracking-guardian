@@ -6,7 +6,6 @@ export async function checkGDPRCompliance(): Promise<GDPRComplianceResult> {
   const now = new Date();
   const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
   const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
-
   const pendingJobs = await prisma.gDPRJob.findMany({
     where: {
       status: { in: ["queued", "processing", "failed"] },
@@ -20,36 +19,29 @@ export async function checkGDPRCompliance(): Promise<GDPRComplianceResult> {
     },
     orderBy: { createdAt: "asc" },
   });
-
   const warnings: string[] = [];
   const criticals: string[] = [];
   let overdueCount = 0;
   let oldestPendingAge: number | null = null;
-
   for (const job of pendingJobs) {
     const ageMs = now.getTime() - job.createdAt.getTime();
     const ageDays = Math.floor(ageMs / (24 * 60 * 60 * 1000));
-
     if (oldestPendingAge === null || ageDays > oldestPendingAge) {
       oldestPendingAge = ageDays;
     }
-
     if (job.createdAt < thirtyDaysAgo) {
       overdueCount++;
       criticals.push(
         `[CRITICAL] GDPR ${job.jobType} for ${job.shopDomain} is ${ageDays} days old (> 30 day limit). Job ID: ${job.id}`
       );
     }
-
     else if (job.createdAt < sevenDaysAgo) {
       warnings.push(
         `[WARNING] GDPR ${job.jobType} for ${job.shopDomain} is ${ageDays} days old. Job ID: ${job.id}`
       );
     }
   }
-
   const isCompliant = criticals.length === 0;
-
   if (!isCompliant) {
     logger.error("[GDPR] Compliance violation detected!", {
       overdueCount,
@@ -63,7 +55,6 @@ export async function checkGDPRCompliance(): Promise<GDPRComplianceResult> {
       oldestPendingAge,
     });
   }
-
   return {
     isCompliant,
     pendingCount: pendingJobs.length,
@@ -78,7 +69,6 @@ export async function getGDPRDeletionSummary(
   startDate: Date,
   endDate: Date
 ): Promise<GDPRDeletionSummary> {
-
   const completedJobs = await prisma.gDPRJob.findMany({
     where: {
       status: "completed",
@@ -92,15 +82,11 @@ export async function getGDPRDeletionSummary(
       result: true,
     },
   });
-
   const byJobType: Record<string, number> = {};
   const deletionsByTable: Record<string, number> = {};
   let totalRecordsDeleted = 0;
-
   for (const job of completedJobs) {
-
     byJobType[job.jobType] = (byJobType[job.jobType] || 0) + 1;
-
     const result = job.result as Record<string, unknown> | null;
     if (result?.deletedCounts && typeof result.deletedCounts === "object") {
       const counts = result.deletedCounts as Record<string, number>;
@@ -112,7 +98,6 @@ export async function getGDPRDeletionSummary(
       }
     }
   }
-
   return {
     totalJobsCompleted: completedJobs.length,
     byJobType,

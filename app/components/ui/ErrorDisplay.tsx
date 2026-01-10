@@ -1,33 +1,23 @@
 import { Banner, Card, Text, BlockStack, Button, InlineStack } from "@shopify/polaris";
 
 export interface ErrorDisplayProps {
-
   title?: string;
-
   message: string;
-
   code?: string;
-
   retryable?: boolean;
-
   onRetry?: () => void;
-
   onDismiss?: () => void;
-
   variant?: "banner" | "card";
 }
 
 export interface ApiErrorDisplayProps {
-
   error: {
     message?: string;
     error?: string;
     code?: string;
     details?: Array<{ field: string; message: string }>;
   } | string | null;
-
   onRetry?: () => void;
-
   onDismiss?: () => void;
 }
 
@@ -67,7 +57,6 @@ export function ErrorDisplay({
       </Card>
     );
   }
-
   return (
     <Banner
       title={title}
@@ -97,7 +86,6 @@ export function ApiErrorDisplay({
   onDismiss,
 }: ApiErrorDisplayProps) {
   if (!error) return null;
-
   if (typeof error === "string") {
     return (
       <ErrorDisplay
@@ -108,10 +96,8 @@ export function ApiErrorDisplay({
       />
     );
   }
-
   const message = error.message || error.error || "发生未知错误";
   const code = error.code;
-
   if (error.details && error.details.length > 0) {
     return (
       <Banner
@@ -135,7 +121,6 @@ export function ApiErrorDisplay({
       </Banner>
     );
   }
-
   return (
     <ErrorDisplay
       message={message}

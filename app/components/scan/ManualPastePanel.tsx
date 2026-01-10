@@ -54,14 +54,11 @@ export function ManualPastePanel({ shopId, onAssetsCreated }: ManualPastePanelPr
   const [realtimeAnalysisResult, setRealtimeAnalysisResult] = useState<ScriptAnalysisResult | null>(null);
   const [validationErrors, setValidationErrors] = useState<string[]>([]);
   const fetcher = useFetcher();
-
   const validateScript = useCallback((content: string): string[] => {
     const errors: string[] = [];
-
     if (!content.trim()) {
       return errors;
     }
-
     const dangerousPatterns = [
       {
         pattern: /eval\s*\(/gi,
@@ -84,17 +81,14 @@ export function ManualPastePanel({ shopId, onAssetsCreated }: ManualPastePanelPr
         message: "检测到外部脚本引用，需要验证来源",
       },
     ];
-
     dangerousPatterns.forEach(({ pattern, message }) => {
       if (pattern.test(content)) {
         errors.push(message);
       }
     });
-
     const scriptTags = content.match(/<script[^>]*>[\s\S]*?<\/script>/gi);
     if (scriptTags) {
       scriptTags.forEach((tag, index) => {
-
         const openCount = (tag.match(/<script/gi) || []).length;
         const closeCount = (tag.match(/<\/script>/gi) || []).length;
         if (openCount !== closeCount) {
@@ -102,15 +96,12 @@ export function ManualPastePanel({ shopId, onAssetsCreated }: ManualPastePanelPr
         }
       });
     }
-
     const unescapedHtml = content.match(/<[^>]+>(?![^<]*<\/script>)/g);
     if (unescapedHtml && unescapedHtml.length > 0) {
       errors.push("检测到未转义的 HTML 标签，可能导致解析错误");
     }
-
     return errors;
   }, []);
-
   useEffect(() => {
     if (scriptContent.trim()) {
       const errors = validateScript(scriptContent);
@@ -119,18 +110,14 @@ export function ManualPastePanel({ shopId, onAssetsCreated }: ManualPastePanelPr
       setValidationErrors([]);
     }
   }, [scriptContent, validateScript]);
-
   const handleAnalyze = useCallback(() => {
     if (!scriptContent.trim()) {
       return;
     }
-
     const errors = validateScript(scriptContent);
     if (errors.length > 0) {
-
       setValidationErrors(errors);
     }
-
     setIsAnalyzing(true);
     fetcher.submit(
       {
@@ -140,10 +127,8 @@ export function ManualPastePanel({ shopId, onAssetsCreated }: ManualPastePanelPr
       { method: "post" }
     );
   }, [scriptContent, fetcher, validateScript]);
-
   const handleRealtimeAnalysis = useCallback((content: string) => {
     if (!content.trim()) return;
-
     fetcher.submit(
       {
         _action: "realtime_analyze_manual_paste",
@@ -152,12 +137,10 @@ export function ManualPastePanel({ shopId, onAssetsCreated }: ManualPastePanelPr
       { method: "post" }
     );
   }, [fetcher]);
-
   const handleProcess = useCallback(() => {
     if (!analysisResult) {
       return;
     }
-
     setIsProcessing(true);
     fetcher.submit(
       {
@@ -167,7 +150,6 @@ export function ManualPastePanel({ shopId, onAssetsCreated }: ManualPastePanelPr
       { method: "post" }
     );
   }, [scriptContent, analysisResult, fetcher]);
-
   useEffect(() => {
     if (fetcher.data && typeof fetcher.data === "object" && fetcher.data !== null) {
       const data = fetcher.data as { analysis?: AnalysisResult; realtimeAnalysis?: ScriptAnalysisResult };
@@ -175,13 +157,11 @@ export function ManualPastePanel({ shopId, onAssetsCreated }: ManualPastePanelPr
         setAnalysisResult(data.analysis);
         setIsAnalyzing(false);
       }
-
       if (data.realtimeAnalysis) {
         setRealtimeAnalysisResult(data.realtimeAnalysis);
       }
     }
   }, [fetcher.data]);
-
   useEffect(() => {
     if (fetcher.data && typeof fetcher.data === "object" && fetcher.data !== null && "processed" in fetcher.data) {
       const data = fetcher.data as { processed: { created: number; updated: number; duplicates: number } };
@@ -195,11 +175,9 @@ export function ManualPastePanel({ shopId, onAssetsCreated }: ManualPastePanelPr
       }
     }
   }, [fetcher.data, onAssetsCreated]);
-
   const hasContent = scriptContent.trim().length > 0;
   const canAnalyze = hasContent && !isAnalyzing && !isProcessing;
   const canProcess = analysisResult && !isProcessing && !isAnalyzing;
-
   const riskLevelBadge = analysisResult
     ? {
         high: { tone: "critical" as const, label: "高风险" },
@@ -207,7 +185,6 @@ export function ManualPastePanel({ shopId, onAssetsCreated }: ManualPastePanelPr
         low: { tone: "success" as const, label: "低风险" },
       }[analysisResult.summary.overallRiskLevel]
     : null;
-
   return (
     <Card>
       <BlockStack gap="400">
@@ -217,7 +194,6 @@ export function ManualPastePanel({ shopId, onAssetsCreated }: ManualPastePanelPr
           </Text>
           <Badge>手动输入</Badge>
         </InlineStack>
-
         <Banner tone="info">
           <BlockStack gap="200">
             <Text as="p" variant="bodySm" fontWeight="semibold">
@@ -246,7 +222,6 @@ export function ManualPastePanel({ shopId, onAssetsCreated }: ManualPastePanelPr
             </List>
           </BlockStack>
         </Banner>
-
         {validationErrors.length > 0 && (
           <Banner tone="warning">
             <BlockStack gap="200">
@@ -265,7 +240,6 @@ export function ManualPastePanel({ shopId, onAssetsCreated }: ManualPastePanelPr
             </BlockStack>
           </Banner>
         )}
-
         <Suspense fallback={
           <TextField
             label="脚本内容"
@@ -290,7 +264,6 @@ export function ManualPastePanel({ shopId, onAssetsCreated }: ManualPastePanelPr
             enableBatchPaste={true}
           />
         </Suspense>
-
         {analysisResult && (
           <InlineStack gap="200">
             <Button
@@ -303,7 +276,6 @@ export function ManualPastePanel({ shopId, onAssetsCreated }: ManualPastePanelPr
             </Button>
           </InlineStack>
         )}
-
         {isProcessing && (
           <Box padding="400">
             <InlineStack gap="300" blockAlign="center">
@@ -314,14 +286,12 @@ export function ManualPastePanel({ shopId, onAssetsCreated }: ManualPastePanelPr
             </InlineStack>
           </Box>
         )}
-
         {analysisResult && (
           <BlockStack gap="400">
             <Divider />
             <Text as="h3" variant="headingSm">
               分析结果
             </Text>
-
             <Box background="bg-surface-secondary" padding="400" borderRadius="200">
               <BlockStack gap="300">
                 <InlineStack align="space-between">
@@ -356,7 +326,6 @@ export function ManualPastePanel({ shopId, onAssetsCreated }: ManualPastePanelPr
                 </InlineStack>
               </BlockStack>
             </Box>
-
             {(() => {
               if (analysisResult?.assets && analysisResult.assets.length > 0) {
                 return (
@@ -372,14 +341,12 @@ export function ManualPastePanel({ shopId, onAssetsCreated }: ManualPastePanelPr
                           low: { tone: "success", label: "低" },
                         };
                         const riskBadge = riskBadgeMap[asset.riskLevel] || riskBadgeMap.medium;
-
                         const confidenceBadgeMap: Record<string, { tone: "success" | "info" | undefined; label: string }> = {
                           high: { tone: "success", label: "高置信度" },
                           medium: { tone: "info", label: "中置信度" },
                           low: { tone: undefined, label: "低置信度" },
                         };
                         const confidenceBadge = confidenceBadgeMap[asset.confidence] || confidenceBadgeMap.medium;
-
                         return (
                           <Box
                             key={index}
@@ -430,7 +397,6 @@ export function ManualPastePanel({ shopId, onAssetsCreated }: ManualPastePanelPr
               }
               return null;
             })()}
-
             {(() => {
               if (fetcher.data && typeof fetcher.data === "object" && fetcher.data !== null && "error" in fetcher.data) {
                 return (

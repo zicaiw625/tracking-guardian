@@ -53,14 +53,12 @@ export function ChannelReconciliationPanel({
   const [selectedPlatform, setSelectedPlatform] = useState<string>("all");
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
   const [showOrderDetails, setShowOrderDetails] = useState(false);
-
   const filteredPlatforms = useMemo(() => {
     if (selectedPlatform === "all") {
       return data.platforms;
     }
     return data.platforms.filter((p) => p.platform === selectedPlatform);
   }, [data.platforms, selectedPlatform]);
-
   const handleOrderClick = (orderId: string) => {
     setSelectedOrderId(orderId);
     setShowOrderDetails(true);
@@ -68,14 +66,12 @@ export function ChannelReconciliationPanel({
       onOrderClick(orderId);
     }
   };
-
   const overallHealth = useMemo(() => {
     if (data.summary.overallMatchRate >= 95) return { tone: "success" as const, label: "优秀" };
     if (data.summary.overallMatchRate >= 90) return { tone: "warning" as const, label: "良好" };
     if (data.summary.overallMatchRate >= 80) return { tone: "info" as const, label: "一般" };
     return { tone: "critical" as const, label: "需改进" };
   }, [data.summary.overallMatchRate]);
-
   return (
     <BlockStack gap="500">
       <Card>
@@ -93,7 +89,6 @@ export function ChannelReconciliationPanel({
               )}
             </InlineStack>
           </InlineStack>
-
           <BlockStack gap="300">
             <InlineStack gap="400" wrap>
               <Box minWidth="200px">
@@ -137,7 +132,6 @@ export function ChannelReconciliationPanel({
                 </BlockStack>
               </Box>
             </InlineStack>
-
             <Text as="p" variant="bodySm" tone="subdued">
               分析期间: {new Date(data.summary.periodStart).toLocaleString("zh-CN")} -{" "}
               {new Date(data.summary.periodEnd).toLocaleString("zh-CN")}
@@ -145,7 +139,6 @@ export function ChannelReconciliationPanel({
           </BlockStack>
         </BlockStack>
       </Card>
-
       {data.crossPlatformAnalysis.platformsWithDiscrepancies.length > 0 && (
         <Card>
           <BlockStack gap="300">
@@ -185,7 +178,6 @@ export function ChannelReconciliationPanel({
           </BlockStack>
         </Card>
       )}
-
       <Card>
         <BlockStack gap="300">
           <InlineStack align="space-between" blockAlign="center">
@@ -210,7 +202,6 @@ export function ChannelReconciliationPanel({
           </InlineStack>
         </BlockStack>
       </Card>
-
       <Card>
         <BlockStack gap="400">
           <DataTable
@@ -245,7 +236,6 @@ export function ChannelReconciliationPanel({
               const criticalIssues = comparison.issues.filter(
                 (i) => i.severity === "critical"
               ).length;
-
               return [
                 <Text key="platform" as="span" fontWeight="semibold">
                   {platformName}
@@ -279,7 +269,6 @@ export function ChannelReconciliationPanel({
           />
         </BlockStack>
       </Card>
-
       {filteredPlatforms.map((comparison) => (
         <PlatformComparisonCard
           key={comparison.platform}
@@ -287,7 +276,6 @@ export function ChannelReconciliationPanel({
           onOrderClick={handleOrderClick}
         />
       ))}
-
       {showOrderDetails && selectedOrderId && (
         <Modal
           open={showOrderDetails}
@@ -319,7 +307,6 @@ function PlatformComparisonCard({
 }) {
   const [expanded, setExpanded] = useState(false);
   const platformName = PLATFORM_NAMES[comparison.platform] || comparison.platform;
-
   return (
     <Card>
       <BlockStack gap="400">
@@ -359,11 +346,9 @@ function PlatformComparisonCard({
             {expanded ? "收起" : "展开详情"}
           </Button>
         </InlineStack>
-
         {expanded && (
           <BlockStack gap="400">
             <Divider />
-
             <BlockStack gap="300">
               <Text as="h4" variant="headingSm">
                 统计信息
@@ -431,7 +416,6 @@ function PlatformComparisonCard({
                 </BlockStack>
               </Box>
             </BlockStack>
-
             {comparison.issues.length > 0 && (
               <BlockStack gap="300">
                 <Text as="h4" variant="headingSm">
@@ -452,7 +436,6 @@ function PlatformComparisonCard({
                 </BlockStack>
               </BlockStack>
             )}
-
             {comparison.stats.missingOrders.length > 0 && (
               <BlockStack gap="300">
                 <Text as="h4" variant="headingSm">
@@ -481,7 +464,6 @@ function PlatformComparisonCard({
                 </div>
               </BlockStack>
             )}
-
             {comparison.stats.duplicateOrders.length > 0 && (
               <BlockStack gap="300">
                 <Text as="h4" variant="headingSm">

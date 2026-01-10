@@ -16,7 +16,6 @@ export function PriorityBadge({ priority, size = "medium" }: PriorityBadgeProps)
     }
     return "success";
   };
-
   const getLabel = (): string => {
     if (priority >= 8) {
       return "高优先级";
@@ -27,7 +26,6 @@ export function PriorityBadge({ priority, size = "medium" }: PriorityBadgeProps)
     }
     return "最低优先级";
   };
-
   return (
     <Badge tone={getTone()} size={size}>
       {`${getLabel()} (${priority}/10)`}

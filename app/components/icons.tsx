@@ -7,7 +7,6 @@ const createIcon = (path: string): IconSource => {
       <path d={path} />
     </svg>
   );
-
   return IconComponent;
 };
 

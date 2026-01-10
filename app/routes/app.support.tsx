@@ -15,7 +15,6 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 
 export default function SupportPage() {
   const { contactEmail, faqUrl } = useLoaderData<typeof loader>();
-
   return (
     <Page title="Support" subtitle="帮助中心与诊断包导出">
       <BlockStack gap="500">
@@ -30,7 +29,6 @@ export default function SupportPage() {
           primaryAction={{ content: "查看 FAQ", url: faqUrl }}
           secondaryAction={{ content: "诊断包导出", url: "/api/diagnostics.export" }}
         />
-
         <Layout>
           <Layout.Section>
             <BlockStack gap="300">
@@ -50,7 +48,6 @@ export default function SupportPage() {
                   </InlineStack>
                 </BlockStack>
               </Card>
-
               <Card>
                 <BlockStack gap="300">
                   <Text as="h2" variant="headingMd">

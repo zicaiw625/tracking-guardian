@@ -53,14 +53,11 @@ export abstract class BaseRepository<
 > {
   protected readonly db: PrismaClient;
   protected readonly modelName: string;
-
   constructor(modelName: string, db?: PrismaClient) {
     this.db = db ?? getDb();
     this.modelName = modelName;
   }
-
   protected abstract getDelegate(client?: TransactionClient): PrismaDelegate<TModel>;
-
   async findById(
     id: string,
     options?: QueryOptions
@@ -75,7 +72,6 @@ export abstract class BaseRepository<
       return err(this.handleError(error, "findById"));
     }
   }
-
   async findByIdOrFail(
     id: string,
     options?: QueryOptions
@@ -87,7 +83,6 @@ export abstract class BaseRepository<
     }
     return ok(result.value);
   }
-
   async findFirst(
     where: Record<string, unknown>,
     options?: QueryOptions
@@ -102,7 +97,6 @@ export abstract class BaseRepository<
       return err(this.handleError(error, "findFirst"));
     }
   }
-
   async findMany(
     where?: Record<string, unknown>,
     options?: QueryOptions & { orderBy?: Record<string, "asc" | "desc"> }
@@ -117,7 +111,6 @@ export abstract class BaseRepository<
       return err(this.handleError(error, "findMany"));
     }
   }
-
   async findPaginated(
     where: Record<string, unknown> | undefined,
     pagination: PaginationOptions,
@@ -127,7 +120,6 @@ export abstract class BaseRepository<
       const page = pagination.page || 1;
       const pageSize = Math.min(pagination.pageSize || 20, 100);
       const skip = (page - 1) * pageSize;
-
       const [data, total] = await Promise.all([
         this.getDelegate().findMany({
           where,
@@ -137,10 +129,8 @@ export abstract class BaseRepository<
         }),
         this.getDelegate().count({ where }),
       ]);
-
       const hasMore = data.length > pageSize;
       const items = hasMore ? data.slice(0, pageSize) : data;
-
       return ok({
         data: items,
         total,
@@ -153,7 +143,6 @@ export abstract class BaseRepository<
       return err(this.handleError(error, "findPaginated"));
     }
   }
-
   async count(where?: Record<string, unknown>): AsyncResult<number, AppError> {
     try {
       const count = await this.getDelegate().count({ where });
@@ -162,13 +151,11 @@ export abstract class BaseRepository<
       return err(this.handleError(error, "count"));
     }
   }
-
   async exists(where: Record<string, unknown>): AsyncResult<boolean, AppError> {
     const result = await this.count(where);
     if (!result.ok) return result;
     return ok(result.value > 0);
   }
-
   async create(
     data: TCreate,
     options?: QueryOptions
@@ -184,7 +171,6 @@ export abstract class BaseRepository<
       return err(this.handleError(error, "create"));
     }
   }
-
   async update(
     id: string,
     data: TUpdate,
@@ -202,19 +188,16 @@ export abstract class BaseRepository<
       return err(this.handleError(error, "update"));
     }
   }
-
   async updateWhere(
     where: Record<string, unknown>,
     data: TUpdate,
     options?: QueryOptions
   ): AsyncResult<TModel, AppError> {
     try {
-
       const existing = await this.getDelegate().findFirst({ where });
       if (!existing) {
         return err(AppError.notFound(this.modelName));
       }
-
       const result = await this.getDelegate().update({
         where: { id: existing.id },
         data,
@@ -225,7 +208,6 @@ export abstract class BaseRepository<
       return err(this.handleError(error, "updateWhere"));
     }
   }
-
   async delete(id: string): AsyncResult<TModel, AppError> {
     try {
       const result = await this.getDelegate().delete({
@@ -237,7 +219,6 @@ export abstract class BaseRepository<
       return err(this.handleError(error, "delete"));
     }
   }
-
   async transaction<T>(
     fn: (tx: TransactionClient) => Promise<T>
   ): AsyncResult<T, AppError> {
@@ -248,13 +229,10 @@ export abstract class BaseRepository<
       return err(this.handleError(error, "transaction"));
     }
   }
-
   protected handleError(error: unknown, operation: string): AppError {
     logger.error(`${this.modelName}.${operation} failed`, error);
-
     if (isPrismaError(error)) {
       const errorCode = getPrismaErrorCode(error);
-
       if (errorCode === "P2002") {
         const target = getPrismaErrorTarget(error)?.join(", ") || "field";
         return new AppError(
@@ -264,11 +242,9 @@ export abstract class BaseRepository<
           { model: this.modelName, constraint: target }
         );
       }
-
       if (errorCode === "P2025") {
         return AppError.notFound(this.modelName);
       }
-
       if (errorCode?.startsWith("P2")) {
         const errorMessage = error instanceof Error ? error.message : String(error);
         return new AppError(
@@ -279,7 +255,6 @@ export abstract class BaseRepository<
         );
       }
     }
-
     return Errors.dbQuery(`${this.modelName}.${operation}: ${String(error)}`);
   }
 }

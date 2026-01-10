@@ -52,11 +52,9 @@ function normalizeMetadataValue(value: unknown): unknown {
   if (Array.isArray(value)) {
     return value.map((item) => normalizeMetadataValue(item));
   }
-
   if (value instanceof Date || value === null || typeof value !== "object") {
     return value;
   }
-
   const record = value as Record<string, unknown>;
   return Object.fromEntries(
     Object.entries(record).map(([key, entryValue]) => [
@@ -76,7 +74,6 @@ export async function trackEvent(data: AnalyticsEventData): Promise<void> {
     const timestamp = data.timestamp || new Date();
     const eventId = data.eventId || generateSimpleId("app_event");
     const normalizedMetadata = normalizeMetadata(data.metadata);
-
     logger.info("[Analytics] Track event", {
       shopId: data.shopId,
       shopDomain: data.shopDomain,
@@ -84,7 +81,6 @@ export async function trackEvent(data: AnalyticsEventData): Promise<void> {
       metadata: normalizedMetadata,
       timestamp: timestamp.toISOString(),
     });
-
     await createEventLog({
       shopId: data.shopId,
       eventId,
@@ -144,18 +140,13 @@ export async function getActivationStatus(shopId: string): Promise<ActivationSta
       },
     },
   });
-
   const hasCompletedAudit =
     shop?.ScanReports?.[0]?.status === "completed";
-
   const hasTestDestination = (shop?.pixelConfigs?.length || 0) > 0;
-
   const hasLiveDestination = (shop?._count?.pixelConfigs || 0) > 0;
   const hasCompletedVerification = (shop?._count?.VerificationRun || 0) > 0;
   const d3 = hasLiveDestination && hasCompletedVerification;
-
   const d7 = false;
-
   return {
     d1: hasCompletedAudit,
     d2: hasTestDestination,

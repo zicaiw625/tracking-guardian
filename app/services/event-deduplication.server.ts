@@ -19,7 +19,6 @@ export function generateEventId(options: GenerateEventIdOptions): string {
     timestampBucket,
     shopDomain,
   } = options;
-
   if (eventType === "purchase" || eventType === "checkout_completed") {
     if (!orderId) {
       logger.warn("Missing orderId for purchase event, falling back to checkoutToken", {
@@ -32,15 +31,12 @@ export function generateEventId(options: GenerateEventIdOptions): string {
       }
       throw new Error("Cannot generate event ID for purchase event without orderId or checkoutToken");
     }
-
     return generateEventIdFromOrder(orderId, platform, eventType);
   }
-
   const identifier = orderId || checkoutToken;
   if (!identifier) {
     throw new Error("Cannot generate event ID without orderId or checkoutToken");
   }
-
   const bucket = timestampBucket || getCurrentTimestampBucket();
   return generateEventIdFromIdentifier(identifier, platform, eventType, bucket);
 }
@@ -75,16 +71,13 @@ function generateEventIdFromIdentifier(
 }
 
 function normalizeOrderId(orderId: string): string {
-
   const gidMatch = orderId.match(/gid:\/\/shopify\/Order\/(\d+)/i);
   if (gidMatch) {
     return gidMatch[1];
   }
-
   if (/^\d+$/.test(orderId)) {
     return orderId;
   }
-
   return orderId;
 }
 
@@ -94,12 +87,10 @@ function hashContent(content: string): string {
 
 function getCurrentTimestampBucket(): number {
   const now = Math.floor(Date.now() / 1000);
-
   return Math.floor(now / 300) * 300;
 }
 
 export function isValidEventId(eventId: string): boolean {
-
   return /^[a-f0-9]{32}$/i.test(eventId);
 }
 
@@ -144,20 +135,13 @@ export function shouldSendEvent(
   source: "client" | "server",
   strategy: DeduplicationStrategy = DEFAULT_DEDUP_STRATEGY
 ): boolean {
-
   switch (strategy.strategy) {
     case "server_priority":
-
       return source === "server";
-
     case "client_priority":
-
       return source === "client";
-
     case "first_wins":
-
       return true;
-
     default:
       return true;
   }

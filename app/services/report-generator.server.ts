@@ -16,7 +16,6 @@ export interface RequiredInfoParams {
 
 export function getRiskReason(params: RiskReasonParams): string {
   const { category, platform, riskLevel, details } = params;
-
   if (riskLevel === "high") {
     if (category === "script_tag" || category === "checkout_script") {
       return "脚本标签在 Thank you/Order status 页面已被弃用，可能导致功能失效";
@@ -26,19 +25,15 @@ export function getRiskReason(params: RiskReasonParams): string {
     }
     return "高风险：需要立即迁移";
   }
-
   if (riskLevel === "medium") {
     return "中等风险：建议尽快迁移";
   }
-
   return "低风险：可逐步迁移";
 }
 
 export function extractRequiredInfo(params: RequiredInfoParams): string {
   const { category, platform, suggestedMigration, details } = params;
-
   const info: string[] = [];
-
   if (suggestedMigration === "web_pixel") {
     info.push("需要配置 Web Pixel 扩展");
     if (platform) {
@@ -63,6 +58,5 @@ export function extractRequiredInfo(params: RequiredInfoParams): string {
   } else {
     info.push("需要手动处理或移除");
   }
-
   return info.join("; ");
 }

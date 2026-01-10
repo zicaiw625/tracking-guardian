@@ -13,7 +13,6 @@ export async function syncUiExtensionSettings(
       where: { id: shopId },
       select: { shopDomain: true, webPixelId: true },
     });
-
     if (!shop || !shop.webPixelId) {
       return {
         success: false,
@@ -21,14 +20,12 @@ export async function syncUiExtensionSettings(
         errors: ["Web Pixel 未安装或未找到"],
       };
     }
-
     const modules = await prisma.uiExtensionSetting.findMany({
       where: {
         shopId,
         isEnabled: true,
       },
     });
-
     if (modules.length === 0) {
       return {
         success: true,
@@ -36,19 +33,13 @@ export async function syncUiExtensionSettings(
         errors: [],
       };
     }
-
     const settings: Record<string, unknown> = {};
-
     for (const module of modules) {
       const moduleKey = module.moduleKey as ModuleKey;
       const config = await getUiModuleConfig(shopId, moduleKey);
-
       const settingsKey = `ui_module_${moduleKey}`;
-
       const localizedSettings: Record<string, unknown> = { ...config.settings };
-
       if (config.localization) {
-
         Object.entries(config.localization).forEach(([locale, localeData]) => {
           if (localeData && typeof localeData === 'object') {
             Object.entries(localeData).forEach(([field, value]) => {
@@ -59,7 +50,6 @@ export async function syncUiExtensionSettings(
           }
         });
       }
-
       settings[settingsKey] = {
         enabled: config.isEnabled,
         settings: localizedSettings,
@@ -67,7 +57,6 @@ export async function syncUiExtensionSettings(
         localization: config.localization,
       };
     }
-
     const mutation = `
       mutation UpdateWebPixelSettings($id: ID!, $settings: JSON!) {
         webPixelUpdate(id: $id, webPixel: { settings: $settings }) {
@@ -82,17 +71,14 @@ export async function syncUiExtensionSettings(
         }
       }
     `;
-
     const response = await admin.graphql(mutation, {
       variables: {
         id: shop.webPixelId,
         settings: JSON.stringify(settings),
       },
     });
-
     const data = await response.json();
     const result = data.data?.webPixelUpdate;
-
     if (result?.userErrors?.length > 0) {
       const errors = result.userErrors.map((e: { message: string }) => e.message);
       logger.error("Failed to sync UI extension settings", {
@@ -105,12 +91,10 @@ export async function syncUiExtensionSettings(
         errors,
       };
     }
-
     logger.info("UI extension settings synced", {
       shopId,
       syncedCount: modules.length,
     });
-
     return {
       success: true,
       synced: modules.length,
@@ -139,22 +123,16 @@ export async function syncSingleModule(
       where: { id: shopId },
       select: { shopDomain: true, webPixelId: true },
     });
-
     if (!shop || !shop.webPixelId) {
       return {
         success: false,
         error: "Web Pixel 未安装",
       };
     }
-
     const config = await getUiModuleConfig(shopId, moduleKey);
-
     const settingsKey = `ui_module_${moduleKey}`;
-
     const localizedSettings: Record<string, unknown> = { ...config.settings };
-
     if (config.localization) {
-
       Object.entries(config.localization).forEach(([locale, localeData]) => {
         if (localeData && typeof localeData === 'object') {
           Object.entries(localeData).forEach(([field, value]) => {
@@ -165,7 +143,6 @@ export async function syncSingleModule(
         }
       });
     }
-
     const settings = {
       [settingsKey]: {
         enabled: config.isEnabled,
@@ -174,7 +151,6 @@ export async function syncSingleModule(
         localization: config.localization,
       },
     };
-
     const getPixelQuery = `
       query GetWebPixel($id: ID!) {
         webPixel(id: $id) {
@@ -183,21 +159,17 @@ export async function syncSingleModule(
         }
       }
     `;
-
     const getResponse = await admin.graphql(getPixelQuery, {
       variables: { id: shop.webPixelId },
     });
-
     const getData = await getResponse.json();
     const existingSettings = getData.data?.webPixel?.settings
       ? JSON.parse(getData.data.webPixel.settings)
       : {};
-
     const mergedSettings = {
       ...existingSettings,
       ...settings,
     };
-
     const mutation = `
       mutation UpdateWebPixelSettings($id: ID!, $settings: JSON!) {
         webPixelUpdate(id: $id, webPixel: { settings: $settings }) {
@@ -212,17 +184,14 @@ export async function syncSingleModule(
         }
       }
     `;
-
     const updateResponse = await admin.graphql(mutation, {
       variables: {
         id: shop.webPixelId,
         settings: JSON.stringify(mergedSettings),
       },
     });
-
     const updateData = await updateResponse.json();
     const result = updateData.data?.webPixelUpdate;
-
     if (result?.userErrors?.length > 0) {
       const error = result.userErrors.map((e: { message: string }) => e.message).join(", ");
       return {
@@ -230,7 +199,6 @@ export async function syncSingleModule(
         error,
       };
     }
-
     logger.info("Single module synced", { shopId, moduleKey });
     return { success: true };
   } catch (error) {
@@ -253,7 +221,6 @@ export async function syncMultipleModules(
 ): Promise<{ success: boolean; synced: number; errors: string[] }> {
   const errors: string[] = [];
   let synced = 0;
-
   for (const moduleKey of moduleKeys) {
     const result = await syncSingleModule(shopId, moduleKey, admin);
     if (result.success) {
@@ -262,7 +229,6 @@ export async function syncMultipleModules(
       errors.push(`${moduleKey}: ${result.error || "未知错误"}`);
     }
   }
-
   return {
     success: errors.length === 0,
     synced,

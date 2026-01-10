@@ -230,18 +230,14 @@ export function EventMappingVisualEditor({
   const [draggedShopifyEvent, setDraggedShopifyEvent] = useState<string | null>(null);
   const [dragOverPlatformEvent, setDragOverPlatformEvent] = useState<string | null>(null);
   const platformEvents = PLATFORM_EVENTS[platform];
-
   const generateEventPreview = useCallback(
     (shopifyEventId: string, platformEventId: string) => {
       const shopifyEvent = SHOPIFY_EVENTS.find((e) => e.id === shopifyEventId);
       const platformEvent = platformEvents.find((e) => e.id === platformEventId);
-
       if (!shopifyEvent || !platformEvent) return null;
-
       const preview: Record<string, unknown> = {
         event_name: platformEventId,
       };
-
       shopifyEvent.availableParams.forEach((param) => {
         if (param === "items") {
           preview.items = [
@@ -258,35 +254,28 @@ export function EventMappingVisualEditor({
           preview[param] = param === "value" ? 99.99 : param === "currency" ? "USD" : param;
         }
       });
-
       return preview;
     },
     [platformEvents]
   );
-
   const validateMapping = useCallback(
     (shopifyEvent: string, platformEvent: string): { valid: boolean; errors: string[] } => {
       const errors: string[] = [];
       const shopifyEventDef = SHOPIFY_EVENTS.find((e) => e.id === shopifyEvent);
       const platformEventDef = platformEvents.find((e) => e.id === platformEvent);
-
       if (!shopifyEventDef) {
         errors.push(`未知的 Shopify 事件: ${shopifyEvent}`);
       }
-
       if (!platformEventDef) {
         errors.push(`未知的平台事件: ${platformEvent}`);
         return { valid: false, errors };
       }
-
       const missingParams = platformEventDef.requiredParams.filter(
         (param) => !shopifyEventDef?.availableParams.includes(param)
       );
-
       if (missingParams.length > 0) {
         errors.push(`缺少必需参数: ${missingParams.join(", ")}`);
       }
-
       return {
         valid: errors.length === 0,
         errors,
@@ -294,51 +283,42 @@ export function EventMappingVisualEditor({
     },
     [platformEvents]
   );
-
   const togglePreview = useCallback((shopifyEventId: string) => {
     setShowPreview((prev) => ({
       ...prev,
       [shopifyEventId]: !prev[shopifyEventId],
     }));
   }, []);
-
   const handleDragStart = useCallback((shopifyEventId: string) => {
     setDraggedShopifyEvent(shopifyEventId);
   }, []);
-
   const handleDragEnd = useCallback(() => {
     setDraggedShopifyEvent(null);
     setDragOverPlatformEvent(null);
   }, []);
-
   const handleDragOver = useCallback((e: React.DragEvent, platformEventId: string) => {
     e.preventDefault();
     e.stopPropagation();
     setDragOverPlatformEvent(platformEventId);
   }, []);
-
   const handleDragLeave = useCallback(() => {
     setDragOverPlatformEvent(null);
   }, []);
-
   const handleDrop = useCallback((e: React.DragEvent, platformEventId: string) => {
     e.preventDefault();
     e.stopPropagation();
-
     if (draggedShopifyEvent) {
       onMappingChange(draggedShopifyEvent, platformEventId);
       setDraggedShopifyEvent(null);
       setDragOverPlatformEvent(null);
     }
   }, [draggedShopifyEvent, onMappingChange]);
-
   const applyRecommendedMappings = useCallback(() => {
     const recommended = RECOMMENDED_MAPPINGS[platform];
     Object.entries(recommended).forEach(([shopifyEvent, platformEvent]) => {
       onMappingChange(shopifyEvent, platformEvent);
     });
   }, [platform, onMappingChange]);
-
   return (
     <Card>
       <BlockStack gap="500">
@@ -357,9 +337,7 @@ export function EventMappingVisualEditor({
             </Button>
           </InlineStack>
         </BlockStack>
-
         <Divider />
-
         <div
           style={{
             display: "grid",
@@ -376,7 +354,6 @@ export function EventMappingVisualEditor({
               const currentMapping = mappings[shopifyEvent.id] || "";
               const isSelected = selectedShopifyEvent === shopifyEvent.id;
               const isMapped = !!currentMapping;
-
               return (
                 <div
                   style={{
@@ -423,7 +400,6 @@ export function EventMappingVisualEditor({
               );
             })}
           </BlockStack>
-
           <div
             style={{
               display: "flex",
@@ -438,7 +414,6 @@ export function EventMappingVisualEditor({
               映射到
             </Text>
           </div>
-
           <BlockStack gap="300">
             <Text as="h4" variant="headingSm" fontWeight="semibold">
               {PLATFORM_NAMES[platform]} 事件
@@ -472,7 +447,6 @@ export function EventMappingVisualEditor({
                         const platformEvent = platformEvents.find((e) => e.id === mapping);
                         const validation = validateMapping(selectedShopifyEvent, mapping);
                         const preview = generateEventPreview(selectedShopifyEvent, mapping);
-
                         return (
                           <BlockStack gap="200">
                             <InlineStack gap="200" blockAlign="center">
@@ -489,7 +463,6 @@ export function EventMappingVisualEditor({
                                 {showPreview[selectedShopifyEvent] ? "隐藏" : "显示"} JSON 预览
                               </Button>
                             </InlineStack>
-
                             {!validation.valid && (
                               <Banner tone="critical">
                                 <Text as="p" variant="bodySm">
@@ -497,7 +470,6 @@ export function EventMappingVisualEditor({
                                 </Text>
                               </Banner>
                             )}
-
                             {platformEvent && (
                               <BlockStack gap="200">
                                 <Text as="span" variant="bodySm" fontWeight="semibold">
@@ -517,7 +489,6 @@ export function EventMappingVisualEditor({
                                 </InlineStack>
                               </BlockStack>
                             )}
-
                             {showPreview[selectedShopifyEvent] && preview && (
                               <Box
                                 padding="300"
@@ -561,7 +532,6 @@ export function EventMappingVisualEditor({
                 </Text>
               </Banner>
             )}
-
             <Divider />
             <BlockStack gap="200">
               <Text as="span" variant="bodySm" fontWeight="semibold" tone="subdued">
@@ -615,7 +585,6 @@ export function EventMappingVisualEditor({
             </BlockStack>
           </BlockStack>
         </div>
-
         <Divider />
         <BlockStack gap="300">
           <Text as="h4" variant="headingSm">
@@ -628,7 +597,6 @@ export function EventMappingVisualEditor({
                 ? platformEvents.find((e) => e.id === mapping)
                 : null;
               const recommended = RECOMMENDED_MAPPINGS[platform][shopifyEvent.id];
-
               return (
                 <Card key={shopifyEvent.id}>
                   <InlineStack align="space-between" blockAlign="center">

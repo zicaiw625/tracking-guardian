@@ -1,9 +1,9 @@
--- Fix missing rollbackAllowed, displayName, and priority columns in PixelConfig table
--- This script can be run directly on the database
+
+
 
 DO $$
 BEGIN
-    -- Add rollbackAllowed column
+    
     IF NOT EXISTS (
         SELECT 1 FROM information_schema.columns 
         WHERE table_name = 'PixelConfig' AND column_name = 'rollbackAllowed'
@@ -14,7 +14,7 @@ BEGIN
         RAISE NOTICE 'rollbackAllowed 字段已存在';
     END IF;
 
-    -- Add displayName column
+    
     IF NOT EXISTS (
         SELECT 1 FROM information_schema.columns 
         WHERE table_name = 'PixelConfig' AND column_name = 'displayName'
@@ -25,7 +25,7 @@ BEGIN
         RAISE NOTICE 'displayName 字段已存在';
     END IF;
 
-    -- Add priority column
+    
     IF NOT EXISTS (
         SELECT 1 FROM information_schema.columns 
         WHERE table_name = 'PixelConfig' AND column_name = 'priority'
@@ -36,7 +36,7 @@ BEGIN
         RAISE NOTICE 'priority 字段已存在';
     END IF;
 
-    -- Add priority index if it doesn't exist
+    
     IF NOT EXISTS (
         SELECT 1 FROM pg_indexes 
         WHERE tablename = 'PixelConfig' AND indexname = 'PixelConfig_priority_idx'
@@ -48,7 +48,7 @@ BEGIN
     END IF;
 END $$;
 
--- Verify the columns were added
+
 SELECT 
     column_name, 
     data_type, 

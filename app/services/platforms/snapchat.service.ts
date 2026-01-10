@@ -17,7 +17,6 @@ import {
 import {
   classifyHttpError,
   classifyJsError,
-
 } from "./base-platform.service";
 
 const SNAPCHAT_API_BASE_URL = "https://tr.snapchat.com";
@@ -42,7 +41,6 @@ const SNAPCHAT_EVENT_TYPES = {
 export class SnapchatPlatformService implements IPlatformService {
   readonly platform = "snapchat" as const;
   readonly displayName = "Snapchat";
-
   async sendConversion(
     credentials: PlatformCredentials,
     data: ConversionData,
@@ -50,7 +48,6 @@ export class SnapchatPlatformService implements IPlatformService {
   ): Promise<PlatformSendResult> {
     const snapCreds = credentials as SnapchatCredentials;
     const validation = this.validateCredentials(snapCreds);
-
     if (!validation.valid) {
       return {
         success: false,
@@ -61,20 +58,16 @@ export class SnapchatPlatformService implements IPlatformService {
         },
       };
     }
-
     const dedupeEventId = eventId || generateDedupeEventId(data.orderId);
-
     try {
       const [response, duration] = await measureDuration(() =>
         this.sendRequest(snapCreds, data, dedupeEventId)
       );
-
       logger.info(`Snapchat CAPI: conversion sent successfully`, {
         orderId: data.orderId.slice(0, 8),
         eventId: dedupeEventId,
         durationMs: duration,
       });
-
       return {
         success: true,
         response,
@@ -82,50 +75,40 @@ export class SnapchatPlatformService implements IPlatformService {
       };
     } catch (error) {
       const platformError = this.parseError(error);
-
       logger.error(`Snapchat CAPI: conversion failed`, {
         orderId: data.orderId.slice(0, 8),
         error: platformError.message,
         type: platformError.type,
       });
-
       return {
         success: false,
         error: platformError,
       };
     }
   }
-
   validateCredentials(credentials: unknown): CredentialsValidationResult {
     const errors: string[] = [];
-
     if (!credentials || typeof credentials !== "object") {
       return { valid: false, errors: ["Credentials must be an object"] };
     }
-
     const creds = credentials as Record<string, unknown>;
-
     if (!creds.pixelId || typeof creds.pixelId !== "string") {
       errors.push("Snap Pixel ID is required");
     }
-
     if (!creds.accessToken || typeof creds.accessToken !== "string") {
       errors.push("Conversions API Token is required");
     }
-
     return {
       valid: errors.length === 0,
       errors,
     };
   }
-
   parseError(error: unknown): PlatformError {
     if (error instanceof Error) {
       const attachedError = (error as Error & { platformError?: PlatformError }).platformError;
       if (attachedError) {
         return attachedError;
       }
-
       if (error.name === "AbortError") {
         return {
           type: "timeout",
@@ -133,29 +116,24 @@ export class SnapchatPlatformService implements IPlatformService {
           isRetryable: true,
         };
       }
-
       return classifyJsError(error);
     }
-
     return {
       type: "unknown",
       message: String(error),
       isRetryable: true,
     };
   }
-
   async buildPayload(
     data: ConversionData,
     eventId: string
   ): Promise<Record<string, unknown>> {
     const eventTime = Math.floor(Date.now() / 1000);
-
     return {
       event_type: SNAPCHAT_EVENT_TYPES.purchase,
       event_conversion_type: "WEB",
       event_tag: eventId,
       timestamp: eventTime * 1000,
-
       price: data.value,
       currency: data.currency,
       transaction_id: data.orderId,
@@ -163,28 +141,24 @@ export class SnapchatPlatformService implements IPlatformService {
       item_ids: data.lineItems?.map(item => item.productId) || [],
     };
   }
-
   private async sendRequest(
     credentials: SnapchatCredentials,
     data: ConversionData,
     eventId: string
   ): Promise<ConversionApiResponse> {
     const eventTime = Math.floor(Date.now() / 1000);
-
     const eventPayload = {
       pixel_id: credentials.pixelId,
       event_type: SNAPCHAT_EVENT_TYPES.purchase,
       event_conversion_type: "WEB",
       event_tag: eventId,
       timestamp: eventTime * 1000,
-
       price: data.value,
       currency: data.currency,
       transaction_id: data.orderId,
       number_items: data.lineItems?.reduce((sum, item) => sum + item.quantity, 0) || 1,
       item_ids: data.lineItems?.map(item => item.productId) || [],
     };
-
     const response = await fetchWithTimeout(
       SNAPCHAT_API_BASE_URL,
       {
@@ -197,20 +171,16 @@ export class SnapchatPlatformService implements IPlatformService {
       },
       DEFAULT_API_TIMEOUT_MS
     );
-
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
       const platformError = classifyHttpError(response.status, errorData);
-
       const enhancedError = new Error(`Snapchat API error: ${platformError.message}`) as Error & {
         platformError: PlatformError;
       };
       enhancedError.platformError = platformError;
       throw enhancedError;
     }
-
     const result = await response.json();
-
     return {
       success: true,
       conversionId: result.id,
@@ -229,13 +199,11 @@ export async function sendConversionToSnapchat(
   if (!credentials?.pixelId || !credentials?.accessToken) {
     throw new Error("Snapchat Pixel credentials not configured");
   }
-
   const result = await snapchatService.sendConversion(
     credentials,
     conversionData,
     eventId || generateDedupeEventId(conversionData.orderId)
   );
-
   if (!result.success) {
     const enhancedError = new Error(result.error?.message || "Unknown error") as Error & {
       platformError?: PlatformError;
@@ -243,6 +211,5 @@ export async function sendConversionToSnapchat(
     enhancedError.platformError = result.error;
     throw enhancedError;
   }
-
   return result.response!;
 }

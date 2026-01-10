@@ -35,9 +35,7 @@ export interface MigrationItem {
   suggestedMigration: "web_pixel" | "ui_extension" | "server_side" | "none";
   confirmed: boolean;
   notes?: string;
-
   estimatedTimeMinutes?: number;
-
   migrationStatus?: "pending" | "in_progress" | "completed" | "skipped";
 }
 
@@ -103,23 +101,18 @@ export function MigrationChecklist({
   const [newItemName, setNewItemName] = useState("");
   const [newItemType, setNewItemType] = useState<MigrationItem["type"]>("additional_script");
   const [newItemNotes, setNewItemNotes] = useState("");
-
   const confirmedCount = items.filter((i) => i.confirmed).length;
   const highRiskCount = items.filter((i) => i.riskLevel === "high").length;
   const pendingCount = items.filter((i) => !i.confirmed).length;
-
   const totalEstimatedMinutes = items
     .filter((i) => i.confirmed && i.estimatedTimeMinutes)
     .reduce((sum, i) => sum + (i.estimatedTimeMinutes || 0), 0);
   const totalEstimatedHours = Math.ceil(totalEstimatedMinutes / 60);
-
   const progressPercent = items.length > 0
     ? Math.round((confirmedCount / items.length) * 100)
     : 100;
-
   const handleAddItem = useCallback(() => {
     if (!newItemName.trim()) return;
-
     onAddManualItem({
       name: newItemName.trim(),
       type: newItemType,
@@ -128,16 +121,13 @@ export function MigrationChecklist({
       suggestedMigration: newItemType === "additional_script" ? "web_pixel" : "none",
       notes: newItemNotes.trim() || undefined,
     });
-
     setNewItemName("");
     setNewItemNotes("");
     setShowAddModal(false);
   }, [newItemName, newItemType, newItemNotes, onAddManualItem]);
-
   const shopifyUpgradeUrl = shopTier === "plus"
     ? "https://www.shopify.com/pricing"
     : "https://www.shopify.com/pricing"
-
   return (
     <>
       <Card>
@@ -161,7 +151,6 @@ export function MigrationChecklist({
                 )}
               </InlineStack>
             </InlineStack>
-
             {items.length > 0 && (
               <BlockStack gap="200">
                 <ProgressBar progress={progressPercent} tone="primary" size="small" />
@@ -180,9 +169,7 @@ export function MigrationChecklist({
               </BlockStack>
             )}
           </BlockStack>
-
           <Divider />
-
           <Banner
             title="从 Shopify 升级向导补充信息"
             tone="info"
@@ -196,7 +183,6 @@ export function MigrationChecklist({
               点击「查看指南」了解如何从 Shopify 获取完整的迁移清单。
             </Text>
           </Banner>
-
           <BlockStack gap="300">
             {items.length === 0 ? (
               <Box background="bg-surface-secondary" padding="400" borderRadius="200">
@@ -286,9 +272,7 @@ export function MigrationChecklist({
               ))
             )}
           </BlockStack>
-
           <Divider />
-
           <BlockStack gap="200">
             <div
               role="button"
@@ -305,7 +289,6 @@ export function MigrationChecklist({
                 </Text>
               </InlineStack>
             </div>
-
             <Collapsible open={manualExpanded} id="manual-section">
               <Box background="bg-surface-secondary" padding="400" borderRadius="200">
                 <BlockStack gap="300">
@@ -313,13 +296,11 @@ export function MigrationChecklist({
                     如果您在 Shopify 升级向导或 checkout.liquid 中发现了我们未检测到的脚本，
                     可以在这里手动添加以便追踪迁移进度。
                   </Text>
-
                   <List type="bullet">
                     <List.Item>前往 Shopify 后台 → 设置 → 结账 → 附加脚本</List.Item>
                     <List.Item>查看「附加脚本」或升级提示中列出的项目</List.Item>
                     <List.Item>对照本清单，添加缺失的项目</List.Item>
                   </List>
-
                   <Button onClick={() => setShowAddModal(true)}>
                     + 添加项目
                   </Button>
@@ -327,9 +308,7 @@ export function MigrationChecklist({
               </Box>
             </Collapsible>
           </BlockStack>
-
           <Divider />
-
           <InlineStack gap="200" align="end">
             <Button onClick={onExportChecklist} icon={ClipboardIcon}>
               导出清单
@@ -345,7 +324,6 @@ export function MigrationChecklist({
           </InlineStack>
         </BlockStack>
       </Card>
-
       <Modal
         open={showAddModal}
         onClose={() => setShowAddModal(false)}
@@ -371,7 +349,6 @@ export function MigrationChecklist({
               placeholder="例如：Google Ads 转化代码"
               autoComplete="off"
             />
-
             <BlockStack gap="200">
               <Text as="span" variant="bodySm">类型</Text>
               <InlineStack gap="200" wrap>
@@ -389,7 +366,6 @@ export function MigrationChecklist({
                 )}
               </InlineStack>
             </BlockStack>
-
             <TextField
               label="备注（可选）"
               value={newItemNotes}
@@ -401,7 +377,6 @@ export function MigrationChecklist({
           </BlockStack>
         </Modal.Section>
       </Modal>
-
       <Modal
         open={showGuideModal}
         onClose={() => setShowGuideModal(false)}
@@ -426,7 +401,6 @@ export function MigrationChecklist({
                 以下步骤帮助您手动获取完整的迁移清单。
               </Text>
             </Banner>
-
             <BlockStack gap="300">
               <Text as="h3" variant="headingSm">
                 步骤 1: 打开 Shopify 结账设置
@@ -440,7 +414,6 @@ export function MigrationChecklist({
                 </InlineStack>
               </Box>
             </BlockStack>
-
             <BlockStack gap="300">
               <Text as="h3" variant="headingSm">
                 步骤 2: 查看升级提示
@@ -450,7 +423,6 @@ export function MigrationChecklist({
                 记录下这些项目名称。
               </Text>
             </BlockStack>
-
             <BlockStack gap="300">
               <Text as="h3" variant="headingSm">
                 步骤 3: 复制脚本内容（可选）
@@ -460,7 +432,6 @@ export function MigrationChecklist({
                 粘贴到扫描页面的「手动分析」标签页中。
               </Text>
             </BlockStack>
-
             <BlockStack gap="300">
               <Text as="h3" variant="headingSm">
                 步骤 4: 添加到迁移清单
@@ -470,9 +441,7 @@ export function MigrationChecklist({
                 将缺失的脚本添加到迁移清单中。
               </Text>
             </BlockStack>
-
             <Divider />
-
             {shopTier === "plus" && (
               <Banner tone="warning">
                 <Text as="p" variant="bodySm">

@@ -12,15 +12,12 @@ export type LoaderHandler<T = unknown> = (
 ) => Promise<T>;
 
 export interface ApiHandlerOptions {
-
   logStack?: boolean;
-
   transformError?: (error: unknown) => {
     message: string;
     status: number;
     code?: string;
   };
-
   includeDetails?: boolean;
 }
 
@@ -29,9 +26,7 @@ function handleApiError(
   options: ApiHandlerOptions = {}
 ): Response {
   const { logStack = false, transformError, includeDetails = false } = options;
-
   const appError = ensureAppError(error);
-
   if (appError.isInternalError()) {
     logger.error(`API internal error: ${appError.message}`, appError);
   } else if (appError.isRetryable) {
@@ -43,11 +38,9 @@ function handleApiError(
       code: appError.code,
     });
   }
-
   if (logStack && error instanceof Error) {
     logger.error(`Stack trace: ${error.stack}`);
   }
-
   if (transformError) {
     const transformed = transformError(error);
     return json(
@@ -58,10 +51,8 @@ function handleApiError(
       { status: transformed.status }
     );
   }
-
   const clientResponse = appError.toClientResponse();
   const statusCode = appError.getHttpStatus();
-
   const response = {
     success: false,
     error: clientResponse.message,
@@ -70,7 +61,6 @@ function handleApiError(
       stack: error instanceof Error ? error.stack : undefined,
     }),
   };
-
   return json(response, { status: statusCode });
 }
 
@@ -147,7 +137,6 @@ export function getNumericQueryParam(
 ): number {
   const value = url.searchParams.get(param);
   if (!value) return defaultValue;
-
   const parsed = parseInt(value, 10);
   if (isNaN(parsed)) {
     throw new AppError(

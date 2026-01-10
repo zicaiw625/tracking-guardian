@@ -38,16 +38,13 @@ async function getState(
 ): Promise<CircuitBreakerState | null> {
   try {
     const data = await client.hGetAll(key);
-
     if (!data || Object.keys(data).length === 0) {
       return null;
     }
-
     const ttl = await client.ttl(key);
     if (ttl <= 0) {
       return null;
     }
-
     return {
       count: parseInt(data.count || "0", 10),
       resetTime: Date.now() + ttl * 1000,
@@ -67,24 +64,17 @@ async function incrementCounter(
   const now = Date.now();
   const windowSeconds = Math.ceil(config.windowMs / 1000);
   const cooldownSeconds = Math.ceil((config.cooldownMs || config.windowMs) / 1000);
-
   try {
-
     const count = await client.hIncrBy(key, "count", 1);
-
     if (count === 1) {
       await client.expire(key, windowSeconds);
     }
-
     const tripped = count > config.threshold;
-
     if (tripped) {
       await client.hSet(key, "tripped", "1");
       await client.expire(key, cooldownSeconds);
     }
-
     const ttl = await client.ttl(key);
-
     return {
       count,
       resetTime: now + (ttl > 0 ? ttl * 1000 : config.windowMs),
@@ -92,7 +82,6 @@ async function incrementCounter(
     };
   } catch (error) {
     logger.error("Circuit breaker increment error", error);
-
     return {
       count: 1,
       resetTime: now + config.windowMs,
@@ -107,7 +96,6 @@ async function tripBreaker(
   config: CircuitBreakerConfig
 ): Promise<void> {
   const cooldownSeconds = Math.ceil((config.cooldownMs || config.windowMs) / 1000);
-
   try {
     await client.hMSet(key, {
       count: String(config.threshold + 1),
@@ -136,21 +124,17 @@ export async function checkCircuitBreaker(
 ): Promise<CircuitBreakerResult> {
   const finalConfig = { ...DEFAULT_CONFIG, ...config };
   const key = getKey(identifier);
-
   try {
     const client = await getRedisClient();
     const state = await incrementCounter(client, key, finalConfig);
-
     if (state.tripped) {
       const retryAfter = Math.ceil((state.resetTime - Date.now()) / 1000);
-
       if (state.count === finalConfig.threshold + 1) {
         logger.error(
           `🚨 Circuit breaker TRIPPED for ${identifier}: ` +
             `${state.count} requests in ${finalConfig.windowMs}ms`
         );
       }
-
       return {
         blocked: true,
         reason: `Circuit breaker tripped. Retry after ${retryAfter}s`,
@@ -158,14 +142,12 @@ export async function checkCircuitBreaker(
         retryAfter,
       };
     }
-
     return {
       blocked: false,
       count: state.count,
     };
   } catch (error) {
     logger.error("Circuit breaker check error", error);
-
     return { blocked: false };
   }
 }
@@ -176,7 +158,6 @@ export async function tripCircuitBreaker(
 ): Promise<void> {
   const finalConfig = { ...DEFAULT_CONFIG, ...config };
   const key = getKey(identifier);
-
   try {
     const client = await getRedisClient();
     await tripBreaker(client, key, finalConfig);
@@ -188,7 +169,6 @@ export async function tripCircuitBreaker(
 
 export async function resetCircuitBreaker(identifier: string): Promise<void> {
   const key = getKey(identifier);
-
   try {
     const client = await getRedisClient();
     await resetBreaker(client, key);
@@ -202,7 +182,6 @@ export async function getCircuitBreakerState(
   identifier: string
 ): Promise<CircuitBreakerState | null> {
   const key = getKey(identifier);
-
   try {
     const client = await getRedisClient();
     return await getState(client, key);
@@ -226,16 +205,13 @@ export async function getCircuitBreakerStats(): Promise<{
   try {
     const client = await getRedisClient();
     const keys = await client.keys(`${CIRCUIT_BREAKER_PREFIX}*`);
-
     let trippedCount = 0;
-
     for (const key of keys) {
       const data = await client.hGetAll(key);
       if (data.tripped === "1") {
         trippedCount++;
       }
     }
-
     return {
       activeBreakers: keys.length,
       trippedBreakers: trippedCount,

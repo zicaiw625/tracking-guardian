@@ -92,7 +92,6 @@ export async function reconcilePendingConsent(): Promise<ConsentReconciliationRe
             }
             if (receipt) {
                 const strategy = log.Shop.consentStrategy || "strict";
-
                 const rawConsentState = receipt.consentState as {
                     marketing?: boolean;
                     analytics?: boolean;

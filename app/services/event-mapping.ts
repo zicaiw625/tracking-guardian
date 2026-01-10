@@ -179,7 +179,6 @@ export function getEventMapping(
 ): EventMapping | null {
   const platformMapping = getPlatformEventMapping(platform);
   if (!platformMapping) return null;
-
   return platformMapping.mappings[shopifyEvent] || null;
 }
 
@@ -189,9 +188,7 @@ export function mergeEventMappings(
 ): Record<string, EventMapping> {
   const platformMapping = getPlatformEventMapping(platform);
   if (!platformMapping) return {};
-
   const merged: Record<string, EventMapping> = { ...platformMapping.mappings };
-
   for (const [shopifyEvent, customPlatformEvent] of Object.entries(customMappings)) {
     if (merged[shopifyEvent]) {
       merged[shopifyEvent] = {
@@ -200,7 +197,6 @@ export function mergeEventMappings(
       };
     }
   }
-
   return merged;
 }
 
@@ -216,7 +212,6 @@ export function validateEventMapping(
       error: `不支持的平台: ${platform}`,
     };
   }
-
   const standardMapping = platformMapping.mappings[shopifyEvent];
   if (!standardMapping) {
     return {
@@ -224,22 +219,18 @@ export function validateEventMapping(
       error: `不支持的 Shopify 事件: ${shopifyEvent}`,
     };
   }
-
   return { valid: true };
 }
 
 export function getRecommendedMappings(platforms: string[]): Record<string, Record<string, string>> {
   const result: Record<string, Record<string, string>> = {};
-
   for (const platform of platforms) {
     const platformMapping = getPlatformEventMapping(platform);
     if (!platformMapping) continue;
-
     result[platform] = {};
     for (const [shopifyEvent, mapping] of Object.entries(platformMapping.mappings)) {
       result[platform][shopifyEvent] = mapping.platformEvent;
     }
   }
-
   return result;
 }

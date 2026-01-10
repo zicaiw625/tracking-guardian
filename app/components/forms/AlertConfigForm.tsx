@@ -13,13 +13,9 @@ export interface AlertConfig {
 }
 
 export interface AlertConfigFormProps {
-
   values: AlertConfig;
-
   onChange: (values: AlertConfig) => void;
-
   errors?: Record<string, string>;
-
   disabled?: boolean;
 }
 
@@ -35,7 +31,6 @@ export function AlertConfigForm({
       channel: channel as AlertChannel,
     });
   };
-
   return (
     <BlockStack gap="300">
       <Select
@@ -49,7 +44,6 @@ export function AlertConfigForm({
         onChange={handleChannelChange}
         disabled={disabled}
       />
-
       {values.channel === "email" && (
         <TextField
           label="邮箱地址"
@@ -62,7 +56,6 @@ export function AlertConfigForm({
           disabled={disabled}
         />
       )}
-
       {values.channel === "slack" && (
         <TextField
           label="Slack Webhook URL"
@@ -75,7 +68,6 @@ export function AlertConfigForm({
           disabled={disabled}
         />
       )}
-
       {values.channel === "telegram" && (
         <>
           <TextField
@@ -100,7 +92,6 @@ export function AlertConfigForm({
           />
         </>
       )}
-
       <TextField
         label="警报阈值 (%)"
         type="number"
@@ -112,7 +103,6 @@ export function AlertConfigForm({
         error={errors?.threshold}
         disabled={disabled}
       />
-
       <Checkbox
         label="启用警报通知"
         checked={values.enabled}

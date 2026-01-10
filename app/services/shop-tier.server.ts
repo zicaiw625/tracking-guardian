@@ -138,10 +138,8 @@ export function getTierDisplayInfo(tier: ShopTier): {
     deadlineDate: string;
     isKnown: boolean;
 } {
-
     switch (tier) {
         case "plus":
-
             return {
                 label: "Shopify Plus",
                 description: "您的店铺使用 Shopify Plus 计划",

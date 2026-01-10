@@ -64,25 +64,20 @@ export function normalizeEventParameters(
     value: 0,
     currency: "USD",
   };
-
   if (shopifyEvent.value !== undefined && shopifyEvent.value !== null) {
     normalized.value = typeof shopifyEvent.value === "number"
       ? shopifyEvent.value
       : parseFloat(String(shopifyEvent.value)) || 0;
   }
-
   if (shopifyEvent.currency) {
     normalized.currency = String(shopifyEvent.currency).toUpperCase();
   }
-
   if (shopifyEvent.items && Array.isArray(shopifyEvent.items)) {
     normalized.items = normalizeItems(shopifyEvent.items);
-
     if (platform === "meta" || platform === "tiktok") {
       normalized.contents = convertToContentsFormat(shopifyEvent.items);
       normalized.content_ids = normalized.contents.map(c => c.id);
     }
-
     if (platform === "pinterest") {
       normalized.line_items = convertToLineItemsFormat(shopifyEvent.items);
       normalized.order_quantity = normalized.line_items.reduce(
@@ -90,7 +85,6 @@ export function normalizeEventParameters(
         0
       );
     }
-
     if (platform === "meta" && normalized.contents) {
       normalized.num_items = normalized.contents.reduce(
         (sum, item) => sum + item.quantity,
@@ -98,18 +92,15 @@ export function normalizeEventParameters(
       );
     }
   }
-
   if (shopifyEvent.event_id) {
     normalized.event_id = String(shopifyEvent.event_id);
     if (platform === "google") {
       normalized.transaction_id = normalized.event_id;
     }
   }
-
   if (shopifyEvent.order_id) {
     normalized.order_id = String(shopifyEvent.order_id);
   }
-
   if (mapping.paramTransformations) {
     for (const [sourceKey, targetKey] of Object.entries(mapping.paramTransformations)) {
       if (sourceKey in normalized && !(targetKey in normalized)) {
@@ -117,9 +108,7 @@ export function normalizeEventParameters(
       }
     }
   }
-
   validateRequiredParams(normalized, mapping.requiredParams, platform);
-
   return normalized;
 }
 
@@ -127,7 +116,6 @@ function normalizeItems(
   items: ShopifyEventData["items"]
 ): NormalizedEventParams["items"] {
   if (!items || !Array.isArray(items)) return undefined;
-
   return items
     .filter(item => item != null)
     .map(item => ({
@@ -143,7 +131,6 @@ function convertToContentsFormat(
   items: ShopifyEventData["items"]
 ): Array<{ id: string; quantity: number; item_price: number }> {
   if (!items || !Array.isArray(items)) return [];
-
   return items
     .filter(item => item != null)
     .map(item => ({
@@ -158,7 +145,6 @@ function convertToLineItemsFormat(
   items: ShopifyEventData["items"]
 ): Array<{ product_id: string; product_name: string; product_price: number; quantity: number }> {
   if (!items || !Array.isArray(items)) return [];
-
   return items
     .filter(item => item != null)
     .map(item => ({
@@ -215,13 +201,11 @@ function validateRequiredParams(
   platform: string
 ): void {
   const missing: string[] = [];
-
   for (const param of requiredParams) {
     if (!(param in params) || params[param as keyof NormalizedEventParams] === undefined) {
       missing.push(param);
     }
   }
-
   if (missing.length > 0) {
     logger.warn("Missing required parameters", {
       platform,
@@ -233,18 +217,14 @@ function validateRequiredParams(
 
 export function normalizeCurrency(currency: string | undefined): string {
   if (!currency) return "USD";
-
   const upper = currency.toUpperCase();
-
   const validCurrencies = [
     "USD", "EUR", "GBP", "JPY", "CNY", "CAD", "AUD", "CHF", "HKD", "SGD",
     "SEK", "NOK", "DKK", "PLN", "CZK", "HUF", "RUB", "INR", "BRL", "MXN",
   ];
-
   if (validCurrencies.includes(upper)) {
     return upper;
   }
-
   return upper;
 }
 
@@ -252,11 +232,9 @@ export function normalizeValue(value: unknown): number {
   if (typeof value === "number") {
     return Math.max(0, value);
   }
-
   if (typeof value === "string") {
     const parsed = parseFloat(value);
     return isNaN(parsed) ? 0 : Math.max(0, parsed);
   }
-
   return 0;
 }

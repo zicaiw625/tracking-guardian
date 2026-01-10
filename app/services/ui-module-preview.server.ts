@@ -19,15 +19,12 @@ export function generatePreviewUrl(
   testOrderId?: string
 ): string {
   const baseUrl = `https://${shopDomain}`;
-
   if (target === "thank_you") {
-
     if (testOrderId) {
       return `${baseUrl}/orders/${testOrderId}/thank_you?preview_module=${moduleKey}`;
     }
     return `${baseUrl}?preview=thank_you&module=${moduleKey}`;
   } else {
-
     if (testOrderId) {
       return `${baseUrl}/account/orders/${testOrderId}?preview_module=${moduleKey}`;
     }
@@ -41,11 +38,9 @@ export function validateModuleConfig(
   displayRules: { enabled: boolean; targets: string[] }
 ): { valid: boolean; errors: string[] } {
   const errors: string[] = [];
-
   if (!displayRules.targets || displayRules.targets.length === 0) {
     errors.push("必须至少选择一个显示目标（Thank You 或 Order Status）");
   }
-
   switch (moduleKey) {
     case "survey":
       if (!settings.title || typeof settings.title !== "string") {
@@ -55,13 +50,11 @@ export function validateModuleConfig(
         errors.push("问卷问题不能为空");
       }
       break;
-
     case "helpdesk":
       if (!settings.faqUrl && !settings.contactEmail && !settings.contactUrl) {
         errors.push("必须至少配置一个联系方式（FAQ 链接、邮箱或联系链接）");
       }
       break;
-
     case "order_tracking":
       if (settings.provider && settings.provider !== "native") {
         if (!settings.apiKey || typeof settings.apiKey !== "string") {
@@ -69,20 +62,17 @@ export function validateModuleConfig(
         }
       }
       break;
-
     case "reorder":
       if (!settings.buttonText || typeof settings.buttonText !== "string") {
         errors.push("再购按钮文案不能为空");
       }
       break;
-
     case "upsell":
       if (!settings.products || !Array.isArray(settings.products)) {
         errors.push("必须至少添加一个推荐商品");
       }
       break;
   }
-
   return {
     valid: errors.length === 0,
     errors,
@@ -98,11 +88,9 @@ export async function getModulePreviewConfig(
       shopId_moduleKey: { shopId, moduleKey },
     },
   });
-
   if (!setting) {
     return null;
   }
-
   let settings: Record<string, unknown> = {};
   if (setting.settingsEncrypted) {
     try {
@@ -113,14 +101,11 @@ export async function getModulePreviewConfig(
         moduleKey,
         error: error instanceof Error ? error.message : String(error),
       });
-
       settings = (setting.settingsJson as Record<string, unknown>) || {};
     }
   } else {
-
     settings = (setting.settingsJson as Record<string, unknown>) || {};
   }
-
   return {
     moduleKey: setting.moduleKey as ModuleKey,
     settings,
@@ -140,11 +125,8 @@ export async function getAllModulePreviewConfigs(
   const settings = await prisma.uiExtensionSetting.findMany({
     where: { shopId },
   });
-
   const result: Record<string, ModulePreviewConfig | null> = {};
-
   for (const setting of settings) {
-
     let moduleSettings: Record<string, unknown> = {};
     if (setting.settingsEncrypted) {
       try {
@@ -155,14 +137,11 @@ export async function getAllModulePreviewConfigs(
           moduleKey: setting.moduleKey,
           error: error instanceof Error ? error.message : String(error),
         });
-
         moduleSettings = (setting.settingsJson as Record<string, unknown>) || {};
       }
     } else {
-
       moduleSettings = (setting.settingsJson as Record<string, unknown>) || {};
     }
-
     result[setting.moduleKey] = {
       moduleKey: setting.moduleKey as ModuleKey,
       settings: moduleSettings,
@@ -175,7 +154,6 @@ export async function getAllModulePreviewConfigs(
       },
     };
   }
-
   return result as Record<ModuleKey, ModulePreviewConfig | null>;
 }
 
@@ -193,9 +171,7 @@ export async function createTestOrderForPreview(
   admin: AdminApiContext
 ): Promise<TestOrderPreview | null> {
   try {
-
     logger.info("Creating test order for preview", { shopDomain });
-
     return null;
   } catch (error) {
     logger.error("Failed to create test order for preview", {

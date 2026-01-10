@@ -32,11 +32,9 @@ export function validateWizardConfig(config: WizardConfig): {
   errors: string[];
 } {
   const errors: string[] = [];
-
   if (!config.platformId || config.platformId.trim() === "") {
     errors.push(`平台 ID 不能为空`);
   }
-
   if (config.platform === "google") {
     if (!config.credentials.measurementId) {
       errors.push("GA4 Measurement ID 不能为空");
@@ -52,11 +50,9 @@ export function validateWizardConfig(config: WizardConfig): {
       errors.push("Access Token 不能为空");
     }
   }
-
   if (!config.eventMappings || Object.keys(config.eventMappings).length === 0) {
     errors.push("至少需要配置一个事件映射");
   }
-
   return {
     valid: errors.length === 0,
     errors,
@@ -73,12 +69,10 @@ export async function saveWizardConfigs(
 }> {
   const errors: string[] = [];
   let savedCount = 0;
-
   const shop = await prisma.shop.findUnique({
     where: { id: shopId },
     select: { plan: true },
   });
-
   if (shop) {
     const gateCheck = await canCreatePixelConfig(shopId, (shop.plan || "free") as PlanId);
     if (!gateCheck.allowed) {
@@ -89,17 +83,13 @@ export async function saveWizardConfigs(
       };
     }
   }
-
   for (const config of configs) {
-
     const validation = validateWizardConfig(config);
     if (!validation.valid) {
       errors.push(`${config.platform}: ${validation.errors.join(", ")}`);
       continue;
     }
-
     try {
-
       let credentials: Record<string, string> = {};
       if (config.platform === "google") {
         credentials = {
@@ -113,9 +103,7 @@ export async function saveWizardConfigs(
           ...(config.credentials.testEventCode && { testEventCode: config.credentials.testEventCode }),
         };
       }
-
       const encryptedCredentials = encryptJson(credentials);
-
       const existingConfig = await prisma.pixelConfig.findUnique({
         where: {
           shopId_platform_environment_platformId: {
@@ -126,18 +114,14 @@ export async function saveWizardConfigs(
           },
         },
       });
-
       if (existingConfig && existingConfig.isActive) {
-
         const existingMappings = existingConfig.eventMappings as Record<string, string> | null;
         const newMappings = config.eventMappings || {};
         const mappingsChanged = JSON.stringify(existingMappings) !== JSON.stringify(newMappings);
-
         if (mappingsChanged) {
           await saveConfigSnapshot(shopId, config.platform, config.environment || "live");
         }
       }
-
       await prisma.pixelConfig.upsert({
         where: {
           shopId_platform_environment_platformId: {
@@ -154,7 +138,6 @@ export async function saveWizardConfigs(
           eventMappings: config.eventMappings as object,
           environment: config.environment || "live",
           migrationStatus: "in_progress",
-
           ...(existingConfig && existingConfig.isActive && JSON.stringify(existingConfig.eventMappings) !== JSON.stringify(config.eventMappings) ? {
             configVersion: { increment: 1 },
             rollbackAllowed: true,
@@ -176,14 +159,12 @@ export async function saveWizardConfigs(
           updatedAt: new Date(),
         },
       });
-
       savedCount++;
     } catch (error) {
       logger.error(`Failed to save config for ${config.platform}`, error);
       errors.push(`${config.platform}: ${error instanceof Error ? error.message : "保存失败"}`);
     }
   }
-
   return {
     success: errors.length === 0,
     savedCount,
@@ -211,7 +192,6 @@ export async function getConfigPreview(shopId: string): Promise<{
       eventMappings: true,
     },
   });
-
   return {
     platforms: configs.map((config) => ({
       platform: config.platform,
@@ -234,9 +214,7 @@ export async function saveWizardDraft(
   }
 ): Promise<{ success: boolean; error?: string }> {
   try {
-
     const { saveMigrationDraft } = await import("./migration-draft.server");
-
     const configData = {
       selectedPlatforms: draft.selectedPlatforms,
       platformConfigs: Object.fromEntries(
@@ -250,15 +228,11 @@ export async function saveWizardDraft(
         ])
       ),
     };
-
     const step = draft.step === "testing" ? "review" : draft.step;
-
     const result = await saveMigrationDraft(shopId, step as "select" | "credentials" | "mappings" | "review", configData);
-
     if (!result.success) {
       return { success: false, error: result.error };
     }
-
     return { success: true };
   } catch (error) {
     logger.error("Failed to save wizard draft", error);
@@ -271,14 +245,11 @@ export async function saveWizardDraft(
 
 export async function loadWizardDraft(shopId: string): Promise<WizardState | null> {
   try {
-
     const { getMigrationDraft } = await import("./migration-draft.server");
     const draft = await getMigrationDraft(shopId);
-
     if (!draft) {
       return null;
     }
-
     const configs = await prisma.pixelConfig.findMany({
       where: {
         shopId,
@@ -293,26 +264,21 @@ export async function loadWizardDraft(shopId: string): Promise<WizardState | nul
         environment: true,
       },
     });
-
     const configsMap: Record<string, WizardConfig> = {};
-
     for (const platform of draft.configData.selectedPlatforms) {
       const existingConfig = configs.find((c) => c.platform === platform);
       const draftConfig = draft.configData.platformConfigs[platform] || {};
-
       let credentials: Record<string, string> = {};
       if (existingConfig?.credentialsEncrypted) {
         try {
           credentials = decryptJson(existingConfig.credentialsEncrypted) as Record<string, string>;
         } catch (error) {
           logger.warn(`Failed to decrypt credentials for ${platform}`, { error: error instanceof Error ? error.message : String(error) });
-
           credentials = draftConfig.credentials || {};
         }
       } else {
         credentials = draftConfig.credentials || {};
       }
-
       configsMap[platform] = {
         platform: platform as Platform | "pinterest",
         platformId: existingConfig?.platformId || "",
@@ -321,7 +287,6 @@ export async function loadWizardDraft(shopId: string): Promise<WizardState | nul
         environment: (existingConfig?.environment as "test" | "live") || draftConfig.environment || "test",
       };
     }
-
     return {
       step: draft.step,
       selectedPlatforms: draft.configData.selectedPlatforms,
@@ -335,10 +300,8 @@ export async function loadWizardDraft(shopId: string): Promise<WizardState | nul
 
 export async function clearWizardDraft(shopId: string): Promise<{ success: boolean }> {
   try {
-
     const { deleteMigrationDraft } = await import("./migration-draft.server");
     const result = await deleteMigrationDraft(shopId);
-
     await prisma.pixelConfig.updateMany({
       where: {
         shopId,
@@ -349,7 +312,6 @@ export async function clearWizardDraft(shopId: string): Promise<{ success: boole
         clientConfig: Prisma.JsonNull,
       },
     });
-
     return { success: result };
   } catch (error) {
     logger.error("Failed to clear wizard draft", error);
@@ -372,7 +334,6 @@ export async function validateTestEnvironment(
     verificationInstructions?: string;
   };
 }> {
-
   const config = await prisma.pixelConfig.findFirst({
     where: {
       shopId,
@@ -380,41 +341,35 @@ export async function validateTestEnvironment(
       environment: "test",
     },
   });
-
   if (!config) {
     return {
       valid: false,
       message: "配置不存在",
     };
   }
-
   if (config.environment !== "test") {
     return {
       valid: false,
       message: "当前环境不是测试模式",
     };
   }
-
   if (!config.credentialsEncrypted) {
     return {
       valid: false,
       message: "凭证未配置",
     };
   }
-
   try {
     const credentialsResult = getValidCredentials(
       { credentialsEncrypted: config.credentialsEncrypted },
       platform as Platform
     );
-
     if (!credentialsResult.ok) {
       return {
         valid: false,
         message: `凭证验证失败: ${credentialsResult.error.message}`,
       };
     }
-
     const details: {
       eventSent?: boolean;
       responseTime?: number;
@@ -423,14 +378,12 @@ export async function validateTestEnvironment(
       debugViewUrl?: string;
       verificationInstructions?: string;
     } = {};
-
     if (platform === "meta") {
       const credentials = credentialsResult.value.credentials as {
         pixelId?: string;
         accessToken?: string;
         testEventCode?: string;
       };
-
       if (credentials.testEventCode) {
         details.testEventCode = credentials.testEventCode;
         details.verificationInstructions = `测试事件已发送，请在 Meta Events Manager 的「测试事件」页面查看，使用 Test Event Code: ${credentials.testEventCode}`;
@@ -438,19 +391,16 @@ export async function validateTestEnvironment(
         details.verificationInstructions = "建议在 Meta Events Manager 中设置 Test Event Code，以便在测试模式下验证事件。";
       }
     }
-
     if (platform === "google") {
       const credentials = credentialsResult.value.credentials as {
         measurementId?: string;
         apiSecret?: string;
       };
-
       if (credentials.measurementId) {
         details.debugViewUrl = `https://analytics.google.com/analytics/web/#/debug/${credentials.measurementId}`;
         details.verificationInstructions = `测试事件已发送，请在 GA4 DebugView 中查看：${details.debugViewUrl}`;
       }
     }
-
     const testEventId = generateDedupeEventId(`test-${Date.now()}`);
     const testData = {
       orderId: `test-order-${Date.now()}`,
@@ -466,7 +416,6 @@ export async function validateTestEnvironment(
         },
       ],
     };
-
     const startTime = Date.now();
     const sendResult = await sendConversion(
       platform as Platform,
@@ -476,7 +425,6 @@ export async function validateTestEnvironment(
     );
     const responseTime = Date.now() - startTime;
     details.responseTime = responseTime;
-
     if (sendResult.ok && sendResult.value.success) {
       details.eventSent = true;
       return {
@@ -491,7 +439,6 @@ export async function validateTestEnvironment(
           : sendResult.ok
             ? "未知错误"
             : sendResult.error.message;
-
       details.eventSent = false;
       details.error = errorMessage;
       return {
@@ -506,7 +453,6 @@ export async function validateTestEnvironment(
       platform,
       error,
     });
-
     return {
       valid: false,
       message: `验证过程出错: ${error instanceof Error ? error.message : "未知错误"}`,

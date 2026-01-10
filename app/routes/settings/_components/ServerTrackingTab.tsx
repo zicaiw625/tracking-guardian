@@ -47,34 +47,28 @@ interface ServerTrackingTabProps {
   setServerPlatform: (value: string) => void;
   serverEnabled: boolean;
   setServerEnabled: (value: boolean) => void;
-
   environment: PixelEnvironment;
   setEnvironment: (value: PixelEnvironment) => void;
   onSwitchEnvironment?: (platform: string, env: PixelEnvironment) => void;
   onRollbackEnvironment?: (platform: string) => void;
-
   metaPixelId: string;
   setMetaPixelId: (value: string) => void;
   metaAccessToken: string;
   setMetaAccessToken: (value: string) => void;
   metaTestCode: string;
   setMetaTestCode: (value: string) => void;
-
   googleMeasurementId: string;
   setGoogleMeasurementId: (value: string) => void;
   googleApiSecret: string;
   setGoogleApiSecret: (value: string) => void;
-
   tiktokPixelId: string;
   setTiktokPixelId: (value: string) => void;
   tiktokAccessToken: string;
   setTiktokAccessToken: (value: string) => void;
-
   pinterestAdAccountId: string;
   setPinterestAdAccountId: (value: string) => void;
   pinterestAccessToken: string;
   setPinterestAccessToken: (value: string) => void;
-
   serverFormDirty: boolean;
   isSubmitting: boolean;
   onSaveServerSide: () => void;
@@ -115,10 +109,8 @@ export function ServerTrackingTab({
   onSaveServerSide,
   onTestConnection,
 }: ServerTrackingTabProps) {
-
   const currentConfig = shop?.pixelConfigs?.find(c => c.platform === serverPlatform);
   const canRollback = currentConfig?.rollbackAllowed ?? false;
-
   const [showHistory, setShowHistory] = useState(false);
   const [historyTab, setHistoryTab] = useState(0);
   const comparisonFetcher = useFetcher<{
@@ -141,15 +133,12 @@ export function ServerTrackingTab({
       changes: Record<string, unknown>;
     }>
   }>();
-
   const loadComparison = useCallback(() => {
     comparisonFetcher.load(`/api/pixel-config-history?platform=${serverPlatform}&type=comparison`);
   }, [serverPlatform, comparisonFetcher]);
-
   const loadHistory = useCallback(() => {
     historyFetcher.load(`/api/pixel-config-history?platform=${serverPlatform}&type=history&limit=10`);
   }, [serverPlatform, historyFetcher]);
-
   useEffect(() => {
     if (showHistory && historyTab === 0) {
       loadComparison();
@@ -165,7 +154,6 @@ export function ServerTrackingTab({
             <Text as="h2" variant="headingMd">
               服务端转化追踪（Conversions API）
             </Text>
-
             {tokenIssues.hasIssues && (
               <Banner
                 title="需要重新授权"
@@ -184,7 +172,6 @@ export function ServerTrackingTab({
                 </p>
               </Banner>
             )}
-
             <Banner
               title="受保护客户数据 (PCD) 访问权限说明"
               tone="warning"
@@ -211,28 +198,23 @@ export function ServerTrackingTab({
                 </Text>
               </BlockStack>
             </Banner>
-
             <Banner tone="info">
               <p>
                 服务端追踪通过 Shopify Webhooks 直接将转化数据发送到广告平台，
                 不受浏览器隐私设置和广告拦截器的影响，可显著提高追踪准确性。
               </p>
             </Banner>
-
             <Divider />
-
             <Select
               label="选择平台"
               options={[
                 { label: "Meta Conversions API（CAPI）", value: "meta" },
                 { label: "Google GA4 Measurement Protocol", value: "google" },
                 { label: "TikTok Events API", value: "tiktok" },
-
               ]}
               value={serverPlatform}
               onChange={setServerPlatform}
             />
-
             <Box background="bg-surface-secondary" padding="400" borderRadius="200">
               <BlockStack gap="300">
                 <InlineStack align="space-between" blockAlign="center">
@@ -294,7 +276,6 @@ export function ServerTrackingTab({
                 )}
               </BlockStack>
             </Box>
-
             {serverPlatform === "meta" && (
               <>
                 <TextField
@@ -321,7 +302,6 @@ export function ServerTrackingTab({
                 />
               </>
             )}
-
             {serverPlatform === "google" && (
               <>
                 <Banner tone="info">
@@ -359,7 +339,6 @@ export function ServerTrackingTab({
                 </Text>
               </>
             )}
-
             {serverPlatform === "tiktok" && (
               <>
                 <TextField
@@ -379,7 +358,6 @@ export function ServerTrackingTab({
                 />
               </>
             )}
-
             {serverPlatform === "pinterest" && (
               <>
                 <Banner tone="info">
@@ -421,13 +399,11 @@ export function ServerTrackingTab({
                 </Text>
               </>
             )}
-
             <Checkbox
               label={"启用服务端追踪"}
               checked={serverEnabled}
               onChange={setServerEnabled}
             />
-
             {serverEnabled && (
               <Banner tone="info">
                 <BlockStack gap="200">
@@ -481,7 +457,6 @@ export function ServerTrackingTab({
                 </BlockStack>
               </Banner>
             )}
-
             <InlineStack gap="200">
               <Button
                 variant="primary"
@@ -519,7 +494,6 @@ export function ServerTrackingTab({
                 </Button>
               )}
             </InlineStack>
-
             {showHistory && currentConfig && (
               <Box paddingBlockStart="400">
                 <Tabs
@@ -570,7 +544,6 @@ export function ServerTrackingTab({
           </BlockStack>
         </Card>
       </Layout.Section>
-
       <Layout.Section variant="oneThird">
         <Card>
           <BlockStack gap="300">

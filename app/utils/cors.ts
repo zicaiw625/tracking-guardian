@@ -21,7 +21,6 @@ export function getPixelEventsCorsHeaders(request: Request, options?: {
     };
 }): HeadersInit {
     const origin = request.headers.get("Origin");
-
     const allowedHeaders = [
         "Content-Type",
         "X-Tracking-Guardian-Timestamp",
@@ -68,7 +67,6 @@ export function getPixelEventsCorsHeaders(request: Request, options?: {
 }
 export function getPixelEventsCorsHeadersForShop(request: Request, shopAllowedDomains: string[], customHeaders?: string[]): HeadersInit {
     const origin = request.headers.get("Origin");
-
     const allowedHeaders = [
         "Content-Type",
         "X-Tracking-Guardian-Timestamp",

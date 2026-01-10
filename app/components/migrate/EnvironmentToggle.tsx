@@ -36,18 +36,15 @@ export function EnvironmentToggle({
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [pendingEnvironment, setPendingEnvironment] = useState<PixelEnvironment | null>(null);
   const [isSwitching, setIsSwitching] = useState(false);
-
   const handleEnvironmentChange = useCallback(
     async (newEnvironment: PixelEnvironment) => {
       if (newEnvironment === currentEnvironment) {
         return;
       }
-
       if (currentEnvironment === "test" && newEnvironment === "live") {
         setPendingEnvironment(newEnvironment);
         setShowConfirmModal(true);
       } else {
-
         setIsSwitching(true);
         try {
           await onSwitch(newEnvironment);
@@ -58,10 +55,8 @@ export function EnvironmentToggle({
     },
     [currentEnvironment, onSwitch]
   );
-
   const handleConfirmSwitch = useCallback(async () => {
     if (!pendingEnvironment) return;
-
     setShowConfirmModal(false);
     setIsSwitching(true);
     try {
@@ -71,10 +66,8 @@ export function EnvironmentToggle({
       setPendingEnvironment(null);
     }
   }, [pendingEnvironment, onSwitch]);
-
   const handleRollback = useCallback(async () => {
     if (!onRollback) return;
-
     if (
       confirm(
         "确定要回滚到上一个配置版本吗？当前配置将被上一个版本替换。"
@@ -88,14 +81,12 @@ export function EnvironmentToggle({
       }
     }
   }, [onRollback]);
-
   const platformNames: Record<string, string> = {
     google: "Google Analytics 4",
     meta: "Meta (Facebook)",
     tiktok: "TikTok",
     pinterest: "Pinterest",
   };
-
   return (
     <>
       <Card>
@@ -115,7 +106,6 @@ export function EnvironmentToggle({
               {currentEnvironment === "live" ? "生产环境" : "测试环境"}
             </Badge>
           </InlineStack>
-
           <Box
             background="bg-surface-secondary"
             padding="400"
@@ -156,7 +146,6 @@ export function EnvironmentToggle({
                   </Button>
                 </ButtonGroup>
               </InlineStack>
-
               {currentEnvironment === "test" && (
                 <Banner tone="warning">
                   <Text as="p" variant="bodySm">
@@ -165,7 +154,6 @@ export function EnvironmentToggle({
                   </Text>
                 </Banner>
               )}
-
               {currentEnvironment === "live" && (
                 <Banner tone="info">
                   <Text as="p" variant="bodySm">
@@ -174,7 +162,6 @@ export function EnvironmentToggle({
                   </Text>
                 </Banner>
               )}
-
               {configVersion && (
                 <Box
                   background="bg-surface-secondary"
@@ -224,7 +211,6 @@ export function EnvironmentToggle({
           </Box>
         </BlockStack>
       </Card>
-
       <Modal
         open={showConfirmModal}
         onClose={() => {

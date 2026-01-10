@@ -15,24 +15,18 @@ export function analyzeScriptContent(content: string): ScriptAnalysisResult {
         riskScore: 0,
         recommendations: [],
     };
-
     if (!content || content.trim().length === 0) {
         return result;
     }
-
     const trimmedContent = content.trim();
     let contentToAnalyze = trimmedContent;
     if (trimmedContent.length > MAX_CONTENT_LENGTH) {
-
         contentToAnalyze = trimmedContent.substring(0, MAX_CONTENT_LENGTH);
-
     }
-
     const platformMatches: Map<string, {
         type: string;
         pattern: string;
     }[]> = new Map();
-
     for (const [platform, patterns] of Object.entries(PLATFORM_PATTERNS)) {
         for (const pattern of patterns) {
             const match = contentToAnalyze.match(pattern);
@@ -40,10 +34,8 @@ export function analyzeScriptContent(content: string): ScriptAnalysisResult {
                 if (!platformMatches.has(platform)) {
                     platformMatches.set(platform, []);
                 }
-
                 let matchedPattern = match[0];
                 matchedPattern = sanitizeSensitiveInfo(matchedPattern);
-
                 if (matchedPattern.length > 50) {
                     matchedPattern = matchedPattern.substring(0, 50) + "...";
                 }
@@ -54,11 +46,9 @@ export function analyzeScriptContent(content: string): ScriptAnalysisResult {
             }
         }
     }
-
     for (const [platform, matches] of platformMatches.entries()) {
         result.identifiedPlatforms.push(platform);
         for (const match of matches) {
-
             result.platformDetails.push({
                 platform,
                 type: match.type,
@@ -67,11 +57,9 @@ export function analyzeScriptContent(content: string): ScriptAnalysisResult {
             });
         }
     }
-
     const ga4Match = contentToAnalyze.match(/G-[A-Z0-9]{10,}/gi);
     if (ga4Match) {
         for (const id of ga4Match) {
-
             let cleanedId = sanitizeSensitiveInfo(id);
             if (cleanedId.length > 50) {
                 cleanedId = cleanedId.substring(0, 50) + "...";
@@ -86,13 +74,11 @@ export function analyzeScriptContent(content: string): ScriptAnalysisResult {
             }
         }
     }
-
     const metaPixelMatch = contentToAnalyze.match(/(?:pixel[_-]?id|fbq\('init',)\s*['":]?\s*(\d{15,16})/gi);
     if (metaPixelMatch) {
         for (const match of metaPixelMatch) {
             const pixelId = match.match(/\d{15,16}/)?.[0];
             if (pixelId && !result.platformDetails.some(d => d.matchedPattern.includes(pixelId))) {
-
                 let cleanedPixelId = sanitizeSensitiveInfo(pixelId);
                 if (cleanedPixelId.length > 50) {
                     cleanedPixelId = cleanedPixelId.substring(0, 50) + "...";
@@ -106,7 +92,6 @@ export function analyzeScriptContent(content: string): ScriptAnalysisResult {
             }
         }
     }
-
     const snapPixelMatch = contentToAnalyze.match(/snaptr\s*\(['"]init['"],\s*['"]?([A-Z0-9-]+)['"]?/gi);
     if (snapPixelMatch) {
         for (const match of snapPixelMatch) {
@@ -125,7 +110,6 @@ export function analyzeScriptContent(content: string): ScriptAnalysisResult {
             }
         }
     }
-
     const pinterestTagMatch = contentToAnalyze.match(/pintrk\s*\(['"]load['"],\s*['"]?([A-Z0-9]+)['"]?/gi);
     if (pinterestTagMatch) {
         for (const match of pinterestTagMatch) {
@@ -144,7 +128,6 @@ export function analyzeScriptContent(content: string): ScriptAnalysisResult {
             }
         }
     }
-
     const tiktokPixelMatch = contentToAnalyze.match(/ttq\s*\.\s*load\s*\(['"]?([A-Z0-9]+)['"]?/gi);
     if (tiktokPixelMatch) {
         for (const match of tiktokPixelMatch) {
@@ -163,9 +146,7 @@ export function analyzeScriptContent(content: string): ScriptAnalysisResult {
             }
         }
     }
-
     const piiPatterns = [
-
         /(?:email|e-mail|mail)\s*[:=]\s*['"]?([^'",\s@]+@[^'",\s]+)/gi,
         /customer\.(?:email|e-mail|contact_email)/gi,
         /order\.(?:email|e-mail|contact_email|customer_email)/gi,
@@ -175,7 +156,6 @@ export function analyzeScriptContent(content: string): ScriptAnalysisResult {
         /\.email\s*[:=]/gi,
         /emailAddress/gi,
         /contactEmail/gi,
-
         /(?:phone|telephone|mobile|tel|phoneNumber)\s*[:=]\s*['"]?([^'",\s]+)/gi,
         /customer\.(?:phone|telephone|mobile|phone_number)/gi,
         /order\.(?:phone|telephone|mobile|billing_phone|shipping_phone)/gi,
@@ -184,7 +164,6 @@ export function analyzeScriptContent(content: string): ScriptAnalysisResult {
         /\.getAttribute\(['"]telephone['"]/gi,
         /\.phone\s*[:=]/gi,
         /phoneNumber/gi,
-
         /(?:address|street|city|zip|postal|postcode|addressLine1|addressLine2)\s*[:=]\s*['"]?([^'",\s]+)/gi,
         /customer\.(?:address|shipping_address|billing_address|address1|address2)/gi,
         /order\.(?:address|shipping_address|billing_address|shipping_address1|billing_address1)/gi,
@@ -193,7 +172,6 @@ export function analyzeScriptContent(content: string): ScriptAnalysisResult {
         /\.address\s*[:=]/gi,
         /shippingAddress/gi,
         /billingAddress/gi,
-
         /(?:first[_-]?name|last[_-]?name|full[_-]?name|name|firstName|lastName|fullName)\s*[:=]\s*['"]?([^'",\s]+)/gi,
         /customer\.(?:first_name|last_name|name|firstName|lastName)/gi,
         /order\.(?:first_name|last_name|name|billing_name|shipping_name|customer_name)/gi,
@@ -201,16 +179,12 @@ export function analyzeScriptContent(content: string): ScriptAnalysisResult {
         /customerName/gi,
         /billingName/gi,
         /shippingName/gi,
-
         /(?:ssn|social[_-]?security|credit[_-]?card|card[_-]?number|cardNumber|card_number)\s*[:=]/gi,
         /customer\.(?:ssn|credit_card|card_number)/gi,
         /order\.(?:credit_card|payment_method)/gi,
-
         /(?:ip[_-]?address|ipAddress|clientIp|userIp)\s*[:=]/gi,
-
         /(?:device[_-]?id|deviceId|device_id|fingerprint)\s*[:=]/gi,
     ];
-
     const piiMatches: string[] = [];
     piiPatterns.forEach(pattern => {
         const matches = contentToAnalyze.match(pattern);
@@ -218,7 +192,6 @@ export function analyzeScriptContent(content: string): ScriptAnalysisResult {
             piiMatches.push(...matches.slice(0, 3));
         }
     });
-
     if (piiMatches.length > 0) {
         const uniqueMatches = [...new Set(piiMatches)];
         const piiTypes: string[] = [];
@@ -227,7 +200,6 @@ export function analyzeScriptContent(content: string): ScriptAnalysisResult {
         if (uniqueMatches.some(m => /address|street|city/i.test(m))) piiTypes.push("地址");
         if (uniqueMatches.some(m => /name/i.test(m))) piiTypes.push("姓名");
         if (uniqueMatches.some(m => /ssn|credit|card/i.test(m))) piiTypes.push("其他敏感信息");
-
         result.risks.push({
             id: "pii_access",
             name: "检测到 PII（个人身份信息）访问",
@@ -237,9 +209,7 @@ export function analyzeScriptContent(content: string): ScriptAnalysisResult {
             details: `检测到 ${piiMatches.length} 处 PII 访问: ${piiTypes.join("、")}`,
         });
     }
-
     const globalObjectPatterns = [
-
         /\bwindow\.(location|history|localStorage|sessionStorage|document|cookie|navigator|screen|innerWidth|innerHeight|outerWidth|outerHeight|scrollX|scrollY|pageXOffset|pageYOffset)/gi,
         /\bwindow\[/gi,
         /typeof\s+window/gi,
@@ -247,7 +217,6 @@ export function analyzeScriptContent(content: string): ScriptAnalysisResult {
         /window\s*!==/gi,
         /window\s*&&/gi,
         /window\s*\|\|/gi,
-
         /\bdocument\.(getElementById|getElementsByClassName|getElementsByTagName|querySelector|querySelectorAll|body|head|title|cookie|createElement|write|writeln|addEventListener|removeEventListener|getElementsByName|createTextNode|createDocumentFragment)/gi,
         /\bdocument\[/gi,
         /typeof\s+document/gi,
@@ -255,29 +224,23 @@ export function analyzeScriptContent(content: string): ScriptAnalysisResult {
         /document\s*!==/gi,
         /document\s*&&/gi,
         /document\s*\|\|/gi,
-
         /\.(innerHTML|outerHTML|textContent|innerText)\s*=/gi,
         /\.(appendChild|removeChild|insertBefore|replaceChild)\s*\(/gi,
         /\.(setAttribute|getAttribute|removeAttribute)\s*\(/gi,
-
         /\.(addEventListener|removeEventListener|attachEvent|detachEvent)\s*\(/gi,
-
         /\$\s*\(['"]/gi,
         /jQuery\s*\(['"]/gi,
     ];
-
     const windowDocumentMatches: string[] = [];
     const matchTypes = {
         window: [] as string[],
         document: [] as string[],
         dom: [] as string[],
     };
-
     globalObjectPatterns.forEach(pattern => {
         const matches = contentToAnalyze.match(pattern);
         if (matches) {
             windowDocumentMatches.push(...matches.slice(0, 5));
-
             matches.forEach(match => {
                 if (/window/i.test(match)) {
                     matchTypes.window.push(match);
@@ -289,14 +252,12 @@ export function analyzeScriptContent(content: string): ScriptAnalysisResult {
             });
         }
     });
-
     if (windowDocumentMatches.length > 0) {
         const uniqueMatches = [...new Set(windowDocumentMatches)];
         const issues: string[] = [];
         if (matchTypes.window.length > 0) issues.push(`window 对象访问 (${matchTypes.window.length} 处)`);
         if (matchTypes.document.length > 0) issues.push(`document 对象访问 (${matchTypes.document.length} 处)`);
         if (matchTypes.dom.length > 0) issues.push(`DOM 操作 (${matchTypes.dom.length} 处)`);
-
         result.risks.push({
             id: "window_document_access",
             name: "检测到 window/document 全局对象访问",
@@ -306,35 +267,23 @@ export function analyzeScriptContent(content: string): ScriptAnalysisResult {
             details: `检测到 ${uniqueMatches.length} 处访问: ${issues.join("、")}`,
         });
     }
-
     const blockingPatterns = [
-
         /document\.write\s*\(/gi,
         /document\.writeln\s*\(/gi,
-
         /<script[^>]*(?!.*async)(?!.*defer)[^>]*>/gi,
-
         /\.innerHTML\s*=\s*['"]<script/gi,
         /\.outerHTML\s*=\s*['"]<script/gi,
-
         /eval\s*\(/gi,
         /new\s+Function\s*\(/gi,
-
         /new\s+XMLHttpRequest\s*\(\s*\)[^}]*\.open\s*\([^,]*,\s*[^,]*,\s*false/gi,
-
         /fetch\s*\([^)]*\)\s*\.then\s*\([^)]*\)\s*\.then\s*\([^)]*\)\s*\.catch/gi,
-
         /while\s*\([^)]*true[^)]*\)/gi,
         /for\s*\([^)]*\)\s*\{[^}]*while\s*\([^)]*true/gi,
-
         /localStorage\.(?:getItem|setItem)\s*\([^)]*\)\s*[^;]*[^a]/gi,
         /sessionStorage\.(?:getItem|setItem)\s*\([^)]*\)\s*[^;]*[^a]/gi,
-
         /document\.cookie\s*=\s*[^;]+/gi,
-
         /JSON\.parse\s*\([^)]*\)/gi,
     ];
-
     const blockingMatches: string[] = [];
     blockingPatterns.forEach(pattern => {
         const matches = contentToAnalyze.match(pattern);
@@ -342,11 +291,9 @@ export function analyzeScriptContent(content: string): ScriptAnalysisResult {
             blockingMatches.push(...matches.slice(0, 3));
         }
     });
-
     if (blockingMatches.length > 0) {
         const uniqueMatches = [...new Set(blockingMatches)];
         const blockingTypes: string[] = [];
-
         if (uniqueMatches.some(m => /document\.write/i.test(m))) {
             blockingTypes.push("document.write");
         }
@@ -362,7 +309,6 @@ export function analyzeScriptContent(content: string): ScriptAnalysisResult {
         if (uniqueMatches.some(m => /while.*true/i.test(m))) {
             blockingTypes.push("可能的无限循环");
         }
-
         result.risks.push({
             id: "blocking_load",
             name: "检测到阻塞加载的代码",
@@ -372,11 +318,9 @@ export function analyzeScriptContent(content: string): ScriptAnalysisResult {
             details: `检测到 ${uniqueMatches.length} 处阻塞代码：${blockingTypes.join("、")}`,
         });
     }
-
     const duplicatePatterns = [
         /(?:fbq|gtag|ttq|pintrk|snaptr)\s*\([^)]*['"](?:track|event|purchase|pageview)['"]/gi,
     ];
-
     const eventCalls: string[] = [];
     for (const pattern of duplicatePatterns) {
         const matches = contentToAnalyze.match(pattern);
@@ -384,13 +328,11 @@ export function analyzeScriptContent(content: string): ScriptAnalysisResult {
             eventCalls.push(...matches);
         }
     }
-
     const eventCounts = new Map<string, number>();
     eventCalls.forEach(call => {
         const normalized = call.toLowerCase().replace(/\s+/g, '');
         eventCounts.set(normalized, (eventCounts.get(normalized) || 0) + 1);
     });
-
     const hasDuplicateTriggers = Array.from(eventCounts.values()).some(count => count > 1);
     if (hasDuplicateTriggers) {
         result.risks.push({
@@ -402,7 +344,6 @@ export function analyzeScriptContent(content: string): ScriptAnalysisResult {
             details: `检测到 ${Array.from(eventCounts.values()).filter(c => c > 1).length} 个重复的事件调用`,
         });
     }
-
     if (result.identifiedPlatforms.length > 0) {
         result.risks.push({
             id: "additional_scripts_detected",
@@ -412,7 +353,6 @@ export function analyzeScriptContent(content: string): ScriptAnalysisResult {
             points: 25,
             details: `检测到平台: ${result.identifiedPlatforms.join(", ")}`,
         });
-
         if (result.identifiedPlatforms.includes("google") && contentToAnalyze.includes("UA-")) {
             result.risks.push({
                 id: "legacy_ua",
@@ -422,7 +362,6 @@ export function analyzeScriptContent(content: string): ScriptAnalysisResult {
                 points: 30,
             });
         }
-
         if (contentToAnalyze.includes("<script") && contentToAnalyze.includes("</script>")) {
             result.risks.push({
                 id: "inline_script_tags",
@@ -433,9 +372,7 @@ export function analyzeScriptContent(content: string): ScriptAnalysisResult {
             });
         }
     }
-
     result.riskScore = calculateRiskScore(result.risks);
-
     for (const platform of result.identifiedPlatforms) {
         switch (platform) {
             case "google":
@@ -519,7 +456,6 @@ export function analyzeScriptContent(content: string): ScriptAnalysisResult {
                     "  → 备选方案: 使用第三方集成或手动配置 X Conversions API"
                 );
                 break;
-
             case "fairing":
                 result.recommendations.push(
                     "📋 **Fairing (Post-purchase Survey)**\n" +
@@ -543,7 +479,6 @@ export function analyzeScriptContent(content: string): ScriptAnalysisResult {
                     "  → 链接: https://apps.shopify.com/microsoft-channel",
                 );
                 break;
-
             case "carthook":
                 result.recommendations.push(
                     "🛒 **CartHook (Post-purchase Upsell)**\n" +
@@ -575,7 +510,6 @@ export function analyzeScriptContent(content: string): ScriptAnalysisResult {
                     "  → 链接: https://apps.shopify.com/microsoft-channel",
                 );
                 break;
-
             case "refersion":
                 result.recommendations.push(
                     "🤝 **Refersion (Affiliate)**\n" +
@@ -613,7 +547,6 @@ export function analyzeScriptContent(content: string): ScriptAnalysisResult {
                     "  → 链接: https://apps.shopify.com/microsoft-channel",
                 );
                 break;
-
             case "hotjar":
                 result.recommendations.push(
                     "🔥 **Hotjar (Heatmaps/Recordings)**\n" +
@@ -660,7 +593,6 @@ export function analyzeScriptContent(content: string): ScriptAnalysisResult {
                 );
         }
     }
-
     if (result.identifiedPlatforms.length === 0 && contentToAnalyze.length > 100) {
         result.recommendations.push(
             "ℹ️ **未检测到已知追踪平台**\n" +
@@ -672,7 +604,6 @@ export function analyzeScriptContent(content: string): ScriptAnalysisResult {
             "  → 建议: 确认脚本用途后选择对应迁移方案"
         );
     }
-
     if (result.identifiedPlatforms.length >= 2) {
         result.recommendations.push(
             "\n📋 **迁移清单建议**:\n" +
@@ -682,6 +613,5 @@ export function analyzeScriptContent(content: string): ScriptAnalysisResult {
             "  4. 非支持平台（Bing、Pinterest 等）使用官方应用"
         );
     }
-
     return result;
 }

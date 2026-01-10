@@ -28,11 +28,9 @@ function detectDependencies(
   allAssets: AuditAsset[]
 ): string[] {
   const dependencies: string[] = [];
-
   if (asset.dependencies && Array.isArray(asset.dependencies)) {
     dependencies.push(...(asset.dependencies as string[]));
   }
-
   const details = asset.details as Record<string, unknown> | null;
   if (details) {
     const explicitDeps = details.dependencies as string[] | undefined;
@@ -40,10 +38,8 @@ function detectDependencies(
       dependencies.push(...explicitDeps);
     }
   }
-
   switch (asset.category) {
     case "survey":
-
       const orderTracking = allAssets.find(
         (a) => a.category === "support" && a.platform === "order_tracking"
       );
@@ -51,9 +47,7 @@ function detectDependencies(
         dependencies.push(orderTracking.id);
       }
       break;
-
     case "affiliate":
-
       const pixelAssets = allAssets.filter(
         (a) => a.category === "pixel" && a.platform === asset.platform
       );
@@ -61,9 +55,7 @@ function detectDependencies(
         dependencies.push(pixelAssets[0].id);
       }
       break;
-
     case "analytics":
-
       const analyticsPixels = allAssets.filter(
         (a) => a.category === "pixel"
       );
@@ -72,17 +64,13 @@ function detectDependencies(
       }
       break;
   }
-
   if (asset.platform) {
-
     const samePlatformAssets = allAssets.filter(
       (a) => a.platform === asset.platform && a.id !== asset.id
     );
     if (samePlatformAssets.length > 0 && asset.category === "pixel") {
-
     }
   }
-
   return [...new Set(dependencies)];
 }
 
@@ -95,21 +83,17 @@ function topologicalSort(nodes: DependencyNode[]): {
   const visited = new Set<string>();
   const visiting = new Set<string>();
   const nodeMap = new Map<string, DependencyNode>();
-
   nodes.forEach((node) => {
     nodeMap.set(node.assetId, node);
   });
-
   function detectCycle(nodeId: string, path: string[]): string[] | null {
     if (visiting.has(nodeId)) {
-
       const cycleStart = path.indexOf(nodeId);
       return path.slice(cycleStart).concat(nodeId);
     }
     if (visited.has(nodeId)) {
       return null;
     }
-
     visiting.add(nodeId);
     const node = nodeMap.get(nodeId);
     if (node) {
@@ -125,7 +109,6 @@ function topologicalSort(nodes: DependencyNode[]): {
     visited.add(nodeId);
     return null;
   }
-
   nodes.forEach((node) => {
     if (!visited.has(node.assetId)) {
       const cycle = detectCycle(node.assetId, []);
@@ -134,10 +117,8 @@ function topologicalSort(nodes: DependencyNode[]): {
       }
     }
   });
-
   visited.clear();
   const inDegree = new Map<string, number>();
-
   nodes.forEach((node) => {
     inDegree.set(node.assetId, 0);
   });
@@ -146,20 +127,17 @@ function topologicalSort(nodes: DependencyNode[]): {
       inDegree.set(depId, (inDegree.get(depId) || 0) + 1);
     });
   });
-
   const queue: string[] = [];
   inDegree.forEach((degree, nodeId) => {
     if (degree === 0) {
       queue.push(nodeId);
     }
   });
-
   while (queue.length > 0) {
     const nodeId = queue.shift();
     if (!nodeId) break;
     order.push(nodeId);
     visited.add(nodeId);
-
     const node = nodeMap.get(nodeId);
     if (node) {
       node.dependents.forEach((dependentId) => {
@@ -171,30 +149,25 @@ function topologicalSort(nodes: DependencyNode[]): {
       });
     }
   }
-
   nodes.forEach((node) => {
     if (!visited.has(node.assetId)) {
       order.push(node.assetId);
     }
   });
-
   return { order, cycles };
 }
 
 export async function analyzeDependencies(
   shopId: string
 ): Promise<DependencyGraph> {
-
   const assets = await prisma.auditAsset.findMany({
     where: {
       shopId,
       migrationStatus: { not: "completed" },
     },
   });
-
   const nodes: DependencyNode[] = assets.map((asset) => {
     const dependencies = detectDependencies(asset, assets);
-
     return {
       assetId: asset.id,
       assetName: asset.displayName || asset.category,
@@ -206,7 +179,6 @@ export async function analyzeDependencies(
       dependents: [],
     };
   });
-
   nodes.forEach((node) => {
     node.dependencies.forEach((depId) => {
       const depNode = nodes.find((n) => n.assetId === depId);
@@ -215,7 +187,6 @@ export async function analyzeDependencies(
       }
     });
   });
-
   const edges: DependencyGraph["edges"] = [];
   nodes.forEach((node) => {
     node.dependencies.forEach((depId) => {
@@ -226,9 +197,7 @@ export async function analyzeDependencies(
       });
     });
   });
-
   const { order, cycles } = topologicalSort(nodes);
-
   for (let i = 0; i < order.length - 1; i++) {
     edges.push({
       from: order[i],
@@ -236,7 +205,6 @@ export async function analyzeDependencies(
       type: "suggested_order",
     });
   }
-
   return {
     nodes,
     edges,
@@ -254,26 +222,20 @@ export async function getAssetDependencies(
   const asset = await prisma.auditAsset.findUnique({
     where: { id: assetId },
   });
-
   if (!asset) {
     return { dependencies: [], dependents: [] };
   }
-
   const graph = await analyzeDependencies(asset.shopId);
   const node = graph.nodes.find((n) => n.assetId === assetId);
-
   if (!node) {
     return { dependencies: [], dependents: [] };
   }
-
   const dependencies = node.dependencies
     .map((depId) => graph.nodes.find((n) => n.assetId === depId))
     .filter((n): n is DependencyNode => n !== undefined);
-
   const dependents = node.dependents
     .map((depId) => graph.nodes.find((n) => n.assetId === depId))
     .filter((n): n is DependencyNode => n !== undefined);
-
   return { dependencies, dependents };
 }
 

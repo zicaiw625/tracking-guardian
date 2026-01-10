@@ -90,7 +90,6 @@ export function TableSkeleton({
             ))}
           </InlineStack>
         )}
-
         {Array.from({ length: rows }).map((_, rowIndex) => (
           <InlineStack key={rowIndex} gap="400">
             {Array.from({ length: columns }).map((_, colIndex) => (

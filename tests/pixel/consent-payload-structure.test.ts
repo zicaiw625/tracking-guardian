@@ -16,7 +16,6 @@ function parseInitialConsent(initCustomerPrivacy: CustomerPrivacyState | undefin
   analyticsAllowed: boolean;
   saleOfDataAllowed: boolean;
 } {
-
   if (!initCustomerPrivacy) {
     return {
       marketingAllowed: false,
@@ -24,11 +23,9 @@ function parseInitialConsent(initCustomerPrivacy: CustomerPrivacyState | undefin
       saleOfDataAllowed: false,
     };
   }
-
   return {
     marketingAllowed: initCustomerPrivacy.marketingAllowed === true,
     analyticsAllowed: initCustomerPrivacy.analyticsProcessingAllowed === true,
-
     saleOfDataAllowed: initCustomerPrivacy.saleOfDataAllowed === true,
   };
 }
@@ -39,15 +36,12 @@ function parseConsentEvent(event: VisitorConsentCollectedEvent): {
   saleOfDataAllowed: boolean;
 } {
   const updatedPrivacy = event.customerPrivacy;
-
   if (!updatedPrivacy) {
     throw new Error("Event missing customerPrivacy object");
   }
-
   return {
     marketingAllowed: updatedPrivacy.marketingAllowed === true,
     analyticsAllowed: updatedPrivacy.analyticsProcessingAllowed === true,
-
     saleOfDataAllowed: updatedPrivacy.saleOfDataAllowed === true,
   };
 }
@@ -60,14 +54,11 @@ describe("P0-4: init.customerPrivacy structure", () => {
       preferencesProcessingAllowed: true,
       saleOfDataAllowed: true,
     };
-
     const result = parseInitialConsent(initPrivacy);
-
     expect(result.marketingAllowed).toBe(true);
     expect(result.analyticsAllowed).toBe(true);
     expect(result.saleOfDataAllowed).toBe(true);
   });
-
   it("should parse all consents denied", () => {
     const initPrivacy: CustomerPrivacyState = {
       analyticsProcessingAllowed: false,
@@ -75,14 +66,11 @@ describe("P0-4: init.customerPrivacy structure", () => {
       preferencesProcessingAllowed: false,
       saleOfDataAllowed: false,
     };
-
     const result = parseInitialConsent(initPrivacy);
-
     expect(result.marketingAllowed).toBe(false);
     expect(result.analyticsAllowed).toBe(false);
     expect(result.saleOfDataAllowed).toBe(false);
   });
-
   it("should parse analytics only (common GDPR scenario)", () => {
     const initPrivacy: CustomerPrivacyState = {
       analyticsProcessingAllowed: true,
@@ -90,17 +78,13 @@ describe("P0-4: init.customerPrivacy structure", () => {
       preferencesProcessingAllowed: false,
       saleOfDataAllowed: false,
     };
-
     const result = parseInitialConsent(initPrivacy);
-
     expect(result.marketingAllowed).toBe(false);
     expect(result.analyticsAllowed).toBe(true);
     expect(result.saleOfDataAllowed).toBe(false);
   });
-
   it("should handle undefined init.customerPrivacy gracefully (P0-04: deny by default)", () => {
     const result = parseInitialConsent(undefined);
-
     expect(result.marketingAllowed).toBe(false);
     expect(result.analyticsAllowed).toBe(false);
     expect(result.saleOfDataAllowed).toBe(false);
@@ -117,14 +101,11 @@ describe("P0-4: visitorConsentCollected event structure", () => {
         saleOfDataAllowed: true,
       },
     };
-
     const result = parseConsentEvent(event);
-
     expect(result.marketingAllowed).toBe(true);
     expect(result.analyticsAllowed).toBe(true);
     expect(result.saleOfDataAllowed).toBe(true);
   });
-
   it("should parse consent update (user revokes marketing)", () => {
     const event: VisitorConsentCollectedEvent = {
       customerPrivacy: {
@@ -134,21 +115,17 @@ describe("P0-4: visitorConsentCollected event structure", () => {
         saleOfDataAllowed: false,
       },
     };
-
     const result = parseConsentEvent(event);
-
     expect(result.marketingAllowed).toBe(false);
     expect(result.analyticsAllowed).toBe(true);
     expect(result.saleOfDataAllowed).toBe(false);
   });
-
   it("should NOT work with flat event structure (old buggy approach)", () => {
     const wrongEvent = {
       analyticsProcessingAllowed: true,
       marketingAllowed: true,
       saleOfDataAllowed: true,
     };
-
     expect(() => {
       parseConsentEvent(wrongEvent as unknown as VisitorConsentCollectedEvent);
     }).toThrow("Event missing customerPrivacy object");
@@ -163,23 +140,18 @@ describe("P0-4: Edge cases and type coercion", () => {
       preferencesProcessingAllowed: {} as unknown as boolean,
       saleOfDataAllowed: true,
     };
-
     const result = parseInitialConsent(initPrivacy as CustomerPrivacyState);
-
     expect(result.marketingAllowed).toBe(false);
     expect(result.analyticsAllowed).toBe(false);
     expect(result.saleOfDataAllowed).toBe(true);
   });
-
   it("should treat undefined saleOfDataAllowed as denied (P0-04: deny by default)", () => {
     const initPrivacy = {
       analyticsProcessingAllowed: true,
       marketingAllowed: true,
       preferencesProcessingAllowed: true,
     } as CustomerPrivacyState;
-
     const result = parseInitialConsent(initPrivacy);
-
     expect(result.saleOfDataAllowed).toBe(false);
   });
 });

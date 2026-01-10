@@ -85,18 +85,15 @@ function calculateRetryDelay(
   config: RetryConfig,
   retryAfterHeader?: string | null
 ): number {
-
   if (retryAfterHeader) {
     const retryAfterSeconds = parseInt(retryAfterHeader, 10);
     if (!isNaN(retryAfterSeconds)) {
       return retryAfterSeconds * 1000;
     }
   }
-
   const baseDelay = config.initialDelayMs * Math.pow(config.backoffMultiplier, attempt);
   const cappedDelay = Math.min(baseDelay, config.maxDelayMs);
   const jitter = cappedDelay * 0.1 * Math.random();
-
   return Math.floor(cappedDelay + jitter);
 }
 
@@ -104,18 +101,15 @@ function isRetryableError(
   statusCode: number,
   errors?: ShopifyGraphQLResponse["errors"]
 ): boolean {
-
   if (RETRYABLE_STATUS_CODES.has(statusCode)) {
     return true;
   }
-
   if (errors) {
     return errors.some((error) => {
       const code = error.extensions?.code;
       return typeof code === "string" && RETRYABLE_ERROR_CODES.has(code);
     });
   }
-
   return false;
 }
 
@@ -129,7 +123,6 @@ function createEnhancedGraphQLClient(
   apiVersion: ApiVersion = ApiVersion.July25
 ): GraphQLClient {
   const apiUrl = `https://${shopDomain}/admin/api/${apiVersion}/graphql.json`;
-
   return {
     async graphql(
       query: string,
@@ -139,7 +132,6 @@ function createEnhancedGraphQLClient(
       const timer = createTimer();
       let lastError: Error | null = null;
       let lastResponse: Response | null = null;
-
       for (let attempt = 0; attempt <= config.maxRetries; attempt++) {
         try {
           const response = await fetch(apiUrl, {
@@ -154,11 +146,8 @@ function createEnhancedGraphQLClient(
               operationName: options?.operationName,
             }),
           });
-
           lastResponse = response;
-
           const jsonResponse = await response.clone().json() as ShopifyGraphQLResponse;
-
           if (jsonResponse.extensions?.cost) {
             const cost = jsonResponse.extensions.cost;
             logger.debug("[GraphQL] Request cost", {
@@ -172,10 +161,8 @@ function createEnhancedGraphQLClient(
               attempt: attempt + 1,
               duration: timer.elapsed(),
             });
-
             const availablePercent =
               (cost.throttleStatus.currentlyAvailable / cost.throttleStatus.maximumAvailable) * 100;
-
             if (availablePercent < 20) {
               logger.warn("[GraphQL] Low API budget", {
                 shopDomain,
@@ -185,12 +172,10 @@ function createEnhancedGraphQLClient(
               });
             }
           }
-
           if (isRetryableError(response.status, jsonResponse.errors)) {
             if (attempt < config.maxRetries) {
               const retryAfter = response.headers.get("Retry-After");
               const delay = calculateRetryDelay(attempt, config, retryAfter);
-
               logger.warn("[GraphQL] Retryable error, scheduling retry", {
                 shopDomain,
                 operationName: options?.operationName,
@@ -200,12 +185,10 @@ function createEnhancedGraphQLClient(
                 retryAfterMs: delay,
                 errors: jsonResponse.errors?.map((e) => e.message).slice(0, 3),
               });
-
               await sleep(delay);
               continue;
             }
           }
-
           if (response.ok && !jsonResponse.errors) {
             logger.debug("[GraphQL] Request succeeded", {
               shopDomain,
@@ -214,7 +197,6 @@ function createEnhancedGraphQLClient(
               duration: timer.elapsed(),
             });
           } else if (jsonResponse.errors) {
-
             logger.warn("[GraphQL] Request completed with errors", {
               shopDomain,
               operationName: options?.operationName,
@@ -227,7 +209,6 @@ function createEnhancedGraphQLClient(
               duration: timer.elapsed(),
             });
           }
-
           return {
             json: async () => jsonResponse,
             status: response.status,
@@ -235,10 +216,8 @@ function createEnhancedGraphQLClient(
           };
         } catch (error) {
           lastError = error instanceof Error ? error : new Error(String(error));
-
           if (attempt < config.maxRetries) {
             const delay = calculateRetryDelay(attempt, config, null);
-
             logger.warn("[GraphQL] Network error, scheduling retry", {
               shopDomain,
               operationName: options?.operationName,
@@ -247,20 +226,17 @@ function createEnhancedGraphQLClient(
               maxRetries: config.maxRetries,
               retryAfterMs: delay,
             });
-
             await sleep(delay);
             continue;
           }
         }
       }
-
       logger.error("[GraphQL] All retries exhausted", lastError, {
         shopDomain,
         operationName: options?.operationName,
         totalAttempts: config.maxRetries + 1,
         duration: timer.elapsed(),
       });
-
       if (lastResponse) {
         return {
           json: async () => lastResponse!.json(),
@@ -268,7 +244,6 @@ function createEnhancedGraphQLClient(
           headers: lastResponse.headers,
         };
       }
-
       throw lastError || new Error("GraphQL request failed after all retries");
     },
   };
@@ -285,7 +260,6 @@ async function getAccessTokenFromSession(
     },
     orderBy: { id: "desc" },
   });
-
   if (offlineSession?.accessToken) {
     try {
       const accessToken = decryptAccessToken(offlineSession.accessToken);
@@ -299,7 +273,6 @@ async function getAccessTokenFromSession(
       );
     }
   }
-
   return null;
 }
 
@@ -310,7 +283,6 @@ async function getAccessTokenFromShop(
     where: { shopDomain },
     select: { accessToken: true },
   });
-
   if (shopRecord?.accessToken) {
     try {
       return decryptAccessToken(shopRecord.accessToken);
@@ -320,7 +292,6 @@ async function getAccessTokenFromShop(
       );
     }
   }
-
   return null;
 }
 
@@ -328,20 +299,15 @@ export async function createAdminClientForShop(
   shopDomain: string
 ): Promise<AdminApiContext | null> {
   try {
-
     let accessToken = await getAccessTokenFromSession(shopDomain);
-
     if (!accessToken) {
       accessToken = await getAccessTokenFromShop(shopDomain);
     }
-
     if (!accessToken) {
       logger.info(`[Admin] No usable offline token for ${shopDomain}`);
       return null;
     }
-
     const graphqlClient = createEnhancedGraphQLClient(shopDomain, accessToken);
-
     return graphqlClient as AdminApiContext;
   } catch (error) {
     logger.error(`[Admin] Failed to create client for ${shopDomain}`, error);
@@ -363,22 +329,18 @@ export async function executeGraphQL<T = unknown>(
 ): Promise<GraphQLResult<T> | null> {
   const timer = createTimer();
   const client = await createAdminClientForShop(shopDomain);
-
   if (!client) {
     return null;
   }
-
   try {
     const response = await client.graphql(query, options as { variables?: Record<string, unknown> });
     const json = await response.json() as ShopifyGraphQLResponse<T>;
-
     const result: GraphQLResult<T> = {
       data: json.data,
       errors: json.errors,
       retries: 0,
       duration: timer.elapsed(),
     };
-
     if (json.extensions?.cost) {
       const cost = json.extensions.cost;
       result.cost = {
@@ -389,7 +351,6 @@ export async function executeGraphQL<T = unknown>(
         restoreRate: cost.throttleStatus.restoreRate,
       };
     }
-
     return result;
   } catch (error) {
     logger.error("[GraphQL] executeGraphQL failed", error, {

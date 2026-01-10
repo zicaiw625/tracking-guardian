@@ -8,7 +8,6 @@ export interface PlanFeatures {
   monthlyOrderLimit: number;
   trialDays?: number;
   features: readonly string[];
-
   pixelDestinations: number;
   uiModules: number;
   includesVerification: boolean;
@@ -17,7 +16,6 @@ export interface PlanFeatures {
   includesAgency: boolean;
   includesReportExport: boolean;
   tagline?: string;
-
   isOneTime?: boolean;
 }
 
@@ -86,7 +84,6 @@ export const BILLING_PLANS = {
     includesAgency: false,
     includesReportExport: true,
     tagline: "项目交付包（Agency 直接报给客户的交付包）",
-
     features: [
       "像素迁移 + 模块发布 + 验收报告导出 (PDF/CSV)",
       "可交付的验收报告（给老板/客户看的证据）",
@@ -99,7 +96,6 @@ export const BILLING_PLANS = {
       "90 天数据保留",
     ],
   },
-
   monitor: {
     id: "monitor",
     name: "Monitor 监控版（可选叠加）",
@@ -185,7 +181,6 @@ export function getPlanConfig(planId: PlanId): typeof BILLING_PLANS[PlanId] {
 
 export function getPlanOrDefault(planId: string | null | undefined): typeof BILLING_PLANS[PlanId] {
   if (!planId) return BILLING_PLANS.free;
-
   const normalizedId = normalizePlanId(planId);
   if (isValidPlanId(normalizedId)) {
     return BILLING_PLANS[normalizedId];
@@ -210,7 +205,6 @@ export function getPlanLimit(planId: PlanId): number {
 
 export function detectPlanFromPrice(price: number): PlanId {
   if (price >= 199) {
-
     return "agency";
   }
   if (price >= 79 && price < 199) {
@@ -233,7 +227,6 @@ export function getTrialDays(planId: PlanId): number {
 }
 
 export function isHigherTier(planA: PlanId, planB: PlanId): boolean {
-
   if (planA === "monitor" || planB === "monitor") {
     return false;
   }
@@ -247,7 +240,6 @@ export function isHigherTier(planA: PlanId, planB: PlanId): boolean {
 }
 
 export function getUpgradeOptions(currentPlan: PlanId): PlanId[] {
-
   const tierOrder: PlanId[] = ["free", "starter", "growth", "agency"];
   const currentIndex = tierOrder.indexOf(currentPlan);
   return tierOrder.slice(currentIndex + 1);

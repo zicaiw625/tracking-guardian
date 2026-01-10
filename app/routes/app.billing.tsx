@@ -20,7 +20,6 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     const shopDomain = session.shop;
     const url = new URL(request.url);
     const chargeId = url.searchParams.get("charge_id");
-
     if (chargeId) {
         const confirmation = await handleSubscriptionConfirmation(admin, shopDomain, chargeId);
         const shop = await prisma.shop.findUnique({
@@ -145,7 +144,6 @@ export const action = async ({ request }: ActionFunctionArgs) => {
                 error: result.error || "订阅创建失败",
             });
         }
-
         case "cancel": {
             const subscriptionId = formData.get("subscriptionId") as string;
             if (!subscriptionId) {
@@ -166,7 +164,6 @@ export default function BillingPage() {
     const submit = useSubmit();
     const navigation = useNavigation();
     const { showSuccess, showError } = useToastContext();
-
     useEffect(() => {
         if (actionData) {
             const data = actionData as { success?: boolean; error?: string; actionType?: string };
@@ -184,7 +181,6 @@ export default function BillingPage() {
     const [searchParams] = useSearchParams();
     const isSubmitting = navigation.state === "submitting";
     const showSuccessBanner = searchParams.get("success") === "true";
-
     const currentPlan = plans[subscription.plan as PlanId];
     const usagePercent = Math.min((usage.current / usage.limit) * 100, 100);
     const dateFormatter = new Intl.DateTimeFormat("zh-CN", {
@@ -229,25 +225,21 @@ export default function BillingPage() {
         {showSuccessBanner && (<Banner title="订阅成功！" tone="success" onDismiss={() => { }}>
             <p>您的订阅已激活，现在可以享受所有功能了。</p>
           </Banner>)}
-        
         {hasError && (<Banner title="订阅失败" tone="critical" onDismiss={() => { }}>
             <p>{actionData.error}</p>
           </Banner>)}
-
         {subscription.isTrialing && (<Banner title="试用期" tone="info">
             <p>
               您正在使用 {currentPlan.name} 的免费试用。
               试用期将于 {subscription.currentPeriodEnd ? new Date(subscription.currentPeriodEnd).toLocaleDateString("zh-CN") : "即将"} 结束。
             </p>
           </Banner>)}
-
         {usage.exceeded && (<Banner title="已达到订单限额" tone="critical">
             <p>
               本月订单追踪已达到 {usage.limit} 笔上限。
               请升级套餐以继续追踪更多订单。
             </p>
           </Banner>)}
-
         <PageIntroCard
           title="订阅与账单概览"
           description="查看当前套餐、使用量、账单历史，并管理续费与升级。"
@@ -259,7 +251,6 @@ export default function BillingPage() {
           primaryAction={{ content: "查看套餐", url: "/app/billing" }}
           secondaryAction={{ content: "账单中心", url: billingPortalUrl }}
         />
-
         <Layout>
           <Layout.Section>
             <Card>
@@ -270,9 +261,7 @@ export default function BillingPage() {
                     {currentPlan.name}
                   </Badge>
                 </InlineStack>
-
                 <Divider />
-
                 <BlockStack gap="200">
                   <InlineStack align="space-between">
                     <Text as="span" variant="bodySm" tone="subdued">本月订单追踪</Text>
@@ -282,14 +271,12 @@ export default function BillingPage() {
                   </InlineStack>
                   <ProgressBar progress={usagePercent} tone={usagePercent >= 90 ? "critical" : undefined}/>
                 </BlockStack>
-
                 <BlockStack gap="200">
                   <Text as="span" variant="headingSm">套餐功能</Text>
                   <List>
                     {currentPlan.features.map((feature, index) => (<List.Item key={index}>{feature}</List.Item>))}
                   </List>
                 </BlockStack>
-
                 {subscription.hasActiveSubscription && subscription.plan !== "free" && (<>
                     <Divider />
                     <BlockStack gap="200">
@@ -312,7 +299,6 @@ export default function BillingPage() {
             </Card>
           </Layout.Section>
         </Layout>
-
         <Card>
           <BlockStack gap="400">
             <InlineStack align="space-between" blockAlign="center">
@@ -326,7 +312,6 @@ export default function BillingPage() {
                 前往 Shopify 账单中心
               </Button>
             </InlineStack>
-
             {billingRows.length === 0 ? (
               <Banner tone="info">
                 <Text as="p" variant="bodySm">
@@ -342,9 +327,7 @@ export default function BillingPage() {
             )}
           </BlockStack>
         </Card>
-
         <Text as="h2" variant="headingMd">可用套餐</Text>
-
         <Layout>
           {planIds.map((planId) => {
             const plan = plans[planId];
@@ -359,7 +342,6 @@ export default function BillingPage() {
                       <Text as="h3" variant="headingMd">{plan.name}</Text>
                       {isCurrentPlan && <Badge tone="success">当前</Badge>}
                     </InlineStack>
-
                     <BlockStack gap="100">
                       <InlineStack align="start" blockAlign="baseline" gap="100">
                         <Text as="span" variant="heading2xl">
@@ -371,13 +353,10 @@ export default function BillingPage() {
                           {plan.trialDays} 天免费试用
                         </Text>)}
                     </BlockStack>
-
                     <Divider />
-
                     <List>
                       {plan.features.map((feature, index) => (<List.Item key={index}>{feature}</List.Item>))}
                     </List>
-
                     <Box paddingBlockStart="200">
                       {isCurrentPlan ? (<Button disabled fullWidth>当前套餐</Button>) : plan.price === 0 ? (<Button variant="secondary" fullWidth onClick={handleCancel} loading={isSubmitting} disabled={subscription.plan === "free"}>
                           降级到免费版
@@ -390,7 +369,6 @@ export default function BillingPage() {
               </Layout.Section>);
         })}
         </Layout>
-
         {subscription.plan === "agency" && (
           <Card>
             <BlockStack gap="400">
@@ -430,12 +408,10 @@ export default function BillingPage() {
             </BlockStack>
           </Card>
         )}
-
         <Card>
           <BlockStack gap="400">
             <Text as="h2" variant="headingMd">常见问题</Text>
             <Divider />
-
             <BlockStack gap="300">
               <BlockStack gap="100">
                 <Text as="span" fontWeight="semibold">什么时候开始计费？</Text>
@@ -443,28 +419,24 @@ export default function BillingPage() {
                   付费套餐提供 7 天免费试用（Agency 版 14 天）。试用期结束后自动开始计费。
                 </Text>
               </BlockStack>
-
               <BlockStack gap="100">
                 <Text as="span" fontWeight="semibold">可以随时取消吗？</Text>
                 <Text as="p" tone="subdued">
                   是的，您可以随时取消订阅。取消后，当前计费周期结束前仍可使用付费功能。
                 </Text>
               </BlockStack>
-
               <BlockStack gap="100">
                 <Text as="span" fontWeight="semibold">超过订单限额会怎样？</Text>
                 <Text as="p" tone="subdued">
                   达到月度限额后，新订单将不会被追踪。您可以升级套餐来增加限额。
                 </Text>
               </BlockStack>
-
               <BlockStack gap="100">
                 <Text as="span" fontWeight="semibold">如何升级或降级套餐？</Text>
                 <Text as="p" tone="subdued">
                   您可以随时更改套餐。升级立即生效，降级在当前计费周期结束后生效。
                 </Text>
               </BlockStack>
-
               <BlockStack gap="100">
                 <Text as="span" fontWeight="semibold">Agency 版有哪些额外功能？</Text>
                 <Text as="p" tone="subdued">

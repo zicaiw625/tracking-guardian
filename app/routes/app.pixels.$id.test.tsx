@@ -37,20 +37,16 @@ export const loader = async ({ request, params }: LoaderFunctionArgs) => {
   const { session } = await authenticate.admin(request);
   const shopDomain = session.shop;
   const pixelConfigId = params.id;
-
   if (!pixelConfigId) {
     throw new Response("Missing pixel config id", { status: 400 });
   }
-
   const shop = await prisma.shop.findUnique({
     where: { shopDomain },
     select: { id: true, shopDomain: true, plan: true },
   });
-
   if (!shop) {
     return json({ shop: null, pixelConfig: null });
   }
-
   const pixelConfig = await prisma.pixelConfig.findFirst({
     where: { id: pixelConfigId, shopId: shop.id },
     select: {
@@ -61,14 +57,11 @@ export const loader = async ({ request, params }: LoaderFunctionArgs) => {
       platformId: true,
     },
   });
-
   if (!pixelConfig) {
     throw new Response("Pixel config not found", { status: 404 });
   }
-
   const planId = normalizePlanId(shop.plan ?? "free");
   const hasVerificationAccess = planSupportsFeature(planId, "verification");
-
     if (!hasVerificationAccess) {
     const { trackEvent } = await import("~/services/analytics.server");
     const { safeFireAndForget } = await import("~/utils/helpers");
@@ -86,7 +79,6 @@ export const loader = async ({ request, params }: LoaderFunctionArgs) => {
       })
     );
   }
-
   return json({
     shop: { id: shop.id, domain: shop.shopDomain },
     pixelConfig,
@@ -98,42 +90,33 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
   const { session } = await authenticate.admin(request);
   const shopDomain = session.shop;
   const pixelConfigId = params.id;
-
   if (!pixelConfigId) {
     return json({ success: false, error: "缺少配置 ID" }, { status: 400 });
   }
-
   const formData = await request.formData();
   const actionType = formData.get("_action");
-
   const shop = await prisma.shop.findUnique({
     where: { shopDomain },
     select: { id: true },
   });
-
   if (!shop) {
     return json({ success: false, error: "Shop not found" }, { status: 404 });
   }
-
   const pixelConfig = await prisma.pixelConfig.findFirst({
     where: { id: pixelConfigId, shopId: shop.id },
     select: { platform: true },
   });
-
   if (!pixelConfig) {
     return json({ success: false, error: "配置不存在" }, { status: 404 });
   }
-
   if (actionType === "validateTestEnvironment") {
     const platform = pixelConfig.platform;
-
     if (!["google", "meta", "tiktok"].includes(platform)) {
       return json({
         success: false,
         error: "当前仅支持 GA4、Meta、TikTok 的测试环境验证。",
       }, { status: 400 });
     }
-
     try {
       const result = await validateTestEnvironment(shop.id, platform as "google" | "meta" | "tiktok");
       return json({ success: true, ...result });
@@ -144,7 +127,6 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
       }, { status: 500 });
     }
   }
-
   return json({ success: false, error: "Unknown action" }, { status: 400 });
 };
 
@@ -154,7 +136,6 @@ export default function PixelTestPage() {
   const submit = useSubmit();
   const navigation = useNavigation();
   const { showSuccess, showError } = useToastContext();
-
   useEffect(() => {
     if (!actionData) return;
     if (actionData.success && actionData.valid) {
@@ -165,7 +146,6 @@ export default function PixelTestPage() {
       showError(actionData.error);
     }
   }, [actionData, showSuccess, showError]);
-
   if (!shop || !pixelConfig) {
     return (
       <Page title="Pixel 测试">
@@ -178,16 +158,13 @@ export default function PixelTestPage() {
       </Page>
     );
   }
-
   const handleValidate = () => {
     const formData = new FormData();
     formData.append("_action", "validateTestEnvironment");
     formData.append("platform", pixelConfig.platform);
     submit(formData, { method: "post" });
   };
-
   const isSubmitting = navigation.state === "submitting";
-
   return (
     <Page
       title="Pixel 测试"
@@ -247,7 +224,6 @@ export default function PixelTestPage() {
               )}
             </BlockStack>
           </Card>
-
           <Card>
             <BlockStack gap="300">
               <Text as="h2" variant="headingMd">实时事件流</Text>

@@ -6,7 +6,6 @@ export { STANDARD_EVENT_MAPPINGS, getPlatformEventMapping, getEventMapping, merg
 
 export function getCustomEventMappings(pixelConfig: PixelConfig): Record<string, string> {
   if (!pixelConfig.eventMappings) return {};
-
   try {
     if (typeof pixelConfig.eventMappings === "object") {
       return pixelConfig.eventMappings as Record<string, string>;
@@ -17,6 +16,5 @@ export function getCustomEventMappings(pixelConfig: PixelConfig): Record<string,
       error: error instanceof Error ? error.message : String(error),
     });
   }
-
   return {};
 }

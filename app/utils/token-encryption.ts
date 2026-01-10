@@ -12,15 +12,12 @@ export function encryptAccessToken(token: string): string {
   if (!token) {
     return "";
   }
-
   const key = getEncryptionKey();
   const iv = randomBytes(IV_LENGTH);
   const cipher = createCipheriv(ALGORITHM, key, iv);
-
   let encrypted = cipher.update(token, "utf8", "hex");
   encrypted += cipher.final("hex");
   const authTag = cipher.getAuthTag();
-
   return `${VERSION_PREFIX}${iv.toString("hex")}:${authTag.toString("hex")}:${encrypted}`;
 }
 
@@ -28,32 +25,25 @@ export function decryptAccessToken(encryptedToken: string): string {
   if (!encryptedToken) {
     return "";
   }
-
   if (!encryptedToken.startsWith(VERSION_PREFIX)) {
     logger.warn("[Token Encryption] Found unencrypted legacy token. " +
       "It will be encrypted on next auth refresh.");
     return encryptedToken;
   }
-
   try {
     const key = getEncryptionKey();
     const withoutVersion = encryptedToken.slice(VERSION_PREFIX.length);
     const parts = withoutVersion.split(":");
-
     if (parts.length !== 3) {
       throw new Error("Invalid encrypted token format");
     }
-
     const [ivHex, authTagHex, ciphertext] = parts;
     const iv = Buffer.from(ivHex, "hex");
     const authTag = Buffer.from(authTagHex, "hex");
-
     const decipher = createDecipheriv(ALGORITHM, key, iv);
     decipher.setAuthTag(authTag);
-
     let decrypted = decipher.update(ciphertext, "hex", "utf8");
     decrypted += decipher.final("utf8");
-
     return decrypted;
   } catch (error) {
     const errorMsg = error instanceof Error ? error.message : "Unknown error";
@@ -82,7 +72,6 @@ export function encryptIngestionSecret(secret: string): string {
 
 export function decryptIngestionSecret(encryptedSecret: string): string {
   if (!encryptedSecret) return "";
-
   try {
     return decryptAccessToken(encryptedSecret);
   } catch {

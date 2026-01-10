@@ -29,9 +29,7 @@ export async function getMonthlyUsage(
   const currentMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
   const previousMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
   const previousMonthEnd = new Date(now.getFullYear(), now.getMonth(), 0);
-
   const [currentMonthLogs, previousMonthLogs, currentMonthReceipts] = await Promise.all([
-
     prisma.conversionLog.findMany({
       where: {
         shopId,
@@ -43,7 +41,6 @@ export async function getMonthlyUsage(
         orderId: true,
       },
     }),
-
     prisma.conversionLog.findMany({
       where: {
         shopId,
@@ -57,7 +54,6 @@ export async function getMonthlyUsage(
         orderId: true,
       },
     }),
-
     prisma.pixelEventReceipt.findMany({
       where: {
         shopId,
@@ -68,27 +64,21 @@ export async function getMonthlyUsage(
       },
     }),
   ]);
-
   const currentMonthOrderIds = new Set([
     ...currentMonthLogs.map((log) => log.orderId),
     ...currentMonthReceipts.map((receipt) => receipt.orderId),
   ]);
   const currentMonthOrders = currentMonthOrderIds.size;
-
   const platformCounts: Record<string, number> = {};
   currentMonthLogs.forEach((log) => {
     platformCounts[log.platform] = (platformCounts[log.platform] || 0) + 1;
   });
-
   const previousMonthOrderIds = new Set(previousMonthLogs.map((log) => log.orderId));
   const previousMonthOrders = previousMonthOrderIds.size;
-
   const limit = getPlanLimit(planId);
   const usagePercentage = limit > 0 ? (currentMonthOrders / limit) * 100 : 0;
   const isOverLimit = limit > 0 && currentMonthOrders >= limit;
-
   let trend: "up" | "down" | "stable" = "stable";
-  
   if (previousMonthOrders > 0) {
     const change = ((currentMonthOrders - previousMonthOrders) / previousMonthOrders) * 100;
     if (change > 5) {
@@ -97,11 +87,8 @@ export async function getMonthlyUsage(
       trend = "down";
     }
   } else if (currentMonthOrders > 0) {
-    
     trend = "up";
   }
-  
-
   return {
     currentMonth: {
       orders: currentMonthOrders,
@@ -124,7 +111,6 @@ export async function checkUsageLimit(
   planId: PlanId
 ): Promise<{ allowed: boolean; reason?: string; usage?: UsageStats }> {
   const usage = await getMonthlyUsage(shopId, planId);
-
   if (usage.isOverLimit) {
     return {
       allowed: false,
@@ -132,7 +118,6 @@ export async function checkUsageLimit(
       usage,
     };
   }
-
   if (usage.usagePercentage >= 80 && usage.usagePercentage < 100) {
     logger.warn(`Usage approaching limit for shop ${shopId}`, {
       usagePercentage: usage.usagePercentage,
@@ -140,7 +125,6 @@ export async function checkUsageLimit(
       limit: usage.limit,
     });
   }
-
   return {
     allowed: true,
     usage,
@@ -187,7 +171,6 @@ export async function getOrCreateMonthlyUsage(
   yearMonth?: string
 ): Promise<MonthlyUsageRecord> {
   const ym = yearMonth || getCurrentYearMonth();
-
   return await prisma.monthlyUsage.upsert({
     where: {
       shopId_yearMonth: {
@@ -211,7 +194,6 @@ export async function getMonthlyUsageCount(
   yearMonth?: string
 ): Promise<number> {
   const ym = yearMonth || getCurrentYearMonth();
-
   const usage = await prisma.monthlyUsage.findUnique({
     where: {
       shopId_yearMonth: {
@@ -223,7 +205,6 @@ export async function getMonthlyUsageCount(
       sentCount: true,
     },
   });
-
   return usage?.sentCount || 0;
 }
 
@@ -242,11 +223,9 @@ export async function isOrderAlreadyCounted(
       status: true,
     },
   });
-
   if (job?.status === "completed") {
     return true;
   }
-
   const log = await prisma.conversionLog.findFirst({
     where: {
       shopId,
@@ -254,7 +233,6 @@ export async function isOrderAlreadyCounted(
       status: "sent",
     },
   });
-
   return !!log;
 }
 
@@ -263,7 +241,6 @@ export async function incrementMonthlyUsage(
   orderId: string
 ): Promise<number> {
   const yearMonth = getCurrentYearMonth();
-
   let actuallyIncremented = false;
   const result = await prisma.$transaction(
     async (tx) => {
@@ -278,7 +255,6 @@ export async function incrementMonthlyUsage(
         status: true,
       },
     });
-
     if (job?.status === "completed") {
       const usage = await tx.monthlyUsage.findUnique({
         where: {
@@ -293,7 +269,6 @@ export async function incrementMonthlyUsage(
       });
       return usage?.sentCount || 0;
     }
-
     const log = await tx.conversionLog.findFirst({
       where: {
         shopId,
@@ -301,7 +276,6 @@ export async function incrementMonthlyUsage(
         status: "sent",
       },
     });
-
     if (log) {
       const usage = await tx.monthlyUsage.findUnique({
         where: {
@@ -316,7 +290,6 @@ export async function incrementMonthlyUsage(
       });
       return usage?.sentCount || 0;
     }
-
     await tx.monthlyUsage.upsert({
       where: {
         shopId_yearMonth: {
@@ -337,9 +310,7 @@ export async function incrementMonthlyUsage(
         },
       },
     });
-
     actuallyIncremented = true;
-
     const updated = await tx.monthlyUsage.findUnique({
       where: {
         shopId_yearMonth: {
@@ -351,7 +322,6 @@ export async function incrementMonthlyUsage(
         sentCount: true,
       },
     });
-
     return updated?.sentCount || 0;
     },
     {
@@ -359,9 +329,6 @@ export async function incrementMonthlyUsage(
       timeout: 5000,
     }
   );
-
-  
-  
   billingCache.delete(`billing:${shopId}`);
   return result;
 }
@@ -371,7 +338,6 @@ export async function incrementMonthlyUsageIdempotent(
   orderId: string
 ): Promise<IncrementResult> {
   const yearMonth = getCurrentYearMonth();
-
   const result = await prisma.$transaction(
     async (tx) => {
     const job = await tx.conversionJob.findUnique({
@@ -385,7 +351,6 @@ export async function incrementMonthlyUsageIdempotent(
         status: true,
       },
     });
-
     if (job?.status === "completed") {
       const usage = await tx.monthlyUsage.findUnique({
         where: {
@@ -403,7 +368,6 @@ export async function incrementMonthlyUsageIdempotent(
         current: usage?.sentCount || 0,
       };
     }
-
     const log = await tx.conversionLog.findFirst({
       where: {
         shopId,
@@ -411,7 +375,6 @@ export async function incrementMonthlyUsageIdempotent(
         status: "sent",
       },
     });
-
     if (log) {
       const usage = await tx.monthlyUsage.findUnique({
         where: {
@@ -429,7 +392,6 @@ export async function incrementMonthlyUsageIdempotent(
         current: usage?.sentCount || 0,
       };
     }
-
     await tx.monthlyUsage.upsert({
       where: {
         shopId_yearMonth: {
@@ -450,7 +412,6 @@ export async function incrementMonthlyUsageIdempotent(
         },
       },
     });
-
     const updated = await tx.monthlyUsage.findUnique({
       where: {
         shopId_yearMonth: {
@@ -462,7 +423,6 @@ export async function incrementMonthlyUsageIdempotent(
         sentCount: true,
       },
     });
-
     return {
       incremented: true,
       current: updated?.sentCount || 0,
@@ -473,9 +433,6 @@ export async function incrementMonthlyUsageIdempotent(
       timeout: 5000,
     }
   );
-
-  
-  
   billingCache.delete(`billing:${shopId}`);
   return result;
 }
@@ -486,10 +443,8 @@ export async function tryReserveUsageSlot(
   limit: number
 ): Promise<ReservationResult> {
   const yearMonth = getCurrentYearMonth();
-
   const maxRetries = 3;
   let lastError: unknown;
-
   for (let attempt = 0; attempt < maxRetries; attempt++) {
     try {
       const result = await prisma.$transaction(
@@ -505,7 +460,6 @@ export async function tryReserveUsageSlot(
               status: true,
             },
           });
-
           if (job?.status === "completed") {
             const usage = await tx.monthlyUsage.findUnique({
               where: {
@@ -526,7 +480,6 @@ export async function tryReserveUsageSlot(
               remaining: Math.max(0, limit - current),
             };
           }
-
           const log = await tx.conversionLog.findFirst({
             where: {
               shopId,
@@ -534,7 +487,6 @@ export async function tryReserveUsageSlot(
               status: "sent",
             },
           });
-
           if (log) {
             const usage = await tx.monthlyUsage.findUnique({
               where: {
@@ -555,8 +507,6 @@ export async function tryReserveUsageSlot(
               remaining: Math.max(0, limit - current),
             };
           }
-
-          
           await tx.monthlyUsage.upsert({
             where: {
               shopId_yearMonth: {
@@ -573,9 +523,6 @@ export async function tryReserveUsageSlot(
             },
             update: {},
           });
-
-          
-          
           const updated = await tx.$executeRaw`
             UPDATE "MonthlyUsage"
             SET "sentCount" = "sentCount" + 1, "updatedAt" = NOW()
@@ -583,10 +530,7 @@ export async function tryReserveUsageSlot(
               AND "yearMonth" = ${yearMonth}
               AND "sentCount" < ${limit}
           `;
-
           if (updated === 0) {
-            
-            
             const currentUsage = await tx.monthlyUsage.findUnique({
               where: {
                 shopId_yearMonth: {
@@ -598,7 +542,6 @@ export async function tryReserveUsageSlot(
                 sentCount: true,
               },
             });
-            
             const current = currentUsage?.sentCount || 0;
             return {
               reserved: false,
@@ -607,8 +550,6 @@ export async function tryReserveUsageSlot(
               remaining: 0,
             };
           }
-
-          
           const finalUsage = await tx.monthlyUsage.findUnique({
             where: {
               shopId_yearMonth: {
@@ -620,10 +561,7 @@ export async function tryReserveUsageSlot(
               sentCount: true,
             },
           });
-
           const current = finalUsage?.sentCount || 0;
-          
-          
           if (current > limit) {
             logger.error('Usage count exceeded limit after update', {
               shopId,
@@ -632,7 +570,6 @@ export async function tryReserveUsageSlot(
               limit,
               orderId,
             });
-            
             return {
               reserved: false,
               current,
@@ -640,7 +577,6 @@ export async function tryReserveUsageSlot(
               remaining: 0,
             };
           }
-
           return {
             reserved: true,
             current,
@@ -653,40 +589,27 @@ export async function tryReserveUsageSlot(
           maxWait: 5000,
         }
       );
-
-      
       billingCache.delete(`billing:${shopId}`);
-
       return result;
     } catch (error) {
       lastError = error;
-
-      
       const isPrismaError_ = error && typeof error === 'object' && 'code' in error;
       const errorCode = isPrismaError_ ? (error as { code?: string }).code : null;
       const isSerializationError = errorCode === 'P40001' || (errorCode?.startsWith('P40') ?? false);
-
       if (isSerializationError && attempt < maxRetries - 1) {
-        
         const backoffMs = 50 * Math.pow(2, attempt);
         await new Promise(resolve => setTimeout(resolve, backoffMs));
         continue;
       }
-
-      
       throw error;
     }
   }
-
-  
   logger.error('tryReserveUsageSlot failed after retries', {
     shopId,
     orderId,
     limit,
     error: lastError instanceof Error ? lastError.message : String(lastError),
   });
-
-  
   try {
     const usage = await getMonthlyUsageCount(shopId, yearMonth);
     return {
@@ -696,7 +619,6 @@ export async function tryReserveUsageSlot(
       remaining: Math.max(0, limit - usage),
     };
   } catch {
-    
     return {
       reserved: false,
       current: 0,
@@ -711,7 +633,6 @@ export async function decrementMonthlyUsage(
   yearMonth?: string
 ): Promise<number> {
   const ym = yearMonth || getCurrentYearMonth();
-
   const result = await prisma.$transaction(async (tx) => {
     await tx.$executeRaw`
       UPDATE "MonthlyUsage"
@@ -719,7 +640,6 @@ export async function decrementMonthlyUsage(
       WHERE "shopId" = ${shopId}
         AND "yearMonth" = ${ym}
     `;
-
     const usage = await tx.monthlyUsage.findUnique({
       where: {
         shopId_yearMonth: {
@@ -731,10 +651,8 @@ export async function decrementMonthlyUsage(
         sentCount: true,
       },
     });
-
     return usage?.sentCount || 0;
   });
-
   billingCache.delete(`billing:${shopId}`);
   return result;
 }

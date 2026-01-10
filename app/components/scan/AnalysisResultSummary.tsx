@@ -48,7 +48,6 @@ export function AnalysisResultSummary({ analysisResult }: AnalysisResultSummaryP
           </BlockStack>
         </Card>
       </Layout.Section>
-
       <Layout.Section variant="oneThird">
         <Card>
           <BlockStack gap="400">
@@ -72,7 +71,6 @@ export function AnalysisResultSummary({ analysisResult }: AnalysisResultSummaryP
           </BlockStack>
         </Card>
       </Layout.Section>
-
       <Layout.Section variant="oneThird">
         <Card>
           <BlockStack gap="400">

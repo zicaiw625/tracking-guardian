@@ -29,11 +29,9 @@ export async function validateJsonBodyResult<T>(
   try {
     const body = await request.json();
     const result = schema.safeParse(body);
-
     if (!result.success) {
       return err(zodErrorToAppError(result.error));
     }
-
     return ok(result.data);
   } catch (error) {
     return err(
@@ -54,20 +52,16 @@ export async function validateJsonBody<T>(
   try {
     const body = await request.json();
     const result = schema.safeParse(body);
-
     if (!result.success) {
       const details = formatZodErrorsToRecord(result.error);
       const error = getFirstZodError(result.error);
-
       logger.debug("JSON body validation failed", { error, details });
-
       return {
         success: false,
         error,
         details,
       };
     }
-
     return {
       success: true,
       data: result.data,
@@ -79,7 +73,6 @@ export async function validateJsonBody<T>(
         error: "Invalid JSON body",
       };
     }
-
     logger.error("Unexpected error validating JSON body", error);
     return {
       success: false,
@@ -93,17 +86,14 @@ export async function requireValidJsonBody<T>(
   schema: ZodSchema<T>
 ): Promise<T> {
   const result = await validateJsonBody(request, schema);
-
   if (!result.success) {
     throw new AppError(ErrorCode.VALIDATION_ERROR, result.error);
   }
-
   return result.data;
 }
 
 function formDataToObject(formData: FormData): Record<string, unknown> {
   const obj: Record<string, unknown> = {};
-
   for (const [key, value] of formData.entries()) {
     if (value === "true") {
       obj[key] = true;
@@ -119,7 +109,6 @@ function formDataToObject(formData: FormData): Record<string, unknown> {
       obj[key] = value;
     }
   }
-
   return obj;
 }
 
@@ -131,11 +120,9 @@ export async function validateFormDataResult<T>(
     const formData = await request.formData();
     const data = formDataToObject(formData);
     const result = schema.safeParse(data);
-
     if (!result.success) {
       return err(zodErrorToAppError(result.error));
     }
-
     return ok(result.data);
   } catch (error) {
     return err(
@@ -157,20 +144,16 @@ export async function validateFormData<T>(
     const formData = await request.formData();
     const data = formDataToObject(formData);
     const result = schema.safeParse(data);
-
     if (!result.success) {
       const details = formatZodErrorsToRecord(result.error);
       const error = getFirstZodError(result.error);
-
       logger.debug("Form data validation failed", { error, details });
-
       return {
         success: false,
         error,
         details,
       };
     }
-
     return {
       success: true,
       data: result.data,
@@ -189,11 +172,9 @@ export async function requireValidFormData<T>(
   schema: ZodSchema<T>
 ): Promise<T> {
   const result = await validateFormData(request, schema);
-
   if (!result.success) {
     throw new AppError(ErrorCode.VALIDATION_ERROR, result.error);
   }
-
   return result.data;
 }
 
@@ -204,11 +185,9 @@ export function validateSearchParamsResult<T>(
   const url = new URL(request.url);
   const params = Object.fromEntries(url.searchParams.entries());
   const result = schema.safeParse(params);
-
   if (!result.success) {
     return err(zodErrorToAppError(result.error));
   }
-
   return ok(result.data);
 }
 
@@ -217,7 +196,6 @@ export function validateQueryParams<T>(
   schema: ZodSchema<T>
 ): ValidateResult<T> {
   const params: Record<string, unknown> = {};
-
   for (const [key, value] of url.searchParams.entries()) {
     if (value === "true") {
       params[key] = true;
@@ -229,20 +207,16 @@ export function validateQueryParams<T>(
       params[key] = value;
     }
   }
-
   const result = schema.safeParse(params);
-
   if (!result.success) {
     const details = formatZodErrorsToRecord(result.error);
     const error = getFirstZodError(result.error);
-
     return {
       success: false,
       error,
       details,
     };
   }
-
   return {
     success: true,
     data: result.data,
@@ -251,11 +225,9 @@ export function validateQueryParams<T>(
 
 export function requireValidQueryParams<T>(url: URL, schema: ZodSchema<T>): T {
   const result = validateQueryParams(url, schema);
-
   if (!result.success) {
     throw new AppError(ErrorCode.VALIDATION_ERROR, result.error);
   }
-
   return result.data;
 }
 
@@ -264,10 +236,8 @@ export function validateParamsResult<T>(
   schema: ZodSchema<T>
 ): Result<T, AppError> {
   const result = schema.safeParse(params);
-
   if (!result.success) {
     return err(zodErrorToAppError(result.error));
   }
-
   return ok(result.data);
 }

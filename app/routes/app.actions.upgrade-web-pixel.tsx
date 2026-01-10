@@ -13,14 +13,11 @@ import { logger } from "../utils/logger.server";
 
 export const action = async ({ request }: ActionFunctionArgs) => {
     const { admin, session } = await authenticate.admin(request);
-
     if (request.method !== "POST") {
         return json({ success: false, error: "Method not allowed" }, { status: 405 });
     }
-
     try {
         const shopDomain = session.shop;
-
         const shop = await prisma.shop.findUnique({
             where: { shopDomain },
             select: {
@@ -29,14 +26,12 @@ export const action = async ({ request }: ActionFunctionArgs) => {
                 ingestionSecret: true,
             },
         });
-
         if (!shop) {
             return json({
                 success: false,
                 error: "店铺未找到",
             }, { status: 404 });
         }
-
         let ingestionKey = "";
         if (shop.ingestionSecret) {
             try {
@@ -47,36 +42,29 @@ export const action = async ({ request }: ActionFunctionArgs) => {
                 });
             }
         }
-
         if (!ingestionKey) {
             return json({
                 success: false,
                 error: "无法获取 ingestion key，请重新安装应用",
             }, { status: 400 });
         }
-
         const webPixels = await getExistingWebPixels(admin);
-
         if (webPixels.length === 0) {
             return json({
                 success: false,
                 error: "未找到 Web Pixel，请先安装 Pixel",
             }, { status: 404 });
         }
-
         const pixelsToUpgrade: Array<{
             id: string;
             settings: unknown;
         }> = [];
-
         for (const pixel of webPixels) {
             if (!pixel.settings) continue;
-
             try {
                 const settings = typeof pixel.settings === "string"
                     ? JSON.parse(pixel.settings)
                     : pixel.settings;
-
                 if (isOurWebPixel(settings, shopDomain) && needsSettingsUpgrade(settings)) {
                     pixelsToUpgrade.push({
                         id: pixel.id,
@@ -84,10 +72,8 @@ export const action = async ({ request }: ActionFunctionArgs) => {
                     });
                 }
             } catch {
-
             }
         }
-
         if (pixelsToUpgrade.length === 0) {
             return json({
                 success: true,
@@ -95,15 +81,12 @@ export const action = async ({ request }: ActionFunctionArgs) => {
                 upgradedCount: 0,
             });
         }
-
         logger.info(`Upgrading ${pixelsToUpgrade.length} WebPixel(s) for ${shopDomain}`);
-
         const results: Array<{
             pixelId: string;
             success: boolean;
             error?: string;
         }> = [];
-
         for (const pixel of pixelsToUpgrade) {
             const result = await upgradeWebPixelSettings(
                 admin,
@@ -112,13 +95,11 @@ export const action = async ({ request }: ActionFunctionArgs) => {
                 shopDomain,
                 ingestionKey
             );
-
             results.push({
                 pixelId: pixel.id,
                 success: result.success,
                 error: result.error,
             });
-
             if (result.success) {
                 logger.info(`Successfully upgraded WebPixel ${pixel.id} for ${shopDomain}`);
             } else {
@@ -128,10 +109,8 @@ export const action = async ({ request }: ActionFunctionArgs) => {
                 });
             }
         }
-
         const successCount = results.filter(r => r.success).length;
         const failures = results.filter(r => !r.success);
-
         if (failures.length === 0) {
             return json({
                 success: true,
@@ -139,7 +118,6 @@ export const action = async ({ request }: ActionFunctionArgs) => {
                 upgradedCount: successCount,
             });
         }
-
         return json({
             success: false,
             message: `升级了 ${successCount}/${results.length} 个 Pixel 配置`,
@@ -149,7 +127,6 @@ export const action = async ({ request }: ActionFunctionArgs) => {
                 error: f.error,
             })),
         }, { status: 207 });
-
     } catch (error) {
         logger.error("Upgrade WebPixel action error", error);
         return json({

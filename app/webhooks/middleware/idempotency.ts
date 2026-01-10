@@ -11,14 +11,12 @@ export async function tryAcquireWebhookLock(
   topic: string,
   orderId?: string
 ): Promise<WebhookLockResult> {
-
   if (!webhookId) {
     logger.warn(
       `[Webhook] Missing X-Shopify-Webhook-Id for topic ${topic} from ${shopDomain}`
     );
     return { acquired: true };
   }
-
   try {
     await prisma.webhookLog.create({
       data: {
@@ -34,7 +32,6 @@ export async function tryAcquireWebhookLock(
     return { acquired: true };
   } catch (error) {
     if (isPrismaError(error) && getPrismaErrorCode(error) === "P2002") {
-
       const existing = await prisma.webhookLog.findUnique({
         where: {
           shopDomain_webhookId_topic: {
@@ -45,13 +42,10 @@ export async function tryAcquireWebhookLock(
         },
         select: { status: true, receivedAt: true },
       });
-
       if (existing?.status === WebhookStatus.PROCESSING) {
         const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000);
         if (existing.receivedAt < fiveMinutesAgo) {
           try {
-            
-            
             const now = new Date();
             const updated = await prisma.webhookLog.updateMany({
               where: {
@@ -67,10 +61,7 @@ export async function tryAcquireWebhookLock(
                 receivedAt: now,
               },
             });
-
             if (updated.count > 0) {
-              
-              
               const verify = await prisma.webhookLog.findUnique({
                 where: {
                   shopDomain_webhookId_topic: {
@@ -81,14 +72,9 @@ export async function tryAcquireWebhookLock(
                 },
                 select: { receivedAt: true, status: true },
               });
-
-              
-              
-              
               const verifyNow = new Date(); 
               const toleranceMs = 5000; 
               const timeDiff = verify ? Math.abs(verify.receivedAt.getTime() - now.getTime()) : Infinity;
-              
               if (
                 verify &&
                 verify.status === WebhookStatus.PROCESSING &&
@@ -101,7 +87,6 @@ export async function tryAcquireWebhookLock(
                 );
                 return { acquired: true };
               } else {
-                
                 logger.info(
                   `[Webhook Idempotency] Dead lock takeover verification failed for ${topic}/${webhookId}. Another instance may have taken over or time check failed.`,
                   {
@@ -118,8 +103,6 @@ export async function tryAcquireWebhookLock(
             logger.warn(
               `[Webhook Idempotency] Failed to take over dead lock for ${topic}/${webhookId}: ${updateError}`
             );
-            
-            
             try {
               const currentState = await prisma.webhookLog.findUnique({
                 where: {
@@ -131,15 +114,12 @@ export async function tryAcquireWebhookLock(
                 },
                 select: { status: true },
               });
-              
               if (currentState?.status !== WebhookStatus.PROCESSING) {
-                
                 logger.info(
                   `[Webhook Idempotency] State changed during dead lock takeover attempt for ${topic}/${webhookId}. Current status: ${currentState?.status}`
                 );
               }
             } catch (checkError) {
-              
               logger.error(
                 `[Webhook Idempotency] Failed to re-check state after update failure for ${topic}/${webhookId}: ${checkError}`
               );
@@ -147,13 +127,11 @@ export async function tryAcquireWebhookLock(
           }
         }
       }
-
       logger.info(
         `[Webhook Idempotency] Duplicate webhook detected: ${topic} for ${shopDomain}, webhookId=${webhookId}`
       );
       return { acquired: false, existing: true };
     }
-
     logger.error(`[Webhook] Failed to acquire lock: ${error}`);
     return { acquired: false, existing: false };
   }
@@ -168,7 +146,6 @@ export async function updateWebhookStatus(
   retries: number = 2
 ): Promise<void> {
   let lastError: unknown;
-  
   for (let attempt = 0; attempt <= retries; attempt++) {
     try {
       await prisma.webhookLog.update({
@@ -185,7 +162,6 @@ export async function updateWebhookStatus(
           processedAt: new Date(),
         },
       });
-      
       if (attempt > 0) {
         logger.info(
           `[Webhook] Successfully updated status after ${attempt} retry(ies) for ${topic}/${webhookId}`
@@ -196,8 +172,6 @@ export async function updateWebhookStatus(
       lastError = error;
       const isPrismaErr = isPrismaError(error);
       const errorCode = isPrismaErr ? getPrismaErrorCode(error) : null;
-      
-      
       if (errorCode === "P2025") {
         logger.warn(
           `[Webhook] Webhook log not found when updating status: ${topic}/${webhookId} for ${shopDomain}`,
@@ -205,8 +179,6 @@ export async function updateWebhookStatus(
         );
         return;
       }
-      
-      
       if (attempt === retries) {
         logger.error(
           `[Webhook] Failed to update status after ${retries + 1} attempt(s) for ${topic}/${webhookId}`,
@@ -220,7 +192,6 @@ export async function updateWebhookStatus(
           }
         );
       } else {
-        
         logger.warn(
           `[Webhook] Status update failed (attempt ${attempt + 1}/${retries + 1}) for ${topic}/${webhookId}, retrying...`,
           {
@@ -228,14 +199,10 @@ export async function updateWebhookStatus(
             errorCode,
           }
         );
-        
         await new Promise((resolve) => setTimeout(resolve, Math.min(100 * Math.pow(2, attempt), 1000)));
       }
     }
   }
-  
-  
-  
 }
 
 export function withIdempotency<T>(
@@ -253,21 +220,16 @@ export function withIdempotency<T>(
       context.webhookId,
       context.topic
     );
-
     if (!lock.acquired) {
       return { skipped: true, reason: "duplicate_webhook" };
     }
-
-    
     if (!context.webhookId) {
       return handler(context, ...args);
     }
-
     try {
       const result = await handler(context, ...args);
       return result;
     } catch (error) {
-      
       logger.error(
         `[Webhook Idempotency] Handler threw error for ${context.topic}/${context.webhookId}:`,
         error instanceof Error ? error.message : String(error),
@@ -278,8 +240,6 @@ export function withIdempotency<T>(
           stack: error instanceof Error ? error.stack : undefined,
         }
       );
-      
-      
       try {
         await updateWebhookStatus(
           context.shopDomain,
@@ -288,14 +248,11 @@ export function withIdempotency<T>(
           WebhookStatus.FAILED
         );
       } catch (statusUpdateError) {
-        
         logger.error(
           `[Webhook Idempotency] Failed to update status to FAILED after handler error for ${context.topic}/${context.webhookId}:`,
           statusUpdateError
         );
       }
-      
-      
       throw error;
     }
   };

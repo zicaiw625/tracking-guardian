@@ -14,23 +14,18 @@ export interface PlanLimitConfig {
 export function withPlanLimit(config: PlanLimitConfig): Middleware {
   return async (context: MiddlewareContext): Promise<MiddlewareResult> => {
     const { request } = context;
-
     try {
       const { authenticate } = await import("../shopify.server");
       const { session } = await authenticate.admin(request);
       const shopDomain = session.shop;
-
       const shop = await prisma.shop.findUnique({
         where: { shopDomain },
         select: { id: true, plan: true },
       });
-
       if (!shop) {
         return { continue: false, response: json({ error: "Shop not found" }, { status: 404 }) };
       }
-
       const planId = normalizePlanId(shop.plan || "free") as PlanId;
-
       let limitResult;
       switch (config.limitType) {
         case "pixel_destinations":
@@ -45,14 +40,11 @@ export function withPlanLimit(config: PlanLimitConfig): Middleware {
         default:
           return { continue: true, context };
       }
-
       if (!limitResult.allowed) {
-
         if (config.redirectTo) {
           const redirectUrl = new URL(config.redirectTo, request.url).toString();
           return { continue: false, response: redirect(redirectUrl) };
         }
-
         if (config.showUpgradePrompt) {
           return { continue: false, response: json(
             {
@@ -64,7 +56,6 @@ export function withPlanLimit(config: PlanLimitConfig): Middleware {
             { status: 403 }
           ) };
         }
-
         return { continue: false, response: json(
           {
             error: limitResult.reason || "Plan limit exceeded",
@@ -73,7 +64,6 @@ export function withPlanLimit(config: PlanLimitConfig): Middleware {
           { status: 403 }
         ) };
       }
-
       return { continue: true, context };
     } catch (error) {
       logger.warn("Plan limit check failed", {

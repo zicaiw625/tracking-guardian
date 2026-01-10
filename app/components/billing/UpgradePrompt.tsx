@@ -29,17 +29,13 @@ export function UpgradePrompt({
 }: UpgradePromptProps) {
   const upgradeOptions = getUpgradeOptions(currentPlan);
   const recommendedPlan = upgradeOptions[0];
-
   if (!recommendedPlan) {
     return null;
   }
-
   const recommendedPlanConfig = getPlanConfig(recommendedPlan);
   const currentPlanConfig = getPlanConfig(currentPlan);
-
   const getFeatureRequirement = () => {
     if (!requiredFeature) return null;
-
     const featureNames: Record<typeof requiredFeature, string> = {
       verification: "验收功能",
       alerts: "告警功能",
@@ -48,7 +44,6 @@ export function UpgradePrompt({
       pixel_destinations: "更多像素目的地",
       ui_modules: "更多 UI 模块",
     };
-
     const requiredPlans: Record<typeof requiredFeature, PlanId> = {
       verification: "starter",
       alerts: "growth",
@@ -57,15 +52,12 @@ export function UpgradePrompt({
       pixel_destinations: "starter",
       ui_modules: "starter",
     };
-
     return {
       name: featureNames[requiredFeature],
       requiredPlan: requiredPlans[requiredFeature],
     };
   };
-
   const featureReq = getFeatureRequirement();
-
   return (
     <Card>
       <Banner tone="info" title="功能需要升级套餐">
@@ -76,16 +68,13 @@ export function UpgradePrompt({
               当前套餐：<strong>{currentPlanConfig.name}</strong>
             </Text>
           )}
-
           {currentUsage !== undefined && limit !== undefined && (
             <Text as="p" variant="bodySm">
               当前使用量：<strong>{currentUsage}</strong> / {limit === -1 ? "无限" : limit}
               {limit !== -1 && currentUsage >= limit && "（已达上限）"}
             </Text>
           )}
-
           <Divider />
-
           <BlockStack gap="300">
             <Text as="h3" variant="headingSm">
               推荐升级：{recommendedPlanConfig.name}
@@ -93,7 +82,6 @@ export function UpgradePrompt({
             <Text as="p" variant="bodySm" tone="subdued">
               {recommendedPlanConfig.tagline}
             </Text>
-
             <BlockStack gap="200">
               <Text as="p" variant="bodySm" fontWeight="semibold">
                 包含功能：
@@ -115,7 +103,6 @@ export function UpgradePrompt({
                 )}
               </List>
             </BlockStack>
-
             <InlineStack gap="200" align="space-between" blockAlign="center">
               <BlockStack gap="100">
                 <Text as="p" variant="headingLg" fontWeight="bold">
@@ -142,7 +129,6 @@ export function UpgradePrompt({
               </Button>
             </InlineStack>
           </BlockStack>
-
           {upgradeOptions.length > 1 && (
             <Banner tone="info">
               <Text as="p" variant="bodySm">

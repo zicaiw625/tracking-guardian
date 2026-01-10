@@ -15,7 +15,6 @@ import { tryAcquireWebhookLock, updateWebhookStatus } from "./middleware";
 import type { WebhookContext, WebhookHandlerResult, ShopWithPixelConfigs } from "./types";
 
 function normalizeTopic(topic: string): string {
-
   return topic
     .toUpperCase()
     .replace(/[^A-Z0-9_]+/g, "_")
@@ -33,12 +32,10 @@ const WEBHOOK_HANDLERS: Record<
   CUSTOMERS_DATA_REQUEST: (ctx) => handleCustomersDataRequest(ctx),
   CUSTOMERS_REDACT: (ctx) => handleCustomersRedact(ctx),
   SHOP_REDACT: (ctx) => handleShopRedact(ctx),
-
   ORDERS_CREATE: (ctx) => handleOrdersCreate(ctx),
   ORDERS_UPDATED: (ctx) => handleOrdersUpdated(ctx),
   ORDERS_CANCELLED: (ctx) => handleOrdersCancelled(ctx),
   ORDERS_EDITED: (ctx) => handleOrdersEdited(ctx),
-
   REFUNDS_CREATE: (ctx) => handleRefundsCreate(ctx),
 };
 
@@ -54,7 +51,6 @@ export async function dispatchWebhook(
   lockAcquired: boolean = false
 ): Promise<Response> {
   const { topic, shop, webhookId } = context;
-
   if (webhookId && !lockAcquired) {
     const lock = await tryAcquireWebhookLock(shop, webhookId, topic);
     if (!lock.acquired) {
@@ -62,83 +58,65 @@ export async function dispatchWebhook(
       return new Response("OK (duplicate)", { status: 200 });
     }
   }
-
   if (!context.admin && !GDPR_TOPICS.has(normalizeTopic(topic))) {
     logger.info(`Webhook ${topic} received for uninstalled shop ${shop}`);
     return new Response("OK", { status: 200 });
   }
-
   if (GDPR_TOPICS.has(normalizeTopic(topic)) && !shopRecord) {
     logger.info(`GDPR webhook ${topic} received for non-existent shop ${shop} - acknowledging`);
     return new Response("OK", { status: 200 });
   }
-
   const normalizedTopic = normalizeTopic(topic);
   const handler = WEBHOOK_HANDLERS[normalizedTopic];
-
   if (!handler) {
     logger.warn(
       `Unexpected webhook topic received: ${topic} from ${shop}. ` +
         `This may indicate a configuration mismatch or a legacy subscription. ` +
         `Responding 200 to prevent Shopify retries.`
     );
-
     if (webhookId) {
       await updateWebhookStatus(shop, webhookId, topic, WebhookStatus.PROCESSED);
     }
-
     return new Response("OK", { status: 200 });
   }
-
   try {
     const result = await handler(context, shopRecord);
-
     if (webhookId) {
       const status = result.success
         ? WebhookStatus.PROCESSED
         : WebhookStatus.FAILED;
       await updateWebhookStatus(shop, webhookId, topic, status, result.orderId);
     }
-
     const isGDPR = GDPR_TOPICS.has(normalizedTopic);
     if (isGDPR && !result.success) {
       logger.warn(`GDPR webhook ${topic} processing failed for ${shop}, but returning 200 to prevent retries`, {
         message: result.message,
         status: result.status,
-
         webhookId,
       });
       return new Response("GDPR webhook acknowledged", { status: 200 });
     }
-
     return new Response(result.message, { status: result.status });
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : "Unknown error";
     const isGDPR = GDPR_TOPICS.has(normalizedTopic);
-
     if (isGDPR) {
       logger.error(`GDPR webhook ${topic} handler threw error for ${shop}, but returning 200 to prevent retries:`, {
         message: errorMessage,
         webhookId,
-
       });
-
       if (webhookId) {
         await updateWebhookStatus(shop, webhookId, topic, WebhookStatus.PROCESSED);
       }
-
       return new Response("GDPR webhook acknowledged", { status: 200 });
     }
-
     logger.error(`Webhook ${topic} handler error for ${shop}:`, {
       message: errorMessage,
       stack: error instanceof Error ? error.stack : undefined,
     });
-
     if (webhookId) {
       await updateWebhookStatus(shop, webhookId, topic, WebhookStatus.FAILED);
     }
-
     return new Response("Webhook processing failed", { status: 500 });
   }
 }

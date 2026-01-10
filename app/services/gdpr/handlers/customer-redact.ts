@@ -10,25 +10,20 @@ export async function processCustomerRedact(
 ): Promise<CustomerRedactResult> {
   const customerId = payload.customer_id;
   const ordersToRedact = payload.orders_to_redact || [];
-
   logger.info(`[GDPR] Processing customer redact for ${shopDomain}`, {
     customerId,
     ordersCount: ordersToRedact.length,
   });
-
   const shop = await prisma.shop.findUnique({
     where: { shopDomain },
     select: { id: true },
   });
-
   if (!shop) {
     logger.warn(`[GDPR] Shop not found for customer redact: ${shopDomain}`);
     return createEmptyCustomerRedactResult(customerId);
   }
-
   const orderIdStrings = ordersToRedact.map((id: number | string) => String(id));
   const orderNumberPatterns = ordersToRedact.map((id: number | string) => `order_num:${id}`);
-
   const receiptsWithTokens = await prisma.pixelEventReceipt.findMany({
     where: {
       shopId: shop.id,
@@ -37,52 +32,43 @@ export async function processCustomerRedact(
     },
     select: { checkoutToken: true },
   });
-
   const linkedCheckoutTokens: string[] = receiptsWithTokens
     .map((r: { checkoutToken: string | null }) => r.checkoutToken)
     .filter((t: string | null): t is string => t !== null);
-
   const conversionLogResult = await prisma.conversionLog.deleteMany({
     where: {
       shopId: shop.id,
       orderId: { in: orderIdStrings },
     },
   });
-
   const conversionJobResult = await prisma.conversionJob.deleteMany({
     where: {
       shopId: shop.id,
       orderId: { in: orderIdStrings },
     },
   });
-
   const pixelReceiptResult = await prisma.pixelEventReceipt.deleteMany({
     where: {
       shopId: shop.id,
       orderId: { in: orderIdStrings },
     },
   });
-
   const surveyByOrderId = await prisma.surveyResponse.deleteMany({
     where: {
       shopId: shop.id,
       orderId: { in: orderIdStrings },
     },
   });
-
   const surveyByOrderNumberPattern = await prisma.surveyResponse.deleteMany({
     where: {
       shopId: shop.id,
       orderId: { in: orderNumberPatterns },
     },
   });
-
   let pixelReceiptByCheckoutToken = 0;
   let surveyByCheckoutTokenPattern = 0;
   let conversionLogByCheckoutToken = 0;
-
   if (linkedCheckoutTokens.length > 0) {
-
     const additionalPixelReceipts = await prisma.pixelEventReceipt.deleteMany({
       where: {
         shopId: shop.id,
@@ -90,7 +76,6 @@ export async function processCustomerRedact(
       },
     });
     pixelReceiptByCheckoutToken = additionalPixelReceipts.count;
-
     const checkoutPatterns = linkedCheckoutTokens.map((t) => `checkout:${t}`);
     const additionalSurveys = await prisma.surveyResponse.deleteMany({
       where: {
@@ -99,7 +84,6 @@ export async function processCustomerRedact(
       },
     });
     surveyByCheckoutTokenPattern = additionalSurveys.count;
-
     const additionalConversionLogs = await prisma.conversionLog.deleteMany({
       where: {
         shopId: shop.id,
@@ -108,7 +92,6 @@ export async function processCustomerRedact(
     });
     conversionLogByCheckoutToken = additionalConversionLogs.count;
   }
-
   const result: CustomerRedactResult = {
     customerId,
     ordersRedacted: ordersToRedact,
@@ -120,7 +103,6 @@ export async function processCustomerRedact(
         surveyByOrderId.count + surveyByOrderNumberPattern.count + surveyByCheckoutTokenPattern,
     },
   };
-
   logger.info(`[GDPR] Customer redact completed for ${shopDomain}`, {
     customerId,
     ...result.deletedCounts,
@@ -131,7 +113,6 @@ export async function processCustomerRedact(
       conversionLogsByCheckoutToken: conversionLogByCheckoutToken,
     },
   });
-
   await createAuditLog({
     shopId: shop.id,
     actorType: "webhook",
@@ -148,6 +129,5 @@ export async function processCustomerRedact(
       },
     },
   });
-
   return result;
 }

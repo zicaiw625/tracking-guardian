@@ -56,7 +56,6 @@ export async function performEnhancedChannelReconciliation(
   const since = new Date();
   since.setHours(since.getHours() - hours);
   const now = new Date();
-
   const shop = await prisma.shop.findUnique({
     where: { id: shopId },
     include: {
@@ -66,7 +65,6 @@ export async function performEnhancedChannelReconciliation(
       },
     },
   });
-
   if (!shop || shop.pixelConfigs.length === 0) {
     return {
       summary: {
@@ -86,7 +84,6 @@ export async function performEnhancedChannelReconciliation(
       },
     };
   }
-
   const shopifyOrders = await prisma.shopifyOrderSnapshot.findMany({
     where: {
       shopId,
@@ -102,12 +99,10 @@ export async function performEnhancedChannelReconciliation(
       createdAt: true,
     },
   });
-
   const shopifyOrderIds = new Set(shopifyOrders.map((o: { orderId: string }) => o.orderId));
   const shopifyOrderMap = new Map(
     shopifyOrders.map((o: { orderId: string }) => [o.orderId, o])
   );
-
   const shopifyTotalValue = shopifyOrders.reduce(
     (sum: number, o: { totalValue: { toNumber: () => number } | number }) => {
       const value = typeof o.totalValue === 'object' && 'toNumber' in o.totalValue
@@ -119,14 +114,11 @@ export async function performEnhancedChannelReconciliation(
     },
     0
   );
-
   const platformComparisons: PlatformComparison[] = [];
   const platformOrderMaps: Record<string, Set<string>> = {};
   const platformValueMaps: Record<string, Map<string, number>> = {};
-
   for (const config of shop.pixelConfigs) {
     const platform = config.platform;
-
     const eventLogs = await prisma.eventLog.findMany({
       where: {
         shopId,
@@ -153,14 +145,12 @@ export async function performEnhancedChannelReconciliation(
         },
       },
     });
-
     const platformLogs = eventLogs.map((eventLog) => {
       const normalizedEvent = eventLog.normalizedEventJson as Record<string, unknown> | null;
       const orderId = (normalizedEvent?.orderId as string) || "";
       const orderNumber = (normalizedEvent?.orderNumber as string) || null;
       const value = (normalizedEvent?.value as number) || 0;
       const currency = (normalizedEvent?.currency as string) || "USD";
-
       return {
         orderId,
         orderNumber,
@@ -169,7 +159,6 @@ export async function performEnhancedChannelReconciliation(
         createdAt: eventLog.createdAt,
       };
     });
-
     const platformOrderIds = new Set(platformLogs.map((l: { orderId: string }) => l.orderId));
     const platformOrderMap = new Map(
       platformLogs.map((l: { orderId: string }) => [l.orderId, l])
@@ -185,7 +174,6 @@ export async function performEnhancedChannelReconciliation(
       },
       0
     );
-
     platformOrderMaps[platform] = platformOrderIds;
     platformValueMaps[platform] = new Map(
       platformLogs.map((l: { orderId: string; orderValue: { toNumber: () => number } | number }) => {
@@ -197,14 +185,12 @@ export async function performEnhancedChannelReconciliation(
         return [l.orderId, value];
       })
     );
-
     const missingOrders: string[] = [];
     for (const orderId of shopifyOrderIds) {
       if (!platformOrderIds.has(orderId)) {
         missingOrders.push(orderId);
       }
     }
-
     const orderIdCounts = new Map<string, number>();
     platformLogs.forEach((log: { orderId: string }) => {
       orderIdCounts.set(
@@ -215,7 +201,6 @@ export async function performEnhancedChannelReconciliation(
     const duplicateOrders = Array.from(orderIdCounts.entries())
       .filter(([, count]) => count > 1)
       .map(([orderId]) => orderId);
-
     const matchRate =
       shopifyOrderIds.size > 0
         ? (platformOrderIds.size / shopifyOrderIds.size) * 100
@@ -228,9 +213,7 @@ export async function performEnhancedChannelReconciliation(
     const valueDiscrepancy = Math.abs(shopifyTotalValue - platformTotalValue);
     const valueDiscrepancyRate =
       shopifyTotalValue > 0 ? (valueDiscrepancy / shopifyTotalValue) * 100 : 0;
-
     const issues: ReconciliationIssue[] = [];
-
     if (missingOrders.length > 0) {
       const missingRate = (missingOrders.length / shopifyOrderIds.size) * 100;
       issues.push({
@@ -243,7 +226,6 @@ export async function performEnhancedChannelReconciliation(
         },
       });
     }
-
     if (valueDiscrepancyRate > 5) {
       issues.push({
         type: "value_mismatch",
@@ -257,7 +239,6 @@ export async function performEnhancedChannelReconciliation(
         },
       });
     }
-
     if (duplicateOrders.length > 0) {
       issues.push({
         type: "duplicate_order",
@@ -268,7 +249,6 @@ export async function performEnhancedChannelReconciliation(
         },
       });
     }
-
     platformComparisons.push({
       platform,
       stats: {
@@ -289,13 +269,11 @@ export async function performEnhancedChannelReconciliation(
       issues,
     });
   }
-
   const allPlatforms = Object.keys(platformOrderMaps);
   const commonMissingOrders: string[] = [];
   const platformsWithDiscrepancies: string[] = [];
   const platformsInAgreement: string[] = [];
   const valueVarianceByPlatform: Record<string, number> = {};
-
   if (allPlatforms.length > 1) {
     for (const orderId of shopifyOrderIds) {
       const missingInAllPlatforms = allPlatforms.every(
@@ -306,14 +284,12 @@ export async function performEnhancedChannelReconciliation(
       }
     }
   }
-
   platformComparisons.forEach((comparison) => {
     if (comparison.stats.discrepancyRate > 5 || comparison.issues.length > 0) {
       platformsWithDiscrepancies.push(comparison.platform);
     } else {
       platformsInAgreement.push(comparison.platform);
     }
-
     const platformValues = Array.from(platformValueMaps[comparison.platform].values());
     if (platformValues.length > 0) {
       const mean = platformValues.reduce((sum, v) => sum + v, 0) / platformValues.length;
@@ -323,13 +299,11 @@ export async function performEnhancedChannelReconciliation(
       valueVarianceByPlatform[comparison.platform] = Math.sqrt(variance);
     }
   });
-
   const overallMatchRate =
     platformComparisons.length > 0
       ? platformComparisons.reduce((sum, p) => sum + p.stats.matchRate, 0) /
         platformComparisons.length
       : 0;
-
   return {
     summary: {
       totalShopifyOrders: shopifyOrderIds.size,
@@ -378,7 +352,6 @@ export async function getOrderCrossPlatformComparison(
     message: string;
   }>;
 }> {
-
   const shopifyOrder = await prisma.shopifyOrderSnapshot.findFirst({
     where: {
       shopId,
@@ -394,7 +367,6 @@ export async function getOrderCrossPlatformComparison(
       createdAt: true,
     },
   });
-
   const eventLogs = await prisma.eventLog.findMany({
     where: {
       shopId,
@@ -415,23 +387,18 @@ export async function getOrderCrossPlatformComparison(
       },
     },
   });
-
   const matchingEvents = eventLogs.filter((eventLog) => {
     const normalizedEvent = eventLog.normalizedEventJson as Record<string, unknown> | null;
     const eventOrderId = normalizedEvent?.orderId as string | undefined;
     return eventOrderId === orderId;
   });
-
   const platformEvents = matchingEvents.flatMap((eventLog) => {
     const normalizedEvent = eventLog.normalizedEventJson as Record<string, unknown> | null;
     const eventValue = (normalizedEvent?.value as number) || 0;
     const currency = (normalizedEvent?.currency as string) || "USD";
-
     return eventLog.DeliveryAttempt.map((attempt) => {
-
       let finalValue = eventValue;
       let finalCurrency = currency;
-
       if (attempt.requestPayloadJson) {
         const requestPayload = attempt.requestPayloadJson as Record<string, unknown> | null;
         if (attempt.destinationType === "google") {
@@ -460,7 +427,6 @@ export async function getOrderCrossPlatformComparison(
           }
         }
       }
-
       return {
         platform: attempt.destinationType,
         orderId,
@@ -471,7 +437,6 @@ export async function getOrderCrossPlatformComparison(
       };
     });
   });
-
   const shop = await prisma.shop.findUnique({
     where: { id: shopId },
     include: {
@@ -481,28 +446,22 @@ export async function getOrderCrossPlatformComparison(
       },
     },
   });
-
   const configuredPlatforms =
     shop?.pixelConfigs.map((c: { platform: string }) => c.platform) || [];
   const platformsWithEvents = new Set(platformEvents.map((e: { platform: string }) => e.platform));
-
   const discrepancies: Array<{
     platform: string;
     type: "missing" | "value_mismatch" | "timing_delay";
     message: string;
   }> = [];
-
   if (shopifyOrder) {
-
     const shopifyValue = typeof shopifyOrder.totalValue === 'object' && 'toNumber' in shopifyOrder.totalValue
       ? shopifyOrder.totalValue.toNumber()
       : typeof shopifyOrder.totalValue === 'number'
       ? shopifyOrder.totalValue
       : 0;
-
     for (const platform of configuredPlatforms) {
       const platformEvent = platformEvents.find((e: { platform: string }) => e.platform === platform);
-
       if (!platformEvent) {
         discrepancies.push({
           platform,
@@ -513,7 +472,6 @@ export async function getOrderCrossPlatformComparison(
         const platformValue = Number(platformEvent.orderValue || 0);
         const valueDiff = Math.abs(shopifyValue - platformValue);
         const valueDiffRate = shopifyValue > 0 ? (valueDiff / shopifyValue) * 100 : 0;
-
         if (valueDiffRate > 1) {
           discrepancies.push({
             platform,
@@ -521,7 +479,6 @@ export async function getOrderCrossPlatformComparison(
             message: `金额差异 ${valueDiffRate.toFixed(2)}%（Shopify: ${shopifyValue}, 平台: ${platformValue}）`,
           });
         }
-
         const timeDiff = platformEvent.createdAt.getTime() - shopifyOrder.createdAt.getTime();
         if (timeDiff > 5 * 60 * 1000) {
           discrepancies.push({
@@ -533,7 +490,6 @@ export async function getOrderCrossPlatformComparison(
       }
     }
   }
-
   return {
     orderId,
     shopifyOrder: shopifyOrder
