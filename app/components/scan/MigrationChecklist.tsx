@@ -54,7 +54,7 @@ const getMigrationTypeLabel = (type: MigrationItem["suggestedMigration"]) => {
     case "ui_extension":
       return "UI Extension Block";
     case "server_side":
-      return "Server-side";
+      return "Server-side CAPI";
     case "none":
       return "External redirect / not supported";
     default:

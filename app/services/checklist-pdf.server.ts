@@ -47,9 +47,9 @@ export async function generateChecklistPDF(
         const riskLevelText = item.riskLevel === "high" ? "高" : item.riskLevel === "medium" ? "中" : "低";
         const migrationText = 
           item.suggestedMigration === "web_pixel" ? "Web Pixel" :
-          item.suggestedMigration === "ui_extension" ? "UI Extension" :
-          item.suggestedMigration === "server_side" ? "Server-side" :
-          "无需迁移";
+          item.suggestedMigration === "ui_extension" ? "UI Extension Block" :
+          item.suggestedMigration === "server_side" ? "Server-side CAPI" :
+          "External redirect / not supported";
         
         doc.font("Helvetica-Bold").text(`${index + 1}. ${item.title}`, { continued: false });
         doc.font("Helvetica");

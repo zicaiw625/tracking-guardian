@@ -518,12 +518,12 @@ export async function processEventPipeline(
           finalEventId,
           normalizedPayload,
           destinationType,
-          sendResult.success ? "ok" : "fail",
-          sendResult.success ? undefined : "send_failed",
-          sendResult.error,
-          sendResult.responseStatus ?? null,
+          sendResult.ok ?? sendResult.success ? "ok" : "fail",
+          sendResult.ok ?? sendResult.success ? undefined : (sendResult.errorCode || "send_failed"),
+          sendResult.error || null,
+          sendResult.httpStatus ?? sendResult.responseStatus ?? null,
           sendResult.responseBody ?? null,
-          sendLatencyMs
+          sendResult.latencyMs ?? sendLatencyMs
         );
         if (sendResult.success) {
           logger.info(`Successfully sent ${normalizedPayload.eventName} to ${destination}`, {

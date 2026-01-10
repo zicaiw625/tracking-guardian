@@ -883,9 +883,9 @@ export const action = async ({ request }: ActionFunctionArgs) => {
             };
             const migrationTypeLabels: Record<string, string> = {
                 web_pixel: "Web Pixel",
-                ui_extension: "UI Extension",
-                server_side: "服务端 CAPI",
-                none: "无需迁移",
+                ui_extension: "UI Extension Block",
+                server_side: "Server-side CAPI",
+                none: "External redirect / not supported",
             };
             const csvLines: string[] = [];
             csvLines.push("迁移清单");
@@ -1757,8 +1757,8 @@ export function ScanPage({
         >
           <BlockStack gap="200">
             <Text as="p">{upgradeStatus.autoUpgradeInfo.autoUpgradeMessage}</Text>
-            <Text as="p" variant="bodySm" tone="subdued">
-              <strong>Shopify 官方升级路径：</strong>使用 blocks + web pixels 替代 legacy customizations。2025-08-28 截止，2026-01 自动升级会丢失 legacy 自定义。
+              <Text as="p" variant="bodySm" tone="subdued">
+              <strong>Shopify 官方升级路径：</strong>使用 blocks + web pixels 替代 legacy customizations。Plus 商家：{getDateDisplayLabel(DEPRECATION_DATES.plusAdditionalScriptsReadOnly, "exact")} 截止，{getDateDisplayLabel(DEPRECATION_DATES.plusAutoUpgradeStart, "month")} 自动升级会丢失 legacy 自定义。非 Plus 商家：{getDateDisplayLabel(DEPRECATION_DATES.nonPlusAdditionalScriptsReadOnly, "exact")} 截止。
             </Text>
           </BlockStack>
         </Banner>
@@ -1959,6 +1959,76 @@ export function ScanPage({
                   }}
                 />
               )}
+        {latestScan && !isScanning && upgradeStatus && upgradeStatus.title && (
+          <Card>
+            <BlockStack gap="400">
+              <InlineStack align="space-between" blockAlign="center">
+                <Text as="h2" variant="headingMd">
+                  Shopify 升级风险窗口
+                </Text>
+                <Badge tone={upgradeStatus.urgency === "critical" ? "critical" : upgradeStatus.urgency === "high" ? "warning" : "info"}>
+                  {upgradeStatus.urgency === "critical" ? "紧急" : upgradeStatus.urgency === "high" ? "高优先级" : upgradeStatus.urgency === "medium" ? "中优先级" : "低优先级"}
+                </Badge>
+              </InlineStack>
+              <Divider />
+              <Banner tone={upgradeStatus.urgency === "critical" ? "critical" : upgradeStatus.urgency === "high" ? "warning" : "info"} title={upgradeStatus.title}>
+                <BlockStack gap="200">
+                  <Text as="p">{upgradeStatus.message}</Text>
+                  {upgradeStatus.autoUpgradeInfo && upgradeStatus.autoUpgradeInfo.autoUpgradeMessage && (
+                    <Banner tone={upgradeStatus.autoUpgradeInfo.isInAutoUpgradeWindow ? "critical" : "warning"} title={upgradeStatus.autoUpgradeInfo.isInAutoUpgradeWindow ? "⚡ 自动升级窗口已开始" : "⚠️ 自动升级风险窗口"}>
+                      <Text as="p">{upgradeStatus.autoUpgradeInfo.autoUpgradeMessage}</Text>
+                    </Banner>
+                  )}
+                  {upgradeStatus.actions && upgradeStatus.actions.length > 0 && (
+                    <BlockStack gap="100">
+                      <Text as="p" fontWeight="semibold">建议操作：</Text>
+                      <List>
+                        {upgradeStatus.actions.map((action, idx) => (
+                          <List.Item key={idx}>{action}</List.Item>
+                        ))}
+                      </List>
+                    </BlockStack>
+                  )}
+                </BlockStack>
+              </Banner>
+            </BlockStack>
+          </Card>
+        )}
+        {latestScan && !isScanning && upgradeStatus && upgradeStatus.title && (
+          <Card>
+            <BlockStack gap="400">
+              <InlineStack align="space-between" blockAlign="center">
+                <Text as="h2" variant="headingMd">
+                  Shopify 升级风险窗口
+                </Text>
+                <Badge tone={upgradeStatus.urgency === "critical" ? "critical" : upgradeStatus.urgency === "high" ? "warning" : "info"}>
+                  {upgradeStatus.urgency === "critical" ? "紧急" : upgradeStatus.urgency === "high" ? "高优先级" : upgradeStatus.urgency === "medium" ? "中优先级" : "低优先级"}
+                </Badge>
+              </InlineStack>
+              <Divider />
+              <Banner tone={upgradeStatus.urgency === "critical" ? "critical" : upgradeStatus.urgency === "high" ? "warning" : "info"} title={upgradeStatus.title}>
+                <BlockStack gap="200">
+                  <Text as="p">{upgradeStatus.message}</Text>
+                  {upgradeStatus.autoUpgradeInfo && upgradeStatus.autoUpgradeInfo.autoUpgradeMessage && (
+                    <Banner tone={upgradeStatus.autoUpgradeInfo.isInAutoUpgradeWindow ? "critical" : "warning"} title={upgradeStatus.autoUpgradeInfo.isInAutoUpgradeWindow ? "自动升级窗口已开始" : "自动升级风险窗口"}>
+                      <Text as="p">{upgradeStatus.autoUpgradeInfo.autoUpgradeMessage}</Text>
+                    </Banner>
+                  )}
+                  {upgradeStatus.actions && upgradeStatus.actions.length > 0 && (
+                    <BlockStack gap="100">
+                      <Text as="p" fontWeight="semibold">建议操作：</Text>
+                      <List>
+                        {upgradeStatus.actions.map((action, idx) => (
+                          <List.Item key={idx}>{action}</List.Item>
+                        ))}
+                      </List>
+                    </BlockStack>
+                  )}
+                </BlockStack>
+              </Banner>
+            </BlockStack>
+          </Card>
+        )}
         {latestScan && !isScanning && (<Layout>
             <Layout.Section variant="oneThird">
               <Card>

@@ -85,7 +85,7 @@ export interface VerificationEventResult {
   platform: string;
   orderId?: string;
   orderNumber?: string;
-  status: "success" | "failed" | "missing_params" | "not_tested";
+  status: "success" | "failed" | "missing_params" | "not_tested" | "deduplicated";
   triggeredAt?: Date;
   params?: {
     value?: number;
@@ -100,6 +100,10 @@ export interface VerificationEventResult {
   };
   discrepancies?: string[];
   errors?: string[];
+  dedupInfo?: {
+    existingEventId?: string;
+    reason?: string;
+  };
 }
 
 export interface VerificationSummary {
@@ -333,28 +337,71 @@ export async function analyzeRecentEvents(
     }
     const hasValue = value !== undefined && value !== null;
     const hasCurrency = !!currency;
-    const hasEventId = !!payload?.eventId;
-    if (hasValue && hasCurrency) {
-      passedTests++;
-      valueChecks++;
-      totalValueAccuracy += 100;
-      results.push({
-        testItemId: "purchase",
-        eventType: receipt.eventType,
-        platform: platform || "unknown",
-        orderId: orderId || undefined,
-        orderNumber: undefined,
-        status: "success",
-        triggeredAt: receipt.pixelTimestamp,
-        params: {
-          value: value || undefined,
-          currency: currency || undefined,
-          items: items || undefined,
-          hasEventId,
+    const hasEventId = !!payload?.eventId || !!receipt.id;
+    let dedupInfo: { existingEventId?: string; reason?: string } | undefined;
+    if (orderId && receipt.eventType === "purchase") {
+      const existingReceipt = await prisma.pixelEventReceipt.findFirst({
+        where: {
+          shopId,
+          orderKey: orderId,
+          eventType: "purchase",
+          id: { not: receipt.id },
+          createdAt: { lt: receipt.createdAt },
         },
-        discrepancies: undefined,
-        errors: undefined,
+        orderBy: { createdAt: "desc" },
+        select: { eventId: true, createdAt: true },
+        take: 1,
       });
+      if (existingReceipt) {
+        dedupInfo = {
+          existingEventId: existingReceipt.eventId,
+          reason: `已在 ${existingReceipt.createdAt.toISOString()} 记录过相同订单事件`,
+        };
+      }
+    }
+    if (hasValue && hasCurrency) {
+      if (dedupInfo) {
+        results.push({
+          testItemId: "purchase",
+          eventType: receipt.eventType,
+          platform: platform || "unknown",
+          orderId: orderId || undefined,
+          orderNumber: undefined,
+          status: "deduplicated",
+          triggeredAt: receipt.pixelTimestamp,
+          params: {
+            value: value || undefined,
+            currency: currency || undefined,
+            items: items || undefined,
+            hasEventId,
+          },
+          discrepancies: undefined,
+          errors: undefined,
+          dedupInfo,
+        });
+      } else {
+        passedTests++;
+        valueChecks++;
+        totalValueAccuracy += 100;
+        results.push({
+          testItemId: "purchase",
+          eventType: receipt.eventType,
+          platform: platform || "unknown",
+          orderId: orderId || undefined,
+          orderNumber: undefined,
+          status: "success",
+          triggeredAt: receipt.pixelTimestamp,
+          params: {
+            value: value || undefined,
+            currency: currency || undefined,
+            items: items || undefined,
+            hasEventId,
+          },
+          discrepancies: undefined,
+          errors: undefined,
+          dedupInfo,
+        });
+      }
     } else {
       missingParamTests++;
       if (!hasValue) discrepancies.push("缺少 value 参数");
@@ -375,6 +422,7 @@ export async function analyzeRecentEvents(
         },
         discrepancies: discrepancies.length > 0 ? discrepancies : undefined,
         errors: undefined,
+        dedupInfo,
       });
     }
   }
@@ -383,6 +431,48 @@ export async function analyzeRecentEvents(
     totalTests > 0 ? Math.round(((passedTests + missingParamTests) / totalTests) * 100) : 0;
   const valueAccuracy = valueChecks > 0 ? Math.round(totalValueAccuracy / valueChecks) : 100;
   const platformResults: Record<string, { sent: number; failed: number }> = {};
+  const receiptEventIds = receipts
+    .map(r => r.orderKey || (r.payloadJson as Record<string, unknown> | null)?.eventId as string | undefined)
+    .filter((id): id is string => !!id);
+  if (receiptEventIds.length > 0) {
+    const eventLogs = await prisma.eventLog.findMany({
+      where: {
+        shopId,
+        eventId: { in: receiptEventIds },
+      },
+      select: {
+        id: true,
+        eventId: true,
+        eventName: true,
+        DeliveryAttempt: {
+          select: {
+            platform: true,
+            ok: true,
+            httpStatus: true,
+            errorCode: true,
+            latencyMs: true,
+            createdAt: true,
+          },
+        },
+      },
+    });
+    for (const eventLog of eventLogs) {
+      for (const attempt of eventLog.DeliveryAttempt) {
+        if (!attempt.platform) continue;
+        if (targetPlatforms.length > 0 && !targetPlatforms.includes(attempt.platform)) {
+          continue;
+        }
+        if (!platformResults[attempt.platform]) {
+          platformResults[attempt.platform] = { sent: 0, failed: 0 };
+        }
+        if (attempt.ok) {
+          platformResults[attempt.platform].sent++;
+        } else {
+          platformResults[attempt.platform].failed++;
+        }
+      }
+    }
+  }
   for (const receipt of receipts) {
     const payload = receipt.payloadJson as Record<string, unknown> | null;
     const receiptPlatform = extractPlatformFromPayload(payload);
@@ -395,9 +485,13 @@ export async function analyzeRecentEvents(
     const hasValue = payload?.data && typeof (payload.data as Record<string, unknown>).value === "number";
     const hasCurrency = payload?.data && typeof (payload.data as Record<string, unknown>).currency === "string";
     if (hasValue && hasCurrency) {
-      platformResults[receiptPlatform].sent++;
+      if (platformResults[receiptPlatform].sent === 0 && platformResults[receiptPlatform].failed === 0) {
+        platformResults[receiptPlatform].sent++;
+      }
     } else {
-      platformResults[receiptPlatform].failed++;
+      if (platformResults[receiptPlatform].sent === 0 && platformResults[receiptPlatform].failed === 0) {
+        platformResults[receiptPlatform].failed++;
+      }
     }
   }
   let reconciliation: VerificationSummary["reconciliation"] | undefined;

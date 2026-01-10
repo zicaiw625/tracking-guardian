@@ -180,7 +180,7 @@ export function MigrationChecklistEnhanced({
       case "web_pixel":
         return <Badge tone="info">Web Pixel</Badge>;
       case "ui_extension":
-        return <Badge tone="success">UI Extension</Badge>;
+        return <Badge tone="success">UI Extension Block</Badge>;
       case "server_side":
         return <Badge>Server-side</Badge>;
       case "none":
@@ -393,7 +393,7 @@ export function MigrationChecklistEnhanced({
                   : item.suggestedMigration === "ui_extension"
                     ? "UI Extension Block"
                     : item.suggestedMigration === "server_side"
-                      ? "Server-side"
+                      ? "Server-side CAPI"
                       : "External redirect / not supported";
                 const needsInfo: string[] = [];
                 if (item.platform) needsInfo.push(`平台: ${item.platform}`);

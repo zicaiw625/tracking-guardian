@@ -56,12 +56,12 @@ const MIGRATION_LABELS: Record<string, { label: string; description: string; url
     url: "/app/migrate",
   },
   ui_extension: {
-    label: "迁移到 UI Extension",
+    label: "UI Extension Block",
     description: "使用 Checkout UI Extension 替代页面脚本",
     url: "/app/modules",
   },
   server_side: {
-    label: "迁移到服务端 CAPI",
+    label: "Server-side CAPI",
     description: "使用服务端 Conversions API 提高追踪可靠性",
     url: "/app/migrate",
   },

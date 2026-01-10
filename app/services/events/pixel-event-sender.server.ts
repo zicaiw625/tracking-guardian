@@ -14,11 +14,15 @@ const TIKTOK_API_URL = "https://business-api.tiktok.com/open_api/v1.3/event/trac
 
 interface PixelEventSendResult {
   success: boolean;
+  ok: boolean;
   platform: string;
   error?: string;
+  errorCode?: string;
   requestPayload?: unknown;
   responseStatus?: number;
+  httpStatus?: number;
   responseBody?: string;
+  latencyMs?: number;
 }
 
 function mapShopifyEventToPlatform(
@@ -85,8 +89,10 @@ async function sendToGA4(
     if (!googleCreds.measurementId || !googleCreds.apiSecret) {
       return {
         success: false,
+        ok: false,
         platform: "google",
         error: "Missing measurementId or apiSecret",
+        errorCode: "missing_credentials",
       };
     }
     const platformEventName = mapShopifyEventToPlatform(eventName, "google", customMappings);
@@ -124,6 +130,7 @@ async function sendToGA4(
       headers: { "Content-Type": "application/json" },
       body: ga4Payload,
     };
+    const sendStartTime = Date.now();
     const response = await fetchWithTimeout(
       url,
       {
@@ -133,30 +140,40 @@ async function sendToGA4(
       },
       DEFAULT_API_TIMEOUT_MS
     );
+    const latencyMs = Date.now() - sendStartTime;
     const responseText = await response.text().catch(() => "");
     const isSuccess = response.status === 204 || response.ok;
     if (isSuccess) {
       return { 
-        success: true, 
+        success: true,
+        ok: true,
         platform: "google", 
         requestPayload, 
         responseStatus: response.status,
-        responseBody: response.status === 204 ? "" : responseText || "success"
+        httpStatus: response.status,
+        responseBody: response.status === 204 ? "" : responseText || "success",
+        latencyMs,
       };
     }
     return {
       success: false,
+      ok: false,
       platform: "google",
       error: `GA4 error: ${response.status} ${responseText}`,
+      errorCode: `http_${response.status}`,
       requestPayload,
       responseStatus: response.status,
+      httpStatus: response.status,
       responseBody: responseText,
+      latencyMs,
     };
   } catch (error) {
     return {
       success: false,
+      ok: false,
       platform: "google",
       error: error instanceof Error ? error.message : String(error),
+      errorCode: "send_error",
     };
   }
 }
@@ -173,8 +190,10 @@ async function sendToMeta(
     if (!metaCreds.pixelId || !metaCreds.accessToken) {
       return {
         success: false,
+        ok: false,
         platform: "meta",
         error: "Missing pixelId or accessToken",
+        errorCode: "missing_credentials",
       };
     }
     const platformEventName = mapShopifyEventToPlatform(eventName, "meta", customMappings);
@@ -227,6 +246,7 @@ async function sendToMeta(
         access_token: "***REDACTED***",
       },
     };
+    const sendStartTime = Date.now();
     const response = await fetchWithTimeout(
       url,
       {
@@ -242,30 +262,40 @@ async function sendToMeta(
       },
       DEFAULT_API_TIMEOUT_MS
     );
+    const latencyMs = Date.now() - sendStartTime;
     const responseData = await response.json().catch(() => ({}));
     const isSuccess = response.ok;
     if (isSuccess) {
       return { 
-        success: true, 
+        success: true,
+        ok: true,
         platform: "meta", 
         requestPayload, 
         responseStatus: response.status,
-        responseBody: JSON.stringify(responseData) || "success"
+        httpStatus: response.status,
+        responseBody: JSON.stringify(responseData) || "success",
+        latencyMs,
       };
     }
     return {
       success: false,
+      ok: false,
       platform: "meta",
       error: `Meta error: ${response.status} ${responseData.error?.message || "Unknown error"}`,
+      errorCode: `http_${response.status}`,
       requestPayload,
       responseStatus: response.status,
+      httpStatus: response.status,
       responseBody: JSON.stringify(responseData),
+      latencyMs,
     };
   } catch (error) {
     return {
       success: false,
+      ok: false,
       platform: "meta",
       error: error instanceof Error ? error.message : String(error),
+      errorCode: "send_error",
     };
   }
 }
@@ -282,8 +312,10 @@ async function sendToTikTok(
     if (!tiktokCreds.pixelId || !tiktokCreds.accessToken) {
       return {
         success: false,
+        ok: false,
         platform: "tiktok",
         error: "Missing pixelId or accessToken",
+        errorCode: "missing_credentials",
       };
     }
     const platformEventName = mapShopifyEventToPlatform(eventName, "tiktok", customMappings);
@@ -332,6 +364,7 @@ async function sendToTikTok(
       },
       body: { data: [eventPayload] },
     };
+    const sendStartTime = Date.now();
     const response = await fetchWithTimeout(
       TIKTOK_API_URL,
       {
@@ -344,30 +377,40 @@ async function sendToTikTok(
       },
       DEFAULT_API_TIMEOUT_MS
     );
+    const latencyMs = Date.now() - sendStartTime;
     const responseData = await response.json().catch(() => ({}));
     const isSuccess = response.ok;
     if (isSuccess) {
       return { 
-        success: true, 
+        success: true,
+        ok: true,
         platform: "tiktok", 
         requestPayload, 
         responseStatus: response.status,
-        responseBody: JSON.stringify(responseData) || "success"
+        httpStatus: response.status,
+        responseBody: JSON.stringify(responseData) || "success",
+        latencyMs,
       };
     }
     return {
       success: false,
+      ok: false,
       platform: "tiktok",
       error: `TikTok error: ${response.status} ${responseData.message || "Unknown error"}`,
+      errorCode: `http_${response.status}`,
       requestPayload,
       responseStatus: response.status,
+      httpStatus: response.status,
       responseBody: JSON.stringify(responseData),
+      latencyMs,
     };
   } catch (error) {
     return {
       success: false,
+      ok: false,
       platform: "tiktok",
       error: error instanceof Error ? error.message : String(error),
+      errorCode: "send_error",
     };
   }
 }
@@ -423,8 +466,10 @@ export async function sendPixelEventToPlatform(
       });
       return {
         success: false,
+        ok: false,
         platform,
         error: "Pixel config not found",
+        errorCode: "config_not_found",
       };
     }
     const credResult = decryptCredentials(config, platform);
@@ -437,8 +482,10 @@ export async function sendPixelEventToPlatform(
       });
       return {
         success: false,
+        ok: false,
         platform,
         error: credResult.error.message,
+        errorCode: "decrypt_error",
       };
     }
     const credentials = credResult.value.credentials;
@@ -575,8 +622,10 @@ export async function sendPixelEventToPlatform(
       });
       return {
         success: false,
+        ok: false,
         platform,
         error: `Unsupported platform: ${platform}`,
+        errorCode: "unsupported_platform",
       };
     }
     const startTime = Date.now();
@@ -591,8 +640,10 @@ export async function sendPixelEventToPlatform(
       } else {
         return {
           success: false,
+          ok: false,
           platform,
           error: `Unsupported platform: ${platform}`,
+          errorCode: "unsupported_platform",
         };
       }
     } catch (error) {
@@ -604,15 +655,30 @@ export async function sendPixelEventToPlatform(
         eventId,
         error: errorMessage,
       });
+      const latencyMs = Date.now() - startTime;
       sendResult = {
         success: false,
+        ok: false,
         platform,
         error: errorMessage.includes("timeout") || errorMessage.includes("aborted")
           ? `Request timeout after ${DEFAULT_API_TIMEOUT_MS}ms`
           : errorMessage,
+        errorCode: errorMessage.includes("timeout") || errorMessage.includes("aborted")
+          ? "timeout"
+          : "send_error",
+        latencyMs,
       };
     }
-    const latencyMs = Date.now() - startTime;
+    const finalLatencyMs = Date.now() - startTime;
+    if (sendResult.success && !sendResult.latencyMs) {
+      sendResult.latencyMs = finalLatencyMs;
+    }
+    if (!sendResult.ok) {
+      sendResult.ok = sendResult.success;
+    }
+    if (sendResult.httpStatus === undefined && sendResult.responseStatus !== undefined) {
+      sendResult.httpStatus = sendResult.responseStatus;
+    }
     return sendResult;
   } catch (error) {
     logger.error(`Failed to send pixel event to ${platform}`, {
@@ -624,8 +690,10 @@ export async function sendPixelEventToPlatform(
     });
     return {
       success: false,
+      ok: false,
       platform,
       error: error instanceof Error ? error.message : String(error),
+      errorCode: "send_error",
     };
   }
 }

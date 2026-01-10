@@ -331,7 +331,7 @@ export default function SharedVerificationReport() {
           </Card>
         )}
 
-        {Object.keys(report.platformResults).length > 0 && (
+        {Object.keys(report.platformResults || {}).length > 0 && (
           <Card>
             <BlockStack gap="400">
               <Text as="h2" variant="headingMd">
@@ -339,7 +339,7 @@ export default function SharedVerificationReport() {
               </Text>
               <Divider />
               <BlockStack gap="300">
-                {Object.entries(report.platformResults).map(([platform, stats]) => {
+                {Object.entries(report.platformResults || {}).map(([platform, stats]) => {
                   const total = stats.sent + stats.failed;
                   const successRate = total > 0 ? Math.round((stats.sent / total) * 100) : 0;
                   return (
