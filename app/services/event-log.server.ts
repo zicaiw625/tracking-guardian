@@ -285,20 +285,21 @@ export async function getEventLogs(
         pixelTimestamp: true,
         createdAt: true,
         payloadJson: true,
-        platform: true,
       },
     });
-    return receipts.map(receipt => ({
-      id: receipt.id,
-      eventId: receipt.id,
-      eventName: receipt.eventType,
-      source: "web_pixel",
-      occurredAt: receipt.pixelTimestamp,
-      normalizedEventJson: receipt.payloadJson,
-      shopifyContextJson: null,
-      createdAt: receipt.createdAt,
-      deliveryAttempts: [],
-    }));
+    return receipts.map(receipt => {
+      return {
+        id: receipt.id,
+        eventId: receipt.id,
+        eventName: receipt.eventType,
+        source: "web_pixel",
+        occurredAt: receipt.pixelTimestamp,
+        normalizedEventJson: receipt.payloadJson,
+        shopifyContextJson: null,
+        createdAt: receipt.createdAt,
+        deliveryAttempts: [],
+      };
+    });
   } catch (error) {
     logger.error("Failed to get PixelEventReceipts", {
       shopId,

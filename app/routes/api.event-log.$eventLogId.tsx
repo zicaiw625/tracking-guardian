@@ -28,7 +28,6 @@ export const loader = async ({ request, params }: LoaderFunctionArgs) => {
         id: true,
         eventType: true,
         orderKey: true,
-        platform: true,
         pixelTimestamp: true,
         createdAt: true,
         payloadJson: true,

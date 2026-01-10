@@ -34,29 +34,12 @@ export async function aggregateDailyMetrics(
       },
     },
     select: {
-      platform: true,
       eventType: true,
-      payloadJson: true,
       createdAt: true,
     },
     take: 10000,
   });
   const orders: Array<{ platform: string; status: string; value: number }> = [];
-  for (const receipt of receipts) {
-    const payload = receipt.payloadJson as Record<string, unknown> | null;
-    const data = payload?.data as Record<string, unknown> | undefined;
-    const value = typeof data?.value === "number" ? data.value : 0;
-    const hasValue = value > 0;
-    const hasCurrency = !!data?.currency;
-    const status = hasValue && hasCurrency ? "ok" : "pending";
-    if (receipt.platform) {
-      orders.push({
-        platform: receipt.platform,
-        status,
-        value,
-      });
-    }
-  }
   const totalOrders = orders.length;
   const successfulOrders = orders.filter((o) => o.status === "ok").length;
   const totalValue = orders.reduce((sum, o) => sum + o.value, 0);
@@ -129,30 +112,12 @@ export async function getAggregatedMetrics(
       },
     },
     select: {
-      platform: true,
       eventType: true,
-      payloadJson: true,
       createdAt: true,
     },
     take: 10000,
   });
   const orders: Array<{ platform: string; status: string; value: number; createdAt: Date }> = [];
-  for (const receipt of receipts) {
-    const payload = receipt.payloadJson as Record<string, unknown> | null;
-    const data = payload?.data as Record<string, unknown> | undefined;
-    const value = typeof data?.value === "number" ? data.value : 0;
-    const hasValue = value > 0;
-    const hasCurrency = !!data?.currency;
-    const status = hasValue && hasCurrency ? "ok" : "pending";
-    if (receipt.platform) {
-      orders.push({
-        platform: receipt.platform,
-        status,
-        value,
-        createdAt: receipt.createdAt,
-      });
-    }
-  }
   const totalOrders = orders.length;
   const successfulOrders = orders.filter((o) => o.status === "ok").length;
   const totalValue = orders.reduce((sum, o) => sum + o.value, 0);

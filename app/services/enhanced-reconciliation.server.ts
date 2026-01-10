@@ -4,6 +4,17 @@ import type { AdminApiContext } from "@shopify/shopify-app-remix/server";
 import { logger } from "../utils/logger.server";
 import { Decimal } from "@prisma/client/runtime/library";
 
+function extractPlatformFromPayload(payload: Record<string, unknown> | null): string | null {
+  if (!payload) return null;
+  if (payload.platform && typeof payload.platform === "string") {
+    return payload.platform;
+  }
+  if (payload.destination && typeof payload.destination === "string") {
+    return payload.destination;
+  }
+  return null;
+}
+
 export interface ReconciliationResult {
   shopId: string;
   period: {
@@ -134,7 +145,6 @@ export async function runReconciliation(
     select: {
       id: true,
       orderKey: true,
-      platform: true,
       eventType: true,
       createdAt: true,
       payloadJson: true,
@@ -177,7 +187,8 @@ export async function runReconciliation(
     } else {
       matchedOrders++;
       for (const receipt of receipts) {
-        const platform = receipt.platform || "unknown";
+        const payload = receipt.payloadJson as Record<string, unknown> | null;
+        const platform = extractPlatformFromPayload(payload) || "unknown";
         if (!platformStats[platform]) {
           platformStats[platform] = {
             platform,
@@ -190,7 +201,6 @@ export async function runReconciliation(
             dedupConflicts: 0,
           };
         }
-        const payload = receipt.payloadJson as Record<string, unknown> | null;
         const data = payload?.data as Record<string, unknown> | undefined;
         const trackedValue = typeof data?.value === "number" ? data.value : 0;
         const trackedCurrency = (data?.currency as string) || shopifyCurrency;
@@ -524,7 +534,6 @@ export async function checkLocalConsistency(
     select: {
       id: true,
       orderKey: true,
-      platform: true,
       eventType: true,
       payloadJson: true,
       createdAt: true,
@@ -577,20 +586,21 @@ export async function checkLocalConsistency(
   }
   const capiEventChecks = capiEvents.map((event) => {
     const payload = event.payloadJson as Record<string, unknown> | null;
+    const platform = extractPlatformFromPayload(payload) || "unknown";
     const data = payload?.data as Record<string, unknown> | undefined;
     const value = typeof data?.value === "number" ? data.value : 0;
     const currency = (data?.currency as string) || "";
     const valueMatch = Math.abs(value - shopifyOrder!.value) < 0.01;
     const currencyMatch = currency === shopifyOrder!.currency;
     if (!valueMatch && value > 0) {
-      issues.push(`${event.platform || "unknown"} Pixel 金额不匹配: ${value} vs ${shopifyOrder!.value}`);
+      issues.push(`${platform} Pixel 金额不匹配: ${value} vs ${shopifyOrder!.value}`);
     }
     if (!currencyMatch && currency) {
-      issues.push(`${event.platform || "unknown"} Pixel 币种不匹配: ${currency} vs ${shopifyOrder!.currency}`);
+      issues.push(`${platform} Pixel 币种不匹配: ${currency} vs ${shopifyOrder!.currency}`);
     }
     const eventId = payload?.eventId as string | undefined || payload?.event_id as string | undefined;
     if (!eventId) {
-      issues.push(`${event.platform || "unknown"} Pixel 缺少 event_id（可能影响去重）`);
+      issues.push(`${platform} Pixel 缺少 event_id（可能影响去重）`);
     }
     const pixelTimestamp = payload?.event_time as number | undefined || payload?.eventTime as number | undefined;
     if (pixelTimestamp) {
@@ -599,11 +609,11 @@ export async function checkLocalConsistency(
       const timeDiff = Math.abs(eventTime - orderTime);
       const oneHour = 60 * 60 * 1000;
       if (timeDiff > oneHour) {
-        issues.push(`${event.platform || "unknown"} Pixel 事件时间戳异常（延迟 ${Math.round(timeDiff / 1000 / 60)} 分钟）`);
+        issues.push(`${platform} Pixel 事件时间戳异常（延迟 ${Math.round(timeDiff / 1000 / 60)} 分钟）`);
       }
     }
     return {
-      platform: event.platform || "unknown",
+      platform,
       value,
       currency,
       status: value > 0 ? "sent" : "pending",
@@ -613,8 +623,10 @@ export async function checkLocalConsistency(
   });
   const platformCounts = new Map<string, number>();
   capiEvents.forEach((event) => {
-    const count = platformCounts.get(event.platform) || 0;
-    platformCounts.set(event.platform, count + 1);
+    const payload = event.payloadJson as Record<string, unknown> | null;
+    const eventPlatform = extractPlatformFromPayload(payload) || "unknown";
+    const count = platformCounts.get(eventPlatform) || 0;
+    platformCounts.set(eventPlatform, count + 1);
   });
   platformCounts.forEach((count, platform) => {
     if (count > 1) {

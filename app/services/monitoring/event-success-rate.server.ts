@@ -1,6 +1,17 @@
 import prisma from "../../db.server";
 import { logger } from "../../utils/logger.server";
 
+function extractPlatformFromPayload(payload: Record<string, unknown> | null): string | null {
+  if (!payload) return null;
+  if (payload.platform && typeof payload.platform === "string") {
+    return payload.platform;
+  }
+  if (payload.destination && typeof payload.destination === "string") {
+    return payload.destination;
+  }
+  return null;
+}
+
 export interface EventSuccessRateResult {
   total: number;
   success: number;
@@ -26,7 +37,6 @@ export async function getEventSuccessRate(
       createdAt: { gte: startDate },
     },
     select: {
-      platform: true,
       payloadJson: true,
     },
   });
@@ -34,12 +44,12 @@ export async function getEventSuccessRate(
   let totalSuccess = 0;
   let totalFailure = 0;
   for (const receipt of receipts) {
-    const platform = receipt.platform || "unknown";
+    const payload = receipt.payloadJson as Record<string, unknown> | null;
+    const platform = extractPlatformFromPayload(payload) || "unknown";
     if (!byPlatform[platform]) {
       byPlatform[platform] = { total: 0, success: 0, failure: 0, successRate: 0 };
     }
     byPlatform[platform].total++;
-    const payload = receipt.payloadJson as Record<string, unknown> | null;
     const data = payload?.data as Record<string, unknown> | undefined;
     const hasValue = data?.value !== undefined && data?.value !== null;
     const hasCurrency = !!data?.currency;

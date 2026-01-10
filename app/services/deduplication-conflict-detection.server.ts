@@ -1,6 +1,17 @@
 import prisma from "../db.server";
 import { logger } from "../utils/logger.server";
 
+function extractPlatformFromPayload(payload: Record<string, unknown> | null): string | null {
+  if (!payload) return null;
+  if (payload.platform && typeof payload.platform === "string") {
+    return payload.platform;
+  }
+  if (payload.destination && typeof payload.destination === "string") {
+    return payload.destination;
+  }
+  return null;
+}
+
 export interface DeduplicationConflict {
   eventId: string;
   orderId: string;
@@ -42,7 +53,6 @@ export async function detectDeduplicationConflicts(
     select: {
       id: true,
       orderKey: true,
-      platform: true,
       eventType: true,
       createdAt: true,
       payloadJson: true,
@@ -53,10 +63,12 @@ export async function detectDeduplicationConflicts(
   });
   const conflictMap = new Map<string, DeduplicationConflict>();
   for (const receipt of receipts) {
-    if (!receipt.orderKey || !receipt.platform) continue;
+    if (!receipt.orderKey) continue;
     const payload = receipt.payloadJson as Record<string, unknown> | null;
+    const platform = extractPlatformFromPayload(payload);
+    if (!platform) continue;
     const eventId = payload?.eventId as string | undefined || payload?.event_id as string | undefined || receipt.id;
-    const key = `${eventId}:${receipt.platform}:${receipt.orderKey}`;
+    const key = `${eventId}:${platform}:${receipt.orderKey}`;
     const existing = conflictMap.get(key);
     if (existing) {
       existing.count++;
@@ -69,7 +81,7 @@ export async function detectDeduplicationConflicts(
       conflictMap.set(key, {
         eventId,
         orderId: receipt.orderKey,
-        platform: receipt.platform,
+        platform,
         eventType: receipt.eventType,
         count: 1,
         occurrences: [

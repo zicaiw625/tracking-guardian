@@ -23,7 +23,6 @@ export async function getRecentEvents(
     select: {
       id: true,
       eventType: true,
-      platform: true,
       orderKey: true,
       createdAt: true,
       pixelTimestamp: true,
@@ -32,6 +31,7 @@ export async function getRecentEvents(
   });
   return receipts.map((receipt) => {
     const payload = receipt.payloadJson as Record<string, unknown> | null;
+    const platform = extractPlatformFromPayload(payload) || "unknown";
     const data = payload?.data as Record<string, unknown> | undefined;
     const value = typeof data?.value === "number" ? data.value : undefined;
     const currency = typeof data?.currency === "string" ? data.currency : undefined;
@@ -41,7 +41,7 @@ export async function getRecentEvents(
     return {
       id: receipt.id,
       eventType: receipt.eventType,
-      platform: receipt.platform || "unknown",
+      platform,
       orderId: receipt.orderKey || "",
       status,
       timestamp: receipt.pixelTimestamp,

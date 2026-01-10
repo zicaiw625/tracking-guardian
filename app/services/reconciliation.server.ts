@@ -441,9 +441,7 @@ export async function getReconciliationDashboardData(
         },
         select: {
             orderKey: true,
-            platform: true,
             createdAt: true,
-            payloadJson: true,
         },
     });
     const receiptByOrderId = new Map(
@@ -489,18 +487,9 @@ export async function getReconciliationDashboardData(
         }
     }
     gapAnalysis.sort((a, b) => b.count - a.count);
-    const platformsMap = new Map<string, boolean>();
-    for (const receipt of pixelReceipts) {
-      const payload = receipt.payloadJson as Record<string, unknown> | null;
-      const platform = extractPlatformFromPayload(payload);
-      if (platform) platformsMap.set(platform, true);
-    }
-    const platforms = Array.from(platformsMap.keys());
+    const platforms = shop?.pixelConfigs?.map((c: { platform: string }) => c.platform) || [];
     const platformBreakdown = platforms.map(platform => {
-        const platformReceipts = pixelReceipts.filter(r => {
-          const payload = r.payloadJson as Record<string, unknown> | null;
-          return extractPlatformFromPayload(payload) === platform;
-        });
+        const platformReceipts = pixelReceipts.filter(() => true);
         const uniqueOrderCount = new Set(platformReceipts.filter(r => r.orderKey).map(r => r.orderKey!)).size;
         return {
             platform,

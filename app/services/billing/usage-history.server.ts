@@ -50,7 +50,6 @@ export async function getUsageHistory(
     },
     select: {
       orderKey: true,
-      platform: true,
       createdAt: true,
       payloadJson: true,
     },
@@ -73,19 +72,10 @@ export async function getUsageHistory(
     const dateStr = new Date(receipt.createdAt).toISOString().split("T")[0];
     const dayData = dailyData.get(dateStr);
     if (dayData) {
-      dayData.orderIds.add(log.orderId);
-      dayData.eventCount++;
-      dayData.platformCounts[log.platform] = (dayData.platformCounts[log.platform] || 0) + 1;
-    }
-  });
-  pixelReceipts.forEach((receipt) => {
-    if (!receipt.orderKey) return;
-    const dateStr = new Date(receipt.createdAt).toISOString().split("T")[0];
-    const dayData = dailyData.get(dateStr);
-    if (dayData) {
       dayData.orderIds.add(receipt.orderKey);
       dayData.eventCount++;
-      const platform = receipt.platform || "unknown";
+      const payload = receipt.payloadJson as Record<string, unknown> | null;
+      const platform = extractPlatformFromPayload(payload) || "unknown";
       dayData.platformCounts[platform] = (dayData.platformCounts[platform] || 0) + 1;
     }
   });

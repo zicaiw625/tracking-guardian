@@ -37,7 +37,6 @@ export async function getMonthlyUsage(
         eventType: { in: ["purchase", "checkout_completed"] },
       },
       select: {
-        platform: true,
         orderKey: true,
         payloadJson: true,
       },
@@ -64,14 +63,14 @@ export async function getMonthlyUsage(
   const currentMonthOrders = currentMonthOrderIds.size;
   const platformCounts: Record<string, number> = {};
   currentMonthReceipts.forEach((receipt) => {
-    if (receipt.platform) {
-      const payload = receipt.payloadJson as Record<string, unknown> | null;
-      const data = payload?.data as Record<string, unknown> | undefined;
-      const hasValue = data?.value !== undefined && data?.value !== null;
-      const hasCurrency = !!data?.currency;
-      if (hasValue && hasCurrency) {
-        platformCounts[receipt.platform] = (platformCounts[receipt.platform] || 0) + 1;
-      }
+    const payload = receipt.payloadJson as Record<string, unknown> | null;
+    const platform = extractPlatformFromPayload(payload);
+    if (!platform) return;
+    const data = payload?.data as Record<string, unknown> | undefined;
+    const hasValue = data?.value !== undefined && data?.value !== null;
+    const hasCurrency = !!data?.currency;
+    if (hasValue && hasCurrency) {
+      platformCounts[platform] = (platformCounts[platform] || 0) + 1;
     }
   });
   const previousMonthOrderIds = new Set(

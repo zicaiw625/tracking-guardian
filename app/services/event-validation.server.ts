@@ -91,14 +91,16 @@ export async function validateEvents(
       id: true,
       orderKey: true,
       payloadJson: true,
-      platform: true,
       eventType: true,
+      payloadJson: true,
     },
     orderBy: { createdAt: "desc" },
     take: limit,
   });
   const results: EventValidationResult[] = receipts.map((receipt) => {
-    if (!receipt.platform) {
+    const payload = receipt.payloadJson as Record<string, unknown> | null;
+    const platform = extractPlatformFromPayload(payload);
+    if (!platform) {
       return {
         eventId: receipt.id,
         orderId: receipt.orderKey || "",
@@ -109,25 +111,24 @@ export async function validateEvents(
         invalidParams: [],
       };
     }
-    const payload = receipt.payloadJson as Record<string, unknown> | null;
     const data = payload?.data as Record<string, unknown> | undefined;
     let value: number | null = (data?.value as number) || null;
     let currency: string | null = (data?.currency as string) || null;
-    if (receipt.platform === "google") {
+    if (platform === "google") {
       const events = payload?.events as Array<Record<string, unknown>> | undefined;
       if (events && events.length > 0) {
         const params = events[0].params as Record<string, unknown> | undefined;
         if (params?.value !== undefined) value = (params.value as number) || null;
         if (params?.currency) currency = String(params.currency);
       }
-    } else if (receipt.platform === "meta" || receipt.platform === "facebook") {
+    } else if (platform === "meta" || platform === "facebook") {
       const eventsData = payload?.data as Array<Record<string, unknown>> | undefined;
       if (eventsData && eventsData.length > 0) {
         const customData = eventsData[0].custom_data as Record<string, unknown> | undefined;
         if (customData?.value !== undefined) value = (customData.value as number) || null;
         if (customData?.currency) currency = String(customData.currency);
       }
-    } else if (receipt.platform === "tiktok") {
+    } else if (platform === "tiktok") {
       const eventsData = payload?.data as Array<Record<string, unknown>> | undefined;
       if (eventsData && eventsData.length > 0) {
         const properties = eventsData[0].properties as Record<string, unknown> | undefined;
@@ -139,7 +140,7 @@ export async function validateEvents(
       orderValue: value,
       currency: currency,
       eventId: receipt.id,
-      platform: receipt.platform,
+      platform,
       eventType: receipt.eventType,
     });
     return {

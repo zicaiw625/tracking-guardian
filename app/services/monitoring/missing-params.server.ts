@@ -1,6 +1,17 @@
 import prisma from "../../db.server";
 import { logger } from "../../utils/logger.server";
 
+function extractPlatformFromPayload(payload: Record<string, unknown> | null): string | null {
+  if (!payload) return null;
+  if (payload.platform && typeof payload.platform === "string") {
+    return payload.platform;
+  }
+  if (payload.destination && typeof payload.destination === "string") {
+    return payload.destination;
+  }
+  return null;
+}
+
 export interface MissingParamsResult {
   total: number;
   missing: number;
@@ -23,20 +34,19 @@ export async function getMissingParamsRate(
       createdAt: { gte: startDate },
     },
     select: {
-      platform: true,
       payloadJson: true,
     },
   });
   const byPlatform: Record<string, { total: number; missing: number; rate: number }> = {};
   let totalMissing = 0;
   for (const receipt of receipts) {
-    if (!receipt.platform) continue;
-    const platform = receipt.platform;
+    const payload = receipt.payloadJson as Record<string, unknown> | null;
+    const platform = extractPlatformFromPayload(payload);
+    if (!platform) continue;
     if (!byPlatform[platform]) {
       byPlatform[platform] = { total: 0, missing: 0, rate: 0 };
     }
     byPlatform[platform].total++;
-    const payload = receipt.payloadJson as Record<string, unknown> | null;
     const data = payload?.data as Record<string, unknown> | undefined;
     const hasValue = data?.value !== undefined && data?.value !== null;
     const hasCurrency = !!data?.currency;

@@ -118,17 +118,18 @@ export async function runDailyDeliveryHealthCheck(shopId: string): Promise<Deliv
             eventType: { in: ["purchase", "checkout_completed"] },
         },
         select: {
-            platform: true,
             createdAt: true,
             payloadJson: true,
         },
     });
     const platformGroups = new Map<string, typeof pixelReceipts>();
     for (const receipt of pixelReceipts) {
-        if (!receipt.platform) continue;
-        const existing = platformGroups.get(receipt.platform) || [];
+        const payload = receipt.payloadJson as Record<string, unknown> | null;
+        const platform = extractPlatformFromPayload(payload);
+        if (!platform) continue;
+        const existing = platformGroups.get(platform) || [];
         existing.push(receipt);
-        platformGroups.set(receipt.platform, existing);
+        platformGroups.set(platform, existing);
     }
     const results: DeliveryHealthResult[] = [];
     for (const [platform, receipts] of platformGroups) {
@@ -177,17 +178,18 @@ export async function getDeliveryHealthSummary(shopId: string): Promise<Record<s
             eventType: { in: ["purchase", "checkout_completed"] },
         },
         select: {
-            platform: true,
             payloadJson: true,
         },
     });
     const summary: Record<string, DeliveryHealthSummary> = {};
     const platformReceipts = new Map<string, typeof receipts>();
     for (const receipt of receipts) {
-        if (!receipt.platform) continue;
-        const existing = platformReceipts.get(receipt.platform) || [];
+        const payload = receipt.payloadJson as Record<string, unknown> | null;
+        const platform = extractPlatformFromPayload(payload);
+        if (!platform) continue;
+        const existing = platformReceipts.get(platform) || [];
         existing.push(receipt);
-        platformReceipts.set(receipt.platform, existing);
+        platformReceipts.set(platform, existing);
     }
     for (const [platform, pReceipts] of platformReceipts) {
         const attempted = pReceipts.length;

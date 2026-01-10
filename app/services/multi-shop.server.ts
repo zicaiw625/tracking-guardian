@@ -336,7 +336,6 @@ export async function getGroupAggregatedStats(
       eventType: { in: ["purchase", "checkout_completed"] },
     },
     select: {
-      platform: true,
       orderKey: true,
       payloadJson: true,
     },
@@ -350,11 +349,11 @@ export async function getGroupAggregatedStats(
       orderIds.add(receipt.orderKey);
     }
     const payload = receipt.payloadJson as Record<string, unknown> | null;
+    const platform = extractPlatformFromPayload(payload) || "unknown";
     const data = payload?.data as Record<string, unknown> | undefined;
     const value = typeof data?.value === "number" ? data.value : 0;
     if (value > 0) {
       totalRevenue += value;
-      const platform = receipt.platform || "unknown";
       if (!platformBreakdown[platform]) {
         platformBreakdown[platform] = { orders: 0, revenue: 0 };
       }
@@ -363,7 +362,10 @@ export async function getGroupAggregatedStats(
   }
   totalOrders = orderIds.size;
   for (const platform in platformBreakdown) {
-    platformBreakdown[platform].orders = receipts.filter(r => (r.platform || "unknown") === platform && r.orderKey).length;
+    platformBreakdown[platform].orders = receipts.filter(r => {
+      const payload = r.payloadJson as Record<string, unknown> | null;
+      return extractPlatformFromPayload(payload) === platform && r.orderKey;
+    }).length;
   }
   const averageMatchRate = totalOrders > 0
     ? (totalOrders / totalOrders) * 100
