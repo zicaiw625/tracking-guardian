@@ -50,13 +50,13 @@ export interface MigrationChecklistProps {
 const getMigrationTypeLabel = (type: MigrationItem["suggestedMigration"]) => {
   switch (type) {
     case "web_pixel":
-      return "迁移到 Web Pixel";
+      return "Web Pixel";
     case "ui_extension":
-      return "迁移到 UI Extension";
+      return "UI Extension Block";
     case "server_side":
-      return "迁移到服务端 CAPI";
+      return "Server-side";
     case "none":
-      return "无需迁移";
+      return "External redirect / not supported";
     default:
       return "待评估";
   }

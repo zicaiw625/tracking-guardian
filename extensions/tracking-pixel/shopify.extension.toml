@@ -9,7 +9,7 @@ runtime_context = "strict"
 analytics = true
 marketing = false
 preferences = false
-sale_of_data = "disabled"
+sale_of_data = "enabled"
 
 [settings]
 type = "object"

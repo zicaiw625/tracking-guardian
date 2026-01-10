@@ -33,24 +33,20 @@ export const loader = async ({ request, params }: LoaderFunctionArgs) => {
       return json({ error: "Missing share token", report: null }, { status: 403 });
     }
 
-    const verificationRun = await prisma.$queryRaw<Array<{
-      id: string;
-      shopId: string;
-      publicId: string | null;
-      publicTokenHash: string | null;
-      shareTokenExpiresAt: Date | null;
-    }>>`
-      SELECT id, "shopId", "publicId", "publicTokenHash", "shareTokenExpiresAt"
-      FROM "VerificationRun"
-      WHERE "publicId" = ${publicId}
-      LIMIT 1
-    `;
+    const run = await prisma.verificationRun.findUnique({
+      where: { publicId },
+      select: {
+        id: true,
+        shopId: true,
+        publicId: true,
+        publicTokenHash: true,
+        shareTokenExpiresAt: true,
+      },
+    });
     
-    if (!verificationRun || verificationRun.length === 0) {
+    if (!run) {
       return json({ error: "Report not found", report: null }, { status: 404 });
     }
-    
-    const run = verificationRun[0];
     
     if (!run.publicTokenHash) {
       return json({ error: "Share link not available", report: null }, { status: 403 });

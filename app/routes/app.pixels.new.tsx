@@ -877,6 +877,28 @@ export default function PixelsNewPage() {
               <Text as="p" tone="subdued">
                 为每个选中的平台填写 API 凭证，并设置环境。
               </Text>
+              {Array.from(selectedPlatforms).some(p => p === "meta" || p === "tiktok" || p === "pinterest" || p === "snapchat" || p === "twitter") && (
+                <Banner tone="warning">
+                  <BlockStack gap="200">
+                    <Text as="p" variant="bodySm" fontWeight="semibold">
+                      <strong>⚠️ 营销平台 Consent 要求：</strong>
+                    </Text>
+                    <Text as="p" variant="bodySm">
+                      您选择了营销平台（Meta、TikTok、Pinterest、Snapchat 或 Twitter/X）。这些平台需要客户授予 <strong>marketing consent</strong> 和 <strong>sale of data consent</strong> 才能发送事件。
+                      <br />
+                      <br />
+                      • <strong>Pixel 加载：</strong>只需要 analytics consent（Pixel 即可加载）
+                      <br />
+                      • <strong>事件发送：</strong>需要 marketing consent + sale of data consent 才能发送到营销平台
+                      <br />
+                      • <strong>服务端追踪：</strong>服务端会根据 consent 状态过滤事件，只有获得正确 consent 的事件才会发送
+                    </Text>
+                    <Text as="p" variant="bodySm" tone="subdued">
+                      请确保您的店铺已正确配置 Customer Privacy API。在客户未授予 marketing consent 时，事件将被跳过，不会发送到营销平台。
+                    </Text>
+                  </BlockStack>
+                </Banner>
+              )}
               {Array.from(selectedPlatforms).map((platform) => {
                 const config = platformConfigs[platform];
                 const info = PLATFORM_INFO[platform];

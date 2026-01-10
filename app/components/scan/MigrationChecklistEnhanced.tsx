@@ -391,10 +391,10 @@ export function MigrationChecklistEnhanced({
                 const migrationPathLabel = item.suggestedMigration === "web_pixel"
                   ? "Web Pixel"
                   : item.suggestedMigration === "ui_extension"
-                    ? "UI Extension"
+                    ? "UI Extension Block"
                     : item.suggestedMigration === "server_side"
                       ? "Server-side"
-                      : "None";
+                      : "External redirect / not supported";
                 const needsInfo: string[] = [];
                 if (item.platform) needsInfo.push(`平台: ${item.platform}`);
                 if (item.category === "pixel") needsInfo.push("需要 Pixel ID");

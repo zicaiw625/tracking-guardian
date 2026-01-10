@@ -1750,6 +1750,19 @@ export function ScanPage({
       {additionalScriptsWarning}
       {paginationLimitWarning}
       {partialRefreshWarning}
+      {upgradeStatus && upgradeStatus.autoUpgradeInfo && upgradeStatus.autoUpgradeInfo.autoUpgradeMessage && (
+        <Banner 
+          title={upgradeStatus.autoUpgradeInfo.isInAutoUpgradeWindow ? "⚡ Plus 商家自动升级窗口已开始" : "⚠️ Plus 商家自动升级风险窗口"}
+          tone={upgradeStatus.autoUpgradeInfo.isInAutoUpgradeWindow ? "critical" : "warning"}
+        >
+          <BlockStack gap="200">
+            <Text as="p">{upgradeStatus.autoUpgradeInfo.autoUpgradeMessage}</Text>
+            <Text as="p" variant="bodySm" tone="subdued">
+              <strong>Shopify 官方升级路径：</strong>使用 blocks + web pixels 替代 legacy customizations。2025-08-28 截止，2026-01 自动升级会丢失 legacy 自定义。
+            </Text>
+          </BlockStack>
+        </Banner>
+      )}
       {upgradeStatus && upgradeStatus.title && upgradeStatus.message && (() => {
         const lastUpdatedDate = parseDateSafely(upgradeStatus.lastUpdated);
         return (

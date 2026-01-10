@@ -189,12 +189,39 @@ export interface CreateEventLogOptions {
 }
 
 export async function createEventLog(options: CreateEventLogOptions): Promise<string | null> {
-  logger.debug("createEventLog called but eventLog table no longer exists", {
-    shopId: options.shopId,
-    eventId: options.eventId,
-    eventName: options.eventName,
-  });
-  return null;
+  try {
+    const eventLogId = generateSimpleId("eventlog");
+    await prisma.eventLog.upsert({
+      where: {
+        shopId_eventId: {
+          shopId: options.shopId,
+          eventId: options.eventId,
+        },
+      },
+      create: {
+        id: eventLogId,
+        shopId: options.shopId,
+        eventId: options.eventId,
+        eventName: options.eventName,
+        source: options.source || "web_pixel",
+        occurredAt: options.occurredAt,
+        normalizedEventJson: options.normalizedEventJson as unknown as Record<string, unknown>,
+        shopifyContextJson: options.shopifyContextJson as unknown as Record<string, unknown> | null,
+      },
+      update: {
+        normalizedEventJson: options.normalizedEventJson as unknown as Record<string, unknown>,
+        shopifyContextJson: options.shopifyContextJson as unknown as Record<string, unknown> | null,
+      },
+    });
+    return eventLogId;
+  } catch (error) {
+    logger.error("Failed to create event log", {
+      shopId: options.shopId,
+      eventId: options.eventId,
+      error: error instanceof Error ? error.message : String(error),
+    });
+    return null;
+  }
 }
 
 export interface CreateDeliveryAttemptOptions {
@@ -208,18 +235,43 @@ export interface CreateDeliveryAttemptOptions {
 export async function createDeliveryAttempt(
   options: CreateDeliveryAttemptOptions
 ): Promise<string | null> {
-  logger.debug("createDeliveryAttempt called but deliveryAttempt table no longer exists", {
-    shopId: options.shopId,
-    eventLogId: options.eventLogId,
-    destinationType: options.destinationType,
-    environment: options.environment,
-  });
-  return null;
+  try {
+    const attemptId = generateSimpleId("delivery");
+    const platform = options.destinationType.split(":")[0];
+    await prisma.deliveryAttempt.create({
+      data: {
+        id: attemptId,
+        eventLogId: options.eventLogId,
+        shopId: options.shopId,
+        receiptId: null,
+        destinationType: options.destinationType,
+        platform,
+        environment: options.environment,
+        requestPayloadJson: options.requestPayloadJson as unknown as Record<string, unknown>,
+        status: "pending",
+        ok: false,
+        errorCode: null,
+        errorDetail: null,
+        httpStatus: null,
+        responseBodySnippet: null,
+        latencyMs: null,
+        verificationRunId: null,
+      },
+    });
+    return attemptId;
+  } catch (error) {
+    logger.error("Failed to create delivery attempt", {
+      shopId: options.shopId,
+      eventLogId: options.eventLogId,
+      error: error instanceof Error ? error.message : String(error),
+    });
+    return null;
+  }
 }
 
 export interface UpdateDeliveryAttemptOptions {
   attemptId: string;
-  status: "ok" | "fail" | "skipped";
+  status: "ok" | "fail" | "skipped" | "pending";
   errorCode?: string | null;
   errorDetail?: string | null;
   responseStatus?: number | null;
@@ -230,10 +282,25 @@ export interface UpdateDeliveryAttemptOptions {
 export async function updateDeliveryAttempt(
   options: UpdateDeliveryAttemptOptions
 ): Promise<void> {
-  logger.debug("updateDeliveryAttempt called but deliveryAttempt table no longer exists", {
-    attemptId: options.attemptId,
-    status: options.status,
-  });
+  try {
+    await prisma.deliveryAttempt.update({
+      where: { id: options.attemptId },
+      data: {
+        status: options.status,
+        ok: options.status === "ok",
+        errorCode: options.errorCode || null,
+        errorDetail: options.errorDetail || null,
+        responseStatus: options.responseStatus || null,
+        responseBodySnippet: options.responseBodySnippet ? (options.responseBodySnippet.length > 500 ? options.responseBodySnippet.substring(0, 500) : options.responseBodySnippet) : null,
+        latencyMs: options.latencyMs || null,
+      },
+    });
+  } catch (error) {
+    logger.error("Failed to update delivery attempt", {
+      attemptId: options.attemptId,
+      error: error instanceof Error ? error.message : String(error),
+    });
+  }
 }
 
 export async function getEventLogs(
@@ -269,39 +336,49 @@ export async function getEventLogs(
   }>;
 }>> {
   try {
-    const receipts = await prisma.pixelEventReceipt.findMany({
+    const eventLogs = await prisma.eventLog.findMany({
       where: {
         shopId,
-        ...(options.eventName && { eventType: options.eventName }),
+        ...(options.eventId && { eventId: options.eventId }),
+        ...(options.eventName && { eventName: options.eventName }),
         ...(options.startDate && { createdAt: { gte: options.startDate } }),
         ...(options.endDate && { createdAt: { lte: options.endDate } }),
       },
       orderBy: { createdAt: "desc" },
       take: options.limit || 100,
       skip: options.offset || 0,
-      select: {
-        id: true,
-        eventType: true,
-        pixelTimestamp: true,
-        createdAt: true,
-        payloadJson: true,
+      include: {
+        DeliveryAttempt: {
+          orderBy: { createdAt: "desc" },
+        },
       },
     });
-    return receipts.map(receipt => {
+    return eventLogs.map(log => {
       return {
-        id: receipt.id,
-        eventId: receipt.id,
-        eventName: receipt.eventType,
-        source: "web_pixel",
-        occurredAt: receipt.pixelTimestamp,
-        normalizedEventJson: receipt.payloadJson,
-        shopifyContextJson: null,
-        createdAt: receipt.createdAt,
-        deliveryAttempts: [],
+        id: log.id,
+        eventId: log.eventId,
+        eventName: log.eventName,
+        source: log.source,
+        occurredAt: log.occurredAt,
+        normalizedEventJson: log.normalizedEventJson,
+        shopifyContextJson: log.shopifyContextJson,
+        createdAt: log.createdAt,
+        deliveryAttempts: log.DeliveryAttempt.map(attempt => ({
+          id: attempt.id,
+          destinationType: attempt.destinationType,
+          environment: attempt.environment,
+          status: attempt.status,
+          requestPayloadJson: attempt.requestPayloadJson,
+          errorCode: attempt.errorCode,
+          errorDetail: attempt.errorDetail,
+          responseStatus: attempt.httpStatus,
+          latencyMs: attempt.latencyMs,
+          createdAt: attempt.createdAt,
+        })),
       };
     });
   } catch (error) {
-    logger.error("Failed to get PixelEventReceipts", {
+    logger.error("Failed to get event logs", {
       shopId,
       options,
       error: error instanceof Error ? error.message : String(error),
@@ -402,18 +479,55 @@ export async function getDeliveryAttemptStats(
   p50LatencyMs: number | null;
   p95LatencyMs: number | null;
 }> {
-  logger.debug("getDeliveryAttemptStats called but deliveryAttempt table no longer exists", {
-    shopId,
-    options,
-  });
-  return {
-    total: 0,
-    ok: 0,
-    fail: 0,
-    skipped: 0,
-    skippedDedup: 0,
-    avgLatencyMs: null,
-    p50LatencyMs: null,
-    p95LatencyMs: null,
-  };
+  try {
+    const attempts = await prisma.deliveryAttempt.findMany({
+      where: {
+        shopId,
+        ...(options.destinationType && { destinationType: options.destinationType }),
+        ...(options.environment && { environment: options.environment }),
+        ...(options.startDate && { createdAt: { gte: options.startDate } }),
+        ...(options.endDate && { createdAt: { lte: options.endDate } }),
+      },
+      select: {
+        status: true,
+        latencyMs: true,
+      },
+    });
+    const total = attempts.length;
+    const ok = attempts.filter(a => a.status === "ok").length;
+    const fail = attempts.filter(a => a.status === "fail").length;
+    const skipped = attempts.filter(a => a.status === "skipped").length;
+    const skippedDedup = attempts.filter(a => a.status === "skipped" && a.errorCode === "deduplicated").length;
+    const latencies = attempts.filter(a => a.latencyMs !== null).map(a => a.latencyMs!);
+    const avgLatencyMs = latencies.length > 0 ? Math.round(latencies.reduce((sum, l) => sum + l, 0) / latencies.length) : null;
+    const sortedLatencies = [...latencies].sort((a, b) => a - b);
+    const p50LatencyMs = sortedLatencies.length > 0 ? sortedLatencies[Math.floor(sortedLatencies.length * 0.5)] : null;
+    const p95LatencyMs = sortedLatencies.length > 0 ? sortedLatencies[Math.floor(sortedLatencies.length * 0.95)] : null;
+    return {
+      total,
+      ok,
+      fail,
+      skipped,
+      skippedDedup,
+      avgLatencyMs,
+      p50LatencyMs,
+      p95LatencyMs,
+    };
+  } catch (error) {
+    logger.error("Failed to get delivery attempt stats", {
+      shopId,
+      options,
+      error: error instanceof Error ? error.message : String(error),
+    });
+    return {
+      total: 0,
+      ok: 0,
+      fail: 0,
+      skipped: 0,
+      skippedDedup: 0,
+      avgLatencyMs: null,
+      p50LatencyMs: null,
+      p95LatencyMs: null,
+    };
+  }
 }

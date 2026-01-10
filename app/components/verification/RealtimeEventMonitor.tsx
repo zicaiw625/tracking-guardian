@@ -120,6 +120,9 @@ export function RealtimeEventMonitor({
   const eventSourceRef = useRef<EventSource | null>(null);
   const isPausedRef = useRef(isPaused);
   const showErrorRef = useRef(showError);
+  const reconnectTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const reconnectAttemptsRef = useRef(0);
+  const isReconnectingRef = useRef(false);
   const [filterPlatform, setFilterPlatform] = useState<string>("all");
   const [filterStatus, setFilterStatus] = useState<string[]>([]);
   const [filterEventType, setFilterEventType] = useState<string>("");
@@ -140,6 +143,19 @@ export function RealtimeEventMonitor({
       eventSourceRef.current.close();
       eventSourceRef.current = null;
     }
+    if (reconnectTimeoutRef.current) {
+      clearTimeout(reconnectTimeoutRef.current);
+      reconnectTimeoutRef.current = null;
+    }
+    reconnectAttemptsRef.current = 0;
+    isReconnectingRef.current = false;
+    const getReconnectDelay = (attempts: number): number => {
+      const baseDelay = 1000;
+      const maxDelay = 30000;
+      const delay = Math.min(baseDelay * Math.pow(2, attempts), maxDelay);
+      const jitter = Math.random() * 0.3 * delay;
+      return delay + jitter;
+    };
     const connect = () => {
       if (eventSourceRef.current) {
         eventSourceRef.current.close();
@@ -157,6 +173,12 @@ export function RealtimeEventMonitor({
         eventSource.onopen = () => {
           setIsConnected(true);
           setError(null);
+          reconnectAttemptsRef.current = 0;
+          isReconnectingRef.current = false;
+          if (reconnectTimeoutRef.current) {
+            clearTimeout(reconnectTimeoutRef.current);
+            reconnectTimeoutRef.current = null;
+          }
         };
         eventSource.onmessage = (event) => {
           if (isPausedRef.current) return;
@@ -219,8 +241,23 @@ export function RealtimeEventMonitor({
             console.error("SSE error:", err);
           }
           setIsConnected(false);
-          setError("连接中断，请刷新页面重试");
-          eventSource.close();
+          if (eventSource.readyState === EventSource.CLOSED && !isReconnectingRef.current) {
+            isReconnectingRef.current = true;
+            reconnectAttemptsRef.current += 1;
+            const delay = getReconnectDelay(reconnectAttemptsRef.current);
+            setError(`连接中断，${Math.round(delay / 1000)}秒后自动重连...`);
+            if (reconnectTimeoutRef.current) {
+              clearTimeout(reconnectTimeoutRef.current);
+            }
+            reconnectTimeoutRef.current = setTimeout(() => {
+              if (eventSourceRef.current === eventSource) {
+                eventSourceRef.current = null;
+              }
+              eventSource.close();
+              isReconnectingRef.current = false;
+              connect();
+            }, delay);
+          }
         };
         eventSourceRef.current = eventSource;
       } catch (err) {
@@ -229,9 +266,20 @@ export function RealtimeEventMonitor({
         if (process.env.NODE_ENV === "development") {
           console.error("SSE connection error:", err);
         }
+        reconnectAttemptsRef.current += 1;
+        const delay = getReconnectDelay(reconnectAttemptsRef.current);
+        isReconnectingRef.current = true;
+        reconnectTimeoutRef.current = setTimeout(() => {
+          isReconnectingRef.current = false;
+          connect();
+        }, delay);
       }
     };
     const disconnect = () => {
+      if (reconnectTimeoutRef.current) {
+        clearTimeout(reconnectTimeoutRef.current);
+        reconnectTimeoutRef.current = null;
+      }
       if (eventSourceRef.current) {
         try {
           eventSourceRef.current.close();
@@ -244,6 +292,8 @@ export function RealtimeEventMonitor({
       }
       setIsConnected(false);
       setError(null);
+      reconnectAttemptsRef.current = 0;
+      isReconnectingRef.current = false;
     };
     disconnectRef.current = disconnect;
     connectRef.current = connect;

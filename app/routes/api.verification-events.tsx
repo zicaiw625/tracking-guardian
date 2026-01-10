@@ -134,6 +134,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
               hasConsent: boolean;
             };
           }> = [];
+          const newEvents: typeof events = [];
           for (const receipt of pixelReceipts) {
             if (lastEventId && receipt.id === lastEventId) continue;
             const orderId = receipt.orderKey || "";
@@ -180,7 +181,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
             if (!value) missingParams.push("value");
             if (!currency) missingParams.push("currency");
             const status: "success" | "failed" | "pending" = platform && (value !== undefined && value > 0) && currency ? "success" : "pending";
-            events.push({
+            newEvents.push({
               id: receipt.id,
               eventType: receipt.eventType,
               orderId,
@@ -195,12 +196,14 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
               },
               discrepancies: missingParams.length > 0 ? missingParams : undefined,
             });
-            if (!lastEventId) {
-              lastEventId = receipt.id;
-            }
           }
-          for (const event of events) {
-            sendMessage("event", event);
+          if (newEvents.length > 0) {
+            for (const event of newEvents) {
+              sendMessage("event", event);
+            }
+            if (newEvents.length > 0) {
+              lastEventId = newEvents[0].id;
+            }
           }
         } catch (error) {
           logger.error("Error polling events for SSE", { shopId: shop.id, error });

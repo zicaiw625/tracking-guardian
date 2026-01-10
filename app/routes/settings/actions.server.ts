@@ -68,13 +68,26 @@ export async function handleSaveAlert(
     rawSettings.chatId = formData.get("chatId");
   }
   const encryptedSettings = await encryptAlertSettings(rawSettings as AlertSettings);
-  const nonSensitiveSettings: Record<string, unknown> = {
+  const shop = await prisma.shop.findUnique({
+    where: { id: shopId },
+    select: { id: true, settings: true },
+  });
+  if (!shop) {
+    return json({ success: false, error: "Shop not found" }, { status: 404 });
+  }
+  const currentSettings = (shop.settings as Record<string, unknown>) || {};
+  const alertConfigs = (currentSettings.alertConfigs as Array<Record<string, unknown>>) || [];
+  const existingIndex = alertConfigs.findIndex((cfg) => cfg.channel === channel);
+  const alertConfig: Record<string, unknown> = {
     channel,
+    enabled,
+    frequency,
     thresholds: {
       failureRate: failureRateThreshold,
       missingParams: missingParamsThreshold,
       volumeDrop: volumeDropThreshold,
     },
+    settingsEncrypted: encryptedSettings,
     ...(channel === "email" && rawSettings.email
       ? {
           emailMasked: String(rawSettings.email).replace(
@@ -92,10 +105,28 @@ export async function handleSaveAlert(
           chatId: rawSettings.chatId,
         }
       : {}),
+    updatedAt: new Date().toISOString(),
   };
-  logger.debug("saveAlertConfig called but alertConfig table no longer exists", {
+  if (existingIndex >= 0) {
+    alertConfigs[existingIndex] = alertConfig;
+  } else {
+    alertConfig.id = `alert_${Date.now()}`;
+    alertConfigs.push(alertConfig);
+  }
+  await prisma.shop.update({
+    where: { id: shopId },
+    data: {
+      settings: {
+        ...currentSettings,
+        alertConfigs,
+      },
+    },
+  });
+  await invalidateAllShopCaches(sessionShop, shopId);
+  logger.info("Alert config saved to Shop.settings", {
     shopId,
     channel,
+    enabled,
     threshold,
   });
   return json({ success: true, message: "警报配置已保存" });

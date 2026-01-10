@@ -44,20 +44,19 @@ export interface ConversionLogResult {
 
 export async function isClientEventRecorded(
   shopId: string,
-  eventType: string,
-  verificationRunId?: string | null
+  orderId: string,
+  eventType: string
 ): Promise<boolean> {
-  const where: any = {
-    shopId,
-    eventType,
-  };
-  if (verificationRunId) {
-    where.verificationRunId = verificationRunId;
-  }
-  const existing = await prisma.pixelEventReceipt.findFirst({
-    where,
+  const eventId = generateCanonicalEventId(orderId, null, eventType, "", undefined, "v2", null);
+  const existing = await prisma.pixelEventReceipt.findUnique({
+    where: {
+      shopId_eventId_eventType: {
+        shopId,
+        eventId,
+        eventType,
+      },
+    },
     select: { id: true },
-    orderBy: { pixelTimestamp: "desc" },
   });
   return !!existing;
 }
@@ -76,15 +75,30 @@ export async function upsertPixelEventReceipt(
   const payloadData = payload?.data as Record<string, unknown> | undefined;
   const extractedOrderKey = orderKey || payloadData?.orderId as string | undefined;
   try {
-    await prisma.pixelEventReceipt.create({
-      data: {
+    await prisma.pixelEventReceipt.upsert({
+      where: {
+        shopId_eventId_eventType: {
+          shopId,
+          eventId,
+          eventType,
+        },
+      },
+      create: {
         id: generateSimpleId("receipt"),
         shopId,
+        eventId,
         eventType,
         pixelTimestamp: new Date(payload.timestamp),
         originHost: originHost || null,
         verificationRunId: verificationRunId || null,
-        payloadJson: payload || null,
+        payloadJson: verificationRunId ? (payload || null) : null,
+        orderKey: extractedOrderKey || null,
+      },
+      update: {
+        pixelTimestamp: new Date(payload.timestamp),
+        originHost: originHost || null,
+        verificationRunId: verificationRunId || null,
+        payloadJson: verificationRunId ? (payload || null) : null,
         orderKey: extractedOrderKey || null,
       },
     });
@@ -184,21 +198,19 @@ export async function createEventNonce(
   eventType: string
 ): Promise<{ isReplay: boolean }> {
   const eventId = nonce || generateCanonicalEventId(orderId, null, eventType, "", undefined, "v2", null);
-  const windowHours = 24;
   try {
-    await prisma.eventNonce.create({
-      data: {
-        id: randomUUID(),
-        shopId,
-        nonce: eventId,
-        eventType,
-        expiresAt: new Date(Date.now() + windowHours * 60 * 60 * 1000),
+    const existing = await prisma.pixelEventReceipt.findUnique({
+      where: {
+        shopId_eventId_eventType: {
+          shopId,
+          eventId,
+          eventType,
+        },
       },
+      select: { id: true },
     });
-    return { isReplay: false };
-  } catch (error) {
-    if ((error as { code?: string }).code === "P2002") {
-      logger.debug("Event nonce already exists (replay detected)", {
+    if (existing) {
+      logger.debug("Event already exists (replay detected)", {
         shopId,
         orderId,
         eventType,
@@ -206,7 +218,9 @@ export async function createEventNonce(
       });
       return { isReplay: true };
     }
-    logger.warn("Failed to create event nonce", {
+    return { isReplay: false };
+  } catch (error) {
+    logger.warn("Failed to check event nonce", {
       shopId,
       orderId,
       eventType,

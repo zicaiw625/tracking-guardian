@@ -58,33 +58,13 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   const planId = normalizePlan(shop.plan);
   const canManageTemplates = isPlanAtLeast(planId, "agency");
   const templates = await getPixelTemplates(shop.id, true);
-  const workspaceShop = await prisma.workspaceShop.findFirst({
-    where: {
-      shopId: shop.id,
-    },
-    include: {
-      Workspace: {
-        select: {
-          id: true,
-          name: true,
-        },
-      },
-    },
-  });
-  const workspace = workspaceShop
-    ? {
-        id: workspaceShop.Workspace.id,
-        name: workspaceShop.Workspace.name,
-        WorkspaceShop: [workspaceShop],
-      }
-    : null;
   return json({
     shop: { id: shop.id, domain: shopDomain },
     templates,
     planId,
-    canManageTemplates: canManageTemplates || !!workspace,
-    isAgency: !!workspace,
-    workspaceId: workspace?.id,
+    canManageTemplates,
+    isAgency: false,
+    workspaceId: undefined,
   });
 };
 

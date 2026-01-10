@@ -32,7 +32,6 @@ export {
   evaluateTrustLevel,
   createEventNonce,
   upsertPixelEventReceipt,
-  recordConversionLogs,
   getActivePixelConfigs,
   generatePurchaseEventId,
   type MatchKeyResult,

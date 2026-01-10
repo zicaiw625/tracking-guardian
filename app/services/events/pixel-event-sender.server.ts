@@ -133,18 +133,24 @@ async function sendToGA4(
       },
       DEFAULT_API_TIMEOUT_MS
     );
-    const errorText = await response.text().catch(() => "");
+    const responseText = await response.text().catch(() => "");
     const isSuccess = response.status === 204 || response.ok;
     if (isSuccess) {
-      return { success: true, platform: "google", requestPayload, responseStatus: response.status };
+      return { 
+        success: true, 
+        platform: "google", 
+        requestPayload, 
+        responseStatus: response.status,
+        responseBody: response.status === 204 ? "" : responseText || "success"
+      };
     }
     return {
       success: false,
       platform: "google",
-      error: `GA4 error: ${response.status} ${errorText}`,
+      error: `GA4 error: ${response.status} ${responseText}`,
       requestPayload,
       responseStatus: response.status,
-      responseBody: errorText,
+      responseBody: responseText,
     };
   } catch (error) {
     return {
@@ -236,18 +242,24 @@ async function sendToMeta(
       },
       DEFAULT_API_TIMEOUT_MS
     );
-    const errorData = await response.json().catch(() => ({}));
+    const responseData = await response.json().catch(() => ({}));
     const isSuccess = response.ok;
     if (isSuccess) {
-      return { success: true, platform: "meta", requestPayload, responseStatus: response.status };
+      return { 
+        success: true, 
+        platform: "meta", 
+        requestPayload, 
+        responseStatus: response.status,
+        responseBody: JSON.stringify(responseData) || "success"
+      };
     }
     return {
       success: false,
       platform: "meta",
-      error: `Meta error: ${response.status} ${errorData.error?.message || "Unknown error"}`,
+      error: `Meta error: ${response.status} ${responseData.error?.message || "Unknown error"}`,
       requestPayload,
       responseStatus: response.status,
-      responseBody: JSON.stringify(errorData),
+      responseBody: JSON.stringify(responseData),
     };
   } catch (error) {
     return {
@@ -332,18 +344,24 @@ async function sendToTikTok(
       },
       DEFAULT_API_TIMEOUT_MS
     );
-    const errorData = await response.json().catch(() => ({}));
+    const responseData = await response.json().catch(() => ({}));
     const isSuccess = response.ok;
     if (isSuccess) {
-      return { success: true, platform: "tiktok", requestPayload, responseStatus: response.status };
+      return { 
+        success: true, 
+        platform: "tiktok", 
+        requestPayload, 
+        responseStatus: response.status,
+        responseBody: JSON.stringify(responseData) || "success"
+      };
     }
     return {
       success: false,
       platform: "tiktok",
-      error: `TikTok error: ${response.status} ${errorData.message || "Unknown error"}`,
+      error: `TikTok error: ${response.status} ${responseData.message || "Unknown error"}`,
       requestPayload,
       responseStatus: response.status,
-      responseBody: JSON.stringify(errorData),
+      responseBody: JSON.stringify(responseData),
     };
   } catch (error) {
     return {

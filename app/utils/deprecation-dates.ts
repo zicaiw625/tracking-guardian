@@ -325,8 +325,12 @@ export function getUpgradeStatusMessage(upgradeStatus: ShopUpgradeStatus, hasScr
     const deadlineLabel = tier === "plus" ? plusDeadlineLabel : nonPlusDeadlineLabel;
     const isInPlusAutoUpgradeWindow = tier === "plus" && now >= DEPRECATION_DATES.plusAutoUpgradeStart;
     const autoUpgradeStartLabel = getDateDisplayLabel(DEPRECATION_DATES.plusAutoUpgradeStart, "month");
+    const daysToAutoUpgrade = Math.ceil((DEPRECATION_DATES.plusAutoUpgradeStart.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+    const isInAutoUpgradeRiskWindow = tier === "plus" && daysToAutoUpgrade <= 90;
     const plusAutoUpgradeMessage = isInPlusAutoUpgradeWindow
-        ? `⚡ Plus 商家自动升级窗口已开始（${autoUpgradeStartLabel}起）：Shopify 正在逐步将 Plus 商家的 Thank you / Order status 页面自动迁移到新版本。`
+        ? `⚡ Plus 商家自动升级窗口已开始（${autoUpgradeStartLabel}起）：Shopify 正在逐步将 Plus 商家的 Thank you / Order status 页面自动迁移到新版本。自动升级后，旧的 Additional Scripts、ScriptTags、checkout.liquid 自定义将失效。`
+        : isInAutoUpgradeRiskWindow
+        ? `⚠️ Plus 商家自动升级风险窗口（剩余 ${daysToAutoUpgrade} 天）：Shopify 将于 ${autoUpgradeStartLabel} 开始自动将 Plus 商家迁移到新版页面。自动升级后，旧的 Additional Scripts、ScriptTags、checkout.liquid 自定义将丢失。建议提前完成迁移。`
         : "";
     if (typOspPagesEnabled === true) {
         return {
@@ -337,8 +341,8 @@ export function getUpgradeStatusMessage(upgradeStatus: ShopUpgradeStatus, hasScr
             actions: hasScriptTags
                 ? ["建议删除不再生效的旧版 ScriptTags 以保持配置整洁"]
                 : [],
-            autoUpgradeInfo: isInPlusAutoUpgradeWindow ? {
-                isInAutoUpgradeWindow: true,
+            autoUpgradeInfo: isInPlusAutoUpgradeWindow || isInAutoUpgradeRiskWindow ? {
+                isInAutoUpgradeWindow: isInPlusAutoUpgradeWindow,
                 autoUpgradeMessage: plusAutoUpgradeMessage,
             } : undefined,
         };
@@ -456,6 +460,10 @@ export function getUpgradeStatusMessage(upgradeStatus: ShopUpgradeStatus, hasScr
                 "规划迁移时间表",
                 "在设置页面配置 Web Pixel",
             ],
+            autoUpgradeInfo: tier === "plus" && isInAutoUpgradeRiskWindow ? {
+                isInAutoUpgradeWindow: false,
+                autoUpgradeMessage: plusAutoUpgradeMessage,
+            } : undefined,
         };
     }
     return {
@@ -463,6 +471,10 @@ export function getUpgradeStatusMessage(upgradeStatus: ShopUpgradeStatus, hasScr
         urgency: "low",
         title: "建议迁移",
         message: "您的店铺尚未升级到新版页面。虽然时间充裕，但建议提前规划迁移。",
+        autoUpgradeInfo: tier === "plus" && isInAutoUpgradeRiskWindow ? {
+            isInAutoUpgradeWindow: false,
+            autoUpgradeMessage: plusAutoUpgradeMessage,
+        } : undefined,
         actions: [
             "了解 Web Pixel 和 Checkout Extensibility",
             "在测试店铺中预演迁移流程",

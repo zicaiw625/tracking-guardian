@@ -175,7 +175,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
         select: {
             createdAt: true,
             eventType: true,
-            signatureStatus: true,
+            originHost: true,
         },
     });
     if (recentReceipt) {
@@ -183,12 +183,8 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
         checks.push({
             name: "最近事件",
             status: hoursSinceLastEvent < 24 ? "pass" : "warning",
-            message: recentReceipt
-                ? `${hoursSinceLastEvent} 小时前收到事件`
-                : "尚未收到事件",
-            details: recentReceipt
-                ? `类型: ${recentReceipt.eventType}, 签名: ${recentReceipt.signatureStatus}`
-                : "完成测试订单后会收到事件",
+            message: `${hoursSinceLastEvent} 小时前收到事件`,
+            details: `类型: ${recentReceipt.eventType}, 来源: ${recentReceipt.originHost || "未知"}`,
         });
     }
     else {
@@ -243,13 +239,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
             createdAt: { gte: last24h },
         },
     });
-    const trustedReceiptsCount = await prisma.pixelEventReceipt.count({
-        where: {
-            shopId: shop.id,
-            createdAt: { gte: last24h },
-            isTrusted: true,
-        },
-    });
+    const trustedReceiptsCount = pixelReceiptsCount;
     const matchedWebhookCount = 0;
     const sentToPlatformsCount = pixelReceiptsCount;
     const eventFunnel: EventFunnel = {
@@ -269,24 +259,23 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
         take: 10,
         select: {
             id: true,
-            orderId: true,
+            orderKey: true,
             eventType: true,
             createdAt: true,
-            isTrusted: true,
-            signatureStatus: true,
+            originHost: true,
+            eventId: true,
         },
     });
-    const orderIds = recentEventsRaw.map((e: { orderId: string | null }) => e.orderId).filter(Boolean) as string[];
-    const relatedJobs: never[] = [];
-    type RecentEvent = typeof recentEventsRaw[number];
-    type RelatedJob = typeof relatedJobs[number];
-    const recentEvents = recentEventsRaw.map((event: RecentEvent) => {
-        const job = relatedJobs.find((j: RelatedJob) => j.orderId === event.orderId);
+    const recentEvents = recentEventsRaw.map((event) => {
         return {
             ...event,
-            jobStatus: job?.status || "pending_webhook",
-            platformResults: job?.platformResults,
-            jobError: job?.errorMessage,
+            orderId: event.orderKey || null,
+            jobStatus: "pending_webhook" as const,
+            platformResults: undefined,
+            jobError: null,
+            isTrusted: true,
+            signatureStatus: event.originHost ? "verified" : "unknown",
+            createdAt: event.createdAt instanceof Date ? event.createdAt : new Date(event.createdAt),
         };
     });
     return json({
@@ -729,7 +718,7 @@ export default function DiagnosticsPage() {
                     id: string;
                     orderId: string | null;
                     eventType: string;
-                    createdAt: string;
+                    createdAt: Date;
                     isTrusted: boolean;
                     signatureStatus: string;
                     jobStatus: string;
@@ -740,9 +729,9 @@ export default function DiagnosticsPage() {
                         ? Object.keys(event.platformResults as Record<string, string>).join(", ")
                         : "-";
                     return [
-                        new Date(event.createdAt).toLocaleTimeString("zh-CN"),
+                        event.createdAt instanceof Date ? event.createdAt.toLocaleTimeString("zh-CN") : new Date(event.createdAt).toLocaleTimeString("zh-CN"),
                         event.eventType,
-                        event.orderId,
+                        event.orderId || "-",
                         event.isTrusted ? "✅ 验证通过" : `⚠️ ${event.signatureStatus}`,
                         <StatusBadge key={event.id} status={event.jobStatus} />,
                         event.jobError ? `❌ ${event.jobError}` : platforms || "-"

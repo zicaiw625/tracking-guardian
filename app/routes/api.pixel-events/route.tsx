@@ -35,6 +35,7 @@ import {
   isClientEventRecorded,
   upsertPixelEventReceipt,
   generateEventIdForType,
+  evaluateTrustLevel,
 } from "./receipt-handler";
 import { validatePixelEventHMAC } from "./hmac-validation";
 
@@ -381,7 +382,8 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         metrics.pxIngestAccepted(shop.shopDomain);
     const eventType = payload.eventName === "checkout_completed" ? "purchase" : payload.eventName;
     const isPurchaseEvent = eventType === "purchase";
-    const eventIdentifier = payload.data.orderId || payload.data.checkoutToken || `session_${payload.timestamp}_${shop.shopDomain.replace(/\./g, "_")}`;
+    const orderId = payload.data.orderId || payload.data.checkoutToken || null;
+    const eventIdentifier = orderId || `session_${payload.timestamp}_${shop.shopDomain.replace(/\./g, "_")}`;
     const items = payload.data.items as Array<{
       id?: string;
       quantity?: number | string;
@@ -479,7 +481,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         eventType,
         activeVerificationRun?.id || null,
         primaryPlatform || null,
-        orderId || null
+        orderId
       );
     } else {
       logger.debug(`Non-purchase event ${payload.eventName} - skipping receipt`, {

@@ -3,6 +3,7 @@ import { logger } from "~/utils/logger.server";
 import type { PixelEventPayload } from "~/routes/api.pixel-events/types";
 import { sendPixelEventToPlatform } from "./pixel-event-sender.server";
 import { generateCanonicalEventId } from "../event-normalizer.server";
+import { generateSimpleId } from "~/utils/helpers";
 
 function extractPlatformFromPayload(payload: Record<string, unknown> | null): string | null {
   if (!payload) return null;
@@ -98,11 +99,14 @@ export async function checkEventDeduplication(
     return { isDuplicate: false };
   }
   try {
-    const existing = await prisma.pixelEventReceipt.findFirst({
+    const eventType = eventName === "checkout_completed" ? "purchase" : eventName;
+    const existing = await prisma.pixelEventReceipt.findUnique({
       where: {
-        shopId,
-        eventId: eventId || undefined,
-        eventType: eventName,
+        shopId_eventId_eventType: {
+          shopId,
+          eventId,
+          eventType,
+        },
       },
       select: {
         id: true,
@@ -120,6 +124,7 @@ export async function checkEventDeduplication(
     logger.error("Failed to check event deduplication", {
       shopId,
       eventId,
+      eventName,
       error,
     });
     return { isDuplicate: false };
@@ -138,8 +143,85 @@ export async function logEvent(
   destinationType: string | null,
   status: "ok" | "fail",
   errorCode?: string,
-  errorDetail?: string
+  errorDetail?: string,
+  httpStatus?: number | null,
+  responseBody?: string | null,
+  latencyMs?: number | null
 ): Promise<void> {
+  if (!eventId || !destinationType) {
+    return;
+  }
+  try {
+    let eventLog = await prisma.eventLog.findUnique({
+      where: {
+        shopId_eventId: {
+          shopId,
+          eventId,
+        },
+      },
+    });
+    if (!eventLog) {
+      const eventLogId = generateSimpleId("eventlog");
+      eventLog = await prisma.eventLog.create({
+        data: {
+          id: eventLogId,
+          shopId,
+          eventId,
+          eventName,
+          source: "web_pixel",
+          occurredAt: new Date(payload.timestamp),
+          normalizedEventJson: payload as unknown as Record<string, unknown>,
+          shopifyContextJson: null,
+        },
+      });
+    }
+    const platform = destinationType.split(":")[0];
+    const environment = (payload.data as { environment?: "test" | "live" })?.environment || "live";
+    await prisma.deliveryAttempt.upsert({
+      where: {
+        shopId_eventLogId_destinationType_environment: {
+          shopId,
+          eventLogId: eventLog.id,
+          destinationType,
+          environment,
+        },
+      },
+      create: {
+        id: generateSimpleId("delivery"),
+        eventLogId: eventLog.id,
+        shopId,
+        receiptId: eventId,
+        destinationType,
+        platform,
+        environment,
+        requestPayloadJson: payload as unknown as Record<string, unknown>,
+        status: status === "ok" ? "ok" : "fail",
+        ok: status === "ok",
+        errorCode: errorCode || null,
+        errorDetail: errorDetail || null,
+        httpStatus: httpStatus || null,
+        responseBodySnippet: responseBody ? (responseBody.length > 500 ? responseBody.substring(0, 500) : responseBody) : null,
+        latencyMs: latencyMs || null,
+        verificationRunId: null,
+      },
+      update: {
+        status: status === "ok" ? "ok" : "fail",
+        ok: status === "ok",
+        errorCode: errorCode || null,
+        errorDetail: errorDetail || null,
+        httpStatus: httpStatus || null,
+        responseBodySnippet: responseBody ? (responseBody.length > 500 ? responseBody.substring(0, 500) : responseBody) : null,
+        latencyMs: latencyMs || null,
+      },
+    });
+  } catch (error) {
+    logger.warn("Failed to log delivery attempt", {
+      shopId,
+      eventId,
+      destinationType,
+      error: error instanceof Error ? error.message : String(error),
+    });
+  }
 }
 
 export async function processEventPipeline(
@@ -159,7 +241,10 @@ export async function processEventPipeline(
       null,
       "fail",
       "validation_failed",
-      validation.errors.join("; ")
+      validation.errors.join("; "),
+      null,
+      null,
+      null
     );
         const shop = await prisma.shop.findUnique({
       where: { id: shopId },
@@ -414,7 +499,7 @@ export async function processEventPipeline(
           : destConfig.platformId
           ? `${destination}:${destConfig.platformId}`
           : destination;
-                                                const shop = await prisma.shop.findUnique({
+        const shop = await prisma.shop.findUnique({
           where: { id: shopId },
           select: { shopDomain: true },
         });
@@ -435,7 +520,10 @@ export async function processEventPipeline(
           destinationType,
           sendResult.success ? "ok" : "fail",
           sendResult.success ? undefined : "send_failed",
-          sendResult.error
+          sendResult.error,
+          sendResult.responseStatus ?? null,
+          sendResult.responseBody ?? null,
+          sendLatencyMs
         );
         if (sendResult.success) {
           logger.info(`Successfully sent ${normalizedPayload.eventName} to ${destination}`, {
@@ -483,7 +571,10 @@ export async function processEventPipeline(
           destinationType,
           "fail",
           "send_error",
-          error instanceof Error ? error.message : String(error)
+          error instanceof Error ? error.message : String(error),
+          null,
+          null,
+          null
         );
         return {
           success: false,
@@ -525,7 +616,10 @@ export async function processEventPipeline(
         destinationType,
         "ok",
         "deduplicated",
-        "Event was deduplicated"
+        "Event was deduplicated",
+        null,
+        null,
+        null
       );
     });
     await Promise.allSettled(logPromises);

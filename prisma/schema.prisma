@@ -61,6 +61,8 @@ model Shop {
   PixelEventReceipt       PixelEventReceipt[]
   ScanReports             ScanReport[]
   VerificationRun         VerificationRun[]
+  EventLog                EventLog[]
+  DeliveryAttempt         DeliveryAttempt[]
 }
 
 model AuditAsset {
@@ -152,6 +154,7 @@ model PixelConfig {
 model PixelEventReceipt {
   id                String           @id
   shopId            String
+  eventId           String
   eventType         String
   pixelTimestamp    DateTime
   verificationRunId String?
@@ -162,12 +165,14 @@ model PixelEventReceipt {
   Shop              Shop             @relation(fields: [shopId], references: [id], onDelete: Cascade)
   VerificationRun   VerificationRun? @relation(fields: [verificationRunId], references: [id], onDelete: SetNull)
 
+  @@unique([shopId, eventId, eventType])
   @@index([shopId])
   @@index([shopId, pixelTimestamp])
   @@index([verificationRunId])
   @@index([eventType])
   @@index([shopId, eventType, pixelTimestamp])
   @@index([orderKey])
+  @@index([eventId])
 }
 
 model VerificationRun {
@@ -196,4 +201,57 @@ model VerificationRun {
   @@index([shopId, status])
   @@index([status])
   @@index([publicId])
+}
+
+model EventLog {
+  id                  String            @id
+  shopId              String
+  source              String            @default("web_pixel")
+  eventName           String
+  eventId             String
+  occurredAt          DateTime
+  shopifyContextJson  Json?
+  normalizedEventJson Json
+  createdAt           DateTime          @default(now())
+  Shop                Shop              @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  DeliveryAttempt     DeliveryAttempt[]
+
+  @@unique([shopId, eventId])
+  @@index([shopId])
+  @@index([shopId, createdAt])
+  @@index([shopId, eventName, createdAt])
+  @@index([eventId])
+  @@index([occurredAt])
+}
+
+model DeliveryAttempt {
+  id                  String   @id
+  eventLogId          String
+  shopId              String
+  receiptId           String?
+  destinationType     String
+  environment         String   @default("live")
+  platform            String?
+  requestPayloadJson  Json
+  status              String   @default("pending")
+  httpStatus          Int?
+  ok                  Boolean  @default(false)
+  errorCode           String?
+  errorDetail         String?
+  responseBodySnippet String?
+  latencyMs           Int?
+  verificationRunId   String?
+  createdAt           DateTime @default(now())
+  Shop                Shop     @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  EventLog            EventLog @relation(fields: [eventLogId], references: [id], onDelete: Cascade)
+
+  @@unique([shopId, eventLogId, destinationType, environment])
+  @@index([shopId])
+  @@index([shopId, createdAt])
+  @@index([shopId, destinationType, createdAt])
+  @@index([shopId, status, createdAt])
+  @@index([eventLogId])
+  @@index([receiptId])
+  @@index([platform])
+  @@index([verificationRunId])
 }

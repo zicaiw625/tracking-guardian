@@ -407,6 +407,31 @@ export function ServerTrackingTab({
             {serverEnabled && (
               <Banner tone="info">
                 <BlockStack gap="200">
+                  {(serverPlatform === "meta" || serverPlatform === "tiktok" || serverPlatform === "pinterest" || serverPlatform === "snapchat" || serverPlatform === "twitter") && (
+                    <>
+                      <Banner tone="warning">
+                        <BlockStack gap="200">
+                          <Text as="p" variant="bodySm" fontWeight="semibold">
+                            <strong>⚠️ 营销平台 Consent 要求：</strong>
+                          </Text>
+                          <Text as="p" variant="bodySm">
+                            此平台（{serverPlatform === "meta" ? "Meta (Facebook/Instagram)" : serverPlatform === "tiktok" ? "TikTok" : serverPlatform === "pinterest" ? "Pinterest" : serverPlatform === "snapchat" ? "Snapchat" : "Twitter/X"}）用于营销和广告优化目的，需要客户授予 <strong>marketing consent</strong> 和 <strong>sale of data consent</strong>。
+                            <br />
+                            <br />
+                            • <strong>Pixel 加载：</strong>只需要 analytics consent（Pixel 即可加载）
+                            <br />
+                            • <strong>事件发送：</strong>需要 marketing consent + sale of data consent 才能发送到此平台
+                            <br />
+                            • <strong>服务端追踪：</strong>服务端也会根据 consent 状态过滤事件，只有获得正确 consent 的事件才会发送
+                          </Text>
+                          <Text as="p" variant="bodySm" tone="subdued">
+                            请确保您的店铺已正确配置 Customer Privacy API，并在客户未授予 marketing consent 时不会丢失转化数据。
+                          </Text>
+                        </BlockStack>
+                      </Banner>
+                      <Divider />
+                    </>
+                  )}
                   <Text as="p" variant="bodySm" fontWeight="semibold">
                     <strong>服务端追踪说明：</strong>
                   </Text>

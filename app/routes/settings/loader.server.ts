@@ -23,6 +23,7 @@ export async function settingsLoader({ request }: LoaderFunctionArgs) {
         weakConsentMode: true,
         consentStrategy: true,
         dataRetentionDays: true,
+        settings: true,
         pixelConfigs: {
           where: { isActive: true },
           select: {
@@ -53,6 +54,26 @@ export async function settingsLoader({ request }: LoaderFunctionArgs) {
       shop?.previousSecretExpiry &&
       new Date() < shop.previousSecretExpiry;
     const alertConfigs: AlertConfigDisplay[] = [];
+    if (shop?.settings) {
+      const settings = shop.settings as Record<string, unknown>;
+      const configs = (settings.alertConfigs as Array<Record<string, unknown>>) || [];
+      for (const config of configs) {
+        alertConfigs.push({
+          id: (config.id as string) || `alert_${Date.now()}`,
+          channel: (config.channel as "email" | "slack" | "telegram") || "email",
+          enabled: (config.enabled as boolean) || false,
+          threshold: ((config.thresholds as Record<string, number>)?.failureRate || 0.1) * 100,
+          email: (config.emailMasked as string) || undefined,
+          webhookUrl: (config.configured === true ? "configured" : undefined),
+          botToken: (config.botTokenMasked as string) || undefined,
+          chatId: (config.chatId as string) || undefined,
+          frequency: (config.frequency as "instant" | "daily" | "weekly") || "daily",
+          failureRateThreshold: ((config.thresholds as Record<string, number>)?.failureRate || 0.1) * 100,
+          missingParamsThreshold: ((config.thresholds as Record<string, number>)?.missingParams || 0.1) * 100,
+          volumeDropThreshold: ((config.thresholds as Record<string, number>)?.volumeDrop || 0.2) * 100,
+        });
+      }
+    }
     const pixelConfigs: PixelConfigDisplay[] = shop?.pixelConfigs?.map((config: {
       id: string;
       platform: string;

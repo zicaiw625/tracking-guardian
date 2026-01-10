@@ -1,6 +1,6 @@
 import type { ActionFunctionArgs, LoaderFunctionArgs } from "@remix-run/node";
 import { action as pixelEventsAction, loader as pixelEventsLoader } from "./api.pixel-events/route";
-import { jsonWithCors } from "./api.pixel-events/cors";
+import { jsonWithCors, getCorsHeadersPreBody } from "./api.pixel-events/cors";
 import type { PixelEventPayload } from "./api.pixel-events/types";
 import { processBatchEvents } from "~/services/events/pipeline.server";
 import { logger } from "~/utils/logger.server";
@@ -8,7 +8,12 @@ import { getShopForPixelVerificationWithConfigs } from "./api.pixel-events/key-v
 import { validatePixelEventHMAC } from "./api.pixel-events/hmac-validation";
 import { validateRequest, isPrimaryEvent } from "./api.pixel-events/validation";
 import { API_CONFIG, RATE_LIMIT_CONFIG } from "~/utils/config";
-import { isDevMode } from "~/utils/origin-validation";
+import {
+  isDevMode,
+  validatePixelOriginPreBody,
+  validatePixelOriginForShop,
+  buildShopAllowedDomains,
+} from "~/utils/origin-validation";
 import {
   generateEventIdForType,
   generateOrderMatchKey,
@@ -19,14 +24,30 @@ import {
 } from "./api.pixel-events/receipt-handler";
 import type { KeyValidationResult } from "./api.pixel-events/types";
 import { checkInitialConsent } from "./api.pixel-events/consent-filter";
-import { checkRateLimitAsync } from "~/middleware/rate-limit";
+import { checkRateLimitAsync, createRateLimitResponse } from "~/utils/rate-limiter";
 import { safeFireAndForget } from "~/utils/helpers";
+import prisma from "~/db.server";
 
 const MAX_BATCH_SIZE = 100;
 const TIMESTAMP_WINDOW_MS = API_CONFIG.TIMESTAMP_WINDOW_MS;
 const INGEST_RATE_LIMIT = RATE_LIMIT_CONFIG.PIXEL_EVENTS;
 
 export const action = async ({ request }: ActionFunctionArgs) => {
+  if (request.method === "OPTIONS") {
+    return jsonWithCors({}, { request });
+  }
+  if (request.method !== "POST") {
+    return jsonWithCors({ error: "Method not allowed" }, { status: 405, request });
+  }
+  const origin = request.headers.get("Origin");
+  const preBodyValidation = validatePixelOriginPreBody(origin);
+  if (!preBodyValidation.valid) {
+    logger.warn(
+      `Rejected pixel origin at Stage 1 in /ingest: ${origin?.substring(0, 100) || "null"}, ` +
+        `reason: ${preBodyValidation.reason}`
+    );
+    return jsonWithCors({ error: "Invalid origin" }, { status: 403, request });
+  }
   const contentType = request.headers.get("Content-Type");
   if (!contentType || (!contentType.includes("application/json") && !contentType.includes("text/plain"))) {
     return jsonWithCors(
@@ -85,27 +106,36 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         { status: 404, request }
       );
     }
-    const rateLimitKey = `ingest:${shopDomain}`;
-    const rateLimit = await checkRateLimitAsync(
-      rateLimitKey,
-      INGEST_RATE_LIMIT.maxRequests,
-      INGEST_RATE_LIMIT.windowMs
-    );
-    if (!rateLimit.allowed) {
+    const shopAllowedDomains = buildShopAllowedDomains({
+      shopDomain: shop.shopDomain,
+      primaryDomain: shop.primaryDomain,
+      storefrontDomains: shop.storefrontDomains,
+    });
+    const referer = request.headers.get("Referer");
+    const shopOriginValidation = validatePixelOriginForShop(origin, shopAllowedDomains, {
+      referer,
+      shopDomain: shop.shopDomain,
+    });
+    if (!shopOriginValidation.valid && shopOriginValidation.shouldReject) {
+      logger.warn(
+        `Rejected pixel origin at Stage 2 in /ingest for ${shop.shopDomain}: ` +
+          `origin=${origin?.substring(0, 100) || "null"}, referer=${referer?.substring(0, 100) || "null"}, reason=${shopOriginValidation.reason}`
+      );
+      return jsonWithCors({ error: "Origin not allowlisted" }, { status: 403, request, shopAllowedDomains });
+    }
+    const rateLimit = await checkRateLimitAsync(request, "pixel-events", INGEST_RATE_LIMIT);
+    if (rateLimit.isLimited) {
       logger.warn(`Rate limit exceeded for ingest`, {
         shopDomain,
         retryAfter: rateLimit.retryAfter,
+        remaining: rateLimit.remaining,
       });
-      const response = jsonWithCors(
-        { error: "Rate limit exceeded", retryAfter: rateLimit.retryAfter },
-        { status: 429, request }
-      );
-      response.headers.set("Retry-After", String(rateLimit.retryAfter ?? 0));
-      response.headers.set("X-RateLimit-Limit", String(INGEST_RATE_LIMIT.maxRequests));
-      response.headers.set("X-RateLimit-Remaining", "0");
-      response.headers.set("X-RateLimit-Reset", String(Math.ceil(rateLimit.resetAt / 1000)));
-      response.headers.set("X-RateLimit-Key", rateLimitKey);
-      return response;
+      const rateLimitResponse = createRateLimitResponse(rateLimit.retryAfter);
+      const corsHeaders = getCorsHeadersPreBody(request);
+      Object.entries(corsHeaders).forEach(([key, value]) => {
+        rateLimitResponse.headers.set(key, value);
+      });
+      return rateLimitResponse;
     }
     if (isProduction) {
       if (!shop.ingestionSecret) {
@@ -157,7 +187,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       eventId: string | null;
       destinations: string[];
     }> = [];
-    const origin = request.headers.get("Origin");
+    const clientSideConfigs = pixelConfigs.filter(config => config.clientSideEnabled === true);
     const keyValidation: KeyValidationResult = (() => {
       if (isProduction) {
         return {
@@ -290,18 +320,24 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       );
       if (isPurchaseEvent && orderId) {
         try {
-          const trustResult = evaluateTrustLevel(keyValidation, !!payload.data.checkoutToken);
-          const originHost = origin ? new URL(origin).host : null;
+          const activeVerificationRun = await prisma.verificationRun.findFirst({
+            where: {
+              shopId: shop.id,
+              status: "running",
+            },
+            orderBy: { createdAt: "desc" },
+            select: { id: true },
+          });
+          const primaryPlatform = clientSideConfigs.length > 0 ? clientSideConfigs[0].platform : null;
           await upsertPixelEventReceipt(
             shop.id,
-            orderId,
             eventId,
             payload,
-            keyValidation,
-            trustResult,
-            usedCheckoutTokenAsFallback,
             origin,
-            eventType
+            eventType,
+            activeVerificationRun?.id || null,
+            primaryPlatform || null,
+            orderId || null
           );
         } catch (error) {
           logger.warn(`Failed to write receipt for purchase event at index ${i}`, {
@@ -311,7 +347,6 @@ export const action = async ({ request }: ActionFunctionArgs) => {
           });
         }
       }
-      const clientSideConfigs = pixelConfigs.filter(config => config.clientSideEnabled === true);
       const destinations = clientSideConfigs.map(config => config.platform);
       const consentResult = checkInitialConsent(payload.consent);
       if (!consentResult.hasAnyConsent) {

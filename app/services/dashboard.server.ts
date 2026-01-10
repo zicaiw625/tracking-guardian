@@ -114,6 +114,7 @@ export async function getDashboardData(shopDomain: string): Promise<DashboardDat
       shopTier: true,
       typOspPagesEnabled: true,
       installedAt: true,
+      settings: true,
       ScanReports: {
         orderBy: { createdAt: "desc" },
         take: 1,
@@ -171,6 +172,9 @@ export async function getDashboardData(shopDomain: string): Promise<DashboardDat
       config.credentialsEncrypted.trim().length > 0
   ).length || 0;
   const hasServerSideConfig = serverSideConfigsCount > 0;
+  const settings = shop.settings && typeof shop.settings === 'object' ? shop.settings as Record<string, unknown> : null;
+  const alertConfigs = settings?.alertConfigs && Array.isArray(settings.alertConfigs) ? settings.alertConfigs : [];
+  const hasAlertConfig = alertConfigs.length > 0;
   const { score, status, factors } = await calculateHealthScore(
     shop.id,
     [],
@@ -402,7 +406,7 @@ export async function getDashboardData(shopDomain: string): Promise<DashboardDat
       : null,
     configuredPlatforms,
     weeklyConversions,
-    hasAlertConfig: false,
+    hasAlertConfig,
     hasServerSideConfig,
     plan: shop.plan || "free",
     planId,
