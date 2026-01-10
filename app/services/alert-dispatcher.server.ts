@@ -25,10 +25,19 @@ export interface AlertHistory {
 }
 
 export async function runAlertChecks(shopId: string): Promise<AlertCheckResult[]> {
-  const shop = await prisma.shop.findUnique({
-    where: { id: shopId },
-    select: { id: true, settings: true },
-  });
+  let shop;
+  try {
+    shop = await prisma.shop.findUnique({
+      where: { id: shopId },
+      select: { id: true, settings: true },
+    });
+  } catch (error) {
+    if (error instanceof Error && error.message.includes("settings") && error.message.includes("does not exist")) {
+      logger.warn("Shop.settings column does not exist, skipping alert checks", { shopId });
+      return [];
+    }
+    throw error;
+  }
   if (!shop || !shop.settings) {
     return [];
   }
@@ -152,10 +161,19 @@ export async function checkPixelHeartbeat(shopId: string): Promise<AlertCheckRes
 
 async function dispatchAlerts(shopId: string, results: AlertCheckResult[]): Promise<void> {
   try {
-    const shop = await prisma.shop.findUnique({
-      where: { id: shopId },
-      select: { id: true, shopDomain: true, settings: true },
-    });
+    let shop;
+    try {
+      shop = await prisma.shop.findUnique({
+        where: { id: shopId },
+        select: { id: true, shopDomain: true, settings: true },
+      });
+    } catch (error) {
+      if (error instanceof Error && error.message.includes("settings") && error.message.includes("does not exist")) {
+        logger.warn("Shop.settings column does not exist, skipping alert dispatch", { shopId });
+        return;
+      }
+      throw error;
+    }
     if (!shop || !shop.settings) {
       return;
     }

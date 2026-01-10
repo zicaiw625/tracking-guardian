@@ -105,33 +105,104 @@ function analyzeScriptTags(
 }
 
 export async function getDashboardData(shopDomain: string): Promise<DashboardData> {
-  const shop = await prisma.shop.findUnique({
-    where: { shopDomain },
-    select: {
-      id: true,
-      shopDomain: true,
-      plan: true,
-      shopTier: true,
-      typOspPagesEnabled: true,
-      installedAt: true,
-      settings: true,
-      ScanReports: {
-        orderBy: { createdAt: "desc" },
-        take: 1,
-        select: {
-          status: true,
-          riskScore: true,
-          createdAt: true,
-          identifiedPlatforms: true,
-          scriptTags: true,
+  let shop;
+  try {
+    shop = await prisma.shop.findUnique({
+      where: { shopDomain },
+      select: {
+        id: true,
+        shopDomain: true,
+        plan: true,
+        shopTier: true,
+        typOspPagesEnabled: true,
+        installedAt: true,
+        settings: true,
+        ScanReports: {
+          orderBy: { createdAt: "desc" },
+          take: 1,
+          select: {
+            status: true,
+            riskScore: true,
+            createdAt: true,
+            identifiedPlatforms: true,
+            scriptTags: true,
+          },
+        },
+        pixelConfigs: {
+          where: { isActive: true },
+          select: { id: true, serverSideEnabled: true, credentialsEncrypted: true },
         },
       },
-      pixelConfigs: {
-        where: { isActive: true },
-        select: { id: true, serverSideEnabled: true, credentialsEncrypted: true },
-      },
-    },
-  });
+    });
+  } catch (error) {
+    if (error instanceof Error && (error.message.includes("settings") && (error.message.includes("does not exist") || error.message.includes("P2022")))) {
+      logger.warn("Shop.settings column does not exist, attempting to add it...", { shopDomain });
+      try {
+        await prisma.$executeRawUnsafe(`ALTER TABLE "Shop" ADD COLUMN IF NOT EXISTS "settings" JSONB;`);
+        logger.info("Successfully added Shop.settings column", { shopDomain });
+        shop = await prisma.shop.findUnique({
+          where: { shopDomain },
+          select: {
+            id: true,
+            shopDomain: true,
+            plan: true,
+            shopTier: true,
+            typOspPagesEnabled: true,
+            installedAt: true,
+            settings: true,
+            ScanReports: {
+              orderBy: { createdAt: "desc" },
+              take: 1,
+              select: {
+                status: true,
+                riskScore: true,
+                createdAt: true,
+                identifiedPlatforms: true,
+                scriptTags: true,
+              },
+            },
+            pixelConfigs: {
+              where: { isActive: true },
+              select: { id: true, serverSideEnabled: true, credentialsEncrypted: true },
+            },
+          },
+        });
+      } catch (migrationError) {
+        logger.error("Failed to add Shop.settings column automatically, using fallback", { shopDomain, error: migrationError });
+        shop = await prisma.shop.findUnique({
+          where: { shopDomain },
+          select: {
+            id: true,
+            shopDomain: true,
+            plan: true,
+            shopTier: true,
+            typOspPagesEnabled: true,
+            installedAt: true,
+            ScanReports: {
+              orderBy: { createdAt: "desc" },
+              take: 1,
+              select: {
+                status: true,
+                riskScore: true,
+                createdAt: true,
+                identifiedPlatforms: true,
+                scriptTags: true,
+              },
+            },
+            pixelConfigs: {
+              where: { isActive: true },
+              select: { id: true, serverSideEnabled: true, credentialsEncrypted: true },
+            },
+          },
+        });
+        if (shop) {
+          (shop as { settings?: unknown }).settings = null;
+        }
+      }
+    } else {
+      throw error;
+    }
+  }
   if (!shop) {
     return {
       shopDomain,

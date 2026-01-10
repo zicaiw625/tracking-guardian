@@ -68,14 +68,30 @@ export async function handleSaveAlert(
     rawSettings.chatId = formData.get("chatId");
   }
   const encryptedSettings = await encryptAlertSettings(rawSettings as AlertSettings);
-  const shop = await prisma.shop.findUnique({
-    where: { id: shopId },
-    select: { id: true, settings: true },
-  });
+  let shop;
+  try {
+    shop = await prisma.shop.findUnique({
+      where: { id: shopId },
+      select: { id: true, settings: true },
+    });
+  } catch (error) {
+    if (error instanceof Error && error.message.includes("settings") && error.message.includes("does not exist")) {
+      logger.warn("Shop.settings column does not exist, trying without it", { shopId });
+      shop = await prisma.shop.findUnique({
+        where: { id: shopId },
+        select: { id: true },
+      });
+      if (shop) {
+        (shop as { settings?: unknown }).settings = null;
+      }
+    } else {
+      throw error;
+    }
+  }
   if (!shop) {
     return json({ success: false, error: "Shop not found" }, { status: 404 });
   }
-  const currentSettings = (shop.settings as Record<string, unknown>) || {};
+  const currentSettings = ((shop.settings as Record<string, unknown>) || {}) as Record<string, unknown>;
   const alertConfigs = (currentSettings.alertConfigs as Array<Record<string, unknown>>) || [];
   const existingIndex = alertConfigs.findIndex((cfg) => cfg.channel === channel);
   const alertConfig: Record<string, unknown> = {
@@ -113,15 +129,39 @@ export async function handleSaveAlert(
     alertConfig.id = `alert_${Date.now()}`;
     alertConfigs.push(alertConfig);
   }
-  await prisma.shop.update({
-    where: { id: shopId },
-    data: {
-      settings: {
-        ...currentSettings,
-        alertConfigs,
+  try {
+    await prisma.shop.update({
+      where: { id: shopId },
+      data: {
+        settings: {
+          ...currentSettings,
+          alertConfigs,
+        },
       },
-    },
-  });
+    });
+  } catch (error) {
+    if (error instanceof Error && (error.message.includes("settings") && error.message.includes("does not exist") || error.message.includes("P2022"))) {
+      logger.error("Shop.settings column does not exist in database. Attempting to add it...", { shopId, error });
+      try {
+        await prisma.$executeRawUnsafe(`ALTER TABLE "Shop" ADD COLUMN IF NOT EXISTS "settings" JSONB;`);
+        logger.info("Successfully added Shop.settings column", { shopId });
+        await prisma.shop.update({
+          where: { id: shopId },
+          data: {
+            settings: {
+              ...currentSettings,
+              alertConfigs,
+            },
+          },
+        });
+      } catch (migrationError) {
+        logger.error("Failed to add Shop.settings column automatically", { shopId, error: migrationError });
+        return json({ success: false, error: "Database migration required. Please run: ALTER TABLE \"Shop\" ADD COLUMN IF NOT EXISTS \"settings\" JSONB;" }, { status: 500 });
+      }
+    } else {
+      throw error;
+    }
+  }
   await invalidateAllShopCaches(sessionShop, shopId);
   logger.info("Alert config saved to Shop.settings", {
     shopId,

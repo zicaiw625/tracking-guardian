@@ -12,35 +12,112 @@ export async function settingsLoader({ request }: LoaderFunctionArgs) {
   try {
     const { session } = await authenticate.admin(request);
     const shopDomain = session.shop;
-    const shop = await prisma.shop.findUnique({
-      where: { shopDomain },
-      select: {
-        id: true,
-        plan: true,
-        ingestionSecret: true,
-        previousIngestionSecret: true,
-        previousSecretExpiry: true,
-        weakConsentMode: true,
-        consentStrategy: true,
-        dataRetentionDays: true,
-        settings: true,
-        pixelConfigs: {
-          where: { isActive: true },
-          select: {
-            id: true,
-            platform: true,
-            platformId: true,
-            serverSideEnabled: true,
-            clientSideEnabled: true,
-            isActive: true,
-            updatedAt: true,
-            environment: true,
-            configVersion: true,
-            rollbackAllowed: true,
+    let shop;
+    let hasSettingsColumn = true;
+    try {
+      shop = await prisma.shop.findUnique({
+        where: { shopDomain },
+        select: {
+          id: true,
+          plan: true,
+          ingestionSecret: true,
+          previousIngestionSecret: true,
+          previousSecretExpiry: true,
+          weakConsentMode: true,
+          consentStrategy: true,
+          dataRetentionDays: true,
+          settings: true,
+          pixelConfigs: {
+            where: { isActive: true },
+            select: {
+              id: true,
+              platform: true,
+              platformId: true,
+              serverSideEnabled: true,
+              clientSideEnabled: true,
+              isActive: true,
+              updatedAt: true,
+              environment: true,
+              configVersion: true,
+              rollbackAllowed: true,
+            },
           },
         },
-      },
-    });
+      });
+    } catch (error) {
+      if (error instanceof Error && (error.message.includes("settings") && (error.message.includes("does not exist") || error.message.includes("P2022")))) {
+        logger.warn("Shop.settings column does not exist, attempting to add it...", { shopDomain });
+        try {
+          await prisma.$executeRawUnsafe(`ALTER TABLE "Shop" ADD COLUMN IF NOT EXISTS "settings" JSONB;`);
+          logger.info("Successfully added Shop.settings column", { shopDomain });
+          shop = await prisma.shop.findUnique({
+            where: { shopDomain },
+            select: {
+              id: true,
+              plan: true,
+              ingestionSecret: true,
+              previousIngestionSecret: true,
+              previousSecretExpiry: true,
+              weakConsentMode: true,
+              consentStrategy: true,
+              dataRetentionDays: true,
+              settings: true,
+              pixelConfigs: {
+                where: { isActive: true },
+                select: {
+                  id: true,
+                  platform: true,
+                  platformId: true,
+                  serverSideEnabled: true,
+                  clientSideEnabled: true,
+                  isActive: true,
+                  updatedAt: true,
+                  environment: true,
+                  configVersion: true,
+                  rollbackAllowed: true,
+                },
+              },
+            },
+          });
+        } catch (migrationError) {
+          logger.error("Failed to add Shop.settings column automatically, using fallback", { shopDomain, error: migrationError });
+          hasSettingsColumn = false;
+          shop = await prisma.shop.findUnique({
+            where: { shopDomain },
+            select: {
+              id: true,
+              plan: true,
+              ingestionSecret: true,
+              previousIngestionSecret: true,
+              previousSecretExpiry: true,
+              weakConsentMode: true,
+              consentStrategy: true,
+              dataRetentionDays: true,
+              pixelConfigs: {
+                where: { isActive: true },
+                select: {
+                  id: true,
+                  platform: true,
+                  platformId: true,
+                  serverSideEnabled: true,
+                  clientSideEnabled: true,
+                  isActive: true,
+                  updatedAt: true,
+                  environment: true,
+                  configVersion: true,
+                  rollbackAllowed: true,
+                },
+              },
+            },
+          });
+          if (shop) {
+            (shop as { settings?: unknown }).settings = null;
+          }
+        }
+      } else {
+        throw error;
+      }
+    }
     let tokenIssues = { hasIssues: false, affectedPlatforms: [] as string[] };
     if (shop) {
       try {
@@ -54,24 +131,28 @@ export async function settingsLoader({ request }: LoaderFunctionArgs) {
       shop?.previousSecretExpiry &&
       new Date() < shop.previousSecretExpiry;
     const alertConfigs: AlertConfigDisplay[] = [];
-    if (shop?.settings) {
-      const settings = shop.settings as Record<string, unknown>;
-      const configs = (settings.alertConfigs as Array<Record<string, unknown>>) || [];
-      for (const config of configs) {
-        alertConfigs.push({
-          id: (config.id as string) || `alert_${Date.now()}`,
-          channel: (config.channel as "email" | "slack" | "telegram") || "email",
-          enabled: (config.enabled as boolean) || false,
-          threshold: ((config.thresholds as Record<string, number>)?.failureRate || 0.1) * 100,
-          email: (config.emailMasked as string) || undefined,
-          webhookUrl: (config.configured === true ? "configured" : undefined),
-          botToken: (config.botTokenMasked as string) || undefined,
-          chatId: (config.chatId as string) || undefined,
-          frequency: (config.frequency as "instant" | "daily" | "weekly") || "daily",
-          failureRateThreshold: ((config.thresholds as Record<string, number>)?.failureRate || 0.1) * 100,
-          missingParamsThreshold: ((config.thresholds as Record<string, number>)?.missingParams || 0.1) * 100,
-          volumeDropThreshold: ((config.thresholds as Record<string, number>)?.volumeDrop || 0.2) * 100,
-        });
+    if (hasSettingsColumn && shop?.settings) {
+      try {
+        const settings = shop.settings as Record<string, unknown>;
+        const configs = (settings.alertConfigs as Array<Record<string, unknown>>) || [];
+        for (const config of configs) {
+          alertConfigs.push({
+            id: (config.id as string) || `alert_${Date.now()}`,
+            channel: (config.channel as "email" | "slack" | "telegram") || "email",
+            enabled: (config.enabled as boolean) || false,
+            threshold: ((config.thresholds as Record<string, number>)?.failureRate || 0.1) * 100,
+            email: (config.emailMasked as string) || undefined,
+            webhookUrl: (config.configured === true ? "configured" : undefined),
+            botToken: (config.botTokenMasked as string) || undefined,
+            chatId: (config.chatId as string) || undefined,
+            frequency: (config.frequency as "instant" | "daily" | "weekly") || "daily",
+            failureRateThreshold: ((config.thresholds as Record<string, number>)?.failureRate || 0.1) * 100,
+            missingParamsThreshold: ((config.thresholds as Record<string, number>)?.missingParams || 0.1) * 100,
+            volumeDropThreshold: ((config.thresholds as Record<string, number>)?.volumeDrop || 0.2) * 100,
+          });
+        }
+      } catch (error) {
+        logger.warn("Failed to parse alert configs from settings", { shopDomain, error });
       }
     }
     const pixelConfigs: PixelConfigDisplay[] = shop?.pixelConfigs?.map((config: {
