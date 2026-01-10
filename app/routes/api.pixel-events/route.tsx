@@ -456,6 +456,11 @@ export const action = async ({ request }: ActionFunctionArgs) => {
                   },
       })
     );
+    const clientSideConfigs = pixelConfigs.filter(config => config.clientSideEnabled === true);
+    const { platformsToRecord, skippedPlatforms } = filterPlatformsByConsent(
+      clientSideConfigs,
+      consentResult
+    );
     if (isPurchaseEvent) {
       const activeVerificationRun = await prisma.verificationRun.findFirst({
         where: {
@@ -465,13 +470,16 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         orderBy: { createdAt: "desc" },
         select: { id: true },
       });
+      const primaryPlatform = platformsToRecord.length > 0 ? platformsToRecord[0].platform : pixelConfigs.length > 0 ? pixelConfigs[0].platform : null;
       await upsertPixelEventReceipt(
         shop.id,
         eventId,
         payload,
         origin,
         eventType,
-        activeVerificationRun?.id || null
+        activeVerificationRun?.id || null,
+        primaryPlatform || null,
+        orderId || null
       );
     } else {
       logger.debug(`Non-purchase event ${payload.eventName} - skipping receipt`, {
@@ -480,11 +488,6 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         eventId,
       });
     }
-    const clientSideConfigs = pixelConfigs.filter(config => config.clientSideEnabled === true);
-    const { platformsToRecord, skippedPlatforms } = filterPlatformsByConsent(
-      clientSideConfigs,
-      consentResult
-    );
     logConsentFilterMetrics(
       shop.shopDomain,
       orderId,

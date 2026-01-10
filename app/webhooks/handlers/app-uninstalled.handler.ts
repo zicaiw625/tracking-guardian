@@ -68,15 +68,11 @@ export async function handleAppUninstalled(
     logger.info(`Deleted sessions for ${shop}`);
   }
   if (shopRecord) {
-    const eventLogsDeleted = await prisma.eventLog.deleteMany({
+    const pixelReceiptsDeleted = await prisma.pixelEventReceipt.deleteMany({
       where: { shopId: shopRecord.id },
     });
-    const deliveryAttemptsDeleted = await prisma.deliveryAttempt.deleteMany({
-      where: { shopId: shopRecord.id },
-    });
-    logger.info(`Deleted event logs and delivery attempts for shop ${shop}`, {
-      eventLogsDeleted: eventLogsDeleted.count,
-      deliveryAttemptsDeleted: deliveryAttemptsDeleted.count,
+    logger.info(`Deleted pixel event receipts for shop ${shop}`, {
+      pixelReceiptsDeleted: pixelReceiptsDeleted.count,
     });
     await prisma.shop.update({
       where: { id: shopRecord.id },

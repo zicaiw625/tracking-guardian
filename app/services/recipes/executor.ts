@@ -354,21 +354,28 @@ async function validateEventReceived(
 ): Promise<RecipeValidationResult> {
   const since = new Date();
   since.setSeconds(since.getSeconds() - timeoutSeconds);
-  const event = await prisma.conversionLog.findFirst({
+  const event = await prisma.pixelEventReceipt.findFirst({
     where: {
       shopId,
       eventType: { contains: eventType.toLowerCase() },
-      status: "sent",
       createdAt: { gte: since },
     },
     orderBy: { createdAt: "desc" },
+    select: {
+      id: true,
+      eventType: true,
+      createdAt: true,
+      payloadJson: true,
+    },
   });
   if (event) {
+    const payload = event.payloadJson as Record<string, unknown> | null;
+    const eventId = payload?.eventId as string | undefined || payload?.event_id as string | undefined || event.id;
     return {
       testName: "event_received",
       passed: true,
       message: `收到 ${eventType} 事件`,
-      details: { eventId: event.eventId, sentAt: event.sentAt },
+      details: { eventId, sentAt: event.createdAt },
     };
   }
   return {
@@ -382,15 +389,33 @@ async function validateEventParameters(
   shopId: string,
   requiredParams: string[]
 ): Promise<RecipeValidationResult> {
-  const recentEvent = await prisma.conversionLog.findFirst({
-    where: { shopId, status: "sent" },
+  const recentEvent = await prisma.pixelEventReceipt.findFirst({
+    where: { shopId },
     orderBy: { createdAt: "desc" },
+    select: {
+      id: true,
+      payloadJson: true,
+    },
   });
   if (!recentEvent) {
     return {
       testName: "parameter_check",
       passed: false,
       message: "没有找到最近的事件",
+    };
+  }
+  const payload = recentEvent.payloadJson as Record<string, unknown> | null;
+  const missingParams: string[] = [];
+  for (const param of requiredParams) {
+    if (!payload || !(param in payload)) {
+      missingParams.push(param);
+    }
+  }
+  if (missingParams.length > 0) {
+    return {
+      testName: "parameter_check",
+      passed: false,
+      message: `缺少必需参数: ${missingParams.join(", ")}`,
     };
   }
   return {

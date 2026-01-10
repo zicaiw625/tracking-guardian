@@ -34,7 +34,7 @@ export async function captureRecentEvents(
   destinationTypes?: string[]
 ): Promise<EventCaptureResult> {
   try {
-    const eventLogs = await prisma.eventLog.findMany({
+    const receipts = await prisma.pixelEventReceipt.findMany({
       where: {
         shopId,
         createdAt: {
@@ -42,29 +42,9 @@ export async function captureRecentEvents(
         },
         ...(destinationTypes && destinationTypes.length > 0
           ? {
-              DeliveryAttempt: {
-                some: {
-                  destinationType: { in: destinationTypes },
-                },
-              },
+              platform: { in: destinationTypes },
             }
           : {}),
-      },
-      include: {
-        DeliveryAttempt: {
-          where: destinationTypes && destinationTypes.length > 0
-            ? { destinationType: { in: destinationTypes } }
-            : undefined,
-          select: {
-            id: true,
-            destinationType: true,
-            status: true,
-            errorCode: true,
-            errorDetail: true,
-            requestPayloadJson: true,
-            createdAt: true,
-          },
-        },
       },
       orderBy: {
         createdAt: "desc",
@@ -72,67 +52,61 @@ export async function captureRecentEvents(
       take: 100,
     });
     const capturedEvents: CapturedEvent[] = [];
-    for (const eventLog of eventLogs) {
-      const normalizedEvent = eventLog.normalizedEventJson as Record<string, unknown> | null;
-      const value = (normalizedEvent?.value as number) || 0;
-      const currency = (normalizedEvent?.currency as string) || "USD";
-      const items = (normalizedEvent?.items as Array<Record<string, unknown>>) || [];
-      for (const attempt of eventLog.DeliveryAttempt) {
-        const payload = (attempt.requestPayloadJson as Record<string, unknown>) || {};
-        const data = {
-          value,
-          currency,
-          items,
-        };
-        const hasValue = value > 0;
-        const hasCurrency = Boolean(currency);
-        const hasItems = Array.isArray(items) && items.length > 0;
-        const completenessRate =
-          ((hasValue ? 1 : 0) + (hasCurrency ? 1 : 0) + (hasItems ? 1 : 0)) / 3;
-        capturedEvents.push({
-          id: `${eventLog.id}-${attempt.id}`,
-          eventName: eventLog.eventName,
-          eventId: eventLog.eventId,
-          destinationType: attempt.destinationType,
-          payload: { ...payload, data },
-          status: attempt.status === "ok" ? "ok" : "fail",
-          errorCode: attempt.errorCode || null,
-          errorDetail: attempt.errorDetail || null,
-          eventTimestamp: eventLog.occurredAt,
-          createdAt: attempt.createdAt,
-          parameterCompleteness: {
-            hasValue,
-            hasCurrency,
-            hasItems,
-            completenessRate: Math.round(completenessRate * 100),
-          },
-        });
+    for (const receipt of receipts) {
+      if (!receipt.platform) continue;
+      const payload = receipt.payloadJson as Record<string, unknown> | null;
+      const data = payload?.data as Record<string, unknown> | undefined;
+      let value = (data?.value as number) || 0;
+      let currency = (data?.currency as string) || "USD";
+      let items = (data?.items as Array<Record<string, unknown>>) || [];
+      if (receipt.platform === "google") {
+        const events = payload?.events as Array<Record<string, unknown>> | undefined;
+        if (events && events.length > 0) {
+          const params = events[0].params as Record<string, unknown> | undefined;
+          if (params?.value !== undefined) value = (params.value as number) || 0;
+          if (params?.currency) currency = String(params.currency);
+          if (Array.isArray(params?.items)) items = params.items as Array<Record<string, unknown>>;
+        }
+      } else if (receipt.platform === "meta" || receipt.platform === "facebook") {
+        const eventsData = payload?.data as Array<Record<string, unknown>> | undefined;
+        if (eventsData && eventsData.length > 0) {
+          const customData = eventsData[0].custom_data as Record<string, unknown> | undefined;
+          if (customData?.value !== undefined) value = (customData.value as number) || 0;
+          if (customData?.currency) currency = String(customData.currency);
+          if (Array.isArray(customData?.contents)) items = customData.contents as Array<Record<string, unknown>>;
+        }
+      } else if (receipt.platform === "tiktok") {
+        const eventsData = payload?.data as Array<Record<string, unknown>> | undefined;
+        if (eventsData && eventsData.length > 0) {
+          const properties = eventsData[0].properties as Record<string, unknown> | undefined;
+          if (properties?.value !== undefined) value = (properties.value as number) || 0;
+          if (properties?.currency) currency = String(properties.currency);
+          if (Array.isArray(properties?.contents)) items = properties.contents as Array<Record<string, unknown>>;
+        }
       }
-      if (eventLog.DeliveryAttempt.length === 0) {
-        const hasValue = value > 0;
-        const hasCurrency = Boolean(currency);
-        const hasItems = Array.isArray(items) && items.length > 0;
-        const completenessRate =
-          ((hasValue ? 1 : 0) + (hasCurrency ? 1 : 0) + (hasItems ? 1 : 0)) / 3;
-        capturedEvents.push({
-          id: eventLog.id,
-          eventName: eventLog.eventName,
-          eventId: eventLog.eventId,
-          destinationType: eventLog.source || null,
-          payload: { data: { value, currency, items } },
-          status: "pending",
-          errorCode: null,
-          errorDetail: null,
-          eventTimestamp: eventLog.occurredAt,
-          createdAt: eventLog.createdAt,
-          parameterCompleteness: {
-            hasValue,
-            hasCurrency,
-            hasItems,
-            completenessRate: Math.round(completenessRate * 100),
-          },
-        });
-      }
+      const hasValue = value > 0;
+      const hasCurrency = Boolean(currency);
+      const hasItems = Array.isArray(items) && items.length > 0;
+      const completenessRate =
+        ((hasValue ? 1 : 0) + (hasCurrency ? 1 : 0) + (hasItems ? 1 : 0)) / 3;
+      capturedEvents.push({
+        id: receipt.id,
+        eventName: receipt.eventType,
+        eventId: receipt.id,
+        destinationType: receipt.platform,
+        payload: { ...(payload || {}), data: { value, currency, items } },
+        status: hasValue && hasCurrency ? "ok" : "fail",
+        errorCode: null,
+        errorDetail: null,
+        eventTimestamp: receipt.pixelTimestamp,
+        createdAt: receipt.createdAt,
+        parameterCompleteness: {
+          hasValue,
+          hasCurrency,
+          hasItems,
+          completenessRate: Math.round(completenessRate * 100),
+        },
+      });
     }
     const success = capturedEvents.filter((e) => e.status === "ok").length;
     const failed = capturedEvents.filter((e) => e.status === "fail").length;
@@ -204,7 +178,7 @@ export async function getEventStatistics(
   };
 }> {
   try {
-    const eventLogs = await prisma.eventLog.findMany({
+    const receipts = await prisma.pixelEventReceipt.findMany({
       where: {
         shopId,
         createdAt: {
@@ -213,25 +187,14 @@ export async function getEventStatistics(
         },
         ...(destinationTypes && destinationTypes.length > 0
           ? {
-              DeliveryAttempt: {
-                some: {
-                  destinationType: { in: destinationTypes },
-                },
-              },
+              platform: { in: destinationTypes },
             }
           : {}),
       },
-      include: {
-        DeliveryAttempt: {
-          where: destinationTypes && destinationTypes.length > 0
-            ? { destinationType: { in: destinationTypes } }
-            : undefined,
-          select: {
-            destinationType: true,
-            status: true,
-            requestPayloadJson: true,
-          },
-        },
+      select: {
+        eventType: true,
+        platform: true,
+        payloadJson: true,
       },
     });
     const byEventType: Record<string, number> = {};
@@ -241,55 +204,55 @@ export async function getEventStatistics(
     let eventsWithAllParams = 0;
     let eventsWithMissingParams = 0;
     let totalEvents = 0;
-    for (const eventLog of eventLogs) {
-      const normalizedEvent = eventLog.normalizedEventJson as Record<string, unknown> | null;
-      const value = (normalizedEvent?.value as number) || 0;
-      const currency = (normalizedEvent?.currency as string) || "USD";
-      const items = (normalizedEvent?.items as Array<Record<string, unknown>>) || [];
-      const eventType = eventLog.eventName;
+    for (const receipt of receipts) {
+      if (!receipt.platform) continue;
+      totalEvents++;
+      const eventType = receipt.eventType;
       byEventType[eventType] = (byEventType[eventType] || 0) + 1;
-      for (const attempt of eventLog.DeliveryAttempt) {
-        totalEvents++;
-        const dest = attempt.destinationType;
-        byDestination[dest] = (byDestination[dest] || 0) + 1;
-        const status = attempt.status === "ok" ? "ok" : "fail";
-        byStatus[status] = (byStatus[status] || 0) + 1;
-        const hasValue = value > 0;
-        const hasCurrency = Boolean(currency);
-        const hasItems = Array.isArray(items) && items.length > 0;
-        const completenessRate = ((hasValue ? 1 : 0) + (hasCurrency ? 1 : 0) + (hasItems ? 1 : 0)) / 3;
-        totalCompleteness += completenessRate;
-        if (completenessRate === 1) {
-          eventsWithAllParams++;
-        } else {
-          eventsWithMissingParams++;
+      const dest = receipt.platform;
+      byDestination[dest] = (byDestination[dest] || 0) + 1;
+      const payload = receipt.payloadJson as Record<string, unknown> | null;
+      const data = payload?.data as Record<string, unknown> | undefined;
+      let value = (data?.value as number) || 0;
+      let currency = (data?.currency as string) || "USD";
+      let items = (data?.items as Array<Record<string, unknown>>) || [];
+      if (receipt.platform === "google") {
+        const events = payload?.events as Array<Record<string, unknown>> | undefined;
+        if (events && events.length > 0) {
+          const params = events[0].params as Record<string, unknown> | undefined;
+          if (params?.value !== undefined) value = (params.value as number) || 0;
+          if (params?.currency) currency = String(params.currency);
+          if (Array.isArray(params?.items)) items = params.items as Array<Record<string, unknown>>;
         }
-        const payload = (attempt.requestPayloadJson as Record<string, unknown>) || {};
-        const data = { value, currency, items };
-        const completeness = checkParameterCompleteness({ ...payload, data });
-        totalCompleteness += completeness.completenessRate / 100;
-        if (completeness.completenessRate === 100) {
-          eventsWithAllParams++;
-        } else {
-          eventsWithMissingParams++;
+      } else if (receipt.platform === "meta" || receipt.platform === "facebook") {
+        const eventsData = payload?.data as Array<Record<string, unknown>> | undefined;
+        if (eventsData && eventsData.length > 0) {
+          const customData = eventsData[0].custom_data as Record<string, unknown> | undefined;
+          if (customData?.value !== undefined) value = (customData.value as number) || 0;
+          if (customData?.currency) currency = String(customData.currency);
+          if (Array.isArray(customData?.contents)) items = customData.contents as Array<Record<string, unknown>>;
         }
-      }
-      if (eventLog.DeliveryAttempt.length === 0) {
-        totalEvents++;
-        const dest = eventLog.source || "unknown";
-        byDestination[dest] = (byDestination[dest] || 0) + 1;
-        byStatus["pending"] = (byStatus["pending"] || 0) + 1;
-        const hasValue = value > 0;
-        const hasCurrency = Boolean(currency);
-        const hasItems = Array.isArray(items) && items.length > 0;
-        const completenessRate = ((hasValue ? 1 : 0) + (hasCurrency ? 1 : 0) + (hasItems ? 1 : 0)) / 3;
-        totalCompleteness += completenessRate;
-        if (completenessRate === 1) {
-          eventsWithAllParams++;
-        } else {
-          eventsWithMissingParams++;
+      } else if (receipt.platform === "tiktok") {
+        const eventsData = payload?.data as Array<Record<string, unknown>> | undefined;
+        if (eventsData && eventsData.length > 0) {
+          const properties = eventsData[0].properties as Record<string, unknown> | undefined;
+          if (properties?.value !== undefined) value = (properties.value as number) || 0;
+          if (properties?.currency) currency = String(properties.currency);
+          if (Array.isArray(properties?.contents)) items = properties.contents as Array<Record<string, unknown>>;
         }
       }
+      const hasValue = value > 0;
+      const hasCurrency = Boolean(currency);
+      const hasItems = Array.isArray(items) && items.length > 0;
+      const completenessRate = ((hasValue ? 1 : 0) + (hasCurrency ? 1 : 0) + (hasItems ? 1 : 0)) / 3;
+      totalCompleteness += completenessRate;
+      if (completenessRate === 1) {
+        eventsWithAllParams++;
+      } else {
+        eventsWithMissingParams++;
+      }
+      const status = hasValue && hasCurrency ? "ok" : "fail";
+      byStatus[status] = (byStatus[status] || 0) + 1;
     }
     const avgCompleteness =
       totalEvents > 0 ? totalCompleteness / totalEvents : 0;

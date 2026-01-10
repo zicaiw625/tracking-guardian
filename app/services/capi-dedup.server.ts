@@ -70,56 +70,25 @@ export async function checkShouldSend(
   const eventId = generateEventId(orderId, eventType, shop.shopDomain, platform);
   const windowStart = new Date();
   windowStart.setHours(windowStart.getHours() - windowHours);
-  const existingLog = await prisma.conversionLog.findFirst({
-    where: {
-      shopId,
-      orderId,
-      platform,
-      eventType,
-      createdAt: { gte: windowStart },
-    },
-    orderBy: { createdAt: "desc" },
-  });
-  if (existingLog) {
-    if (existingLog.status === "sent") {
-      logger.debug("Dedup: Already sent", { orderId, platform, eventId });
-      return {
-        shouldSend: false,
-        eventId,
-        reason: "already_sent",
-        existingLogId: existingLog.id,
-      };
-    }
-    if (existingLog.attempts >= maxAttempts) {
-      logger.debug("Dedup: Max attempts reached", { orderId, platform, attempts: existingLog.attempts });
-      return {
-        shouldSend: false,
-        eventId,
-        reason: "rate_limited",
-        existingLogId: existingLog.id,
-      };
-    }
-    if (strictMode && existingLog.status !== "failed") {
-      return {
-        shouldSend: false,
-        eventId,
-        reason: "duplicate",
-        existingLogId: existingLog.id,
-      };
-    }
-  }
   if (checkPixelReceipt) {
     const receipt = await prisma.pixelEventReceipt.findFirst({
       where: {
         shopId,
-        orderId,
-        eventType: "checkout_completed",
+        orderKey: orderId,
+        platform,
+        eventType: { in: ["checkout_completed", "purchase"] },
+        createdAt: { gte: windowStart },
       },
-      select: { consentState: true },
+      select: {
+        payloadJson: true,
+        platform: true,
+      },
+      orderBy: { createdAt: "desc" },
     });
-    if (receipt?.consentState) {
-      const consent = receipt.consentState as { marketing?: boolean; analytics?: boolean };
-      if (consent.marketing === false && ["meta", "tiktok", "pinterest", "snapchat", "twitter"].includes(platform)) {
+    if (receipt && receipt.platform === platform) {
+      const payload = receipt.payloadJson as Record<string, unknown> | null;
+      const consent = payload?.consent as { marketing?: boolean; analytics?: boolean } | null;
+      if (consent?.marketing === false && ["meta", "tiktok", "pinterest", "snapchat", "twitter"].includes(platform)) {
         logger.debug("Dedup: Consent blocked", { orderId, platform });
         return {
           shouldSend: false,
@@ -127,33 +96,18 @@ export async function checkShouldSend(
           reason: "consent_blocked",
         };
       }
+      const data = payload?.data as Record<string, unknown> | undefined;
+      const hasValue = data?.value !== undefined && data?.value !== null;
+      const hasCurrency = !!data?.currency;
+      if (hasValue && hasCurrency) {
+        logger.debug("Dedup: Already sent", { orderId, platform, eventId });
+        return {
+          shouldSend: false,
+          eventId,
+          reason: "already_sent",
+        };
+      }
     }
-  }
-  try {
-    await prisma.eventNonce.create({
-      data: {
-        id: randomUUID(),
-        shopId,
-        nonce: eventId,
-        eventType,
-        expiresAt: new Date(Date.now() + windowHours * 60 * 60 * 1000),
-      },
-    });
-  } catch (error) {
-    if ((error as { code?: string }).code === "P2002") {
-      logger.debug("Dedup: Nonce exists", { orderId, platform, eventId });
-      return {
-        shouldSend: false,
-        eventId,
-        reason: "duplicate",
-      };
-    }
-    logger.warn("Failed to create event nonce", {
-      orderId,
-      platform,
-      eventId,
-      error: error instanceof Error ? error.message : String(error),
-    });
   }
   logger.debug("Dedup: Should send", { orderId, platform, eventId });
   return {
@@ -169,23 +123,12 @@ export async function markEventSent(
   platform: string,
   eventId: string
 ): Promise<void> {
-  try {
-    await prisma.conversionLog.updateMany({
-      where: {
-        shopId,
-        orderId,
-        platform,
-        eventType,
-        eventId,
-      },
-      data: {
-        status: "sent",
-        sentAt: new Date(),
-      },
-    });
-  } catch (error) {
-    logger.error("Failed to mark event as sent", { orderId, platform, eventId, error });
-  }
+  logger.debug(`markEventSent called but conversionLog table no longer exists`, {
+    shopId,
+    orderId,
+    platform,
+    eventId,
+  });
 }
 
 export async function markEventFailed(
@@ -196,25 +139,13 @@ export async function markEventFailed(
   eventId: string,
   errorMessage: string
 ): Promise<void> {
-  try {
-    await prisma.conversionLog.updateMany({
-      where: {
-        shopId,
-        orderId,
-        platform,
-        eventType,
-        eventId,
-      },
-      data: {
-        status: "failed",
-        errorMessage,
-        attempts: { increment: 1 },
-        lastAttemptAt: new Date(),
-      },
-    });
-  } catch (error) {
-    logger.error("Failed to mark event as failed", { orderId, platform, eventId, error });
-  }
+  logger.debug(`markEventFailed called but conversionLog table no longer exists`, {
+    shopId,
+    orderId,
+    platform,
+    eventId,
+    errorMessage,
+  });
 }
 
 export async function analyzeDedupConflicts(
@@ -238,24 +169,24 @@ export async function analyzeDedupConflicts(
     count: number;
   }>;
 }> {
-  const logs = await prisma.conversionLog.findMany({
+  const receipts = await prisma.pixelEventReceipt.findMany({
     where: {
       shopId,
       createdAt: { gte: startDate, lte: endDate },
     },
     select: {
       id: true,
-      orderId: true,
+      orderKey: true,
       platform: true,
       eventType: true,
-      eventId: true,
     },
   });
-  const groupedEvents = new Map<string, typeof logs>();
-  logs.forEach(log => {
-    const key = `${log.orderId}:${log.platform}:${log.eventType}`;
+  const groupedEvents = new Map<string, typeof receipts>();
+  receipts.forEach(receipt => {
+    if (!receipt.orderKey || !receipt.platform) return;
+    const key = `${receipt.orderKey}:${receipt.platform}:${receipt.eventType}`;
     const existing = groupedEvents.get(key) || [];
-    existing.push(log);
+    existing.push(receipt);
     groupedEvents.set(key, existing);
   });
   let duplicateEvents = 0;
@@ -267,7 +198,7 @@ export async function analyzeDedupConflicts(
     count: number;
   }> = [];
   for (const [_key, events] of groupedEvents) {
-    const platform = events[0].platform;
+    const platform = events[0].platform || "unknown";
     if (!duplicatesByPlatform[platform]) {
       duplicatesByPlatform[platform] = { total: 0, duplicates: 0 };
     }
@@ -276,8 +207,8 @@ export async function analyzeDedupConflicts(
       duplicateEvents += events.length - 1;
       duplicatesByPlatform[platform].duplicates += events.length - 1;
       topDuplicates.push({
-        eventId: events[0].eventId || "",
-        orderId: events[0].orderId,
+        eventId: events[0].id,
+        orderId: events[0].orderKey || "",
         platform,
         count: events.length,
       });
@@ -292,25 +223,18 @@ export async function analyzeDedupConflicts(
     };
   }
   return {
-    totalEvents: logs.length,
+    totalEvents: receipts.length,
     uniqueEvents: groupedEvents.size,
     duplicateEvents,
-    duplicateRate: logs.length > 0 ? duplicateEvents / logs.length : 0,
+    duplicateRate: receipts.length > 0 ? duplicateEvents / receipts.length : 0,
     byPlatform,
     topDuplicates: topDuplicates.slice(0, 20),
   };
 }
 
 export async function cleanupExpiredNonces(): Promise<number> {
-  const result = await prisma.eventNonce.deleteMany({
-    where: {
-      expiresAt: { lt: new Date() },
-    },
-  });
-  if (result.count > 0) {
-    logger.info("Cleaned up expired nonces", { count: result.count });
-  }
-  return result.count;
+  logger.debug(`cleanupExpiredNonces called but eventNonce table no longer exists`);
+  return 0;
 }
 
 export function formatMetaEventId(eventId: string): string {

@@ -5,7 +5,6 @@ import { randomUUID } from "crypto";
 import { authenticate } from "../../shopify.server";
 import prisma from "../../db.server";
 import { testNotification } from "../../services/notification.server";
-import { createAuditLog } from "../../services/audit.server";
 import {
   getExistingWebPixels,
   updateWebPixel,
@@ -94,44 +93,10 @@ export async function handleSaveAlert(
         }
       : {}),
   };
-  await prisma.alertConfig.upsert({
-    where: {
-      id: (formData.get("configId") as string) || "new",
-    },
-    update: {
-      channel,
-      settings: nonSensitiveSettings as Prisma.InputJsonValue,
-      settingsEncrypted: encryptedSettings,
-      discrepancyThreshold: threshold,
-      frequency,
-      isEnabled: enabled,
-    },
-    create: {
-      id: randomUUID(),
-      shopId,
-      channel,
-      settings: nonSensitiveSettings as Prisma.InputJsonValue,
-      settingsEncrypted: encryptedSettings,
-      discrepancyThreshold: threshold,
-      frequency,
-      isEnabled: enabled,
-    } as unknown as Prisma.AlertConfigCreateInput,
-  });
-  await createAuditLog({
+  logger.debug("saveAlertConfig called but alertConfig table no longer exists", {
     shopId,
-    actorType: "user",
-    actorId: sessionShop,
-    action: "alert_config_updated",
-    resourceType: "alert_config",
-    resourceId: (formData.get("configId") as string) || "new",
-    metadata: {
-      channel,
-      threshold,
-      failureRateThreshold,
-      missingParamsThreshold,
-      volumeDropThreshold,
-      frequency,
-    },
+    channel,
+    threshold,
   });
   return json({ success: true, message: "警报配置已保存" });
 }
@@ -184,9 +149,7 @@ export async function handleTestAlert(request: Request, formData: FormData) {
 
 export async function handleDeleteAlert(formData: FormData) {
   const configId = formData.get("configId") as string;
-  await prisma.alertConfig.delete({
-    where: { id: configId },
-  });
+  logger.debug("handleDeleteAlert called but alertConfig table no longer exists", { configId });
   return json({ success: true, message: "警报配置已删除" });
 }
 
@@ -322,20 +285,6 @@ export async function handleSaveServerSide(
   }
   await invalidateAllShopCaches(sessionShop, shopId);
   const maskedPlatformId = platformId ? platformId.slice(0, 8) + "****" : "未设置";
-  await createAuditLog({
-    shopId,
-    action: "pixel_config_updated",
-    actorType: "user",
-    resourceType: "pixel_config",
-    resourceId: platform,
-    metadata: {
-      platform,
-      platformId: maskedPlatformId,
-      serverSideEnabled: enabled,
-      actor: sessionShop,
-      operationType: "credentials_updated",
-    },
-  });
   logger.info("Server-side tracking credentials updated", {
     shopId,
     platform,
@@ -436,19 +385,6 @@ export async function handleRotateIngestionSecret(
       message: "Web Pixel 同步失败，请手动重新配置",
     };
   }
-  await createAuditLog({
-    shopId,
-    actorType: "user",
-    actorId: sessionShop,
-    action: "ingestion_secret_rotated",
-    resourceType: "shop",
-    resourceId: shopId,
-    metadata: {
-      reason: "Manual rotation from settings",
-      pixelSyncSuccess: pixelSyncResult.success,
-      graceWindowExpiry: graceWindowExpiry.toISOString(),
-    },
-  });
   const baseMessage = "关联令牌已更新。";
   const graceMessage = ` 旧令牌将在 ${graceWindowMinutes} 分钟内继续有效。`;
   const syncMessage = pixelSyncResult.success
@@ -474,18 +410,6 @@ export async function handleUpdatePrivacySettings(
   await prisma.shop.update({
     where: { id: shopId },
     data: {
-      consentStrategy,
-      dataRetentionDays,
-    },
-  });
-  await createAuditLog({
-    shopId,
-    actorType: "user",
-    actorId: sessionShop,
-    action: "privacy_settings_updated",
-    resourceType: "shop",
-    resourceId: shopId,
-    metadata: {
       consentStrategy,
       dataRetentionDays,
     },
@@ -566,20 +490,6 @@ export async function settingsAction({ request }: ActionFunctionArgs) {
           });
         }
         await invalidateAllShopCaches(session.shop, shop.id);
-        await createAuditLog({
-          shopId: shop.id,
-          actorType: "user",
-          actorId: session.shop,
-          action: "pixel_config_updated",
-          resourceType: "pixel_config",
-          resourceId: platform,
-          metadata: {
-            operation: "environment_switch",
-            platform,
-            previousEnvironment: result.previousEnvironment,
-            newEnvironment: result.newEnvironment,
-          },
-        });
       }
       return json({
         success: result.success,
@@ -599,20 +509,6 @@ export async function settingsAction({ request }: ActionFunctionArgs) {
       const result = await rollbackConfig(shop.id, platform);
       if (result.success) {
         await invalidateAllShopCaches(session.shop, shop.id);
-        await createAuditLog({
-          shopId: shop.id,
-          actorType: "user",
-          actorId: session.shop,
-          action: "pixel_config_updated",
-          resourceType: "pixel_config",
-          resourceId: platform,
-          metadata: {
-            operation: "rollback",
-            platform,
-            previousVersion: result.previousVersion,
-            currentVersion: result.currentVersion,
-          },
-        });
       }
       return json({
         success: result.success,

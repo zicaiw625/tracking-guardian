@@ -5,7 +5,6 @@ import { decryptAlertSettings } from "./alert-settings.server";
 import { getEventMonitoringStats, getMissingParamsStats, getEventVolumeStats } from "./monitoring.server";
 import { detectVolumeAnomaly } from "./monitoring/volume-anomaly.server";
 import { getEventSuccessRate } from "./monitoring/event-success-rate.server";
-import type { AlertConfig } from "@prisma/client";
 import type { AlertSettings } from "../types";
 
 export interface AlertCheckResult {
@@ -132,35 +131,7 @@ export async function checkPixelHeartbeat(shopId: string): Promise<AlertCheckRes
 }
 
 async function dispatchAlerts(shopId: string, results: AlertCheckResult[]): Promise<void> {
-  const configs = await prisma.alertConfig.findMany({
-    where: {
-      shopId,
-      isEnabled: true,
-    },
-  });
-  for (const config of configs) {
-    try {
-      const settings = config.settingsEncrypted
-        ? await decryptAlertSettings(config.settingsEncrypted)
-        : (config.settings as AlertSettings | null);
-      if (!settings) continue;
-      for (const result of results) {
-        await sendAlert({
-          channel: config.channel as "email" | "slack" | "telegram",
-          settings,
-          subject: `告警: ${result.message}`,
-          message: result.message,
-          severity: result.severity,
-        });
-      }
-      await prisma.alertConfig.update({
-        where: { id: config.id },
-        data: { lastAlertAt: new Date() },
-      });
-    } catch (error) {
-      logger.error("Failed to dispatch alert", { configId: config.id, error });
-    }
-  }
+  logger.debug("dispatchAlerts called but alertConfig table no longer exists", { shopId, resultsCount: results.length });
 }
 
 export async function getAlertHistory(shopId: string, limit: number = 50): Promise<AlertHistory[]> {

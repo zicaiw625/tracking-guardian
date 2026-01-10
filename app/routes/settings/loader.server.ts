@@ -40,14 +40,6 @@ export async function settingsLoader({ request }: LoaderFunctionArgs) {
         },
       },
     });
-    const alertConfigsFromShop: Array<{
-      id: string;
-      channel: string;
-      settings: unknown;
-      frequency: string;
-      discrepancyThreshold: number;
-      isEnabled: boolean;
-    }> = [];
     let tokenIssues = { hasIssues: false, affectedPlatforms: [] as string[] };
     if (shop) {
       try {

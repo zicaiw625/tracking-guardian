@@ -33,25 +33,18 @@ export interface MissingParamsStats {
   }>;
 }
 
-export async function getEventMonitoringStats(shopId: string): Promise<EventMonitoringStats> {
-  const stats = await prisma.conversionLog.groupBy({
-    by: ["platform", "status"],
+export async function getEventMonitoringStats(shopId: string, hours: number = 24): Promise<EventMonitoringStats> {
+  const since = new Date(Date.now() - hours * 60 * 60 * 1000);
+  const receipts = await prisma.pixelEventReceipt.findMany({
     where: {
       shopId,
       createdAt: {
-        gte: new Date(Date.now() - 24 * 60 * 60 * 1000), 
+        gte: since,
       },
     },
-    _count: {
-      id: true,
-    },
-  });
-  const totalEvents = await prisma.conversionLog.count({
-    where: {
-      shopId,
-      createdAt: {
-        gte: new Date(Date.now() - 24 * 60 * 60 * 1000),
-      },
+    select: {
+      platform: true,
+      payloadJson: true,
     },
   });
   const byPlatform: Record<string, { total: number; success: number; failure: number }> = {};
@@ -60,28 +53,26 @@ export async function getEventMonitoringStats(shopId: string): Promise<EventMoni
   let pendingCount = 0;
   let retryingCount = 0;
   let deadLetterCount = 0;
-  for (const stat of stats) {
-    const platform = stat.platform;
+  for (const receipt of receipts) {
+    if (!receipt.platform) continue;
+    const platform = receipt.platform;
     if (!byPlatform[platform]) {
       byPlatform[platform] = { total: 0, success: 0, failure: 0 };
     }
-    const count = stat._count.id;
-    byPlatform[platform].total += count;
-    if (stat.status === "sent") {
-      successCount += count;
-      byPlatform[platform].success += count;
-    } else if (stat.status === "failed" || stat.status === "dead_letter") {
-      failureCount += count;
-      byPlatform[platform].failure += count;
-      if (stat.status === "dead_letter") {
-        deadLetterCount += count;
-      }
-    } else if (stat.status === "pending") {
-      pendingCount += count;
-    } else if (stat.status === "retrying") {
-      retryingCount += count;
+    byPlatform[platform].total++;
+    const payload = receipt.payloadJson as Record<string, unknown> | null;
+    const data = payload?.data as Record<string, unknown> | undefined;
+    const hasValue = data?.value !== undefined && data?.value !== null;
+    const hasCurrency = !!data?.currency;
+    if (hasValue && hasCurrency) {
+      successCount++;
+      byPlatform[platform].success++;
+    } else {
+      failureCount++;
+      byPlatform[platform].failure++;
     }
   }
+  const totalEvents = receipts.length;
   const successRate = totalEvents > 0 ? (successCount / totalEvents) * 100 : 0;
   const failureRate = totalEvents > 0 ? (failureCount / totalEvents) * 100 : 0;
   return {
@@ -101,13 +92,13 @@ export async function getEventVolumeStats(shopId: string): Promise<EventVolumeSt
   const previousPeriodStart = new Date(now.getTime() - 48 * 60 * 60 * 1000);
   const previousPeriodEnd = currentPeriodStart;
   const [current, previous] = await Promise.all([
-    prisma.conversionLog.count({
+    prisma.pixelEventReceipt.count({
       where: {
         shopId,
         createdAt: { gte: currentPeriodStart },
       },
     }),
-    prisma.conversionLog.count({
+    prisma.pixelEventReceipt.count({
       where: {
         shopId,
         createdAt: {
@@ -127,29 +118,35 @@ export async function getEventVolumeStats(shopId: string): Promise<EventVolumeSt
   };
 }
 
-export async function getMissingParamsStats(shopId: string): Promise<MissingParamsStats> {
-  const logs = await prisma.conversionLog.findMany({
+export async function getMissingParamsStats(shopId: string, hours: number = 24): Promise<MissingParamsStats> {
+  const since = new Date(Date.now() - hours * 60 * 60 * 1000);
+  const receipts = await prisma.pixelEventReceipt.findMany({
     where: {
       shopId,
       createdAt: {
-        gte: new Date(Date.now() - 24 * 60 * 60 * 1000),
+        gte: since,
       },
     },
     select: {
       platform: true,
-      platformResponse: true,
+      payloadJson: true,
     },
   });
   const byPlatform: Record<string, { total: number; missing: number; rate: number }> = {};
   let totalMissing = 0;
-  for (const log of logs) {
-    const platform = log.platform;
+  for (const receipt of receipts) {
+    if (!receipt.platform) continue;
+    const platform = receipt.platform;
     if (!byPlatform[platform]) {
       byPlatform[platform] = { total: 0, missing: 0, rate: 0 };
     }
     byPlatform[platform].total++;
-    const response = log.platformResponse as { missingParams?: string[] } | null;
-    if (response?.missingParams && response.missingParams.length > 0) {
+    const payload = receipt.payloadJson as Record<string, unknown> | null;
+    const data = payload?.data as Record<string, unknown> | undefined;
+    const hasValue = data?.value !== undefined && data?.value !== null;
+    const hasCurrency = !!data?.currency;
+    const hasItems = Array.isArray(data?.items) && data.items.length > 0;
+    if (!hasValue || !hasCurrency || !hasItems) {
       byPlatform[platform].missing++;
       totalMissing++;
     }
@@ -158,7 +155,7 @@ export async function getMissingParamsStats(shopId: string): Promise<MissingPara
     const stats = byPlatform[platform];
     stats.rate = stats.total > 0 ? (stats.missing / stats.total) * 100 : 0;
   }
-  const total = logs.length;
+  const total = receipts.length;
   const missingParamsRate = total > 0 ? (totalMissing / total) * 100 : 0;
   return {
     total,

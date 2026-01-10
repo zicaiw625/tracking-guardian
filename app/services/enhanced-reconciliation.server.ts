@@ -125,18 +125,19 @@ export async function runReconciliation(
 ): Promise<ReconciliationResult> {
   logger.info("Starting reconciliation", { shopId, startDate, endDate });
   const shopifyOrders = await fetchShopifyOrders(admin, startDate, endDate);
-  const conversionLogs = await prisma.conversionLog.findMany({
-    where: {
-      shopId,
-      createdAt: { gte: startDate, lte: endDate },
-      eventType: "purchase",
-    },
-  });
   const pixelReceipts = await prisma.pixelEventReceipt.findMany({
     where: {
       shopId,
       createdAt: { gte: startDate, lte: endDate },
-      eventType: "checkout_completed",
+      eventType: { in: ["purchase", "checkout_completed"] },
+    },
+    select: {
+      id: true,
+      orderKey: true,
+      platform: true,
+      eventType: true,
+      createdAt: true,
+      payloadJson: true,
     },
   });
   const shopifyOrderMap = new Map<string, ShopifyOrder>();
@@ -144,15 +145,12 @@ export async function runReconciliation(
     const orderId = extractOrderId(order.id);
     shopifyOrderMap.set(orderId, order);
   });
-  const conversionMap = new Map<string, typeof conversionLogs[0][]>();
-  conversionLogs.forEach(log => {
-    const existing = conversionMap.get(log.orderId) || [];
-    existing.push(log);
-    conversionMap.set(log.orderId, existing);
-  });
-  const receiptMap = new Map<string, typeof pixelReceipts[0]>();
+  const receiptMap = new Map<string, typeof pixelReceipts[0][]>();
   pixelReceipts.forEach(receipt => {
-    receiptMap.set(receipt.orderId, receipt);
+    if (!receipt.orderKey) return;
+    const existing = receiptMap.get(receipt.orderKey) || [];
+    existing.push(receipt);
+    receiptMap.set(receipt.orderKey, existing);
   });
   const discrepancies: OrderDiscrepancy[] = [];
   const platformStats: Record<string, PlatformReconciliation> = {};
@@ -164,9 +162,8 @@ export async function runReconciliation(
     const shopifyValue = parseFloat(shopifyOrder.totalPriceSet.shopMoney.amount);
     const shopifyCurrency = shopifyOrder.totalPriceSet.shopMoney.currencyCode;
     totalShopifyRevenue += shopifyValue;
-    const conversions = conversionMap.get(orderId);
-    const receipt = receiptMap.get(orderId);
-    if (!conversions || conversions.length === 0) {
+    const receipts = receiptMap.get(orderId) || [];
+    if (receipts.length === 0) {
       discrepancies.push({
         orderId,
         orderNumber: shopifyOrder.name,
@@ -175,12 +172,12 @@ export async function runReconciliation(
         trackedValue: null,
         trackedCurrency: null,
         discrepancyType: "missing",
-        details: receipt ? "有 Pixel 收据但无 CAPI 发送" : "订单未被追踪",
+        details: "订单未被追踪",
       });
     } else {
       matchedOrders++;
-      for (const conversion of conversions) {
-        const platform = conversion.platform;
+      for (const receipt of receipts) {
+        const platform = receipt.platform || "unknown";
         if (!platformStats[platform]) {
           platformStats[platform] = {
             platform,
@@ -193,57 +190,67 @@ export async function runReconciliation(
             dedupConflicts: 0,
           };
         }
+        const payload = receipt.payloadJson as Record<string, unknown> | null;
+        const data = payload?.data as Record<string, unknown> | undefined;
+        const trackedValue = typeof data?.value === "number" ? data.value : 0;
+        const trackedCurrency = (data?.currency as string) || shopifyCurrency;
+        const hasValue = trackedValue > 0 && !!trackedCurrency;
         platformStats[platform].ordersTracked++;
-        platformStats[platform].revenueTracked += Number(conversion.orderValue);
-        if (conversion.status === "sent") {
+        platformStats[platform].revenueTracked += trackedValue;
+        if (hasValue) {
           platformStats[platform].ordersSent++;
-        } else if (conversion.status === "failed") {
+          totalTrackedRevenue += trackedValue;
+        } else {
           platformStats[platform].ordersFailed++;
         }
-        const trackedValue = Number(conversion.orderValue);
-        totalTrackedRevenue += trackedValue;
-        if (Math.abs(trackedValue - shopifyValue) > 0.01) {
+        if (hasValue && Math.abs(trackedValue - shopifyValue) > 0.01) {
           discrepancies.push({
             orderId,
             orderNumber: shopifyOrder.name,
             shopifyValue,
             shopifyCurrency,
             trackedValue,
-            trackedCurrency: conversion.currency,
+            trackedCurrency,
             discrepancyType: "value_mismatch",
             details: `金额差异: Shopify ${shopifyValue} vs 追踪 ${trackedValue}`,
           });
         }
-        if (conversion.currency !== shopifyCurrency) {
+        if (hasValue && trackedCurrency !== shopifyCurrency) {
           discrepancies.push({
             orderId,
             orderNumber: shopifyOrder.name,
             shopifyValue,
             shopifyCurrency,
             trackedValue,
-            trackedCurrency: conversion.currency,
+            trackedCurrency,
             discrepancyType: "currency_mismatch",
-            details: `币种差异: Shopify ${shopifyCurrency} vs 追踪 ${conversion.currency}`,
+            details: `币种差异: Shopify ${shopifyCurrency} vs 追踪 ${trackedCurrency}`,
           });
         }
       }
-      if (conversions.length > 1) {
+      if (receipts.length > 1) {
         const platformCounts = new Map<string, number>();
-        conversions.forEach(c => {
-          platformCounts.set(c.platform, (platformCounts.get(c.platform) || 0) + 1);
+        receipts.forEach(r => {
+          const platform = r.platform || "unknown";
+          platformCounts.set(platform, (platformCounts.get(platform) || 0) + 1);
         });
         for (const [platform, count] of platformCounts) {
           if (count > 1) {
             if (platformStats[platform]) {
               platformStats[platform].dedupConflicts++;
             }
+            const firstReceipt = receipts[0];
+            const payload = firstReceipt.payloadJson as Record<string, unknown> | null;
+            const data = payload?.data as Record<string, unknown> | undefined;
+            const trackedValue = typeof data?.value === "number" ? data.value : 0;
+            const trackedCurrency = (data?.currency as string) || shopifyCurrency;
             discrepancies.push({
               orderId,
               orderNumber: shopifyOrder.name,
               shopifyValue,
               shopifyCurrency,
-              trackedValue: Number(conversions[0].orderValue),
-              trackedCurrency: conversions[0].currency,
+              trackedValue,
+              trackedCurrency,
               discrepancyType: "duplicate",
               details: `${platform} 平台重复发送 ${count} 次`,
             });
@@ -288,13 +295,14 @@ export async function runReconciliation(
       count: duplicateCount,
     });
   }
+  const totalTrackedEvents = pixelReceipts.length;
   const result: ReconciliationResult = {
     shopId,
     period: { start: startDate, end: endDate },
     summary: {
       totalShopifyOrders: shopifyOrders.length,
       totalShopifyRevenue,
-      totalTrackedEvents: conversionLogs.length,
+      totalTrackedEvents,
       totalTrackedRevenue,
       matchRate: shopifyOrders.length > 0 ? matchedOrders / shopifyOrders.length : 1,
       revenueMatchRate: totalShopifyRevenue > 0
@@ -338,32 +346,17 @@ export async function reconcilePixelVsCapi(
       eventType: "checkout_completed",
     },
     select: {
-      orderId: true,
+      orderKey: true,
       consentState: true,
-    },
-  });
-  const capiLogs = await prisma.conversionLog.findMany({
-    where: {
-      shopId,
-      createdAt: { gte: startDate, lte: endDate },
-      eventType: "purchase",
-    },
-    select: {
-      orderId: true,
-      status: true,
-      platform: true,
     },
   });
   const pixelMap = new Map<string, { marketing: boolean; analytics: boolean } | null>();
   pixelReceipts.forEach(r => {
-    pixelMap.set(r.orderId, r.consentState as { marketing: boolean; analytics: boolean } | null);
-  });
-  const capiMap = new Map<string, string>();
-  capiLogs.forEach(l => {
-    if (!capiMap.has(l.orderId) || l.status === "sent") {
-      capiMap.set(l.orderId, l.status);
+    if (r.orderKey) {
+      pixelMap.set(r.orderKey, r.consentState as { marketing: boolean; analytics: boolean } | null);
     }
   });
+  const capiMap = new Map<string, string>();
   const allOrderIds = new Set([...pixelMap.keys(), ...capiMap.keys()]);
   let pixelOnly = 0;
   let capiOnly = 0;
@@ -411,39 +404,6 @@ export async function reconcilePixelVsCapi(
 export async function saveReconciliationReport(
   result: ReconciliationResult
 ): Promise<string> {
-  for (const [platform, stats] of Object.entries(result.platforms)) {
-    await prisma.reconciliationReport.upsert({
-      where: {
-        shopId_platform_reportDate: {
-          shopId: result.shopId,
-          platform,
-          reportDate: result.period.start,
-        },
-      },
-      update: {
-        shopifyOrders: result.summary.totalShopifyOrders,
-        shopifyRevenue: new Decimal(result.summary.totalShopifyRevenue),
-        platformConversions: stats.ordersSent,
-        platformRevenue: new Decimal(stats.revenueTracked),
-        orderDiscrepancy: 1 - result.summary.matchRate,
-        revenueDiscrepancy: 1 - result.summary.revenueMatchRate,
-        status: "completed",
-      },
-      create: {
-        id: randomUUID(),
-        shopId: result.shopId,
-        platform,
-        reportDate: result.period.start,
-        shopifyOrders: result.summary.totalShopifyOrders,
-        shopifyRevenue: new Decimal(result.summary.totalShopifyRevenue),
-        platformConversions: stats.ordersSent,
-        platformRevenue: new Decimal(stats.revenueTracked),
-        orderDiscrepancy: 1 - result.summary.matchRate,
-        revenueDiscrepancy: 1 - result.summary.revenueMatchRate,
-        status: "completed",
-      },
-    });
-  }
   return result.shopId;
 }
 
@@ -507,22 +467,31 @@ export async function checkLocalConsistency(
     return null;
   }
   if (!shopifyOrder) {
-    const job = await prisma.conversionJob.findFirst({
+    const receipt = await prisma.pixelEventReceipt.findFirst({
       where: {
         shopId,
-        orderId,
+        orderKey: orderId,
       },
       orderBy: { createdAt: "desc" },
+      select: {
+        payloadJson: true,
+      },
     });
     if (signal?.aborted) {
       return null;
     }
-    if (job) {
-      shopifyOrder = {
-        value: Number(job.orderValue || 0),
-        currency: job.currency || "USD",
-        itemCount: 0,
-      };
+    if (receipt) {
+      const payload = receipt.payloadJson as Record<string, unknown> | null;
+      const data = payload?.data as Record<string, unknown> | undefined;
+      const value = typeof data?.value === "number" ? data.value : 0;
+      const currency = (data?.currency as string) || "USD";
+      if (value > 0) {
+        shopifyOrder = {
+          value,
+          currency,
+          itemCount: 0,
+        };
+      }
     }
   }
   if (!shopifyOrder) {
@@ -531,61 +500,34 @@ export async function checkLocalConsistency(
   if (signal?.aborted) {
     return null;
   }
-  if (signal?.aborted) {
-    return null;
-  }
-  const job = await prisma.conversionJob.findFirst({
-    where: {
-      shopId,
-      orderId,
-    },
-    select: {
-      capiInput: true,
-      orderValue: true,
-      currency: true,
-      orderNumber: true,
-    },
-  });
-  if (signal?.aborted) {
-    return null;
-  }
-  if (job?.capiInput) {
-    try {
-      const eventData = typeof job.capiInput === "string"
-        ? JSON.parse(job.capiInput)
-        : job.capiInput;
-      if (eventData && typeof eventData === "object" && "items" in eventData && Array.isArray(eventData.items)) {
-        shopifyOrder.itemCount = eventData.items.reduce(
-          (sum: number, item: { quantity?: number }) => sum + (item.quantity || 1),
-          0
-        );
-      }
-    } catch (error) {
-    }
-  }
-  if (signal?.aborted) {
-    return null;
-  }
   const pixelReceipt = await prisma.pixelEventReceipt.findFirst({
     where: {
       shopId,
-      orderId,
+      orderKey: orderId,
     },
     select: {
       id: true,
-      orderId: true,
-      metadata: true,
-      checkoutToken: true,
+      orderKey: true,
+      payloadJson: true,
     },
     orderBy: { createdAt: "desc" },
   });
   if (signal?.aborted) {
     return null;
   }
-  const capiEvents = await prisma.conversionLog.findMany({
+  const capiEvents = await prisma.pixelEventReceipt.findMany({
     where: {
       shopId,
-      orderId,
+      orderKey: orderId,
+      eventType: { in: ["purchase", "checkout_completed"] },
+    },
+    select: {
+      id: true,
+      orderKey: true,
+      platform: true,
+      eventType: true,
+      payloadJson: true,
+      createdAt: true,
     },
     orderBy: { createdAt: "desc" },
   });
@@ -597,21 +539,17 @@ export async function checkLocalConsistency(
   let pixelPayloadValid = true;
   const pixelPayloadErrors: string[] = [];
   if (pixelReceipt) {
-    const metadata = pixelReceipt.metadata as Record<string, unknown> | null;
-    const payload = metadata?.payload || metadata;
+    const payload = pixelReceipt.payloadJson as Record<string, unknown> | null;
     if (!payload) {
       pixelPayloadValid = false;
       pixelPayloadErrors.push("Pixel 收据缺少 payload");
     } else {
       try {
-        const parsedPayload = typeof payload === "string"
-          ? JSON.parse(payload)
-          : payload;
-        if (parsedPayload && typeof parsedPayload === "object") {
-          if (!("event_name" in parsedPayload)) {
+        if (payload && typeof payload === "object") {
+          if (!("event_name" in payload || "eventName" in payload)) {
             pixelPayloadErrors.push("缺少 event_name");
           }
-          if (!("event_time" in parsedPayload)) {
+          if (!("event_time" in payload || "eventTime" in payload)) {
             pixelPayloadErrors.push("缺少 event_time");
           }
         }
@@ -620,8 +558,9 @@ export async function checkLocalConsistency(
         pixelPayloadErrors.push("Payload 格式无效");
       }
     }
-    const orderValue = metadata?.orderValue || metadata?.value;
-    const currency = metadata?.currency;
+    const data = payload?.data as Record<string, unknown> | undefined;
+    const orderValue = data?.value || data?.orderValue;
+    const currency = data?.currency;
     if (orderValue !== undefined && orderValue !== null) {
       const pixelValue = Number(orderValue);
       const valueMatch = Math.abs(pixelValue - shopifyOrder.value) < 0.01;
@@ -637,33 +576,37 @@ export async function checkLocalConsistency(
     issues.push("缺少 Pixel 收据");
   }
   const capiEventChecks = capiEvents.map((event) => {
-    const value = Number(event.orderValue || 0);
-    const currency = event.currency || "";
+    const payload = event.payloadJson as Record<string, unknown> | null;
+    const data = payload?.data as Record<string, unknown> | undefined;
+    const value = typeof data?.value === "number" ? data.value : 0;
+    const currency = (data?.currency as string) || "";
     const valueMatch = Math.abs(value - shopifyOrder!.value) < 0.01;
     const currencyMatch = currency === shopifyOrder!.currency;
-    if (!valueMatch) {
-      issues.push(`${event.platform} CAPI 金额不匹配: ${value} vs ${shopifyOrder!.value}`);
+    if (!valueMatch && value > 0) {
+      issues.push(`${event.platform || "unknown"} Pixel 金额不匹配: ${value} vs ${shopifyOrder!.value}`);
     }
-    if (!currencyMatch) {
-      issues.push(`${event.platform} CAPI 币种不匹配: ${currency} vs ${shopifyOrder!.currency}`);
+    if (!currencyMatch && currency) {
+      issues.push(`${event.platform || "unknown"} Pixel 币种不匹配: ${currency} vs ${shopifyOrder!.currency}`);
     }
-    if (!event.eventId) {
-      issues.push(`${event.platform} CAPI 缺少 event_id（可能影响去重）`);
+    const eventId = payload?.eventId as string | undefined || payload?.event_id as string | undefined;
+    if (!eventId) {
+      issues.push(`${event.platform || "unknown"} Pixel 缺少 event_id（可能影响去重）`);
     }
-    if (event.sentAt) {
-      const eventTime = new Date(event.sentAt).getTime();
-      const orderTime = new Date(event.createdAt).getTime();
+    const pixelTimestamp = payload?.event_time as number | undefined || payload?.eventTime as number | undefined;
+    if (pixelTimestamp) {
+      const eventTime = typeof pixelTimestamp === "number" ? pixelTimestamp * 1000 : new Date(pixelTimestamp).getTime();
+      const orderTime = event.createdAt.getTime();
       const timeDiff = Math.abs(eventTime - orderTime);
       const oneHour = 60 * 60 * 1000;
       if (timeDiff > oneHour) {
-        issues.push(`${event.platform} CAPI 事件时间戳异常（延迟 ${Math.round(timeDiff / 1000 / 60)} 分钟）`);
+        issues.push(`${event.platform || "unknown"} Pixel 事件时间戳异常（延迟 ${Math.round(timeDiff / 1000 / 60)} 分钟）`);
       }
     }
     return {
-      platform: event.platform,
+      platform: event.platform || "unknown",
       value,
       currency,
-      status: event.status,
+      status: value > 0 ? "sent" : "pending",
       valueMatch,
       currencyMatch,
     };
@@ -698,23 +641,22 @@ export async function checkLocalConsistency(
   if (!pixelReceipt || !pixelPayloadValid || capiEventChecks.length === 0) {
     consistencyStatus = "inconsistent";
   }
+  const pixelPayload = pixelReceipt?.payloadJson as Record<string, unknown> | null;
+  const pixelData = pixelPayload?.data as Record<string, unknown> | undefined;
+  const pixelValue = typeof pixelData?.value === "number" ? pixelData.value : 0;
+  const pixelCurrency = (pixelData?.currency as string) || "";
+  const valueMatch = pixelReceipt && Math.abs(pixelValue - shopifyOrder.value) < 0.01;
+  const currencyMatch = pixelReceipt && pixelCurrency === shopifyOrder.currency;
+
   return {
     orderId,
-    orderNumber: job?.orderNumber || null,
+    orderNumber: null,
     shopifyOrder,
     pixelReceipt: {
       hasReceipt: !!pixelReceipt,
       payloadValid: pixelPayloadValid,
-      valueMatch: pixelReceipt ? (() => {
-        const metadata = pixelReceipt.metadata as Record<string, unknown> | null;
-        const orderValue = metadata?.orderValue || metadata?.value;
-        return orderValue !== undefined && orderValue !== null ? Math.abs(Number(orderValue) - shopifyOrder.value) < 0.01 : false;
-      })() : false,
-      currencyMatch: pixelReceipt ? (() => {
-        const metadata = pixelReceipt.metadata as Record<string, unknown> | null;
-        const currency = metadata?.currency;
-        return currency ? String(currency) === shopifyOrder.currency : false;
-      })() : false,
+      valueMatch: valueMatch || false,
+      currencyMatch: currencyMatch || false,
       payloadErrors: pixelPayloadErrors.length > 0 ? pixelPayloadErrors : undefined,
     },
     capiEvents: capiEventChecks,
@@ -849,18 +791,19 @@ export async function performBulkLocalConsistencyCheck(
     issues: string[];
   }>;
 }> {
-  const jobs = await prisma.conversionJob.findMany({
+  const receipts = await prisma.pixelEventReceipt.findMany({
     where: {
       shopId,
       createdAt: { gte: startDate, lte: endDate },
+      eventType: { in: ["purchase", "checkout_completed"] },
     },
     select: {
-      orderId: true,
+      orderKey: true,
     },
-    distinct: ["orderId"],
+    distinct: ["orderKey"],
     take: options?.maxOrders || 100,
   });
-  let orderIds = jobs.map((j) => j.orderId);
+  let orderIds = receipts.map((r) => r.orderKey).filter(Boolean) as string[];
   if (options?.sampleRate && options.sampleRate < 1.0) {
     const sampleSize = Math.floor(orderIds.length * options.sampleRate);
     orderIds = orderIds.slice(0, sampleSize);

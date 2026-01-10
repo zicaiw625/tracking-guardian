@@ -47,36 +47,7 @@ export interface ConversionLogWithShop {
 export async function fetchJobsWithRelations(
   jobIds: string[]
 ): Promise<JobWithRelations[]> {
-  if (jobIds.length === 0) return [];
-  const jobs = await prisma.conversionJob.findMany({
-    where: { id: { in: jobIds } },
-    include: {
-      Shop: {
-        select: {
-          id: true,
-          shopDomain: true,
-          plan: true,
-          consentStrategy: true,
-          primaryDomain: true,
-          storefrontDomains: true,
-          pixelConfigs: {
-            where: { isActive: true, serverSideEnabled: true },
-            select: {
-              id: true,
-              platform: true,
-              platformId: true,
-              credentialsEncrypted: true,
-              clientConfig: true,
-            },
-          },
-        },
-      },
-    },
-  });
-  return jobs.map(job => ({
-    ...job,
-    shop: job.Shop as ShopWithConfigs,
-  })) as JobWithRelations[];
+  return [];
 }
 
 export async function fetchShopsWithConfigs(
@@ -110,28 +81,28 @@ export async function fetchReceiptsMap(
   queries: Array<{ shopId: string; orderId: string }>
 ): Promise<Map<string, { orderId: string; checkoutToken: string | null; consentState: unknown; trustLevel: string }>> {
   if (queries.length === 0) return new Map();
-  const orConditions = queries.map(q => ({
-    shopId: q.shopId,
-    orderId: q.orderId,
-  }));
+  const orderIds = queries.map(q => q.orderId);
   const receipts = await prisma.pixelEventReceipt.findMany({
-    where: { OR: orConditions },
+    where: {
+      shopId: queries[0].shopId,
+      orderKey: { in: orderIds },
+    },
     select: {
       shopId: true,
-      orderId: true,
-      checkoutToken: true,
-      consentState: true,
-      trustLevel: true,
+      orderKey: true,
+      payloadJson: true,
     },
   });
   const map = new Map<string, { orderId: string; checkoutToken: string | null; consentState: unknown; trustLevel: string }>();
   for (const receipt of receipts) {
-    const key = `${receipt.shopId}:${receipt.orderId}`;
+    if (!receipt.orderKey) continue;
+    const key = `${receipt.shopId}:${receipt.orderKey}`;
+    const payload = receipt.payloadJson as Record<string, unknown> | null;
     map.set(key, {
-      orderId: receipt.orderId,
-      checkoutToken: receipt.checkoutToken,
-      consentState: receipt.consentState,
-      trustLevel: receipt.trustLevel,
+      orderId: receipt.orderKey,
+      checkoutToken: null,
+      consentState: payload?.consent || null,
+      trustLevel: "trusted",
     });
   }
   return map;
@@ -148,38 +119,37 @@ export async function fetchConversionLogsForReconciliation(
   orderValue: import("@prisma/client").Prisma.Decimal;
   currency: string;
 }>> {
-  return prisma.conversionLog.findMany({
+  const receipts = await prisma.pixelEventReceipt.findMany({
     where: {
       shopId,
       createdAt: { gte: startDate, lt: endDate },
       platform: { in: platforms },
+      eventType: { in: ["purchase", "checkout_completed"] },
     },
     select: {
       platform: true,
-      status: true,
-      orderValue: true,
-      currency: true,
+      payloadJson: true,
     },
+  });
+  return receipts.map(receipt => {
+    const payload = receipt.payloadJson as Record<string, unknown> | null;
+    const data = payload?.data as Record<string, unknown> | undefined;
+    const value = typeof data?.value === "number" ? data.value : 0;
+    const currency = (data?.currency as string) || "USD";
+    const hasValue = value > 0 && !!currency;
+    return {
+      platform: receipt.platform || "",
+      status: hasValue ? "sent" : "pending",
+      orderValue: value as any,
+      currency,
+    };
   });
 }
 
 export async function countPendingJobsPerShop(
   shopIds: string[]
 ): Promise<Map<string, number>> {
-  if (shopIds.length === 0) return new Map();
-  const results = await prisma.conversionJob.groupBy({
-    by: ["shopId"],
-    where: {
-      shopId: { in: shopIds },
-      status: { in: ["queued", "failed"] },
-    },
-    _count: { id: true },
-  });
-  const map = new Map<string, number>();
-  for (const result of results) {
-    map.set(result.shopId, result._count.id);
-  }
-  return map;
+  return new Map();
 }
 
 export interface CursorPaginationParams {
@@ -199,18 +169,33 @@ export async function paginateConversionLogs(
   params: CursorPaginationParams
 ): Promise<CursorPaginationResult<{ id: string; orderId: string; status: string; createdAt: Date }>> {
   const { cursor, take, orderBy = "desc" } = params;
-  const items = await prisma.conversionLog.findMany({
-    where: { shopId },
+  const receipts = await prisma.pixelEventReceipt.findMany({
+    where: {
+      shopId,
+      eventType: { in: ["purchase", "checkout_completed"] },
+      ...(cursor ? { id: { gt: cursor } } : {}),
+    },
     select: {
       id: true,
-      orderId: true,
-      status: true,
+      orderKey: true,
       createdAt: true,
+      payloadJson: true,
     },
     take: take + 1,
-    cursor: cursor ? { id: cursor } : undefined,
-    skip: cursor ? 1 : 0,
     orderBy: { createdAt: orderBy },
+  });
+  const items = receipts.map(receipt => {
+    const payload = receipt.payloadJson as Record<string, unknown> | null;
+    const data = payload?.data as Record<string, unknown> | undefined;
+    const hasValue = data?.value !== undefined && data?.value !== null;
+    const hasCurrency = !!data?.currency;
+    const status = hasValue && hasCurrency ? "sent" : "pending";
+    return {
+      id: receipt.id,
+      orderId: receipt.orderKey || "",
+      status,
+      createdAt: receipt.createdAt,
+    };
   });
   const hasMore = items.length > take;
   const resultItems = hasMore ? items.slice(0, -1) : items;
@@ -232,27 +217,38 @@ export async function getConversionStats(
   successRate: number;
   platformBreakdown: Record<string, { count: number; value: number }>;
 }> {
-  const logs = await prisma.conversionLog.findMany({
+  const receipts = await prisma.pixelEventReceipt.findMany({
     where: {
       shopId,
       createdAt: { gte: startDate, lt: endDate },
+      eventType: { in: ["purchase", "checkout_completed"] },
     },
     select: {
       platform: true,
-      status: true,
-      orderValue: true,
+      payloadJson: true,
     },
   });
-  const totalOrders = logs.length;
-  const successfulOrders = logs.filter(l => l.status === "sent").length;
-  const totalValue = logs.reduce((sum, l) => sum + Number(l.orderValue), 0);
   const platformBreakdown: Record<string, { count: number; value: number }> = {};
-  for (const log of logs) {
-    if (!platformBreakdown[log.platform]) {
-      platformBreakdown[log.platform] = { count: 0, value: 0 };
+  let totalOrders = 0;
+  let successfulOrders = 0;
+  let totalValue = 0;
+  for (const receipt of receipts) {
+    if (!receipt.platform) continue;
+    totalOrders++;
+    const payload = receipt.payloadJson as Record<string, unknown> | null;
+    const data = payload?.data as Record<string, unknown> | undefined;
+    const value = typeof data?.value === "number" ? data.value : 0;
+    const hasValue = value > 0;
+    const hasCurrency = !!data?.currency;
+    if (hasValue && hasCurrency) {
+      successfulOrders++;
     }
-    platformBreakdown[log.platform].count++;
-    platformBreakdown[log.platform].value += Number(log.orderValue);
+    totalValue += value;
+    if (!platformBreakdown[receipt.platform]) {
+      platformBreakdown[receipt.platform] = { count: 0, value: 0 };
+    }
+    platformBreakdown[receipt.platform].count++;
+    platformBreakdown[receipt.platform].value += value;
   }
   return {
     totalOrders,
@@ -269,24 +265,12 @@ export async function getJobQueueHealth(): Promise<{
   deadLetter: number;
   oldestQueuedAt: Date | null;
 }> {
-  const [counts, oldestQueued] = await Promise.all([
-    prisma.conversionJob.groupBy({
-      by: ["status"],
-      _count: { id: true },
-    }),
-    prisma.conversionJob.findFirst({
-      where: { status: "queued" },
-      orderBy: { createdAt: "asc" },
-      select: { createdAt: true },
-    }),
-  ]);
-  const countMap = new Map(counts.map(c => [c.status, c._count.id]));
   return {
-    queued: countMap.get("queued") ?? 0,
-    processing: countMap.get("processing") ?? 0,
-    failed: countMap.get("failed") ?? 0,
-    deadLetter: countMap.get("dead_letter") ?? 0,
-    oldestQueuedAt: oldestQueued?.createdAt ?? null,
+    queued: 0,
+    processing: 0,
+    failed: 0,
+    deadLetter: 0,
+    oldestQueuedAt: null,
   };
 }
 

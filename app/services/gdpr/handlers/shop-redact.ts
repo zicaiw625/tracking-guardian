@@ -17,64 +17,27 @@ export async function processShopRedact(
     where: { shop: shopDomain },
   });
   deletedCounts.sessions = sessionResult.count;
-  const webhookLogResult = await prisma.webhookLog.deleteMany({
-    where: { shopDomain },
-  });
-  deletedCounts.webhookLogs = webhookLogResult.count;
   if (shop) {
-    const conversionLogResult = await prisma.conversionLog.deleteMany({
-      where: { shopId: shop.id },
-    });
-    deletedCounts.conversionLogs = conversionLogResult.count;
-    const conversionJobResult = await prisma.conversionJob.deleteMany({
-      where: { shopId: shop.id },
-    });
-    deletedCounts.conversionJobs = conversionJobResult.count;
     const pixelReceiptResult = await prisma.pixelEventReceipt.deleteMany({
       where: { shopId: shop.id },
     });
     deletedCounts.pixelEventReceipts = pixelReceiptResult.count;
-    const surveyResult = await prisma.surveyResponse.deleteMany({
+    const verificationRunResult = await prisma.verificationRun.deleteMany({
       where: { shopId: shop.id },
     });
-    deletedCounts.surveyResponses = surveyResult.count;
-    const auditLogResult = await prisma.auditLog.deleteMany({
-      where: { shopId: shop.id },
-    });
-    deletedCounts.auditLogs = auditLogResult.count;
-    await prisma.eventNonce.deleteMany({
-      where: { shopId: shop.id },
-    });
+    deletedCounts.verificationRuns = verificationRunResult.count;
     const scanReportResult = await prisma.scanReport.deleteMany({
       where: { shopId: shop.id },
     });
     deletedCounts.scanReports = scanReportResult.count;
-    const reconciliationResult = await prisma.reconciliationReport.deleteMany({
+    const auditAssetResult = await prisma.auditAsset.deleteMany({
       where: { shopId: shop.id },
     });
-    deletedCounts.reconciliationReports = reconciliationResult.count;
-    const alertConfigResult = await prisma.alertConfig.deleteMany({
-      where: { shopId: shop.id },
-    });
-    deletedCounts.alertConfigs = alertConfigResult.count;
+    deletedCounts.auditAssets = auditAssetResult.count;
     const pixelConfigResult = await prisma.pixelConfig.deleteMany({
       where: { shopId: shop.id },
     });
     deletedCounts.pixelConfigs = pixelConfigResult.count;
-    const monthlyUsageResult = await prisma.monthlyUsage.deleteMany({
-      where: { shopId: shop.id },
-    });
-    deletedCounts.monthlyUsages = monthlyUsageResult.count;
-    const eventLogResult = await prisma.eventLog.deleteMany({
-      where: { shopId: shop.id },
-    });
-    deletedCounts.eventLogs = eventLogResult.count;
-    logger.info(`[GDPR] Deleted ${eventLogResult.count} event logs for shop ${shopDomain}`);
-    const deliveryAttemptResult = await prisma.deliveryAttempt.deleteMany({
-      where: { shopId: shop.id },
-    });
-    deletedCounts.deliveryAttempts = deliveryAttemptResult.count;
-    logger.info(`[GDPR] Deleted ${deliveryAttemptResult.count} delivery attempts for shop ${shopDomain}`);
     await prisma.shop.delete({
       where: { id: shop.id },
     });

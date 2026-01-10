@@ -16,7 +16,7 @@ export async function getRecentEvents(
   shopId: string,
   limit: number = 50
 ): Promise<RealtimeEvent[]> {
-  const logs = await prisma.conversionLog.findMany({
+  const receipts = await prisma.pixelEventReceipt.findMany({
     where: { shopId },
     orderBy: { createdAt: "desc" },
     take: limit,
@@ -24,31 +24,32 @@ export async function getRecentEvents(
       id: true,
       eventType: true,
       platform: true,
-      orderId: true,
-      status: true,
+      orderKey: true,
       createdAt: true,
-      orderValue: true,
-      currency: true,
-      errorMessage: true,
+      pixelTimestamp: true,
+      payloadJson: true,
     },
   });
-  return logs.map((log) => {
-    const orderValue = log.orderValue;
-    const numericValue = orderValue != null
-      ? (typeof orderValue === "number" ? orderValue : Number(orderValue))
-      : undefined;
+  return receipts.map((receipt) => {
+    const payload = receipt.payloadJson as Record<string, unknown> | null;
+    const data = payload?.data as Record<string, unknown> | undefined;
+    const value = typeof data?.value === "number" ? data.value : undefined;
+    const currency = typeof data?.currency === "string" ? data.currency : undefined;
+    const hasValue = value !== undefined && value !== null;
+    const hasCurrency = !!currency;
+    const status = hasValue && hasCurrency ? "success" as const : "pending" as const;
     return {
-      id: log.id,
-      eventType: log.eventType,
-      platform: log.platform,
-      orderId: log.orderId,
-      status: log.status === "sent" ? "success" : log.status === "failed" ? "failed" : "pending",
-      timestamp: log.createdAt,
+      id: receipt.id,
+      eventType: receipt.eventType,
+      platform: receipt.platform || "unknown",
+      orderId: receipt.orderKey || "",
+      status,
+      timestamp: receipt.pixelTimestamp,
       params: {
-        value: numericValue,
-        currency: log.currency ?? undefined,
+        value,
+        currency,
       },
-      errors: log.errorMessage ? [log.errorMessage] : undefined,
+      errors: status === "pending" ? ["参数不完整"] : undefined,
     };
   });
 }

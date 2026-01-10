@@ -29,51 +29,56 @@ export async function getMonthlyUsage(
   const currentMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
   const previousMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
   const previousMonthEnd = new Date(now.getFullYear(), now.getMonth(), 0);
-  const [currentMonthLogs, previousMonthLogs, currentMonthReceipts] = await Promise.all([
-    prisma.conversionLog.findMany({
+  const [currentMonthReceipts, previousMonthReceipts] = await Promise.all([
+    prisma.pixelEventReceipt.findMany({
       where: {
         shopId,
         createdAt: { gte: currentMonthStart },
-        status: "sent",
+        eventType: { in: ["purchase", "checkout_completed"] },
       },
       select: {
         platform: true,
-        orderId: true,
+        orderKey: true,
+        payloadJson: true,
       },
     }),
-    prisma.conversionLog.findMany({
+    prisma.pixelEventReceipt.findMany({
       where: {
         shopId,
         createdAt: {
           gte: previousMonthStart,
           lte: previousMonthEnd,
         },
-        status: "sent",
+        eventType: { in: ["purchase", "checkout_completed"] },
       },
       select: {
-        orderId: true,
-      },
-    }),
-    prisma.pixelEventReceipt.findMany({
-      where: {
-        shopId,
-        createdAt: { gte: currentMonthStart },
-      },
-      select: {
-        orderId: true,
+        orderKey: true,
       },
     }),
   ]);
-  const currentMonthOrderIds = new Set([
-    ...currentMonthLogs.map((log) => log.orderId),
-    ...currentMonthReceipts.map((receipt) => receipt.orderId),
-  ]);
+  const currentMonthOrderIds = new Set(
+    currentMonthReceipts
+      .filter((receipt) => receipt.orderKey)
+      .map((receipt) => receipt.orderKey!)
+  );
   const currentMonthOrders = currentMonthOrderIds.size;
   const platformCounts: Record<string, number> = {};
-  currentMonthLogs.forEach((log) => {
-    platformCounts[log.platform] = (platformCounts[log.platform] || 0) + 1;
+  currentMonthReceipts.forEach((receipt) => {
+    if (receipt.platform) {
+      const payload = receipt.payloadJson as Record<string, unknown> | null;
+      const data = payload?.data as Record<string, unknown> | undefined;
+      const hasValue = data?.value !== undefined && data?.value !== null;
+      const hasCurrency = !!data?.currency;
+      if (hasValue && hasCurrency) {
+        platformCounts[receipt.platform] = (platformCounts[receipt.platform] || 0) + 1;
+      }
+    }
   });
-  const previousMonthOrderIds = new Set(previousMonthLogs.map((log) => log.orderId));
+  const previousMonthOrderIds = new Set(
+    previousMonthReceipts
+      .filter((receipt) => receipt.orderKey)
+      .map((receipt) => receipt.orderKey!)
+  );
   const previousMonthOrders = previousMonthOrderIds.size;
   const limit = getPlanLimit(planId);
   const usagePercentage = limit > 0 ? (currentMonthOrders / limit) * 100 : 0;
@@ -92,12 +97,12 @@ export async function getMonthlyUsage(
   return {
     currentMonth: {
       orders: currentMonthOrders,
-      events: currentMonthLogs.length,
+      events: currentMonthReceipts.length,
       platforms: platformCounts,
     },
     previousMonth: {
       orders: previousMonthOrders,
-      events: previousMonthLogs.length,
+      events: previousMonthReceipts.length,
     },
     limit,
     usagePercentage,
@@ -171,22 +176,22 @@ export async function getOrCreateMonthlyUsage(
   yearMonth?: string
 ): Promise<MonthlyUsageRecord> {
   const ym = yearMonth || getCurrentYearMonth();
-  return await prisma.monthlyUsage.upsert({
+  const { start, end } = getMonthDateRange(ym);
+  const count = await prisma.pixelEventReceipt.count({
     where: {
-      shopId_yearMonth: {
-        shopId,
-        yearMonth: ym,
-      },
-    },
-    create: {
-      id: randomUUID(),
       shopId,
-      yearMonth: ym,
-      sentCount: 0,
-      updatedAt: new Date(),
+      createdAt: { gte: start, lt: end },
+      eventType: { in: ["purchase", "checkout_completed"] },
     },
-    update: {},
   });
+  return {
+    id: randomUUID(),
+    shopId,
+    yearMonth: ym,
+    sentCount: count,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  };
 }
 
 export async function getMonthlyUsageCount(
@@ -194,247 +199,69 @@ export async function getMonthlyUsageCount(
   yearMonth?: string
 ): Promise<number> {
   const ym = yearMonth || getCurrentYearMonth();
-  const usage = await prisma.monthlyUsage.findUnique({
+  const { start, end } = getMonthDateRange(ym);
+  const count = await prisma.pixelEventReceipt.count({
     where: {
-      shopId_yearMonth: {
-        shopId,
-        yearMonth: ym,
-      },
-    },
-    select: {
-      sentCount: true,
+      shopId,
+      createdAt: { gte: start, lt: end },
+      eventType: { in: ["purchase", "checkout_completed"] },
     },
   });
-  return usage?.sentCount || 0;
+  return count;
 }
 
 export async function isOrderAlreadyCounted(
   shopId: string,
   orderId: string
 ): Promise<boolean> {
-  const job = await prisma.conversionJob.findUnique({
-    where: {
-      shopId_orderId: {
-        shopId,
-        orderId,
-      },
-    },
-    select: {
-      status: true,
-    },
-  });
-  if (job?.status === "completed") {
-    return true;
-  }
-  const log = await prisma.conversionLog.findFirst({
+  const receipt = await prisma.pixelEventReceipt.findFirst({
     where: {
       shopId,
-      orderId,
-      status: "sent",
+      orderKey: orderId,
+      eventType: { in: ["purchase", "checkout_completed"] },
+    },
+    select: {
+      payloadJson: true,
     },
   });
-  return !!log;
+  if (receipt) {
+    const payload = receipt.payloadJson as Record<string, unknown> | null;
+    const data = payload?.data as Record<string, unknown> | undefined;
+    const hasValue = data?.value !== undefined && data?.value !== null;
+    const hasCurrency = !!data?.currency;
+    return hasValue && hasCurrency;
+  }
+  return false;
 }
 
 export async function incrementMonthlyUsage(
   shopId: string,
   orderId: string
 ): Promise<number> {
-  const yearMonth = getCurrentYearMonth();
-  let actuallyIncremented = false;
-  const result = await prisma.$transaction(
-    async (tx) => {
-    const job = await tx.conversionJob.findUnique({
-      where: {
-        shopId_orderId: {
-          shopId,
-          orderId,
-        },
-      },
-      select: {
-        status: true,
-      },
-    });
-    if (job?.status === "completed") {
-      const usage = await tx.monthlyUsage.findUnique({
-        where: {
-          shopId_yearMonth: {
-            shopId,
-            yearMonth,
-          },
-        },
-        select: {
-          sentCount: true,
-        },
-      });
-      return usage?.sentCount || 0;
-    }
-    const log = await tx.conversionLog.findFirst({
-      where: {
-        shopId,
-        orderId,
-        status: "sent",
-      },
-    });
-    if (log) {
-      const usage = await tx.monthlyUsage.findUnique({
-        where: {
-          shopId_yearMonth: {
-            shopId,
-            yearMonth,
-          },
-        },
-        select: {
-          sentCount: true,
-        },
-      });
-      return usage?.sentCount || 0;
-    }
-    await tx.monthlyUsage.upsert({
-      where: {
-        shopId_yearMonth: {
-          shopId,
-          yearMonth,
-        },
-      },
-      create: {
-        id: randomUUID(),
-        shopId,
-        yearMonth,
-        sentCount: 1,
-        updatedAt: new Date(),
-      },
-      update: {
-        sentCount: {
-          increment: 1,
-        },
-      },
-    });
-    actuallyIncremented = true;
-    const updated = await tx.monthlyUsage.findUnique({
-      where: {
-        shopId_yearMonth: {
-          shopId,
-          yearMonth,
-        },
-      },
-      select: {
-        sentCount: true,
-      },
-    });
-    return updated?.sentCount || 0;
-    },
-    {
-      isolationLevel: "ReadCommitted",
-      timeout: 5000,
-    }
-  );
+  const count = await getMonthlyUsageCount(shopId);
   billingCache.delete(`billing:${shopId}`);
-  return result;
+  return count;
 }
 
 export async function incrementMonthlyUsageIdempotent(
   shopId: string,
   orderId: string
 ): Promise<IncrementResult> {
-  const yearMonth = getCurrentYearMonth();
-  const result = await prisma.$transaction(
-    async (tx) => {
-    const job = await tx.conversionJob.findUnique({
-      where: {
-        shopId_orderId: {
-          shopId,
-          orderId,
-        },
-      },
-      select: {
-        status: true,
-      },
-    });
-    if (job?.status === "completed") {
-      const usage = await tx.monthlyUsage.findUnique({
-        where: {
-          shopId_yearMonth: {
-            shopId,
-            yearMonth,
-          },
-        },
-        select: {
-          sentCount: true,
-        },
-      });
-      return {
-        incremented: false,
-        current: usage?.sentCount || 0,
-      };
-    }
-    const log = await tx.conversionLog.findFirst({
-      where: {
-        shopId,
-        orderId,
-        status: "sent",
-      },
-    });
-    if (log) {
-      const usage = await tx.monthlyUsage.findUnique({
-        where: {
-          shopId_yearMonth: {
-            shopId,
-            yearMonth,
-          },
-        },
-        select: {
-          sentCount: true,
-        },
-      });
-      return {
-        incremented: false,
-        current: usage?.sentCount || 0,
-      };
-    }
-    await tx.monthlyUsage.upsert({
-      where: {
-        shopId_yearMonth: {
-          shopId,
-          yearMonth,
-        },
-      },
-      create: {
-        id: randomUUID(),
-        shopId,
-        yearMonth,
-        sentCount: 1,
-        updatedAt: new Date(),
-      },
-      update: {
-        sentCount: {
-          increment: 1,
-        },
-      },
-    });
-    const updated = await tx.monthlyUsage.findUnique({
-      where: {
-        shopId_yearMonth: {
-          shopId,
-          yearMonth,
-        },
-      },
-      select: {
-        sentCount: true,
-      },
-    });
+  const alreadyCounted = await isOrderAlreadyCounted(shopId, orderId);
+  if (alreadyCounted) {
+    const current = await getMonthlyUsageCount(shopId);
+    billingCache.delete(`billing:${shopId}`);
     return {
-      incremented: true,
-      current: updated?.sentCount || 0,
+      incremented: false,
+      current,
     };
-    },
-    {
-      isolationLevel: "ReadCommitted",
-      timeout: 5000,
-    }
-  );
+  }
+  const current = await getMonthlyUsageCount(shopId);
   billingCache.delete(`billing:${shopId}`);
-  return result;
+  return {
+    incremented: true,
+    current,
+  };
 }
 
 export async function tryReserveUsageSlot(
@@ -442,217 +269,41 @@ export async function tryReserveUsageSlot(
   orderId: string,
   limit: number
 ): Promise<ReservationResult> {
+  const alreadyCounted = await isOrderAlreadyCounted(shopId, orderId);
   const yearMonth = getCurrentYearMonth();
-  const maxRetries = 3;
-  let lastError: unknown;
-  for (let attempt = 0; attempt < maxRetries; attempt++) {
-    try {
-      const result = await prisma.$transaction(
-        async (tx) => {
-          const job = await tx.conversionJob.findUnique({
-            where: {
-              shopId_orderId: {
-                shopId,
-                orderId,
-              },
-            },
-            select: {
-              status: true,
-            },
-          });
-          if (job?.status === "completed") {
-            const usage = await tx.monthlyUsage.findUnique({
-              where: {
-                shopId_yearMonth: {
-                  shopId,
-                  yearMonth,
-                },
-              },
-              select: {
-                sentCount: true,
-              },
-            });
-            const current = usage?.sentCount || 0;
-            return {
-              reserved: false,
-              current,
-              limit,
-              remaining: Math.max(0, limit - current),
-            };
-          }
-          const log = await tx.conversionLog.findFirst({
-            where: {
-              shopId,
-              orderId,
-              status: "sent",
-            },
-          });
-          if (log) {
-            const usage = await tx.monthlyUsage.findUnique({
-              where: {
-                shopId_yearMonth: {
-                  shopId,
-                  yearMonth,
-                },
-              },
-              select: {
-                sentCount: true,
-              },
-            });
-            const current = usage?.sentCount || 0;
-            return {
-              reserved: false,
-              current,
-              limit,
-              remaining: Math.max(0, limit - current),
-            };
-          }
-          await tx.monthlyUsage.upsert({
-            where: {
-              shopId_yearMonth: {
-                shopId,
-                yearMonth,
-              },
-            },
-            create: {
-              id: randomUUID(),
-              shopId,
-              yearMonth,
-              sentCount: 0,
-              updatedAt: new Date(),
-            },
-            update: {},
-          });
-          const updated = await tx.$executeRaw`
-            UPDATE "MonthlyUsage"
-            SET "sentCount" = "sentCount" + 1, "updatedAt" = NOW()
-            WHERE "shopId" = ${shopId}
-              AND "yearMonth" = ${yearMonth}
-              AND "sentCount" < ${limit}
-          `;
-          if (updated === 0) {
-            const currentUsage = await tx.monthlyUsage.findUnique({
-              where: {
-                shopId_yearMonth: {
-                  shopId,
-                  yearMonth,
-                },
-              },
-              select: {
-                sentCount: true,
-              },
-            });
-            const current = currentUsage?.sentCount || 0;
-            return {
-              reserved: false,
-              current,
-              limit,
-              remaining: 0,
-            };
-          }
-          const finalUsage = await tx.monthlyUsage.findUnique({
-            where: {
-              shopId_yearMonth: {
-                shopId,
-                yearMonth,
-              },
-            },
-            select: {
-              sentCount: true,
-            },
-          });
-          const current = finalUsage?.sentCount || 0;
-          if (current > limit) {
-            logger.error('Usage count exceeded limit after update', {
-              shopId,
-              yearMonth,
-              current,
-              limit,
-              orderId,
-            });
-            return {
-              reserved: false,
-              current,
-              limit,
-              remaining: 0,
-            };
-          }
-          return {
-            reserved: true,
-            current,
-            limit,
-            remaining: Math.max(0, limit - current),
-          };
-        },
-        {
-          isolationLevel: "Serializable",
-          maxWait: 5000,
-        }
-      );
-      billingCache.delete(`billing:${shopId}`);
-      return result;
-    } catch (error) {
-      lastError = error;
-      const isPrismaError_ = error && typeof error === 'object' && 'code' in error;
-      const errorCode = isPrismaError_ ? (error as { code?: string }).code : null;
-      const isSerializationError = errorCode === 'P40001' || (errorCode?.startsWith('P40') ?? false);
-      if (isSerializationError && attempt < maxRetries - 1) {
-        const backoffMs = 50 * Math.pow(2, attempt);
-        await new Promise(resolve => setTimeout(resolve, backoffMs));
-        continue;
-      }
-      throw error;
-    }
-  }
-  logger.error('tryReserveUsageSlot failed after retries', {
-    shopId,
-    orderId,
-    limit,
-    error: lastError instanceof Error ? lastError.message : String(lastError),
-  });
-  try {
-    const usage = await getMonthlyUsageCount(shopId, yearMonth);
+  const current = await getMonthlyUsageCount(shopId, yearMonth);
+  if (alreadyCounted || (limit > 0 && current >= limit)) {
     return {
       reserved: false,
-      current: usage,
+      current,
       limit,
-      remaining: Math.max(0, limit - usage),
+      remaining: Math.max(0, limit - current),
     };
-  } catch {
+  }
+  if (limit > 0 && current >= limit) {
     return {
       reserved: false,
-      current: 0,
+      current,
       limit,
       remaining: 0,
     };
   }
+  return {
+    reserved: true,
+    current,
+    limit,
+    remaining: limit > 0 ? Math.max(0, limit - current - 1) : -1,
+  };
 }
 
 export async function decrementMonthlyUsage(
   shopId: string,
   yearMonth?: string
 ): Promise<number> {
-  const ym = yearMonth || getCurrentYearMonth();
-  const result = await prisma.$transaction(async (tx) => {
-    await tx.$executeRaw`
-      UPDATE "MonthlyUsage"
-      SET "sentCount" = GREATEST("sentCount" - 1, 0), "updatedAt" = NOW()
-      WHERE "shopId" = ${shopId}
-        AND "yearMonth" = ${ym}
-    `;
-    const usage = await tx.monthlyUsage.findUnique({
-      where: {
-        shopId_yearMonth: {
-          shopId,
-          yearMonth: ym,
-        },
-      },
-      select: {
-        sentCount: true,
-      },
-    });
-    return usage?.sentCount || 0;
+  logger.debug(`decrementMonthlyUsage called but monthlyUsage table no longer exists`, {
+    shopId,
+    yearMonth,
   });
   billingCache.delete(`billing:${shopId}`);
-  return result;
+  return await getMonthlyUsageCount(shopId, yearMonth);
 }

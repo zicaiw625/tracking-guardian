@@ -20,32 +20,35 @@ export async function getEventSuccessRate(
   hours: number = 24
 ): Promise<EventSuccessRateResult> {
   const startDate = new Date(Date.now() - hours * 60 * 60 * 1000);
-  const stats = await prisma.conversionLog.groupBy({
-    by: ["platform", "status"],
+  const receipts = await prisma.pixelEventReceipt.findMany({
     where: {
       shopId,
       createdAt: { gte: startDate },
     },
-    _count: {
-      id: true,
+    select: {
+      platform: true,
+      payloadJson: true,
     },
   });
   const byPlatform: Record<string, { total: number; success: number; failure: number; successRate: number }> = {};
   let totalSuccess = 0;
   let totalFailure = 0;
-  for (const stat of stats) {
-    const platform = stat.platform;
+  for (const receipt of receipts) {
+    const platform = receipt.platform || "unknown";
     if (!byPlatform[platform]) {
       byPlatform[platform] = { total: 0, success: 0, failure: 0, successRate: 0 };
     }
-    const count = stat._count.id;
-    byPlatform[platform].total += count;
-    if (stat.status === "sent") {
-      totalSuccess += count;
-      byPlatform[platform].success += count;
-    } else if (stat.status === "failed" || stat.status === "dead_letter") {
-      totalFailure += count;
-      byPlatform[platform].failure += count;
+    byPlatform[platform].total++;
+    const payload = receipt.payloadJson as Record<string, unknown> | null;
+    const data = payload?.data as Record<string, unknown> | undefined;
+    const hasValue = data?.value !== undefined && data?.value !== null;
+    const hasCurrency = !!data?.currency;
+    if (hasValue && hasCurrency) {
+      totalSuccess++;
+      byPlatform[platform].success++;
+    } else {
+      totalFailure++;
+      byPlatform[platform].failure++;
     }
   }
   for (const platform in byPlatform) {

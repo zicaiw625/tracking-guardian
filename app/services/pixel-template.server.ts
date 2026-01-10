@@ -253,42 +253,15 @@ export async function saveWizardConfigAsTemplate(
 }
 
 export async function incrementTemplateUsage(templateId: string): Promise<void> {
-  try {
-    await prisma.pixelTemplate.update({
-      where: { id: templateId },
-      data: {
-        usageCount: {
-          increment: 1,
-        },
-      },
-    });
-  } catch (error) {
-    logger.error("Failed to increment template usage", { templateId, error });
-  }
+  logger.debug(`incrementTemplateUsage called but pixelTemplate table no longer exists`, { templateId });
 }
 
 export async function generateTemplateShareLink(
   templateId: string,
   ownerId: string
 ): Promise<{ success: boolean; shareLink?: string; error?: string }> {
-  try {
-    const template = await prisma.pixelTemplate.findUnique({
-      where: { id: templateId },
-    });
-    if (!template || template.ownerId !== ownerId) {
-      return { success: false, error: "模板不存在或无权限" };
-    }
-    const { createHash } = await import("crypto");
-    const shareToken = createHash("sha256")
-      .update(`${templateId}-${template.updatedAt.getTime()}`)
-      .digest("hex")
-      .substring(0, 16);
-    const shareLink = `/app/templates/import?templateId=${templateId}&token=${shareToken}`;
-    return { success: true, shareLink };
-  } catch (error) {
-    logger.error("Failed to generate template share link", { templateId, error });
-    return { success: false, error: "生成分享链接失败" };
-  }
+  logger.debug(`generateTemplateShareLink called but pixelTemplate table no longer exists`, { templateId, ownerId });
+  return { success: false, error: "模板功能已移除" };
 }
 
 export async function importTemplateFromShare(
@@ -296,72 +269,6 @@ export async function importTemplateFromShare(
   token: string,
   targetShopId: string
 ): Promise<{ success: boolean; templateId?: string; error?: string }> {
-  try {
-    const template = await prisma.pixelTemplate.findUnique({
-      where: { id: templateId },
-    });
-    if (!template) {
-      return { success: false, error: "模板不存在" };
-    }
-    const { createHash } = await import("crypto");
-    const expectedToken = createHash("sha256")
-      .update(`${templateId}-${template.updatedAt.getTime()}`)
-      .digest("hex")
-      .substring(0, 16);
-    if (token !== expectedToken) {
-      return { success: false, error: "无效的分享链接" };
-    }
-    if (template.isPublic || template.ownerId === targetShopId) {
-      await incrementTemplateUsage(templateId);
-      return { success: true, templateId };
-    }
-    let platforms: Array<{
-      platform: string;
-      eventMappings?: Record<string, string>;
-      clientSideEnabled?: boolean;
-      serverSideEnabled?: boolean;
-    }> = [];
-    if (Array.isArray(template.platforms)) {
-      platforms = template.platforms
-        .map((item: unknown) => {
-          if (!item || typeof item !== "object" || Array.isArray(item)) {
-            return null;
-          }
-          const obj = item as Record<string, unknown>;
-          const result: {
-            platform: string;
-            eventMappings?: Record<string, string>;
-            clientSideEnabled?: boolean;
-            serverSideEnabled?: boolean;
-          } = {
-            platform: typeof obj.platform === "string" ? obj.platform : "",
-          };
-          if (obj.eventMappings && typeof obj.eventMappings === "object" && !Array.isArray(obj.eventMappings)) {
-            result.eventMappings = obj.eventMappings as Record<string, string>;
-          }
-          if (typeof obj.clientSideEnabled === "boolean") {
-            result.clientSideEnabled = obj.clientSideEnabled;
-          }
-          if (typeof obj.serverSideEnabled === "boolean") {
-            result.serverSideEnabled = obj.serverSideEnabled;
-          }
-          return result.platform ? result : null;
-        })
-        .filter((p): p is NonNullable<typeof p> => p !== null);
-    }
-    const result = await createPixelTemplate({
-      ownerId: targetShopId,
-      name: `${template.name} (导入)`,
-      description: template.description || `从 ${templateId} 导入`,
-      platforms,
-      isPublic: false,
-    });
-    if (result.success) {
-      await incrementTemplateUsage(templateId);
-    }
-    return result;
-  } catch (error) {
-    logger.error("Failed to import template from share", { templateId, targetShopId, error });
-    return { success: false, error: "导入模板失败" };
-  }
+  logger.debug(`importTemplateFromShare called but pixelTemplate table no longer exists`, { templateId, token, targetShopId });
+  return { success: false, error: "模板功能已移除" };
 }

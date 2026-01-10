@@ -17,26 +17,31 @@ export async function getMissingParamsRate(
   hours: number = 24
 ): Promise<MissingParamsResult> {
   const startDate = new Date(Date.now() - hours * 60 * 60 * 1000);
-  const logs = await prisma.conversionLog.findMany({
+  const receipts = await prisma.pixelEventReceipt.findMany({
     where: {
       shopId,
       createdAt: { gte: startDate },
     },
     select: {
       platform: true,
-      platformResponse: true,
+      payloadJson: true,
     },
   });
   const byPlatform: Record<string, { total: number; missing: number; rate: number }> = {};
   let totalMissing = 0;
-  for (const log of logs) {
-    const platform = log.platform;
+  for (const receipt of receipts) {
+    if (!receipt.platform) continue;
+    const platform = receipt.platform;
     if (!byPlatform[platform]) {
       byPlatform[platform] = { total: 0, missing: 0, rate: 0 };
     }
     byPlatform[platform].total++;
-    const response = log.platformResponse as { missingParams?: string[] } | null;
-    if (response?.missingParams && response.missingParams.length > 0) {
+    const payload = receipt.payloadJson as Record<string, unknown> | null;
+    const data = payload?.data as Record<string, unknown> | undefined;
+    const hasValue = data?.value !== undefined && data?.value !== null;
+    const hasCurrency = !!data?.currency;
+    const hasItems = Array.isArray(data?.items) && data.items.length > 0;
+    if (!hasValue || !hasCurrency || !hasItems) {
       byPlatform[platform].missing++;
       totalMissing++;
     }
@@ -45,7 +50,7 @@ export async function getMissingParamsRate(
     const stats = byPlatform[platform];
     stats.rate = stats.total > 0 ? (stats.missing / stats.total) * 100 : 0;
   }
-  const total = logs.length;
+  const total = receipts.length;
   const rate = total > 0 ? (totalMissing / total) * 100 : 0;
   return {
     total,

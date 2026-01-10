@@ -115,19 +115,12 @@ export interface CustomerRedactResult {
 
 export interface ShopRedactDeletionCounts {
   sessions: number;
-  conversionLogs: number;
-  conversionJobs: number;
-  pixelEventReceipts: number;
-  surveyResponses: number;
-  auditLogs: number;
   webhookLogs: number;
+  pixelEventReceipts: number;
+  verificationRuns: number;
   scanReports: number;
-  reconciliationReports: number;
-  alertConfigs: number;
+  auditAssets: number;
   pixelConfigs: number;
-  monthlyUsages: number;
-  eventLogs: number;
-  deliveryAttempts: number;
   shop: number;
 }
 
@@ -256,19 +249,12 @@ export function createEmptyCustomerRedactResult(customerId?: number): CustomerRe
 export function createEmptyShopRedactDeletionCounts(): ShopRedactDeletionCounts {
   return {
     sessions: 0,
-    conversionLogs: 0,
-    conversionJobs: 0,
-    pixelEventReceipts: 0,
-    surveyResponses: 0,
-    auditLogs: 0,
     webhookLogs: 0,
+    pixelEventReceipts: 0,
+    verificationRuns: 0,
     scanReports: 0,
-    reconciliationReports: 0,
-    alertConfigs: 0,
+    auditAssets: 0,
     pixelConfigs: 0,
-    monthlyUsages: 0,
-    eventLogs: 0,
-    deliveryAttempts: 0,
     shop: 0,
   };
 }

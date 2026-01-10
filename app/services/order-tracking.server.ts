@@ -146,20 +146,20 @@ export async function getTrackingFromShopify(
   orderId: string
 ): Promise<TrackingInfo | null> {
   try {
-    const order = await prisma.conversionJob.findFirst({
+    const receipt = await prisma.pixelEventReceipt.findFirst({
       where: {
         shopId,
-        orderId,
+        orderKey: orderId,
       },
       select: {
-        orderNumber: true,
+        orderKey: true,
       },
     });
-    if (!order) {
+    if (!receipt) {
       return null;
     }
     return {
-      trackingNumber: order.orderNumber || "",
+      trackingNumber: receipt.orderKey || "",
       carrier: "shopify",
       status: "pending",
       events: [],

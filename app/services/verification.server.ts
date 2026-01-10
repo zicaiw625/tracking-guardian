@@ -3,7 +3,6 @@ import { logger } from "../utils/logger.server";
 import { reconcilePixelVsCapi, performBulkLocalConsistencyCheck, performChannelReconciliation, type ReconciliationResult } from "./enhanced-reconciliation.server";
 import type { AdminApiContext } from "@shopify/shopify-app-remix/server";
 import type { Prisma } from "@prisma/client";
-import { getEventLogs } from "./event-log.server";
 import { trackEvent } from "./analytics.server";
 import { safeFireAndForget } from "../utils/helpers";
 import { normalizePlanId } from "../services/billing/plans";
@@ -90,8 +89,6 @@ export interface VerificationEventResult {
   };
   discrepancies?: string[];
   errors?: string[];
-  eventLogId?: string;
-  deliveryAttemptId?: string;
 }
 
 export interface VerificationSummary {
@@ -253,14 +250,16 @@ export async function analyzeRecentEvents(
     throw new Error("Verification run not found");
   }
   const targetPlatforms = platforms || run.platforms;
-  const eventLogs = await getEventLogs(shopId, {
-    startDate: since,
-    limit: 1000,
-  });
-  const filteredEventLogs = eventLogs.filter(log => {
-    return log.deliveryAttempts.some(attempt =>
-      targetPlatforms.includes(attempt.destinationType)
-    );
+  const receipts = await prisma.pixelEventReceipt.findMany({
+    where: {
+      shopId,
+      pixelTimestamp: { gte: since },
+      ...(targetPlatforms.length > 0 && {
+        platform: { in: targetPlatforms },
+      }),
+    },
+    orderBy: { pixelTimestamp: "desc" },
+    take: 1000,
   });
   const results: VerificationEventResult[] = [];
   let passedTests = 0;
@@ -269,120 +268,97 @@ export async function analyzeRecentEvents(
   let totalValueAccuracy = 0;
   let valueChecks = 0;
   const orderIds = new Set<string>();
-  for (const eventLog of filteredEventLogs) {
-    const normalizedEvent = eventLog.normalizedEventJson as Record<string, unknown>;
-    const data = normalizedEvent.data as Record<string, unknown> | undefined;
-    const orderId = data?.orderId as string | undefined;
+  for (const receipt of receipts) {
+    if (!receipt.platform || !targetPlatforms.includes(receipt.platform)) {
+      continue;
+    }
+    const payload = receipt.payloadJson as Record<string, unknown> | null;
+    const orderId = receipt.orderKey || (payload?.data as Record<string, unknown>)?.orderId as string | undefined;
     if (orderId) {
       orderIds.add(orderId);
     }
-    for (const attempt of eventLog.deliveryAttempts) {
-      if (!targetPlatforms.includes(attempt.destinationType)) {
-        continue;
-      }
-      const discrepancies: string[] = [];
-      const errors: string[] = [];
-      const requestPayload = attempt.requestPayloadJson as Record<string, unknown>;
-      let value: number | undefined;
-      let currency: string | undefined;
-      let items: number | undefined;
-      if (attempt.destinationType === "google") {
-        const body = requestPayload.body as Record<string, unknown>;
-        const events = body?.events as Array<Record<string, unknown>> | undefined;
+    const discrepancies: string[] = [];
+    const errors: string[] = [];
+    const data = payload?.data as Record<string, unknown> | undefined;
+    let value: number | undefined;
+    let currency: string | undefined;
+    let items: number | undefined;
+    if (payload) {
+      value = data?.value as number | undefined;
+      currency = data?.currency as string | undefined;
+      const dataItems = data?.items as Array<unknown> | undefined;
+      items = dataItems ? dataItems.length : undefined;
+      if (receipt.platform === "google") {
+        const events = payload.events as Array<Record<string, unknown>> | undefined;
         if (events && events.length > 0) {
           const params = events[0].params as Record<string, unknown> | undefined;
           value = params?.value as number | undefined;
           currency = params?.currency as string | undefined;
           items = Array.isArray(params?.items) ? params.items.length : undefined;
         }
-      } else if (attempt.destinationType === "meta" || attempt.destinationType === "facebook") {
-        const body = requestPayload.body as Record<string, unknown>;
-        const data = body?.data as Array<Record<string, unknown>> | undefined;
-        if (data && data.length > 0) {
-          const customData = data[0].custom_data as Record<string, unknown> | undefined;
+      } else if (receipt.platform === "meta" || receipt.platform === "facebook") {
+        const eventsData = payload.data as Array<Record<string, unknown>> | undefined;
+        if (eventsData && eventsData.length > 0) {
+          const customData = eventsData[0].custom_data as Record<string, unknown> | undefined;
           value = customData?.value as number | undefined;
           currency = customData?.currency as string | undefined;
           items = Array.isArray(customData?.contents) ? customData.contents.length : undefined;
         }
-      } else if (attempt.destinationType === "tiktok") {
-        const body = requestPayload.body as Record<string, unknown>;
-        const data = body?.data as Array<Record<string, unknown>> | undefined;
-        if (data && data.length > 0) {
-          const properties = data[0].properties as Record<string, unknown> | undefined;
+      } else if (receipt.platform === "tiktok") {
+        const eventsData = payload.data as Array<Record<string, unknown>> | undefined;
+        if (eventsData && eventsData.length > 0) {
+          const properties = eventsData[0].properties as Record<string, unknown> | undefined;
           value = properties?.value as number | undefined;
           currency = properties?.currency as string | undefined;
           items = Array.isArray(properties?.contents) ? properties.contents.length : undefined;
         }
       }
-      if (value === undefined && data) {
-        value = data.value as number | undefined;
-      }
-      if (currency === undefined && data) {
-        currency = data.currency as string | undefined;
-      }
-      if (items === undefined && data) {
-        const dataItems = data.items as Array<unknown> | undefined;
-        items = dataItems ? dataItems.length : undefined;
-      }
-      const hasValue = value !== undefined && value !== null;
-      const hasCurrency = !!currency;
-      const hasEventId = !!eventLog.eventId;
-      if (attempt.status === "ok") {
-        if (!hasValue || !hasCurrency) {
-          missingParamTests++;
-          if (!hasValue) discrepancies.push("缺少 value 参数");
-          if (!hasCurrency) discrepancies.push("缺少 currency 参数");
-        } else {
-          passedTests++;
-        }
-        if (hasValue) {
-          valueChecks++;
-          totalValueAccuracy += 100;
-        }
-        results.push({
-          testItemId: "purchase",
-          eventType: eventLog.eventName,
-          platform: attempt.destinationType,
-          orderId: orderId || undefined,
-          orderNumber: undefined,
-          status: discrepancies.length > 0 ? "missing_params" : "success",
-          triggeredAt: eventLog.occurredAt,
-          params: {
-            value: value || undefined,
-            currency: currency || undefined,
-            items: items || undefined,
-            hasEventId,
-          },
-          discrepancies: discrepancies.length > 0 ? discrepancies : undefined,
-          errors: undefined,
-          eventLogId: eventLog.id,
-          deliveryAttemptId: attempt.id,
-        });
-      } else if (attempt.status === "fail") {
-        failedTests++;
-        if (attempt.errorDetail) {
-          errors.push(attempt.errorDetail);
-        }
-        results.push({
-          testItemId: "purchase",
-          eventType: eventLog.eventName,
-          platform: attempt.destinationType,
-          orderId: orderId || undefined,
-          orderNumber: undefined,
-          status: "failed",
-          triggeredAt: eventLog.occurredAt,
-          params: {
-            value: value || undefined,
-            currency: currency || undefined,
-            items: items || undefined,
-            hasEventId,
-          },
-          discrepancies: discrepancies.length > 0 ? discrepancies : undefined,
-          errors: errors.length > 0 ? errors : undefined,
-          eventLogId: eventLog.id,
-          deliveryAttemptId: attempt.id,
-        });
-      }
+    }
+    const hasValue = value !== undefined && value !== null;
+    const hasCurrency = !!currency;
+    const hasEventId = !!payload?.eventId;
+    if (hasValue && hasCurrency) {
+      passedTests++;
+      valueChecks++;
+      totalValueAccuracy += 100;
+      results.push({
+        testItemId: "purchase",
+        eventType: receipt.eventType,
+        platform: receipt.platform || "unknown",
+        orderId: orderId || undefined,
+        orderNumber: undefined,
+        status: "success",
+        triggeredAt: receipt.pixelTimestamp,
+        params: {
+          value: value || undefined,
+          currency: currency || undefined,
+          items: items || undefined,
+          hasEventId,
+        },
+        discrepancies: undefined,
+        errors: undefined,
+      });
+    } else {
+      missingParamTests++;
+      if (!hasValue) discrepancies.push("缺少 value 参数");
+      if (!hasCurrency) discrepancies.push("缺少 currency 参数");
+      results.push({
+        testItemId: "purchase",
+        eventType: receipt.eventType,
+        platform: receipt.platform || "unknown",
+        orderId: orderId || undefined,
+        orderNumber: undefined,
+        status: "missing_params",
+        triggeredAt: receipt.pixelTimestamp,
+        params: {
+          value: value || undefined,
+          currency: currency || undefined,
+          items: items || undefined,
+          hasEventId,
+        },
+        discrepancies: discrepancies.length > 0 ? discrepancies : undefined,
+        errors: undefined,
+      });
     }
   }
   const totalTests = results.length;
@@ -390,19 +366,20 @@ export async function analyzeRecentEvents(
     totalTests > 0 ? Math.round(((passedTests + missingParamTests) / totalTests) * 100) : 0;
   const valueAccuracy = valueChecks > 0 ? Math.round(totalValueAccuracy / valueChecks) : 100;
   const platformResults: Record<string, { sent: number; failed: number }> = {};
-  for (const eventLog of filteredEventLogs) {
-    for (const attempt of eventLog.deliveryAttempts) {
-      if (!targetPlatforms.includes(attempt.destinationType)) {
-        continue;
-      }
-      if (!platformResults[attempt.destinationType]) {
-        platformResults[attempt.destinationType] = { sent: 0, failed: 0 };
-      }
-      if (attempt.status === "ok") {
-        platformResults[attempt.destinationType].sent++;
-      } else if (attempt.status === "fail") {
-        platformResults[attempt.destinationType].failed++;
-      }
+  for (const receipt of receipts) {
+    if (!receipt.platform || !targetPlatforms.includes(receipt.platform)) {
+      continue;
+    }
+    if (!platformResults[receipt.platform]) {
+      platformResults[receipt.platform] = { sent: 0, failed: 0 };
+    }
+    const payload = receipt.payloadJson as Record<string, unknown> | null;
+    const hasValue = payload?.data && typeof (payload.data as Record<string, unknown>).value === "number";
+    const hasCurrency = payload?.data && typeof (payload.data as Record<string, unknown>).currency === "string";
+    if (hasValue && hasCurrency) {
+      platformResults[receipt.platform].sent++;
+    } else {
+      platformResults[receipt.platform].failed++;
     }
   }
   let reconciliation: VerificationSummary["reconciliation"] | undefined;
@@ -415,21 +392,19 @@ export async function analyzeRecentEvents(
       type: "duplicate" | "missing" | "value_mismatch" | "currency_mismatch";
     }> = [];
     const orderPlatformMap = new Map<string, Map<string, number>>();
-    for (const eventLog of filteredEventLogs) {
-      const normalizedEvent = eventLog.normalizedEventJson as Record<string, unknown>;
-      const data = normalizedEvent.data as Record<string, unknown> | undefined;
-      const orderId = data?.orderId as string | undefined;
-      if (!orderId) continue;
-      for (const attempt of eventLog.deliveryAttempts) {
-        if (!targetPlatforms.includes(attempt.destinationType)) {
-          continue;
-        }
-        const count = orderPlatformMap.get(orderId)?.get(attempt.destinationType) || 0;
-        if (!orderPlatformMap.has(orderId)) {
-          orderPlatformMap.set(orderId, new Map());
-        }
-        orderPlatformMap.get(orderId)!.set(attempt.destinationType, count + 1);
+    for (const receipt of receipts) {
+      if (!receipt.platform || !targetPlatforms.includes(receipt.platform)) {
+        continue;
       }
+      const payload = receipt.payloadJson as Record<string, unknown> | null;
+      const data = payload?.data as Record<string, unknown> | undefined;
+      const orderId = receipt.orderKey || (data?.orderId as string | undefined);
+      if (!orderId) continue;
+      const count = orderPlatformMap.get(orderId)?.get(receipt.platform) || 0;
+      if (!orderPlatformMap.has(orderId)) {
+        orderPlatformMap.set(orderId, new Map());
+      }
+      orderPlatformMap.get(orderId)!.set(receipt.platform, count + 1);
     }
     for (const [orderId, platformMap] of orderPlatformMap) {
       for (const [platform, count] of platformMap) {
@@ -569,7 +544,7 @@ export async function analyzeRecentEvents(
     });
     const destinationType = pixelConfigs.length > 0 ? pixelConfigs[0].platform : targetPlatforms[0] || "none";
     const environment = pixelConfigs.length > 0 ? pixelConfigs[0].environment : "live";
-        const firstEventName = filteredEventLogs.length > 0 ? filteredEventLogs[0].eventName : undefined;
+        const firstEventName = receipts.length > 0 ? receipts[0].eventType : undefined;
         let riskScore: number | undefined;
     let assetCount: number | undefined;
     try {

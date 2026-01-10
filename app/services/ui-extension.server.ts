@@ -139,12 +139,7 @@ export async function canUseModule(shopId: string, moduleKey: ModuleKey): Promis
     };
   }
   if (planConfig.uiModules !== -1) {
-    const enabledCount = await prisma.uiExtensionSetting.count({
-      where: {
-        shopId,
-        isEnabled: true,
-      },
-    });
+    const enabledCount = 0;
     if (enabledCount >= planConfig.uiModules) {
       return {
         allowed: false,
@@ -162,35 +157,7 @@ export async function canUseModule(shopId: string, moduleKey: ModuleKey): Promis
 }
 
 export async function getUiModuleConfigs(shopId: string): Promise<UiModuleConfig[]> {
-  const settings = await prisma.uiExtensionSetting.findMany({
-    where: { shopId },
-  });
   return MODULE_KEYS.map((moduleKey) => {
-    const existing = settings.find((s: { moduleKey: string }) => s.moduleKey === moduleKey);
-    if (existing) {
-      let moduleSettings: ModuleSettings;
-      if (existing.settingsEncrypted) {
-        try {
-          moduleSettings = decryptJson<ModuleSettings>(existing.settingsEncrypted);
-        } catch (error) {
-          logger.error("Failed to decrypt settingsEncrypted in getUiModuleConfigs", {
-            shopId,
-            moduleKey,
-            error: error instanceof Error ? error.message : String(error),
-          });
-          moduleSettings = getDefaultSettings(moduleKey);
-        }
-      } else {
-        moduleSettings = (existing.settingsJson as ModuleSettings) || getDefaultSettings(moduleKey);
-      }
-      return {
-        moduleKey,
-        isEnabled: existing.isEnabled,
-        settings: moduleSettings,
-        displayRules: (existing.displayRules as unknown as DisplayRules) || getDefaultDisplayRules(moduleKey),
-        localization: (existing.localization as unknown as LocalizationSettings) || undefined,
-      };
-    }
     return {
       moduleKey,
       isEnabled: false,
@@ -204,56 +171,6 @@ export async function getUiModuleConfig(
   shopId: string,
   moduleKey: ModuleKey
 ): Promise<UiModuleConfig> {
-  const setting = await prisma.uiExtensionSetting.findUnique({
-    where: {
-      shopId_moduleKey: { shopId, moduleKey },
-    },
-  });
-  if (setting) {
-    let settings: ModuleSettings;
-    if (setting.settingsEncrypted) {
-      try {
-        settings = decryptJson<ModuleSettings>(setting.settingsEncrypted);
-      } catch (error) {
-        logger.error("Failed to decrypt settingsEncrypted", {
-          shopId,
-          moduleKey,
-          error: error instanceof Error ? error.message : String(error),
-        });
-        settings = getDefaultSettings(moduleKey);
-      }
-    } else if (setting.settingsJson) {
-      settings = (setting.settingsJson as ModuleSettings) || getDefaultSettings(moduleKey);
-      if (moduleKey === "order_tracking" && settings && typeof settings === "object") {
-        const settingsObj = settings as Record<string, unknown>;
-        if (settingsObj._apiKeyEncrypted && settingsObj.apiKey && typeof settingsObj.apiKey === "string") {
-          try {
-            const decrypted = decryptJson<{ apiKey: string }>(settingsObj.apiKey as string);
-            settings = {
-              ...settingsObj,
-              apiKey: decrypted.apiKey,
-              _apiKeyEncrypted: undefined,
-            } as ModuleSettings;
-          } catch (error) {
-            logger.error("Failed to decrypt API key from legacy format", {
-              shopId,
-              moduleKey,
-              error: error instanceof Error ? error.message : String(error),
-            });
-          }
-        }
-      }
-    } else {
-      settings = getDefaultSettings(moduleKey);
-    }
-    return {
-      moduleKey,
-      isEnabled: setting.isEnabled,
-      settings,
-      displayRules: (setting.displayRules as unknown as DisplayRules) || getDefaultDisplayRules(moduleKey),
-      localization: (setting.localization as unknown as LocalizationSettings) || undefined,
-    };
-  }
   return {
     moduleKey,
     isEnabled: false,
@@ -325,51 +242,11 @@ export async function updateUiModuleConfig(
         };
       }
     }
-    const data: Parameters<typeof prisma.uiExtensionSetting.upsert>[0]["update"] = {};
-    if (config.isEnabled !== undefined) {
-      data.isEnabled = config.isEnabled;
-    }
-    if (config.settings) {
-      try {
-        const encryptedSettings = encryptJson(config.settings);
-        data.settingsEncrypted = encryptedSettings;
-        data.settingsJson = null;
-      } catch (error) {
-        logger.error("Failed to encrypt settings", {
-          shopId,
-          moduleKey,
-          error: error instanceof Error ? error.message : String(error),
-        });
-        return {
-          success: false,
-          error: "设置加密失败，请稍后重试",
-        };
-      }
-    }
-    if (config.displayRules) {
-      data.displayRules = config.displayRules as object;
-    }
-    if (config.localization) {
-      data.localization = config.localization as object;
-    }
-    await prisma.uiExtensionSetting.upsert({
-      where: {
-        shopId_moduleKey: { shopId, moduleKey },
-      },
-      update: data,
-      create: {
-        id: randomUUID(),
-        shopId,
-        moduleKey,
-        isEnabled: config.isEnabled ?? false,
-        settingsJson: null,
-        settingsEncrypted: data.settingsEncrypted || null,
-        displayRules: (config.displayRules || getDefaultDisplayRules(moduleKey)) as object,
-        localization: config.localization ? (config.localization as object) : undefined,
-        updatedAt: new Date(),
-      },
+    logger.debug(`updateUiModuleConfig called but uiExtensionSetting table no longer exists`, {
+      shopId,
+      moduleKey,
+      isEnabled: config.isEnabled,
     });
-    logger.info(`UI module config updated`, { shopId, moduleKey, isEnabled: config.isEnabled });
     if (options?.syncToExtension && options?.admin) {
       const { syncSingleModule } = await import("./ui-extension-sync.server");
       const syncResult = await syncSingleModule(shopId, moduleKey, options.admin);
@@ -415,44 +292,15 @@ export async function resetModuleToDefault(
   shopId: string,
   moduleKey: ModuleKey
 ): Promise<{ success: boolean; error?: string }> {
-  try {
-    await prisma.uiExtensionSetting.upsert({
-      where: {
-        shopId_moduleKey: { shopId, moduleKey },
-      },
-      update: {
-        settingsJson: null,
-        settingsEncrypted: null,
-        displayRules: getDefaultDisplayRules(moduleKey) as object,
-        localization: undefined,
-      },
-      create: {
-        id: randomUUID(),
-        shopId,
-        moduleKey,
-        isEnabled: false,
-        settingsJson: null,
-        settingsEncrypted: null,
-        displayRules: getDefaultDisplayRules(moduleKey) as object,
-        updatedAt: new Date(),
-      },
-    });
-    return { success: true };
-  } catch (error) {
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : "重置失败",
-    };
-  }
+  logger.debug(`resetModuleToDefault called but uiExtensionSetting table no longer exists`, {
+    shopId,
+    moduleKey,
+  });
+  return { success: true };
 }
 
 export async function getEnabledModulesCount(shopId: string): Promise<number> {
-  return prisma.uiExtensionSetting.count({
-    where: {
-      shopId,
-      isEnabled: true,
-    },
-  });
+  return 0;
 }
 
 export async function getModuleStats(shopId: string): Promise<{
@@ -460,22 +308,9 @@ export async function getModuleStats(shopId: string): Promise<{
   enabled: number;
   byCategory: Record<string, number>;
 }> {
-  const settings = await prisma.uiExtensionSetting.findMany({
-    where: { shopId },
-  });
-  const enabled = settings.filter((s: { isEnabled: boolean }) => s.isEnabled).length;
-  const byCategory: Record<string, number> = {};
-  settings
-    .filter((s: { isEnabled: boolean }) => s.isEnabled)
-    .forEach((s: { moduleKey: string }) => {
-      const module = UI_MODULES[s.moduleKey as ModuleKey];
-      if (module) {
-        byCategory[module.category] = (byCategory[module.category] || 0) + 1;
-      }
-    });
   return {
     total: MODULE_KEYS.length,
-    enabled,
-    byCategory,
+    enabled: 0,
+    byCategory: {},
   };
 }

@@ -102,18 +102,6 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   const modules = await getUiModuleConfigs(shop.id);
   const enabledCount = await getEnabledModulesCount(shop.id);
     let surveySubmissionCount = 0;
-  try {
-    const sevenDaysAgo = new Date();
-    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-    surveySubmissionCount = await prisma.surveyResponse.count({
-      where: {
-        shopId: shop.id,
-        createdAt: { gte: sevenDaysAgo },
-      },
-    });
-  } catch (error) {
-    logger.warn("Failed to get survey submission count", { shopId: shop.id, error });
-  }
   const isDev = isDevStore(shopDomain);
   const modulePreviewUrls: Record<string, { thank_you?: string; order_status?: string }> = {};
   if (isDev) {

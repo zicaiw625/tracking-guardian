@@ -164,15 +164,7 @@ const alertConfigsCache = new QueryCache<
 >();
 
 async function fetchAlertConfigs(shopId: string) {
-  return prisma.alertConfig.findMany({
-    where: { shopId, isEnabled: true },
-    select: {
-      id: true,
-      channel: true,
-      discrepancyThreshold: true,
-      settingsEncrypted: true,
-    },
-  });
+  return [];
 }
 
 export async function getCachedAlertConfigs(

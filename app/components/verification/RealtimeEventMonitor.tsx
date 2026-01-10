@@ -92,8 +92,6 @@ export interface RealtimeEvent {
   };
   discrepancies?: string[];
   platformResponse?: unknown;
-  eventLogId?: string;
-  deliveryAttemptId?: string;
 }
 
 export interface RealtimeEventMonitorProps {
@@ -834,15 +832,6 @@ function EventDetails({ event }: { event: RealtimeEvent }) {
     mapping: false,
     payload: false,
   });
-  const [payloadData, setPayloadData] = useState<{
-    requestPayload?: unknown;
-    responseStatus?: number;
-    responseBody?: string;
-    latencyMs?: number;
-    errorCode?: string;
-    errorDetail?: string;
-  } | null>(null);
-  const [loadingPayload, setLoadingPayload] = useState(false);
   const toggleSection = useCallback((section: string) => {
     setExpandedSections((prev) => ({
       ...prev,
@@ -852,45 +841,6 @@ function EventDetails({ event }: { event: RealtimeEvent }) {
   const completeness = useMemo(() => {
     return checkParamCompleteness(event.eventType, event.platform, event.params);
   }, [event.eventType, event.platform, event.params]);
-  const loadPayload = useCallback(async () => {
-    if (!event.eventLogId || loadingPayload) return;
-    setLoadingPayload(true);
-    try {
-      const response = await fetch(`/app/api/event-log/${event.eventLogId}`);
-      if (!response.ok) {
-        throw new Error("Failed to fetch event log details");
-      }
-      const data = await response.json();
-      const attempt = data.deliveryAttempts?.find(
-        (a: { id: string }) => a.id === event.deliveryAttemptId
-      );
-      if (attempt) {
-        setPayloadData({
-          requestPayload: attempt.requestPayloadJson,
-          responseStatus: attempt.responseStatus,
-          responseBody: attempt.responseBodySnippet,
-          latencyMs: attempt.latencyMs,
-          errorCode: attempt.errorCode,
-          errorDetail: attempt.errorDetail,
-        });
-      }
-    } catch (error) {
-      console.error("Failed to load payload:", error);
-    } finally {
-      setLoadingPayload(false);
-    }
-  }, [event.eventLogId, event.deliveryAttemptId, loadingPayload]);
-  useEffect(() => {
-    if (expandedSections.payload && !payloadData && event.eventLogId) {
-      loadPayload();
-    }
-  }, [expandedSections.payload, payloadData, event.eventLogId, loadPayload]);
-  const copyPayload = useCallback(() => {
-    if (payloadData?.requestPayload) {
-      navigator.clipboard.writeText(JSON.stringify(payloadData.requestPayload, null, 2));
-      showSuccess("Payload 已复制到剪贴板");
-    }
-  }, [payloadData, showSuccess]);
   return (
     <BlockStack gap="300">
       <div
@@ -1149,7 +1099,7 @@ function EventDetails({ event }: { event: RealtimeEvent }) {
           {event.eventType === "checkout_completed" && event.status !== "success" && (
             <CheckoutCompletedBehaviorHint mode="missing" />
           )}
-          {event.eventLogId && (
+          {false && (
             <Card>
               <BlockStack gap="200">
                 <div
@@ -1178,13 +1128,6 @@ function EventDetails({ event }: { event: RealtimeEvent }) {
                           <Text as="span" variant="bodySm" tone="subdued">
                             这是实际发送到 {event.platform} 的请求 payload（已脱敏）
                           </Text>
-                          <Button
-                            icon={ClipboardIcon}
-                            onClick={copyPayload}
-                            size="slim"
-                          >
-                            复制 Payload
-                          </Button>
                         </InlineStack>
                         <Box
                           padding="300"

@@ -76,13 +76,11 @@ export async function executeBatchMigration(
     failed: 0,
   };
   job.results = [];
-  const template = await prisma.pixelTemplate.findUnique({
-    where: { id: job.templateId },
-  });
-  if (!template) {
-    throw new Error(`Template not found: ${job.templateId}`);
+  logger.debug(`batch-migration: pixelTemplate table no longer exists, skipping template lookup`, { templateId: job.templateId });
+  if (!job.templateId) {
+    throw new Error(`Template ID is required but pixelTemplate table no longer exists`);
   }
-  logger.info(`Starting batch migration job ${jobId} for ${job.shopIds.length} shops`);
+  logger.info(`Starting batch migration job ${jobId} for ${job.shopIds.length} shops (template feature disabled)`);
   const concurrency = 2;
   const shopIds = [...job.shopIds];
   async function processShop(shopId: string): Promise<void> {
@@ -98,19 +96,17 @@ export async function executeBatchMigration(
       if (!shop) {
         throw new Error(`Shop not found: ${shopId}`);
       }
-      if (!template) {
-        throw new Error(`Template not found: ${jobId}`);
-      }
       const currentJob = activeJobs.get(jobId);
       if (!currentJob) {
         throw new Error(`Job not found: ${jobId}`);
       }
-      const platforms = template.platforms as Array<{
+      logger.debug(`batch-migration: pixelTemplate table no longer exists, skipping platform config from template`);
+      const platforms: Array<{
         platform: string;
         eventMappings?: Record<string, string>;
         clientSideEnabled?: boolean;
         serverSideEnabled?: boolean;
-      }>;
+      }> = [];
       for (const platformConfig of platforms) {
         const existingConfig = await prisma.pixelConfig.findFirst({
           where: {

@@ -373,12 +373,12 @@ export async function getDashboardData(shopDomain: string): Promise<DashboardDat
     logger.warn("Failed to get 24h health metrics", { shopId: shop.id, error });
   }
     try {
-    const alertCheckResult = await runAlertChecks(shop.id);
-    activeAlerts = alertCheckResult.results
+    const alertCheckResults = await runAlertChecks(shop.id);
+    activeAlerts = alertCheckResults
       .filter((r) => r.triggered)
-      .map((r) => ({
-        id: r.alertId || `alert-${Date.now()}`,
-        type: r.alertType || "unknown",
+      .map((r, index) => ({
+        id: `alert-${Date.now()}-${index}`,
+        type: "unknown",
         severity: r.severity || "info",
         message: r.message || "告警触发",
         triggeredAt: new Date(),

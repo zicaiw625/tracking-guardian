@@ -6,10 +6,6 @@ import { getPlatformEventName } from "../pixel-mapping.server";
 import type { Platform } from "~/types/platform";
 import type { PlatformCredentials } from "~/types";
 import { fetchWithTimeout, DEFAULT_API_TIMEOUT_MS } from "../platforms/interface";
-import {
-  createDeliveryAttempt,
-  updateDeliveryAttempt
-} from "../event-log.server";
 
 const GA4_MEASUREMENT_PROTOCOL_URL = "https://www.google-analytics.com/mp/collect";
 const META_API_BASE_URL = "https://graph.facebook.com";
@@ -365,8 +361,7 @@ export async function sendPixelEventToPlatform(
   eventId: string,
   configId?: string,
   platformId?: string,
-  eventLogId?: string | null,
-  environment?: "test" | "live"
+  environment: "test" | "live" = "live"
 ): Promise<PixelEventSendResult> {
   try {
     logger.debug(`Sending ${payload.eventName} to ${platform}`, {
@@ -431,8 +426,6 @@ export async function sendPixelEventToPlatform(
     const credentials = credResult.value.credentials;
     const normalizedPlatform = platform.toLowerCase();
     const configEnvironment = (config.environment || environment || "live") as "test" | "live";
-    let requestPayload: unknown = null;
-    let attemptId: string | null = null;
     const eventMappings = config.eventMappings && typeof config.eventMappings === 'object'
       ? (config.eventMappings as Record<string, string>)
       : null;
@@ -568,24 +561,6 @@ export async function sendPixelEventToPlatform(
         error: `Unsupported platform: ${platform}`,
       };
     }
-    if (eventLogId && requestPayload) {
-      try {
-        attemptId = await createDeliveryAttempt({
-          eventLogId,
-          shopId,
-          destinationType: normalizedPlatform,
-          environment: configEnvironment,
-          requestPayloadJson: requestPayload,
-        });
-      } catch (error) {
-        logger.error("Failed to create DeliveryAttempt (non-blocking)", {
-          shopId,
-          eventLogId,
-          platform: normalizedPlatform,
-          error: error instanceof Error ? error.message : String(error),
-        });
-      }
-    }
     const startTime = Date.now();
     let sendResult: PixelEventSendResult;
     try {
@@ -620,46 +595,6 @@ export async function sendPixelEventToPlatform(
       };
     }
     const latencyMs = Date.now() - startTime;
-    if (attemptId) {
-      try {
-        let errorCode: string | null = null;
-        if (!sendResult.success && sendResult.error) {
-          const errorMsg = sendResult.error.toLowerCase();
-          const status = sendResult.responseStatus;
-          if (status === 401 || status === 403 || errorMsg.includes("unauthorized") || errorMsg.includes("token")) {
-            errorCode = "auth_error";
-          } else if (status === 429 || errorMsg.includes("rate limit")) {
-            errorCode = "rate_limited";
-          } else if (status && status >= 500) {
-            errorCode = "server_error";
-          } else if (status === 400 || errorMsg.includes("invalid") || errorMsg.includes("validation")) {
-            errorCode = "validation_error";
-          } else if (errorMsg.includes("timeout") || errorMsg.includes("network")) {
-            errorCode = "network_error";
-          } else if (errorMsg.includes("credential") || errorMsg.includes("config")) {
-            errorCode = "config_error";
-          } else {
-            errorCode = "send_failed";
-          }
-        }
-        await updateDeliveryAttempt({
-          attemptId,
-          status: sendResult.success ? "ok" : "fail",
-          errorCode,
-          errorDetail: sendResult.error || null,
-          responseStatus: sendResult.responseStatus || null,
-          responseBodySnippet: sendResult.responseBody || null,
-          latencyMs,
-        });
-      } catch (error) {
-        logger.error("Failed to update DeliveryAttempt (non-blocking)", {
-          shopId,
-          attemptId,
-          platform: normalizedPlatform,
-          error: error instanceof Error ? error.message : String(error),
-        });
-      }
-    }
     return sendResult;
   } catch (error) {
     logger.error(`Failed to send pixel event to ${platform}`, {

@@ -746,16 +746,11 @@ export async function getOrderPayloadStats(): Promise<{
     withCapiInput: number;
     needsSanitization: number;
 }> {
-    const [totalJobs, withCapiInput] = await Promise.all([
-        prisma.conversionJob.count(),
-        prisma.conversionJob.count({
-            where: { capiInput: { not: Prisma.JsonNull } },
-        }),
-    ]);
+    logger.debug(`getOrderPayloadStats called but conversionJob table no longer exists`);
     return {
-        totalJobs,
+        totalJobs: 0,
         withOrderPayload: 0,
-        withCapiInput,
+        withCapiInput: 0,
         needsSanitization: 0,
     };
 }

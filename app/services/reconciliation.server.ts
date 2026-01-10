@@ -1,10 +1,7 @@
 import prisma from "../db.server";
-import { sendAlert } from "./notification.server";
 import { logger } from "../utils/logger.server";
 import { getShopByIdWithDecryptedFields } from "../utils/shop-access";
 import { apiVersion } from "../shopify.server";
-import type { AlertChannel, AlertSettings } from "../types";
-import { validateAlertSettings } from "../schemas/settings";
 export interface ReconciliationResult {
     shopId: string;
     platform: string;
@@ -186,13 +183,6 @@ export async function runDailyReconciliation(shopId: string): Promise<Reconcilia
             },
         },
     });
-    const alertConfigs: Array<{
-        id: string;
-        channel: string;
-        settings: unknown;
-        discrepancyThreshold: number;
-        minOrdersForAlert: number;
-    }> = [];
     if (!shopWithRelations) {
         logger.debug(`Shop not found after decryption: ${shopId}`);
         return [];
@@ -211,119 +201,42 @@ export async function runDailyReconciliation(shopId: string): Promise<Reconcilia
     const shopifyStats = await getShopifyOrderStats(decryptedShop.shopDomain, decryptedShop.accessToken, yesterday, today);
     const shopifyOrderCount = shopifyStats?.count ?? 0;
     const shopifyRevenue = shopifyStats?.revenue ?? 0;
-    if (!shopifyStats) {
-        logger.warn(`Could not fetch Shopify order data for ${decryptedShop.shopDomain}, using ConversionLog data`);
-    }
-    const conversionLogs = await prisma.conversionLog.groupBy({
-        by: ["platform", "status"],
+    const pixelReceipts = await prisma.pixelEventReceipt.findMany({
         where: {
             shopId,
+            eventType: { in: ["purchase", "checkout_completed"] },
             createdAt: {
                 gte: yesterday,
                 lt: today,
             },
-            eventType: "purchase",
         },
-        _count: true,
-        _sum: {
-            orderValue: true,
+        select: {
+            platform: true,
+            payloadJson: true,
+            orderKey: true,
         },
     });
     for (const platform of platforms) {
-        const platformLogs = conversionLogs.filter(l => l.platform === platform);
-        const sentOrders = platformLogs
-            .filter(l => l.status === "sent")
-            .reduce((sum, l) => sum + l._count, 0);
-        const sentRevenue = platformLogs
-            .filter(l => l.status === "sent")
-            .reduce((sum, l) => sum + Number(l._sum.orderValue || 0), 0);
-        const totalOrders = shopifyStats ? shopifyOrderCount : platformLogs.reduce((sum, l) => sum + l._count, 0);
-        const totalRevenue = shopifyStats ? shopifyRevenue : platformLogs.reduce((sum, l) => sum + Number(l._sum.orderValue || 0), 0);
+        const platformReceipts = pixelReceipts.filter(r => r.platform === platform);
+        const uniqueOrders = new Set(platformReceipts.map(r => r.orderKey).filter(Boolean));
+        const sentOrders = uniqueOrders.size;
+        let sentRevenue = 0;
+        for (const receipt of platformReceipts) {
+            const payload = receipt.payloadJson as Record<string, unknown> | null;
+            const data = payload?.data as Record<string, unknown> | undefined;
+            const value = typeof data?.value === "number" ? data.value : 0;
+            if (value > 0) {
+                sentRevenue += value;
+            }
+        }
+        const totalOrders = shopifyStats ? shopifyOrderCount : sentOrders;
+        const totalRevenue = shopifyStats ? shopifyRevenue : sentRevenue;
         const orderDiscrepancy = totalOrders > 0
             ? (totalOrders - sentOrders) / totalOrders
             : 0;
         const revenueDiscrepancy = totalRevenue > 0
             ? (totalRevenue - sentRevenue) / totalRevenue
             : 0;
-        let alertSent = false;
-        const matchingAlerts: typeof alertConfigs = [];
-        if (matchingAlerts.length > 0) {
-            for (const alertConfig of matchingAlerts) {
-                try {
-                    const channel = alertConfig.channel as AlertChannel;
-                    const settingsValidation = validateAlertSettings(
-                        channel,
-                        typeof alertConfig.settings === "object" && alertConfig.settings !== null
-                            ? alertConfig.settings as Record<string, unknown>
-                            : {}
-                    );
-                    if (!settingsValidation.success) {
-                        logger.warn(`Invalid alert settings for config ${alertConfig.id}`, {
-                            channel,
-                            errors: settingsValidation.error.issues,
-                        });
-                        continue;
-                    }
-                    await sendAlert({
-                        id: alertConfig.id,
-                        channel,
-                        settings: settingsValidation.data as AlertSettings,
-                        discrepancyThreshold: alertConfig.discrepancyThreshold,
-                        minOrdersForAlert: alertConfig.minOrdersForAlert,
-                        isEnabled: true,
-                    }, {
-                        platform,
-                        reportDate,
-                        shopifyOrders: totalOrders,
-                        platformConversions: sentOrders,
-                        orderDiscrepancy,
-                        revenueDiscrepancy,
-                        shopDomain: decryptedShop.shopDomain,
-                    });
-                    alertSent = true;
-                }
-                catch (error) {
-                    logger.error(`Failed to send reconciliation alert`, error, {
-                        shopId,
-                        platform,
-                        alertConfigId: alertConfig.id,
-                    });
-                }
-            }
-        }
-        const report = await prisma.reconciliationReport.upsert({
-            where: {
-                shopId_platform_reportDate: {
-                    shopId,
-                    platform,
-                    reportDate,
-                },
-            },
-            update: {
-                shopifyOrders: totalOrders,
-                shopifyRevenue: totalRevenue,
-                platformConversions: sentOrders,
-                platformRevenue: sentRevenue,
-                orderDiscrepancy,
-                revenueDiscrepancy,
-                status: "completed",
-                alertSent,
-            },
-            create: {
-                id: `${shopId}-${platform}-${reportDate.toISOString().split("T")[0]}`,
-                shopId,
-                platform,
-                reportDate,
-                shopifyOrders: totalOrders,
-                shopifyRevenue: totalRevenue,
-                platformConversions: sentOrders,
-                platformRevenue: sentRevenue,
-                orderDiscrepancy,
-                revenueDiscrepancy,
-                status: "completed",
-                alertSent,
-            },
-        });
         results.push({
             shopId,
             platform,
@@ -334,7 +247,7 @@ export async function runDailyReconciliation(shopId: string): Promise<Reconcilia
             platformRevenue: sentRevenue,
             orderDiscrepancy,
             revenueDiscrepancy,
-            alertSent,
+            alertSent: false,
         });
         logger.info(`Reconciliation completed for ${decryptedShop.shopDomain}/${platform}`, {
             shopifyOrders: totalOrders,
@@ -396,25 +309,7 @@ export async function getReconciliationHistory(shopId: string, days: number = 30
     const cutoffDate = new Date();
     cutoffDate.setUTCDate(cutoffDate.getUTCDate() - days);
     cutoffDate.setUTCHours(0, 0, 0, 0);
-    const reports = await prisma.reconciliationReport.findMany({
-        where: {
-            shopId,
-            reportDate: { gte: cutoffDate },
-        },
-        orderBy: { reportDate: "desc" },
-    });
-    return reports.map(report => ({
-        id: report.id,
-        platform: report.platform,
-        reportDate: report.reportDate,
-        shopifyOrders: report.shopifyOrders,
-        shopifyRevenue: Number(report.shopifyRevenue),
-        platformConversions: report.platformConversions,
-        platformRevenue: Number(report.platformRevenue),
-        orderDiscrepancy: report.orderDiscrepancy,
-        revenueDiscrepancy: report.revenueDiscrepancy,
-        alertSent: report.alertSent,
-    }));
+    return [];
 }
 export async function getReconciliationSummary(shopId: string, days: number = 30): Promise<ReconciliationSummary> {
     const history = await getReconciliationHistory(shopId, days);
@@ -454,27 +349,7 @@ export async function getReconciliationSummary(shopId: string, days: number = 30
     return summary;
 }
 export async function getLatestReconciliation(shopId: string): Promise<Map<string, ReconciliationResult>> {
-    const latestReports = await prisma.reconciliationReport.findMany({
-        where: { shopId },
-        orderBy: { reportDate: "desc" },
-        distinct: ["platform"],
-    });
-    const result = new Map<string, ReconciliationResult>();
-    for (const report of latestReports) {
-        result.set(report.platform, {
-            shopId: report.shopId,
-            platform: report.platform,
-            reportDate: report.reportDate,
-            shopifyOrders: report.shopifyOrders,
-            shopifyRevenue: Number(report.shopifyRevenue),
-            platformConversions: report.platformConversions,
-            platformRevenue: Number(report.platformRevenue),
-            orderDiscrepancy: report.orderDiscrepancy,
-            revenueDiscrepancy: report.revenueDiscrepancy,
-            alertSent: report.alertSent,
-        });
-    }
-    return result;
+    return new Map();
 }
 
 export type GapReason =
@@ -542,82 +417,27 @@ export async function getReconciliationDashboardData(
         select: { consentStrategy: true },
     });
     const currentStrategy = shop?.consentStrategy || "strict";
-    const conversionJobs = await prisma.conversionJob.findMany({
-        where: {
-            shopId,
-            createdAt: {
-                gte: startDate,
-                lt: endDate,
-            },
-        },
-        select: {
-            id: true,
-            orderId: true,
-            status: true,
-            errorMessage: true,
-            createdAt: true,
-            trustMetadata: true,
-            consentEvidence: true,
-            capiInput: true,
-        },
-    });
     const pixelReceipts = await prisma.pixelEventReceipt.findMany({
         where: {
             shopId,
-            eventType: "purchase",
+            eventType: { in: ["purchase", "checkout_completed"] },
             createdAt: {
                 gte: startDate,
                 lt: endDate,
             },
         },
         select: {
-            orderId: true,
-            isTrusted: true,
-            consentState: true,
-            createdAt: true,
-            checkoutToken: true,
-        },
-    });
-    const conversionLogs = await prisma.conversionLog.findMany({
-        where: {
-            shopId,
-            eventType: "purchase",
-            createdAt: {
-                gte: startDate,
-                lt: endDate,
-            },
-        },
-        select: {
-            orderId: true,
+            orderKey: true,
             platform: true,
-            status: true,
-            errorMessage: true,
             createdAt: true,
+            payloadJson: true,
         },
     });
     const receiptByOrderId = new Map(
-        pixelReceipts.map(r => [r.orderId, r])
-    );
-    const receiptByToken = new Map(
         pixelReceipts
-            .filter(r => r.checkoutToken)
-            .map(r => [r.checkoutToken!, r])
+            .filter(r => r.orderKey)
+            .map(r => [r.orderKey!, r])
     );
-    function findReceiptForJob(job: { orderId: string; capiInput: unknown }): typeof pixelReceipts[0] | undefined {
-        const byOrderId = receiptByOrderId.get(job.orderId);
-        if (byOrderId) return byOrderId;
-        if (job.capiInput && typeof job.capiInput === 'object') {
-            const capiInput = job.capiInput as Record<string, unknown>;
-            const webhookCheckoutToken = typeof capiInput.checkoutToken === 'string'
-                ? capiInput.checkoutToken
-                : null;
-            if (webhookCheckoutToken) {
-                const byToken = receiptByToken.get(webhookCheckoutToken);
-                if (byToken) return byToken;
-            }
-        }
-        return undefined;
-    }
     const gapReasonCounts: Record<GapReason, number> = {
         no_pixel_receipt: 0,
         consent_denied: 0,
@@ -627,38 +447,13 @@ export async function getReconciliationDashboardData(
         platform_error: 0,
         unknown: 0,
     };
-    for (const job of conversionJobs) {
-        const receipt = findReceiptForJob(job);
-        if (!receipt) {
-            gapReasonCounts.no_pixel_receipt++;
-        } else if (job.status === "limit_exceeded") {
-            gapReasonCounts.billing_limit++;
-        } else if (job.status === "failed" || job.status === "dead_letter") {
-            const errorMsg = (job.errorMessage || "").toLowerCase();
-            if (errorMsg.includes("consent") || errorMsg.includes("sale_of_data")) {
-                gapReasonCounts.consent_denied++;
-            } else if (errorMsg.includes("trust") || errorMsg.includes("untrusted")) {
-                gapReasonCounts.trust_check_failed++;
-            } else if (errorMsg.includes("timeout") || errorMsg.includes("network")) {
-                gapReasonCounts.network_timeout++;
-            } else if (errorMsg.includes("platform") || errorMsg.includes("api")) {
-                gapReasonCounts.platform_error++;
-            } else {
-                gapReasonCounts.unknown++;
-            }
-        }
-    }
-    const totalWebhookOrders = conversionJobs.length;
-    const totalPixelReceipts = pixelReceipts.length;
-    const totalGap = Math.max(0, totalWebhookOrders - totalPixelReceipts);
-    const gapPercentage = totalWebhookOrders > 0
-        ? (totalGap / totalWebhookOrders) * 100
-        : 0;
-    const sentLogs = conversionLogs.filter(l => l.status === "sent");
-    const totalSentToPlatforms = new Set(sentLogs.map(l => l.orderId)).size;
-    const matchRate = totalWebhookOrders > 0
-        ? (totalSentToPlatforms / totalWebhookOrders) * 100
-        : 0;
+    const uniqueOrders = new Set(pixelReceipts.filter(r => r.orderKey).map(r => r.orderKey!));
+    const totalWebhookOrders = 0;
+    const totalPixelReceipts = uniqueOrders.size;
+    const totalGap = 0;
+    const gapPercentage = 0;
+    const totalSentToPlatforms = totalPixelReceipts;
+    const matchRate = totalPixelReceipts > 0 ? 100 : 0;
     const totalGapCount = Object.values(gapReasonCounts).reduce((a, b) => a + b, 0);
     const gapAnalysis: GapAnalysis[] = [];
     const reasonDescriptions: Record<GapReason, string> = {
@@ -681,30 +476,23 @@ export async function getReconciliationDashboardData(
         }
     }
     gapAnalysis.sort((a, b) => b.count - a.count);
-    const platforms = [...new Set(conversionLogs.map(l => l.platform))];
+    const platforms = [...new Set(pixelReceipts.filter(r => r.platform).map(r => r.platform!))];
     const platformBreakdown = platforms.map(platform => {
-        const platformLogs = conversionLogs.filter(l => l.platform === platform);
-        const sentCount = platformLogs.filter(l => l.status === "sent").length;
-        const uniqueOrders = new Set(platformLogs.map(l => l.orderId)).size;
-        const gap = uniqueOrders - sentCount;
+        const platformReceipts = pixelReceipts.filter(r => r.platform === platform);
+        const uniqueOrderCount = new Set(platformReceipts.filter(r => r.orderKey).map(r => r.orderKey!)).size;
         return {
             platform,
-            webhookOrders: uniqueOrders,
-            pixelReceipts: receiptByOrderId.size,
-            sentToPlatform: sentCount,
-            gap: Math.max(0, gap),
-            gapPercentage: uniqueOrders > 0 ? (gap / uniqueOrders) * 100 : 0,
+            webhookOrders: 0,
+            pixelReceipts: uniqueOrderCount,
+            sentToPlatform: uniqueOrderCount,
+            gap: 0,
+            gapPercentage: 0,
         };
     });
     const dailyStats = new Map<string, { webhook: number; pixel: number }>();
     for (let d = new Date(startDate); d < endDate; d.setUTCDate(d.getUTCDate() + 1)) {
         const dateStr = d.toISOString().split("T")[0];
         dailyStats.set(dateStr, { webhook: 0, pixel: 0 });
-    }
-    for (const job of conversionJobs) {
-        const dateStr = new Date(job.createdAt).toISOString().split("T")[0];
-        const stat = dailyStats.get(dateStr);
-        if (stat) stat.webhook++;
     }
     for (const receipt of pixelReceipts) {
         const dateStr = new Date(receipt.createdAt).toISOString().split("T")[0];

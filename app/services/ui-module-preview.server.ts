@@ -83,50 +83,18 @@ export async function getModulePreviewConfig(
   shopId: string,
   moduleKey: ModuleKey
 ): Promise<ModulePreviewConfig | null> {
-  const setting = await prisma.uiExtensionSetting.findUnique({
-    where: {
-      shopId_moduleKey: { shopId, moduleKey },
-    },
-  });
-  if (!setting) {
-    return null;
-  }
-  let settings: Record<string, unknown> = {};
-  if (setting.settingsEncrypted) {
-    try {
-      settings = decryptJson<Record<string, unknown>>(setting.settingsEncrypted);
-    } catch (error) {
-      logger.error("Failed to decrypt settingsEncrypted in getModulePreviewConfig", {
-        shopId,
-        moduleKey,
-        error: error instanceof Error ? error.message : String(error),
-      });
-      settings = (setting.settingsJson as Record<string, unknown>) || {};
-    }
-  } else {
-    settings = (setting.settingsJson as Record<string, unknown>) || {};
-  }
-  return {
-    moduleKey: setting.moduleKey as ModuleKey,
-    settings,
-    displayRules: (setting.displayRules as {
-      enabled: boolean;
-      targets: ("thank_you" | "order_status")[];
-    }) || {
-      enabled: false,
-      targets: [],
-    },
-  };
+  return null;
 }
 
 export async function getAllModulePreviewConfigs(
   shopId: string
 ): Promise<Record<ModuleKey, ModulePreviewConfig | null>> {
-  const settings = await prisma.uiExtensionSetting.findMany({
-    where: { shopId },
-  });
   const result: Record<string, ModulePreviewConfig | null> = {};
-  for (const setting of settings) {
+  const moduleKeys: ModuleKey[] = ["survey", "helpdesk", "order_tracking", "reorder", "upsell"];
+  for (const moduleKey of moduleKeys) {
+    result[moduleKey] = null;
+  }
+  return result as Record<ModuleKey, ModulePreviewConfig | null>;
     let moduleSettings: Record<string, unknown> = {};
     if (setting.settingsEncrypted) {
       try {

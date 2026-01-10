@@ -20,43 +20,11 @@ export async function syncUiExtensionSettings(
         errors: ["Web Pixel 未安装或未找到"],
       };
     }
-    const modules = await prisma.uiExtensionSetting.findMany({
-      where: {
-        shopId,
-        isEnabled: true,
-      },
-    });
-    if (modules.length === 0) {
-      return {
-        success: true,
-        synced: 0,
-        errors: [],
-      };
-    }
-    const settings: Record<string, unknown> = {};
-    for (const module of modules) {
-      const moduleKey = module.moduleKey as ModuleKey;
-      const config = await getUiModuleConfig(shopId, moduleKey);
-      const settingsKey = `ui_module_${moduleKey}`;
-      const localizedSettings: Record<string, unknown> = { ...config.settings };
-      if (config.localization) {
-        Object.entries(config.localization).forEach(([locale, localeData]) => {
-          if (localeData && typeof localeData === 'object') {
-            Object.entries(localeData).forEach(([field, value]) => {
-              if (value && typeof value === 'string') {
-                localizedSettings[`${field}_${locale}`] = value;
-              }
-            });
-          }
-        });
-      }
-      settings[settingsKey] = {
-        enabled: config.isEnabled,
-        settings: localizedSettings,
-        displayRules: config.displayRules,
-        localization: config.localization,
-      };
-    }
+    return {
+      success: true,
+      synced: 0,
+      errors: [],
+    };
     const mutation = `
       mutation UpdateWebPixelSettings($id: ID!, $settings: JSON!) {
         webPixelUpdate(id: $id, webPixel: { settings: $settings }) {

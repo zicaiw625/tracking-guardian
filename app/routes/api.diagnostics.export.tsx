@@ -85,9 +85,10 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       signatureStatus: true,
     },
   });
-  const recentConversions = await prisma.conversionLog.count({
+  const recentConversions = await prisma.pixelEventReceipt.count({
     where: {
       shopId: shop.id,
+      eventType: { in: ["purchase", "checkout_completed"] },
       createdAt: { gte: new Date(Date.now() - 24 * 60 * 60 * 1000) },
     },
   });

@@ -34,50 +34,49 @@ export async function detectDeduplicationConflicts(
 ): Promise<DeduplicationConflict[]> {
   const since = new Date();
   since.setHours(since.getHours() - hours);
-  const logs = await prisma.conversionLog.findMany({
+  const receipts = await prisma.pixelEventReceipt.findMany({
     where: {
       shopId,
       createdAt: { gte: since },
-      eventId: { not: null },
     },
     select: {
-      orderId: true,
+      id: true,
+      orderKey: true,
       platform: true,
       eventType: true,
-      eventId: true,
-      status: true,
       createdAt: true,
-      clientSideSent: true,
-      serverSideSent: true,
+      payloadJson: true,
     },
     orderBy: {
       createdAt: "desc",
     },
   });
   const conflictMap = new Map<string, DeduplicationConflict>();
-  for (const log of logs) {
-    if (!log.eventId) continue;
-    const key = `${log.eventId}:${log.platform}`;
+  for (const receipt of receipts) {
+    if (!receipt.orderKey || !receipt.platform) continue;
+    const payload = receipt.payloadJson as Record<string, unknown> | null;
+    const eventId = payload?.eventId as string | undefined || payload?.event_id as string | undefined || receipt.id;
+    const key = `${eventId}:${receipt.platform}:${receipt.orderKey}`;
     const existing = conflictMap.get(key);
     if (existing) {
       existing.count++;
       existing.occurrences.push({
-        timestamp: log.createdAt,
-        source: log.serverSideSent ? "server" : "client",
-        status: log.status,
+        timestamp: receipt.createdAt,
+        source: "client",
+        status: "sent",
       });
     } else {
       conflictMap.set(key, {
-        eventId: log.eventId,
-        orderId: log.orderId,
-        platform: log.platform,
-        eventType: log.eventType,
+        eventId,
+        orderId: receipt.orderKey,
+        platform: receipt.platform,
+        eventType: receipt.eventType,
         count: 1,
         occurrences: [
           {
-            timestamp: log.createdAt,
-            source: log.serverSideSent ? "server" : "client",
-            status: log.status,
+            timestamp: receipt.createdAt,
+            source: "client",
+            status: "sent",
           },
         ],
         severity: "low",

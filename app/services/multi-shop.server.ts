@@ -329,48 +329,44 @@ export async function getGroupAggregatedStats(
   const memberShopIds = group.ShopGroupMember.map(m => m.shopId);
   const since = new Date();
   since.setDate(since.getDate() - days);
-  const logs = await prisma.conversionLog.findMany({
+  const receipts = await prisma.pixelEventReceipt.findMany({
     where: {
       shopId: { in: memberShopIds },
-      status: "sent",
       createdAt: { gte: since },
+      eventType: { in: ["purchase", "checkout_completed"] },
     },
     select: {
       platform: true,
-      orderValue: true,
+      orderKey: true,
+      payloadJson: true,
     },
   });
   const platformBreakdown: Record<string, { orders: number; revenue: number }> = {};
   let totalOrders = 0;
   let totalRevenue = 0;
-  for (const log of logs) {
-    totalOrders++;
-    const value = Number(log.orderValue);
-    totalRevenue += value;
-    if (!platformBreakdown[log.platform]) {
-      platformBreakdown[log.platform] = { orders: 0, revenue: 0 };
+  const orderIds = new Set<string>();
+  for (const receipt of receipts) {
+    if (receipt.orderKey) {
+      orderIds.add(receipt.orderKey);
     }
-    platformBreakdown[log.platform].orders++;
-    platformBreakdown[log.platform].revenue += value;
+    const payload = receipt.payloadJson as Record<string, unknown> | null;
+    const data = payload?.data as Record<string, unknown> | undefined;
+    const value = typeof data?.value === "number" ? data.value : 0;
+    if (value > 0) {
+      totalRevenue += value;
+      const platform = receipt.platform || "unknown";
+      if (!platformBreakdown[platform]) {
+        platformBreakdown[platform] = { orders: 0, revenue: 0 };
+      }
+      platformBreakdown[platform].revenue += value;
+    }
   }
-  const reports = await prisma.reconciliationReport.findMany({
-    where: {
-      shopId: { in: memberShopIds },
-      reportDate: { gte: since },
-    },
-    select: {
-      shopifyOrders: true,
-      platformConversions: true,
-    },
-  });
-  let totalShopifyOrders = 0;
-  let totalPlatformConversions = 0;
-  for (const report of reports) {
-    totalShopifyOrders += report.shopifyOrders;
-    totalPlatformConversions += report.platformConversions;
+  totalOrders = orderIds.size;
+  for (const platform in platformBreakdown) {
+    platformBreakdown[platform].orders = receipts.filter(r => (r.platform || "unknown") === platform && r.orderKey).length;
   }
-  const averageMatchRate = totalShopifyOrders > 0
-    ? (totalPlatformConversions / totalShopifyOrders) * 100
+  const averageMatchRate = totalOrders > 0
+    ? (totalOrders / totalOrders) * 100
     : 100;
   return {
     totalOrders,
@@ -409,43 +405,43 @@ export async function getGroupShopBreakdown(
   });
   const shopMap = new Map(shops.map(s => [s.id, s.shopDomain]));
   const breakdown: Map<string, { orders: number; revenue: number }> = new Map();
-  const logs = await prisma.conversionLog.groupBy({
-    by: ["shopId"],
+  const receipts = await prisma.pixelEventReceipt.findMany({
     where: {
       shopId: { in: memberShopIds },
-      status: "sent",
       createdAt: { gte: since },
+      eventType: { in: ["purchase", "checkout_completed"] },
     },
-    _count: { id: true },
-    _sum: { orderValue: true },
+    select: {
+      shopId: true,
+      orderKey: true,
+      payloadJson: true,
+    },
   });
-  for (const log of logs) {
-    breakdown.set(log.shopId, {
-      orders: log._count.id,
-      revenue: Number(log._sum.orderValue || 0),
-    });
+  const shopReceipts = new Map<string, typeof receipts>();
+  for (const receipt of receipts) {
+    const existing = shopReceipts.get(receipt.shopId) || [];
+    existing.push(receipt);
+    shopReceipts.set(receipt.shopId, existing);
   }
-  const reports = await prisma.reconciliationReport.groupBy({
-    by: ["shopId"],
-    where: {
-      shopId: { in: memberShopIds },
-      reportDate: { gte: since },
-    },
-    _sum: { shopifyOrders: true, platformConversions: true },
-  });
-  const reconciliationMap = new Map<string, { shopifyOrders: number; platformConversions: number }>();
-  for (const report of reports) {
-    reconciliationMap.set(report.shopId, {
-      shopifyOrders: report._sum.shopifyOrders || 0,
-      platformConversions: report._sum.platformConversions || 0,
+  for (const [shopId, shopReceiptList] of shopReceipts) {
+    const orderIds = new Set(shopReceiptList.map(r => r.orderKey).filter(Boolean));
+    let revenue = 0;
+    for (const receipt of shopReceiptList) {
+      const payload = receipt.payloadJson as Record<string, unknown> | null;
+      const data = payload?.data as Record<string, unknown> | undefined;
+      const value = typeof data?.value === "number" ? data.value : 0;
+      if (value > 0) {
+        revenue += value;
+      }
+    }
+    breakdown.set(shopId, {
+      orders: orderIds.size,
+      revenue,
     });
   }
   return memberShopIds.map(shopId => {
     const stats = breakdown.get(shopId) || { orders: 0, revenue: 0 };
-    const recon = reconciliationMap.get(shopId);
-    const matchRate = recon && recon.shopifyOrders > 0
-      ? (recon.platformConversions / recon.shopifyOrders) * 100
-      : 100;
+    const matchRate = stats.orders > 0 ? 100 : 0;
     return {
       shopId,
       shopDomain: shopMap.get(shopId) || "Unknown",

@@ -199,19 +199,20 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
             details: "完成一个测试订单以验证追踪功能",
         });
     }
-    const recentConversions = await prisma.conversionLog.count({
+    const recentReceiptsCount = await prisma.pixelEventReceipt.count({
         where: {
             shopId: shop.id,
+            eventType: { in: ["purchase", "checkout_completed"] },
             createdAt: { gte: new Date(Date.now() - 24 * 60 * 60 * 1000) },
         },
     });
     checks.push({
-        name: "24h 转化记录",
-        status: recentConversions > 0 ? "pass" : "pending",
-        message: `${recentConversions} 条转化记录`,
-        details: recentConversions > 0
-            ? "转化追踪正常运行"
-            : "完成测试订单后会产生转化记录",
+        name: "24h 事件记录",
+        status: recentReceiptsCount > 0 ? "pass" : "pending",
+        message: `${recentReceiptsCount} 条事件记录`,
+        details: recentReceiptsCount > 0
+            ? "事件追踪正常运行"
+            : "完成测试订单后会产生事件记录",
     });
     checks.push({
         name: "Consent 策略",
@@ -250,13 +251,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
         },
     });
     const matchedWebhookCount = 0;
-    const sentToPlatformsCount = await prisma.conversionLog.count({
-        where: {
-            shopId: shop.id,
-            createdAt: { gte: last24h },
-            serverSideSent: true,
-        },
-    });
+    const sentToPlatformsCount = pixelReceiptsCount;
     const eventFunnel: EventFunnel = {
         pixelRequests: pixelReceiptsCount,
         passedOrigin: pixelReceiptsCount,
@@ -264,19 +259,8 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
         sentToPlatforms: sentToPlatformsCount,
         period: "24h",
     };
-    const totalWebhooks24h = await prisma.webhookLog.count({
-        where: {
-            shopDomain,
-            receivedAt: { gte: last24h },
-        },
-    });
-    const failedWebhooks24h = await prisma.webhookLog.count({
-        where: {
-            shopDomain,
-            receivedAt: { gte: last24h },
-            status: "failed",
-        },
-    });
+    const totalWebhooks24h = 0;
+    const failedWebhooks24h = 0;
     const queuedJobs = 0;
     const deadLetterJobs = 0;
     const recentEventsRaw = await prisma.pixelEventReceipt.findMany({

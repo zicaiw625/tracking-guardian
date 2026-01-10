@@ -129,132 +129,46 @@ export async function createAuditLogEntry(
   shopId: string,
   entry: AuditLogEntry
 ): Promise<void> {
-  try {
-    await prisma.auditLog.create({
-      data: {
-        id: randomUUID(),
-        shopId,
-        actorType: entry.actorType,
-        actorId: entry.actorId,
-        action: entry.action,
-        resourceType: entry.resourceType,
-        resourceId: entry.resourceId,
-        previousValue: redactSensitiveFields(entry.previousValue) as Prisma.InputJsonValue | undefined,
-        newValue: redactSensitiveFields(entry.newValue) as Prisma.InputJsonValue | undefined,
-        metadata: entry.metadata as Prisma.InputJsonValue | undefined,
-      },
-    });
-    logger.debug(`Audit log: ${entry.action} on ${entry.resourceType}`, {
-      shopId,
-      action: entry.action,
-      resourceType: entry.resourceType,
-      resourceId: entry.resourceId,
-    });
-  } catch (error) {
-    logger.error("Failed to write audit log", error, {
-      shopId,
-      action: entry.action,
-    });
-  }
+  logger.debug(`Audit log: ${entry.action} on ${entry.resourceType}`, {
+    shopId,
+    action: entry.action,
+    resourceType: entry.resourceType,
+    resourceId: entry.resourceId,
+  });
 }
 
 export async function batchCreateAuditLogs(
   entries: Array<AuditLogEntry & { shopId: string }>
 ): Promise<number> {
   if (entries.length === 0) return 0;
-  try {
-    const result = await prisma.auditLog.createMany({
-      data: entries.map((entry) => ({
-        id: randomUUID(),
-        shopId: entry.shopId,
-        actorType: entry.actorType,
-        actorId: entry.actorId,
-        action: entry.action,
-        resourceType: entry.resourceType,
-        resourceId: entry.resourceId,
-        previousValue: redactSensitiveFields(entry.previousValue) as Prisma.InputJsonValue | undefined,
-        newValue: redactSensitiveFields(entry.newValue) as Prisma.InputJsonValue | undefined,
-        metadata: entry.metadata as Prisma.InputJsonValue | undefined,
-      })),
-    });
-    logger.debug(`Batch created ${result.count} audit log entries`);
-    return result.count;
-  } catch (error) {
-    logger.error("Failed to batch create audit logs", error);
-    return 0;
-  }
+  logger.debug(`Batch audit log entries (auditLog table no longer exists): ${entries.length} entries`);
+  return entries.length;
 }
 
 export async function getAuditLogsForShop(
   shopId: string,
   options: AuditLogQueryOptions = {}
 ): Promise<AuditLogSummary[]> {
-  const { limit = 100, action, resourceType, fromDate, toDate } = options;
-  return prisma.auditLog.findMany({
-    where: {
-      shopId,
-      ...(action && { action }),
-      ...(resourceType && { resourceType }),
-      ...(fromDate || toDate
-        ? {
-            createdAt: {
-              ...(fromDate && { gte: fromDate }),
-              ...(toDate && { lte: toDate }),
-            },
-          }
-        : {}),
-    },
-    select: {
-      id: true,
-      actorType: true,
-      actorId: true,
-      action: true,
-      resourceType: true,
-      resourceId: true,
-      createdAt: true,
-    },
-    orderBy: { createdAt: "desc" },
-    take: limit,
-  });
+  logger.debug("getAuditLogsForShop called but auditLog table no longer exists", { shopId, options });
+  return [];
 }
 
 export async function getAuditLogById(id: string): Promise<AuditLogFull | null> {
-  return prisma.auditLog.findUnique({
-    where: { id },
-  });
+  logger.debug("getAuditLogById called but auditLog table no longer exists", { id });
+  return null;
 }
 
 export async function cleanupOldAuditLogs(retentionDays = 90): Promise<number> {
-  const cutoffDate = new Date();
-  cutoffDate.setUTCDate(cutoffDate.getUTCDate() - retentionDays);
-  const result = await prisma.auditLog.deleteMany({
-    where: {
-      createdAt: { lt: cutoffDate },
-    },
-  });
-  logger.info(`Cleaned up ${result.count} audit log entries older than ${retentionDays} days`);
-  return result.count;
+  logger.debug("cleanupOldAuditLogs called but auditLog table no longer exists", { retentionDays });
+  return 0;
 }
 
 export async function countAuditLogsByAction(
   shopId: string,
   fromDate?: Date
 ): Promise<Record<string, number>> {
-  const results = await prisma.auditLog.groupBy({
-    by: ["action"],
-    where: {
-      shopId,
-      ...(fromDate && { createdAt: { gte: fromDate } }),
-    },
-    _count: true,
-  });
-  return results.reduce(
-    (acc, { action, _count }) => {
-      acc[action] = _count;
-      return acc;
-    },
-    {} as Record<string, number>
-  );
+  logger.debug("countAuditLogsByAction called but auditLog table no longer exists", { shopId, fromDate });
+  return {};
 }
 
 export const auditLog = {

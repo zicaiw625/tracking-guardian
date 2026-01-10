@@ -1,7 +1,6 @@
 import { Prisma } from "@prisma/client";
 import { logger } from "../utils/logger.server";
 import prisma from "../db.server";
-import { createEventLog } from "./event-log.server";
 import { generateSimpleId } from "../utils/helpers";
 
 export type AnalyticsEvent =
@@ -80,18 +79,6 @@ export async function trackEvent(data: AnalyticsEventData): Promise<void> {
       event: data.event,
       metadata: normalizedMetadata,
       timestamp: timestamp.toISOString(),
-    });
-    await createEventLog({
-      shopId: data.shopId,
-      eventId,
-      eventName: data.event,
-      occurredAt: timestamp,
-      normalizedEventJson: {
-        event: data.event,
-        shopDomain: data.shopDomain,
-        metadata: normalizedMetadata ?? null,
-      },
-      source: "app_analytics",
     });
   } catch (error) {
     logger.error("[Analytics] Failed to track event", {

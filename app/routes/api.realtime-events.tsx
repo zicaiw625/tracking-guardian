@@ -59,7 +59,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
               shopId: shop.id,
             };
             if (lastEventId) {
-              const lastEvent = await prisma.conversionLog.findUnique({
+              const lastEvent = await prisma.pixelEventReceipt.findUnique({
                 where: { id: lastEventId },
                 select: { createdAt: true },
               });
@@ -69,95 +69,10 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
                 lastEventId = null;
               }
             }
-            const recentLogs = await prisma.conversionLog.findMany({
+            const recentReceipts = await prisma.pixelEventReceipt.findMany({
               where: {
                 ...whereClause,
                 ...(platforms.length > 0 && { platform: { in: platforms } }),
-              },
-              orderBy: { createdAt: "asc" },
-              take: 10,
-              select: {
-                id: true,
-                orderId: true,
-                orderNumber: true,
-                orderValue: true,
-                currency: true,
-                platform: true,
-                eventType: true,
-                status: true,
-                errorMessage: true,
-                eventId: true,
-                platformResponse: true,
-                createdAt: true,
-              },
-            });
-            if (recentLogs.length > 0) {
-              for (const log of recentLogs) {
-                let attemptDetails: {
-                  errorCode?: string | null;
-                  errorDetail?: string | null;
-                  responseStatus?: number | null;
-                  latencyMs?: number | null;
-                  requestPayloadJson?: unknown;
-                } | null = null;
-                if (log.eventId) {
-                  const eventLog = await prisma.eventLog.findFirst({
-                    where: {
-                      shopId: shop.id,
-                      eventId: log.eventId,
-                    },
-                    select: { id: true },
-                  });
-                  if (eventLog) {
-                    attemptDetails = await prisma.deliveryAttempt.findFirst({
-                      where: {
-                        shopId: shop.id,
-                        eventLogId: eventLog.id,
-                        destinationType: log.platform,
-                      },
-                      orderBy: { createdAt: "desc" },
-                      select: {
-                        errorCode: true,
-                        errorDetail: true,
-                        responseStatus: true,
-                        latencyMs: true,
-                        requestPayloadJson: true,
-                      },
-                    });
-                  }
-                }
-                const event = {
-                  id: log.id,
-                  eventType: log.eventType,
-                  orderId: log.orderId,
-                  orderNumber: log.orderNumber,
-                  platform: log.platform,
-                  timestamp: log.createdAt.toISOString(),
-                  status: log.status === "sent" ? "success" : log.status === "failed" ? "failed" : "pending",
-                  params: {
-                    value: Number(log.orderValue),
-                    currency: log.currency,
-                  },
-                  errorCode: attemptDetails?.errorCode ?? undefined,
-                  errorDetail: attemptDetails?.errorDetail ?? undefined,
-                  payload: attemptDetails?.requestPayloadJson ?? undefined,
-                  responseTime: attemptDetails?.latencyMs ?? undefined,
-                  details: {
-                    eventId: log.eventId ?? undefined,
-                    platformResponse: log.platformResponse ?? undefined,
-                    metadata: attemptDetails?.responseStatus
-                      ? { responseStatus: attemptDetails.responseStatus }
-                      : undefined,
-                  },
-                  ...(log.errorMessage && { errorMessage: log.errorMessage }),
-                };
-                sendMessage(event);
-              }
-              lastEventId = recentLogs[recentLogs.length - 1].id;
-            }
-            const recentReceipts = await prisma.pixelEventReceipt.findMany({
-              where: {
-                shopId: shop.id,
                 createdAt: {
                   gt: new Date(Date.now() - 60000),
                 },
@@ -166,26 +81,42 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
               take: 10,
               select: {
                 id: true,
-                orderId: true,
+                orderKey: true,
                 eventType: true,
+                platform: true,
+                pixelTimestamp: true,
                 createdAt: true,
-                isTrusted: true,
-                trustLevel: true,
+                payloadJson: true,
               },
             });
-            for (const receipt of recentReceipts) {
-              const event = {
-                id: `receipt_${receipt.id}`,
-                eventType: receipt.eventType,
-                orderId: receipt.orderId,
-                platform: "pixel",
-                timestamp: receipt.createdAt.toISOString(),
-                status: receipt.isTrusted ? "success" : "pending",
-                params: {
-                  hasEventId: true,
-                },
-              };
-              sendMessage(event);
+            if (recentReceipts.length > 0) {
+              for (const receipt of recentReceipts) {
+                const payload = receipt.payloadJson as Record<string, unknown> | null;
+                const data = payload?.data as Record<string, unknown> | undefined;
+                const value = typeof data?.value === "number" ? data.value : 0;
+                const currency = (data?.currency as string) || "USD";
+                const hasValue = value > 0;
+                const hasCurrency = !!currency;
+                const status = hasValue && hasCurrency ? "success" : "pending";
+                const event = {
+                  id: receipt.id,
+                  eventType: receipt.eventType,
+                  orderId: receipt.orderKey || "",
+                  platform: receipt.platform || "pixel",
+                  timestamp: receipt.pixelTimestamp.toISOString(),
+                  status,
+                  params: {
+                    value,
+                    currency,
+                    hasEventId: true,
+                  },
+                  details: {
+                    payload,
+                  },
+                };
+                sendMessage(event);
+              }
+              lastEventId = recentReceipts[recentReceipts.length - 1].id;
             }
           } catch (error) {
             logger.error("Error polling events for SSE", error);

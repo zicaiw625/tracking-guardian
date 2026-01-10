@@ -49,30 +49,33 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     },
   });
   const platforms = Array.from(new Set(pixelConfigs.map((config) => config.platform)));
-  const environments = Array.from(new Set(pixelConfigs.map((config) => config.environment)));
-  const recentAttempts = platforms.length
-    ? await prisma.deliveryAttempt.findMany({
+  const recentReceipts = platforms.length
+    ? await prisma.pixelEventReceipt.findMany({
         where: {
           shopId: shop.id,
-          destinationType: { in: platforms },
-          environment: { in: environments },
+          platform: { in: platforms },
         },
         orderBy: { createdAt: "desc" },
         select: {
-          destinationType: true,
-          environment: true,
-          status: true,
+          platform: true,
+          eventType: true,
           createdAt: true,
+          payloadJson: true,
         },
         take: 200,
       })
     : [];
-  const latestByKey = recentAttempts.reduce((acc, attempt) => {
-    const key = `${attempt.destinationType}:${attempt.environment}`;
+  const latestByKey = recentReceipts.reduce((acc, receipt) => {
+    if (!receipt.platform) return acc;
+    const key = `${receipt.platform}:live`;
     if (!acc[key]) {
+      const payload = receipt.payloadJson as Record<string, unknown> | null;
+      const hasValue = payload?.data && typeof (payload.data as Record<string, unknown>).value === "number";
+      const hasCurrency = payload?.data && typeof (payload.data as Record<string, unknown>).currency === "string";
+      const status = hasValue && hasCurrency ? "ok" : "pending";
       acc[key] = {
-        status: attempt.status,
-        createdAt: attempt.createdAt.toISOString(),
+        status,
+        createdAt: receipt.createdAt.toISOString(),
       };
     }
     return acc;

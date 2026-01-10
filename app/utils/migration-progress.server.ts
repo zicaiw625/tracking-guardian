@@ -2,40 +2,33 @@ import prisma from "../db.server";
 import type { MigrationStage, MigrationProgress } from "../types/dashboard";
 
 export async function calculateMigrationProgress(shopId: string): Promise<MigrationProgress> {
-  const [shop, modulesEnabled] = await Promise.all([
-    prisma.shop.findUnique({
-      where: { id: shopId },
-      select: {
-        ScanReports: {
-          orderBy: { createdAt: "desc" },
-          take: 1,
-          select: { status: true },
-        },
-        pixelConfigs: {
-          where: { isActive: true },
-          select: { environment: true },
-        },
-        VerificationRun: {
-          orderBy: { createdAt: "desc" },
-          take: 1,
-          select: { status: true, completedAt: true },
-        },
-        _count: {
-          select: {
-            pixelConfigs: {
-              where: { environment: "live", isActive: true },
-            },
+  const shop = await prisma.shop.findUnique({
+    where: { id: shopId },
+    select: {
+      ScanReports: {
+        orderBy: { createdAt: "desc" },
+        take: 1,
+        select: { status: true },
+      },
+      pixelConfigs: {
+        where: { isActive: true },
+        select: { environment: true },
+      },
+      VerificationRun: {
+        orderBy: { createdAt: "desc" },
+        take: 1,
+        select: { status: true, completedAt: true },
+      },
+      _count: {
+        select: {
+          pixelConfigs: {
+            where: { environment: "live", isActive: true },
           },
         },
       },
-    }),
-    prisma.uiExtensionSetting.count({
-      where: {
-        shopId,
-        isEnabled: true,
-      },
-    }),
-  ]);
+    },
+  });
+  const modulesEnabled = 0;
   const stages: MigrationProgress["stages"] = [
     { stage: "audit", label: "体检", completed: false, inProgress: false },
     { stage: "pixel_test", label: "像素测试", completed: false, inProgress: false },

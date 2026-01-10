@@ -39,21 +39,6 @@ export async function getUsageHistory(
   const startDate = new Date(endDate);
   startDate.setUTCDate(startDate.getUTCDate() - days);
   startDate.setUTCHours(0, 0, 0, 0);
-  const conversionLogs = await prisma.conversionLog.findMany({
-    where: {
-      shopId,
-      createdAt: {
-        gte: startDate,
-        lte: endDate,
-      },
-      status: "sent",
-    },
-    select: {
-      platform: true,
-      orderId: true,
-      createdAt: true,
-    },
-  });
   const pixelReceipts = await prisma.pixelEventReceipt.findMany({
     where: {
       shopId,
@@ -61,10 +46,13 @@ export async function getUsageHistory(
         gte: startDate,
         lte: endDate,
       },
+      eventType: { in: ["purchase", "checkout_completed"] },
     },
     select: {
-      orderId: true,
+      orderKey: true,
+      platform: true,
       createdAt: true,
+      payloadJson: true,
     },
   });
   const dailyData = new Map<string, {
@@ -80,8 +68,9 @@ export async function getUsageHistory(
       platformCounts: {},
     });
   }
-  conversionLogs.forEach((log) => {
-    const dateStr = new Date(log.createdAt).toISOString().split("T")[0];
+  pixelReceipts.forEach((receipt) => {
+    if (!receipt.orderKey) return;
+    const dateStr = new Date(receipt.createdAt).toISOString().split("T")[0];
     const dayData = dailyData.get(dateStr);
     if (dayData) {
       dayData.orderIds.add(log.orderId);
@@ -90,10 +79,14 @@ export async function getUsageHistory(
     }
   });
   pixelReceipts.forEach((receipt) => {
+    if (!receipt.orderKey) return;
     const dateStr = new Date(receipt.createdAt).toISOString().split("T")[0];
     const dayData = dailyData.get(dateStr);
     if (dayData) {
-      dayData.orderIds.add(receipt.orderId);
+      dayData.orderIds.add(receipt.orderKey);
+      dayData.eventCount++;
+      const platform = receipt.platform || "unknown";
+      dayData.platformCounts[platform] = (dayData.platformCounts[platform] || 0) + 1;
     }
   });
   const data: UsageHistoryPoint[] = Array.from(dailyData.entries())
@@ -104,11 +97,10 @@ export async function getUsageHistory(
       platforms: { ...dayData.platformCounts },
     }))
     .sort((a, b) => a.date.localeCompare(b.date));
-  const totalOrders = new Set([
-    ...conversionLogs.map((log) => log.orderId),
-    ...pixelReceipts.map((receipt) => receipt.orderId),
-  ]).size;
-  const totalEvents = conversionLogs.length;
+  const totalOrders = new Set(
+    pixelReceipts.map((receipt) => receipt.orderKey).filter(Boolean)
+  ).size;
+  const totalEvents = pixelReceipts.length;
   const averageDailyOrders = data.length > 0 ? totalOrders / data.length : 0;
   const averageDailyEvents = data.length > 0 ? totalEvents / data.length : 0;
   const peakDay = data.reduce(
@@ -116,8 +108,9 @@ export async function getUsageHistory(
     { date: data[0]?.date || "", orders: 0, events: 0, platforms: {} }
   );
   const platformTotals: Record<string, number> = {};
-  conversionLogs.forEach((log) => {
-    platformTotals[log.platform] = (platformTotals[log.platform] || 0) + 1;
+  pixelReceipts.forEach((receipt) => {
+    const platform = receipt.platform || "unknown";
+    platformTotals[platform] = (platformTotals[platform] || 0) + 1;
   });
   return {
     period: {

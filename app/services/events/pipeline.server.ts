@@ -3,7 +3,6 @@ import { logger } from "~/utils/logger.server";
 import type { PixelEventPayload } from "~/routes/api.pixel-events/types";
 import { sendPixelEventToPlatform } from "./pixel-event-sender.server";
 import { generateCanonicalEventId } from "../event-normalizer.server";
-import { createEventLog } from "../event-log.server";
 
 export interface EventPipelineResult {
   success: boolean;
@@ -345,27 +344,6 @@ export async function processEventPipeline(
       checkoutToken: normalizedPayload.data?.checkoutToken || null,
     });
   }
-  let eventLogId: string | null = null;
-  if (!isDeduplicated && finalEventId) {
-    try {
-      eventLogId = await createEventLog({
-        shopId,
-        eventId: finalEventId,
-        eventName: normalizedPayload.eventName,
-        occurredAt: new Date(normalizedPayload.timestamp || Date.now()),
-        normalizedEventJson: normalizedPayload,
-        shopifyContextJson: null,
-        source: "web_pixel",
-      });
-    } catch (error) {
-      logger.error("Failed to create EventLog (non-blocking)", {
-        shopId,
-        eventId: finalEventId,
-        eventName: normalizedPayload.eventName,
-        error: error instanceof Error ? error.message : String(error),
-      });
-    }
-  }
   if (!isDeduplicated) {
     const destinationNames = destinationConfigs.map(d => d.platform);
     logger.info(`Routing ${normalizedPayload.eventName} event to ${destinationConfigs.length} destination(s)`, {
@@ -417,7 +395,6 @@ export async function processEventPipeline(
           eventIdForSend,
           destConfig.configId,
           destConfig.platformId,
-          eventLogId,
           environment
         );
         const sendLatencyMs = Date.now() - sendStartTime;
@@ -585,7 +562,7 @@ export async function getEventStats(
   deduplicated: number;
   byDestination: Record<string, { total: number; success: number; failed: number }>;
 }> {
-  const events = await prisma.conversionLog.findMany({
+  const receipts = await prisma.pixelEventReceipt.findMany({
     where: {
       shopId,
       createdAt: {
@@ -594,30 +571,33 @@ export async function getEventStats(
       },
     },
     select: {
-      status: true,
       platform: true,
-      errorMessage: true,
+      payloadJson: true,
     },
   });
   const stats = {
-    total: events.length,
+    total: receipts.length,
     success: 0,
     failed: 0,
     deduplicated: 0,
     byDestination: {} as Record<string, { total: number; success: number; failed: number }>,
   };
-  for (const event of events) {
-    if (event.status === "sent" || event.status === "pending") {
+  for (const receipt of receipts) {
+    const payload = receipt.payloadJson as Record<string, unknown> | null;
+    const data = payload?.data as Record<string, unknown> | undefined;
+    const hasValue = typeof data?.value === "number" && data.value > 0;
+    const hasCurrency = !!data?.currency;
+    if (hasValue && hasCurrency) {
       stats.success++;
     } else {
       stats.failed++;
     }
-    const dest = event.platform || "unknown";
+    const dest = receipt.platform || "unknown";
     if (!stats.byDestination[dest]) {
       stats.byDestination[dest] = { total: 0, success: 0, failed: 0 };
     }
     stats.byDestination[dest].total++;
-    if (event.status === "sent" || event.status === "pending") {
+    if (hasValue && hasCurrency) {
       stats.byDestination[dest].success++;
     } else {
       stats.byDestination[dest].failed++;

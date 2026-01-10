@@ -78,12 +78,12 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       const pollInterval = 2000;
       const pollEvents = async () => {
         try {
-          const whereClause: Prisma.EventLogWhereInput = {
+          const whereClause: Prisma.PixelEventReceiptWhereInput = {
             shopId: shop.id,
-            ...(eventTypes.length > 0 && { eventName: { in: eventTypes } }),
+            ...(eventTypes.length > 0 && { eventType: { in: eventTypes } }),
           };
           if (lastEventId) {
-            const lastEvent = await prisma.eventLog.findUnique({
+            const lastEvent = await prisma.pixelEventReceipt.findUnique({
               where: { id: lastEventId },
               select: { createdAt: true },
             });
@@ -91,36 +91,24 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
               whereClause.createdAt = { gt: lastEvent.createdAt };
             }
           }
-          const eventLogs = await prisma.eventLog.findMany({
+          if (platforms.length > 0) {
+            whereClause.platform = { in: platforms };
+          }
+          if (runId) {
+            whereClause.verificationRunId = runId;
+          }
+          const pixelReceipts = await prisma.pixelEventReceipt.findMany({
             where: whereClause,
             orderBy: { createdAt: "desc" },
             take: 20,
             select: {
               id: true,
-              eventId: true,
-              eventName: true,
-              source: true,
-              occurredAt: true,
+              eventType: true,
+              orderKey: true,
+              platform: true,
+              pixelTimestamp: true,
               createdAt: true,
-              shopifyContextJson: true,
-              normalizedEventJson: true,
-              DeliveryAttempt: {
-                where: platforms.length > 0 ? { destinationType: { in: platforms } } : undefined,
-                select: {
-                  id: true,
-                  destinationType: true,
-                  environment: true,
-                  status: true,
-                  errorCode: true,
-                  errorDetail: true,
-                  responseStatus: true,
-                  responseBodySnippet: true,
-                  latencyMs: true,
-                  requestPayloadJson: true,
-                  createdAt: true,
-                },
-                orderBy: { createdAt: "desc" },
-              },
+              payloadJson: true,
             },
           });
           const events: Array<{
@@ -148,86 +136,66 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
               trustLevel: string | null;
               hasConsent: boolean;
             };
-            eventLogId?: string;
-            deliveryAttemptId?: string;
           }> = [];
-          for (const eventLog of eventLogs) {
-            if (lastEventId && eventLog.id === lastEventId) continue;
-            const shopifyContext = eventLog.shopifyContextJson as Record<string, unknown> | null;
-            const normalizedEvent = eventLog.normalizedEventJson as Record<string, unknown> | null;
-            const orderId = (shopifyContext?.orderId || normalizedEvent?.orderId || "") as string;
-            for (const attempt of eventLog.DeliveryAttempt) {
-              const requestPayload = attempt.requestPayloadJson as Record<string, unknown> | null;
-              let value: number | undefined;
-              let currency: string | undefined;
-              if (attempt.destinationType === "google") {
-                const body = requestPayload?.body as Record<string, unknown> | undefined;
-                const events = body?.events as Array<Record<string, unknown>> | undefined;
-                if (events && events.length > 0) {
-                  const params = events[0].params as Record<string, unknown> | undefined;
-                  value = params?.value as number | undefined;
-                  currency = params?.currency as string | undefined;
-                }
-              } else if (attempt.destinationType === "meta" || attempt.destinationType === "facebook") {
-                const body = requestPayload?.body as Record<string, unknown> | undefined;
-                const data = body?.data as Array<Record<string, unknown>> | undefined;
-                if (data && data.length > 0) {
-                  const customData = data[0].custom_data as Record<string, unknown> | undefined;
-                  value = customData?.value as number | undefined;
-                  currency = customData?.currency as string | undefined;
-                }
-              } else if (attempt.destinationType === "tiktok") {
-                const body = requestPayload?.body as Record<string, unknown> | undefined;
-                const data = body?.data as Array<Record<string, unknown>> | undefined;
-                if (data && data.length > 0) {
-                  const properties = data[0].properties as Record<string, unknown> | undefined;
-                  value = properties?.value as number | undefined;
-                  currency = properties?.currency as string | undefined;
+          for (const receipt of pixelReceipts) {
+            if (lastEventId && receipt.id === lastEventId) continue;
+            const orderId = receipt.orderKey || "";
+            const payload = receipt.payloadJson as Record<string, unknown> | null;
+            let value: number | undefined;
+            let currency: string | undefined;
+            let items: number | undefined;
+            const missingParams: string[] = [];
+            if (receipt.platform === "google") {
+              const events = payload?.events as Array<Record<string, unknown>> | undefined;
+              if (events && events.length > 0) {
+                const params = events[0].params as Record<string, unknown> | undefined;
+                value = params?.value as number | undefined;
+                currency = params?.currency as string | undefined;
+                if (Array.isArray(params?.items)) {
+                  items = (params.items as Array<unknown>).length;
                 }
               }
-              const hasEventId = !!eventLog.eventId;
-              const missingParams: string[] = [];
-              if (!value) missingParams.push("value");
-              if (!currency) missingParams.push("currency");
-              if (!hasEventId) missingParams.push("event_id");
-              const status = attempt.status === "ok" ? "success" :
-                           attempt.status === "fail" ? "failed" : "pending";
-              events.push({
-                id: `${eventLog.id}-${attempt.id}`,
-                eventType: eventLog.eventName,
-                orderId,
-                platform: attempt.destinationType,
-                timestamp: attempt.createdAt,
-                status,
-                params: {
-                  value,
-                  currency,
-                  hasEventId,
-                },
-                errors: attempt.errorDetail ? [attempt.errorDetail] : undefined,
-                eventLogId: eventLog.id,
-                deliveryAttemptId: attempt.id,
-              });
-              if (!lastEventId || attempt.createdAt > new Date()) {
-                lastEventId = eventLog.id;
+            } else if (receipt.platform === "meta" || receipt.platform === "facebook") {
+              const data = payload?.data as Array<Record<string, unknown>> | undefined;
+              if (data && data.length > 0) {
+                const customData = data[0].custom_data as Record<string, unknown> | undefined;
+                value = customData?.value as number | undefined;
+                currency = customData?.currency as string | undefined;
+                if (Array.isArray(customData?.contents)) {
+                  items = (customData.contents as Array<unknown>).length;
+                }
+              }
+            } else if (receipt.platform === "tiktok") {
+              const data = payload?.data as Array<Record<string, unknown>> | undefined;
+              if (data && data.length > 0) {
+                const properties = data[0].properties as Record<string, unknown> | undefined;
+                value = properties?.value as number | undefined;
+                currency = properties?.currency as string | undefined;
+                if (Array.isArray(properties?.contents)) {
+                  items = (properties.contents as Array<unknown>).length;
+                }
               }
             }
-            if (eventLog.DeliveryAttempt.length === 0) {
-              events.push({
-                id: eventLog.id,
-                eventType: eventLog.eventName,
-                orderId,
-                platform: eventLog.source,
-                timestamp: eventLog.createdAt,
-                status: "pending",
-                params: {
-                  hasEventId: !!eventLog.eventId,
-                },
-                eventLogId: eventLog.id,
-              });
-              if (!lastEventId || eventLog.createdAt > new Date()) {
-                lastEventId = eventLog.id;
-              }
+            if (!value) missingParams.push("value");
+            if (!currency) missingParams.push("currency");
+            const status: "success" | "failed" | "pending" = receipt.platform && (value !== undefined && value > 0) && currency ? "success" : "pending";
+            events.push({
+              id: receipt.id,
+              eventType: receipt.eventType,
+              orderId,
+              platform: receipt.platform || "unknown",
+              timestamp: receipt.pixelTimestamp || receipt.createdAt,
+              status,
+              params: {
+                value,
+                currency,
+                items,
+                hasEventId: !!receipt.id,
+              },
+              discrepancies: missingParams.length > 0 ? missingParams : undefined,
+            });
+            if (!lastEventId) {
+              lastEventId = receipt.id;
             }
           }
           for (const event of events) {

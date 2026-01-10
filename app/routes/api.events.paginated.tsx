@@ -27,31 +27,22 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       take,
       orderBy,
     });
-    const eventIds = result.items.map((item) => item.id);
-    const events = await prisma.conversionLog.findMany({
-      where: {
-        id: { in: eventIds },
-        createdAt: { gte: since },
-      },
-      select: {
-        id: true,
-        orderId: true,
-        orderNumber: true,
-        platform: true,
-        status: true,
-        orderValue: true,
-        currency: true,
-        createdAt: true,
-        errorMessage: true,
-      },
-      orderBy: { createdAt: orderBy },
-    });
     return json({
-      items: events,
+      items: result.items.map(item => ({
+        id: item.id,
+        orderId: item.orderId,
+        orderNumber: item.orderId || null,
+        platform: "",
+        status: item.status,
+        orderValue: 0,
+        currency: "USD",
+        createdAt: item.createdAt,
+        errorMessage: item.status === "pending" ? "Missing value or currency" : null,
+      })),
       pagination: {
         nextCursor: result.nextCursor,
         hasMore: result.hasMore,
-        count: events.length,
+        count: result.items.length,
       },
       filter: {
         hours,

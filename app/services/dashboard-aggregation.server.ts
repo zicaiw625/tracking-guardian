@@ -22,39 +22,40 @@ export async function aggregateDailyMetrics(
   startOfDay.setUTCHours(0, 0, 0, 0);
   const endOfDay = new Date(date);
   endOfDay.setUTCHours(23, 59, 59, 999);
-  const attempts = await prisma.deliveryAttempt.findMany({
+  const receipts = await prisma.pixelEventReceipt.findMany({
     where: {
       shopId,
       createdAt: {
         gte: startOfDay,
         lte: endOfDay,
       },
-      EventLog: {
-        eventName: {
-          in: ["purchase", "checkout_completed"],
-        },
+      eventType: {
+        in: ["purchase", "checkout_completed"],
       },
     },
     select: {
-      destinationType: true,
-      status: true,
-      EventLog: {
-        select: {
-          normalizedEventJson: true,
-        },
-      },
+      platform: true,
+      eventType: true,
+      payloadJson: true,
+      createdAt: true,
     },
     take: 10000,
   });
   const orders: Array<{ platform: string; status: string; value: number }> = [];
-  for (const attempt of attempts) {
-    const normalizedEvent = attempt.EventLog.normalizedEventJson as Record<string, unknown>;
-    const value = typeof normalizedEvent.value === "number" ? normalizedEvent.value : 0;
-    orders.push({
-      platform: attempt.destinationType,
-      status: attempt.status,
-      value,
-    });
+  for (const receipt of receipts) {
+    const payload = receipt.payloadJson as Record<string, unknown> | null;
+    const data = payload?.data as Record<string, unknown> | undefined;
+    const value = typeof data?.value === "number" ? data.value : 0;
+    const hasValue = value > 0;
+    const hasCurrency = !!data?.currency;
+    const status = hasValue && hasCurrency ? "ok" : "pending";
+    if (receipt.platform) {
+      orders.push({
+        platform: receipt.platform,
+        status,
+        value,
+      });
+    }
   }
   const totalOrders = orders.length;
   const successfulOrders = orders.filter((o) => o.status === "ok").length;
@@ -116,48 +117,41 @@ export async function getAggregatedMetrics(
     successRate: number;
   }>;
 }> {
-  try {
-  } catch (error) {
-    logger.debug("Failed to get aggregated metrics, falling back to real-time calculation", {
-      shopId,
-      error: error instanceof Error ? error.message : String(error),
-    });
-  }
-  const attempts = await prisma.deliveryAttempt.findMany({
+  const receipts = await prisma.pixelEventReceipt.findMany({
     where: {
       shopId,
       createdAt: {
         gte: startDate,
         lte: endDate,
       },
-      EventLog: {
-        eventName: {
-          in: ["purchase", "checkout_completed"],
-        },
+      eventType: {
+        in: ["purchase", "checkout_completed"],
       },
     },
     select: {
-      destinationType: true,
-      status: true,
+      platform: true,
+      eventType: true,
+      payloadJson: true,
       createdAt: true,
-      EventLog: {
-        select: {
-          normalizedEventJson: true,
-        },
-      },
     },
     take: 10000,
   });
   const orders: Array<{ platform: string; status: string; value: number; createdAt: Date }> = [];
-  for (const attempt of attempts) {
-    const normalizedEvent = attempt.EventLog.normalizedEventJson as Record<string, unknown>;
-    const value = typeof normalizedEvent.value === "number" ? normalizedEvent.value : 0;
-    orders.push({
-      platform: attempt.destinationType,
-      status: attempt.status,
-      value,
-      createdAt: attempt.createdAt,
-    });
+  for (const receipt of receipts) {
+    const payload = receipt.payloadJson as Record<string, unknown> | null;
+    const data = payload?.data as Record<string, unknown> | undefined;
+    const value = typeof data?.value === "number" ? data.value : 0;
+    const hasValue = value > 0;
+    const hasCurrency = !!data?.currency;
+    const status = hasValue && hasCurrency ? "ok" : "pending";
+    if (receipt.platform) {
+      orders.push({
+        platform: receipt.platform,
+        status,
+        value,
+        createdAt: receipt.createdAt,
+      });
+    }
   }
   const totalOrders = orders.length;
   const successfulOrders = orders.filter((o) => o.status === "ok").length;

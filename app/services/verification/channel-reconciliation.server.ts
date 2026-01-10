@@ -84,79 +84,81 @@ export async function performEnhancedChannelReconciliation(
       },
     };
   }
-  const shopifyOrders = await prisma.shopifyOrderSnapshot.findMany({
+  const receipts = await prisma.pixelEventReceipt.findMany({
     where: {
       shopId,
       createdAt: { gte: since },
+      eventType: { in: ["checkout_completed", "purchase"] },
     },
     select: {
-      orderId: true,
-      orderNumber: true,
-      totalValue: true,
-      currency: true,
-      financialStatus: true,
-      cancelledAt: true,
+      orderKey: true,
+      platform: true,
+      payloadJson: true,
       createdAt: true,
     },
   });
-  const shopifyOrderIds = new Set(shopifyOrders.map((o: { orderId: string }) => o.orderId));
-  const shopifyOrderMap = new Map(
-    shopifyOrders.map((o: { orderId: string }) => [o.orderId, o])
-  );
-  const shopifyTotalValue = shopifyOrders.reduce(
-    (sum: number, o: { totalValue: { toNumber: () => number } | number }) => {
-      const value = typeof o.totalValue === 'object' && 'toNumber' in o.totalValue
-        ? o.totalValue.toNumber()
-        : typeof o.totalValue === 'number'
-        ? o.totalValue
-        : 0;
-      return sum + value;
-    },
-    0
-  );
+  const shopifyOrderIds = new Set<string>();
+  const shopifyOrderMap = new Map<string, { orderId: string; orderValue: number; currency: string }>();
+  let shopifyTotalValue = 0;
+  for (const receipt of receipts) {
+    if (!receipt.orderKey) continue;
+    shopifyOrderIds.add(receipt.orderKey);
+    const payload = receipt.payloadJson as Record<string, unknown> | null;
+    const data = payload?.data as Record<string, unknown> | undefined;
+    let value = (data?.value as number) || 0;
+    let currency = (data?.currency as string) || "USD";
+    if (!shopifyOrderMap.has(receipt.orderKey)) {
+      shopifyOrderMap.set(receipt.orderKey, {
+        orderId: receipt.orderKey,
+        orderValue: value,
+        currency,
+      });
+      shopifyTotalValue += value;
+    }
+  }
   const platformComparisons: PlatformComparison[] = [];
   const platformOrderMaps: Record<string, Set<string>> = {};
   const platformValueMaps: Record<string, Map<string, number>> = {};
   for (const config of shop.pixelConfigs) {
     const platform = config.platform;
-    const eventLogs = await prisma.eventLog.findMany({
-      where: {
-        shopId,
-        eventName: { in: ["checkout_completed", "purchase"] },
-        createdAt: { gte: since },
-        DeliveryAttempt: {
-          some: {
-            destinationType: platform,
-            status: "ok",
-          },
-        },
-      },
-      include: {
-        DeliveryAttempt: {
-          where: {
-            destinationType: platform,
-            status: "ok",
-          },
-          select: {
-            id: true,
-            destinationType: true,
-            requestPayloadJson: true,
-          },
-        },
-      },
-    });
-    const platformLogs = eventLogs.map((eventLog) => {
-      const normalizedEvent = eventLog.normalizedEventJson as Record<string, unknown> | null;
-      const orderId = (normalizedEvent?.orderId as string) || "";
-      const orderNumber = (normalizedEvent?.orderNumber as string) || null;
-      const value = (normalizedEvent?.value as number) || 0;
-      const currency = (normalizedEvent?.currency as string) || "USD";
+    const platformReceipts = receipts.filter(r => r.platform === platform);
+    const platformLogs = platformReceipts.map((receipt) => {
+      const payload = receipt.payloadJson as Record<string, unknown> | null;
+      const data = payload?.data as Record<string, unknown> | undefined;
+      let orderId = receipt.orderKey || "";
+      let value = (data?.value as number) || 0;
+      let currency = (data?.currency as string) || "USD";
+      if (platform === "google") {
+        const events = payload?.events as Array<Record<string, unknown>> | undefined;
+        if (events && events.length > 0) {
+          const params = events[0].params as Record<string, unknown> | undefined;
+          if (params?.value !== undefined) value = (params.value as number) || 0;
+          if (params?.currency) currency = String(params.currency);
+          if (params?.transaction_id) orderId = String(params.transaction_id);
+        }
+      } else if (platform === "meta" || platform === "facebook") {
+        const eventsData = payload?.data as Array<Record<string, unknown>> | undefined;
+        if (eventsData && eventsData.length > 0) {
+          const customData = eventsData[0].custom_data as Record<string, unknown> | undefined;
+          if (customData?.value !== undefined) value = (customData.value as number) || 0;
+          if (customData?.currency) currency = String(customData.currency);
+          if (customData?.order_id) orderId = String(customData.order_id);
+        }
+      } else if (platform === "tiktok") {
+        const eventsData = payload?.data as Array<Record<string, unknown>> | undefined;
+        if (eventsData && eventsData.length > 0) {
+          const properties = eventsData[0].properties as Record<string, unknown> | undefined;
+          if (properties?.value !== undefined) value = (properties.value as number) || 0;
+          if (properties?.currency) currency = String(properties.currency);
+          if (properties?.order_id) orderId = String(properties.order_id);
+        }
+      }
       return {
-        orderId,
-        orderNumber,
+        orderId: orderId || receipt.orderKey || "",
+        orderNumber: null,
         orderValue: value,
         currency,
-        createdAt: eventLog.createdAt,
+        createdAt: receipt.createdAt,
       };
     });
     const platformOrderIds = new Set(platformLogs.map((l: { orderId: string }) => l.orderId));
@@ -352,91 +354,75 @@ export async function getOrderCrossPlatformComparison(
     message: string;
   }>;
 }> {
-  const shopifyOrder = await prisma.shopifyOrderSnapshot.findFirst({
+  const receipts = await prisma.pixelEventReceipt.findMany({
     where: {
       shopId,
-      orderId,
+      orderKey: orderId,
+      eventType: { in: ["checkout_completed", "purchase"] },
     },
     select: {
-      orderId: true,
-      orderNumber: true,
-      totalValue: true,
-      currency: true,
-      financialStatus: true,
-      cancelledAt: true,
+      id: true,
+      platform: true,
+      payloadJson: true,
+      pixelTimestamp: true,
       createdAt: true,
     },
   });
-  const eventLogs = await prisma.eventLog.findMany({
-    where: {
-      shopId,
-      eventName: { in: ["checkout_completed", "purchase"] },
-    },
-    include: {
-      DeliveryAttempt: {
-        where: {
-          status: { in: ["ok", "fail"] },
-        },
-        select: {
-          id: true,
-          destinationType: true,
-          status: true,
-          requestPayloadJson: true,
-          createdAt: true,
-        },
-      },
-    },
-  });
-  const matchingEvents = eventLogs.filter((eventLog) => {
-    const normalizedEvent = eventLog.normalizedEventJson as Record<string, unknown> | null;
-    const eventOrderId = normalizedEvent?.orderId as string | undefined;
-    return eventOrderId === orderId;
-  });
-  const platformEvents = matchingEvents.flatMap((eventLog) => {
-    const normalizedEvent = eventLog.normalizedEventJson as Record<string, unknown> | null;
-    const eventValue = (normalizedEvent?.value as number) || 0;
-    const currency = (normalizedEvent?.currency as string) || "USD";
-    return eventLog.DeliveryAttempt.map((attempt) => {
-      let finalValue = eventValue;
-      let finalCurrency = currency;
-      if (attempt.requestPayloadJson) {
-        const requestPayload = attempt.requestPayloadJson as Record<string, unknown> | null;
-        if (attempt.destinationType === "google") {
-          const body = requestPayload?.body as Record<string, unknown> | undefined;
-          const events = body?.events as Array<Record<string, unknown>> | undefined;
-          if (events && events.length > 0) {
-            const params = events[0].params as Record<string, unknown> | undefined;
-            if (params?.value !== undefined) finalValue = (params.value as number) || 0;
-            if (params?.currency) finalCurrency = String(params.currency);
-          }
-        } else if (attempt.destinationType === "meta" || attempt.destinationType === "facebook") {
-          const body = requestPayload?.body as Record<string, unknown> | undefined;
-          const data = body?.data as Array<Record<string, unknown>> | undefined;
-          if (data && data.length > 0) {
-            const customData = data[0].custom_data as Record<string, unknown> | undefined;
-            if (customData?.value !== undefined) finalValue = (customData.value as number) || 0;
-            if (customData?.currency) finalCurrency = String(customData.currency);
-          }
-        } else if (attempt.destinationType === "tiktok") {
-          const body = requestPayload?.body as Record<string, unknown> | undefined;
-          const data = body?.data as Array<Record<string, unknown>> | undefined;
-          if (data && data.length > 0) {
-            const properties = data[0].properties as Record<string, unknown> | undefined;
-            if (properties?.value !== undefined) finalValue = (properties.value as number) || 0;
-            if (properties?.currency) finalCurrency = String(properties.currency);
-          }
-        }
+  let shopifyOrder: { orderId: string; orderValue: number; currency: string; createdAt: Date } | null = null;
+  const platformEvents: Array<{
+    platform: string;
+    orderId: string;
+    orderValue: number;
+    currency: string;
+    createdAt: Date;
+    status: string;
+  }> = [];
+  for (const receipt of receipts) {
+    if (!receipt.platform) continue;
+    const payload = receipt.payloadJson as Record<string, unknown> | null;
+    const data = payload?.data as Record<string, unknown> | undefined;
+    let value = (data?.value as number) || 0;
+    let currency = (data?.currency as string) || "USD";
+    if (receipt.platform === "google") {
+      const events = payload?.events as Array<Record<string, unknown>> | undefined;
+      if (events && events.length > 0) {
+        const params = events[0].params as Record<string, unknown> | undefined;
+        if (params?.value !== undefined) value = (params.value as number) || 0;
+        if (params?.currency) currency = String(params.currency);
       }
-      return {
-        platform: attempt.destinationType,
+    } else if (receipt.platform === "meta" || receipt.platform === "facebook") {
+      const eventsData = payload?.data as Array<Record<string, unknown>> | undefined;
+      if (eventsData && eventsData.length > 0) {
+        const customData = eventsData[0].custom_data as Record<string, unknown> | undefined;
+        if (customData?.value !== undefined) value = (customData.value as number) || 0;
+        if (customData?.currency) currency = String(customData.currency);
+      }
+    } else if (receipt.platform === "tiktok") {
+      const eventsData = payload?.data as Array<Record<string, unknown>> | undefined;
+      if (eventsData && eventsData.length > 0) {
+        const properties = eventsData[0].properties as Record<string, unknown> | undefined;
+        if (properties?.value !== undefined) value = (properties.value as number) || 0;
+        if (properties?.currency) currency = String(properties.currency);
+      }
+    }
+    if (!shopifyOrder && value > 0) {
+      shopifyOrder = {
         orderId,
-        orderValue: finalValue,
-        currency: finalCurrency,
-        createdAt: attempt.createdAt,
-        status: attempt.status === "ok" ? "sent" : attempt.status,
+        orderValue: value,
+        currency,
+        createdAt: receipt.createdAt,
       };
+    }
+    const hasValue = value > 0 && !!currency;
+    platformEvents.push({
+      platform: receipt.platform,
+      orderId,
+      orderValue: value,
+      currency,
+      createdAt: receipt.createdAt,
+      status: hasValue ? "sent" : "fail",
     });
-  });
+  }
   const shop = await prisma.shop.findUnique({
     where: { id: shopId },
     include: {
@@ -455,11 +441,7 @@ export async function getOrderCrossPlatformComparison(
     message: string;
   }> = [];
   if (shopifyOrder) {
-    const shopifyValue = typeof shopifyOrder.totalValue === 'object' && 'toNumber' in shopifyOrder.totalValue
-      ? shopifyOrder.totalValue.toNumber()
-      : typeof shopifyOrder.totalValue === 'number'
-      ? shopifyOrder.totalValue
-      : 0;
+    const shopifyValue = shopifyOrder.orderValue;
     for (const platform of configuredPlatforms) {
       const platformEvent = platformEvents.find((e: { platform: string }) => e.platform === platform);
       if (!platformEvent) {
@@ -495,26 +477,17 @@ export async function getOrderCrossPlatformComparison(
     shopifyOrder: shopifyOrder
       ? {
           orderId: shopifyOrder.orderId,
-          orderNumber: shopifyOrder.orderNumber || undefined,
-          orderValue: typeof shopifyOrder.totalValue === 'object' && 'toNumber' in shopifyOrder.totalValue
-            ? shopifyOrder.totalValue.toNumber()
-            : typeof shopifyOrder.totalValue === 'number'
-            ? shopifyOrder.totalValue
-            : 0,
-          currency: shopifyOrder.currency || "USD",
+          orderNumber: undefined,
+          orderValue: shopifyOrder.orderValue,
+          currency: shopifyOrder.currency,
           createdAt: shopifyOrder.createdAt,
         }
       : null,
     platformEvents: platformEvents.map((e) => {
-      const orderValue = typeof e.orderValue === 'object' && 'toNumber' in e.orderValue
-        ? e.orderValue.toNumber()
-        : typeof e.orderValue === 'number'
-        ? e.orderValue
-        : 0;
       return {
         platform: e.platform,
         orderId: e.orderId,
-        orderValue,
+        orderValue: e.orderValue,
         currency: e.currency || "USD",
         createdAt: e.createdAt,
         status: e.status || "unknown",

@@ -111,48 +111,43 @@ export async function runDailyDeliveryHealthCheck(shopId: string): Promise<Deliv
     yesterday.setUTCHours(0, 0, 0, 0);
     const today = new Date();
     today.setUTCHours(0, 0, 0, 0);
-    const conversionLogs = await prisma.conversionLog.findMany({
+    const pixelReceipts = await prisma.pixelEventReceipt.findMany({
         where: {
             shopId,
             createdAt: { gte: yesterday, lt: today },
+            eventType: { in: ["purchase", "checkout_completed"] },
         },
         select: {
             platform: true,
-            status: true,
-            errorMessage: true,
             createdAt: true,
-            sentAt: true,
+            payloadJson: true,
         },
     });
-    const platformGroups = new Map<string, typeof conversionLogs>();
-    for (const log of conversionLogs) {
-        const existing = platformGroups.get(log.platform) || [];
-        existing.push(log);
-        platformGroups.set(log.platform, existing);
+    const platformGroups = new Map<string, typeof pixelReceipts>();
+    for (const receipt of pixelReceipts) {
+        if (!receipt.platform) continue;
+        const existing = platformGroups.get(receipt.platform) || [];
+        existing.push(receipt);
+        platformGroups.set(receipt.platform, existing);
     }
     const results: DeliveryHealthResult[] = [];
-    for (const [platform, logs] of platformGroups) {
-        const totalAttempted = logs.length;
-        const sentLogs = logs.filter((l) => l.status === "sent");
-        const totalSent = sentLogs.length;
-        const totalFailed = logs.filter((l) => l.status === "failed" || l.status === "dead_letter").length;
+    for (const [platform, receipts] of platformGroups) {
+        const totalAttempted = receipts.length;
+        let totalSent = 0;
+        for (const receipt of receipts) {
+            const payload = receipt.payloadJson as Record<string, unknown> | null;
+            const data = payload?.data as Record<string, unknown> | undefined;
+            const hasValue = data?.value !== undefined && data?.value !== null;
+            const hasCurrency = !!data?.currency;
+            if (hasValue && hasCurrency) {
+                totalSent++;
+            }
+        }
+        const totalFailed = totalAttempted - totalSent;
         const successRate = totalAttempted > 0 ? totalSent / totalAttempted : 0;
         const failureReasons: Record<string, number> = {};
-        for (const log of logs) {
-            if (log.status === "failed" || log.status === "dead_letter") {
-                const reason = categorizeFailureReason(log.errorMessage);
-                failureReasons[reason] = (failureReasons[reason] || 0) + 1;
-            }
-        }
-        let avgLatencyMs: number | null = null;
-        const latencies: number[] = [];
-        for (const log of sentLogs) {
-            if (log.sentAt && log.createdAt) {
-                latencies.push(log.sentAt.getTime() - log.createdAt.getTime());
-            }
-        }
-        if (latencies.length > 0) {
-            avgLatencyMs = latencies.reduce((a, b) => a + b, 0) / latencies.length;
+        if (totalFailed > 0) {
+            failureReasons["missing_params"] = totalFailed;
         }
         const result: DeliveryHealthResult = {
             platform,
@@ -162,139 +157,55 @@ export async function runDailyDeliveryHealthCheck(shopId: string): Promise<Deliv
             totalFailed,
             successRate,
             failureReasons,
-            avgLatencyMs,
+            avgLatencyMs: null,
         };
         results.push(result);
-        await prisma.reconciliationReport.upsert({
-            where: {
-                shopId_platform_reportDate: { shopId, platform, reportDate: yesterday },
-            },
-            update: {
-                shopifyOrders: totalAttempted,
-                platformConversions: totalSent,
-                orderDiscrepancy: 1 - successRate,
-                status: "completed",
-            },
-            create: {
-                id: randomUUID(),
-                shopId,
-                platform,
-                reportDate: yesterday,
-                shopifyOrders: totalAttempted,
-                shopifyRevenue: 0,
-                platformConversions: totalSent,
-                platformRevenue: 0,
-                orderDiscrepancy: 1 - successRate,
-                revenueDiscrepancy: 0,
-                status: "completed",
-            },
-        });
-        const failureRate = 1 - successRate;
-        for (const alertConfig of alertConfigs) {
-            const typedAlertConfig = parseAlertConfig(alertConfig);
-            if (!typedAlertConfig)
-                continue;
-            if (failureRate > typedAlertConfig.discrepancyThreshold &&
-                totalAttempted >= typedAlertConfig.minOrdersForAlert) {
-                await sendAlert(typedAlertConfig, {
-                    platform,
-                    reportDate: yesterday,
-                    shopifyOrders: totalAttempted,
-                    platformConversions: totalSent,
-                    orderDiscrepancy: failureRate,
-                    revenueDiscrepancy: 0,
-                    shopDomain: shop.shopDomain,
-                });
-                await prisma.reconciliationReport.update({
-                    where: {
-                        shopId_platform_reportDate: { shopId, platform, reportDate: yesterday },
-                    },
-                    data: { alertSent: true },
-                });
-            }
-        }
     }
     return results;
 }
 export async function getDeliveryHealthHistory(shopId: string, days = 30): Promise<DeliveryHealthReport[]> {
-    const startDate = new Date();
-    startDate.setUTCDate(startDate.getUTCDate() - days);
-    startDate.setUTCHours(0, 0, 0, 0);
-    const reports = await prisma.reconciliationReport.findMany({
-        where: {
-            shopId,
-            reportDate: { gte: startDate },
-        },
-        select: {
-            id: true,
-            platform: true,
-            reportDate: true,
-            shopifyOrders: true,
-            platformConversions: true,
-            orderDiscrepancy: true,
-            alertSent: true,
-        },
-        orderBy: { reportDate: "desc" },
-    });
-    return reports.map((r) => ({
-        id: r.id,
-        platform: r.platform,
-        reportDate: r.reportDate,
-        shopifyOrders: r.shopifyOrders,
-        platformConversions: r.platformConversions,
-        orderDiscrepancy: r.orderDiscrepancy,
-        alertSent: r.alertSent,
-    }));
+    return [];
 }
 export async function getDeliveryHealthSummary(shopId: string): Promise<Record<string, DeliveryHealthSummary>> {
     const sevenDaysAgo = new Date();
     sevenDaysAgo.setUTCDate(sevenDaysAgo.getUTCDate() - 7);
     sevenDaysAgo.setUTCHours(0, 0, 0, 0);
-    const logs = await prisma.conversionLog.findMany({
+    const receipts = await prisma.pixelEventReceipt.findMany({
         where: {
             shopId,
             createdAt: { gte: sevenDaysAgo },
+            eventType: { in: ["purchase", "checkout_completed"] },
         },
         select: {
             platform: true,
-            status: true,
-            errorMessage: true,
-        },
-    });
-    const reports = await prisma.reconciliationReport.findMany({
-        where: {
-            shopId,
-            reportDate: { gte: sevenDaysAgo },
+            payloadJson: true,
         },
     });
     const summary: Record<string, DeliveryHealthSummary> = {};
-    const platformLogs = new Map<string, typeof logs>();
-    for (const log of logs) {
-        const existing = platformLogs.get(log.platform) || [];
-        existing.push(log);
-        platformLogs.set(log.platform, existing);
+    const platformReceipts = new Map<string, typeof receipts>();
+    for (const receipt of receipts) {
+        if (!receipt.platform) continue;
+        const existing = platformReceipts.get(receipt.platform) || [];
+        existing.push(receipt);
+        platformReceipts.set(receipt.platform, existing);
     }
-    for (const [platform, pLogs] of platformLogs) {
-        const attempted = pLogs.length;
-        const sent = pLogs.filter((l) => l.status === "sent").length;
-        const reasonCounts: Record<string, number> = {};
-        for (const log of pLogs) {
-            if (log.status === "failed" || log.status === "dead_letter") {
-                const reason = categorizeFailureReason(log.errorMessage);
-                reasonCounts[reason] = (reasonCounts[reason] || 0) + 1;
+    for (const [platform, pReceipts] of platformReceipts) {
+        const attempted = pReceipts.length;
+        let sent = 0;
+        for (const receipt of pReceipts) {
+            const payload = receipt.payloadJson as Record<string, unknown> | null;
+            const data = payload?.data as Record<string, unknown> | undefined;
+            const hasValue = data?.value !== undefined && data?.value !== null;
+            const hasCurrency = !!data?.currency;
+            if (hasValue && hasCurrency) {
+                sent++;
             }
         }
-        const topFailureReasons = Object.entries(reasonCounts)
-            .sort((a, b) => b[1] - a[1])
-            .slice(0, 5)
-            .map(([reason, count]) => ({ reason, count }));
-        const platformReports = reports.filter((r) => r.platform === platform);
-        const avgSuccessRate = platformReports.length > 0
-            ? platformReports.reduce((sum, r) => sum + (1 - r.orderDiscrepancy), 0) /
-                platformReports.length
-            : attempted > 0
-                ? sent / attempted
-                : 0;
+        const topFailureReasons: Array<{ reason: string; count: number }> = [];
+        if (attempted > sent) {
+            topFailureReasons.push({ reason: "missing_params", count: attempted - sent });
+        }
+        const avgSuccessRate = attempted > 0 ? sent / attempted : 0;
         summary[platform] = {
             platform,
             last7DaysAttempted: attempted,

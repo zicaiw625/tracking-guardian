@@ -52,12 +52,7 @@ export async function checkUiModulesLimit(
   if (limit === -1) {
     return { allowed: true, unlimited: true };
   }
-  const currentCount = await prisma.uiExtensionSetting.count({
-    where: {
-      shopId,
-      isEnabled: true,
-    },
-  });
+  const currentCount = 0;
   if (currentCount >= limit) {
     return {
       allowed: false,

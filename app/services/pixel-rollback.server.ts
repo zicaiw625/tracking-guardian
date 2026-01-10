@@ -421,33 +421,26 @@ export async function getConfigVersionHistory(
   operation: string;
   changes: Record<string, unknown>;
 }>> {
-  const auditLogs = await prisma.auditLog.findMany({
+  const configs = await prisma.pixelConfig.findMany({
     where: {
       shopId,
-      resourceType: "pixel_config",
-      action: {
-        in: ["pixel_config_updated", "pixel_config_changed"],
-      },
-      metadata: {
-        path: ["platform"],
-        equals: platform,
-      },
+      platform,
     },
-    orderBy: { createdAt: "desc" },
+    orderBy: { updatedAt: "desc" },
     take: limit,
     select: {
-      createdAt: true,
-      metadata: true,
-      action: true,
+      configVersion: true,
+      updatedAt: true,
+      previousConfig: true,
     },
   });
-  return auditLogs.map((log, index) => {
-    const metadata = log.metadata as Record<string, unknown>;
+  return configs.map((config, index) => {
+    const previousConfig = config.previousConfig as Record<string, unknown> | null;
     return {
-      version: (metadata.newVersion as number) || (metadata.currentVersion as number) || (limit - index),
-      timestamp: log.createdAt,
-      operation: metadata.operation as string || log.action,
-      changes: metadata as Record<string, unknown>,
+      version: config.configVersion,
+      timestamp: config.updatedAt,
+      operation: "pixel_config_updated",
+      changes: previousConfig || {},
     };
   });
 }

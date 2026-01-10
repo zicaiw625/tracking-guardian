@@ -19,49 +19,42 @@ export const loader = async ({ request, params }: LoaderFunctionArgs) => {
     return json({ error: "Event log ID is required" }, { status: 400 });
   }
   try {
-    const eventLog = await prisma.eventLog.findFirst({
+    const receipt = await prisma.pixelEventReceipt.findFirst({
       where: {
         id: eventLogId,
         shopId: shop.id,
       },
-      include: {
-        DeliveryAttempt: {
-          orderBy: { createdAt: "desc" },
-        },
+      select: {
+        id: true,
+        eventType: true,
+        orderKey: true,
+        platform: true,
+        pixelTimestamp: true,
+        createdAt: true,
+        payloadJson: true,
       },
     });
-    if (!eventLog) {
-      return json({ error: "Event log not found" }, { status: 404 });
+    if (!receipt) {
+      return json({ error: "Event receipt not found" }, { status: 404 });
     }
+    const payload = receipt.payloadJson as Record<string, unknown> | null;
     return json({
-      id: eventLog.id,
-      eventId: eventLog.eventId,
-      eventName: eventLog.eventName,
-      source: eventLog.source,
-      occurredAt: eventLog.occurredAt.toISOString(),
-      createdAt: eventLog.createdAt.toISOString(),
-      shopifyContextJson: eventLog.shopifyContextJson,
-      normalizedEventJson: eventLog.normalizedEventJson,
-      deliveryAttempts: eventLog.DeliveryAttempt.map(attempt => ({
-        id: attempt.id,
-        destinationType: attempt.destinationType,
-        environment: attempt.environment,
-        status: attempt.status,
-        requestPayloadJson: attempt.requestPayloadJson,
-        errorCode: attempt.errorCode,
-        errorDetail: attempt.errorDetail,
-        responseStatus: attempt.responseStatus,
-        responseBodySnippet: attempt.responseBodySnippet,
-        latencyMs: attempt.latencyMs,
-        createdAt: attempt.createdAt.toISOString(),
-      })),
+      id: receipt.id,
+      eventId: receipt.id,
+      eventName: receipt.eventType,
+      source: "web_pixel",
+      occurredAt: receipt.pixelTimestamp.toISOString(),
+      createdAt: receipt.createdAt.toISOString(),
+      shopifyContextJson: null,
+      normalizedEventJson: payload,
+      deliveryAttempts: [],
     });
   } catch (error) {
-    logger.error("Failed to get event log details", {
+    logger.error("Failed to get event receipt details", {
       shopId: shop.id,
       eventLogId,
       error: error instanceof Error ? error.message : String(error),
     });
-    return json({ error: "Failed to fetch event log details" }, { status: 500 });
+    return json({ error: "Failed to fetch event receipt details" }, { status: 500 });
   }
 };

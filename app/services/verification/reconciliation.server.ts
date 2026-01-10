@@ -29,110 +29,14 @@ export async function reconcileOrder(
   orderId: string
 ): Promise<ReconciliationResult> {
   try {
-    let formattedEvents: Array<{
-      id: string;
-      eventId: string | null;
-      eventName: string;
-      normalizedEventJson: Prisma.JsonValue;
-      DeliveryAttempt: Array<{
-        id: string;
-        destinationType: string;
-        status: string;
-        requestPayloadJson: Prisma.JsonValue | null;
-      }>;
-    }>;
-    try {
-      const rawResults = await prisma.$queryRaw<Array<{
-        id: string;
-        eventId: string | null;
-        eventName: string;
-        normalizedEventJson: Prisma.JsonValue;
-        delivery_attempts: string;
-      }>>`
-        SELECT
-          el.id,
-          el."eventId",
-          el."eventName",
-          el."normalizedEventJson",
-          COALESCE(
-            json_agg(
-              json_build_object(
-                'id', da.id,
-                'destinationType', da."destinationType",
-                'status', da.status,
-                'requestPayloadJson', da."requestPayloadJson"
-              )
-            ) FILTER (WHERE da.id IS NOT NULL),
-            '[]'::json
-          )::text as delivery_attempts
-        FROM "EventLog" el
-        LEFT JOIN "DeliveryAttempt" da ON da."eventLogId" = el.id
-          AND da.status IN ('ok', 'fail')
-        WHERE el."shopId" = ${shopId}
-          AND el."normalizedEventJson"->>'orderId' = ${orderId}
-        GROUP BY el.id, el."eventId", el."eventName", el."normalizedEventJson"
-        ORDER BY el."createdAt" DESC
-      `;
-      formattedEvents = rawResults.map(event => ({
-        id: event.id,
-        eventId: event.eventId,
-        eventName: event.eventName,
-        normalizedEventJson: event.normalizedEventJson,
-        DeliveryAttempt: JSON.parse(event.delivery_attempts || "[]") as Array<{
-          id: string;
-          destinationType: string;
-          status: string;
-          requestPayloadJson: Prisma.JsonValue | null;
-        }>,
-      }));
-    } catch (rawQueryError) {
-      logger.warn("Raw SQL query failed, falling back to application-level filtering", {
-        error: rawQueryError instanceof Error ? rawQueryError.message : String(rawQueryError),
+    const receipts = await prisma.pixelEventReceipt.findMany({
+      where: {
         shopId,
-        orderId,
-      });
-      const allEvents = await prisma.eventLog.findMany({
-        where: { shopId },
-        include: {
-          DeliveryAttempt: {
-            where: {
-              status: { in: ["ok", "fail"] },
-            },
-            select: {
-              id: true,
-              destinationType: true,
-              status: true,
-              requestPayloadJson: true,
-            },
-          },
-        },
-        orderBy: { createdAt: "desc" },
-      });
-      formattedEvents = allEvents
-        .filter(event => {
-          const normalizedEvent = event.normalizedEventJson as Record<string, unknown> | null;
-          return normalizedEvent?.orderId === orderId;
-        })
-        .map(event => ({
-          id: event.id,
-          eventId: event.eventId,
-          eventName: event.eventName,
-          normalizedEventJson: event.normalizedEventJson,
-          DeliveryAttempt: event.DeliveryAttempt,
-        }));
-    }
+        orderKey: orderId,
+      },
+      orderBy: { createdAt: "desc" },
+    });
     let shopifyOrder: { orderId: string; orderValue: number; currency: string } | null = null;
-    if (formattedEvents.length > 0) {
-      const firstEvent = formattedEvents[0];
-      const normalizedEvent = firstEvent.normalizedEventJson as Record<string, unknown> | null;
-      const value = (normalizedEvent?.value as number) || 0;
-      const currency = (normalizedEvent?.currency as string) || "USD";
-      shopifyOrder = {
-        orderId,
-        orderValue: value,
-        currency,
-      };
-    }
     const platformEventsMap = new Map<string, {
       platform: string;
       eventValue: number;
@@ -140,54 +44,50 @@ export async function reconcileOrder(
       eventId: string | null;
       status: string;
     }>();
-    for (const eventLog of formattedEvents) {
-      const normalizedEvent = eventLog.normalizedEventJson as Record<string, unknown> | null;
-      const eventValue = (normalizedEvent?.value as number) || 0;
-      const currency = (normalizedEvent?.currency as string) || "USD";
-      const eventId = eventLog.eventId;
-      for (const attempt of eventLog.DeliveryAttempt) {
-        const platform = attempt.destinationType;
-        const key = `${platform}-${eventLog.eventName}`;
-        if (!platformEventsMap.has(key) || attempt.status === "ok") {
-          let finalValue = eventValue;
-          let finalCurrency = currency;
-          if (attempt.requestPayloadJson) {
-            const requestPayload = attempt.requestPayloadJson as Record<string, unknown> | null;
-            if (platform === "google") {
-              const body = requestPayload?.body as Record<string, unknown> | undefined;
-              const events = body?.events as Array<Record<string, unknown>> | undefined;
-              if (events && events.length > 0) {
-                const params = events[0].params as Record<string, unknown> | undefined;
-                if (params?.value !== undefined) finalValue = (params.value as number) || 0;
-                if (params?.currency) finalCurrency = String(params.currency);
-              }
-            } else if (platform === "meta" || platform === "facebook") {
-              const body = requestPayload?.body as Record<string, unknown> | undefined;
-              const data = body?.data as Array<Record<string, unknown>> | undefined;
-              if (data && data.length > 0) {
-                const customData = data[0].custom_data as Record<string, unknown> | undefined;
-                if (customData?.value !== undefined) finalValue = (customData.value as number) || 0;
-                if (customData?.currency) finalCurrency = String(customData.currency);
-              }
-            } else if (platform === "tiktok") {
-              const body = requestPayload?.body as Record<string, unknown> | undefined;
-              const data = body?.data as Array<Record<string, unknown>> | undefined;
-              if (data && data.length > 0) {
-                const properties = data[0].properties as Record<string, unknown> | undefined;
-                if (properties?.value !== undefined) finalValue = (properties.value as number) || 0;
-                if (properties?.currency) finalCurrency = String(properties.currency);
-              }
-            }
-          }
-          platformEventsMap.set(key, {
-            platform,
-            eventValue: finalValue,
-            currency: finalCurrency,
-            eventId,
-            status: attempt.status === "ok" ? "sent" : attempt.status,
-          });
+    for (const receipt of receipts) {
+      if (!receipt.platform) continue;
+      const payload = receipt.payloadJson as Record<string, unknown> | null;
+      const data = payload?.data as Record<string, unknown> | undefined;
+      let value = (data?.value as number) || 0;
+      let currency = (data?.currency as string) || "USD";
+      if (receipt.platform === "google") {
+        const events = payload?.events as Array<Record<string, unknown>> | undefined;
+        if (events && events.length > 0) {
+          const params = events[0].params as Record<string, unknown> | undefined;
+          if (params?.value !== undefined) value = (params.value as number) || 0;
+          if (params?.currency) currency = String(params.currency);
+        }
+      } else if (receipt.platform === "meta" || receipt.platform === "facebook") {
+        const eventsData = payload?.data as Array<Record<string, unknown>> | undefined;
+        if (eventsData && eventsData.length > 0) {
+          const customData = eventsData[0].custom_data as Record<string, unknown> | undefined;
+          if (customData?.value !== undefined) value = (customData.value as number) || 0;
+          if (customData?.currency) currency = String(customData.currency);
+        }
+      } else if (receipt.platform === "tiktok") {
+        const eventsData = payload?.data as Array<Record<string, unknown>> | undefined;
+        if (eventsData && eventsData.length > 0) {
+          const properties = eventsData[0].properties as Record<string, unknown> | undefined;
+          if (properties?.value !== undefined) value = (properties.value as number) || 0;
+          if (properties?.currency) currency = String(properties.currency);
         }
       }
+      if (!shopifyOrder && value > 0) {
+        shopifyOrder = {
+          orderId,
+          orderValue: value,
+          currency,
+        };
+      }
+      const key = `${receipt.platform}-${receipt.eventType}`;
+      const hasValue = value > 0 && !!currency;
+      platformEventsMap.set(key, {
+        platform: receipt.platform,
+        eventValue: value,
+        currency,
+        eventId: receipt.id,
+        status: hasValue ? "sent" : "fail",
+      });
     }
     const platformEvents = Array.from(platformEventsMap.values());
     const discrepancies: ReconciliationResult["discrepancies"] = [];
@@ -282,25 +182,19 @@ export async function getReconciliationSummary(
   >;
 }> {
   try {
-    const eventLogs = await prisma.eventLog.findMany({
+    const receipts = await prisma.pixelEventReceipt.findMany({
       where: {
         shopId,
-        eventName: { in: ["checkout_completed", "purchase"] },
+        eventType: { in: ["checkout_completed", "purchase"] },
         createdAt: {
           gte: startDate,
           lte: endDate,
         },
       },
-      include: {
-        DeliveryAttempt: {
-          where: {
-            status: { in: ["ok", "fail"] },
-          },
-          select: {
-            destinationType: true,
-            status: true,
-          },
-        },
+      select: {
+        orderKey: true,
+        platform: true,
+        payloadJson: true,
       },
     });
     const orderIds = new Set<string>();
@@ -312,27 +206,26 @@ export async function getReconciliationSummary(
         inconsistent: number;
       }
     > = {};
-    for (const eventLog of eventLogs) {
-      const normalizedEvent = eventLog.normalizedEventJson as Record<string, unknown> | null;
-      const orderId = normalizedEvent?.orderId as string | undefined;
-      if (orderId) {
-        orderIds.add(orderId);
+    for (const receipt of receipts) {
+      if (receipt.orderKey) {
+        orderIds.add(receipt.orderKey);
       }
-      for (const attempt of eventLog.DeliveryAttempt) {
-        const platform = attempt.destinationType;
-        if (!byPlatform[platform]) {
-          byPlatform[platform] = {
+      if (receipt.platform) {
+        if (!byPlatform[receipt.platform]) {
+          byPlatform[receipt.platform] = {
             total: 0,
             consistent: 0,
             inconsistent: 0,
           };
         }
-        byPlatform[platform].total++;
+        byPlatform[receipt.platform].total++;
       }
     }
     let consistentOrders = 0;
     let inconsistentOrders = 0;
-    for (const orderId of orderIds) {
+    const orderIdsArray = Array.from(orderIds);
+    for (let i = 0; i < Math.min(orderIdsArray.length, 100); i++) {
+      const orderId = orderIdsArray[i];
       try {
         const result = await reconcileOrder(shopId, orderId);
         if (result.isConsistent) {

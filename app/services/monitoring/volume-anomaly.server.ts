@@ -24,18 +24,22 @@ export async function calculateBaseline(
 ): Promise<BaselineStats> {
   const startDate = new Date();
   startDate.setDate(startDate.getDate() - days);
-  const stats = await prisma.conversionLog.groupBy({
-    by: ["createdAt"],
+  const receipts = await prisma.pixelEventReceipt.findMany({
     where: {
       shopId,
       createdAt: { gte: startDate },
-      status: "sent",
+      eventType: { in: ["purchase", "checkout_completed"] },
     },
-    _count: {
-      id: true,
+    select: {
+      createdAt: true,
     },
   });
-  const counts = stats.map((s) => s._count.id).sort((a, b) => a - b);
+  const dailyCounts = new Map<string, number>();
+  for (const receipt of receipts) {
+    const dateKey = receipt.createdAt.toISOString().split("T")[0];
+    dailyCounts.set(dateKey, (dailyCounts.get(dateKey) || 0) + 1);
+  }
+  const counts = Array.from(dailyCounts.values()).sort((a, b) => a - b);
   if (counts.length === 0) {
     return {
       average: 0,
@@ -67,11 +71,11 @@ export async function detectVolumeAnomaly(
 ): Promise<VolumeAnomalyResult> {
   const baseline = await calculateBaseline(shopId, 7);
   const currentStart = new Date(Date.now() - currentPeriodHours * 60 * 60 * 1000);
-  const current = await prisma.conversionLog.count({
+  const current = await prisma.pixelEventReceipt.count({
     where: {
       shopId,
       createdAt: { gte: currentStart },
-      status: "sent",
+      eventType: { in: ["purchase", "checkout_completed"] },
     },
   });
   const deviation = current - baseline.average;

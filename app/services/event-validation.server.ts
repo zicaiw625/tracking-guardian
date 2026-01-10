@@ -70,13 +70,11 @@ export async function validateEvents(
   const { since, platform, eventType, limit = 1000 } = options;
   const where: {
     shopId: string;
-    status: { in: string[] };
     createdAt?: { gte: Date };
     platform?: string;
     eventType?: string;
   } = {
     shopId,
-    status: { in: ["sent", "failed"] },
   };
   if (since) {
     where.createdAt = { gte: since };
@@ -87,31 +85,66 @@ export async function validateEvents(
   if (eventType) {
     where.eventType = eventType;
   }
-  const logs = await prisma.conversionLog.findMany({
+  const receipts = await prisma.pixelEventReceipt.findMany({
     where,
     select: {
       id: true,
-      orderId: true,
-      orderValue: true,
-      currency: true,
-      eventId: true,
+      orderKey: true,
+      payloadJson: true,
       platform: true,
       eventType: true,
     },
     orderBy: { createdAt: "desc" },
     take: limit,
   });
-  const results: EventValidationResult[] = logs.map((log) => {
+  const results: EventValidationResult[] = receipts.map((receipt) => {
+    if (!receipt.platform) {
+      return {
+        eventId: receipt.id,
+        orderId: receipt.orderKey || "",
+        platform: "unknown",
+        eventType: receipt.eventType,
+        isValid: false,
+        missingParams: ["platform"],
+        invalidParams: [],
+      };
+    }
+    const payload = receipt.payloadJson as Record<string, unknown> | null;
+    const data = payload?.data as Record<string, unknown> | undefined;
+    let value: number | null = (data?.value as number) || null;
+    let currency: string | null = (data?.currency as string) || null;
+    if (receipt.platform === "google") {
+      const events = payload?.events as Array<Record<string, unknown>> | undefined;
+      if (events && events.length > 0) {
+        const params = events[0].params as Record<string, unknown> | undefined;
+        if (params?.value !== undefined) value = (params.value as number) || null;
+        if (params?.currency) currency = String(params.currency);
+      }
+    } else if (receipt.platform === "meta" || receipt.platform === "facebook") {
+      const eventsData = payload?.data as Array<Record<string, unknown>> | undefined;
+      if (eventsData && eventsData.length > 0) {
+        const customData = eventsData[0].custom_data as Record<string, unknown> | undefined;
+        if (customData?.value !== undefined) value = (customData.value as number) || null;
+        if (customData?.currency) currency = String(customData.currency);
+      }
+    } else if (receipt.platform === "tiktok") {
+      const eventsData = payload?.data as Array<Record<string, unknown>> | undefined;
+      if (eventsData && eventsData.length > 0) {
+        const properties = eventsData[0].properties as Record<string, unknown> | undefined;
+        if (properties?.value !== undefined) value = (properties.value as number) || null;
+        if (properties?.currency) currency = String(properties.currency);
+      }
+    }
     const validation = validateEventParams({
-      orderValue: log.orderValue ? Number(log.orderValue) : null,
-      currency: log.currency,
-      eventId: log.eventId,
-      platform: log.platform,
-      eventType: log.eventType,
+      orderValue: value,
+      currency: currency,
+      eventId: receipt.id,
+      platform: receipt.platform,
+      eventType: receipt.eventType,
     });
     return {
       ...validation,
-      orderId: log.orderId,
+      orderId: receipt.orderKey || "",
     };
   });
   const valid = results.filter((r) => r.isValid).length;

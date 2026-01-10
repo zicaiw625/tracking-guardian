@@ -161,37 +161,22 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       const expectedEvents = JSON.parse(expectedEventsStr) as string[];
       const fiveMinutesAgo = new Date();
       fiveMinutesAgo.setMinutes(fiveMinutesAgo.getMinutes() - 5);
-      const eventLogs = await prisma.eventLog.findMany({
+      const receipts = await prisma.pixelEventReceipt.findMany({
         where: {
           shopId: shop.id,
           createdAt: { gte: fiveMinutesAgo },
-          OR: [
-            { eventName: { in: expectedEvents } },
-            { eventName: eventType },
-          ],
-        },
-        include: {
-          DeliveryAttempt: {
-            where: {
-              status: { in: ["ok", "fail"] },
-            },
-            select: {
-              id: true,
-              destinationType: true,
-              status: true,
-            },
-          },
+          eventType: { in: expectedEvents.length > 0 ? expectedEvents : [eventType] },
         },
         orderBy: { createdAt: "desc" },
         take: 50,
       });
       const foundEvents = new Set<string>();
-      for (const eventLog of eventLogs) {
-        const eventName = eventLog.eventName;
-        const normalizedEvent = eventLog.normalizedEventJson as Record<string, unknown> | null;
-        const shopifyEventName = normalizedEvent?.shopifyEventName as string | undefined;
-        const hasValidDelivery = eventLog.DeliveryAttempt.length > 0;
-        if (hasValidDelivery) {
+      for (const receipt of receipts) {
+        const eventName = receipt.eventType;
+        const payload = receipt.payloadJson as Record<string, unknown> | null;
+        const shopifyEventName = payload?.event_name as string | undefined;
+        const hasValidPayload = !!payload && !!payload.data;
+        if (hasValidPayload) {
           for (const expected of expectedEvents) {
             if (eventName.toLowerCase() === expected.toLowerCase() ||
                 shopifyEventName?.toLowerCase() === expected.toLowerCase() ||
