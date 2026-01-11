@@ -4,6 +4,7 @@ import { logger } from "../../utils/logger.server";
 import { optionsResponse, jsonWithCors } from "../../utils/cors";
 import { withRateLimit, pathShopKeyExtractor, type RateLimitedHandler, checkRateLimitAsync } from "../../middleware/rate-limit";
 import prisma from "../../db.server";
+import { randomUUID } from "crypto";
 
 export const action = async ({ request }: ActionFunctionArgs) => {
   if (request.method === "OPTIONS") {
@@ -76,6 +77,17 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         { status: 404, request, staticCors: true }
       );
     }
+    const orderId = `survey_${shop.id}_${Date.now()}`;
+    await prisma.surveyResponse.create({
+      data: {
+        id: randomUUID(),
+        shopId: shop.id,
+        orderId: orderId,
+        feedback: option,
+        source: "thank_you_block",
+        createdAt: timestamp ? new Date(timestamp) : new Date(),
+      },
+    });
     logger.info("Survey response received", {
       shopDomain,
       option,

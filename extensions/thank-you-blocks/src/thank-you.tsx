@@ -113,10 +113,12 @@ function ReorderModule({
         setLoading(false);
         return;
       }
+      const token = await api.sessionToken.get();
       const response = await fetch(`${BUILD_TIME_URL}/api/reorder`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`,
         },
         body: JSON.stringify({
           orderId: orderId,
@@ -159,10 +161,12 @@ function ThankYouBlocks() {
   const reorderButtonText = (settings.reorder_button_text as string) || "再次购买";
   const handleSurveySubmit = async (selectedOption: string) => {
     try {
+      const token = await api.sessionToken.get();
       await fetch(`${BUILD_TIME_URL}/api/survey`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`,
         },
         body: JSON.stringify({
           option: selectedOption,

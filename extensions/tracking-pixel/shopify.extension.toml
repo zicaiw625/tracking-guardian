@@ -33,3 +33,8 @@ type = "single_line_text_field"
 name = "Event Mode"
 description = "Event collection mode: purchase_only (default) or full_funnel. Auto-configured based on shop settings."
 type = "single_line_text_field"
+
+[settings.fields.environment]
+name = "Environment"
+description = "Environment mode: test or live. Auto-configured during installation."
+type = "single_line_text_field"

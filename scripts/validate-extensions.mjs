@@ -37,7 +37,7 @@ const FORBIDDEN_PATTERNS = [
 
 const ALLOWED_PATTERNS = [
     /\/\/.*(window|navigator|document|localStorage|sessionStorage)/i,
-    /\/\*[\s\S]*?(window|navigator|document|localStorage|sessionStorage)[\s\S]*?\*\
+    /\/\*[\s\S]*?(window|navigator|document|localStorage|sessionStorage)[\s\S]*?\*\//,
     /".*window.*"/,
     /'.*window.*'/,
     /`.*window.*`/,

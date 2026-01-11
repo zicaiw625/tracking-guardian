@@ -101,7 +101,16 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   const planInfo = getPlanOrDefault(planId);
   const modules = await getUiModuleConfigs(shop.id);
   const enabledCount = await getEnabledModulesCount(shop.id);
-    let surveySubmissionCount = 0;
+  const sevenDaysAgo = new Date();
+  sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+  const surveySubmissionCount = await prisma.surveyResponse.count({
+    where: {
+      shopId: shop.id,
+      createdAt: {
+        gte: sevenDaysAgo,
+      },
+    },
+  });
   const isDev = isDevStore(shopDomain);
   const modulePreviewUrls: Record<string, { thank_you?: string; order_status?: string }> = {};
   if (isDev) {
