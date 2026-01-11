@@ -40,7 +40,6 @@ import {
     validateRiskItemsArray,
     validateStringArray,
     validateRiskScore,
-    validateAdditionalScriptsPatterns,
     safeParseDate,
     safeFormatDate,
 } from "../utils/scan-data-validation";
@@ -206,9 +205,6 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
             const identifiedPlatforms = validateStringArray(rawData.identifiedPlatforms);
             const riskItems = validateRiskItemsArray(rawData.riskItems);
             const riskScore = validateRiskScore(rawData.riskScore);
-            const additionalScriptsPatterns = validateAdditionalScriptsPatterns(
-                (rawData as Record<string, unknown>).additionalScriptsPatterns
-            );
             let webPixels: Array<{ id: string; settings: string | null }> = [];
             try {
                 const pixels = await getExistingWebPixels(admin);
@@ -254,7 +250,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
                 webPixels,
                 duplicatePixels: [],
                 migrationActions: [],
-                additionalScriptsPatterns: Array.isArray(additionalScriptsPatterns) ? additionalScriptsPatterns : [],
+                additionalScriptsPatterns: [],
             };
             migrationActions = generateMigrationActions(enhancedResult, shopTier);
         } catch (e) {
