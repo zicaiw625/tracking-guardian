@@ -96,6 +96,7 @@ function ReorderModule({
 }) {
   const api = useApi<"customer-account.order-status.block.render">();
   const [loading, setLoading] = useState(false);
+  const [reorderUrl, setReorderUrl] = useState<string | null>(null);
   const handleReorder = async () => {
     setLoading(true);
     try {
@@ -120,6 +121,15 @@ function ReorderModule({
       });
       if (response.ok) {
         const data = await response.json();
+        if (data.reorderUrl) {
+          setReorderUrl(data.reorderUrl);
+          if (typeof window !== 'undefined' && window.open) {
+            window.open(data.reorderUrl, '_blank');
+          }
+        }
+      } else {
+        const errorData = await response.json().catch(() => ({ error: "Unknown error" }));
+        console.error("Reorder failed:", errorData.error || "Failed to get reorder URL");
       }
     } catch (error) {
       console.error("Reorder failed:", error);
@@ -127,6 +137,17 @@ function ReorderModule({
       setLoading(false);
     }
   };
+  if (reorderUrl) {
+    return (
+      <View border="base" cornerRadius="base" padding="base">
+        <Link to={reorderUrl} external>
+          <Button kind="primary">
+            {buttonText || "再次购买"}
+          </Button>
+        </Link>
+      </View>
+    );
+  }
   return (
     <View border="base" cornerRadius="base" padding="base">
       <Button 

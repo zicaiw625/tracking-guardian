@@ -248,19 +248,27 @@ async function loaderImpl(request: Request) {
       );
     }
     const orderCustomerId = orderData.data.order.customer?.id || null;
-    if (customerGidFromToken && orderCustomerId) {
-      const tokenCustomerId = customerGidFromToken.includes("/")
-        ? customerGidFromToken.split("/").pop()
-        : customerGidFromToken;
-      const orderCustomerIdNum = orderCustomerId.includes("/")
-        ? orderCustomerId.split("/").pop()
-        : orderCustomerId;
-      if (tokenCustomerId !== orderCustomerIdNum) {
-        logger.warn(`Order access denied: customer mismatch for orderId: ${orderId}, shop: ${shopDomain}`, {
-          tokenCustomerId: tokenCustomerId,
-          orderCustomerId: orderCustomerIdNum,
-        });
-        return jsonWithCors({ error: "Order access denied" }, { status: 403, request, staticCors: true });
+    if (orderCustomerId) {
+      if (customerGidFromToken) {
+        const tokenCustomerId = customerGidFromToken.includes("/")
+          ? customerGidFromToken.split("/").pop()
+          : customerGidFromToken;
+        const orderCustomerIdNum = orderCustomerId.includes("/")
+          ? orderCustomerId.split("/").pop()
+          : orderCustomerId;
+        if (tokenCustomerId !== orderCustomerIdNum) {
+          logger.warn(`Order access denied: customer mismatch for orderId: ${orderId}, shop: ${shopDomain}`, {
+            tokenCustomerId: tokenCustomerId,
+            orderCustomerId: orderCustomerIdNum,
+          });
+          return jsonWithCors({ error: "Order access denied" }, { status: 403, request, staticCors: true });
+        }
+      } else {
+        logger.warn(`Order access attempt without customer ID in token for orderId: ${orderId}, shop: ${shopDomain}`);
+        return jsonWithCors(
+          { error: "Unauthorized: Customer authentication required" },
+          { status: 401, request, staticCors: true }
+        );
       }
     }
     logger.info(`Reorder URL requested for orderId: ${orderId}, shop: ${shopDomain}`);

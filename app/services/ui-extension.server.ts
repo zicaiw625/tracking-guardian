@@ -139,7 +139,7 @@ export async function canUseModule(shopId: string, moduleKey: ModuleKey): Promis
     };
   }
   if (planConfig.uiModules !== -1) {
-    const enabledCount = 0;
+    const enabledCount = await getEnabledModulesCount(shopId);
     if (enabledCount >= planConfig.uiModules) {
       return {
         allowed: false,
@@ -157,12 +157,20 @@ export async function canUseModule(shopId: string, moduleKey: ModuleKey): Promis
 }
 
 export async function getUiModuleConfigs(shopId: string): Promise<UiModuleConfig[]> {
+  const shop = await prisma.shop.findUnique({
+    where: { id: shopId },
+    select: { settings: true },
+  });
+  const storedSettings = (shop?.settings as Record<string, unknown>) || {};
+  const uiModules = (storedSettings.uiModules as Record<string, unknown>) || {};
   return MODULE_KEYS.map((moduleKey) => {
+    const stored = uiModules[moduleKey] as Partial<UiModuleConfig> | undefined;
     return {
       moduleKey,
-      isEnabled: false,
-      settings: getDefaultSettings(moduleKey),
-      displayRules: getDefaultDisplayRules(moduleKey),
+      isEnabled: stored?.isEnabled ?? false,
+      settings: stored?.settings ?? getDefaultSettings(moduleKey),
+      displayRules: stored?.displayRules ?? getDefaultDisplayRules(moduleKey),
+      localization: stored?.localization,
     };
   });
 }
@@ -171,11 +179,19 @@ export async function getUiModuleConfig(
   shopId: string,
   moduleKey: ModuleKey
 ): Promise<UiModuleConfig> {
+  const shop = await prisma.shop.findUnique({
+    where: { id: shopId },
+    select: { settings: true },
+  });
+  const storedSettings = (shop?.settings as Record<string, unknown>) || {};
+  const uiModules = (storedSettings.uiModules as Record<string, unknown>) || {};
+  const stored = uiModules[moduleKey] as Partial<UiModuleConfig> | undefined;
   return {
     moduleKey,
-    isEnabled: false,
-    settings: getDefaultSettings(moduleKey),
-    displayRules: getDefaultDisplayRules(moduleKey),
+    isEnabled: stored?.isEnabled ?? false,
+    settings: stored?.settings ?? getDefaultSettings(moduleKey),
+    displayRules: stored?.displayRules ?? getDefaultDisplayRules(moduleKey),
+    localization: stored?.localization,
   };
 }
 
@@ -233,7 +249,7 @@ export async function updateUiModuleConfig(
       }
       config.localization = localizationValidation.normalized;
     }
-    if (config.isEnabled) {
+    if (config.isEnabled !== undefined) {
       const canUse = await canUseModule(shopId, moduleKey);
       if (!canUse.allowed) {
         return {
@@ -242,10 +258,25 @@ export async function updateUiModuleConfig(
         };
       }
     }
-    logger.debug(`updateUiModuleConfig called but uiExtensionSetting table no longer exists`, {
-      shopId,
+    const shop = await prisma.shop.findUnique({
+      where: { id: shopId },
+      select: { settings: true },
+    });
+    const storedSettings = (shop?.settings as Record<string, unknown>) || {};
+    const uiModules = (storedSettings.uiModules as Record<string, unknown>) || {};
+    const existing = uiModules[moduleKey] as Partial<UiModuleConfig> | undefined;
+    const updated: UiModuleConfig = {
       moduleKey,
-      isEnabled: config.isEnabled,
+      isEnabled: config.isEnabled !== undefined ? config.isEnabled : (existing?.isEnabled ?? false),
+      settings: config.settings ?? existing?.settings ?? getDefaultSettings(moduleKey),
+      displayRules: config.displayRules ?? existing?.displayRules ?? getDefaultDisplayRules(moduleKey),
+      localization: config.localization ?? existing?.localization,
+    };
+    uiModules[moduleKey] = updated;
+    storedSettings.uiModules = uiModules;
+    await prisma.shop.update({
+      where: { id: shopId },
+      data: { settings: storedSettings as any },
     });
     if (options?.syncToExtension && options?.admin) {
       const { syncSingleModule } = await import("./ui-extension-sync.server");
@@ -292,15 +323,37 @@ export async function resetModuleToDefault(
   shopId: string,
   moduleKey: ModuleKey
 ): Promise<{ success: boolean; error?: string }> {
-  logger.debug(`resetModuleToDefault called but uiExtensionSetting table no longer exists`, {
-    shopId,
-    moduleKey,
-  });
-  return { success: true };
+  try {
+    const shop = await prisma.shop.findUnique({
+      where: { id: shopId },
+      select: { settings: true },
+    });
+    const storedSettings = (shop?.settings as Record<string, unknown>) || {};
+    const uiModules = (storedSettings.uiModules as Record<string, unknown>) || {};
+    uiModules[moduleKey] = {
+      moduleKey,
+      isEnabled: false,
+      settings: getDefaultSettings(moduleKey),
+      displayRules: getDefaultDisplayRules(moduleKey),
+    };
+    storedSettings.uiModules = uiModules;
+    await prisma.shop.update({
+      where: { id: shopId },
+      data: { settings: storedSettings as any },
+    });
+    return { success: true };
+  } catch (error) {
+    logger.error(`Failed to reset module to default`, { shopId, moduleKey, error });
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "重置失败",
+    };
+  }
 }
 
 export async function getEnabledModulesCount(shopId: string): Promise<number> {
-  return 0;
+  const configs = await getUiModuleConfigs(shopId);
+  return configs.filter((c) => c.isEnabled).length;
 }
 
 export async function getModuleStats(shopId: string): Promise<{
@@ -308,9 +361,21 @@ export async function getModuleStats(shopId: string): Promise<{
   enabled: number;
   byCategory: Record<string, number>;
 }> {
+  const configs = await getUiModuleConfigs(shopId);
+  const enabled = configs.filter((c) => c.isEnabled).length;
+  const byCategory: Record<string, number> = {};
+  configs.forEach((config) => {
+    const category = UI_MODULES[config.moduleKey]?.category || "other";
+    if (!byCategory[category]) {
+      byCategory[category] = 0;
+    }
+    if (config.isEnabled) {
+      byCategory[category]++;
+    }
+  });
   return {
     total: MODULE_KEYS.length,
-    enabled: 0,
-    byCategory: {},
+    enabled,
+    byCategory,
   };
 }

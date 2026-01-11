@@ -12,11 +12,17 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     const shopDomain = session.shop;
     const shop = await prisma.shop.findUnique({
       where: { shopDomain },
-      select: { id: true },
+      select: { id: true, plan: true },
     });
 
     if (!shop) {
       return json({ error: "Shop not found" }, { status: 404 });
+    }
+
+    const { checkFeatureAccess } = await import("../services/billing/feature-gates.server");
+    const gateResult = checkFeatureAccess(shop.plan as any, "report_export");
+    if (!gateResult.allowed) {
+      return json({ error: gateResult.reason || "需要 Growth 及以上套餐才能导出报告" }, { status: 402 });
     }
 
     const checklist = await generateMigrationChecklist(shop.id);

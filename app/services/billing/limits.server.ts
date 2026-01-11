@@ -52,7 +52,8 @@ export async function checkUiModulesLimit(
   if (limit === -1) {
     return { allowed: true, unlimited: true };
   }
-  const currentCount = 0;
+  const { getEnabledModulesCount } = await import("../ui-extension.server");
+  const currentCount = await getEnabledModulesCount(shopId);
   if (currentCount >= limit) {
     return {
       allowed: false,
