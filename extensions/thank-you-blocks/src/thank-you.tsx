@@ -113,7 +113,7 @@ function ReorderModule({
         setLoading(false);
         return;
       }
-      const response = await api.fetch(`${BUILD_TIME_URL}/api/reorder`, {
+      const response = await fetch(`${BUILD_TIME_URL}/api/reorder`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -159,7 +159,7 @@ function ThankYouBlocks() {
   const reorderButtonText = (settings.reorder_button_text as string) || "再次购买";
   const handleSurveySubmit = async (selectedOption: string) => {
     try {
-      await api.fetch(`${BUILD_TIME_URL}/api/survey`, {
+      await fetch(`${BUILD_TIME_URL}/api/survey`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

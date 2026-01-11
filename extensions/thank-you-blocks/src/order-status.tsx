@@ -8,7 +8,7 @@ import {
   Divider,
   useApi,
   useSettings,
-} from "@shopify/ui-extensions-react/checkout";
+} from "@shopify/ui-extensions-react/customer-account";
 import { useState } from "react";
 import { BUILD_TIME_URL } from "./config";
 
@@ -94,26 +94,20 @@ function ReorderModule({
 }: {
   buttonText: string;
 }) {
-  const api = useApi();
+  const api = useApi<"customer-account.order-status.block.render">();
   const [loading, setLoading] = useState(false);
   const handleReorder = async () => {
     setLoading(true);
     try {
-      const purchase = (api as any).purchase;
-      let orderId: string | undefined;
-      if (purchase?.order?.id) {
-        orderId = purchase.order.id;
-      } else if (purchase?.orderId) {
-        orderId = purchase.orderId;
-      } else if ((api as any).order?.id) {
-        orderId = (api as any).order.id;
-      }
+      const orderId =
+        (api as any)?.order?.current?.id ??
+        (api as any)?.order?.value?.id ??
+        (api as any)?.purchase?.order?.id ??
+        (api as any)?.purchase?.orderId;
       if (!orderId) {
-        console.error("Reorder failed: No order ID available from checkout API. Purchase object:", purchase);
-        setLoading(false);
-        return;
+        throw new Error("No order id");
       }
-      const response = await api.fetch(`${BUILD_TIME_URL}/api/reorder`, {
+      const response = await fetch(`${BUILD_TIME_URL}/api/reorder`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -145,7 +139,7 @@ function ReorderModule({
 }
 
 function ThankYouBlocks() {
-  const api = useApi();
+  const api = useApi<"customer-account.order-status.block.render">();
   const settings = useSettings();
   const [surveySubmitted, setSurveySubmitted] = useState(false);
   const surveyEnabled = settings.survey_enabled ?? true;
@@ -159,7 +153,7 @@ function ThankYouBlocks() {
   const reorderButtonText = (settings.reorder_button_text as string) || "再次购买";
   const handleSurveySubmit = async (selectedOption: string) => {
     try {
-      await api.fetch(`${BUILD_TIME_URL}/api/survey`, {
+      await fetch(`${BUILD_TIME_URL}/api/survey`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
