@@ -36,7 +36,7 @@ export default function SettingsPage() {
   }, [actionData, showSuccess, showError]);
   const existingAlertConfig = shop?.alertConfigs?.[0];
   const existingPixelConfig = shop?.pixelConfigs?.[0];
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const tabParam = searchParams.get("tab");
   const getTabIndex = (tab: string | null): number => {
     if (tab === "billing" || tab === "subscription") return 3;
@@ -45,13 +45,22 @@ export default function SettingsPage() {
     if (tab === "security") return 2;
     return 0;
   };
+  const getTabId = (index: number): string => {
+    if (index === 0) return "alerts";
+    if (index === 1) return "server-side";
+    if (index === 2) return "security";
+    if (index === 3) return "subscription";
+    return "alerts";
+  };
   const [selectedTab, setSelectedTab] = useState(() => getTabIndex(tabParam));
   useEffect(() => {
     const newTabIndex = getTabIndex(tabParam);
-    if (newTabIndex !== selectedTab) {
-      setSelectedTab(newTabIndex);
-    }
-  }, [tabParam, selectedTab]);
+    setSelectedTab(newTabIndex);
+  }, [tabParam]);
+  const handleTabChange = useCallback((index: number) => {
+    const tabId = getTabId(index);
+    setSearchParams({ tab: tabId });
+  }, [setSearchParams]);
   const [alertChannel, setAlertChannel] = useState(() => existingAlertConfig?.channel || "email");
   const [alertEmail, setAlertEmail] = useState("");
   const [slackWebhook, setSlackWebhook] = useState("");
@@ -450,7 +459,7 @@ export default function SettingsPage() {
           primaryAction={{ content: "查看订阅计划", url: "/app/settings?tab=subscription" }}
           secondaryAction={{ content: "配置告警", url: "/app/settings?tab=alerts" }}
         />
-        <Tabs tabs={tabs} selected={selectedTab} onSelect={setSelectedTab}>
+        <Tabs tabs={tabs} selected={selectedTab} onSelect={handleTabChange}>
           {selectedTab === 0 && (
             <AlertsTab
               shop={shop}
