@@ -87,8 +87,8 @@ services:
     name: tracking-guardian-cron
     runtime: node
     region: singapore  # 与 web service 相同区域
-    schedule: "*/5 * * * *"  # 每 5 分钟执行一次
-    startCommand: curl -X POST -H "Authorization: Bearer $CRON_SECRET" -H "Content-Type: application/json" "$SHOPIFY_APP_URL/api/cron"
+    schedule: "*/5 * * * *"
+    startCommand: 'curl -X POST -H "Authorization: Bearer $CRON_SECRET" -H "Content-Type: application/json" "$SHOPIFY_APP_URL/api/cron"'
     envVars:
       - key: DATABASE_URL
         fromDatabase:
