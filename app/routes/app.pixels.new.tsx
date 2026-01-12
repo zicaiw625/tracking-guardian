@@ -38,7 +38,6 @@ import { createWebPixel, getExistingWebPixels, isOurWebPixel, updateWebPixel } f
 import { decryptIngestionSecret, encryptIngestionSecret, isTokenEncrypted } from "~/utils/token-encryption";
 import { randomBytes } from "crypto";
 import { logger } from "~/utils/logger.server";
-import type { PlatformType } from "~/types/enums";
 import type { WizardTemplate } from "~/components/migrate/PixelMigrationWizard";
 import { trackEvent } from "~/services/analytics.server";
 
@@ -89,7 +88,10 @@ const PRESET_TEMPLATES: WizardTemplate[] = [
   },
 ];
 
-const DEFAULT_EVENT_MAPPINGS: Partial<Record<PlatformType, Record<string, string>>> = {
+const SUPPORTED_PLATFORMS = ["google", "meta", "tiktok"] as const;
+type SupportedPlatform = (typeof SUPPORTED_PLATFORMS)[number];
+
+const DEFAULT_EVENT_MAPPINGS: Record<SupportedPlatform, Record<string, string>> = {
   google: {
     checkout_completed: "purchase",
     checkout_started: "begin_checkout",
@@ -113,7 +115,7 @@ const DEFAULT_EVENT_MAPPINGS: Partial<Record<PlatformType, Record<string, string
   },
 };
 
-const PLATFORM_INFO: Record<PlatformType, {
+const PLATFORM_INFO: Record<SupportedPlatform, {
   name: string;
   icon: string;
   description: string;
@@ -198,7 +200,7 @@ const PLATFORM_INFO: Record<PlatformType, {
 };
 
 interface PlatformConfig {
-  platform: PlatformType;
+  platform: SupportedPlatform;
   enabled: boolean;
   platformId: string;
   credentials: Record<string, string>;
@@ -289,7 +291,13 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       const configIds: string[] = [];
       const createdPlatforms: string[] = [];
       for (const config of configs) {
-      const platform = config.platform as "google" | "meta" | "tiktok";
+        const platform = config.platform as SupportedPlatform;
+        if (!SUPPORTED_PLATFORMS.includes(platform)) {
+          return json({
+            success: false,
+            error: `平台 ${config.platform} 尚未在 v1 支持，请仅选择 GA4、Meta 或 TikTok。`,
+          }, { status: 400 });
+        }
         let credentials: Record<string, string> = {};
         if (platform === "google") {
           credentials = {
@@ -475,8 +483,8 @@ export default function PixelsNewPage() {
   const navigate = useNavigate();
   const { showSuccess, showError } = useToastContext();
   const [currentStep, setCurrentStep] = useState<SetupStep>("select");
-  const [selectedPlatforms, setSelectedPlatforms] = useState<Set<PlatformType>>(new Set());
-  const [platformConfigs, setPlatformConfigs] = useState<Partial<Record<PlatformType, PlatformConfig>>>(() => ({
+  const [selectedPlatforms, setSelectedPlatforms] = useState<Set<SupportedPlatform>>(new Set());
+  const [platformConfigs, setPlatformConfigs] = useState<Partial<Record<SupportedPlatform, PlatformConfig>>>(() => ({
     google: {
       platform: "google",
       enabled: false,
@@ -522,7 +530,7 @@ export default function PixelsNewPage() {
       showError(actionData.error);
     }
   }, [actionData, navigate, showSuccess, showError]);
-  const handlePlatformToggle = useCallback((platform: PlatformType, enabled: boolean) => {
+  const handlePlatformToggle = useCallback((platform: SupportedPlatform, enabled: boolean) => {
     setSelectedPlatforms((prev) => {
       const next = new Set(prev);
       if (enabled) {
@@ -542,9 +550,12 @@ export default function PixelsNewPage() {
   }, []);
   const handleApplyTemplate = useCallback((template: WizardTemplate) => {
     const configs = { ...platformConfigs };
-    const platforms = new Set<PlatformType>();
+    const platforms = new Set<SupportedPlatform>();
     template.platforms.forEach((platform) => {
-      const platformKey = platform as PlatformType;
+      if (!SUPPORTED_PLATFORMS.includes(platform as SupportedPlatform)) {
+        return;
+      }
+      const platformKey = platform as SupportedPlatform;
       platforms.add(platformKey);
       const existingConfig = configs[platformKey];
       if (existingConfig) {
@@ -569,7 +580,7 @@ export default function PixelsNewPage() {
     setShowTemplateModal(false);
     showSuccess(`已应用模板「${template.name}」`);
   }, [platformConfigs, showSuccess]);
-  const handleCredentialUpdate = useCallback((platform: PlatformType, field: string, value: string) => {
+  const handleCredentialUpdate = useCallback((platform: SupportedPlatform, field: string, value: string) => {
     setPlatformConfigs((prev) => {
       const currentConfig = prev[platform];
       if (!currentConfig) return prev;
@@ -589,7 +600,7 @@ export default function PixelsNewPage() {
       };
     });
   }, []);
-  const handleEventMappingUpdate = useCallback((platform: PlatformType, shopifyEvent: string, platformEvent: string) => {
+  const handleEventMappingUpdate = useCallback((platform: SupportedPlatform, shopifyEvent: string, platformEvent: string) => {
     setPlatformConfigs((prev) => {
       const currentConfig = prev[platform];
       if (!currentConfig) return prev;
@@ -605,7 +616,7 @@ export default function PixelsNewPage() {
       };
     });
   }, []);
-  const handleEnvironmentToggle = useCallback((platform: PlatformType, environment: "test" | "live") => {
+  const handleEnvironmentToggle = useCallback((platform: SupportedPlatform, environment: "test" | "live") => {
     setPlatformConfigs((prev) => ({
       ...prev,
       [platform]: {
@@ -680,7 +691,11 @@ export default function PixelsNewPage() {
   const availableTemplates = useMemo(() => {
     const presetTemplates = templates?.presets?.length ? templates.presets : PRESET_TEMPLATES;
     const customTemplates = templates?.custom || [];
-    return [...presetTemplates, ...customTemplates];
+    return [...presetTemplates, ...customTemplates].filter((template) =>
+      template.platforms.every((platform) =>
+        SUPPORTED_PLATFORMS.includes(platform as SupportedPlatform)
+      )
+    );
   }, [templates]);
   if (!shop) {
     return (
@@ -746,7 +761,7 @@ export default function PixelsNewPage() {
                 选择您要迁移的广告平台，可使用预设模板快速配置事件映射。
               </Text>
               <BlockStack gap="300">
-                {(Object.keys(PLATFORM_INFO) as PlatformType[]).map((platform) => {
+                {(Object.keys(PLATFORM_INFO) as SupportedPlatform[]).map((platform) => {
                   const info = PLATFORM_INFO[platform];
                   const isSelected = selectedPlatforms.has(platform);
                   return (
