@@ -3,7 +3,7 @@ import type { CustomerPrivacyState, VisitorConsentCollectedEvent } from "./types
 export interface ConsentManager {
   marketingAllowed: boolean;
   analyticsAllowed: boolean;
-  saleOfDataAllowed: boolean;
+  saleOfDataAllowed?: boolean;
   hasAnalyticsConsent(): boolean;
   hasMarketingConsent(): boolean;
   hasFullConsent(): boolean;
@@ -15,7 +15,7 @@ export function createConsentManager(logger?: (...args: unknown[]) => void): Con
   let customerPrivacyStatus: CustomerPrivacyState | null = null;
   let marketingAllowed = false;
   let analyticsAllowed = false;
-  let saleOfDataAllowed = false;
+  let saleOfDataAllowed: boolean | undefined;
   function updateFromStatus(
     status: CustomerPrivacyState | null | undefined,
     source: "init" | "event"
@@ -27,7 +27,9 @@ export function createConsentManager(logger?: (...args: unknown[]) => void): Con
     customerPrivacyStatus = status;
     marketingAllowed = customerPrivacyStatus.marketingAllowed === true;
     analyticsAllowed = customerPrivacyStatus.analyticsProcessingAllowed === true;
-    saleOfDataAllowed = customerPrivacyStatus.saleOfDataAllowed === true;
+    saleOfDataAllowed = "saleOfDataAllowed" in customerPrivacyStatus
+      ? customerPrivacyStatus.saleOfDataAllowed === true
+      : undefined;
     log(`Consent state updated from ${source}.customerPrivacy (P0-04 strict):`, {
       marketingAllowed,
       analyticsAllowed,
@@ -43,7 +45,7 @@ export function createConsentManager(logger?: (...args: unknown[]) => void): Con
     return analyticsAllowed === true;
   }
   function hasMarketingConsent(): boolean {
-    return marketingAllowed === true && saleOfDataAllowed === true;
+    return marketingAllowed === true && saleOfDataAllowed !== false;
   }
   function hasFullConsent(): boolean {
     return analyticsAllowed === true && marketingAllowed === true && saleOfDataAllowed === true;
