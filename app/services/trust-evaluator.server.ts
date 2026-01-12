@@ -75,7 +75,7 @@ export function evaluateTrust(
     ? {
         marketing: rawConsentState.marketing,
         analytics: rawConsentState.analytics,
-        saleOfDataAllowed: rawConsentState.saleOfData === true,
+        saleOfDataAllowed: rawConsentState.saleOfData,
       }
     : null;
   return {

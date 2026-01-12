@@ -11,7 +11,7 @@ export interface ConsentCheckResult {
   hasAnyConsent: boolean;
   hasMarketingConsent: boolean;
   hasAnalyticsConsent: boolean;
-  saleOfDataAllowed: boolean;
+  saleOfDataAllowed?: boolean;
 }
 
 export interface PlatformFilterResult {
@@ -23,7 +23,7 @@ export function checkInitialConsent(consent: ConsentState | undefined): ConsentC
   const hasMarketingConsent = consent?.marketing === true;
   const hasAnalyticsConsent = consent?.analytics === true;
   const hasAnyConsent = hasMarketingConsent || hasAnalyticsConsent;
-  const saleOfDataAllowed = consent?.saleOfData === true;
+  const saleOfDataAllowed = consent?.saleOfData;
   return {
     hasAnyConsent,
     hasMarketingConsent,
@@ -64,7 +64,7 @@ export function filterPlatformsByConsent(
   for (const config of pixelConfigs) {
     const platform = config.platform;
     const requiresSaleOfData = platformRequiresSaleOfData(platform);
-    if (requiresSaleOfData && !consentResult.saleOfDataAllowed) {
+    if (requiresSaleOfData && consentResult.saleOfDataAllowed === false) {
       logger.debug(
         `Skipping ${platform} ConversionLog: ` +
           `sale_of_data required but not allowed (saleOfData=${consentResult.saleOfDataAllowed}) [P0-2]`
