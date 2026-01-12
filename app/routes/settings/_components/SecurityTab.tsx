@@ -241,7 +241,7 @@ export function SecurityTab({
                   <Text as="p" variant="bodySm">
                     • <strong>analytics = true</strong>：需要 analytics consent 才能加载像素
                     <br />• <strong>marketing = false</strong>：不强制要求 marketing consent（提高覆盖率）
-                    <br />• <strong>sale_of_data = "enabled"</strong>：尊重 CCPA 选择（但不强制要求）
+                    <br />• <strong>sale_of_data = "disabled"</strong>：不强制要求 sale of data 同意
                   </Text>
                   <Text as="p" variant="bodySm" tone="subdued">
                     这意味着：当用户仅同意 analytics 但不同意 marketing 时，像素仍会加载并发送事件到后端。
@@ -258,8 +258,8 @@ export function SecurityTab({
                   </Text>
                   <Text as="p" variant="bodySm">
                     • <strong>GA4 (Google Analytics)</strong>：只需 analytics 同意即可发送
-                    <br />• <strong>Meta (Facebook/Instagram)</strong>：需要 marketing + saleOfData 同意才发送
-                    <br />• <strong>TikTok</strong>：需要 marketing + saleOfData 同意才发送
+                    <br />• <strong>Meta (Facebook/Instagram)</strong>：需要 marketing 同意，且在顾客明确拒绝 saleOfData 时不发送
+                    <br />• <strong>TikTok</strong>：需要 marketing 同意，且在顾客明确拒绝 saleOfData 时不发送
                   </Text>
                   <Text as="p" variant="bodySm" tone="subdued">
                     <strong>为什么这样设计？</strong>
@@ -281,7 +281,7 @@ export function SecurityTab({
                     • ✅ 像素会加载（因为 analytics = true）
                     <br />• ✅ 事件会发送到后端（因为像素已加载）
                     <br />• ✅ GA4 会收到事件（只需 analytics 同意）
-                    <br />• ❌ Meta/TikTok 不会收到事件（需要 marketing + saleOfData 同意）
+                    <br />• ❌ Meta/TikTok 不会收到事件（顾客明确拒绝 saleOfData）
                   </Text>
                   <Text as="p" variant="bodySm" tone="subdued">
                     这避免了"像素加载了但事件被过滤导致商家误以为丢数"的问题。
