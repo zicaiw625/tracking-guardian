@@ -7,6 +7,28 @@ import prisma from "../../db.server";
 import { randomUUID } from "crypto";
 import { canUseModule, getUiModuleConfigs } from "../../services/ui-extension.server";
 
+async function authenticatePublicExtension(request: Request): Promise<{ shop: string; [key: string]: unknown }> {
+  try {
+    const authResult = await authenticate.public.checkout(request) as unknown as { 
+      session: { shop: string; [key: string]: unknown } 
+    };
+    return authResult.session;
+  } catch (checkoutError) {
+    try {
+      const authResult = await authenticate.public.customerAccount(request) as unknown as { 
+        session: { shop: string; [key: string]: unknown } 
+      };
+      return authResult.session;
+    } catch (customerAccountError) {
+      logger.warn("Public extension authentication failed", {
+        checkoutError: checkoutError instanceof Error ? checkoutError.message : String(checkoutError),
+        customerAccountError: customerAccountError instanceof Error ? customerAccountError.message : String(customerAccountError),
+      });
+      throw checkoutError;
+    }
+  }
+}
+
 export const action = async ({ request }: ActionFunctionArgs) => {
   if (request.method === "OPTIONS") {
     return optionsResponse(request, true);
@@ -16,14 +38,8 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   }
   let session: { shop: string; [key: string]: unknown };
   try {
-    const authResult = await authenticate.public.checkout(request) as unknown as { 
-      session: { shop: string; [key: string]: unknown } 
-    };
-    session = authResult.session;
+    session = await authenticatePublicExtension(request);
   } catch (authError) {
-    logger.warn("Survey submission authentication failed", {
-      error: authError instanceof Error ? authError.message : String(authError),
-    });
     return jsonWithCors(
       { error: "Unauthorized: Invalid authentication" },
       { status: 401, request, staticCors: true }

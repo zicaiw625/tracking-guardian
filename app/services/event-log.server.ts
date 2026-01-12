@@ -443,11 +443,23 @@ export async function exportEventLogsAsCSV(
         attempt.createdAt.toISOString(),
       ]);
     });
-    function escapeCSV(value: string): string {
-      if (value.includes(",") || value.includes('"') || value.includes("\n")) {
-        return `"${value.replace(/"/g, '""')}"`;
+    function sanitizeForCSV(value: string): string {
+      if (typeof value !== "string") {
+        value = String(value);
+      }
+      const trimmed = value.trim();
+      if (trimmed.length > 0 && /^[=+\-@]/.test(trimmed)) {
+        return `'${value}`;
       }
       return value;
+    }
+
+    function escapeCSV(value: string): string {
+      const sanitized = sanitizeForCSV(value);
+      if (sanitized.includes(",") || sanitized.includes('"') || sanitized.includes("\n")) {
+        return `"${sanitized.replace(/"/g, '""')}"`;
+      }
+      return sanitized;
     }
         const csvLines = [
       headers.map(escapeCSV).join(","),

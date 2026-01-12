@@ -72,6 +72,28 @@ const cachedLoader = withConditionalCache(
 
 export const loader = cachedLoader;
 
+async function authenticatePublicExtension(request: Request): Promise<{ shop: string; [key: string]: unknown }> {
+  try {
+    const authResult = await authenticate.public.checkout(request) as unknown as { 
+      session: { shop: string; [key: string]: unknown } 
+    };
+    return authResult.session;
+  } catch (checkoutError) {
+    try {
+      const authResult = await authenticate.public.customerAccount(request) as unknown as { 
+        session: { shop: string; [key: string]: unknown } 
+      };
+      return authResult.session;
+    } catch (customerAccountError) {
+      logger.warn("Public extension authentication failed", {
+        checkoutError: checkoutError instanceof Error ? checkoutError.message : String(checkoutError),
+        customerAccountError: customerAccountError instanceof Error ? customerAccountError.message : String(customerAccountError),
+      });
+      throw checkoutError;
+    }
+  }
+}
+
 async function loaderImpl(request: Request) {
   try {
     const url = new URL(request.url);
@@ -82,12 +104,8 @@ async function loaderImpl(request: Request) {
     }
     let session: { shop: string; [key: string]: unknown };
     try {
-      const authResult = await authenticate.public.checkout(request) as unknown as { session: { shop: string; [key: string]: unknown } };
-      session = authResult.session;
+      session = await authenticatePublicExtension(request);
     } catch (authError) {
-      logger.warn("Checkout authentication failed", {
-        error: authError instanceof Error ? authError.message : String(authError),
-      });
       return jsonWithCors(
         { error: "Unauthorized: Invalid authentication" },
         { status: 401, request, staticCors: true }

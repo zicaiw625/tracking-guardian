@@ -8,6 +8,28 @@ import { TTL } from "../../utils/cache";
 import prisma from "../../db.server";
 import { canUseModule, getUiModuleConfigs } from "../../services/ui-extension.server";
 
+async function authenticatePublicExtension(request: Request): Promise<{ shop: string; [key: string]: unknown }> {
+  try {
+    const authResult = await authenticate.public.checkout(request) as unknown as { 
+      session: { shop: string; [key: string]: unknown } 
+    };
+    return authResult.session;
+  } catch (checkoutError) {
+    try {
+      const authResult = await authenticate.public.customerAccount(request) as unknown as { 
+        session: { shop: string; [key: string]: unknown } 
+      };
+      return authResult.session;
+    } catch (customerAccountError) {
+      logger.warn("Public extension authentication failed", {
+        checkoutError: checkoutError instanceof Error ? checkoutError.message : String(checkoutError),
+        customerAccountError: customerAccountError instanceof Error ? customerAccountError.message : String(customerAccountError),
+      });
+      throw checkoutError;
+    }
+  }
+}
+
 export const action = async ({ request }: ActionFunctionArgs) => {
   if (request.method === "OPTIONS") {
     return optionsResponse(request, true);
@@ -17,14 +39,8 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   }
   let session: { shop: string; [key: string]: unknown };
   try {
-    const authResult = await authenticate.public.checkout(request) as unknown as { 
-      session: { shop: string; [key: string]: unknown } 
-    };
-    session = authResult.session;
+    session = await authenticatePublicExtension(request);
   } catch (authError) {
-    logger.warn("Reorder action authentication failed", {
-      error: authError instanceof Error ? authError.message : String(authError),
-    });
     return jsonWithCors(
       { error: "Unauthorized: Invalid authentication" },
       { status: 401, request, staticCors: true }
@@ -155,12 +171,8 @@ async function loaderImpl(request: Request) {
     }
     let session: { shop: string; [key: string]: unknown };
     try {
-      const authResult = await authenticate.public.checkout(request) as unknown as { session: { shop: string; [key: string]: unknown } };
-      session = authResult.session;
+      session = await authenticatePublicExtension(request);
     } catch (authError) {
-      logger.warn("Checkout authentication failed", {
-        error: authError instanceof Error ? authError.message : String(authError),
-      });
       return jsonWithCors(
         { error: "Unauthorized: Invalid authentication" },
         { status: 401, request, staticCors: true }
@@ -197,6 +209,15 @@ async function loaderImpl(request: Request) {
       );
     }
     const customerGidFromToken = session.customerId || null;
+    if (!customerGidFromToken) {
+      logger.warn(`Reorder request without customer ID for shop ${shopDomain}`, {
+        context: "Reorder is only available in customer account (order status) context, not in checkout (thank you) context",
+      });
+      return jsonWithCors(
+        { error: "Reorder is only available in order status page", reason: "Customer authentication required" },
+        { status: 403, request, staticCors: true }
+      );
+    }
     const admin = await createAdminClientForShop(shopDomain);
     if (!admin) {
       logger.warn(`Failed to create admin client for shop ${shopDomain}`);

@@ -1,6 +1,25 @@
 import prisma from "../db.server";
 import { validateRiskItemsArray, validateStringArray } from "../utils/scan-data-validation";
 
+function sanitizeForCSV(value: string): string {
+  if (typeof value !== "string") {
+    value = String(value);
+  }
+  const trimmed = value.trim();
+  if (trimmed.length > 0 && /^[=+\-@]/.test(trimmed)) {
+    return `'${value}`;
+  }
+  return value;
+}
+
+function escapeCSV(value: string): string {
+  const sanitized = sanitizeForCSV(value);
+  if (sanitized.includes(",") || sanitized.includes('"') || sanitized.includes("\n")) {
+    return `"${sanitized.replace(/"/g, '""')}"`;
+  }
+  return sanitized;
+}
+
 export async function generateScanReportCSV(reportId: string, shopId: string): Promise<string> {
   const scanReport = await prisma.scanReport.findFirst({
     where: {
@@ -32,13 +51,13 @@ export async function generateScanReportCSV(reportId: string, shopId: string): P
 
   const lines: string[] = [];
   lines.push("扫描报告");
-  lines.push(`店铺: ${shop?.shopDomain || "未知"}`);
-  lines.push(`报告ID: ${scanReport.id}`);
-  lines.push(`生成时间: ${scanReport.createdAt.toLocaleString("zh-CN")}`);
-  lines.push(`完成时间: ${scanReport.completedAt ? scanReport.completedAt.toLocaleString("zh-CN") : "未完成"}`);
-  lines.push(`状态: ${scanReport.status}`);
+  lines.push(`店铺: ${escapeCSV(shop?.shopDomain || "未知")}`);
+  lines.push(`报告ID: ${escapeCSV(scanReport.id)}`);
+  lines.push(`生成时间: ${escapeCSV(scanReport.createdAt.toLocaleString("zh-CN"))}`);
+  lines.push(`完成时间: ${escapeCSV(scanReport.completedAt ? scanReport.completedAt.toLocaleString("zh-CN") : "未完成")}`);
+  lines.push(`状态: ${escapeCSV(scanReport.status)}`);
   lines.push(`风险评分: ${scanReport.riskScore ?? 0}/100`);
-  lines.push(`检测到的平台: ${identifiedPlatforms.join(", ") || "无"}`);
+  lines.push(`检测到的平台: ${escapeCSV(identifiedPlatforms.join(", ") || "无")}`);
   lines.push(`风险项目数量: ${riskItems.length}`);
   lines.push("");
 
@@ -46,14 +65,14 @@ export async function generateScanReportCSV(reportId: string, shopId: string): P
   lines.push("ID,名称,风险等级,平台,描述,建议");
   for (const item of riskItems) {
     const row = [
-      item.id || "",
-      item.name || "",
-      item.severity || "",
-      item.platform || "",
-      (item.description || "").replace(/"/g, '""'),
-      (item.recommendation || "").replace(/"/g, '""'),
+      escapeCSV(item.id || ""),
+      escapeCSV(item.name || ""),
+      escapeCSV(item.severity || ""),
+      escapeCSV(item.platform || ""),
+      escapeCSV(item.description || ""),
+      escapeCSV(item.recommendation || ""),
     ];
-    lines.push(row.map((cell) => `"${String(cell)}"`).join(","));
+    lines.push(row.join(","));
   }
 
   return lines.join("\n");

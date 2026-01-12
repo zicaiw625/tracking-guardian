@@ -57,6 +57,25 @@ export function generateChecklistMarkdown(checklist: TestChecklist): string {
   return markdown;
 }
 
+function sanitizeForCSV(value: string): string {
+  if (typeof value !== "string") {
+    value = String(value);
+  }
+  const trimmed = value.trim();
+  if (trimmed.length > 0 && /^[=+\-@]/.test(trimmed)) {
+    return `'${value}`;
+  }
+  return value;
+}
+
+function escapeCSV(value: string): string {
+  const sanitized = sanitizeForCSV(value);
+  if (sanitized.includes(",") || sanitized.includes('"') || sanitized.includes("\n")) {
+    return `"${sanitized.replace(/"/g, '""')}"`;
+  }
+  return sanitized;
+}
+
 export function generateChecklistCSV(checklist: TestChecklist): string {
   const headers = [
     "ID",
@@ -81,7 +100,7 @@ export function generateChecklistCSV(checklist: TestChecklist): string {
     "未测试",
   ]);
   const csv = [headers, ...rows]
-    .map((row) => row.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(","))
+    .map((row) => row.map((cell) => escapeCSV(String(cell))).join(","))
     .join("\n");
   return csv;
 }

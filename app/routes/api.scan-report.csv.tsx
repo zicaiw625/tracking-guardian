@@ -5,6 +5,27 @@ import prisma from "../db.server";
 import { logger } from "../utils/logger.server";
 import { authenticate } from "../shopify.server";
 import { validateRiskItemsArray, validateStringArray } from "../utils/scan-data-validation";
+import { checkFeatureAccess } from "../services/billing/feature-gates.server";
+import { normalizePlanId, type PlanId } from "../services/billing/plans";
+
+function sanitizeForCSV(value: string): string {
+  if (typeof value !== "string") {
+    value = String(value);
+  }
+  const trimmed = value.trim();
+  if (trimmed.length > 0 && /^[=+\-@]/.test(trimmed)) {
+    return `'${value}`;
+  }
+  return value;
+}
+
+function escapeCSV(value: string): string {
+  const sanitized = sanitizeForCSV(value);
+  if (sanitized.includes(",") || sanitized.includes('"') || sanitized.includes("\n")) {
+    return `"${sanitized.replace(/"/g, '""')}"`;
+  }
+  return sanitized;
+}
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   try {
@@ -29,7 +50,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       shareTokenExpiresAt: Date | null;
     } | null = null;
 
-    let shop: { id: string; shopDomain: string } | null = null;
+    let shop: { id: string; shopDomain: string; plan: string | null } | null = null;
 
     if (token) {
       scanReport = await prisma.scanReport.findUnique({
@@ -58,7 +79,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 
       shop = await prisma.shop.findUnique({
         where: { id: scanReport.shopId },
-        select: { shopDomain: true, id: true },
+        select: { shopDomain: true, id: true, plan: true },
       });
 
       if (!shop) {
@@ -76,16 +97,28 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       if (scanReport.shareTokenExpiresAt && new Date() > scanReport.shareTokenExpiresAt) {
         return new Response("Share link has expired", { status: 403 });
       }
+
+      const planId = normalizePlanId(shop.plan || "free") as PlanId;
+      const gateResult = checkFeatureAccess(planId, "report_export");
+      if (!gateResult.allowed) {
+        return new Response(gateResult.reason || "需要 Growth 及以上套餐才能导出报告", { status: 402 });
+      }
     } else {
       const { session } = await authenticate.admin(request);
       const shopDomain = session.shop;
       shop = await prisma.shop.findUnique({
         where: { shopDomain },
-        select: { id: true, shopDomain: true },
+        select: { id: true, shopDomain: true, plan: true },
       });
 
       if (!shop) {
         return new Response("Shop not found", { status: 404 });
+      }
+
+      const planId = normalizePlanId(shop.plan || "free") as PlanId;
+      const gateResult = checkFeatureAccess(planId, "report_export");
+      if (!gateResult.allowed) {
+        return new Response(gateResult.reason || "需要 Growth 及以上套餐才能导出报告", { status: 402 });
       }
 
       scanReport = await prisma.scanReport.findFirst({
@@ -114,13 +147,6 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 
     const riskItems = validateRiskItemsArray(scanReport.riskItems);
     const identifiedPlatforms = validateStringArray(scanReport.identifiedPlatforms);
-
-    function escapeCSV(value: string): string {
-      if (value.includes(",") || value.includes('"') || value.includes("\n")) {
-        return `"${value.replace(/"/g, '""')}"`;
-      }
-      return value;
-    }
 
     const csvLines: string[] = [];
     csvLines.push("扫描报告");

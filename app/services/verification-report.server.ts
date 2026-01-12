@@ -98,23 +98,42 @@ export async function generateVerificationReportData(
   };
 }
 
+function sanitizeForCSV(value: string): string {
+  if (typeof value !== "string") {
+    value = String(value);
+  }
+  const trimmed = value.trim();
+  if (trimmed.length > 0 && /^[=+\-@]/.test(trimmed)) {
+    return `'${value}`;
+  }
+  return value;
+}
+
+function escapeCSV(value: string): string {
+  const sanitized = sanitizeForCSV(value);
+  if (sanitized.includes(",") || sanitized.includes('"') || sanitized.includes("\n")) {
+    return `"${sanitized.replace(/"/g, '""')}"`;
+  }
+  return sanitized;
+}
+
 export function generateVerificationReportCSV(data: VerificationReportData): string {
   const lines: string[] = [];
   lines.push("Run ID,Run Name,Shop Domain,Run Type,Status,Platforms,Total Tests,Passed Tests,Failed Tests,Missing Param Tests,Parameter Completeness,Value Accuracy");
   lines.push(
     [
-      data.runId,
-      data.runName,
-      data.shopDomain,
-      data.runType,
-      data.status,
-      data.platforms.join(";"),
-      data.summary.totalTests,
-      data.summary.passedTests,
-      data.summary.failedTests,
-      data.summary.missingParamTests,
-      `${data.summary.parameterCompleteness.toFixed(2)}%`,
-      `${data.summary.valueAccuracy.toFixed(2)}%`,
+      escapeCSV(data.runId),
+      escapeCSV(data.runName),
+      escapeCSV(data.shopDomain),
+      escapeCSV(data.runType),
+      escapeCSV(data.status),
+      escapeCSV(data.platforms.join(";")),
+      String(data.summary.totalTests),
+      String(data.summary.passedTests),
+      String(data.summary.failedTests),
+      String(data.summary.missingParamTests),
+      escapeCSV(`${data.summary.parameterCompleteness.toFixed(2)}%`),
+      escapeCSV(`${data.summary.valueAccuracy.toFixed(2)}%`),
     ].join(",")
   );
   lines.push("");
@@ -122,9 +141,9 @@ export function generateVerificationReportCSV(data: VerificationReportData): str
   for (const [platform, stats] of Object.entries(data.platformResults)) {
     lines.push(
       [
-        platform,
-        stats.sent,
-        stats.failed,
+        escapeCSV(platform),
+        String(stats.sent),
+        String(stats.failed),
       ].join(",")
     );
   }
@@ -133,15 +152,15 @@ export function generateVerificationReportCSV(data: VerificationReportData): str
   for (const event of data.events) {
     lines.push(
       [
-        event.testItemId || "",
-        event.eventType,
-        event.platform,
-        event.orderId || "",
-        event.status,
-        event.params?.value?.toFixed(2) || "",
-        event.params?.currency || "",
-        event.discrepancies?.join("; ") || "",
-        event.errors?.join("; ") || "",
+        escapeCSV(event.testItemId || ""),
+        escapeCSV(event.eventType),
+        escapeCSV(event.platform),
+        escapeCSV(event.orderId || ""),
+        escapeCSV(event.status),
+        escapeCSV(event.params?.value?.toFixed(2) || ""),
+        escapeCSV(event.params?.currency || ""),
+        escapeCSV(event.discrepancies?.join("; ") || ""),
+        escapeCSV(event.errors?.join("; ") || ""),
       ].join(",")
     );
   }
