@@ -9,7 +9,7 @@ import {
   useApi,
   useSettings,
 } from "@shopify/ui-extensions-react/customer-account";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { BUILD_TIME_URL } from "./config";
 
 function SurveyModule({ 
@@ -19,10 +19,12 @@ function SurveyModule({
 }: {
   question: string;
   options: string[];
-  onSubmit: (selectedOption: string) => void;
+  onSubmit: (selectedOption: string) => Promise<boolean>;
 }) {
   const [selectedOption, setSelectedOption] = useState<string | null>(null);
   const [submitted, setSubmitted] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   if (submitted) {
     return (
       <View>
@@ -30,6 +32,23 @@ function SurveyModule({
       </View>
     );
   }
+  const handleSubmit = async () => {
+    if (!selectedOption) return;
+    setSubmitting(true);
+    setError(null);
+    try {
+      const success = await onSubmit(selectedOption);
+      if (success) {
+        setSubmitted(true);
+      } else {
+        setError("提交失败，请稍后重试");
+      }
+    } catch (err) {
+      setError("提交失败，请稍后重试");
+    } finally {
+      setSubmitting(false);
+    }
+  };
   return (
     <View border="base" cornerRadius="base" padding="base">
       <BlockStack spacing="base">
@@ -40,18 +59,20 @@ function SurveyModule({
               key={index}
               kind={selectedOption === option ? "primary" : "secondary"}
               onPress={() => setSelectedOption(option)}
+              disabled={submitting}
             >
               {option}
             </Button>
           ))}
         </BlockStack>
+        {error && (
+          <Text appearance="critical">{error}</Text>
+        )}
         {selectedOption && (
           <Button
             kind="primary"
-            onPress={() => {
-              onSubmit(selectedOption);
-              setSubmitted(true);
-            }}
+            onPress={handleSubmit}
+            loading={submitting}
           >
             提交
           </Button>
@@ -97,8 +118,10 @@ function ReorderModule({
   const api = useApi<"customer-account.order-status.block.render">();
   const [loading, setLoading] = useState(false);
   const [reorderUrl, setReorderUrl] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
   const handleReorder = async () => {
     setLoading(true);
+    setError(null);
     try {
       const orderId =
         (api as any)?.order?.current?.id ??
@@ -106,7 +129,9 @@ function ReorderModule({
         (api as any)?.purchase?.order?.id ??
         (api as any)?.purchase?.orderId;
       if (!orderId) {
-        throw new Error("No order id");
+        setError("无法获取订单信息，请稍后重试");
+        setLoading(false);
+        return;
       }
       const token = await api.sessionToken.get();
       const response = await fetch(`${BUILD_TIME_URL}/api/reorder`, {
@@ -123,13 +148,15 @@ function ReorderModule({
         const data = await response.json();
         if (data.reorderUrl) {
           setReorderUrl(data.reorderUrl);
+        } else {
+          setError("无法生成再次购买链接，请稍后重试");
         }
       } else {
         const errorData = await response.json().catch(() => ({ error: "Unknown error" }));
-        console.error("Reorder failed:", errorData.error || "Failed to get reorder URL");
+        setError(errorData.error || errorData.message || "操作失败，请稍后重试");
       }
     } catch (error) {
-      console.error("Reorder failed:", error);
+      setError("网络错误，请稍后重试");
     } finally {
       setLoading(false);
     }
@@ -147,13 +174,18 @@ function ReorderModule({
   }
   return (
     <View border="base" cornerRadius="base" padding="base">
-      <Button 
-        kind="primary" 
-        onPress={handleReorder}
-        loading={loading}
-      >
-        {buttonText || "再次购买"}
-      </Button>
+      <BlockStack spacing="base">
+        <Button 
+          kind="primary" 
+          onPress={handleReorder}
+          loading={loading}
+        >
+          {buttonText || "再次购买"}
+        </Button>
+        {error && (
+          <Text appearance="critical">{error}</Text>
+        )}
+      </BlockStack>
     </View>
   );
 }
@@ -161,19 +193,54 @@ function ReorderModule({
 function ThankYouBlocks() {
   const api = useApi<"customer-account.order-status.block.render">();
   const settings = useSettings();
-  const surveyEnabled = settings.survey_enabled ?? true;
+  const [moduleState, setModuleState] = useState<{
+    surveyEnabled: boolean;
+    helpEnabled: boolean;
+    reorderEnabled: boolean;
+  } | null>(null);
+  const [loading, setLoading] = useState(true);
+  useEffect(() => {
+    const fetchModuleState = async () => {
+      try {
+        const token = await api.sessionToken.get();
+        const response = await fetch(`${BUILD_TIME_URL}/api/ui-modules-state`, {
+          method: "GET",
+          headers: {
+            "Authorization": `Bearer ${token}`,
+          },
+        });
+        if (response.ok) {
+          const state = await response.json();
+          setModuleState(state);
+        } else {
+          setModuleState({
+            surveyEnabled: false,
+            helpEnabled: false,
+            reorderEnabled: false,
+          });
+        }
+      } catch (error) {
+        setModuleState({
+          surveyEnabled: false,
+          helpEnabled: false,
+          reorderEnabled: false,
+        });
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchModuleState();
+  }, [api]);
   const surveyQuestion = settings.survey_question ?? "您对我们的服务满意吗？";
   const surveyOptions = (settings.survey_options as string)?.split(",") || 
     ["非常满意", "满意", "一般", "不满意"];
-  const helpEnabled = settings.help_enabled ?? true;
   const helpFaqUrl = settings.help_faq_url as string | undefined;
   const helpSupportUrl = settings.help_support_url as string | undefined;
-  const reorderEnabled = settings.reorder_enabled ?? false;
   const reorderButtonText = (settings.reorder_button_text as string) || "再次购买";
-  const handleSurveySubmit = async (selectedOption: string) => {
+  const handleSurveySubmit = async (selectedOption: string): Promise<boolean> => {
     try {
       const token = await api.sessionToken.get();
-      await fetch(`${BUILD_TIME_URL}/api/survey`, {
+      const response = await fetch(`${BUILD_TIME_URL}/api/survey`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -184,10 +251,24 @@ function ThankYouBlocks() {
           timestamp: new Date().toISOString(),
         }),
       });
+      if (!response.ok) {
+        return false;
+      }
+      const data = await response.json().catch(() => ({}));
+      if (data && data.success === true) {
+        return true;
+      }
+      return false;
     } catch (error) {
-      console.error("Survey submission failed:", error);
+      return false;
     }
   };
+  if (loading) {
+    return null;
+  }
+  const surveyEnabled = moduleState?.surveyEnabled ?? false;
+  const helpEnabled = moduleState?.helpEnabled ?? false;
+  const reorderEnabled = moduleState?.reorderEnabled ?? false;
   return (
     <BlockStack spacing="base">
       {surveyEnabled && (
