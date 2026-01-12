@@ -132,6 +132,8 @@ export const UI_MODULES: Record<ModuleKey, ModuleInfo> = {
     category: "support",
     requiredPlan: "growth",
     targets: ["thank_you", "order_status"],
+    disabled: true,
+    disabledReason: "v1.1+ 规划中",
   },
   reorder: {
     key: "reorder",

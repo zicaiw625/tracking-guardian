@@ -251,6 +251,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
                 duplicatePixels: [],
                 migrationActions: [],
                 additionalScriptsPatterns: [],
+                _additionalScriptsNote: "Additional Scripts 需要通过手动粘贴识别，Shopify API 无法自动读取 checkout.liquid 中的 Additional Scripts 内容",
             };
             migrationActions = generateMigrationActions(enhancedResult, shopTier);
         } catch (e) {

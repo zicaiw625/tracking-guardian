@@ -1393,7 +1393,7 @@ export default function Index() {
                 <Text as="p" variant="bodySm" tone="subdued">
                   {data.latestScan
                     ? "✅ 迁移清单 + 风险分级 + 替代路径（Web Pixel / Checkout UI Extension / 不可迁移）• 明确提示 checkout.liquid / additional scripts / script tags 在 Thank you/Order status 的弃用与限制 • 可分享链接并导出 PDF/CSV"
-                    : "免费开始：自动扫描 ScriptTags/Web Pixels + 手动粘贴 Additional Scripts，生成完整的迁移清单、风险分级和替代路径。报告会明确提示 checkout.liquid / additional scripts / script tags 在 Thank you/Order status 的弃用与限制"}
+                    : "免费开始：自动扫描 ScriptTags/Web Pixels，手动粘贴识别 Additional Scripts，生成完整的迁移清单、风险分级和替代路径。报告会明确提示 checkout.liquid / additional scripts / script tags 在 Thank you/Order status 的弃用与限制"}
                 </Text>
               </BlockStack>
               <Button

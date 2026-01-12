@@ -497,7 +497,7 @@ export default function OnboardingPage() {
                 </Text>
               </InlineStack>
               <Text as="p" tone="subdued">
-                我们将自动扫描您店铺中的 ScriptTags、Web Pixels 和追踪配置，
+                我们将自动扫描您店铺中的 ScriptTags 和 Web Pixels，Additional Scripts 需要通过手动粘贴识别，
                 识别需要迁移的脚本并评估风险等级。
               </Text>
               {isScanning ? (

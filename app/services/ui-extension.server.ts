@@ -102,11 +102,20 @@ export async function canUseModule(shopId: string, moduleKey: ModuleKey): Promis
   currentPlan: PlanId;
   reason?: string;
 }> {
+  const moduleInfo = UI_MODULES[moduleKey];
+  if (moduleInfo.disabled) {
+    return {
+      allowed: false,
+      requiredPlan: moduleInfo.requiredPlan,
+      currentPlan: "free",
+      reason: moduleInfo.disabledReason || `${moduleKey} 模块当前不可用`,
+    };
+  }
   const { isModuleAvailableInV1 } = await import("../utils/version-gate");
   if (!isModuleAvailableInV1(moduleKey)) {
     return {
       allowed: false,
-      requiredPlan: UI_MODULES[moduleKey].requiredPlan,
+      requiredPlan: moduleInfo.requiredPlan,
       currentPlan: "free",
       reason: `${moduleKey} 模块在 v1.0 版本中不可用，将在后续版本中提供`,
     };
@@ -125,7 +134,6 @@ export async function canUseModule(shopId: string, moduleKey: ModuleKey): Promis
   }
   const currentPlan = shop.plan as PlanId;
   const planConfig = getPlanOrDefault(currentPlan);
-  const moduleInfo = UI_MODULES[moduleKey];
   const requiredPlanConfig = getPlanOrDefault(moduleInfo.requiredPlan);
   const planOrder: PlanId[] = ["free", "starter", "growth", "agency"];
   const currentIndex = planOrder.indexOf(currentPlan);
@@ -250,6 +258,13 @@ export async function updateUiModuleConfig(
       config.localization = localizationValidation.normalized;
     }
     if (config.isEnabled !== undefined) {
+      const moduleInfo = UI_MODULES[moduleKey];
+      if (moduleInfo.disabled) {
+        return {
+          success: false,
+          error: moduleInfo.disabledReason || `${moduleKey} 模块当前不可用`,
+        };
+      }
       const canUse = await canUseModule(shopId, moduleKey);
       if (!canUse.allowed) {
         return {

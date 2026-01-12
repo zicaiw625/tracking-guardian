@@ -300,7 +300,7 @@ export default function MigratePage() {
                     扫描与评估
                   </Text>
                   <Text as="p" variant="bodySm" tone="subdued">
-                    自动扫描 ScriptTags 和 Web Pixels，手动分析 Additional Scripts，生成迁移清单和风险分级报告。
+                    自动扫描 ScriptTags 和 Web Pixels，手动粘贴识别 Additional Scripts，生成迁移清单和风险分级报告。
                     这是免费功能，帮助您了解需要迁移的内容。
                   </Text>
                 </BlockStack>

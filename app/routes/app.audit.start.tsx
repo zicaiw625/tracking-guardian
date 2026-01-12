@@ -10,7 +10,7 @@ export default function AuditStartPage() {
           description="在 3 分钟内完成扫描，生成可交付的迁移清单与风险分级。"
           items={[
             "自动扫描 ScriptTags / Web Pixels",
-            "手动补充 Additional Scripts",
+            "手动粘贴识别 Additional Scripts（Shopify API 无法自动读取）",
             "输出迁移路径与预估工时",
           ]}
           primaryAction={{ content: "开始扫描", url: "/app/audit/scan" }}
@@ -22,8 +22,7 @@ export default function AuditStartPage() {
               开始 Audit 扫描
             </Text>
             <Text as="p" tone="subdued">
-              自动扫描将检查 ScriptTag 与 Web Pixel，并生成迁移清单与风险分级。Additional Scripts 与 checkout.liquid
-              需要在下一步手动补充，确保 Thank you / Order status 页面完整覆盖。
+              自动扫描将检查 ScriptTag 与 Web Pixel，并生成迁移清单与风险分级。由于 Shopify API 无法自动读取 checkout.liquid 中的 Additional Scripts 内容，Additional Scripts 与 checkout.liquid 需要在下一步手动粘贴识别，确保 Thank you / Order status 页面完整覆盖。
             </Text>
             <InlineStack gap="200" wrap>
               <Button variant="primary" url="/app/audit/scan">
@@ -50,7 +49,7 @@ export default function AuditStartPage() {
             </Text>
             <List type="bullet">
               <List.Item>自动扫描：ScriptTag、Web Pixel、已识别的平台信号</List.Item>
-              <List.Item>手动补充：Additional Scripts、Checkout 自定义代码</List.Item>
+              <List.Item>手动粘贴识别：Additional Scripts、Checkout 自定义代码（Shopify API 无法自动读取）</List.Item>
               <List.Item>报告输出：迁移清单、风险等级、推荐路径与工时</List.Item>
             </List>
           </BlockStack>

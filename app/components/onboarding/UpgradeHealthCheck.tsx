@@ -68,7 +68,7 @@ export function UpgradeHealthCheck({
             </Badge>
           </InlineStack>
           <Text as="p" tone="subdued">
-            我们已自动扫描您的店铺，评估迁移风险并生成迁移建议
+            我们已自动扫描您的店铺中的 ScriptTags 和 Web Pixels，评估迁移风险并生成迁移建议。Additional Scripts 需要手动粘贴识别。
           </Text>
         </BlockStack>
         <Divider />

@@ -60,4 +60,5 @@ export interface EnhancedScanResult extends ScanResult {
     _auditAssetSyncFailed?: boolean;
     _cachedAt?: Date;
     _refreshRecommended?: boolean;
+    _additionalScriptsNote?: string;
 }

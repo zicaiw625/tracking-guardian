@@ -153,6 +153,9 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   switch (actionType) {
     case "toggle_module": {
       const moduleKey = formData.get("moduleKey") as ModuleKey;
+      if (UI_MODULES[moduleKey].disabled) {
+        return json({ error: UI_MODULES[moduleKey].disabledReason || `${moduleKey} 模块当前不可用` }, { status: 400 });
+      }
       const isEnabled = formData.get("isEnabled") === "true";
       const result = await updateUiModuleConfig(shop.id, moduleKey, { isEnabled });
       if (!result.success) {
@@ -202,7 +205,11 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       const updatesJson = formData.get("updates") as string;
       try {
         const updates = JSON.parse(updatesJson) as Array<{ moduleKey: ModuleKey; isEnabled: boolean }>;
-        const result = await batchToggleModules(shop.id, updates);
+        const filteredUpdates = updates.filter((update) => !UI_MODULES[update.moduleKey].disabled);
+        if (filteredUpdates.length === 0) {
+          return json({ error: "没有可操作的模块（已过滤禁用的模块）" }, { status: 400 });
+        }
+        const result = await batchToggleModules(shop.id, filteredUpdates);
         if (!result.success) {
           return json({ error: "批量操作失败" }, { status: 400 });
         }
@@ -340,6 +347,18 @@ function ModuleCard({
                 升级套餐
               </Button>
             </Text>
+          </Banner>
+        )}
+        {module.moduleKey === "reorder" && (
+          <Banner tone="critical">
+            <BlockStack gap="200">
+              <Text as="p" variant="bodySm" fontWeight="semibold">
+                ⚠️ 需要 PCD 审核批准
+              </Text>
+              <Text as="p" variant="bodySm">
+                再购功能需要 Shopify Protected Customer Data (PCD) 权限批准才能稳定可用。在启用前，请确保应用已获得 Shopify PCD 权限批准。
+              </Text>
+            </BlockStack>
           </Banner>
         )}
       </BlockStack>
@@ -636,6 +655,22 @@ function ReorderSettingsForm({
 }) {
   return (
     <BlockStack gap="400">
+      <Banner tone="critical">
+        <BlockStack gap="200">
+          <Text as="p" variant="bodySm" fontWeight="semibold">
+            ⚠️ 重要：需要 PCD 审核批准
+          </Text>
+          <Text as="p" variant="bodySm">
+            <strong>再购功能需要 Shopify Protected Customer Data (PCD) 权限批准才能稳定可用。</strong>在 Order status block (customer-account.order-status.block.render) 中，需要访问客户账户信息（如客户邮箱、地址等），这些数据受 PCD 保护。
+          </Text>
+          <Text as="p" variant="bodySm">
+            如果 PCD 权限未获批或用户未同意 consent，某些客户信息字段可能为 null，这是 Shopify 平台的合规行为，不是故障。
+          </Text>
+          <Text as="p" variant="bodySm" tone="subdued">
+            💡 提示：在启用此模块前，请确保应用已获得 Shopify PCD 权限批准，否则功能可能无法正常工作。
+          </Text>
+        </BlockStack>
+      </Banner>
       <FormLayout>
         <FormLayout.Group>
           <TextField
@@ -1008,6 +1043,9 @@ export default function UiBlocksPage() {
     [submit]
   );
   const handleEditModule = useCallback((moduleKey: ModuleKey) => {
+    if (UI_MODULES[moduleKey].disabled) {
+      return;
+    }
     const module = modules.find((m) => m.moduleKey === moduleKey);
     if (module) {
       setEditingModule(moduleKey);
@@ -1019,10 +1057,13 @@ export default function UiBlocksPage() {
   }, [modules]);
   const handleBatchEnable = useCallback(() => {
     if (selectedModules.size === 0) return;
-    const updates = Array.from(selectedModules).map((moduleKey) => ({
-      moduleKey,
-      isEnabled: true,
-    }));
+    const updates = Array.from(selectedModules)
+      .filter((moduleKey) => !UI_MODULES[moduleKey].disabled)
+      .map((moduleKey) => ({
+        moduleKey,
+        isEnabled: true,
+      }));
+    if (updates.length === 0) return;
     const formData = new FormData();
     formData.append("_action", "batch_toggle_modules");
     formData.append("updates", JSON.stringify(updates));
@@ -1126,7 +1167,7 @@ export default function UiBlocksPage() {
             "支持本地化与显示规则",
             "发布后可回到本页查看状态",
           ]}
-          primaryAction={{ content: "查看发布指引", url: "/app/modules/order_tracking/publish" }}
+          primaryAction={{ content: "查看发布指引", url: "/app/modules/survey/publish" }}
           secondaryAction={{ content: "查看 Audit 报告", url: "/app/audit/report" }}
         />
         <Card>
@@ -1159,10 +1200,10 @@ export default function UiBlocksPage() {
               v1.0 支持范围说明：
             </Text>
             <Text as="p" variant="bodySm">
-              • <strong>v1.0 已支持</strong>：购后问卷（Survey）、帮助中心（Helpdesk）、物流追踪（Shopify 原生）、再购按钮（Reorder）
+              • <strong>v1.0 已支持</strong>：购后问卷（Survey）、帮助中心（Helpdesk）、再购按钮（Reorder）
             </Text>
             <Text as="p" variant="bodySm">
-              • <strong>v1.1+ 规划</strong>：追加销售（Upsell）模块将在 v1.1+ 版本中提供
+              • <strong>v1.1+ 规划</strong>：物流追踪（Order Tracking）、追加销售（Upsell）模块将在 v1.1+ 版本中提供
             </Text>
             <Text as="p" variant="bodySm">
               • <strong>v2.0+ 规划</strong>：第三方物流集成（AfterShip/17Track）将在 v2.0+ 版本中提供
@@ -1465,10 +1506,19 @@ export default function UiBlocksPage() {
                     />
                   )}
                   {editingModule === "order_tracking" && editingSettings && (
-                    <OrderTrackingSettingsForm
-                      settings={editingSettings as OrderTrackingSettings}
-                      onChange={(s) => setEditingSettings(s as Record<string, unknown>)}
-                    />
+                    <>
+                      {UI_MODULES.order_tracking.disabled && (
+                        <Banner tone="warning">
+                          <Text as="p">
+                            {UI_MODULES.order_tracking.disabledReason || "此模块在 v1.0 版本中不可用"}
+                          </Text>
+                        </Banner>
+                      )}
+                      <OrderTrackingSettingsForm
+                        settings={editingSettings as OrderTrackingSettings}
+                        onChange={(s) => setEditingSettings(s as Record<string, unknown>)}
+                      />
+                    </>
                   )}
                   {editingModule === "upsell" && editingSettings && UI_MODULES.upsell.disabled && (
                     <Banner tone="warning">

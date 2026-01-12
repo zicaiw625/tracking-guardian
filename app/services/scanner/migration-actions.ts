@@ -243,7 +243,7 @@ export function generateMigrationActions(result: EnhancedScanResult, shopTier: s
                 priority: "high",
                 title: "⚡ Plus 商家自动升级窗口已开始",
                 description: `Shopify 已于 2026年1月 开始自动将 Plus 商家迁移到新版 Thank you / Order status 页面。` +
-                    `旧的 Additional Scripts、ScriptTags、checkout.liquid 自定义将在自动升级后失效。` +
+                    `旧的 ScriptTags、checkout.liquid 自定义将在自动升级后失效。Additional Scripts 需要通过手动粘贴识别。` +
                     `请立即确认 Web Pixel 配置正确，避免追踪中断。`,
             };
             autoUpgradeAction.estimatedTimeMinutes = estimateMigrationTime(autoUpgradeAction);

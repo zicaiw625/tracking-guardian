@@ -13,6 +13,7 @@ import {
   Box,
   Banner,
   Divider,
+  Badge,
 } from "@shopify/polaris";
 import { ExternalIcon } from "~/components/icons";
 import { authenticate } from "../shopify.server";
@@ -43,6 +44,9 @@ export const loader = async ({ request, params }: LoaderFunctionArgs) => {
   }
   const moduleKey = key as ModuleKey;
   const moduleInfo = UI_MODULES[moduleKey];
+  if (moduleInfo.disabled) {
+    throw new Response("模块不可用", { status: 403 });
+  }
   return json({
     moduleKey,
     moduleName: moduleInfo.name,
