@@ -31,7 +31,7 @@ export interface CustomerPrivacyState {
   analyticsProcessingAllowed: boolean;
   marketingAllowed: boolean;
   preferencesProcessingAllowed: boolean;
-  saleOfDataAllowed: boolean;
+  saleOfDataAllowed?: boolean;
 }
 
 export interface VisitorConsentCollectedEvent {
