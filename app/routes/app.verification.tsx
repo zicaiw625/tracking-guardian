@@ -201,7 +201,10 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         errors: verified ? undefined : [
           `未找到以下事件: ${missingEvents.join(", ")}`,
           "请确保已完成测试订单，并等待几秒钟后重试",
-        ],
+          missingEvents.some(e => e.toLowerCase().includes("checkout_completed")) 
+            ? "常见原因：checkout_completed 事件通常在 Thank you 页触发，但有 upsell/post-purchase 时会在第一个 upsell 页触发且不会在 Thank you 页再次触发。如果触发页未加载成功，事件可能完全不触发。Web pixel 在需要 consent 的地区会 consent 后才执行并 replay 之前事件。查看上方「checkout_completed 事件的已知行为」了解更多。" 
+            : undefined,
+        ].filter(Boolean) as string[],
       });
     } catch (error) {
       logger.error("Failed to verify test item", { shopId: shop.id, error });

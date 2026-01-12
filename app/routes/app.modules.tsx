@@ -1388,7 +1388,7 @@ export default function UiBlocksPage() {
                   PRD 2.4: UI Extensions 的 Protected Customer Data 声明
                 </Text>
                 <Text as="p" variant="bodySm">
-                  自 <strong>2025-12-10</strong> 起，Shopify Web Pixels 中的客户个人信息（PII，如邮箱/电话/地址）将仅在应用获得批准的 <strong>Protected Customer Data (PCD)</strong> 权限后才会填充。
+                  自 <strong>2025-12-10</strong> 起，Shopify Web Pixels 中的客户个人信息（PII，如邮箱/电话/地址）将仅在应用获得批准的 <strong>Protected Customer Data (PCD)</strong> 权限后才会填充。未获批的应用，<strong>buyer.email / phone / address 等可能全为 null</strong>。
                 </Text>
                 <Text as="p" variant="bodySm" fontWeight="semibold">
                   需要 Protected Customer Data 的属性：
@@ -1426,7 +1426,7 @@ export default function UiBlocksPage() {
                   </List.Item>
                 </List>
                 <Text as="p" variant="bodySm">
-                  如果未获批相关权限，Web Pixel 发送的事件中 PII 字段将为 null。这可能导致：
+                  自 <strong>2025-12-10</strong> 起，如果未获批相关权限，Web Pixel 发送的事件中 PII 字段（buyer.email / phone / address 等）将为 null。这可能导致：
                 </Text>
                 <ul style={{ paddingLeft: "1.5rem", marginTop: "0.5rem", marginBottom: "0.5rem" }}>
                   <li><Text as="span" variant="bodySm">Web Pixel 端的受众匹配率下降</Text></li>

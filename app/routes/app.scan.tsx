@@ -1849,6 +1849,37 @@ export function ScanPage({
                   {latestScan && (
                     <InlineStack gap="200">
                       <Button
+                        icon={ExportIcon}
+                        onClick={async () => {
+                          try {
+                            const response = await fetch(`/api/scan-report/csv?reportId=${encodeURIComponent(latestScan.id)}`);
+                            if (!response.ok) {
+                              let msg = "导出失败";
+                              try {
+                                const errorData = await response.json();
+                                msg = errorData.error || msg;
+                              } catch {}
+                              showError(msg);
+                              return;
+                            }
+                            const blob = await response.blob();
+                            const url = URL.createObjectURL(blob);
+                            const a = document.createElement("a");
+                            a.href = url;
+                            a.download = `scan-report-${latestScan.id}.csv`;
+                            document.body.appendChild(a);
+                            a.click();
+                            document.body.removeChild(a);
+                            URL.revokeObjectURL(url);
+                            showSuccess("扫描报告 CSV 导出成功");
+                          } catch (error) {
+                            showError("导出失败：" + (error instanceof Error ? error.message : "未知错误"));
+                          }
+                        }}
+                      >
+                        导出扫描报告 CSV
+                      </Button>
+                      <Button
                         icon={ShareIcon}
                         onClick={async () => {
                           try {

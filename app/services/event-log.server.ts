@@ -160,16 +160,19 @@ function sanitizeCredentials(payload: unknown): unknown {
     return sanitized.map(item => sanitizeCredentials(item));
   }
   const obj = sanitized as Record<string, unknown>;
-  const sensitiveKeys = [
+  const sensitiveKeys = new Set([
     "access_token",
+    "accesstoken",
     "api_secret",
-    "apiSecret",
-    "accessToken",
+    "apisecret",
     "test_event_code",
-    "testEventCode",
-  ];
+    "testeventcode",
+    "api_key",
+    "apikey",
+  ]);
   for (const key of Object.keys(obj)) {
-    if (sensitiveKeys.includes(key.toLowerCase())) {
+    const lowerKey = key.toLowerCase();
+    if (sensitiveKeys.has(lowerKey)) {
       obj[key] = "***REDACTED***";
     } else if (typeof obj[key] === "object" && obj[key] !== null) {
       obj[key] = sanitizeCredentials(obj[key]);

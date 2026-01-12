@@ -24,14 +24,6 @@ function getDefaultAllowedHosts(): string[] {
     try {
       const url = new URL(backendUrl);
       const hostname = url.hostname;
-      const domainParts = hostname.split(".");
-      if (domainParts.length >= 2) {
-        const rootDomain = domainParts.slice(-2).join(".");
-        return [
-          hostname,
-          `*.${rootDomain}`,
-        ];
-      }
       return [hostname];
     } catch {
     }
@@ -42,17 +34,7 @@ function getDefaultAllowedHosts(): string[] {
   if (envDefaultHosts.length > 0) {
     return envDefaultHosts;
   }
-  const fallbackHosts = typeof process !== "undefined" && process.env && process.env.FALLBACK_ALLOWED_HOSTS
-    ? process.env.FALLBACK_ALLOWED_HOSTS.split(",").map(h => h.trim()).filter(Boolean)
-    : null;
-  if (fallbackHosts && fallbackHosts.length > 0) {
-    return fallbackHosts;
-  }
-  return [
-    "tracking-guardian.onrender.com",
-    "tracking-guardian-staging.onrender.com",
-    "*.onrender.com",
-  ];
+  return [];
 }
 
 function getAllowedHosts(): string[] {

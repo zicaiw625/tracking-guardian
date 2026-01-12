@@ -9,15 +9,11 @@ function resolveBackendUrl() {
     return null;
 }
 export const BACKEND_URL = resolveBackendUrl();
-const DEFAULT_ALLOWED_HOSTS = [
-    "tracking-guardian.onrender.com",
-    "tracking-guardian-staging.onrender.com",
-];
 function getAllowedHosts() {
     const envHosts = typeof process !== "undefined" && process.env && process.env.ALLOWED_BACKEND_HOSTS
         ? process.env.ALLOWED_BACKEND_HOSTS.split(",").map(h => h.trim()).filter(Boolean)
         : [];
-    return [...DEFAULT_ALLOWED_HOSTS, ...envHosts];
+    return envHosts;
 }
 export const ALLOWED_BACKEND_HOSTS = getAllowedHosts();
 export const DEV_HOSTS = [

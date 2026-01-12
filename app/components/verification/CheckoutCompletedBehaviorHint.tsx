@@ -45,7 +45,19 @@ export function CheckoutCompletedBehaviorHint({
           <Text as="span" variant="bodySm">
             <strong>同意/隐私导致数据被过滤：</strong>
             在需要用户同意的地区，如果用户未同意 analytics consent，
-            事件可能不会触发或数据会被过滤（PII 字段为 null）。
+            事件可能不会触发或数据会被过滤（PII 字段为 null）。Web pixel 在需要 consent 的地区，会 consent 后才执行，并 replay 之前事件。
+          </Text>
+        </List.Item>
+        <List.Item>
+          <Text as="span" variant="bodySm">
+            <strong>Shop Pay 快速结账：</strong>
+            使用 Shop Pay 快速结账时，某些事件可能在 Thank you 页面之前触发，或触发位置不同。
+          </Text>
+        </List.Item>
+        <List.Item>
+          <Text as="span" variant="bodySm">
+            <strong>Protected Customer Data (PCD) 权限：</strong>
+            自 2025-12-10 起，未获批 PCD 权限的应用，buyer.email / phone / address 等 PII 字段可能全为 null。
           </Text>
         </List.Item>
       </List>

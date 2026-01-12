@@ -322,13 +322,20 @@ export function TestOrderGuide({
                               )}
                               {verificationResults[item.id].errors &&
                                 verificationResults[item.id].errors!.length > 0 && (
-                                  <Banner tone="critical">
-                                    <List type="bullet">
-                                      {verificationResults[item.id].errors!.map((err, idx) => (
-                                        <List.Item key={idx}>{err}</List.Item>
-                                      ))}
-                                    </List>
-                                  </Banner>
+                                  <BlockStack gap="200">
+                                    <Banner tone="critical">
+                                      <List type="bullet">
+                                        {verificationResults[item.id].errors!.map((err, idx) => (
+                                          <List.Item key={idx}>{err}</List.Item>
+                                        ))}
+                                      </List>
+                                    </Banner>
+                                    {verificationResults[item.id].missingEvents.some(
+                                      (e) => e.toLowerCase().includes("checkout_completed") || e.toLowerCase().includes("purchase")
+                                    ) && (
+                                      <CheckoutCompletedBehaviorHint mode="missing" collapsible={true} />
+                                    )}
+                                  </BlockStack>
                                 )}
                             </BlockStack>
                           </Box>

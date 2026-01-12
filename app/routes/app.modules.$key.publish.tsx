@@ -299,7 +299,7 @@ export default function UiModulePublishGuide() {
                       </List.Item>
                       <List.Item>
                         <Text as="span" variant="bodySm">
-                          部分属性需要 protected customer data 权限，否则会显示为 null。
+                          自 <strong>2025-12-10</strong> 起，部分属性（如 <code>buyer.email</code>、<code>buyer.phone</code>、<code>deliveryAddress</code> 等）需要 Protected Customer Data (PCD) 权限，否则会显示为 <code>null</code>。
                         </Text>
                       </List.Item>
                       <List.Item>

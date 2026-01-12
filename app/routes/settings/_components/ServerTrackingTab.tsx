@@ -177,7 +177,7 @@ export function ServerTrackingTab({
             >
               <BlockStack gap="200">
                 <Text as="p" variant="bodySm">
-                  自 <strong>2025-12-10</strong> 起，Shopify Web Pixels 中的客户个人信息（PII，如邮箱/电话/地址）将仅在应用获得批准的 <strong>Protected Customer Data (PCD)</strong> 权限后才会填充。
+                  自 <strong>2025-12-10</strong> 起，Shopify Web Pixels 中的客户个人信息（PII，如邮箱/电话/地址）将仅在应用获得批准的 <strong>Protected Customer Data (PCD)</strong> 权限后才会填充。未获批的应用，<strong>buyer.email / phone / address 等可能全为 null</strong>。
                 </Text>
                 <Text as="p" variant="bodySm">
                   如果未获批相关权限，Web Pixel 发送的事件中 PII 字段将为 null。这可能导致：

@@ -152,7 +152,7 @@ export default function PublicPrivacyPolicy() {
                 </div>
                 <div style={{ fontSize: "13px", lineHeight: "1.5", marginTop: "8px", marginBottom: "8px" }}>
                   <Text as="p">
-                    <strong>合规说明（参考 Shopify 官方要求）：</strong>本应用遵循 Shopify Web Pixels 和 Protected Customer Data (PCD) 的严格隐私要求。增强匹配功能仅在以下条件<strong>全部满足</strong>时才会启用。我们不会在未满足这些条件的情况下处理 PII，即使商家误操作也不会触发 PII 处理。如果 Shopify 因 PCD 限制或客户未同意而未提供 PII 字段，应用会自动回退到默认隐私优先模式（仅发送非 PII 事件数据）。
+                    <strong>合规说明（参考 Shopify 官方要求）：</strong>本应用遵循 Shopify Web Pixels 和 Protected Customer Data (PCD) 的严格隐私要求。自 <strong>2025-12-10</strong> 起，Shopify Web Pixels 中的客户个人信息（PII，如邮箱/电话/地址）将仅在应用获得批准的 <strong>Protected Customer Data (PCD)</strong> 权限后才会填充。未获批的应用，<strong>buyer.email / phone / address 等可能全为 null</strong>。增强匹配功能仅在以下条件<strong>全部满足</strong>时才会启用。我们不会在未满足这些条件的情况下处理 PII，即使商家误操作也不会触发 PII 处理。如果 Shopify 因 PCD 限制或客户未同意而未提供 PII 字段，应用会自动回退到默认隐私优先模式（仅发送非 PII 事件数据）。
                   </Text>
                 </div>
                 <Text as="p" fontWeight="bold">
