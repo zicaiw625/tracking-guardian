@@ -21,12 +21,6 @@ network_access = true
 type = "object"
 
 [[settings.fields]]
-key = "survey_enabled"
-name = "Survey Module Enabled"
-description = "Enable the survey module on Thank You and Order Status pages"
-type = "boolean"
-
-[[settings.fields]]
 key = "survey_question"
 name = "Survey Question"
 description = "The question text for the survey"
@@ -39,12 +33,6 @@ description = "Comma-separated list of survey options"
 type = "single_line_text_field"
 
 [[settings.fields]]
-key = "help_enabled"
-name = "Help & Support Module Enabled"
-description = "Enable the help and support module"
-type = "boolean"
-
-[[settings.fields]]
 key = "help_faq_url"
 name = "FAQ URL"
 description = "URL to the FAQ page"
@@ -55,12 +43,6 @@ key = "help_support_url"
 name = "Support URL"
 description = "URL to the support page or contact form"
 type = "single_line_text_field"
-
-[[settings.fields]]
-key = "reorder_enabled"
-name = "Reorder Module Enabled"
-description = "Enable the reorder module"
-type = "boolean"
 
 [[settings.fields]]
 key = "reorder_button_text"

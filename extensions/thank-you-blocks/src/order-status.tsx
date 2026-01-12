@@ -203,7 +203,7 @@ function ThankYouBlocks() {
     const fetchModuleState = async () => {
       try {
         const token = await api.sessionToken.get();
-        const response = await fetch(`${BUILD_TIME_URL}/api/ui-modules-state`, {
+        const response = await fetch(`${BUILD_TIME_URL}/api/ui-modules-state?target=order-status`, {
           method: "GET",
           headers: {
             "Authorization": `Bearer ${token}`,

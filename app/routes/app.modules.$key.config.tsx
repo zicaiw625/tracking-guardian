@@ -1,6 +1,6 @@
-import type { ActionFunctionArgs, LoaderFunctionArgs } from "@remix-run/node";
+import type { LoaderFunctionArgs } from "@remix-run/node";
 import { json } from "@remix-run/node";
-import { useLoaderData, useSubmit, useActionData } from "@remix-run/react";
+import { useLoaderData } from "@remix-run/react";
 import {
   Page,
   Layout,
@@ -17,14 +17,11 @@ import { authenticate } from "../shopify.server";
 import prisma from "../db.server";
 import {
   getUiModuleConfigs,
-  updateUiModuleConfig,
   type UiModuleConfig,
 } from "../services/ui-extension.server";
 import { UI_MODULES, type ModuleKey } from "../types/ui-extension";
 import { getPlanOrDefault, type PlanId } from "../services/billing/plans";
 import { isPlanAtLeast } from "../utils/plans";
-import { DisplayRulesEditor } from "../components/ui-blocks/DisplayRulesEditor";
-import { useToastContext } from "../components/ui";
 import { PageIntroCard } from "~/components/layout/PageIntroCard";
 
 export const loader = async ({ request, params }: LoaderFunctionArgs) => {
@@ -61,73 +58,14 @@ export const loader = async ({ request, params }: LoaderFunctionArgs) => {
   });
 };
 
-export const action = async ({ request, params }: ActionFunctionArgs) => {
-  const { session } = await authenticate.admin(request);
-  const shopDomain = session.shop;
-  const key = params.key;
-  if (!key || !(key in UI_MODULES)) {
-    return json({ error: "模块不存在" }, { status: 404 });
-  }
-  const shop = await prisma.shop.findUnique({
-    where: { shopDomain },
-    select: { id: true },
-  });
-  if (!shop) {
-    return json({ error: "店铺未找到" }, { status: 404 });
-  }
-  const moduleKey = key as ModuleKey;
-  const formData = await request.formData();
-  const actionType = formData.get("_action");
-  if (actionType === "update_config") {
-    const configJson = formData.get("config") as string;
-    try {
-      const config = JSON.parse(configJson);
-      const result = await updateUiModuleConfig(shop.id, moduleKey, config);
-      if (!result.success) {
-        return json({ error: result.error }, { status: 400 });
-      }
-      return json({ success: true, actionType: "update_config", moduleKey });
-    } catch {
-      return json({ error: "无效的配置数据" }, { status: 400 });
-    }
-  }
-  if (actionType === "update_display_rules") {
-    const displayRulesJson = formData.get("displayRules") as string;
-    try {
-      const displayRules = JSON.parse(displayRulesJson);
-      const result = await updateUiModuleConfig(shop.id, moduleKey, {
-        displayRules,
-      });
-      if (!result.success) {
-        return json({ error: result.error }, { status: 400 });
-      }
-      return json({
-        success: true,
-        actionType: "update_display_rules",
-        moduleKey,
-      });
-    } catch {
-      return json({ error: "无效的显示规则" }, { status: 400 });
-    }
-  }
-  return json({ error: "未知操作" }, { status: 400 });
-};
 
 export default function UiModuleConfigPage() {
   const { moduleKey, moduleInfo, moduleConfig, canEdit, planInfo } =
     useLoaderData<typeof loader>();
-  const actionData = useActionData<typeof action>();
-  const submit = useSubmit();
-  const { showSuccess, showError } = useToastContext();
-  if (actionData?.success) {
-    showSuccess("配置已保存");
-  } else if (actionData?.error) {
-    showError(actionData.error);
-  }
   return (
     <Page
       title={`${moduleInfo.name} 配置`}
-      subtitle="文案/本地化/显示规则"
+      subtitle="模块启用状态与发布指引"
       backAction={{ content: "返回模块列表", url: "/app/modules" }}
     >
       <Layout>
@@ -135,10 +73,11 @@ export default function UiModuleConfigPage() {
           <BlockStack gap="500">
             <PageIntroCard
               title="配置说明"
-              description="调整文案、本地化与显示规则，发布后在 Checkout 中生效。"
+              description="在此页面启用/停用模块，文案和样式配置需在 Shopify Checkout Editor 中完成。"
               items={[
-                "支持多语言与可见性规则",
-                "配置后需在 Checkout Editor 发布",
+                "查看和切换模块启用状态",
+                "文案和样式在 Checkout Editor 中配置",
+                "发布后模块将自动显示在 Thank You / Order Status 页面",
               ]}
               primaryAction={{ content: "发布指引", url: `/app/modules/${moduleKey}/publish` }}
               secondaryAction={{ content: "返回模块列表", url: "/app/modules" }}
@@ -193,28 +132,6 @@ export default function UiModuleConfigPage() {
                     </Text>
                   </InlineStack>
                 </BlockStack>
-              </BlockStack>
-            </Card>
-            <Card>
-              <BlockStack gap="400">
-                <Text as="h2" variant="headingMd">
-                  显示规则配置
-                </Text>
-                <Text as="p" variant="bodySm" tone="subdued">
-                  配置模块在哪些条件下显示，例如：特定产品、特定订单金额、特定客户标签等。
-                </Text>
-                <Divider />
-                <DisplayRulesEditor
-                  moduleKey={moduleKey}
-                  displayRules={moduleConfig.displayRules || {}}
-                  onSave={(displayRules) => {
-                    const formData = new FormData();
-                    formData.append("_action", "update_display_rules");
-                    formData.append("displayRules", JSON.stringify(displayRules));
-                    submit(formData, { method: "post" });
-                  }}
-                  disabled={!canEdit}
-                />
               </BlockStack>
             </Card>
             {moduleKey === "reorder" && (
