@@ -241,7 +241,7 @@ export function SecurityTab({
                   <Text as="p" variant="bodySm">
                     • <strong>analytics = true</strong>：需要 analytics consent 才能加载像素
                     <br />• <strong>marketing = false</strong>：不强制要求 marketing consent（提高覆盖率）
-                    <br />• <strong>sale_of_data = "enabled"</strong>：尊重 CCPA 选择（但不强制要求）
+                    <br />• <strong>sale_of_data = "disabled"</strong>：不强制要求 sale of data 同意
                   </Text>
                   <Text as="p" variant="bodySm" tone="subdued">
                     这意味着：当用户仅同意 analytics 但不同意 marketing 时，像素仍会加载并发送事件到后端。
