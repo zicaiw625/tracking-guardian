@@ -98,10 +98,6 @@ export default function SettingsPage() {
     existingPixelConfig?.platform === "tiktok" ? (existingPixelConfig.platformId || "") : ""
   );
   const [tiktokAccessToken, setTiktokAccessToken] = useState("");
-  const [pinterestAdAccountId, setPinterestAdAccountId] = useState(() =>
-    existingPixelConfig?.platform === "pinterest" ? (existingPixelConfig.platformId || "") : ""
-  );
-  const [pinterestAccessToken, setPinterestAccessToken] = useState("");
   const [environment, setEnvironment] = useState<"test" | "live">(() =>
     (existingPixelConfig?.environment as "test" | "live") ?? "live"
   );
@@ -131,8 +127,6 @@ export default function SettingsPage() {
     googleApiSecret: "",
     tiktokPixelId: existingPixelConfig?.platform === "tiktok" ? (existingPixelConfig.platformId || "") : "",
     tiktokAccessToken: "",
-    pinterestAdAccountId: existingPixelConfig?.platform === "pinterest" ? (existingPixelConfig.platformId || "") : "",
-    pinterestAccessToken: "",
   });
   const isSubmitting = navigation.state === "submitting";
   const checkAlertFormDirty = useCallback(() => {
@@ -175,9 +169,7 @@ export default function SettingsPage() {
       googleMeasurementId !== initial.googleMeasurementId ||
       googleApiSecret !== initial.googleApiSecret ||
       tiktokPixelId !== initial.tiktokPixelId ||
-      tiktokAccessToken !== initial.tiktokAccessToken ||
-      pinterestAdAccountId !== initial.pinterestAdAccountId ||
-      pinterestAccessToken !== initial.pinterestAccessToken;
+      tiktokAccessToken !== initial.tiktokAccessToken;
     setServerFormDirty(isDirty);
   }, [
     serverPlatform,
@@ -190,8 +182,6 @@ export default function SettingsPage() {
     googleApiSecret,
     tiktokPixelId,
     tiktokAccessToken,
-    pinterestAdAccountId,
-    pinterestAccessToken,
   ]);
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -233,8 +223,6 @@ export default function SettingsPage() {
             googleApiSecret: googleApiSecret,
             tiktokPixelId: tiktokPixelId,
             tiktokAccessToken: tiktokAccessToken,
-            pinterestAdAccountId: pinterestAdAccountId,
-            pinterestAccessToken: pinterestAccessToken,
           };
           setServerFormDirty(false);
         }
@@ -261,8 +249,6 @@ export default function SettingsPage() {
     googleApiSecret,
     tiktokPixelId,
     tiktokAccessToken,
-    pinterestAdAccountId,
-    pinterestAccessToken,
   ]);
   const handleDiscardChanges = useCallback(() => {
     if (selectedTab === 0) {
@@ -291,8 +277,6 @@ export default function SettingsPage() {
       setGoogleApiSecret(initial.googleApiSecret);
       setTiktokPixelId(initial.tiktokPixelId);
       setTiktokAccessToken(initial.tiktokAccessToken);
-      setPinterestAdAccountId(initial.pinterestAdAccountId);
-      setPinterestAccessToken(initial.pinterestAccessToken);
       setServerFormDirty(false);
     }
   }, [selectedTab]);
@@ -359,9 +343,6 @@ export default function SettingsPage() {
     } else if (serverPlatform === "tiktok") {
       formData.append("pixelId", tiktokPixelId);
       formData.append("accessToken", tiktokAccessToken);
-    } else if (serverPlatform === "pinterest") {
-      formData.append("adAccountId", pinterestAdAccountId);
-      formData.append("accessToken", pinterestAccessToken);
     }
     submit(formData, { method: "post" });
   }, [
@@ -375,8 +356,6 @@ export default function SettingsPage() {
     googleApiSecret,
     tiktokPixelId,
     tiktokAccessToken,
-    pinterestAdAccountId,
-    pinterestAccessToken,
     submit,
   ]);
   const handleSwitchEnvironment = useCallback((platform: string, env: "test" | "live") => {
@@ -518,10 +497,6 @@ export default function SettingsPage() {
               setTiktokPixelId={setTiktokPixelId}
               tiktokAccessToken={tiktokAccessToken}
               setTiktokAccessToken={setTiktokAccessToken}
-              pinterestAdAccountId={pinterestAdAccountId}
-              setPinterestAdAccountId={setPinterestAdAccountId}
-              pinterestAccessToken={pinterestAccessToken}
-              setPinterestAccessToken={setPinterestAccessToken}
               serverFormDirty={serverFormDirty}
               isSubmitting={isSubmitting}
               onSaveServerSide={handleSaveServerSide}

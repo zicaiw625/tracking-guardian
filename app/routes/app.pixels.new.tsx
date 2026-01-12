@@ -38,7 +38,6 @@ import { createWebPixel, getExistingWebPixels, isOurWebPixel, updateWebPixel } f
 import { decryptIngestionSecret, encryptIngestionSecret, isTokenEncrypted } from "~/utils/token-encryption";
 import { randomBytes } from "crypto";
 import { logger } from "~/utils/logger.server";
-import type { PlatformType } from "~/types/enums";
 import type { WizardTemplate } from "~/components/migrate/PixelMigrationWizard";
 import { trackEvent } from "~/services/analytics.server";
 
@@ -89,7 +88,10 @@ const PRESET_TEMPLATES: WizardTemplate[] = [
   },
 ];
 
-const DEFAULT_EVENT_MAPPINGS: Partial<Record<PlatformType, Record<string, string>>> = {
+const SUPPORTED_PLATFORMS = ["google", "meta", "tiktok"] as const;
+type SupportedPlatform = (typeof SUPPORTED_PLATFORMS)[number];
+
+const DEFAULT_EVENT_MAPPINGS: Record<SupportedPlatform, Record<string, string>> = {
   google: {
     checkout_completed: "purchase",
     checkout_started: "begin_checkout",
@@ -111,23 +113,9 @@ const DEFAULT_EVENT_MAPPINGS: Partial<Record<PlatformType, Record<string, string
     view_content: "ViewContent",
     search: "Search",
   },
-  pinterest: {
-    checkout_completed: "checkout",
-    checkout_started: "checkout",
-    add_to_cart: "addtocart",
-    view_content: "pagevisit",
-    search: "search",
-  },
-  snapchat: {
-    checkout_completed: "PURCHASE",
-    checkout_started: "START_CHECKOUT",
-    add_to_cart: "ADD_CART",
-    view_content: "VIEW_CONTENT",
-    search: "SEARCH",
-  },
 };
 
-const PLATFORM_INFO: Record<PlatformType, {
+const PLATFORM_INFO: Record<SupportedPlatform, {
   name: string;
   icon: string;
   description: string;
@@ -209,52 +197,10 @@ const PLATFORM_INFO: Record<PlatformType, {
       },
     ],
   },
-  pinterest: {
-    name: "Pinterest Tag",
-    icon: "📌",
-    description: "使用 Conversions API 发送转化数据",
-    credentialFields: [
-      {
-        key: "pixelId",
-        label: "Tag ID",
-        placeholder: "1234567890123",
-        type: "text",
-        helpText: "在 Pinterest Ads Manager 中查找",
-      },
-      {
-        key: "accessToken",
-        label: "Access Token",
-        placeholder: "输入 Access Token",
-        type: "password",
-        helpText: "在 Pinterest Ads Manager → Settings → Conversions 中生成",
-      },
-    ],
-  },
-  snapchat: {
-    name: "Snapchat Pixel",
-    icon: "👻",
-    description: "使用 Conversions API 发送转化数据",
-    credentialFields: [
-      {
-        key: "pixelId",
-        label: "Pixel ID",
-        placeholder: "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",
-        type: "text",
-        helpText: "在 Snapchat Ads Manager → Pixels 中查找",
-      },
-      {
-        key: "accessToken",
-        label: "Conversions API Token",
-        placeholder: "输入 Conversions API Token",
-        type: "password",
-        helpText: "在 Snapchat Ads Manager → Pixels → Settings 中生成",
-      },
-    ],
-  },
 };
 
 interface PlatformConfig {
-  platform: PlatformType;
+  platform: SupportedPlatform;
   enabled: boolean;
   platformId: string;
   credentials: Record<string, string>;
@@ -345,7 +291,13 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       const configIds: string[] = [];
       const createdPlatforms: string[] = [];
       for (const config of configs) {
-        const platform = config.platform as "google" | "meta" | "tiktok" | "pinterest" | "snapchat";
+        const platform = config.platform as SupportedPlatform;
+        if (!SUPPORTED_PLATFORMS.includes(platform)) {
+          return json({
+            success: false,
+            error: `平台 ${config.platform} 尚未在 v1 支持，请仅选择 GA4、Meta 或 TikTok。`,
+          }, { status: 400 });
+        }
         let credentials: Record<string, string> = {};
         if (platform === "google") {
           credentials = {
@@ -531,8 +483,8 @@ export default function PixelsNewPage() {
   const navigate = useNavigate();
   const { showSuccess, showError } = useToastContext();
   const [currentStep, setCurrentStep] = useState<SetupStep>("select");
-  const [selectedPlatforms, setSelectedPlatforms] = useState<Set<PlatformType>>(new Set());
-  const [platformConfigs, setPlatformConfigs] = useState<Partial<Record<PlatformType, PlatformConfig>>>(() => ({
+  const [selectedPlatforms, setSelectedPlatforms] = useState<Set<SupportedPlatform>>(new Set());
+  const [platformConfigs, setPlatformConfigs] = useState<Partial<Record<SupportedPlatform, PlatformConfig>>>(() => ({
     google: {
       platform: "google",
       enabled: false,
@@ -557,22 +509,6 @@ export default function PixelsNewPage() {
       eventMappings: DEFAULT_EVENT_MAPPINGS.tiktok || {},
       environment: "test",
     },
-    pinterest: {
-      platform: "pinterest",
-      enabled: false,
-      platformId: "",
-      credentials: {},
-      eventMappings: DEFAULT_EVENT_MAPPINGS.pinterest || {},
-      environment: "test",
-    },
-    snapchat: {
-      platform: "snapchat",
-      enabled: false,
-      platformId: "",
-      credentials: {},
-      eventMappings: DEFAULT_EVENT_MAPPINGS.snapchat || {},
-      environment: "test",
-    },
   }));
   const [showTemplateModal, setShowTemplateModal] = useState(false);
   const steps = useMemo(() => ([
@@ -594,7 +530,7 @@ export default function PixelsNewPage() {
       showError(actionData.error);
     }
   }, [actionData, navigate, showSuccess, showError]);
-  const handlePlatformToggle = useCallback((platform: PlatformType, enabled: boolean) => {
+  const handlePlatformToggle = useCallback((platform: SupportedPlatform, enabled: boolean) => {
     setSelectedPlatforms((prev) => {
       const next = new Set(prev);
       if (enabled) {
@@ -614,9 +550,12 @@ export default function PixelsNewPage() {
   }, []);
   const handleApplyTemplate = useCallback((template: WizardTemplate) => {
     const configs = { ...platformConfigs };
-    const platforms = new Set<PlatformType>();
+    const platforms = new Set<SupportedPlatform>();
     template.platforms.forEach((platform) => {
-      const platformKey = platform as PlatformType;
+      if (!SUPPORTED_PLATFORMS.includes(platform as SupportedPlatform)) {
+        return;
+      }
+      const platformKey = platform as SupportedPlatform;
       platforms.add(platformKey);
       const existingConfig = configs[platformKey];
       if (existingConfig) {
@@ -641,7 +580,7 @@ export default function PixelsNewPage() {
     setShowTemplateModal(false);
     showSuccess(`已应用模板「${template.name}」`);
   }, [platformConfigs, showSuccess]);
-  const handleCredentialUpdate = useCallback((platform: PlatformType, field: string, value: string) => {
+  const handleCredentialUpdate = useCallback((platform: SupportedPlatform, field: string, value: string) => {
     setPlatformConfigs((prev) => {
       const currentConfig = prev[platform];
       if (!currentConfig) return prev;
@@ -661,7 +600,7 @@ export default function PixelsNewPage() {
       };
     });
   }, []);
-  const handleEventMappingUpdate = useCallback((platform: PlatformType, shopifyEvent: string, platformEvent: string) => {
+  const handleEventMappingUpdate = useCallback((platform: SupportedPlatform, shopifyEvent: string, platformEvent: string) => {
     setPlatformConfigs((prev) => {
       const currentConfig = prev[platform];
       if (!currentConfig) return prev;
@@ -677,7 +616,7 @@ export default function PixelsNewPage() {
       };
     });
   }, []);
-  const handleEnvironmentToggle = useCallback((platform: PlatformType, environment: "test" | "live") => {
+  const handleEnvironmentToggle = useCallback((platform: SupportedPlatform, environment: "test" | "live") => {
     setPlatformConfigs((prev) => ({
       ...prev,
       [platform]: {
@@ -752,7 +691,11 @@ export default function PixelsNewPage() {
   const availableTemplates = useMemo(() => {
     const presetTemplates = templates?.presets?.length ? templates.presets : PRESET_TEMPLATES;
     const customTemplates = templates?.custom || [];
-    return [...presetTemplates, ...customTemplates];
+    return [...presetTemplates, ...customTemplates].filter((template) =>
+      template.platforms.every((platform) =>
+        SUPPORTED_PLATFORMS.includes(platform as SupportedPlatform)
+      )
+    );
   }, [templates]);
   if (!shop) {
     return (
@@ -818,11 +761,9 @@ export default function PixelsNewPage() {
                 选择您要迁移的广告平台，可使用预设模板快速配置事件映射。
               </Text>
               <BlockStack gap="300">
-                {(Object.keys(PLATFORM_INFO) as PlatformType[]).map((platform) => {
+                {(Object.keys(PLATFORM_INFO) as SupportedPlatform[]).map((platform) => {
                   const info = PLATFORM_INFO[platform];
                   const isSelected = selectedPlatforms.has(platform);
-                  const isV1Supported = platform === "google" || platform === "meta" || platform === "tiktok";
-                  const isDisabled = !isV1Supported;
                   return (
                     <Card key={platform}>
                       <BlockStack gap="300">
@@ -832,36 +773,21 @@ export default function PixelsNewPage() {
                             <BlockStack gap="100">
                               <InlineStack gap="200" blockAlign="center">
                                 <Text as="span" fontWeight="semibold">{info.name}</Text>
-                                {isV1Supported ? (
-                                  <Badge tone="success" size="small">v1 支持</Badge>
-                                ) : (
-                                  <Badge tone="info" size="small">v1.1+</Badge>
-                                )}
+                                <Badge tone="success" size="small">v1 支持</Badge>
                               </InlineStack>
                               <Text as="span" variant="bodySm" tone="subdued">
                                 {info.description}
-                                {!isV1Supported && "（v1.1+ 版本将支持）"}
                               </Text>
                             </BlockStack>
                           </InlineStack>
                           <Checkbox
                             checked={isSelected}
                             onChange={(checked) => {
-                              if (!isDisabled) {
-                                handlePlatformToggle(platform, checked);
-                              }
+                              handlePlatformToggle(platform, checked);
                             }}
-                            disabled={isDisabled}
                             label=""
                           />
                         </InlineStack>
-                        {isDisabled && (
-                          <Banner tone="info">
-                            <Text as="p" variant="bodySm">
-                              该平台将在 v1.1+ 版本支持。v1 专注于 GA4、Meta、TikTok 的最小可用迁移。
-                            </Text>
-                          </Banner>
-                        )}
                       </BlockStack>
                     </Card>
                   );
@@ -877,14 +803,14 @@ export default function PixelsNewPage() {
               <Text as="p" tone="subdued">
                 为每个选中的平台填写 API 凭证，并设置环境。
               </Text>
-              {Array.from(selectedPlatforms).some(p => p === "meta" || p === "tiktok" || p === "pinterest" || p === "snapchat" || p === "twitter") && (
+              {Array.from(selectedPlatforms).some(p => p === "meta" || p === "tiktok") && (
                 <Banner tone="warning">
                   <BlockStack gap="200">
                     <Text as="p" variant="bodySm" fontWeight="semibold">
                       <strong>⚠️ 营销平台 Consent 要求：</strong>
                     </Text>
                     <Text as="p" variant="bodySm">
-                      您选择了营销平台（Meta、TikTok、Pinterest、Snapchat 或 Twitter/X）。这些平台需要客户授予 <strong>marketing consent</strong> 和 <strong>sale of data consent</strong> 才能发送事件。
+                      您选择了营销平台（Meta 或 TikTok）。这些平台需要客户授予 <strong>marketing consent</strong> 和 <strong>sale of data consent</strong> 才能发送事件。
                       <br />
                       <br />
                       • <strong>Pixel 加载：</strong>只需要 analytics consent（Pixel 即可加载）
@@ -964,7 +890,7 @@ export default function PixelsNewPage() {
                 return (
                   <EventMappingEditor
                     key={platform}
-                    platform={platform as "google" | "meta" | "tiktok" | "pinterest"}
+                    platform={platform as "google" | "meta" | "tiktok"}
                     mappings={config.eventMappings}
                     onMappingChange={(shopifyEvent, platformEvent) =>
                       handleEventMappingUpdate(platform, shopifyEvent, platformEvent)

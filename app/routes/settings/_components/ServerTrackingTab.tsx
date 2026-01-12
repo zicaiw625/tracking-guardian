@@ -65,10 +65,6 @@ interface ServerTrackingTabProps {
   setTiktokPixelId: (value: string) => void;
   tiktokAccessToken: string;
   setTiktokAccessToken: (value: string) => void;
-  pinterestAdAccountId: string;
-  setPinterestAdAccountId: (value: string) => void;
-  pinterestAccessToken: string;
-  setPinterestAccessToken: (value: string) => void;
   serverFormDirty: boolean;
   isSubmitting: boolean;
   onSaveServerSide: () => void;
@@ -100,10 +96,6 @@ export function ServerTrackingTab({
   setTiktokPixelId,
   tiktokAccessToken,
   setTiktokAccessToken,
-  pinterestAdAccountId = "",
-  setPinterestAdAccountId,
-  pinterestAccessToken = "",
-  setPinterestAccessToken,
   serverFormDirty,
   isSubmitting,
   onSaveServerSide,
@@ -358,47 +350,6 @@ export function ServerTrackingTab({
                 />
               </>
             )}
-            {serverPlatform === "pinterest" && (
-              <>
-                <Banner tone="info">
-                  <p>
-                    <strong>Pinterest Conversions API</strong>{" "}
-                    允许您直接将转化数据发送到 Pinterest，提高广告归因准确性。
-                    <br />
-                    <strong>注意：</strong>Pinterest 将在 v1.1+ 版本支持。
-                  </p>
-                </Banner>
-                <TextField
-                  label="Ad Account ID"
-                  value={pinterestAdAccountId}
-                  onChange={setPinterestAdAccountId}
-                  autoComplete="off"
-                  placeholder="例: 123456789012345678"
-                  helpText="在 Pinterest Ads Manager 中找到您的广告账户 ID"
-                  error={
-                    pinterestAdAccountId && !/^\d+$/.test(pinterestAdAccountId)
-                      ? "广告账户 ID 应为纯数字"
-                      : undefined
-                  }
-                />
-                <TextField
-                  label="Access Token"
-                  type="password"
-                  value={pinterestAccessToken}
-                  onChange={setPinterestAccessToken}
-                  autoComplete="off"
-                  helpText="在 Pinterest Developer Portal 中生成 API Access Token"
-                />
-                <Text as="p" variant="bodySm" tone="subdued">
-                  💡 提示：确保您的 Pinterest 应用已获得 Conversion API 访问权限。
-                  访问{" "}
-                  <a href="https://developers.pinterest.com/docs/api/v5/#tag/Conversions" target="_blank" rel="noopener noreferrer">
-                    Pinterest Developer Portal
-                  </a>
-                  {" "}了解更多信息。
-                </Text>
-              </>
-            )}
             <Checkbox
               label={"启用服务端追踪"}
               checked={serverEnabled}
@@ -407,7 +358,7 @@ export function ServerTrackingTab({
             {serverEnabled && (
               <Banner tone="info">
                 <BlockStack gap="200">
-                  {(serverPlatform === "meta" || serverPlatform === "tiktok" || serverPlatform === "pinterest" || serverPlatform === "snapchat" || serverPlatform === "twitter") && (
+                  {(serverPlatform === "meta" || serverPlatform === "tiktok") && (
                     <>
                       <Banner tone="warning">
                         <BlockStack gap="200">
@@ -415,7 +366,7 @@ export function ServerTrackingTab({
                             <strong>⚠️ 营销平台 Consent 要求：</strong>
                           </Text>
                           <Text as="p" variant="bodySm">
-                            此平台（{serverPlatform === "meta" ? "Meta (Facebook/Instagram)" : serverPlatform === "tiktok" ? "TikTok" : serverPlatform === "pinterest" ? "Pinterest" : serverPlatform === "snapchat" ? "Snapchat" : "Twitter/X"}）用于营销和广告优化目的，需要客户授予 <strong>marketing consent</strong> 和 <strong>sale of data consent</strong>。
+                            此平台（{serverPlatform === "meta" ? "Meta (Facebook/Instagram)" : "TikTok"}）用于营销和广告优化目的，需要客户授予 <strong>marketing consent</strong> 和 <strong>sale of data consent</strong>。
                             <br />
                             <br />
                             • <strong>Pixel 加载：</strong>只需要 analytics consent（Pixel 即可加载）
@@ -593,9 +544,7 @@ export function ServerTrackingTab({
                             ? "Meta CAPI"
                             : config.platform === "google"
                               ? "Google Analytics 4 (GA4)"
-                              : config.platform === "pinterest"
-                                ? "Pinterest CAPI"
-                                : "TikTok"}
+                              : "TikTok"}
                         </Text>
                         <InlineStack gap="100">
                           {config.environment === "test" && (
