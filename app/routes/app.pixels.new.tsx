@@ -111,20 +111,6 @@ const DEFAULT_EVENT_MAPPINGS: Partial<Record<PlatformType, Record<string, string
     view_content: "ViewContent",
     search: "Search",
   },
-  pinterest: {
-    checkout_completed: "checkout",
-    checkout_started: "checkout",
-    add_to_cart: "addtocart",
-    view_content: "pagevisit",
-    search: "search",
-  },
-  snapchat: {
-    checkout_completed: "PURCHASE",
-    checkout_started: "START_CHECKOUT",
-    add_to_cart: "ADD_CART",
-    view_content: "VIEW_CONTENT",
-    search: "SEARCH",
-  },
 };
 
 const PLATFORM_INFO: Record<PlatformType, {
@@ -206,48 +192,6 @@ const PLATFORM_INFO: Record<PlatformType, {
         placeholder: "输入 Access Token",
         type: "password",
         helpText: "在 TikTok Events Manager → Settings → Web Events 中生成",
-      },
-    ],
-  },
-  pinterest: {
-    name: "Pinterest Tag",
-    icon: "📌",
-    description: "使用 Conversions API 发送转化数据",
-    credentialFields: [
-      {
-        key: "pixelId",
-        label: "Tag ID",
-        placeholder: "1234567890123",
-        type: "text",
-        helpText: "在 Pinterest Ads Manager 中查找",
-      },
-      {
-        key: "accessToken",
-        label: "Access Token",
-        placeholder: "输入 Access Token",
-        type: "password",
-        helpText: "在 Pinterest Ads Manager → Settings → Conversions 中生成",
-      },
-    ],
-  },
-  snapchat: {
-    name: "Snapchat Pixel",
-    icon: "👻",
-    description: "使用 Conversions API 发送转化数据",
-    credentialFields: [
-      {
-        key: "pixelId",
-        label: "Pixel ID",
-        placeholder: "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",
-        type: "text",
-        helpText: "在 Snapchat Ads Manager → Pixels 中查找",
-      },
-      {
-        key: "accessToken",
-        label: "Conversions API Token",
-        placeholder: "输入 Conversions API Token",
-        type: "password",
-        helpText: "在 Snapchat Ads Manager → Pixels → Settings 中生成",
       },
     ],
   },
@@ -345,7 +289,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       const configIds: string[] = [];
       const createdPlatforms: string[] = [];
       for (const config of configs) {
-        const platform = config.platform as "google" | "meta" | "tiktok" | "pinterest" | "snapchat";
+      const platform = config.platform as "google" | "meta" | "tiktok";
         let credentials: Record<string, string> = {};
         if (platform === "google") {
           credentials = {
@@ -555,22 +499,6 @@ export default function PixelsNewPage() {
       platformId: "",
       credentials: {},
       eventMappings: DEFAULT_EVENT_MAPPINGS.tiktok || {},
-      environment: "test",
-    },
-    pinterest: {
-      platform: "pinterest",
-      enabled: false,
-      platformId: "",
-      credentials: {},
-      eventMappings: DEFAULT_EVENT_MAPPINGS.pinterest || {},
-      environment: "test",
-    },
-    snapchat: {
-      platform: "snapchat",
-      enabled: false,
-      platformId: "",
-      credentials: {},
-      eventMappings: DEFAULT_EVENT_MAPPINGS.snapchat || {},
       environment: "test",
     },
   }));
@@ -821,8 +749,6 @@ export default function PixelsNewPage() {
                 {(Object.keys(PLATFORM_INFO) as PlatformType[]).map((platform) => {
                   const info = PLATFORM_INFO[platform];
                   const isSelected = selectedPlatforms.has(platform);
-                  const isV1Supported = platform === "google" || platform === "meta" || platform === "tiktok";
-                  const isDisabled = !isV1Supported;
                   return (
                     <Card key={platform}>
                       <BlockStack gap="300">
@@ -832,36 +758,21 @@ export default function PixelsNewPage() {
                             <BlockStack gap="100">
                               <InlineStack gap="200" blockAlign="center">
                                 <Text as="span" fontWeight="semibold">{info.name}</Text>
-                                {isV1Supported ? (
-                                  <Badge tone="success" size="small">v1 支持</Badge>
-                                ) : (
-                                  <Badge tone="info" size="small">v1.1+</Badge>
-                                )}
+                                <Badge tone="success" size="small">v1 支持</Badge>
                               </InlineStack>
                               <Text as="span" variant="bodySm" tone="subdued">
                                 {info.description}
-                                {!isV1Supported && "（v1.1+ 版本将支持）"}
                               </Text>
                             </BlockStack>
                           </InlineStack>
                           <Checkbox
                             checked={isSelected}
                             onChange={(checked) => {
-                              if (!isDisabled) {
-                                handlePlatformToggle(platform, checked);
-                              }
+                              handlePlatformToggle(platform, checked);
                             }}
-                            disabled={isDisabled}
                             label=""
                           />
                         </InlineStack>
-                        {isDisabled && (
-                          <Banner tone="info">
-                            <Text as="p" variant="bodySm">
-                              该平台将在 v1.1+ 版本支持。v1 专注于 GA4、Meta、TikTok 的最小可用迁移。
-                            </Text>
-                          </Banner>
-                        )}
                       </BlockStack>
                     </Card>
                   );
@@ -877,14 +788,14 @@ export default function PixelsNewPage() {
               <Text as="p" tone="subdued">
                 为每个选中的平台填写 API 凭证，并设置环境。
               </Text>
-              {Array.from(selectedPlatforms).some(p => p === "meta" || p === "tiktok" || p === "pinterest" || p === "snapchat" || p === "twitter") && (
+              {Array.from(selectedPlatforms).some(p => p === "meta" || p === "tiktok") && (
                 <Banner tone="warning">
                   <BlockStack gap="200">
                     <Text as="p" variant="bodySm" fontWeight="semibold">
                       <strong>⚠️ 营销平台 Consent 要求：</strong>
                     </Text>
                     <Text as="p" variant="bodySm">
-                      您选择了营销平台（Meta、TikTok、Pinterest、Snapchat 或 Twitter/X）。这些平台需要客户授予 <strong>marketing consent</strong> 和 <strong>sale of data consent</strong> 才能发送事件。
+                      您选择了营销平台（Meta 或 TikTok）。这些平台需要客户授予 <strong>marketing consent</strong> 和 <strong>sale of data consent</strong> 才能发送事件。
                       <br />
                       <br />
                       • <strong>Pixel 加载：</strong>只需要 analytics consent（Pixel 即可加载）
@@ -964,7 +875,7 @@ export default function PixelsNewPage() {
                 return (
                   <EventMappingEditor
                     key={platform}
-                    platform={platform as "google" | "meta" | "tiktok" | "pinterest"}
+                    platform={platform as "google" | "meta" | "tiktok"}
                     mappings={config.eventMappings}
                     onMappingChange={(shopifyEvent, platformEvent) =>
                       handleEventMappingUpdate(platform, shopifyEvent, platformEvent)
