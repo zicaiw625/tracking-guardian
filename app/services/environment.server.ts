@@ -192,7 +192,7 @@ export async function switchEnvironment(
           rollbackAllowed: true,
           clientConfig: config.clientConfig as Prisma.InputJsonValue | undefined,
           credentialsEncrypted: config.credentialsEncrypted as string | null,
-          serverSideEnabled: config.serverSideEnabled || false,
+          serverSideEnabled: config.serverSideEnabled ?? false,
           clientSideEnabled: true,
           isActive: true,
           updatedAt: new Date(),

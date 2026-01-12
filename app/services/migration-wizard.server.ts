@@ -18,6 +18,7 @@ export interface WizardConfig {
   credentials: Record<string, string>;
   eventMappings: Record<string, string>;
   environment: "test" | "live";
+  serverSideEnabled?: boolean;
 }
 
 export interface WizardState {
