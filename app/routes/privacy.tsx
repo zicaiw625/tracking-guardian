@@ -76,11 +76,11 @@ export default function PublicPrivacyPolicy() {
                   </Text>
                   <div style={{ fontSize: "13px", lineHeight: "1.5", marginTop: "8px" }}>
                     <Text as="p">
-                      <strong>Pixel 加载与事件发送条件（代码实现说明）：</strong>我们的 Web Pixel 配置为需要 <code>analytics</code> 同意才能加载（<code>analytics = true</code>），但不强制要求 <code>marketing</code> 同意（<code>marketing = false</code>）。这意味着<strong>只有当客户授予 analytics 同意时，Pixel 才会加载</strong>；如果客户未授予 analytics 同意，Pixel 不会加载，也不会发送任何事件。事件发送遵循以下规则：<strong>只有当客户授予 analytics 同意或 marketing 同意时，事件才会被发送到后端</strong>。如果客户未授予任何同意，事件将被跳过，不会发送。Marketing 同意需要同时满足 <code>marketingAllowed = true</code> 和 <code>saleOfDataAllowed = true</code>（符合 CCPA 要求）。服务端会根据各平台的要求（<code>requiresSaleOfData</code>）和事件用途（analytics vs marketing）进行进一步过滤，确保合规性。具体来说：
+                      <strong>Pixel 加载与事件发送条件（代码实现说明）：</strong>我们的 Web Pixel 配置为需要 <code>analytics</code> 同意才能加载（<code>analytics = true</code>），但不强制要求 <code>marketing</code> 同意（<code>marketing = false</code>）。这意味着<strong>只有当客户授予 analytics 同意时，Pixel 才会加载</strong>；如果客户未授予 analytics 同意，Pixel 不会加载，也不会发送任何事件。事件发送遵循以下规则：<strong>只有当客户授予 analytics 同意或 marketing 同意时，事件才会被发送到后端</strong>。如果客户未授予任何同意，事件将被跳过，不会发送。Marketing 同意要求 <code>marketingAllowed = true</code>，并且在客户明确拒绝 <code>saleOfDataAllowed</code> 时不发送（符合 CCPA 要求）。服务端会根据各平台的要求（<code>requiresSaleOfData</code>）和事件用途（analytics vs marketing）进行进一步过滤，确保合规性。具体来说：
                     </Text>
                     <ul style={{ marginTop: "8px", marginLeft: "20px", fontSize: "13px" }}>
                       <li><strong>Google Analytics 4 (GA4)：</strong> 只需 analytics 同意即可发送（<code>requiresSaleOfData = false</code>）</li>
-                      <li><strong>Meta Conversions API / TikTok Events API：</strong> 需要 marketing 同意（即 <code>marketingAllowed = true</code> 且 <code>saleOfDataAllowed = true</code>），因为 <code>requiresSaleOfData = true</code></li>
+                      <li><strong>Meta Conversions API / TikTok Events API：</strong> 需要 marketing 同意（即 <code>marketingAllowed = true</code>），且当客户明确拒绝 <code>saleOfDataAllowed</code> 时不发送，因为 <code>requiresSaleOfData = true</code></li>
                     </ul>
                     <Text as="p" style={{ marginTop: "8px" }}>
                       <strong>v1.0 版本平台支持范围（代码实现说明）：</strong>v1.0 版本<strong>默认仅支持</strong>以下三个平台：Google Analytics 4 (GA4)、Meta Conversions API (Facebook/Instagram)、TikTok Events API。代码中的默认配置为 <code>enabled_platforms = "meta,tiktok,google"</code>。虽然代码实现中包含 Snapchat、Twitter/X、Pinterest 等平台的支持代码（在 <code>app/services/platforms/registry.ts</code> 和 <code>app/utils/platform-consent.ts</code> 中注册），但这些平台在 v1.0 中<strong>默认不启用</strong>，且不推荐在生产环境使用。这些平台将在 v1.1+ 版本中正式支持并默认启用。v1.0 商家应仅配置 GA4、Meta 和 TikTok 平台。如果商家尝试配置其他平台，系统会显示警告提示这些平台在 v1.0 中不支持。

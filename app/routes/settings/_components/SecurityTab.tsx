@@ -258,8 +258,8 @@ export function SecurityTab({
                   </Text>
                   <Text as="p" variant="bodySm">
                     • <strong>GA4 (Google Analytics)</strong>：只需 analytics 同意即可发送
-                    <br />• <strong>Meta (Facebook/Instagram)</strong>：需要 marketing + saleOfData 同意才发送
-                    <br />• <strong>TikTok</strong>：需要 marketing + saleOfData 同意才发送
+                    <br />• <strong>Meta (Facebook/Instagram)</strong>：需要 marketing 同意，且在顾客明确拒绝 saleOfData 时不发送
+                    <br />• <strong>TikTok</strong>：需要 marketing 同意，且在顾客明确拒绝 saleOfData 时不发送
                   </Text>
                   <Text as="p" variant="bodySm" tone="subdued">
                     <strong>为什么这样设计？</strong>
@@ -281,7 +281,7 @@ export function SecurityTab({
                     • ✅ 像素会加载（因为 analytics = true）
                     <br />• ✅ 事件会发送到后端（因为像素已加载）
                     <br />• ✅ GA4 会收到事件（只需 analytics 同意）
-                    <br />• ❌ Meta/TikTok 不会收到事件（需要 marketing + saleOfData 同意）
+                    <br />• ❌ Meta/TikTok 不会收到事件（顾客明确拒绝 saleOfData）
                   </Text>
                   <Text as="p" variant="bodySm" tone="subdued">
                     这避免了"像素加载了但事件被过滤导致商家误以为丢数"的问题。
