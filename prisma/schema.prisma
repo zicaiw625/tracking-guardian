@@ -63,6 +63,7 @@ model Shop {
   VerificationRun         VerificationRun[]
   EventLog                EventLog[]
   DeliveryAttempt         DeliveryAttempt[]
+  SurveyResponse          SurveyResponse[]
 }
 
 model AuditAsset {
@@ -254,4 +255,22 @@ model DeliveryAttempt {
   @@index([receiptId])
   @@index([platform])
   @@index([verificationRunId])
+}
+
+model SurveyResponse {
+  id            String   @id
+  shopId        String
+  orderId       String
+  orderNumber   String?
+  rating        Int?
+  feedback      String?
+  source        String?
+  customAnswers Json?
+  createdAt     DateTime @default(now())
+  Shop          Shop     @relation(fields: [shopId], references: [id], onDelete: Cascade)
+
+  @@index([shopId])
+  @@index([orderId])
+  @@index([shopId, orderId])
+  @@index([shopId, createdAt])
 }
