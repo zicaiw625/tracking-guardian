@@ -655,11 +655,11 @@ export default function VerificationPage() {
         )}
         {configuredPlatforms.length === 0 && (
           <Banner
-            title="未配置服务端追踪"
-            tone="warning"
+            title="未配置服务端追踪（可选增强）"
+            tone="info"
             action={{ content: "前往配置", url: "/app/settings" }}
           >
-            <p>请先在设置页面配置至少一个平台的 CAPI 凭证，然后再进行验收测试。</p>
+            <p>服务端追踪（CAPI/MP）是可选的增强功能。Web Pixel 采集和验收是核心功能，无需服务端配置即可使用。如需启用服务端投递以提升追踪准确性，请在设置页面配置平台凭证。</p>
           </Banner>
         )}
         {latestRun && !canExportReports && (

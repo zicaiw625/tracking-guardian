@@ -10,7 +10,7 @@ import {
   useSettings,
 } from "@shopify/ui-extensions-react/checkout";
 import { useState, useEffect } from "react";
-import { BUILD_TIME_URL } from "./config";
+import { getValidatedBackendUrl } from "./config";
 
 function SurveyModule({ 
   question, 
@@ -110,89 +110,6 @@ function HelpModule({
   );
 }
 
-function ReorderModule({ 
-  buttonText 
-}: {
-  buttonText: string;
-}) {
-  const api = useApi();
-  const [loading, setLoading] = useState(false);
-  const [reorderUrl, setReorderUrl] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const handleReorder = async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const purchase = (api as any).purchase;
-      let orderId: string | undefined;
-      if (purchase?.order?.id) {
-        orderId = purchase.order.id;
-      } else if (purchase?.orderId) {
-        orderId = purchase.orderId;
-      } else if ((api as any).order?.id) {
-        orderId = (api as any).order.id;
-      }
-      if (!orderId) {
-        setError("无法获取订单信息，请稍后重试");
-        setLoading(false);
-        return;
-      }
-      const token = await api.sessionToken.get();
-      const response = await fetch(`${BUILD_TIME_URL}/api/reorder`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          orderId: orderId,
-        }),
-      });
-      if (response.ok) {
-        const data = await response.json();
-        if (data.reorderUrl) {
-          setReorderUrl(data.reorderUrl);
-        } else {
-          setError("无法生成再次购买链接，请稍后重试");
-        }
-      } else {
-        const errorData = await response.json().catch(() => ({ error: "Unknown error" }));
-        setError(errorData.error || errorData.message || "操作失败，请稍后重试");
-      }
-    } catch (error) {
-      setError("网络错误，请稍后重试");
-    } finally {
-      setLoading(false);
-    }
-  };
-  if (reorderUrl) {
-    return (
-      <View border="base" cornerRadius="base" padding="base">
-        <Link to={reorderUrl} external>
-          <Button kind="primary">
-            {buttonText || "再次购买"}
-          </Button>
-        </Link>
-      </View>
-    );
-  }
-  return (
-    <View border="base" cornerRadius="base" padding="base">
-      <BlockStack spacing="base">
-        <Button 
-          kind="primary" 
-          onPress={handleReorder}
-          loading={loading}
-        >
-          {buttonText || "再次购买"}
-        </Button>
-        {error && (
-          <Text appearance="critical">{error}</Text>
-        )}
-      </BlockStack>
-    </View>
-  );
-}
 
 function ThankYouBlocks() {
   const api = useApi();
@@ -200,14 +117,22 @@ function ThankYouBlocks() {
   const [moduleState, setModuleState] = useState<{
     surveyEnabled: boolean;
     helpEnabled: boolean;
-    reorderEnabled: boolean;
   } | null>(null);
   const [loading, setLoading] = useState(true);
   useEffect(() => {
     const fetchModuleState = async () => {
       try {
+        const backendUrl = getValidatedBackendUrl();
+        if (!backendUrl) {
+          setModuleState({
+            surveyEnabled: false,
+            helpEnabled: false,
+          });
+          setLoading(false);
+          return;
+        }
         const token = await api.sessionToken.get();
-        const response = await fetch(`${BUILD_TIME_URL}/api/ui-modules-state`, {
+        const response = await fetch(`${backendUrl}/api/ui-modules-state`, {
           method: "GET",
           headers: {
             "Authorization": `Bearer ${token}`,
@@ -220,14 +145,12 @@ function ThankYouBlocks() {
           setModuleState({
             surveyEnabled: false,
             helpEnabled: false,
-            reorderEnabled: false,
           });
         }
       } catch (error) {
         setModuleState({
           surveyEnabled: false,
           helpEnabled: false,
-          reorderEnabled: false,
         });
       } finally {
         setLoading(false);
@@ -240,11 +163,14 @@ function ThankYouBlocks() {
     ["非常满意", "满意", "一般", "不满意"];
   const helpFaqUrl = settings.help_faq_url as string | undefined;
   const helpSupportUrl = settings.help_support_url as string | undefined;
-  const reorderButtonText = (settings.reorder_button_text as string) || "再次购买";
   const handleSurveySubmit = async (selectedOption: string): Promise<boolean> => {
     try {
+      const backendUrl = getValidatedBackendUrl();
+      if (!backendUrl) {
+        return false;
+      }
       const token = await api.sessionToken.get();
-      const response = await fetch(`${BUILD_TIME_URL}/api/survey`, {
+      const response = await fetch(`${backendUrl}/api/survey`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -272,7 +198,6 @@ function ThankYouBlocks() {
   }
   const surveyEnabled = moduleState?.surveyEnabled ?? false;
   const helpEnabled = moduleState?.helpEnabled ?? false;
-  const reorderEnabled = moduleState?.reorderEnabled ?? false;
   return (
     <BlockStack spacing="base">
       {surveyEnabled && (
@@ -293,9 +218,6 @@ function ThankYouBlocks() {
           />
           <Divider />
         </>
-      )}
-      {reorderEnabled && (
-        <ReorderModule buttonText={reorderButtonText} />
       )}
     </BlockStack>
   );

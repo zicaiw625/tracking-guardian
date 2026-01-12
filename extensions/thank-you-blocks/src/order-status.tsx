@@ -10,7 +10,7 @@ import {
   useSettings,
 } from "@shopify/ui-extensions-react/customer-account";
 import { useState, useEffect } from "react";
-import { BUILD_TIME_URL } from "./config";
+import { getValidatedBackendUrl } from "./config";
 
 function SurveyModule({ 
   question, 
@@ -133,8 +133,14 @@ function ReorderModule({
         setLoading(false);
         return;
       }
+      const backendUrl = getValidatedBackendUrl();
+      if (!backendUrl) {
+        setError("后端配置无效");
+        setLoading(false);
+        return;
+      }
       const token = await api.sessionToken.get();
-      const response = await fetch(`${BUILD_TIME_URL}/api/reorder`, {
+      const response = await fetch(`${backendUrl}/api/reorder`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -202,8 +208,18 @@ function ThankYouBlocks() {
   useEffect(() => {
     const fetchModuleState = async () => {
       try {
+        const backendUrl = getValidatedBackendUrl();
+        if (!backendUrl) {
+          setModuleState({
+            surveyEnabled: false,
+            helpEnabled: false,
+            reorderEnabled: false,
+          });
+          setLoading(false);
+          return;
+        }
         const token = await api.sessionToken.get();
-        const response = await fetch(`${BUILD_TIME_URL}/api/ui-modules-state?target=order-status`, {
+        const response = await fetch(`${backendUrl}/api/ui-modules-state?target=order-status`, {
           method: "GET",
           headers: {
             "Authorization": `Bearer ${token}`,
@@ -239,8 +255,12 @@ function ThankYouBlocks() {
   const reorderButtonText = (settings.reorder_button_text as string) || "再次购买";
   const handleSurveySubmit = async (selectedOption: string): Promise<boolean> => {
     try {
+      const backendUrl = getValidatedBackendUrl();
+      if (!backendUrl) {
+        return false;
+      }
       const token = await api.sessionToken.get();
-      const response = await fetch(`${BUILD_TIME_URL}/api/survey`, {
+      const response = await fetch(`${backendUrl}/api/survey`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

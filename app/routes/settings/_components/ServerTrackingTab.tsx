@@ -146,7 +146,7 @@ export function ServerTrackingTab({
         <Card>
           <BlockStack gap="400">
             <Text as="h2" variant="headingMd">
-              服务端转化追踪（Conversions API）
+              服务端转化追踪（可选增强功能）
             </Text>
             {tokenIssues.hasIssues && (
               <Banner
@@ -212,11 +212,19 @@ export function ServerTrackingTab({
               </BlockStack>
             </Banner>
             <Banner tone="info">
-              <p>
-                服务端追踪通过 Shopify Webhooks 直接将转化数据发送到广告平台，
-                不受浏览器隐私设置和广告拦截器的影响，可显著提高追踪准确性。
-                <strong>默认情况下，服务端追踪已关闭，仅使用客户端 Web Pixel 追踪。</strong>
-              </p>
+              <BlockStack gap="200">
+                <Text as="p" variant="bodySm" fontWeight="semibold">
+                  核心功能 vs 可选增强
+                </Text>
+                <Text as="p" variant="bodySm">
+                  • <strong>必选：Web Pixel 采集 + 验收报告</strong> - 这是核心功能，无需服务端配置即可使用
+                  <br />
+                  • <strong>可选增强：服务端投递（CAPI/MP）</strong> - 通过 Shopify Webhooks 直接将转化数据发送到广告平台，不受浏览器隐私设置和广告拦截器的影响，可显著提高追踪准确性
+                </Text>
+                <Text as="p" variant="bodySm">
+                  <strong>默认情况下，服务端追踪已关闭，仅使用客户端 Web Pixel 追踪。</strong>
+                </Text>
+              </BlockStack>
             </Banner>
             <Divider />
             <Select

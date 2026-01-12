@@ -143,7 +143,7 @@ export const UI_MODULES: Record<ModuleKey, ModuleInfo> = {
     icon: "🔄",
     category: "conversion",
     requiredPlan: "growth",
-    targets: ["thank_you", "order_status"],
+    targets: ["order_status"],
   },
   upsell: {
     key: "upsell",

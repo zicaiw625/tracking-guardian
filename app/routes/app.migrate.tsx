@@ -322,7 +322,7 @@ export default function MigratePage() {
                     发布 UI 模块
                   </Text>
                   <Text as="p" variant="bodySm" tone="subdued">
-                    配置并发布 Thank you / Order status 页面的 UI 模块（Survey、Help、Reorder 等），
+                    配置并发布 Thank you / Order status 页面的 UI 模块（Survey、Help 等，Reorder 仅在 Order status 可用），
                     替代原有的 Additional Scripts 功能。需要 Starter ($29/月) 及以上套餐。
                   </Text>
                 </BlockStack>

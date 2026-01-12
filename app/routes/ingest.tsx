@@ -187,7 +187,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       eventId: string | null;
       destinations: string[];
     }> = [];
-    const clientSideConfigs = pixelConfigs.filter(config => config.clientSideEnabled === true);
+    const serverSideConfigs = pixelConfigs.filter(config => config.serverSideEnabled === true);
     const keyValidation: KeyValidationResult = (() => {
       if (isProduction) {
         return {
@@ -328,7 +328,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
             orderBy: { createdAt: "desc" },
             select: { id: true },
           });
-          const primaryPlatform = clientSideConfigs.length > 0 ? clientSideConfigs[0].platform : null;
+          const primaryPlatform = serverSideConfigs.length > 0 ? serverSideConfigs[0].platform : null;
           await upsertPixelEventReceipt(
             shop.id,
             eventId,
@@ -347,7 +347,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
           });
         }
       }
-      const destinations = clientSideConfigs.map(config => config.platform);
+      const destinations = serverSideConfigs.map(config => config.platform);
       const consentResult = checkInitialConsent(payload.consent);
       if (!consentResult.hasAnyConsent) {
         logger.debug(`Event at index ${i} has no consent, skipping`, {

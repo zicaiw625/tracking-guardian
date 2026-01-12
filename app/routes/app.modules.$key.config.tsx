@@ -77,7 +77,9 @@ export default function UiModuleConfigPage() {
               items={[
                 "查看和切换模块启用状态",
                 "文案和样式在 Checkout Editor 中配置",
-                "发布后模块将自动显示在 Thank You / Order Status 页面",
+                moduleKey === "reorder" 
+                  ? "发布后模块将自动显示在 Order Status 页面（仅限客户账户）"
+                  : "发布后模块将自动显示在 Thank You / Order Status 页面",
               ]}
               primaryAction={{ content: "发布指引", url: `/app/modules/${moduleKey}/publish` }}
               secondaryAction={{ content: "返回模块列表", url: "/app/modules" }}
@@ -138,10 +140,16 @@ export default function UiModuleConfigPage() {
               <Banner tone="critical">
                 <BlockStack gap="200">
                   <Text as="p" variant="bodySm" fontWeight="semibold">
-                    ⚠️ 重要：需要 PCD 审核批准
+                    ⚠️ 重要：仅支持 Order Status 页面
                   </Text>
                   <Text as="p" variant="bodySm">
-                    <strong>再购功能需要 Shopify Protected Customer Data (PCD) 权限批准才能稳定可用。</strong>在 Order status block (customer-account.order-status.block.render) 中，需要访问客户账户信息（如客户邮箱、地址等），这些数据受 PCD 保护。
+                    <strong>再购功能仅在 Order Status 页面（customer-account.order-status.block.render）可用，不支持 Thank You 页面。</strong>此功能需要访问客户账户信息（如客户 ID），这些信息仅在客户账户上下文中可用。
+                  </Text>
+                  <Text as="p" variant="bodySm" fontWeight="semibold">
+                    ⚠️ 需要 PCD 审核批准
+                  </Text>
+                  <Text as="p" variant="bodySm">
+                    再购功能需要 Shopify Protected Customer Data (PCD) 权限批准才能稳定可用。需要访问客户账户信息（如客户邮箱、地址等），这些数据受 PCD 保护。
                   </Text>
                   <Text as="p" variant="bodySm">
                     如果 PCD 权限未获批或用户未同意 consent，某些客户信息字段可能为 null，这是 Shopify 平台的合规行为，不是故障。

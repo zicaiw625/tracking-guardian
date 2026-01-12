@@ -461,7 +461,7 @@ export default function UiBlocksPage() {
               v1.0 支持范围说明：
             </Text>
             <Text as="p" variant="bodySm">
-              • <strong>v1.0 已支持</strong>：购后问卷（Survey）、帮助中心（Helpdesk）、再购按钮（Reorder）
+              • <strong>v1.0 已支持</strong>：购后问卷（Survey）、帮助中心（Helpdesk）、再购按钮（Reorder，仅限 Order Status 页面）
             </Text>
             <Text as="p" variant="bodySm">
               • <strong>v1.1+ 规划</strong>：物流追踪（Order Tracking）、追加销售（Upsell）模块将在 v1.1+ 版本中提供
@@ -480,7 +480,7 @@ export default function UiBlocksPage() {
             </List>
             <Divider />
             <Text as="p" variant="bodySm">
-              配置完成后，模块将自动显示在 Thank You 和 Order Status 页面。
+              配置完成后，模块将自动显示在对应页面（Survey 和 Helpdesk 支持 Thank You 和 Order Status，Reorder 仅支持 Order Status）。
               您可以在 Shopify Admin 的 <strong>Checkout Editor</strong> 中调整模块位置和样式。
             </Text>
             <BlockStack gap="100">
