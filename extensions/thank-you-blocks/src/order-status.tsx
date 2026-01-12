@@ -161,7 +161,6 @@ function ReorderModule({
 function ThankYouBlocks() {
   const api = useApi<"customer-account.order-status.block.render">();
   const settings = useSettings();
-  const [surveySubmitted, setSurveySubmitted] = useState(false);
   const surveyEnabled = settings.survey_enabled ?? true;
   const surveyQuestion = settings.survey_question ?? "您对我们的服务满意吗？";
   const surveyOptions = (settings.survey_options as string)?.split(",") || 
@@ -185,7 +184,6 @@ function ThankYouBlocks() {
           timestamp: new Date().toISOString(),
         }),
       });
-      setSurveySubmitted(true);
     } catch (error) {
       console.error("Survey submission failed:", error);
     }

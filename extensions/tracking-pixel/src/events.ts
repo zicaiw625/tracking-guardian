@@ -76,8 +76,9 @@ async function sendCheckoutCompletedWithRetry(
       if (isDevMode) {
         log(`checkout_completed server error ${response.status}, retrying in ${delay}ms (attempt ${retryIndex + 2}/${MAX_RETRIES})`);
       }
+      const retryHeaders = { ...headers };
       setTimeout(() => {
-        sendCheckoutCompletedWithRetry(url, body, isDevMode, log, retryIndex + 1);
+        sendCheckoutCompletedWithRetry(url, body, isDevMode, log, retryIndex + 1, retryHeaders);
       }, delay);
     } else if (isDevMode) {
       log(`checkout_completed failed after ${MAX_RETRIES} attempts with server error ${response.status}`);
@@ -88,8 +89,9 @@ async function sendCheckoutCompletedWithRetry(
       if (isDevMode) {
         log(`checkout_completed network error, retrying in ${delay}ms (attempt ${retryIndex + 2}/${MAX_RETRIES}):`, error);
       }
+      const retryHeaders = { ...headers };
       setTimeout(() => {
-        sendCheckoutCompletedWithRetry(url, body, isDevMode, log, retryIndex + 1);
+        sendCheckoutCompletedWithRetry(url, body, isDevMode, log, retryIndex + 1, retryHeaders);
       }, delay);
     } else if (isDevMode) {
       log(`checkout_completed failed after ${MAX_RETRIES} attempts with network error:`, error);

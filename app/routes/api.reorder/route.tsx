@@ -6,6 +6,7 @@ import { withRateLimit, pathShopKeyExtractor, type RateLimitedHandler, checkRate
 import { withConditionalCache, createUrlCacheKey } from "../../lib/with-cache";
 import { TTL } from "../../utils/cache";
 import prisma from "../../db.server";
+import { canUseModule, getUiModuleConfigs } from "../../services/ui-extension.server";
 
 export const action = async ({ request }: ActionFunctionArgs) => {
   if (request.method === "OPTIONS") {
@@ -29,43 +30,72 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       { status: 401, request, staticCors: true }
     );
   }
-  const shopDomain = session.shop;
-  const rateLimitKey = `reorder:${shopDomain}`;
-  const rateLimitResult = await checkRateLimitAsync(rateLimitKey, 60, 60 * 1000);
-  if (!rateLimitResult.allowed) {
-    const headers = new Headers();
-    headers.set("X-RateLimit-Limit", "60");
-    headers.set("X-RateLimit-Remaining", "0");
-    headers.set("X-RateLimit-Reset", String(Math.ceil(rateLimitResult.resetAt / 1000)));
-    if (rateLimitResult.retryAfter) {
-      headers.set("Retry-After", String(rateLimitResult.retryAfter));
-    }
-    logger.warn("Reorder rate limit exceeded", {
-      shopDomain,
-      retryAfter: rateLimitResult.retryAfter,
+    const shopDomain = session.shop;
+    const shop = await prisma.shop.findUnique({
+      where: { shopDomain },
+      select: { id: true },
     });
-    return jsonWithCors(
-      {
-        error: "Too many reorder requests",
+    if (!shop) {
+      logger.warn(`Reorder action for unknown shop: ${shopDomain}`);
+      return jsonWithCors({ error: "Shop not found" }, { status: 404, request, staticCors: true });
+    }
+    const moduleCheck = await canUseModule(shop.id, "reorder");
+    if (!moduleCheck.allowed) {
+      logger.warn(`Reorder module not allowed for shop ${shopDomain}`, {
+        reason: moduleCheck.reason,
+        currentPlan: moduleCheck.currentPlan,
+        requiredPlan: moduleCheck.requiredPlan,
+      });
+      return jsonWithCors(
+        { error: "Module not available", reason: moduleCheck.reason },
+        { status: 403, request, staticCors: true }
+      );
+    }
+    const modules = await getUiModuleConfigs(shop.id);
+    const reorderModule = modules.find((m) => m.moduleKey === "reorder");
+    if (!reorderModule || !reorderModule.isEnabled) {
+      logger.warn(`Reorder module not enabled for shop ${shopDomain}`);
+      return jsonWithCors(
+        { error: "Reorder module is not enabled" },
+        { status: 403, request, staticCors: true }
+      );
+    }
+    const rateLimitKey = `reorder:${shopDomain}`;
+    const rateLimitResult = await checkRateLimitAsync(rateLimitKey, 60, 60 * 1000);
+    if (!rateLimitResult.allowed) {
+      const headers = new Headers();
+      headers.set("X-RateLimit-Limit", "60");
+      headers.set("X-RateLimit-Remaining", "0");
+      headers.set("X-RateLimit-Reset", String(Math.ceil(rateLimitResult.resetAt / 1000)));
+      if (rateLimitResult.retryAfter) {
+        headers.set("Retry-After", String(rateLimitResult.retryAfter));
+      }
+      logger.warn("Reorder rate limit exceeded", {
+        shopDomain,
         retryAfter: rateLimitResult.retryAfter,
-      },
-      { status: 429, request, staticCors: true, headers }
-    );
-  }
-  try {
-    const body = await request.json().catch(() => null);
-    const url = new URL(request.url);
-    const orderId = body?.orderId || url.searchParams.get("orderId");
-    if (!orderId) {
-      return jsonWithCors({ error: "Missing orderId" }, { status: 400, request, staticCors: true });
+      });
+      return jsonWithCors(
+        {
+          error: "Too many reorder requests",
+          retryAfter: rateLimitResult.retryAfter,
+        },
+        { status: 429, request, staticCors: true, headers }
+      );
     }
-    const newUrl = new URL(request.url);
-    newUrl.searchParams.set("orderId", orderId);
-    const newRequest = new Request(newUrl.toString(), {
-      method: "GET",
-      headers: request.headers,
-    });
-    return await loaderImpl(newRequest);
+    try {
+      const body = await request.json().catch(() => null);
+      const url = new URL(request.url);
+      const orderId = body?.orderId || url.searchParams.get("orderId");
+      if (!orderId) {
+        return jsonWithCors({ error: "Missing orderId" }, { status: 400, request, staticCors: true });
+      }
+      const newUrl = new URL(request.url);
+      newUrl.searchParams.set("orderId", orderId);
+      const newRequest = new Request(newUrl.toString(), {
+        method: "GET",
+        headers: request.headers,
+      });
+      return await loaderImpl(newRequest);
   } catch (error) {
     logger.error("Reorder action failed", {
       error: error instanceof Error ? error.message : String(error),
@@ -137,6 +167,35 @@ async function loaderImpl(request: Request) {
       );
     }
     const shopDomain = session.shop;
+    const shop = await prisma.shop.findUnique({
+      where: { shopDomain },
+      select: { id: true },
+    });
+    if (!shop) {
+      logger.warn(`Reorder request for unknown shop: ${shopDomain}`);
+      return jsonWithCors({ error: "Shop not found" }, { status: 404, request, staticCors: true });
+    }
+    const moduleCheck = await canUseModule(shop.id, "reorder");
+    if (!moduleCheck.allowed) {
+      logger.warn(`Reorder module not allowed for shop ${shopDomain}`, {
+        reason: moduleCheck.reason,
+        currentPlan: moduleCheck.currentPlan,
+        requiredPlan: moduleCheck.requiredPlan,
+      });
+      return jsonWithCors(
+        { error: "Module not available", reason: moduleCheck.reason },
+        { status: 403, request, staticCors: true }
+      );
+    }
+    const modules = await getUiModuleConfigs(shop.id);
+    const reorderModule = modules.find((m) => m.moduleKey === "reorder");
+    if (!reorderModule || !reorderModule.isEnabled) {
+      logger.warn(`Reorder module not enabled for shop ${shopDomain}`);
+      return jsonWithCors(
+        { error: "Reorder module is not enabled" },
+        { status: 403, request, staticCors: true }
+      );
+    }
     const customerGidFromToken = session.customerId || null;
     const admin = await createAdminClientForShop(shopDomain);
     if (!admin) {
