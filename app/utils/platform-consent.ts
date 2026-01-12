@@ -242,7 +242,7 @@ export function getPlatformConsentRequirements(platform: string): {
     if (requiresMarketing) {
         explanation = `${config.name}: 需要营销同意（marketingAllowed=true）`;
         if (config.requiresSaleOfData) {
-            explanation += ` + 数据共享同意（saleOfDataAllowed=true）`;
+            explanation += `，且在 saleOfDataAllowed=false 时不发送`;
         }
     }
     else {
