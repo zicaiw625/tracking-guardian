@@ -118,7 +118,7 @@ export async function savePixelConfig(shopId: string, platform: Platform, platfo
             platformId,
             clientConfig: clientConfig ?? undefined,
             credentialsEncrypted: credentialsEncrypted ?? undefined,
-            serverSideEnabled: serverSideEnabled ?? undefined,
+            serverSideEnabled: serverSideEnabled ?? false,
             migrationStatus: "in_progress",
             updatedAt: new Date(),
         },

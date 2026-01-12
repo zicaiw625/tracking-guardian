@@ -350,7 +350,8 @@ export async function handleSaveServerSide(
         platform,
         platformId,
         environment,
-        ...updateData,
+        serverSideEnabled: enabled ?? false,
+        credentialsEncrypted: encryptedCredentials,
       } as unknown as Prisma.PixelConfigCreateInput,
     });
   }

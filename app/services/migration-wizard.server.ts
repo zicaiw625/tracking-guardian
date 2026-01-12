@@ -134,7 +134,7 @@ export async function saveWizardConfigs(
         update: {
           platformId: config.platformId,
           credentialsEncrypted: encryptedCredentials,
-          serverSideEnabled: true,
+          serverSideEnabled: config.serverSideEnabled ?? false,
           eventMappings: config.eventMappings as object,
           environment: config.environment || "live",
           migrationStatus: "in_progress",
@@ -150,7 +150,7 @@ export async function saveWizardConfigs(
       platform: config.platform as Platform,
       platformId: config.platformId,
       credentialsEncrypted: encryptedCredentials,
-      serverSideEnabled: true,
+      serverSideEnabled: config.serverSideEnabled ?? false,
       eventMappings: config.eventMappings as object,
       environment: config.environment || "live",
           migrationStatus: "in_progress",

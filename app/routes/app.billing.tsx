@@ -369,45 +369,6 @@ export default function BillingPage() {
               </Layout.Section>);
         })}
         </Layout>
-        {subscription.plan === "agency" && (
-          <Card>
-            <BlockStack gap="400">
-              <InlineStack align="space-between" blockAlign="center">
-                <BlockStack gap="100">
-                  <InlineStack gap="200">
-                    <Text as="h2" variant="headingMd">🏢 Agency 多店管理</Text>
-                    <Badge tone="success">已解锁</Badge>
-                  </InlineStack>
-                  <Text as="p" variant="bodySm" tone="subdued">
-                    管理多个店铺、批量配置、团队协作
-                  </Text>
-                </BlockStack>
-                <Button url="/app/workspace" variant="primary">
-                  进入多店管理
-                </Button>
-              </InlineStack>
-              <Divider />
-              <InlineStack gap="400" wrap>
-                <InlineStack gap="100">
-                  <Icon source={CheckCircleIcon} tone="success" />
-                  <Text as="span" variant="bodySm">最多 50 个店铺</Text>
-                </InlineStack>
-                <InlineStack gap="100">
-                  <Icon source={CheckCircleIcon} tone="success" />
-                  <Text as="span" variant="bodySm">批量 Audit</Text>
-                </InlineStack>
-                <InlineStack gap="100">
-                  <Icon source={CheckCircleIcon} tone="success" />
-                  <Text as="span" variant="bodySm">团队协作</Text>
-                </InlineStack>
-                <InlineStack gap="100">
-                  <Icon source={CheckCircleIcon} tone="success" />
-                  <Text as="span" variant="bodySm">报告导出</Text>
-                </InlineStack>
-              </InlineStack>
-            </BlockStack>
-          </Card>
-        )}
         <Card>
           <BlockStack gap="400">
             <Text as="h2" variant="headingMd">常见问题</Text>

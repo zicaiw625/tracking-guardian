@@ -16,6 +16,8 @@ import {
   Icon,
   Collapsible,
   Tabs,
+  Link,
+  List,
 } from "@shopify/polaris";
 import { RefreshIcon, HistoryIcon } from "~/components/icons";
 import type { TokenIssues } from "../types";
@@ -190,10 +192,30 @@ export function ServerTrackingTab({
                 </Text>
               </BlockStack>
             </Banner>
+            <Banner tone="warning" title="重要：服务端追踪默认关闭">
+              <BlockStack gap="200">
+                <Text as="p" variant="bodySm" fontWeight="semibold">
+                  v1.0 版本中，服务端转化追踪（Server-side CAPI/MP）默认关闭。
+                </Text>
+                <Text as="p" variant="bodySm">
+                  服务端追踪是 v1.1+ 的高级功能，需要额外的数据披露和合规审查。
+                  如果您需要启用服务端追踪，请确保：
+                </Text>
+                <ul style={{ paddingLeft: "1.5rem", marginTop: "0.5rem", marginBottom: "0.5rem" }}>
+                  <li><Text as="span" variant="bodySm">已在隐私政策中明确说明向第三方平台发送的数据类型</Text></li>
+                  <li><Text as="span" variant="bodySm">已获得必要的用户同意（如 GDPR/CCPA 要求）</Text></li>
+                  <li><Text as="span" variant="bodySm">已准备好应对 Shopify App Review 关于数据使用的询问</Text></li>
+                </ul>
+                <Text as="p" variant="bodySm" tone="subdued">
+                  <strong>注意：</strong>启用服务端追踪后，本应用会向 Meta Conversions API、GA4 Measurement Protocol、TikTok Events API 等平台发送订单数据（包括订单金额、商品信息等，但不包括 PII）。这些数据用于转化追踪和广告归因。
+                </Text>
+              </BlockStack>
+            </Banner>
             <Banner tone="info">
               <p>
                 服务端追踪通过 Shopify Webhooks 直接将转化数据发送到广告平台，
                 不受浏览器隐私设置和广告拦截器的影响，可显著提高追踪准确性。
+                <strong>默认情况下，服务端追踪已关闭，仅使用客户端 Web Pixel 追踪。</strong>
               </p>
             </Banner>
             <Divider />
@@ -349,6 +371,39 @@ export function ServerTrackingTab({
                   helpText="在 TikTok Events Manager 中生成"
                 />
               </>
+            )}
+            {!serverEnabled && (
+              <Banner tone="critical">
+                <BlockStack gap="200">
+                  <Text as="p" variant="bodySm" fontWeight="semibold">
+                    重要：服务端追踪默认关闭
+                  </Text>
+                  <Text as="p" variant="bodySm">
+                    启用服务端追踪前，请确保您已完成以下合规要求：
+                  </Text>
+                  <List type="bullet">
+                    <List.Item>
+                      <Text as="span" variant="bodySm">
+                        已在隐私政策中明确说明向第三方平台（Meta、Google、TikTok）发送的数据类型和用途
+                      </Text>
+                    </List.Item>
+                    <List.Item>
+                      <Text as="span" variant="bodySm">
+                        已获得必要的用户同意（如 GDPR/CCPA 要求）
+                      </Text>
+                    </List.Item>
+                    <List.Item>
+                      <Text as="span" variant="bodySm">
+                        已准备好应对 Shopify App Review 关于数据使用的询问
+                      </Text>
+                    </List.Item>
+                  </List>
+                  <Text as="p" variant="bodySm" tone="subdued">
+                    启用后，我们将通过 Shopify Webhooks 向第三方平台 API 发送订单数据（订单金额、商品信息等，不包括 PII）。
+                    详细说明请查看 <Link url="/app/privacy" external>隐私与数据页面</Link>。
+                  </Text>
+                </BlockStack>
+              </Banner>
             )}
             <Checkbox
               label={"启用服务端追踪"}

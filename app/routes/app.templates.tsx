@@ -331,7 +331,7 @@ export default function TemplatesPage() {
           checkout_completed: "purchase",
         },
         clientSideEnabled: true,
-        serverSideEnabled: true,
+        serverSideEnabled: false,
       },
     ];
     const formData = new FormData();
@@ -449,10 +449,10 @@ export default function TemplatesPage() {
                         <Button
                           size="slim"
                           onClick={() => {
-                            window.location.href = `/app/workspace/templates?templateId=${template.id}`;
+                            window.location.href = `/app/pixels/new?applyTemplate=${template.id}`;
                           }}
                         >
-                          批量应用
+                          应用到店铺
                         </Button>
                       )}
                       <Button

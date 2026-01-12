@@ -63,7 +63,7 @@
 > - Order Tracking（物流追踪）- 需深集成，API/适配会膨胀
 > - Upsell Offer（追加销售）- 边界条件复杂
 > 
-> **注意**：Reorder 模块需要 Protected Customer Data (PCD) 访问权限，详见 [PCD 策略文档](./docs/PCD_STRATEGY.md)。
+> **注意**：Reorder 模块需要 Protected Customer Data (PCD) 访问权限。PCD 功能需要 Shopify 审核批准，默认禁用。获得批准后可在设置中启用。
 
 ### (D) 付费：验收（Verification）+ 断档监控（Monitoring）
 这是产品的"交付件"，也是 Agency 愿意付钱的关键。

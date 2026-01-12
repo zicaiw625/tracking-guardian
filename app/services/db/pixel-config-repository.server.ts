@@ -222,7 +222,7 @@ export async function upsertPixelConfig(
           credentialsEncrypted: data.credentialsEncrypted ?? undefined,
           clientConfig: data.clientConfig ?? undefined,
           clientSideEnabled: data.clientSideEnabled ?? undefined,
-          serverSideEnabled: data.serverSideEnabled ?? undefined,
+          serverSideEnabled: data.serverSideEnabled ?? false,
           eventMappings: data.eventMappings ?? undefined,
           isActive: data.isActive ?? undefined,
         },

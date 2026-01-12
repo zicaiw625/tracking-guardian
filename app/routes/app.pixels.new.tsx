@@ -347,7 +347,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
           update: {
             platformId: platformIdValue as string | null,
             credentialsEncrypted: encryptedCredentials,
-            serverSideEnabled: true,
+            serverSideEnabled: false,
             eventMappings: config.eventMappings as object,
             clientConfig: clientConfig as object,
             environment: config.environment,
@@ -360,7 +360,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
             platform,
             platformId: (config.platformId && config.platformId.trim()) ? config.platformId : null,
             credentialsEncrypted: encryptedCredentials,
-            serverSideEnabled: true,
+            serverSideEnabled: false,
             eventMappings: config.eventMappings as object,
             clientConfig: clientConfig as object,
             environment: config.environment,
@@ -817,7 +817,7 @@ export default function PixelsNewPage() {
                       <br />
                       • <strong>事件发送：</strong>需要 marketing consent，且在 sale of data consent 明确拒绝时不发送到营销平台
                       <br />
-                      • <strong>服务端追踪：</strong>服务端会根据 consent 状态过滤事件，只有获得正确 consent 的事件才会发送
+                      • <strong>服务端追踪：</strong>v1.0 版本中，服务端转化追踪（Server-side CAPI/MP）默认关闭。默认情况下，我们仅使用客户端 Web Pixel 追踪。如需启用服务端追踪，请在设置页面配置。
                     </Text>
                     <Text as="p" variant="bodySm" tone="subdued">
                       请确保您的店铺已正确配置 Customer Privacy API。在客户未授予 marketing consent 时，事件将被跳过，不会发送到营销平台。
