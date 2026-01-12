@@ -123,9 +123,6 @@ function ReorderModule({
         const data = await response.json();
         if (data.reorderUrl) {
           setReorderUrl(data.reorderUrl);
-          if (typeof window !== 'undefined' && window.open) {
-            window.open(data.reorderUrl, '_blank');
-          }
         }
       } else {
         const errorData = await response.json().catch(() => ({ error: "Unknown error" }));

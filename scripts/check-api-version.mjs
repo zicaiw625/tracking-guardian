@@ -81,7 +81,7 @@ function convertEnumToVersion(enumValue) {
 }
 
 const RELEASE_SCHEDULE_URL =
-  "https:
+  "https://shopify.dev/docs/api/admin-graphql/latest";
 
 function checkVersionAge(version) {
   const match = version.match(/^(\d{4})-(\d{2})$/);
