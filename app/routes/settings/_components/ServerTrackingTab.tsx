@@ -366,12 +366,12 @@ export function ServerTrackingTab({
                             <strong>⚠️ 营销平台 Consent 要求：</strong>
                           </Text>
                           <Text as="p" variant="bodySm">
-                            此平台（{serverPlatform === "meta" ? "Meta (Facebook/Instagram)" : "TikTok"}）用于营销和广告优化目的，需要客户授予 <strong>marketing consent</strong> 和 <strong>sale of data consent</strong>。
+                            此平台（{serverPlatform === "meta" ? "Meta (Facebook/Instagram)" : "TikTok"}）用于营销和广告优化目的，需要客户授予 <strong>marketing consent</strong>，且在客户明确拒绝 <strong>sale of data consent</strong> 时不发送。
                             <br />
                             <br />
                             • <strong>Pixel 加载：</strong>只需要 analytics consent（Pixel 即可加载）
                             <br />
-                            • <strong>事件发送：</strong>需要 marketing consent + sale of data consent 才能发送到此平台
+                            • <strong>事件发送：</strong>需要 marketing consent，且在 sale of data consent 明确拒绝时不发送到此平台
                             <br />
                             • <strong>服务端追踪：</strong>服务端也会根据 consent 状态过滤事件，只有获得正确 consent 的事件才会发送
                           </Text>
