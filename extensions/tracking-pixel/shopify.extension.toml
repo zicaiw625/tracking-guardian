@@ -6,7 +6,7 @@ handle = "tracking-guardian-pixel"
 runtime_context = "strict"
 
 [customer_privacy]
-analytics = true
+analytics = false
 marketing = true
 preferences = false
 sale_of_data = "disabled"

@@ -323,8 +323,13 @@ ScriptTag 清理需要商家手动操作：
 ### 应用生命周期
 - `app/uninstalled` - 应用卸载时清理数据
 
-### 订单与退款 Webhook（用于 Verification 和 Reconciliation）
-v1.0 版本使用以下 webhooks 用于事件对账和验收验证：
+### GDPR 合规 Webhook（自动处理）
+- `customers/data_request` - 客户数据导出请求
+- `customers/redact` - 客户数据删除请求
+- `shop/redact` - 店铺数据完全删除
+
+### 订单与退款 Webhook（v1.1+ 功能）
+以下 webhooks 将在 v1.1+ 版本中启用，用于事件对账和验收验证：
 
 - `orders/create` - 订单创建时记录订单摘要（用于对账）
 - `orders/updated` - 订单更新时同步状态（用于对账）
@@ -332,16 +337,10 @@ v1.0 版本使用以下 webhooks 用于事件对账和验收验证：
 - `orders/edited` - 订单编辑时同步状态（用于对账）
 - `refunds/create` - 退款创建时同步状态（用于对账）
 
-**隐私承诺**：
-- 仅存储订单摘要信息（orderId, orderNumber, totalValue, currency, financialStatus）
-- **不存储任何 PII 数据**（邮箱/地址/电话）
-- 符合 v1.0 隐私最小化原则
-- 用于 Verification 模块的事件对账和订单金额/币种一致性验证
-
-### GDPR 合规 Webhook（自动处理）
-- `customers/data_request` - 客户数据导出请求
-- `customers/redact` - 客户数据删除请求
-- `shop/redact` - 店铺数据完全删除
+**v1.0 说明**：
+- v1.0 版本仅订阅 `app/uninstalled` 和 GDPR 合规 webhooks，保持最小订阅范围
+- 订单和退款相关 webhooks 将在 v1.1+ 版本中启用，用于增强验收验证和对账功能
+- 代码中已实现相关处理器，但 `shopify.app.toml` 中暂未订阅，符合 v1.0 最小权限原则
 
 ## Built for Shopify (BFS) 特性
 

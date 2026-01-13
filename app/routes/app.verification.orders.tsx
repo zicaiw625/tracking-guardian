@@ -227,10 +227,10 @@ export default function VerificationOrdersPage() {
           primaryAction={{ content: "返回验收", url: "/app/verification" }}
           secondaryAction={{ content: "导出报告", url: "/app/reports" }}
         />
-        <Banner tone="info" title="PRD 2.5: 订单层验收说明">
+        <Banner tone="info" title="PRD 2.5: 订单层验收说明（v1.1+ 功能）">
           <BlockStack gap="200">
             <Text as="p" variant="bodySm" fontWeight="semibold">
-              <strong>订单层验收范围：</strong>
+              <strong>订单层验收范围（v1.1+）：</strong>
             </Text>
             <List type="bullet">
               <List.Item>
@@ -249,6 +249,9 @@ export default function VerificationOrdersPage() {
                 </Text>
               </List.Item>
             </List>
+            <Text as="p" variant="bodySm" tone="subdued">
+              <strong>v1.0 说明：</strong>订单和退款相关 webhooks 将在 v1.1+ 版本中启用。v1.0 版本仅订阅应用生命周期和 GDPR 合规 webhooks，保持最小订阅范围。
+            </Text>
             <Text as="p" variant="bodySm" tone="subdued">
               <strong>说明：</strong>标准事件覆盖的是"店内行为+checkout链路"，它并不天然覆盖退款/取消等订单后事件，所以订单层验收是第二层验收。
             </Text>
@@ -270,12 +273,12 @@ export default function VerificationOrdersPage() {
                     Webhook 事件对账详情
                   </Text>
                   <Text as="p" variant="bodySm" tone="subdued">
-                    PRD 2.5要求：订单层验收包括 orders/create、refunds/create、orders/cancelled 等 webhook 事件的对账
+                    PRD 2.5要求：订单层验收包括 orders/create、refunds/create、orders/cancelled 等 webhook 事件的对账（v1.1+ 功能）
                   </Text>
                   <Banner tone="info">
                     <BlockStack gap="200">
                       <Text as="p" variant="bodySm" fontWeight="semibold">
-                        <strong>当前对账数据来源：</strong>
+                        <strong>当前对账数据来源（v1.1+）：</strong>
                       </Text>
                       <List type="bullet">
                         <List.Item>
@@ -294,6 +297,9 @@ export default function VerificationOrdersPage() {
                           </Text>
                         </List.Item>
                       </List>
+                      <Text as="p" variant="bodySm" tone="subdued">
+                        <strong>v1.0 说明：</strong>订单和退款相关 webhooks 将在 v1.1+ 版本中启用。代码中已实现相关处理器，但 v1.0 暂未订阅这些 webhooks。
+                      </Text>
                       <Text as="p" variant="bodySm" tone="subdued">
                         对账逻辑：将 webhook 订单与 Pixel 收据进行匹配，计算缺口和匹配率
                       </Text>

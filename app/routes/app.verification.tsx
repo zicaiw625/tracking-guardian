@@ -517,12 +517,12 @@ export default function VerificationPage() {
                       </Badge>
                     </InlineStack>
                     <Text as="p" variant="bodySm">
-                      <strong>验收范围：</strong>订单后事件（来自 webhook 或 Admin API）
+                      <strong>验收范围（v1.1+）：</strong>订单后事件（来自 webhook 或 Admin API）
                     </Text>
                     <List type="bullet">
                       <List.Item>
                         <Text as="span" variant="bodySm">
-                          orders/create 事件对账
+                          orders/create 事件对账（v1.1+）
                         </Text>
                       </List.Item>
                       <List.Item>
@@ -1408,14 +1408,17 @@ export default function VerificationPage() {
           {selectedTab === 2 && (
             <Box padding="400">
               <BlockStack gap="500">
-                <Banner tone="info" title="PRD 2.5: 订单层验收说明">
+                <Banner tone="info" title="PRD 2.5: 订单层验收说明（v1.1+ 功能）">
                   <BlockStack gap="200">
                     <Text as="p" variant="bodySm">
-                      <strong>订单层验收范围：</strong>标准事件覆盖的是"店内行为+checkout链路"，
+                      <strong>订单层验收范围（v1.1+）：</strong>标准事件覆盖的是"店内行为+checkout链路"，
                       它并不天然覆盖退款/取消等订单后事件，所以订单层验收是第二层验收。
                     </Text>
                     <Text as="p" variant="bodySm">
                       订单层验收包括：orders/create、refunds/create、orders/cancelled 等 webhook 事件的对账。
+                    </Text>
+                    <Text as="p" variant="bodySm" tone="subdued">
+                      <strong>v1.0 说明：</strong>订单和退款相关 webhooks 将在 v1.1+ 版本中启用。v1.0 版本仅订阅应用生命周期和 GDPR 合规 webhooks，保持最小订阅范围。
                     </Text>
                   </BlockStack>
                 </Banner>
