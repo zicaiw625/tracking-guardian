@@ -101,7 +101,7 @@ export function MigrationWizard({ migrationActions, shopDomain }: MigrationWizar
             🛒 Checkout Editor（Plus 专属）
           </Text>
           <Text as="p" variant="bodySm" tone="subdued">
-            如果您是 Shopify Plus 商家，可以使用 Checkout UI Extension 替代 Additional Scripts。
+            如果您是 Shopify Plus 商家，可以使用 Customer Accounts UI Extensions 替代 Additional Scripts。
           </Text>
           <InlineStack gap="300" wrap>
             <Button

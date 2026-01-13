@@ -30,14 +30,15 @@ const TARGET_DETAILS: Record<
     description: "适用于客户完成支付后的感谢页。",
   },
   order_status: {
-    label: "Order status 页面",
+    label: "Order status 页面（Customer Accounts）",
     target: "customer-account.order-status.block.render",
-    description: "适用于客户在订单状态页查看物流与订单信息。",
+    description: "适用于 Customer Accounts 体系下的订单状态页，客户可在此查看物流与订单信息。重要：仅支持 Customer Accounts 体系，不支持旧版订单状态页。如果您的店铺使用旧版订单状态页（非 Customer Accounts），此模块将不会显示。这是 Shopify 平台的设计限制，Order status 模块只能在 Customer Accounts 体系下工作。",
   },
 };
 
 export const loader = async ({ request, params }: LoaderFunctionArgs) => {
-  await authenticate.admin(request);
+  const { session } = await authenticate.admin(request);
+  const shopDomain = session.shop;
   const key = params.key;
   if (!key || !(key in UI_MODULES)) {
     throw new Response("模块不存在", { status: 404 });
@@ -51,11 +52,12 @@ export const loader = async ({ request, params }: LoaderFunctionArgs) => {
     moduleKey,
     moduleName: moduleInfo.name,
     targets: moduleInfo.targets,
+    shopDomain,
   });
 };
 
 export default function UiModulePublishGuide() {
-  const { moduleName, targets } = useLoaderData<typeof loader>();
+  const { moduleName, targets, shopDomain } = useLoaderData<typeof loader>();
   const targetCards = targets.map((target) => TARGET_DETAILS[target]);
   return (
     <Page
@@ -125,10 +127,30 @@ export default function UiModulePublishGuide() {
                           </Banner>
                         )}
                         {item.target === "customer-account.order-status.block.render" && (
-                          <Banner tone="info">
-                            <Text as="p" variant="bodySm">
-                              <strong>Order status 模块：</strong>使用 <code>customer-account.order-status.block.render</code> target，适用于客户在订单状态页查看物流与订单信息。需要 protected customer data 权限才能访问客户账户信息（如客户邮箱、地址等）。
-                            </Text>
+                          <Banner tone="warning">
+                            <BlockStack gap="200">
+                              <Text as="p" variant="bodySm" fontWeight="semibold">
+                                <strong>重要：仅支持 Customer Accounts 体系下的订单状态页</strong>
+                              </Text>
+                              <Text as="p" variant="bodySm">
+                                <strong>Order status 模块：</strong>使用 <code>customer-account.order-status.block.render</code> target，仅适用于 Customer Accounts 体系下的订单状态页。旧版订单状态页（非 Customer Accounts）不会显示此模块。这是 Shopify 平台的设计限制，Order status 模块只能在 Customer Accounts 体系下工作。
+                              </Text>
+                              <Text as="p" variant="bodySm">
+                                如果您的店铺使用旧版订单状态页（非 Customer Accounts），此模块将不会显示。请确认您的店铺已启用 Customer Accounts 功能（可在 Shopify Admin → 设置 → 客户账户中检查），否则模块不会在订单状态页显示。
+                              </Text>
+                              <Text as="p" variant="bodySm">
+                                如果您的店铺未启用 Customer Accounts，请先在 Shopify Admin → 设置 → 客户账户中启用 Customer Accounts 功能，然后才能使用 Order status 模块。
+                              </Text>
+                              <Text as="p" variant="bodySm" fontWeight="semibold">
+                                文档引用说明（避免误导）：
+                              </Text>
+                              <Text as="p" variant="bodySm">
+                                需要 protected customer data 权限才能访问客户账户信息（如客户邮箱、地址等）。请参考 <strong>Customer Accounts UI Extensions</strong> 官方文档（<a href="https://shopify.dev/docs/apps/customer-accounts/ui-extensions" target="_blank" rel="noopener noreferrer">https://shopify.dev/docs/apps/customer-accounts/ui-extensions</a>）。
+                              </Text>
+                              <Text as="p" variant="bodySm">
+                                <strong>重要：不要参考 checkout-ui-extensions 文档</strong>，该文档可能显示此 target 为"Not supported"，这是文档版本差异导致的误导。正确的文档入口是 Customer Accounts UI Extensions，不是 Checkout UI Extensions。请务必使用 Customer Accounts UI Extensions 文档作为参考。
+                              </Text>
+                            </BlockStack>
                           </Banner>
                         )}
                       </BlockStack>
@@ -144,19 +166,112 @@ export default function UiModulePublishGuide() {
                 </Text>
                 <Banner tone="info">
                   <Text as="p" variant="bodySm">
-                    <strong>重要提示：</strong>UI Extensions 需要 protected customer data 权限才能访问部分客户信息。如果某些属性显示为 null，请检查应用的权限配置。
+                    <strong>重要提示：</strong>UI Extensions 需要 protected customer data 权限才能访问部分客户信息。如果某些属性显示为 null，请检查应用的权限配置。Order status 模块仅支持 Customer Accounts 体系下的订单状态页，不支持旧版订单状态页。如果您的店铺使用旧版订单状态页（非 Customer Accounts），此模块将不会显示。
                   </Text>
                 </Banner>
                 <List type="number">
                   <List.Item>
-                    <Text as="span" variant="bodySm">
-                      进入 <strong>Shopify Admin</strong> → <strong>设置</strong> → <strong>结账和订单处理</strong> → <strong>Checkout Editor</strong>。
-                    </Text>
+                    <BlockStack gap="100">
+                      <Text as="span" variant="bodySm">
+                        进入 <strong>Shopify Admin</strong> → <strong>设置</strong> → <strong>结账和订单处理</strong> → <strong>Checkout Editor</strong>。
+                      </Text>
+                      <Text as="p" variant="bodySm" tone="subdued">
+                        💡 提示：您也可以直接访问 <code>https://admin.shopify.com/store/{'{'}您的店铺域名{'}'}/settings/checkout</code> 并点击"Checkout Editor"按钮。
+                      </Text>
+                      <InlineStack gap="200">
+                        <Button
+                          url={`https://admin.shopify.com/store/${shopDomain}/settings/checkout`}
+                          variant="primary"
+                          size="medium"
+                          external
+                        >
+                          一键打开 Checkout Editor（Deep Link）
+                        </Button>
+                        <Button
+                          url={`https://admin.shopify.com/store/${shopDomain}/settings/checkout?page=thank-you`}
+                          variant="plain"
+                          size="slim"
+                          external
+                        >
+                          直接跳转到 Thank You 页面
+                        </Button>
+                        <Button
+                          url={`https://admin.shopify.com/store/${shopDomain}/settings/checkout?page=order-status`}
+                          variant="plain"
+                          size="slim"
+                          external
+                        >
+                          直接跳转到 Order Status 页面
+                        </Button>
+                      </InlineStack>
+                    </BlockStack>
                   </List.Item>
                   <List.Item>
-                    <Text as="span" variant="bodySm">
-                      在顶部页面选择器中切换到 <strong>Thank you</strong> 或 <strong>Order status</strong> 页面（根据模块的 target 选择对应页面）。
-                    </Text>
+                    <BlockStack gap="100">
+                      <Text as="span" variant="bodySm">
+                        在顶部页面选择器中切换到 <strong>Thank you</strong> 或 <strong>Order status</strong> 页面（根据模块的 target 选择对应页面）。
+                      </Text>
+                      <Banner tone="info">
+                        <BlockStack gap="200">
+                          <Text as="p" variant="bodySm" fontWeight="semibold">
+                            💡 使用 placement-reference 预览测试位点（官方推荐，必须使用）
+                          </Text>
+                          <Text as="p" variant="bodySm">
+                            在 Checkout Editor 中，您可以使用拖拽功能实时预览模块在不同位置的显示效果。Shopify 官方强烈推荐在发布前使用此功能预览不同位置的显示效果，帮助您选择最佳放置位置。
+                          </Text>
+                          <Text as="p" variant="bodySm" fontWeight="semibold">
+                            操作步骤：
+                          </Text>
+                          <List type="number">
+                            <List.Item>
+                              <Text as="span" variant="bodySm">
+                                在 Checkout Editor 中添加模块后，使用鼠标拖拽模块到不同位置
+                              </Text>
+                            </List.Item>
+                            <List.Item>
+                              <Text as="span" variant="bodySm">
+                                实时预览模块在不同位置的显示效果（包括 Thank You 和 Order Status 页面）
+                              </Text>
+                            </List.Item>
+                            <List.Item>
+                              <Text as="span" variant="bodySm">
+                                选择最佳放置位置，确保模块不会遮挡重要信息
+                              </Text>
+                            </List.Item>
+                            <List.Item>
+                              <Text as="span" variant="bodySm">
+                                确认位置后，点击"保存并发布"
+                              </Text>
+                            </List.Item>
+                          </List>
+                          <Text as="p" variant="bodySm">
+                            详细使用方法请参考 <strong>Customer Accounts UI Extensions</strong> 官方文档（<a href="https://shopify.dev/docs/apps/customer-accounts/ui-extensions" target="_blank" rel="noopener noreferrer">https://shopify.dev/docs/apps/customer-accounts/ui-extensions</a>）。注意：不要参考 checkout-ui-extensions 文档，该文档可能显示此 target 为"Not supported"，这是文档版本差异导致的误导。正确的文档入口是 Customer Accounts UI Extensions，不是 Checkout UI Extensions。
+                          </Text>
+                          <Text as="p" variant="bodySm" tone="critical">
+                            ⚠️ 重要：使用 placement-reference 预览功能可以避免发布后才发现位置不合适的问题，强烈建议在发布前充分测试不同位置的显示效果。这是 Shopify 官方推荐的方式，可以显著减少发布后的调整工作。
+                          </Text>
+                        </BlockStack>
+                      </Banner>
+                      <Banner tone="warning">
+                        <BlockStack gap="200">
+                          <Text as="p" variant="bodySm" fontWeight="semibold">
+                            ⚠️ 重要：Order status 页面仅支持 Customer Accounts 体系
+                          </Text>
+                          <Text as="p" variant="bodySm">
+                            Order status 页面仅支持 Customer Accounts 体系下的订单状态页（customer-account.order-status.block.render target）。如果您的店铺使用旧版订单状态页（非 Customer Accounts），此模块将不会显示。请确认您的店铺已启用 Customer Accounts 功能（可在 Shopify Admin → 设置 → 客户账户中检查），否则模块不会在订单状态页显示。这是 Shopify 平台的设计限制，Order status 模块只能在 Customer Accounts 体系下工作。
+                          </Text>
+                          <Text as="p" variant="bodySm">
+                            如果您的店铺未启用 Customer Accounts，请先在 Shopify Admin → 设置 → 客户账户中启用 Customer Accounts 功能，然后才能使用 Order status 模块。
+                          </Text>
+                          <Text as="p" variant="bodySm" fontWeight="semibold">
+                            文档引用说明（避免误导）：
+                          </Text>
+                          <Text as="p" variant="bodySm">
+                            请参考 <strong>Customer Accounts UI Extensions</strong> 官方文档（<a href="https://shopify.dev/docs/apps/customer-accounts/ui-extensions" target="_blank" rel="noopener noreferrer">https://shopify.dev/docs/apps/customer-accounts/ui-extensions</a>）。注意：不要参考 checkout-ui-extensions 文档，该文档可能显示此 target 为"Not supported"，这是文档版本差异导致的误导。正确的文档入口是 Customer Accounts UI Extensions，不是 Checkout UI Extensions。
+                          </Text>
+                        </BlockStack>
+                      </Banner>
+                    </BlockStack>
                   </List.Item>
                   <List.Item>
                     <Text as="span" variant="bodySm">
@@ -248,14 +363,24 @@ export default function UiModulePublishGuide() {
                     </BlockStack>
                   </Box>
                 </InlineStack>
-                <Button
-                  url="https://help.shopify.com/en/manual/checkout-settings/checkout-editor"
-                  external
-                  icon={ExternalIcon}
-                  size="slim"
-                >
-                  查看 Checkout Editor 官方指引
-                </Button>
+                <InlineStack gap="200" wrap>
+                  <Button
+                    url="https://shopify.dev/docs/apps/customer-accounts/ui-extensions"
+                    external
+                    icon={ExternalIcon}
+                    size="slim"
+                  >
+                    查看 Customer Accounts UI Extensions 文档
+                  </Button>
+                  <Button
+                    url="https://help.shopify.com/en/manual/checkout-settings/checkout-editor"
+                    external
+                    icon={ExternalIcon}
+                    size="slim"
+                  >
+                    查看 Checkout Editor 官方指引
+                  </Button>
+                </InlineStack>
               </BlockStack>
             </Card>
             <Card>
@@ -288,6 +413,78 @@ export default function UiModulePublishGuide() {
                 <Divider />
                 <Banner tone="warning">
                   <BlockStack gap="200">
+                    <Text as="p" variant="bodySm" fontWeight="semibold">
+                      <strong>重要：Block 扩展需要手动放置</strong>
+                    </Text>
+                    <Text as="p" variant="bodySm">
+                      Shopify 的 block target 机制要求商家在 Checkout Editor 中手动放置应用 block。模块不会自动显示，必须按照上述步骤在编辑器中添加并发布。这是 Shopify 平台的设计限制，无法自动放置。所有 UI Extension block 都需要在 Checkout Editor 中手动添加并发布，系统不会自动放置。
+                    </Text>
+                    <Text as="p" variant="bodySm" fontWeight="semibold">
+                      <strong>快速跳转到 Checkout Editor（Deep Link，强烈推荐）：</strong>
+                    </Text>
+                    <Text as="p" variant="bodySm">
+                      使用上方"一键打开 Checkout Editor（Deep Link）"按钮可直接跳转到编辑器，无需手动导航。这是最快速的跳转方式，可以直接打开编辑器进行配置。
+                    </Text>
+                    <Text as="p" variant="bodySm">
+                      <strong>Deep Link 地址格式：</strong>
+                    </Text>
+                    <List type="bullet">
+                      <List.Item>
+                        <Text as="span" variant="bodySm">
+                          通用入口：<code>https://admin.shopify.com/store/{'{'}您的店铺域名{'}'}/settings/checkout</code>
+                        </Text>
+                      </List.Item>
+                      <List.Item>
+                        <Text as="span" variant="bodySm">
+                          直接定位到 Thank You 页面：<code>https://admin.shopify.com/store/{'{'}您的店铺域名{'}'}/settings/checkout?page=thank-you</code>
+                        </Text>
+                      </List.Item>
+                      <List.Item>
+                        <Text as="span" variant="bodySm">
+                          直接定位到 Order Status 页面（Customer Accounts）：<code>https://admin.shopify.com/store/{'{'}您的店铺域名{'}'}/settings/checkout?page=order-status</code>
+                        </Text>
+                      </List.Item>
+                    </List>
+                    <Text as="p" variant="bodySm" tone="subdued">
+                      💡 提示：使用 deep link 可以快速定位到需要配置的页面，避免手动导航，提高配置效率。这是 Shopify 平台推荐的方式。点击上方"一键打开 Checkout Editor（Deep Link）"按钮可直接跳转。
+                    </Text>
+                    <Text as="p" variant="bodySm" fontWeight="semibold">
+                      <strong>使用 placement-reference 预览测试位点（官方推荐，必须使用）：</strong>
+                    </Text>
+                    <Text as="p" variant="bodySm">
+                      在 Checkout Editor 中，您可以使用拖拽功能实时预览模块在不同位置的显示效果。Shopify 官方强烈推荐在发布前使用此功能预览不同位置的显示效果，帮助您选择最佳放置位置。
+                    </Text>
+                    <Text as="p" variant="bodySm" fontWeight="semibold">
+                      操作步骤：
+                    </Text>
+                    <List type="number">
+                      <List.Item>
+                        <Text as="span" variant="bodySm">
+                          在 Checkout Editor 中添加模块后，使用鼠标拖拽模块到不同位置
+                        </Text>
+                      </List.Item>
+                      <List.Item>
+                        <Text as="span" variant="bodySm">
+                          实时预览模块在不同位置的显示效果（包括 Thank You 和 Order Status 页面）
+                        </Text>
+                      </List.Item>
+                      <List.Item>
+                        <Text as="span" variant="bodySm">
+                          选择最佳放置位置，确保模块不会遮挡重要信息
+                        </Text>
+                      </List.Item>
+                      <List.Item>
+                        <Text as="span" variant="bodySm">
+                          确认位置后，点击"保存并发布"
+                        </Text>
+                      </List.Item>
+                    </List>
+                    <Text as="p" variant="bodySm">
+                      详细使用方法请参考 <strong>Customer Accounts UI Extensions</strong> 官方文档（<a href="https://shopify.dev/docs/apps/customer-accounts/ui-extensions" target="_blank" rel="noopener noreferrer">https://shopify.dev/docs/apps/customer-accounts/ui-extensions</a>）。注意：不要参考 checkout-ui-extensions 文档，该文档可能显示此 target 为"Not supported"，这是文档版本差异导致的误导。正确的文档入口是 Customer Accounts UI Extensions，不是 Checkout UI Extensions。
+                    </Text>
+                    <Text as="p" variant="bodySm" tone="critical">
+                      ⚠️ 重要：使用 placement-reference 预览功能可以避免发布后才发现位置不合适的问题，强烈建议在发布前充分测试不同位置的显示效果。这是 Shopify 官方推荐的方式，可以显著减少发布后的调整工作。
+                    </Text>
                     <Text as="p" variant="bodySm" fontWeight="semibold">
                       <strong>UI Extensions 限制说明：</strong>
                     </Text>

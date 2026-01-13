@@ -252,8 +252,28 @@ function ModuleCard({
               <Text as="p" variant="bodySm" tone="subdued">
                 {info.description}
                 {info.disabled && info.disabledReason && `（${info.disabledReason}）`}
+                {info.targets.includes("order_status") && (
+                  <Banner tone="warning">
+                    <BlockStack gap="100">
+                      <Text as="p" variant="bodySm" fontWeight="semibold">
+                        重要：Order Status 模块仅支持 Customer Accounts 体系
+                      </Text>
+                      <Text as="p" variant="bodySm">
+                        Order Status 模块使用 <code>customer-account.order-status.block.render</code> target，仅适用于 Customer Accounts 体系下的订单状态页。如果您的店铺使用旧版订单状态页（非 Customer Accounts），此模块将不会显示。这是 Shopify 平台的设计限制，Order status 模块只能在 Customer Accounts 体系下工作。
+                      </Text>
+                      <Text as="p" variant="bodySm">
+                        请确认您的店铺已启用 Customer Accounts 功能（可在 Shopify Admin → 设置 → 客户账户中检查），否则模块不会在订单状态页显示。如果未启用，请先在 Shopify Admin → 设置 → 客户账户中启用 Customer Accounts 功能，然后才能使用 Order status 模块。
+                      </Text>
+                      <Text as="p" variant="bodySm" fontWeight="semibold">
+                        文档引用说明（避免误导）：
+                      </Text>
+                      <Text as="p" variant="bodySm">
+                        请参考 <strong>Customer Accounts UI Extensions</strong> 官方文档（<a href="https://shopify.dev/docs/apps/customer-accounts/ui-extensions" target="_blank" rel="noopener noreferrer">https://shopify.dev/docs/apps/customer-accounts/ui-extensions</a>）。注意：不要参考 checkout-ui-extensions 文档，该文档可能显示此 target 为"Not supported"，这是文档版本差异导致的误导。正确的文档入口是 Customer Accounts UI Extensions，不是 Checkout UI Extensions。
+                      </Text>
+                    </BlockStack>
+                  </Banner>
+                )}
               </Text>
-              {}
               {module.moduleKey === "survey" && surveySubmissionCount !== undefined && surveySubmissionCount > 0 && (
                 <Text as="p" variant="bodySm" tone="subdued">
                   最近7天提交量: {surveySubmissionCount} 条
@@ -283,7 +303,7 @@ function ModuleCard({
         <InlineStack gap="100">
           {info.targets.map((target) => (
             <Tag key={target}>
-              {target === "thank_you" ? "Thank You 页" : "订单状态页"}
+              {target === "thank_you" ? "Thank You 页" : "Order Status 页（仅 Customer Accounts 体系）"}
             </Tag>
           ))}
           <Tag>{getCategoryLabel(info.category)}</Tag>
@@ -414,7 +434,7 @@ export default function UiBlocksPage() {
   return (
       <Page
       title="Thank you / Order status 模块"
-      subtitle="v1 仅支持：Survey 问卷 + Helpdesk 帮助中心（二选一）• 基于 Checkout UI Extensions，符合 Shopify 官方推荐 • Survey 是官方教程背书的场景 • Migration $49/月"
+      subtitle="v1 仅支持：Survey 问卷 + Helpdesk 帮助中心（二选一）• 基于 Customer Accounts UI Extensions，符合 Shopify 官方推荐 • Survey 是官方教程背书的场景 • Migration $49/月"
       primaryAction={{
         content: "刷新",
         onAction: () => revalidator.revalidate(),
@@ -482,9 +502,81 @@ export default function UiBlocksPage() {
             </List>
             <Divider />
             <Text as="p" variant="bodySm">
-              配置完成后，模块将自动显示在对应页面（Survey 和 Helpdesk 支持 Thank You 和 Order Status）。
-              您可以在 Shopify Admin 的 <strong>Checkout Editor</strong> 中调整模块位置和样式。
+              配置完成后，模块将在对应页面显示（Survey 和 Helpdesk 支持 Thank You 和 Order Status）。注意：Order Status 模块仅支持 Customer Accounts 体系下的订单状态页，不支持旧版订单状态页。
+              您需要在 Shopify Admin 的 <strong>Checkout Editor</strong> 中手动添加并发布模块，然后才能在客户侧看到。这是 Shopify 平台的设计限制，模块不会自动显示。必须手动在 Checkout Editor 中放置并发布。
             </Text>
+            <Text as="p" variant="bodySm" fontWeight="semibold">
+              快速配置步骤（强烈推荐）：
+            </Text>
+            <List type="number">
+              <List.Item>
+                <Text as="span" variant="bodySm">
+                  点击上方"一键打开 Checkout Editor（Deep Link）"按钮，直接跳转到编辑器
+                </Text>
+              </List.Item>
+              <List.Item>
+                <Text as="span" variant="bodySm">
+                  在页面选择器中选择 Thank You 或 Order Status 页面（根据模块 target 选择）。注意：Order Status 页面仅支持 Customer Accounts 体系，如果您的店铺使用旧版订单状态页，请选择 Thank You 页面。
+                </Text>
+              </List.Item>
+              <List.Item>
+                <Text as="span" variant="bodySm">
+                  点击"添加区块"，找到 Tracking Guardian 应用，选择对应模块并添加
+                </Text>
+              </List.Item>
+              <List.Item>
+                <Text as="span" variant="bodySm">
+                  使用拖拽功能预览模块在不同位置的显示效果（placement-reference 功能），选择最佳位置
+                </Text>
+              </List.Item>
+              <List.Item>
+                <Text as="span" variant="bodySm">
+                  确认位置后，点击"保存并发布"
+                </Text>
+              </List.Item>
+            </List>
+            <Text as="p" variant="bodySm" tone="subdued">
+              💡 提示：使用 deep link 可以快速定位到需要配置的页面，使用 placement-reference 预览功能可以避免发布后才发现位置不合适的问题。这是 Shopify 官方推荐的方式。强烈建议在发布前使用 placement-reference 功能预览不同位置的显示效果，选择最佳放置位置。
+            </Text>
+            <Banner tone="warning">
+              <BlockStack gap="200">
+                <Text as="p" variant="bodySm" fontWeight="semibold">
+                  <strong>重要提示：Order Status 模块仅支持 Customer Accounts 体系</strong>
+                </Text>
+                <Text as="p" variant="bodySm">
+                  Order Status 模块使用 <code>customer-account.order-status.block.render</code> target，仅适用于 Customer Accounts 体系下的订单状态页。如果您的店铺使用旧版订单状态页（非 Customer Accounts），Order Status 模块将不会显示。这是 Shopify 平台的设计限制，Order status 模块只能在 Customer Accounts 体系下工作。
+                </Text>
+                <Text as="p" variant="bodySm">
+                  请确认您的店铺已启用 Customer Accounts 功能，否则模块不会在订单状态页显示。您可以在 Shopify Admin → 设置 → 客户账户中检查 Customer Accounts 是否已启用。如果未启用，请先在 Shopify Admin → 设置 → 客户账户中启用 Customer Accounts 功能，然后才能使用 Order status 模块。
+                </Text>
+                <Text as="p" variant="bodySm" fontWeight="semibold">
+                  如何检查 Customer Accounts 是否已启用：
+                </Text>
+                <List type="number">
+                  <List.Item>
+                    <Text as="span" variant="bodySm">
+                      进入 Shopify Admin → 设置 → 客户账户
+                    </Text>
+                  </List.Item>
+                  <List.Item>
+                    <Text as="span" variant="bodySm">
+                      查看"客户账户"设置页面，确认 Customer Accounts 功能已启用
+                    </Text>
+                  </List.Item>
+                  <List.Item>
+                    <Text as="span" variant="bodySm">
+                      如果未启用，请按照 Shopify 官方指引启用 Customer Accounts 功能
+                    </Text>
+                  </List.Item>
+                </List>
+                <Text as="p" variant="bodySm" fontWeight="semibold">
+                  文档引用说明：
+                </Text>
+                <Text as="p" variant="bodySm">
+                  Order status block 使用 <code>customer-account.order-status.block.render</code> target，请参考 <strong>Customer Accounts UI Extensions</strong> 官方文档（<a href="https://shopify.dev/docs/apps/customer-accounts/ui-extensions" target="_blank" rel="noopener noreferrer">https://shopify.dev/docs/apps/customer-accounts/ui-extensions</a>）。注意：不要参考 checkout-ui-extensions 文档，该文档可能显示此 target 为"Not supported"，这是文档版本差异导致的误导。正确的文档入口是 Customer Accounts UI Extensions，不是 Checkout UI Extensions。
+                </Text>
+              </BlockStack>
+            </Banner>
             <BlockStack gap="100">
               <Text as="p" variant="bodySm" fontWeight="semibold">
                 Target 说明：
@@ -496,20 +588,83 @@ export default function UiBlocksPage() {
                   </Text>
                 </List.Item>
                 <List.Item>
-                  <Text as="span" variant="bodySm">
-                    <strong>Order status block：</strong>使用 <code>customer-account.order-status.block.render</code> target
-                  </Text>
+                  <BlockStack gap="100">
+                    <Text as="span" variant="bodySm">
+                      <strong>Order status block：</strong>使用 <code>customer-account.order-status.block.render</code> target。
+                    </Text>
+                    <Banner tone="warning">
+                      <BlockStack gap="100">
+                        <Text as="p" variant="bodySm" fontWeight="semibold">
+                          重要：仅适用于 Customer Accounts 体系下的订单状态页
+                        </Text>
+                        <Text as="p" variant="bodySm">
+                          不支持旧版订单状态页。如果您的店铺使用旧版订单状态页（非 Customer Accounts），此模块将不会显示。请确认您的店铺已启用 Customer Accounts 功能（可在 Shopify Admin → 设置 → 客户账户中检查），否则模块不会在订单状态页显示。这是 Shopify 平台的设计限制，Order status 模块只能在 Customer Accounts 体系下工作。
+                        </Text>
+                        <Text as="p" variant="bodySm">
+                          如果您的店铺未启用 Customer Accounts，Order status 模块将无法使用，请先在 Shopify Admin → 设置 → 客户账户中启用 Customer Accounts 功能。
+                        </Text>
+                        <Text as="p" variant="bodySm" fontWeight="semibold">
+                          文档引用说明：
+                        </Text>
+                        <Text as="p" variant="bodySm">
+                          请参考 <strong>Customer Accounts UI Extensions</strong> 官方文档（<a href="https://shopify.dev/docs/apps/customer-accounts/ui-extensions" target="_blank" rel="noopener noreferrer">https://shopify.dev/docs/apps/customer-accounts/ui-extensions</a>）。注意：不要参考 checkout-ui-extensions 文档，该文档可能显示此 target 为"Not supported"，这是文档版本差异导致的误导。正确的文档入口是 Customer Accounts UI Extensions，不是 Checkout UI Extensions。
+                        </Text>
+                      </BlockStack>
+                    </Banner>
+                  </BlockStack>
                 </List.Item>
               </List>
             </BlockStack>
-            <Button
-              url="https://help.shopify.com/en/manual/pixels/customer-events"
-              variant="plain"
-              size="slim"
-              external
-            >
-              打开 Checkout Editor
-            </Button>
+            <InlineStack gap="200">
+              <Button
+                url="https://shopify.dev/docs/apps/customer-accounts/ui-extensions"
+                variant="plain"
+                size="slim"
+                external
+              >
+                查看 Customer Accounts UI Extensions 文档
+              </Button>
+              <Button
+                url={`https://admin.shopify.com/store/${shopDomain}/settings/checkout`}
+                variant="primary"
+                size="medium"
+                external
+              >
+                一键打开 Checkout Editor（Deep Link）
+              </Button>
+              <Button
+                url={`https://admin.shopify.com/store/${shopDomain}/settings/checkout?page=thank-you`}
+                variant="plain"
+                size="slim"
+                external
+              >
+                跳转到 Thank You 页面
+              </Button>
+              <Button
+                url={`https://admin.shopify.com/store/${shopDomain}/settings/checkout?page=order-status`}
+                variant="plain"
+                size="slim"
+                external
+              >
+                跳转到 Order Status 页面
+              </Button>
+            </InlineStack>
+            <Banner tone="warning">
+              <BlockStack gap="200">
+                <Text as="p" variant="bodySm" fontWeight="semibold">
+                  文档引用说明（避免误导）
+                </Text>
+                <Text as="p" variant="bodySm">
+                  Order status block 使用 <code>customer-account.order-status.block.render</code> target，请参考 <strong>Customer Accounts UI Extensions</strong> 官方文档（<a href="https://shopify.dev/docs/apps/customer-accounts/ui-extensions" target="_blank" rel="noopener noreferrer">https://shopify.dev/docs/apps/customer-accounts/ui-extensions</a>）。
+                </Text>
+                <Text as="p" variant="bodySm" fontWeight="semibold">
+                  重要：不要参考 checkout-ui-extensions 文档
+                </Text>
+                <Text as="p" variant="bodySm">
+                  checkout-ui-extensions 文档可能显示此 target 为"Not supported"，这是文档版本差异导致的误导。正确的文档入口是 Customer Accounts UI Extensions，不是 Checkout UI Extensions。请务必使用 Customer Accounts UI Extensions 文档作为参考。
+                </Text>
+              </BlockStack>
+            </Banner>
           </BlockStack>
         </Banner>
         {selectedModules.size > 0 && (

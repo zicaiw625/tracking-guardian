@@ -146,10 +146,10 @@ export function DisplayRulesEditor({
                 helpText="订单完成后的感谢页面"
               />
               <Checkbox
-                label="Order Status 页面"
+                label="Order Status 页面（仅 Customer Accounts）"
                 checked={displayRules.targets?.includes("order_status") || false}
                 onChange={(checked) => handleTargetToggle("order_status", checked)}
-                helpText="订单状态查询页面"
+                helpText="订单状态查询页面（仅支持 Customer Accounts 体系，不支持旧版订单状态页）。如果您的店铺使用旧版订单状态页（非 Customer Accounts），此模块将不会显示。请确认您的店铺已启用 Customer Accounts 功能（可在 Shopify Admin → 设置 → 客户账户中检查），否则模块不会在订单状态页显示。这是 Shopify 平台的设计限制，Order status 模块只能在 Customer Accounts 体系下工作。"
               />
             </BlockStack>
           </BlockStack>

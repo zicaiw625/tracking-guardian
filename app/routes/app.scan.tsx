@@ -2833,7 +2833,7 @@ export function ScanPage({
                   🛒 Checkout Editor（Plus 专属）
                 </Text>
                 <Text as="p" variant="bodySm" tone="subdued">
-                  如果您是 Shopify Plus 商家，可以使用 Checkout UI Extension 替代 Additional Scripts。
+                  如果您是 Shopify Plus 商家，可以使用 Customer Accounts UI Extensions 替代 Additional Scripts。
                 </Text>
                 <InlineStack gap="300" wrap>
                   <Button
@@ -3040,11 +3040,14 @@ export function ScanPage({
                         <BlockStack gap="100">
                           <Badge tone="warning">UI Extension 替代</Badge>
                           <Text as="p" variant="bodySm">
-                            • Additional Scripts → Checkout UI Extension
+                            • Additional Scripts → Customer Accounts UI Extensions
                             <br />• Thank you/Order status 自定义脚本 → UI Extension Blocks（可替代 legacy thank-you/order-status 自定义脚本的模块库：Survey 问卷、Help 帮助中心、Reorder 再购按钮等）
                           </Text>
                           <Text as="p" variant="bodySm" tone="subdued">
-                            <strong>迁移价值：</strong>基于 Checkout UI Extensions，符合 Shopify 官方推荐，替代 Additional Scripts 中的问卷、售后按钮等自定义脚本
+                            <strong>迁移价值：</strong>基于 Customer Accounts UI Extensions，符合 Shopify 官方推荐，替代 Additional Scripts 中的问卷、售后按钮等自定义脚本
+                          </Text>
+                          <Text as="p" variant="bodySm" tone="subdued">
+                            <strong>重要提示：</strong>Order status 模块仅支持 Customer Accounts 体系下的订单状态页，不支持旧版订单状态页。如果您的店铺使用旧版订单状态页（非 Customer Accounts），Order status 模块将不会显示。请确认您的店铺已启用 Customer Accounts 功能（可在 Shopify Admin → 设置 → 客户账户中检查），否则模块不会在订单状态页显示。这是 Shopify 平台的设计限制，Order status 模块只能在 Customer Accounts 体系下工作。请参考 <a href="https://shopify.dev/docs/apps/customer-accounts/ui-extensions" target="_blank" rel="noopener noreferrer">Customer Accounts UI Extensions 官方文档</a>（注意：不要参考 checkout-ui-extensions 文档，该文档可能显示此 target 为"Not supported"，这是文档版本差异导致的误导。正确的文档入口是 Customer Accounts UI Extensions，不是 Checkout UI Extensions）。
                           </Text>
                         </BlockStack>
                       </Box>

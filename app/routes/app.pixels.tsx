@@ -12,11 +12,13 @@ import {
   Button,
   DataTable,
   List,
+  Banner,
 } from "@shopify/polaris";
 import { EnhancedEmptyState } from "~/components/ui";
 import { PageIntroCard } from "~/components/layout/PageIntroCard";
 import { authenticate } from "~/shopify.server";
 import prisma from "~/db.server";
+import { getPixelEventIngestionUrl } from "~/utils/config";
 
 function extractPlatformFromPayload(payload: Record<string, unknown> | null): string | null {
   if (!payload) return null;
@@ -89,15 +91,17 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     }
     return acc;
   }, {} as Record<string, { status: string; createdAt: string }>);
+  const backendUrlInfo = getPixelEventIngestionUrl();
   return json({
     shop: { id: shop.id, domain: shop.shopDomain },
     pixelConfigs,
     latestByKey,
+    backendUrlInfo,
   });
 };
 
 export default function PixelsListPage() {
-  const { shop, pixelConfigs, latestByKey } = useLoaderData<typeof loader>();
+  const { shop, pixelConfigs, latestByKey, backendUrlInfo } = useLoaderData<typeof loader>();
   if (!shop) {
     return (
       <Page title="Pixels">
@@ -175,7 +179,24 @@ export default function PixelsListPage() {
           primaryAction={{ content: "新建 Pixel 配置", url: "/app/pixels/new" }}
           secondaryAction={{ content: "查看测试指引", url: "/app/pixels/new" }}
         />
-        {}
+        {backendUrlInfo.placeholderDetected && (
+          <Banner tone="critical">
+            <BlockStack gap="200">
+              <Text as="p" variant="bodySm" fontWeight="semibold">
+                检测到占位符，URL 未在构建时替换
+              </Text>
+              <Text as="p" variant="bodySm">
+                像素扩展配置中仍包含 __BACKEND_URL_PLACEHOLDER__，这表明构建流程未正确替换占位符。如果占位符未被替换，像素扩展将无法发送事件到后端，导致事件丢失。这是一个严重的配置错误，必须在上线前修复。
+              </Text>
+              <Text as="p" variant="bodySm">
+                请在 CI/CD 流程中确保运行 'pnpm ext:inject' 或相应的构建脚本，将 SHOPIFY_APP_URL 环境变量注入到扩展配置中。同时确保该 URL 已在 Web Pixel Extension 的 allowlist 中配置。
+              </Text>
+              <Button url="/app/pixels/new" variant="primary" size="slim">
+                前往测试页面查看详细检查
+              </Button>
+            </BlockStack>
+          </Banner>
+        )}
         <Card>
           <BlockStack gap="300">
             <Text as="h2" variant="headingMd">

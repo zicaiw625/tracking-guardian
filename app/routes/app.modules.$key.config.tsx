@@ -78,8 +78,8 @@ export default function UiModuleConfigPage() {
                 "查看和切换模块启用状态",
                 "文案和样式在 Checkout Editor 中配置",
                 moduleKey === "reorder" 
-                  ? "发布后模块将自动显示在 Order Status 页面（仅限客户账户）"
-                  : "发布后模块将自动显示在 Thank You / Order Status 页面",
+                  ? "发布后模块将显示在 Order Status 页面（仅限 Customer Accounts 体系，需手动在 Checkout Editor 中放置）"
+                  : "发布后模块将显示在 Thank You / Order Status 页面（需手动在 Checkout Editor 中放置，Order Status 仅支持 Customer Accounts 体系）",
               ]}
               primaryAction={{ content: "发布指引", url: `/app/modules/${moduleKey}/publish` }}
               secondaryAction={{ content: "返回模块列表", url: "/app/modules" }}
@@ -128,7 +128,7 @@ export default function UiModuleConfigPage() {
                         .map((t) =>
                           t === "thank_you"
                             ? "Thank you"
-                            : "Order status"
+                            : "Order status（仅 Customer Accounts 体系，不支持旧版订单状态页。如果您的店铺使用旧版订单状态页（非 Customer Accounts），此模块将不会显示。请确认您的店铺已启用 Customer Accounts 功能）"
                         )
                         .join(", ")}
                     </Text>
@@ -143,7 +143,33 @@ export default function UiModuleConfigPage() {
                     ⚠️ 重要：仅支持 Order Status 页面
                   </Text>
                   <Text as="p" variant="bodySm">
-                    <strong>再购功能仅在 Order Status 页面（customer-account.order-status.block.render）可用，不支持 Thank You 页面。</strong>此功能需要访问客户账户信息（如客户 ID），这些信息仅在客户账户上下文中可用。
+                    <strong>再购功能仅在 Customer Accounts 的 Order Status 页面（customer-account.order-status.block.render）可用，不支持 Thank You 页面。</strong>此功能需要访问客户账户信息（如客户 ID），这些信息仅在 Customer Accounts 上下文中可用。
+                  </Text>
+                  <Text as="p" variant="bodySm">
+                    <strong>重要：仅支持 Customer Accounts 体系下的订单状态页</strong>，不支持旧版订单状态页。如果您的店铺使用旧版订单状态页（非 Customer Accounts），此模块将不会显示。请确认您的店铺已启用 Customer Accounts 功能（可在 Shopify Admin → 设置 → 客户账户中检查），否则模块不会在订单状态页显示。这是 Shopify 平台的设计限制，Order status 模块只能在 Customer Accounts 体系下工作。
+                  </Text>
+                  <Text as="p" variant="bodySm" fontWeight="semibold">
+                    如何检查 Customer Accounts 是否已启用：
+                  </Text>
+                  <List type="number">
+                    <List.Item>
+                      <Text as="span" variant="bodySm">
+                        进入 Shopify Admin → 设置 → 客户账户
+                      </Text>
+                    </List.Item>
+                    <List.Item>
+                      <Text as="span" variant="bodySm">
+                        查看"客户账户"设置页面，确认 Customer Accounts 功能已启用
+                      </Text>
+                    </List.Item>
+                    <List.Item>
+                      <Text as="span" variant="bodySm">
+                        如果未启用，请按照 Shopify 官方指引启用 Customer Accounts 功能
+                      </Text>
+                    </List.Item>
+                  </List>
+                  <Text as="p" variant="bodySm" tone="subdued">
+                    参考文档：请参考 <a href="https://shopify.dev/docs/apps/customer-accounts/ui-extensions" target="_blank" rel="noopener noreferrer">Customer Accounts UI Extensions 官方文档</a>（注意：不要参考 checkout-ui-extensions 文档，该文档可能显示此 target 为"Not supported"，这是文档版本差异导致的误导。正确的文档入口是 Customer Accounts UI Extensions，不是 Checkout UI Extensions）。
                   </Text>
                   <Text as="p" variant="bodySm" fontWeight="semibold">
                     ⚠️ 需要 PCD 审核批准
@@ -180,7 +206,7 @@ export default function UiModuleConfigPage() {
                   </List.Item>
                   <List.Item>
                     <Text as="span" variant="bodySm">
-                      <strong>Order status block (customer-account.order-status.block.render)：</strong>需要 PCD 权限才能访问客户账户信息（如客户邮箱、地址等）
+                      <strong>Order status block (customer-account.order-status.block.render)：</strong>仅支持 Customer Accounts 体系下的订单状态页，需要 PCD 权限才能访问客户账户信息（如客户邮箱、地址等）。旧版订单状态页（非 Customer Accounts）不会显示此模块。这是 Shopify 平台的设计限制，Order status 模块只能在 Customer Accounts 体系下工作。请确认您的店铺已启用 Customer Accounts 功能（可在 Shopify Admin → 设置 → 客户账户中检查），否则模块不会在订单状态页显示。如果您的店铺使用旧版订单状态页，此模块将不会显示。请参考 <a href="https://shopify.dev/docs/apps/customer-accounts/ui-extensions" target="_blank" rel="noopener noreferrer">Customer Accounts UI Extensions 官方文档</a>（注意：不要参考 checkout-ui-extensions 文档，该文档可能显示此 target 为"Not supported"，这是文档版本差异导致的误导。正确的文档入口是 Customer Accounts UI Extensions，不是 Checkout UI Extensions）。
                     </Text>
                   </List.Item>
                 </List>

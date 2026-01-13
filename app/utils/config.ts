@@ -482,6 +482,14 @@ export function getPixelEventIngestionUrl(): {
     isConfigured: boolean;
     isLocalhost: boolean;
     warning?: string;
+    placeholderDetected?: boolean;
+    pixelExtensionUrl?: string;
+    allowlistStatus?: {
+        inAllowlist: boolean;
+        hostname: string;
+        allowedHosts: string[];
+        pixelExtensionHostname?: string;
+    };
 } {
     const shopifyAppUrl = process.env.SHOPIFY_APP_URL;
     const fallbackUrl = "https://app.tracking-guardian.com"
@@ -493,9 +501,26 @@ export function getPixelEventIngestionUrl(): {
             warning: "SHOPIFY_APP_URL 未配置，使用默认的生产环境 URL。如果您运行在自己的服务器上，请确保在环境变量中设置 SHOPIFY_APP_URL。",
         };
     }
+    const placeholderDetected = shopifyAppUrl.includes("__BACKEND_URL_PLACEHOLDER__") || shopifyAppUrl.includes("PLACEHOLDER");
+    if (placeholderDetected) {
+        return {
+            url: shopifyAppUrl,
+            isConfigured: false,
+            isLocalhost: false,
+            warning: "检测到占位符 __BACKEND_URL_PLACEHOLDER__，URL 未在构建时替换。这是严重的配置错误，必须在上线前修复。请在 CI/CD 流程中运行 'pnpm ext:inject' 或确保 SHOPIFY_APP_URL 已正确注入。如果占位符未被替换，像素扩展将无法发送事件到后端，导致事件丢失。这是导致事件丢失的常见原因，必须在生产环境部署前修复。",
+            placeholderDetected: true,
+            pixelExtensionUrl: null,
+        };
+    }
     try {
         const parsed = new URL(shopifyAppUrl);
-        const isLocalhost = parsed.hostname === "localhost" || parsed.hostname === "127.0.0.1";
+        const hostname = parsed.hostname;
+        const isLocalhost = hostname === "localhost" || hostname === "127.0.0.1";
+        const allowedHosts: string[] = [];
+        if (hostname) {
+            allowedHosts.push(hostname);
+        }
+        const inAllowlist = !isLocalhost;
         return {
             url: shopifyAppUrl,
             isConfigured: true,
@@ -503,6 +528,13 @@ export function getPixelEventIngestionUrl(): {
             warning: isLocalhost
                 ? "当前配置的是本地开发 URL，像素事件将不会发送到生产环境。"
                 : undefined,
+            pixelExtensionUrl: shopifyAppUrl,
+            allowlistStatus: {
+                inAllowlist,
+                hostname,
+                allowedHosts,
+                pixelExtensionHostname: hostname,
+            },
         };
     } catch {
         return {

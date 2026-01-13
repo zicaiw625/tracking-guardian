@@ -13,6 +13,7 @@ import {
   Button,
   Banner,
   Divider,
+  Link,
 } from "@shopify/polaris";
 import { EnhancedEmptyState, useToastContext } from "~/components/ui";
 import { PageIntroCard } from "~/components/layout/PageIntroCard";
@@ -20,6 +21,7 @@ import { authenticate } from "~/shopify.server";
 import prisma from "~/db.server";
 import { validateTestEnvironment } from "~/services/migration-wizard.server";
 import { normalizePlanId, planSupportsFeature } from "~/services/billing/plans";
+import { getPixelEventIngestionUrl } from "~/utils/config";
 
 const RealtimeEventMonitor = lazy(() => import("~/components/verification/RealtimeEventMonitor").then(module => ({
   default: module.RealtimeEventMonitor,
@@ -77,10 +79,12 @@ export const loader = async ({ request, params }: LoaderFunctionArgs) => {
       })
     );
   }
+  const backendUrlInfo = getPixelEventIngestionUrl();
   return json({
     shop: { id: shop.id, domain: shop.shopDomain },
     pixelConfig,
     hasVerificationAccess,
+    backendUrlInfo,
   });
 };
 
@@ -129,7 +133,7 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
 };
 
 export default function PixelTestPage() {
-  const { shop, pixelConfig, hasVerificationAccess } = useLoaderData<typeof loader>();
+  const { shop, pixelConfig, hasVerificationAccess, backendUrlInfo } = useLoaderData<typeof loader>();
   const actionData = useActionData<typeof action>();
   const submit = useSubmit();
   const navigation = useNavigation();
@@ -198,6 +202,247 @@ export default function PixelTestPage() {
               <Text as="p" tone="subdued">
                 平台 ID：{pixelConfig.platformId || "未填写"}
               </Text>
+              <Divider />
+              <BlockStack gap="200">
+                <Text as="h3" variant="headingSm">后端 URL 配置检查（硬校验）</Text>
+                {backendUrlInfo.placeholderDetected ? (
+                  <Banner tone="critical">
+                    <BlockStack gap="100">
+                      <Text as="p" variant="bodySm" fontWeight="semibold">
+                        检测到占位符，URL 未在构建时替换
+                      </Text>
+                      <Text as="p" variant="bodySm">
+                        {backendUrlInfo.warning || "像素扩展配置中仍包含 __BACKEND_URL_PLACEHOLDER__，这表明构建流程未正确替换占位符。"}
+                      </Text>
+                      <Text as="p" variant="bodySm" fontWeight="semibold">
+                        影响说明：
+                      </Text>
+                      <Text as="p" variant="bodySm">
+                        如果占位符未被替换，像素扩展将无法发送事件到后端，导致事件丢失。这是一个严重的配置错误，必须在上线前修复。
+                      </Text>
+                      <Text as="p" variant="bodySm" tone="subdued">
+                        修复方法：请在 CI/CD 流程中确保运行 'pnpm ext:inject' 或相应的构建脚本，将 SHOPIFY_APP_URL 环境变量注入到扩展配置中。同时确保该 URL 已在 Web Pixel Extension 的 allowlist 中配置。
+                      </Text>
+                      <Text as="p" variant="bodySm" fontWeight="semibold">
+                        CI/CD 流程检查清单：
+                      </Text>
+                      <List type="number">
+                        <List.Item>
+                          <Text as="span" variant="bodySm">
+                            确保在构建前设置 SHOPIFY_APP_URL 环境变量
+                          </Text>
+                        </List.Item>
+                        <List.Item>
+                          <Text as="span" variant="bodySm">
+                            在构建流程中运行 <code>pnpm ext:inject</code> 或 <code>node scripts/build-extensions.mjs inject</code>
+                          </Text>
+                        </List.Item>
+                        <List.Item>
+                          <Text as="span" variant="bodySm">
+                            验证占位符已被替换（检查 extensions/shared/config.ts 中的 BUILD_TIME_URL）
+                          </Text>
+                        </List.Item>
+                        <List.Item>
+                          <Text as="span" variant="bodySm">
+                            确保该 URL 已在 Partner Dashboard → App → API access → UI extensions network access 的 allowlist 中配置
+                          </Text>
+                        </List.Item>
+                      </List>
+                      <Text as="p" variant="bodySm" fontWeight="semibold">
+                        服务器端检测到的 URL（脱敏）：
+                      </Text>
+                      <Text as="p" variant="bodySm" tone="subdued">
+                        {(() => {
+                          try {
+                            const url = new URL(backendUrlInfo.url);
+                            const hostname = url.hostname;
+                            if (hostname.length > 30) {
+                              return hostname.substring(0, 20) + "..." + hostname.substring(hostname.length - 10);
+                            }
+                            return hostname;
+                          } catch {
+                            return backendUrlInfo.url.substring(0, 30) + "...";
+                          }
+                        })()}
+                      </Text>
+                      <Text as="p" variant="bodySm" fontWeight="semibold">
+                        像素扩展端解析到的 backendUrl（硬校验）：
+                      </Text>
+                      <Text as="p" variant="bodySm" tone="subdued">
+                        {backendUrlInfo.pixelExtensionUrl ? (() => {
+                          try {
+                            const url = new URL(backendUrlInfo.pixelExtensionUrl);
+                            const hostname = url.hostname;
+                            if (hostname.length > 30) {
+                              return hostname.substring(0, 20) + "..." + hostname.substring(hostname.length - 10);
+                            }
+                            return hostname;
+                          } catch {
+                            return backendUrlInfo.pixelExtensionUrl.substring(0, 50) + "...";
+                          }
+                        })() : "未配置（占位符未替换）"}
+                      </Text>
+                      <Text as="p" variant="bodySm" tone="subdued">
+                        💡 硬校验说明：此 URL 是服务器端根据构建时注入的 SHOPIFY_APP_URL 环境变量解析得到的，应与像素扩展端解析到的 URL 一致。如果占位符未替换，像素扩展将无法发送事件。您可以在浏览器控制台（开发模式下）检查像素扩展实际解析到的 URL（查找 "[Tracking Guardian]" 日志中的 "Backend URL resolved (硬校验)"），确保与服务器端检测到的 URL 一致。如果两者不一致或占位符未替换，请检查 CI/CD 流程是否正确替换了 __BACKEND_URL_PLACEHOLDER__，并确保该 URL 已在 Web Pixel Extension 的 allowlist 中配置。这是导致事件丢失的常见原因，必须在上线前验证。
+                      </Text>
+                      <Text as="p" variant="bodySm" fontWeight="semibold">
+                        构建流程验证步骤：
+                      </Text>
+                      <List type="number">
+                        <List.Item>
+                          <Text as="span" variant="bodySm">
+                            检查构建日志中是否显示 "Successfully injected BACKEND_URL"
+                          </Text>
+                        </List.Item>
+                        <List.Item>
+                          <Text as="span" variant="bodySm">
+                            验证 extensions/shared/config.ts 中的 BUILD_TIME_URL 不包含 "__BACKEND_URL_PLACEHOLDER__"
+                          </Text>
+                        </List.Item>
+                        <List.Item>
+                          <Text as="span" variant="bodySm">
+                            在浏览器控制台（开发模式）检查像素扩展解析到的 backendUrl，确保与服务器端一致
+                          </Text>
+                        </List.Item>
+                        <List.Item>
+                          <Text as="span" variant="bodySm">
+                            确认该 URL 已在 Partner Dashboard 的 allowlist 中配置
+                          </Text>
+                        </List.Item>
+                      </List>
+                      {backendUrlInfo.allowlistStatus && (
+                        <BlockStack gap="100">
+                          <Text as="p" variant="bodySm" fontWeight="semibold">
+                            Allowlist 状态对照（硬校验）：
+                          </Text>
+                          <Text as="p" variant="bodySm" tone="subdued">
+                            {backendUrlInfo.allowlistStatus.inAllowlist ? "✅ 已配置" : "⚠️ 需要验证"}
+                          </Text>
+                          <Text as="p" variant="bodySm" tone="subdued">
+                            服务器端检测到的主机名：{backendUrlInfo.allowlistStatus.hostname}
+                          </Text>
+                          <Text as="p" variant="bodySm" tone="subdued">
+                            允许的主机列表：{backendUrlInfo.allowlistStatus.allowedHosts.length > 0 ? backendUrlInfo.allowlistStatus.allowedHosts.join(", ") : "无"}
+                          </Text>
+                          <Text as="p" variant="bodySm" tone="subdued">
+                            像素扩展解析到的主机名：{backendUrlInfo.allowlistStatus.pixelExtensionHostname || backendUrlInfo.allowlistStatus.hostname}
+                          </Text>
+                          {!backendUrlInfo.allowlistStatus.inAllowlist && (
+                            <Text as="p" variant="bodySm" tone="critical">
+                              ⚠️ 警告：检测到后端 URL 可能未在 allowlist 中。请检查 Web Pixel Extension 配置，确保后端域名已添加到 allowlist，否则像素事件将无法发送。这是导致事件丢失的常见原因。
+                            </Text>
+                          )}
+                        </BlockStack>
+                      )}
+                      <Text as="p" variant="bodySm" tone="subdued">
+                        💡 硬校验说明：此页面显示服务器端检测到的 URL 和像素扩展端解析到的 URL。如果占位符未替换或 URL 不一致，像素事件将无法发送。请确保 CI/CD 流程正确替换了 __BACKEND_URL_PLACEHOLDER__。您可以在浏览器控制台（开发模式下）检查像素扩展实际解析到的 URL（查找 "[Tracking Guardian]" 日志中的 "Backend URL resolved (硬校验)"），确保与服务器端检测到的 URL 一致。这是导致事件丢失的常见原因，必须在上线前验证。
+                      </Text>
+                    </BlockStack>
+                  </Banner>
+                ) : backendUrlInfo.isConfigured ? (
+                  <Banner tone={backendUrlInfo.isLocalhost ? "warning" : "success"}>
+                    <BlockStack gap="100">
+                      <Text as="p" variant="bodySm" fontWeight="semibold">
+                        后端 URL 配置状态
+                      </Text>
+                      <Text as="p" variant="bodySm" fontWeight="semibold">
+                        服务器端检测到的 URL（脱敏）：
+                      </Text>
+                      <Text as="p" variant="bodySm">
+                        {(() => {
+                          try {
+                            const url = new URL(backendUrlInfo.url);
+                            const hostname = url.hostname;
+                            if (hostname.length > 30) {
+                              return hostname.substring(0, 20) + "..." + hostname.substring(hostname.length - 10);
+                            }
+                            return hostname;
+                          } catch {
+                            return backendUrlInfo.url.substring(0, 50) + "...";
+                          }
+                        })()}
+                      </Text>
+                      {backendUrlInfo.allowlistStatus && (
+                        <BlockStack gap="100">
+                          <Text as="p" variant="bodySm" fontWeight="semibold">
+                            Allowlist 状态对照：
+                          </Text>
+                          <Text as="p" variant="bodySm">
+                            {backendUrlInfo.allowlistStatus.inAllowlist ? "✅ 已配置" : "⚠️ 需要验证"}
+                          </Text>
+                          <Text as="p" variant="bodySm" fontWeight="semibold">
+                            像素扩展端解析到的 backendUrl（硬校验）：
+                          </Text>
+                          <Text as="p" variant="bodySm" tone="subdued">
+                            {backendUrlInfo.allowlistStatus.pixelExtensionHostname || backendUrlInfo.allowlistStatus.hostname || "未解析到"}
+                          </Text>
+                          <Text as="p" variant="bodySm" tone="subdued">
+                            💡 硬校验说明：此 URL 是服务器端根据构建时注入的 SHOPIFY_APP_URL 环境变量解析得到的，应与像素扩展端解析到的 URL 一致。如果占位符未替换，像素扩展将无法发送事件。您可以在浏览器控制台（开发模式下）检查像素扩展实际解析到的 URL（查找 "[Tracking Guardian]" 日志中的 "Backend URL resolved (硬校验)"），确保与服务器端检测到的 URL 一致。如果两者不一致或占位符未替换，请检查 CI/CD 流程是否正确替换了 __BACKEND_URL_PLACEHOLDER__，并确保该 URL 已在 Web Pixel Extension 的 allowlist 中配置。这是导致事件丢失的常见原因，必须在上线前验证。
+                          </Text>
+                          <Text as="p" variant="bodySm" tone="subdued">
+                            允许的主机列表：{backendUrlInfo.allowlistStatus.allowedHosts.length > 0 ? backendUrlInfo.allowlistStatus.allowedHosts.join(", ") : "无"}
+                          </Text>
+                          {!backendUrlInfo.allowlistStatus.inAllowlist && (
+                            <Text as="p" variant="bodySm" tone="critical">
+                              ⚠️ 警告：检测到后端 URL 可能未在 allowlist 中。请检查 Web Pixel Extension 配置，确保后端域名已添加到 allowlist，否则像素事件将无法发送。这是导致事件丢失的常见原因。
+                            </Text>
+                          )}
+                        </BlockStack>
+                      )}
+                      {backendUrlInfo.warning && (
+                        <Text as="p" variant="bodySm">
+                          {backendUrlInfo.warning}
+                        </Text>
+                      )}
+                      <Text as="p" variant="bodySm" tone="subdued">
+                        像素扩展将使用此 URL 发送事件。请确保此 URL 已在 Web Pixel Extension 的 allowlist 中配置。如果事件未发送，请检查扩展配置中的 allowlist 设置。
+                      </Text>
+                      <Text as="p" variant="bodySm" tone="subdued">
+                        💡 硬校验说明：此页面显示服务器端检测到的 URL 和像素扩展端解析到的 URL。如果占位符未替换或 URL 不一致，像素事件将无法发送。请确保 CI/CD 流程正确替换了 __BACKEND_URL_PLACEHOLDER__，并且该 URL 已在 Web Pixel Extension 的 allowlist 中配置。
+                      </Text>
+                      <Text as="p" variant="bodySm" fontWeight="semibold">
+                        上线前必须验证：
+                      </Text>
+                      <List type="bullet">
+                        <List.Item>
+                          <Text as="span" variant="bodySm">
+                            占位符已在构建时替换（检查 extensions/shared/config.ts）
+                          </Text>
+                        </List.Item>
+                        <List.Item>
+                          <Text as="span" variant="bodySm">
+                            服务器端和像素扩展端 URL 一致
+                          </Text>
+                        </List.Item>
+                        <List.Item>
+                          <Text as="span" variant="bodySm">
+                            URL 已在 Partner Dashboard 的 allowlist 中配置
+                          </Text>
+                        </List.Item>
+                        <List.Item>
+                          <Text as="span" variant="bodySm">
+                            使用测试订单验证事件能正常发送
+                          </Text>
+                        </List.Item>
+                      </List>
+                    </BlockStack>
+                  </Banner>
+                ) : (
+                  <Banner tone="critical">
+                    <BlockStack gap="100">
+                      <Text as="p" variant="bodySm" fontWeight="semibold">
+                        后端 URL 未正确配置
+                      </Text>
+                      <Text as="p" variant="bodySm">
+                        {backendUrlInfo.warning || "SHOPIFY_APP_URL 环境变量未设置，像素事件可能无法发送。"}
+                      </Text>
+                      <Text as="p" variant="bodySm" tone="subdued">
+                        请在 CI/CD 流程中确保 SHOPIFY_APP_URL 环境变量已正确设置，并在构建时替换 __BACKEND_URL_PLACEHOLDER__。同时确保该 URL 已在 Web Pixel Extension 的 allowlist 中配置。
+                      </Text>
+                    </BlockStack>
+                  </Banner>
+                )}
+              </BlockStack>
               <Divider />
               {pixelConfig.environment === "test" ? (
                 <InlineStack gap="200" wrap>
@@ -372,6 +617,83 @@ export default function PixelTestPage() {
                     </Text>
                   </List.Item>
                 </List>
+                <Divider />
+                <Banner tone="warning">
+                  <BlockStack gap="200">
+                    <Text as="p" variant="bodySm" fontWeight="semibold">
+                      上线前安全措施验证（必须执行）
+                    </Text>
+                    <Text as="p" variant="bodySm">
+                      以下测试是上线前的关键验证步骤，**必须在生产环境部署前完成**，避免在生产环境高峰期出现事件丢失或服务不可用。
+                    </Text>
+                    <Text as="p" variant="bodySm" fontWeight="semibold">
+                      1. 高并发下单/事件峰值测试（必须执行）
+                    </Text>
+                    <Text as="p" variant="bodySm">
+                      模拟黑五等高峰期的下单场景（建议峰值：100-1000 订单/分钟），验证 rate limit 配置是否会导致误杀正常请求。重点验证：rate limit 阈值是否合理，避免在高并发场景下误杀正常请求。如果压测中发现误杀，需要调整 rate limit 配置。这是上线前必须验证的关键测试，避免在生产环境高峰期出现事件丢失。
+                    </Text>
+                    <Text as="p" variant="bodySm" tone="subdued">
+                      <strong>执行方法：</strong>使用项目内置压测脚本 <code>scripts/load-test-pixel-ingestion.mjs</code> 进行测试。运行命令：<code>CONCURRENT_REQUESTS=50 DURATION=60 node scripts/load-test-pixel-ingestion.mjs</code>（其中 CONCURRENT_REQUESTS 为并发数，DURATION 为持续时间秒数）。建议在生产环境部署前，在测试环境进行充分压测，确保 rate limit 配置不会误杀正常请求。如果压测中发现误杀，需要调整 rate limit 配置，避免在生产环境高峰期出现事件丢失。
+                    </Text>
+                    <Text as="p" variant="bodySm" fontWeight="semibold">
+                      验收标准：
+                    </Text>
+                    <List type="bullet">
+                      <List.Item>
+                        <Text as="span" variant="bodySm">
+                          无 rate limit 误杀（所有正常请求应成功）
+                        </Text>
+                      </List.Item>
+                      <List.Item>
+                        <Text as="span" variant="bodySm">
+                          事件处理延迟 {'<'} 2秒（P95）
+                        </Text>
+                      </List.Item>
+                      <List.Item>
+                        <Text as="span" variant="bodySm">
+                          错误率 {'<'} 0.1%
+                        </Text>
+                      </List.Item>
+                      <List.Item>
+                        <Text as="span" variant="bodySm">
+                          数据库连接池无耗尽
+                        </Text>
+                      </List.Item>
+                    </List>
+                    <Text as="p" variant="bodySm" fontWeight="semibold">
+                      2. Origin: null 场景测试（必须执行）
+                    </Text>
+                    <Text as="p" variant="bodySm">
+                      某些 Shopify 场景（如 Web Worker 沙箱环境）可能出现 <code>Origin: null</code>，生产环境必须设置 <code>PIXEL_ALLOW_NULL_ORIGIN=true</code> 才能正常接收事件。如果未设置此环境变量，像素事件将在 Origin: null 场景下被拒绝，导致事件丢失。这是上线前必须验证的关键配置，避免在生产环境出现事件丢失。
+                    </Text>
+                    <Text as="p" variant="bodySm" tone="subdued">
+                      <strong>执行方法：</strong>使用压测脚本的 <code>--null-origin-only</code> 参数专门测试 Origin: null 场景，确保生产环境配置正确。运行命令：<code>node scripts/load-test-pixel-ingestion.mjs --null-origin-only</code>。如果测试失败，请检查环境变量 <code>PIXEL_ALLOW_NULL_ORIGIN</code> 是否已设置为 <code>true</code>。这是上线前必须验证的关键测试，避免在生产环境出现事件丢失。
+                    </Text>
+                    <Text as="p" variant="bodySm" tone="subdued">
+                      <strong>环境变量配置：</strong>在生产环境部署时，确保在环境变量中设置 <code>PIXEL_ALLOW_NULL_ORIGIN=true</code>。如果未设置此环境变量，像素事件将在 Origin: null 场景下被拒绝，导致事件丢失。这是上线前必须验证的关键配置，必须在生产环境部署前完成验证。
+                    </Text>
+                    <Text as="p" variant="bodySm" fontWeight="semibold">
+                      验收标准：
+                    </Text>
+                    <List type="bullet">
+                      <List.Item>
+                        <Text as="span" variant="bodySm">
+                          所有 Origin: null 请求应成功处理
+                        </Text>
+                      </List.Item>
+                      <List.Item>
+                        <Text as="span" variant="bodySm">
+                          无事件丢失
+                        </Text>
+                      </List.Item>
+                      <List.Item>
+                        <Text as="span" variant="bodySm">
+                          日志中正确标记 Origin: null 请求
+                        </Text>
+                      </List.Item>
+                    </List>
+                  </BlockStack>
+                </Banner>
               </BlockStack>
             </BlockStack>
           </Card>

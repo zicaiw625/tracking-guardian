@@ -52,7 +52,7 @@ const FEATURE_INFO: Record<
     featureList: [
       "Post-purchase Survey（购后问卷）",
       "Help & Support 模块（帮助中心/联系客服）",
-      "基于 Checkout UI Extensions 的合规实现",
+      "基于 Customer Accounts UI Extensions 的合规实现",
     ],
   },
   verification: {

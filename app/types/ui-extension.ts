@@ -139,7 +139,7 @@ export const UI_MODULES: Record<ModuleKey, ModuleInfo> = {
     key: "reorder",
     name: "再购按钮",
     nameEn: "Reorder",
-    description: "一键再次购买相同商品",
+    description: "一键再次购买相同商品（仅支持 Customer Accounts 的 Order Status 页面）",
     icon: "🔄",
     category: "conversion",
     requiredPlan: "growth",

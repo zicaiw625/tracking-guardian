@@ -296,7 +296,12 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         );
       }
       if (isNullOrigin) {
-        logger.debug(`Null origin request accepted with valid HMAC and ingestionSecret for ${shop.shopDomain} in production`);
+        const allowNullOrigin = process.env.PIXEL_ALLOW_NULL_ORIGIN === "true" || process.env.PIXEL_ALLOW_NULL_ORIGIN === "1";
+        if (allowNullOrigin) {
+          logger.debug(`Null origin request accepted with valid HMAC and ingestionSecret for ${shop.shopDomain} in production (PIXEL_ALLOW_NULL_ORIGIN=true)`);
+        } else {
+          logger.warn(`Null origin request accepted but PIXEL_ALLOW_NULL_ORIGIN not set for ${shop.shopDomain} - this may cause issues in production`);
+        }
       } else {
         logger.debug(`HMAC signature verified for ${shop.shopDomain} in production`);
       }

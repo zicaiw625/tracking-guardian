@@ -57,7 +57,7 @@ const MIGRATION_LABELS: Record<string, { label: string; description: string; url
   },
   ui_extension: {
     label: "UI Extension Block",
-    description: "使用 Checkout UI Extension 替代页面脚本",
+    description: "使用 Customer Accounts UI Extensions 替代页面脚本",
     url: "/app/modules",
   },
   server_side: {

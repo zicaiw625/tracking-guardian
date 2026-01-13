@@ -24,7 +24,7 @@
 
 **产品卖点话术**：
 - "替换 Additional Scripts，减少结账页脚本风险"
-- "基于 Web Pixels + Checkout UI Extensions 的合规迁移"
+- "基于 Web Pixels + Customer Accounts UI Extensions 的合规迁移"
 - "验收报告 + 断档告警（给老板/客户看的证据）"
 
 ## v1 MVP 核心功能（付费理由非常硬）
@@ -57,7 +57,17 @@
 ### (C) 付费：Thank you / Order status 模块库（v1 包含 3 个核心模块）
 - **Post-purchase Survey（购后问卷）**：收集客户反馈，了解获客渠道（官方示例场景，有强差异化）
 - **Help & Support 模块（帮助中心/联系客服）**：迁移替代件、配置简单，包含 FAQ、联系客服、继续购物等功能
-- **Reorder（再购按钮）**：一键重新购买相同商品，仅在 Order status 页面可用（需要客户账户认证）
+- **Reorder（再购按钮）**：一键重新购买相同商品，仅在 Customer Accounts 的 Order status 页面可用（需要客户账户认证，不支持旧版订单状态页）
+
+> **⚠️ 重要提示：Order Status 模块仅支持 Customer Accounts 体系**
+> 
+> Order Status 模块使用 `customer-account.order-status.block.render` target，仅适用于 Customer Accounts 体系下的订单状态页。如果您的店铺使用旧版订单状态页（非 Customer Accounts），Order Status 模块将不会显示。这是 Shopify 平台的设计限制，Order status 模块只能在 Customer Accounts 体系下工作。
+> 
+> 请确认您的店铺已启用 Customer Accounts 功能（可在 Shopify Admin → 设置 → 客户账户中检查），否则模块不会在订单状态页显示。如果未启用，请先在 Shopify Admin → 设置 → 客户账户中启用 Customer Accounts 功能，然后才能使用 Order status 模块。
+> 
+> **文档引用说明（避免误导）**：
+> 
+> 请参考 [Customer Accounts UI Extensions](https://shopify.dev/docs/apps/customer-accounts/ui-extensions) 官方文档。注意：不要参考 checkout-ui-extensions 文档，该文档可能显示此 target 为"Not supported"，这是文档版本差异导致的误导。正确的文档入口是 Customer Accounts UI Extensions，不是 Checkout UI Extensions。
 
 > **v1.1 以后规划**：以下模块在 v1 中**不可用**（代码中已标记为 disabled），将在后续版本发布：
 > - Order Tracking（物流追踪）- 需深集成，API/适配会膨胀
@@ -353,7 +363,7 @@ ScriptTag 清理需要商家手动操作：
 
 ### 上架与 BFS 策略
 
-* **替换 Additional Scripts，减少结账页脚本风险** - 基于 Web Pixels + Checkout UI Extensions 的合规迁移
+* **替换 Additional Scripts，减少结账页脚本风险** - 基于 Web Pixels + Customer Accounts UI Extensions 的合规迁移
 * **验收报告 + 断档告警** - 给老板/客户看的证据
 * **性能优化** - 符合 BFS LCP/CLS/INP 指标要求（LCP ≤2.5s、CLS ≤0.1、INP ≤200ms）
 
@@ -387,6 +397,96 @@ ScriptTag 清理需要商家手动操作：
 - **隐私策略**：可配置的 consent 策略（严格/平衡模式）
 - **数据保留**：可配置的数据保留期限（30-365天）
 - **审计日志**：所有敏感操作均记录审计日志
+
+#### 上线前安全压测建议（必须执行）
+
+为确保生产环境稳定性，**必须在正式上线前执行以下压测**。这些测试是上线前的关键验证步骤，避免在生产环境高峰期出现事件丢失或服务不可用。
+
+1. **高并发下单/事件峰值测试（上线前必须执行）**
+   - **测试目标**：模拟黑五等高峰期的下单场景（建议峰值：100-1000 订单/分钟）
+   - **验证内容**：
+     - 验证 rate limit 配置是否会导致误杀正常请求
+     - 检查事件队列处理能力和延迟情况
+     - 监控数据库连接池和 API 调用频率
+     - 验证事件处理吞吐量和响应时间
+   - **重点验证**：rate limit 阈值是否合理，避免在高并发场景下误杀正常请求。建议根据实际业务峰值调整 `RATE_LIMIT_CONFIG.PIXEL_EVENTS` 配置。如果压测中发现误杀，需要调整 `app/utils/rate-limiter.ts` 中的 `pixel-events` 配置。
+   - **实战建议**：使用项目内置压测脚本 `scripts/load-test-pixel-ingestion.mjs` 进行测试，建议在测试环境先验证，确认无误后再部署到生产环境。
+   - **执行命令**：
+     ```bash
+     # 高并发压测（50并发，持续60秒）
+     CONCURRENT_REQUESTS=50 DURATION=60 node scripts/load-test-pixel-ingestion.mjs
+     
+     # 峰值压测（100并发，持续120秒）
+     CONCURRENT_REQUESTS=100 DURATION=120 node scripts/load-test-pixel-ingestion.mjs
+     ```
+   - **验收标准**：
+     - 无 rate limit 误杀（所有正常请求应成功）
+     - 事件处理延迟 < 2秒（P95）
+     - 错误率 < 0.1%
+     - 数据库连接池无耗尽
+
+2. **Origin: null 场景测试（上线前必须执行）**
+   - **测试目标**：验证 Web Pixel 在沙箱环境中发送事件时 Origin 为 null 的情况
+   - **验证内容**：
+     - 验证 `PIXEL_ALLOW_NULL_ORIGIN=true` 环境变量已正确设置（生产环境必须设置）
+     - 确认事件仍能正常接收和处理（不因 Origin 校验失败而丢失）
+     - 检查日志中 Origin: null 的请求是否被正确标记和允许
+   - **重点验证**：某些 Shopify 场景（如 Web Worker 沙箱环境）可能出现 `Origin: null`，生产环境默认会拒绝此类请求。必须设置 `PIXEL_ALLOW_NULL_ORIGIN=true` 才能正常接收事件。如果未设置此环境变量，像素事件将在 Origin: null 场景下被拒绝，导致事件丢失。
+   - **实战建议**：使用压测脚本的 `--null-origin-only` 参数专门测试 Origin: null 场景，确保生产环境配置正确。
+   - **执行命令**：
+     ```bash
+     # 仅测试 Origin: null 场景
+     node scripts/load-test-pixel-ingestion.mjs --null-origin-only
+     
+     # 验证环境变量已设置
+     echo $PIXEL_ALLOW_NULL_ORIGIN
+     ```
+   - **验收标准**：
+     - 所有 Origin: null 请求应成功处理
+     - 无事件丢失
+     - 日志中正确标记 Origin: null 请求
+
+**压测工具建议**：
+- 使用项目内置的压测脚本：`node scripts/load-test-pixel-ingestion.mjs`（推荐）
+- 使用 Apache Bench (ab) 或 wrk 进行 HTTP 压力测试
+- 使用 Shopify 测试订单功能模拟真实下单流程
+- 监控应用日志、数据库性能和 API 响应时间
+- **重要**：建议在测试环境先进行压测，确认配置无误后再部署到生产环境
+
+**使用内置压测脚本**：
+```bash
+# 基础压测（10并发，100请求）
+node scripts/load-test-pixel-ingestion.mjs
+
+# 自定义并发和请求数
+CONCURRENT_REQUESTS=50 TOTAL_REQUESTS=1000 node scripts/load-test-pixel-ingestion.mjs
+
+# 高并发压测（50并发，持续60秒）
+CONCURRENT_REQUESTS=50 DURATION=60 node scripts/load-test-pixel-ingestion.mjs
+
+# 仅测试 Origin: null 场景（必须执行）
+node scripts/load-test-pixel-ingestion.mjs --null-origin-only
+
+# 指定后端 URL 和店铺域名
+SHOPIFY_APP_URL=https://your-app.com SHOP_DOMAIN=test-shop.myshopify.com INGESTION_SECRET=your-secret node scripts/load-test-pixel-ingestion.mjs
+```
+
+**压测脚本自动检测内容**：
+- Rate limit 触发情况（关键指标）
+- Origin: null 场景支持（关键指标）
+- 平均响应时间和 QPS
+- 错误类型和频率
+- 事件处理吞吐量
+
+**上线前压测检查清单**：
+- [ ] 高并发压测已执行（50+ 并发，持续 60+ 秒）
+- [ ] Origin: null 场景测试已通过
+- [ ] Rate limit 配置已验证（无误杀）
+- [ ] 事件处理延迟 < 2秒（P95）
+- [ ] 错误率 < 0.1%
+- [ ] 数据库连接池无耗尽
+- [ ] 环境变量 `PIXEL_ALLOW_NULL_ORIGIN=true` 已设置
+- [ ] 压测结果已记录并归档
 
 ### 商家体验
 

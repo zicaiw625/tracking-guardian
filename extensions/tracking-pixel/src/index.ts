@@ -31,6 +31,24 @@ register(({ analytics, settings, init, customerPrivacy }: {
       hasIngestionSecret: !!ingestionSecret,
       backendUrl,
     });
+    if (backendUrl) {
+      log("Backend URL resolved (硬校验)", {
+        backendUrl,
+        hostname: (() => {
+          try {
+            return new URL(backendUrl).hostname;
+          } catch {
+            return "invalid";
+          }
+        })(),
+        placeholderDetected: backendUrl.includes("__BACKEND_URL_PLACEHOLDER__") || backendUrl.includes("PLACEHOLDER"),
+      });
+    } else {
+      log("Backend URL not resolved (占位符未替换或未配置)", {
+        rawBackendUrl: BACKEND_URL,
+        isAllowed: BACKEND_URL ? isAllowedBackendUrl(BACKEND_URL) : false,
+      });
+    }
   }
   const consentManager = createConsentManager(log);
   consentManager.updateFromStatus(init.customerPrivacy as CustomerPrivacyState | undefined, "init");

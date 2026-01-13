@@ -1298,7 +1298,7 @@ export default function Index() {
               </List>
               <Box paddingBlockStart="200">
                 <Text as="p" variant="bodySm">
-                  基于 <strong>Web Pixels + Checkout UI Extensions</strong> 的合规迁移方案，替换 Additional Scripts，减少结账页脚本风险。
+                  基于 <strong>Web Pixels + Customer Accounts UI Extensions</strong> 的合规迁移方案，替换 Additional Scripts，减少结账页脚本风险。
                 </Text>
               </Box>
             </BlockStack>
@@ -1455,7 +1455,10 @@ export default function Index() {
                         可替代 legacy thank-you/order-status 自定义脚本的模块库：Survey 问卷、Helpdesk 帮助中心、Reorder 再购按钮等
                       </Text>
                       <Text as="p" variant="bodySm" tone="subdued">
-                        <strong>迁移价值：</strong>基于 Checkout UI Extensions，符合 Shopify 官方推荐，替代 Additional Scripts 中的问卷、售后按钮等自定义脚本
+                        <strong>迁移价值：</strong>基于 Customer Accounts UI Extensions，符合 Shopify 官方推荐，替代 Additional Scripts 中的问卷、售后按钮等自定义脚本
+                      </Text>
+                      <Text as="p" variant="bodySm" tone="subdued">
+                        <strong>重要提示：</strong>Order status 模块仅支持 Customer Accounts 体系下的订单状态页，不支持旧版订单状态页。如果您的店铺使用旧版订单状态页（非 Customer Accounts），Order status 模块将不会显示。请确认您的店铺已启用 Customer Accounts 功能（可在 Shopify Admin → 设置 → 客户账户中检查），否则模块不会在订单状态页显示。这是 Shopify 平台的设计限制，Order status 模块只能在 Customer Accounts 体系下工作。
                       </Text>
                       <Badge tone="info">Migration $49/月</Badge>
                     </BlockStack>
