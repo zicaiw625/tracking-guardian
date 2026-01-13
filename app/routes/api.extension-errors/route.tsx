@@ -3,6 +3,7 @@ import { randomUUID } from "crypto";
 import { authenticate } from "../../shopify.server";
 import { logger } from "../../utils/logger.server";
 import { optionsResponse, jsonWithCors } from "../../utils/cors";
+import { checkRateLimitAsync } from "../../middleware/rate-limit";
 import prisma from "../../db.server";
 
 async function authenticatePublicExtension(request: Request): Promise<{ shop: string; [key: string]: unknown }> {
@@ -55,6 +56,28 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       { status: 404, request, staticCors: true }
     );
   }
+  const rateLimitKey = `extension-errors:${shopDomain}`;
+  const rateLimitResult = await checkRateLimitAsync(rateLimitKey, 100, 60 * 1000);
+  if (!rateLimitResult.allowed) {
+    const headers = new Headers();
+    headers.set("X-RateLimit-Limit", "100");
+    headers.set("X-RateLimit-Remaining", "0");
+    headers.set("X-RateLimit-Reset", String(Math.ceil(rateLimitResult.resetAt / 1000)));
+    if (rateLimitResult.retryAfter) {
+      headers.set("Retry-After", String(rateLimitResult.retryAfter));
+    }
+    logger.warn("Extension errors rate limit exceeded", {
+      shopDomain,
+      retryAfter: rateLimitResult.retryAfter,
+    });
+    return jsonWithCors(
+      {
+        error: "Too many error reports",
+        retryAfter: rateLimitResult.retryAfter,
+      },
+      { status: 429, request, staticCors: true, headers }
+    );
+  }
   try {
     const body = await request.json().catch(() => null) as {
       extension?: string;
@@ -82,16 +105,32 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       orderId: body.orderId || null,
       timestamp: body.timestamp ? new Date(body.timestamp) : new Date(),
     };
-    logger.error("Extension error reported", {
-      shopId: shop.id,
-      shopDomain,
-      extension: body.extension,
-      endpoint: body.endpoint,
-      target: body.target,
-      orderId: body.orderId,
-      error: body.error,
-      stack: body.stack,
-    });
+    const shouldLog = rateLimitResult.remaining > 20 || Math.random() < 0.1;
+    if (rateLimitResult.remaining < 20) {
+      if (shouldLog) {
+        logger.warn("Extension error reported (approaching rate limit, sampled)", {
+          shopId: shop.id,
+          shopDomain,
+          extension: body.extension,
+          endpoint: body.endpoint,
+          target: body.target,
+          orderId: body.orderId,
+          error: body.error.substring(0, 200),
+          remaining: rateLimitResult.remaining,
+        });
+      }
+    } else if (shouldLog) {
+      logger.error("Extension error reported", {
+        shopId: shop.id,
+        shopDomain,
+        extension: body.extension,
+        endpoint: body.endpoint,
+        target: body.target,
+        orderId: body.orderId,
+        error: body.error,
+        stack: body.stack,
+      });
+    }
     try {
       const errorId = randomUUID();
       await prisma.extensionError.create({

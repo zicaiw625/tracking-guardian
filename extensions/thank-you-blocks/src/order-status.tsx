@@ -185,6 +185,9 @@ function ThankYouBlocks() {
     };
   } | null>(null);
   const [loading, setLoading] = useState(true);
+  const [reorderUrl, setReorderUrl] = useState<string | null>(null);
+  const [reorderLoading, setReorderLoading] = useState(false);
+  
   useEffect(() => {
     const fetchModuleState = async () => {
       try {
@@ -415,8 +418,6 @@ function ThankYouBlocks() {
   const helpEnabled = moduleState?.helpEnabled ?? false;
   const reorderEnabled = moduleState?.reorderEnabled ?? false;
   const reorderConfig = moduleState?.reorderConfig;
-  const [reorderUrl, setReorderUrl] = useState<string | null>(null);
-  const [reorderLoading, setReorderLoading] = useState(false);
   const handleReorder = async (): Promise<void> => {
     try {
       setReorderLoading(true);

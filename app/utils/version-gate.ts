@@ -12,9 +12,7 @@ export function checkV1FeatureBoundary(
   switch (feature) {
     case "server_side":
       return {
-        allowed: false,
-        reason: "服务端转化追踪（Server-side CAPI/MP）在 v1.0 版本中不可用，将在 v1.1+ 版本中提供",
-        requiredVersion: "1.1",
+        allowed: true,
       };
     case "upsell":
       return {

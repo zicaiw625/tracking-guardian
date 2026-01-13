@@ -85,15 +85,22 @@
   - Purchase 缺参率监控：监控 purchase 事件关键参数的缺失率
   - 多渠道告警：支持邮件/Slack/Telegram 告警
 
-## 未来版本规划（v1 暂不包含）
+## 服务器端转化追踪（Server-side CAPI/MP）
 
-### 服务器端转化补齐（Server-side CAPI/MP）+ 混合去重
-- ⚠️ **v1 暂不包含**：这是 v1.1/v1.2 的功能，做了会被拿去和 Elevar/Littledata 正面对比预期
-- 规划功能：
-  - Meta Conversions API (CAPI)
-  - GA4 Measurement Protocol
-  - TikTok Events API
-  - 客户端/服务端混合去重
+v1.0 版本**已包含**服务器端转化追踪能力，支持以下平台：
+- Meta Conversions API (CAPI)
+- GA4 Measurement Protocol
+- TikTok Events API
+
+**功能说明**：
+- 支持客户端/服务端混合去重（hybrid mode）
+- 事件通过服务端 API 直接发送到广告平台，提高数据可靠性
+- 支持 Test/Live 环境切换
+- 完整的发送状态记录和错误处理
+
+**配置方式**：在「设置」页面的「服务端追踪」标签页中配置平台凭证。
+
+## 未来版本规划（v1 暂不包含）
 
 ### 深集成功能
 - ⚠️ **v1 暂不包含**：

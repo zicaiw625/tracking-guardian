@@ -7,7 +7,7 @@ runtime_context = "strict"
 
 [customer_privacy]
 analytics = true
-marketing = false
+marketing = true
 preferences = false
 sale_of_data = "disabled"
 

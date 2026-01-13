@@ -198,8 +198,7 @@ export function ServerTrackingTab({
                   v1.0 版本中，服务端转化追踪（Server-side CAPI/MP）默认关闭。
                 </Text>
                 <Text as="p" variant="bodySm">
-                  服务端追踪是 v1.1+ 的高级功能，需要额外的数据披露和合规审查。
-                  如果您需要启用服务端追踪，请确保：
+                  v1.0 版本已包含服务端转化追踪能力，但默认关闭以确保隐私合规。如果您需要启用服务端追踪，请确保：
                 </Text>
                 <ul style={{ paddingLeft: "1.5rem", marginTop: "0.5rem", marginBottom: "0.5rem" }}>
                   <li><Text as="span" variant="bodySm">已在隐私政策中明确说明向第三方平台发送的数据类型</Text></li>

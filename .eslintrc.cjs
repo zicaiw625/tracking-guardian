@@ -19,14 +19,12 @@ module.exports = {
     "node_modules/",
     "dist/",
     ".cache/",
-    "extensions*.tsx",
-    "extensions*.ts",
   ],
   extends: ["eslint:recommended"],
   overrides: [
     {
       files: ["**/*.{ts,tsx}"],
-      plugins: ["@typescript-eslint", "import"],
+      plugins: ["@typescript-eslint", "import", "react-hooks"],
       parser: "@typescript-eslint/parser",
       settings: {
         "import/internal-regex": "^~/",
@@ -37,6 +35,9 @@ module.exports = {
           typescript: {
             alwaysTryTypes: true,
           },
+        },
+        react: {
+          version: "detect",
         },
       },
       extends: [
@@ -50,6 +51,8 @@ module.exports = {
           "warn",
           { argsIgnorePattern: "^_" },
         ],
+        "react-hooks/rules-of-hooks": "error",
+        "react-hooks/exhaustive-deps": "warn",
       },
     },
     {
