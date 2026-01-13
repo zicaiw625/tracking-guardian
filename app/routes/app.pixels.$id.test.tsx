@@ -29,8 +29,6 @@ const PLATFORM_LABELS: Record<string, string> = {
   google: "Google Analytics 4",
   meta: "Meta (Facebook)",
   tiktok: "TikTok",
-  pinterest: "Pinterest",
-  snapchat: "Snapchat",
 };
 
 export const loader = async ({ request, params }: LoaderFunctionArgs) => {

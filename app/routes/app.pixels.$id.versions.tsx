@@ -72,7 +72,7 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
     try {
       const history = await getConfigVersionHistory(
         shop.id,
-        pixelConfig.platform as "google" | "meta" | "tiktok" | "pinterest" | "snapchat",
+        pixelConfig.platform as "google" | "meta" | "tiktok" | "",
         pixelConfig.environment as "test" | "live"
       );
       if (!history) {
@@ -91,7 +91,7 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
     try {
       const result = await rollbackConfig(
         shop.id,
-        pixelConfig.platform as "google" | "meta" | "tiktok" | "pinterest" | "snapchat",
+        pixelConfig.platform as "google" | "meta" | "tiktok" | "",
         pixelConfig.environment as "test" | "live"
       );
       return json(result);
@@ -147,7 +147,7 @@ export default function PixelVersionsPage() {
       </Card>
       <ConfigVersionManager
         shopId={shop.id}
-        platform={pixelConfig.platform as "google" | "meta" | "tiktok" | "pinterest" | "snapchat"}
+        platform={pixelConfig.platform as "google" | "meta" | "tiktok" | ""}
         currentVersion={pixelConfig.configVersion}
         historyEndpoint={`/app/pixels/${pixelConfig.id}/versions`}
       />

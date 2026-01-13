@@ -225,10 +225,10 @@ function ModuleCard({
                 {upgradeRequired && !module.isEnabled && (
                   <Badge tone="attention">需要升级</Badge>
                 )}
-                {(module.moduleKey === "survey" || module.moduleKey === "helpdesk") && (
+                {(module.moduleKey === "survey" || module.moduleKey === "helpdesk" || module.moduleKey === "reorder") && (
                   <Badge tone="success" size="small">v1 支持</Badge>
                 )}
-                {module.moduleKey !== "survey" && module.moduleKey !== "helpdesk" && !info.disabled && (
+                {module.moduleKey !== "survey" && module.moduleKey !== "helpdesk" && module.moduleKey !== "reorder" && !info.disabled && (
                   <Badge tone="info" size="small">v1.1+</Badge>
                 )}
                 {info.disabled && (
@@ -449,10 +449,10 @@ export default function UiBlocksPage() {
               v1.0 支持范围说明：
             </Text>
             <Text as="p" variant="bodySm">
-              • <strong>v1.0 已支持</strong>：购后问卷（Survey）、帮助中心（Helpdesk）
+              • <strong>v1.0 已支持</strong>：购后问卷（Survey）、帮助中心（Helpdesk）、再购按钮（Reorder）
             </Text>
             <Text as="p" variant="bodySm">
-              • <strong>v1.1+ 规划</strong>：再购按钮（Reorder）、物流追踪（Order Tracking）、追加销售（Upsell）模块将在 v1.1+ 版本中提供
+              • <strong>v1.1+ 规划</strong>：物流追踪（Order Tracking）、追加销售（Upsell）模块将在 v1.1+ 版本中提供
             </Text>
             <Text as="p" variant="bodySm">
               • <strong>v2.0+ 规划</strong>：第三方物流集成（AfterShip/17Track）将在 v2.0+ 版本中提供

@@ -760,8 +760,18 @@ export default function PixelsNewPage() {
               <Text as="p" tone="subdued">
                 选择您要迁移的广告平台，可使用预设模板快速配置事件映射。
               </Text>
+              <Banner tone="info">
+                <BlockStack gap="200">
+                  <Text as="p" variant="bodySm" fontWeight="semibold">
+                    v1 支持平台：
+                  </Text>
+                  <Text as="p" variant="bodySm">
+                    v1 版本仅支持 GA4、Meta、TikTok 三个平台。其他平台（Pinterest、Snapchat、Twitter 等）将在 v1.1+ 版本支持。
+                  </Text>
+                </BlockStack>
+              </Banner>
               <BlockStack gap="300">
-                {(Object.keys(PLATFORM_INFO) as SupportedPlatform[]).map((platform) => {
+                {SUPPORTED_PLATFORMS.map((platform) => {
                   const info = PLATFORM_INFO[platform];
                   const isSelected = selectedPlatforms.has(platform);
                   return (

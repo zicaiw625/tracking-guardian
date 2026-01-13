@@ -386,10 +386,6 @@ export default function OnboardingPage() {
       google: "Google Analytics 4",
       meta: "Meta (Facebook) Pixel",
       tiktok: "TikTok Pixel",
-      pinterest: "Pinterest Tag",
-      bing: "Microsoft Ads",
-      snapchat: "Snapchat Pixel",
-      twitter: "Twitter/X Pixel",
     };
     return names[platform] || platform;
   };

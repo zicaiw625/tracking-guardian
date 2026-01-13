@@ -225,48 +225,6 @@ const PLATFORM_INFO: Partial<Record<PlatformType, {
       },
     ],
   },
-  pinterest: {
-    name: "Pinterest Tag",
-    icon: "📌",
-    description: "使用 Conversions API 发送转化数据",
-    credentialFields: [
-      {
-        key: "pixelId",
-        label: "Tag ID",
-        placeholder: "1234567890123",
-        type: "text",
-        helpText: "在 Pinterest Ads Manager 中查找",
-      },
-      {
-        key: "accessToken",
-        label: "Access Token",
-        placeholder: "输入 Access Token",
-        type: "password",
-        helpText: "在 Pinterest Ads Manager → Settings → Conversions 中生成",
-      },
-    ],
-  },
-  snapchat: {
-    name: "Snapchat Pixel",
-    icon: "👻",
-    description: "使用 Conversions API 发送转化数据",
-    credentialFields: [
-      {
-        key: "pixelId",
-        label: "Pixel ID",
-        placeholder: "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",
-        type: "text",
-        helpText: "在 Snapchat Ads Manager → Pixels 中查找",
-      },
-      {
-        key: "accessToken",
-        label: "Conversions API Token",
-        placeholder: "输入 Conversions API Token",
-        type: "password",
-        helpText: "在 Snapchat Ads Manager → Pixels → Settings 中生成",
-      },
-    ],
-  },
 };
 
 export interface WizardTemplate {
@@ -827,25 +785,28 @@ const allTemplates: WizardTemplate[] = [
     (template: WizardTemplate) => {
       const configs = { ...platformConfigs };
       const platforms = new Set<PlatformType>();
+      const v1SupportedPlatforms = ["google", "meta", "tiktok"] as const;
       template.platforms.forEach((platform) => {
         const platformKey = platform as PlatformType;
-        platforms.add(platformKey);
-        const existingConfig = configs[platformKey];
-        if (existingConfig) {
-          configs[platformKey] = {
-            ...existingConfig,
-            enabled: true,
-            eventMappings: template.eventMappings[platform] || existingConfig.eventMappings,
-          };
-        } else {
-          configs[platformKey] = {
-            platform: platformKey,
-            enabled: true,
-            platformId: "",
-            credentials: {},
-            eventMappings: template.eventMappings[platform] || {},
-            environment: "test",
-          };
+        if (v1SupportedPlatforms.includes(platformKey as typeof v1SupportedPlatforms[number])) {
+          platforms.add(platformKey);
+          const existingConfig = configs[platformKey];
+          if (existingConfig) {
+            configs[platformKey] = {
+              ...existingConfig,
+              enabled: true,
+              eventMappings: template.eventMappings[platform] || existingConfig.eventMappings,
+            };
+          } else {
+            configs[platformKey] = {
+              platform: platformKey,
+              enabled: true,
+              platformId: "",
+              credentials: {},
+              eventMappings: template.eventMappings[platform] || {},
+              environment: "test",
+            };
+          }
         }
       });
       setSelectedPlatforms(platforms);
@@ -1317,7 +1278,9 @@ function SelectPlatformStep({
         </BlockStack>
       </Banner>
       <BlockStack gap="300">
-        {(Object.keys(PLATFORM_INFO) as PlatformType[]).map((platform) => {
+        {(Object.keys(PLATFORM_INFO) as PlatformType[]).filter((platform) => {
+          return platform === "google" || platform === "meta" || platform === "tiktok";
+        }).map((platform) => {
           const info = PLATFORM_INFO[platform];
           if (!info) return null;
           const isSelected = selectedPlatforms.has(platform);

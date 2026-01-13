@@ -34,7 +34,7 @@ export function checkV1FeatureBoundary(
 }
 
 export function isModuleAvailableInV1(moduleKey: string): boolean {
-  const v1AvailableModules = ["survey", "helpdesk"];
+  const v1AvailableModules = ["survey", "helpdesk", "reorder"];
   return v1AvailableModules.includes(moduleKey);
 }
 

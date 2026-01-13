@@ -160,9 +160,9 @@ export const PRESET_TEMPLATES: PixelTemplate[] = [
   },
   {
     id: "all-platforms",
-    name: "全平台追踪套件",
-    description: "包含 GA4、Meta、TikTok、Pinterest、Snapchat 的完整配置（⚠️ v1.0 仅支持 GA4、Meta、TikTok；Pinterest 和 Snapchat 将在 v1.1+ 版本中正式支持）",
-    platforms: ["google", "meta", "tiktok", "pinterest", "snapchat"],
+    name: "全平台追踪套件 (v1)",
+    description: "包含 GA4、Meta、TikTok 的完整配置（v1.0 支持的所有平台）",
+    platforms: ["google", "meta", "tiktok"],
     eventMappings: {
       google: {
         checkout_completed: "purchase",
@@ -182,18 +182,6 @@ export const PRESET_TEMPLATES: PixelTemplate[] = [
         product_viewed: "ViewContent",
         checkout_started: "InitiateCheckout",
       },
-      pinterest: {
-        checkout_completed: "checkout",
-        product_added_to_cart: "addtocart",
-        product_viewed: "pagevisit",
-        checkout_started: "initiatecheckout",
-      },
-      snapchat: {
-        checkout_completed: "PURCHASE",
-        product_added_to_cart: "ADD_CART",
-        product_viewed: "VIEW_CONTENT",
-        checkout_started: "START_CHECKOUT",
-      },
     },
     defaultCredentials: {
       google: {
@@ -205,14 +193,6 @@ export const PRESET_TEMPLATES: PixelTemplate[] = [
         optional: ["access_token"],
       },
       tiktok: {
-        required: ["pixel_id"],
-        optional: ["access_token"],
-      },
-      pinterest: {
-        required: ["tag_id"],
-        optional: ["access_token"],
-      },
-      snapchat: {
         required: ["pixel_id"],
         optional: ["access_token"],
       },

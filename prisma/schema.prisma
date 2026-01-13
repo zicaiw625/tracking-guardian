@@ -64,6 +64,7 @@ model Shop {
   EventLog                EventLog[]
   DeliveryAttempt         DeliveryAttempt[]
   SurveyResponse          SurveyResponse[]
+  ExtensionError          ExtensionError[]
 }
 
 model AuditAsset {
@@ -273,4 +274,24 @@ model SurveyResponse {
   @@index([orderId])
   @@index([shopId, orderId])
   @@index([shopId, createdAt])
+}
+
+model ExtensionError {
+  id        String   @id
+  shopId    String
+  shopDomain String
+  extension String
+  endpoint  String
+  error     String
+  stack     String?
+  target    String?
+  orderId   String?
+  createdAt DateTime @default(now())
+  Shop      Shop     @relation(fields: [shopId], references: [id], onDelete: Cascade)
+
+  @@index([shopId])
+  @@index([shopId, createdAt])
+  @@index([extension])
+  @@index([endpoint])
+  @@index([shopId, extension, createdAt])
 }

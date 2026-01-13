@@ -32,10 +32,6 @@ const AVAILABLE_PLATFORMS = [
   { value: "google", label: "Google Analytics / GA4" },
   { value: "meta", label: "Meta Pixel / Facebook" },
   { value: "tiktok", label: "TikTok Pixel" },
-  { value: "pinterest", label: "Pinterest Tag" },
-  { value: "snapchat", label: "Snapchat Pixel" },
-  { value: "clarity", label: "Microsoft Clarity" },
-  { value: "hotjar", label: "Hotjar" },
   { value: "other", label: "其他平台" },
 ];
 
@@ -150,7 +146,9 @@ export function ManualInputWizard({ open, onClose, onComplete }: ManualInputWiza
                 </Text>
               </Banner>
               <BlockStack gap="300">
-                {AVAILABLE_PLATFORMS.map((platform) => {
+                {AVAILABLE_PLATFORMS.filter((platform) => {
+                  return platform.value === "google" || platform.value === "meta" || platform.value === "tiktok" || platform.value === "other";
+                }).map((platform) => {
                   const isV1Supported =
                     platform.value === "google" ||
                     platform.value === "meta" ||
@@ -165,7 +163,7 @@ export function ManualInputWizard({ open, onClose, onComplete }: ManualInputWiza
                       {isV1Supported && (
                         <Badge tone="success" size="small">v1 支持</Badge>
                       )}
-                      {!isV1Supported && (platform.value === "pinterest" || platform.value === "snapchat") && (
+                      {!isV1Supported && platform.value !== "other" && (
                         <Badge tone="info" size="small">v1.1+</Badge>
                       )}
                     </InlineStack>
@@ -181,14 +179,15 @@ export function ManualInputWizard({ open, onClose, onComplete }: ManualInputWiza
               </Text>
               <Banner tone="warning">
                 <Text as="p" variant="bodySm">
-                  <strong>v1 支持范围</strong>：购后问卷（Survey）和帮助中心（Helpdesk）（其他功能将在 v1.1+ 支持）。请选择所有您使用的功能，系统将在报告中标注 v1 可迁移的项目。
+                  <strong>v1 支持范围</strong>：购后问卷（Survey）、帮助中心（Helpdesk）和再购功能（Reorder）（其他功能将在 v1.1+ 支持）。请选择所有您使用的功能，系统将在报告中标注 v1 可迁移的项目。
                 </Text>
               </Banner>
               <BlockStack gap="300">
                 {AVAILABLE_FEATURES.map((feature) => {
                   const isV1Supported =
                     feature.value === "survey" ||
-                    feature.value === "support";
+                    feature.value === "support" ||
+                    feature.value === "reorder";
                   return (
                     <InlineStack key={feature.value} gap="200" blockAlign="center">
                       <Checkbox

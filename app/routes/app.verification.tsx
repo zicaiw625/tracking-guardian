@@ -243,7 +243,6 @@ function PlatformBadge({ platform }: { platform: string }) {
     google: "GA4",
     meta: "Meta",
     tiktok: "TikTok",
-    pinterest: "Pinterest",
   };
   return <Badge>{names[platform] || platform}</Badge>;
 }

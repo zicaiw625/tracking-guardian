@@ -130,6 +130,10 @@ function ThankYouBlocks() {
       try {
         const backendUrl = getValidatedBackendUrl();
         if (!backendUrl) {
+          const isDevMode = process.env.NODE_ENV === "development" || process.env.SHOPIFY_APP_ENV === "development";
+          if (isDevMode) {
+            console.warn("[ThankYouBlocks] Backend URL not configured");
+          }
           setModuleState({
             surveyEnabled: false,
             helpEnabled: false,
@@ -147,13 +151,89 @@ function ThankYouBlocks() {
         if (response.ok) {
           const state = await response.json();
           setModuleState(state);
+          const isDevMode = process.env.NODE_ENV === "development" || process.env.SHOPIFY_APP_ENV === "development";
+          if (isDevMode) {
+            console.log("[ThankYouBlocks] Module state loaded:", state);
+          }
         } else {
+          const errorText = await response.text().catch(() => `HTTP ${response.status}`);
+          const errorMessage = `Failed to fetch module state: ${response.status} ${errorText}`;
+          const isDevMode = process.env.NODE_ENV === "development" || process.env.SHOPIFY_APP_ENV === "development";
+          if (isDevMode) {
+            console.error("[ThankYouBlocks] Module state fetch failed:", errorMessage);
+          }
+          try {
+            const backendUrl = getValidatedBackendUrl();
+            if (backendUrl) {
+              const token = await api.sessionToken.get().catch(() => null);
+              if (token) {
+                await fetch(`${backendUrl}/api/extension-errors`, {
+                  method: "POST",
+                  headers: {
+                    "Content-Type": "application/json",
+                    "Authorization": `Bearer ${token}`,
+                  },
+                  body: JSON.stringify({
+                    extension: "thank-you",
+                    endpoint: "ui-modules-state",
+                    error: errorMessage,
+                    stack: null,
+                    target: "thank-you",
+                    timestamp: new Date().toISOString(),
+                  }),
+                }).catch((reportErr) => {
+                  const isDevMode = process.env.NODE_ENV === "development" || process.env.SHOPIFY_APP_ENV === "development";
+                  if (isDevMode) {
+                    console.error("[ThankYouBlocks] Failed to report error to backend:", reportErr);
+                  }
+                });
+              }
+            }
+          } catch {
+          }
           setModuleState({
             surveyEnabled: false,
             helpEnabled: false,
           });
         }
       } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        const errorStack = error instanceof Error ? error.stack : undefined;
+        const isDevMode = process.env.NODE_ENV === "development" || process.env.SHOPIFY_APP_ENV === "development";
+        if (isDevMode) {
+          console.error("[ThankYouBlocks] Failed to fetch module state:", error);
+        }
+        try {
+          const backendUrl = getValidatedBackendUrl();
+          if (backendUrl) {
+            const token = await api.sessionToken.get().catch(() => null);
+            if (token) {
+              await fetch(`${backendUrl}/api/extension-errors`, {
+                method: "POST",
+                headers: {
+                  "Content-Type": "application/json",
+                  "Authorization": `Bearer ${token}`,
+                },
+                body: JSON.stringify({
+                  extension: "thank-you",
+                  endpoint: "ui-modules-state",
+                  error: errorMessage,
+                  stack: errorStack,
+                  target: "thank-you",
+                  timestamp: new Date().toISOString(),
+                }),
+              }).catch((reportErr) => {
+                if (process.env.NODE_ENV === "development" || process.env.SHOPIFY_APP_ENV === "development") {
+                  console.error("[ThankYouBlocks] Failed to report error to backend:", reportErr);
+                }
+              });
+            }
+          }
+        } catch (reportError) {
+          if (process.env.NODE_ENV === "development" || process.env.SHOPIFY_APP_ENV === "development") {
+            console.error("[ThankYouBlocks] Failed to report error:", reportError);
+          }
+        }
         setModuleState({
           surveyEnabled: false,
           helpEnabled: false,
@@ -190,6 +270,40 @@ function ThankYouBlocks() {
         }),
       });
       if (!response.ok) {
+        const errorText = await response.text().catch(() => `HTTP ${response.status}`);
+        const errorMessage = `Survey submit failed: ${response.status} ${errorText}`;
+        if (process.env.NODE_ENV === "development" || process.env.SHOPIFY_APP_ENV === "development") {
+          console.error("[ThankYouBlocks] Survey submit failed:", errorMessage);
+        }
+        try {
+          const backendUrl = getValidatedBackendUrl();
+          if (backendUrl) {
+            const token = await api.sessionToken.get().catch(() => null);
+            if (token) {
+              await fetch(`${backendUrl}/api/extension-errors`, {
+                method: "POST",
+                headers: {
+                  "Content-Type": "application/json",
+                  "Authorization": `Bearer ${token}`,
+                },
+                  body: JSON.stringify({
+                    extension: "thank-you",
+                    endpoint: "survey",
+                    error: errorMessage,
+                    stack: null,
+                    target: "thank-you",
+                    timestamp: new Date().toISOString(),
+                  }),
+                }).catch((reportErr) => {
+                  const isDevMode = process.env.NODE_ENV === "development" || process.env.SHOPIFY_APP_ENV === "development";
+                  if (isDevMode) {
+                    console.error("[ThankYouBlocks] Failed to report error to backend:", reportErr);
+                  }
+                });
+            }
+          }
+        } catch {
+        }
         return false;
       }
       const data = await response.json().catch(() => ({}));
@@ -198,6 +312,42 @@ function ThankYouBlocks() {
       }
       return false;
     } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      const errorStack = error instanceof Error ? error.stack : undefined;
+      if (process.env.NODE_ENV === "development" || process.env.SHOPIFY_APP_ENV === "development") {
+        console.error("[ThankYouBlocks] Survey submit failed:", error);
+      }
+      try {
+        const backendUrl = getValidatedBackendUrl();
+        if (backendUrl) {
+          const token = await api.sessionToken.get().catch(() => null);
+          if (token) {
+            await fetch(`${backendUrl}/api/extension-errors`, {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                "Authorization": `Bearer ${token}`,
+              },
+              body: JSON.stringify({
+                extension: "thank-you",
+                endpoint: "survey",
+                error: errorMessage,
+                stack: errorStack,
+                target: "thank-you",
+                timestamp: new Date().toISOString(),
+              }),
+            }).catch((reportErr) => {
+              if (process.env.NODE_ENV === "development" || process.env.SHOPIFY_APP_ENV === "development") {
+                console.error("[ThankYouBlocks] Failed to report error to backend:", reportErr);
+              }
+            });
+          }
+        }
+      } catch (reportError) {
+        if (process.env.NODE_ENV === "development" || process.env.SHOPIFY_APP_ENV === "development") {
+          console.error("[ThankYouBlocks] Failed to report error:", reportError);
+        }
+      }
       return false;
     }
   };
