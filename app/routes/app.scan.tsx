@@ -3040,8 +3040,11 @@ export function ScanPage({
                         <BlockStack gap="100">
                           <Badge tone="warning">UI Extension 替代</Badge>
                           <Text as="p" variant="bodySm">
-                            • Additional Scripts → Checkout UI
-                            <br />• Order Status 脚本 → TYP Extension
+                            • Additional Scripts → Checkout UI Extension
+                            <br />• Thank you/Order status 自定义脚本 → UI Extension Blocks（可替代 legacy thank-you/order-status 自定义脚本的模块库：Survey 问卷、Help 帮助中心、Reorder 再购按钮等）
+                          </Text>
+                          <Text as="p" variant="bodySm" tone="subdued">
+                            <strong>迁移价值：</strong>基于 Checkout UI Extensions，符合 Shopify 官方推荐，替代 Additional Scripts 中的问卷、售后按钮等自定义脚本
                           </Text>
                         </BlockStack>
                       </Box>

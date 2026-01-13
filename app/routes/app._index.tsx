@@ -1452,10 +1452,10 @@ export default function Index() {
                         📦 发布 Thank you/Order status 模块
                       </Text>
                       <Text as="p" variant="bodySm" tone="subdued">
-                        Survey 问卷或 Helpdesk 帮助中心（二选一）• 基于 Checkout UI Extensions，符合 Shopify 官方推荐
+                        可替代 legacy thank-you/order-status 自定义脚本的模块库：Survey 问卷、Helpdesk 帮助中心、Reorder 再购按钮等
                       </Text>
                       <Text as="p" variant="bodySm" tone="subdued">
-                        <strong>Shopify 官方示例场景：</strong>Survey 是官方教程背书的场景
+                        <strong>迁移价值：</strong>基于 Checkout UI Extensions，符合 Shopify 官方推荐，替代 Additional Scripts 中的问卷、售后按钮等自定义脚本
                       </Text>
                       <Badge tone="info">Migration $49/月</Badge>
                     </BlockStack>

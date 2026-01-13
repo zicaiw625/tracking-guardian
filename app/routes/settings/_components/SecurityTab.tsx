@@ -233,18 +233,18 @@ export function SecurityTab({
               <Banner tone="info">
                 <BlockStack gap="200">
                   <Text as="span" fontWeight="semibold">
-                    📋 像素加载策略
+                    📋 像素加载策略（按平台/用途配置）
                   </Text>
                   <Text as="p" variant="bodySm">
                     Web Pixel Extension 的加载条件（在 <code>shopify.extension.toml</code> 中配置）：
                   </Text>
                   <Text as="p" variant="bodySm">
-                    • <strong>analytics = true</strong>：需要 analytics consent 才能加载像素
-                    <br />• <strong>marketing = false</strong>：不强制要求 marketing consent（提高覆盖率）
+                    • <strong>analytics = true</strong>：需要 analytics consent 才能加载像素（用于 GA4 等分析类平台）
+                    <br />• <strong>marketing = true</strong>：需要 marketing consent 才能加载像素（用于 Meta/TikTok 等营销类平台）
                     <br />• <strong>sale_of_data = "disabled"</strong>：不强制要求 sale of data 同意
                   </Text>
                   <Text as="p" variant="bodySm" tone="subdued">
-                    这意味着：当用户仅同意 analytics 但不同意 marketing 时，像素仍会加载并发送事件到后端。
+                    <strong>策略说明（按平台/用途配置）：</strong>当前配置同时启用 analytics 和 marketing，以支持多平台场景。像素会在用户同意 analytics 或 marketing 任一条件时加载。后端会根据各平台的实际用途进一步过滤事件：GA4（分析类，使用 analytics consent）和 Meta/TikTok（营销类，使用 marketing consent），确保合规性。
                   </Text>
                 </BlockStack>
               </Banner>
@@ -275,16 +275,15 @@ export function SecurityTab({
                     ✅ 实际效果
                   </Text>
                   <Text as="p" variant="bodySm">
-                    当用户只同意 analytics 但不同意 marketing 时：
+                    根据用户的同意状态：
                   </Text>
                   <Text as="p" variant="bodySm">
-                    • ✅ 像素会加载（因为 analytics = true）
-                    <br />• ✅ 事件会发送到后端（因为像素已加载）
-                    <br />• ✅ GA4 会收到事件（只需 analytics 同意）
-                    <br />• ❌ Meta/TikTok 不会收到事件（顾客明确拒绝 saleOfData）
+                    • 仅同意 analytics：像素会加载，GA4 会收到事件，Meta/TikTok 不会收到事件
+                    <br />• 仅同意 marketing：像素会加载，Meta/TikTok 会收到事件，GA4 可能收到事件（取决于后端策略）
+                    <br />• 同时同意两者：像素会加载，所有配置的平台都会收到事件
                   </Text>
                   <Text as="p" variant="bodySm" tone="subdued">
-                    这避免了"像素加载了但事件被过滤导致商家误以为丢数"的问题。
+                    后端会根据各平台的合规要求进一步过滤事件，确保符合 GDPR/CCPA 等隐私法规。
                     在 Dashboard 中，您可以查看每个平台的发送统计和过滤原因。
                   </Text>
                 </BlockStack>

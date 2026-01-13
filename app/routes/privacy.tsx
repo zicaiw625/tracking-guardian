@@ -76,7 +76,7 @@ export default function PublicPrivacyPolicy() {
                   </Text>
                   <div style={{ fontSize: "13px", lineHeight: "1.5", marginTop: "8px" }}>
                     <Text as="p">
-                      <strong>Pixel 加载与事件发送条件（代码实现说明）：</strong>我们的 Web Pixel 配置为需要 <code>analytics</code> 同意才能加载（<code>analytics = true</code>），但不强制要求 <code>marketing</code> 同意（<code>marketing = false</code>）。这意味着<strong>只有当客户授予 analytics 同意时，Pixel 才会加载</strong>；如果客户未授予 analytics 同意，Pixel 不会加载，也不会发送任何事件。事件发送遵循以下规则：<strong>只有当客户授予 analytics 同意或 marketing 同意时，事件才会被发送到后端</strong>。如果客户未授予任何同意，事件将被跳过，不会发送。Marketing 同意要求 <code>marketingAllowed = true</code>，并且在客户明确拒绝 <code>saleOfDataAllowed</code> 时不发送（符合 CCPA 要求）。服务端会根据各平台的要求（<code>requiresSaleOfData</code>）和事件用途（analytics vs marketing）进行进一步过滤，确保合规性。具体来说：
+                      <strong>Pixel 加载与事件发送条件（代码实现说明）：</strong>我们的 Web Pixel 配置为需要 <code>analytics</code> 或 <code>marketing</code> 同意才能加载（<code>analytics = true, marketing = true</code>），以同时支持 GA4（analytics 类别）和 Meta/TikTok（marketing 类别）平台。这意味着<strong>当客户授予 analytics 同意或 marketing 同意时，Pixel 就会加载</strong>；如果客户未授予任何同意，Pixel 不会加载，也不会发送任何事件。事件发送遵循以下规则：<strong>只有当客户授予 analytics 同意或 marketing 同意时，事件才会被发送到后端</strong>。如果客户未授予任何同意，事件将被跳过，不会发送。Marketing 同意要求 <code>marketingAllowed = true</code>，并且在客户明确拒绝 <code>saleOfDataAllowed</code> 时不发送（符合 CCPA 要求）。服务端会根据各平台的要求（<code>requiresSaleOfData</code>）和事件用途（analytics vs marketing）进行进一步过滤，确保合规性。具体来说：
                     </Text>
                     <ul style={{ marginTop: "8px", marginLeft: "20px", fontSize: "13px" }}>
                       <li><strong>Google Analytics 4 (GA4)：</strong> 只需 analytics 同意即可发送（<code>requiresSaleOfData = false</code>）</li>
