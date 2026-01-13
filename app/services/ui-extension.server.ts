@@ -56,7 +56,7 @@ export function getDefaultSettings(moduleKey: ModuleKey): ModuleSettings {
       return {
         title: "订单帮助与售后",
         description: "如需修改收件信息、查看售后政策或联系人工客服，请使用下方入口。",
-        faqUrl: "/pages/faq",
+        faqUrl: "https://help.tracking-guardian.app",
         contactEmail: undefined,
         contactUrl: undefined,
         whatsappNumber: undefined,
@@ -103,17 +103,9 @@ export async function canUseModule(shopId: string, moduleKey: ModuleKey): Promis
   reason?: string;
 }> {
   const moduleInfo = UI_MODULES[moduleKey];
-  if (moduleInfo.disabled) {
-    return {
-      allowed: false,
-      requiredPlan: moduleInfo.requiredPlan,
-      currentPlan: "free",
-      reason: moduleInfo.disabledReason || `${moduleKey} 模块当前不可用`,
-    };
-  }
   if (moduleKey === "reorder") {
-    const { FEATURE_FLAGS, PCD_CONFIG } = await import("../utils/config");
-    if (!FEATURE_FLAGS.REORDER_ENABLED || !PCD_CONFIG.APPROVED) {
+    const { PCD_CONFIG } = await import("../utils/config");
+    if (!PCD_CONFIG.APPROVED) {
       return {
         allowed: false,
         requiredPlan: moduleInfo.requiredPlan,
@@ -121,6 +113,14 @@ export async function canUseModule(shopId: string, moduleKey: ModuleKey): Promis
         reason: "Reorder 功能需要 Protected Customer Data 审核批准，当前默认禁用",
       };
     }
+  }
+  if (moduleKey !== "reorder" && moduleInfo.disabled) {
+    return {
+      allowed: false,
+      requiredPlan: moduleInfo.requiredPlan,
+      currentPlan: "free",
+      reason: moduleInfo.disabledReason || `${moduleKey} 模块当前不可用`,
+    };
   }
   const { isModuleAvailableInV1 } = await import("../utils/version-gate");
   if (!isModuleAvailableInV1(moduleKey)) {
@@ -269,19 +269,20 @@ export async function updateUiModuleConfig(
       config.localization = localizationValidation.normalized;
     }
     if (config.isEnabled !== undefined) {
-      const moduleInfo = UI_MODULES[moduleKey];
-      if (moduleInfo.disabled) {
-        return {
-          success: false,
-          error: moduleInfo.disabledReason || `${moduleKey} 模块当前不可用`,
-        };
-      }
       if (moduleKey === "reorder" && config.isEnabled) {
-        const { FEATURE_FLAGS, PCD_CONFIG } = await import("../utils/config");
-        if (!FEATURE_FLAGS.REORDER_ENABLED || !PCD_CONFIG.APPROVED) {
+        const { PCD_CONFIG } = await import("../utils/config");
+        if (!PCD_CONFIG.APPROVED) {
           return {
             success: false,
             error: "Reorder 功能需要 Protected Customer Data 审核批准，当前默认禁用",
+          };
+        }
+      } else if (moduleKey !== "reorder") {
+        const moduleInfo = UI_MODULES[moduleKey];
+        if (moduleInfo.disabled) {
+          return {
+            success: false,
+            error: moduleInfo.disabledReason || `${moduleKey} 模块当前不可用`,
           };
         }
       }

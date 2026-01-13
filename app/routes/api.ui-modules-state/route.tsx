@@ -4,7 +4,7 @@ import { logger } from "../../utils/logger.server";
 import { optionsResponse, jsonWithCors } from "../../utils/cors";
 import prisma from "../../db.server";
 import { getUiModuleConfigs, canUseModule, getDefaultSettings } from "../../services/ui-extension.server";
-import { FEATURE_FLAGS, PCD_CONFIG } from "../../utils/config";
+import { PCD_CONFIG } from "../../utils/config";
 
 async function authenticatePublicExtension(request: Request): Promise<{ shop: string; [key: string]: unknown }> {
   try {
@@ -47,7 +47,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   const shopDomain = session.shop;
   const shop = await prisma.shop.findUnique({
     where: { shopDomain },
-    select: { id: true },
+    select: { id: true, primaryDomain: true, storefrontDomains: true },
   });
   if (!shop) {
     logger.warn(`UI modules state request for unknown shop: ${shopDomain}`);
@@ -97,11 +97,32 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     const defaultReorderSettings = getDefaultSettings("reorder") as { title?: string; subtitle?: string; buttonText?: string };
     const surveyQuestion = surveyConfig?.question || defaultSurveySettings.question || "您是如何了解到我们的？";
     const surveyOptions = surveyConfig?.sources?.map(s => s.label) || defaultSurveySettings.sources?.map(s => s.label) || ["搜索引擎", "社交媒体", "朋友推荐", "广告", "其他"];
-    const helpFaqUrl = helpConfig?.faqUrl || defaultHelpSettings.faqUrl;
-    const helpSupportUrl = helpConfig?.contactUrl || (helpConfig?.contactEmail ? `mailto:${helpConfig.contactEmail}` : (defaultHelpSettings.contactUrl || (defaultHelpSettings.contactEmail ? `mailto:${defaultHelpSettings.contactEmail}` : undefined)));
+    let baseUrl = `https://${shopDomain}`;
+    if (shop.primaryDomain) {
+      baseUrl = shop.primaryDomain.startsWith("http") ? shop.primaryDomain : `https://${shop.primaryDomain}`;
+    } else if (shop.storefrontDomains && shop.storefrontDomains.length > 0) {
+      baseUrl = shop.storefrontDomains[0].startsWith("http") ? shop.storefrontDomains[0] : `https://${shop.storefrontDomains[0]}`;
+    }
+    let helpFaqUrl = helpConfig?.faqUrl || defaultHelpSettings.faqUrl;
+    if (helpFaqUrl && !helpFaqUrl.startsWith("http") && !helpFaqUrl.startsWith("mailto:")) {
+      if (helpFaqUrl.startsWith("/")) {
+        helpFaqUrl = `${baseUrl}${helpFaqUrl}`;
+      } else {
+        helpFaqUrl = `${baseUrl}/${helpFaqUrl}`;
+      }
+    }
+    let helpContactUrl = helpConfig?.contactUrl || defaultHelpSettings.contactUrl;
+    if (helpContactUrl && !helpContactUrl.startsWith("http") && !helpContactUrl.startsWith("mailto:")) {
+      if (helpContactUrl.startsWith("/")) {
+        helpContactUrl = `${baseUrl}${helpContactUrl}`;
+      } else {
+        helpContactUrl = `${baseUrl}/${helpContactUrl}`;
+      }
+    }
+    const helpSupportUrl = helpContactUrl || (helpConfig?.contactEmail ? `mailto:${helpConfig.contactEmail}` : (defaultHelpSettings.contactEmail ? `mailto:${defaultHelpSettings.contactEmail}` : undefined));
     const surveyEnabled = (surveyModule?.isEnabled ?? false) && surveyAllowed.allowed && surveyEnabledForTarget;
     const helpEnabled = (helpModule?.isEnabled ?? false) && helpAllowed.allowed && helpEnabledForTarget;
-    const reorderEnabled = FEATURE_FLAGS.REORDER_ENABLED && PCD_CONFIG.APPROVED && (reorderModule?.isEnabled ?? false) && reorderAllowed.allowed && reorderEnabledForTarget && normalizedTarget === "order_status";
+    const reorderEnabled = PCD_CONFIG.APPROVED && (reorderModule?.isEnabled ?? false) && reorderAllowed.allowed && reorderEnabledForTarget && normalizedTarget === "order_status";
     
     logger.debug("Final module state", {
       shopDomain,
