@@ -59,6 +59,7 @@ export interface IFeatureFlags {
   extendedPayload: boolean;
   trackingApi: boolean;
   checkoutBlocks: boolean;
+  reorderEnabled: boolean;
 }
 
 export interface IAppConfig {

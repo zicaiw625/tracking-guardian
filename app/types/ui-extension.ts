@@ -144,6 +144,8 @@ export const UI_MODULES: Record<ModuleKey, ModuleInfo> = {
     category: "conversion",
     requiredPlan: "growth",
     targets: ["order_status"],
+    disabled: true,
+    disabledReason: "需要 Protected Customer Data 审核批准，默认禁用",
   },
   upsell: {
     key: "upsell",

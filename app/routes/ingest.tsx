@@ -55,14 +55,38 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       { status: 415, request }
     );
   }
+  const contentLength = request.headers.get("Content-Length");
+  if (contentLength) {
+    const size = parseInt(contentLength, 10);
+    if (!isNaN(size) && size > API_CONFIG.MAX_BODY_SIZE) {
+      logger.warn(`Request body too large: ${size} bytes (max ${API_CONFIG.MAX_BODY_SIZE})`);
+      return jsonWithCors(
+        { error: "Payload too large", maxSize: API_CONFIG.MAX_BODY_SIZE },
+        { status: 413, request }
+      );
+    }
+  }
   let bodyText: string;
   let bodyData: unknown;
   try {
     bodyText = await request.text();
+    if (bodyText.length > API_CONFIG.MAX_BODY_SIZE) {
+      logger.warn(`Request body too large: ${bodyText.length} bytes (max ${API_CONFIG.MAX_BODY_SIZE})`);
+      return jsonWithCors(
+        { error: "Payload too large", maxSize: API_CONFIG.MAX_BODY_SIZE },
+        { status: 413, request }
+      );
+    }
     bodyData = JSON.parse(bodyText);
   } catch (error) {
+    if (error instanceof SyntaxError) {
+      return jsonWithCors(
+        { error: "Invalid JSON body" },
+        { status: 400, request }
+      );
+    }
     return jsonWithCors(
-      { error: "Invalid JSON body" },
+      { error: "Failed to read request body" },
       { status: 400, request }
     );
   }

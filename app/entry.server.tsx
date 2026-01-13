@@ -5,7 +5,7 @@ import { createReadableStreamFromReadable, type EntryContext, } from "@remix-run
 import { isbot } from "isbot";
 import { addDocumentResponseHeaders } from "./shopify.server";
 import { ensureSecretsValid, enforceSecurityChecks } from "./utils/secrets";
-import { validateConfig, logConfigStatus } from "./utils/config";
+import { validateConfig, logConfigStatus, API_CONFIG } from "./utils/config";
 import { logger } from "./utils/logger.server";
 import { EMBEDDED_APP_HEADERS, addSecurityHeadersToHeaders, validateSecurityHeaders, } from "./utils/security-headers";
 import { RedisClientFactory } from "./utils/redis-client";
@@ -103,6 +103,28 @@ export default async function handleRequest(request: Request, responseStatusCode
     validateSecretsOnce();
     validateConfigOnce();
     validateHeadersOnce();
+    const url = new URL(request.url);
+    if ((url.pathname === "/ingest" || url.pathname === "/api/ingest" || url.pathname === "/api/pixel-events") && request.method === "POST") {
+        const contentLength = request.headers.get("Content-Length");
+        if (contentLength) {
+            const size = parseInt(contentLength, 10);
+            if (!isNaN(size) && size > API_CONFIG.MAX_BODY_SIZE) {
+                logger.warn(`Request body too large at entry layer: ${size} bytes (max ${API_CONFIG.MAX_BODY_SIZE})`, {
+                    path: url.pathname,
+                    method: request.method,
+                });
+                return new Response(
+                    JSON.stringify({ error: "Payload too large", maxSize: API_CONFIG.MAX_BODY_SIZE }),
+                    {
+                        status: 413,
+                        headers: {
+                            "Content-Type": "application/json",
+                        },
+                    }
+                );
+            }
+        }
+    }
     addDocumentResponseHeaders(request, responseHeaders);
     addSecurityHeadersToHeaders(responseHeaders, EMBEDDED_APP_HEADERS);
     const userAgent = request.headers.get("user-agent");

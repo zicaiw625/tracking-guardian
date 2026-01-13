@@ -343,12 +343,17 @@ export function isDevelopment(): boolean {
     return process.env.NODE_ENV !== "production";
 }
 
-export const     FEATURE_FLAGS = {
+export const PCD_CONFIG = {
+    APPROVED: getBoolEnv("PCD_APPROVED", false),
+} as const;
+
+export const FEATURE_FLAGS = {
     FUNNEL_EVENTS: getBoolEnv("FEATURE_FUNNEL_EVENTS", false),
     DEBUG_LOGGING: getBoolEnv("FEATURE_DEBUG_LOGGING", false),
     EXTENDED_PAYLOAD: getBoolEnv("FEATURE_EXTENDED_PAYLOAD", false),
     TRACKING_API: getBoolEnv("FEATURE_TRACKING_API", false),
     CHECKOUT_BLOCKS: getBoolEnv("FEATURE_CHECKOUT_BLOCKS", false),
+    REORDER_ENABLED: getBoolEnv("FEATURE_REORDER_ENABLED", false) && PCD_CONFIG.APPROVED,
 } as const;
 
 export function getFeatureFlagsSummary(): Record<string, { enabled: boolean; source: "default" | "env" }> {
@@ -372,6 +377,10 @@ export function getFeatureFlagsSummary(): Record<string, { enabled: boolean; sou
         checkoutBlocks: {
             enabled: FEATURE_FLAGS.CHECKOUT_BLOCKS,
             source: process.env.FEATURE_CHECKOUT_BLOCKS ? "env" : "default",
+        },
+        reorderEnabled: {
+            enabled: FEATURE_FLAGS.REORDER_ENABLED,
+            source: process.env.FEATURE_REORDER_ENABLED ? "env" : "default",
         },
     };
 }

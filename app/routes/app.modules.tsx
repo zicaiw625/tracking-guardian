@@ -45,6 +45,7 @@ import {
 } from "../types/ui-extension";
 import { getPlanOrDefault, type PlanId, BILLING_PLANS } from "../services/billing/plans";
 import { logger } from "../utils/logger.server";
+import { FEATURE_FLAGS, PCD_CONFIG } from "../utils/config";
 
 interface LoaderData {
   shop: {
@@ -140,6 +141,9 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       if (UI_MODULES[moduleKey].disabled) {
         return json({ error: UI_MODULES[moduleKey].disabledReason || `${moduleKey} 模块当前不可用` }, { status: 400 });
       }
+      if (moduleKey === "reorder" && (!FEATURE_FLAGS.REORDER_ENABLED || !PCD_CONFIG.APPROVED)) {
+        return json({ error: "Reorder 功能需要 Protected Customer Data 审核批准，当前默认禁用" }, { status: 403 });
+      }
       const isEnabled = formData.get("isEnabled") === "true";
       const result = await updateUiModuleConfig(shop.id, moduleKey, { isEnabled });
       if (!result.success) {
@@ -151,7 +155,15 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       const updatesJson = formData.get("updates") as string;
       try {
         const updates = JSON.parse(updatesJson) as Array<{ moduleKey: ModuleKey; isEnabled: boolean }>;
-        const filteredUpdates = updates.filter((update) => !UI_MODULES[update.moduleKey].disabled);
+        const filteredUpdates = updates.filter((update) => {
+          if (UI_MODULES[update.moduleKey].disabled) {
+            return false;
+          }
+          if (update.moduleKey === "reorder" && update.isEnabled && (!FEATURE_FLAGS.REORDER_ENABLED || !PCD_CONFIG.APPROVED)) {
+            return false;
+          }
+          return true;
+        });
         if (filteredUpdates.length === 0) {
           return json({ error: "没有可操作的模块（已过滤禁用的模块）" }, { status: 400 });
         }
@@ -259,10 +271,10 @@ function ModuleCard({
               variant={module.isEnabled ? "secondary" : "primary"}
               onClick={() => onToggle(module.moduleKey, !module.isEnabled)}
               loading={isSubmitting}
-              disabled={(!canEnable && !module.isEnabled) || info.disabled}
+              disabled={(!canEnable && !module.isEnabled) || info.disabled || (module.moduleKey === "reorder" && (!FEATURE_FLAGS.REORDER_ENABLED || !PCD_CONFIG.APPROVED))}
               size="slim"
             >
-              {module.isEnabled ? "停用" : info.disabled ? "v1.1+ 支持" : "启用"}
+              {module.isEnabled ? "停用" : info.disabled ? "v1.1+ 支持" : (module.moduleKey === "reorder" && !FEATURE_FLAGS.REORDER_ENABLED) ? "需要 PCD 审核" : "启用"}
             </Button>
           </InlineStack>
         </InlineStack>

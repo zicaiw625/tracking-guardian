@@ -7,6 +7,7 @@ import { withConditionalCache, createUrlCacheKey } from "../../lib/with-cache";
 import { TTL } from "../../utils/cache";
 import prisma from "../../db.server";
 import { canUseModule, getUiModuleConfigs } from "../../services/ui-extension.server";
+import { FEATURE_FLAGS, PCD_CONFIG } from "../../utils/config";
 
 async function authenticatePublicExtension(request: Request): Promise<{ shop: string; [key: string]: unknown }> {
   try {
@@ -47,6 +48,20 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     );
   }
     const shopDomain = session.shop;
+    if (!FEATURE_FLAGS.REORDER_ENABLED) {
+      logger.warn(`Reorder feature is disabled globally for shop ${shopDomain} - hard disabled at action level`);
+      return jsonWithCors(
+        { error: "Reorder feature is not available", reason: "feature_disabled", requiresPcdApproval: true },
+        { status: 403, request, staticCors: true }
+      );
+    }
+    if (!PCD_CONFIG.APPROVED) {
+      logger.warn(`Reorder feature requires PCD approval for shop ${shopDomain} - hard disabled at action level`);
+      return jsonWithCors(
+        { error: "Reorder feature requires Protected Customer Data approval", reason: "pcd_not_approved", requiresPcdApproval: true },
+        { status: 403, request, staticCors: true }
+      );
+    }
     const shop = await prisma.shop.findUnique({
       where: { shopDomain },
       select: { id: true },
@@ -179,6 +194,20 @@ async function loaderImpl(request: Request) {
       );
     }
     const shopDomain = session.shop;
+    if (!FEATURE_FLAGS.REORDER_ENABLED) {
+      logger.warn(`Reorder feature is disabled globally for shop ${shopDomain}`);
+      return jsonWithCors(
+        { error: "Reorder feature is not available", reason: "feature_disabled", requiresPcdApproval: true },
+        { status: 403, request, staticCors: true }
+      );
+    }
+    if (!PCD_CONFIG.APPROVED) {
+      logger.warn(`Reorder feature requires PCD approval for shop ${shopDomain} - hard disabled at loader level`);
+      return jsonWithCors(
+        { error: "Reorder feature requires Protected Customer Data approval", reason: "pcd_not_approved", requiresPcdApproval: true },
+        { status: 403, request, staticCors: true }
+      );
+    }
     const shop = await prisma.shop.findUnique({
       where: { shopDomain },
       select: { id: true },

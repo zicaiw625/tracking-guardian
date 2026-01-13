@@ -122,6 +122,7 @@ function createConfigAdapter(): IAppConfig {
       extendedPayload: FEATURE_FLAGS.EXTENDED_PAYLOAD,
       trackingApi: FEATURE_FLAGS.TRACKING_API,
       checkoutBlocks: FEATURE_FLAGS.CHECKOUT_BLOCKS,
+      reorderEnabled: FEATURE_FLAGS.REORDER_ENABLED,
     },
     getEnv,
     getRequiredEnv,

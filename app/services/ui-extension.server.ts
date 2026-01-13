@@ -111,6 +111,17 @@ export async function canUseModule(shopId: string, moduleKey: ModuleKey): Promis
       reason: moduleInfo.disabledReason || `${moduleKey} 模块当前不可用`,
     };
   }
+  if (moduleKey === "reorder") {
+    const { FEATURE_FLAGS, PCD_CONFIG } = await import("../utils/config");
+    if (!FEATURE_FLAGS.REORDER_ENABLED || !PCD_CONFIG.APPROVED) {
+      return {
+        allowed: false,
+        requiredPlan: moduleInfo.requiredPlan,
+        currentPlan: "free",
+        reason: "Reorder 功能需要 Protected Customer Data 审核批准，当前默认禁用",
+      };
+    }
+  }
   const { isModuleAvailableInV1 } = await import("../utils/version-gate");
   if (!isModuleAvailableInV1(moduleKey)) {
     return {
@@ -264,6 +275,15 @@ export async function updateUiModuleConfig(
           success: false,
           error: moduleInfo.disabledReason || `${moduleKey} 模块当前不可用`,
         };
+      }
+      if (moduleKey === "reorder" && config.isEnabled) {
+        const { FEATURE_FLAGS, PCD_CONFIG } = await import("../utils/config");
+        if (!FEATURE_FLAGS.REORDER_ENABLED || !PCD_CONFIG.APPROVED) {
+          return {
+            success: false,
+            error: "Reorder 功能需要 Protected Customer Data 审核批准，当前默认禁用",
+          };
+        }
       }
       const canUse = await canUseModule(shopId, moduleKey);
       if (!canUse.allowed) {

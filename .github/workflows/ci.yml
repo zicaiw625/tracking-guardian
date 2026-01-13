@@ -1,4 +1,3 @@
-# P2-01: CI 流程 - 强制执行 GraphQL-only 检查和 API 版本一致性
 name: CI
 
 on:
@@ -7,192 +6,61 @@ on:
   pull_request:
     branches: [main, develop]
 
-env:
-  NODE_VERSION: '20'
-
 jobs:
-  lint-and-typecheck:
-    name: Lint & Type Check
+  lint:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v4
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
         with:
           version: 10.11.0
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
+      - uses: actions/setup-node@v4
         with:
-          node-version: ${{ env.NODE_VERSION }}
+          node-version: '22.18'
           cache: 'pnpm'
-          cache-dependency-path: pnpm-lock.yaml
-
-      - name: Install dependencies
-        run: |
-          if [ -f pnpm-lock.yaml ]; then
-            pnpm install --frozen-lockfile
-          else
-            pnpm install --no-frozen-lockfile
-          fi
-
-      - name: Generate Prisma Client
-        run: pnpm generate
-
-      - name: ESLint
-        run: pnpm lint
-
-      - name: TypeScript Check
-        run: pnpm typecheck
-
-  compliance:
-    name: Compliance Checks
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v4
-        with:
-          version: 10.11.0
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-          cache: 'pnpm'
-          cache-dependency-path: pnpm-lock.yaml
-
-      - name: Install dependencies
-        run: |
-          if [ -f pnpm-lock.yaml ]; then
-            pnpm install --frozen-lockfile
-          else
-            pnpm install --no-frozen-lockfile
-          fi
-
-      - name: Generate Prisma Client
-        run: pnpm generate
-
-      # P2-01: GraphQL-only 检查 - 确保不使用 REST API
-      - name: Check GraphQL-only
-        run: pnpm lint:graphql-only
-
-      # P2-01: API 版本一致性检查
-      - name: Check API Version Consistency
-        run: pnpm check:api-version
-
-      # P2-01: API 版本一致性测试
-      - name: Test API Version Consistency
-        run: pnpm test --testPathPattern='api-version-consistency'
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm ci:lint
 
   test:
-    name: Tests
-    runs-on: ubuntu-latest
-    needs: [lint-and-typecheck]
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v4
-        with:
-          version: 10.11.0
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-          cache: 'pnpm'
-          cache-dependency-path: pnpm-lock.yaml
-
-      - name: Install dependencies
-        run: |
-          if [ -f pnpm-lock.yaml ]; then
-            pnpm install --frozen-lockfile
-          else
-            pnpm install --no-frozen-lockfile
-          fi
-
-      - name: Generate Prisma Client
-        run: pnpm generate
-
-      - name: Run Tests
-        run: pnpm test
-
-      - name: Upload Coverage
-        uses: codecov/codecov-action@v4
-        if: always()
-        with:
-          file: ./coverage/lcov.info
-          fail_ci_if_error: false
-
-  security-audit:
-    name: Security Audit
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v4
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
         with:
           version: 10.11.0
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
+      - uses: actions/setup-node@v4
         with:
-          node-version: ${{ env.NODE_VERSION }}
+          node-version: '22.18'
           cache: 'pnpm'
-          cache-dependency-path: pnpm-lock.yaml
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm ci:test
 
-      - name: Install dependencies
-        run: |
-          if [ -f pnpm-lock.yaml ]; then
-            pnpm install --frozen-lockfile
-          else
-            pnpm install --no-frozen-lockfile
-          fi
-
-      - name: Run pnpm audit
-        run: pnpm audit --prod --audit-level high
-        continue-on-error: true
-
-  build:
-    name: Build
+  compliance:
     runs-on: ubuntu-latest
-    needs: [lint-and-typecheck, compliance, test]
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v4
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
         with:
           version: 10.11.0
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
+      - uses: actions/setup-node@v4
         with:
-          node-version: ${{ env.NODE_VERSION }}
+          node-version: '22.18'
           cache: 'pnpm'
-          cache-dependency-path: pnpm-lock.yaml
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm ci:compliance
 
-      - name: Install dependencies
-        run: |
-          if [ -f pnpm-lock.yaml ]; then
-            pnpm install --frozen-lockfile
-          else
-            pnpm install --no-frozen-lockfile
-          fi
-
-      - name: Generate Prisma Client
-        run: pnpm generate
-
-      - name: Build
-        run: pnpm build
+  pre-deploy-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.11.0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22.18'
+          cache: 'pnpm'
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm pre-deploy:check
         env:
-          NODE_ENV: production
+          SHOPIFY_APP_URL: ${{ secrets.SHOPIFY_APP_URL || 'https://app.tracking-guardian.com' }}

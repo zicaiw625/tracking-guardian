@@ -239,6 +239,7 @@ function checkNetworkAccessPermission() {
                 name: "Network Access 权限检查",
                 passed: false,
                 message: "扩展配置文件不存在",
+                isHardError: true,
             };
         }
         const content = fs.readFileSync(extensionConfigPath, "utf-8");
@@ -252,6 +253,7 @@ function checkNetworkAccessPermission() {
                 name: "Network Access 权限检查",
                 passed: false,
                 message: "扩展配置中缺少 network_access = true，前台 block 无法调用后端 API。请在 shopify.extension.toml 中添加 [extensions.capabilities] 和 network_access = true，并在 Partner Dashboard 中批准该权限",
+                isHardError: true,
             };
         }
         if (!hasCapabilitiesSection) {
@@ -271,6 +273,89 @@ function checkNetworkAccessPermission() {
             name: "Network Access 权限检查",
             passed: false,
             message: `读取扩展配置文件失败: ${error instanceof Error ? error.message : String(error)}`,
+            isHardError: true,
+        };
+    }
+}
+
+function checkExtensionUrlInjected() {
+    const configFiles = [
+        { path: "extensions/shared/config.ts", label: "Shared config" },
+        { path: "extensions/thank-you-blocks/src/config.ts", label: "Thank-you blocks config" },
+    ];
+    const issues = [];
+    const placeholderPattern = /__BACKEND_URL_PLACEHOLDER__/;
+    const buildTimeUrlPattern = /const\s+BUILD_TIME_URL\s*=\s*(["'])([^"']+)\1;/;
+    
+    for (const configFile of configFiles) {
+        const filePath = path.join(__dirname, "..", configFile.path);
+        if (!fs.existsSync(filePath)) {
+            issues.push(`${configFile.label}: 文件不存在`);
+            continue;
+        }
+        const content = fs.readFileSync(filePath, "utf-8");
+        const match = content.match(buildTimeUrlPattern);
+        if (!match) {
+            issues.push(`${configFile.label}: 未找到 BUILD_TIME_URL 定义`);
+            continue;
+        }
+        const urlValue = match[2];
+        if (placeholderPattern.test(urlValue)) {
+            issues.push(`${configFile.label}: URL 仍为占位符，需要在部署前运行 'pnpm ext:inject'`);
+        } else if (urlValue.includes("localhost") || urlValue.includes("127.0.0.1")) {
+            issues.push(`${configFile.label}: URL 指向 localhost，生产环境将无法工作`);
+        }
+    }
+    
+    if (issues.length > 0) {
+        return {
+            name: "Extension URL 注入检查",
+            passed: false,
+            message: issues.join("; "),
+            isHardError: true,
+        };
+    }
+    return {
+        name: "Extension URL 注入检查",
+        passed: true,
+        message: "所有扩展配置文件中的 URL 已正确注入",
+    };
+}
+
+function checkAllowlistConfiguration() {
+    const shopifyAppUrl = process.env.SHOPIFY_APP_URL;
+    
+    if (!shopifyAppUrl) {
+        return {
+            name: "Allowlist 配置检查",
+            passed: false,
+            message: "SHOPIFY_APP_URL 未设置。扩展需要后端 URL 进行 allowlist 配置。请在环境变量中设置 SHOPIFY_APP_URL，并确保在 Partner Dashboard 中配置了相应的 allowlist 域名",
+            isHardError: true,
+        };
+    }
+    
+    try {
+        const url = new URL(shopifyAppUrl);
+        if (url.hostname === "localhost" || url.hostname === "127.0.0.1") {
+            return {
+                name: "Allowlist 配置检查",
+                passed: false,
+                message: "SHOPIFY_APP_URL 指向 localhost。生产环境必须使用真实域名，并在 Partner Dashboard → App → API access → UI extensions network access 中配置 allowlist",
+                isHardError: true,
+            };
+        }
+        
+        return {
+            name: "Allowlist 配置检查",
+            passed: true,
+            message: `SHOPIFY_APP_URL 已配置为 ${url.hostname}。请确保在 Partner Dashboard → App → API access → UI extensions network access 中已将 ${url.hostname} 添加到 allowlist`,
+        };
+    } catch (error) {
+        return {
+            name: "Allowlist 配置检查",
+            passed: false,
+            message: `SHOPIFY_APP_URL 格式无效: ${shopifyAppUrl}。错误: ${error instanceof Error ? error.message : String(error)}`,
+            isHardError: true,
         };
     }
 }
@@ -280,20 +365,27 @@ results.push(checkExtensionUids());
 results.push(checkDuplicateImports());
 results.push(checkBackendUrlInjection());
 results.push(checkNetworkAccessPermission());
+results.push(checkExtensionUrlInjected());
+results.push(checkAllowlistConfiguration());
 
 console.log("\n🔍 部署前检查结果\n");
 console.log("=".repeat(60));
 
 let allPassed = true;
+let hasHardErrors = false;
 
 for (const result of results) {
     const icon = result.passed ? "✅" : "❌";
     const status = result.passed ? "通过" : "失败";
-    console.log(`${icon} ${result.name}: ${status}`);
+    const hardErrorMarker = result.isHardError ? " [硬性错误]" : "";
+    console.log(`${icon} ${result.name}: ${status}${hardErrorMarker}`);
     console.log(`   ${result.message}`);
     console.log();
     if (!result.passed) {
         allPassed = false;
+        if (result.isHardError) {
+            hasHardErrors = true;
+        }
     }
 }
 
@@ -303,6 +395,10 @@ if (allPassed) {
     console.log("\n✅ 所有检查通过，可以继续部署\n");
     process.exit(0);
 } else {
-    console.log("\n❌ 部分检查失败，请修复后再部署\n");
+    if (hasHardErrors) {
+        console.log("\n❌ 发现硬性错误，部署被阻止。请修复上述标记为 [硬性错误] 的问题后再部署\n");
+    } else {
+        console.log("\n❌ 部分检查失败，请修复后再部署\n");
+    }
     process.exit(1);
 }

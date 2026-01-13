@@ -4,6 +4,7 @@ import { logger } from "../../utils/logger.server";
 import { optionsResponse, jsonWithCors } from "../../utils/cors";
 import prisma from "../../db.server";
 import { getUiModuleConfigs, canUseModule, getDefaultSettings } from "../../services/ui-extension.server";
+import { FEATURE_FLAGS, PCD_CONFIG } from "../../utils/config";
 
 async function authenticatePublicExtension(request: Request): Promise<{ shop: string; [key: string]: unknown }> {
   try {
@@ -100,7 +101,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     const helpSupportUrl = helpConfig?.contactUrl || (helpConfig?.contactEmail ? `mailto:${helpConfig.contactEmail}` : (defaultHelpSettings.contactUrl || (defaultHelpSettings.contactEmail ? `mailto:${defaultHelpSettings.contactEmail}` : undefined)));
     const surveyEnabled = (surveyModule?.isEnabled ?? false) && surveyAllowed.allowed && surveyEnabledForTarget;
     const helpEnabled = (helpModule?.isEnabled ?? false) && helpAllowed.allowed && helpEnabledForTarget;
-    const reorderEnabled = (reorderModule?.isEnabled ?? false) && reorderAllowed.allowed && reorderEnabledForTarget && normalizedTarget === "order_status";
+    const reorderEnabled = FEATURE_FLAGS.REORDER_ENABLED && PCD_CONFIG.APPROVED && (reorderModule?.isEnabled ?? false) && reorderAllowed.allowed && reorderEnabledForTarget && normalizedTarget === "order_status";
     
     logger.debug("Final module state", {
       shopDomain,
