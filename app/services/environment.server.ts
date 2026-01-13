@@ -73,6 +73,17 @@ export async function switchEnvironment(
   platform: string,
   targetEnvironment: PixelEnvironment
 ): Promise<EnvironmentSwitchResult> {
+  const v1SupportedPlatforms = ["google", "meta", "tiktok"];
+  if (!v1SupportedPlatforms.includes(platform)) {
+    return {
+      success: false,
+      previousEnvironment: "live",
+      newEnvironment: targetEnvironment,
+      configVersion: 0,
+      rollbackAllowed: false,
+      error: `平台 ${platform} 在 v1.0 版本中不支持。v1.0 仅支持: ${v1SupportedPlatforms.join(", ")}。`,
+    };
+  }
   const existingConfigs = await prisma.pixelConfig.findMany({
     where: {
       shopId,
@@ -256,6 +267,17 @@ export async function rollbackEnvironment(
   platform: string,
   environment: PixelEnvironment = "live"
 ): Promise<EnvironmentSwitchResult> {
+  const v1SupportedPlatforms = ["google", "meta", "tiktok"];
+  if (!v1SupportedPlatforms.includes(platform)) {
+    return {
+      success: false,
+      previousEnvironment: "live",
+      newEnvironment: "live",
+      configVersion: 0,
+      rollbackAllowed: false,
+      error: `平台 ${platform} 在 v1.0 版本中不支持。v1.0 仅支持: ${v1SupportedPlatforms.join(", ")}。`,
+    };
+  }
   const config = await prisma.pixelConfig.findFirst({
     where: {
       shopId,

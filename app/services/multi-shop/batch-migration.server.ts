@@ -107,7 +107,12 @@ export async function executeBatchMigration(
         clientSideEnabled?: boolean;
         serverSideEnabled?: boolean;
       }> = [];
+      const v1SupportedPlatforms = ["google", "meta", "tiktok"];
       for (const platformConfig of platforms) {
+        if (!v1SupportedPlatforms.includes(platformConfig.platform)) {
+          logger.warn(`batch-migration: 跳过不支持的平台 ${platformConfig.platform}`, { shopId });
+          continue;
+        }
         const existingConfig = await prisma.pixelConfig.findFirst({
           where: {
             shopId,

@@ -29,6 +29,13 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   if (!platform) {
     return json({ success: false, error: "缺少 platform 参数" }, { status: 400 });
   }
+  const v1SupportedPlatforms = ["google", "meta", "tiktok"];
+  if (!v1SupportedPlatforms.includes(platform)) {
+    return json({
+      success: false,
+      error: `平台 ${platform} 在 v1.0 版本中不支持。v1.0 仅支持: ${v1SupportedPlatforms.join(", ")}。`,
+    }, { status: 400 });
+  }
   try {
     switch (actionType) {
       case "rollback": {

@@ -33,6 +33,10 @@ export function validateWizardConfig(config: WizardConfig): {
   errors: string[];
 } {
   const errors: string[] = [];
+  const v1SupportedPlatforms = ["google", "meta", "tiktok"];
+  if (!v1SupportedPlatforms.includes(config.platform)) {
+    errors.push(`平台 ${config.platform} 在 v1.0 版本中不支持。v1.0 仅支持: ${v1SupportedPlatforms.join(", ")}。`);
+  }
   if (!config.platformId || config.platformId.trim() === "") {
     errors.push(`平台 ID 不能为空`);
   }
@@ -43,7 +47,7 @@ export function validateWizardConfig(config: WizardConfig): {
     if (!config.credentials.apiSecret) {
       errors.push("GA4 API Secret 不能为空");
     }
-  } else if (config.platform === "meta" || config.platform === "tiktok" || config.platform === "pinterest") {
+  } else if (config.platform === "meta" || config.platform === "tiktok") {
     if (!config.credentials.pixelId) {
       errors.push("Pixel ID 不能为空");
     }

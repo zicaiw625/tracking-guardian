@@ -23,7 +23,7 @@ import {
   evaluateTrustLevel,
 } from "./api.pixel-events/receipt-handler";
 import type { KeyValidationResult } from "./api.pixel-events/types";
-import { checkInitialConsent } from "./api.pixel-events/consent-filter";
+import { checkInitialConsent, filterPlatformsByConsent, logConsentFilterMetrics } from "./api.pixel-events/consent-filter";
 import { checkRateLimitAsync, createRateLimitResponse } from "~/utils/rate-limiter";
 import { safeFireAndForget } from "~/utils/helpers";
 import prisma from "~/db.server";
@@ -362,7 +362,27 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         normalizedItems.length > 0 ? normalizedItems : undefined,
         payload.nonce || null
       );
+      const consentResult = checkInitialConsent(payload.consent);
+      if (!consentResult.hasAnyConsent) {
+        logger.debug(`Event at index ${i} has no consent, skipping`, {
+          shopDomain,
+          eventName: payload.eventName,
+        });
+        continue;
+      }
+      const { platformsToRecord, skippedPlatforms } = filterPlatformsByConsent(
+        serverSideConfigs,
+        consentResult
+      );
+      const destinations = platformsToRecord.map(p => p.platform);
       if (isPurchaseEvent && orderId) {
+        logConsentFilterMetrics(
+          shopDomain,
+          orderId,
+          platformsToRecord,
+          skippedPlatforms,
+          consentResult
+        );
         try {
           const activeVerificationRun = await prisma.verificationRun.findFirst({
             where: {
@@ -372,7 +392,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
             orderBy: { createdAt: "desc" },
             select: { id: true },
           });
-          const primaryPlatform = serverSideConfigs.length > 0 ? serverSideConfigs[0].platform : null;
+          const primaryPlatform = platformsToRecord.length > 0 ? platformsToRecord[0].platform : null;
           await upsertPixelEventReceipt(
             shop.id,
             eventId,
@@ -391,12 +411,11 @@ export const action = async ({ request }: ActionFunctionArgs) => {
           });
         }
       }
-      const destinations = serverSideConfigs.map(config => config.platform);
-      const consentResult = checkInitialConsent(payload.consent);
-      if (!consentResult.hasAnyConsent) {
-        logger.debug(`Event at index ${i} has no consent, skipping`, {
+      if (destinations.length === 0) {
+        logger.debug(`Event at index ${i} has no allowed platforms after consent filtering, skipping`, {
           shopDomain,
           eventName: payload.eventName,
+          consent: payload.consent,
         });
         continue;
       }

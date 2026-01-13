@@ -15,7 +15,6 @@ import type {
   MetaCredentials,
   GoogleCredentials,
   TikTokCredentials,
-  PinterestCredentials,
 } from "../../types/platform";
 import { encryptAlertSettings } from "../../services/alert-settings.server";
 import { encryptJson } from "../../utils/crypto.server";
@@ -236,11 +235,15 @@ export async function handleSaveServerSide(
   }
   const { requireEntitlementOrThrow } = await import("../../services/billing/entitlement.server");
   const platform = formData.get("platform") as string;
+  const v1SupportedPlatforms = ["google", "meta", "tiktok"];
+  if (!v1SupportedPlatforms.includes(platform)) {
+    return json({ error: `平台 ${platform} 在 v1.0 版本中不支持。v1.0 仅支持: ${v1SupportedPlatforms.join(", ")}。` }, { status: 400 });
+  }
   const enabled = formData.get("enabled") === "true";
   if (enabled) {
     await requireEntitlementOrThrow(shopId, "pixel_destinations");
   }
-  let credentials: GoogleCredentials | MetaCredentials | TikTokCredentials | PinterestCredentials;
+  let credentials: GoogleCredentials | MetaCredentials | TikTokCredentials;
   let platformId = "";
   if (platform === "google") {
     const measurementId = (formData.get("measurementId") as string) || "";
@@ -289,21 +292,6 @@ export async function handleSaveServerSide(
     };
     credentials = tiktokCreds;
     platformId = pixelId;
-  } else if (platform === "pinterest") {
-    const adAccountId = (formData.get("adAccountId") as string) || "";
-    const accessToken = (formData.get("accessToken") as string) || "";
-    if (enabled && (!adAccountId || !accessToken)) {
-      return json(
-        { error: "启用服务端追踪时必须填写 Ad Account ID 和 Access Token" },
-        { status: 400 }
-      );
-    }
-    const pinterestCreds: PinterestCredentials = {
-      adAccountId,
-      accessToken,
-    };
-    credentials = pinterestCreds;
-    platformId = adAccountId;
   } else {
     return json({ error: "Unsupported platform" }, { status: 400 });
   }
@@ -317,9 +305,6 @@ export async function handleSaveServerSide(
     } else if (platform === "tiktok") {
       const creds = credentials as TikTokCredentials;
       return !!(creds.pixelId && creds.accessToken);
-    } else if (platform === "pinterest") {
-      const creds = credentials as PinterestCredentials;
-      return !!(creds.adAccountId && creds.accessToken);
     }
     return false;
   })();

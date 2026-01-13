@@ -66,9 +66,18 @@ export async function batchApplyPixelTemplate(
   if (!template) {
     throw new Error("Template not found");
   }
+  const v1SupportedPlatforms = ["google", "meta", "tiktok"];
   for (const shopId of shopIds) {
     try {
       for (const platformConfig of template.platforms) {
+        if (!v1SupportedPlatforms.includes(platformConfig.platform)) {
+          result.failed++;
+          result.errors.push({
+            shopId,
+            error: `平台 ${platformConfig.platform} 在 v1.0 版本中不支持。v1.0 仅支持: ${v1SupportedPlatforms.join(", ")}。`,
+          });
+          continue;
+        }
         await prisma.pixelConfig.upsert({
           where: {
             shopId_platform_environment_platformId: {
