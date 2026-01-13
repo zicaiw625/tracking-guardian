@@ -109,98 +109,11 @@ function HelpModule({
   );
 }
 
-function ReorderModule({ 
-  buttonText 
-}: {
-  buttonText: string;
-}) {
-  const api = useApi<"customer-account.order-status.block.render">();
-  const [loading, setLoading] = useState(false);
-  const [reorderUrl, setReorderUrl] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const handleReorder = async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const orderId =
-        (api as any)?.order?.current?.id ??
-        (api as any)?.order?.value?.id ??
-        (api as any)?.purchase?.order?.id ??
-        (api as any)?.purchase?.orderId;
-      if (!orderId) {
-        setError("无法获取订单信息，请稍后重试");
-        setLoading(false);
-        return;
-      }
-      const backendUrl = getValidatedBackendUrl();
-      if (!backendUrl) {
-        setError("后端配置无效");
-        setLoading(false);
-        return;
-      }
-      const token = await api.sessionToken.get();
-      const response = await fetch(`${backendUrl}/api/reorder`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          orderId: orderId,
-        }),
-      });
-      if (response.ok) {
-        const data = await response.json();
-        if (data.reorderUrl) {
-          setReorderUrl(data.reorderUrl);
-        } else {
-          setError("无法生成再次购买链接，请稍后重试");
-        }
-      } else {
-        const errorData = await response.json().catch(() => ({ error: "Unknown error" }));
-        setError(errorData.error || errorData.message || "操作失败，请稍后重试");
-      }
-    } catch (error) {
-      setError("网络错误，请稍后重试");
-    } finally {
-      setLoading(false);
-    }
-  };
-  if (reorderUrl) {
-    return (
-      <View border="base" cornerRadius="base" padding="base">
-        <Link to={reorderUrl} external>
-          <Button kind="primary">
-            {buttonText}
-          </Button>
-        </Link>
-      </View>
-    );
-  }
-  return (
-    <View border="base" cornerRadius="base" padding="base">
-      <BlockStack spacing="base">
-        <Button 
-          kind="primary" 
-          onPress={handleReorder}
-          loading={loading}
-        >
-          {buttonText}
-        </Button>
-        {error && (
-          <Text appearance="critical">{error}</Text>
-        )}
-      </BlockStack>
-    </View>
-  );
-}
-
 function ThankYouBlocks() {
   const api = useApi<"customer-account.order-status.block.render">();
   const [moduleState, setModuleState] = useState<{
     surveyEnabled: boolean;
     helpEnabled: boolean;
-    reorderEnabled: boolean;
     surveyConfig?: {
       question: string;
       options: string[];
@@ -208,9 +121,6 @@ function ThankYouBlocks() {
     helpConfig?: {
       faqUrl?: string;
       supportUrl?: string;
-    };
-    reorderConfig?: {
-      buttonText: string;
     };
   } | null>(null);
   const [loading, setLoading] = useState(true);
@@ -222,7 +132,6 @@ function ThankYouBlocks() {
           setModuleState({
             surveyEnabled: false,
             helpEnabled: false,
-            reorderEnabled: false,
           });
           setLoading(false);
           return;
@@ -241,14 +150,12 @@ function ThankYouBlocks() {
           setModuleState({
             surveyEnabled: false,
             helpEnabled: false,
-            reorderEnabled: false,
           });
         }
       } catch (error) {
         setModuleState({
           surveyEnabled: false,
           helpEnabled: false,
-          reorderEnabled: false,
         });
       } finally {
         setLoading(false);
@@ -256,14 +163,13 @@ function ThankYouBlocks() {
     };
     fetchModuleState();
   }, [api]);
-  if (!moduleState || !moduleState.surveyEnabled && !moduleState.helpEnabled && !moduleState.reorderEnabled) {
+  if (!moduleState || !moduleState.surveyEnabled && !moduleState.helpEnabled) {
     return null;
   }
   const surveyQuestion = moduleState?.surveyConfig?.question;
   const surveyOptions = moduleState?.surveyConfig?.options;
   const helpFaqUrl = moduleState?.helpConfig?.faqUrl;
   const helpSupportUrl = moduleState?.helpConfig?.supportUrl;
-  const reorderButtonText = moduleState?.reorderConfig?.buttonText;
   const handleSurveySubmit = async (selectedOption: string): Promise<boolean> => {
     try {
       const backendUrl = getValidatedBackendUrl();
@@ -299,7 +205,6 @@ function ThankYouBlocks() {
   }
   const surveyEnabled = moduleState?.surveyEnabled ?? false;
   const helpEnabled = moduleState?.helpEnabled ?? false;
-  const reorderEnabled = moduleState?.reorderEnabled ?? false;
   return (
     <BlockStack spacing="base">
       {surveyEnabled && surveyQuestion && surveyOptions && surveyOptions.length > 0 && (
@@ -313,16 +218,10 @@ function ThankYouBlocks() {
         </>
       )}
       {helpEnabled && (helpFaqUrl || helpSupportUrl) && (
-        <>
-          <HelpModule
-            faqUrl={helpFaqUrl}
-            supportUrl={helpSupportUrl}
-          />
-          <Divider />
-        </>
-      )}
-      {reorderEnabled && reorderButtonText && (
-        <ReorderModule buttonText={reorderButtonText} />
+        <HelpModule
+          faqUrl={helpFaqUrl}
+          supportUrl={helpSupportUrl}
+        />
       )}
     </BlockStack>
   );

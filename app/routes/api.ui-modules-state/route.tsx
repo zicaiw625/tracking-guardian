@@ -59,39 +59,30 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     const url = new URL(request.url);
     const target = url.searchParams.get("target") || "thank-you";
     const modules = await getUiModuleConfigs(shop.id);
-    const [surveyAllowed, helpAllowed, reorderAllowed] = await Promise.all([
+    const [surveyAllowed, helpAllowed] = await Promise.all([
       canUseModule(shop.id, "survey"),
       canUseModule(shop.id, "helpdesk"),
-      canUseModule(shop.id, "reorder"),
     ]);
     const surveyModule = modules.find((m) => m.moduleKey === "survey");
     const helpModule = modules.find((m) => m.moduleKey === "helpdesk");
-    const reorderModule = modules.find((m) => m.moduleKey === "reorder");
     
     const surveyConfig = surveyModule?.settings as { question?: string; sources?: Array<{ id: string; label: string }> } | undefined;
     const helpConfig = helpModule?.settings as { faqUrl?: string; contactUrl?: string; contactEmail?: string } | undefined;
-    const reorderConfig = reorderModule?.settings as { buttonText?: string } | undefined;
     
     const defaultSurveySettings = getDefaultSettings("survey") as { question?: string; sources?: Array<{ id: string; label: string }> };
     const defaultHelpSettings = getDefaultSettings("helpdesk") as { faqUrl?: string; contactUrl?: string; contactEmail?: string };
-    const defaultReorderSettings = getDefaultSettings("reorder") as { buttonText?: string };
     
     const surveyQuestion = surveyConfig?.question || defaultSurveySettings.question || "您是如何了解到我们的？";
     const surveyOptions = surveyConfig?.sources?.map(s => s.label) || defaultSurveySettings.sources?.map(s => s.label) || ["搜索引擎", "社交媒体", "朋友推荐", "广告", "其他"];
     const helpFaqUrl = helpConfig?.faqUrl || defaultHelpSettings.faqUrl;
     const helpSupportUrl = helpConfig?.contactUrl || (helpConfig?.contactEmail ? `mailto:${helpConfig.contactEmail}` : (defaultHelpSettings.contactUrl || (defaultHelpSettings.contactEmail ? `mailto:${defaultHelpSettings.contactEmail}` : undefined)));
-    const reorderButtonText = reorderConfig?.buttonText || defaultReorderSettings.buttonText || "再次购买 →";
     
     const surveyEnabled = (surveyModule?.isEnabled ?? false) && surveyAllowed.allowed;
     const helpEnabled = (helpModule?.isEnabled ?? false) && helpAllowed.allowed;
-    const reorderEnabled = target === "order-status" 
-      ? (reorderModule?.isEnabled ?? false) && reorderAllowed.allowed
-      : false;
     
     const state: {
       surveyEnabled: boolean;
       helpEnabled: boolean;
-      reorderEnabled: boolean;
       surveyConfig: {
         question: string;
         options: string[];
@@ -100,21 +91,14 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
         faqUrl?: string;
         supportUrl?: string;
       };
-      reorderConfig: {
-        buttonText: string;
-      };
     } = {
       surveyEnabled,
       helpEnabled,
-      reorderEnabled,
       surveyConfig: {
         question: surveyQuestion,
         options: surveyOptions,
       },
       helpConfig: {},
-      reorderConfig: {
-        buttonText: reorderButtonText,
-      },
     };
     
     if (helpFaqUrl) {

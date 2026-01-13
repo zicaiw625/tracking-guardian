@@ -144,8 +144,13 @@ export async function upsertPixelConfig(
       `其他平台（如 Snapchat、Twitter、Pinterest）将在 v1.1+ 版本中提供支持。`
     );
   }
-  const { requireEntitlementOrThrow } = await import("../billing/entitlement.server");
+  const { checkV1FeatureBoundary } = await import("../../utils/version-gate");
   if (input.serverSideEnabled) {
+    const gateResult = checkV1FeatureBoundary("server_side");
+    if (!gateResult.allowed) {
+      throw new Error(gateResult.reason || "此功能在当前版本中不可用");
+    }
+    const { requireEntitlementOrThrow } = await import("../billing/entitlement.server");
     await requireEntitlementOrThrow(shopId, "pixel_destinations");
   }
   if (input.clientConfig && typeof input.clientConfig === 'object' && 'mode' in input.clientConfig) {

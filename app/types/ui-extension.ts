@@ -144,6 +144,8 @@ export const UI_MODULES: Record<ModuleKey, ModuleInfo> = {
     category: "conversion",
     requiredPlan: "growth",
     targets: ["order_status"],
+    disabled: true,
+    disabledReason: "v1.1+ 规划中",
   },
   upsell: {
     key: "upsell",

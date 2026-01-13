@@ -229,6 +229,11 @@ export async function handleSaveServerSide(
   shopId: string,
   sessionShop: string
 ) {
+  const { checkV1FeatureBoundary } = await import("../../utils/version-gate");
+  const gateResult = checkV1FeatureBoundary("server_side");
+  if (!gateResult.allowed) {
+    return json({ error: gateResult.reason || "此功能在当前版本中不可用" }, { status: 403 });
+  }
   const { requireEntitlementOrThrow } = await import("../../services/billing/entitlement.server");
   const platform = formData.get("platform") as string;
   const enabled = formData.get("enabled") === "true";
@@ -367,6 +372,11 @@ export async function handleSaveServerSide(
 }
 
 export async function handleTestConnection(formData: FormData) {
+  const { checkV1FeatureBoundary } = await import("../../utils/version-gate");
+  const gateResult = checkV1FeatureBoundary("server_side");
+  if (!gateResult.allowed) {
+    return json({ error: gateResult.reason || "此功能在当前版本中不可用" }, { status: 403 });
+  }
   const platform = formData.get("platform") as string;
   if (platform === "meta") {
     const pixelId = formData.get("pixelId") as string;
@@ -519,6 +529,11 @@ export async function settingsAction({ request }: ActionFunctionArgs) {
     case "updatePrivacySettings":
       return handleUpdatePrivacySettings(formData, shop.id, session.shop);
     case "switchEnvironment": {
+      const { checkV1FeatureBoundary } = await import("../../utils/version-gate");
+      const gateResult = checkV1FeatureBoundary("server_side");
+      if (!gateResult.allowed) {
+        return json({ error: gateResult.reason || "此功能在当前版本中不可用" }, { status: 403 });
+      }
       const platform = formData.get("platform") as string;
       const newEnvironment = formData.get("environment") as PixelEnvironment;
       if (!platform || !newEnvironment) {
@@ -571,6 +586,11 @@ export async function settingsAction({ request }: ActionFunctionArgs) {
       });
     }
     case "rollbackEnvironment": {
+      const { checkV1FeatureBoundary } = await import("../../utils/version-gate");
+      const gateResult = checkV1FeatureBoundary("server_side");
+      if (!gateResult.allowed) {
+        return json({ error: gateResult.reason || "此功能在当前版本中不可用" }, { status: 403 });
+      }
       const platform = formData.get("platform") as string;
       if (!platform) {
         return json({

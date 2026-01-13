@@ -9,7 +9,6 @@ import { settingsAction } from "./actions.server";
 import type { SettingsActionResponse } from "./types";
 import {
   AlertsTab,
-  ServerTrackingTab,
   SecurityTab,
   SubscriptionTab,
 } from "./_components";
@@ -35,21 +34,18 @@ export default function SettingsPage() {
     }
   }, [actionData, showSuccess, showError]);
   const existingAlertConfig = shop?.alertConfigs?.[0];
-  const existingPixelConfig = shop?.pixelConfigs?.[0];
   const [searchParams, setSearchParams] = useSearchParams();
   const tabParam = searchParams.get("tab");
   const getTabIndex = (tab: string | null): number => {
-    if (tab === "billing" || tab === "subscription") return 3;
+    if (tab === "billing" || tab === "subscription") return 2;
     if (tab === "alerts") return 0;
-    if (tab === "server-side" || tab === "server") return 1;
-    if (tab === "security") return 2;
+    if (tab === "security") return 1;
     return 0;
   };
   const getTabId = (index: number): string => {
     if (index === 0) return "alerts";
-    if (index === 1) return "server-side";
-    if (index === 2) return "security";
-    if (index === 3) return "subscription";
+    if (index === 1) return "security";
+    if (index === 2) return "subscription";
     return "alerts";
   };
   const [selectedTab, setSelectedTab] = useState(() => getTabIndex(tabParam));
@@ -83,26 +79,7 @@ export default function SettingsPage() {
   const [alertFrequency, setAlertFrequency] = useState(() =>
     existingAlertConfig?.frequency || "daily"
   );
-  const [serverPlatform, setServerPlatform] = useState(() => existingPixelConfig?.platform || "meta");
-  const [serverEnabled, setServerEnabled] = useState(() => existingPixelConfig?.serverSideEnabled ?? false);
-  const [metaPixelId, setMetaPixelId] = useState(() =>
-    existingPixelConfig?.platform === "meta" ? (existingPixelConfig.platformId || "") : ""
-  );
-  const [metaAccessToken, setMetaAccessToken] = useState("");
-  const [metaTestCode, setMetaTestCode] = useState("");
-  const [googleMeasurementId, setGoogleMeasurementId] = useState(() =>
-    existingPixelConfig?.platform === "google" ? (existingPixelConfig.platformId || "") : ""
-  );
-  const [googleApiSecret, setGoogleApiSecret] = useState("");
-  const [tiktokPixelId, setTiktokPixelId] = useState(() =>
-    existingPixelConfig?.platform === "tiktok" ? (existingPixelConfig.platformId || "") : ""
-  );
-  const [tiktokAccessToken, setTiktokAccessToken] = useState("");
-  const [environment, setEnvironment] = useState<"test" | "live">(() =>
-    (existingPixelConfig?.environment as "test" | "live") ?? "live"
-  );
   const [alertFormDirty, setAlertFormDirty] = useState(false);
-  const [serverFormDirty, setServerFormDirty] = useState(false);
   const initialAlertValues = useRef({
     channel: existingAlertConfig?.channel || "email",
     email: "",
@@ -115,18 +92,6 @@ export default function SettingsPage() {
     missingParamsThreshold: settings?.thresholds?.missingParams ? String(Math.round(settings.thresholds.missingParams * 100)) : "5",
     volumeDropThreshold: settings?.thresholds?.volumeDrop ? String(Math.round(settings.thresholds.volumeDrop * 100)) : "50",
     alertFrequency: existingAlertConfig?.frequency || "daily",
-  });
-  const initialServerValues = useRef({
-    platform: existingPixelConfig?.platform || "meta",
-    enabled: existingPixelConfig?.serverSideEnabled ?? false,
-    environment: (existingPixelConfig?.environment as "test" | "live") ?? "live",
-    metaPixelId: existingPixelConfig?.platform === "meta" ? (existingPixelConfig.platformId || "") : "",
-    metaAccessToken: "",
-    metaTestCode: "",
-    googleMeasurementId: existingPixelConfig?.platform === "google" ? (existingPixelConfig.platformId || "") : "",
-    googleApiSecret: "",
-    tiktokPixelId: existingPixelConfig?.platform === "tiktok" ? (existingPixelConfig.platformId || "") : "",
-    tiktokAccessToken: "",
   });
   const isSubmitting = navigation.state === "submitting";
   const checkAlertFormDirty = useCallback(() => {
@@ -157,42 +122,14 @@ export default function SettingsPage() {
     volumeDropThreshold,
     alertFrequency,
   ]);
-  const checkServerFormDirty = useCallback(() => {
-    const initial = initialServerValues.current;
-    const isDirty =
-      serverPlatform !== initial.platform ||
-      serverEnabled !== initial.enabled ||
-      environment !== initial.environment ||
-      metaPixelId !== initial.metaPixelId ||
-      metaAccessToken !== initial.metaAccessToken ||
-      metaTestCode !== initial.metaTestCode ||
-      googleMeasurementId !== initial.googleMeasurementId ||
-      googleApiSecret !== initial.googleApiSecret ||
-      tiktokPixelId !== initial.tiktokPixelId ||
-      tiktokAccessToken !== initial.tiktokAccessToken;
-    setServerFormDirty(isDirty);
-  }, [
-    serverPlatform,
-    serverEnabled,
-    environment,
-    metaPixelId,
-    metaAccessToken,
-    metaTestCode,
-    googleMeasurementId,
-    googleApiSecret,
-    tiktokPixelId,
-    tiktokAccessToken,
-  ]);
   useEffect(() => {
     const timer = setTimeout(() => {
       if (selectedTab === 0) {
         checkAlertFormDirty();
-      } else if (selectedTab === 1) {
-        checkServerFormDirty();
       }
     }, 0);
     return () => clearTimeout(timer);
-  }, [selectedTab, checkAlertFormDirty, checkServerFormDirty]);
+  }, [selectedTab, checkAlertFormDirty]);
   useEffect(() => {
     if (actionData && "success" in actionData && actionData.success) {
       const timer = setTimeout(() => {
@@ -211,20 +148,6 @@ export default function SettingsPage() {
             alertFrequency: alertFrequency,
           };
           setAlertFormDirty(false);
-        } else if (selectedTab === 1) {
-          initialServerValues.current = {
-            platform: serverPlatform,
-            enabled: serverEnabled,
-            environment: environment,
-            metaPixelId: metaPixelId,
-            metaAccessToken: metaAccessToken,
-            metaTestCode: metaTestCode,
-            googleMeasurementId: googleMeasurementId,
-            googleApiSecret: googleApiSecret,
-            tiktokPixelId: tiktokPixelId,
-            tiktokAccessToken: tiktokAccessToken,
-          };
-          setServerFormDirty(false);
         }
       }, 0);
       return () => clearTimeout(timer);
@@ -239,16 +162,6 @@ export default function SettingsPage() {
     telegramChatId,
     alertThreshold,
     alertEnabled,
-    serverPlatform,
-    serverEnabled,
-    environment,
-    metaPixelId,
-    metaAccessToken,
-    metaTestCode,
-    googleMeasurementId,
-    googleApiSecret,
-    tiktokPixelId,
-    tiktokAccessToken,
   ]);
   const handleDiscardChanges = useCallback(() => {
     if (selectedTab === 0) {
@@ -265,19 +178,6 @@ export default function SettingsPage() {
       setVolumeDropThreshold(initial.volumeDropThreshold || "50");
       setAlertFrequency(initial.alertFrequency || "daily");
       setAlertFormDirty(false);
-    } else if (selectedTab === 1) {
-      const initial = initialServerValues.current;
-      setServerPlatform(initial.platform);
-      setServerEnabled(initial.enabled);
-      setEnvironment(initial.environment);
-      setMetaPixelId(initial.metaPixelId);
-      setMetaAccessToken(initial.metaAccessToken);
-      setMetaTestCode(initial.metaTestCode);
-      setGoogleMeasurementId(initial.googleMeasurementId);
-      setGoogleApiSecret(initial.googleApiSecret);
-      setTiktokPixelId(initial.tiktokPixelId);
-      setTiktokAccessToken(initial.tiktokAccessToken);
-      setServerFormDirty(false);
     }
   }, [selectedTab]);
   const handleSaveAlert = useCallback(() => {
@@ -327,63 +227,6 @@ export default function SettingsPage() {
     }
     submit(formData, { method: "post" });
   }, [alertChannel, alertEmail, slackWebhook, telegramToken, telegramChatId, submit]);
-  const handleSaveServerSide = useCallback(() => {
-    const formData = new FormData();
-    formData.append("_action", "saveServerSide");
-    formData.append("platform", serverPlatform);
-    formData.append("enabled", serverEnabled.toString());
-    formData.append("environment", environment);
-    if (serverPlatform === "meta") {
-      formData.append("pixelId", metaPixelId);
-      formData.append("accessToken", metaAccessToken);
-      formData.append("testEventCode", metaTestCode);
-    } else if (serverPlatform === "google") {
-      formData.append("measurementId", googleMeasurementId);
-      formData.append("apiSecret", googleApiSecret);
-    } else if (serverPlatform === "tiktok") {
-      formData.append("pixelId", tiktokPixelId);
-      formData.append("accessToken", tiktokAccessToken);
-    }
-    submit(formData, { method: "post" });
-  }, [
-    serverPlatform,
-    serverEnabled,
-    environment,
-    metaPixelId,
-    metaAccessToken,
-    metaTestCode,
-    googleMeasurementId,
-    googleApiSecret,
-    tiktokPixelId,
-    tiktokAccessToken,
-    submit,
-  ]);
-  const handleSwitchEnvironment = useCallback((platform: string, env: "test" | "live") => {
-    const formData = new FormData();
-    formData.append("_action", "switchEnvironment");
-    formData.append("platform", platform);
-    formData.append("environment", env);
-    submit(formData, { method: "post" });
-  }, [submit]);
-  const handleRollbackEnvironment = useCallback((platform: string) => {
-    if (confirm("确定要回滚到上一个配置版本吗？")) {
-      const formData = new FormData();
-      formData.append("_action", "rollbackEnvironment");
-      formData.append("platform", platform);
-      submit(formData, { method: "post" });
-    }
-  }, [submit]);
-  const handleTestConnection = useCallback(() => {
-    const formData = new FormData();
-    formData.append("_action", "testConnection");
-    formData.append("platform", serverPlatform);
-    if (serverPlatform === "meta") {
-      formData.append("pixelId", metaPixelId);
-      formData.append("accessToken", metaAccessToken);
-      formData.append("testEventCode", metaTestCode);
-    }
-    submit(formData, { method: "post" });
-  }, [serverPlatform, metaPixelId, metaAccessToken, metaTestCode, submit]);
   const handleRotateSecret = useCallback(() => {
     const message = shop?.hasIngestionSecret
       ? "确定要更换关联令牌吗？更换后 Web Pixel 将自动更新。"
@@ -397,19 +240,14 @@ export default function SettingsPage() {
   const handleSaveBarSave = useCallback(() => {
     if (selectedTab === 0) {
       handleSaveAlert();
-    } else if (selectedTab === 1) {
-      handleSaveServerSide();
     }
-  }, [selectedTab, handleSaveAlert, handleSaveServerSide]);
+  }, [selectedTab, handleSaveAlert]);
   const tabs = [
     { id: "alerts", content: "警报通知" },
-    { id: "server-side", content: "服务端追踪" },
     { id: "security", content: "安全与隐私" },
     { id: "subscription", content: "订阅计划" },
   ];
-  const showSaveBar =
-    (selectedTab === 0 && alertFormDirty) ||
-    (selectedTab === 1 && serverFormDirty);
+  const showSaveBar = selectedTab === 0 && alertFormDirty;
   return (
     <Page title="设置">
       {showSaveBar && (
@@ -429,10 +267,9 @@ export default function SettingsPage() {
       <BlockStack gap="500">
         <PageIntroCard
           title="设置总览"
-          description="配置告警通知、服务端追踪、安全与隐私策略，以及订阅计划。"
+          description="配置告警通知、安全与隐私策略，以及订阅计划。"
           items={[
             "告警阈值集中在「警报通知」",
-            "服务端追踪用于 CAPI 配置",
             "数据保留与隐私策略在「安全与隐私」",
           ]}
           primaryAction={{ content: "查看订阅计划", url: "/app/settings?tab=subscription" }}
@@ -472,45 +309,13 @@ export default function SettingsPage() {
             />
           )}
           {selectedTab === 1 && (
-            <ServerTrackingTab
-              shop={shop}
-              tokenIssues={tokenIssues}
-              serverPlatform={serverPlatform}
-              setServerPlatform={setServerPlatform}
-              serverEnabled={serverEnabled}
-              setServerEnabled={setServerEnabled}
-              environment={environment}
-              setEnvironment={setEnvironment}
-              onSwitchEnvironment={handleSwitchEnvironment}
-              onRollbackEnvironment={handleRollbackEnvironment}
-              metaPixelId={metaPixelId}
-              setMetaPixelId={setMetaPixelId}
-              metaAccessToken={metaAccessToken}
-              setMetaAccessToken={setMetaAccessToken}
-              metaTestCode={metaTestCode}
-              setMetaTestCode={setMetaTestCode}
-              googleMeasurementId={googleMeasurementId}
-              setGoogleMeasurementId={setGoogleMeasurementId}
-              googleApiSecret={googleApiSecret}
-              setGoogleApiSecret={setGoogleApiSecret}
-              tiktokPixelId={tiktokPixelId}
-              setTiktokPixelId={setTiktokPixelId}
-              tiktokAccessToken={tiktokAccessToken}
-              setTiktokAccessToken={setTiktokAccessToken}
-              serverFormDirty={serverFormDirty}
-              isSubmitting={isSubmitting}
-              onSaveServerSide={handleSaveServerSide}
-              onTestConnection={handleTestConnection}
-            />
-          )}
-          {selectedTab === 2 && (
             <SecurityTab
               shop={shop}
               isSubmitting={isSubmitting}
               onRotateSecret={handleRotateSecret}
             />
           )}
-          {selectedTab === 3 && <SubscriptionTab currentPlan={shop?.plan as PlanId || "free"} />}
+          {selectedTab === 2 && <SubscriptionTab currentPlan={shop?.plan as PlanId || "free"} />}
         </Tabs>
       </BlockStack>
     </Page>

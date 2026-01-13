@@ -16,36 +16,3 @@ module = "./src/order-status.tsx"
 
 [extensions.capabilities]
 network_access = true
-
-[settings]
-type = "object"
-
-[[settings.fields]]
-key = "survey_question"
-name = "Survey Question"
-description = "The question text for the survey"
-type = "single_line_text_field"
-
-[[settings.fields]]
-key = "survey_options"
-name = "Survey Options"
-description = "Comma-separated list of survey options"
-type = "single_line_text_field"
-
-[[settings.fields]]
-key = "help_faq_url"
-name = "FAQ URL"
-description = "URL to the FAQ page"
-type = "single_line_text_field"
-
-[[settings.fields]]
-key = "help_support_url"
-name = "Support URL"
-description = "URL to the support page or contact form"
-type = "single_line_text_field"
-
-[[settings.fields]]
-key = "reorder_button_text"
-name = "Reorder Button Text"
-description = "Text for the reorder button"
-type = "single_line_text_field"

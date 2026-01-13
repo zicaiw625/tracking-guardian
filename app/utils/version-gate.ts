@@ -11,7 +11,11 @@ export function checkV1FeatureBoundary(
 ): VersionGateResult {
   switch (feature) {
     case "server_side":
-      return { allowed: true };
+      return {
+        allowed: false,
+        reason: "服务端转化追踪（Server-side CAPI/MP）在 v1.0 版本中不可用，将在 v1.1+ 版本中提供",
+        requiredVersion: "1.1",
+      };
     case "upsell":
       return {
         allowed: false,
@@ -30,7 +34,7 @@ export function checkV1FeatureBoundary(
 }
 
 export function isModuleAvailableInV1(moduleKey: string): boolean {
-  const v1AvailableModules = ["survey", "reorder", "helpdesk"];
+  const v1AvailableModules = ["survey", "helpdesk"];
   return v1AvailableModules.includes(moduleKey);
 }
 
