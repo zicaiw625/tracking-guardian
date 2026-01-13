@@ -8,8 +8,6 @@ const __dirname = path.dirname(__filename);
 
 const SHARED_CONFIG_FILE = path.join(__dirname, "../extensions/shared/config.ts");
 const THANK_YOU_CONFIG_FILE = path.join(__dirname, "../extensions/thank-you-blocks/src/config.ts");
-const SHARED_CONFIG_JS_FILE = path.join(__dirname, "../extensions/shared/config.js");
-const THANK_YOU_CONFIG_JS_FILE = path.join(__dirname, "../extensions/thank-you-blocks/src/config.js");
 const PLACEHOLDER = "__BACKEND_URL_PLACEHOLDER__";
 const BUILD_TIME_URL_PATTERN = /const\s+BUILD_TIME_URL\s*=\s*(["'])([^"']+)\1;/;
 
@@ -116,8 +114,6 @@ function injectBackendUrl() {
         [
             { path: SHARED_CONFIG_FILE, label: "Shared config (extensions/shared/config.ts)", required: true },
             { path: THANK_YOU_CONFIG_FILE, label: "Thank-you blocks config (extensions/thank-you-blocks/src/config.ts)", required: false },
-            { path: SHARED_CONFIG_JS_FILE, label: "Shared config.js (compiled)", required: false },
-            { path: THANK_YOU_CONFIG_JS_FILE, label: "Thank-you blocks config.js (compiled)", required: false },
         ],
         (content) => {
             const result = replaceBuildTimeUrl(content, backendUrl);
@@ -137,8 +133,6 @@ function restorePlaceholder() {
         [
             { path: SHARED_CONFIG_FILE, label: "Shared config (extensions/shared/config.ts)", required: true },
             { path: THANK_YOU_CONFIG_FILE, label: "Thank-you blocks config (extensions/thank-you-blocks/src/config.ts)", required: false },
-            { path: SHARED_CONFIG_JS_FILE, label: "Shared config.js (compiled)", required: false },
-            { path: THANK_YOU_CONFIG_JS_FILE, label: "Thank-you blocks config.js (compiled)", required: false },
         ],
         (content) => restoreBuildTimeUrl(content),
     );

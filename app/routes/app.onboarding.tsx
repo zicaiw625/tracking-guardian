@@ -148,6 +148,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       id: true,
       shopDomain: true,
       shopTier: true,
+      plan: true,
       typOspPagesEnabled: true,
       typOspStatusReason: true,
       ScanReports: {

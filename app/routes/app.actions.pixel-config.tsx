@@ -18,7 +18,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   const shopDomain = session.shop;
   const shop = await prisma.shop.findUnique({
     where: { shopDomain },
-    select: { id: true },
+    select: { id: true, plan: true },
   });
   if (!shop) {
     return json({ success: false, error: "Shop not found" }, { status: 404 });
