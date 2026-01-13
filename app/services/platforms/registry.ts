@@ -29,7 +29,10 @@ class PlatformRegistry implements IPlatformRegistry {
     return this.services.has(platform);
   }
   getPlatforms(): Platform[] {
-    return Array.from(this.services.keys());
+    const allPlatforms = Array.from(this.services.keys());
+    return allPlatforms.filter((p) => 
+      p === "google" || p === "meta" || p === "tiktok"
+    );
   }
   getAll(): Map<Platform, IPlatformService> {
     return new Map(this.services);
@@ -134,18 +137,16 @@ export function initializePlatformRegistry(
   const { googleService } = require("./google.service");
   const { metaService } = require("./meta.service");
   const { tiktokService } = require("./tiktok.service");
-  const { pinterestService } = require("./pinterest.service");
-  const { snapchatService } = require("./snapchat.service");
-  const { twitterService } = require("./twitter.service");
   platformRegistry.register("google", services?.google ?? googleService);
   platformRegistry.register("meta", services?.meta ?? metaService);
   platformRegistry.register("tiktok", services?.tiktok ?? tiktokService);
-  platformRegistry.register("pinterest" as Platform, services?.["pinterest" as Platform] ?? pinterestService);
-  platformRegistry.register("snapchat" as Platform, services?.["snapchat" as Platform] ?? snapchatService);
-  platformRegistry.register("twitter" as Platform, services?.["twitter" as Platform] ?? twitterService);
   logger.info("Platform registry initialized", {
     platforms: platformRegistry.getPlatforms(),
   });
+}
+
+export function getV1SupportedPlatforms(): Platform[] {
+  return ["google", "meta", "tiktok"] as Platform[];
 }
 
 export function isRegistryInitialized(): boolean {
@@ -169,7 +170,7 @@ export function isPlatformSupported(platform: string): boolean {
 }
 
 export function getSupportedPlatforms(): Platform[] {
-  return platformRegistry.getPlatforms();
+  return getV1SupportedPlatforms();
 }
 
 export async function sendConversion(

@@ -31,6 +31,7 @@ import { useToastContext } from "~/components/ui";
 import { EventMappingEditor } from "./EventMappingEditor";
 import { ConfigVersionManager } from "./ConfigVersionManager";
 import type { PlatformType } from "~/types/enums";
+import { isV1SupportedPlatform } from "~/utils/v1-platforms";
 
 interface PlatformConfig {
   platform: PlatformType;
@@ -126,20 +127,6 @@ const DEFAULT_EVENT_MAPPINGS: Partial<Record<PlatformType, Record<string, string
     add_to_cart: "AddToCart",
     view_content: "ViewContent",
     search: "Search",
-  },
-  pinterest: {
-    checkout_completed: "checkout",
-    checkout_started: "checkout",
-    add_to_cart: "addtocart",
-    view_content: "pagevisit",
-    search: "search",
-  },
-  snapchat: {
-    checkout_completed: "PURCHASE",
-    checkout_started: "START_CHECKOUT",
-    add_to_cart: "ADD_CART",
-    view_content: "VIEW_CONTENT",
-    search: "SEARCH",
   },
 };
 
@@ -317,18 +304,6 @@ export function PixelMigrationWizard({
             return tiktokMatch[0];
           }
         }
-        if (platform === "pinterest") {
-          const pinterestMatch = pattern.match(/[A-Z0-9]{8,}/i);
-          if (pinterestMatch && pinterestMatch.length > 0 && pinterestMatch[0]) {
-            return pinterestMatch[0];
-          }
-        }
-        if (platform === "snapchat") {
-          const snapchatMatch = pattern.match(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i);
-          if (snapchatMatch && snapchatMatch.length > 0 && snapchatMatch[0]) {
-            return snapchatMatch[0];
-          }
-        }
       }
     }
     const content = details.content as string | undefined;
@@ -349,18 +324,6 @@ export function PixelMigrationWizard({
         const tiktokMatch = content.match(/ttq\s*\.\s*load\s*\(['"]?([A-Z0-9]+)['"]?/i);
         if (tiktokMatch && tiktokMatch.length > 1 && tiktokMatch[1]) {
           return tiktokMatch[1];
-        }
-      }
-      if (platform === "pinterest") {
-        const pinterestMatch = content.match(/pintrk\s*\(['"]load['"]\s*,\s*['"]?([A-Z0-9]+)['"]?/i);
-        if (pinterestMatch && pinterestMatch.length > 1 && pinterestMatch[1]) {
-          return pinterestMatch[1];
-        }
-      }
-      if (platform === "snapchat") {
-        const snapchatMatch = content.match(/snaptr\s*\(['"]init['"]\s*,\s*['"]?([0-9a-f-]{36})['"]?/i);
-        if (snapchatMatch && snapchatMatch.length > 1 && snapchatMatch[1]) {
-          return snapchatMatch[1];
         }
       }
     }
@@ -394,22 +357,6 @@ export function PixelMigrationWizard({
           eventMappings: wizardDraft.configs.tiktok?.eventMappings || DEFAULT_EVENT_MAPPINGS.tiktok || {},
           environment: wizardDraft.configs.tiktok?.environment || "test",
         },
-        pinterest: {
-          platform: "pinterest",
-          enabled: draftPlatforms.has("pinterest"),
-          platformId: wizardDraft.configs.pinterest?.platformId || "",
-          credentials: wizardDraft.configs.pinterest?.credentials || {},
-          eventMappings: wizardDraft.configs.pinterest?.eventMappings || DEFAULT_EVENT_MAPPINGS.pinterest || {},
-          environment: wizardDraft.configs.pinterest?.environment || "test",
-        },
-        snapchat: {
-          platform: "snapchat",
-          enabled: draftPlatforms.has("snapchat"),
-          platformId: wizardDraft.configs.snapchat?.platformId || "",
-          credentials: wizardDraft.configs.snapchat?.credentials || {},
-          eventMappings: wizardDraft.configs.snapchat?.eventMappings || DEFAULT_EVENT_MAPPINGS.snapchat || {},
-          environment: wizardDraft.configs.snapchat?.environment || "test",
-        },
       };
       return {
         step: wizardDraft.step as WizardStep,
@@ -423,7 +370,7 @@ export function PixelMigrationWizard({
   const initializeFromAsset = useCallback(() => {
     if (!prefillAsset || !prefillAsset.platform) return null;
     const platform = prefillAsset.platform as PlatformType;
-    if (!["google", "meta", "tiktok", "pinterest", "snapchat"].includes(platform)) return null;
+    if (!isV1SupportedPlatform(platform)) return null;
     const platformId = extractPlatformIdFromAsset(prefillAsset, platform);
     return {
       platforms: new Set<PlatformType>([platform]),
@@ -450,22 +397,6 @@ export function PixelMigrationWizard({
           platformId: platform === "tiktok" ? platformId : "",
           credentials: {},
           eventMappings: DEFAULT_EVENT_MAPPINGS.tiktok || {},
-          environment: "test",
-        },
-        pinterest: {
-          platform: "pinterest",
-          enabled: platform === "pinterest",
-          platformId: platform === "pinterest" ? platformId : "",
-          credentials: {},
-          eventMappings: DEFAULT_EVENT_MAPPINGS.pinterest || {},
-          environment: "test",
-        },
-        snapchat: {
-          platform: "snapchat",
-          enabled: platform === "snapchat",
-          platformId: platform === "snapchat" ? platformId : "",
-          credentials: {},
-          eventMappings: DEFAULT_EVENT_MAPPINGS.snapchat || {},
           environment: "test",
         },
       },
@@ -506,22 +437,6 @@ export function PixelMigrationWizard({
       platformId: "",
       credentials: {},
       eventMappings: DEFAULT_EVENT_MAPPINGS.tiktok || {},
-      environment: "test" as const,
-    },
-    pinterest: {
-      platform: "pinterest" as PlatformType,
-      enabled: false,
-      platformId: "",
-      credentials: {},
-      eventMappings: DEFAULT_EVENT_MAPPINGS.pinterest || {},
-      environment: "test" as const,
-    },
-    snapchat: {
-      platform: "snapchat" as PlatformType,
-      enabled: false,
-      platformId: "",
-      credentials: {},
-      eventMappings: DEFAULT_EVENT_MAPPINGS.snapchat || {},
       environment: "test" as const,
     },
     };
@@ -1279,12 +1194,12 @@ function SelectPlatformStep({
       </Banner>
       <BlockStack gap="300">
         {(Object.keys(PLATFORM_INFO) as PlatformType[]).filter((platform) => {
-          return platform === "google" || platform === "meta" || platform === "tiktok";
+          return isV1SupportedPlatform(platform);
         }).map((platform) => {
           const info = PLATFORM_INFO[platform];
           if (!info) return null;
           const isSelected = selectedPlatforms.has(platform);
-          const isV1Supported = platform === "google" || platform === "meta" || platform === "tiktok";
+          const isV1Supported = isV1SupportedPlatform(platform);
           const isDisabled = !isV1Supported;
           return (
             <Card key={platform}>
@@ -1522,7 +1437,7 @@ function EventMappingsStep({
         return (
           <EventMappingEditor
             key={platform}
-            platform={platform as "google" | "meta" | "tiktok" | "pinterest"}
+            platform={platform as "google" | "meta" | "tiktok"}
             mappings={config.eventMappings}
             onMappingChange={(shopifyEvent, platformEvent) =>
               onEventMappingUpdate(platform, shopifyEvent, platformEvent)

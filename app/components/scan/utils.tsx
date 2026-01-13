@@ -7,9 +7,6 @@ export function getPlatformName(platform: string): string {
     tiktok: "TikTok Pixel",
     bing: "Microsoft Ads (Bing) ⚠️",
     clarity: "Microsoft Clarity ⚠️",
-    pinterest: "Pinterest Tag",
-    snapchat: "Snapchat Pixel",
-    twitter: "Twitter/X Pixel",
     webhook: "通用 Webhook",
   };
   return names[platform] || platform;

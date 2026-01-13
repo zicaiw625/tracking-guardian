@@ -19,6 +19,7 @@ import { ExternalIcon } from "~/components/icons";
 import { authenticate } from "../shopify.server";
 import { UI_MODULES, type ModuleKey } from "../types/ui-extension";
 import { PageIntroCard } from "~/components/layout/PageIntroCard";
+import { checkCustomerAccountsEnabled } from "../services/customer-accounts.server";
 
 const TARGET_DETAILS: Record<
   "thank_you" | "order_status",
@@ -37,7 +38,7 @@ const TARGET_DETAILS: Record<
 };
 
 export const loader = async ({ request, params }: LoaderFunctionArgs) => {
-  const { session } = await authenticate.admin(request);
+  const { session, admin } = await authenticate.admin(request);
   const shopDomain = session.shop;
   const key = params.key;
   if (!key || !(key in UI_MODULES)) {
@@ -48,17 +49,27 @@ export const loader = async ({ request, params }: LoaderFunctionArgs) => {
   if (moduleInfo.disabled) {
     throw new Response("模块不可用", { status: 403 });
   }
+  const hasOrderStatusTarget = moduleInfo.targets.includes("order_status");
+  let customerAccountsStatus = null;
+  if (hasOrderStatusTarget) {
+    customerAccountsStatus = await checkCustomerAccountsEnabled(admin);
+  }
   return json({
     moduleKey,
     moduleName: moduleInfo.name,
     targets: moduleInfo.targets,
     shopDomain,
+    customerAccountsStatus,
+    hasOrderStatusTarget,
   });
 };
 
 export default function UiModulePublishGuide() {
-  const { moduleName, targets, shopDomain } = useLoaderData<typeof loader>();
+  const { moduleName, targets, shopDomain, customerAccountsStatus, hasOrderStatusTarget } = useLoaderData<typeof loader>();
   const targetCards = targets.map((target) => TARGET_DETAILS[target]);
+  const orderStatusTarget = targetCards.find((card) => card.target === "customer-account.order-status.block.render");
+  const customerAccountsEnabled = customerAccountsStatus?.enabled ?? false;
+  const canPublishOrderStatus = !hasOrderStatusTarget || customerAccountsEnabled;
   return (
     <Page
       title={`${moduleName} 发布指引`}
@@ -78,6 +89,26 @@ export default function UiModulePublishGuide() {
               ]}
               primaryAction={{ content: "返回模块列表", url: "/app/modules" }}
             />
+            {!canPublishOrderStatus && (
+              <Banner tone="critical">
+                <BlockStack gap="200">
+                  <Text as="p" variant="bodySm" fontWeight="semibold">
+                    <strong>⚠️ 无法发布 Order Status 模块</strong>
+                  </Text>
+                  <Text as="p" variant="bodySm">
+                    检测到您的店铺未启用 Customer Accounts 功能。Order Status 模块仅支持 Customer Accounts 体系下的订单状态页，当前无法发布。
+                  </Text>
+                  <Text as="p" variant="bodySm">
+                    <strong>解决方案：</strong>请在 Shopify Admin → 设置 → 客户账户中启用 Customer Accounts 功能，然后重新访问此页面。
+                  </Text>
+                  {customerAccountsStatus?.error && (
+                    <Text as="p" variant="bodySm" tone="subdued">
+                      检测错误：{customerAccountsStatus.error}
+                    </Text>
+                  )}
+                </BlockStack>
+              </Banner>
+            )}
             <Banner tone="info">
               <BlockStack gap="200">
                 <Text as="p" variant="bodySm">
@@ -127,29 +158,44 @@ export default function UiModulePublishGuide() {
                           </Banner>
                         )}
                         {item.target === "customer-account.order-status.block.render" && (
-                          <Banner tone="warning">
+                          <Banner tone={customerAccountsEnabled ? "info" : "critical"}>
                             <BlockStack gap="200">
-                              <Text as="p" variant="bodySm" fontWeight="semibold">
-                                <strong>重要：仅支持 Customer Accounts 体系下的订单状态页</strong>
-                              </Text>
-                              <Text as="p" variant="bodySm">
-                                <strong>Order status 模块：</strong>使用 <code>customer-account.order-status.block.render</code> target，仅适用于 Customer Accounts 体系下的订单状态页。旧版订单状态页（非 Customer Accounts）不会显示此模块。这是 Shopify 平台的设计限制，Order status 模块只能在 Customer Accounts 体系下工作。
-                              </Text>
-                              <Text as="p" variant="bodySm">
-                                如果您的店铺使用旧版订单状态页（非 Customer Accounts），此模块将不会显示。请确认您的店铺已启用 Customer Accounts 功能（可在 Shopify Admin → 设置 → 客户账户中检查），否则模块不会在订单状态页显示。
-                              </Text>
-                              <Text as="p" variant="bodySm">
-                                如果您的店铺未启用 Customer Accounts，请先在 Shopify Admin → 设置 → 客户账户中启用 Customer Accounts 功能，然后才能使用 Order status 模块。
-                              </Text>
-                              <Text as="p" variant="bodySm" fontWeight="semibold">
-                                文档引用说明（避免误导）：
-                              </Text>
-                              <Text as="p" variant="bodySm">
-                                需要 protected customer data 权限才能访问客户账户信息（如客户邮箱、地址等）。请参考 <strong>Customer Accounts UI Extensions</strong> 官方文档（<a href="https://shopify.dev/docs/apps/customer-accounts/ui-extensions" target="_blank" rel="noopener noreferrer">https://shopify.dev/docs/apps/customer-accounts/ui-extensions</a>）。
-                              </Text>
-                              <Text as="p" variant="bodySm">
-                                <strong>重要：不要参考 checkout-ui-extensions 文档</strong>，该文档可能显示此 target 为"Not supported"，这是文档版本差异导致的误导。正确的文档入口是 Customer Accounts UI Extensions，不是 Checkout UI Extensions。请务必使用 Customer Accounts UI Extensions 文档作为参考。
-                              </Text>
+                              {!customerAccountsEnabled ? (
+                                <>
+                                  <Text as="p" variant="bodySm" fontWeight="semibold">
+                                    <strong>⚠️ 未启用 Customer Accounts</strong>
+                                  </Text>
+                                  <Text as="p" variant="bodySm">
+                                    检测到您的店铺未启用 Customer Accounts 功能。Order Status 模块仅支持 Customer Accounts 体系下的订单状态页，当前无法使用。
+                                  </Text>
+                                  <Text as="p" variant="bodySm">
+                                    <strong>解决方案：</strong>请在 Shopify Admin → 设置 → 客户账户中启用 Customer Accounts 功能，然后重新访问此页面。
+                                  </Text>
+                                  {customerAccountsStatus?.error && (
+                                    <Text as="p" variant="bodySm" tone="subdued">
+                                      检测错误：{customerAccountsStatus.error}
+                                    </Text>
+                                  )}
+                                </>
+                              ) : (
+                                <>
+                                  <Text as="p" variant="bodySm" fontWeight="semibold">
+                                    <strong>✅ Customer Accounts 已启用</strong>
+                                  </Text>
+                                  <Text as="p" variant="bodySm">
+                                    <strong>Order status 模块：</strong>使用 <code>customer-account.order-status.block.render</code> target，仅适用于 Customer Accounts 体系下的订单状态页。旧版订单状态页（非 Customer Accounts）不会显示此模块。这是 Shopify 平台的设计限制，Order status 模块只能在 Customer Accounts 体系下工作。
+                                  </Text>
+                                  <Text as="p" variant="bodySm" fontWeight="semibold">
+                                    文档引用说明（避免误导）：
+                                  </Text>
+                                  <Text as="p" variant="bodySm">
+                                    需要 protected customer data 权限才能访问客户账户信息（如客户邮箱、地址等）。请参考 <strong>Customer Accounts UI Extensions</strong> 官方文档（<a href="https://shopify.dev/docs/apps/customer-accounts/ui-extensions" target="_blank" rel="noopener noreferrer">https://shopify.dev/docs/apps/customer-accounts/ui-extensions</a>）。
+                                  </Text>
+                                  <Text as="p" variant="bodySm">
+                                    <strong>重要：不要参考 checkout-ui-extensions 文档</strong>，该文档可能显示此 target 为"Not supported"，这是文档版本差异导致的误导。正确的文档入口是 Customer Accounts UI Extensions，不是 Checkout UI Extensions。请务必使用 Customer Accounts UI Extensions 文档作为参考。
+                                  </Text>
+                                </>
+                              )}
                             </BlockStack>
                           </Banner>
                         )}
@@ -200,6 +246,7 @@ export default function UiModulePublishGuide() {
                           variant="plain"
                           size="slim"
                           external
+                          disabled={hasOrderStatusTarget && !customerAccountsEnabled}
                         >
                           直接跳转到 Order Status 页面
                         </Button>

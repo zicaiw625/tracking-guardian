@@ -3,25 +3,23 @@ import type { IPlatformService, PlatformSendResult } from './interface';
 import { googleService, GooglePlatformService } from './google.service';
 import { metaService, MetaPlatformService } from './meta.service';
 import { tiktokService, TikTokPlatformService } from './tiktok.service';
-import { pinterestService, PinterestPlatformService } from './pinterest.service';
-import { snapchatService, SnapchatPlatformService } from './snapchat.service';
-import { twitterService, TwitterPlatformService } from './twitter.service';
 import type {
   ConversionData,
   PlatformCredentials,
   ConversionApiResponse,
 } from '../../types';
+import { isV1SupportedPlatform, getV1Platforms } from '../../utils/v1-platforms';
 
-const platformServices: Record<PlatformType, IPlatformService> = {
+const platformServices: Partial<Record<PlatformType, IPlatformService>> = {
   [Platform.GOOGLE]: googleService,
   [Platform.META]: metaService,
   [Platform.TIKTOK]: tiktokService,
-  [Platform.PINTEREST]: pinterestService,
-  [Platform.SNAPCHAT]: snapchatService,
-  [Platform.TWITTER]: twitterService,
 };
 
 export function getPlatformService(platform: PlatformType | string): IPlatformService {
+  if (!isV1SupportedPlatform(platform)) {
+    throw new Error(`Platform ${platform} is not supported in v1.0. Only google, meta, and tiktok are supported.`);
+  }
   const service = platformServices[platform as PlatformType];
   if (!service) {
     throw new Error(`Unsupported platform: ${platform}`);
@@ -29,15 +27,22 @@ export function getPlatformService(platform: PlatformType | string): IPlatformSe
   return service;
 }
 
+export function getV1PlatformService(platform: PlatformType | string): IPlatformService {
+  if (!isV1SupportedPlatform(platform)) {
+    throw new Error(`Platform ${platform} is not supported in v1.0. Only google, meta, and tiktok are supported.`);
+  }
+  return getPlatformService(platform);
+}
+
 export function isPlatformSupported(platform: string): platform is PlatformType {
-  return platform in platformServices;
+  return isV1SupportedPlatform(platform) && platform in platformServices;
 }
 
 export function getSupportedPlatforms(): PlatformType[] {
-  return Object.keys(platformServices) as PlatformType[];
+  return getV1Platforms() as PlatformType[];
 }
 
-export function getAllPlatformServices(): Record<PlatformType, IPlatformService> {
+export function getAllPlatformServices(): Partial<Record<PlatformType, IPlatformService>> {
   return { ...platformServices };
 }
 
@@ -96,15 +101,9 @@ export {
   GooglePlatformService,
   MetaPlatformService,
   TikTokPlatformService,
-  PinterestPlatformService,
-  SnapchatPlatformService,
-  TwitterPlatformService,
   googleService,
   metaService,
   tiktokService,
-  pinterestService,
-  snapchatService,
-  twitterService,
 };
 
 export { sendConversionToGoogle } from './google.service';

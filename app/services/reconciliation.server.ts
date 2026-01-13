@@ -136,6 +136,13 @@ async function getShopifyOrderStats(shopDomain: string, accessToken: string | nu
         while (hasMorePages && pageCount < maxPages) {
             const result = await makeRequest(cursor);
             if (result.errors || !result.data) {
+                const hasAccessError = result.errors?.some((err: { message?: string }) => 
+                    err.message?.includes("read_orders") || err.message?.includes("Required access")
+                );
+                if (hasAccessError) {
+                    logger.warn(`[P0-02] Missing read_orders scope for ${shopDomain}`, { errors: result.errors });
+                    return null;
+                }
                 logger.error(`Shopify GraphQL errors for ${shopDomain}`, undefined, { errors: result.errors });
                 if (pageCount > 0) {
                     logger.warn(`[P1-03] Returning partial data for ${shopDomain} after ${pageCount} pages`);

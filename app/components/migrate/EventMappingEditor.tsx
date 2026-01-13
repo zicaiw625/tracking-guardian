@@ -22,7 +22,7 @@ import {
   ArrowDownIcon,
 } from "~/components/icons";
 
-type Platform = "google" | "meta" | "tiktok" | "pinterest";
+type Platform = "google" | "meta" | "tiktok";
 
 interface ShopifyEvent {
   id: string;
@@ -171,29 +171,6 @@ const PLATFORM_EVENTS: Record<Platform, PlatformEvent[]> = {
       optionalParams: ["content_type", "contents"],
     },
   ],
-  pinterest: [
-    {
-      id: "checkout",
-      name: "Checkout",
-      description: "完成结账",
-      requiredParams: ["value", "currency"],
-      optionalParams: ["order_quantity", "line_items"],
-    },
-    {
-      id: "add_to_cart",
-      name: "Add to Cart",
-      description: "添加到购物车",
-      requiredParams: ["value", "currency"],
-      optionalParams: ["order_quantity", "line_items"],
-    },
-    {
-      id: "page_visit",
-      name: "Page Visit",
-      description: "页面访问",
-      requiredParams: [],
-      optionalParams: ["value", "currency"],
-    },
-  ],
 };
 
 const RECOMMENDED_MAPPINGS: Record<Platform, Record<string, string>> = {
@@ -215,19 +192,12 @@ const RECOMMENDED_MAPPINGS: Record<Platform, Record<string, string>> = {
     add_to_cart: "AddToCart",
     view_item: "ViewContent",
   },
-  pinterest: {
-    checkout_completed: "checkout",
-    checkout_started: "checkout",
-    add_to_cart: "add_to_cart",
-    view_item: "page_visit",
-  },
 };
 
 const PLATFORM_NAMES: Record<Platform, string> = {
   google: "Google Analytics 4",
   meta: "Meta (Facebook)",
   tiktok: "TikTok",
-  pinterest: "Pinterest",
 };
 
 export function EventMappingEditor({

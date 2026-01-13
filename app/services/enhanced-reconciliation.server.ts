@@ -113,11 +113,25 @@ export async function fetchShopifyOrders(
     });
     const data = await response.json().catch((jsonError) => {
       logger.error("Failed to parse GraphQL response as JSON", { error: jsonError });
-      return { data: null };
+      return { data: null, errors: [{ message: "Failed to parse response" }] };
     });
+    if (data.errors) {
+      const hasAccessError = data.errors.some((err: { message?: string }) => 
+        err.message?.includes("read_orders") || err.message?.includes("Required access")
+      );
+      if (hasAccessError) {
+        logger.warn("Missing read_orders scope for reconciliation", { errors: data.errors });
+        throw new Error("Missing read_orders scope. Please reauthorize the app with read_orders permission.");
+      }
+      logger.error("GraphQL errors in fetchShopifyOrders", { errors: data.errors });
+      return [];
+    }
     const orders = data.data?.orders?.edges?.map((edge: { node: ShopifyOrder }) => edge.node) || [];
     return orders;
   } catch (error) {
+    if (error instanceof Error && error.message.includes("read_orders")) {
+      throw error;
+    }
     logger.error("Failed to fetch Shopify orders", { error });
     return [];
   }

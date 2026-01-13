@@ -46,6 +46,7 @@ import {
 import { getPlanOrDefault, type PlanId, BILLING_PLANS } from "../services/billing/plans";
 import { logger } from "../utils/logger.server";
 import { PCD_CONFIG } from "../utils/config";
+import { checkCustomerAccountsEnabled } from "../services/customer-accounts.server";
 
 interface LoaderData {
   shop: {
@@ -60,15 +61,18 @@ interface LoaderData {
   isDevStore: boolean;
   modulePreviewUrls: Record<string, { thank_you?: string; order_status?: string }>;
   surveySubmissionCount?: number;
+  customerAccountsEnabled: boolean;
 }
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
-  const { session } = await authenticate.admin(request);
+  const { session, admin } = await authenticate.admin(request);
   const shopDomain = session.shop;
   const shop = await prisma.shop.findUnique({
     where: { shopDomain },
     select: { id: true, plan: true },
   });
+  const customerAccountsStatus = await checkCustomerAccountsEnabled(admin);
+  const customerAccountsEnabled = customerAccountsStatus.enabled;
   if (!shop) {
     return json<LoaderData>({
       shop: null,
@@ -80,6 +84,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       isDevStore: false,
       modulePreviewUrls: {},
       surveySubmissionCount: 0,
+      customerAccountsEnabled: false,
     });
   }
   const planId = shop.plan as PlanId;
@@ -120,11 +125,12 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     isDevStore: isDev,
     modulePreviewUrls,
     surveySubmissionCount,
+    customerAccountsEnabled,
   });
 };
 
 export const action = async ({ request }: ActionFunctionArgs) => {
-  const { session } = await authenticate.admin(request);
+  const { session, admin } = await authenticate.admin(request);
   const shopDomain = session.shop;
   const formData = await request.formData();
   const actionType = formData.get("_action");
@@ -146,6 +152,12 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         return json({ error: UI_MODULES[moduleKey].disabledReason || `${moduleKey} 模块当前不可用` }, { status: 400 });
       }
       const isEnabled = formData.get("isEnabled") === "true";
+      if (isEnabled && UI_MODULES[moduleKey].targets.includes("order_status")) {
+        const customerAccountsStatus = await checkCustomerAccountsEnabled(admin);
+        if (!customerAccountsStatus.enabled) {
+          return json({ error: "Order Status 模块需要启用 Customer Accounts 功能。请在 Shopify Admin → 设置 → 客户账户中启用 Customer Accounts 功能，然后重试。" }, { status: 403 });
+        }
+      }
       const result = await updateUiModuleConfig(shop.id, moduleKey, { isEnabled });
       if (!result.success) {
         return json({ error: result.error }, { status: 400 });
@@ -156,6 +168,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       const updatesJson = formData.get("updates") as string;
       try {
         const updates = JSON.parse(updatesJson) as Array<{ moduleKey: ModuleKey; isEnabled: boolean }>;
+        const customerAccountsStatus = await checkCustomerAccountsEnabled(admin);
         const filteredUpdates = updates.filter((update) => {
           if (update.moduleKey === "reorder") {
             if (update.isEnabled && !PCD_CONFIG.APPROVED) {
@@ -164,10 +177,15 @@ export const action = async ({ request }: ActionFunctionArgs) => {
           } else if (UI_MODULES[update.moduleKey].disabled) {
             return false;
           }
+          if (update.isEnabled && UI_MODULES[update.moduleKey].targets.includes("order_status")) {
+            if (!customerAccountsStatus.enabled) {
+              return false;
+            }
+          }
           return true;
         });
         if (filteredUpdates.length === 0) {
-          return json({ error: "没有可操作的模块（已过滤禁用的模块）" }, { status: 400 });
+          return json({ error: "没有可操作的模块（已过滤禁用的模块或需要 Customer Accounts 的模块）" }, { status: 400 });
         }
         const result = await batchToggleModules(shop.id, filteredUpdates);
         if (!result.success) {
@@ -196,6 +214,7 @@ function ModuleCard({
   isSelected,
   onSelect,
   surveySubmissionCount,
+  customerAccountsEnabled,
 }: {
   module: UiModuleConfig;
   onToggle: (moduleKey: ModuleKey, enabled: boolean) => void;
@@ -205,6 +224,7 @@ function ModuleCard({
   isSelected?: boolean;
   onSelect?: (moduleKey: ModuleKey, selected: boolean) => void;
   surveySubmissionCount?: number;
+  customerAccountsEnabled: boolean;
 }) {
   const info = UI_MODULES[module.moduleKey];
   return (
@@ -293,10 +313,10 @@ function ModuleCard({
               variant={module.isEnabled ? "secondary" : "primary"}
               onClick={() => onToggle(module.moduleKey, !module.isEnabled)}
               loading={isSubmitting}
-              disabled={(!canEnable && !module.isEnabled) || (module.moduleKey !== "reorder" && info.disabled) || (module.moduleKey === "reorder" && !PCD_CONFIG.APPROVED)}
+              disabled={(!canEnable && !module.isEnabled) || (module.moduleKey !== "reorder" && info.disabled) || (module.moduleKey === "reorder" && !PCD_CONFIG.APPROVED) || (info.targets.includes("order_status") && !customerAccountsEnabled && !module.isEnabled)}
               size="slim"
             >
-              {module.isEnabled ? "停用" : info.disabled ? "v1.1+ 支持" : (module.moduleKey === "reorder" && !PCD_CONFIG.APPROVED) ? "需要 PCD 审核" : "启用"}
+              {module.isEnabled ? "停用" : info.disabled ? "v1.1+ 支持" : (module.moduleKey === "reorder" && !PCD_CONFIG.APPROVED) ? "需要 PCD 审核" : (info.targets.includes("order_status") && !customerAccountsEnabled) ? "需要 Customer Accounts" : "启用"}
             </Button>
           </InlineStack>
         </InlineStack>
@@ -338,7 +358,7 @@ function getCategoryLabel(category: string): string {
 
 
 export default function UiBlocksPage() {
-  const { shop, shopDomain, modules, enabledCount, maxModules, planInfo, isDevStore, modulePreviewUrls, surveySubmissionCount } = useLoaderData<typeof loader>();
+  const { shop, shopDomain, modules, enabledCount, maxModules, planInfo, isDevStore, modulePreviewUrls, surveySubmissionCount, customerAccountsEnabled } = useLoaderData<typeof loader>();
   const actionData = useActionData<typeof action>();
   const submit = useSubmit();
   const navigation = useNavigation();
@@ -719,6 +739,7 @@ export default function UiBlocksPage() {
                     onToggle={handleToggleModule}
                     isSubmitting={isSubmitting}
                     canEnable={canEnableMore}
+                    customerAccountsEnabled={customerAccountsEnabled}
                     upgradeRequired={getRequiredPlan(module.moduleKey)}
                     isSelected={selectedModules.has(module.moduleKey)}
                     onSelect={(moduleKey, selected) => {

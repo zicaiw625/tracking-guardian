@@ -125,7 +125,6 @@ export function ConfigVersionManager({
     google: "Google Analytics 4",
     meta: "Meta Pixel",
     tiktok: "TikTok Pixel",
-    pinterest: "Pinterest Tag",
   };
   return (
     <>

@@ -85,7 +85,6 @@ export function EnvironmentToggle({
     google: "Google Analytics 4",
     meta: "Meta (Facebook)",
     tiktok: "TikTok",
-    pinterest: "Pinterest",
   };
   return (
     <>

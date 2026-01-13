@@ -1648,9 +1648,6 @@ export function ScanPage({
             tiktok: "TikTok Pixel",
             bing: "Microsoft Ads (Bing) ⚠️",
             clarity: "Microsoft Clarity ⚠️",
-            pinterest: "Pinterest Tag",
-            snapchat: "Snapchat Pixel",
-            twitter: "Twitter/X Pixel",
         };
         return names[platform] || platform;
     };

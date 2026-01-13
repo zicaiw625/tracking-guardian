@@ -12,6 +12,7 @@ import { trackEvent } from "../services/analytics.server";
 import { safeFireAndForget } from "../utils/helpers";
 import { normalizePlanId } from "../services/billing/plans";
 import { isPlanAtLeast } from "../utils/plans";
+import { isV1SupportedPlatform, getV1Platforms } from "../utils/v1-platforms";
 
 export const action = async ({ request }: ActionFunctionArgs) => {
   const { session } = await authenticate.admin(request);
@@ -29,11 +30,11 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   if (!platform) {
     return json({ success: false, error: "缺少 platform 参数" }, { status: 400 });
   }
-  const v1SupportedPlatforms = ["google", "meta", "tiktok"];
-  if (!v1SupportedPlatforms.includes(platform)) {
+  if (!isV1SupportedPlatform(platform)) {
+    const v1Platforms = getV1Platforms();
     return json({
       success: false,
-      error: `平台 ${platform} 在 v1.0 版本中不支持。v1.0 仅支持: ${v1SupportedPlatforms.join(", ")}。`,
+      error: `平台 ${platform} 在 v1.0 版本中不支持。v1.0 仅支持: ${v1Platforms.join(", ")}。`,
     }, { status: 400 });
   }
   try {

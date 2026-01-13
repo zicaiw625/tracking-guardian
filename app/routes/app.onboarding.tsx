@@ -56,9 +56,7 @@ function estimateMigrationTime(
     highRiskScriptTags * perHighRiskScriptTag +
     mediumRiskScriptTags * perMediumRiskScriptTag +
     lowRiskScriptTags * perLowRiskScriptTag;
-  const complexPlatforms = ["pinterest", "snapchat", "twitter"];
   const simplePlatforms = ["google", "meta", "tiktok"];
-  const perComplexPlatform = 0.5;
   const perSimplePlatform = 0.3;
   const platformTime = platformCount * perSimplePlatform;
   let riskMultiplier = 1.0;

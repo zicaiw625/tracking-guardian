@@ -23,9 +23,10 @@ import { UI_MODULES, type ModuleKey } from "../types/ui-extension";
 import { getPlanOrDefault, type PlanId } from "../services/billing/plans";
 import { isPlanAtLeast } from "../utils/plans";
 import { PageIntroCard } from "~/components/layout/PageIntroCard";
+import { checkCustomerAccountsEnabled } from "../services/customer-accounts.server";
 
 export const loader = async ({ request, params }: LoaderFunctionArgs) => {
-  const { session } = await authenticate.admin(request);
+  const { session, admin } = await authenticate.admin(request);
   const shopDomain = session.shop;
   const key = params.key;
   if (!key || !(key in UI_MODULES)) {
@@ -48,6 +49,11 @@ export const loader = async ({ request, params }: LoaderFunctionArgs) => {
     throw new Response("模块配置未找到", { status: 404 });
   }
   const canEdit = isPlanAtLeast(planId, moduleInfo.requiredPlan);
+  const hasOrderStatusTarget = moduleInfo.targets.includes("order_status");
+  let customerAccountsStatus = null;
+  if (hasOrderStatusTarget) {
+    customerAccountsStatus = await checkCustomerAccountsEnabled(admin);
+  }
   return json({
     shop: { id: shop.id, plan: planId },
     moduleKey,
@@ -55,13 +61,16 @@ export const loader = async ({ request, params }: LoaderFunctionArgs) => {
     moduleConfig,
     canEdit,
     planInfo,
+    customerAccountsStatus,
+    hasOrderStatusTarget,
   });
 };
 
 
 export default function UiModuleConfigPage() {
-  const { moduleKey, moduleInfo, moduleConfig, canEdit, planInfo } =
+  const { moduleKey, moduleInfo, moduleConfig, canEdit, planInfo, customerAccountsStatus, hasOrderStatusTarget } =
     useLoaderData<typeof loader>();
+  const customerAccountsEnabled = customerAccountsStatus?.enabled ?? false;
   return (
     <Page
       title={`${moduleInfo.name} 配置`}
@@ -136,53 +145,80 @@ export default function UiModuleConfigPage() {
                 </BlockStack>
               </BlockStack>
             </Card>
-            {moduleKey === "reorder" && (
-              <Banner tone="critical">
+            {hasOrderStatusTarget && (
+              <Banner tone={customerAccountsEnabled ? "warning" : "critical"}>
                 <BlockStack gap="200">
-                  <Text as="p" variant="bodySm" fontWeight="semibold">
-                    ⚠️ 重要：仅支持 Order Status 页面
-                  </Text>
-                  <Text as="p" variant="bodySm">
-                    <strong>再购功能仅在 Customer Accounts 的 Order Status 页面（customer-account.order-status.block.render）可用，不支持 Thank You 页面。</strong>此功能需要访问客户账户信息（如客户 ID），这些信息仅在 Customer Accounts 上下文中可用。
-                  </Text>
-                  <Text as="p" variant="bodySm">
-                    <strong>重要：仅支持 Customer Accounts 体系下的订单状态页</strong>，不支持旧版订单状态页。如果您的店铺使用旧版订单状态页（非 Customer Accounts），此模块将不会显示。请确认您的店铺已启用 Customer Accounts 功能（可在 Shopify Admin → 设置 → 客户账户中检查），否则模块不会在订单状态页显示。这是 Shopify 平台的设计限制，Order status 模块只能在 Customer Accounts 体系下工作。
-                  </Text>
-                  <Text as="p" variant="bodySm" fontWeight="semibold">
-                    如何检查 Customer Accounts 是否已启用：
-                  </Text>
-                  <List type="number">
-                    <List.Item>
-                      <Text as="span" variant="bodySm">
-                        进入 Shopify Admin → 设置 → 客户账户
+                  {!customerAccountsEnabled ? (
+                    <>
+                      <Text as="p" variant="bodySm" fontWeight="semibold">
+                        <strong>⚠️ 未启用 Customer Accounts</strong>
                       </Text>
-                    </List.Item>
-                    <List.Item>
-                      <Text as="span" variant="bodySm">
-                        查看"客户账户"设置页面，确认 Customer Accounts 功能已启用
+                      <Text as="p" variant="bodySm">
+                        检测到您的店铺未启用 Customer Accounts 功能。Order Status 模块仅支持 Customer Accounts 体系下的订单状态页，当前无法使用。
                       </Text>
-                    </List.Item>
-                    <List.Item>
-                      <Text as="span" variant="bodySm">
-                        如果未启用，请按照 Shopify 官方指引启用 Customer Accounts 功能
+                      <Text as="p" variant="bodySm">
+                        <strong>解决方案：</strong>请在 Shopify Admin → 设置 → 客户账户中启用 Customer Accounts 功能，然后重新访问此页面。
                       </Text>
-                    </List.Item>
-                  </List>
-                  <Text as="p" variant="bodySm" tone="subdued">
-                    参考文档：请参考 <a href="https://shopify.dev/docs/apps/customer-accounts/ui-extensions" target="_blank" rel="noopener noreferrer">Customer Accounts UI Extensions 官方文档</a>（注意：不要参考 checkout-ui-extensions 文档，该文档可能显示此 target 为"Not supported"，这是文档版本差异导致的误导。正确的文档入口是 Customer Accounts UI Extensions，不是 Checkout UI Extensions）。
-                  </Text>
-                  <Text as="p" variant="bodySm" fontWeight="semibold">
-                    ⚠️ 需要 PCD 审核批准
-                  </Text>
-                  <Text as="p" variant="bodySm">
-                    再购功能需要 Shopify Protected Customer Data (PCD) 权限批准才能稳定可用。需要访问客户账户信息（如客户邮箱、地址等），这些数据受 PCD 保护。
-                  </Text>
-                  <Text as="p" variant="bodySm">
-                    如果 PCD 权限未获批或用户未同意 consent，某些客户信息字段可能为 null，这是 Shopify 平台的合规行为，不是故障。
-                  </Text>
-                  <Text as="p" variant="bodySm" tone="subdued">
-                    💡 提示：在启用此模块前，请确保应用已获得 Shopify PCD 权限批准，否则功能可能无法正常工作。
-                  </Text>
+                      {customerAccountsStatus?.error && (
+                        <Text as="p" variant="bodySm" tone="subdued">
+                          检测错误：{customerAccountsStatus.error}
+                        </Text>
+                      )}
+                    </>
+                  ) : (
+                    <>
+                      <Text as="p" variant="bodySm" fontWeight="semibold">
+                        <strong>✅ Customer Accounts 已启用</strong>
+                      </Text>
+                      <Text as="p" variant="bodySm">
+                        <strong>重要：仅支持 Customer Accounts 体系下的订单状态页</strong>，不支持旧版订单状态页。如果您的店铺使用旧版订单状态页（非 Customer Accounts），此模块将不会显示。请确认您的店铺已启用 Customer Accounts 功能（可在 Shopify Admin → 设置 → 客户账户中检查），否则模块不会在订单状态页显示。这是 Shopify 平台的设计限制，Order status 模块只能在 Customer Accounts 体系下工作。
+                      </Text>
+                      {moduleKey === "reorder" && (
+                        <Text as="p" variant="bodySm">
+                          <strong>再购功能仅在 Customer Accounts 的 Order Status 页面（customer-account.order-status.block.render）可用，不支持 Thank You 页面。</strong>此功能需要访问客户账户信息（如客户 ID），这些信息仅在 Customer Accounts 上下文中可用。
+                        </Text>
+                      )}
+                      <Text as="p" variant="bodySm" fontWeight="semibold">
+                        如何检查 Customer Accounts 是否已启用：
+                      </Text>
+                      <List type="number">
+                        <List.Item>
+                          <Text as="span" variant="bodySm">
+                            进入 Shopify Admin → 设置 → 客户账户
+                          </Text>
+                        </List.Item>
+                        <List.Item>
+                          <Text as="span" variant="bodySm">
+                            查看"客户账户"设置页面，确认 Customer Accounts 功能已启用
+                          </Text>
+                        </List.Item>
+                        <List.Item>
+                          <Text as="span" variant="bodySm">
+                            如果未启用，请按照 Shopify 官方指引启用 Customer Accounts 功能
+                          </Text>
+                        </List.Item>
+                      </List>
+                      <Text as="p" variant="bodySm" tone="subdued">
+                        参考文档：请参考 <a href="https://shopify.dev/docs/apps/customer-accounts/ui-extensions" target="_blank" rel="noopener noreferrer">Customer Accounts UI Extensions 官方文档</a>（注意：不要参考 checkout-ui-extensions 文档，该文档可能显示此 target 为"Not supported"，这是文档版本差异导致的误导。正确的文档入口是 Customer Accounts UI Extensions，不是 Checkout UI Extensions）。
+                      </Text>
+                      {moduleKey === "reorder" && (
+                        <>
+                          <Text as="p" variant="bodySm" fontWeight="semibold">
+                            ⚠️ 需要 PCD 审核批准
+                          </Text>
+                          <Text as="p" variant="bodySm">
+                            再购功能需要 Shopify Protected Customer Data (PCD) 权限批准才能稳定可用。需要访问客户账户信息（如客户邮箱、地址等），这些数据受 PCD 保护。
+                          </Text>
+                          <Text as="p" variant="bodySm">
+                            如果 PCD 权限未获批或用户未同意 consent，某些客户信息字段可能为 null，这是 Shopify 平台的合规行为，不是故障。
+                          </Text>
+                          <Text as="p" variant="bodySm" tone="subdued">
+                            💡 提示：在启用此模块前，请确保应用已获得 Shopify PCD 权限批准，否则功能可能无法正常工作。
+                          </Text>
+                        </>
+                      )}
+                    </>
+                  )}
                 </BlockStack>
               </Banner>
             )}
@@ -244,9 +280,17 @@ export default function UiModuleConfigPage() {
                 <Button
                   url={`/app/modules/${moduleKey}/publish`}
                   variant="primary"
+                  disabled={hasOrderStatusTarget && !customerAccountsEnabled}
                 >
                   查看发布指引
                 </Button>
+                {hasOrderStatusTarget && !customerAccountsEnabled && (
+                  <Banner tone="critical">
+                    <Text as="p" variant="bodySm">
+                      无法发布：您的店铺未启用 Customer Accounts 功能。Order Status 模块仅支持 Customer Accounts 体系下的订单状态页，请先在 Shopify Admin → 设置 → 客户账户中启用 Customer Accounts 功能。
+                    </Text>
+                  </Banner>
+                )}
               </BlockStack>
             </Card>
           </BlockStack>
