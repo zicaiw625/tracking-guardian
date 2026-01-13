@@ -108,24 +108,36 @@ export const action = async ({ request }: ActionFunctionArgs) => {
           { status: 400, request, staticCors: true }
         );
       }
-      const { option, timestamp } = body as { option?: string; timestamp?: string };
+      const { option, timestamp, orderId, checkoutToken } = body as { 
+        option?: string; 
+        timestamp?: string; 
+        orderId?: string | null;
+        checkoutToken?: string | null;
+      };
       if (!option) {
         return jsonWithCors(
           { error: "Missing survey option" },
           { status: 400, request, staticCors: true }
         );
       }
-    const orderId = `survey_${shop.id}_${Date.now()}`;
-    await prisma.surveyResponse.create({
-      data: {
-        id: randomUUID(),
-        shopId: shop.id,
-        orderId: orderId,
-        feedback: option,
-        source: "thank_you_block",
-        createdAt: timestamp ? new Date(timestamp) : new Date(),
-      },
-    });
+      const finalOrderId = orderId || (checkoutToken ? `checkout_${checkoutToken}` : `survey_${shop.id}_${Date.now()}`);
+      if (orderId) {
+        logger.info("Survey response with orderId", { shopDomain, orderId });
+      } else if (checkoutToken) {
+        logger.info("Survey response with checkoutToken", { shopDomain, checkoutToken });
+      } else {
+        logger.warn("Survey response without orderId or checkoutToken, using fallback", { shopDomain });
+      }
+      await prisma.surveyResponse.create({
+        data: {
+          id: randomUUID(),
+          shopId: shop.id,
+          orderId: finalOrderId,
+          feedback: option,
+          source: "thank_you_block",
+          createdAt: timestamp ? new Date(timestamp) : new Date(),
+        },
+      });
     logger.info("Survey response received", {
       shopDomain,
       option,

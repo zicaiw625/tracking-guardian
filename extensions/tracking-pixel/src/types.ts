@@ -20,8 +20,13 @@ export interface CheckoutData {
     title?: string;
     quantity?: number;
     variant?: {
+      id?: string;
       price?: {
         amount?: string | number;
+      };
+      product?: {
+        id?: string;
+        title?: string;
       };
     };
   }>;
@@ -40,6 +45,10 @@ export interface VisitorConsentCollectedEvent {
 
 export interface CartLine {
   merchandise?: {
+    id?: string;
+    variant?: {
+      id?: string;
+    };
     product?: {
       id?: string;
       title?: string;

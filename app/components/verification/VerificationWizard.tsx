@@ -14,6 +14,7 @@ import {
 } from "@shopify/polaris";
 import { CheckCircleIcon, AlertCircleIcon, PlayIcon, ClipboardIcon } from "~/components/icons";
 import type { TestChecklist } from "~/services/verification-checklist.server";
+import { CheckoutCompletedBehaviorHint } from "./CheckoutCompletedBehaviorHint";
 
 export interface VerificationWizardProps {
   shopId: string;
@@ -96,6 +97,7 @@ export function VerificationWizard({
               </Text>
             </BlockStack>
           </Banner>
+          <CheckoutCompletedBehaviorHint mode="info" collapsible={true} />
           <BlockStack gap="300">
             <Text variant="headingSm" as="h3">
               测试清单

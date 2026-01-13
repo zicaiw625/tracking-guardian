@@ -26,6 +26,7 @@ import {
   ArrowRightIcon,
   SettingsIcon,
 } from "~/components/icons";
+import { CheckoutCompletedBehaviorHint } from "~/components/verification/CheckoutCompletedBehaviorHint";
 import { useSubmit, useNavigation } from "@remix-run/react";
 import { useToastContext } from "~/components/ui";
 import { EventMappingEditor } from "./EventMappingEditor";
@@ -1877,6 +1878,7 @@ function TestingStep({
           </List>
         </BlockStack>
       </Banner>
+      <CheckoutCompletedBehaviorHint mode="info" collapsible={true} />
       {shopId && selectedPlatforms.size > 0 && (
         <Card>
           <BlockStack gap="300">

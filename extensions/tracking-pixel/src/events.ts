@@ -327,7 +327,7 @@ function subscribeToProductAddedToCart(
     const price = toNumber(cartLine.merchandise?.price?.amount);
     const quantity = cartLine.quantity || 1;
     const currency = typedEvent.data?.cart?.currencyCode || null;
-    const merchandise = cartLine.merchandise as { id?: string; variant?: { id?: string }; product?: { id?: string; title?: string } } | undefined;
+    const merchandise = cartLine.merchandise;
     const variantId = merchandise?.variant?.id || merchandise?.id || null;
     const productId = merchandise?.product?.id || null;
     const itemId = variantId || productId || "";

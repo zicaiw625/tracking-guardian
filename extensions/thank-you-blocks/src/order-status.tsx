@@ -10,6 +10,7 @@ import {
 } from "@shopify/ui-extensions-react/customer-account";
 import { useState, useEffect } from "react";
 import { getValidatedBackendUrl, isDevMode } from "./config";
+import { reportExtensionError } from "./error-reporting";
 
 function SurveyModule({ 
   question, 
@@ -223,34 +224,14 @@ function ThankYouBlocks() {
           if (isDevMode()) {
             console.error("[OrderStatusBlocks] Module state fetch failed:", errorMessage);
           }
-          try {
-            const backendUrl = getValidatedBackendUrl();
-            if (backendUrl) {
-              const token = await api.sessionToken.get().catch(() => null);
-              if (token) {
-                await fetch(`${backendUrl}/api/extension-errors`, {
-                  method: "POST",
-                  headers: {
-                    "Content-Type": "application/json",
-                    "Authorization": `Bearer ${token}`,
-                  },
-                  body: JSON.stringify({
-                    extension: "order-status",
-                    endpoint: "ui-modules-state",
-                    error: errorMessage,
-                    stack: null,
-                    target: "order-status",
-                    timestamp: new Date().toISOString(),
-                  }),
-                }).catch((reportErr) => {
-                  if (isDevMode()) {
-                    console.error("[OrderStatusBlocks] Failed to report error to backend:", reportErr);
-                  }
-                });
-              }
-            }
-          } catch {
-          }
+          await reportExtensionError(api, {
+            extension: "order-status",
+            endpoint: "ui-modules-state",
+            error: errorMessage,
+            stack: null,
+            target: "order-status",
+            timestamp: new Date().toISOString(),
+          });
           setModuleState({
             surveyEnabled: false,
             helpEnabled: false,
@@ -263,37 +244,14 @@ function ThankYouBlocks() {
         if (isDevMode()) {
           console.error("[OrderStatusBlocks] Failed to fetch module state:", error);
         }
-        try {
-          const backendUrl = getValidatedBackendUrl();
-          if (backendUrl) {
-            const token = await api.sessionToken.get().catch(() => null);
-            if (token) {
-              await fetch(`${backendUrl}/api/extension-errors`, {
-                method: "POST",
-                headers: {
-                  "Content-Type": "application/json",
-                  "Authorization": `Bearer ${token}`,
-                },
-                body: JSON.stringify({
-                  extension: "order-status",
-                  endpoint: "ui-modules-state",
-                  error: errorMessage,
-                  stack: errorStack,
-                  target: "order-status",
-                  timestamp: new Date().toISOString(),
-                }),
-              }).catch((reportErr) => {
-                if (isDevMode()) {
-                  console.error("[OrderStatusBlocks] Failed to report error to backend:", reportErr);
-                }
-              });
-            }
-          }
-        } catch (reportError) {
-          if (isDevMode()) {
-            console.error("[OrderStatusBlocks] Failed to report error:", reportError);
-          }
-        }
+        await reportExtensionError(api, {
+          extension: "order-status",
+          endpoint: "ui-modules-state",
+          error: errorMessage,
+          stack: errorStack,
+          target: "order-status",
+          timestamp: new Date().toISOString(),
+        });
         setModuleState({
           surveyEnabled: false,
           helpEnabled: false,
@@ -328,6 +286,8 @@ function ThankYouBlocks() {
         body: JSON.stringify({
           option: selectedOption,
           timestamp: new Date().toISOString(),
+          orderId: api.order?.id || null,
+          checkoutToken: null,
         }),
       });
       if (!response.ok) {
@@ -336,34 +296,14 @@ function ThankYouBlocks() {
         if (isDevMode()) {
           console.error("[OrderStatusBlocks] Survey submit failed:", errorMessage);
         }
-        try {
-          const backendUrl = getValidatedBackendUrl();
-          if (backendUrl) {
-            const token = await api.sessionToken.get().catch(() => null);
-            if (token) {
-              await fetch(`${backendUrl}/api/extension-errors`, {
-                method: "POST",
-                headers: {
-                  "Content-Type": "application/json",
-                  "Authorization": `Bearer ${token}`,
-                },
-                  body: JSON.stringify({
-                    extension: "order-status",
-                    endpoint: "survey",
-                    error: errorMessage,
-                    stack: null,
-                    target: "order-status",
-                    timestamp: new Date().toISOString(),
-                  }),
-                }).catch((reportErr) => {
-                  if (isDevMode()) {
-                    console.error("[OrderStatusBlocks] Failed to report error to backend:", reportErr);
-                  }
-                });
-            }
-          }
-        } catch {
-        }
+        await reportExtensionError(api, {
+          extension: "order-status",
+          endpoint: "survey",
+          error: errorMessage,
+          stack: null,
+          target: "order-status",
+          timestamp: new Date().toISOString(),
+        });
         return false;
       }
       const data = await response.json().catch(() => ({}));
@@ -377,37 +317,14 @@ function ThankYouBlocks() {
       if (isDevMode()) {
         console.error("[OrderStatusBlocks] Survey submit failed:", error);
       }
-      try {
-        const backendUrl = getValidatedBackendUrl();
-        if (backendUrl) {
-          const token = await api.sessionToken.get().catch(() => null);
-          if (token) {
-            await fetch(`${backendUrl}/api/extension-errors`, {
-              method: "POST",
-              headers: {
-                "Content-Type": "application/json",
-                "Authorization": `Bearer ${token}`,
-              },
-              body: JSON.stringify({
-                extension: "order-status",
-                endpoint: "survey",
-                error: errorMessage,
-                stack: errorStack,
-                target: "order-status",
-                timestamp: new Date().toISOString(),
-              }),
-            }).catch((reportErr) => {
-              if (isDevMode()) {
-                console.error("[OrderStatusBlocks] Failed to report error to backend:", reportErr);
-              }
-            });
-          }
-        }
-      } catch (reportError) {
-        if (isDevMode()) {
-          console.error("[OrderStatusBlocks] Failed to report error:", reportError);
-        }
-      }
+      await reportExtensionError(api, {
+        extension: "order-status",
+        endpoint: "survey",
+        error: errorMessage,
+        stack: errorStack,
+        target: "order-status",
+        timestamp: new Date().toISOString(),
+      });
       return false;
     }
   };
@@ -447,35 +364,15 @@ function ThankYouBlocks() {
         if (isDevMode()) {
           console.error("[OrderStatusBlocks] Reorder failed:", errorMessage);
         }
-        try {
-          const backendUrl = getValidatedBackendUrl();
-          if (backendUrl) {
-            const token = await api.sessionToken.get().catch(() => null);
-            if (token) {
-              await fetch(`${backendUrl}/api/extension-errors`, {
-                method: "POST",
-                headers: {
-                  "Content-Type": "application/json",
-                  "Authorization": `Bearer ${token}`,
-                },
-                  body: JSON.stringify({
-                    extension: "order-status",
-                    endpoint: "reorder",
-                    error: errorMessage,
-                    stack: null,
-                    target: "order-status",
-                    orderId: api.order?.id || null,
-                    timestamp: new Date().toISOString(),
-                  }),
-                }).catch((reportErr) => {
-                  if (isDevMode()) {
-                    console.error("[OrderStatusBlocks] Failed to report error to backend:", reportErr);
-                  }
-                });
-            }
-          }
-        } catch {
-        }
+        await reportExtensionError(api, {
+          extension: "order-status",
+          endpoint: "reorder",
+          error: errorMessage,
+          stack: null,
+          target: "order-status",
+          orderId: api.order?.id || null,
+          timestamp: new Date().toISOString(),
+        });
         throw new Error(errorMessage);
       }
       const data = await response.json();
@@ -490,38 +387,15 @@ function ThankYouBlocks() {
       if (isDevMode()) {
         console.error("[OrderStatusBlocks] Reorder failed:", error);
       }
-      try {
-        const backendUrl = getValidatedBackendUrl();
-        if (backendUrl) {
-          const token = await api.sessionToken.get().catch(() => null);
-          if (token) {
-            await fetch(`${backendUrl}/api/extension-errors`, {
-              method: "POST",
-              headers: {
-                "Content-Type": "application/json",
-                "Authorization": `Bearer ${token}`,
-              },
-              body: JSON.stringify({
-                extension: "order-status",
-                endpoint: "reorder",
-                error: errorMessage,
-                stack: errorStack,
-                target: "order-status",
-                orderId: api.order?.id || null,
-                timestamp: new Date().toISOString(),
-              }),
-            }).catch((reportErr) => {
-              if (isDevMode()) {
-                console.error("[OrderStatusBlocks] Failed to report error to backend:", reportErr);
-              }
-            });
-          }
-        }
-      } catch (reportError) {
-        if (isDevMode()) {
-          console.error("[OrderStatusBlocks] Failed to report error:", reportError);
-        }
-      }
+      await reportExtensionError(api, {
+        extension: "order-status",
+        endpoint: "reorder",
+        error: errorMessage,
+        stack: errorStack,
+        target: "order-status",
+        orderId: api.order?.id || null,
+        timestamp: new Date().toISOString(),
+      });
       throw error;
     } finally {
       setReorderLoading(false);

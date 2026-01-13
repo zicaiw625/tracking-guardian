@@ -18,6 +18,7 @@ import {
 } from "@shopify/polaris";
 import { CheckCircleIcon, ArrowRightIcon, LockIcon } from "~/components/icons";
 import { PageIntroCard } from "~/components/layout/PageIntroCard";
+import { CheckoutCompletedBehaviorHint } from "~/components/verification/CheckoutCompletedBehaviorHint";
 import { authenticate } from "../shopify.server";
 import prisma from "../db.server";
 import { scanShopTracking } from "../services/scanner.server";
@@ -345,6 +346,7 @@ export default function MigratePage() {
           </BlockStack>
         </Card>
 
+        <CheckoutCompletedBehaviorHint mode="info" collapsible={true} />
         <Banner tone="info" title="重要提示">
           <BlockStack gap="200">
             <Text as="p" variant="bodySm" fontWeight="semibold">

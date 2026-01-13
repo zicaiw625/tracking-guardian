@@ -10,6 +10,7 @@ import {
 } from "@shopify/ui-extensions-react/checkout";
 import { useState, useEffect } from "react";
 import { getValidatedBackendUrl, isDevMode } from "./config";
+import { reportExtensionError } from "./error-reporting";
 
 function SurveyModule({ 
   question, 
@@ -159,34 +160,14 @@ function ThankYouBlocks() {
           if (isDevMode()) {
             console.error("[ThankYouBlocks] Module state fetch failed:", errorMessage);
           }
-          try {
-            const backendUrl = getValidatedBackendUrl();
-            if (backendUrl) {
-              const token = await api.sessionToken.get().catch(() => null);
-              if (token) {
-                await fetch(`${backendUrl}/api/extension-errors`, {
-                  method: "POST",
-                  headers: {
-                    "Content-Type": "application/json",
-                    "Authorization": `Bearer ${token}`,
-                  },
-                  body: JSON.stringify({
-                    extension: "thank-you",
-                    endpoint: "ui-modules-state",
-                    error: errorMessage,
-                    stack: null,
-                    target: "thank-you",
-                    timestamp: new Date().toISOString(),
-                  }),
-                }).catch((reportErr) => {
-                  if (isDevMode()) {
-                    console.error("[ThankYouBlocks] Failed to report error to backend:", reportErr);
-                  }
-                });
-              }
-            }
-          } catch {
-          }
+          await reportExtensionError(api, {
+            extension: "thank-you",
+            endpoint: "ui-modules-state",
+            error: errorMessage,
+            stack: null,
+            target: "thank-you",
+            timestamp: new Date().toISOString(),
+          });
           setModuleState({
             surveyEnabled: false,
             helpEnabled: false,
@@ -198,37 +179,14 @@ function ThankYouBlocks() {
         if (isDevMode()) {
           console.error("[ThankYouBlocks] Failed to fetch module state:", error);
         }
-        try {
-          const backendUrl = getValidatedBackendUrl();
-          if (backendUrl) {
-            const token = await api.sessionToken.get().catch(() => null);
-            if (token) {
-              await fetch(`${backendUrl}/api/extension-errors`, {
-                method: "POST",
-                headers: {
-                  "Content-Type": "application/json",
-                  "Authorization": `Bearer ${token}`,
-                },
-                body: JSON.stringify({
-                  extension: "thank-you",
-                  endpoint: "ui-modules-state",
-                  error: errorMessage,
-                  stack: errorStack,
-                  target: "thank-you",
-                  timestamp: new Date().toISOString(),
-                }),
-              }).catch((reportErr) => {
-                if (isDevMode()) {
-                  console.error("[ThankYouBlocks] Failed to report error to backend:", reportErr);
-                }
-              });
-            }
-          }
-        } catch (reportError) {
-          if (isDevMode()) {
-            console.error("[ThankYouBlocks] Failed to report error:", reportError);
-          }
-        }
+        await reportExtensionError(api, {
+          extension: "thank-you",
+          endpoint: "ui-modules-state",
+          error: errorMessage,
+          stack: errorStack,
+          target: "thank-you",
+          timestamp: new Date().toISOString(),
+        });
         setModuleState({
           surveyEnabled: false,
           helpEnabled: false,
@@ -253,6 +211,8 @@ function ThankYouBlocks() {
         return false;
       }
       const token = await api.sessionToken.get();
+      const checkoutToken = (api as { checkout?: { token?: string } }).checkout?.token || null;
+      const orderId = (api as { order?: { id?: string } }).order?.id || null;
       const response = await fetch(`${backendUrl}/api/survey`, {
         method: "POST",
         headers: {
@@ -262,6 +222,8 @@ function ThankYouBlocks() {
         body: JSON.stringify({
           option: selectedOption,
           timestamp: new Date().toISOString(),
+          orderId: orderId,
+          checkoutToken: checkoutToken,
         }),
       });
       if (!response.ok) {
@@ -270,34 +232,14 @@ function ThankYouBlocks() {
         if (isDevMode()) {
           console.error("[ThankYouBlocks] Survey submit failed:", errorMessage);
         }
-        try {
-          const backendUrl = getValidatedBackendUrl();
-          if (backendUrl) {
-            const token = await api.sessionToken.get().catch(() => null);
-            if (token) {
-              await fetch(`${backendUrl}/api/extension-errors`, {
-                method: "POST",
-                headers: {
-                  "Content-Type": "application/json",
-                  "Authorization": `Bearer ${token}`,
-                },
-                  body: JSON.stringify({
-                    extension: "thank-you",
-                    endpoint: "survey",
-                    error: errorMessage,
-                    stack: null,
-                    target: "thank-you",
-                    timestamp: new Date().toISOString(),
-                  }),
-                }).catch((reportErr) => {
-                  if (isDevMode()) {
-                    console.error("[ThankYouBlocks] Failed to report error to backend:", reportErr);
-                  }
-                });
-            }
-          }
-        } catch {
-        }
+        await reportExtensionError(api, {
+          extension: "thank-you",
+          endpoint: "survey",
+          error: errorMessage,
+          stack: null,
+          target: "thank-you",
+          timestamp: new Date().toISOString(),
+        });
         return false;
       }
       const data = await response.json().catch(() => ({}));
@@ -311,37 +253,14 @@ function ThankYouBlocks() {
       if (isDevMode()) {
         console.error("[ThankYouBlocks] Survey submit failed:", error);
       }
-      try {
-        const backendUrl = getValidatedBackendUrl();
-        if (backendUrl) {
-          const token = await api.sessionToken.get().catch(() => null);
-          if (token) {
-            await fetch(`${backendUrl}/api/extension-errors`, {
-              method: "POST",
-              headers: {
-                "Content-Type": "application/json",
-                "Authorization": `Bearer ${token}`,
-              },
-              body: JSON.stringify({
-                extension: "thank-you",
-                endpoint: "survey",
-                error: errorMessage,
-                stack: errorStack,
-                target: "thank-you",
-                timestamp: new Date().toISOString(),
-              }),
-            }).catch((reportErr) => {
-              if (isDevMode()) {
-                console.error("[ThankYouBlocks] Failed to report error to backend:", reportErr);
-              }
-            });
-          }
-        }
-      } catch (reportError) {
-        if (isDevMode()) {
-          console.error("[ThankYouBlocks] Failed to report error:", reportError);
-        }
-      }
+      await reportExtensionError(api, {
+        extension: "thank-you",
+        endpoint: "survey",
+        error: errorMessage,
+        stack: errorStack,
+        target: "thank-you",
+        timestamp: new Date().toISOString(),
+      });
       return false;
     }
   };
