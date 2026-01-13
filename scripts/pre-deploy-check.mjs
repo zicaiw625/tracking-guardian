@@ -231,10 +231,55 @@ function checkBackendUrlInjection() {
     };
 }
 
+function checkNetworkAccessPermission() {
+    const extensionConfigPath = path.join(__dirname, "..", "extensions/thank-you-blocks/shopify.extension.toml");
+    try {
+        if (!fs.existsSync(extensionConfigPath)) {
+            return {
+                name: "Network Access 权限检查",
+                passed: false,
+                message: "扩展配置文件不存在",
+            };
+        }
+        const content = fs.readFileSync(extensionConfigPath, "utf-8");
+        const hasNetworkAccess = content.includes("network_access = true") || 
+                                 content.includes("network_access=true") ||
+                                 /network_access\s*=\s*true/.test(content);
+        const hasCapabilitiesSection = content.includes("[extensions.capabilities]") ||
+                                      content.includes("[[extensions.capabilities]]");
+        if (!hasNetworkAccess) {
+            return {
+                name: "Network Access 权限检查",
+                passed: false,
+                message: "扩展配置中缺少 network_access = true，前台 block 无法调用后端 API。请在 shopify.extension.toml 中添加 [extensions.capabilities] 和 network_access = true，并在 Partner Dashboard 中批准该权限",
+            };
+        }
+        if (!hasCapabilitiesSection) {
+            return {
+                name: "Network Access 权限检查",
+                passed: true,
+                message: "network_access 已配置，但建议添加 [extensions.capabilities] 部分以便 Shopify 识别。请确保在 Partner Dashboard → App → API access 中已批准 UI extensions 的 network access 权限",
+            };
+        }
+        return {
+            name: "Network Access 权限检查",
+            passed: true,
+            message: "network_access = true 已正确配置。请确保在 Partner Dashboard → App → API access 中已批准 UI extensions 的 network access 权限",
+        };
+    } catch (error) {
+        return {
+            name: "Network Access 权限检查",
+            passed: false,
+            message: `读取扩展配置文件失败: ${error instanceof Error ? error.message : String(error)}`,
+        };
+    }
+}
+
 results.push(checkBuildExtensionsSyntax());
 results.push(checkExtensionUids());
 results.push(checkDuplicateImports());
 results.push(checkBackendUrlInjection());
+results.push(checkNetworkAccessPermission());
 
 console.log("\n🔍 部署前检查结果\n");
 console.log("=".repeat(60));

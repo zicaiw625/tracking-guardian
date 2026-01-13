@@ -7,7 +7,6 @@ import {
   Link,
   Divider,
   useApi,
-  useSettings,
 } from "@shopify/ui-extensions-react/checkout";
 import { useState, useEffect } from "react";
 import { getValidatedBackendUrl } from "./config";
@@ -113,10 +112,17 @@ function HelpModule({
 
 function ThankYouBlocks() {
   const api = useApi();
-  const settings = useSettings();
   const [moduleState, setModuleState] = useState<{
     surveyEnabled: boolean;
     helpEnabled: boolean;
+    surveyConfig?: {
+      question: string;
+      options: string[];
+    };
+    helpConfig?: {
+      faqUrl?: string;
+      supportUrl?: string;
+    };
   } | null>(null);
   const [loading, setLoading] = useState(true);
   useEffect(() => {
@@ -158,11 +164,13 @@ function ThankYouBlocks() {
     };
     fetchModuleState();
   }, [api]);
-  const surveyQuestion = settings.survey_question ?? "您对我们的服务满意吗？";
-  const surveyOptions = (settings.survey_options as string)?.split(",") || 
-    ["非常满意", "满意", "一般", "不满意"];
-  const helpFaqUrl = settings.help_faq_url as string | undefined;
-  const helpSupportUrl = settings.help_support_url as string | undefined;
+  if (!moduleState || !moduleState.surveyEnabled && !moduleState.helpEnabled) {
+    return null;
+  }
+  const surveyQuestion = moduleState?.surveyConfig?.question;
+  const surveyOptions = moduleState?.surveyConfig?.options;
+  const helpFaqUrl = moduleState?.helpConfig?.faqUrl;
+  const helpSupportUrl = moduleState?.helpConfig?.supportUrl;
   const handleSurveySubmit = async (selectedOption: string): Promise<boolean> => {
     try {
       const backendUrl = getValidatedBackendUrl();
@@ -200,7 +208,7 @@ function ThankYouBlocks() {
   const helpEnabled = moduleState?.helpEnabled ?? false;
   return (
     <BlockStack spacing="base">
-      {surveyEnabled && (
+      {surveyEnabled && surveyQuestion && surveyOptions && surveyOptions.length > 0 && (
         <>
           <SurveyModule
             question={surveyQuestion}
@@ -210,7 +218,7 @@ function ThankYouBlocks() {
           <Divider />
         </>
       )}
-      {helpEnabled && (
+      {helpEnabled && (helpFaqUrl || helpSupportUrl) && (
         <>
           <HelpModule
             faqUrl={helpFaqUrl}

@@ -231,10 +231,18 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     });
     const signature = request.headers.get("X-Tracking-Guardian-Signature");
     const isProduction = !isDevMode();
+    const isNullOrigin = origin === "null" || origin === null;
     let hmacValidationResult: { valid: boolean; reason?: string; errorCode?: string } | null = null;
     if (isProduction) {
       if (!shop.ingestionSecret) {
         logger.error(`Missing ingestionSecret for ${shop.shopDomain} in production - HMAC verification required`);
+        if (isNullOrigin) {
+          logger.error(`Null origin request without ingestionSecret for ${shop.shopDomain} in production - rejecting`);
+          return jsonWithCors(
+            { error: "Missing signature", errorCode: "missing_secret_null_origin" },
+            { status: 403, request, shopAllowedDomains }
+          );
+        }
         return jsonWithCors(
           { error: "Server configuration error", errorCode: "missing_secret" },
           { status: 500, request, shopAllowedDomains }
@@ -248,9 +256,16 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         metrics.pixelRejection({
           shopDomain: shop.shopDomain,
           reason: "invalid_key",
-          originType: "production_required",
+          originType: isNullOrigin ? "null_origin_no_signature" : "production_required",
         });
-        logger.warn(`Missing HMAC signature for ${shop.shopDomain} in production`);
+        logger.error(`Missing HMAC signature for ${shop.shopDomain} in production - rejecting`);
+        if (isNullOrigin) {
+          logger.error(`Null origin request without HMAC signature for ${shop.shopDomain} in production - rejecting`);
+          return jsonWithCors(
+            { error: "Missing signature", errorCode: "missing_signature_null_origin" },
+            { status: 403, request, shopAllowedDomains }
+          );
+        }
         return jsonWithCors(
           { error: "Missing signature", errorCode: "missing_signature" },
           { status: 403, request, shopAllowedDomains }
@@ -274,15 +289,17 @@ export const action = async ({ request }: ActionFunctionArgs) => {
           reason: "invalid_key",
           originType: hmacResult.errorCode || "unknown",
         });
-        logger.warn(
-          `HMAC verification failed for ${shop.shopDomain}: ${hmacResult.reason}`
-        );
+        logger.error(`HMAC verification failed for ${shop.shopDomain} in production: ${hmacResult.reason}`);
         return jsonWithCors(
           { error: "Invalid signature", errorCode: hmacResult.errorCode },
           { status: 403, request, shopAllowedDomains }
         );
       }
-      logger.debug(`HMAC signature verified for ${shop.shopDomain}`);
+      if (isNullOrigin) {
+        logger.debug(`Null origin request accepted with valid HMAC and ingestionSecret for ${shop.shopDomain} in production`);
+      } else {
+        logger.debug(`HMAC signature verified for ${shop.shopDomain} in production`);
+      }
     } else if (shop.ingestionSecret && signature) {
       const hmacResult = await validatePixelEventHMAC(
         request,
