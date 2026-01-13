@@ -403,7 +403,7 @@ export default function BillingPage() {
               <BlockStack gap="100">
                 <Text as="span" fontWeight="semibold">Agency 版有哪些额外功能？</Text>
                 <Text as="p" tone="subdued">
-                  Agency 版支持多店管理（最多 50 个店铺）、批量配置、团队协作（Owner/Admin/Viewer 权限）、
+                  Agency 版支持多店管理（最多 50 个店铺，v1.1+ 推出）、批量配置、团队协作（Owner/Admin/Viewer 权限，v1.1+ 推出）、
                   验收报告导出（PDF/CSV）以及专属客户成功经理。
                 </Text>
               </BlockStack>

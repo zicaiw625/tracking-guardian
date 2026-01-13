@@ -1,44 +1,31 @@
 import { describe, it, expect } from "vitest";
 
-function hasAnyConsent(
+function hasAnalyticsConsent(
   marketingAllowed: boolean,
   analyticsAllowed: boolean,
   saleOfDataAllowed: boolean
 ): boolean {
-  const hasMarketing = marketingAllowed === true;
-  const hasAnalytics = analyticsAllowed === true;
-  return hasMarketing && hasAnalytics && saleOfDataAllowed;
+  return analyticsAllowed === true;
 }
 
-describe("hasAnyConsent - P0-2 strict mode", () => {
-  describe("should allow sending only when BOTH tracking types are consented", () => {
+describe("hasAnalyticsConsent - unified consent strategy", () => {
+  describe("should allow sending when analytics consent is granted", () => {
+    it("allows when analytics is true", () => {
+      expect(hasAnalyticsConsent(false, true, true)).toBe(true);
+    });
     it("allows when both marketing and analytics are true", () => {
-      expect(hasAnyConsent(true, true, true)).toBe(true);
-    });
-    it("denies when only marketing is true (strict requires both)", () => {
-      expect(hasAnyConsent(true, false, true)).toBe(false);
-    });
-    it("denies when only analytics is true (strict requires both)", () => {
-      expect(hasAnyConsent(false, true, true)).toBe(false);
+      expect(hasAnalyticsConsent(true, true, true)).toBe(true);
     });
   });
-  describe("should deny sending when saleOfData is denied", () => {
-    it("denies even with both marketing and analytics", () => {
-      expect(hasAnyConsent(true, true, false)).toBe(false);
+  describe("should deny when analytics consent is not granted", () => {
+    it("denies when only marketing is true", () => {
+      expect(hasAnalyticsConsent(true, false, true)).toBe(false);
     });
-    it("denies with only marketing", () => {
-      expect(hasAnyConsent(true, false, false)).toBe(false);
-    });
-    it("denies with only analytics", () => {
-      expect(hasAnyConsent(false, true, false)).toBe(false);
-    });
-  });
-  describe("should deny when no tracking consent", () => {
     it("denies when neither marketing nor analytics", () => {
-      expect(hasAnyConsent(false, false, true)).toBe(false);
+      expect(hasAnalyticsConsent(false, false, true)).toBe(false);
     });
     it("denies when all false", () => {
-      expect(hasAnyConsent(false, false, false)).toBe(false);
+      expect(hasAnalyticsConsent(false, false, false)).toBe(false);
     });
   });
 });

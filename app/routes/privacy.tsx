@@ -22,7 +22,7 @@ export const links = () => [{ rel: "stylesheet", href: polarisStyles }];
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   return json({
-    lastUpdated: "December 2024",
+    lastUpdated: "2025年1月15日",
     contactEmail: "support@tracking-guardian.app",
   });
 };
@@ -76,11 +76,11 @@ export default function PublicPrivacyPolicy() {
                   </Text>
                   <div style={{ fontSize: "13px", lineHeight: "1.5", marginTop: "8px" }}>
                     <Text as="p">
-                      <strong>Pixel 加载与事件发送条件（代码实现说明）：</strong>我们的 Web Pixel 配置为需要 <code>analytics</code> 或 <code>marketing</code> 同意才能加载（<code>analytics = true, marketing = true</code>），以同时支持 GA4（analytics 类别）和 Meta/TikTok（marketing 类别）平台。这意味着<strong>当客户授予 analytics 同意或 marketing 同意时，Pixel 就会加载</strong>；如果客户未授予任何同意，Pixel 不会加载，也不会发送任何事件。事件发送遵循以下规则：<strong>只有当客户授予 analytics 同意或 marketing 同意时，事件才会被发送到后端</strong>。如果客户未授予任何同意，事件将被跳过，不会发送。Marketing 同意要求 <code>marketingAllowed = true</code>，并且在客户明确拒绝 <code>saleOfDataAllowed</code> 时不发送（符合 CCPA 要求）。服务端会根据各平台的要求（<code>requiresSaleOfData</code>）和事件用途（analytics vs marketing）进行进一步过滤，确保合规性。具体来说：
+                      <strong>Pixel 加载与事件发送条件（代码实现说明）：</strong>我们的 Web Pixel manifest 配置为只需要 <code>analytics</code> 同意即可加载（<code>analytics = true, marketing = false</code>）。这意味着<strong>当客户授予 analytics 同意时，Pixel 就会加载</strong>；如果客户未授予 analytics 同意，Pixel 不会加载，也不会发送任何事件。事件发送遵循以下规则：<strong>只有当客户授予 analytics 同意时，事件才会被发送到后端</strong>（代码中检查 <code>hasAnalyticsConsent()</code>）。如果客户未授予 analytics 同意，事件将被跳过，不会发送。服务端会根据各平台的要求（<code>requiresSaleOfData</code>）和事件用途（analytics vs marketing）进行进一步过滤，确保合规性。具体来说：
                     </Text>
                     <ul style={{ marginTop: "8px", marginLeft: "20px", fontSize: "13px" }}>
                       <li><strong>Google Analytics 4 (GA4)：</strong> 只需 analytics 同意即可发送（<code>requiresSaleOfData = false</code>）</li>
-                      <li><strong>Meta Conversions API / TikTok Events API：</strong> 需要 marketing 同意（即 <code>marketingAllowed = true</code>），且当客户明确拒绝 <code>saleOfDataAllowed</code> 时不发送，因为 <code>requiresSaleOfData = true</code></li>
+                      <li><strong>Meta Conversions API / TikTok Events API：</strong> 需要 marketing 同意（即 <code>marketingAllowed = true</code>），且当客户明确拒绝 <code>saleOfDataAllowed</code> 时不发送，因为 <code>requiresSaleOfData = true</code>。如果客户只授予了 analytics 同意而未授予 marketing 同意，这些平台的事件将被服务端过滤，不会发送。</li>
                     </ul>
                     <Text as="p" style={{ marginTop: "8px" }}>
                       <strong>v1.0 版本平台支持范围（代码实现说明）：</strong>v1.0 版本<strong>默认仅支持</strong>以下三个平台：Google Analytics 4 (GA4)、Meta Conversions API (Facebook/Instagram)、TikTok Events API。代码中的默认配置为 <code>enabled_platforms = "meta,tiktok,google"</code>。虽然代码实现中包含 Snapchat、Twitter/X、Pinterest 等平台的支持代码（在 <code>app/services/platforms/registry.ts</code> 和 <code>app/utils/platform-consent.ts</code> 中注册），但这些平台在 v1.0 中<strong>默认不启用</strong>，且不推荐在生产环境使用。这些平台将在 v1.1+ 版本中正式支持并默认启用。v1.0 商家应仅配置 GA4、Meta 和 TikTok 平台。如果商家尝试配置其他平台，系统会显示警告提示这些平台在 v1.0 中不支持。
@@ -118,7 +118,7 @@ export default function PublicPrivacyPolicy() {
                     <strong>注意：</strong>v1.0 版本<strong>不包含任何 PII 处理功能</strong>，代码中已完全移除所有 PII 相关配置项和逻辑。仅在商家主动启用 Full Funnel 模式时才会订阅额外事件（但仍不处理 PII）。PII 增强匹配功能将在 v1.1 版本中提供（需通过 Shopify PCD 审核）。
                   </List.Item>
                   <List.Item>
-                    <strong>数据用途：</strong> 默认模式下，所有事件仅用于 analytics（分析）目的（如 Google Analytics 4），不用于 marketing（营销）目的。事件数据仅发送到商家配置的 analytics 平台，不包含任何 PII。<strong>重要说明（代码实现说明）：</strong>Pixel 需要客户授予 analytics 同意才能加载（如果客户未授予 analytics 同意，Pixel 不会加载）。事件发送需要客户授予 analytics 同意或 marketing 同意（代码中检查 <code>hasAnalyticsConsent() || hasMarketingConsent()</code>）。如果客户未授予任何同意，事件将被跳过，不会发送到后端。这确保了完全符合 Shopify Customer Privacy API 的要求。
+                    <strong>数据用途：</strong> 默认模式下，所有事件仅用于 analytics（分析）目的（如 Google Analytics 4），不用于 marketing（营销）目的。事件数据仅发送到商家配置的 analytics 平台，不包含任何 PII。<strong>重要说明（代码实现说明）：</strong>Pixel manifest 配置为只需要 <code>analytics</code> 同意即可加载（<code>analytics = true, marketing = false</code>）。如果客户未授予 analytics 同意，Pixel 不会加载。事件发送需要客户授予 analytics 同意（代码中检查 <code>hasAnalyticsConsent()</code>）。如果客户未授予 analytics 同意，事件将被跳过，不会发送到后端。服务端会根据平台类型进一步筛选：GA4 需要 analytics 同意，Meta/TikTok 需要 marketing 同意（如果客户只授予了 analytics 同意，Meta/TikTok 事件将被服务端过滤）。这确保了完全符合 Shopify Customer Privacy API 的要求。
                   </List.Item>
                   <List.Item>
                     <strong>数据传输方式：</strong> 我们使用<strong>服务端 API（Server-Side API）</strong>将事件数据发送到广告平台。具体包括：
@@ -176,21 +176,29 @@ export default function PublicPrivacyPolicy() {
                     <strong>Shopify 实际提供 PII：</strong>即使满足上述条件，如果 Shopify 因 PCD 限制或客户未同意而未提供 PII 字段，应用会自动回退到默认隐私优先模式
                   </List.Item>
                 </List>
+                <Banner tone="warning">
+                  <Text as="p" variant="bodySm" fontWeight="semibold">
+                    ⚠️ v1.0 版本限制：增强匹配功能在 v1.0 中不可用
+                  </Text>
+                  <Text as="p" variant="bodySm">
+                    v1.0 版本不包含任何 PII 处理功能。以下增强匹配功能将在 v1.1 版本中提供（需通过 Shopify PCD 审核）。
+                  </Text>
+                </Banner>
                 <Text as="p" fontWeight="bold">
-                  启用增强匹配后，我们会处理以下 PII 字段（全部使用 SHA-256 哈希后通过服务端 API 传输）：
+                  启用增强匹配后（v1.1+），我们会处理以下 PII 字段（全部使用 SHA-256 哈希后通过服务端 API 传输）：
                 </Text>
                 <List type="bullet">
                   <List.Item>
-                    <strong>邮箱地址：</strong>使用 SHA-256 哈希后通过服务端 API 发送到广告平台（v1.0 支持：Google GA4 Measurement Protocol、Meta Conversions API、TikTok Events API）
+                    <strong>邮箱地址：</strong>使用 SHA-256 哈希后通过服务端 API 发送到广告平台（v1.1+ 支持：Google GA4 Measurement Protocol、Meta Conversions API、TikTok Events API）
                   </List.Item>
                   <List.Item>
-                    <strong>电话号码：</strong>使用 SHA-256 哈希后通过服务端 API 发送到广告平台
+                    <strong>电话号码：</strong>使用 SHA-256 哈希后通过服务端 API 发送到广告平台（v1.1+）
                   </List.Item>
                   <List.Item>
-                    <strong>姓名（名和姓）：</strong>使用 SHA-256 哈希后通过服务端 API 发送到广告平台
+                    <strong>姓名（名和姓）：</strong>使用 SHA-256 哈希后通过服务端 API 发送到广告平台（v1.1+）
                   </List.Item>
                   <List.Item>
-                    <strong>地址信息（城市、州/省、邮编、国家）：</strong>使用 SHA-256 哈希后通过服务端 API 发送到广告平台
+                    <strong>地址信息（城市、州/省、邮编、国家）：</strong>使用 SHA-256 哈希后通过服务端 API 发送到广告平台（v1.1+）
                   </List.Item>
                 </List>
                 <Text as="p" variant="bodySm" tone="subdued" style={{ marginTop: "8px" }}>
@@ -217,7 +225,7 @@ export default function PublicPrivacyPolicy() {
                     <strong>自动回退机制：</strong>如果 Shopify 未提供 PII 字段（例如因 PCD 限制、客户未同意或应用未通过 PCD 审核），应用会自动回退到默认隐私优先模式，仅发送非 PII 事件数据。此回退是自动的，无需商家干预。即使商家启用了增强匹配，如果 Shopify 未提供 PII，我们也不会尝试获取或处理 PII。
                   </List.Item>
                   <List.Item>
-                    <strong>数据目的地：</strong>哈希后的 PII 仅发送到商家配置的广告平台（v1.0 默认支持：Google GA4、Meta Conversions API、TikTok Events API，代码中默认配置 <code>enabled_platforms = "meta,tiktok,google"</code>），不会用于其他目的。我们不会将 PII 用于广告投放、用户画像构建或其他营销目的。我们不会将 PII 出售给第三方或用于任何非转化追踪目的。<strong>重要：</strong>此功能仅在商家明确启用增强匹配且满足所有合规条件时才会生效。默认模式下，我们不收集、不处理、不分享任何 PII。<strong>v1.0 版本限制（代码实现说明）：</strong>虽然代码实现中包含 Snapchat、Twitter/X、Pinterest 等平台的支持（在 <code>app/services/platforms/registry.ts</code> 和 <code>app/utils/platform-consent.ts</code> 中注册），但这些平台在 v1.0 中<strong>默认不启用</strong>，且不推荐在生产环境使用。这些平台将在 v1.1+ 版本中正式支持并默认启用。v1.0 商家应仅配置 GA4、Meta 和 TikTok 平台。
+                    <strong>数据目的地：</strong>哈希后的 PII 仅发送到商家配置的广告平台（v1.1+ 默认支持：Google GA4、Meta Conversions API、TikTok Events API），不会用于其他目的。我们不会将 PII 用于广告投放、用户画像构建或其他营销目的。我们不会将 PII 出售给第三方或用于任何非转化追踪目的。<strong>重要：</strong>此功能仅在 v1.1+ 版本中可用，且仅在商家明确启用增强匹配且满足所有合规条件时才会生效。v1.0 版本不收集、不处理、不分享任何 PII。<strong>v1.0 版本限制（代码实现说明）：</strong>虽然代码实现中包含 Snapchat、Twitter/X、Pinterest 等平台的支持（在 <code>app/services/platforms/registry.ts</code> 和 <code>app/utils/platform-consent.ts</code> 中注册），但这些平台在 v1.0 中<strong>默认不启用</strong>，且不推荐在生产环境使用。这些平台将在 v1.1+ 版本中正式支持并默认启用。v1.0 商家应仅配置 GA4、Meta 和 TikTok 平台。
                   </List.Item>
                   <List.Item>
                     <strong>用途分级：</strong>我们区分 analytics（分析）和 marketing（营销）用途。默认情况下，所有事件仅用于 analytics（如 Google Analytics 4）。Marketing 用途（如 Meta、TikTok 广告转化）需要商家明确启用并确认合规。所有事件日志和报表中都会标记该事件是 analytics 还是 marketing 用途。
@@ -262,7 +270,7 @@ export default function PublicPrivacyPolicy() {
                     <strong>Analytics 用途（默认）：</strong>所有事件默认仅用于 analytics 目的（如 Google Analytics 4）。这些事件不包含 PII，仅用于网站分析和转化追踪。
                   </List.Item>
                   <List.Item>
-                    <strong>Marketing 用途（需明确启用）：</strong>如果商家启用增强匹配并将事件发送到广告平台（v1.0 默认支持：Meta、TikTok，代码中默认配置 <code>enabled_platforms = "meta,tiktok,google"</code>），这些事件会被标记为 marketing 用途。商家必须确认其合规义务并已获得客户同意。<strong>v1.0 版本限制（代码实现说明）：</strong>虽然代码实现中包含 Snapchat、Twitter/X、Pinterest 等平台的支持（在 <code>app/services/platforms/registry.ts</code> 和 <code>app/utils/platform-consent.ts</code> 中注册），但这些平台在 v1.0 中<strong>默认不启用</strong>，且不推荐在生产环境使用。这些平台将在 v1.1+ 版本中正式支持并默认启用。
+                    <strong>Marketing 用途（需明确启用，v1.1+）：</strong>如果商家在 v1.1+ 版本中启用增强匹配并将事件发送到广告平台（v1.1+ 默认支持：Meta、TikTok，代码中默认配置 <code>enabled_platforms = "meta,tiktok,google"</code>），这些事件会被标记为 marketing 用途。商家必须确认其合规义务并已获得客户同意。<strong>v1.0 版本限制：</strong>v1.0 版本不包含增强匹配功能，所有事件仅用于 analytics 目的。虽然代码实现中包含 Snapchat、Twitter/X、Pinterest 等平台的支持（在 <code>app/services/platforms/registry.ts</code> 和 <code>app/utils/platform-consent.ts</code> 中注册），但这些平台在 v1.0 中<strong>默认不启用</strong>，且不推荐在生产环境使用。这些平台将在 v1.1+ 版本中正式支持并默认启用。
                   </List.Item>
                   <List.Item>
                     <strong>日志标记：</strong>所有事件日志和报表中都会标记该事件是 analytics 还是 marketing 用途，用于对账解释和支持排查。
@@ -284,7 +292,7 @@ export default function PublicPrivacyPolicy() {
                 <Text as="p">我们处理数据用于以下目的：</Text>
                 <List type="number">
                   <List.Item>
-                    <strong>发送转化事件到广告平台：</strong>将事件数据（默认不含 PII，启用增强匹配后包含哈希后的 PII）发送到商家配置的广告平台。v1.0 版本<strong>默认支持且推荐使用</strong>以下平台：Google Analytics 4 (GA4)、Meta Conversions API (Facebook/Instagram)、TikTok Events API（代码中默认配置 <code>enabled_platforms = "meta,tiktok,google"</code>）。<strong>v1.0 版本限制（代码实现说明）：</strong>虽然代码实现中包含 Snapchat、Twitter/X、Pinterest 等平台的支持代码（在 <code>app/services/platforms/registry.ts</code> 和 <code>app/utils/platform-consent.ts</code> 中注册），但这些平台在 v1.0 中<strong>默认不启用</strong>，且不推荐在生产环境使用。这些平台将在 v1.1+ 版本中正式支持并默认启用。v1.0 商家应仅配置 GA4、Meta 和 TikTok 平台。
+                    <strong>发送转化事件到广告平台：</strong>将事件数据（v1.0 默认不含 PII，v1.1+ 启用增强匹配后包含哈希后的 PII）发送到商家配置的广告平台。v1.0 版本<strong>默认支持且推荐使用</strong>以下平台：Google Analytics 4 (GA4)、Meta Conversions API (Facebook/Instagram)、TikTok Events API（代码中默认配置 <code>enabled_platforms = "meta,tiktok,google"</code>）。<strong>v1.0 版本限制（代码实现说明）：</strong>v1.0 版本发送的事件数据不包含任何 PII。虽然代码实现中包含 Snapchat、Twitter/X、Pinterest 等平台的支持代码（在 <code>app/services/platforms/registry.ts</code> 和 <code>app/utils/platform-consent.ts</code> 中注册），但这些平台在 v1.0 中<strong>默认不启用</strong>，且不推荐在生产环境使用。这些平台将在 v1.1+ 版本中正式支持并默认启用。v1.0 商家应仅配置 GA4、Meta 和 TikTok 平台。
                   </List.Item>
                   <List.Item>
                     <strong>事件去重：</strong>在客户端像素和服务端 API 之间进行事件去重，防止重复转化上报

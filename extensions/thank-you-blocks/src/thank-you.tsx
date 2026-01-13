@@ -9,7 +9,7 @@ import {
   useApi,
 } from "@shopify/ui-extensions-react/checkout";
 import { useState, useEffect } from "react";
-import { getValidatedBackendUrl } from "./config";
+import { getValidatedBackendUrl, isDevMode } from "./config";
 
 function SurveyModule({ 
   question, 
@@ -130,8 +130,7 @@ function ThankYouBlocks() {
       try {
         const backendUrl = getValidatedBackendUrl();
         if (!backendUrl) {
-          const isDevMode = process.env.NODE_ENV === "development" || process.env.SHOPIFY_APP_ENV === "development";
-          if (isDevMode) {
+          if (isDevMode()) {
             console.warn("[ThankYouBlocks] Backend URL not configured");
           }
           setModuleState({
@@ -151,15 +150,13 @@ function ThankYouBlocks() {
         if (response.ok) {
           const state = await response.json();
           setModuleState(state);
-          const isDevMode = process.env.NODE_ENV === "development" || process.env.SHOPIFY_APP_ENV === "development";
-          if (isDevMode) {
+          if (isDevMode()) {
             console.log("[ThankYouBlocks] Module state loaded:", state);
           }
         } else {
           const errorText = await response.text().catch(() => `HTTP ${response.status}`);
           const errorMessage = `Failed to fetch module state: ${response.status} ${errorText}`;
-          const isDevMode = process.env.NODE_ENV === "development" || process.env.SHOPIFY_APP_ENV === "development";
-          if (isDevMode) {
+          if (isDevMode()) {
             console.error("[ThankYouBlocks] Module state fetch failed:", errorMessage);
           }
           try {
@@ -182,8 +179,7 @@ function ThankYouBlocks() {
                     timestamp: new Date().toISOString(),
                   }),
                 }).catch((reportErr) => {
-                  const isDevMode = process.env.NODE_ENV === "development" || process.env.SHOPIFY_APP_ENV === "development";
-                  if (isDevMode) {
+                  if (isDevMode()) {
                     console.error("[ThankYouBlocks] Failed to report error to backend:", reportErr);
                   }
                 });
@@ -199,8 +195,7 @@ function ThankYouBlocks() {
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : String(error);
         const errorStack = error instanceof Error ? error.stack : undefined;
-        const isDevMode = process.env.NODE_ENV === "development" || process.env.SHOPIFY_APP_ENV === "development";
-        if (isDevMode) {
+        if (isDevMode()) {
           console.error("[ThankYouBlocks] Failed to fetch module state:", error);
         }
         try {
@@ -223,14 +218,14 @@ function ThankYouBlocks() {
                   timestamp: new Date().toISOString(),
                 }),
               }).catch((reportErr) => {
-                if (process.env.NODE_ENV === "development" || process.env.SHOPIFY_APP_ENV === "development") {
+                if (isDevMode()) {
                   console.error("[ThankYouBlocks] Failed to report error to backend:", reportErr);
                 }
               });
             }
           }
         } catch (reportError) {
-          if (process.env.NODE_ENV === "development" || process.env.SHOPIFY_APP_ENV === "development") {
+          if (isDevMode()) {
             console.error("[ThankYouBlocks] Failed to report error:", reportError);
           }
         }
@@ -272,7 +267,7 @@ function ThankYouBlocks() {
       if (!response.ok) {
         const errorText = await response.text().catch(() => `HTTP ${response.status}`);
         const errorMessage = `Survey submit failed: ${response.status} ${errorText}`;
-        if (process.env.NODE_ENV === "development" || process.env.SHOPIFY_APP_ENV === "development") {
+        if (isDevMode()) {
           console.error("[ThankYouBlocks] Survey submit failed:", errorMessage);
         }
         try {
@@ -295,8 +290,7 @@ function ThankYouBlocks() {
                     timestamp: new Date().toISOString(),
                   }),
                 }).catch((reportErr) => {
-                  const isDevMode = process.env.NODE_ENV === "development" || process.env.SHOPIFY_APP_ENV === "development";
-                  if (isDevMode) {
+                  if (isDevMode()) {
                     console.error("[ThankYouBlocks] Failed to report error to backend:", reportErr);
                   }
                 });
@@ -314,7 +308,7 @@ function ThankYouBlocks() {
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
       const errorStack = error instanceof Error ? error.stack : undefined;
-      if (process.env.NODE_ENV === "development" || process.env.SHOPIFY_APP_ENV === "development") {
+      if (isDevMode()) {
         console.error("[ThankYouBlocks] Survey submit failed:", error);
       }
       try {
@@ -337,14 +331,14 @@ function ThankYouBlocks() {
                 timestamp: new Date().toISOString(),
               }),
             }).catch((reportErr) => {
-              if (process.env.NODE_ENV === "development" || process.env.SHOPIFY_APP_ENV === "development") {
+              if (isDevMode()) {
                 console.error("[ThankYouBlocks] Failed to report error to backend:", reportErr);
               }
             });
           }
         }
       } catch (reportError) {
-        if (process.env.NODE_ENV === "development" || process.env.SHOPIFY_APP_ENV === "development") {
+        if (isDevMode()) {
           console.error("[ThankYouBlocks] Failed to report error:", reportError);
         }
       }

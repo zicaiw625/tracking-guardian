@@ -202,10 +202,9 @@ export function createEventSender(config: EventSenderConfig) {
     }
   };
   return async function sendToBackend(eventName: string, data: Record<string, unknown>): Promise<void> {
-    const hasAnyConsent = consentManager.hasAnalyticsConsent() || consentManager.hasMarketingConsent();
-    if (!hasAnyConsent) {
+    if (!consentManager.hasAnalyticsConsent()) {
       log(
-        `Skipping ${eventName} - no consent at all. ` +
+        `Skipping ${eventName} - analytics consent not granted. ` +
         `analytics=${consentManager.analyticsAllowed}, marketing=${consentManager.marketingAllowed}`
       );
       return;

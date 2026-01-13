@@ -22,10 +22,9 @@ export interface PlatformFilterResult {
 export function checkInitialConsent(consent: ConsentState | undefined): ConsentCheckResult {
   const hasMarketingConsent = consent?.marketing === true;
   const hasAnalyticsConsent = consent?.analytics === true;
-  const hasAnyConsent = hasMarketingConsent || hasAnalyticsConsent;
   const saleOfDataAllowed = consent?.saleOfData;
   return {
-    hasAnyConsent,
+    hasAnyConsent: hasAnalyticsConsent,
     hasMarketingConsent,
     hasAnalyticsConsent,
     saleOfDataAllowed,
@@ -38,11 +37,11 @@ export function logNoConsentDrop(
 ): void {
   metrics.silentDrop({
     shopDomain,
-    reason: "no_consent_at_all",
+    reason: "no_analytics_consent",
     category: "validation",
     sampleRate: 1,
   });
-  logger.debug(`Dropping pixel event - no consent at all`, {
+  logger.debug(`Dropping pixel event - analytics consent not granted`, {
     shopDomain,
     marketing: consent?.marketing,
     analytics: consent?.analytics,

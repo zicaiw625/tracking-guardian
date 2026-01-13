@@ -4,21 +4,12 @@ function resolveBackendUrl(): string | null {
   if (BUILD_TIME_URL && !BUILD_TIME_URL.includes("PLACEHOLDER")) {
     return BUILD_TIME_URL;
   }
-  if (typeof process !== "undefined" && process.env && process.env.BACKEND_URL) {
-    return process.env.BACKEND_URL;
-  }
   return null;
 }
 
 export const BACKEND_URL: string | null = resolveBackendUrl();
 
 function getDefaultAllowedHosts(): string[] {
-  const buildTimeHosts = typeof process !== "undefined" && process.env && process.env.BUILD_TIME_ALLOWED_HOSTS
-    ? process.env.BUILD_TIME_ALLOWED_HOSTS.split(",").map(h => h.trim()).filter(Boolean)
-    : [];
-  if (buildTimeHosts.length > 0) {
-    return buildTimeHosts;
-  }
   const backendUrl = BACKEND_URL;
   if (backendUrl) {
     try {
@@ -28,26 +19,10 @@ function getDefaultAllowedHosts(): string[] {
     } catch {
     }
   }
-  const envDefaultHosts = typeof process !== "undefined" && process.env && process.env.DEFAULT_ALLOWED_HOSTS
-    ? process.env.DEFAULT_ALLOWED_HOSTS.split(",").map(h => h.trim()).filter(Boolean)
-    : [];
-  if (envDefaultHosts.length > 0) {
-    return envDefaultHosts;
-  }
   return [];
 }
 
 function getAllowedHosts(): string[] {
-  if (typeof process !== "undefined" && process.env && process.env.ALLOWED_BACKEND_HOSTS) {
-    const envHosts = process.env.ALLOWED_BACKEND_HOSTS.split(",").map(h => h.trim()).filter(Boolean);
-    if (envHosts.length > 0) {
-      if (process.env.ALLOWED_BACKEND_HOSTS_OVERRIDE === "true") {
-        return envHosts;
-      }
-      const defaultHosts = getDefaultAllowedHosts();
-      return [...defaultHosts, ...envHosts];
-    }
-  }
   return getDefaultAllowedHosts();
 }
 
@@ -90,4 +65,18 @@ export function isAllowedBackendUrl(url: string | null): boolean {
   } catch {
     return false;
   }
+}
+
+export function isDevMode(): boolean {
+  try {
+    if (typeof window !== "undefined" && window.location) {
+      const hostname = window.location.hostname;
+      if (hostname === "localhost" || hostname === "127.0.0.1" || hostname.includes(".myshopify.dev") || /-(dev|staging|test)\./i.test(hostname)) {
+        return true;
+      }
+    }
+  } catch {
+    return false;
+  }
+  return false;
 }

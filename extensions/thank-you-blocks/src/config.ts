@@ -1,4 +1,4 @@
-import { BACKEND_URL, isAllowedBackendUrl } from "../../shared/config";
+import { BACKEND_URL, isAllowedBackendUrl, isDevMode } from "../../shared/config";
 
 export function getValidatedBackendUrl(): string | null {
   if (!BACKEND_URL) {
@@ -9,3 +9,5 @@ export function getValidatedBackendUrl(): string | null {
   }
   return BACKEND_URL;
 }
+
+export { isDevMode };
