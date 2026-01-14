@@ -244,7 +244,7 @@ export function SecurityTab({
                     <br />• <strong>sale_of_data = "disabled"</strong>：不强制要求 sale of data 同意
                   </Text>
                   <Text as="p" variant="bodySm" tone="subdued">
-                    <strong>策略说明（按平台/用途配置）：</strong>当前 manifest 配置为只需要 analytics 同意即可加载像素（<code>analytics = true, marketing = false</code>）。这意味着当客户授予 analytics 同意时，Pixel 就会加载；如果客户未授予 analytics 同意，Pixel 不会加载。后端会根据各平台的实际用途进一步过滤事件：GA4（分析类，使用 analytics consent）和 Meta/TikTok（营销类，需要 marketing consent，如果客户只授予了 analytics 同意，这些平台的事件将被服务端过滤），确保合规性。
+                    <strong>策略说明（按平台/用途配置）：</strong>当前 manifest 配置需要 analytics 或 marketing 同意才能加载像素（<code>analytics = true, marketing = true</code>）。这意味着当客户授予 analytics 或 marketing 同意时，Pixel 就会加载；如果客户未授予任一同意，Pixel 不会加载。事件发送需要客户授予 analytics 或 marketing 同意（代码中检查 <code>hasAnalyticsConsent() || hasMarketingConsent()</code>）。后端会根据各平台的实际用途进一步过滤事件：GA4（分析类，使用 analytics consent）和 Meta/TikTok（营销类，需要 marketing consent，如果客户只授予了 analytics 同意，这些平台的事件将被服务端过滤），确保合规性。
                   </Text>
                 </BlockStack>
               </Banner>

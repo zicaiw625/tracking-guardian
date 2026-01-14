@@ -76,7 +76,7 @@ export default function PublicPrivacyPolicy() {
                   </Text>
                   <div style={{ fontSize: "13px", lineHeight: "1.5", marginTop: "8px" }}>
                     <Text as="p">
-                      <strong>Pixel 加载与事件发送条件（代码实现说明）：</strong>我们的 Web Pixel manifest 配置为只需要 <code>analytics</code> 同意即可加载（<code>analytics = true, marketing = false</code>）。这意味着<strong>当客户授予 analytics 同意时，Pixel 就会加载</strong>；如果客户未授予 analytics 同意，Pixel 不会加载，也不会发送任何事件。事件发送遵循以下规则：<strong>只有当客户授予 analytics 同意时，事件才会被发送到后端</strong>（代码中检查 <code>hasAnalyticsConsent()</code>）。如果客户未授予 analytics 同意，事件将被跳过，不会发送。服务端会根据各平台的要求（<code>requiresSaleOfData</code>）和事件用途（analytics vs marketing）进行进一步过滤，确保合规性。具体来说：
+                      <strong>Pixel 加载与事件发送条件（代码实现说明）：</strong>我们的 Web Pixel manifest 配置需要 <code>analytics</code> 或 <code>marketing</code> 同意才能加载（<code>analytics = true, marketing = true</code>）。这意味着<strong>当客户授予 analytics 或 marketing 同意时，Pixel 就会加载</strong>；如果客户未授予任一同意，Pixel 不会加载，也不会发送任何事件。事件发送遵循以下规则：<strong>当客户授予 analytics 或 marketing 同意时，事件就会被发送到后端</strong>（代码中检查 <code>hasAnalyticsConsent() || hasMarketingConsent()</code>）。如果客户未授予任一同意，事件将被跳过，不会发送。服务端会根据各平台的要求（<code>requiresSaleOfData</code>）和事件用途（analytics vs marketing）进行进一步过滤，确保合规性。具体来说：
                     </Text>
                     <ul style={{ marginTop: "8px", marginLeft: "20px", fontSize: "13px" }}>
                       <li><strong>Google Analytics 4 (GA4)：</strong> 只需 analytics 同意即可发送（<code>requiresSaleOfData = false</code>）</li>
@@ -118,7 +118,7 @@ export default function PublicPrivacyPolicy() {
                     <strong>注意：</strong>v1.0 版本<strong>不包含任何 PII 处理功能</strong>，代码中已完全移除所有 PII 相关配置项和逻辑。仅在商家主动启用 Full Funnel 模式时才会订阅额外事件（但仍不处理 PII）。PII 增强匹配功能将在 v1.1 版本中提供（需通过 Shopify PCD 审核）。
                   </List.Item>
                   <List.Item>
-                    <strong>数据用途：</strong> 默认模式下，所有事件仅用于 analytics（分析）目的（如 Google Analytics 4），不用于 marketing（营销）目的。事件数据仅发送到商家配置的 analytics 平台，不包含任何 PII。<strong>重要说明（代码实现说明）：</strong>Pixel manifest 配置为只需要 <code>analytics</code> 同意即可加载（<code>analytics = true, marketing = false</code>）。如果客户未授予 analytics 同意，Pixel 不会加载。事件发送需要客户授予 analytics 同意（代码中检查 <code>hasAnalyticsConsent()</code>）。如果客户未授予 analytics 同意，事件将被跳过，不会发送到后端。服务端会根据平台类型进一步筛选：GA4 需要 analytics 同意，Meta/TikTok 需要 marketing 同意（如果客户只授予了 analytics 同意，Meta/TikTok 事件将被服务端过滤）。这确保了完全符合 Shopify Customer Privacy API 的要求。
+                    <strong>数据用途：</strong> 事件数据用于 analytics（分析）和 marketing（营销）目的。事件数据会根据平台类型发送到商家配置的平台（GA4 用于分析，Meta/TikTok 用于营销），不包含任何 PII。<strong>重要说明（代码实现说明）：</strong>Pixel manifest 配置需要 <code>analytics</code> 或 <code>marketing</code> 同意才能加载（<code>analytics = true, marketing = true</code>）。如果客户未授予任一同意，Pixel 不会加载。事件发送需要客户授予 analytics 或 marketing 同意（代码中检查 <code>hasAnalyticsConsent() || hasMarketingConsent()</code>）。如果客户未授予任一同意，事件将被跳过，不会发送到后端。服务端会根据平台类型进一步筛选：GA4 需要 analytics 同意，Meta/TikTok 需要 marketing 同意（如果客户只授予了 analytics 同意，Meta/TikTok 事件将被服务端过滤）。这确保了完全符合 Shopify Customer Privacy API 的要求。
                   </List.Item>
                   <List.Item>
                     <strong>数据传输方式：</strong> 我们使用<strong>服务端 API（Server-Side API）</strong>将事件数据发送到广告平台。具体包括：
