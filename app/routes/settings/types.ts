@@ -66,6 +66,17 @@ export interface SettingsLoaderData {
     missingParamsRate: number;
     volumeDrop: number;
   } | null;
+  hmacSecurityStats?: {
+    lastRotationAt: Date | null;
+    rotationCount: number;
+    graceWindowActive: boolean;
+    graceWindowExpiry: Date | null;
+    suspiciousActivityCount: number;
+    lastSuspiciousActivity: Date | null;
+    nullOriginRequestCount: number;
+    invalidSignatureCount: number;
+    lastInvalidSignature: Date | null;
+  } | null;
 }
 
 export interface ActionSuccessResponse {

@@ -17,9 +17,10 @@ import {
 } from "@shopify/polaris";
 import { ExternalIcon } from "~/components/icons";
 import { authenticate } from "../shopify.server";
-import { UI_MODULES, type ModuleKey } from "../types/ui-extension";
+import { UI_MODULES, type ModuleKey, validateModuleTargets } from "../types/ui-extension";
 import { PageIntroCard } from "~/components/layout/PageIntroCard";
 import { checkCustomerAccountsEnabled } from "../services/customer-accounts.server";
+import { logger } from "../utils/logger.server";
 import * as fs from "fs";
 import * as path from "path";
 
@@ -50,6 +51,13 @@ export const loader = async ({ request, params }: LoaderFunctionArgs) => {
   const moduleInfo = UI_MODULES[moduleKey];
   if (moduleInfo.disabled) {
     throw new Response("模块不可用", { status: 403 });
+  }
+  const targetValidation = validateModuleTargets(moduleKey, moduleInfo.targets);
+  if (!targetValidation.valid) {
+    throw new Response(`模块 target 配置无效: ${targetValidation.errors.join(", ")}`, { status: 400 });
+  }
+  if (targetValidation.warnings.length > 0) {
+    logger.warn(`模块 ${moduleKey} target 警告:`, { warnings: targetValidation.warnings });
   }
   const hasOrderStatusTarget = moduleInfo.targets.includes("order_status");
   let customerAccountsStatus = null;

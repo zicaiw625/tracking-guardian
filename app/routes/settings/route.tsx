@@ -18,7 +18,7 @@ export const loader = settingsLoader;
 export const action = settingsAction;
 
 export default function SettingsPage() {
-  const { shop, tokenIssues, currentMonitoringData } =
+  const { shop, tokenIssues, currentMonitoringData, hmacSecurityStats } =
     useLoaderData<typeof settingsLoader>();
   const actionData = useActionData<SettingsActionResponse>();
   const submit = useSubmit();
@@ -352,6 +352,7 @@ export default function SettingsPage() {
               shop={shop}
               isSubmitting={isSubmitting}
               onRotateSecret={handleRotateSecret}
+              hmacSecurityStats={hmacSecurityStats}
             />
           )}
           {selectedTab === 2 && <SubscriptionTab currentPlan={shop?.plan as PlanId || "free"} />}

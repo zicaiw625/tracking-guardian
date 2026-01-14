@@ -30,12 +30,24 @@ interface SecurityTabProps {
   shop: ShopData | null;
   isSubmitting: boolean;
   onRotateSecret: () => void;
+  hmacSecurityStats?: {
+    lastRotationAt: Date | string | null;
+    rotationCount: number;
+    graceWindowActive: boolean;
+    graceWindowExpiry: Date | string | null;
+    suspiciousActivityCount: number;
+    lastSuspiciousActivity: Date | string | null;
+    nullOriginRequestCount: number;
+    invalidSignatureCount: number;
+    lastInvalidSignature: Date | string | null;
+  } | null;
 }
 
 export function SecurityTab({
   shop,
   isSubmitting,
   onRotateSecret,
+  hmacSecurityStats,
 }: SecurityTabProps) {
   const submit = useSubmit();
   const handleDataRetentionChange = (value: string) => {
@@ -159,6 +171,207 @@ export function SecurityTab({
                     </Text>
                   </BlockStack>
                 </Banner>
+              )}
+              {hmacSecurityStats && (
+                <Card>
+                  <BlockStack gap="400">
+                    <Text as="h3" variant="headingMd">
+                      HMAC 密钥安全监控（过去24小时）
+                    </Text>
+                    <Text as="p" variant="bodySm" tone="subdued">
+                      实时监控密钥轮换状态和可疑注入活动，确保系统安全。建议定期检查此面板，及时发现潜在安全风险。
+                    </Text>
+                    <Divider />
+                    <BlockStack gap="300">
+                      <Box background="bg-surface-secondary" padding="400" borderRadius="200">
+                        <BlockStack gap="300">
+                          <InlineStack align="space-between" blockAlign="center">
+                            <Text as="p" variant="bodySm" fontWeight="semibold">
+                              密钥轮换状态
+                            </Text>
+                            <Button
+                              variant="plain"
+                              size="slim"
+                              onClick={onRotateSecret}
+                              loading={isSubmitting}
+                            >
+                              立即轮换
+                            </Button>
+                          </InlineStack>
+                          <Divider />
+                          <InlineStack align="space-between" blockAlign="center">
+                            <Text as="span" variant="bodySm">
+                              上次轮换时间
+                            </Text>
+                            <Text as="span" variant="bodySm" fontWeight="semibold">
+                              {hmacSecurityStats.lastRotationAt 
+                                ? new Date(hmacSecurityStats.lastRotationAt).toLocaleString("zh-CN")
+                                : "从未轮换"}
+                            </Text>
+                          </InlineStack>
+                          <InlineStack align="space-between" blockAlign="center">
+                            <Text as="span" variant="bodySm">
+                              轮换次数
+                            </Text>
+                            <Badge tone={hmacSecurityStats.rotationCount > 0 ? "success" : "info"}>
+                              {hmacSecurityStats.rotationCount}
+                            </Badge>
+                          </InlineStack>
+                          {hmacSecurityStats.graceWindowActive && hmacSecurityStats.graceWindowExpiry && (
+                            <Banner tone="info">
+                              <Text as="p" variant="bodySm">
+                                过渡期进行中：旧密钥将在 {new Date(hmacSecurityStats.graceWindowExpiry).toLocaleString("zh-CN")} 失效
+                              </Text>
+                            </Banner>
+                          )}
+                          {!hmacSecurityStats.lastRotationAt && (
+                            <Banner tone="warning">
+                              <BlockStack gap="200">
+                                <Text as="p" variant="bodySm" fontWeight="semibold">
+                                  建议：定期轮换密钥以提高安全性
+                                </Text>
+                                <Text as="p" variant="bodySm">
+                                  系统检测到您尚未进行过密钥轮换。建议每90天轮换一次密钥，以降低密钥泄漏风险。点击"立即轮换"按钮开始轮换。
+                                </Text>
+                                <Text as="p" variant="bodySm" tone="subdued">
+                                  💡 密钥轮换后，系统会自动同步新密钥到 Web Pixel 配置，旧密钥将在30分钟内失效，确保平滑过渡。
+                                </Text>
+                              </BlockStack>
+                            </Banner>
+                          )}
+                          {hmacSecurityStats.lastRotationAt && (() => {
+                            const daysSinceRotation = Math.floor((Date.now() - new Date(hmacSecurityStats.lastRotationAt).getTime()) / (1000 * 60 * 60 * 24));
+                            if (daysSinceRotation >= 90) {
+                              return (
+                                <Banner tone="warning">
+                                  <BlockStack gap="200">
+                                    <Text as="p" variant="bodySm" fontWeight="semibold">
+                                      建议：密钥已超过90天未轮换
+                                    </Text>
+                                    <Text as="p" variant="bodySm">
+                                      上次轮换时间：{new Date(hmacSecurityStats.lastRotationAt).toLocaleString("zh-CN")}（{daysSinceRotation} 天前）。建议定期轮换密钥以降低安全风险。点击"立即轮换"按钮开始轮换。
+                                    </Text>
+                                  </BlockStack>
+                                </Banner>
+                              );
+                            }
+                            return null;
+                          })()}
+                        </BlockStack>
+                      </Box>
+                      <Divider />
+                      <Box background="bg-surface-secondary" padding="400" borderRadius="200">
+                        <BlockStack gap="300">
+                          <Text as="p" variant="bodySm" fontWeight="semibold">
+                            可疑注入告警
+                          </Text>
+                          <Divider />
+                          <InlineStack align="space-between" blockAlign="center">
+                            <Text as="span" variant="bodySm">
+                              无效签名次数
+                            </Text>
+                            <InlineStack gap="200" blockAlign="center">
+                              <Badge tone={hmacSecurityStats.invalidSignatureCount > 0 ? "critical" : "success"}>
+                                {hmacSecurityStats.invalidSignatureCount}
+                              </Badge>
+                              {hmacSecurityStats.invalidSignatureCount > 0 && hmacSecurityStats.lastInvalidSignature && (
+                                <Text as="span" variant="bodySm" tone="subdued">
+                                  (最近: {new Date(hmacSecurityStats.lastInvalidSignature).toLocaleString("zh-CN")})
+                                </Text>
+                              )}
+                            </InlineStack>
+                          </InlineStack>
+                          <InlineStack align="space-between" blockAlign="center">
+                            <Text as="span" variant="bodySm">
+                              Null Origin 请求数
+                            </Text>
+                            <Badge tone={hmacSecurityStats.nullOriginRequestCount > 10 ? "warning" : "success"}>
+                              {hmacSecurityStats.nullOriginRequestCount}
+                            </Badge>
+                          </InlineStack>
+                          <Divider />
+                          <InlineStack align="space-between" blockAlign="center">
+                            <Text as="span" variant="bodySm" fontWeight="semibold">
+                              可疑活动总数
+                            </Text>
+                            <Badge tone={hmacSecurityStats.suspiciousActivityCount > 10 ? "critical" : hmacSecurityStats.suspiciousActivityCount > 0 ? "warning" : "success"}>
+                              {hmacSecurityStats.suspiciousActivityCount}
+                            </Badge>
+                          </InlineStack>
+                          {hmacSecurityStats.suspiciousActivityCount > 0 && hmacSecurityStats.lastSuspiciousActivity && (
+                            <Text as="p" variant="bodySm" tone="subdued">
+                              最近可疑活动: {new Date(hmacSecurityStats.lastSuspiciousActivity).toLocaleString("zh-CN")}
+                            </Text>
+                          )}
+                        </BlockStack>
+                      </Box>
+                      {hmacSecurityStats.suspiciousActivityCount > 10 && (
+                        <Banner tone="critical">
+                          <BlockStack gap="200">
+                            <Text as="p" variant="bodySm" fontWeight="semibold">
+                              ⚠️ 检测到大量可疑活动 - 建议立即采取行动
+                            </Text>
+                            <Text as="p" variant="bodySm">
+                              系统检测到 {hmacSecurityStats.suspiciousActivityCount} 次可疑活动，可能包括无效签名或异常来源请求。这可能是密钥泄漏或注入攻击的迹象。
+                            </Text>
+                            <Text as="p" variant="bodySm" fontWeight="semibold">
+                              立即执行的操作：
+                            </Text>
+                            <List type="bullet">
+                              <List.Item>
+                                <Text as="span" variant="bodySm">
+                                  立即轮换密钥（点击上方"立即轮换"按钮或"更换令牌"按钮）
+                                </Text>
+                              </List.Item>
+                              <List.Item>
+                                <Text as="span" variant="bodySm">
+                                  检查访问日志和事件接收记录，审查异常请求来源
+                                </Text>
+                              </List.Item>
+                              <List.Item>
+                                <Text as="span" variant="bodySm">
+                                  如果怀疑密钥泄漏，立即更换令牌并检查事件日志
+                                </Text>
+                              </List.Item>
+                              <List.Item>
+                                <Text as="span" variant="bodySm">
+                                  审查是否有异常来源的请求或注入尝试
+                                </Text>
+                              </List.Item>
+                              <List.Item>
+                                <Text as="span" variant="bodySm">
+                                  检查监控页面的"事件丢失率"指标，确认是否有异常事件丢失
+                                </Text>
+                              </List.Item>
+                            </List>
+                          </BlockStack>
+                        </Banner>
+                      )}
+                      {hmacSecurityStats.suspiciousActivityCount > 0 && hmacSecurityStats.suspiciousActivityCount <= 10 && (
+                        <Banner tone="warning">
+                          <BlockStack gap="200">
+                            <Text as="p" variant="bodySm" fontWeight="semibold">
+                              ⚠️ 检测到可疑活动
+                            </Text>
+                            <Text as="p" variant="bodySm">
+                              系统检测到 {hmacSecurityStats.suspiciousActivityCount} 次可疑活动。建议定期检查访问日志，如果活动持续增加，请考虑轮换密钥。
+                            </Text>
+                            <Text as="p" variant="bodySm">
+                              如果无效签名次数持续增加，可能是密钥泄漏的早期迹象。建议在下次维护窗口时轮换密钥。
+                            </Text>
+                          </BlockStack>
+                        </Banner>
+                      )}
+                      {hmacSecurityStats.suspiciousActivityCount === 0 && (
+                        <Banner tone="success">
+                          <Text as="p" variant="bodySm">
+                            ✅ 过去24小时内未检测到可疑活动，系统运行正常
+                          </Text>
+                        </Banner>
+                      )}
+                    </BlockStack>
+                  </BlockStack>
+                </Card>
               )}
               {!shop?.hasIngestionSecret && (
                 <Banner tone="critical">

@@ -150,18 +150,129 @@ export function ManualAnalysis({ deprecationStatus }: ManualAnalysisProps) {
               </BlockStack>
             </Banner>
             <Banner tone="info">
-              <BlockStack gap="200">
+              <BlockStack gap="300">
                 <Text as="p" fontWeight="semibold">
-                  如何获取 Additional Scripts：
+                  如何获取 Additional Scripts（详细步骤指南）：
                 </Text>
-                <Text as="p" variant="bodySm">
-                  1. 前往 Shopify 后台 → 设置 → 结账
-                  <br />
-                  2. 找到「订单状态页面」或「Additional Scripts」区域
-                  <br />
-                  3. 复制其中的所有代码
-                  <br />
-                  4. 粘贴到下方文本框中
+                <Text as="p" variant="bodySm" tone="subdued">
+                  📖 参考文档：<a href="https://help.shopify.com/en/manual/checkout-settings/order-status-page/additional-scripts" target="_blank" rel="noopener noreferrer">Shopify 官方文档：Additional Scripts</a>
+                </Text>
+                <Divider />
+                <Text as="p" variant="bodySm" fontWeight="semibold">
+                  📸 截图式操作指南（建议按步骤截图保存）：
+                </Text>
+                <List type="number">
+                  <List.Item>
+                    <BlockStack gap="200">
+                      <Text as="span" variant="bodySm" fontWeight="semibold">
+                        步骤 1：登录 Shopify Admin 后台
+                      </Text>
+                      <Text as="span" variant="bodySm" tone="subdued">
+                        访问 <a href="https://admin.shopify.com" target="_blank" rel="noopener noreferrer">https://admin.shopify.com</a> 并使用管理员账号登录
+                      </Text>
+                      <Banner tone="info">
+                        <Text as="p" variant="bodySm">
+                          📸 <strong>截图提示：</strong>登录后，建议截图保存当前页面，便于后续参考。截图应包含页面顶部导航栏，确认已成功登录。
+                        </Text>
+                      </Banner>
+                    </BlockStack>
+                  </List.Item>
+                  <List.Item>
+                    <BlockStack gap="200">
+                      <Text as="span" variant="bodySm" fontWeight="semibold">
+                        步骤 2：前往设置 → 结账
+                      </Text>
+                      <Text as="span" variant="bodySm" tone="subdued">
+                        点击左下角的"设置"（Settings）图标（齿轮图标）→ 在设置菜单中找到并点击"结账和订单处理"（Checkout and order processing）
+                      </Text>
+                      <Banner tone="info">
+                        <Text as="p" variant="bodySm">
+                          📸 <strong>截图提示：</strong>找到"结账和订单处理"选项后，建议截图保存，确保您找到了正确的位置。截图应包含左侧菜单中的"结账和订单处理"选项。
+                        </Text>
+                      </Banner>
+                      <Text as="span" variant="bodySm" tone="subdued">
+                        💡 <strong>提示：</strong>如果找不到此选项，请确认您的 Shopify 计划是否支持自定义结账设置。某些基础计划可能不显示此选项。
+                      </Text>
+                    </BlockStack>
+                  </List.Item>
+                  <List.Item>
+                    <BlockStack gap="200">
+                      <Text as="span" variant="bodySm" fontWeight="semibold">
+                        步骤 3：找到 Additional Scripts 区域
+                      </Text>
+                      <Text as="span" variant="bodySm" tone="subdued">
+                        在结账设置页面中，向下滚动找到"订单状态页面"（Order status page）部分，查找"Additional Scripts"或"其他脚本"文本框区域
+                      </Text>
+                      <Banner tone="info">
+                        <Text as="p" variant="bodySm">
+                          📸 <strong>截图提示：</strong>找到 Additional Scripts 文本框后，建议先截图保存，确保您找到了正确的位置。如果文本框中有内容，也建议截图保存，以便后续参考。截图应清晰显示文本框的完整内容。
+                        </Text>
+                      </Banner>
+                      <Text as="span" variant="bodySm" tone="subdued">
+                        💡 <strong>提示：</strong>如果看不到 Additional Scripts 区域，可能您的店铺已经升级到新版 Thank you / Order status 页面，此时该区域可能已隐藏或移至其他位置。请参考 <a href="https://help.shopify.com/en/manual/checkout-settings/order-status-page/additional-scripts" target="_blank" rel="noopener noreferrer">Shopify 官方文档</a> 确认当前页面版本。
+                      </Text>
+                      <Banner tone="warning">
+                        <Text as="p" variant="bodySm">
+                          ⚠️ <strong>重要：</strong>Additional Scripts 区域可能位于页面的不同位置，取决于您的 Shopify 版本和主题。如果找不到，请尝试：
+                        </Text>
+                        <List type="bullet">
+                          <List.Item>
+                            <Text as="span" variant="bodySm">检查页面是否已完全加载</Text>
+                          </List.Item>
+                          <List.Item>
+                            <Text as="span" variant="bodySm">尝试使用浏览器的搜索功能（Ctrl+F 或 Cmd+F）搜索"Additional Scripts"</Text>
+                          </List.Item>
+                          <List.Item>
+                            <Text as="span" variant="bodySm">查看页面底部的"订单状态页面"部分</Text>
+                          </List.Item>
+                        </List>
+                      </Banner>
+                    </BlockStack>
+                  </List.Item>
+                  <List.Item>
+                    <BlockStack gap="200">
+                      <Text as="span" variant="bodySm" fontWeight="semibold">
+                        步骤 4：复制脚本内容
+                      </Text>
+                      <Text as="span" variant="bodySm" tone="subdued">
+                        选中 Additional Scripts 文本框中的所有内容（包括所有 &lt;script&gt; 标签和代码），使用 Ctrl+C（Windows）或 Cmd+C（Mac）复制
+                      </Text>
+                      <Banner tone="critical">
+                        <Text as="p" variant="bodySm" fontWeight="semibold">
+                          ⚠️ 重要：请确保复制完整的脚本内容
+                        </Text>
+                        <Text as="p" variant="bodySm">
+                          • 包括所有 &lt;script&gt; 标签的开头和结尾
+                        </Text>
+                        <Text as="p" variant="bodySm">
+                          • 如果脚本内容很长，请使用 Ctrl+A（Windows）或 Cmd+A（Mac）全选后再复制
+                        </Text>
+                        <Text as="p" variant="bodySm">
+                          • 确保没有遗漏任何代码片段
+                        </Text>
+                      </Banner>
+                      <Text as="span" variant="bodySm" tone="subdued">
+                        💡 <strong>提示：</strong>如果脚本内容包含多段代码，请确保全部选中并复制。系统会自动识别和分类多段脚本。
+                      </Text>
+                    </BlockStack>
+                  </List.Item>
+                  <List.Item>
+                    <BlockStack gap="200">
+                      <Text as="span" variant="bodySm" fontWeight="semibold">
+                        步骤 5：粘贴并分析
+                      </Text>
+                      <Text as="span" variant="bodySm" tone="subdued">
+                        将复制的内容粘贴到下方文本框中，系统会自动识别和分析所有追踪脚本
+                      </Text>
+                      <Text as="span" variant="bodySm" tone="subdued">
+                        💡 <strong>提示：</strong>系统支持多段脚本自动识别和分类。如果粘贴后没有识别出任何脚本，请检查是否复制了完整内容，或尝试重新复制。
+                      </Text>
+                    </BlockStack>
+                  </List.Item>
+                </List>
+                <Divider />
+                <Text as="p" variant="bodySm" tone="subdued">
+                  <strong>提示：</strong>如果找不到 Additional Scripts 区域，可能您的店铺尚未配置自定义脚本。某些 Shopify 主题或应用可能会在 Thank you 页面添加追踪代码，这些代码也可能需要迁移。请参考 <a href="https://help.shopify.com/en/manual/checkout-settings/order-status-page/additional-scripts" target="_blank" rel="noopener noreferrer">Shopify 官方文档</a> 了解更多信息。
                 </Text>
               </BlockStack>
             </Banner>

@@ -195,31 +195,248 @@ export function ManualPastePanel({ shopId, onAssetsCreated }: ManualPastePanelPr
           <Badge>手动输入</Badge>
         </InlineStack>
         <Banner tone="info">
-          <BlockStack gap="200">
+          <BlockStack gap="400">
             <Text as="p" variant="bodySm" fontWeight="semibold">
-              使用说明：
+              📋 如何获取 Additional Scripts（Shopify 官方升级向导步骤）
             </Text>
-            <List>
-              <List.Item>
-                从 Shopify Admin 的「设置 → 结账和订单处理 → Additional Scripts」中复制脚本内容
-              </List.Item>
-              <List.Item>
-                或从 Thank you / Order status 页面的源代码中复制相关脚本
-              </List.Item>
-              <List.Item>
-                支持粘贴多段脚本，系统会自动识别和分类
-              </List.Item>
-              <List.Item>
-                支持代码高亮和实时分析，输入时自动检测平台
-              </List.Item>
-              <List.Item>
-                <Text as="span" variant="bodySm" fontWeight="semibold">
-                  P1-03: 智能去重
+            <Text as="p" variant="bodySm" tone="subdued">
+              按照以下详细步骤操作，确保正确获取所有需要迁移的脚本。这些步骤与 Shopify 官方升级向导一致：
+            </Text>
+            <Banner tone="warning">
+              <BlockStack gap="200">
+                <Text as="p" variant="bodySm" fontWeight="semibold">
+                  📸 截图式引导（强烈推荐）
                 </Text>
-                {" - "}
-                系统会基于脚本内容的 fingerprint 自动去重，避免重复分析相同的脚本片段
+                <Text as="p" variant="bodySm">
+                  按照 Shopify 官方升级向导的步骤，建议对每个关键步骤进行截图保存。这可以帮助您：
+                </Text>
+                <List type="bullet">
+                  <List.Item>
+                    <Text as="span" variant="bodySm">
+                      确认找到了正确的位置（Settings → Checkout → Review customizations）
+                    </Text>
+                  </List.Item>
+                  <List.Item>
+                    <Text as="span" variant="bodySm">
+                      记录 Additional Scripts 文本框的完整内容和位置
+                    </Text>
+                  </List.Item>
+                  <List.Item>
+                    <Text as="span" variant="bodySm">
+                      在需要时重新查看脚本内容，避免重复操作
+                    </Text>
+                  </List.Item>
+                  <List.Item>
+                    <Text as="span" variant="bodySm">
+                      如果遇到问题，可以提供给技术支持参考，加快问题解决速度
+                    </Text>
+                  </List.Item>
+                </List>
+                <Text as="p" variant="bodySm" fontWeight="semibold">
+                  关键截图位置（Shopify 官方升级向导推荐）：
+                </Text>
+                <List type="number">
+                  <List.Item>
+                    <Text as="span" variant="bodySm">
+                      截图 1：Shopify Admin → Settings → Checkout 页面（显示完整的结账设置界面）
+                    </Text>
+                    <Text as="span" variant="bodySm" tone="subdued">
+                      📸 建议：确保截图中包含左侧导航栏的"设置"选项和右侧的"结账和订单处理"标题，以便确认位置正确
+                    </Text>
+                  </List.Item>
+                  <List.Item>
+                    <Text as="span" variant="bodySm">
+                      截图 2：Additional Scripts 文本框区域（包含文本框标题和完整内容）
+                    </Text>
+                    <Text as="span" variant="bodySm" tone="subdued">
+                      📸 建议：在结账设置页面中，向下滚动到"订单状态页面"部分，找到"Additional Scripts"文本框，确保截图中包含文本框标题和完整的多行输入框
+                    </Text>
+                  </List.Item>
+                  <List.Item>
+                    <Text as="span" variant="bodySm">
+                      截图 3：如果文本框中有脚本内容，建议单独截图脚本内容区域（便于后续参考）
+                    </Text>
+                    <Text as="span" variant="bodySm" tone="subdued">
+                      📸 建议：如果 Additional Scripts 文本框中有现有脚本，建议放大文本框区域并单独截图，确保脚本内容清晰可见，便于后续分析和迁移
+                    </Text>
+                  </List.Item>
+                  <List.Item>
+                    <Text as="span" variant="bodySm">
+                      截图 4：Review customizations 页面（如果 Shopify 升级向导显示）
+                    </Text>
+                    <Text as="span" variant="bodySm" tone="subdued">
+                      📸 建议：如果 Shopify 升级向导显示了"Review customizations"页面，建议截图保存，该页面会列出所有需要迁移的脚本和功能清单
+                    </Text>
+                  </List.Item>
+                </List>
+                <Banner tone="info">
+                  <BlockStack gap="200">
+                    <Text as="p" variant="bodySm" fontWeight="semibold">
+                      📖 Shopify 官方升级向导路径
+                    </Text>
+                    <Text as="p" variant="bodySm">
+                      按照 Shopify 官方升级向导的步骤，您可以通过以下路径访问：
+                    </Text>
+                    <List type="number">
+                      <List.Item>
+                        <Text as="span" variant="bodySm">
+                          Settings → Checkout → Review customizations（查看自定义项）
+                        </Text>
+                      </List.Item>
+                      <List.Item>
+                        <Text as="span" variant="bodySm">
+                          在 Review customizations 页面中，Shopify 会列出所有需要迁移的脚本和功能
+                        </Text>
+                      </List.Item>
+                      <List.Item>
+                        <Text as="span" variant="bodySm">
+                          点击每个脚本项，可以查看详细信息和迁移建议
+                        </Text>
+                      </List.Item>
+                    </List>
+                    <Text as="p" variant="bodySm" tone="subdued">
+                      💡 提示：如果您的店铺尚未看到升级向导，说明 Shopify 可能尚未为您的店铺启用升级流程。此时，您可以直接在 Settings → Checkout 中找到 Additional Scripts 区域。
+                    </Text>
+                  </BlockStack>
+                </Banner>
+              </BlockStack>
+            </Banner>
+            <List type="number">
+              <List.Item>
+                <BlockStack gap="200">
+                  <Text as="span" variant="bodySm" fontWeight="semibold">
+                    步骤 1：进入 Shopify Admin 后台
+                  </Text>
+                  <Text as="span" variant="bodySm" tone="subdued">
+                    登录您的 Shopify Admin 后台（https://admin.shopify.com），点击左下角的"设置"（Settings）图标
+                  </Text>
+                  <Text as="span" variant="bodySm" tone="subdued">
+                    💡 提示：确保您有管理员权限，否则可能无法访问设置页面
+                  </Text>
+                  <Text as="span" variant="bodySm" tone="subdued">
+                    📸 界面位置：设置图标位于 Shopify Admin 左侧导航栏的最底部，图标为齿轮形状
+                  </Text>
+                </BlockStack>
+              </List.Item>
+              <List.Item>
+                <BlockStack gap="200">
+                  <Text as="span" variant="bodySm" fontWeight="semibold">
+                    步骤 2：打开结账设置
+                  </Text>
+                  <Text as="span" variant="bodySm" tone="subdued">
+                    在设置页面中，找到并点击「结账和订单处理」（Checkout and order processing）选项
+                  </Text>
+                  <Text as="span" variant="bodySm" tone="subdued">
+                    💡 提示：如果找不到此选项，请确认您的 Shopify 计划是否支持自定义结账设置
+                  </Text>
+                  <Text as="span" variant="bodySm" tone="subdued">
+                    📸 界面位置：在设置页面的主列表中，查找"结账和订单处理"或"Checkout and order processing"选项，通常位于"客户"和"配送"设置之间
+                  </Text>
+                </BlockStack>
+              </List.Item>
+              <List.Item>
+                <BlockStack gap="200">
+                  <Text as="span" variant="bodySm" fontWeight="semibold">
+                    步骤 3：找到 Additional Scripts 区域
+                  </Text>
+                  <Text as="span" variant="bodySm" tone="subdued">
+                    在结账设置页面中，向下滚动找到「订单状态页面」（Order status page）部分，或直接查找「Additional Scripts」文本框区域
+                  </Text>
+                  <Text as="span" variant="bodySm" tone="subdued">
+                    💡 提示：如果看不到 Additional Scripts 区域，可能您的店铺已经升级到新版 Thank you / Order status 页面，此时该区域可能已隐藏或移至其他位置。请参考 Shopify 官方文档确认当前页面版本。
+                  </Text>
+                  <Text as="span" variant="bodySm" tone="subdued">
+                    📍 位置说明：Additional Scripts 通常位于"订单状态页面"设置区域的下方，是一个多行文本输入框
+                  </Text>
+                  <Text as="span" variant="bodySm" tone="subdued">
+                    📸 界面位置：在结账设置页面中，向下滚动到"订单状态页面"部分，您会看到一个标题为"Additional Scripts"或"额外脚本"的文本框区域。该文本框通常显示为灰色边框的多行输入框，可能包含现有的脚本代码
+                  </Text>
+                  <Text as="span" variant="bodySm" tone="subdued">
+                    📷 截图建议：找到 Additional Scripts 文本框后，建议先截图保存，确保您找到了正确的位置。如果文本框中有内容，也建议截图保存，以便后续参考。
+                  </Text>
+                </BlockStack>
+              </List.Item>
+              <List.Item>
+                <BlockStack gap="200">
+                  <Text as="span" variant="bodySm" fontWeight="semibold">
+                    步骤 4：复制脚本内容
+                  </Text>
+                  <Text as="span" variant="bodySm" tone="subdued">
+                    选中 Additional Scripts 文本框中的所有内容（包括所有 &lt;script&gt; 标签和代码），使用 Ctrl+C（Windows）或 Cmd+C（Mac）复制
+                  </Text>
+                  <Text as="span" variant="bodySm" tone="subdued">
+                    ⚠️ 重要：请确保复制完整的脚本内容，包括所有 &lt;script&gt; 标签的开头和结尾。如果脚本内容很长，请使用 Ctrl+A（Windows）或 Cmd+A（Mac）全选后再复制。
+                  </Text>
+                  <Text as="span" variant="bodySm" tone="subdued">
+                    💡 提示：如果脚本内容包含多段代码，请确保全部选中并复制。系统会自动识别和分类多段脚本
+                  </Text>
+                  <Text as="span" variant="bodySm" tone="subdued">
+                    📸 操作提示：点击 Additional Scripts 文本框，使用鼠标拖拽选中所有内容，或使用键盘快捷键 Ctrl+A（Windows）/ Cmd+A（Mac）全选，然后使用 Ctrl+C（Windows）/ Cmd+C（Mac）复制
+                  </Text>
+                </BlockStack>
+              </List.Item>
+              <List.Item>
+                <BlockStack gap="200">
+                  <Text as="span" variant="bodySm" fontWeight="semibold">
+                    步骤 5：粘贴并分析
+                  </Text>
+                  <Text as="span" variant="bodySm" tone="subdued">
+                    将复制的内容粘贴到下方文本框中，系统会自动识别和分析所有追踪脚本
+                  </Text>
+                  <Text as="span" variant="bodySm" tone="subdued">
+                    💡 提示：系统支持多段脚本自动识别和分类。如果粘贴后没有识别出任何脚本，请检查是否复制了完整内容，或尝试重新复制。
+                  </Text>
+                  <Text as="span" variant="bodySm" tone="subdued">
+                    📸 操作提示：点击下方"粘贴脚本内容"文本框，使用 Ctrl+V（Windows）/ Cmd+V（Mac）粘贴，然后点击"分析脚本"按钮
+                  </Text>
+                </BlockStack>
               </List.Item>
             </List>
+            <Divider />
+            <Banner tone="warning">
+              <BlockStack gap="200">
+                <Text as="p" variant="bodySm" fontWeight="semibold">
+                  ⚠️ 重要提示
+                </Text>
+                <List type="bullet">
+                  <List.Item>
+                    <Text as="span" variant="bodySm">
+                      Shopify API 无法自动读取 Additional Scripts 内容，因此需要手动复制粘贴。这是 Shopify 平台的安全限制。
+                    </Text>
+                  </List.Item>
+                  <List.Item>
+                    <Text as="span" variant="bodySm">
+                      系统支持多段脚本自动识别和分类，并会基于脚本内容的 fingerprint 自动去重
+                    </Text>
+                  </List.Item>
+                  <List.Item>
+                    <Text as="span" variant="bodySm">
+                      如果 Additional Scripts 区域为空，说明您的店铺可能没有配置额外的追踪脚本
+                    </Text>
+                  </List.Item>
+                  <List.Item>
+                    <Text as="span" variant="bodySm">
+                      粘贴前请先脱敏敏感信息（如 API 密钥、访问令牌等），避免泄露。分析在浏览器本地完成，不会上传脚本正文
+                    </Text>
+                  </List.Item>
+                </List>
+              </BlockStack>
+            </Banner>
+            <Banner tone="info">
+              <BlockStack gap="200">
+                <Text as="p" variant="bodySm" fontWeight="semibold">
+                  📖 参考 Shopify 官方文档
+                </Text>
+                <Text as="p" variant="bodySm">
+                  如需更多帮助，请参考 Shopify 官方升级向导：
+                </Text>
+                <Text as="p" variant="bodySm">
+                  <a href="https://shopify.dev/docs/apps/checkout/upgrade-guide" target="_blank" rel="noopener noreferrer">
+                    Shopify Checkout Upgrade Guide
+                  </a>
+                </Text>
+              </BlockStack>
+            </Banner>
           </BlockStack>
         </Banner>
         {validationErrors.length > 0 && (

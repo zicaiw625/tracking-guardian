@@ -4,6 +4,7 @@ import { getPlanOrDefault, type PlanId } from "./billing/plans";
 import { logger } from "../utils/logger.server";
 import type { AdminApiContext } from "@shopify/shopify-app-remix/server";
 import { encryptJson, decryptJson } from "../utils/crypto.server";
+import { validateTarget } from "../utils/target-validator";
 
 export {
   type ModuleKey,
@@ -93,6 +94,50 @@ export function getDefaultDisplayRules(moduleKey: ModuleKey): DisplayRules {
   return {
     enabled: false,
     targets: UI_MODULES[moduleKey]?.targets || ["thank_you"],
+  };
+}
+
+export function validateModuleTargets(moduleKey: ModuleKey, targets: string[]): {
+  valid: boolean;
+  errors: string[];
+  warnings: string[];
+} {
+  const errors: string[] = [];
+  const warnings: string[] = [];
+  const moduleInfo = UI_MODULES[moduleKey];
+  if (!moduleInfo) {
+    errors.push(`未知的模块: ${moduleKey}`);
+    return { valid: false, errors, warnings };
+  }
+  const validTargets = moduleInfo.targets;
+  for (const target of targets) {
+    const validation = validateTarget(target);
+    if (!validation.valid) {
+      errors.push(validation.error || `无效的 target: ${target}`);
+      if (validation.suggestion) {
+        warnings.push(validation.suggestion);
+      }
+    } else if (validation.isDeprecated) {
+      warnings.push(`Target "${target}" 已被弃用，建议使用最新版本: ${validation.suggestion || ""}`);
+    }
+    const normalizedTarget = target.trim();
+    if (normalizedTarget === "purchase.thank-you.block.render" && !validTargets.includes("thank_you")) {
+      errors.push(`模块 ${moduleKey} 不支持 target "${target}"。支持的 targets: ${validTargets.join(", ")}`);
+    } else if (normalizedTarget === "customer-account.order-status.block.render" && !validTargets.includes("order_status")) {
+      errors.push(`模块 ${moduleKey} 不支持 target "${target}"。支持的 targets: ${validTargets.join(", ")}`);
+    } else if (!normalizedTarget.includes("purchase.thank-you.block.render") && !normalizedTarget.includes("customer-account.order-status.block.render")) {
+      if (!validTargets.includes(target as "thank_you" | "order_status")) {
+        errors.push(`模块 ${moduleKey} 不支持 target "${target}"。支持的 targets: ${validTargets.join(", ")}`);
+      }
+    }
+  }
+  if (targets.length === 0) {
+    errors.push("至少需要指定一个 target");
+  }
+  return {
+    valid: errors.length === 0,
+    errors,
+    warnings,
   };
 }
 
@@ -255,6 +300,22 @@ export async function updateUiModuleConfig(
           success: false,
           error: `显示规则验证失败: ${displayRulesValidation.errors?.join(", ") || "未知错误"}`,
         };
+      }
+      const { validateModuleTargets } = await import("../types/ui-extension");
+      if (displayRulesValidation.normalized?.targets) {
+        const targetValidation = validateModuleTargets(moduleKey, displayRulesValidation.normalized.targets);
+        if (!targetValidation.valid) {
+          return {
+            success: false,
+            error: `Target 兼容性验证失败: ${targetValidation.errors.join(", ")}`,
+          };
+        }
+        if (targetValidation.warnings.length > 0) {
+          logger.warn("Module target validation warnings", {
+            moduleKey,
+            warnings: targetValidation.warnings,
+          });
+        }
       }
       config.displayRules = displayRulesValidation.normalized;
     }

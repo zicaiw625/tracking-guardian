@@ -11,6 +11,7 @@ import {
 import { useState, useEffect } from "react";
 import { getValidatedBackendUrl, isDevMode } from "./config";
 import { reportExtensionError } from "./error-reporting";
+import { getOrderContext } from "./order-context";
 
 function SurveyModule({ 
   question, 
@@ -277,6 +278,7 @@ function OrderStatusBlocks() {
         return false;
       }
       const token = await api.sessionToken.get();
+      const orderContext = getOrderContext(api);
       const response = await fetch(`${backendUrl}/api/survey`, {
         method: "POST",
         headers: {
@@ -286,8 +288,8 @@ function OrderStatusBlocks() {
         body: JSON.stringify({
           option: selectedOption,
           timestamp: new Date().toISOString(),
-          orderId: api.order?.id || null,
-          checkoutToken: null,
+          orderId: orderContext.orderId,
+          checkoutToken: orderContext.checkoutToken,
         }),
       });
       if (!response.ok) {
@@ -342,12 +344,12 @@ function OrderStatusBlocks() {
       if (!backendUrl) {
         throw new Error("Backend URL not configured");
       }
-      const orderId = api.order?.id;
-      if (!orderId) {
+      const orderContext = getOrderContext(api);
+      if (!orderContext.orderId) {
         throw new Error("Order ID not available");
       }
       const token = await api.sessionToken.get();
-      const response = await fetch(`${backendUrl}/api/reorder?orderId=${encodeURIComponent(orderId)}`, {
+      const response = await fetch(`${backendUrl}/api/reorder?orderId=${encodeURIComponent(orderContext.orderId)}`, {
         method: "GET",
         headers: {
           "Authorization": `Bearer ${token}`,
@@ -355,12 +357,14 @@ function OrderStatusBlocks() {
       });
       if (!response.ok) {
         const errorText = await response.text().catch(() => `HTTP ${response.status}`);
-        let errorData = {};
+        let errorMessage = `Failed to get reorder URL: ${response.status} ${errorText}`;
         try {
-          errorData = JSON.parse(errorText);
+          const errorData = JSON.parse(errorText);
+          if (errorData && typeof errorData === "object" && "error" in errorData && typeof errorData.error === "string") {
+            errorMessage = errorData.error;
+          }
         } catch {
         }
-        const errorMessage = (errorData as { error?: string }).error || `Failed to get reorder URL: ${response.status} ${errorText}`;
         if (isDevMode()) {
           console.error("[OrderStatusBlocks] Reorder failed:", errorMessage);
         }
@@ -370,7 +374,7 @@ function OrderStatusBlocks() {
           error: errorMessage,
           stack: null,
           target: "order-status",
-          orderId: api.order?.id || null,
+          orderId: orderContext.orderId,
           timestamp: new Date().toISOString(),
         });
         throw new Error(errorMessage);
@@ -387,13 +391,14 @@ function OrderStatusBlocks() {
       if (isDevMode()) {
         console.error("[OrderStatusBlocks] Reorder failed:", error);
       }
+      const orderContext = getOrderContext(api);
       await reportExtensionError(api, {
         extension: "order-status",
         endpoint: "reorder",
         error: errorMessage,
         stack: errorStack,
         target: "order-status",
-        orderId: api.order?.id || null,
+        orderId: orderContext.orderId,
         timestamp: new Date().toISOString(),
       });
       throw error;

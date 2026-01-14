@@ -272,6 +272,185 @@ function ModuleCard({
               <Text as="p" variant="bodySm" tone="subdued">
                 {info.description}
                 {info.disabled && info.disabledReason && `（${info.disabledReason}）`}
+                {module.moduleKey === "reorder" && !PCD_CONFIG.APPROVED && (
+                  <Banner tone="critical">
+                    <BlockStack gap="400">
+                      <Text as="p" variant="bodySm" fontWeight="semibold">
+                        <strong>⚠️ Reorder 功能需要 Protected Customer Data (PCD) 审核批准</strong>
+                      </Text>
+                      <Text as="p" variant="bodySm">
+                        Reorder 功能当前默认禁用，因为需要访问 Protected Customer Data (PCD)。这是 Shopify 平台的安全和隐私要求，所有访问 PCD 的应用必须通过审核。
+                      </Text>
+                      <Divider />
+                      <Text as="p" variant="bodySm" fontWeight="semibold">
+                        <strong>为什么需要 PCD 审核？</strong>
+                      </Text>
+                      <Text as="p" variant="bodySm">
+                        Reorder 功能需要读取客户的订单历史数据（订单 ID、商品信息、价格等），这些数据属于 Shopify 的 Protected Customer Data (PCD) 保护范围。Shopify 要求所有访问 PCD 的应用必须通过审核，确保数据使用符合隐私和安全要求。
+                      </Text>
+                      <List type="bullet">
+                        <List.Item>
+                          <Text as="span" variant="bodySm">
+                            Reorder 功能需要读取客户的订单历史数据（订单 ID、商品信息、价格等）
+                          </Text>
+                        </List.Item>
+                        <List.Item>
+                          <Text as="span" variant="bodySm">
+                            这些数据属于 Shopify 的 Protected Customer Data (PCD) 保护范围
+                          </Text>
+                        </List.Item>
+                        <List.Item>
+                          <Text as="span" variant="bodySm">
+                            Shopify 要求所有访问 PCD 的应用必须通过审核，确保数据使用符合隐私和安全要求
+                          </Text>
+                        </List.Item>
+                      </List>
+                      <Divider />
+                      <Text as="p" variant="bodySm" fontWeight="semibold">
+                        <strong>📋 如何申请 PCD 审核（详细步骤）</strong>
+                      </Text>
+                      <Banner tone="info">
+                        <BlockStack gap="200">
+                          <Text as="p" variant="bodySm" fontWeight="semibold">
+                            ⚠️ 重要：为什么必须申请 PCD 审核？
+                          </Text>
+                          <Text as="p" variant="bodySm">
+                            Reorder 功能需要访问客户的订单历史数据（订单 ID、商品信息、价格等），这些数据属于 Shopify 的 Protected Customer Data (PCD) 保护范围。Shopify 要求所有访问 PCD 的应用必须通过审核，确保数据使用符合隐私和安全要求。未通过审核的应用无法访问客户订单历史等 PCD 数据。
+                          </Text>
+                          <Text as="p" variant="bodySm">
+                            <strong>合规要求：</strong>这是 Shopify 平台的安全和隐私要求，不是可选功能。所有访问 PCD 的应用必须通过审核，否则功能将被禁用。
+                          </Text>
+                        </BlockStack>
+                      </Banner>
+                      <List type="number">
+                        <List.Item>
+                          <BlockStack gap="100">
+                            <Text as="span" variant="bodySm" fontWeight="semibold">
+                              步骤 1：访问 Shopify Partner Dashboard
+                            </Text>
+                            <Text as="span" variant="bodySm" tone="subdued">
+                              登录 <a href="https://partners.shopify.com" target="_blank" rel="noopener noreferrer">Shopify Partner Dashboard</a>，进入"应用" → 选择您的应用 → 点击"Protected Customer Data"选项
+                            </Text>
+                            <Text as="span" variant="bodySm" tone="subdued">
+                              💡 提示：如果找不到"Protected Customer Data"选项，请确认您有应用的管理权限，或联系应用所有者
+                            </Text>
+                            <Text as="span" variant="bodySm" tone="subdued">
+                              📍 位置说明：在 Partner Dashboard 中，进入"应用"页面，选择您的应用，然后在左侧导航栏中找到"Protected Customer Data"选项
+                            </Text>
+                          </BlockStack>
+                        </List.Item>
+                        <List.Item>
+                          <BlockStack gap="100">
+                            <Text as="span" variant="bodySm" fontWeight="semibold">
+                              步骤 2：填写 PCD 使用申请表
+                            </Text>
+                            <Text as="span" variant="bodySm" tone="subdued">
+                              详细说明 Reorder 功能的数据使用场景：
+                            </Text>
+                            <List type="bullet">
+                              <List.Item>
+                                <Text as="span" variant="bodySm" tone="subdued">
+                                  功能用途：允许客户快速重新购买之前的订单商品
+                                </Text>
+                              </List.Item>
+                              <List.Item>
+                                <Text as="span" variant="bodySm" tone="subdued">
+                                  数据访问范围：仅访问订单 ID、商品信息、价格等必要数据
+                                </Text>
+                              </List.Item>
+                              <List.Item>
+                                <Text as="span" variant="bodySm" tone="subdued">
+                                  数据使用方式：仅用于生成重新购买链接，不存储或分享给第三方
+                                </Text>
+                              </List.Item>
+                            </List>
+                            <Text as="span" variant="bodySm" tone="subdued">
+                              📖 参考文档：<a href="https://shopify.dev/docs/apps/store/data-protection/protected-customer-data" target="_blank" rel="noopener noreferrer">Shopify Protected Customer Data 官方文档</a>
+                            </Text>
+                          </BlockStack>
+                        </List.Item>
+                        <List.Item>
+                          <BlockStack gap="100">
+                            <Text as="span" variant="bodySm" fontWeight="semibold">
+                              步骤 3：等待 Shopify 审核
+                            </Text>
+                            <Text as="span" variant="bodySm" tone="subdued">
+                              审核通常需要 1-2 周时间。Shopify 会审查您的申请，确保数据使用符合隐私和安全要求
+                            </Text>
+                            <Text as="span" variant="bodySm" tone="subdued">
+                              💡 提示：审核期间，您可以在 Partner Dashboard 中查看申请状态。如有疑问，可联系 Shopify Partner Support
+                            </Text>
+                          </BlockStack>
+                        </List.Item>
+                        <List.Item>
+                          <BlockStack gap="100">
+                            <Text as="span" variant="bodySm" fontWeight="semibold">
+                              步骤 4：审核通过后启用功能
+                            </Text>
+                            <Text as="span" variant="bodySm" tone="subdued">
+                              审核通过后，联系技术支持或设置环境变量 <code>PCD_APPROVED=true</code> 以启用 Reorder 功能
+                            </Text>
+                            <Text as="span" variant="bodySm" tone="subdued">
+                              💡 提示：启用后，请测试 Reorder 功能，确认客户信息正常显示。如果遇到客户信息为 null 的情况，请先确认 PCD 权限是否已获批
+                            </Text>
+                          </BlockStack>
+                        </List.Item>
+                      </List>
+                      <Divider />
+                      <InlineStack gap="200" align="start">
+                        <Button
+                          url="https://partners.shopify.com"
+                          variant="primary"
+                          external
+                        >
+                          前往 Shopify Partner Dashboard 申请 PCD 审核
+                        </Button>
+                        <Button
+                          url="https://shopify.dev/docs/apps/store/data-protection/protected-customer-data"
+                          variant="secondary"
+                          external
+                        >
+                          查看 PCD 官方文档
+                        </Button>
+                      </InlineStack>
+                      <Divider />
+                      <Banner tone="info">
+                        <BlockStack gap="200">
+                          <Text as="p" variant="bodySm" fontWeight="semibold">
+                            📖 申请 PCD 审核的常见问题
+                          </Text>
+                          <List type="bullet">
+                            <List.Item>
+                              <Text as="span" variant="bodySm">
+                                <strong>Q: 为什么必须申请 PCD 审核？</strong> A: Shopify 要求所有访问 Protected Customer Data 的应用必须通过审核，这是平台的安全和隐私要求。未通过审核的应用无法访问客户订单历史等 PCD 数据。
+                              </Text>
+                            </List.Item>
+                            <List.Item>
+                              <Text as="span" variant="bodySm">
+                                <strong>Q: 审核需要多长时间？</strong> A: 通常需要 1-2 周时间。Shopify 会审查您的申请，确保数据使用符合隐私和安全要求。
+                              </Text>
+                            </List.Item>
+                            <List.Item>
+                              <Text as="span" variant="bodySm">
+                                <strong>Q: 审核通过后如何启用功能？</strong> A: 审核通过后，联系技术支持或设置环境变量 <code>PCD_APPROVED=true</code> 以启用 Reorder 功能。
+                              </Text>
+                            </List.Item>
+                            <List.Item>
+                              <Text as="span" variant="bodySm">
+                                <strong>Q: 如果审核被拒绝怎么办？</strong> A: 如果审核被拒绝，Shopify 会提供拒绝原因。请根据反馈修改申请，重新提交审核。
+                              </Text>
+                            </List.Item>
+                            <List.Item>
+                              <Text as="span" variant="bodySm">
+                                <strong>Q: 申请过程中可以继续使用其他功能吗？</strong> A: 可以。PCD 审核仅影响 Reorder 功能，其他功能（如 Survey、Helpdesk）不受影响。
+                              </Text>
+                            </List.Item>
+                          </List>
+                        </BlockStack>
+                      </Banner>
+                    </BlockStack>
+                  </Banner>
+                )}
                 {info.targets.includes("order_status") && (
                   <Banner tone={customerAccountsEnabled ? "info" : "critical"}>
                     <BlockStack gap="200">

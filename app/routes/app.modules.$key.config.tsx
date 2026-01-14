@@ -237,20 +237,167 @@ export default function UiModuleConfigPage() {
                         参考文档：请参考 <a href="https://shopify.dev/docs/apps/customer-accounts/ui-extensions" target="_blank" rel="noopener noreferrer">Customer Accounts UI Extensions 官方文档</a>（注意：不要参考 checkout-ui-extensions 文档，该文档可能显示此 target 为"Not supported"，这是文档版本差异导致的误导。正确的文档入口是 Customer Accounts UI Extensions，不是 Checkout UI Extensions）。
                       </Text>
                       {moduleKey === "reorder" && (
-                        <>
-                          <Text as="p" variant="bodySm" fontWeight="semibold">
-                            ⚠️ 需要 PCD 审核批准
-                          </Text>
-                          <Text as="p" variant="bodySm">
-                            再购功能需要 Shopify Protected Customer Data (PCD) 权限批准才能稳定可用。需要访问客户账户信息（如客户邮箱、地址等），这些数据受 PCD 保护。
-                          </Text>
-                          <Text as="p" variant="bodySm">
-                            如果 PCD 权限未获批或用户未同意 consent，某些客户信息字段可能为 null，这是 Shopify 平台的合规行为，不是故障。
-                          </Text>
-                          <Text as="p" variant="bodySm" tone="subdued">
-                            💡 提示：在启用此模块前，请确保应用已获得 Shopify PCD 权限批准，否则功能可能无法正常工作。
-                          </Text>
-                        </>
+                        <Banner tone="critical">
+                          <BlockStack gap="300">
+                            <Text as="p" variant="bodySm" fontWeight="semibold">
+                              ⚠️ 需要 Protected Customer Data (PCD) 审核批准
+                            </Text>
+                            <Text as="p" variant="bodySm">
+                              再购功能需要 Shopify Protected Customer Data (PCD) 权限批准才能稳定可用。需要访问客户账户信息（如客户邮箱、地址等），这些数据受 PCD 保护。
+                            </Text>
+                            <Divider />
+                            <Text as="p" variant="bodySm" fontWeight="semibold">
+                              为什么需要 PCD 审核？
+                            </Text>
+                            <Text as="p" variant="bodySm">
+                              再购功能需要访问以下受保护的数据：
+                            </Text>
+                            <List type="bullet">
+                              <List.Item>
+                                <Text as="span" variant="bodySm">
+                                  客户邮箱地址（用于订单关联）
+                                </Text>
+                              </List.Item>
+                              <List.Item>
+                                <Text as="span" variant="bodySm">
+                                  客户收货地址（用于配送信息）
+                                </Text>
+                              </List.Item>
+                              <List.Item>
+                                <Text as="span" variant="bodySm">
+                                  客户账户 ID（用于身份验证）
+                                </Text>
+                              </List.Item>
+                            </List>
+                            <Divider />
+                            <Text as="p" variant="bodySm" fontWeight="semibold">
+                              如何申请 PCD 审核？
+                            </Text>
+                            <Text as="p" variant="bodySm" tone="subdued">
+                              申请 PCD 权限是启用再购功能的必要步骤。请按照以下详细步骤操作：
+                            </Text>
+                            <List type="number">
+                              <List.Item>
+                                <BlockStack gap="100">
+                                  <Text as="span" variant="bodySm" fontWeight="semibold">
+                                    步骤 1：访问 Shopify Partner Dashboard
+                                  </Text>
+                                  <Text as="span" variant="bodySm" tone="subdued">
+                                    登录 <a href="https://partners.shopify.com" target="_blank" rel="noopener noreferrer">Shopify Partner Dashboard</a>，找到您的应用
+                                  </Text>
+                                </BlockStack>
+                              </List.Item>
+                              <List.Item>
+                                <BlockStack gap="100">
+                                  <Text as="span" variant="bodySm" fontWeight="semibold">
+                                    步骤 2：进入应用详情 → API 权限
+                                  </Text>
+                                  <Text as="span" variant="bodySm" tone="subdued">
+                                    在应用详情页面，点击左侧菜单的"API 权限"或"API permissions"选项
+                                  </Text>
+                                </BlockStack>
+                              </List.Item>
+                              <List.Item>
+                                <BlockStack gap="100">
+                                  <Text as="span" variant="bodySm" fontWeight="semibold">
+                                    步骤 3：申请 Protected Customer Data 权限
+                                  </Text>
+                                  <Text as="span" variant="bodySm" tone="subdued">
+                                    在权限列表中，找到"Protected Customer Data"或"受保护的客户数据"权限，点击"申请"或"Request"按钮
+                                  </Text>
+                                </BlockStack>
+                              </List.Item>
+                              <List.Item>
+                                <BlockStack gap="100">
+                                  <Text as="span" variant="bodySm" fontWeight="semibold">
+                                    步骤 4：填写权限申请表单
+                                  </Text>
+                                  <Text as="span" variant="bodySm" tone="subdued">
+                                    在申请表单中，详细说明需要访问客户数据的原因。建议填写："应用需要访问客户邮箱和地址信息，以支持订单状态页面的再购功能。此功能允许客户一键重新购买之前的订单，提升购物体验。"
+                                  </Text>
+                                </BlockStack>
+                              </List.Item>
+                              <List.Item>
+                                <BlockStack gap="100">
+                                  <Text as="span" variant="bodySm" fontWeight="semibold">
+                                    步骤 5：等待 Shopify 审核
+                                  </Text>
+                                  <Text as="span" variant="bodySm" tone="subdued">
+                                    Shopify 通常需要 1-3 个工作日审核权限申请。审核期间，您可以在 Partner Dashboard 中查看申请状态
+                                  </Text>
+                                </BlockStack>
+                              </List.Item>
+                              <List.Item>
+                                <BlockStack gap="100">
+                                  <Text as="span" variant="bodySm" fontWeight="semibold">
+                                    步骤 6：审核通过后启用功能
+                                  </Text>
+                                  <Text as="span" variant="bodySm" tone="subdued">
+                                    审核通过后，联系应用技术支持团队，请求在系统中启用 PCD 功能。启用后，您就可以正常使用再购模块了
+                                  </Text>
+                                </BlockStack>
+                              </List.Item>
+                            </List>
+                            <Banner tone="info">
+                              <BlockStack gap="200">
+                                <Text as="p" variant="bodySm" fontWeight="semibold">
+                                  📚 参考文档
+                                </Text>
+                                <Text as="p" variant="bodySm">
+                                  • <a href="https://shopify.dev/docs/apps/store/data-protection/protected-customer-data" target="_blank" rel="noopener noreferrer">Shopify 官方文档：Protected Customer Data</a>
+                                </Text>
+                                <Text as="p" variant="bodySm">
+                                  • <a href="https://help.shopify.com/en/manual/checkout-settings/order-status-page" target="_blank" rel="noopener noreferrer">Shopify 帮助中心：订单状态页面</a>
+                                </Text>
+                              </BlockStack>
+                            </Banner>
+                            <Divider />
+                            <Text as="p" variant="bodySm" fontWeight="semibold">
+                              当前状态
+                            </Text>
+                            <Text as="p" variant="bodySm">
+                              如果 PCD 权限未获批或用户未同意 consent，某些客户信息字段可能为 null，这是 Shopify 平台的合规行为，不是故障。
+                            </Text>
+                            <Text as="p" variant="bodySm" tone="subdued">
+                              💡 提示：在启用此模块前，请确保应用已获得 Shopify PCD 权限批准，否则功能可能无法正常工作。如果遇到客户信息为 null 的情况，请先确认 PCD 权限是否已获批。
+                            </Text>
+                            <Divider />
+                            <Banner tone="info">
+                              <BlockStack gap="200">
+                                <Text as="p" variant="bodySm" fontWeight="semibold">
+                                  📋 快速检查清单
+                                </Text>
+                                <List type="bullet">
+                                  <List.Item>
+                                    <Text as="span" variant="bodySm">
+                                      确认应用已在 Shopify Partner Dashboard 中申请 PCD 权限
+                                    </Text>
+                                  </List.Item>
+                                  <List.Item>
+                                    <Text as="span" variant="bodySm">
+                                      等待 Shopify 审核通过（通常 1-3 个工作日）
+                                    </Text>
+                                  </List.Item>
+                                  <List.Item>
+                                    <Text as="span" variant="bodySm">
+                                      审核通过后，联系技术支持在系统中启用 PCD 功能
+                                    </Text>
+                                  </List.Item>
+                                  <List.Item>
+                                    <Text as="span" variant="bodySm">
+                                      确认店铺已启用 Customer Accounts 功能（Order Status 模块必需）
+                                    </Text>
+                                  </List.Item>
+                                  <List.Item>
+                                    <Text as="span" variant="bodySm">
+                                      测试再购功能，确认客户信息正常显示
+                                    </Text>
+                                  </List.Item>
+                                </List>
+                              </BlockStack>
+                            </Banner>
+                          </BlockStack>
+                        </Banner>
                       )}
                     </>
                   )}

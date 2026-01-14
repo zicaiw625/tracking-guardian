@@ -5,6 +5,7 @@ import prisma from "../../db.server";
 import { checkTokenExpirationIssues } from "../../services/retry.server";
 
 import { getEventMonitoringStats, getMissingParamsStats, getEventVolumeStats } from "../../services/monitoring.server";
+import { getHMACSecurityStats } from "../../services/security-monitoring.server";
 import { logger } from "../../utils/logger.server";
 import type { SettingsLoaderData, AlertConfigDisplay, PixelConfigDisplay } from "./types";
 
@@ -222,6 +223,14 @@ export async function settingsLoader({ request }: LoaderFunctionArgs) {
         logger.error("Failed to fetch monitoring data for preview", { error });
       }
     }
+    let hmacSecurityStats = null;
+    if (shop) {
+      try {
+        hmacSecurityStats = await getHMACSecurityStats(shop.id, 24);
+      } catch (error) {
+        logger.error("Failed to get HMAC security stats", { error });
+      }
+    }
     const data: SettingsLoaderData = {
       shop: shop
         ? {
@@ -246,6 +255,7 @@ export async function settingsLoader({ request }: LoaderFunctionArgs) {
       pcdApproved: false,
       pcdStatusMessage: "v1.0 版本不包含任何 PCD/PII 处理功能",
       currentMonitoringData,
+      hmacSecurityStats,
     };
     return json(data);
   } catch (error) {

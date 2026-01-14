@@ -11,6 +11,7 @@ import {
 import { useState, useEffect } from "react";
 import { getValidatedBackendUrl, isDevMode } from "./config";
 import { reportExtensionError } from "./error-reporting";
+import { getOrderContext } from "./order-context";
 
 function SurveyModule({ 
   question, 
@@ -211,8 +212,7 @@ function ThankYouBlocks() {
         return false;
       }
       const token = await api.sessionToken.get();
-      const checkoutToken = (api as { checkout?: { token?: string } }).checkout?.token || null;
-      const orderId = (api as { order?: { id?: string } }).order?.id || null;
+      const orderContext = getOrderContext(api);
       const response = await fetch(`${backendUrl}/api/survey`, {
         method: "POST",
         headers: {
@@ -222,8 +222,8 @@ function ThankYouBlocks() {
         body: JSON.stringify({
           option: selectedOption,
           timestamp: new Date().toISOString(),
-          orderId: orderId,
-          checkoutToken: checkoutToken,
+          orderId: orderContext.orderId,
+          checkoutToken: orderContext.checkoutToken,
         }),
       });
       if (!response.ok) {

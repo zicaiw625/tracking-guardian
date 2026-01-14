@@ -160,3 +160,74 @@ export const UI_MODULES: Record<ModuleKey, ModuleInfo> = {
 };
 
 export const MODULE_KEYS = Object.keys(UI_MODULES) as ModuleKey[];
+
+const VALID_TARGETS = ["thank_you", "order_status"] as const;
+
+export function validateModuleTargets(moduleKey: ModuleKey, targets: string[]): {
+  valid: boolean;
+  errors: string[];
+  warnings: string[];
+} {
+  const errors: string[] = [];
+  const warnings: string[] = [];
+  const moduleInfo = UI_MODULES[moduleKey];
+  if (!moduleInfo) {
+    errors.push(`模块 ${moduleKey} 不存在`);
+    return { valid: false, errors, warnings };
+  }
+  if (targets.length === 0) {
+    errors.push("必须至少选择一个 target");
+    return { valid: false, errors, warnings };
+  }
+  const { validateTarget } = require("../utils/target-validator");
+  const targetMapping: Record<string, string> = {
+    "thank_you": "purchase.thank-you.block.render",
+    "order_status": "customer-account.order-status.block.render",
+  };
+  for (const target of targets) {
+    if (!VALID_TARGETS.includes(target as typeof VALID_TARGETS[number])) {
+      errors.push(`无效的 target: ${target}。有效的 targets 为: ${VALID_TARGETS.join(", ")}`);
+      continue;
+    }
+    const fullTarget = targetMapping[target];
+    if (fullTarget) {
+      const validation = validateTarget(fullTarget);
+      if (!validation.valid) {
+        errors.push(validation.error || `无效的 target: ${fullTarget}`);
+        if (validation.suggestion) {
+          warnings.push(validation.suggestion);
+        }
+      }
+      if (validation.isDeprecated) {
+        warnings.push(`Target "${fullTarget}" 已被弃用，建议使用最新版本`);
+        if (validation.suggestion) {
+          warnings.push(validation.suggestion);
+        }
+      }
+    }
+    if (!moduleInfo.targets.includes(target as "thank_you" | "order_status")) {
+      errors.push(`模块 ${moduleKey} 不支持 target ${target}。支持的 targets 为: ${moduleInfo.targets.join(", ")}`);
+    }
+  }
+  if (targets.includes("order_status") && moduleKey === "reorder") {
+    const hasThankYou = targets.includes("thank_you");
+    if (hasThankYou) {
+      warnings.push("Reorder 模块仅支持 order_status target，不支持 thank_you target");
+    }
+  }
+  return {
+    valid: errors.length === 0,
+    errors,
+    warnings,
+  };
+}
+
+export function getValidTargetsForModule(moduleKey: ModuleKey): ("thank_you" | "order_status")[] {
+  const moduleInfo = UI_MODULES[moduleKey];
+  if (!moduleInfo) {
+    return [];
+  }
+  return moduleInfo.targets.filter((target): target is "thank_you" | "order_status" => 
+    VALID_TARGETS.includes(target as typeof VALID_TARGETS[number])
+  );
+}
