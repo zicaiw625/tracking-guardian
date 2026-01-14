@@ -368,13 +368,6 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         payload.nonce || null
       );
       const consentResult = checkInitialConsent(payload.consent);
-      if (!consentResult.hasAnyConsent) {
-        logger.debug(`Event at index ${i} has no consent, skipping`, {
-          shopDomain,
-          eventName: payload.eventName,
-        });
-        continue;
-      }
       const { platformsToRecord, skippedPlatforms } = filterPlatformsByConsent(
         serverSideConfigs,
         consentResult

@@ -355,10 +355,6 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       return emptyResponseWithCors(request);
     }
     const consentResult = checkInitialConsent(payload.consent);
-    if (!consentResult.hasAnyConsent) {
-      logNoConsentDrop(payload.shopDomain, payload.consent);
-      return emptyResponseWithCors(request);
-    }
     const referer = request.headers.get("Referer");
     const shopOriginValidation = validatePixelOriginForShop(origin, shopAllowedDomains, {
       referer,

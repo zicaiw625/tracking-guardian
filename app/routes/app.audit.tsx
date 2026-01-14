@@ -1,7 +1,7 @@
 import type { ActionFunctionArgs, LoaderFunctionArgs } from "@remix-run/node";
 import { json } from "@remix-run/node";
-import { useLoaderData, useSubmit, useFetcher } from "@remix-run/react";
-import { useState } from "react";
+import { useLoaderData, useSubmit, useFetcher, useRevalidator } from "@remix-run/react";
+import { useState, useEffect } from "react";
 import {
   Page,
   Card,
@@ -75,7 +75,10 @@ export const action = async ({ request }: ActionFunctionArgs) => {
           completedAt: new Date(),
         },
       });
-      return json({ success: true, scanReport });
+      const auditAssetsCount = await prisma.auditAsset.count({
+        where: { shopId: shop.id },
+      });
+      return json({ success: true, scanReport, auditAssetsCount });
     } catch (error) {
       return json({ error: String(error) }, { status: 500 });
     }
@@ -87,6 +90,7 @@ export default function AuditPage() {
   const { shop, scanResult, auditAssets } = useLoaderData<typeof loader>();
   const submit = useSubmit();
   const scanFetcher = useFetcher();
+  const revalidator = useRevalidator();
   const [currentStep, setCurrentStep] = useState<Step>("scan");
   const [isScanning, setIsScanning] = useState(false);
   const handleStartScan = () => {
@@ -96,6 +100,16 @@ export default function AuditPage() {
       { method: "post" }
     );
   };
+  useEffect(() => {
+    if (scanFetcher.state === "idle" && scanFetcher.data?.success) {
+      setIsScanning(false);
+      revalidator.revalidate();
+    }
+  }, [scanFetcher.state, scanFetcher.data, revalidator]);
+  
+  const displayAuditAssetsCount = scanFetcher.data?.auditAssetsCount !== undefined 
+    ? scanFetcher.data.auditAssetsCount 
+    : auditAssets.length;
   const handleManualPasteComplete = () => {
     setCurrentStep("checklist");
   };
@@ -142,10 +156,10 @@ export default function AuditPage() {
                     <Text>正在扫描...</Text>
                   </InlineStack>
                 </BlockStack>
-              ) : hasScanResult ? (
+              ) : hasScanResult || scanFetcher.data?.success ? (
                 <BlockStack gap="300">
                   <Banner tone="success">
-                    <Text>扫描完成！发现 {auditAssets.length} 个追踪资产</Text>
+                    <Text>扫描完成！发现 {displayAuditAssetsCount} 个追踪资产</Text>
                   </Banner>
                   <Button onClick={() => setCurrentStep("manual")}>
                     下一步：手动补充
@@ -189,14 +203,14 @@ export default function AuditPage() {
               <Text as="p" tone="subdued">
                 根据扫描结果生成的迁移建议和风险分级。
               </Text>
-              {auditAssets.length === 0 ? (
+              {displayAuditAssetsCount === 0 ? (
                 <Banner tone="info">
                   <Text>暂无扫描结果，请先完成步骤 1 和 2</Text>
                 </Banner>
               ) : (
                 <BlockStack gap="300">
                   <Text as="p">
-                    共发现 {auditAssets.length} 个追踪资产，需要迁移到 Web Pixel。
+                    共发现 {displayAuditAssetsCount} 个追踪资产，需要迁移到 Web Pixel。
                   </Text>
                   <Button url="/app/pixels">前往安装像素</Button>
                 </BlockStack>
