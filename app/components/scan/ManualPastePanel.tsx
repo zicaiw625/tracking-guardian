@@ -53,7 +53,55 @@ export function ManualPastePanel({ shopId, onAssetsCreated }: ManualPastePanelPr
   const [isProcessing, setIsProcessing] = useState(false);
   const [realtimeAnalysisResult, setRealtimeAnalysisResult] = useState<ScriptAnalysisResult | null>(null);
   const [validationErrors, setValidationErrors] = useState<string[]>([]);
+  const [piiWarnings, setPiiWarnings] = useState<string[]>([]);
+  const [detectedSnippets, setDetectedSnippets] = useState<Array<{ platform: string; content: string; startIndex: number; endIndex: number }>>([]);
   const fetcher = useFetcher();
+  const detectPII = useCallback((content: string): string[] => {
+    const warnings: string[] = [];
+    if (!content.trim()) {
+      return warnings;
+    }
+    const piiPatterns = [
+      {
+        pattern: /\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b/g,
+        message: "检测到可能的邮箱地址，请替换为占位符",
+        type: "email",
+      },
+      {
+        pattern: /\b\d{3}[-.]?\d{3}[-.]?\d{4}\b|\b\+?\d{1,3}[-.\s]?\(?\d{1,4}\)?[-.\s]?\d{1,4}[-.\s]?\d{1,9}\b/g,
+        message: "检测到可能的电话号码，请替换为占位符",
+        type: "phone",
+      },
+      {
+        pattern: /\b\d{4}[-.\s]?\d{4}[-.\s]?\d{4}[-.\s]?\d{4}\b/g,
+        message: "检测到可能的信用卡号，请立即删除",
+        type: "credit_card",
+      },
+      {
+        pattern: /\b[A-Za-z0-9]{20,}\b/g,
+        message: "检测到可能的长字符串（可能是 API 密钥或令牌），请检查并替换",
+        type: "token",
+      },
+      {
+        pattern: /(?:api[_-]?key|access[_-]?token|bearer[_-]?token|secret[_-]?key|private[_-]?key)\s*[:=]\s*['"]?([A-Za-z0-9_\-\.]{20,})['"]?/gi,
+        message: "检测到 API 密钥或访问令牌，请替换为 [TOKEN_REDACTED]",
+        type: "api_key",
+      },
+      {
+        pattern: /(?:password|pwd|pass)\s*[:=]\s*['"]?([^'"]+)['"]?/gi,
+        message: "检测到密码字段，请立即删除",
+        type: "password",
+      },
+    ];
+    piiPatterns.forEach(({ pattern, message, type }) => {
+      const matches = content.match(pattern);
+      if (matches && matches.length > 0) {
+        const uniqueMatches = Array.from(new Set(matches)).slice(0, 3);
+        warnings.push(`${message}（检测到 ${matches.length} 处，示例：${uniqueMatches.join(", ")})`);
+      }
+    });
+    return warnings;
+  }, []);
   const validateScript = useCallback((content: string): string[] => {
     const errors: string[] = [];
     if (!content.trim()) {
@@ -102,14 +150,101 @@ export function ManualPastePanel({ shopId, onAssetsCreated }: ManualPastePanelPr
     }
     return errors;
   }, []);
+  const detectScriptSnippets = useCallback((content: string): Array<{ platform: string; content: string; startIndex: number; endIndex: number }> => {
+    const snippets: Array<{ platform: string; content: string; startIndex: number; endIndex: number }> = [];
+    if (!content.trim()) {
+      return snippets;
+    }
+    const platformPatterns: Array<{ platform: string; patterns: RegExp[] }> = [
+      {
+        platform: "Meta Pixel",
+        patterns: [
+          /<script[^>]*>[\s\S]*?fbq\s*\([^)]*\)[\s\S]*?<\/script>/gi,
+          /fbq\s*\(['"]init['"]\s*,[^)]+\)/gi,
+        ],
+      },
+      {
+        platform: "Google Analytics",
+        patterns: [
+          /<script[^>]*>[\s\S]*?gtag\s*\([^)]*\)[\s\S]*?<\/script>/gi,
+          /gtag\s*\(['"]config['"]\s*,\s*['"]G-[A-Z0-9]+['"]/gi,
+        ],
+      },
+      {
+        platform: "TikTok Pixel",
+        patterns: [
+          /<script[^>]*>[\s\S]*?ttq\s*[.(][^)]*\)[\s\S]*?<\/script>/gi,
+          /ttq\s*\.\s*load\s*\([^)]+\)/gi,
+        ],
+      },
+      {
+        platform: "Pinterest Tag",
+        patterns: [
+          /<script[^>]*>[\s\S]*?pintrk\s*\([^)]*\)[\s\S]*?<\/script>/gi,
+          /pintrk\s*\(['"]load['"]\s*,[^)]+\)/gi,
+        ],
+      },
+      {
+        platform: "Snapchat Pixel",
+        patterns: [
+          /<script[^>]*>[\s\S]*?snaptr\s*\([^)]*\)[\s\S]*?<\/script>/gi,
+          /snaptr\s*\(['"]init['"]\s*,[^)]+\)/gi,
+        ],
+      },
+    ];
+    platformPatterns.forEach(({ platform, patterns }) => {
+      patterns.forEach((pattern) => {
+        let match;
+        while ((match = pattern.exec(content)) !== null) {
+          snippets.push({
+            platform,
+            content: match[0],
+            startIndex: match.index,
+            endIndex: match.index + match[0].length,
+          });
+        }
+      });
+    });
+    const scriptTagMatches = content.matchAll(/<script[^>]*>[\s\S]*?<\/script>/gi);
+    for (const match of scriptTagMatches) {
+      const scriptContent = match[0];
+      if (scriptContent.length > 50) {
+        let detectedPlatform = "未知脚本";
+        if (/fbq|facebook/i.test(scriptContent)) {
+          detectedPlatform = "Meta Pixel";
+        } else if (/gtag|google-analytics|G-[A-Z0-9]+/i.test(scriptContent)) {
+          detectedPlatform = "Google Analytics";
+        } else if (/ttq|tiktok/i.test(scriptContent)) {
+          detectedPlatform = "TikTok Pixel";
+        } else if (/pintrk|pinterest/i.test(scriptContent)) {
+          detectedPlatform = "Pinterest Tag";
+        } else if (/snaptr|snapchat/i.test(scriptContent)) {
+          detectedPlatform = "Snapchat Pixel";
+        }
+        snippets.push({
+          platform: detectedPlatform,
+          content: scriptContent,
+          startIndex: match.index,
+          endIndex: match.index + scriptContent.length,
+        });
+      }
+    }
+    return snippets.sort((a, b) => a.startIndex - b.startIndex);
+  }, []);
   useEffect(() => {
     if (scriptContent.trim()) {
       const errors = validateScript(scriptContent);
+      const warnings = detectPII(scriptContent);
+      const snippets = detectScriptSnippets(scriptContent);
       setValidationErrors(errors);
+      setPiiWarnings(warnings);
+      setDetectedSnippets(snippets);
     } else {
       setValidationErrors([]);
+      setPiiWarnings([]);
+      setDetectedSnippets([]);
     }
-  }, [scriptContent, validateScript]);
+  }, [scriptContent, validateScript, detectPII, detectScriptSnippets]);
   const handleAnalyze = useCallback(() => {
     if (!scriptContent.trim()) {
       return;
@@ -393,6 +528,55 @@ export function ManualPastePanel({ shopId, onAssetsCreated }: ManualPastePanelPr
               </List.Item>
             </List>
             <Divider />
+            <Banner tone="critical">
+              <BlockStack gap="300">
+                <Text as="p" variant="bodySm" fontWeight="semibold">
+                  ⚠️ 粘贴前必须脱敏敏感信息
+                </Text>
+                <Text as="p" variant="bodySm">
+                  系统会自动检测以下敏感信息,如果检测到会阻止分析。请在粘贴前先删除或替换这些信息:
+                </Text>
+                <List type="bullet">
+                  <List.Item>
+                    <Text as="span" variant="bodySm" fontWeight="semibold">
+                      API 密钥和访问令牌:
+                    </Text>
+                    <Text as="span" variant="bodySm">
+                      {" "}如 <code>api_key</code>、<code>access_token</code>、<code>bearer token</code> 等,请替换为 <code>[API_KEY_REDACTED]</code> 或删除
+                    </Text>
+                  </List.Item>
+                  <List.Item>
+                    <Text as="span" variant="bodySm" fontWeight="semibold">
+                      客户个人信息 (PII):
+                    </Text>
+                    <Text as="span" variant="bodySm">
+                      {" "}如邮箱地址、电话号码、信用卡号等,请替换为占位符或删除
+                    </Text>
+                  </List.Item>
+                  <List.Item>
+                    <Text as="span" variant="bodySm" fontWeight="semibold">
+                      私钥和密码:
+                    </Text>
+                    <Text as="span" variant="bodySm">
+                      {" "}如 <code>secret</code>、<code>password</code>、<code>private key</code> 等,请替换为 <code>[SECRET_REDACTED]</code> 或删除
+                    </Text>
+                  </List.Item>
+                </List>
+                <Banner tone="info">
+                  <BlockStack gap="200">
+                    <Text as="p" variant="bodySm" fontWeight="semibold">
+                      💡 脱敏示例:
+                    </Text>
+                    <Text as="p" variant="bodySm" tone="subdued">
+                      原代码: <code>fbq('init', '123456789012345', &#123;access_token: 'EAABsbCS1iHg...'&#125;)</code>
+                    </Text>
+                    <Text as="p" variant="bodySm" tone="subdued">
+                      脱敏后: <code>fbq('init', '[PIXEL_ID_REDACTED]', &#123;access_token: '[TOKEN_REDACTED]'&#125;)</code>
+                    </Text>
+                  </BlockStack>
+                </Banner>
+              </BlockStack>
+            </Banner>
             <Banner tone="warning">
               <BlockStack gap="200">
                 <Text as="p" variant="bodySm" fontWeight="semibold">
@@ -401,22 +585,27 @@ export function ManualPastePanel({ shopId, onAssetsCreated }: ManualPastePanelPr
                 <List type="bullet">
                   <List.Item>
                     <Text as="span" variant="bodySm">
-                      Shopify API 无法自动读取 Additional Scripts 内容，因此需要手动复制粘贴。这是 Shopify 平台的安全限制。
+                      Shopify API 无法自动读取 Additional Scripts 内容,因此需要手动复制粘贴。这是 Shopify 平台的安全限制。
                     </Text>
                   </List.Item>
                   <List.Item>
                     <Text as="span" variant="bodySm">
-                      系统支持多段脚本自动识别和分类，并会基于脚本内容的 fingerprint 自动去重
+                      系统支持多段脚本自动识别和分类,并会基于脚本内容的 fingerprint 自动去重
                     </Text>
                   </List.Item>
                   <List.Item>
                     <Text as="span" variant="bodySm">
-                      如果 Additional Scripts 区域为空，说明您的店铺可能没有配置额外的追踪脚本
+                      系统会自动识别常见脚本片段(如 Meta Pixel、Google Analytics、TikTok Pixel 等),并一键拆分分析
                     </Text>
                   </List.Item>
                   <List.Item>
                     <Text as="span" variant="bodySm">
-                      粘贴前请先脱敏敏感信息（如 API 密钥、访问令牌等），避免泄露。分析在浏览器本地完成，不会上传脚本正文
+                      如果 Additional Scripts 区域为空,说明您的店铺可能没有配置额外的追踪脚本
+                    </Text>
+                  </List.Item>
+                  <List.Item>
+                    <Text as="span" variant="bodySm">
+                      分析在浏览器本地完成,不会上传脚本正文;仅识别出的平台信息会用于生成迁移建议
                     </Text>
                   </List.Item>
                 </List>
@@ -439,6 +628,48 @@ export function ManualPastePanel({ shopId, onAssetsCreated }: ManualPastePanelPr
             </Banner>
           </BlockStack>
         </Banner>
+        {piiWarnings.length > 0 && (
+          <Banner tone="critical">
+            <BlockStack gap="200">
+              <Text as="p" variant="bodySm" fontWeight="semibold">
+                ⚠️ 检测到敏感信息（PII），请立即处理：
+              </Text>
+              <List>
+                {piiWarnings.map((warning, index) => (
+                  <List.Item key={index}>
+                    <Text as="span" variant="bodySm">
+                      {warning}
+                    </Text>
+                  </List.Item>
+                ))}
+              </List>
+              <Text as="p" variant="bodySm" tone="subdued">
+                请在粘贴前删除或替换所有敏感信息。系统已自动检测到上述内容，建议您先处理这些敏感信息再进行分析。
+              </Text>
+            </BlockStack>
+          </Banner>
+        )}
+        {detectedSnippets.length > 0 && (
+          <Banner tone="info">
+            <BlockStack gap="200">
+              <Text as="p" variant="bodySm" fontWeight="semibold">
+                ✅ 已识别 {detectedSnippets.length} 个脚本片段：
+              </Text>
+              <List>
+                {detectedSnippets.map((snippet, index) => (
+                  <List.Item key={index}>
+                    <Text as="span" variant="bodySm">
+                      <strong>{snippet.platform}</strong>（位置：{snippet.startIndex + 1}-{snippet.endIndex} 字符）
+                    </Text>
+                  </List.Item>
+                ))}
+              </List>
+              <Text as="p" variant="bodySm" tone="subdued">
+                💡 提示：系统已自动识别上述脚本片段。点击"分析脚本"按钮后，系统会自动拆分并分析每个片段。
+              </Text>
+            </BlockStack>
+          </Banner>
+        )}
         {validationErrors.length > 0 && (
           <Banner tone="warning">
             <BlockStack gap="200">

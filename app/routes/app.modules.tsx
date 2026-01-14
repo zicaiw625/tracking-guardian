@@ -231,6 +231,7 @@ function ModuleCard({
   const info = UI_MODULES[module.moduleKey];
   const hasOrderStatusTarget = info.targets.includes("order_status");
   const showOrderStatusWarning = hasOrderStatusTarget && !customerAccountsEnabled;
+  const isOrderStatusBlocked = hasOrderStatusTarget && !customerAccountsEnabled && !module.isEnabled;
   return (
     <Card>
       <BlockStack gap="400">
@@ -242,6 +243,9 @@ function ModuleCard({
               </Text>
               <Text as="p" variant="bodySm">
                 Order Status 模块仅支持 Customer Accounts 体系下的订单状态页，不支持旧版订单状态页。如果未启用 Customer Accounts，此模块将完全无法使用，不会在订单状态页显示。这是 Shopify 平台的设计限制，无法绕过。
+              </Text>
+              <Text as="p" variant="bodySm" fontWeight="semibold">
+                当前状态：{isOrderStatusBlocked ? "❌ 已禁用（需要 Customer Accounts）" : module.isEnabled ? "⚠️ 已启用但无法使用（需要 Customer Accounts）" : "❌ 未启用（需要 Customer Accounts）"}
               </Text>
               <Button
                 url={`https://admin.shopify.com/store/${shopDomain}/settings/customer-accounts`}

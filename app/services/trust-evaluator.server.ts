@@ -8,6 +8,7 @@ import {
 import {
   evaluatePlatformConsentWithStrategy,
   getEffectiveConsentCategory,
+  PLATFORM_CONSENT_CONFIG,
   type ConsentState,
 } from '../utils/platform-consent';
 import { parseConsentState } from '../types';
@@ -93,14 +94,18 @@ export function checkPlatformEligibility(
   treatAsMarketing: boolean
 ): PlatformEligibilityResult {
   const platformCategory = getEffectiveConsentCategory(platform, treatAsMarketing);
-  if (consentState?.saleOfDataAllowed === false) {
-    logger.debug(`[P0-04] Platform blocked by explicit sale_of_data opt-out`, {
-      platform,
-    });
-    return {
-      allowed: false,
-      skipReason: 'sale_of_data_opted_out',
-    };
+  if (platformCategory !== "marketing" && consentState?.saleOfDataAllowed === false) {
+    const config = PLATFORM_CONSENT_CONFIG[platform];
+    const requiresSaleOfData = config?.requiresSaleOfData ?? true;
+    if (requiresSaleOfData) {
+      logger.debug(`[P0-04] Platform blocked by explicit sale_of_data opt-out`, {
+        platform,
+      });
+      return {
+        allowed: false,
+        skipReason: 'sale_of_data_opted_out',
+      };
+    }
   }
   const trustAllowed = isSendAllowedByTrust(
     trustResult,

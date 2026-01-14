@@ -62,16 +62,9 @@ export function filterPlatformsByConsent(
   const skippedPlatforms: string[] = [];
   for (const config of pixelConfigs) {
     const platform = config.platform;
-    const requiresSaleOfData = platformRequiresSaleOfData(platform);
-    if (requiresSaleOfData && consentResult.saleOfDataAllowed === false) {
-      logger.debug(
-        `Skipping ${platform} ConversionLog: ` +
-          `sale_of_data required but not allowed (saleOfData=${consentResult.saleOfDataAllowed}) [P0-2]`
-      );
-      skippedPlatforms.push(platform);
-      continue;
-    }
-    if (isMarketingPlatform(platform) && !consentResult.hasMarketingConsent) {
+    const isMarketing = isMarketingPlatform(platform);
+    const isAnalytics = isAnalyticsPlatform(platform);
+    if (isMarketing && !consentResult.hasMarketingConsent) {
       logger.debug(
         `Skipping ${platform} ConversionLog: ` +
           `marketing consent not granted (marketing=${consentResult.hasMarketingConsent})`
@@ -79,13 +72,24 @@ export function filterPlatformsByConsent(
       skippedPlatforms.push(platform);
       continue;
     }
-    if (isAnalyticsPlatform(platform) && !consentResult.hasAnalyticsConsent) {
+    if (isAnalytics && !consentResult.hasAnalyticsConsent) {
       logger.debug(
         `Skipping ${platform} ConversionLog: ` +
           `analytics consent not granted (analytics=${consentResult.hasAnalyticsConsent})`
       );
       skippedPlatforms.push(platform);
       continue;
+    }
+    if (!isMarketing && !isAnalytics) {
+      const requiresSaleOfData = platformRequiresSaleOfData(platform);
+      if (requiresSaleOfData && consentResult.saleOfDataAllowed === false) {
+        logger.debug(
+          `Skipping ${platform} ConversionLog: ` +
+            `sale_of_data required but not allowed (saleOfData=${consentResult.saleOfDataAllowed}) [P0-2]`
+        );
+        skippedPlatforms.push(platform);
+        continue;
+      }
     }
     platformsToRecord.push({
       platform,

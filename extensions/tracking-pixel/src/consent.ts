@@ -45,7 +45,7 @@ export function createConsentManager(logger?: (...args: unknown[]) => void): Con
     return analyticsAllowed === true;
   }
   function hasMarketingConsent(): boolean {
-    return marketingAllowed === true && saleOfDataAllowed !== false;
+    return marketingAllowed === true;
   }
   function hasFullConsent(): boolean {
     return analyticsAllowed === true && marketingAllowed === true && saleOfDataAllowed === true;
