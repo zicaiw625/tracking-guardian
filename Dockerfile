@@ -15,6 +15,10 @@ COPY . .
 # Generate Prisma client
 RUN pnpm generate
 
+# Inject BACKEND_URL and validate extensions (must pass or build fails)
+RUN pnpm ext:inject || (echo "ERROR: BACKEND_URL injection failed. Set SHOPIFY_APP_URL environment variable." && exit 1)
+RUN pnpm ext:validate || (echo "ERROR: Extension validation failed. Fix errors before building." && exit 1)
+
 # Build the app
 RUN pnpm build
 

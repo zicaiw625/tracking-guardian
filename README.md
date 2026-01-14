@@ -188,10 +188,55 @@ pnpm install
 ```env
 SHOPIFY_API_KEY=your_api_key
 SHOPIFY_API_SECRET=your_api_secret
-# v1.0 默认最小权限（订单查询能力为可选扩展）
-SCOPES=read_script_tags,read_pixels,write_pixels,read_customer_events
+SCOPES=read_script_tags,read_pixels,write_pixels,read_customer_events,read_orders
 SHOPIFY_APP_URL=https://your-app-url.com
 DATABASE_URL=postgresql://user:password@localhost:5432/tracking_guardian
+```
+
+**重要：SCOPES 配置说明（必须完全一致）**
+
+所有列出的权限均为核心功能所必需，**必须全部包含**，不能省略。请确保以下三个位置的 SCOPES 配置**完全一致**：
+
+1. `shopify.app.toml` 中的 `[access_scopes]` 部分（第7行）
+2. 生产环境 `SCOPES` 环境变量（如 `render.yaml` 第60-61行或部署平台配置）
+3. 本地开发 `.env` 文件中的 `SCOPES` 变量
+
+**标准配置（所有环境必须完全一致，包括顺序和拼写）**：
+```
+SCOPES=read_script_tags,read_pixels,write_pixels,read_customer_events,read_orders
+```
+
+**⚠️ 关键要求**：
+- 所有三个位置的配置必须**完全一致**（包括权限顺序和拼写）
+- `read_orders` 权限是**必需的**，不能省略
+- 如果配置不一致，会导致安装后需要反复 re-auth、某些页面/功能偶发 403 错误
+
+**权限说明**：
+
+- `read_script_tags`：扫描旧版 ScriptTags 用于迁移建议
+- `read_pixels`：查询已安装的 Web Pixel 状态
+- `write_pixels`：创建/更新 App Pixel Extension
+- `read_customer_events`：事件对账/同意状态补充
+- `read_orders`：**必需** - 用于验收验证、对账差异检查、订单金额一致性验证
+
+**⚠️ 特别注意**：`read_orders` 权限是验收和监控功能的核心依赖。如果省略此权限，以下功能将无法正常工作：
+- 验收向导中的订单金额/币种一致性验证
+- 监控面板中的对账差异检查
+- 订单相关的验收报告生成
+
+**配置一致性检查清单**：
+
+- [ ] `shopify.app.toml` 第7行的 scopes 包含所有 5 个权限（包括 `read_orders`）
+- [ ] 生产环境 `SCOPES` 环境变量（如 `render.yaml` 第60-61行）包含所有 5 个权限（包括 `read_orders`）
+- [ ] 本地开发 `.env` 文件中的 `SCOPES` 包含所有 5 个权限（包括 `read_orders`）
+- [ ] 三个位置的权限顺序和拼写**完全一致**（必须完全相同）
+
+**如果配置不一致，会导致**：
+- 安装后需要反复 re-auth
+- 某些页面/功能偶发 403 错误（尤其是验收/对账需要订单读取时）
+- 验收验证功能无法正常工作
+- 对账差异检查无法执行
+- 订单金额一致性验证失败
 
 # P0-2: Web Pixel Origin null 兼容配置（生产环境必须设置）
 # Shopify web pixel / customer events 在沙箱里经常出现 Origin: null
@@ -222,13 +267,41 @@ pnpm dev
 
 **扩展的 BACKEND_URL 注入是生命线，必须在所有部署流程中执行。**
 
-- **生产环境部署必须使用**：`pnpm deploy:ext`（该命令会自动执行 `pnpm ext:inject` 注入 BACKEND_URL）
+- **生产环境部署必须使用**：`pnpm deploy:ext`（该命令会自动执行 `pnpm ext:inject` 和 `pnpm ext:validate`）
 - **禁止直接使用**：`shopify app deploy`（不会注入 BACKEND_URL，会导致像素扩展无法工作）
 - **如果占位符未被替换**：像素扩展会静默禁用事件发送，不会显示错误，导致事件丢失
+- **CI/CD 强制验证**：`pnpm ext:validate` 已集成到部署流程中，验证失败将返回 exit code 1，**直接中断构建**，避免部署有问题的扩展
+
+**CI/CD 构建流程说明（关键要求）**：
+
+所有 CI/CD 流程（包括 Render、Vercel、GitHub Actions 等）的构建命令**必须包含** `pnpm ext:validate`，且必须使用 `&&` 连接，确保验证失败时构建中断：
+
+```bash
+pnpm install --frozen-lockfile && pnpm generate && pnpm db:deploy && pnpm ext:inject && pnpm ext:validate && pnpm build
+```
+
+**⚠️ 关键要求**：
+- `pnpm ext:validate` 是**强制验证步骤**，失败会返回 exit code 1，**直接中断构建**
+- 这是 BACKEND_URL 注入的生命线验证，必须在所有部署流程中执行
+- 如果验证失败，构建会立即中断，不会部署有问题的扩展
+- 这是强制验证步骤，确保扩展配置正确，避免事件丢失
+
+**验证失败会检查以下内容**：
+- BACKEND_URL 占位符是否已正确替换（如果未替换，构建会失败）
+- 扩展配置文件格式是否正确
+- Network access 权限配置是否正确
+- 禁止使用的浏览器 API 检查
+
+**已配置的 CI/CD 流程**：
+- ✅ `render.yaml` 第32行：已包含 `pnpm ext:validate`
+- ✅ `vercel.json` 第2行：已包含 `pnpm ext:validate`
+- ✅ `package.json` render-build 脚本：已包含 `pnpm ext:validate`
+
+**如果验证失败，构建会立即中断，不会部署有问题的扩展。这是强制验证步骤，确保扩展配置正确。**
 
 **部署前检查清单**：
 1. 确保环境变量 `SHOPIFY_APP_URL` 已正确设置
-2. 在 CI/CD 流程中，部署前必须运行 `pnpm ext:inject` 或 `pnpm deploy:ext`
+2. 在 CI/CD 流程中，部署前必须运行 `pnpm ext:inject` 和 `pnpm ext:validate` 或使用 `pnpm deploy:ext`
 3. 验证扩展构建产物中不再包含 `__BACKEND_URL_PLACEHOLDER__` 占位符
 4. 确保该 URL 已在 Web Pixel Extension 的 allowlist 中配置（Partner Dashboard → App → API access → UI extensions network access）
 
@@ -246,7 +319,7 @@ pnpm dev
 - Cron Job 服务已自动配置，请确保在 Render Dashboard 中为 cron job 设置以下环境变量（从 web service 复制）：
   - `CRON_SECRET`（必须与 web service 相同）
   - `SHOPIFY_APP_URL`（web service 的完整 URL）
-- **扩展部署**：在 Render 的构建命令中，必须包含 `pnpm ext:inject` 步骤，或使用 `pnpm deploy:ext` 命令
+- **扩展部署**：在 Render 的构建命令中，已自动包含 `pnpm ext:inject` 和 `pnpm ext:validate` 步骤。`ext:validate` 会验证扩展配置，如果验证失败，构建将中断，避免部署有问题的扩展
 
 详细步骤请参考 [SETUP.md](SETUP.md)
 
@@ -292,16 +365,52 @@ railway up
 └── package.json
 ```
 
-## API 权限说明（P0-3: 最小权限）
+## API 权限说明
 
 | 权限 | 用途 | 代码调用点 | 首次安装必需? | 隐私承诺 |
 |------|------|-----------|--------------|---------|
 | `read_script_tags` | 扫描旧版 ScriptTags 用于迁移建议 | `scanner.server.ts` | ✅ 是 |
 | `read_pixels` | 查询已安装的 Web Pixel 状态 | `migration.server.ts` | ✅ 是 |
 | `write_pixels` | 创建/更新 App Pixel Extension | `migration.server.ts` | ✅ 是 |
-| `read_customer_events` | （未来）事件对账/同意状态补充 | `app.migrate.tsx` 授权检测 | ⚠️ 场景化 |
+| `read_customer_events` | 事件对账/同意状态补充 | `app.migrate.tsx` 授权检测 | ✅ 是 |
+| `read_orders` | 验收验证/对账差异检查/订单金额一致性验证 | `app.verification.tsx` / `reconciliation.server.ts` | ✅ 是 |
 
-**P0-3 说明**：v1.0 默认不申请 `read_orders`，保持最小权限。订单信息查询仅作为可选扩展能力，需要商家单独授权时再开启。
+**权限说明**：所有权限均为核心功能所必需，**必须全部包含在 SCOPES 环境变量中**。
+
+**⚠️ 重要：`read_orders` 权限是必需的**
+
+`read_orders` 权限用于以下核心功能，**不能省略**：
+- 验收向导中的订单金额/币种一致性验证
+- 监控面板中的对账差异检查
+- 订单相关的验收报告生成
+
+如果省略 `read_orders` 权限，以下功能将无法正常工作：
+- 验收验证功能会返回 403 错误
+- 对账差异检查无法执行
+- 订单金额一致性验证失败
+
+**配置一致性要求**：
+
+请确保以下三个位置的 SCOPES 配置**完全一致**（包括权限顺序和拼写）：
+1. `shopify.app.toml` 第7行的 `[access_scopes]` 部分
+2. 生产环境 `SCOPES` 环境变量（如 `render.yaml` 第60-61行或部署平台配置）
+3. 本地开发 `.env` 文件中的 `SCOPES` 变量
+
+**标准配置**（所有环境必须完全一致）：
+```
+SCOPES=read_script_tags,read_pixels,write_pixels,read_customer_events,read_orders
+```
+
+**⚠️ 关键要求**：
+- `read_orders` 权限是**必需的**，不能省略
+- 所有三个位置的配置必须**完全相同**（包括顺序和拼写）
+
+如果配置不一致，可能导致：
+- 安装后需要反复 re-auth
+- 某些页面/功能偶发 403 错误（尤其是验收/对账需要订单读取时）
+- 验收验证功能无法正常工作
+- 对账差异检查无法执行
+- 订单金额一致性验证失败
 
 ### API 端点说明
 

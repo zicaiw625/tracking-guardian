@@ -64,3 +64,10 @@ jobs:
       - run: pnpm pre-deploy:check
         env:
           SHOPIFY_APP_URL: ${{ secrets.SHOPIFY_APP_URL || 'https://app.tracking-guardian.com' }}
+      - run: pnpm ext:inject
+        env:
+          SHOPIFY_APP_URL: ${{ secrets.SHOPIFY_APP_URL || 'https://app.tracking-guardian.com' }}
+      - run: pnpm ext:validate
+        env:
+          SHOPIFY_APP_URL: ${{ secrets.SHOPIFY_APP_URL || 'https://app.tracking-guardian.com' }}
+        continue-on-error: false

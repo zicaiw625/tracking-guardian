@@ -17,7 +17,7 @@
     "db:migrate": "prisma migrate dev",
     "db:deploy": "prisma migrate deploy",
     "db:studio": "prisma studio",
-    "render-build": "pnpm generate && pnpm db:deploy && pnpm build",
+    "render-build": "pnpm generate && pnpm db:deploy && pnpm ext:inject && pnpm ext:validate && pnpm build",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
@@ -34,7 +34,7 @@
     "ext:restore": "node scripts/build-extensions.mjs restore",
     "ext:validate": "node scripts/validate-extensions.mjs",
     "pre-deploy:check": "node scripts/pre-deploy-check.mjs",
-    "deploy:ext": "pnpm pre-deploy:check && pnpm ext:inject && shopify app deploy && pnpm ext:restore"
+    "deploy:ext": "pnpm pre-deploy:check && pnpm ext:inject && pnpm ext:validate && shopify app deploy && pnpm ext:restore"
   },
   "type": "module",
   "engines": {

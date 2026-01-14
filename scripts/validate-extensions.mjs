@@ -203,12 +203,75 @@ function checkSourceStructure() {
     };
 }
 
+function checkBackendUrlInjection() {
+    const configFiles = [
+        { path: "extensions/shared/config.ts", label: "Shared config" },
+        { path: "extensions/thank-you-blocks/src/config.ts", label: "Thank-you blocks config" },
+    ];
+    const violations = [];
+    const placeholderPattern = /__BACKEND_URL_PLACEHOLDER__/;
+    const buildTimeUrlPattern = /const\s+BUILD_TIME_URL\s*=\s*(["'])([^"']+)\1;/;
+    const isCI = process.env.CI === "true" || process.env.GITHUB_ACTIONS === "true" || process.env.RENDER === "true";
+    
+    for (const configFile of configFiles) {
+        const filePath = path.join(PROJECT_ROOT, configFile.path);
+        if (!fs.existsSync(filePath)) {
+            violations.push({
+                file: configFile.path,
+                line: 0,
+                content: "",
+                description: "配置文件不存在",
+            });
+            continue;
+        }
+        const content = fs.readFileSync(filePath, "utf-8");
+        const match = content.match(buildTimeUrlPattern);
+        if (!match) {
+            violations.push({
+                file: configFile.path,
+                line: 0,
+                content: "",
+                description: "未找到 BUILD_TIME_URL 定义",
+            });
+            continue;
+        }
+        const urlValue = match[2];
+        if (placeholderPattern.test(urlValue)) {
+            violations.push({
+                file: configFile.path,
+                line: 0,
+                content: urlValue,
+                description: "URL 仍为占位符，需要在部署前运行 'pnpm ext:inject' 或 'pnpm deploy:ext'",
+            });
+        } else if (urlValue.includes("localhost") || urlValue.includes("127.0.0.1")) {
+            if (isCI) {
+                violations.push({
+                    file: configFile.path,
+                    line: 0,
+                    content: urlValue,
+                    description: "URL 指向 localhost，生产环境将无法工作。CI/CD 环境中必须设置正确的 SHOPIFY_APP_URL",
+                });
+            }
+        }
+    }
+    
+    return {
+        name: "BACKEND_URL 注入检查",
+        passed: violations.length === 0,
+        violations,
+        message: violations.length === 0
+            ? "所有扩展配置文件中的 URL 已正确注入"
+            : `发现 ${violations.length} 个 URL 注入问题`,
+    };
+}
+
 function main() {
     console.log("🔍 开始验证 Shopify 扩展...\n");
     console.log("=".repeat(60));
     results.push(checkForbiddenAPIs());
     results.push(checkExtensionConfigs());
     results.push(checkSourceStructure());
+    results.push(checkBackendUrlInjection());
     console.log("\n📊 检查结果汇总:\n");
     let allPassed = true;
     for (const result of results) {

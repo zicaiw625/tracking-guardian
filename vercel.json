@@ -1,13 +1,14 @@
 {
-  "buildCommand": "npm run build",
-  "devCommand": "npm run dev",
-  "installCommand": "npm install && npx prisma generate",
+  "buildCommand": "pnpm install --frozen-lockfile && pnpm generate && pnpm db:deploy && pnpm ext:inject && pnpm ext:validate && pnpm build",
+  "devCommand": "pnpm dev",
+  "installCommand": "pnpm install --frozen-lockfile",
   "framework": "remix",
   "crons": [
     {
       "path": "/api/cron",
       "schedule": "*/5 * * * *"
     }
-  ]
+  ],
+  "_comment": "⚠️ 关键：buildCommand 中的 pnpm ext:validate 是强制验证步骤，失败会返回 exit code 1，导致构建直接中断。这是 BACKEND_URL 注入的生命线验证，必须在所有部署流程中执行。如果验证失败，构建会立即中断，不会部署有问题的扩展。"
 }
 

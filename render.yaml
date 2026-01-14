@@ -29,7 +29,16 @@ services:
     runtime: node
     region: singapore  # 亚洲区域，可改为 oregon/frankfurt 等
     plan: free  # 可升级为 starter/standard
-    buildCommand: pnpm install --frozen-lockfile && pnpm generate && pnpm db:deploy && pnpm ext:inject && pnpm build
+    buildCommand: pnpm install --frozen-lockfile && pnpm generate && pnpm db:deploy && pnpm ext:inject && pnpm ext:validate && pnpm build
+    # ⚠️ 关键：ext:validate 是强制验证步骤，失败会返回 exit code 1，导致构建直接中断
+    # 这是 BACKEND_URL 注入的生命线验证，必须在所有部署流程中执行
+    # 验证失败会检查以下内容：
+    # - BACKEND_URL 占位符是否已正确替换（如果未替换，构建会失败）
+    # - 扩展配置文件格式是否正确
+    # - Network access 权限配置是否正确
+    # - 禁止使用的浏览器 API 检查
+    # 如果验证失败，构建会立即中断，不会部署有问题的扩展
+    # 这是强制验证步骤，确保扩展配置正确，避免事件丢失
     startCommand: pnpm start
     healthCheckPath: /healthz
     envVars:
@@ -49,8 +58,7 @@ services:
       - key: SHOPIFY_API_SECRET
         sync: false
       - key: SCOPES
-        # v1.0 默认最小权限（订单查询能力为可选扩展）
-        value: read_script_tags,read_pixels,write_pixels,read_customer_events
+        value: read_script_tags,read_pixels,write_pixels,read_customer_events,read_orders
       - key: SHOPIFY_APP_URL
         sync: false  # 部署后获取的 URL
       # Security (Auto-generated)

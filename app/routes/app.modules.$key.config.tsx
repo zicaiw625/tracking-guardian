@@ -75,7 +75,7 @@ export default function UiModuleConfigPage() {
   return (
     <Page
       title={`${moduleInfo.name} 配置`}
-      subtitle="模块启用状态与发布指引"
+      subtitle={hasOrderStatusTarget && !customerAccountsEnabled ? "⚠️ 重要：Order Status 模块需要启用 Customer Accounts（仅支持 Customer Accounts 体系，不支持旧版订单状态页）" : "模块启用状态与发布指引"}
       backAction={{ content: "返回模块列表", url: "/app/modules" }}
     >
       <Layout>

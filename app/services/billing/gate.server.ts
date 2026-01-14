@@ -4,6 +4,7 @@ import { logger } from "~/utils/logger.server";
 import { BILLING_PLANS, type PlanId, getPlanOrDefault } from "./plans";
 import { getOrCreateMonthlyUsage , getCurrentYearMonth } from "./usage.server";
 import { ok, err, type Result, type AsyncResult, fromPromise } from "~/types/result";
+import { JobStatus, ConversionLogStatus } from "~/types/enums";
 
 export type BillingErrorType =
   | "LIMIT_EXCEEDED"
@@ -256,11 +257,11 @@ export async function checkAndReserveBillingSlot(
         where: {
           shopId,
           orderId,
-          status: "sent",
+          status: ConversionLogStatus.SENT,
         },
         select: { id: true },
       });
-      if (existingJob?.status === "completed" || existingLog) {
+      if (existingJob?.status === JobStatus.COMPLETED || existingLog) {
         const usage = await tx.monthlyUsage.findUnique({
           where: { shopId_yearMonth: { shopId, yearMonth } },
           select: { sentCount: true },

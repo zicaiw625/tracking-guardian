@@ -1,6 +1,7 @@
 import prisma from "../../db.server";
 import { logger } from "../../utils/logger.server";
 import { cleanupExpiredDrafts } from "../../services/migration-draft.server";
+import { WebhookStatus, GDPRJobStatus, JobStatus } from "../../types/enums";
 
 const EVENT_NONCE_EXPIRY_HOURS = 24;
 const GDPR_JOB_RETENTION_DAYS = 90;
@@ -65,7 +66,7 @@ export async function cleanupExpiredData(): Promise<CleanupResult> {
     const gdprJobResult = await prisma.gDPRJob.deleteMany({
       where: {
         status: {
-          in: ["completed", "failed"],
+          in: [GDPRJobStatus.COMPLETED, GDPRJobStatus.FAILED],
         },
         createdAt: {
           lt: gdprJobCutoff,
@@ -196,7 +197,7 @@ export async function cleanupExpiredData(): Promise<CleanupResult> {
               lt: cutoffDate,
             },
             status: {
-              in: ["completed", "failed"],
+              in: [JobStatus.COMPLETED, JobStatus.FAILED],
             },
           },
           select: {
@@ -255,7 +256,7 @@ export async function cleanupExpiredData(): Promise<CleanupResult> {
               lt: cutoffDate,
             },
             status: {
-              in: ["processed", "failed"],
+              in: [WebhookStatus.PROCESSED, WebhookStatus.FAILED],
             },
           },
           select: {

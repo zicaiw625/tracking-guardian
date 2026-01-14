@@ -1,6 +1,7 @@
 import { randomUUID } from "crypto";
 import prisma from "../db.server";
 import { logger } from "./logger.server";
+import { WebhookStatus } from "../types/enums";
 const LOCK_TIMEOUT_MS = 10 * 60 * 1000;
 const STALE_LOCK_THRESHOLD_MS = 15 * 60 * 1000;
 interface CronLockResult {
@@ -51,7 +52,7 @@ export async function acquireCronLock(lockType: string, instanceId: string, time
                 shopDomain: lockKey,
                 webhookId: instanceId,
                 topic: "CRON_LOCK",
-                status: "processing",
+                status: WebhookStatus.PROCESSING,
                 orderId: null,
                 receivedAt: now,
                 processedAt: null,
@@ -89,7 +90,7 @@ export async function releaseCronLock(lockType: string, lockId: string): Promise
         await prisma.webhookLog.update({
             where: { id: lockId },
             data: {
-                status: "processed",
+                status: WebhookStatus.PROCESSED,
                 processedAt: new Date(),
             },
         });
@@ -109,7 +110,7 @@ async function cleanupStaleLocks(lockType: string): Promise<number> {
             where: {
                 shopDomain: lockKey,
                 topic: "CRON_LOCK",
-                status: "processing",
+                status: WebhookStatus.PROCESSING,
                 receivedAt: {
                     lt: staleThreshold,
                 },

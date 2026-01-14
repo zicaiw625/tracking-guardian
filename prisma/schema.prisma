@@ -28,22 +28,22 @@ model Session {
 }
 
 model Shop {
-  id                      String              @id
-  shopDomain              String              @unique
+  id                      String                 @id
+  shopDomain              String                 @unique
   accessToken             String?
   email                   String?
   name                    String?
-  plan                    String              @default("free")
-  monthlyOrderLimit       Int                 @default(100)
-  installedAt             DateTime            @default(now())
+  plan                    String                 @default("free")
+  monthlyOrderLimit       Int                    @default(100)
+  installedAt             DateTime               @default(now())
   uninstalledAt           DateTime?
-  isActive                Boolean             @default(true)
-  createdAt               DateTime            @default(now())
+  isActive                Boolean                @default(true)
+  createdAt               DateTime               @default(now())
   updatedAt               DateTime
-  dataRetentionDays       Int                 @default(90)
+  dataRetentionDays       Int                    @default(90)
   ingestionSecret         String?
-  weakConsentMode         Boolean             @default(false)
-  consentStrategy         String              @default("strict")
+  weakConsentMode         Boolean                @default(false)
+  consentStrategy         String                 @default("strict")
   previousIngestionSecret String?
   previousSecretExpiry    DateTime?
   webPixelId              String?
@@ -65,6 +65,15 @@ model Shop {
   DeliveryAttempt         DeliveryAttempt[]
   SurveyResponse          SurveyResponse[]
   ExtensionError          ExtensionError[]
+  MonthlyUsage            MonthlyUsage[]
+  MigrationDraft          MigrationDraft?
+  ShopifyOrderSnapshot    ShopifyOrderSnapshot[]
+  RefundSnapshot          RefundSnapshot[]
+  ConversionJob           ConversionJob[]
+  ConversionLog           ConversionLog[]
+  EventNonce              EventNonce[]
+  AuditLog                AuditLog[]
+  ReconciliationReport    ReconciliationReport[]
 }
 
 model AuditAsset {
@@ -277,21 +286,245 @@ model SurveyResponse {
 }
 
 model ExtensionError {
-  id        String   @id
-  shopId    String
+  id         String   @id
+  shopId     String
   shopDomain String
-  extension String
-  endpoint  String
-  error     String
-  stack     String?
-  target    String?
-  orderId   String?
-  createdAt DateTime @default(now())
-  Shop      Shop     @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  extension  String
+  endpoint   String
+  error      String
+  stack      String?
+  target     String?
+  orderId    String?
+  createdAt  DateTime @default(now())
+  Shop       Shop     @relation(fields: [shopId], references: [id], onDelete: Cascade)
 
   @@index([shopId])
   @@index([shopId, createdAt])
   @@index([extension])
   @@index([endpoint])
   @@index([shopId, extension, createdAt])
+}
+
+model WebhookLog {
+  id          String    @id
+  shopDomain  String
+  webhookId   String
+  topic       String
+  status      String    @default("processing")
+  orderId     String?
+  receivedAt  DateTime  @default(now())
+  processedAt DateTime?
+
+  @@unique([shopDomain, webhookId, topic])
+  @@index([shopDomain])
+  @@index([receivedAt])
+  @@index([receivedAt, status])
+}
+
+model MonthlyUsage {
+  id        String   @id
+  shopId    String
+  yearMonth String
+  sentCount Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime
+  Shop      Shop     @relation(fields: [shopId], references: [id], onDelete: Cascade)
+
+  @@unique([shopId, yearMonth])
+  @@index([shopId])
+  @@index([yearMonth])
+}
+
+model MigrationDraft {
+  id         String   @id
+  shopId     String   @unique
+  step       String
+  configData Json
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime
+  Shop       Shop     @relation(fields: [shopId], references: [id], onDelete: Cascade)
+
+  @@index([expiresAt])
+  @@index([shopId, updatedAt])
+}
+
+model ShopifyOrderSnapshot {
+  id              String    @id
+  shopId          String
+  orderId         String
+  orderNumber     String?
+  totalValue      Decimal   @db.Decimal(10, 2)
+  currency        String    @default("USD")
+  financialStatus String?
+  cancelledAt     DateTime?
+  updatedAt       DateTime
+  createdAt       DateTime
+  Shop            Shop      @relation(fields: [shopId], references: [id], onDelete: Cascade)
+
+  @@unique([shopId, orderId])
+  @@index([shopId, createdAt])
+  @@index([shopId, orderId])
+  @@index([orderId])
+  @@index([cancelledAt])
+}
+
+model RefundSnapshot {
+  id        String   @id
+  shopId    String
+  refundId  String
+  orderId   String
+  amount    Decimal  @db.Decimal(10, 2)
+  currency  String   @default("USD")
+  createdAt DateTime
+  Shop      Shop     @relation(fields: [shopId], references: [id], onDelete: Cascade)
+
+  @@unique([shopId, refundId])
+  @@index([shopId, createdAt])
+  @@index([shopId, orderId])
+  @@index([orderId])
+  @@index([refundId])
+}
+
+model ConversionJob {
+  id              String    @id
+  shopId          String
+  orderId         String
+  orderNumber     String?
+  orderValue      Decimal   @db.Decimal(10, 2)
+  currency        String    @default("USD")
+  capiInput       Json?
+  consentEvidence Json?
+  trustMetadata   Json?
+  status          String    @default("queued")
+  attempts        Int       @default(0)
+  maxAttempts     Int       @default(5)
+  lastAttemptAt   DateTime?
+  nextRetryAt     DateTime?
+  errorMessage    String?
+  platformResults Json?
+  createdAt       DateTime  @default(now())
+  processedAt     DateTime?
+  completedAt     DateTime?
+  Shop            Shop      @relation(fields: [shopId], references: [id], onDelete: Cascade)
+
+  @@unique([shopId, orderId])
+  @@index([shopId])
+  @@index([status])
+  @@index([status, nextRetryAt])
+  @@index([createdAt])
+}
+
+model ConversionLog {
+  id               String    @id
+  shopId           String
+  orderId          String
+  orderNumber      String?
+  orderValue       Decimal   @db.Decimal(10, 2)
+  currency         String    @default("USD")
+  eventId          String?
+  platform         String
+  eventType        String
+  status           String    @default("pending")
+  attempts         Int       @default(0)
+  maxAttempts      Int       @default(5)
+  lastAttemptAt    DateTime?
+  nextRetryAt      DateTime?
+  errorMessage     String?
+  platformResponse Json?
+  clientSideSent   Boolean   @default(false)
+  serverSideSent   Boolean   @default(false)
+  deadLetteredAt   DateTime?
+  manuallyRetried  Boolean   @default(false)
+  createdAt        DateTime  @default(now())
+  sentAt           DateTime?
+  Shop             Shop      @relation(fields: [shopId], references: [id], onDelete: Cascade)
+
+  @@unique([shopId, orderId, platform, eventType])
+  @@index([shopId])
+  @@index([orderId])
+  @@index([platform])
+  @@index([status])
+  @@index([createdAt])
+  @@index([shopId, createdAt])
+  @@index([shopId, status])
+  @@index([shopId, platform, createdAt])
+  @@index([shopId, createdAt, status])
+  @@index([status, nextRetryAt])
+  @@index([status, deadLetteredAt])
+}
+
+model EventNonce {
+  id        String   @id
+  shopId    String
+  nonce     String
+  eventType String
+  createdAt DateTime @default(now())
+  expiresAt DateTime
+  Shop      Shop     @relation(fields: [shopId], references: [id], onDelete: Cascade)
+
+  @@unique([shopId, nonce, eventType])
+  @@index([expiresAt])
+  @@index([shopId])
+}
+
+model GDPRJob {
+  id           String    @id
+  shopDomain   String
+  jobType      String
+  payload      Json
+  status       String    @default("queued")
+  result       Json?
+  errorMessage String?
+  createdAt    DateTime  @default(now())
+  processedAt  DateTime?
+  completedAt  DateTime?
+
+  @@index([status])
+  @@index([shopDomain])
+  @@index([createdAt])
+}
+
+model AuditLog {
+  id            String   @id
+  shopId        String
+  actorType     String
+  actorId       String?
+  action        String
+  resourceType  String
+  resourceId    String?
+  previousValue Json?
+  newValue      Json?
+  metadata      Json?
+  createdAt     DateTime @default(now())
+  Shop          Shop     @relation(fields: [shopId], references: [id], onDelete: Cascade)
+
+  @@index([shopId])
+  @@index([action])
+  @@index([resourceType])
+  @@index([createdAt])
+  @@index([shopId, createdAt])
+}
+
+model ReconciliationReport {
+  id                  String   @id
+  shopId              String
+  platform            String
+  reportDate          DateTime @db.Date
+  shopifyOrders       Int      @default(0)
+  shopifyRevenue      Decimal  @default(0) @db.Decimal(12, 2)
+  platformConversions Int      @default(0)
+  platformRevenue     Decimal  @default(0) @db.Decimal(12, 2)
+  orderDiscrepancy    Float    @default(0)
+  revenueDiscrepancy  Float    @default(0)
+  status              String   @default("pending")
+  alertSent           Boolean  @default(false)
+  createdAt           DateTime @default(now())
+  Shop                Shop     @relation(fields: [shopId], references: [id], onDelete: Cascade)
+
+  @@unique([shopId, platform, reportDate])
+  @@index([shopId])
+  @@index([platform])
+  @@index([reportDate])
+  @@index([shopId, reportDate])
 }
