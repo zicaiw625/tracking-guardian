@@ -352,6 +352,9 @@ export default function MigratePage() {
             <Text as="p" variant="bodySm" fontWeight="semibold">
               Shopify 升级截止日期
             </Text>
+            <Text as="p" variant="bodySm" tone="subdued">
+              <strong>重要提示：</strong>以下日期来自 Shopify 官方公告，仅供参考。实际截止日期请以 Shopify Admin 中的提示为准。Shopify 可能会更新策略，我们建议您定期查看 Shopify 官方文档。
+            </Text>
             <List type="bullet">
               <List.Item>
                 <Text as="span" variant="bodySm">

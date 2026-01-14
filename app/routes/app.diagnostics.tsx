@@ -841,6 +841,9 @@ export default function DiagnosticsPage() {
                       A: Shopify Plus 商家：{formatDeadlineDate(DEPRECATION_DATES.plusScriptTagExecutionOff, "exact")} 停止执行；非 Plus 商家：{formatDeadlineDate(DEPRECATION_DATES.nonPlusScriptTagExecutionOff, "exact")} 停止执行。
                       建议尽早迁移到 Web Pixel + 服务端 CAPI 方案。
                     </Text>
+                    <Text as="p" variant="bodySm" tone="subdued">
+                      <strong>提示：</strong>以上日期来自 Shopify 官方公告，仅供参考。实际截止日期请以 Shopify Admin 中的提示为准。
+                    </Text>
                   </BlockStack>
                 </Box>
                 <Box background="bg-surface-secondary" padding="400" borderRadius="200">

@@ -1752,7 +1752,7 @@ export function ScanPage({
           <BlockStack gap="200">
             <Text as="p">{upgradeStatus.autoUpgradeInfo.autoUpgradeMessage}</Text>
               <Text as="p" variant="bodySm" tone="subdued">
-              <strong>Shopify 官方升级路径：</strong>使用 blocks + web pixels 替代 legacy customizations。Plus 商家：{getDateDisplayLabel(DEPRECATION_DATES.plusAdditionalScriptsReadOnly, "exact")} 截止，{getDateDisplayLabel(DEPRECATION_DATES.plusAutoUpgradeStart, "month")} 自动升级会丢失 legacy 自定义。非 Plus 商家：{getDateDisplayLabel(DEPRECATION_DATES.nonPlusAdditionalScriptsReadOnly, "exact")} 截止。
+              <strong>Shopify 官方升级路径：</strong>使用 blocks + web pixels 替代 legacy customizations。Plus 商家：{getDateDisplayLabel(DEPRECATION_DATES.plusAdditionalScriptsReadOnly, "exact")}（日期来自 Shopify 官方公告，请以 Admin 提示为准）截止，{getDateDisplayLabel(DEPRECATION_DATES.plusAutoUpgradeStart, "month")}（日期来自 Shopify 官方公告，请以 Admin 提示为准）自动升级会丢失 legacy 自定义。非 Plus 商家：{getDateDisplayLabel(DEPRECATION_DATES.nonPlusAdditionalScriptsReadOnly, "exact")}（日期来自 Shopify 官方公告，请以 Admin 提示为准）截止。
             </Text>
           </BlockStack>
         </Banner>
@@ -2274,6 +2274,9 @@ export function ScanPage({
                       ScriptTag 在截止日期后将停止执行，导致其中的追踪代码失效。
                       实际对您业务的影响取决于流量来源、客户群体、广告策略等多种因素，
                       本工具无法预测具体金额影响。建议您结合自身业务情况评估迁移优先级。
+                    </Text>
+                    <Text as="p" variant="bodySm" tone="subdued">
+                      <strong>日期来源说明：</strong>截止日期来自 Shopify 官方公告，仅供参考。实际截止日期请以 Shopify Admin 中的提示为准。Shopify 可能会更新策略，我们建议您定期查看 Shopify 官方文档。
                     </Text>
                   </Banner>
                 </BlockStack>
@@ -3127,6 +3130,9 @@ export function ScanPage({
                         <Text as="p" variant="bodySm">
                           这是 Thank you / Order status 页面迁移的硬性截止时间。提前粘贴 Additional Scripts 代码并完成迁移，可避免追踪中断。
                         </Text>
+                        <Text as="p" variant="bodySm" tone="subdued">
+                          以上日期来自 Shopify 官方公告，仅供参考。实际截止日期请以 Shopify Admin 中的提示为准。Shopify 可能会更新策略，我们建议您定期查看 Shopify 官方文档。
+                        </Text>
                         {deprecationStatus && (
                           <Text as="p" variant="bodySm" tone="subdued">
                             当前剩余：{deprecationStatus.additionalScripts.badge.text} — {deprecationStatus.additionalScripts.description}
@@ -3545,7 +3551,7 @@ export function ScanPage({
                 <List type="bullet">
                   <List.Item>联系 Shopify 支持，提供 ScriptTag ID: {guidanceContent?.scriptTagId}</List.Item>
                   <List.Item>使用 Shopify GraphQL API 手动删除（需开发者权限）</List.Item>
-                  <List.Item>等待 ScriptTag 自动过期（Plus 商家将于 {getDateDisplayLabel(DEPRECATION_DATES.plusScriptTagExecutionOff, "exact")} 停止执行，非 Plus 商家将于 {getDateDisplayLabel(DEPRECATION_DATES.nonPlusScriptTagExecutionOff, "exact")} 停止执行）</List.Item>
+                  <List.Item>等待 ScriptTag 自动过期（Plus 商家将于 {getDateDisplayLabel(DEPRECATION_DATES.plusScriptTagExecutionOff, "exact")}（日期来自 Shopify 官方公告，请以 Admin 提示为准）停止执行，非 Plus 商家将于 {getDateDisplayLabel(DEPRECATION_DATES.nonPlusScriptTagExecutionOff, "exact")}（日期来自 Shopify 官方公告，请以 Admin 提示为准）停止执行）</List.Item>
                 </List>
               </BlockStack>
               {guidanceContent?.platform && (

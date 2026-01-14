@@ -623,7 +623,7 @@ export function getScriptTagMigrationGuidance(platform: string, scriptTagId: num
             ...(guidance.extraSteps || []),
             ...baseSteps,
         ],
-        deadline: platform === "unknown" ? undefined : `Plus 商家: ${getDateDisplayLabel(DEPRECATION_DATES.plusScriptTagExecutionOff, "exact")}; 非 Plus: ${getDateDisplayLabel(DEPRECATION_DATES.nonPlusScriptTagExecutionOff, "exact")}`,
+        deadline: platform === "unknown" ? undefined : `Plus 商家: ${getDateDisplayLabel(DEPRECATION_DATES.plusScriptTagExecutionOff, "exact")}（日期来自 Shopify 官方公告，请以 Admin 提示为准）; 非 Plus: ${getDateDisplayLabel(DEPRECATION_DATES.nonPlusScriptTagExecutionOff, "exact")}（日期来自 Shopify 官方公告，请以 Admin 提示为准）`,
         warning: guidance.warning,
     };
 }

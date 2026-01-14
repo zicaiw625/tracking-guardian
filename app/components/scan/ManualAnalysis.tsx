@@ -120,6 +120,9 @@ export function ManualAnalysis({ deprecationStatus }: ManualAnalysisProps) {
                   这是 Thank you / Order status 页面迁移的硬性截止时间。提前粘贴
                   Additional Scripts 代码并完成迁移，可避免追踪中断。
                 </Text>
+                <Text as="p" variant="bodySm" tone="subdued">
+                  <strong>重要提示：</strong>以上日期来自 Shopify 官方公告，仅供参考。实际截止日期请以 Shopify Admin 中的提示为准。Shopify 可能会更新策略，我们建议您定期查看 Shopify 官方文档。
+                </Text>
                 {deprecationStatus && (
                   <Text as="p" variant="bodySm" tone="subdued">
                     当前剩余：{deprecationStatus.additionalScripts.badge.text} —{" "}

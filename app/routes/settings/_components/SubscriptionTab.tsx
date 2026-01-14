@@ -156,6 +156,17 @@ export function SubscriptionTab({ currentPlan, subscriptionStatus }: Subscriptio
               </>
             )}
             <Divider />
+            <Banner tone="info">
+              <BlockStack gap="200">
+                <Text as="p" variant="bodySm" fontWeight="semibold">
+                  需要更多计费信息？
+                </Text>
+                <Text as="p" variant="bodySm">
+                  您可以访问 <a href="/app/billing">订阅与计费</a> 页面查看完整的账单历史、使用量统计和发票信息。
+                </Text>
+              </BlockStack>
+            </Banner>
+            <Divider />
             <Text as="h3" variant="headingMd">
               套餐对比
             </Text>

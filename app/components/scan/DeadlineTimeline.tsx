@@ -111,6 +111,16 @@ export function DeadlineTimeline({
             {shopTier === "plus" ? "Shopify Plus" : shopTier === "non_plus" ? "标准版" : "检测中"}
           </Badge>
         </InlineStack>
+        <Banner tone="info">
+          <BlockStack gap="100">
+            <Text as="p" variant="bodySm" fontWeight="semibold">
+              日期来源说明
+            </Text>
+            <Text as="p" variant="bodySm">
+              以下日期来自 Shopify 官方公告，仅供参考。实际截止日期请以 Shopify Admin 中的提示为准。Shopify 可能会更新策略，我们建议您定期查看 Shopify 官方文档。
+            </Text>
+          </BlockStack>
+        </Banner>
         <Box
           background="bg-surface-secondary"
           padding="400"

@@ -39,25 +39,25 @@ const MILESTONES: Omit<CountdownMilestone, "isPassed" | "isNext">[] = [
   {
     date: DEPRECATION_DATES.scriptTagCreationBlocked,
     label: "ScriptTag 创建禁止",
-    description: `无法在 TYP/OSP 页面创建新的 ScriptTag（参考 ${SHOPIFY_HELP_LINKS.UPGRADE_GUIDE}）`,
+    description: `无法在 TYP/OSP 页面创建新的 ScriptTag（参考 ${SHOPIFY_HELP_LINKS.UPGRADE_GUIDE}）。日期来自 Shopify 官方公告，仅供参考，实际截止日期请以 Shopify Admin 中的提示为准。`,
     tier: "all",
   },
   {
     date: DEPRECATION_DATES.plusScriptTagExecutionOff,
     label: "Plus 限制开始",
-    description: `Plus 商家开始受到升级限制（参考 ${SHOPIFY_HELP_LINKS.UPGRADE_GUIDE}）`,
+    description: `Plus 商家开始受到升级限制（参考 ${SHOPIFY_HELP_LINKS.UPGRADE_GUIDE}）。日期来自 Shopify 官方公告，仅供参考，实际截止日期请以 Shopify Admin 中的提示为准。`,
     tier: "plus",
   },
   {
     date: DEPRECATION_DATES.plusAutoUpgradeStart,
     label: "Plus 自动升级开始",
-    description: `Shopify 开始自动升级 Plus 商家页面，legacy 定制会丢失（参考 ${SHOPIFY_HELP_LINKS.UPGRADE_GUIDE}）`,
+    description: `Shopify 开始自动升级 Plus 商家页面，legacy 定制会丢失（参考 ${SHOPIFY_HELP_LINKS.UPGRADE_GUIDE}）。日期来自 Shopify 官方公告，仅供参考，实际截止日期请以 Shopify Admin 中的提示为准。`,
     tier: "plus",
   },
   {
     date: DEPRECATION_DATES.nonPlusScriptTagExecutionOff,
     label: "非 Plus 截止日期",
-    description: `所有非 Plus 商家的旧版追踪功能完全停止（参考 ${SHOPIFY_HELP_LINKS.UPGRADE_GUIDE}）`,
+    description: `所有非 Plus 商家的旧版追踪功能完全停止（参考 ${SHOPIFY_HELP_LINKS.UPGRADE_GUIDE}）。日期来自 Shopify 官方公告，仅供参考，实际截止日期请以 Shopify Admin 中的提示为准。`,
     tier: "non_plus",
   },
 ];
@@ -192,6 +192,9 @@ export function MigrationCountdown({
                 <Text as="p" variant="bodySm" tone="subdued">
                   截止日期：{deadlineLabel}
                 </Text>
+                <Text as="p" variant="bodySm" tone="subdued">
+                  <strong>日期来源：</strong>来自 Shopify 官方公告，仅供参考。实际截止日期请以 Shopify Admin 中的提示为准。Shopify 可能会更新策略，建议定期查看 Shopify 官方文档。
+                </Text>
               </BlockStack>
               <Box
                 background="bg-surface"
@@ -277,7 +280,7 @@ export function MigrationCountdown({
               </Text>
               {shopTier === "plus" && (
                 <Text as="p" variant="bodySm" tone="subdued">
-                  Plus 商家提示：2026年1月起，Shopify 将开始自动升级未迁移的店铺，届时旧版脚本将被清除。
+                  Plus 商家提示：2026年1月起（日期来自 Shopify 官方公告，请以 Admin 提示为准），Shopify 将开始自动升级未迁移的店铺，届时旧版脚本将被清除。
                 </Text>
               )}
             </BlockStack>

@@ -171,6 +171,26 @@ export default function UiModulePublishGuide() {
                                   <Text as="p" variant="bodySm">
                                     <strong>解决方案：</strong>请在 Shopify Admin → 设置 → 客户账户中启用 Customer Accounts 功能，然后重新访问此页面。
                                   </Text>
+                                  <Text as="p" variant="bodySm" fontWeight="semibold">
+                                    如何检查并启用 Customer Accounts：
+                                  </Text>
+                                  <List type="number">
+                                    <List.Item>
+                                      前往 Shopify Admin → 设置 → 客户账户（Settings → Customer accounts）
+                                    </List.Item>
+                                    <List.Item>
+                                      确认 Customer Accounts 功能已启用：如果设置页面显示"客户账户"或"Customer Accounts"选项，说明已启用。如果页面显示"客户账户"相关设置选项（如登录方式、注册方式等），说明 Customer Accounts 已启用
+                                    </List.Item>
+                                    <List.Item>
+                                      如何确认店铺是否支持 Customer Accounts：如果 Shopify Admin → 设置中没有"客户账户"或"Customer Accounts"选项，说明您的店铺当前不支持 Customer Accounts 功能。某些地区、店铺类型或 Shopify 计划可能暂时不支持 Customer Accounts。请以 Shopify Admin 中的实际选项为准
+                                    </List.Item>
+                                    <List.Item>
+                                      如果支持但未启用：请按照 Shopify 官方指引启用 Customer Accounts 功能。启用后，订单状态页将自动切换到 Customer Accounts 体系，旧版订单状态页将不再使用
+                                    </List.Item>
+                                    <List.Item>
+                                      如果店铺不支持 Customer Accounts：Order Status 模块将无法使用。这是 Shopify 平台的设计限制，Order Status 模块只能在 Customer Accounts 体系下工作
+                                    </List.Item>
+                                  </List>
                                   {customerAccountsStatus?.error && (
                                     <Text as="p" variant="bodySm" tone="subdued">
                                       检测错误：{customerAccountsStatus.error}

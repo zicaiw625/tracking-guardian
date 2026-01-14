@@ -4,11 +4,12 @@ import type { KeyValidationResult } from "./types";
 
 const HMAC_ALGORITHM = "sha256";
 const HMAC_HEADER = "X-Tracking-Guardian-Signature";
+const TIMESTAMP_HEADER = "X-Tracking-Guardian-Timestamp";
 
 export interface HMACValidationResult {
   valid: boolean;
   reason?: string;
-  errorCode?: "missing_signature" | "invalid_signature" | "timestamp_out_of_window";
+  errorCode?: "missing_signature" | "invalid_signature" | "timestamp_out_of_window" | "missing_timestamp_header" | "timestamp_mismatch";
 }
 
 export function generateHMACSignature(
@@ -81,11 +82,23 @@ export function extractHMACSignature(request: Request): string | null {
   return request.headers.get(HMAC_HEADER);
 }
 
+export function extractTimestampHeader(request: Request): number | null {
+  const timestampHeader = request.headers.get(TIMESTAMP_HEADER);
+  if (!timestampHeader) {
+    return null;
+  }
+  const timestamp = parseInt(timestampHeader, 10);
+  if (isNaN(timestamp)) {
+    return null;
+  }
+  return timestamp;
+}
+
 export async function validatePixelEventHMAC(
   request: Request,
   bodyText: string,
   secret: string,
-  timestamp: number,
+  payloadTimestamp: number,
   timestampWindowMs: number = 5 * 60 * 1000
 ): Promise<HMACValidationResult> {
   const signature = extractHMACSignature(request);
@@ -96,7 +109,22 @@ export async function validatePixelEventHMAC(
       errorCode: "missing_signature",
     };
   }
+  const headerTimestamp = extractTimestampHeader(request);
+  if (headerTimestamp === null) {
+    return {
+      valid: false,
+      reason: "Missing timestamp header",
+      errorCode: "missing_timestamp_header",
+    };
+  }
+  if (headerTimestamp !== payloadTimestamp) {
+    return {
+      valid: false,
+      reason: `Timestamp mismatch: header=${headerTimestamp}, payload=${payloadTimestamp}`,
+      errorCode: "timestamp_mismatch",
+    };
+  }
   const crypto = await import("crypto");
   const bodyHash = crypto.createHash("sha256").update(bodyText).digest("hex");
-  return verifyHMACSignature(signature, secret, timestamp, bodyHash, timestampWindowMs);
+  return verifyHMACSignature(signature, secret, headerTimestamp, bodyHash, timestampWindowMs);
 }

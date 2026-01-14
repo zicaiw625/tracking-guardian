@@ -51,7 +51,10 @@ export default function App() {
         <a href="/app/pixels">Pixels</a>
         <a href="/app/diagnostics">Diagnostics</a>
         <a href="/app/verification">Verification</a>
+        <a href="/app/monitor">Monitor</a>
         <a href="/app/settings">Settings</a>
+        <a href="/app/billing">Billing</a>
+        <a href="/app/privacy">Privacy</a>
       </NavMenu>
       <TopBar
         shopDomain={shopDomain}

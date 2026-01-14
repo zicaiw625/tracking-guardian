@@ -328,9 +328,9 @@ export function getUpgradeStatusMessage(upgradeStatus: ShopUpgradeStatus, hasScr
     const daysToAutoUpgrade = Math.ceil((DEPRECATION_DATES.plusAutoUpgradeStart.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
     const isInAutoUpgradeRiskWindow = tier === "plus" && daysToAutoUpgrade <= 90;
     const plusAutoUpgradeMessage = isInPlusAutoUpgradeWindow
-        ? `⚡ Plus 商家自动升级窗口已开始（${autoUpgradeStartLabel}起）：Shopify 正在逐步将 Plus 商家的 Thank you / Order status 页面自动迁移到新版本。自动升级后，旧的 Additional Scripts、ScriptTags、checkout.liquid 自定义将失效。`
+        ? `⚡ Plus 商家自动升级窗口已开始（${autoUpgradeStartLabel}起，日期来自 Shopify 官方公告，请以 Admin 提示为准）：Shopify 正在逐步将 Plus 商家的 Thank you / Order status 页面自动迁移到新版本。自动升级后，旧的 Additional Scripts、ScriptTags、checkout.liquid 自定义将失效。`
         : isInAutoUpgradeRiskWindow
-        ? `⚠️ Plus 商家自动升级风险窗口（剩余 ${daysToAutoUpgrade} 天）：Shopify 将于 ${autoUpgradeStartLabel} 开始自动将 Plus 商家迁移到新版页面。自动升级后，旧的 Additional Scripts、ScriptTags、checkout.liquid 自定义将丢失。建议提前完成迁移。`
+        ? `⚠️ Plus 商家自动升级风险窗口（剩余 ${daysToAutoUpgrade} 天）：Shopify 将于 ${autoUpgradeStartLabel}（日期来自 Shopify 官方公告，请以 Admin 提示为准）开始自动将 Plus 商家迁移到新版页面。自动升级后，旧的 Additional Scripts、ScriptTags、checkout.liquid 自定义将丢失。建议提前完成迁移。`
         : "";
     if (typOspPagesEnabled === true) {
         return {
@@ -381,7 +381,7 @@ export function getUpgradeStatusMessage(upgradeStatus: ShopUpgradeStatus, hasScr
                 isUpgraded: null,
                 urgency: "critical",
                 title: "⚠️ Plus 商家：请确认页面升级状态",
-                message: `Plus 商家的 Additional Scripts 已于 ${plusDeadlineLabel} 进入只读模式。` +
+                message: `Plus 商家的 Additional Scripts 已于 ${plusDeadlineLabel}（日期来自 Shopify 官方公告，请以 Admin 提示为准）进入只读模式。` +
                     "如果您尚未升级到新版 Thank you / Order status 页面，旧脚本可能已停止运行。请检查您的追踪是否正常。" +
                     (reasonHint ? `\n${reasonHint}` : ""),
                 actions: [
@@ -400,20 +400,20 @@ export function getUpgradeStatusMessage(upgradeStatus: ShopUpgradeStatus, hasScr
             actions: [
                 "前往 Shopify 后台 → 设置 → 结账 查看当前页面版本",
                 `${tier === "plus"
-                    ? `Plus 商家截止日期：${plusDeadlineLabel}`
-                    : `非 Plus 商家：距截止日期（${nonPlusDeadlineLabel}）还有约 ${Math.max(0, daysRemaining)} 天`}`,
+                    ? `Plus 商家截止日期：${plusDeadlineLabel}（日期来自 Shopify 官方公告，请以 Admin 提示为准）`
+                    : `非 Plus 商家：距截止日期（${nonPlusDeadlineLabel}，日期来自 Shopify 官方公告，请以 Admin 提示为准）还有约 ${Math.max(0, daysRemaining)} 天`}`,
             ],
         };
     }
     if (tier === "plus" && isPlusDeadlinePassed) {
         const autoUpgradeNote = isInPlusAutoUpgradeWindow
-            ? `\n\n⚡ 自动升级窗口已开始：Shopify 正在将 Plus 商家自动迁移到新版页面（${autoUpgradeStartLabel}起，Shopify 会提前通知）。`
-            : `\n\n📅 ${autoUpgradeStartLabel}起，Shopify 将开始自动迁移 Plus 商家到新版页面（Shopify 会提前通知）。`;
+            ? `\n\n⚡ 自动升级窗口已开始：Shopify 正在将 Plus 商家自动迁移到新版页面（${autoUpgradeStartLabel}起，日期来自 Shopify 官方公告，请以 Admin 提示为准，Shopify 会提前通知）。`
+            : `\n\n📅 ${autoUpgradeStartLabel}起（日期来自 Shopify 官方公告，请以 Admin 提示为准），Shopify 将开始自动迁移 Plus 商家到新版页面（Shopify 会提前通知）。`;
         return {
             isUpgraded: false,
             urgency: "critical",
             title: "🚨 Plus 商家：Additional Scripts 已进入只读模式",
-            message: `您的店铺尚未升级到新版页面。Plus 商家的 Additional Scripts 已于 ${plusDeadlineLabel} 进入只读模式。` +
+            message: `您的店铺尚未升级到新版页面。Plus 商家的 Additional Scripts 已于 ${plusDeadlineLabel}（日期来自 Shopify 官方公告，请以 Admin 提示为准）进入只读模式。` +
                 "Shopify 可能随时将您的页面迁移到新版本。" + autoUpgradeNote,
             actions: [
                 "立即配置 Web Pixel 以确保追踪不中断",
@@ -431,7 +431,7 @@ export function getUpgradeStatusMessage(upgradeStatus: ShopUpgradeStatus, hasScr
             isUpgraded: false,
             urgency: "critical",
             title: "截止日期已过 - 请立即迁移",
-            message: `Additional Scripts 已于 ${deadlineLabel} 进入只读模式。请尽快完成迁移以避免追踪中断。`,
+            message: `Additional Scripts 已于 ${deadlineLabel}（日期来自 Shopify 官方公告，请以 Admin 提示为准）进入只读模式。请尽快完成迁移以避免追踪中断。`,
             actions: [
                 "立即配置 Web Pixel",
                 "验证追踪是否正常工作",
@@ -443,7 +443,7 @@ export function getUpgradeStatusMessage(upgradeStatus: ShopUpgradeStatus, hasScr
             isUpgraded: false,
             urgency: "high",
             title: `紧急：剩余 ${daysRemaining} 天`,
-            message: `您的店铺尚未升级到新版页面。Additional Scripts 将于 ${deadlineLabel} 进入只读模式（剩余 ${daysRemaining} 天）。`,
+            message: `您的店铺尚未升级到新版页面。Additional Scripts 将于 ${deadlineLabel}（日期来自 Shopify 官方公告，请以 Admin 提示为准）进入只读模式（剩余 ${daysRemaining} 天）。`,
             actions: [
                 "尽快完成 Web Pixel 配置",
                 "测试迁移后的追踪功能",

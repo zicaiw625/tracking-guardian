@@ -88,27 +88,28 @@ export function generateMigrationActions(result: EnhancedScanResult, shopTier: s
         const isPlus = shopTier === "plus";
         const primaryStatus = isPlus ? plusExecutionStatus : nonPlusExecutionStatus;
         const primaryDeadlineLabel = isPlus ? PLUS_SCRIPT_TAG_OFF_LABEL : NON_PLUS_SCRIPT_TAG_OFF_LABEL;
+        const deadlineNoteSuffix = "（日期来自 Shopify 官方公告，请以 Admin 提示为准）";
         if (primaryStatus.isExpired) {
-            deadlineNote = `⚠️ ${isPlus ? "Plus" : "非 Plus"} 商家的 ScriptTag 已于 ${primaryDeadlineLabel} 停止执行！`;
+            deadlineNote = `⚠️ ${isPlus ? "Plus" : "非 Plus"} 商家的 ScriptTag 已于 ${primaryDeadlineLabel}${deadlineNoteSuffix} 停止执行！`;
             if (isPlus) {
                 deadlineNote += ` (非 Plus 商家: ${nonPlusExecutionStatus.isExpired ? "也已停止执行" : `剩余 ${nonPlusExecutionStatus.daysRemaining} 天`})`;
             } else {
-                deadlineNote += ` (Plus 商家已于 ${PLUS_SCRIPT_TAG_OFF_LABEL} 停止执行)`;
+                deadlineNote += ` (Plus 商家已于 ${PLUS_SCRIPT_TAG_OFF_LABEL}${deadlineNoteSuffix} 停止执行)`;
             }
             priority = "high";
-            deadline = primaryDeadlineLabel;
+            deadline = `${primaryDeadlineLabel}${deadlineNoteSuffix}`;
         } else if (creationStatus.isExpired && isOrderStatusScript) {
-            deadlineNote = `⚠️ 2025-02-01 起已无法创建新的 ScriptTag。现有脚本仍在运行，但将于 ${primaryDeadlineLabel} 停止执行。`;
+            deadlineNote = `⚠️ 2025-02-01${deadlineNoteSuffix} 起已无法创建新的 ScriptTag。现有脚本仍在运行，但将于 ${primaryDeadlineLabel}${deadlineNoteSuffix} 停止执行。`;
             priority = "high";
-            deadline = primaryDeadlineLabel;
+            deadline = `${primaryDeadlineLabel}${deadlineNoteSuffix}`;
         } else if (primaryStatus.isWarning) {
-            deadlineNote = `⏰ ${isPlus ? "Plus" : "非 Plus"} 商家: ScriptTag 将于 ${primaryDeadlineLabel} 停止执行（剩余 ${primaryStatus.daysRemaining} 天）。`;
+            deadlineNote = `⏰ ${isPlus ? "Plus" : "非 Plus"} 商家: ScriptTag 将于 ${primaryDeadlineLabel}${deadlineNoteSuffix} 停止执行（剩余 ${primaryStatus.daysRemaining} 天）。`;
             priority = "high";
-            deadline = primaryDeadlineLabel;
+            deadline = `${primaryDeadlineLabel}${deadlineNoteSuffix}`;
         } else {
-            deadlineNote = `📅 执行窗口期 - ${isPlus ? "Plus" : "非 Plus"} 商家截止日期: ${primaryDeadlineLabel}（剩余 ${primaryStatus.daysRemaining} 天）。`;
+            deadlineNote = `📅 执行窗口期 - ${isPlus ? "Plus" : "非 Plus"} 商家截止日期: ${primaryDeadlineLabel}${deadlineNoteSuffix}（剩余 ${primaryStatus.daysRemaining} 天）。`;
             priority = "medium";
-            deadline = primaryDeadlineLabel;
+            deadline = `${primaryDeadlineLabel}${deadlineNoteSuffix}`;
         }
         const estimatedTime = estimateMigrationTime({
             type: "migrate_script_tag",

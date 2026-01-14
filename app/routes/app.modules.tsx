@@ -575,17 +575,22 @@ export default function UiBlocksPage() {
                 <List type="number">
                   <List.Item>
                     <Text as="span" variant="bodySm">
-                      进入 Shopify Admin → 设置 → 客户账户
+                      进入 Shopify Admin → 设置 → 客户账户（Settings → Customer accounts）
                     </Text>
                   </List.Item>
                   <List.Item>
                     <Text as="span" variant="bodySm">
-                      查看"客户账户"设置页面，确认 Customer Accounts 功能已启用
+                      查看"客户账户"设置页面，确认 Customer Accounts 功能已启用：如果页面显示"客户账户"相关设置选项（如登录方式、注册方式等），说明 Customer Accounts 已启用
                     </Text>
                   </List.Item>
                   <List.Item>
                     <Text as="span" variant="bodySm">
-                      如果未启用，请按照 Shopify 官方指引启用 Customer Accounts 功能
+                      如何确认店铺是否支持 Customer Accounts：如果 Shopify Admin → 设置中没有"客户账户"或"Customer Accounts"选项，说明您的店铺当前不支持 Customer Accounts 功能。某些地区、店铺类型或 Shopify 计划可能暂时不支持 Customer Accounts。请以 Shopify Admin 中的实际选项为准
+                    </Text>
+                  </List.Item>
+                  <List.Item>
+                    <Text as="span" variant="bodySm">
+                      如果支持但未启用：请按照 Shopify 官方指引启用 Customer Accounts 功能
                     </Text>
                   </List.Item>
                 </List>

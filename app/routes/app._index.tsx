@@ -421,6 +421,9 @@ const UpgradeStatusCard = memo(function UpgradeStatusCard({
                   <Badge tone={urgencyBadge.tone}>{urgencyBadge.label}</Badge>
                 </InlineStack>
               </InlineStack>
+              <Text as="p" variant="bodySm" tone="subdued">
+                日期来源：来自 Shopify 官方公告，仅供参考。实际截止日期请以 Shopify Admin 中的提示为准。
+              </Text>
               {upgradeStatus.daysRemaining > 0 && upgradeStatus.daysRemaining <= 365 && (
                 <Box
                   padding="400"
@@ -483,6 +486,9 @@ const UpgradeStatusCard = memo(function UpgradeStatusCard({
                   <Badge tone={urgencyBadge.tone}>{urgencyBadge.label}</Badge>
                 </InlineStack>
               </InlineStack>
+              <Text as="p" variant="bodySm" tone="subdued">
+                日期来源：来自 Shopify 官方公告，仅供参考。实际截止日期请以 Shopify Admin 中的提示为准。
+              </Text>
               {upgradeStatus.daysRemaining > 0 && upgradeStatus.daysRemaining <= 365 && (
                 <Box
                   padding="400"
@@ -514,9 +520,14 @@ const UpgradeStatusCard = memo(function UpgradeStatusCard({
             <>
               <Divider />
               <Banner tone="critical">
-                <Text as="p" variant="bodySm">
-                  截止日期已过，请立即完成迁移以避免追踪中断。
-                </Text>
+                <BlockStack gap="100">
+                  <Text as="p" variant="bodySm">
+                    截止日期已过，请立即完成迁移以避免追踪中断。
+                  </Text>
+                  <Text as="p" variant="bodySm" tone="subdued">
+                    日期来源：来自 Shopify 官方公告，仅供参考。实际截止日期请以 Shopify Admin 中的提示为准。
+                  </Text>
+                </BlockStack>
               </Banner>
             </>
           )}
@@ -967,6 +978,9 @@ function MigrationDeadlineBanner({ scriptTagsCount }: { scriptTagsCount: number 
       }}
     >
       <BlockStack gap="300">
+        <Text as="p" variant="bodySm" tone="subdued">
+          <strong>重要提示：</strong>以下日期来自 Shopify 官方公告，仅供参考。实际截止日期请以 Shopify Admin 中的提示为准。Shopify 可能会更新策略，我们建议您定期查看 Shopify 官方文档。
+        </Text>
         <BlockStack gap="100">
           <Text as="p">
             <strong>Plus 商家:</strong> <strong>{plusDeadline}</strong> 开始限制（ScriptTag/Additional Scripts 停止执行，关键节点：升级/限制开始），<strong>{plusAutoUpgrade}</strong> 起 Shopify 开始自动升级（legacy 定制会丢失）。参考 <Link url={SHOPIFY_HELP_LINKS.UPGRADE_GUIDE} external>Shopify Help Center</Link>
@@ -1262,6 +1276,9 @@ export default function Index() {
             <BlockStack gap="300">
               <Text as="p">
                 <strong>Shopify 硬 deadline（官方公告）：</strong>
+              </Text>
+              <Text as="p" variant="bodySm" tone="subdued">
+                以下日期来自 Shopify 官方公告，仅供参考。实际截止日期请以 Shopify Admin 中的提示为准。Shopify 可能会更新策略，我们建议您定期查看 Shopify 官方文档。
               </Text>
               <List>
                 <List.Item>
