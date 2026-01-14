@@ -165,7 +165,7 @@ function ReorderModule({
   );
 }
 
-function ThankYouBlocks() {
+function OrderStatusBlocks() {
   const api = useApi<"customer-account.order-status.block.render">();
   const [moduleState, setModuleState] = useState<{
     surveyEnabled: boolean;
@@ -437,5 +437,5 @@ function ThankYouBlocks() {
 
 export default reactExtension(
   "customer-account.order-status.block.render",
-  () => <ThankYouBlocks />
+  () => <OrderStatusBlocks />
 );

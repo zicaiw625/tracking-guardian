@@ -104,7 +104,7 @@ export default async function handleRequest(request: Request, responseStatusCode
     validateConfigOnce();
     validateHeadersOnce();
     const url = new URL(request.url);
-    if ((url.pathname === "/ingest" || url.pathname === "/api/ingest" || url.pathname === "/api/pixel-events") && request.method === "POST") {
+    if (url.pathname === "/ingest" && request.method === "POST") {
         const contentLength = request.headers.get("Content-Length");
         if (contentLength) {
             const size = parseInt(contentLength, 10);

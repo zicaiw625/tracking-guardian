@@ -20,6 +20,7 @@ interface ShopData {
   hasIngestionSecret: boolean;
   hasActiveGraceWindow: boolean;
   graceWindowExpiry: Date | string | null;
+  hasExpiredPreviousSecret: boolean;
   weakConsentMode: boolean;
   consentStrategy: string;
   dataRetentionDays: number;
@@ -138,20 +139,89 @@ export function SecurityTab({
               </Box>
               {shop?.hasActiveGraceWindow && shop.graceWindowExpiry && (
                 <Banner tone="warning">
-                  <p>
-                    <strong>旧令牌仍有效：</strong>之前的令牌将于{" "}
-                    {new Date(shop.graceWindowExpiry).toLocaleString("zh-CN")}{" "}
-                    失效。 在此之前，新旧令牌均可使用，以便平滑过渡。
-                  </p>
+                  <BlockStack gap="200">
+                    <Text as="p" variant="bodySm" fontWeight="semibold">
+                      <strong>旧令牌仍有效：</strong>之前的令牌将于{" "}
+                      {new Date(shop.graceWindowExpiry).toLocaleString("zh-CN")}{" "}
+                      失效。在此之前，新旧令牌均可使用，以便平滑过渡。
+                    </Text>
+                    <Text as="p" variant="bodySm" tone="subdued">
+                      过渡期结束后，旧令牌将自动失效，系统将仅接受新令牌。
+                    </Text>
+                  </BlockStack>
                 </Banner>
               )}
+              {shop?.hasExpiredPreviousSecret && (
+                <Banner tone="info">
+                  <BlockStack gap="200">
+                    <Text as="p" variant="bodySm" fontWeight="semibold">
+                      <strong>旧令牌已过期：</strong>之前的令牌已自动清理，系统现在仅接受新令牌。
+                    </Text>
+                  </BlockStack>
+                </Banner>
+              )}
+              {!shop?.hasIngestionSecret && (
+                <Banner tone="critical">
+                  <BlockStack gap="200">
+                    <Text as="p" variant="bodySm" fontWeight="semibold">
+                      <strong>⚠️ 未配置关联令牌：</strong>请立即生成令牌以确保像素事件正常接收
+                    </Text>
+                    <Text as="p" variant="bodySm">
+                      未配置令牌时，所有像素事件将被拒绝。请点击上方"生成令牌"按钮创建新令牌。
+                    </Text>
+                  </BlockStack>
+                </Banner>
+              )}
+              <Banner tone="critical">
+                <BlockStack gap="200">
+                  <Text as="p" variant="bodySm" fontWeight="semibold">
+                    ⚠️ P0 安全警告：PIXEL_ALLOW_NULL_ORIGIN 配置与 ingestionSecret 轮换策略
+                  </Text>
+                  <Text as="p" variant="bodySm">
+                    <strong>生产环境必须设置：</strong>
+                    <br />• <code>PIXEL_ALLOW_NULL_ORIGIN=true</code> 环境变量（某些 Shopify Web Worker 沙箱环境可能出现 Origin: null）
+                    <br />• 如果未设置此环境变量，Origin: null 的请求将被拒绝，可能导致事件丢失
+                    <br />• 部署前必须确认环境变量已正确配置，否则生产环境将拒绝 null origin 请求
+                  </Text>
+                  <Text as="p" variant="bodySm">
+                    <strong>ingestionSecret 泄漏风险（P0 级别）：</strong>
+                    <br />• 如果 ingestionSecret 泄漏，攻击者可能利用 null origin 场景放大攻击面
+                    <br />• 生产环境依赖 HMAC 签名来保护 null origin 请求，但 ingestionSecret 泄漏会完全削弱此保护
+                    <br />• null origin 请求无法通过 Origin 验证，只能依赖 HMAC 签名，因此 ingestionSecret 的安全性至关重要
+                    <br />• 如果 ingestionSecret 泄漏，null origin 会放大攻击面，必须立即轮换令牌
+                  </Text>
+                  <Text as="p" variant="bodySm">
+                    <strong>必须执行的措施：</strong>
+                    <br />• <strong>定期轮换 ingestionSecret</strong>（建议每 90 天，使用上方"更换令牌"按钮）
+                    <br />• <strong>监控异常事件接收模式</strong>（在 Dashboard 中查看事件统计，特别关注 null origin 请求）
+                    <br />• <strong>如果怀疑泄漏，立即更换令牌</strong>并检查事件日志，审查访问记录
+                    <br />• <strong>确保生产环境已正确设置</strong> <code>PIXEL_ALLOW_NULL_ORIGIN=true</code>（部署时检查环境变量）
+                    <br />• <strong>使用令牌轮换机制</strong>（更换后旧令牌有 30 分钟过渡期，确保平滑过渡）
+                    <br />• <strong>记录并审计令牌轮换操作</strong>，建立运维手册和操作流程
+                    <br />• <strong>建立令牌过期机制</strong>（系统已支持 previousIngestionSecret 和 previousSecretExpiry，建议定期轮换）
+                  </Text>
+                  <Text as="p" variant="bodySm" tone="subdued">
+                    <strong>令牌轮换机制说明：</strong>更换令牌时，系统会自动保存旧令牌为 previousIngestionSecret，并在 30 分钟内同时接受新旧令牌，确保 Web Pixel 配置更新期间不会丢失事件。过渡期结束后，旧令牌自动失效。如果发现泄漏，应立即轮换令牌，系统会自动同步新令牌到 Web Pixel 配置。轮换后，请检查事件接收日志，确认新令牌正常工作。
+                  </Text>
+                </BlockStack>
+              </Banner>
               <Banner tone="info">
-                <p>
-                  <strong>工作原理：</strong>
-                  服务端会验证此令牌，缺少或错误的令牌会导致像素事件被拒绝（204
-                  响应）。 更换令牌后，App Pixel
-                  会自动更新，旧令牌会有 72 小时的过渡期。
-                </p>
+                <BlockStack gap="200">
+                  <Text as="p" variant="bodySm" fontWeight="semibold">
+                    工作原理：
+                  </Text>
+                  <Text as="p" variant="bodySm">
+                    服务端会验证此令牌，缺少或错误的令牌会导致像素事件被拒绝（204 响应）。
+                    更换令牌后，App Pixel 会自动更新，旧令牌会有 30 分钟的过渡期（grace window）。
+                  </Text>
+                  <Text as="p" variant="bodySm">
+                    <strong>令牌轮换机制：</strong>
+                    <br />• 更换令牌时，旧令牌会保存为 previousIngestionSecret
+                    <br />• 旧令牌在 30 分钟内仍可使用，确保平滑过渡
+                    <br />• 过渡期结束后，旧令牌自动失效
+                    <br />• 系统会自动同步新令牌到 Web Pixel 配置
+                  </Text>
+                </BlockStack>
               </Banner>
             </BlockStack>
             <Divider />

@@ -126,10 +126,31 @@ export async function settingsLoader({ request }: LoaderFunctionArgs) {
         logger.error("Failed to check token expiration issues", { error, shopId: shop.id });
       }
     }
+    const now = new Date();
     const hasActiveGraceWindow =
       shop?.previousIngestionSecret &&
       shop?.previousSecretExpiry &&
-      new Date() < shop.previousSecretExpiry;
+      now < shop.previousSecretExpiry;
+    const hasExpiredPreviousSecret =
+      shop?.previousIngestionSecret &&
+      shop?.previousSecretExpiry &&
+      now >= shop.previousSecretExpiry;
+    
+    if (shop && hasExpiredPreviousSecret) {
+      try {
+        await prisma.shop.update({
+          where: { id: shop.id },
+          data: {
+            previousIngestionSecret: null,
+            previousSecretExpiry: null,
+          },
+        });
+        shop.previousIngestionSecret = null;
+        shop.previousSecretExpiry = null;
+      } catch (error) {
+        logger.error("Failed to cleanup expired previous ingestion secret", { shopId: shop.id, error });
+      }
+    }
     const alertConfigs: AlertConfigDisplay[] = [];
     if (hasSettingsColumn && shop?.settings) {
       try {
@@ -212,6 +233,7 @@ export async function settingsLoader({ request }: LoaderFunctionArgs) {
             hasIngestionSecret:
               !!shop.ingestionSecret && shop.ingestionSecret.length > 0,
             hasActiveGraceWindow: !!hasActiveGraceWindow,
+            hasExpiredPreviousSecret: !!hasExpiredPreviousSecret,
             graceWindowExpiry: hasActiveGraceWindow && shop.previousSecretExpiry
               ? shop.previousSecretExpiry
               : null,

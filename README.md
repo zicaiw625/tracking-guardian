@@ -292,23 +292,23 @@ railway up
 
 **像素事件接收端点**：
 
-- **主要端点（PRD 推荐）**：`POST /ingest`
-  - PRD 8.2 定义的批量事件接口，推荐新集成使用
+- **唯一端点**：`POST /ingest`
+  - PRD 8.2 定义的批量事件接口，唯一推荐使用的端点
   - 支持批量格式：`{ events: [event1, event2, ...], timestamp: number }`
-  - 同时保留对单事件格式的向后兼容（自动委托给 `/api/pixel-events`）
+  - 同时支持单事件格式（向后兼容）
   - 支持 CORS、HMAC 验证、时间窗校验、nonce 防重放等安全机制
   - Web Pixel Extension 已实现批量发送到 `/ingest` 端点，符合 PRD 性能目标
   - **审计结论对齐**：接口形态与 PRD 8.2 完全一致，解决了"Ingest API 形态不一致"问题
-
-- **向后兼容端点**：
-  - `POST /api/ingest` - 向后兼容别名，委托给 `/ingest`（支持批量格式）
-  - `POST /api/pixel-events` - 实际实现端点（内部使用），支持单事件格式
   
-- **注意**：
-  - 对外文档和第三方集成应推荐使用 `POST /ingest`（符合 PRD 8.2）
+- **重要说明**：
+  - **`/ingest` 是唯一的事件接收入口**，不存在其他接收端点
+  - `app/routes/api.pixel-events/` 目录仅包含共享的工具函数（cors、validation、hmac-validation 等），不是独立的路由端点
+  - 所有像素事件必须发送到 `POST /ingest`，不要使用其他路径
+  - 对外文档和第三方集成必须使用 `POST /ingest`（符合 PRD 8.2）
   - Web Pixel Extension 使用批量格式发送到 `/ingest` 端点，提高性能
   - 批量格式支持最多 100 个事件，自动批处理提高并发处理能力
-  - 详细实现见 `app/routes/ingest.tsx` 和 `app/routes/api.pixel-events/route.tsx`
+  - 单事件格式和批量格式都在 `/ingest` 端点中统一处理
+  - 详细实现见 `app/routes/ingest.tsx`
 
 **配置获取**：
 - 端点 URL 可通过 `app/utils/config.ts` 中的 `getPixelEventEndpoint()` 函数获取

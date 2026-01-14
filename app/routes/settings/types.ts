@@ -46,6 +46,7 @@ export interface ShopSettingsData {
   pixelConfigs: PixelConfigDisplay[];
   hasIngestionSecret: boolean;
   hasActiveGraceWindow: boolean;
+  hasExpiredPreviousSecret: boolean;
   graceWindowExpiry: Date | null;
   weakConsentMode: boolean;
   consentStrategy: string;

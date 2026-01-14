@@ -974,7 +974,7 @@ export default function DiagnosticsPage() {
                       完成一个测试订单，搜索 <code>pixel-events</code> 请求，验证事件是否正常发送。
                     </Text>
                     <Text as="p" variant="bodySm">
-                      ✅ 应该看到：<code>POST /api/pixel-events</code> 请求
+                      ✅ 应该看到：<code>POST /ingest</code> 请求
                       <br />
                       ✅ 请求体包含：<code>eventName: &quot;checkout_completed&quot;</code>
                       <br />
