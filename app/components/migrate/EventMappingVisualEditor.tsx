@@ -57,16 +57,22 @@ const SHOPIFY_EVENTS: ShopifyEvent[] = [
     availableParams: ["value", "currency", "items"],
   },
   {
-    id: "add_to_cart",
-    name: "Add to Cart",
+    id: "product_added_to_cart",
+    name: "Product Added to Cart",
     description: "添加商品到购物车",
     availableParams: ["value", "currency", "items"],
   },
   {
-    id: "view_item",
-    name: "View Item",
+    id: "product_viewed",
+    name: "Product Viewed",
     description: "查看商品详情",
     availableParams: ["value", "currency", "items"],
+  },
+  {
+    id: "page_viewed",
+    name: "Page Viewed",
+    description: "页面浏览",
+    availableParams: ["value", "currency"],
   },
 ];
 
@@ -167,20 +173,23 @@ const RECOMMENDED_MAPPINGS: Record<Platform, Record<string, string>> = {
   google: {
     checkout_completed: "purchase",
     checkout_started: "begin_checkout",
-    add_to_cart: "add_to_cart",
-    view_item: "view_item",
+    product_added_to_cart: "add_to_cart",
+    product_viewed: "view_item",
+    page_viewed: "page_view",
   },
   meta: {
     checkout_completed: "Purchase",
     checkout_started: "InitiateCheckout",
-    add_to_cart: "AddToCart",
-    view_item: "ViewContent",
+    product_added_to_cart: "AddToCart",
+    product_viewed: "ViewContent",
+    page_viewed: "PageView",
   },
   tiktok: {
     checkout_completed: "CompletePayment",
     checkout_started: "InitiateCheckout",
-    add_to_cart: "AddToCart",
-    view_item: "ViewContent",
+    product_added_to_cart: "AddToCart",
+    product_viewed: "ViewContent",
+    page_viewed: "PageView",
   },
 };
 

@@ -223,7 +223,7 @@ export function createEventSender(config: EventSenderConfig) {
         nonce,
       });
       const shouldFlushImmediate =
-        BATCH_CONFIG.FLUSH_IMMEDIATE_EVENTS.includes(eventName) ||
+        (BATCH_CONFIG.FLUSH_IMMEDIATE_EVENTS as readonly string[]).includes(eventName) ||
         eventQueue.length >= BATCH_CONFIG.MAX_BATCH_SIZE;
       if (shouldFlushImmediate) {
         await flushQueue(true);
@@ -269,11 +269,11 @@ export function subscribeToCheckoutCompleted(
       value: toNumber(checkout.totalPrice?.amount),
       currency: checkout.currencyCode || null,
       items: checkout.lineItems?.map(item => ({
-        id: item.id || "",
+        id: item.id || item.variant?.id || "",
         name: item.title || "",
         price: toNumber(item.variant?.price?.amount),
         quantity: item.quantity || 1,
-        variantId: item.id || null,
+        variantId: item.variant?.id || null,
         productId: item.variant?.product?.id || null,
         productTitle: item.variant?.product?.title || null,
       })) || [],
@@ -299,11 +299,11 @@ function subscribeToCheckoutStarted(
       value: toNumber(checkout.totalPrice?.amount),
       currency: checkout.currencyCode || null,
       items: checkout.lineItems?.map(item => ({
-        id: item.id || "",
+        id: item.id || item.variant?.id || "",
         name: item.title || "",
         price: toNumber(item.variant?.price?.amount),
         quantity: item.quantity || 1,
-        variantId: item.id || null,
+        variantId: item.variant?.id || null,
         productId: item.variant?.product?.id || null,
         productTitle: item.variant?.product?.title || null,
       })) || [],
@@ -436,11 +436,11 @@ function subscribeToCheckoutContactInfoSubmitted(
       value: toNumber(checkout.totalPrice?.amount),
       currency: checkout.currencyCode || null,
       items: checkout.lineItems?.map(item => ({
-        id: item.id || "",
+        id: item.id || item.variant?.id || "",
         name: item.title || "",
         price: toNumber(item.variant?.price?.amount),
         quantity: item.quantity || 1,
-        variantId: item.id || null,
+        variantId: item.variant?.id || null,
         productId: item.variant?.product?.id || null,
         productTitle: item.variant?.product?.title || null,
       })) || [],
@@ -466,11 +466,11 @@ function subscribeToCheckoutShippingInfoSubmitted(
       value: toNumber(checkout.totalPrice?.amount),
       currency: checkout.currencyCode || null,
       items: checkout.lineItems?.map(item => ({
-        id: item.id || "",
+        id: item.id || item.variant?.id || "",
         name: item.title || "",
         price: toNumber(item.variant?.price?.amount),
         quantity: item.quantity || 1,
-        variantId: item.id || null,
+        variantId: item.variant?.id || null,
         productId: item.variant?.product?.id || null,
         productTitle: item.variant?.product?.title || null,
       })) || [],
@@ -496,11 +496,11 @@ function subscribeToPaymentInfoSubmitted(
       value: toNumber(checkout.totalPrice?.amount),
       currency: checkout.currencyCode || null,
       items: checkout.lineItems?.map(item => ({
-        id: item.id || "",
+        id: item.id || item.variant?.id || "",
         name: item.title || "",
         price: toNumber(item.variant?.price?.amount),
         quantity: item.quantity || 1,
-        variantId: item.id || null,
+        variantId: item.variant?.id || null,
         productId: item.variant?.product?.id || null,
         productTitle: item.variant?.product?.title || null,
       })) || [],

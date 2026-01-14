@@ -31,16 +31,22 @@ export const STANDARD_EVENT_MAPPINGS: Record<string, PlatformEventMapping> = {
         requiredParams: ["value", "currency"],
         optionalParams: ["items", "coupon"],
       },
-      add_to_cart: {
-        shopifyEvent: "add_to_cart",
+      product_added_to_cart: {
+        shopifyEvent: "product_added_to_cart",
         platformEvent: "add_to_cart",
         requiredParams: ["value", "currency", "items"],
         optionalParams: [],
       },
-      view_item: {
-        shopifyEvent: "view_item",
+      product_viewed: {
+        shopifyEvent: "product_viewed",
         platformEvent: "view_item",
         requiredParams: ["value", "currency", "items"],
+        optionalParams: [],
+      },
+      page_viewed: {
+        shopifyEvent: "page_viewed",
+        platformEvent: "page_view",
+        requiredParams: ["value", "currency"],
         optionalParams: [],
       },
       remove_from_cart: {
@@ -73,8 +79,8 @@ export const STANDARD_EVENT_MAPPINGS: Record<string, PlatformEventMapping> = {
           items: "contents",
         },
       },
-      add_to_cart: {
-        shopifyEvent: "add_to_cart",
+      product_added_to_cart: {
+        shopifyEvent: "product_added_to_cart",
         platformEvent: "AddToCart",
         requiredParams: ["value", "currency", "contents"],
         optionalParams: ["content_ids", "content_type", "num_items"],
@@ -82,14 +88,20 @@ export const STANDARD_EVENT_MAPPINGS: Record<string, PlatformEventMapping> = {
           items: "contents",
         },
       },
-      view_item: {
-        shopifyEvent: "view_item",
+      product_viewed: {
+        shopifyEvent: "product_viewed",
         platformEvent: "ViewContent",
         requiredParams: ["value", "currency", "contents"],
         optionalParams: ["content_ids", "content_type"],
         paramTransformations: {
           items: "contents",
         },
+      },
+      page_viewed: {
+        shopifyEvent: "page_viewed",
+        platformEvent: "PageView",
+        requiredParams: ["value", "currency"],
+        optionalParams: [],
       },
     },
   },
@@ -115,8 +127,8 @@ export const STANDARD_EVENT_MAPPINGS: Record<string, PlatformEventMapping> = {
           items: "contents",
         },
       },
-      add_to_cart: {
-        shopifyEvent: "add_to_cart",
+      product_added_to_cart: {
+        shopifyEvent: "product_added_to_cart",
         platformEvent: "AddToCart",
         requiredParams: ["value", "currency", "contents"],
         optionalParams: ["content_type", "quantity"],
@@ -124,14 +136,20 @@ export const STANDARD_EVENT_MAPPINGS: Record<string, PlatformEventMapping> = {
           items: "contents",
         },
       },
-      view_item: {
-        shopifyEvent: "view_item",
+      product_viewed: {
+        shopifyEvent: "product_viewed",
         platformEvent: "ViewContent",
         requiredParams: ["value", "currency", "contents"],
         optionalParams: ["content_type"],
         paramTransformations: {
           items: "contents",
         },
+      },
+      page_viewed: {
+        shopifyEvent: "page_viewed",
+        platformEvent: "PageView",
+        requiredParams: ["value", "currency"],
+        optionalParams: [],
       },
     },
   },
@@ -147,8 +165,8 @@ export const STANDARD_EVENT_MAPPINGS: Record<string, PlatformEventMapping> = {
           items: "line_items",
         },
       },
-      add_to_cart: {
-        shopifyEvent: "add_to_cart",
+      product_added_to_cart: {
+        shopifyEvent: "product_added_to_cart",
         platformEvent: "add_to_cart",
         requiredParams: ["value", "currency"],
         optionalParams: ["line_items", "order_quantity"],
@@ -156,14 +174,20 @@ export const STANDARD_EVENT_MAPPINGS: Record<string, PlatformEventMapping> = {
           items: "line_items",
         },
       },
-      view_item: {
-        shopifyEvent: "view_item",
+      product_viewed: {
+        shopifyEvent: "product_viewed",
         platformEvent: "page_visit",
         requiredParams: ["value", "currency"],
         optionalParams: ["line_items"],
         paramTransformations: {
           items: "line_items",
         },
+      },
+      page_viewed: {
+        shopifyEvent: "page_viewed",
+        platformEvent: "page_visit",
+        requiredParams: ["value", "currency"],
+        optionalParams: [],
       },
     },
   },
