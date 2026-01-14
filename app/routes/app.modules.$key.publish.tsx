@@ -20,6 +20,8 @@ import { authenticate } from "../shopify.server";
 import { UI_MODULES, type ModuleKey } from "../types/ui-extension";
 import { PageIntroCard } from "~/components/layout/PageIntroCard";
 import { checkCustomerAccountsEnabled } from "../services/customer-accounts.server";
+import * as fs from "fs";
+import * as path from "path";
 
 const TARGET_DETAILS: Record<
   "thank_you" | "order_status",
@@ -54,6 +56,19 @@ export const loader = async ({ request, params }: LoaderFunctionArgs) => {
   if (hasOrderStatusTarget) {
     customerAccountsStatus = await checkCustomerAccountsEnabled(admin);
   }
+  let networkAccessConfigured = false;
+  let networkAccessCheckError: string | null = null;
+  try {
+    const extensionConfigPath = path.join(process.cwd(), "extensions/thank-you-blocks/shopify.extension.toml");
+    if (fs.existsSync(extensionConfigPath)) {
+      const content = fs.readFileSync(extensionConfigPath, "utf-8");
+      networkAccessConfigured = content.includes("network_access = true") || 
+                                content.includes("network_access=true") ||
+                                /network_access\s*=\s*true/.test(content);
+    }
+  } catch (error) {
+    networkAccessCheckError = error instanceof Error ? error.message : String(error);
+  }
   return json({
     moduleKey,
     moduleName: moduleInfo.name,
@@ -61,11 +76,13 @@ export const loader = async ({ request, params }: LoaderFunctionArgs) => {
     shopDomain,
     customerAccountsStatus,
     hasOrderStatusTarget,
+    networkAccessConfigured,
+    networkAccessCheckError,
   });
 };
 
 export default function UiModulePublishGuide() {
-  const { moduleName, targets, shopDomain, customerAccountsStatus, hasOrderStatusTarget } = useLoaderData<typeof loader>();
+  const { moduleName, targets, shopDomain, customerAccountsStatus, hasOrderStatusTarget, networkAccessConfigured, networkAccessCheckError } = useLoaderData<typeof loader>();
   const targetCards = targets.map((target) => TARGET_DETAILS[target]);
   const orderStatusTarget = targetCards.find((card) => card.target === "customer-account.order-status.block.render");
   const customerAccountsEnabled = customerAccountsStatus?.enabled ?? false;
@@ -163,10 +180,10 @@ export default function UiModulePublishGuide() {
                               {!customerAccountsEnabled ? (
                                 <>
                                   <Text as="p" variant="bodySm" fontWeight="semibold">
-                                    <strong>⚠️ 未启用 Customer Accounts</strong>
+                                    <strong>⚠️ 未启用 Customer Accounts（Order status block 仅在 Customer Accounts 体系下生效）</strong>
                                   </Text>
                                   <Text as="p" variant="bodySm">
-                                    检测到您的店铺未启用 Customer Accounts 功能。Order Status 模块仅支持 Customer Accounts 体系下的订单状态页，当前无法使用。
+                                    检测到您的店铺未启用 Customer Accounts 功能。Order Status 模块仅支持 Customer Accounts 体系下的订单状态页，当前无法使用。如果您的店铺使用旧版订单状态页（非 Customer Accounts），此模块将不会显示。这是 Shopify 平台的设计限制，Order status 模块只能在 Customer Accounts 体系下工作。
                                   </Text>
                                   <Text as="p" variant="bodySm">
                                     <strong>解决方案：</strong>请在 Shopify Admin → 设置 → 客户账户中启用 Customer Accounts 功能，然后重新访问此页面。
@@ -200,10 +217,10 @@ export default function UiModulePublishGuide() {
                               ) : (
                                 <>
                                   <Text as="p" variant="bodySm" fontWeight="semibold">
-                                    <strong>✅ Customer Accounts 已启用</strong>
+                                    <strong>✅ Customer Accounts 已启用（Order status block 仅在 Customer Accounts 体系下生效）</strong>
                                   </Text>
                                   <Text as="p" variant="bodySm">
-                                    <strong>Order status 模块：</strong>使用 <code>customer-account.order-status.block.render</code> target，仅适用于 Customer Accounts 体系下的订单状态页。旧版订单状态页（非 Customer Accounts）不会显示此模块。这是 Shopify 平台的设计限制，Order status 模块只能在 Customer Accounts 体系下工作。
+                                    <strong>Order status 模块：</strong>使用 <code>customer-account.order-status.block.render</code> target，仅适用于 Customer Accounts 体系下的订单状态页。旧版订单状态页（非 Customer Accounts）不会显示此模块。这是 Shopify 平台的设计限制，Order status 模块只能在 Customer Accounts 体系下工作。如果您的店铺使用旧版订单状态页（非 Customer Accounts），此模块将不会显示。
                                   </Text>
                                   <Text as="p" variant="bodySm" fontWeight="semibold">
                                     文档引用说明（避免误导）：
@@ -319,25 +336,28 @@ export default function UiModulePublishGuide() {
                           </Text>
                         </BlockStack>
                       </Banner>
-                      <Banner tone="warning">
-                        <BlockStack gap="200">
-                          <Text as="p" variant="bodySm" fontWeight="semibold">
-                            ⚠️ 重要：Order status 页面仅支持 Customer Accounts 体系
-                          </Text>
-                          <Text as="p" variant="bodySm">
-                            Order status 页面仅支持 Customer Accounts 体系下的订单状态页（customer-account.order-status.block.render target）。如果您的店铺使用旧版订单状态页（非 Customer Accounts），此模块将不会显示。请确认您的店铺已启用 Customer Accounts 功能（可在 Shopify Admin → 设置 → 客户账户中检查），否则模块不会在订单状态页显示。这是 Shopify 平台的设计限制，Order status 模块只能在 Customer Accounts 体系下工作。
-                          </Text>
-                          <Text as="p" variant="bodySm">
-                            如果您的店铺未启用 Customer Accounts，请先在 Shopify Admin → 设置 → 客户账户中启用 Customer Accounts 功能，然后才能使用 Order status 模块。
-                          </Text>
-                          <Text as="p" variant="bodySm" fontWeight="semibold">
-                            文档引用说明（避免误导）：
-                          </Text>
-                          <Text as="p" variant="bodySm">
-                            请参考 <strong>Customer Accounts UI Extensions</strong> 官方文档（<a href="https://shopify.dev/docs/apps/customer-accounts/ui-extensions" target="_blank" rel="noopener noreferrer">https://shopify.dev/docs/apps/customer-accounts/ui-extensions</a>）。注意：不要参考 checkout-ui-extensions 文档，该文档可能显示此 target 为"Not supported"，这是文档版本差异导致的误导。正确的文档入口是 Customer Accounts UI Extensions，不是 Checkout UI Extensions。
-                          </Text>
-                        </BlockStack>
-                      </Banner>
+                <Banner tone="warning">
+                  <BlockStack gap="200">
+                    <Text as="p" variant="bodySm" fontWeight="semibold">
+                      ⚠️ 重要：Order status 页面仅支持 Customer Accounts 体系
+                    </Text>
+                    <Text as="p" variant="bodySm">
+                      Order status 页面仅支持 Customer Accounts 体系下的订单状态页（customer-account.order-status.block.render target）。如果您的店铺使用旧版订单状态页（非 Customer Accounts），此模块将不会显示。请确认您的店铺已启用 Customer Accounts 功能（可在 Shopify Admin → 设置 → 客户账户中检查），否则模块不会在订单状态页显示。这是 Shopify 平台的设计限制，Order status 模块只能在 Customer Accounts 体系下工作。
+                    </Text>
+                    <Text as="p" variant="bodySm">
+                      如果您的店铺未启用 Customer Accounts，请先在 Shopify Admin → 设置 → 客户账户中启用 Customer Accounts 功能，然后才能使用 Order status 模块。
+                    </Text>
+                    <Text as="p" variant="bodySm" fontWeight="semibold">
+                      文档引用说明（避免误导）：
+                    </Text>
+                    <Text as="p" variant="bodySm">
+                      请参考 <strong>Customer Accounts UI Extensions</strong> 官方文档（<a href="https://shopify.dev/docs/apps/customer-accounts/ui-extensions" target="_blank" rel="noopener noreferrer">https://shopify.dev/docs/apps/customer-accounts/ui-extensions</a>）。注意：不要参考 checkout-ui-extensions 文档，该文档可能显示此 target 为"Not supported"，这是文档版本差异导致的误导。正确的文档入口是 Customer Accounts UI Extensions，不是 Checkout UI Extensions。
+                    </Text>
+                    <Text as="p" variant="bodySm" tone="critical">
+                      <strong>重要提示：</strong>Order status block 仅在 Customer Accounts 体系下生效。如果您的店铺使用旧版订单状态页（非 Customer Accounts），此模块将不会显示。这是 Shopify 平台的设计限制，无法绕过。请务必在发布前确认您的店铺已启用 Customer Accounts 功能。
+                    </Text>
+                  </BlockStack>
+                </Banner>
                     </BlockStack>
                   </List.Item>
                   <List.Item>
@@ -455,6 +475,24 @@ export default function UiModulePublishGuide() {
                 <Text as="h2" variant="headingMd">
                   发布前检查清单
                 </Text>
+                {hasOrderStatusTarget && (
+                  <Banner tone="warning">
+                    <BlockStack gap="200">
+                      <Text as="p" variant="bodySm" fontWeight="semibold">
+                        ⚠️ Order status 模块限制说明（重要：仅支持 Customer Accounts 体系）
+                      </Text>
+                      <Text as="p" variant="bodySm">
+                        Order status 模块仅支持 Customer Accounts 体系下的订单状态页，不支持旧版订单状态页。如果您的店铺使用旧版订单状态页（非 Customer Accounts），此模块将不会显示。请确认您的店铺已启用 Customer Accounts 功能（可在 Shopify Admin → 设置 → 客户账户中检查），否则模块不会在订单状态页显示。这是 Shopify 平台的设计限制，Order status 模块只能在 Customer Accounts 体系下工作。
+                      </Text>
+                      <Text as="p" variant="bodySm" fontWeight="semibold">
+                        文档引用说明（避免误导）：
+                      </Text>
+                      <Text as="p" variant="bodySm">
+                        请参考 <strong>Customer Accounts UI Extensions</strong> 官方文档（<a href="https://shopify.dev/docs/apps/customer-accounts/ui-extensions" target="_blank" rel="noopener noreferrer">https://shopify.dev/docs/apps/customer-accounts/ui-extensions</a>）。注意：不要参考 checkout-ui-extensions 文档，该文档可能显示此 target 为"Not supported"，这是文档版本差异导致的误导。正确的文档入口是 Customer Accounts UI Extensions，不是 Checkout UI Extensions。
+                      </Text>
+                    </BlockStack>
+                  </Banner>
+                )}
                 <List type="bullet">
                   <List.Item>
                     <Text as="span" variant="bodySm">
@@ -466,9 +504,26 @@ export default function UiModulePublishGuide() {
                       检查 target 页面（Thank you 或 Order status）已在 Checkout Editor 中正确添加应用 block。
                     </Text>
                   </List.Item>
+                  {hasOrderStatusTarget && (
+                    <List.Item>
+                      <Text as="span" variant="bodySm">
+                        <strong>重要：</strong>确认店铺已启用 Customer Accounts 功能（Order status 模块仅支持 Customer Accounts 体系，不支持旧版订单状态页）。如果未启用，Order status 模块将不会显示。这是 Shopify 平台的设计限制，Order status 模块只能在 Customer Accounts 体系下工作。请参考 Customer Accounts UI Extensions 官方文档，不要参考 checkout-ui-extensions 文档（该文档可能显示此 target 为"Not supported"，这是文档版本差异导致的误导）。
+                      </Text>
+                    </List.Item>
+                  )}
                   <List.Item>
                     <Text as="span" variant="bodySm">
                       确认模块位置符合设计要求（避免遮挡重要信息）。
+                    </Text>
+                  </List.Item>
+                  <List.Item>
+                    <Text as="span" variant="bodySm">
+                      <strong>发布前必须验证（关键步骤）：</strong>确认已在 Partner Dashboard → App → API access → UI extensions network access 中批准该权限。如果未批准，即使配置了 <code>network_access = true</code>，部署也会失败或模块无法正常工作。这是上线前必须验证的关键配置，必须在发布前完成检查。如果 Partner Dashboard 没点"Allow network access"，部署会卡住。建议运行 <code>pnpm pre-deploy-check</code> 或 <code>pnpm validate-deployment</code> 脚本进行验证。
+                    </Text>
+                  </List.Item>
+                  <List.Item>
+                    <Text as="span" variant="bodySm">
+                      <strong>发布前必须执行（关键步骤）：</strong>运行 <code>pnpm pre-deploy-check</code> 脚本验证 network access 配置。该脚本会检查扩展配置中的 <code>network_access = true</code> 设置，并提醒您确认 Partner Dashboard 中的批准状态。如果脚本检测到配置问题，请修复后再发布。如果 Partner Dashboard 未批准 network access 权限，部署会卡住或失败。这是发布前必须验证的关键配置，必须在发布前完成检查。
                     </Text>
                   </List.Item>
                   <List.Item>
@@ -478,6 +533,69 @@ export default function UiModulePublishGuide() {
                   </List.Item>
                 </List>
                 <Divider />
+                <Banner tone={networkAccessConfigured ? "info" : "critical"}>
+                  <BlockStack gap="200">
+                    <Text as="p" variant="bodySm" fontWeight="semibold">
+                      ⚠️ Network Access 权限检查（必须执行，发布前必须验证）
+                    </Text>
+                    {networkAccessCheckError ? (
+                      <Text as="p" variant="bodySm" tone="critical">
+                        检查配置时出错：{networkAccessCheckError}
+                      </Text>
+                    ) : networkAccessConfigured ? (
+                      <>
+                        <Text as="p" variant="bodySm">
+                          前台 block 需要 network access 权限才能调用后端 API。扩展配置中已设置 <code>network_access = true</code>，但必须确保在 Partner Dashboard 中已批准该权限，否则部署会失败或模块无法正常工作。
+                        </Text>
+                    <Text as="p" variant="bodySm" tone="critical" fontWeight="semibold">
+                      <strong>重要：</strong>仅配置 <code>network_access = true</code> 是不够的，必须在 Partner Dashboard → App → API access → UI extensions network access 中批准该权限。如果 Partner Dashboard 未批准，即使配置正确，部署也会失败或模块无法正常工作。如果 Partner Dashboard 没点"Allow network access"，部署会卡住。这是发布前必须验证的关键配置，必须在发布前完成检查。
+                    </Text>
+                      </>
+                    ) : (
+                      <Text as="p" variant="bodySm" tone="critical">
+                        <strong>错误：</strong>扩展配置中缺少 <code>network_access = true</code>，前台 block 无法调用后端 API。请在 <code>extensions/thank-you-blocks/shopify.extension.toml</code> 中添加 <code>[extensions.capabilities]</code> 部分和 <code>network_access = true</code>，并在 Partner Dashboard 中批准该权限。
+                      </Text>
+                    )}
+                    <Text as="p" variant="bodySm" fontWeight="semibold">
+                      检查步骤（必须在发布前完成）：
+                    </Text>
+                    <List type="number">
+                      <List.Item>
+                        <Text as="span" variant="bodySm">
+                          前往 Partner Dashboard → 您的应用 → API access
+                        </Text>
+                      </List.Item>
+                      <List.Item>
+                        <Text as="span" variant="bodySm">
+                          找到 "UI extensions network access" 部分
+                        </Text>
+                      </List.Item>
+                      <List.Item>
+                        <Text as="span" variant="bodySm">
+                          <strong>确认 network access 权限已批准（显示为 "Approved" 或 "已批准"）</strong>。如果显示为 "Pending" 或 "未批准"，请等待审核完成。
+                        </Text>
+                      </List.Item>
+                      <List.Item>
+                        <Text as="span" variant="bodySm">
+                          如果未批准，请点击 "Request" 或 "请求" 按钮申请权限
+                        </Text>
+                      </List.Item>
+                      <List.Item>
+                        <Text as="span" variant="bodySm">
+                          等待 Shopify 审核批准（通常需要 1-3 个工作日）
+                        </Text>
+                      </List.Item>
+                      <List.Item>
+                        <Text as="span" variant="bodySm">
+                          <strong>发布前必须确认权限已批准，否则部署会失败</strong>
+                        </Text>
+                      </List.Item>
+                    </List>
+                    <Text as="p" variant="bodySm" tone="critical" fontWeight="semibold">
+                      <strong>警告：</strong>如果 Partner Dashboard → App → API access → UI extensions network access 中未批准该权限，即使扩展配置中设置了 <code>network_access = true</code>，部署也会失败或模块无法正常工作。如果 Partner Dashboard 没点"Allow network access"，部署会卡住。这是上线前必须验证的关键配置，必须在发布前完成检查。建议在发布前截图保存 Partner Dashboard 中的批准状态作为证据。强烈建议运行 <code>pnpm pre-deploy-check</code> 或 <code>pnpm validate-deployment</code> 脚本进行验证，这些脚本会检查 network access 配置并提醒您确认 Partner Dashboard 中的批准状态。
+                    </Text>
+                  </BlockStack>
+                </Banner>
                 <Banner tone="warning">
                   <BlockStack gap="200">
                     <Text as="p" variant="bodySm" fontWeight="semibold">

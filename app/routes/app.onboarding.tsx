@@ -822,8 +822,11 @@ export default function OnboardingPage() {
                         如果店铺不支持 Customer Accounts：Order Status 模块将无法使用。这是 Shopify 平台的设计限制，Order Status 模块只能在 Customer Accounts 体系下工作
                       </List.Item>
                     </List>
-                    <Text as="p" variant="bodySm" tone="subdued">
-                      更多信息请参考 <Link url="https://shopify.dev/docs/apps/customer-accounts/ui-extensions" external>Customer Accounts UI Extensions 官方文档</Link>。注意：不要参考 checkout-ui-extensions 文档，该文档可能显示此 target 为"Not supported"，这是文档版本差异导致的误导。
+                    <Text as="p" variant="bodySm" fontWeight="semibold">
+                      文档引用说明（避免误导）：
+                    </Text>
+                    <Text as="p" variant="bodySm">
+                      请参考 <strong>Customer Accounts UI Extensions</strong> 官方文档（<Link url="https://shopify.dev/docs/apps/customer-accounts/ui-extensions" external>https://shopify.dev/docs/apps/customer-accounts/ui-extensions</Link>）。<strong>重要：不要参考 checkout-ui-extensions 文档</strong>，该文档可能显示此 target 为"Not supported"，这是文档版本差异导致的误导。正确的文档入口是 Customer Accounts UI Extensions，不是 Checkout UI Extensions。请务必使用 Customer Accounts UI Extensions 文档作为参考。
                     </Text>
                   </BlockStack>
                 </Banner>

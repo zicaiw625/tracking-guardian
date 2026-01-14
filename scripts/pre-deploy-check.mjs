@@ -260,13 +260,14 @@ function checkNetworkAccessPermission() {
             return {
                 name: "Network Access 权限检查",
                 passed: true,
-                message: "network_access 已配置，但建议添加 [extensions.capabilities] 部分以便 Shopify 识别。请确保在 Partner Dashboard → App → API access 中已批准 UI extensions 的 network access 权限",
+                message: "network_access 已配置，但建议添加 [extensions.capabilities] 部分以便 Shopify 识别。⚠️ 重要：必须在 Partner Dashboard → App → API access → UI extensions network access 中批准该权限，否则部署会失败或模块无法正常工作。请确认权限状态为 'Approved' 或 '已批准'，如果显示为 'Pending' 或 '未批准'，请等待审核完成后再部署。这是发布前必须验证的关键配置。",
             };
         }
         return {
             name: "Network Access 权限检查",
             passed: true,
-            message: "network_access = true 已正确配置。请确保在 Partner Dashboard → App → API access 中已批准 UI extensions 的 network access 权限",
+            message: "network_access = true 已正确配置。⚠️ 重要：必须在 Partner Dashboard → App → API access → UI extensions network access 中批准该权限，否则部署会失败或模块无法正常工作。请确认权限状态为 'Approved' 或 '已批准'，如果显示为 'Pending' 或 '未批准'，请等待审核完成后再部署。这是发布前必须验证的关键配置。请务必在发布前完成此检查，否则部署会失败。⚠️ 发布前必须检查：前往 Partner Dashboard → 您的应用 → API access → UI extensions network access，确认权限状态为 'Approved' 或 '已批准'。如果未批准，请点击 'Request' 或 '请求' 按钮申请权限，等待 Shopify 审核批准（通常需要 1-3 个工作日）。发布前必须确认权限已批准，否则部署会失败。",
+            isHardError: false,
         };
     } catch (error) {
         return {

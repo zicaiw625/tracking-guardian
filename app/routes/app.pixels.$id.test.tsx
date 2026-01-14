@@ -247,6 +247,11 @@ export default function PixelTestPage() {
                             确保该 URL 已在 Partner Dashboard → App → API access → UI extensions network access 的 allowlist 中配置
                           </Text>
                         </List.Item>
+                        <List.Item>
+                          <Text as="span" variant="bodySm" fontWeight="semibold">
+                            <strong>重要：</strong>必须在 Partner Dashboard → App → API access → UI extensions network access 中批准该权限，否则部署会失败或模块无法正常工作。请确认权限状态为 'Approved' 或 '已批准'，如果显示为 'Pending' 或 '未批准'，请等待审核完成后再部署。
+                          </Text>
+                        </List.Item>
                       </List>
                       <Text as="p" variant="bodySm" fontWeight="semibold">
                         服务器端检测到的 URL（脱敏）：

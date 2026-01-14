@@ -174,6 +174,39 @@ function validateBackendUrlInjection() {
 
     return result;
 }
+
+function validateNetworkAccessPermission() {
+    const result = { passed: true, errors: [], warnings: [] };
+    const extensionConfigPath = path.join(ROOT_DIR, "extensions/thank-you-blocks/shopify.extension.toml");
+    try {
+        if (!fs.existsSync(extensionConfigPath)) {
+            result.passed = false;
+            result.errors.push("扩展配置文件不存在");
+            return result;
+        }
+        const content = fs.readFileSync(extensionConfigPath, "utf-8");
+        const hasNetworkAccess = content.includes("network_access = true") || 
+                                 content.includes("network_access=true") ||
+                                 /network_access\s*=\s*true/.test(content);
+        const hasCapabilitiesSection = content.includes("[extensions.capabilities]") ||
+                                      content.includes("[[extensions.capabilities]]");
+        if (!hasNetworkAccess) {
+            result.passed = false;
+            result.errors.push("扩展配置中缺少 network_access = true，前台 block 无法调用后端 API。请在 shopify.extension.toml 中添加 [extensions.capabilities] 和 network_access = true，并在 Partner Dashboard 中批准该权限");
+        }
+        if (!hasCapabilitiesSection) {
+            result.warnings.push("network_access 已配置，但建议添加 [extensions.capabilities] 部分以便 Shopify 识别。⚠️ 重要：必须在 Partner Dashboard → App → API access → UI extensions network access 中批准该权限，否则部署会失败或模块无法正常工作。请确认权限状态为 'Approved' 或 '已批准'，如果显示为 'Pending' 或 '未批准'，请等待审核完成后再部署。这是发布前必须验证的关键配置。");
+        }
+        if (hasNetworkAccess && hasCapabilitiesSection) {
+            result.warnings.push("network_access = true 已正确配置。⚠️ 重要：必须在 Partner Dashboard → App → API access → UI extensions network access 中批准该权限，否则部署会失败或模块无法正常工作。请确认权限状态为 'Approved' 或 '已批准'，如果显示为 'Pending' 或 '未批准'，请等待审核完成后再部署。这是发布前必须验证的关键配置。请务必在发布前完成此检查，否则部署会失败。");
+            result.warnings.push("⚠️ 发布前必须检查：前往 Partner Dashboard → 您的应用 → API access → UI extensions network access，确认权限状态为 'Approved' 或 '已批准'。如果未批准，请点击 'Request' 或 '请求' 按钮申请权限，等待 Shopify 审核批准（通常需要 1-3 个工作日）。发布前必须确认权限已批准，否则部署会失败。");
+        }
+    } catch (error) {
+        result.passed = false;
+        result.errors.push(`读取扩展配置文件失败: ${error instanceof Error ? error.message : String(error)}`);
+    }
+    return result;
+}
 async function main() {
     console.log("🔍 开始部署前验证...\n");
 
@@ -182,6 +215,7 @@ async function main() {
         extensionToml: validateExtensionToml(),
         imports: validateImports(),
         backendUrl: validateBackendUrlInjection(),
+        networkAccess: validateNetworkAccessPermission(),
     };
 
     let allPassed = true;

@@ -191,8 +191,18 @@ export default function UiModuleConfigPage() {
                         <strong>✅ Customer Accounts 已启用</strong>
                       </Text>
                       <Text as="p" variant="bodySm">
-                        <strong>重要：仅支持 Customer Accounts 体系下的订单状态页</strong>，不支持旧版订单状态页。如果您的店铺使用旧版订单状态页（非 Customer Accounts），此模块将不会显示。请确认您的店铺已启用 Customer Accounts 功能（可在 Shopify Admin → 设置 → 客户账户中检查），否则模块不会在订单状态页显示。这是 Shopify 平台的设计限制，Order status 模块只能在 Customer Accounts 体系下工作。
+                        <strong>重要：Order Status 模块仅支持 Customer Accounts 体系下的订单状态页</strong>，不支持旧版订单状态页。如果您的店铺使用旧版订单状态页（非 Customer Accounts），此模块将不会显示。这是 Shopify 平台的设计限制，Order status 模块只能在 Customer Accounts 体系下工作。请确认您的店铺已启用 Customer Accounts 功能（可在 Shopify Admin → 设置 → 客户账户中检查），否则模块不会在订单状态页显示。
                       </Text>
+                      <Banner tone="warning">
+                        <BlockStack gap="200">
+                          <Text as="p" variant="bodySm" fontWeight="semibold">
+                            ⚠️ 文档引用说明（避免误导）：
+                          </Text>
+                          <Text as="p" variant="bodySm">
+                            请参考 <strong>Customer Accounts UI Extensions</strong> 官方文档（<a href="https://shopify.dev/docs/apps/customer-accounts/ui-extensions" target="_blank" rel="noopener noreferrer">https://shopify.dev/docs/apps/customer-accounts/ui-extensions</a>）。注意：不要参考 checkout-ui-extensions 文档，该文档可能显示此 target 为"Not supported"，这是文档版本差异导致的误导。正确的文档入口是 Customer Accounts UI Extensions，不是 Checkout UI Extensions。
+                          </Text>
+                        </BlockStack>
+                      </Banner>
                       {moduleKey === "reorder" && (
                         <Text as="p" variant="bodySm">
                           <strong>再购功能仅在 Customer Accounts 的 Order Status 页面（customer-account.order-status.block.render）可用，不支持 Thank You 页面。</strong>此功能需要访问客户账户信息（如客户 ID），这些信息仅在 Customer Accounts 上下文中可用。

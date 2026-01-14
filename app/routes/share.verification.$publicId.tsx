@@ -18,6 +18,7 @@ import {
   ProgressBar,
 } from "@shopify/polaris";
 import { getVerificationRun } from "../services/verification.server";
+import { generateVerificationReportData } from "../services/verification-report.server";
 
 export const loader = async ({ request, params }: LoaderFunctionArgs) => {
   try {
@@ -73,34 +74,31 @@ export const loader = async ({ request, params }: LoaderFunctionArgs) => {
       return json({ error: "Share link has expired", report: null }, { status: 403 });
     }
 
-    const verificationSummary = await getVerificationRun(run.id);
-    if (!verificationSummary) {
+    const reportData = await generateVerificationReportData(run.shopId, run.id);
+    if (!reportData) {
       return json({ error: "Failed to load report data", report: null }, { status: 500 });
     }
 
-    const createdAt = await prisma.verificationRun.findUnique({
-      where: { id: run.id },
-      select: { createdAt: true },
-    });
-
     return json({
       report: {
-        runId: verificationSummary.runId,
-        runName: verificationSummary.runName,
-        shopDomain: shop.shopDomain,
-        runType: verificationSummary.runType,
-        status: verificationSummary.status,
-        platforms: verificationSummary.platforms,
-        totalTests: verificationSummary.totalTests,
-        passedTests: verificationSummary.passedTests,
-        failedTests: verificationSummary.failedTests,
-        missingParamTests: verificationSummary.missingParamTests,
-        parameterCompleteness: verificationSummary.parameterCompleteness,
-        valueAccuracy: verificationSummary.valueAccuracy,
-        platformResults: verificationSummary.platformResults || {},
-        startedAt: verificationSummary.startedAt?.toISOString() || null,
-        completedAt: verificationSummary.completedAt?.toISOString() || null,
-        createdAt: createdAt?.createdAt.toISOString() || new Date().toISOString(),
+        runId: reportData.runId,
+        runName: reportData.runName,
+        shopDomain: reportData.shopDomain,
+        runType: reportData.runType,
+        status: reportData.status,
+        platforms: reportData.platforms,
+        totalTests: reportData.summary.totalTests,
+        passedTests: reportData.summary.passedTests,
+        failedTests: reportData.summary.failedTests,
+        missingParamTests: reportData.summary.missingParamTests,
+        parameterCompleteness: reportData.summary.parameterCompleteness,
+        valueAccuracy: reportData.summary.valueAccuracy,
+        platformResults: reportData.platformResults || {},
+        startedAt: reportData.startedAt?.toISOString() || null,
+        completedAt: reportData.completedAt?.toISOString() || null,
+        createdAt: reportData.createdAt.toISOString(),
+        events: reportData.events,
+        sandboxLimitations: reportData.sandboxLimitations,
       },
     });
   } catch (error) {
@@ -369,6 +367,112 @@ export default function SharedVerificationReport() {
                   );
                 })}
               </BlockStack>
+            </BlockStack>
+          </Card>
+        )}
+        {"sandboxLimitations" in report && report.sandboxLimitations && (
+          <Card>
+            <BlockStack gap="400">
+              <Text as="h2" variant="headingMd">
+                Strict Sandbox 限制说明
+              </Text>
+              <Banner tone="warning">
+                <BlockStack gap="200">
+                  <Text as="p" variant="bodySm" fontWeight="semibold">
+                    ⚠️ Web Pixel 运行在 Strict Sandbox (Web Worker) 环境中
+                  </Text>
+                  <Text as="p" variant="bodySm">
+                    Web Pixel 运行在 strict sandbox (Web Worker) 环境中，以下能力受限：
+                  </Text>
+                  <List type="bullet">
+                    <List.Item>
+                      <Text as="span" variant="bodySm">
+                        无法访问 DOM 元素
+                      </Text>
+                    </List.Item>
+                    <List.Item>
+                      <Text as="span" variant="bodySm">
+                        无法使用 localStorage/sessionStorage
+                      </Text>
+                    </List.Item>
+                    <List.Item>
+                      <Text as="span" variant="bodySm">
+                        无法访问第三方 cookie
+                      </Text>
+                    </List.Item>
+                    <List.Item>
+                      <Text as="span" variant="bodySm">
+                        无法执行某些浏览器 API
+                      </Text>
+                    </List.Item>
+                    <List.Item>
+                      <Text as="span" variant="bodySm">
+                        部分事件字段可能为 null 或 undefined，这是平台限制，不是故障
+                      </Text>
+                    </List.Item>
+                  </List>
+                </BlockStack>
+              </Banner>
+              {report.sandboxLimitations.missingFields && report.sandboxLimitations.missingFields.length > 0 && (
+                <BlockStack gap="300">
+                  <Text as="h3" variant="headingSm">
+                    缺失字段（由于 strict sandbox 限制，已自动标注）
+                  </Text>
+                  <Banner tone="info">
+                    <Text as="p" variant="bodySm">
+                      以下字段因 strict sandbox 限制而无法获取，这是平台限制，不是故障。报告中已自动标注这些限制。哪些事件/哪些字段拿不到已在报告中自动标注，减少纠纷。
+                    </Text>
+                  </Banner>
+                  {report.sandboxLimitations.missingFields.map((item: { eventType: string; fields: string[]; reason: string }, index: number) => (
+                    <Box key={index} background="bg-surface-secondary" padding="300" borderRadius="200">
+                      <BlockStack gap="200">
+                        <Text as="p" variant="bodySm" fontWeight="semibold">
+                          事件类型：{item.eventType}
+                        </Text>
+                        <Text as="p" variant="bodySm">
+                          缺失字段（已自动标注）：{item.fields.join(", ")}
+                        </Text>
+                        <Text as="p" variant="bodySm" tone="subdued">
+                          原因：{item.reason}
+                        </Text>
+                      </BlockStack>
+                    </Box>
+                  ))}
+                </BlockStack>
+              )}
+              {report.sandboxLimitations.unavailableEvents && report.sandboxLimitations.unavailableEvents.length > 0 && (
+                <BlockStack gap="300">
+                  <Text as="h3" variant="headingSm">
+                    不可用的事件类型（已自动标注）
+                  </Text>
+                  <Banner tone="info">
+                    <Text as="p" variant="bodySm">
+                      以下事件类型在 strict sandbox 中不可用，需要通过订单 webhooks 获取。报告中已自动标注这些限制。哪些事件/哪些字段拿不到已在报告中自动标注，减少纠纷。
+                    </Text>
+                  </Banner>
+                  <Box background="bg-surface-secondary" padding="300" borderRadius="200">
+                    <Text as="p" variant="bodySm">
+                      {report.sandboxLimitations.unavailableEvents.join(", ")}
+                    </Text>
+                  </Box>
+                </BlockStack>
+              )}
+              {report.sandboxLimitations.notes && report.sandboxLimitations.notes.length > 0 && (
+                <BlockStack gap="300">
+                  <Text as="h3" variant="headingSm">
+                    自动标注说明
+                  </Text>
+                  <Banner tone="info">
+                    <BlockStack gap="200">
+                      {report.sandboxLimitations.notes.map((note: string, index: number) => (
+                        <Text key={index} as="p" variant="bodySm">
+                          {note}
+                        </Text>
+                      ))}
+                    </BlockStack>
+                  </Banner>
+                </BlockStack>
+              )}
             </BlockStack>
           </Card>
         )}

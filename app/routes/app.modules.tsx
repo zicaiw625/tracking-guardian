@@ -570,6 +570,12 @@ export default function UiBlocksPage() {
                   请确认您的店铺已启用 Customer Accounts 功能，否则模块不会在订单状态页显示。您可以在 Shopify Admin → 设置 → 客户账户中检查 Customer Accounts 是否已启用。如果未启用，请先在 Shopify Admin → 设置 → 客户账户中启用 Customer Accounts 功能，然后才能使用 Order status 模块。
                 </Text>
                 <Text as="p" variant="bodySm" fontWeight="semibold">
+                  文档引用说明（避免误导）：
+                </Text>
+                <Text as="p" variant="bodySm">
+                  Order status block 使用 <code>customer-account.order-status.block.render</code> target，请参考 <strong>Customer Accounts UI Extensions</strong> 官方文档（<a href="https://shopify.dev/docs/apps/customer-accounts/ui-extensions" target="_blank" rel="noopener noreferrer">https://shopify.dev/docs/apps/customer-accounts/ui-extensions</a>）。注意：不要参考 checkout-ui-extensions 文档，该文档可能显示此 target 为"Not supported"，这是文档版本差异导致的误导。正确的文档入口是 Customer Accounts UI Extensions，不是 Checkout UI Extensions。
+                </Text>
+                <Text as="p" variant="bodySm" fontWeight="semibold">
                   如何检查 Customer Accounts 是否已启用：
                 </Text>
                 <List type="number">
