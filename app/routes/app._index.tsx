@@ -41,11 +41,20 @@ import {
 } from "../types/dashboard";
 import { isPlanAtLeast } from "../utils/plans";
 import { DEPRECATION_DATES, formatDeadlineDate, SHOPIFY_HELP_LINKS } from "../utils/migration-deadlines";
+import { getPixelEventIngestionUrl } from "../utils/config";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
-  const { session } = await authenticate.admin(request);
+  const { session, admin } = await authenticate.admin(request);
   const data = await getDashboardData(session.shop);
-  return json(data);
+  const { checkCustomerAccountsEnabled } = await import("../services/customer-accounts.server");
+  const customerAccountsStatus = await checkCustomerAccountsEnabled(admin);
+  const backendUrlInfo = getPixelEventIngestionUrl();
+  return json({
+    ...data,
+    customerAccountsEnabled: customerAccountsStatus.enabled,
+    shopDomain: session.shop,
+    backendUrlInfo,
+  });
 };
 
 const HealthBadge = memo(function HealthBadge({ status }: { status: DashboardData["healthStatus"] }) {
@@ -1231,6 +1240,8 @@ export default function Index() {
         }
       : null,
   };
+  const customerAccountsEnabled = loaderData.customerAccountsEnabled ?? false;
+  const shopDomain = loaderData.shopDomain ?? "";
   useEffect(() => {
     const dismissed = localStorage.getItem(WELCOME_BANNER_DISMISSED_KEY);
     if (dismissed === "true") {
@@ -1271,6 +1282,103 @@ export default function Index() {
       }
     >
       <BlockStack gap="500">
+        {loaderData.backendUrlInfo?.placeholderDetected && (
+          <Banner tone="critical" title="⚠️ 严重错误：BACKEND_URL 未在构建时替换">
+            <BlockStack gap="300">
+              <Text as="p" variant="bodySm" fontWeight="semibold">
+                <strong>检测到占位符 __BACKEND_URL_PLACEHOLDER__，URL 未在构建时替换</strong>
+              </Text>
+              <Text as="p" variant="bodySm">
+                像素扩展配置中仍包含占位符，这表明构建流程未正确替换占位符。如果占位符未被替换，像素扩展将无法发送事件到后端，导致事件丢失。这是一个严重的配置错误，必须在上线前修复。
+              </Text>
+              <Text as="p" variant="bodySm" fontWeight="semibold">
+                修复步骤（必须在生产环境部署前完成）：
+              </Text>
+              <List type="number">
+                <List.Item>
+                  <Text as="span" variant="bodySm">
+                    在 CI/CD 流程中，部署前必须运行 <code>pnpm ext:inject</code> 或 <code>pnpm deploy:ext</code>
+                  </Text>
+                </List.Item>
+                <List.Item>
+                  <Text as="span" variant="bodySm">
+                    确保环境变量 <code>SHOPIFY_APP_URL</code> 已正确设置
+                  </Text>
+                </List.Item>
+                <List.Item>
+                  <Text as="span" variant="bodySm">
+                    验证扩展构建产物中不再包含占位符
+                  </Text>
+                </List.Item>
+                <List.Item>
+                  <Text as="span" variant="bodySm">
+                    确保该 URL 已在 Web Pixel Extension 的 allowlist 中配置
+                  </Text>
+                </List.Item>
+                <List.Item>
+                  <Text as="span" variant="bodySm">
+                    禁止直接使用 <code>shopify app deploy</code>，必须使用 <code>pnpm deploy:ext</code>
+                  </Text>
+                </List.Item>
+              </List>
+              <Text as="p" variant="bodySm" tone="subdued">
+                💡 提示：如果占位符未被替换，像素扩展会静默禁用事件发送，不会显示错误。这是导致事件丢失的常见原因，必须在生产环境部署前修复。
+              </Text>
+            </BlockStack>
+          </Banner>
+        )}
+        {customerAccountsEnabled === false && (
+          <Banner tone="critical" title="⚠️ 重要：Customer Accounts 未启用">
+            <BlockStack gap="300">
+              <Text as="p" variant="bodySm" fontWeight="semibold">
+                <strong>检测到您的店铺未启用 Customer Accounts 功能</strong>
+              </Text>
+              <Text as="p" variant="bodySm">
+                Order Status 模块仅支持 Customer Accounts 体系下的订单状态页，当前无法使用。这是 Shopify 平台的设计限制，不是应用限制。
+              </Text>
+              <Text as="p" variant="bodySm" fontWeight="semibold">
+                解决方案：
+              </Text>
+              <List type="number">
+                <List.Item>
+                  <Text as="span" variant="bodySm">
+                    点击下方按钮，直接跳转到 Shopify Admin 设置页面
+                  </Text>
+                </List.Item>
+                <List.Item>
+                  <Text as="span" variant="bodySm">
+                    在"客户账户"设置页面中启用 Customer Accounts 功能
+                  </Text>
+                </List.Item>
+                <List.Item>
+                  <Text as="span" variant="bodySm">
+                    返回本页面，刷新后即可使用 Order Status 模块
+                  </Text>
+                </List.Item>
+              </List>
+              <InlineStack gap="200" align="start">
+                <Button
+                  url={`https://admin.shopify.com/store/${shopDomain}/settings/customer-accounts`}
+                  variant="primary"
+                  size="medium"
+                  external
+                >
+                  立即前往启用 Customer Accounts
+                </Button>
+                <Button
+                  url="/app/modules"
+                  variant="secondary"
+                  size="medium"
+                >
+                  查看模块配置
+                </Button>
+              </InlineStack>
+              <Text as="p" variant="bodySm" tone="subdued">
+                💡 提示：如果您的店铺使用旧版订单状态页（非 Customer Accounts），Order Status 模块将不会显示。请参考 <a href="https://shopify.dev/docs/apps/customer-accounts/ui-extensions" target="_blank" rel="noopener noreferrer">Customer Accounts UI Extensions 官方文档</a>。
+              </Text>
+            </BlockStack>
+          </Banner>
+        )}
         {showWelcomeBanner && (
           <Banner title="Shopify 升级迁移交付平台" tone="info" onDismiss={handleDismissWelcomeBanner}>
             <BlockStack gap="300">

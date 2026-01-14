@@ -215,6 +215,7 @@ function ModuleCard({
   onSelect,
   surveySubmissionCount,
   customerAccountsEnabled,
+  shopDomain,
 }: {
   module: UiModuleConfig;
   onToggle: (moduleKey: ModuleKey, enabled: boolean) => void;
@@ -225,6 +226,7 @@ function ModuleCard({
   onSelect?: (moduleKey: ModuleKey, selected: boolean) => void;
   surveySubmissionCount?: number;
   customerAccountsEnabled: boolean;
+  shopDomain: string;
 }) {
   const info = UI_MODULES[module.moduleKey];
   return (
@@ -454,56 +456,70 @@ function ModuleCard({
                 {info.targets.includes("order_status") && (
                   <Banner tone={customerAccountsEnabled ? "info" : "critical"}>
                     <BlockStack gap="200">
-                      <Text as="p" variant="bodySm" fontWeight="semibold">
-                        {customerAccountsEnabled ? "✅ Customer Accounts 已启用" : "❌ Customer Accounts 未启用 - 模块无法使用"}
-                      </Text>
-                      {!customerAccountsEnabled && (
-                        <>
+                      <InlineStack align="space-between" blockAlign="start">
+                        <BlockStack gap="200">
                           <Text as="p" variant="bodySm" fontWeight="semibold">
-                            <strong>⚠️ 重要限制：</strong>Order Status 模块仅支持 Customer Accounts 体系
+                            {customerAccountsEnabled ? "✅ Customer Accounts 已启用" : "❌ Customer Accounts 未启用 - 模块无法使用"}
+                          </Text>
+                          {!customerAccountsEnabled && (
+                            <>
+                              <Text as="p" variant="bodySm" fontWeight="semibold">
+                                <strong>⚠️ 重要限制：</strong>Order Status 模块仅支持 Customer Accounts 体系
+                              </Text>
+                              <Text as="p" variant="bodySm">
+                                Order Status 模块使用 <code>customer-account.order-status.block.render</code> target，这是 Shopify Customer Accounts UI Extensions 的专用 target。此模块<strong>仅在 Customer Accounts 体系下的订单状态页显示</strong>，不会在旧版订单状态页显示。
+                              </Text>
+                              <Text as="p" variant="bodySm">
+                                <strong>平台限制说明：</strong>这是 Shopify 平台的设计限制，不是本应用的限制。Order status block target 是 Customer Accounts UI Extensions 的功能，只能在启用 Customer Accounts 的店铺中使用。
+                              </Text>
+                              <Text as="p" variant="bodySm" fontWeight="semibold">
+                                立即启用步骤：
+                              </Text>
+                              <List type="number">
+                                <List.Item>
+                                  <Text as="span" variant="bodySm">
+                                    点击右侧"立即前往启用 Customer Accounts"按钮，直接跳转到 Shopify Admin 设置页面
+                                  </Text>
+                                </List.Item>
+                                <List.Item>
+                                  <Text as="span" variant="bodySm">
+                                    在"客户账户"设置页面中启用 Customer Accounts 功能
+                                  </Text>
+                                </List.Item>
+                                <List.Item>
+                                  <Text as="span" variant="bodySm">
+                                    返回本页面，刷新后即可启用 Order Status 模块
+                                  </Text>
+                                </List.Item>
+                              </List>
+                              <Text as="p" variant="bodySm" tone="subdued">
+                                💡 提示：如果您的店铺使用旧版订单状态页（非 Customer Accounts），此模块将不会显示。请先在 Shopify Admin 中启用 Customer Accounts 功能。
+                              </Text>
+                            </>
+                          )}
+                          {customerAccountsEnabled && (
+                            <Text as="p" variant="bodySm">
+                              ✅ 您的店铺已启用 Customer Accounts，Order Status 模块可以正常使用。模块将显示在 Customer Accounts 体系下的订单状态页。
+                            </Text>
+                          )}
+                          <Text as="p" variant="bodySm" fontWeight="semibold">
+                            文档引用说明：
                           </Text>
                           <Text as="p" variant="bodySm">
-                            Order Status 模块使用 <code>customer-account.order-status.block.render</code> target，这是 Shopify Customer Accounts UI Extensions 的专用 target。此模块<strong>仅在 Customer Accounts 体系下的订单状态页显示</strong>，不会在旧版订单状态页显示。
+                            请参考 <strong>Customer Accounts UI Extensions</strong> 官方文档（<a href="https://shopify.dev/docs/apps/customer-accounts/ui-extensions" target="_blank" rel="noopener noreferrer">https://shopify.dev/docs/apps/customer-accounts/ui-extensions</a>）。注意：不要参考 checkout-ui-extensions 文档，该文档可能显示此 target 为"Not supported"，这是文档版本差异导致的误导。正确的文档入口是 Customer Accounts UI Extensions，不是 Checkout UI Extensions。
                           </Text>
-                          <Text as="p" variant="bodySm">
-                            <strong>平台限制说明：</strong>这是 Shopify 平台的设计限制，不是本应用的限制。Order status block target 是 Customer Accounts UI Extensions 的功能，只能在启用 Customer Accounts 的店铺中使用。
-                          </Text>
-                          <Text as="p" variant="bodySm" fontWeight="semibold">
-                            启用步骤：
-                          </Text>
-                          <List type="number">
-                            <List.Item>
-                              <Text as="span" variant="bodySm">
-                                进入 Shopify Admin → 设置 → 客户账户（Settings → Customer accounts）
-                              </Text>
-                            </List.Item>
-                            <List.Item>
-                              <Text as="span" variant="bodySm">
-                                在"客户账户"设置页面中启用 Customer Accounts 功能
-                              </Text>
-                            </List.Item>
-                            <List.Item>
-                              <Text as="span" variant="bodySm">
-                                返回本页面，刷新后即可启用 Order Status 模块
-                              </Text>
-                            </List.Item>
-                          </List>
-                          <Text as="p" variant="bodySm" tone="subdued">
-                            💡 提示：如果您的店铺使用旧版订单状态页（非 Customer Accounts），此模块将不会显示。请先在 Shopify Admin 中启用 Customer Accounts 功能。
-                          </Text>
-                        </>
-                      )}
-                      {customerAccountsEnabled && (
-                        <Text as="p" variant="bodySm">
-                          ✅ 您的店铺已启用 Customer Accounts，Order Status 模块可以正常使用。模块将显示在 Customer Accounts 体系下的订单状态页。
-                        </Text>
-                      )}
-                      <Text as="p" variant="bodySm" fontWeight="semibold">
-                        文档引用说明：
-                      </Text>
-                      <Text as="p" variant="bodySm">
-                        请参考 <strong>Customer Accounts UI Extensions</strong> 官方文档（<a href="https://shopify.dev/docs/apps/customer-accounts/ui-extensions" target="_blank" rel="noopener noreferrer">https://shopify.dev/docs/apps/customer-accounts/ui-extensions</a>）。注意：不要参考 checkout-ui-extensions 文档，该文档可能显示此 target 为"Not supported"，这是文档版本差异导致的误导。正确的文档入口是 Customer Accounts UI Extensions，不是 Checkout UI Extensions。
-                      </Text>
+                        </BlockStack>
+                        {!customerAccountsEnabled && (
+                          <Button
+                            url={`https://admin.shopify.com/store/${shopDomain}/settings/customer-accounts`}
+                            variant="primary"
+                            size="large"
+                            external
+                          >
+                            立即前往启用 Customer Accounts
+                          </Button>
+                        )}
+                      </InlineStack>
                     </BlockStack>
                   </Banner>
                 )}
@@ -665,6 +681,7 @@ export default function UiBlocksPage() {
     }
     return undefined;
   };
+  const hasOrderStatusModules = modules.some(m => UI_MODULES[m.moduleKey].targets.includes("order_status"));
   return (
       <Page
       title="Thank you / Order status 模块"
@@ -676,61 +693,27 @@ export default function UiBlocksPage() {
       }}
     >
       <BlockStack gap="500">
-        {modules.some(m => UI_MODULES[m.moduleKey].targets.includes("order_status")) && (
-          <Banner tone={customerAccountsEnabled ? "success" : "critical"}>
-            <BlockStack gap="300">
-              <InlineStack align="space-between" blockAlign="center">
-                <BlockStack gap="200">
-                  <Text as="p" variant="bodySm" fontWeight="semibold">
-                    {customerAccountsEnabled ? "✅ Customer Accounts 已启用 - Order Status 模块可用" : "❌ Customer Accounts 未启用 - Order Status 模块无法使用"}
+        {hasOrderStatusModules && !customerAccountsEnabled && (
+          <Banner tone="critical">
+            <BlockStack gap="400">
+              <InlineStack align="space-between" blockAlign="start">
+                <BlockStack gap="300">
+                  <Text as="p" variant="headingSm" fontWeight="bold">
+                    ⚠️ 重要：Order Status 模块需要启用 Customer Accounts
                   </Text>
-                  {!customerAccountsEnabled && (
-                    <>
-                      <Text as="p" variant="bodySm">
-                        <strong>⚠️ 重要限制（平台限制，非应用限制）：</strong>Order Status 模块仅支持 Customer Accounts 体系下的订单状态页。如果您的店铺使用旧版订单状态页（非 Customer Accounts），Order Status 模块将不会显示。这是 Shopify 平台的设计限制，Order status block target 是 Customer Accounts UI Extensions 的专用功能。
-                      </Text>
-                      <Text as="p" variant="bodySm">
-                        <strong>解决方案：</strong>请在 Shopify Admin → 设置 → 客户账户中启用 Customer Accounts 功能，然后返回本页面刷新。启用后，Order Status 模块将自动可用。
-                      </Text>
-                      <Text as="p" variant="bodySm" tone="caution">
-                        <strong>检测状态：</strong>系统已检测到您的店铺未启用 Customer Accounts。启用 Customer Accounts 后，请刷新本页面以更新状态。系统会在每次加载页面时自动检测 Customer Accounts 状态。
-                      </Text>
-                      <Text as="p" variant="bodySm">
-                        <strong>影响范围：</strong>所有支持 <code>order_status</code> target 的模块（包括 Survey 问卷、Helpdesk 帮助中心、Reorder 再购按钮等）都需要 Customer Accounts 才能正常工作。如果未启用 Customer Accounts，这些模块在订单状态页将不会显示。
-                      </Text>
-                    </>
-                  )}
-                  {customerAccountsEnabled && (
-                    <>
-                      <Text as="p" variant="bodySm">
-                        ✅ 您的店铺已启用 Customer Accounts，Order Status 模块可以正常使用。模块将显示在 Customer Accounts 体系下的订单状态页。
-                      </Text>
-                      <Text as="p" variant="bodySm" tone="subdued">
-                        检测状态：系统已确认 Customer Accounts 已启用，所有支持 order_status target 的模块均可正常使用。系统会在每次加载页面时自动检测 Customer Accounts 状态。
-                      </Text>
-                    </>
-                  )}
-                </BlockStack>
-                {!customerAccountsEnabled && (
-                  <Button
-                    url={`https://admin.shopify.com/store/${shopDomain}/settings/customer-accounts`}
-                    variant="primary"
-                    size="medium"
-                    external
-                  >
-                    前往启用 Customer Accounts
-                  </Button>
-                )}
-              </InlineStack>
-              {!customerAccountsEnabled && (
-                <BlockStack gap="200">
+                  <Text as="p" variant="bodySm">
+                    检测到您已启用或尝试启用 Order Status 模块，但您的店铺尚未启用 Customer Accounts 功能。Order Status 模块仅支持 Customer Accounts 体系下的订单状态页，不会在旧版订单状态页显示。
+                  </Text>
                   <Text as="p" variant="bodySm" fontWeight="semibold">
-                    如何检查并启用 Customer Accounts：
+                    <strong>这是 Shopify 平台的设计限制，不是应用限制。</strong>Order status block target 是 Customer Accounts UI Extensions 的专用功能，只能在启用 Customer Accounts 的店铺中使用。
+                  </Text>
+                  <Text as="p" variant="bodySm" fontWeight="semibold">
+                    立即启用步骤（3 步）：
                   </Text>
                   <List type="number">
                     <List.Item>
                       <Text as="span" variant="bodySm">
-                        进入 Shopify Admin → 设置 → 客户账户（Settings → Customer accounts）
+                        点击右侧"立即前往启用 Customer Accounts"按钮，直接跳转到 Shopify Admin 设置页面
                       </Text>
                     </List.Item>
                     <List.Item>
@@ -740,15 +723,149 @@ export default function UiBlocksPage() {
                     </List.Item>
                     <List.Item>
                       <Text as="span" variant="bodySm">
-                        返回本页面，点击刷新按钮更新状态，然后即可启用 Order Status 模块
+                        返回本页面，点击右上角"刷新"按钮更新状态，然后即可正常使用 Order Status 模块
                       </Text>
                     </List.Item>
                   </List>
-                  <Text as="p" variant="bodySm" tone="subdued">
-                    💡 提示：如果您的店铺使用旧版订单状态页（非 Customer Accounts），此模块将不会显示。请先在 Shopify Admin 中启用 Customer Accounts 功能。系统会在您刷新页面时自动检测 Customer Accounts 状态。
-                  </Text>
                 </BlockStack>
-              )}
+                <Button
+                  url={`https://admin.shopify.com/store/${shopDomain}/settings/customer-accounts`}
+                  variant="primary"
+                  size="large"
+                  external
+                >
+                  立即前往启用 Customer Accounts
+                </Button>
+              </InlineStack>
+            </BlockStack>
+          </Banner>
+        )}
+        {!customerAccountsEnabled && (
+          <Banner tone="warning">
+            <BlockStack gap="300">
+              <Text as="p" variant="bodySm" fontWeight="semibold">
+                ⚠️ 前置提示：Order Status 模块仅支持 Customer Accounts 体系
+              </Text>
+              <Text as="p" variant="bodySm">
+                如果您计划使用 Order Status 模块（订单状态页模块），请先确认您的店铺已启用 Customer Accounts 功能。Order Status 模块使用 <code>customer-account.order-status.block.render</code> target，这是 Customer Accounts UI Extensions 的专用功能，只能在启用 Customer Accounts 的店铺中使用。
+              </Text>
+              <Text as="p" variant="bodySm">
+                如果您的店铺未启用 Customer Accounts，Order Status 模块将无法使用。这是 Shopify 平台的设计限制，不是应用限制。
+              </Text>
+              <InlineStack gap="200">
+                <Button
+                  url={`https://admin.shopify.com/store/${shopDomain}/settings/customer-accounts`}
+                  variant="primary"
+                  size="medium"
+                  external
+                >
+                  前往启用 Customer Accounts
+                </Button>
+                <Button
+                  url="https://shopify.dev/docs/apps/customer-accounts/ui-extensions"
+                  variant="secondary"
+                  size="medium"
+                  external
+                >
+                  查看官方文档
+                </Button>
+              </InlineStack>
+            </BlockStack>
+          </Banner>
+        )}
+      <Layout>
+        <Layout.Section>
+          <BlockStack gap="500">
+            {hasOrderStatusModules && !customerAccountsEnabled && (
+          <Banner tone="critical">
+            <BlockStack gap="400">
+              <InlineStack align="space-between" blockAlign="start">
+                <BlockStack gap="300">
+                  <Text as="p" variant="headingSm" fontWeight="bold">
+                    ⚠️ 重要：Order Status 模块需要启用 Customer Accounts
+                  </Text>
+                  <Text as="p" variant="bodySm">
+                    <strong>检测到您的店铺未启用 Customer Accounts 功能。</strong>Order Status 模块仅支持 Customer Accounts 体系下的订单状态页，不支持旧版订单状态页。如果未启用 Customer Accounts，Order Status 模块将无法使用。
+                  </Text>
+                  <Text as="p" variant="bodySm" fontWeight="semibold">
+                    <strong>这是 Shopify 平台的设计限制，不是应用限制。</strong>Order status block target 是 Customer Accounts UI Extensions 的专用功能，只能在启用 Customer Accounts 的店铺中使用。
+                  </Text>
+                  <Text as="p" variant="bodySm">
+                    <strong>影响范围：</strong>所有支持 <code>order_status</code> target 的模块（包括 Survey 问卷、Helpdesk 帮助中心、Reorder 再购按钮等）都需要 Customer Accounts 才能正常工作。如果未启用 Customer Accounts，这些模块在订单状态页将不会显示。
+                  </Text>
+                  <Text as="p" variant="bodySm" fontWeight="semibold">
+                    立即操作（3 步）：
+                  </Text>
+                  <List type="number">
+                    <List.Item>
+                      <Text as="span" variant="bodySm">
+                        点击右侧"立即前往启用 Customer Accounts"按钮，直接跳转到 Shopify Admin 设置页面
+                      </Text>
+                    </List.Item>
+                    <List.Item>
+                      <Text as="span" variant="bodySm">
+                        在"客户账户"设置页面中启用 Customer Accounts 功能
+                      </Text>
+                    </List.Item>
+                    <List.Item>
+                      <Text as="span" variant="bodySm">
+                        返回本页面，点击右上角"刷新"按钮更新状态，然后即可启用 Order Status 模块
+                      </Text>
+                    </List.Item>
+                  </List>
+                </BlockStack>
+                <Button
+                  url={`https://admin.shopify.com/store/${shopDomain}/settings/customer-accounts`}
+                  variant="primary"
+                  size="large"
+                  external
+                >
+                  立即前往启用 Customer Accounts
+                </Button>
+              </InlineStack>
+              <Divider />
+              <BlockStack gap="200">
+                <Text as="p" variant="bodySm" fontWeight="semibold">
+                  如何检查店铺是否支持 Customer Accounts：
+                </Text>
+                <List type="bullet">
+                  <List.Item>
+                    <Text as="span" variant="bodySm">
+                      如果 Shopify Admin → 设置中没有"客户账户"或"Customer Accounts"选项，说明您的店铺当前不支持 Customer Accounts 功能
+                    </Text>
+                  </List.Item>
+                  <List.Item>
+                    <Text as="span" variant="bodySm">
+                      某些地区、店铺类型或 Shopify 计划可能暂时不支持 Customer Accounts，请以 Shopify Admin 中的实际选项为准
+                    </Text>
+                  </List.Item>
+                  <List.Item>
+                    <Text as="span" variant="bodySm">
+                      如果支持但未启用：请按照 Shopify 官方指引启用 Customer Accounts 功能。启用后，订单状态页将自动切换到 Customer Accounts 体系，旧版订单状态页将不再使用
+                    </Text>
+                  </List.Item>
+                  <List.Item>
+                    <Text as="span" variant="bodySm">
+                      如果店铺不支持 Customer Accounts：Order Status 模块将无法使用。这是 Shopify 平台的设计限制，Order Status 模块只能在 Customer Accounts 体系下工作
+                    </Text>
+                  </List.Item>
+                </List>
+                <Text as="p" variant="bodySm" tone="subdued">
+                  💡 提示：如果您的店铺使用旧版订单状态页（非 Customer Accounts），此模块将不会显示。请先在 Shopify Admin 中启用 Customer Accounts 功能。系统会在您刷新页面时自动检测 Customer Accounts 状态。
+                </Text>
+              </BlockStack>
+            </BlockStack>
+          </Banner>
+        )}
+        {modules.some(m => UI_MODULES[m.moduleKey].targets.includes("order_status")) && customerAccountsEnabled && (
+          <Banner tone="success">
+            <BlockStack gap="200">
+              <Text as="p" variant="bodySm" fontWeight="semibold">
+                ✅ Customer Accounts 已启用 - Order Status 模块可用
+              </Text>
+              <Text as="p" variant="bodySm">
+                您的店铺已启用 Customer Accounts，Order Status 模块可以正常使用。模块将显示在 Customer Accounts 体系下的订单状态页。
+              </Text>
             </BlockStack>
           </Banner>
         )}
@@ -1053,6 +1170,7 @@ export default function UiBlocksPage() {
                       setSelectedModules(newSelected);
                     }}
                     surveySubmissionCount={surveySubmissionCount}
+                    shopDomain={shopDomain}
                   />
                 ))
               )}
@@ -1072,6 +1190,9 @@ export default function UiBlocksPage() {
             </InlineStack>
           </BlockStack>
         </Card>
+          </BlockStack>
+        </Layout.Section>
+      </Layout>
       </BlockStack>
     </Page>
   );

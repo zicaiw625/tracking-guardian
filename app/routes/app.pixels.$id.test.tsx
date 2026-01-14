@@ -449,6 +449,37 @@ export default function PixelTestPage() {
                 )}
               </BlockStack>
               <Divider />
+              <Banner tone="warning">
+                <BlockStack gap="300">
+                  <Text as="p" variant="bodySm" fontWeight="semibold">
+                    ⚠️ Strict Sandbox 能力边界说明（App Review 重要信息）
+                  </Text>
+                  <Text as="p" variant="bodySm">
+                    Web Pixel 运行在 strict sandbox (Web Worker) 环境中，以下能力受限：
+                  </Text>
+                  <List type="bullet">
+                    <List.Item>
+                      <Text as="span" variant="bodySm">
+                        无法访问 DOM 元素、localStorage、第三方 cookie 等
+                      </Text>
+                    </List.Item>
+                    <List.Item>
+                      <Text as="span" variant="bodySm">
+                        部分事件字段可能为 null 或 undefined（如 buyer.email、buyer.phone、deliveryAddress、shippingAddress、billingAddress 等），这是平台限制，不是故障
+                      </Text>
+                    </List.Item>
+                    <List.Item>
+                      <Text as="span" variant="bodySm">
+                        <strong>v1.0 不支持的事件类型：</strong>退款（refund）、订单取消（order_cancelled）、订单编辑（order_edited）、订阅订单（subscription_created、subscription_updated、subscription_cancelled）等事件在 strict sandbox 中不可用，需要通过订单 webhooks 获取。这些事件将在 v1.1+ 版本中通过订单 webhooks 实现
+                      </Text>
+                    </List.Item>
+                  </List>
+                  <Text as="p" variant="bodySm" tone="subdued">
+                    💡 提示：这是 Shopify 平台的设计限制，不是应用故障。验收报告中会自动标注所有因 strict sandbox 限制而无法获取的字段和事件。在 App Review 时，请向 Shopify 说明这些限制是平台设计，不是应用缺陷。
+                  </Text>
+                </BlockStack>
+              </Banner>
+              <Divider />
               {pixelConfig.environment === "test" ? (
                 <InlineStack gap="200" wrap>
                   <Button

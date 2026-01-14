@@ -77,6 +77,33 @@ export const loader = async ({ request, params }: LoaderFunctionArgs) => {
   } catch (error) {
     networkAccessCheckError = error instanceof Error ? error.message : String(error);
   }
+  let backendUrlInjected = true;
+  let backendUrlCheckError: string | null = null;
+  const configFiles = [
+    { path: "extensions/shared/config.ts", label: "Shared config" },
+    { path: "extensions/thank-you-blocks/src/config.ts", label: "Thank-you blocks config" },
+  ];
+  try {
+    const placeholderPattern = /__BACKEND_URL_PLACEHOLDER__/;
+    const buildTimeUrlPattern = /const\s+BUILD_TIME_URL\s*=\s*(["'])([^"']+)\1;/;
+    for (const configFile of configFiles) {
+      const filePath = path.join(process.cwd(), configFile.path);
+      if (fs.existsSync(filePath)) {
+        const content = fs.readFileSync(filePath, "utf-8");
+        const match = content.match(buildTimeUrlPattern);
+        if (match) {
+          const urlValue = match[2];
+          if (placeholderPattern.test(urlValue)) {
+            backendUrlInjected = false;
+            backendUrlCheckError = `${configFile.label}: URL 仍为占位符，需要在部署前运行 'pnpm ext:inject' 或 'pnpm deploy:ext'。这是严重的配置错误，如果占位符未被替换，扩展将无法发送事件到后端，导致功能无法正常工作。必须在生产环境部署前修复。`;
+            break;
+          }
+        }
+      }
+    }
+  } catch (error) {
+    backendUrlCheckError = error instanceof Error ? error.message : String(error);
+  }
   return json({
     moduleKey,
     moduleName: moduleInfo.name,
@@ -86,11 +113,13 @@ export const loader = async ({ request, params }: LoaderFunctionArgs) => {
     hasOrderStatusTarget,
     networkAccessConfigured,
     networkAccessCheckError,
+    backendUrlInjected,
+    backendUrlCheckError,
   });
 };
 
 export default function UiModulePublishGuide() {
-  const { moduleName, targets, shopDomain, customerAccountsStatus, hasOrderStatusTarget, networkAccessConfigured, networkAccessCheckError } = useLoaderData<typeof loader>();
+  const { moduleName, targets, shopDomain, customerAccountsStatus, hasOrderStatusTarget, networkAccessConfigured, networkAccessCheckError, backendUrlInjected, backendUrlCheckError } = useLoaderData<typeof loader>();
   const targetCards = targets.map((target) => TARGET_DETAILS[target]);
   const orderStatusTarget = targetCards.find((card) => card.target === "customer-account.order-status.block.render");
   const customerAccountsEnabled = customerAccountsStatus?.enabled ?? false;
@@ -114,23 +143,118 @@ export default function UiModulePublishGuide() {
               ]}
               primaryAction={{ content: "返回模块列表", url: "/app/modules" }}
             />
-            {!canPublishOrderStatus && (
+            {!backendUrlInjected && (
               <Banner tone="critical">
-                <BlockStack gap="200">
+                <BlockStack gap="300">
                   <Text as="p" variant="bodySm" fontWeight="semibold">
-                    <strong>⚠️ 无法发布 Order Status 模块</strong>
+                    ⚠️ 严重：BACKEND_URL 未注入 - 扩展无法正常工作
                   </Text>
                   <Text as="p" variant="bodySm">
-                    检测到您的店铺未启用 Customer Accounts 功能。Order Status 模块仅支持 Customer Accounts 体系下的订单状态页，当前无法发布。
+                    <strong>检测到扩展的 BACKEND_URL 仍为占位符，未正确注入。</strong>如果占位符未被替换，扩展将无法发送事件到后端，导致功能完全无法正常工作。这是导致事件丢失和功能失效的常见原因。
                   </Text>
-                  <Text as="p" variant="bodySm">
-                    <strong>解决方案：</strong>请在 Shopify Admin → 设置 → 客户账户中启用 Customer Accounts 功能，然后重新访问此页面。
+                  <Text as="p" variant="bodySm" fontWeight="semibold">
+                    立即修复（必须在发布前完成）：
                   </Text>
-                  {customerAccountsStatus?.error && (
-                    <Text as="p" variant="bodySm" tone="subdued">
-                      检测错误：{customerAccountsStatus.error}
+                  <List type="number">
+                    <List.Item>
+                      <Text as="span" variant="bodySm">
+                        在项目根目录运行 <code>pnpm ext:inject</code> 或 <code>pnpm deploy:ext</code> 命令
+                      </Text>
+                    </List.Item>
+                    <List.Item>
+                      <Text as="span" variant="bodySm">
+                        确保环境变量 <code>SHOPIFY_APP_URL</code> 已正确设置
+                      </Text>
+                    </List.Item>
+                    <List.Item>
+                      <Text as="span" variant="bodySm">
+                        验证配置文件中的 BACKEND_URL 已从占位符替换为实际 URL
+                      </Text>
+                    </List.Item>
+                    <List.Item>
+                      <Text as="span" variant="bodySm">
+                        重新部署扩展：<code>shopify app deploy</code> 或使用 <code>pnpm deploy:ext</code>
+                      </Text>
+                    </List.Item>
+                  </List>
+                  <Text as="p" variant="bodySm" tone="subdued">
+                    💡 提示：<strong>扩展的 BACKEND_URL 注入是生命线</strong>。如果占位符未被替换，扩展会静默禁用事件发送，不会显示错误。这是导致事件丢失的常见原因，必须在生产环境部署前修复。请在 CI/CD 流程中确保运行 <code>pnpm ext:inject</code> 或 <code>pnpm deploy:ext</code>。
+                  </Text>
+                  {backendUrlCheckError && (
+                    <Text as="p" variant="bodySm" tone="critical">
+                      {backendUrlCheckError}
                     </Text>
                   )}
+                </BlockStack>
+              </Banner>
+            )}
+            {backendUrlInjected && (
+              <Banner tone="success">
+                <BlockStack gap="200">
+                  <Text as="p" variant="bodySm" fontWeight="semibold">
+                    ✅ BACKEND_URL 已正确注入
+                  </Text>
+                  <Text as="p" variant="bodySm">
+                    扩展的 BACKEND_URL 已正确注入。生产环境部署时，请确保始终使用 <code>pnpm deploy:ext</code> 命令，该命令会自动执行 <code>pnpm ext:inject</code> 注入 BACKEND_URL。禁止直接使用 <code>shopify app deploy</code>。
+                  </Text>
+                </BlockStack>
+              </Banner>
+            )}
+            {!canPublishOrderStatus && (
+              <Banner tone="critical">
+                <BlockStack gap="300">
+                  <InlineStack align="space-between" blockAlign="start">
+                    <BlockStack gap="200">
+                      <Text as="p" variant="bodySm" fontWeight="semibold">
+                        <strong>⚠️ 无法发布 Order Status 模块 - 需要启用 Customer Accounts</strong>
+                      </Text>
+                      <Text as="p" variant="bodySm">
+                        <strong>检测到您的店铺未启用 Customer Accounts 功能。</strong>Order Status 模块仅支持 Customer Accounts 体系下的订单状态页，不支持旧版订单状态页。如果未启用 Customer Accounts，Order Status 模块将无法使用。
+                      </Text>
+                      <Text as="p" variant="bodySm">
+                        <strong>这是 Shopify 平台的设计限制，不是应用限制。</strong>Order status block target 是 Customer Accounts UI Extensions 的专用功能，只能在启用 Customer Accounts 的店铺中使用。
+                      </Text>
+                      <Text as="p" variant="bodySm">
+                        <strong>解决方案：</strong>请在 Shopify Admin → 设置 → 客户账户中启用 Customer Accounts 功能，然后重新访问此页面。
+                      </Text>
+                      {customerAccountsStatus?.error && (
+                        <Text as="p" variant="bodySm" tone="subdued">
+                          检测错误：{customerAccountsStatus.error}
+                        </Text>
+                      )}
+                    </BlockStack>
+                    <Button
+                      url={`https://admin.shopify.com/store/${shopDomain}/settings/customer-accounts`}
+                      variant="primary"
+                      size="large"
+                      external
+                    >
+                      立即前往启用 Customer Accounts
+                    </Button>
+                  </InlineStack>
+                  <Divider />
+                  <BlockStack gap="200">
+                    <Text as="p" variant="bodySm" fontWeight="semibold">
+                      启用步骤：
+                    </Text>
+                    <List type="number">
+                      <List.Item>
+                        <Text as="span" variant="bodySm">
+                          点击上方"立即前往启用 Customer Accounts"按钮，或手动进入 Shopify Admin → 设置 → 客户账户（Settings → Customer accounts）
+                        </Text>
+                      </List.Item>
+                      <List.Item>
+                        <Text as="span" variant="bodySm">
+                          在"客户账户"设置页面中启用 Customer Accounts 功能
+                        </Text>
+                      </List.Item>
+                      <List.Item>
+                        <Text as="span" variant="bodySm">
+                          返回本页面，刷新后即可发布 Order Status 模块
+                        </Text>
+                      </List.Item>
+                    </List>
+                  </BlockStack>
                 </BlockStack>
               </Banner>
             )}

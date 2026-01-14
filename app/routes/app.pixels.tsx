@@ -181,15 +181,40 @@ export default function PixelsListPage() {
         />
         {backendUrlInfo.placeholderDetected && (
           <Banner tone="critical">
-            <BlockStack gap="200">
+            <BlockStack gap="300">
               <Text as="p" variant="bodySm" fontWeight="semibold">
-                检测到占位符，URL 未在构建时替换
+                ⚠️ 严重错误：检测到占位符，URL 未在构建时替换
               </Text>
               <Text as="p" variant="bodySm">
-                像素扩展配置中仍包含 __BACKEND_URL_PLACEHOLDER__，这表明构建流程未正确替换占位符。如果占位符未被替换，像素扩展将无法发送事件到后端，导致事件丢失。这是一个严重的配置错误，必须在上线前修复。
+                <strong>像素扩展配置中仍包含 __BACKEND_URL_PLACEHOLDER__，这表明构建流程未正确替换占位符。</strong>如果占位符未被替换，像素扩展将无法发送事件到后端，导致事件丢失。这是一个严重的配置错误，必须在上线前修复。
               </Text>
-              <Text as="p" variant="bodySm">
-                请在 CI/CD 流程中确保运行 'pnpm ext:inject' 或相应的构建脚本，将 SHOPIFY_APP_URL 环境变量注入到扩展配置中。同时确保该 URL 已在 Web Pixel Extension 的 allowlist 中配置。
+              <Text as="p" variant="bodySm" fontWeight="semibold">
+                修复步骤（必须在生产环境部署前完成）：
+              </Text>
+              <List type="number">
+                <List.Item>
+                  <Text as="span" variant="bodySm">
+                    在 CI/CD 流程中，部署前必须运行 <code>pnpm ext:inject</code> 或 <code>pnpm deploy:ext</code>
+                  </Text>
+                </List.Item>
+                <List.Item>
+                  <Text as="span" variant="bodySm">
+                    确保环境变量 <code>SHOPIFY_APP_URL</code> 已正确设置
+                  </Text>
+                </List.Item>
+                <List.Item>
+                  <Text as="span" variant="bodySm">
+                    部署后验证扩展配置文件中的 URL 已正确注入（不是占位符）
+                  </Text>
+                </List.Item>
+                <List.Item>
+                  <Text as="span" variant="bodySm">
+                    确保该 URL 已在 Web Pixel Extension 的 allowlist 中配置
+                  </Text>
+                </List.Item>
+              </List>
+              <Text as="p" variant="bodySm" tone="subdued">
+                💡 提示：如果占位符未被替换，像素扩展会静默禁用事件发送，不会显示错误。这是导致事件丢失的常见原因，必须在生产环境部署前修复。
               </Text>
               <Button url="/app/pixels/new" variant="primary" size="slim">
                 前往测试页面查看详细检查
@@ -197,6 +222,48 @@ export default function PixelsListPage() {
             </BlockStack>
           </Banner>
         )}
+        {!backendUrlInfo.placeholderDetected && (
+          <Banner tone="info">
+            <BlockStack gap="200">
+              <Text as="p" variant="bodySm" fontWeight="semibold">
+                💡 重要提示：扩展的 BACKEND_URL 注入是生命线
+              </Text>
+              <Text as="p" variant="bodySm">
+                生产环境部署时，必须确保 BACKEND_URL 已正确注入到扩展配置中。如果占位符未被替换，像素扩展将无法发送事件到后端，导致事件丢失。请在 CI/CD 流程中确保运行 <code>pnpm ext:inject</code> 或 <code>pnpm deploy:ext</code>。
+              </Text>
+            </BlockStack>
+          </Banner>
+        )}
+        <Banner tone="warning">
+          <BlockStack gap="300">
+            <Text as="p" variant="bodySm" fontWeight="semibold">
+              ⚠️ Strict Sandbox 能力边界说明（App Review 重要信息）
+            </Text>
+            <Text as="p" variant="bodySm">
+              Web Pixel 运行在 strict sandbox (Web Worker) 环境中，以下能力受限：
+            </Text>
+            <List type="bullet">
+              <List.Item>
+                <Text as="span" variant="bodySm">
+                  无法访问 DOM 元素、localStorage、第三方 cookie 等
+                </Text>
+              </List.Item>
+              <List.Item>
+                <Text as="span" variant="bodySm">
+                  部分事件字段可能为 null 或 undefined（如 buyer.email、buyer.phone、deliveryAddress、shippingAddress、billingAddress 等），这是平台限制，不是故障
+                </Text>
+              </List.Item>
+              <List.Item>
+                <Text as="span" variant="bodySm">
+                  <strong>v1.0 不支持的事件类型：</strong>退款（refund）、订单取消（order_cancelled）、订单编辑（order_edited）、订阅订单（subscription_created、subscription_updated、subscription_cancelled）等事件在 strict sandbox 中不可用，需要通过订单 webhooks 获取。这些事件将在 v1.1+ 版本中通过订单 webhooks 实现
+                </Text>
+              </List.Item>
+            </List>
+            <Text as="p" variant="bodySm" tone="subdued">
+              💡 提示：这是 Shopify 平台的设计限制，不是应用故障。验收报告中会自动标注所有因 strict sandbox 限制而无法获取的字段和事件。在 App Review 时，请向 Shopify 说明这些限制是平台设计，不是应用缺陷。
+            </Text>
+          </BlockStack>
+        </Banner>
         <Card>
           <BlockStack gap="300">
             <Text as="h2" variant="headingMd">

@@ -218,6 +218,20 @@ pnpm dev
 
 ### 部署
 
+#### ⚠️ 重要：扩展的 BACKEND_URL 注入是生命线
+
+**扩展的 BACKEND_URL 注入是生命线，必须在所有部署流程中执行。**
+
+- **生产环境部署必须使用**：`pnpm deploy:ext`（该命令会自动执行 `pnpm ext:inject` 注入 BACKEND_URL）
+- **禁止直接使用**：`shopify app deploy`（不会注入 BACKEND_URL，会导致像素扩展无法工作）
+- **如果占位符未被替换**：像素扩展会静默禁用事件发送，不会显示错误，导致事件丢失
+
+**部署前检查清单**：
+1. 确保环境变量 `SHOPIFY_APP_URL` 已正确设置
+2. 在 CI/CD 流程中，部署前必须运行 `pnpm ext:inject` 或 `pnpm deploy:ext`
+3. 验证扩展构建产物中不再包含 `__BACKEND_URL_PLACEHOLDER__` 占位符
+4. 确保该 URL 已在 Web Pixel Extension 的 allowlist 中配置（Partner Dashboard → App → API access → UI extensions network access）
+
 #### Render 部署（推荐 - 免费数据库）
 
 项目包含 `render.yaml` Blueprint 文件，支持一键部署：
@@ -232,6 +246,7 @@ pnpm dev
 - Cron Job 服务已自动配置，请确保在 Render Dashboard 中为 cron job 设置以下环境变量（从 web service 复制）：
   - `CRON_SECRET`（必须与 web service 相同）
   - `SHOPIFY_APP_URL`（web service 的完整 URL）
+- **扩展部署**：在 Render 的构建命令中，必须包含 `pnpm ext:inject` 步骤，或使用 `pnpm deploy:ext` 命令
 
 详细步骤请参考 [SETUP.md](SETUP.md)
 

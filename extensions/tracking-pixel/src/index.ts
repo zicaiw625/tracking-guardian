@@ -13,7 +13,8 @@ register(({ analytics, settings, init, customerPrivacy }: {
 }) => {
   const ingestionSecret = settings.ingestion_key;
   const shopDomain = settings.shop_domain || init.data?.shop?.myshopifyDomain || "";
-  const backendUrl = BACKEND_URL && isAllowedBackendUrl(BACKEND_URL) ? BACKEND_URL : null;
+  const placeholderDetected = BACKEND_URL && (BACKEND_URL.includes("__BACKEND_URL_PLACEHOLDER__") || BACKEND_URL.includes("PLACEHOLDER"));
+  const backendUrl = !placeholderDetected && BACKEND_URL && isAllowedBackendUrl(BACKEND_URL) ? BACKEND_URL : null;
   const isDevMode = (() => {
     if (shopDomain.includes(".myshopify.dev") || /-(dev|staging|test)\./i.test(shopDomain)) {
       return true;
@@ -25,11 +26,18 @@ register(({ analytics, settings, init, customerPrivacy }: {
       console.log("[Tracking Guardian]", ...args);
     }
   }
+  if (placeholderDetected) {
+    const errorMsg = "严重错误：检测到 BACKEND_URL 占位符未替换。像素扩展将无法发送事件到后端，导致事件丢失。这是严重的配置错误，必须在生产环境部署前修复。请在 CI/CD 流程中运行 'pnpm ext:inject' 或 'pnpm deploy:ext'。";
+    if (isDevMode) {
+      console.error("[Tracking Guardian] ❌", errorMsg);
+    }
+  }
   if (isDevMode) {
     log("Development mode enabled", {
       shopDomain,
       hasIngestionSecret: !!ingestionSecret,
       backendUrl,
+      placeholderDetected,
     });
     if (backendUrl) {
       log("Backend URL resolved (硬校验)", {
@@ -41,12 +49,12 @@ register(({ analytics, settings, init, customerPrivacy }: {
             return "invalid";
           }
         })(),
-        placeholderDetected: backendUrl.includes("__BACKEND_URL_PLACEHOLDER__") || backendUrl.includes("PLACEHOLDER"),
       });
     } else {
       log("Backend URL not resolved (占位符未替换或未配置)", {
         rawBackendUrl: BACKEND_URL,
         isAllowed: BACKEND_URL ? isAllowedBackendUrl(BACKEND_URL) : false,
+        placeholderDetected,
       });
     }
   }

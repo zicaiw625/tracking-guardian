@@ -118,7 +118,8 @@ export function createEventSender(config: EventSenderConfig) {
   if (!backendUrl) {
     if (isDevMode) {
       log("⚠️ BACKEND_URL not configured - event sending disabled. " +
-          "Run pnpm ext:inject to inject the backend URL at build time.");
+          "Run pnpm ext:inject to inject the backend URL at build time. " +
+          "If placeholder was not replaced, pixel extension will silently fail and events will be lost.");
     }
     return async function sendToBackendDisabled(
       _eventName: string,

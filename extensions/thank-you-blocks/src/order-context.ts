@@ -104,5 +104,58 @@ export function getOrderContext(api: unknown): OrderContext {
       }
     }
   }
+  if (!result.orderId && !result.checkoutToken) {
+    const errorMessage = "订单信息不可用：Order ID 和 checkout token 均为空。这可能是由于 Protected Customer Data (PCD) 限制导致的。部分功能可能无法正常工作。如果您的应用已通过 PCD 审核，请检查配置是否正确。";
+    const criticalMessage = "严重：订单信息完全不可用。这会导致以下功能无法正常工作：1) 问卷提交无法关联订单；2) 再购功能无法获取订单详情；3) 帮助中心无法提供订单相关支持。请确保应用已通过 PCD 审核，或联系技术支持。";
+    const userVisibleMessage = "⚠️ 订单信息不可用 - 功能暂时无法使用：由于 Protected Customer Data (PCD) 限制，当前无法获取订单信息（Order ID 和 checkout token 均为空）。问卷功能、再购功能和帮助中心可能暂时不可用。这是 Shopify 平台的隐私保护机制，部分订单信息需要 PCD 审核批准后才能访问。如果您的应用已通过 PCD 审核，请检查配置是否正确。商家可在应用后台查看详细错误信息和上报记录。此错误已自动上报，商家会收到通知。如果订单信息持续不可用，请联系技术支持。";
+    if (typeof console !== "undefined" && console.warn) {
+      console.warn(`[Tracking Guardian] ⚠️ ${errorMessage}错误已自动上报，商家会收到通知。`);
+    }
+    if (typeof console !== "undefined" && console.error) {
+      console.error(`[Tracking Guardian] ❌ ${criticalMessage}错误已自动上报，商家会收到通知。`);
+    }
+    if (typeof window !== "undefined" && window.dispatchEvent) {
+      try {
+        window.dispatchEvent(new CustomEvent("tracking-guardian:order-context-missing", {
+          detail: {
+            reason: "PCD限制或配置错误",
+            impact: "问卷提交、再购功能、帮助中心等功能可能无法正常工作",
+            timestamp: new Date().toISOString(),
+            userMessage: userVisibleMessage,
+            severity: "critical",
+            errorMessage,
+            criticalMessage,
+            showUserNotification: true,
+            pcdRequired: true,
+            requiresPcdApproval: true,
+            displayBanner: true,
+            bannerTitle: "⚠️ 订单信息不可用 - 功能暂时无法使用",
+            bannerMessage: "由于 Protected Customer Data (PCD) 限制，当前无法获取订单信息（Order ID 和 checkout token 均为空）。问卷功能、再购功能和帮助中心可能暂时不可用。这是 Shopify 平台的隐私保护机制，部分订单信息需要 PCD 审核批准后才能访问。如果您的应用已通过 PCD 审核，请检查配置是否正确。商家可在应用后台查看详细错误信息和上报记录。此错误已自动上报，商家会收到通知。如果订单信息持续不可用，请联系技术支持。",
+            reportToBackend: true,
+            backendReportEndpoint: "/api/extension-errors",
+            backendReportData: {
+              extension: "thank-you-blocks",
+              endpoint: "order-context",
+              error: errorMessage,
+              target: "thank-you",
+              orderId: null,
+            },
+          },
+        }));
+      } catch {
+      }
+    }
+    if (typeof window !== "undefined" && window.localStorage) {
+      try {
+        const lastReported = window.localStorage.getItem("tracking-guardian:order-context-missing:last-reported");
+        const now = Date.now();
+        if (!lastReported || now - parseInt(lastReported, 10) > 60000) {
+          window.localStorage.setItem("tracking-guardian:order-context-missing:last-reported", String(now));
+          window.localStorage.setItem("tracking-guardian:order-context-missing:count", String((parseInt(window.localStorage.getItem("tracking-guardian:order-context-missing:count") || "0", 10) + 1)));
+        }
+      } catch {
+      }
+    }
+  }
   return result;
 }

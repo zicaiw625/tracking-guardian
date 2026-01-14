@@ -189,6 +189,69 @@ export default function MigratePage() {
           ]}
           primaryAction={{ content: "开始迁移", url: "/app/audit" }}
         />
+        <Banner tone="critical">
+          <BlockStack gap="200">
+            <Text as="p" variant="bodySm" fontWeight="semibold">
+              ⚠️ 重要：扩展的 BACKEND_URL 注入是生命线
+            </Text>
+            <Text as="p" variant="bodySm">
+              生产环境部署时，必须确保 BACKEND_URL 已正确注入到扩展配置中。如果占位符未被替换，像素扩展将无法发送事件到后端，导致事件丢失。
+            </Text>
+            <Text as="p" variant="bodySm" fontWeight="semibold">
+              部署流程要求：
+            </Text>
+            <List type="number">
+              <List.Item>
+                <Text as="span" variant="bodySm">
+                  在 CI/CD 流程中，部署前必须运行 <code>pnpm ext:inject</code> 或 <code>pnpm deploy:ext</code>
+                </Text>
+              </List.Item>
+              <List.Item>
+                <Text as="span" variant="bodySm">
+                  确保环境变量 <code>SHOPIFY_APP_URL</code> 已正确设置
+                </Text>
+              </List.Item>
+              <List.Item>
+                <Text as="span" variant="bodySm">
+                  部署后验证扩展配置文件中的 URL 已正确注入（不是占位符）
+                </Text>
+              </List.Item>
+            </List>
+            <Text as="p" variant="bodySm" tone="subdued">
+              💡 提示：如果占位符未被替换，像素扩展会静默禁用事件发送，不会显示错误。这是导致事件丢失的常见原因，必须在生产环境部署前修复。
+            </Text>
+          </BlockStack>
+        </Banner>
+        <Banner tone="warning">
+          <BlockStack gap="200">
+            <Text as="p" variant="bodySm" fontWeight="semibold">
+              ⚠️ Strict Sandbox 能力边界说明
+            </Text>
+            <Text as="p" variant="bodySm">
+              Web Pixel 运行在 strict sandbox (Web Worker) 环境中，以下能力受限：
+            </Text>
+            <List type="bullet">
+              <List.Item>
+                <Text as="span" variant="bodySm">
+                  无法访问 DOM 元素、localStorage、第三方 cookie 等
+                </Text>
+              </List.Item>
+              <List.Item>
+                <Text as="span" variant="bodySm">
+                  部分事件字段可能为 null 或 undefined（如 buyer.email、buyer.phone、deliveryAddress 等），这是平台限制，不是故障
+                </Text>
+              </List.Item>
+              <List.Item>
+                <Text as="span" variant="bodySm">
+                  某些事件类型（refund、order_cancelled、order_edited 等）在 strict sandbox 中不可用，需要通过订单 webhooks 获取
+                </Text>
+              </List.Item>
+            </List>
+            <Text as="p" variant="bodySm" tone="subdued">
+              💡 提示：这是 Shopify 平台的设计限制，不是应用故障。验收报告中会自动标注所有因 strict sandbox 限制而无法获取的字段和事件。
+            </Text>
+          </BlockStack>
+        </Banner>
 
         <Card>
           <BlockStack gap="400">

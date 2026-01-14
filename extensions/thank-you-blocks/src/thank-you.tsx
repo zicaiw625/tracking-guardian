@@ -16,11 +16,13 @@ import { getOrderContext } from "./order-context";
 function SurveyModule({ 
   question, 
   options, 
-  onSubmit 
+  onSubmit,
+  hasOrderContext
 }: {
   question: string;
   options: string[];
   onSubmit: (selectedOption: string) => Promise<boolean>;
+  hasOrderContext: boolean;
 }) {
   const [selectedOption, setSelectedOption] = useState<string | null>(null);
   const [submitted, setSubmitted] = useState(false);
@@ -30,6 +32,19 @@ function SurveyModule({
     return (
       <View>
         <Text appearance="subdued">感谢您的反馈！</Text>
+      </View>
+    );
+  }
+  if (!hasOrderContext) {
+    return (
+      <View border="base" cornerRadius="base" padding="base" background="bg-surface-critical-subdued">
+        <BlockStack spacing="base">
+          <Text size="medium" emphasis="bold">{question}</Text>
+          <Text size="large" appearance="critical" emphasis="bold">⚠️ 订单信息不可用 - 功能暂时无法使用</Text>
+          <Text appearance="subdued" emphasis="bold">由于 Protected Customer Data (PCD) 限制，当前无法获取订单信息（Order ID 和 checkout token 均为空）。</Text>
+          <Text appearance="subdued">问卷功能暂时不可用。这是 Shopify 平台的隐私保护机制，部分订单信息需要 PCD 审核批准后才能访问。</Text>
+          <Text appearance="subdued" emphasis="bold">如果您的应用已通过 PCD 审核，请检查配置是否正确。商家可在应用后台查看详细错误信息和上报记录。此错误已自动上报，商家会收到通知。如果订单信息持续不可用，请联系技术支持。</Text>
+        </BlockStack>
       </View>
     );
   }
@@ -213,6 +228,21 @@ function ThankYouBlocks() {
       }
       const token = await api.sessionToken.get();
       const orderContext = getOrderContext(api);
+      if (!orderContext.orderId && !orderContext.checkoutToken) {
+        const errorMessage = "订单信息不可用：Order ID 和 checkout token 均为空。这可能是由于 Protected Customer Data (PCD) 限制导致的。如果您的应用已通过 PCD 审核，请检查配置是否正确。此错误会导致问卷提交无法关联订单，功能无法正常工作。错误已自动上报，商家会收到通知。";
+        if (isDevMode()) {
+          console.error("[ThankYouBlocks] " + errorMessage);
+        }
+        await reportExtensionError(api, {
+          extension: "thank-you",
+          endpoint: "survey",
+          error: errorMessage,
+          stack: null,
+          target: "thank-you",
+          timestamp: new Date().toISOString(),
+        });
+        return false;
+      }
       const response = await fetch(`${backendUrl}/api/survey`, {
         method: "POST",
         headers: {
@@ -269,14 +299,34 @@ function ThankYouBlocks() {
   }
   const surveyEnabled = moduleState?.surveyEnabled ?? false;
   const helpEnabled = moduleState?.helpEnabled ?? false;
+  let orderContext: { orderId: string | null; checkoutToken: string | null };
+  let hasOrderContext = false;
+  try {
+    orderContext = getOrderContext(api);
+    hasOrderContext = !!(orderContext.orderId || orderContext.checkoutToken);
+  } catch (error) {
+    orderContext = { orderId: null, checkoutToken: null };
+    hasOrderContext = false;
+  }
   return (
     <BlockStack spacing="base">
+      {!hasOrderContext && (surveyEnabled || helpEnabled) && (
+        <View border="base" cornerRadius="base" padding="base" background="bg-surface-critical-subdued">
+          <BlockStack spacing="base">
+            <Text size="large" emphasis="bold" appearance="critical">⚠️ 订单信息不可用 - 功能暂时无法使用</Text>
+            <Text appearance="subdued" emphasis="bold">由于 Protected Customer Data (PCD) 限制，当前无法获取订单信息（Order ID 和 checkout token 均为空）。</Text>
+            <Text appearance="subdued">问卷功能和帮助中心可能暂时不可用。这是 Shopify 平台的隐私保护机制，部分订单信息需要 PCD 审核批准后才能访问。</Text>
+            <Text appearance="subdued" emphasis="bold">如果您的应用已通过 PCD 审核，请检查配置是否正确。商家可在应用后台查看详细错误信息和上报记录。此错误已自动上报，商家会收到通知。如果订单信息持续不可用，请联系技术支持。</Text>
+          </BlockStack>
+        </View>
+      )}
       {surveyEnabled && surveyQuestion && surveyOptions && surveyOptions.length > 0 && (
         <>
           <SurveyModule
             question={surveyQuestion}
             options={surveyOptions}
             onSubmit={handleSurveySubmit}
+            hasOrderContext={hasOrderContext}
           />
           <Divider />
         </>

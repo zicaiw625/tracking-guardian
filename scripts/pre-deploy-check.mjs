@@ -287,6 +287,7 @@ function checkExtensionUrlInjected() {
     const issues = [];
     const placeholderPattern = /__BACKEND_URL_PLACEHOLDER__/;
     const buildTimeUrlPattern = /const\s+BUILD_TIME_URL\s*=\s*(["'])([^"']+)\1;/;
+    const isCI = process.env.CI === "true" || process.env.GITHUB_ACTIONS === "true" || process.env.RENDER === "true";
     
     for (const configFile of configFiles) {
         const filePath = path.join(__dirname, "..", configFile.path);
@@ -302,9 +303,14 @@ function checkExtensionUrlInjected() {
         }
         const urlValue = match[2];
         if (placeholderPattern.test(urlValue)) {
-            issues.push(`${configFile.label}: URL 仍为占位符，需要在部署前运行 'pnpm ext:inject'`);
+            const errorMsg = `${configFile.label}: URL 仍为占位符，需要在部署前运行 'pnpm ext:inject' 或 'pnpm deploy:ext'。这是严重的配置错误，如果占位符未被替换，像素扩展将无法发送事件到后端，导致事件丢失。必须在生产环境部署前修复。`;
+            issues.push(errorMsg);
         } else if (urlValue.includes("localhost") || urlValue.includes("127.0.0.1")) {
-            issues.push(`${configFile.label}: URL 指向 localhost，生产环境将无法工作`);
+            if (isCI) {
+                issues.push(`${configFile.label}: URL 指向 localhost，生产环境将无法工作。CI/CD 环境中必须设置正确的 SHOPIFY_APP_URL`);
+            } else {
+                issues.push(`${configFile.label}: URL 指向 localhost，生产环境将无法工作`);
+            }
         }
     }
     
@@ -316,10 +322,23 @@ function checkExtensionUrlInjected() {
             isHardError: true,
         };
     }
+    const packageJsonPath = path.join(__dirname, "..", "package.json");
+    if (fs.existsSync(packageJsonPath)) {
+        const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, "utf-8"));
+        const deployExtScript = packageJson.scripts?.["deploy:ext"];
+        if (!deployExtScript || !deployExtScript.includes("ext:inject")) {
+            return {
+                name: "Extension URL 注入检查",
+                passed: false,
+                message: "package.json 中的 'deploy:ext' 脚本未包含 'ext:inject' 步骤。扩展的 BACKEND_URL 注入是生命线，必须在部署流程中执行。请确保 'deploy:ext' 脚本包含 'pnpm ext:inject' 步骤。",
+                isHardError: true,
+            };
+        }
+    }
     return {
         name: "Extension URL 注入检查",
         passed: true,
-        message: "所有扩展配置文件中的 URL 已正确注入",
+        message: "所有扩展配置文件中的 URL 已正确注入。生产环境部署时，必须确保使用 'pnpm deploy:ext' 命令，该命令会自动执行 URL 注入。禁止直接使用 'shopify app deploy'。扩展的 BACKEND_URL 注入是生命线，如果占位符未被替换，像素扩展将无法发送事件到后端，导致事件丢失。",
     };
 }
 
