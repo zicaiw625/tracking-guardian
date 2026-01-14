@@ -8,6 +8,7 @@ import type { TrustLevel } from "../../utils/receipt-trust";
 import type { PixelEventPayload, KeyValidationResult } from "./types";
 import { generateCanonicalEventId } from "../../services/event-normalizer.server";
 import { randomUUID } from "crypto";
+import { getRedisClient } from "../../utils/redis-client";
 
 export interface MatchKeyResult {
   orderId: string;
@@ -197,36 +198,30 @@ export async function createEventNonce(
   nonce: string | null | undefined,
   eventType: string
 ): Promise<{ isReplay: boolean }> {
-  const eventId = nonce || generateCanonicalEventId(orderId, null, eventType, "", undefined, "v2", null);
+  if (!nonce) {
+    return { isReplay: false };
+  }
+  const ttlMs = RETENTION_CONFIG.NONCE_EXPIRY_MS;
+  const key = `tg:nonce:${shopId}:${eventType}:${nonce}`;
   try {
-    const existing = await prisma.pixelEventReceipt.findUnique({
-      where: {
-        shopId_eventId_eventType: {
+    const redis = await getRedisClient();
+    const ok = await redis.setNX(key, "1", ttlMs);
+    return { isReplay: !ok };
+  } catch {
+    try {
+      await prisma.eventNonce.create({
+        data: {
+          id: generateSimpleId("nonce"),
           shopId,
-          eventId,
+          nonce,
           eventType,
+          expiresAt: new Date(Date.now() + ttlMs),
         },
-      },
-      select: { id: true },
-    });
-    if (existing) {
-      logger.debug("Event already exists (replay detected)", {
-        shopId,
-        orderId,
-        eventType,
-        eventId: eventId.substring(0, 16) + "...",
       });
+      return { isReplay: false };
+    } catch {
       return { isReplay: true };
     }
-    return { isReplay: false };
-  } catch (error) {
-    logger.warn("Failed to check event nonce", {
-      shopId,
-      orderId,
-      eventType,
-      error: error instanceof Error ? error.message : String(error),
-    });
-    return { isReplay: false };
   }
 }
 

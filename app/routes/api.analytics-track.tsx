@@ -3,6 +3,7 @@ import { json } from "@remix-run/node";
 import { authenticate } from "../shopify.server";
 import { trackEvent } from "../services/analytics.server";
 import prisma from "../db.server";
+import { logger } from "../utils/logger.server";
 
 export const action = async ({ request }: ActionFunctionArgs) => {
   const { session } = await authenticate.admin(request);
@@ -30,7 +31,10 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     });
     return json({ success: true });
   } catch (error) {
-    console.error("Analytics track error:", error);
+    logger.error("Analytics track error", {
+      error: error instanceof Error ? error.message : String(error),
+      shopDomain,
+    });
     return json(
       { error: error instanceof Error ? error.message : "Failed to track event" },
       { status: 500 }

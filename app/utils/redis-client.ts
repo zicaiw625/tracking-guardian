@@ -4,6 +4,7 @@ import { logger } from "./logger.server";
 export interface RedisClientWrapper {
   get(key: string): Promise<string | null>;
   set(key: string, value: string, options?: { EX?: number }): Promise<void>;
+  setNX(key: string, value: string, ttlMs: number): Promise<boolean>;
   del(key: string): Promise<number>;
   incr(key: string): Promise<number>;
   expire(key: string, seconds: number): Promise<boolean>;
@@ -90,6 +91,22 @@ class InMemoryFallback implements RedisClientWrapper {
       entry.expiresAt = Date.now() + options.EX * 1000;
     }
     this.stringStore.set(key, entry);
+  }
+  async setNX(key: string, value: string, ttlMs: number): Promise<boolean> {
+    if (this.stringStore.has(key)) {
+      const entry = this.stringStore.get(key);
+      if (entry && (!entry.expiresAt || entry.expiresAt > Date.now())) {
+        return false;
+      }
+    }
+    if (this.stringStore.size >= this.maxSize) {
+      this.cleanup();
+    }
+    this.stringStore.set(key, {
+      value,
+      expiresAt: Date.now() + ttlMs,
+    });
+    return true;
   }
   async del(key: string): Promise<number> {
     const hadString = this.stringStore.delete(key);
@@ -320,6 +337,14 @@ class RedisClientFactory {
           }
         } catch {
           await this.fallback.set(key, value, options);
+        }
+      },
+      setNX: async (key: string, value: string, ttlMs: number): Promise<boolean> => {
+        try {
+          const result = await client.set(key, value, { NX: true, PX: ttlMs });
+          return result !== null;
+        } catch {
+          return this.fallback.setNX(key, value, ttlMs);
         }
       },
       del: async (key: string): Promise<number> => {

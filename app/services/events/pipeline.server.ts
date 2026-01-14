@@ -3,7 +3,7 @@ import { logger } from "~/utils/logger.server";
 import type { PixelEventPayload } from "~/routes/api.pixel-events/types";
 import { sendPixelEventToPlatform } from "./pixel-event-sender.server";
 import { generateCanonicalEventId } from "../event-normalizer.server";
-import { generateSimpleId } from "~/utils/helpers";
+import { generateSimpleId, parallelLimit } from "~/utils/helpers";
 
 function extractPlatformFromPayload(payload: Record<string, unknown> | null): string | null {
   if (!payload) return null;
@@ -642,18 +642,10 @@ export async function processBatchEvents(
   }>,
   environment?: "test" | "live"
 ): Promise<EventPipelineResult[]> {
-  const results: EventPipelineResult[] = [];
-  for (const event of events) {
-    const result = await processEventPipeline(
-      shopId,
-      event.payload,
-      event.eventId,
-      event.destinations,
-      environment
-    );
-    results.push(result);
-  }
-  return results;
+  const concurrency = Number(process.env.PIPELINE_CONCURRENCY || 5);
+  return parallelLimit(events, concurrency, (event) =>
+    processEventPipeline(shopId, event.payload, event.eventId, event.destinations, environment)
+  );
 }
 
 export async function getEventStats(

@@ -1,5 +1,6 @@
 import { getRedisClient, getRedisClientSync, type RedisClientWrapper } from "./redis-client";
 import { logger } from "./logger.server";
+import { API_SECURITY_HEADERS, addSecurityHeaders } from "./security-headers";
 
 interface RateLimitEntry {
   count: number;
@@ -336,29 +337,7 @@ export function checkRateLimit(
   };
 }
 
-export const SECURITY_HEADERS: Record<string, string> = {
-  "X-Content-Type-Options": "nosniff",
-  "X-Frame-Options": "DENY",
-  "X-XSS-Protection": "1; mode=block",
-  "Referrer-Policy": "strict-origin-when-cross-origin",
-  "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate",
-  Pragma: "no-cache",
-  Expires: "0",
-};
-
-export function addSecurityHeaders(response: Response): Response {
-  const headers = new Headers(response.headers);
-  for (const [key, value] of Object.entries(SECURITY_HEADERS)) {
-    if (!headers.has(key)) {
-      headers.set(key, value);
-    }
-  }
-  return new Response(response.body, {
-    status: response.status,
-    statusText: response.statusText,
-    headers,
-  });
-}
+export const SECURITY_HEADERS = API_SECURITY_HEADERS;
 
 export function createRateLimitResponse(retryAfter: number): Response {
   return new Response(

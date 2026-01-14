@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { buildCspHeader, CSP_DIRECTIVES } from "./security-headers";
+import { buildCspHeader, CSP_DIRECTIVES, API_SECURITY_HEADERS, addSecurityHeaders } from "./security-headers";
 
 export const MAX_BODY_SIZE = {
   PIXEL_EVENT: 10 * 1024,
@@ -144,33 +144,12 @@ export function validateOrigin(
   };
 }
 
-export const API_SECURITY_HEADERS: Record<string, string> = {
-  "X-Content-Type-Options": "nosniff",
-  "X-Frame-Options": "DENY",
-  "X-XSS-Protection": "1; mode=block",
-  "Referrer-Policy": "strict-origin-when-cross-origin",
-  "Cache-Control": "no-store, max-age=0",
-};
+export { API_SECURITY_HEADERS, addSecurityHeaders as applySecurityHeaders } from "./security-headers";
 
 export const HTML_SECURITY_HEADERS: Record<string, string> = {
   ...API_SECURITY_HEADERS,
   "Content-Security-Policy": buildCspHeader(CSP_DIRECTIVES),
 };
-
-export function applySecurityHeaders(
-  response: Response,
-  headers: Record<string, string> = API_SECURITY_HEADERS
-): Response {
-  const newHeaders = new Headers(response.headers);
-  for (const [key, value] of Object.entries(headers)) {
-    newHeaders.set(key, value);
-  }
-  return new Response(response.body, {
-    status: response.status,
-    statusText: response.statusText,
-    headers: newHeaders,
-  });
-}
 
 export function containsSqlInjectionPattern(input: string): boolean {
   const patterns = [

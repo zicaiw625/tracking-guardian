@@ -47,15 +47,15 @@ async function sendCheckoutCompletedWithRetry(
   headers: Record<string, string> = {}
 ): Promise<void> {
   try {
-    const response = await fetch(url, {
-      method: "POST",
-      headers: {
-        "Content-Type": "text/plain;charset=UTF-8",
-        ...headers,
-      },
-      keepalive: true,
-      body,
-    });
+      const response = await fetch(url, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...headers,
+        },
+        keepalive: true,
+        body,
+      });
     if (isDevMode) {
       log(`checkout_completed sent, status: ${response.status}, attempt: ${retryIndex + 1}/${MAX_RETRIES}`);
     }
