@@ -8,41 +8,51 @@ export async function processShopRedact(
   _payload: ShopRedactPayload
 ): Promise<ShopRedactResult> {
   logger.info(`[GDPR] Processing shop redact for ${shopDomain} - DELETING ALL DATA`);
-  const shop = await prisma.shop.findUnique({
-    where: { shopDomain },
-    select: { id: true },
-  });
   const deletedCounts = createEmptyShopRedactDeletionCounts();
-  const sessionResult = await prisma.session.deleteMany({
-    where: { shop: shopDomain },
-  });
-  deletedCounts.sessions = sessionResult.count;
-  if (shop) {
-    const pixelReceiptResult = await prisma.pixelEventReceipt.deleteMany({
-      where: { shopId: shop.id },
+  await prisma.$transaction(async (tx) => {
+    const webhookLogResult = await tx.webhookLog.deleteMany({
+      where: { shopDomain },
     });
-    deletedCounts.pixelEventReceipts = pixelReceiptResult.count;
-    const verificationRunResult = await prisma.verificationRun.deleteMany({
-      where: { shopId: shop.id },
+    deletedCounts.webhookLogs = webhookLogResult.count;
+    const gdprJobResult = await tx.gdprJob.deleteMany({
+      where: { shopDomain },
     });
-    deletedCounts.verificationRuns = verificationRunResult.count;
-    const scanReportResult = await prisma.scanReport.deleteMany({
-      where: { shopId: shop.id },
+    deletedCounts.gdprJobs = gdprJobResult.count;
+    const sessionResult = await tx.session.deleteMany({
+      where: { shop: shopDomain },
     });
-    deletedCounts.scanReports = scanReportResult.count;
-    const auditAssetResult = await prisma.auditAsset.deleteMany({
-      where: { shopId: shop.id },
+    deletedCounts.sessions = sessionResult.count;
+    const shop = await tx.shop.findUnique({
+      where: { shopDomain },
+      select: { id: true },
     });
-    deletedCounts.auditAssets = auditAssetResult.count;
-    const pixelConfigResult = await prisma.pixelConfig.deleteMany({
-      where: { shopId: shop.id },
-    });
-    deletedCounts.pixelConfigs = pixelConfigResult.count;
-    await prisma.shop.delete({
-      where: { id: shop.id },
+    if (shop) {
+      const pixelReceiptResult = await tx.pixelEventReceipt.count({
+        where: { shopId: shop.id },
+      });
+      deletedCounts.pixelEventReceipts = pixelReceiptResult;
+      const verificationRunResult = await tx.verificationRun.count({
+        where: { shopId: shop.id },
+      });
+      deletedCounts.verificationRuns = verificationRunResult;
+      const scanReportResult = await tx.scanReport.count({
+        where: { shopId: shop.id },
+      });
+      deletedCounts.scanReports = scanReportResult;
+      const auditAssetResult = await tx.auditAsset.count({
+        where: { shopId: shop.id },
+      });
+      deletedCounts.auditAssets = auditAssetResult;
+      const pixelConfigResult = await tx.pixelConfig.count({
+        where: { shopId: shop.id },
+      });
+      deletedCounts.pixelConfigs = pixelConfigResult;
+    }
+    await tx.shop.deleteMany({
+      where: { shopDomain },
     });
     deletedCounts.shop = 1;
-  }
+  });
   const result: ShopRedactResult = {
     shopDomain,
     deletedCounts,

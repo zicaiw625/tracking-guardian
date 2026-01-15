@@ -116,6 +116,7 @@ export interface CustomerRedactResult {
 export interface ShopRedactDeletionCounts {
   sessions: number;
   webhookLogs: number;
+  gdprJobs: number;
   pixelEventReceipts: number;
   verificationRuns: number;
   scanReports: number;
@@ -250,6 +251,7 @@ export function createEmptyShopRedactDeletionCounts(): ShopRedactDeletionCounts 
   return {
     sessions: 0,
     webhookLogs: 0,
+    gdprJobs: 0,
     pixelEventReceipts: 0,
     verificationRuns: 0,
     scanReports: 0,

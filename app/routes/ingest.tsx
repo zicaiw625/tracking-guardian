@@ -322,14 +322,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       destinations: string[];
     }> = [];
     const serverSideConfigs = pixelConfigs.filter(config => config.serverSideEnabled === true);
-    const activeVerificationRun = isPurchaseEvent ? await prisma.verificationRun.findFirst({
-      where: {
-        shopId: shop.id,
-        status: "running",
-      },
-      orderBy: { createdAt: "desc" },
-      select: { id: true },
-    }) : null;
+    let activeVerificationRunId: string | null | undefined = undefined;
     const keyValidation: KeyValidationResult = (() => {
       if (isProduction) {
         return {
@@ -467,6 +460,14 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       );
       const destinations = platformsToRecord.map(p => p.platform);
       if (isPurchaseEvent && orderId) {
+        if (activeVerificationRunId === undefined) {
+          const run = await prisma.verificationRun.findFirst({
+            where: { shopId: shop.id, status: "running" },
+            orderBy: { createdAt: "desc" },
+            select: { id: true },
+          });
+          activeVerificationRunId = run?.id ?? null;
+        }
         logConsentFilterMetrics(
           shopDomain,
           orderId,
@@ -482,7 +483,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
             payload,
             origin,
             eventType,
-            activeVerificationRun?.id || null,
+            activeVerificationRunId ?? null,
             primaryPlatform || null,
             orderId || null
           );

@@ -49,9 +49,9 @@ export async function handleCustomersDataRequest(
       error: errorMessage,
     });
     return {
-      success: true,
-      status: 200,
-      message: "GDPR data request acknowledged",
+      success: false,
+      status: 500,
+      message: "GDPR data request processing failed",
     };
   }
 }
@@ -96,9 +96,9 @@ export async function handleCustomersRedact(
       error: errorMessage,
     });
     return {
-      success: true,
-      status: 200,
-      message: "GDPR customer redact acknowledged",
+      success: false,
+      status: 500,
+      message: "GDPR customer redact processing failed",
     };
   }
 }
@@ -143,9 +143,9 @@ export async function handleShopRedact(
       error: errorMessage,
     });
     return {
-      success: true,
-      status: 200,
-      message: "GDPR shop redact acknowledged",
+      success: false,
+      status: 500,
+      message: "GDPR shop redact processing failed",
     };
   }
 }
