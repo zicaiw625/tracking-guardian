@@ -205,12 +205,9 @@ export class MetaPlatformService implements IPlatformService {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${credentials.accessToken}`,
+          "Authorization": `Bearer ${credentials.accessToken}`,
         },
-        body: JSON.stringify({
-          ...eventPayload,
-          access_token: credentials.accessToken,
-        }),
+        body: JSON.stringify(eventPayload),
       },
       DEFAULT_API_TIMEOUT_MS
     );

@@ -121,7 +121,20 @@ export function validatePixelOriginPreBody(origin: string | null): {
             return { valid: false, reason: "http_not_allowed", shouldLog: true, shouldReject: true };
         }
         if (url.protocol === "https:") {
-            return { valid: true, reason: "https_origin", shouldLog: false, shouldReject: false };
+            const hostname = url.hostname.toLowerCase();
+            const isShopifyDomain = SHOPIFY_ALLOWLIST.some(domain => 
+                hostname === domain || hostname.endsWith(`.${domain}`)
+            );
+            if (isShopifyDomain) {
+                return { valid: true, reason: "https_shopify_origin", shouldLog: false, shouldReject: false };
+            }
+            if (ALLOWED_ORIGIN_PATTERNS.some(({ pattern }) => pattern.test(origin))) {
+                return { valid: true, reason: "https_allowed_origin", shouldLog: false, shouldReject: false };
+            }
+            if (devMode && (hostname === "localhost" || hostname === "127.0.0.1")) {
+                return { valid: true, reason: "dev_localhost_https", shouldLog: false, shouldReject: false };
+            }
+            return { valid: false, reason: "https_non_shopify_origin", shouldLog: true, shouldReject: true };
         }
         return { valid: false, reason: "invalid_protocol", shouldLog: true, shouldReject: true };
     }

@@ -1,27 +1,28 @@
 import type { ActionFunctionArgs } from "@remix-run/node";
 import { randomUUID } from "crypto";
 import { logger } from "../../utils/logger.server";
-import { optionsResponse, jsonWithCors } from "../../utils/cors";
+import { json } from "@remix-run/node";
 import { checkRateLimitAsync } from "../../middleware/rate-limit";
 import prisma from "../../db.server";
-import { authenticatePublic, normalizeDestToShopDomain } from "../../utils/public-auth";
+import { authenticatePublic, normalizeDestToShopDomain, getPublicCorsForOptions } from "../../utils/public-auth";
 import { sanitizeSensitiveInfo } from "../../utils/security";
 import { API_CONFIG } from "../../utils/config";
 
 export const action = async ({ request }: ActionFunctionArgs) => {
   if (request.method === "OPTIONS") {
-    return optionsResponse(request, true);
+    const cors = await getPublicCorsForOptions(request);
+    return cors(new Response(null, { status: 204 }));
   }
   if (request.method !== "POST") {
-    return jsonWithCors({ error: "Method not allowed" }, { status: 405, request, staticCors: true });
+    return json({ error: "Method not allowed" }, { status: 405 });
   }
   let authResult;
   try {
     authResult = await authenticatePublic(request);
   } catch (authError) {
-    return jsonWithCors(
+    return json(
       { error: "Unauthorized: Invalid authentication" },
-      { status: 401, request, staticCors: true }
+      { status: 401 }
     );
   }
   const shopDomain = normalizeDestToShopDomain(authResult.sessionToken.dest);
@@ -31,9 +32,9 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   });
   if (!shop) {
     logger.warn(`Extension error report for unknown shop: ${shopDomain}`);
-    return authResult.cors(jsonWithCors(
+    return authResult.cors(json(
       { error: "Shop not found" },
-      { status: 404, request, staticCors: true }
+      { status: 404 }
     ));
   }
   const rateLimitKey = `extension-errors:${shopDomain}`;
@@ -50,12 +51,12 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       shopDomain,
       retryAfter: rateLimitResult.retryAfter,
     });
-      return authResult.cors(jsonWithCors(
+      return authResult.cors(json(
         {
           error: "Too many error reports",
           retryAfter: rateLimitResult.retryAfter,
         },
-        { status: 429, request, staticCors: true, headers }
+        { status: 429, headers }
       ));
     }
   try {
@@ -64,18 +65,18 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       const size = parseInt(contentLength, 10);
       if (!isNaN(size) && size > API_CONFIG.MAX_BODY_SIZE) {
         logger.warn(`Extension error request body too large: ${size} bytes (max ${API_CONFIG.MAX_BODY_SIZE})`);
-        return authResult.cors(jsonWithCors(
+        return authResult.cors(json(
           { error: "Payload too large", maxSize: API_CONFIG.MAX_BODY_SIZE },
-          { status: 413, request, staticCors: true }
-        ));
+      { status: 413 }
+    ));
       }
     }
     const bodyText = await request.text();
     if (bodyText.length > API_CONFIG.MAX_BODY_SIZE) {
       logger.warn(`Extension error request body too large: ${bodyText.length} bytes (max ${API_CONFIG.MAX_BODY_SIZE})`);
-      return authResult.cors(jsonWithCors(
+      return authResult.cors(json(
         { error: "Payload too large", maxSize: API_CONFIG.MAX_BODY_SIZE },
-        { status: 413, request, staticCors: true }
+        { status: 413 }
       ));
     }
     const body = JSON.parse(bodyText) as {
@@ -88,10 +89,10 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       timestamp?: string;
     } | null;
       if (!body || !body.extension || !body.endpoint || !body.error) {
-      return authResult.cors(jsonWithCors(
+      return authResult.cors(json(
         { error: "Missing required fields: extension, endpoint, error" },
-        { status: 400, request, staticCors: true }
-      ));
+      { status: 400 }
+    ));
     }
     const MAX_ERROR_LENGTH = 2000;
     const MAX_STACK_LENGTH = 8000;
@@ -163,7 +164,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         dbError: dbError instanceof Error ? dbError.message : String(dbError),
       });
     }
-    return authResult.cors(jsonWithCors({ success: true }, { request, staticCors: true }));
+    return authResult.cors(json({ success: true }));
   } catch (error) {
     logger.error("Failed to process extension error report", {
       error: error instanceof Error ? error.message : String(error),
@@ -171,14 +172,14 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       stack: error instanceof Error ? error.stack : undefined,
     });
     if (authResult) {
-      return authResult.cors(jsonWithCors(
+      return authResult.cors(json(
         { error: "Internal server error" },
-        { status: 500, request, staticCors: true }
-      ));
+      { status: 500 }
+    ));
     }
-    return jsonWithCors(
+    return json(
       { error: "Internal server error" },
-      { status: 500, request, staticCors: true }
+      { status: 500 }
     );
   }
 };

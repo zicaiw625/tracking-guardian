@@ -28,6 +28,20 @@ export async function authenticatePublic(request: Request): Promise<PublicAuthRe
   }
 }
 
+export async function getPublicCorsForOptions(request: Request): Promise<(response: Response) => Response> {
+  try {
+    const { cors } = await authenticate.public.checkout(request);
+    return cors;
+  } catch {
+    try {
+      const { cors } = await authenticate.public.customerAccount(request);
+      return cors;
+    } catch {
+      return (response: Response) => response;
+    }
+  }
+}
+
 export function normalizeDestToShopDomain(dest: string): string {
   try {
     const url = new URL(dest);

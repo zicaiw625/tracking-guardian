@@ -1,28 +1,29 @@
 import type { ActionFunctionArgs, LoaderFunctionArgs } from "@remix-run/node";
+import { json } from "@remix-run/node";
 import { logger } from "../../utils/logger.server";
-import { optionsResponse, jsonWithCors } from "../../utils/cors";
 import { withRateLimit, pathShopKeyExtractor, type RateLimitedHandler, checkRateLimitAsync } from "../../middleware/rate-limit";
 import prisma from "../../db.server";
 import { randomUUID } from "crypto";
 import { canUseModule, getUiModuleConfigs } from "../../services/ui-extension.server";
-import { authenticatePublic, normalizeDestToShopDomain } from "../../utils/public-auth";
+import { authenticatePublic, normalizeDestToShopDomain, getPublicCorsForOptions } from "../../utils/public-auth";
 import { hashValueSync } from "../../utils/crypto.server";
 import { API_CONFIG } from "../../utils/config";
 
 export const action = async ({ request }: ActionFunctionArgs) => {
   if (request.method === "OPTIONS") {
-    return optionsResponse(request, true);
+    const cors = await getPublicCorsForOptions(request);
+    return cors(new Response(null, { status: 204 }));
   }
   if (request.method !== "POST") {
-    return jsonWithCors({ error: "Method not allowed" }, { status: 405, request, staticCors: true });
+    return json({ error: "Method not allowed" }, { status: 405 });
   }
   let authResult;
   try {
     authResult = await authenticatePublic(request);
   } catch (authError) {
-    return jsonWithCors(
+    return json(
       { error: "Unauthorized: Invalid authentication" },
-      { status: 401, request, staticCors: true }
+      { status: 401 }
     );
   }
     const shopDomain = normalizeDestToShopDomain(authResult.sessionToken.dest);
@@ -32,9 +33,9 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     });
     if (!shop) {
       logger.warn(`Survey submission for unknown shop: ${shopDomain}`);
-      return authResult.cors(jsonWithCors(
+      return authResult.cors(json(
         { error: "Shop not found" },
-        { status: 404, request, staticCors: true }
+        { status: 404 }
       ));
     }
     const moduleCheck = await canUseModule(shop.id, "survey");
@@ -44,18 +45,18 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         currentPlan: moduleCheck.currentPlan,
         requiredPlan: moduleCheck.requiredPlan,
       });
-      return authResult.cors(jsonWithCors(
+      return authResult.cors(json(
         { error: "Module not available", reason: moduleCheck.reason },
-        { status: 403, request, staticCors: true }
+        { status: 403 }
       ));
     }
     const modules = await getUiModuleConfigs(shop.id);
     const surveyModule = modules.find((m) => m.moduleKey === "survey");
     if (!surveyModule || !surveyModule.isEnabled) {
       logger.warn(`Survey module not enabled for shop ${shopDomain}`);
-      return authResult.cors(jsonWithCors(
+      return authResult.cors(json(
         { error: "Survey module is not enabled" },
-        { status: 403, request, staticCors: true }
+        { status: 403 }
       ));
     }
     const rateLimitKey = `survey:${shopDomain}`;
@@ -72,12 +73,12 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         shopDomain,
         retryAfter: rateLimitResult.retryAfter,
       });
-      return authResult.cors(jsonWithCors(
+      return authResult.cors(json(
         {
           error: "Too many survey requests",
           retryAfter: rateLimitResult.retryAfter,
         },
-        { status: 429, request, staticCors: true, headers }
+        { status: 429, headers }
       ));
     }
   try {
@@ -86,25 +87,25 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       const size = parseInt(contentLength, 10);
       if (!isNaN(size) && size > API_CONFIG.MAX_BODY_SIZE) {
         logger.warn(`Survey request body too large: ${size} bytes (max ${API_CONFIG.MAX_BODY_SIZE})`);
-        return authResult.cors(jsonWithCors(
+        return authResult.cors(json(
           { error: "Payload too large", maxSize: API_CONFIG.MAX_BODY_SIZE },
-          { status: 413, request, staticCors: true }
+          { status: 413 }
         ));
       }
     }
     const bodyText = await request.text();
     if (bodyText.length > API_CONFIG.MAX_BODY_SIZE) {
       logger.warn(`Survey request body too large: ${bodyText.length} bytes (max ${API_CONFIG.MAX_BODY_SIZE})`);
-      return authResult.cors(jsonWithCors(
+      return authResult.cors(json(
         { error: "Payload too large", maxSize: API_CONFIG.MAX_BODY_SIZE },
-        { status: 413, request, staticCors: true }
+        { status: 413 }
       ));
     }
       const body = JSON.parse(bodyText);
       if (!body || typeof body !== "object") {
-        return authResult.cors(jsonWithCors(
+        return authResult.cors(json(
           { error: "Invalid request body" },
-          { status: 400, request, staticCors: true }
+          { status: 400 }
         ));
       }
       const { option, timestamp, orderId, checkoutToken } = body as { 
@@ -114,9 +115,9 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         checkoutToken?: string | null;
       };
       if (!option) {
-        return authResult.cors(jsonWithCors(
+        return authResult.cors(json(
           { error: "Missing survey option" },
-          { status: 400, request, staticCors: true }
+          { status: 400 }
         ));
       }
       let finalOrderId: string;
@@ -146,23 +147,22 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       option,
       timestamp,
     });
-    return authResult.cors(jsonWithCors(
-      { success: true, message: "Survey response recorded" },
-      { request, staticCors: true }
+    return authResult.cors(json(
+      { success: true, message: "Survey response recorded" }
     ));
   } catch (error) {
     logger.error("Failed to process survey submission", {
       error: error instanceof Error ? error.message : String(error),
     });
     if (authResult) {
-      return authResult.cors(jsonWithCors(
+      return authResult.cors(json(
         { error: "Internal server error" },
-        { status: 500, request, staticCors: true }
+        { status: 500 }
       ));
     }
-    return jsonWithCors(
+    return json(
       { error: "Internal server error" },
-      { status: 500, request, staticCors: true }
+      { status: 500 }
     );
   }
 };
@@ -175,9 +175,8 @@ const surveyRateLimit = withRateLimit<Response>({
 }) as (handler: RateLimitedHandler<Response>) => RateLimitedHandler<Response | Response>;
 
 const rateLimitedLoader = surveyRateLimit(async (args: LoaderFunctionArgs): Promise<Response> => {
-  return jsonWithCors(
-    { message: "Survey endpoint - POST to submit survey response" },
-    { request: args.request, staticCors: true }
+  return json(
+    { message: "Survey endpoint - POST to submit survey response" }
   );
 });
 

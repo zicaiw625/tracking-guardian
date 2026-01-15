@@ -126,6 +126,23 @@ export function sanitizePII(payload: unknown): unknown {
   const result: Record<string, unknown> = {};
   for (const key of Object.keys(obj)) {
     const lowerKey = key.toLowerCase();
+    if (lowerKey === "url") {
+      if (typeof obj[key] === "string") {
+        try {
+          const u = new URL(obj[key] as string);
+          result[key] = `${u.origin}${u.pathname}`;
+        } catch {
+          result[key] = "[REDACTED]";
+        }
+      } else {
+        result[key] = "[REDACTED]";
+      }
+      continue;
+    }
+    if (lowerKey === "body") {
+      result[key] = "[REDACTED]";
+      continue;
+    }
     const piiKeywords = ["email", "phone", "address", "name", "customer", "user", "personal", "identify"];
     const containsPiiKeyword = piiKeywords.some(keyword => lowerKey.includes(keyword));
     const isAllowed = allowedFields.has(lowerKey);

@@ -121,8 +121,10 @@ export class GooglePlatformService implements IPlatformService {
     data: ConversionData,
     eventId: string
   ): Promise<Record<string, unknown>> {
+    const providedClientId = (data as ConversionData & { clientId?: string }).clientId;
+    const clientId = providedClientId || `server.${Date.now()}.${data.orderId.slice(-8)}`;
     return {
-      client_id: `server.${data.orderId}`,
+      client_id: clientId,
       events: [
         {
           name: "purchase",
@@ -148,7 +150,29 @@ export class GooglePlatformService implements IPlatformService {
     data: ConversionData,
     eventId: string
   ): Promise<ConversionApiResponse> {
-    const payload = await this.buildPayload(data, eventId);
+    const providedClientId = (data as ConversionData & { clientId?: string }).clientId;
+    const clientId = providedClientId || `server.${Date.now()}.${data.orderId.slice(-8)}`;
+    const payload = {
+      client_id: clientId,
+      events: [
+        {
+          name: "purchase",
+          params: {
+            engagement_time_msec: "1",
+            transaction_id: data.orderId,
+            value: data.value,
+            currency: data.currency,
+            items:
+              data.lineItems?.map((item) => ({
+                item_id: item.productId,
+                item_name: item.name,
+                quantity: item.quantity,
+                price: item.price,
+              })) || [],
+          },
+        },
+      ],
+    };
     const url = `${GA4_MEASUREMENT_PROTOCOL_URL}?measurement_id=${credentials.measurementId}&api_secret=${credentials.apiSecret}`;
     const response = await fetchWithTimeout(
       url,

@@ -255,16 +255,21 @@ function sanitizeKeyPart(value: string): string {
 }
 
 function getClientIP(request: Request): string {
-  const forwardedFor = request.headers.get("x-forwarded-for");
-  if (forwardedFor) {
-    const firstIP = forwardedFor.split(",")[0]?.trim();
-    if (firstIP) {
-      return sanitizeKeyPart(firstIP);
-    }
+  const cfConnectingIP = request.headers.get("cf-connecting-ip");
+  if (cfConnectingIP) {
+    return sanitizeKeyPart(cfConnectingIP.trim());
   }
   const realIP = request.headers.get("x-real-ip");
   if (realIP) {
     return sanitizeKeyPart(realIP.trim());
+  }
+  const forwardedFor = request.headers.get("x-forwarded-for");
+  if (forwardedFor) {
+    const ips = forwardedFor.split(",").map(ip => ip.trim()).filter(ip => ip);
+    if (ips.length > 0) {
+      const lastIP = ips[ips.length - 1];
+      return sanitizeKeyPart(lastIP);
+    }
   }
   return "unknown";
 }

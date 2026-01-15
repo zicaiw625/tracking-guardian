@@ -103,20 +103,24 @@ export async function cleanupExpiredData(): Promise<CleanupResult> {
       const cutoffDate = new Date(Date.now() - retentionDays * 24 * 60 * 60 * 1000);
 
       try {
-        const conversionLogs = await prisma.conversionLog.findMany({
-          where: {
-            shopId: shop.id,
-            createdAt: {
-              lt: cutoffDate,
+        while (true) {
+          const conversionLogs = await prisma.conversionLog.findMany({
+            where: {
+              shopId: shop.id,
+              createdAt: {
+                lt: cutoffDate,
+              },
             },
-          },
-          select: {
-            id: true,
-          },
-          take: 1000,
-        });
+            select: {
+              id: true,
+            },
+            take: 1000,
+          });
 
-        if (conversionLogs.length > 0) {
+          if (conversionLogs.length === 0) {
+            break;
+          }
+
           const deleteResult = await prisma.conversionLog.deleteMany({
             where: {
               id: {
@@ -125,26 +129,34 @@ export async function cleanupExpiredData(): Promise<CleanupResult> {
             },
           });
           result.conversionLogsDeleted += deleteResult.count;
+
+          if (conversionLogs.length < 1000) {
+            break;
+          }
         }
       } catch (error) {
         logger.error("Failed to cleanup conversion logs", { shopId: shop.id, error });
       }
 
       try {
-        const surveyResponses = await prisma.surveyResponse.findMany({
-          where: {
-            shopId: shop.id,
-            createdAt: {
-              lt: cutoffDate,
+        while (true) {
+          const surveyResponses = await prisma.surveyResponse.findMany({
+            where: {
+              shopId: shop.id,
+              createdAt: {
+                lt: cutoffDate,
+              },
             },
-          },
-          select: {
-            id: true,
-          },
-          take: 1000,
-        });
+            select: {
+              id: true,
+            },
+            take: 1000,
+          });
 
-        if (surveyResponses.length > 0) {
+          if (surveyResponses.length === 0) {
+            break;
+          }
+
           const deleteResult = await prisma.surveyResponse.deleteMany({
             where: {
               id: {
@@ -153,6 +165,10 @@ export async function cleanupExpiredData(): Promise<CleanupResult> {
             },
           });
           result.surveyResponsesDeleted += deleteResult.count;
+
+          if (surveyResponses.length < 1000) {
+            break;
+          }
         }
       } catch (error) {
         logger.error("Failed to cleanup survey responses", { shopId: shop.id, error });
@@ -162,20 +178,24 @@ export async function cleanupExpiredData(): Promise<CleanupResult> {
         const auditLogCutoff = new Date(
           Date.now() - Math.max(retentionDays, MIN_AUDIT_LOG_RETENTION_DAYS) * 24 * 60 * 60 * 1000
         );
-        const auditLogs = await prisma.auditLog.findMany({
-          where: {
-            shopId: shop.id,
-            createdAt: {
-              lt: auditLogCutoff,
+        while (true) {
+          const auditLogs = await prisma.auditLog.findMany({
+            where: {
+              shopId: shop.id,
+              createdAt: {
+                lt: auditLogCutoff,
+              },
             },
-          },
-          select: {
-            id: true,
-          },
-          take: 1000,
-        });
+            select: {
+              id: true,
+            },
+            take: 1000,
+          });
 
-        if (auditLogs.length > 0) {
+          if (auditLogs.length === 0) {
+            break;
+          }
+
           const deleteResult = await prisma.auditLog.deleteMany({
             where: {
               id: {
@@ -184,29 +204,37 @@ export async function cleanupExpiredData(): Promise<CleanupResult> {
             },
           });
           result.auditLogsDeleted += deleteResult.count;
+
+          if (auditLogs.length < 1000) {
+            break;
+          }
         }
       } catch (error) {
         logger.error("Failed to cleanup audit logs", { shopId: shop.id, error });
       }
 
       try {
-        const conversionJobs = await prisma.conversionJob.findMany({
-          where: {
-            shopId: shop.id,
-            createdAt: {
-              lt: cutoffDate,
+        while (true) {
+          const conversionJobs = await prisma.conversionJob.findMany({
+            where: {
+              shopId: shop.id,
+              createdAt: {
+                lt: cutoffDate,
+              },
+              status: {
+                in: [JobStatus.COMPLETED, JobStatus.FAILED],
+              },
             },
-            status: {
-              in: [JobStatus.COMPLETED, JobStatus.FAILED],
+            select: {
+              id: true,
             },
-          },
-          select: {
-            id: true,
-          },
-          take: 1000,
-        });
+            take: 1000,
+          });
 
-        if (conversionJobs.length > 0) {
+          if (conversionJobs.length === 0) {
+            break;
+          }
+
           const deleteResult = await prisma.conversionJob.deleteMany({
             where: {
               id: {
@@ -215,26 +243,34 @@ export async function cleanupExpiredData(): Promise<CleanupResult> {
             },
           });
           result.conversionJobsDeleted += deleteResult.count;
+
+          if (conversionJobs.length < 1000) {
+            break;
+          }
         }
       } catch (error) {
         logger.error("Failed to cleanup conversion jobs", { shopId: shop.id, error });
       }
 
       try {
-        const pixelEventReceipts = await prisma.pixelEventReceipt.findMany({
-          where: {
-            shopId: shop.id,
-            createdAt: {
-              lt: cutoffDate,
+        while (true) {
+          const pixelEventReceipts = await prisma.pixelEventReceipt.findMany({
+            where: {
+              shopId: shop.id,
+              createdAt: {
+                lt: cutoffDate,
+              },
             },
-          },
-          select: {
-            id: true,
-          },
-          take: 1000,
-        });
+            select: {
+              id: true,
+            },
+            take: 1000,
+          });
 
-        if (pixelEventReceipts.length > 0) {
+          if (pixelEventReceipts.length === 0) {
+            break;
+          }
+
           const deleteResult = await prisma.pixelEventReceipt.deleteMany({
             where: {
               id: {
@@ -243,29 +279,37 @@ export async function cleanupExpiredData(): Promise<CleanupResult> {
             },
           });
           result.pixelEventReceiptsDeleted += deleteResult.count;
+
+          if (pixelEventReceipts.length < 1000) {
+            break;
+          }
         }
       } catch (error) {
         logger.error("Failed to cleanup pixel event receipts", { shopId: shop.id, error });
       }
 
       try {
-        const webhookLogs = await prisma.webhookLog.findMany({
-          where: {
-            shopDomain: shop.shopDomain,
-            receivedAt: {
-              lt: cutoffDate,
+        while (true) {
+          const webhookLogs = await prisma.webhookLog.findMany({
+            where: {
+              shopDomain: shop.shopDomain,
+              receivedAt: {
+                lt: cutoffDate,
+              },
+              status: {
+                in: [WebhookStatus.PROCESSED, WebhookStatus.FAILED],
+              },
             },
-            status: {
-              in: [WebhookStatus.PROCESSED, WebhookStatus.FAILED],
+            select: {
+              id: true,
             },
-          },
-          select: {
-            id: true,
-          },
-          take: 1000,
-        });
+            take: 1000,
+          });
 
-        if (webhookLogs.length > 0) {
+          if (webhookLogs.length === 0) {
+            break;
+          }
+
           const deleteResult = await prisma.webhookLog.deleteMany({
             where: {
               id: {
@@ -274,26 +318,34 @@ export async function cleanupExpiredData(): Promise<CleanupResult> {
             },
           });
           result.webhookLogsDeleted += deleteResult.count;
+
+          if (webhookLogs.length < 1000) {
+            break;
+          }
         }
       } catch (error) {
         logger.error("Failed to cleanup webhook logs", { shopId: shop.id, error });
       }
 
       try {
-        const reconciliationReports = await prisma.reconciliationReport.findMany({
-          where: {
-            shopId: shop.id,
-            createdAt: {
-              lt: cutoffDate,
+        while (true) {
+          const reconciliationReports = await prisma.reconciliationReport.findMany({
+            where: {
+              shopId: shop.id,
+              createdAt: {
+                lt: cutoffDate,
+              },
             },
-          },
-          select: {
-            id: true,
-          },
-          take: 1000,
-        });
+            select: {
+              id: true,
+            },
+            take: 1000,
+          });
 
-        if (reconciliationReports.length > 0) {
+          if (reconciliationReports.length === 0) {
+            break;
+          }
+
           const deleteResult = await prisma.reconciliationReport.deleteMany({
             where: {
               id: {
@@ -302,26 +354,34 @@ export async function cleanupExpiredData(): Promise<CleanupResult> {
             },
           });
           result.reconciliationReportsDeleted += deleteResult.count;
+
+          if (reconciliationReports.length < 1000) {
+            break;
+          }
         }
       } catch (error) {
         logger.error("Failed to cleanup reconciliation reports", { shopId: shop.id, error });
       }
 
       try {
-        const scanReports = await prisma.scanReport.findMany({
-          where: {
-            shopId: shop.id,
-            createdAt: {
-              lt: cutoffDate,
+        while (true) {
+          const scanReports = await prisma.scanReport.findMany({
+            where: {
+              shopId: shop.id,
+              createdAt: {
+                lt: cutoffDate,
+              },
             },
-          },
-          select: {
-            id: true,
-          },
-          take: 1000,
-        });
+            select: {
+              id: true,
+            },
+            take: 1000,
+          });
 
-        if (scanReports.length > 0) {
+          if (scanReports.length === 0) {
+            break;
+          }
+
           const deleteResult = await prisma.scanReport.deleteMany({
             where: {
               id: {
@@ -330,6 +390,10 @@ export async function cleanupExpiredData(): Promise<CleanupResult> {
             },
           });
           result.scanReportsDeleted += deleteResult.count;
+
+          if (scanReports.length < 1000) {
+            break;
+          }
         }
       } catch (error) {
         logger.error("Failed to cleanup scan reports", { shopId: shop.id, error });

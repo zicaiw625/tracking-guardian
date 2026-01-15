@@ -1,25 +1,26 @@
 import type { LoaderFunctionArgs } from "@remix-run/node";
+import { json } from "@remix-run/node";
 import { logger } from "../../utils/logger.server";
-import { optionsResponse, jsonWithCors } from "../../utils/cors";
 import prisma from "../../db.server";
 import { getUiModuleConfigs, canUseModule, getDefaultSettings } from "../../services/ui-extension.server";
 import { PCD_CONFIG } from "../../utils/config";
-import { authenticatePublic, normalizeDestToShopDomain } from "../../utils/public-auth";
+import { authenticatePublic, normalizeDestToShopDomain, getPublicCorsForOptions } from "../../utils/public-auth";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   if (request.method === "OPTIONS") {
-    return optionsResponse(request, true);
+    const cors = await getPublicCorsForOptions(request);
+    return cors(new Response(null, { status: 204 }));
   }
   if (request.method !== "GET") {
-    return jsonWithCors({ error: "Method not allowed" }, { status: 405, request, staticCors: true });
+    return json({ error: "Method not allowed" }, { status: 405 });
   }
   let authResult;
   try {
     authResult = await authenticatePublic(request);
   } catch (authError) {
-    return jsonWithCors(
+    return json(
       { error: "Unauthorized: Invalid authentication" },
-      { status: 401, request, staticCors: true }
+      { status: 401 }
     );
   }
   const shopDomain = normalizeDestToShopDomain(authResult.sessionToken.dest);
@@ -29,9 +30,9 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   });
   if (!shop) {
     logger.warn(`UI modules state request for unknown shop: ${shopDomain}`);
-    return authResult.cors(jsonWithCors(
+    return authResult.cors(json(
       { error: "Shop not found" },
-      { status: 404, request, staticCors: true }
+      { status: 404 }
     ));
   }
   try {
@@ -158,7 +159,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
           buttonText: reorderConfig?.buttonText || defaultReorderSettings.buttonText,
         };
       }
-      return authResult.cors(jsonWithCors(state, { request, staticCors: true }));
+      return authResult.cors(json(state));
     } else {
       const state: {
         surveyEnabled: boolean;
@@ -192,7 +193,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
           state.helpConfig.supportUrl = helpSupportUrl;
         }
       }
-      return authResult.cors(jsonWithCors(state, { request, staticCors: true }));
+      return authResult.cors(json(state));
     }
   } catch (error) {
     logger.error("Failed to get UI modules state", {
@@ -201,14 +202,14 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       stack: error instanceof Error ? error.stack : undefined,
     });
     if (authResult) {
-      return authResult.cors(jsonWithCors(
+      return authResult.cors(json(
         { error: "Internal server error" },
-        { status: 500, request, staticCors: true }
+        { status: 500 }
       ));
     }
-    return jsonWithCors(
+    return json(
       { error: "Internal server error" },
-      { status: 500, request, staticCors: true }
+      { status: 500 }
     );
   }
 };
