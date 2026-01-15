@@ -77,8 +77,6 @@ export {
   generateEventId,
   generateTimestampedEventId,
   checkShouldSend,
-  markEventSent,
-  markEventFailed,
   analyzeDedupConflicts,
   cleanupExpiredNonces,
   formatMetaEventId,

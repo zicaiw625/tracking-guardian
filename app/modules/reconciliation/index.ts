@@ -10,9 +10,6 @@ export {
   type DeliveryHealthReport,
 } from "../../services/delivery-health.server";
 
-export {
-  reconcilePendingConsent,
-} from "../../services/consent-reconciler.server";
 
 export {
   verifyReceiptTrust,

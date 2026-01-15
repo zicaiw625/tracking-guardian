@@ -19,7 +19,6 @@ interface PixelEventSendResult {
   error?: string;
   errorCode?: string;
   requestPayload?: unknown;
-  responseStatus?: number;
   httpStatus?: number;
   responseBody?: string;
   latencyMs?: number;
@@ -150,7 +149,6 @@ async function sendToGA4(
         ok: true,
         platform: "google", 
         requestPayload, 
-        responseStatus: response.status,
         httpStatus: response.status,
         responseBody: response.status === 204 ? "" : responseText || "success",
         latencyMs,
@@ -163,7 +161,6 @@ async function sendToGA4(
       error: `GA4 error: ${response.status} ${responseText}`,
       errorCode: `http_${response.status}`,
       requestPayload,
-      responseStatus: response.status,
       httpStatus: response.status,
       responseBody: responseText,
       latencyMs,
@@ -272,7 +269,6 @@ async function sendToMeta(
         ok: true,
         platform: "meta", 
         requestPayload, 
-        responseStatus: response.status,
         httpStatus: response.status,
         responseBody: JSON.stringify(responseData) || "success",
         latencyMs,
@@ -285,7 +281,6 @@ async function sendToMeta(
       error: `Meta error: ${response.status} ${responseData.error?.message || "Unknown error"}`,
       errorCode: `http_${response.status}`,
       requestPayload,
-      responseStatus: response.status,
       httpStatus: response.status,
       responseBody: JSON.stringify(responseData),
       latencyMs,
@@ -387,7 +382,6 @@ async function sendToTikTok(
         ok: true,
         platform: "tiktok", 
         requestPayload, 
-        responseStatus: response.status,
         httpStatus: response.status,
         responseBody: JSON.stringify(responseData) || "success",
         latencyMs,
@@ -400,7 +394,6 @@ async function sendToTikTok(
       error: `TikTok error: ${response.status} ${responseData.message || "Unknown error"}`,
       errorCode: `http_${response.status}`,
       requestPayload,
-      responseStatus: response.status,
       httpStatus: response.status,
       responseBody: JSON.stringify(responseData),
       latencyMs,
@@ -542,9 +535,6 @@ export async function sendPixelEventToPlatform(
     }
     if (!sendResult.ok) {
       sendResult.ok = sendResult.success;
-    }
-    if (sendResult.httpStatus === undefined && sendResult.responseStatus !== undefined) {
-      sendResult.httpStatus = sendResult.responseStatus;
     }
     return sendResult;
   } catch (error) {

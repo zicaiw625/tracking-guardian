@@ -747,20 +747,6 @@ export async function sanitizeExistingOrderPayloads(_batchSize = 500): Promise<{
     return { processed: 0, cleaned: 0, errors: 0 };
 }
 
-export async function getOrderPayloadStats(): Promise<{
-    totalJobs: number;
-    withOrderPayload: number;
-    withCapiInput: number;
-    needsSanitization: number;
-}> {
-    logger.debug(`getOrderPayloadStats called but conversionJob table no longer exists`);
-    return {
-        totalJobs: 0,
-        withOrderPayload: 0,
-        withCapiInput: 0,
-        needsSanitization: 0,
-    };
-}
 
 export async function checkAppScopes(admin: AdminApiContext): Promise<boolean> {
     try {

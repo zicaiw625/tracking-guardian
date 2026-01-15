@@ -1198,10 +1198,10 @@ function EventDetails({ event }: { event: RealtimeEvent }) {
                             </pre>
                           </div>
                         </Box>
-                        {payloadData.responseStatus && (
+                        {payloadData.httpStatus && (
                           <InlineStack gap="400">
                             <Text as="span" variant="bodySm" tone="subdued">
-                              <strong>响应状态:</strong> {payloadData.responseStatus}
+                              <strong>响应状态:</strong> {payloadData.httpStatus}
                             </Text>
                             {payloadData.latencyMs && (
                               <Text as="span" variant="bodySm" tone="subdued">

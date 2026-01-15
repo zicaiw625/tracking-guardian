@@ -297,7 +297,7 @@ export interface UpdateDeliveryAttemptOptions {
   status: "ok" | "fail" | "skipped" | "pending";
   errorCode?: string | null;
   errorDetail?: string | null;
-  responseStatus?: number | null;
+  httpStatus?: number | null;
   responseBodySnippet?: string | null;
   latencyMs?: number | null;
 }
@@ -313,7 +313,7 @@ export async function updateDeliveryAttempt(
         ok: options.status === "ok",
         errorCode: options.errorCode || null,
         errorDetail: options.errorDetail || null,
-        responseStatus: options.responseStatus || null,
+        httpStatus: options.httpStatus || null,
         responseBodySnippet: options.responseBodySnippet ? (options.responseBodySnippet.length > 500 ? options.responseBodySnippet.substring(0, 500) : options.responseBodySnippet) : null,
         latencyMs: options.latencyMs || null,
       },
@@ -353,7 +353,7 @@ export async function getEventLogs(
     requestPayloadJson: unknown;
     errorCode: string | null;
     errorDetail: string | null;
-    responseStatus: number | null;
+    httpStatus: number | null;
     latencyMs: number | null;
     createdAt: Date;
   }>;
@@ -394,7 +394,7 @@ export async function getEventLogs(
           requestPayloadJson: attempt.requestPayloadJson,
           errorCode: attempt.errorCode,
           errorDetail: attempt.errorDetail,
-          responseStatus: attempt.httpStatus,
+          httpStatus: attempt.httpStatus,
           latencyMs: attempt.latencyMs,
           createdAt: attempt.createdAt,
         })),

@@ -128,37 +128,6 @@ export async function checkShouldSend(
   };
 }
 
-export async function markEventSent(
-  shopId: string,
-  orderId: string,
-  eventType: string,
-  platform: string,
-  eventId: string
-): Promise<void> {
-  logger.debug(`markEventSent called but conversionLog table no longer exists`, {
-    shopId,
-    orderId,
-    platform,
-    eventId,
-  });
-}
-
-export async function markEventFailed(
-  shopId: string,
-  orderId: string,
-  eventType: string,
-  platform: string,
-  eventId: string,
-  errorMessage: string
-): Promise<void> {
-  logger.debug(`markEventFailed called but conversionLog table no longer exists`, {
-    shopId,
-    orderId,
-    platform,
-    eventId,
-    errorMessage,
-  });
-}
 
 export async function analyzeDedupConflicts(
   shopId: string,
@@ -249,8 +218,22 @@ export async function analyzeDedupConflicts(
 }
 
 export async function cleanupExpiredNonces(): Promise<number> {
-  logger.debug(`cleanupExpiredNonces called but eventNonce table no longer exists`);
-  return 0;
+  try {
+    const now = new Date();
+    const result = await prisma.eventNonce.deleteMany({
+      where: {
+        expiresAt: {
+          lt: now,
+        },
+      },
+    });
+    return result.count;
+  } catch (error) {
+    logger.error("Failed to cleanup expired nonces", {
+      error: error instanceof Error ? error.message : String(error),
+    });
+    return 0;
+  }
 }
 
 export function formatMetaEventId(eventId: string): string {

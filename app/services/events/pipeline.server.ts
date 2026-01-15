@@ -615,7 +615,7 @@ export async function processEventPipeline(
         sendResult.ok ?? sendResult.success ? "ok" : "fail",
         sendResult.ok ?? sendResult.success ? undefined : (sendResult.errorCode || "send_failed"),
         sendResult.error || null,
-        sendResult.httpStatus ?? sendResult.responseStatus ?? null,
+        sendResult.httpStatus ?? null,
         sendResult.responseBody ?? null,
         sendResult.latencyMs ?? sendLatencyMs,
         sendResult.requestPayload

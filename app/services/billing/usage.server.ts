@@ -5,6 +5,14 @@ import { billingCache } from "~/utils/cache";
 import type { PlanId } from "./plans";
 import { getPlanLimit } from "./plans";
 
+function extractPlatformFromPayload(payload: Record<string, unknown> | null): string | null {
+  if (!payload || typeof payload !== "object") return null;
+  const data = payload.data as Record<string, unknown> | undefined;
+  if (!data || typeof data !== "object") return null;
+  const platform = data.platform as string | undefined;
+  return platform || null;
+}
+
 export interface UsageStats {
   currentMonth: {
     orders: number;
@@ -26,42 +34,38 @@ export async function getMonthlyUsage(
   planId: PlanId
 ): Promise<UsageStats> {
   const now = new Date();
+  const currentYearMonth = getCurrentYearMonth();
   const currentMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
   const previousMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
   const previousMonthEnd = new Date(now.getFullYear(), now.getMonth(), 0);
-  const [currentMonthReceipts, previousMonthReceipts] = await Promise.all([
-    prisma.pixelEventReceipt.findMany({
+  const previousYearMonth = `${previousMonthStart.getFullYear()}-${String(previousMonthStart.getMonth() + 1).padStart(2, "0")}`;
+  
+  const [currentUsage, previousUsage] = await Promise.all([
+    getOrCreateMonthlyUsage(shopId, currentYearMonth),
+    prisma.monthlyUsage.findUnique({
       where: {
-        shopId,
-        createdAt: { gte: currentMonthStart },
-        eventType: { in: ["purchase", "checkout_completed"] },
-      },
-      select: {
-        orderKey: true,
-        payloadJson: true,
-      },
-    }),
-    prisma.pixelEventReceipt.findMany({
-      where: {
-        shopId,
-        createdAt: {
-          gte: previousMonthStart,
-          lte: previousMonthEnd,
+        shopId_yearMonth: {
+          shopId,
+          yearMonth: previousYearMonth,
         },
-        eventType: { in: ["purchase", "checkout_completed"] },
-      },
-      select: {
-        orderKey: true,
       },
     }),
   ]);
-  const currentMonthOrderIds = new Set(
-    currentMonthReceipts
-      .filter((receipt) => receipt.orderKey)
-      .map((receipt) => receipt.orderKey!)
-  );
-  const currentMonthOrders = currentMonthOrderIds.size;
+  
+  const currentMonthOrders = currentUsage.sentCount;
+  const previousMonthOrders = previousUsage?.sentCount || 0;
+  
   const platformCounts: Record<string, number> = {};
+  const currentMonthReceipts = await prisma.pixelEventReceipt.findMany({
+    where: {
+      shopId,
+      createdAt: { gte: currentMonthStart },
+      eventType: { in: ["purchase", "checkout_completed"] },
+    },
+    select: {
+      payloadJson: true,
+    },
+  });
   currentMonthReceipts.forEach((receipt) => {
     const payload = receipt.payloadJson as Record<string, unknown> | null;
     const platform = extractPlatformFromPayload(payload);
@@ -73,12 +77,7 @@ export async function getMonthlyUsage(
       platformCounts[platform] = (platformCounts[platform] || 0) + 1;
     }
   });
-  const previousMonthOrderIds = new Set(
-    previousMonthReceipts
-      .filter((receipt) => receipt.orderKey)
-      .map((receipt) => receipt.orderKey!)
-  );
-  const previousMonthOrders = previousMonthOrderIds.size;
+  
   const limit = getPlanLimit(planId);
   const usagePercentage = limit > 0 ? (currentMonthOrders / limit) * 100 : 0;
   const isOverLimit = limit > 0 && currentMonthOrders >= limit;
@@ -101,7 +100,7 @@ export async function getMonthlyUsage(
     },
     previousMonth: {
       orders: previousMonthOrders,
-      events: previousMonthReceipts.length,
+      events: 0,
     },
     limit,
     usagePercentage,
@@ -175,21 +174,39 @@ export async function getOrCreateMonthlyUsage(
   yearMonth?: string
 ): Promise<MonthlyUsageRecord> {
   const ym = yearMonth || getCurrentYearMonth();
-  const { start, end } = getMonthDateRange(ym);
-  const count = await prisma.pixelEventReceipt.count({
+  const existing = await prisma.monthlyUsage.findUnique({
     where: {
+      shopId_yearMonth: {
+        shopId,
+        yearMonth: ym,
+      },
+    },
+  });
+  if (existing) {
+    return {
+      id: existing.id,
+      shopId: existing.shopId,
+      yearMonth: existing.yearMonth,
+      sentCount: existing.sentCount,
+      createdAt: existing.createdAt,
+      updatedAt: existing.updatedAt,
+    };
+  }
+  const created = await prisma.monthlyUsage.create({
+    data: {
+      id: randomUUID(),
       shopId,
-      createdAt: { gte: start, lt: end },
-      eventType: { in: ["purchase", "checkout_completed"] },
+      yearMonth: ym,
+      sentCount: 0,
     },
   });
   return {
-    id: randomUUID(),
-    shopId,
-    yearMonth: ym,
-    sentCount: count,
-    createdAt: new Date(),
-    updatedAt: new Date(),
+    id: created.id,
+    shopId: created.shopId,
+    yearMonth: created.yearMonth,
+    sentCount: created.sentCount,
+    createdAt: created.createdAt,
+    updatedAt: created.updatedAt,
   };
 }
 
@@ -198,15 +215,18 @@ export async function getMonthlyUsageCount(
   yearMonth?: string
 ): Promise<number> {
   const ym = yearMonth || getCurrentYearMonth();
-  const { start, end } = getMonthDateRange(ym);
-  const count = await prisma.pixelEventReceipt.count({
+  const usage = await prisma.monthlyUsage.findUnique({
     where: {
-      shopId,
-      createdAt: { gte: start, lt: end },
-      eventType: { in: ["purchase", "checkout_completed"] },
+      shopId_yearMonth: {
+        shopId,
+        yearMonth: ym,
+      },
+    },
+    select: {
+      sentCount: true,
     },
   });
-  return count;
+  return usage?.sentCount || 0;
 }
 
 export async function isOrderAlreadyCounted(
@@ -237,9 +257,28 @@ export async function incrementMonthlyUsage(
   shopId: string,
   orderId: string
 ): Promise<number> {
-  const count = await getMonthlyUsageCount(shopId);
+  const yearMonth = getCurrentYearMonth();
+  await prisma.monthlyUsage.upsert({
+    where: {
+      shopId_yearMonth: {
+        shopId,
+        yearMonth,
+      },
+    },
+    create: {
+      id: randomUUID(),
+      shopId,
+      yearMonth,
+      sentCount: 1,
+    },
+    update: {
+      sentCount: {
+        increment: 1,
+      },
+    },
+  });
   billingCache.delete(`billing:${shopId}`);
-  return count;
+  return await getMonthlyUsageCount(shopId, yearMonth);
 }
 
 export async function incrementMonthlyUsageIdempotent(
@@ -255,8 +294,28 @@ export async function incrementMonthlyUsageIdempotent(
       current,
     };
   }
-  const current = await getMonthlyUsageCount(shopId);
+  const yearMonth = getCurrentYearMonth();
+  await prisma.monthlyUsage.upsert({
+    where: {
+      shopId_yearMonth: {
+        shopId,
+        yearMonth,
+      },
+    },
+    create: {
+      id: randomUUID(),
+      shopId,
+      yearMonth,
+      sentCount: 1,
+    },
+    update: {
+      sentCount: {
+        increment: 1,
+      },
+    },
+  });
   billingCache.delete(`billing:${shopId}`);
+  const current = await getMonthlyUsageCount(shopId, yearMonth);
   return {
     incremented: true,
     current,
@@ -299,9 +358,25 @@ export async function decrementMonthlyUsage(
   shopId: string,
   yearMonth?: string
 ): Promise<number> {
-  logger.debug(`decrementMonthlyUsage called but monthlyUsage table no longer exists`, {
-    shopId,
-    yearMonth,
+  const ym = yearMonth || getCurrentYearMonth();
+  await prisma.monthlyUsage.upsert({
+    where: {
+      shopId_yearMonth: {
+        shopId,
+        yearMonth: ym,
+      },
+    },
+    create: {
+      id: randomUUID(),
+      shopId,
+      yearMonth: ym,
+      sentCount: 0,
+    },
+    update: {
+      sentCount: {
+        decrement: 1,
+      },
+    },
   });
   billingCache.delete(`billing:${shopId}`);
   return await getMonthlyUsageCount(shopId, yearMonth);

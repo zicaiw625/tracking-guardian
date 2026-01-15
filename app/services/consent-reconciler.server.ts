@@ -19,22 +19,3 @@ function evaluateConsentForPlatform(platform: string, strategy: string, consentS
         reason: decision.reason || (decision.allowed ? "consent_granted" : "consent_denied"),
     };
 }
-export async function reconcilePendingConsent(): Promise<ConsentReconciliationResult> {
-    logger.debug(`reconcilePendingConsent called but conversionLog table no longer exists`);
-    return { processed: 0, resolved: 0, expired: 0, errors: 0 };
-}
-export async function getConsentPendingStats(): Promise<{
-    total: number;
-    approaching_timeout: number;
-    by_shop: Array<{
-        shopDomain: string;
-        count: number;
-    }>;
-}> {
-    logger.debug(`getConsentPendingStats called but conversionLog table no longer exists`);
-    return {
-        total: 0,
-        approaching_timeout: 0,
-        by_shop: [],
-    };
-}
