@@ -41,14 +41,16 @@ export function withCache<T>(
     if (!cacheKey) {
       return loader(args);
     }
-    const cached = cache.get(cacheKey) as T | Response | undefined;
-    if (cached !== undefined) {
+    const cached = cache.get(cacheKey) as T | undefined;
+    if (cached !== undefined && !(cached instanceof Response)) {
       logger.debug("Cache hit", { key: cacheKey });
       if (options.staleWhileRevalidate && cache.isStale(cacheKey)) {
         loader(args)
           .then((result) => {
-            cache.set(cacheKey, result, ttl);
-            logger.debug("Cache refreshed (background)", { key: cacheKey });
+            if (!(result instanceof Response)) {
+              cache.set(cacheKey, result, ttl);
+              logger.debug("Cache refreshed (background)", { key: cacheKey });
+            }
           })
           .catch((error) => {
             logger.error("Background cache refresh failed", { key: cacheKey, error });
@@ -58,7 +60,7 @@ export function withCache<T>(
     }
     logger.debug("Cache miss", { key: cacheKey });
     const result = await loader(args);
-    if (result instanceof Response && result.status >= 400) {
+    if (result instanceof Response) {
       return result;
     }
     cache.set(cacheKey, result, ttl);
@@ -150,11 +152,14 @@ export function withConditionalCache<T>(
     if (!cacheKey) {
       return loader(args);
     }
-    const cached = cache.get(cacheKey) as T | Response | undefined;
-    if (cached !== undefined) {
+    const cached = cache.get(cacheKey) as T | undefined;
+    if (cached !== undefined && !(cached instanceof Response)) {
       return cached;
     }
     const result = await loader(args);
+    if (result instanceof Response) {
+      return result;
+    }
     if (shouldCache(result)) {
       cache.set(cacheKey, result, ttl);
     }

@@ -24,6 +24,20 @@ interface FulfillmentNode {
   };
 }
 
+type TrackingApiPayload = {
+  success: boolean;
+  tracking: {
+    trackingNumber: string | null;
+    status: string;
+    statusDescription: string;
+    carrier: string | null;
+    estimatedDelivery: string | null;
+    events: Array<{ timestamp: string; location?: string; description?: string; status?: string }>;
+    trackingUrl?: string;
+    message?: string;
+  };
+};
+
 export const action = async ({ request }: ActionFunctionArgs) => {
   if (request.method === "OPTIONS") {
     const cors = await getPublicCorsForOptions(request);
@@ -59,9 +73,9 @@ async function loaderImpl(request: Request) {
     }
     const shopDomain = normalizeDestToShopDomain(authResult.sessionToken.dest);
     const cacheKey = `tracking:${shopDomain}:${orderId}`;
-    const cached = defaultLoaderCache.get(cacheKey) as Response | undefined;
-    if (cached !== undefined) {
-      return authResult.cors(cached);
+    const cachedData = defaultLoaderCache.get(cacheKey) as TrackingApiPayload | undefined;
+    if (cachedData !== undefined) {
+      return authResult.cors(json(cachedData));
     }
     const rateLimitKey = `tracking:${shopDomain}`;
     const rateLimitResult = await checkRateLimitAsync(rateLimitKey, 60, 60 * 1000);
@@ -156,23 +170,23 @@ async function loaderImpl(request: Request) {
                   tokenCustomerId: tokenCustomerId,
                   orderCustomerId: orderCustomerIdNum,
                 });
-                return authResult.cors(json({ error: "Order access denied" }, { status: 403, request }));
+                return authResult.cors(json({ error: "Order access denied" }, { status: 403 }));
               }
             } else {
               logger.warn(`Order access denied: order has no customer for orderId: ${orderId}, shop: ${shopDomain}`);
-              return authResult.cors(json({ error: "Order access denied" }, { status: 403, request }));
+              return authResult.cors(json({ error: "Order access denied" }, { status: 403 }));
             }
           } else if (authResult.surface === "checkout") {
             const url = new URL(request.url);
             const checkoutToken = url.searchParams.get("checkoutToken");
             if (!checkoutToken) {
               logger.warn(`Order access denied: checkout context requires checkoutToken for orderId: ${orderId}, shop: ${shopDomain}`);
-              return authResult.cors(json({ error: "Order access denied: checkout context requires checkoutToken" }, { status: 403, request }));
+              return authResult.cors(json({ error: "Order access denied: checkout context requires checkoutToken" }, { status: 403 }));
             }
             const orderCheckoutToken = fulfillmentData.data.order.checkoutToken || null;
             if (orderCheckoutToken && orderCheckoutToken !== checkoutToken) {
               logger.warn(`Order access denied: checkoutToken mismatch for orderId: ${orderId}, shop: ${shopDomain}`);
-              return authResult.cors(json({ error: "Order access denied" }, { status: 403, request }));
+              return authResult.cors(json({ error: "Order access denied" }, { status: 403 }));
             }
           }
           if (fulfillmentData.data.order.fulfillments?.edges?.length > 0) {
@@ -276,14 +290,14 @@ async function loaderImpl(request: Request) {
         { status: 200 }
       ));
     }
-    const response = authResult.cors(json({
+    const data: TrackingApiPayload = {
       success: true,
       tracking: {
         trackingNumber: trackingInfo.trackingNumber,
         carrier: trackingInfo.carrier,
         status: trackingInfo.status,
         statusDescription: trackingInfo.statusDescription,
-        estimatedDelivery: trackingInfo.estimatedDelivery?.toISOString(),
+        estimatedDelivery: trackingInfo.estimatedDelivery?.toISOString() || null,
         events: trackingInfo.events.map((event) => ({
           timestamp: event.timestamp.toISOString(),
           location: event.location,
@@ -291,17 +305,15 @@ async function loaderImpl(request: Request) {
           status: event.status,
         })),
       },
-    }));
-    if (response.status === 200) {
-      defaultLoaderCache.set(cacheKey, response, TTL.MEDIUM);
-    }
-    return response;
+    };
+    defaultLoaderCache.set(cacheKey, data, TTL.MEDIUM);
+    return authResult.cors(json(data));
   } catch (error) {
     logger.error("Failed to fetch tracking info", {
       error: error instanceof Error ? error.message : String(error),
     });
     if (authResult) {
-      return authResult.cors(json({ error: "Failed to fetch tracking info" }, { status: 500, request }));
+      return authResult.cors(json({ error: "Failed to fetch tracking info" }, { status: 500 }));
     }
     return json({ error: "Failed to fetch tracking info" }, { status: 500 });
   }

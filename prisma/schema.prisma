@@ -39,7 +39,7 @@ model Shop {
   uninstalledAt           DateTime?
   isActive                Boolean                @default(true)
   createdAt               DateTime               @default(now())
-  updatedAt               DateTime
+  updatedAt               DateTime               @updatedAt
   dataRetentionDays       Int                    @default(90)
   ingestionSecret         String?
   weakConsentMode         Boolean                @default(false)
@@ -91,7 +91,7 @@ model AuditAsset {
   details              Json?
   scanReportId         String?
   createdAt            DateTime  @default(now())
-  updatedAt            DateTime
+  updatedAt            DateTime  @updatedAt
   priority             Int?
   estimatedTimeMinutes Int?
   dependencies         Json?
@@ -142,7 +142,7 @@ model PixelConfig {
   migratedAt           DateTime?
   isActive             Boolean   @default(true)
   createdAt            DateTime  @default(now())
-  updatedAt            DateTime
+  updatedAt            DateTime  @updatedAt
   clientConfig         Json?
   credentialsEncrypted String?
   credentials_legacy   Json?
@@ -313,6 +313,7 @@ model WebhookLog {
   status      String    @default("processing")
   orderId     String?
   receivedAt  DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
   processedAt DateTime?
 
   @@unique([shopDomain, webhookId, topic])
@@ -327,7 +328,7 @@ model MonthlyUsage {
   yearMonth String
   sentCount Int      @default(0)
   createdAt DateTime @default(now())
-  updatedAt DateTime
+  updatedAt DateTime @updatedAt
   Shop      Shop     @relation(fields: [shopId], references: [id], onDelete: Cascade)
 
   @@unique([shopId, yearMonth])
@@ -342,7 +343,7 @@ model MigrationDraft {
   configData Json
   expiresAt  DateTime
   createdAt  DateTime @default(now())
-  updatedAt  DateTime
+  updatedAt  DateTime @updatedAt
   Shop       Shop     @relation(fields: [shopId], references: [id], onDelete: Cascade)
 
   @@index([expiresAt])
@@ -358,7 +359,7 @@ model ShopifyOrderSnapshot {
   currency        String    @default("USD")
   financialStatus String?
   cancelledAt     DateTime?
-  updatedAt       DateTime
+  updatedAt       DateTime  @updatedAt
   createdAt       DateTime
   Shop            Shop      @relation(fields: [shopId], references: [id], onDelete: Cascade)
 
@@ -404,6 +405,7 @@ model ConversionJob {
   errorMessage    String?
   platformResults Json?
   createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
   processedAt     DateTime?
   completedAt     DateTime?
   Shop            Shop      @relation(fields: [shopId], references: [id], onDelete: Cascade)
@@ -437,6 +439,7 @@ model ConversionLog {
   deadLetteredAt   DateTime?
   manuallyRetried  Boolean   @default(false)
   createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
   sentAt           DateTime?
   Shop             Shop      @relation(fields: [shopId], references: [id], onDelete: Cascade)
 

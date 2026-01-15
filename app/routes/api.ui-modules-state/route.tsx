@@ -5,6 +5,7 @@ import prisma from "../../db.server";
 import { getUiModuleConfigs, canUseModule, getDefaultSettings } from "../../services/ui-extension.server";
 import { PCD_CONFIG } from "../../utils/config";
 import { authenticatePublic, normalizeDestToShopDomain, getPublicCorsForOptions } from "../../utils/public-auth";
+import { sanitizeUrl } from "../../utils/security";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   if (request.method === "OPTIONS") {
@@ -90,12 +91,76 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
         helpFaqUrl = `${baseUrl}/${helpFaqUrl}`;
       }
     }
+    if (helpFaqUrl && helpFaqUrl.startsWith("http")) {
+      const sanitized = sanitizeUrl(helpFaqUrl);
+      if (!sanitized) {
+        logger.warn(`Invalid FAQ URL for shop ${shopDomain}: ${helpFaqUrl}`);
+        helpFaqUrl = undefined;
+      } else {
+        try {
+          const url = new URL(sanitized);
+          const urlHostname = url.hostname.toLowerCase();
+          const shopHostname = shopDomain.toLowerCase();
+          const baseHostname = shop.primaryDomain 
+            ? new URL(shop.primaryDomain.startsWith("http") ? shop.primaryDomain : `https://${shop.primaryDomain}`).hostname.toLowerCase()
+            : shopHostname;
+          const allowedHostnames = [shopHostname, baseHostname, ...(shop.storefrontDomains || []).map(d => {
+            try {
+              return new URL(d.startsWith("http") ? d : `https://${d}`).hostname.toLowerCase();
+            } catch {
+              return null;
+            }
+          }).filter(Boolean) as string[]];
+          if (!allowedHostnames.some(allowed => urlHostname === allowed || urlHostname.endsWith(`.${allowed}`))) {
+            logger.warn(`FAQ URL hostname not allowed for shop ${shopDomain}: ${urlHostname}`);
+            helpFaqUrl = undefined;
+          } else {
+            helpFaqUrl = sanitized;
+          }
+        } catch {
+          logger.warn(`Invalid FAQ URL format for shop ${shopDomain}: ${helpFaqUrl}`);
+          helpFaqUrl = undefined;
+        }
+      }
+    }
     let helpContactUrl = helpConfig?.contactUrl || defaultHelpSettings.contactUrl;
     if (helpContactUrl && !helpContactUrl.startsWith("http") && !helpContactUrl.startsWith("mailto:")) {
       if (helpContactUrl.startsWith("/")) {
         helpContactUrl = `${baseUrl}${helpContactUrl}`;
       } else {
         helpContactUrl = `${baseUrl}/${helpContactUrl}`;
+      }
+    }
+    if (helpContactUrl && helpContactUrl.startsWith("http")) {
+      const sanitized = sanitizeUrl(helpContactUrl);
+      if (!sanitized) {
+        logger.warn(`Invalid contact URL for shop ${shopDomain}: ${helpContactUrl}`);
+        helpContactUrl = undefined;
+      } else {
+        try {
+          const url = new URL(sanitized);
+          const urlHostname = url.hostname.toLowerCase();
+          const shopHostname = shopDomain.toLowerCase();
+          const baseHostname = shop.primaryDomain 
+            ? new URL(shop.primaryDomain.startsWith("http") ? shop.primaryDomain : `https://${shop.primaryDomain}`).hostname.toLowerCase()
+            : shopHostname;
+          const allowedHostnames = [shopHostname, baseHostname, ...(shop.storefrontDomains || []).map(d => {
+            try {
+              return new URL(d.startsWith("http") ? d : `https://${d}`).hostname.toLowerCase();
+            } catch {
+              return null;
+            }
+          }).filter(Boolean) as string[]];
+          if (!allowedHostnames.some(allowed => urlHostname === allowed || urlHostname.endsWith(`.${allowed}`))) {
+            logger.warn(`Contact URL hostname not allowed for shop ${shopDomain}: ${urlHostname}`);
+            helpContactUrl = undefined;
+          } else {
+            helpContactUrl = sanitized;
+          }
+        } catch {
+          logger.warn(`Invalid contact URL format for shop ${shopDomain}: ${helpContactUrl}`);
+          helpContactUrl = undefined;
+        }
       }
     }
     const helpSupportUrl = helpContactUrl || (helpConfig?.contactEmail ? `mailto:${helpConfig.contactEmail}` : (defaultHelpSettings.contactEmail ? `mailto:${defaultHelpSettings.contactEmail}` : undefined));

@@ -54,7 +54,7 @@ export function isAllowedBackendUrl(url: string | null): boolean {
       return false;
     }
     if (DEV_HOSTS.includes(host as typeof DEV_HOSTS[number])) {
-      return true;
+      return isDev;
     }
     for (const allowedHost of ALLOWED_BACKEND_HOSTS) {
       if (allowedHost.includes("*")) {

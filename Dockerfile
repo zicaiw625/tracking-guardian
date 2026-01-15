@@ -28,6 +28,8 @@ WORKDIR /app
 
 RUN corepack enable && corepack prepare pnpm@10.11.0 --activate
 
+RUN addgroup -S app && adduser -S app -G app
+
 ENV NODE_ENV=production
 ENV PRISMA_SKIP_POSTINSTALL_GENERATE=true
 
@@ -44,6 +46,10 @@ COPY --from=builder /app/node_modules/prisma ./node_modules/prisma
 # Copy build output and Prisma schema
 COPY --from=builder /app/build ./build
 COPY --from=builder /app/prisma ./prisma
+
+RUN chown -R app:app /app
+
+USER app
 
 EXPOSE 3000
 
