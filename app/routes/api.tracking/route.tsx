@@ -14,7 +14,7 @@ import { checkRateLimitAsync } from "../../middleware/rate-limit";
 import { defaultLoaderCache } from "../../lib/with-cache";
 import { TTL } from "../../utils/cache";
 import { getUiModuleConfig } from "../../services/ui-extension.server";
-import { authenticatePublic, normalizeDestToShopDomain, handlePublicPreflight } from "../../utils/public-auth";
+import { authenticatePublic, normalizeDestToShopDomain, handlePublicPreflight, addSecurityHeaders } from "../../utils/public-auth";
 
 interface FulfillmentNode {
   trackingInfo?: {
@@ -42,7 +42,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   if (request.method === "OPTIONS") {
     return handlePublicPreflight(request);
   }
-    return json({ error: "Method not allowed" }, { status: 405 });
+    return addSecurityHeaders(json({ error: "Method not allowed" }, { status: 405 }));
 };
 
 export const loader = async (args: LoaderFunctionArgs) => {
@@ -58,23 +58,23 @@ async function loaderImpl(request: Request) {
     if (!orderId) {
       authResult = await authenticatePublic(request).catch(() => null);
       if (authResult) {
-        return authResult.cors(json({ error: "Missing orderId" }, { status: 400 }));
+        return addSecurityHeaders(authResult.cors(json({ error: "Missing orderId" }, { status: 400 })));
       }
-      return json({ error: "Missing orderId" }, { status: 400 });
+      return addSecurityHeaders(json({ error: "Missing orderId" }, { status: 400 }));
     }
     try {
       authResult = await authenticatePublic(request);
     } catch (authError) {
-      return json(
+      return addSecurityHeaders(json(
         { error: "Unauthorized: Invalid authentication" },
         { status: 401 }
-      );
+      ));
     }
     const shopDomain = normalizeDestToShopDomain(authResult.sessionToken.dest);
     const cacheKey = `tracking:${shopDomain}:${orderId}`;
     const cachedData = defaultLoaderCache.get(cacheKey) as TrackingApiPayload | undefined;
     if (cachedData !== undefined) {
-      return authResult.cors(json(cachedData));
+      return addSecurityHeaders(authResult.cors(json(cachedData)));
     }
     const rateLimitKey = `tracking:${shopDomain}`;
     const rateLimitResult = await checkRateLimitAsync(rateLimitKey, 60, 60 * 1000);
@@ -90,13 +90,13 @@ async function loaderImpl(request: Request) {
         shopDomain,
         retryAfter: rateLimitResult.retryAfter,
       });
-      return authResult.cors(json(
+      return addSecurityHeaders(authResult.cors(json(
         {
           error: "Too many tracking requests",
           retryAfter: rateLimitResult.retryAfter,
         },
         { status: 429, headers }
-      ));
+      )));
     }
     const customerId = authResult.sessionToken.sub;
     const shop = await prisma.shop.findUnique({
@@ -106,7 +106,7 @@ async function loaderImpl(request: Request) {
       },
     });
     if (!shop) {
-      return authResult.cors(json({ error: "Shop not found" }, { status: 404 }));
+      return addSecurityHeaders(authResult.cors(json({ error: "Shop not found" }, { status: 404 })));
     }
     const trackingModuleConfig = await getUiModuleConfig(shop.id, "order_tracking");
     const trackingSettings = trackingModuleConfig.isEnabled
@@ -169,23 +169,23 @@ async function loaderImpl(request: Request) {
                   tokenCustomerId: tokenCustomerId,
                   orderCustomerId: orderCustomerIdNum,
                 });
-                return authResult.cors(json({ error: "Order access denied" }, { status: 403 }));
+                return addSecurityHeaders(authResult.cors(json({ error: "Order access denied" }, { status: 403 })));
               }
             } else {
               logger.warn(`Order access denied: order has no customer for orderId: ${orderId}, shop: ${shopDomain}`);
-              return authResult.cors(json({ error: "Order access denied" }, { status: 403 }));
+              return addSecurityHeaders(authResult.cors(json({ error: "Order access denied" }, { status: 403 })));
             }
           } else if (authResult.surface === "checkout") {
             const url = new URL(request.url);
             const checkoutToken = url.searchParams.get("checkoutToken");
             if (!checkoutToken) {
               logger.warn(`Order access denied: checkout context requires checkoutToken for orderId: ${orderId}, shop: ${shopDomain}`);
-              return authResult.cors(json({ error: "Order access denied: checkout context requires checkoutToken" }, { status: 403 }));
+              return addSecurityHeaders(authResult.cors(json({ error: "Order access denied: checkout context requires checkoutToken" }, { status: 403 })));
             }
             const orderCheckoutToken = fulfillmentData.data.order.checkoutToken || null;
             if (orderCheckoutToken && orderCheckoutToken !== checkoutToken) {
               logger.warn(`Order access denied: checkoutToken mismatch for orderId: ${orderId}, shop: ${shopDomain}`);
-              return authResult.cors(json({ error: "Order access denied" }, { status: 403 }));
+              return addSecurityHeaders(authResult.cors(json({ error: "Order access denied" }, { status: 403 })));
             }
           }
           if (fulfillmentData.data.order.fulfillments?.edges?.length > 0) {
@@ -211,7 +211,7 @@ async function loaderImpl(request: Request) {
     }
     const trackingNumberToUse = trackingNumber || trackingNumberFromShopify || null;
     if (!trackingNumberToUse) {
-      return authResult.cors(json(
+      return addSecurityHeaders(authResult.cors(json(
         {
           success: true,
           tracking: {
@@ -225,7 +225,7 @@ async function loaderImpl(request: Request) {
           },
         },
         { status: 200 }
-      ));
+      )));
     }
     if (trackingSettings?.provider && trackingSettings.provider !== "native" && trackingNumberToUse) {
       const config: TrackingProviderConfig = {
@@ -258,7 +258,7 @@ async function loaderImpl(request: Request) {
     }
     if (!trackingInfo) {
       if (trackingNumberToUse) {
-        return authResult.cors(json(
+        return addSecurityHeaders(authResult.cors(json(
           {
             success: true,
             tracking: {
@@ -272,9 +272,9 @@ async function loaderImpl(request: Request) {
             },
           },
           { status: 200 }
-        ));
+        )));
       }
-      return authResult.cors(json(
+      return addSecurityHeaders(authResult.cors(json(
         {
           success: true,
           tracking: {
@@ -287,7 +287,7 @@ async function loaderImpl(request: Request) {
           },
         },
         { status: 200 }
-      ));
+      )));
     }
     const data: TrackingApiPayload = {
       success: true,
@@ -306,14 +306,14 @@ async function loaderImpl(request: Request) {
       },
     };
     defaultLoaderCache.set(cacheKey, data, TTL.MEDIUM);
-    return authResult.cors(json(data));
+    return addSecurityHeaders(authResult.cors(json(data)));
   } catch (error) {
     logger.error("Failed to fetch tracking info", {
       error: error instanceof Error ? error.message : String(error),
     });
     if (authResult) {
-      return authResult.cors(json({ error: "Failed to fetch tracking info" }, { status: 500 }));
+      return addSecurityHeaders(authResult.cors(json({ error: "Failed to fetch tracking info" }, { status: 500 })));
     }
-    return json({ error: "Failed to fetch tracking info" }, { status: 500 });
+    return addSecurityHeaders(json({ error: "Failed to fetch tracking info" }, { status: 500 }));
   }
 }

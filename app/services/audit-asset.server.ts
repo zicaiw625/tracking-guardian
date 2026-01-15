@@ -563,48 +563,61 @@ export async function getAuditAssetSummary(shopId: string): Promise<AuditAssetSu
 }
 
 export async function updateMigrationStatus(
+  shopId: string,
   assetId: string,
   status: MigrationStatus
 ): Promise<boolean> {
   try {
-    await prisma.auditAsset.update({
-      where: { id: assetId },
+    const res = await prisma.auditAsset.updateMany({
+      where: { id: assetId, shopId },
       data: {
         migrationStatus: status,
         migratedAt: status === "completed" ? new Date() : null,
       },
     });
-    logger.info("AuditAsset migration status updated", { assetId, status });
-    return true;
+    const success = res.count === 1;
+    if (success) {
+      logger.info("AuditAsset migration status updated", { shopId, assetId, status });
+    } else {
+      logger.warn("AuditAsset migration status update failed - asset not found or shop mismatch", { shopId, assetId, status });
+    }
+    return success;
   } catch (error) {
-    logger.error("Failed to update AuditAsset migration status", { assetId, error });
+    logger.error("Failed to update AuditAsset migration status", { shopId, assetId, error });
     return false;
   }
 }
 
 export async function batchUpdateMigrationStatus(
+  shopId: string,
   assetIds: string[],
   status: MigrationStatus
 ): Promise<number> {
   const result = await prisma.auditAsset.updateMany({
-    where: { id: { in: assetIds } },
+    where: { id: { in: assetIds }, shopId },
     data: {
       migrationStatus: status,
       migratedAt: status === "completed" ? new Date() : null,
     },
   });
-  logger.info("Batch migration status updated", { count: result.count, status });
+  logger.info("Batch migration status updated", { shopId, count: result.count, status });
   return result.count;
 }
 
-export async function deleteAuditAsset(assetId: string): Promise<boolean> {
+export async function deleteAuditAsset(shopId: string, assetId: string): Promise<boolean> {
   try {
-    await prisma.auditAsset.delete({
-      where: { id: assetId },
+    const res = await prisma.auditAsset.deleteMany({
+      where: { id: assetId, shopId },
     });
-    return true;
+    const success = res.count === 1;
+    if (success) {
+      logger.info("AuditAsset deleted", { shopId, assetId });
+    } else {
+      logger.warn("AuditAsset delete failed - asset not found or shop mismatch", { shopId, assetId });
+    }
+    return success;
   } catch (error) {
-    logger.error("Failed to delete AuditAsset", { assetId, error });
+    logger.error("Failed to delete AuditAsset", { shopId, assetId, error });
     return false;
   }
 }

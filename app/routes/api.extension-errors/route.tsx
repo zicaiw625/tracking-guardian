@@ -4,7 +4,7 @@ import { logger } from "../../utils/logger.server";
 import { json } from "@remix-run/node";
 import { checkRateLimitAsync } from "../../middleware/rate-limit";
 import prisma from "../../db.server";
-import { authenticatePublic, normalizeDestToShopDomain, handlePublicPreflight } from "../../utils/public-auth";
+import { authenticatePublic, normalizeDestToShopDomain, handlePublicPreflight, addSecurityHeaders } from "../../utils/public-auth";
 import { sanitizeSensitiveInfo } from "../../utils/security";
 import { API_CONFIG } from "../../utils/config";
 import { readJsonWithSizeLimit } from "../../utils/body-size-guard";
@@ -20,10 +20,10 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   try {
     authResult = await authenticatePublic(request);
   } catch (authError) {
-    return json(
-      { error: "Unauthorized: Invalid authentication" },
-      { status: 401 }
-    );
+      return addSecurityHeaders(json(
+        { error: "Unauthorized: Invalid authentication" },
+        { status: 401 }
+      ));
   }
   const shopDomain = normalizeDestToShopDomain(authResult.sessionToken.dest);
   const shop = await prisma.shop.findUnique({
@@ -32,10 +32,10 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   });
   if (!shop) {
     logger.warn(`Extension error report for unknown shop: ${shopDomain}`);
-    return authResult.cors(json(
-      { error: "Shop not found" },
-      { status: 404 }
-    ));
+      return addSecurityHeaders(authResult.cors(json(
+        { error: "Shop not found" },
+        { status: 404 }
+      )));
   }
   const rateLimitKey = `extension-errors:${shopDomain}`;
   const rateLimitResult = await checkRateLimitAsync(rateLimitKey, 100, 60 * 1000);
@@ -51,13 +51,13 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       shopDomain,
       retryAfter: rateLimitResult.retryAfter,
     });
-      return authResult.cors(json(
+      return addSecurityHeaders(authResult.cors(json(
         {
           error: "Too many error reports",
           retryAfter: rateLimitResult.retryAfter,
         },
         { status: 429, headers }
-      ));
+      )));
     }
   try {
     const body = await readJsonWithSizeLimit<{
@@ -70,10 +70,10 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       timestamp?: string;
     }>(request);
       if (!body || !body.extension || !body.endpoint || !body.error) {
-      return authResult.cors(json(
+      return addSecurityHeaders(authResult.cors(json(
         { error: "Missing required fields: extension, endpoint, error" },
       { status: 400 }
-    ));
+    )));
     }
     const MAX_ERROR_LENGTH = 2000;
     const MAX_STACK_LENGTH = 8000;
@@ -145,7 +145,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         dbError: dbError instanceof Error ? dbError.message : String(dbError),
       });
     }
-    return authResult.cors(json({ success: true }));
+    return addSecurityHeaders(authResult.cors(json({ success: true })));
   } catch (error) {
     logger.error("Failed to process extension error report", {
       error: error instanceof Error ? error.message : String(error),
@@ -153,14 +153,14 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       stack: error instanceof Error ? error.stack : undefined,
     });
     if (authResult) {
-      return authResult.cors(json(
+      return addSecurityHeaders(authResult.cors(json(
         { error: "Internal server error" },
       { status: 500 }
-    ));
+    )));
     }
-    return json(
+    return addSecurityHeaders(json(
       { error: "Internal server error" },
       { status: 500 }
-    );
+    ));
   }
 };

@@ -5,7 +5,7 @@ import { withRateLimit, pathShopKeyExtractor, type RateLimitedHandler, checkRate
 import prisma from "../../db.server";
 import { randomUUID } from "crypto";
 import { canUseModule, getUiModuleConfigs } from "../../services/ui-extension.server";
-import { authenticatePublic, normalizeDestToShopDomain, handlePublicPreflight } from "../../utils/public-auth";
+import { authenticatePublic, normalizeDestToShopDomain, handlePublicPreflight, addSecurityHeaders } from "../../utils/public-auth";
 import { hashValueSync } from "../../utils/crypto.server";
 import { API_CONFIG } from "../../utils/config";
 import { readJsonWithSizeLimit } from "../../utils/body-size-guard";
@@ -21,10 +21,10 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   try {
     authResult = await authenticatePublic(request);
   } catch (authError) {
-    return json(
-      { error: "Unauthorized: Invalid authentication" },
-      { status: 401 }
-    );
+      return addSecurityHeaders(json(
+        { error: "Unauthorized: Invalid authentication" },
+        { status: 401 }
+      ));
   }
     const shopDomain = normalizeDestToShopDomain(authResult.sessionToken.dest);
     const shop = await prisma.shop.findUnique({
@@ -33,10 +33,10 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     });
     if (!shop) {
       logger.warn(`Survey submission for unknown shop: ${shopDomain}`);
-      return authResult.cors(json(
+      return addSecurityHeaders(authResult.cors(json(
         { error: "Shop not found" },
         { status: 404 }
-      ));
+      )));
     }
     const moduleCheck = await canUseModule(shop.id, "survey");
     if (!moduleCheck.allowed) {
@@ -45,19 +45,19 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         currentPlan: moduleCheck.currentPlan,
         requiredPlan: moduleCheck.requiredPlan,
       });
-      return authResult.cors(json(
+      return addSecurityHeaders(authResult.cors(json(
         { error: "Module not available", reason: moduleCheck.reason },
         { status: 403 }
-      ));
+      )));
     }
     const modules = await getUiModuleConfigs(shop.id);
     const surveyModule = modules.find((m) => m.moduleKey === "survey");
     if (!surveyModule || !surveyModule.isEnabled) {
       logger.warn(`Survey module not enabled for shop ${shopDomain}`);
-      return authResult.cors(json(
+      return addSecurityHeaders(authResult.cors(json(
         { error: "Survey module is not enabled" },
         { status: 403 }
-      ));
+      )));
     }
     const rateLimitKey = `survey:${shopDomain}`;
     const rateLimitResult = await checkRateLimitAsync(rateLimitKey, 100, 60 * 1000);
@@ -73,21 +73,21 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         shopDomain,
         retryAfter: rateLimitResult.retryAfter,
       });
-      return authResult.cors(json(
+      return addSecurityHeaders(authResult.cors(json(
         {
           error: "Too many survey requests",
           retryAfter: rateLimitResult.retryAfter,
         },
         { status: 429, headers }
-      ));
+      )));
     }
   try {
     const body = await readJsonWithSizeLimit(request);
       if (!body || typeof body !== "object") {
-        return authResult.cors(json(
+        return addSecurityHeaders(authResult.cors(json(
           { error: "Invalid request body" },
           { status: 400 }
-        ));
+        )));
       }
       const { option, timestamp, orderId, checkoutToken } = body as { 
         option?: string; 
@@ -96,10 +96,10 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         checkoutToken?: string | null;
       };
       if (!option) {
-        return authResult.cors(json(
+        return addSecurityHeaders(authResult.cors(json(
           { error: "Missing survey option" },
           { status: 400 }
-        ));
+        )));
       }
       let finalOrderId: string;
       if (orderId) {
@@ -128,23 +128,23 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       option,
       timestamp,
     });
-    return authResult.cors(json(
+    return addSecurityHeaders(authResult.cors(json(
       { success: true, message: "Survey response recorded" }
-    ));
+    )));
   } catch (error) {
     logger.error("Failed to process survey submission", {
       error: error instanceof Error ? error.message : String(error),
     });
     if (authResult) {
-      return authResult.cors(json(
+      return addSecurityHeaders(authResult.cors(json(
         { error: "Internal server error" },
         { status: 500 }
-      ));
+      )));
     }
-    return json(
+    return addSecurityHeaders(json(
       { error: "Internal server error" },
       { status: 500 }
-    );
+    ));
   }
 };
 
@@ -161,4 +161,7 @@ const rateLimitedLoader = surveyRateLimit(async (args: LoaderFunctionArgs): Prom
   );
 });
 
-export const loader = rateLimitedLoader;
+export const loader = async (args: LoaderFunctionArgs): Promise<Response> => {
+  const response = await rateLimitedLoader(args);
+  return addSecurityHeaders(response);
+};

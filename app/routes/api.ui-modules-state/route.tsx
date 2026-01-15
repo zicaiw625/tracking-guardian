@@ -4,7 +4,7 @@ import { logger } from "../../utils/logger.server";
 import prisma from "../../db.server";
 import { getUiModuleConfigs, canUseModule, getDefaultSettings } from "../../services/ui-extension.server";
 import { PCD_CONFIG } from "../../utils/config";
-import { authenticatePublic, normalizeDestToShopDomain, handlePublicPreflight } from "../../utils/public-auth";
+import { authenticatePublic, normalizeDestToShopDomain, handlePublicPreflight, addSecurityHeaders } from "../../utils/public-auth";
 import { sanitizeUrl } from "../../utils/security";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
@@ -18,10 +18,10 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   try {
     authResult = await authenticatePublic(request);
   } catch (authError) {
-    return json(
-      { error: "Unauthorized: Invalid authentication" },
-      { status: 401 }
-    );
+      return addSecurityHeaders(json(
+        { error: "Unauthorized: Invalid authentication" },
+        { status: 401 }
+      ));
   }
   const shopDomain = normalizeDestToShopDomain(authResult.sessionToken.dest);
   const shop = await prisma.shop.findUnique({
@@ -30,10 +30,10 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   });
   if (!shop) {
     logger.warn(`UI modules state request for unknown shop: ${shopDomain}`);
-    return authResult.cors(json(
+    return addSecurityHeaders(authResult.cors(json(
       { error: "Shop not found" },
       { status: 404 }
-    ));
+    )));
   }
   try {
     const url = new URL(request.url);
@@ -223,7 +223,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
           buttonText: reorderConfig?.buttonText || defaultReorderSettings.buttonText,
         };
       }
-      return authResult.cors(json(state));
+      return addSecurityHeaders(authResult.cors(json(state)));
     } else {
       const state: {
         surveyEnabled: boolean;
@@ -257,7 +257,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
           state.helpConfig.supportUrl = helpSupportUrl;
         }
       }
-      return authResult.cors(json(state));
+      return addSecurityHeaders(authResult.cors(json(state)));
     }
   } catch (error) {
     logger.error("Failed to get UI modules state", {
@@ -266,14 +266,14 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       stack: error instanceof Error ? error.stack : undefined,
     });
     if (authResult) {
-      return authResult.cors(json(
+      return addSecurityHeaders(authResult.cors(json(
         { error: "Internal server error" },
         { status: 500 }
-      ));
+      )));
     }
-    return json(
+    return addSecurityHeaders(json(
       { error: "Internal server error" },
       { status: 500 }
-    );
+    ));
   }
 };

@@ -26,21 +26,19 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     if (error instanceof Response) {
       const errorStatus = error.status;
       const topic = request.headers.get("X-Shopify-Topic") || "unknown";
-      logger.warn(`[Webhook] HMAC validation failed - returning ${errorStatus}`, {
+      logger.warn(`[Webhook] HMAC validation failed - returning 400`, {
         topic,
         shop: request.headers.get("X-Shopify-Shop-Domain") || "unknown",
+        originalStatus: errorStatus,
       });
-      if (errorStatus === 401 || errorStatus === 403) {
-        return new Response("Unauthorized: Invalid HMAC", { status: 401 });
-      }
-      return error;
+      return new Response("Bad Request: Invalid HMAC", { status: 400 });
     }
     if (error instanceof SyntaxError) {
       logger.warn("[Webhook] Payload JSON parse error - returning 400");
       return new Response("Bad Request: Invalid JSON", { status: 400 });
     }
     logger.error("[Webhook] Authentication error:", error);
-    return new Response("Webhook authentication failed", { status: 500 });
+    return new Response("Bad Request: Webhook authentication failed", { status: 400 });
   }
   let shopRecord: ShopWithPixelConfigs | null = null;
   try {

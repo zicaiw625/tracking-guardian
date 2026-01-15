@@ -18,6 +18,7 @@ import {
 import { analyzeScriptContent } from "../services/scanner/content-analysis";
 import { logger } from "../utils/logger.server";
 import { API_CONFIG } from "../utils/config";
+import { readJsonWithSizeLimit } from "../utils/body-size-guard";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   const { session } = await authenticate.admin(request);
@@ -81,15 +82,37 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     if (!assetId) {
       return json({ error: "Missing asset ID" }, { status: 400 });
     }
-    const success = await deleteAuditAsset(assetId);
+    const success = await deleteAuditAsset(shop.id, assetId);
     return json({ success });
   }
-  const formData = await request.formData();
-  const actionType = formData.get("_action") as string;
+  const contentType = request.headers.get("Content-Type") || "";
+  let actionType: string | null = null;
+  let jsonBody: any = null;
+  let formData: FormData | null = null;
+
+  if (contentType.includes("application/json")) {
+    try {
+      jsonBody = await readJsonWithSizeLimit(request);
+      actionType = jsonBody?.action ?? jsonBody?._action ?? null;
+    } catch (error) {
+      if (error instanceof Response) {
+        return error;
+      }
+      return json({ error: "Failed to parse request body" }, { status: 400 });
+    }
+  } else {
+    formData = await request.formData();
+    actionType = (formData.get("_action") || formData.get("action")) as string | null;
+  }
+
+  if (!actionType) {
+    return json({ error: "Missing action" }, { status: 400 });
+  }
+
   try {
     switch (actionType) {
       case "create_from_paste": {
-        const scriptContent = formData.get("scriptContent") as string;
+        const scriptContent = (jsonBody?.scriptContent ?? formData?.get("scriptContent")) as string;
         if (!scriptContent) {
           return json({ error: "Missing script content" }, { status: 400 });
         }
@@ -148,9 +171,9 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         });
       }
       case "confirm_merchant": {
-        const platform = formData.get("platform") as string;
-        const category = formData.get("category") as AssetCategory || "pixel";
-        const displayName = formData.get("displayName") as string;
+        const platform = (jsonBody?.platform ?? formData?.get("platform")) as string;
+        const category = (jsonBody?.category ?? formData?.get("category") ?? "pixel") as AssetCategory;
+        const displayName = (jsonBody?.displayName ?? formData?.get("displayName")) as string;
         const asset = await createAuditAsset(shop.id, {
           sourceType: "merchant_confirmed",
           category,
@@ -169,27 +192,17 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         });
       }
       case "update_status": {
-        const assetId = formData.get("assetId") as string;
-        const status = formData.get("status") as MigrationStatus;
+        const assetId = (jsonBody?.assetId ?? formData?.get("assetId")) as string;
+        const status = (jsonBody?.status ?? formData?.get("status")) as MigrationStatus;
         if (!assetId || !status) {
           return json({ error: "Missing assetId or status" }, { status: 400 });
         }
-        const success = await updateMigrationStatus(assetId, status);
+        const success = await updateMigrationStatus(shop.id, assetId, status);
         return json({ success });
       }
       case "create_from_list": {
-        const { readJsonWithSizeLimit } = await import("../utils/body-size-guard");
-        let body;
-        try {
-          body = await readJsonWithSizeLimit(request);
-        } catch (error) {
-          if (error instanceof Response) {
-            return error;
-          }
-          return json({ error: "Failed to parse request body" }, { status: 400 });
-        }
-        const platforms = (body.platforms as string[]) || [];
-        const items = (body.items as Array<{ name: string; type: string }>) || [];
+        const platforms = (jsonBody?.platforms as string[]) || [];
+        const items = (jsonBody?.items as Array<{ name: string; type: string }>) || [];
         const createdAssets = [];
         for (const platform of platforms) {
           const asset = await createAuditAsset(shop.id, {

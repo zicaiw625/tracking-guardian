@@ -9,23 +9,23 @@ import prisma from "../../db.server";
 import { canUseModule, getUiModuleConfigs } from "../../services/ui-extension.server";
 import { PCD_CONFIG, API_CONFIG } from "../../utils/config";
 import { readJsonWithSizeLimit } from "../../utils/body-size-guard";
-import { authenticatePublic, normalizeDestToShopDomain, handlePublicPreflight } from "../../utils/public-auth";
+import { authenticatePublic, normalizeDestToShopDomain, handlePublicPreflight, addSecurityHeaders } from "../../utils/public-auth";
 
 export const action = async ({ request }: ActionFunctionArgs) => {
   if (request.method === "OPTIONS") {
     return handlePublicPreflight(request);
   }
   if (request.method !== "POST") {
-    return json({ error: "Method not allowed" }, { status: 405 });
+    return addSecurityHeaders(json({ error: "Method not allowed" }, { status: 405 }));
   }
   let authResult;
   try {
     authResult = await authenticatePublic(request);
   } catch (authError) {
-    return json(
+    return addSecurityHeaders(json(
       { error: "Unauthorized: Invalid authentication" },
       { status: 401 }
-    );
+    ));
   }
     const shopDomain = normalizeDestToShopDomain(authResult.sessionToken.dest);
     if (!PCD_CONFIG.APPROVED) {
@@ -41,7 +41,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     });
     if (!shop) {
       logger.warn(`Reorder action for unknown shop: ${shopDomain}`);
-      return authResult.cors(json({ error: "Shop not found" }, { status: 404 }));
+      return addSecurityHeaders(authResult.cors(json({ error: "Shop not found" }, { status: 404 })));
     }
     const moduleCheck = await canUseModule(shop.id, "reorder");
     if (!moduleCheck.allowed) {
@@ -50,19 +50,19 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         currentPlan: moduleCheck.currentPlan,
         requiredPlan: moduleCheck.requiredPlan,
       });
-      return authResult.cors(json(
+      return addSecurityHeaders(authResult.cors(json(
         { error: "Module not available", reason: moduleCheck.reason },
       { status: 403 }
-    ));
+    )));
     }
     const modules = await getUiModuleConfigs(shop.id);
     const reorderModule = modules.find((m) => m.moduleKey === "reorder");
     if (!reorderModule || !reorderModule.isEnabled) {
       logger.warn(`Reorder module not enabled for shop ${shopDomain}`);
-      return authResult.cors(json(
+      return addSecurityHeaders(authResult.cors(json(
         { error: "Reorder module is not enabled" },
       { status: 403 }
-    ));
+    )));
     }
     const rateLimitKey = `reorder:${shopDomain}`;
     const rateLimitResult = await checkRateLimitAsync(rateLimitKey, 60, 60 * 1000);
@@ -78,20 +78,20 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         shopDomain,
         retryAfter: rateLimitResult.retryAfter,
       });
-      return authResult.cors(json(
+      return addSecurityHeaders(authResult.cors(json(
         {
           error: "Too many reorder requests",
           retryAfter: rateLimitResult.retryAfter,
         },
         { status: 429, headers }
-      ));
+      )));
     }
     try {
       const body = await readJsonWithSizeLimit(request);
       const url = new URL(request.url);
       const orderId = body?.orderId || url.searchParams.get("orderId");
       if (!orderId) {
-        return authResult.cors(json({ error: "Missing orderId" }, { status: 400 }));
+        return addSecurityHeaders(authResult.cors(json({ error: "Missing orderId" }, { status: 400 })));
       }
       const newUrl = new URL(request.url);
       newUrl.searchParams.set("orderId", orderId);
@@ -105,9 +105,9 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       error: error instanceof Error ? error.message : String(error),
     });
     if (authResult) {
-      return authResult.cors(json({ error: "Failed to process reorder request" }, { status: 500 }));
+      return addSecurityHeaders(authResult.cors(json({ error: "Failed to process reorder request" }, { status: 500 })));
     }
-    return json({ error: "Failed to process reorder request" }, { status: 500 });
+    return addSecurityHeaders(json({ error: "Failed to process reorder request" }, { status: 500 }));
   }
 };
 
@@ -122,24 +122,24 @@ async function loaderImpl(request: Request) {
     if (!orderId) {
       let authResult = await authenticatePublic(request).catch(() => null);
       if (authResult) {
-        return authResult.cors(json({ error: "Missing orderId" }, { status: 400 }));
+        return addSecurityHeaders(authResult.cors(json({ error: "Missing orderId" }, { status: 400 })));
       }
-      return json({ error: "Missing orderId" }, { status: 400 });
+      return addSecurityHeaders(json({ error: "Missing orderId" }, { status: 400 }));
     }
     let authResult;
     try {
       authResult = await authenticatePublic(request);
     } catch (authError) {
-      return json(
+      return addSecurityHeaders(json(
         { error: "Unauthorized: Invalid authentication" },
         { status: 401 }
-      );
+      ));
     }
     const shopDomain = normalizeDestToShopDomain(authResult.sessionToken.dest);
     const cacheKey = `reorder:${shopDomain}:${orderId}`;
     const cachedData = defaultLoaderCache.get(cacheKey) as { reorderUrl: string } | undefined;
     if (cachedData !== undefined) {
-      return authResult.cors(json(cachedData));
+      return addSecurityHeaders(authResult.cors(json(cachedData)));
     }
     const rateLimitKey = `reorder:${shopDomain}`;
     const rateLimitResult = await checkRateLimitAsync(rateLimitKey, 60, 60 * 1000);
@@ -155,13 +155,13 @@ async function loaderImpl(request: Request) {
         shopDomain,
         retryAfter: rateLimitResult.retryAfter,
       });
-      return authResult.cors(json(
+      return addSecurityHeaders(authResult.cors(json(
         {
           error: "Too many reorder requests",
           retryAfter: rateLimitResult.retryAfter,
         },
         { status: 429, headers }
-      ));
+      )));
     }
     if (!PCD_CONFIG.APPROVED) {
       logger.warn(`Reorder feature requires PCD approval for shop ${shopDomain}`);
@@ -176,7 +176,7 @@ async function loaderImpl(request: Request) {
     });
     if (!shop) {
       logger.warn(`Reorder request for unknown shop: ${shopDomain}`);
-      return authResult.cors(json({ error: "Shop not found" }, { status: 404 }));
+      return addSecurityHeaders(authResult.cors(json({ error: "Shop not found" }, { status: 404 })));
     }
     const moduleCheck = await canUseModule(shop.id, "reorder");
     if (!moduleCheck.allowed) {
@@ -185,19 +185,19 @@ async function loaderImpl(request: Request) {
         currentPlan: moduleCheck.currentPlan,
         requiredPlan: moduleCheck.requiredPlan,
       });
-      return authResult.cors(json(
+      return addSecurityHeaders(authResult.cors(json(
         { error: "Module not available", reason: moduleCheck.reason },
       { status: 403 }
-    ));
+    )));
     }
     const modules = await getUiModuleConfigs(shop.id);
     const reorderModule = modules.find((m) => m.moduleKey === "reorder");
     if (!reorderModule || !reorderModule.isEnabled) {
       logger.warn(`Reorder module not enabled for shop ${shopDomain}`);
-      return authResult.cors(json(
+      return addSecurityHeaders(authResult.cors(json(
         { error: "Reorder module is not enabled" },
       { status: 403 }
-    ));
+    )));
     }
     const customerGidFromToken = authResult.sessionToken.sub || null;
     if (!customerGidFromToken) {
@@ -212,7 +212,7 @@ async function loaderImpl(request: Request) {
     const admin = await createAdminClientForShop(shopDomain);
     if (!admin) {
       logger.warn(`Failed to create admin client for shop ${shopDomain}`);
-      return authResult.cors(json({ error: "Failed to authenticate admin" }, { status: 401 }));
+      return addSecurityHeaders(authResult.cors(json({ error: "Failed to authenticate admin" }, { status: 401 })));
     }
     let orderResponse: Response;
     try {
@@ -248,7 +248,7 @@ async function loaderImpl(request: Request) {
           orderId,
           error: errorMessage,
         });
-        return authResult.cors(json(
+        return addSecurityHeaders(authResult.cors(json(
           {
             success: false,
             error: "Missing required permission",
@@ -257,17 +257,17 @@ async function loaderImpl(request: Request) {
             requiredScope: "read_orders",
           },
       { status: 403 }
-    ));
+    )));
       }
       logger.error("Failed to query order from Shopify", {
         error: errorMessage,
         orderId,
         shopDomain,
       });
-      return authResult.cors(json(
+      return addSecurityHeaders(authResult.cors(json(
         { error: "Failed to query order", message: "无法读取订单信息，请稍后重试" },
         { status: 500 }
-      ));
+      )));
     }
     const orderData = await orderResponse.json().catch((jsonError) => {
       logger.warn("Failed to parse GraphQL response as JSON", {
@@ -287,7 +287,7 @@ async function loaderImpl(request: Request) {
           orderId,
           errors: orderData.errors,
         });
-        return authResult.cors(json(
+        return addSecurityHeaders(authResult.cors(json(
           {
             success: false,
             error: "Missing required permission",
@@ -296,12 +296,12 @@ async function loaderImpl(request: Request) {
             requiredScope: "read_orders",
           },
       { status: 403 }
-    ));
+    )));
       }
     }
     if (!orderData.data?.order) {
       logger.info(`Order not found (may be still creating) for orderId: ${orderId}, shop: ${shopDomain}`);
-      return authResult.cors(json(
+      return addSecurityHeaders(authResult.cors(json(
         {
           success: false,
           error: "Order not found",
@@ -314,7 +314,7 @@ async function loaderImpl(request: Request) {
             "Retry-After": "2",
           },
         }
-      ));
+      )));
     }
     const orderCustomerId = orderData.data.order.customer?.id || null;
     if (orderCustomerId) {
@@ -330,14 +330,14 @@ async function loaderImpl(request: Request) {
             tokenCustomerId: tokenCustomerId,
             orderCustomerId: orderCustomerIdNum,
           });
-          return authResult.cors(json({ error: "Order access denied" }, { status: 403 }));
+          return addSecurityHeaders(authResult.cors(json({ error: "Order access denied" }, { status: 403 })));
         }
       } else {
         logger.warn(`Order access attempt without customer ID in token for orderId: ${orderId}, shop: ${shopDomain}`);
-        return authResult.cors(json(
+        return addSecurityHeaders(authResult.cors(json(
           { error: "Unauthorized: Customer authentication required" },
           { status: 401 }
-        ));
+        )));
       }
     }
     logger.info(`Reorder URL requested for orderId: ${orderId}, shop: ${shopDomain}`);
@@ -381,15 +381,15 @@ async function loaderImpl(request: Request) {
     }
     const data = { reorderUrl };
     defaultLoaderCache.set(cacheKey, data, TTL.SHORT);
-    return authResult.cors(json(data));
+    return addSecurityHeaders(authResult.cors(json(data)));
   } catch (error) {
     logger.error("Failed to get reorder URL", {
       error: error instanceof Error ? error.message : String(error),
     });
     let authResult = await authenticatePublic(request).catch(() => null);
     if (authResult) {
-      return authResult.cors(json({ error: "Failed to get reorder URL" }, { status: 500 }));
+      return addSecurityHeaders(authResult.cors(json({ error: "Failed to get reorder URL" }, { status: 500 })));
     }
-    return json({ error: "Failed to get reorder URL" }, { status: 500 });
+    return addSecurityHeaders(json({ error: "Failed to get reorder URL" }, { status: 500 }));
   }
 }

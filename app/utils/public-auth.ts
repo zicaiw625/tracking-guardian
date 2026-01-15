@@ -58,3 +58,14 @@ export function normalizeDestToShopDomain(dest: string): string {
     return dest.replace(/^https?:\/\//, "").split("/")[0];
   }
 }
+
+export function addSecurityHeaders(response: Response): Response {
+  const headers = new Headers(response.headers);
+  headers.set("Cache-Control", "no-store");
+  headers.set("X-Content-Type-Options", "nosniff");
+  return new Response(response.body, {
+    status: response.status,
+    statusText: response.statusText,
+    headers,
+  });
+}
