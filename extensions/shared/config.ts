@@ -49,6 +49,10 @@ export function isAllowedBackendUrl(url: string | null): boolean {
   try {
     const parsed = new URL(url);
     const host = parsed.hostname;
+    const isDev = isDevMode();
+    if (!isDev && parsed.protocol !== "https:") {
+      return false;
+    }
     if (DEV_HOSTS.includes(host as typeof DEV_HOSTS[number])) {
       return true;
     }

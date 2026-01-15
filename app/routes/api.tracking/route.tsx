@@ -10,8 +10,8 @@ import type { OrderTrackingSettings } from "../../types/ui-extension";
 
 import { createAdminClientForShop } from "../../shopify.server";
 import { optionsResponse, jsonWithCors } from "../../utils/cors";
-import { withRateLimit, pathShopKeyExtractor, type RateLimitedHandler } from "../../middleware/rate-limit";
-import { withConditionalCache } from "../../lib/with-cache";
+import { checkRateLimitAsync } from "../../middleware/rate-limit";
+import { defaultLoaderCache } from "../../lib/with-cache";
 import { TTL } from "../../utils/cache";
 import { getUiModuleConfig } from "../../services/ui-extension.server";
 import { authenticatePublic, normalizeDestToShopDomain } from "../../utils/public-auth";
@@ -31,47 +31,9 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   return jsonWithCors({ error: "Method not allowed" }, { status: 405, request, staticCors: true });
 };
 
-const trackingRateLimit = withRateLimit<Response>({
-  maxRequests: 60,
-  windowMs: 60 * 1000,
-  keyExtractor: pathShopKeyExtractor,
-  message: "Too many tracking requests",
-}) as (handler: RateLimitedHandler<Response>) => RateLimitedHandler<Response | Response>;
-
-const rateLimitedLoader = trackingRateLimit(async (args: LoaderFunctionArgs | ActionFunctionArgs): Promise<Response> => {
-  return await loaderImpl((args as LoaderFunctionArgs).request);
-});
-
-const cachedLoader = withConditionalCache(
-  async (args: LoaderFunctionArgs) => {
-    return await rateLimitedLoader(args);
-  },
-  {
-    key: (args) => {
-      if (!args?.request || typeof args.request.url !== "string") {
-        return null;
-      }
-      try {
-        const url = new URL(args.request.url);
-        const orderId = url.searchParams.get("orderId");
-        const shop = url.searchParams.get("shop") || "unknown";
-        return orderId ? `tracking:${shop}:${orderId}` : null;
-      } catch (error) {
-        logger.warn("[api.tracking] Failed to generate cache key", { error });
-        return null;
-      }
-    },
-    ttl: TTL.MEDIUM,
-    shouldCache: (result) => {
-      if (result instanceof Response) {
-        return result.status === 200;
-      }
-      return false;
-    },
-  }
-);
-
-export const loader = cachedLoader;
+export const loader = async (args: LoaderFunctionArgs) => {
+  return await loaderImpl(args.request);
+};
 
 async function loaderImpl(request: Request) {
   let authResult: Awaited<ReturnType<typeof authenticatePublic>> | null = null;
@@ -95,6 +57,33 @@ async function loaderImpl(request: Request) {
       );
     }
     const shopDomain = normalizeDestToShopDomain(authResult.sessionToken.dest);
+    const cacheKey = `tracking:${shopDomain}:${orderId}`;
+    const cached = defaultLoaderCache.get(cacheKey) as Response | undefined;
+    if (cached !== undefined) {
+      return authResult.cors(cached);
+    }
+    const rateLimitKey = `tracking:${shopDomain}`;
+    const rateLimitResult = await checkRateLimitAsync(rateLimitKey, 60, 60 * 1000);
+    if (!rateLimitResult.allowed) {
+      const headers = new Headers();
+      headers.set("X-RateLimit-Limit", "60");
+      headers.set("X-RateLimit-Remaining", "0");
+      headers.set("X-RateLimit-Reset", String(Math.ceil(rateLimitResult.resetAt / 1000)));
+      if (rateLimitResult.retryAfter) {
+        headers.set("Retry-After", String(rateLimitResult.retryAfter));
+      }
+      logger.warn("Tracking rate limit exceeded", {
+        shopDomain,
+        retryAfter: rateLimitResult.retryAfter,
+      });
+      return authResult.cors(jsonWithCors(
+        {
+          error: "Too many tracking requests",
+          retryAfter: rateLimitResult.retryAfter,
+        },
+        { status: 429, request, staticCors: true, headers }
+      ));
+    }
     const customerId = authResult.sessionToken.sub;
     const shop = await prisma.shop.findUnique({
       where: { shopDomain },
@@ -286,7 +275,7 @@ async function loaderImpl(request: Request) {
         { status: 200, request, staticCors: true }
       ));
     }
-    return authResult.cors(jsonWithCors({
+    const response = authResult.cors(jsonWithCors({
       success: true,
       tracking: {
         trackingNumber: trackingInfo.trackingNumber,
@@ -302,6 +291,10 @@ async function loaderImpl(request: Request) {
         })),
       },
     }, { request, staticCors: true }));
+    if (response.status === 200) {
+      defaultLoaderCache.set(cacheKey, response, TTL.MEDIUM);
+    }
+    return response;
   } catch (error) {
     logger.error("Failed to fetch tracking info", {
       error: error instanceof Error ? error.message : String(error),

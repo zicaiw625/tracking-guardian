@@ -102,6 +102,12 @@ function injectBackendUrl() {
         if (url.hostname === "localhost" || url.hostname === "127.0.0.1") {
             console.log("⚠️  WARNING: Using localhost URL. Pixel events will not work in production!");
         }
+        const isDev = url.hostname === "localhost" || url.hostname === "127.0.0.1" || url.hostname.includes(".myshopify.dev") || /-(dev|staging|test)\./i.test(url.hostname);
+        if (!isDev && url.protocol !== "https:") {
+            console.error(`❌ Production BACKEND_URL must use HTTPS protocol: ${backendUrl}`);
+            console.error("   Please provide a valid HTTPS URL (e.g., https://your-app.onrender.com)");
+            process.exit(1);
+        }
     } catch (error) {
         console.error(`❌ Invalid SHOPIFY_APP_URL: ${backendUrl}`);
         console.error("   Please provide a valid URL (e.g., https://your-app.onrender.com)");

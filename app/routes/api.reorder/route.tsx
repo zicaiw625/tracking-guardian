@@ -2,8 +2,8 @@ import type { ActionFunctionArgs, LoaderFunctionArgs } from "@remix-run/node";
 import { createAdminClientForShop } from "../../shopify.server";
 import { logger } from "../../utils/logger.server";
 import { optionsResponse, jsonWithCors } from "../../utils/cors";
-import { withRateLimit, pathShopKeyExtractor, type RateLimitedHandler, checkRateLimitAsync } from "../../middleware/rate-limit";
-import { withConditionalCache, createUrlCacheKey } from "../../lib/with-cache";
+import { checkRateLimitAsync } from "../../middleware/rate-limit";
+import { defaultLoaderCache } from "../../lib/with-cache";
 import { TTL } from "../../utils/cache";
 import prisma from "../../db.server";
 import { canUseModule, getUiModuleConfigs } from "../../services/ui-extension.server";
@@ -129,47 +129,9 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   }
 };
 
-const reorderRateLimit = withRateLimit<Response>({
-  maxRequests: 60,
-  windowMs: 60 * 1000,
-  keyExtractor: pathShopKeyExtractor,
-  message: "Too many reorder requests",
-}) as (handler: RateLimitedHandler<Response>) => RateLimitedHandler<Response | Response>;
-
-const rateLimitedLoader = reorderRateLimit(async (args: LoaderFunctionArgs | ActionFunctionArgs): Promise<Response> => {
-  return await loaderImpl((args as LoaderFunctionArgs).request);
-});
-
-const cachedLoader = withConditionalCache(
-  async (args: LoaderFunctionArgs) => {
-    return await rateLimitedLoader(args);
-  },
-  {
-    key: (args) => {
-      if (!args?.request || typeof args.request.url !== "string") {
-        return null;
-      }
-      try {
-        const url = new URL(args.request.url);
-        const orderId = url.searchParams.get("orderId");
-        const shop = url.searchParams.get("shop") || "unknown";
-        return orderId ? `reorder:${shop}:${orderId}` : null;
-      } catch (error) {
-        logger.warn("[api.reorder] Failed to generate cache key", { error });
-        return null;
-      }
-    },
-    ttl: TTL.SHORT,
-    shouldCache: (result) => {
-      if (result instanceof Response) {
-        return result.status === 200;
-      }
-      return false;
-    },
-  }
-);
-
-export const loader = cachedLoader;
+export const loader = async (args: LoaderFunctionArgs) => {
+  return await loaderImpl(args.request);
+};
 
 async function loaderImpl(request: Request) {
   try {
@@ -192,6 +154,33 @@ async function loaderImpl(request: Request) {
       );
     }
     const shopDomain = normalizeDestToShopDomain(authResult.sessionToken.dest);
+    const cacheKey = `reorder:${shopDomain}:${orderId}`;
+    const cached = defaultLoaderCache.get(cacheKey) as Response | undefined;
+    if (cached !== undefined) {
+      return authResult.cors(cached);
+    }
+    const rateLimitKey = `reorder:${shopDomain}`;
+    const rateLimitResult = await checkRateLimitAsync(rateLimitKey, 60, 60 * 1000);
+    if (!rateLimitResult.allowed) {
+      const headers = new Headers();
+      headers.set("X-RateLimit-Limit", "60");
+      headers.set("X-RateLimit-Remaining", "0");
+      headers.set("X-RateLimit-Reset", String(Math.ceil(rateLimitResult.resetAt / 1000)));
+      if (rateLimitResult.retryAfter) {
+        headers.set("Retry-After", String(rateLimitResult.retryAfter));
+      }
+      logger.warn("Reorder rate limit exceeded", {
+        shopDomain,
+        retryAfter: rateLimitResult.retryAfter,
+      });
+      return authResult.cors(jsonWithCors(
+        {
+          error: "Too many reorder requests",
+          retryAfter: rateLimitResult.retryAfter,
+        },
+        { status: 429, request, staticCors: true, headers }
+      ));
+    }
     if (!PCD_CONFIG.APPROVED) {
       logger.warn(`Reorder feature requires PCD approval for shop ${shopDomain}`);
       return authResult.cors(jsonWithCors(
@@ -410,7 +399,11 @@ async function loaderImpl(request: Request) {
         error: error instanceof Error ? error.message : String(error),
       });
     }
-    return authResult.cors(jsonWithCors({ reorderUrl }, { request, staticCors: true }));
+    const response = authResult.cors(jsonWithCors({ reorderUrl }, { request, staticCors: true }));
+    if (response.status === 200) {
+      defaultLoaderCache.set(cacheKey, response, TTL.SHORT);
+    }
+    return response;
   } catch (error) {
     logger.error("Failed to get reorder URL", {
       error: error instanceof Error ? error.message : String(error),

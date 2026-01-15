@@ -7,6 +7,7 @@ import {
   type ApiErrorResponse,
 } from "../utils/errors";
 import { logger } from "../utils/logger.server";
+import { sanitizeSensitiveInfo } from "../utils/security";
 
 export type RouteHandler<T> = (
   args: LoaderFunctionArgs | ActionFunctionArgs
@@ -129,11 +130,21 @@ function logError(error: AppError, request: Request): void {
   const url = new URL(request.url);
   const method = request.method;
   const pathname = url.pathname;
+  const searchParamsObj = Object.fromEntries(url.searchParams);
+  const sanitizedSearchParams: Record<string, string> = {};
+  for (const [key, value] of Object.entries(searchParamsObj)) {
+    const lowerKey = key.toLowerCase();
+    if (lowerKey.includes("token") || lowerKey.includes("signature") || lowerKey.includes("hmac") || lowerKey.includes("id_token")) {
+      sanitizedSearchParams[key] = "[REDACTED]";
+    } else {
+      sanitizedSearchParams[key] = sanitizeSensitiveInfo(String(value));
+    }
+  }
   if (error.isInternalError()) {
     logger.error(`[${error.code}] ${error.message}`, error, {
       method,
       pathname,
-      searchParams: Object.fromEntries(url.searchParams),
+      searchParams: sanitizedSearchParams,
       metadata: error.metadata,
     });
   } else {

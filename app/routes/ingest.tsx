@@ -634,6 +634,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       where: { id: shop.id },
       select: { plan: true },
     });
+    const isProduction = !isDevMode();
     const shopAllowedDomains = buildShopAllowedDomains({
       shopDomain: shop.shopDomain,
       primaryDomain: shop.primaryDomain,
@@ -683,7 +684,6 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       }
     }
     const signature = request.headers.get("X-Tracking-Guardian-Signature");
-    const isProduction = !isDevMode();
     let hmacValidationResult: { valid: boolean; reason?: string; errorCode?: string } | null = null;
     if (isProduction) {
       if (!shop.ingestionSecret) {
@@ -949,7 +949,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     }
     logConsentFilterMetrics(
       shop.shopDomain,
-      orderId,
+      orderId || "",
       platformsToRecord,
       skippedPlatforms,
       consentResult

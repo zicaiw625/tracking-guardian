@@ -132,7 +132,10 @@ function createEnhancedGraphQLClient(
       const timer = createTimer();
       let lastError: Error | null = null;
       let lastResponse: Response | null = null;
+      const timeoutMs = 30000;
       for (let attempt = 0; attempt <= config.maxRetries; attempt++) {
+        const abortController = new AbortController();
+        const timeoutId = setTimeout(() => abortController.abort(), timeoutMs);
         try {
           const response = await fetch(apiUrl, {
             method: "POST",
@@ -145,7 +148,9 @@ function createEnhancedGraphQLClient(
               variables: options?.variables,
               operationName: options?.operationName,
             }),
+            signal: abortController.signal,
           });
+          clearTimeout(timeoutId);
           lastResponse = response;
           const jsonResponse = await response.clone().json() as ShopifyGraphQLResponse;
           if (jsonResponse.extensions?.cost) {
@@ -215,13 +220,24 @@ function createEnhancedGraphQLClient(
             headers: response.headers,
           };
         } catch (error) {
+          clearTimeout(timeoutId);
           lastError = error instanceof Error ? error : new Error(String(error));
+          const isTimeout = lastError.name === "AbortError" || lastError.message.includes("aborted");
+          if (isTimeout) {
+            logger.warn("[GraphQL] Request timeout", {
+              shopDomain,
+              operationName: options?.operationName,
+              timeoutMs,
+              attempt: attempt + 1,
+            });
+          }
           if (attempt < config.maxRetries) {
             const delay = calculateRetryDelay(attempt, config, null);
             logger.warn("[GraphQL] Network error, scheduling retry", {
               shopDomain,
               operationName: options?.operationName,
               error: lastError.message,
+              isTimeout,
               attempt: attempt + 1,
               maxRetries: config.maxRetries,
               retryAfterMs: delay,

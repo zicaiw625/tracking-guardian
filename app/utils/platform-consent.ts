@@ -112,6 +112,14 @@ export function evaluatePlatformConsent(platform: string, consentState: ConsentS
         category = config?.category || "marketing";
     }
     if (category === "marketing") {
+        const requiresSaleOfData = config?.requiresSaleOfData ?? true;
+        if (requiresSaleOfData && consentState.saleOfDataAllowed !== true) {
+            return {
+                allowed: false,
+                reason: `Sale of data not explicitly allowed for ${platformName} (saleOfData=${String(consentState.saleOfDataAllowed)})`,
+                usedConsent: "none",
+            };
+        }
         if (consentState.marketing === true) {
             return { allowed: true, usedConsent: "marketing" };
         }
@@ -130,7 +138,7 @@ export function evaluatePlatformConsent(platform: string, consentState: ConsentS
     }
     else {
         const requiresSaleOfData = config?.requiresSaleOfData ?? true;
-        if (requiresSaleOfData && consentState.saleOfDataAllowed === false) {
+        if (requiresSaleOfData && consentState.saleOfDataAllowed !== true) {
             return {
                 allowed: false,
                 reason: `Sale of data not explicitly allowed for ${platformName} (P0-04: saleOfData=${String(consentState.saleOfDataAllowed)})`,
@@ -157,15 +165,13 @@ export function evaluatePlatformConsent(platform: string, consentState: ConsentS
 export function evaluatePlatformConsentWithStrategy(platform: string, consentStrategy: string, consentState: ConsentState | null, hasPixelReceipt: boolean, treatAsMarketing = false): ConsentDecision {
     const config = PLATFORM_CONSENT_CONFIG[platform];
     const category = getEffectiveConsentCategory(platform, treatAsMarketing);
-    if (category !== "marketing") {
-        const requiresSaleOfData = config?.requiresSaleOfData ?? true;
-        if (requiresSaleOfData && consentState?.saleOfDataAllowed === false) {
-            return {
-                allowed: false,
-                reason: `sale_of_data_not_allowed (P0-04: ${String(consentState?.saleOfDataAllowed)})`,
-                usedConsent: "none",
-            };
-        }
+    const requiresSaleOfData = config?.requiresSaleOfData ?? true;
+    if (requiresSaleOfData && consentState?.saleOfDataAllowed !== true) {
+        return {
+            allowed: false,
+            reason: `sale_of_data_not_allowed (P0-04: ${String(consentState?.saleOfDataAllowed)})`,
+            usedConsent: "none",
+        };
     }
     switch (consentStrategy) {
         case "strict": {

@@ -1,6 +1,6 @@
 import type { LoaderFunctionArgs } from "@remix-run/node";
 import { json } from "@remix-run/node";
-import { createHash } from "crypto";
+import { createHash, timingSafeEqual } from "crypto";
 import prisma from "../db.server";
 import { logger } from "../utils/logger.server";
 import { authenticate } from "../shopify.server";
@@ -90,7 +90,9 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
         .update(`${scanReport.id}-${scanReport.shopId}-${token}`)
         .digest("hex");
 
-      if (scanReport.shareTokenHash !== expectedTokenHash) {
+      const expectedBuffer = Buffer.from(expectedTokenHash, "hex");
+      const actualBuffer = Buffer.from(scanReport.shareTokenHash, "hex");
+      if (expectedBuffer.length !== actualBuffer.length || !timingSafeEqual(expectedBuffer, actualBuffer)) {
         return new Response("Invalid share token", { status: 403 });
       }
 

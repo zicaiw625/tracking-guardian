@@ -64,6 +64,15 @@ export function filterPlatformsByConsent(
     const platform = config.platform;
     const isMarketing = isMarketingPlatform(platform);
     const isAnalytics = isAnalyticsPlatform(platform);
+    const requiresSaleOfData = platformRequiresSaleOfData(platform);
+    if (requiresSaleOfData && consentResult.saleOfDataAllowed !== true) {
+      logger.debug(
+        `Skipping ${platform} ConversionLog: ` +
+          `sale_of_data required but not allowed (saleOfData=${consentResult.saleOfDataAllowed})`
+      );
+      skippedPlatforms.push(platform);
+      continue;
+    }
     if (isMarketing && !consentResult.hasMarketingConsent) {
       logger.debug(
         `Skipping ${platform} ConversionLog: ` +
@@ -79,17 +88,6 @@ export function filterPlatformsByConsent(
       );
       skippedPlatforms.push(platform);
       continue;
-    }
-    if (!isMarketing && !isAnalytics) {
-      const requiresSaleOfData = platformRequiresSaleOfData(platform);
-      if (requiresSaleOfData && consentResult.saleOfDataAllowed === false) {
-        logger.debug(
-          `Skipping ${platform} ConversionLog: ` +
-            `sale_of_data required but not allowed (saleOfData=${consentResult.saleOfDataAllowed}) [P0-2]`
-        );
-        skippedPlatforms.push(platform);
-        continue;
-      }
     }
     platformsToRecord.push({
       platform,
