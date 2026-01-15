@@ -28,18 +28,26 @@ export async function authenticatePublic(request: Request): Promise<PublicAuthRe
   }
 }
 
-export async function getPublicCorsForOptions(request: Request): Promise<(response: Response) => Response> {
+export async function handlePublicPreflight(request: Request): Promise<Response> {
   try {
-    const { cors } = await authenticate.public.checkout(request);
-    return cors;
-  } catch {
-    try {
-      const { cors } = await authenticate.public.customerAccount(request);
-      return cors;
-    } catch {
-      return (response: Response) => response;
+    await authenticate.public.checkout(request);
+    return new Response(null, { status: 204 });
+  } catch (e) {
+    if (e instanceof Response) {
+      return e;
     }
   }
+
+  try {
+    await authenticate.public.customerAccount(request);
+    return new Response(null, { status: 204 });
+  } catch (e) {
+    if (e instanceof Response) {
+      return e;
+    }
+  }
+
+  return new Response(null, { status: 204 });
 }
 
 export function normalizeDestToShopDomain(dest: string): string {

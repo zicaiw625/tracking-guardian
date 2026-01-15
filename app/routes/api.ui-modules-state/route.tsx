@@ -4,13 +4,12 @@ import { logger } from "../../utils/logger.server";
 import prisma from "../../db.server";
 import { getUiModuleConfigs, canUseModule, getDefaultSettings } from "../../services/ui-extension.server";
 import { PCD_CONFIG } from "../../utils/config";
-import { authenticatePublic, normalizeDestToShopDomain, getPublicCorsForOptions } from "../../utils/public-auth";
+import { authenticatePublic, normalizeDestToShopDomain, handlePublicPreflight } from "../../utils/public-auth";
 import { sanitizeUrl } from "../../utils/security";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   if (request.method === "OPTIONS") {
-    const cors = await getPublicCorsForOptions(request);
-    return cors(new Response(null, { status: 204 }));
+    return handlePublicPreflight(request);
   }
   if (request.method !== "GET") {
     return json({ error: "Method not allowed" }, { status: 405 });

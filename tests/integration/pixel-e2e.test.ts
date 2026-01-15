@@ -93,7 +93,12 @@ describe("Web Pixel E2E Flow", () => {
     it("should accept valid pixel event from myshopify.com origin", () => {
       const result = validatePixelOriginPreBody("https://test-shop.myshopify.com");
       expect(result.valid).toBe(true);
-      expect(result.reason).toBe("https_origin");
+      expect(result.reason).toBe("https_shopify_origin");
+    });
+    it("should accept valid pixel event from allowed origin", () => {
+      const result = validatePixelOriginPreBody("https://test-store.myshopify.com");
+      expect(result.valid).toBe(true);
+      expect(result.reason).toBe("https_shopify_origin");
     });
     it("should validate origin against shop's allowed domains", () => {
       const allowedDomains = buildShopAllowedDomains({
@@ -101,21 +106,22 @@ describe("Web Pixel E2E Flow", () => {
         primaryDomain: mockShop.primaryDomain,
         storefrontDomains: mockShop.storefrontDomains,
       });
-      const primaryResult = validatePixelOriginForShop(
+      const shopifyResult = validatePixelOriginForShop(
         "https://test-shop.myshopify.com",
+        allowedDomains
+      );
+      expect(shopifyResult.valid).toBe(true);
+      const primaryResult = validatePixelOriginForShop(
+        `https://${mockShop.primaryDomain}`,
         allowedDomains
       );
       expect(primaryResult.valid).toBe(true);
-      const subdomainResult = validatePixelOriginForShop(
-        "https://test-shop.myshopify.com",
-        allowedDomains
-      );
-      expect(subdomainResult.valid).toBe(true);
       const externalResult = validatePixelOriginForShop(
-        "https://test-shop.myshopify.com",
+        "https://external-domain.com",
         allowedDomains
       );
       expect(externalResult.valid).toBe(false);
+      expect(externalResult.reason).toMatch(/^origin_not_allowlisted:/);
     });
     it("should create pixel event receipt with checkout token", async () => {
       const mockUpsert = vi.fn().mockResolvedValue({
@@ -206,13 +212,13 @@ describe("Web Pixel E2E Flow", () => {
     });
   });
   describe("Security: Origin validation edge cases", () => {
-    it("should reject file:
-      const result = validatePixelOriginPreBody("file:
+    it("should reject file: protocol", () => {
+      const result = validatePixelOriginPreBody("file:///path/to/file");
       expect(result.valid).toBe(false);
       expect(result.reason).toBe("file_protocol_blocked");
     });
-    it("should reject chrome-extension:
-      const result = validatePixelOriginPreBody("chrome-extension:
+    it("should reject chrome-extension: protocol", () => {
+      const result = validatePixelOriginPreBody("chrome-extension://extension-id");
       expect(result.valid).toBe(false);
       expect(result.reason).toBe("chrome_extension_blocked");
     });
@@ -222,7 +228,7 @@ describe("Web Pixel E2E Flow", () => {
       expect(result.reason).toBe("data_protocol_blocked");
     });
     it("should reject HTTP in production (non-localhost)", () => {
-      const result = validatePixelOriginPreBody("http:
+      const result = validatePixelOriginPreBody("http://example.com");
       expect(result.valid).toBe(false);
       expect(result.reason).toBe("http_not_allowed");
     });

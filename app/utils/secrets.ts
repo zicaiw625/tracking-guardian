@@ -135,17 +135,28 @@ export function checkSecurityViolations(): SecurityViolation[] {
             });
         }
         const allowNullOrigin = process.env.PIXEL_ALLOW_NULL_ORIGIN;
-        if (allowNullOrigin !== "true" && allowNullOrigin !== "1") {
+        if (allowNullOrigin === undefined || allowNullOrigin === "") {
             violations.push({
                 type: "fatal",
                 code: "PIXEL_NULL_ORIGIN_NOT_CONFIGURED",
-                message: "[P0-2 CONFIGURATION ERROR] PIXEL_ALLOW_NULL_ORIGIN is not set to 'true' in production. " +
+                message: "[P0-2 CONFIGURATION ERROR] PIXEL_ALLOW_NULL_ORIGIN is not set in production. " +
                     "Web Pixel API may send requests with Origin=null from sandbox environments. " +
                     "Without explicit configuration, these requests will be silently rejected, causing data loss. " +
                     "If your deployment receives pixel events, you MUST set PIXEL_ALLOW_NULL_ORIGIN=true. " +
                     "Null origin requests require valid HMAC signature for security. " +
-                    "If you do not receive pixel events, you can ignore this check by setting PIXEL_ALLOW_NULL_ORIGIN=false explicitly.",
+                    "If you do not receive pixel events, you can set PIXEL_ALLOW_NULL_ORIGIN=false explicitly.",
             });
+        } else {
+            const normalized = allowNullOrigin.toLowerCase().trim();
+            if (!["true", "1", "false", "0"].includes(normalized)) {
+                violations.push({
+                    type: "fatal",
+                    code: "PIXEL_NULL_ORIGIN_INVALID",
+                    message: "[P0-2 CONFIGURATION ERROR] PIXEL_ALLOW_NULL_ORIGIN has invalid value. " +
+                        "Allowed values: 'true', '1', 'false', '0'. " +
+                        `Current value: ${allowNullOrigin}`,
+                });
+            }
         }
         if (process.env.FEATURE_DEBUG_LOGGING === "true") {
             violations.push({

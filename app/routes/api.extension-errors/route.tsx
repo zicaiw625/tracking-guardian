@@ -4,15 +4,14 @@ import { logger } from "../../utils/logger.server";
 import { json } from "@remix-run/node";
 import { checkRateLimitAsync } from "../../middleware/rate-limit";
 import prisma from "../../db.server";
-import { authenticatePublic, normalizeDestToShopDomain, getPublicCorsForOptions } from "../../utils/public-auth";
+import { authenticatePublic, normalizeDestToShopDomain, handlePublicPreflight } from "../../utils/public-auth";
 import { sanitizeSensitiveInfo } from "../../utils/security";
 import { API_CONFIG } from "../../utils/config";
 import { readJsonWithSizeLimit } from "../../utils/body-size-guard";
 
 export const action = async ({ request }: ActionFunctionArgs) => {
   if (request.method === "OPTIONS") {
-    const cors = await getPublicCorsForOptions(request);
-    return cors(new Response(null, { status: 204 }));
+    return handlePublicPreflight(request);
   }
   if (request.method !== "POST") {
     return json({ error: "Method not allowed" }, { status: 405 });

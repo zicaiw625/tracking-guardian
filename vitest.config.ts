@@ -15,7 +15,7 @@ export default defineConfig({
     coverage: {
       provider: "v8",
       reporter: ["text", "json", "html", "lcov"],
-      include: ["app*.{ts,tsx}"],
+      include: ["app/**/*.{ts,tsx}"],
       exclude: [
         "node_modules",
         "*.d.ts",

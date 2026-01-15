@@ -90,7 +90,84 @@ export interface ShopVerificationData {
     storefrontDomains: string[];
 }
 
+export interface ShopVerificationDataEncrypted {
+    id: string;
+    shopDomain: string;
+    isActive: boolean;
+    ingestionSecret: string | null;
+    previousIngestionSecret: string | null;
+    previousSecretExpiry: Date | null;
+    primaryDomain: string | null;
+    storefrontDomains: string[];
+}
+
+export async function getShopForVerificationEncrypted(shopDomain: string): Promise<ShopVerificationDataEncrypted | null> {
+    const shop = await prisma.shop.findUnique({
+        where: { shopDomain },
+        select: {
+            id: true,
+            shopDomain: true,
+            isActive: true,
+            ingestionSecret: true,
+            previousIngestionSecret: true,
+            previousSecretExpiry: true,
+            primaryDomain: true,
+            storefrontDomains: true,
+        },
+    });
+    if (!shop) {
+        return null;
+    }
+    return {
+        id: shop.id,
+        shopDomain: shop.shopDomain,
+        isActive: shop.isActive,
+        ingestionSecret: shop.ingestionSecret,
+        previousIngestionSecret: shop.previousIngestionSecret,
+        previousSecretExpiry: shop.previousSecretExpiry,
+        primaryDomain: shop.primaryDomain,
+        storefrontDomains: shop.storefrontDomains,
+    };
+}
+
+export function decryptShopVerificationData(
+    encrypted: ShopVerificationDataEncrypted
+): ShopVerificationData {
+    const currentSecret = encrypted.ingestionSecret
+        ? decryptIngestionSecret(encrypted.ingestionSecret)
+        : null;
+    let previousSecret: string | null = null;
+    if (
+        encrypted.previousIngestionSecret &&
+        encrypted.previousSecretExpiry &&
+        new Date() < encrypted.previousSecretExpiry
+    ) {
+        previousSecret = decryptIngestionSecret(encrypted.previousIngestionSecret);
+    }
+    return {
+        id: encrypted.id,
+        shopDomain: encrypted.shopDomain,
+        isActive: encrypted.isActive,
+        ingestionSecret: currentSecret,
+        previousIngestionSecret: previousSecret,
+        previousSecretExpiry: encrypted.previousSecretExpiry,
+        primaryDomain: encrypted.primaryDomain,
+        storefrontDomains: encrypted.storefrontDomains,
+    };
+}
+
 export interface ShopWithPixelConfigs extends ShopVerificationData {
+    pixelConfigs: Array<{
+        platform: string;
+        id: string;
+        platformId: string | null;
+        clientConfig: unknown;
+        clientSideEnabled: boolean;
+        serverSideEnabled: boolean;
+    }>;
+}
+
+export interface ShopWithPixelConfigsEncrypted extends ShopVerificationDataEncrypted {
     pixelConfigs: Array<{
         platform: string;
         id: string;
@@ -195,6 +272,81 @@ export async function getShopForVerificationWithConfigs(
         primaryDomain: shop.primaryDomain,
         storefrontDomains: shop.storefrontDomains,
         pixelConfigs: shop.pixelConfigs,
+    };
+}
+
+export async function getShopForVerificationWithConfigsEncrypted(
+    shopDomain: string,
+    environment?: "test" | "live"
+): Promise<ShopWithPixelConfigsEncrypted | null> {
+    const shop = await prisma.shop.findUnique({
+        where: { shopDomain },
+        select: {
+            id: true,
+            shopDomain: true,
+            isActive: true,
+            ingestionSecret: true,
+            previousIngestionSecret: true,
+            previousSecretExpiry: true,
+            primaryDomain: true,
+            storefrontDomains: true,
+            pixelConfigs: {
+                where: {
+                    isActive: true,
+                    ...(environment ? { environment } : { environment: "live" }),
+                },
+                select: {
+                    platform: true,
+                    id: true,
+                    platformId: true,
+                    environment: true,
+                    clientConfig: true,
+                    clientSideEnabled: true,
+                    serverSideEnabled: true,
+                },
+            },
+        },
+    });
+    if (!shop) {
+        return null;
+    }
+    return {
+        id: shop.id,
+        shopDomain: shop.shopDomain,
+        isActive: shop.isActive,
+        ingestionSecret: shop.ingestionSecret,
+        previousIngestionSecret: shop.previousIngestionSecret,
+        previousSecretExpiry: shop.previousSecretExpiry,
+        primaryDomain: shop.primaryDomain,
+        storefrontDomains: shop.storefrontDomains,
+        pixelConfigs: shop.pixelConfigs,
+    };
+}
+
+export function decryptShopWithPixelConfigs(
+    encrypted: ShopWithPixelConfigsEncrypted
+): ShopWithPixelConfigs {
+    const currentSecret = encrypted.ingestionSecret
+        ? decryptIngestionSecret(encrypted.ingestionSecret)
+        : null;
+    let previousSecret: string | null = null;
+    if (
+        encrypted.previousIngestionSecret &&
+        encrypted.previousSecretExpiry &&
+        new Date() < encrypted.previousSecretExpiry
+    ) {
+        previousSecret = decryptIngestionSecret(encrypted.previousIngestionSecret);
+    }
+    return {
+        id: encrypted.id,
+        shopDomain: encrypted.shopDomain,
+        isActive: encrypted.isActive,
+        ingestionSecret: currentSecret,
+        previousIngestionSecret: previousSecret,
+        previousSecretExpiry: encrypted.previousSecretExpiry,
+        primaryDomain: encrypted.primaryDomain,
+        storefrontDomains: encrypted.storefrontDomains,
+        pixelConfigs: encrypted.pixelConfigs,
     };
 }
 export function verifyWithGraceWindow(shop: ShopVerificationData, verifyFn: (secret: string) => boolean): {

@@ -1,17 +1,53 @@
 import { RedisCache, SimpleCache, TTL } from "../utils/cache";
 import { logger } from "../utils/logger.server";
-import type { ShopVerificationData, ShopWithPixelConfigs } from "../utils/shop-access";
+import type { ShopVerificationData, ShopVerificationDataEncrypted, ShopWithPixelConfigs, ShopWithPixelConfigsEncrypted } from "../utils/shop-access";
+import { decryptShopWithPixelConfigs, decryptShopVerificationData } from "../utils/shop-access";
 
-const shopVerificationCache = new RedisCache<ShopVerificationData>({
+interface ShopWithPixelConfigsWithoutSecrets {
+  id: string;
+  shopDomain: string;
+  isActive: boolean;
+  primaryDomain: string | null;
+  storefrontDomains: string[];
+  pixelConfigs: Array<{
+    platform: string;
+    id: string;
+    platformId: string | null;
+    clientConfig: unknown;
+    clientSideEnabled: boolean;
+    serverSideEnabled: boolean;
+  }>;
+}
+
+interface ShopVerificationDataWithoutSecrets {
+  id: string;
+  shopDomain: string;
+  isActive: boolean;
+  previousSecretExpiry: Date | null;
+  primaryDomain: string | null;
+  storefrontDomains: string[];
+}
+
+const shopVerificationCacheMemory = new SimpleCache<ShopVerificationDataEncrypted>({
+  maxSize: 1000,
+  defaultTtlMs: TTL.VERY_SHORT,
+});
+
+const shopVerificationCacheRedis = new RedisCache<ShopVerificationDataWithoutSecrets>({
   prefix: "shop:verify:",
   defaultTtlMs: TTL.SHORT,
   useRedis: true,
 });
 
-const shopWithConfigsCache = new RedisCache<ShopWithPixelConfigs>({
+const shopWithConfigsCacheRedis = new RedisCache<ShopWithPixelConfigsWithoutSecrets>({
   prefix: "shop:configs:",
   defaultTtlMs: TTL.SHORT,
   useRedis: true,
+});
+
+const shopWithConfigsCacheMemory = new SimpleCache<ShopWithPixelConfigsEncrypted>({
+  maxSize: 1000,
+  defaultTtlMs: TTL.VERY_SHORT,
 });
 
 const billingCheckCache = new SimpleCache<{
@@ -40,24 +76,41 @@ export async function getCachedShopVerification(
 ): Promise<ShopVerificationData | null | undefined> {
   const key = getVerificationKey(shopDomain);
   try {
-    return await shopVerificationCache.get(key);
+    const memoryCached = shopVerificationCacheMemory.get(key);
+    if (memoryCached !== undefined) {
+      if (memoryCached === null) {
+        return null;
+      }
+      return decryptShopVerificationData(memoryCached);
+    }
+    return undefined;
   } catch (error) {
     logger.warn("Failed to get cached shop verification", { shopDomain, error });
     return undefined;
   }
 }
 
-export async function cacheShopVerification(
+export async function cacheShopVerificationEncrypted(
   shopDomain: string,
-  data: ShopVerificationData | null,
+  data: ShopVerificationDataEncrypted | null,
   ttlMs?: number
 ): Promise<void> {
   const key = getVerificationKey(shopDomain);
   try {
     if (data === null) {
-      await shopVerificationCache.delete(key);
+      shopVerificationCacheMemory.delete(key);
+      await shopVerificationCacheRedis.delete(key);
     } else {
-      await shopVerificationCache.set(key, data, ttlMs);
+      const withoutSecrets: ShopVerificationDataWithoutSecrets = {
+        id: data.id,
+        shopDomain: data.shopDomain,
+        isActive: data.isActive,
+        previousSecretExpiry: data.previousSecretExpiry,
+        primaryDomain: data.primaryDomain,
+        storefrontDomains: data.storefrontDomains,
+      };
+      await shopVerificationCacheRedis.set(key, withoutSecrets, ttlMs);
+      shopVerificationCacheMemory.set(key, data, TTL.VERY_SHORT);
     }
   } catch (error) {
     logger.warn("Failed to cache shop verification", { shopDomain, error });
@@ -67,7 +120,8 @@ export async function cacheShopVerification(
 export async function invalidateShopVerification(shopDomain: string): Promise<void> {
   const key = getVerificationKey(shopDomain);
   try {
-    await shopVerificationCache.delete(key);
+    await shopVerificationCacheRedis.delete(key);
+    shopVerificationCacheMemory.delete(key);
     logger.debug("Invalidated shop verification cache", { shopDomain });
   } catch (error) {
     logger.warn("Failed to invalidate shop verification cache", { shopDomain, error });
@@ -79,24 +133,41 @@ export async function getCachedShopWithConfigs(
 ): Promise<ShopWithPixelConfigs | null | undefined> {
   const key = getConfigsKey(shopDomain);
   try {
-    return await shopWithConfigsCache.get(key);
+    const memoryCached = shopWithConfigsCacheMemory.get(key);
+    if (memoryCached !== undefined) {
+      if (memoryCached === null) {
+        return null;
+      }
+      return decryptShopWithPixelConfigs(memoryCached);
+    }
+    return undefined;
   } catch (error) {
     logger.warn("Failed to get cached shop configs", { shopDomain, error });
     return undefined;
   }
 }
 
-export async function cacheShopWithConfigs(
+export async function cacheShopWithConfigsEncrypted(
   shopDomain: string,
-  data: ShopWithPixelConfigs | null,
+  data: ShopWithPixelConfigsEncrypted | null,
   ttlMs?: number
 ): Promise<void> {
   const key = getConfigsKey(shopDomain);
   try {
     if (data === null) {
-      await shopWithConfigsCache.delete(key);
+      shopWithConfigsCacheMemory.delete(key);
+      await shopWithConfigsCacheRedis.delete(key);
     } else {
-      await shopWithConfigsCache.set(key, data, ttlMs);
+      const withoutSecrets: ShopWithPixelConfigsWithoutSecrets = {
+        id: data.id,
+        shopDomain: data.shopDomain,
+        isActive: data.isActive,
+        primaryDomain: data.primaryDomain,
+        storefrontDomains: data.storefrontDomains,
+        pixelConfigs: data.pixelConfigs,
+      };
+      await shopWithConfigsCacheRedis.set(key, withoutSecrets, ttlMs);
+      shopWithConfigsCacheMemory.set(key, data, TTL.VERY_SHORT);
     }
   } catch (error) {
     logger.warn("Failed to cache shop configs", { shopDomain, error });
@@ -106,7 +177,8 @@ export async function cacheShopWithConfigs(
 export async function invalidateShopConfigs(shopDomain: string): Promise<void> {
   const key = getConfigsKey(shopDomain);
   try {
-    await shopWithConfigsCache.delete(key);
+    await shopWithConfigsCacheRedis.delete(key);
+    shopWithConfigsCacheMemory.delete(key);
     await invalidateShopVerification(shopDomain);
     logger.debug("Invalidated shop configs cache", { shopDomain });
   } catch (error) {
@@ -184,13 +256,17 @@ export async function warmShopCache(
   let warmed = 0;
   let failed = 0;
   const batchSize = 10;
+  const { getShopForVerificationWithConfigsEncrypted } = await import("../utils/shop-access");
   for (let i = 0; i < shopDomains.length; i += batchSize) {
     const batch = shopDomains.slice(i, i + batchSize);
     const results = await Promise.allSettled(
       batch.map(async (domain) => {
         const data = await getShopFn(domain);
         if (data) {
-          await cacheShopWithConfigs(domain, data);
+          const encrypted = await getShopForVerificationWithConfigsEncrypted(domain);
+          if (encrypted) {
+            await cacheShopWithConfigsEncrypted(domain, encrypted);
+          }
         }
         return domain;
       })

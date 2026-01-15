@@ -5,15 +5,14 @@ import { withRateLimit, pathShopKeyExtractor, type RateLimitedHandler, checkRate
 import prisma from "../../db.server";
 import { randomUUID } from "crypto";
 import { canUseModule, getUiModuleConfigs } from "../../services/ui-extension.server";
-import { authenticatePublic, normalizeDestToShopDomain, getPublicCorsForOptions } from "../../utils/public-auth";
+import { authenticatePublic, normalizeDestToShopDomain, handlePublicPreflight } from "../../utils/public-auth";
 import { hashValueSync } from "../../utils/crypto.server";
 import { API_CONFIG } from "../../utils/config";
 import { readJsonWithSizeLimit } from "../../utils/body-size-guard";
 
 export const action = async ({ request }: ActionFunctionArgs) => {
   if (request.method === "OPTIONS") {
-    const cors = await getPublicCorsForOptions(request);
-    return cors(new Response(null, { status: 204 }));
+    return handlePublicPreflight(request);
   }
   if (request.method !== "POST") {
     return json({ error: "Method not allowed" }, { status: 405 });

@@ -1,12 +1,14 @@
 import {
   getShopForVerification,
   getShopForVerificationWithConfigs,
+  getShopForVerificationWithConfigsEncrypted,
+  decryptShopWithPixelConfigs,
   type ShopVerificationData,
   type ShopWithPixelConfigs,
 } from "../../utils/shop-access";
 import {
   getCachedShopWithConfigs,
-  cacheShopWithConfigs,
+  cacheShopWithConfigsEncrypted,
 } from "../../services/shop-cache.server";
 
 export async function getShopForPixelVerification(
@@ -19,12 +21,15 @@ export async function getShopForPixelVerificationWithConfigs(
   shopDomain: string,
   environment?: "test" | "live"
 ): Promise<ShopWithPixelConfigs | null> {
-  const cacheKey = environment ? `${shopDomain}:${environment}` : `${shopDomain}:live`;
-  const cached = await getCachedShopWithConfigs(cacheKey);
+  const cached = await getCachedShopWithConfigs(shopDomain);
   if (cached !== undefined) {
     return cached;
   }
-  const shop = await getShopForVerificationWithConfigs(shopDomain, environment || "live");
-  await cacheShopWithConfigs(cacheKey, shop);
-  return shop;
+  const encrypted = await getShopForVerificationWithConfigsEncrypted(shopDomain, environment || "live");
+  if (encrypted) {
+    await cacheShopWithConfigsEncrypted(shopDomain, encrypted);
+    return decryptShopWithPixelConfigs(encrypted);
+  }
+  await cacheShopWithConfigsEncrypted(shopDomain, null);
+  return null;
 }

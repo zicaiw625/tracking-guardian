@@ -3,25 +3,25 @@ import { isValidPixelOrigin } from "../../app/utils/origin-validation";
 
 describe("isValidPixelOrigin", () => {
   describe("should accept valid HTTPS origins", () => {
-    it("accepts custom domain origin", () => {
-      const result = isValidPixelOrigin("https://example.com");
-      expect(result.valid).toBe(true);
-      expect(result.reason).toBe("https_origin");
-    });
     it("accepts myshopify.com origin", () => {
-      const result = isValidPixelOrigin("https://example.com");
+      const result = isValidPixelOrigin("https://test-shop.myshopify.com");
       expect(result.valid).toBe(true);
-      expect(result.reason).toBe("https_origin");
+      expect(result.reason).toBe("https_shopify_origin");
     });
     it("accepts checkout.shopify.com origin", () => {
-      const result = isValidPixelOrigin("https://example.com");
+      const result = isValidPixelOrigin("https://checkout.shopify.com");
       expect(result.valid).toBe(true);
-      expect(result.reason).toBe("https_origin");
+      expect(result.reason).toBe("https_shopify_origin");
     });
-    it("accepts subdomain custom domain", () => {
-      const result = isValidPixelOrigin("https://example.com");
+    it("accepts shopify.com subdomain origin", () => {
+      const result = isValidPixelOrigin("https://admin.shopify.com");
       expect(result.valid).toBe(true);
-      expect(result.reason).toBe("https_origin");
+      expect(result.reason).toBe("https_allowed_origin");
+    });
+    it("accepts custom domain origin matching allowed pattern", () => {
+      const result = isValidPixelOrigin("https://example.myshopify.com");
+      expect(result.valid).toBe(true);
+      expect(result.reason).toBe("https_shopify_origin");
     });
   });
   describe("should handle sandbox/null origins", () => {

@@ -14,7 +14,7 @@ import { checkRateLimitAsync } from "../../middleware/rate-limit";
 import { defaultLoaderCache } from "../../lib/with-cache";
 import { TTL } from "../../utils/cache";
 import { getUiModuleConfig } from "../../services/ui-extension.server";
-import { authenticatePublic, normalizeDestToShopDomain, getPublicCorsForOptions } from "../../utils/public-auth";
+import { authenticatePublic, normalizeDestToShopDomain, handlePublicPreflight } from "../../utils/public-auth";
 
 interface FulfillmentNode {
   trackingInfo?: {
@@ -40,8 +40,7 @@ type TrackingApiPayload = {
 
 export const action = async ({ request }: ActionFunctionArgs) => {
   if (request.method === "OPTIONS") {
-    const cors = await getPublicCorsForOptions(request);
-    return cors(new Response(null, { status: 204 }));
+    return handlePublicPreflight(request);
   }
     return json({ error: "Method not allowed" }, { status: 405 });
 };
