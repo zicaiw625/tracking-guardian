@@ -1,3 +1,4 @@
+import { createHash, randomBytes } from "crypto";
 import { logger } from "../utils/logger.server";
 import type { PixelEventPayload, PixelEventName, PixelEventData } from "../routes/api.pixel-events/types";
 import { mapEventToPlatform } from "./events/mapping.server";
@@ -104,7 +105,6 @@ export function generateCanonicalEventId(
   version: string = "v2",
   nonce?: string | null | undefined
 ): string {
-  const crypto = require("crypto");
   let identifier: string;
   if (orderId) {
     identifier = normalizeOrderId(orderId);
@@ -120,7 +120,7 @@ export function generateCanonicalEventId(
       });
     } else {
       const timestampMs = Date.now();
-      const randomSuffix = crypto.randomBytes(4).toString("hex");
+      const randomSuffix = randomBytes(4).toString("hex");
       identifier = `fallback_${timestampMs}_${randomSuffix}`;
       logger.warn("Generating event ID without orderId, checkoutToken, or nonce (non-idempotent, should be avoided)", {
         eventName,
@@ -135,15 +135,13 @@ export function generateCanonicalEventId(
       .map(item => `${item.id}:${item.quantity}`)
       .sort()
       .join(",");
-    itemsHash = crypto
-      .createHash("sha256")
+    itemsHash = createHash("sha256")
       .update(itemsKey)
       .digest("hex")
       .substring(0, 8);
   }
   const input = `${version}:${shopDomain}:${identifier}:${eventName}:${itemsHash}`;
-  return crypto
-    .createHash("sha256")
+  return createHash("sha256")
     .update(input, "utf8")
     .digest("hex")
     .substring(0, 32);

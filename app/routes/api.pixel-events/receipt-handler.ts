@@ -1,3 +1,5 @@
+import { createHash } from "crypto";
+import { randomUUID } from "crypto";
 import prisma from "../../db.server";
 import { generateEventId, generateMatchKey } from "../../utils/crypto.server";
 import { extractOriginHost } from "../../utils/origin-validation";
@@ -7,7 +9,6 @@ import { generateSimpleId } from "../../utils/helpers";
 import type { TrustLevel } from "../../utils/receipt-trust";
 import type { PixelEventPayload, KeyValidationResult } from "./types";
 import { generateCanonicalEventId } from "../../services/event-normalizer.server";
-import { randomUUID } from "crypto";
 import { getRedisClient } from "../../utils/redis-client";
 
 export interface MatchKeyResult {
@@ -170,7 +171,6 @@ export function generateDeduplicationKeyForEvent(
   items: Array<{ id: string; quantity: number }>,
   shopDomain: string
 ): string {
-  const { createHash } = require("crypto");
   const identifier = orderId || checkoutToken || "";
   const itemsHash = items.length > 0
     ? createHash("sha256")

@@ -1,3 +1,4 @@
+import { createHmac } from "crypto";
 import { logger } from "../../utils/logger.server";
 import type {
   ITrackingProvider,
@@ -228,9 +229,7 @@ export class AfterShipProvider implements ITrackingProvider {
       return true;
     }
     try {
-      const crypto = require("crypto");
-      const expectedSignature = crypto
-        .createHmac("sha256", this.webhookSecret)
+      const expectedSignature = createHmac("sha256", this.webhookSecret)
         .update(payload)
         .digest("hex");
       return expectedSignature === signature;

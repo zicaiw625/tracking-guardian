@@ -104,7 +104,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
           endpoint: body.endpoint,
           target: body.target,
           orderId: body.orderId,
-          error: body.error.substring(0, 200),
+          error: truncatedError.substring(0, 200),
           remaining: rateLimitResult.remaining,
         });
       }
@@ -116,8 +116,8 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         endpoint: body.endpoint,
         target: body.target,
         orderId: body.orderId,
-        error: body.error,
-        stack: body.stack,
+        error: truncatedError,
+        stack: truncatedStack,
       });
     }
     try {

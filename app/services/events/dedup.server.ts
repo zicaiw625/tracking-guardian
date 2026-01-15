@@ -1,3 +1,4 @@
+import { createHash } from "crypto";
 import { generateEventId as generateCryptoEventId } from "~/utils/crypto.server";
 import type { PixelEventPayload } from "~/routes/api.pixel-events/types";
 
@@ -19,8 +20,7 @@ export function generateEventId(
   }
   if (checkoutToken) {
     const hashInput = `${shopDomain}:${checkoutToken}:${eventName}`;
-    return require("crypto")
-      .createHash("sha256")
+    return createHash("sha256")
       .update(hashInput, "utf8")
       .digest("hex")
       .substring(0, 32);
@@ -28,8 +28,7 @@ export function generateEventId(
   const timestamp = Date.now();
   const random = Math.random().toString(36).substring(2, 15);
   const hashInput = `${shopDomain}:${timestamp}:${random}:${eventName}`;
-  return require("crypto")
-    .createHash("sha256")
+  return createHash("sha256")
     .update(hashInput, "utf8")
     .digest("hex")
     .substring(0, 32);

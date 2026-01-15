@@ -1,3 +1,4 @@
+import { createHash } from "crypto";
 import type { PixelEventPayload } from "~/routes/api.pixel-events/types";
 import { normalizeParameterValue } from "./mapping.server";
 
@@ -185,7 +186,6 @@ function extractString(value: unknown): string | null {
 export function generateDeduplicationKey(
   canonicalEvent: CanonicalEvent
 ): string {
-  const { createHash } = require("crypto");
   const identifier = canonicalEvent.orderId || canonicalEvent.checkoutToken || "";
   const itemsHash = generateItemsHash(canonicalEvent.items);
   const keyInput = `${canonicalEvent.shopDomain}:${identifier}:${canonicalEvent.eventName}:${itemsHash}`;
@@ -196,7 +196,6 @@ export function generateDeduplicationKey(
 }
 
 function generateItemsHash(items: CanonicalItem[]): string {
-  const { createHash } = require("crypto");
   if (items.length === 0) {
     return "empty";
   }

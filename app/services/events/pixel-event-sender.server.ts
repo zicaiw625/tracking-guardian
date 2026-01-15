@@ -124,8 +124,9 @@ async function sendToGA4(
       ],
     };
     const url = `${GA4_MEASUREMENT_PROTOCOL_URL}?measurement_id=${googleCreds.measurementId}&api_secret=${googleCreds.apiSecret}`;
+    const sanitizedUrl = url.replace(/api_secret=[^&]+/, "api_secret=***REDACTED***");
     const requestPayload = {
-      url,
+      url: sanitizedUrl,
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: ga4Payload,
@@ -494,140 +495,6 @@ export async function sendPixelEventToPlatform(
     const eventMappings = config.eventMappings && typeof config.eventMappings === 'object'
       ? (config.eventMappings as Record<string, string>)
       : null;
-    if (normalizedPlatform === "google") {
-      const googleCreds = credentials as { measurementId?: string; apiSecret?: string };
-      if (googleCreds.measurementId && googleCreds.apiSecret) {
-        const platformEventName = mapShopifyEventToPlatform(payload.eventName, "google", eventMappings);
-        const data = payload.data || {};
-        const params: Record<string, unknown> = { engagement_time_msec: "1" };
-        if (platformEventName !== "page_view" && data.value !== undefined && data.value !== null) {
-          params.value = data.value;
-        }
-        if (data.currency) params.currency = data.currency;
-        if (data.items && Array.isArray(data.items) && data.items.length > 0) {
-          params.items = data.items.map((item) => ({
-            item_id: item.id || "",
-            item_name: item.name || "",
-            quantity: item.quantity || 1,
-            price: item.price || 0,
-          }));
-        }
-        const ga4Payload = {
-          client_id: `server.${eventId}`,
-          events: [{ name: platformEventName, params }],
-        };
-        const url = `${GA4_MEASUREMENT_PROTOCOL_URL}?measurement_id=${googleCreds.measurementId}&api_secret=${googleCreds.apiSecret}`;
-        requestPayload = {
-          url,
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: ga4Payload,
-        };
-      }
-    } else if (normalizedPlatform === "meta" || normalizedPlatform === "facebook") {
-      const metaCreds = credentials as { pixelId?: string; accessToken?: string; testEventCode?: string };
-      if (metaCreds.pixelId && metaCreds.accessToken) {
-        const platformEventName = mapShopifyEventToPlatform(payload.eventName, "meta", eventMappings);
-        const data = payload.data || {};
-        const eventTime = Math.floor(Date.now() / 1000);
-        const contents = data.items && Array.isArray(data.items) && data.items.length > 0
-          ? data.items.map((item) => ({
-              id: item.id || "",
-              quantity: item.quantity || 1,
-              item_price: item.price || 0,
-            }))
-          : [];
-        const customData: Record<string, unknown> = {};
-        if (platformEventName !== "PageView" && data.value !== undefined && data.value !== null) {
-          customData.value = data.value;
-        }
-        if (data.currency) customData.currency = data.currency;
-        if (contents.length > 0) {
-          customData.contents = contents;
-          customData.content_type = "product";
-        }
-        if (data.orderId) customData.order_id = data.orderId;
-        const eventPayload = {
-          data: [{
-            event_name: platformEventName,
-            event_time: eventTime,
-            event_id: eventId,
-            action_source: "website",
-            custom_data: customData,
-          }],
-          ...(metaCreds.testEventCode && { test_event_code: metaCreds.testEventCode }),
-        };
-        const url = `${META_API_BASE_URL}/${META_API_VERSION}/${metaCreds.pixelId}/events`;
-        requestPayload = {
-          url,
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: "Bearer ***REDACTED***",
-          },
-          body: {
-            ...eventPayload,
-            access_token: "***REDACTED***",
-          },
-        };
-      }
-    } else if (normalizedPlatform === "tiktok") {
-      const tiktokCreds = credentials as { pixelId?: string; accessToken?: string; testEventCode?: string };
-      if (tiktokCreds.pixelId && tiktokCreds.accessToken) {
-        const platformEventName = mapShopifyEventToPlatform(payload.eventName, "tiktok", eventMappings);
-        const data = payload.data || {};
-        const timestamp = new Date().toISOString();
-        const contents = data.items && Array.isArray(data.items) && data.items.length > 0
-          ? data.items.map((item) => ({
-              content_id: item.id || "",
-              content_name: item.name || "",
-              quantity: item.quantity || 1,
-              price: item.price || 0,
-            }))
-          : [];
-        const properties: Record<string, unknown> = {};
-        if (platformEventName !== "PageView" && data.value !== undefined && data.value !== null) {
-          properties.value = data.value;
-        }
-        if (data.currency) properties.currency = data.currency;
-        if (contents.length > 0) {
-          properties.contents = contents;
-          properties.content_type = "product";
-        }
-        if (data.orderId) properties.order_id = data.orderId;
-        const eventPayload = {
-          pixel_code: tiktokCreds.pixelId,
-          event: platformEventName,
-          event_id: eventId,
-          timestamp,
-          context: { user: {} },
-          properties,
-          ...(tiktokCreds.testEventCode && { test_event_code: tiktokCreds.testEventCode }),
-        };
-        requestPayload = {
-          url: TIKTOK_API_URL,
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "Access-Token": "***REDACTED***",
-          },
-          body: { data: [eventPayload] },
-        };
-      }
-    } else {
-      logger.warn(`Unsupported platform: ${platform}`, {
-        shopId,
-        platform,
-        eventName: payload.eventName,
-      });
-      return {
-        success: false,
-        ok: false,
-        platform,
-        error: `Unsupported platform: ${platform}`,
-        errorCode: "unsupported_platform",
-      };
-    }
     const startTime = Date.now();
     let sendResult: PixelEventSendResult;
     try {
