@@ -1,7 +1,7 @@
 import type { LoaderFunctionArgs } from "@remix-run/node";
 import { json } from "@remix-run/node";
 import { useLoaderData } from "@remix-run/react";
-import { createHash } from "crypto";
+import { createHash, timingSafeEqual } from "crypto";
 import prisma from "../db.server";
 import { logger } from "../utils/logger.server";
 import {
@@ -71,8 +71,15 @@ export const loader = async ({ request, params }: LoaderFunctionArgs) => {
     const expectedTokenHash = createHash("sha256")
       .update(`${scanReport.id}-${scanReport.shopId}-${token}`)
       .digest("hex");
-
-    if (scanReport.shareTokenHash !== expectedTokenHash) {
+    
+    const expectedBuffer = Buffer.from(expectedTokenHash, "hex");
+    const actualBuffer = Buffer.from(scanReport.shareTokenHash, "hex");
+    
+    if (expectedBuffer.length !== actualBuffer.length) {
+      return json({ error: "Invalid share token", report: null }, { status: 403 });
+    }
+    
+    if (!timingSafeEqual(expectedBuffer, actualBuffer)) {
       return json({ error: "Invalid share token", report: null }, { status: 403 });
     }
 

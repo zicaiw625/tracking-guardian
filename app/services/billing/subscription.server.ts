@@ -317,6 +317,32 @@ export async function createSubscription(
       return { success: false, error: friendlyError };
     }
     if (result?.confirmationUrl) {
+      try {
+        const confirmationUrlObj = new URL(result.confirmationUrl);
+        const allowedDomains = [
+          "admin.shopify.com",
+          "partners.shopify.com",
+          "shopify.com",
+        ];
+        const hostname = confirmationUrlObj.hostname.toLowerCase();
+        const isAllowed = allowedDomains.some(domain => 
+          hostname === domain || hostname.endsWith(`.${domain}`)
+        );
+        if (!isAllowed) {
+          logger.error(`Invalid confirmationUrl domain: ${hostname}`, {
+            shopDomain,
+            confirmationUrl: result.confirmationUrl,
+          });
+          return { success: false, error: "Invalid confirmation URL domain" };
+        }
+      } catch (error) {
+        logger.error(`Invalid confirmationUrl format: ${result.confirmationUrl}`, {
+          shopDomain,
+          error: error instanceof Error ? error.message : String(error),
+        });
+        return { success: false, error: "Invalid confirmation URL format" };
+      }
+      
       const shop = await prisma.shop.findUnique({
         where: { shopDomain },
         select: { id: true },
@@ -541,6 +567,32 @@ export async function createOneTimePurchase(
       return { success: false, error: friendlyError };
     }
     if (result?.confirmationUrl) {
+      try {
+        const confirmationUrlObj = new URL(result.confirmationUrl);
+        const allowedDomains = [
+          "admin.shopify.com",
+          "partners.shopify.com",
+          "shopify.com",
+        ];
+        const hostname = confirmationUrlObj.hostname.toLowerCase();
+        const isAllowed = allowedDomains.some(domain => 
+          hostname === domain || hostname.endsWith(`.${domain}`)
+        );
+        if (!isAllowed) {
+          logger.error(`Invalid confirmationUrl domain: ${hostname}`, {
+            shopDomain,
+            confirmationUrl: result.confirmationUrl,
+          });
+          return { success: false, error: "Invalid confirmation URL domain" };
+        }
+      } catch (error) {
+        logger.error(`Invalid confirmationUrl format: ${result.confirmationUrl}`, {
+          shopDomain,
+          error: error instanceof Error ? error.message : String(error),
+        });
+        return { success: false, error: "Invalid confirmation URL format" };
+      }
+      
       const shop = await prisma.shop.findUnique({
         where: { shopDomain },
         select: { id: true },

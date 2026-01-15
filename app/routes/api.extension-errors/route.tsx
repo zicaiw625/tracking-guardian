@@ -6,6 +6,7 @@ import { checkRateLimitAsync } from "../../middleware/rate-limit";
 import prisma from "../../db.server";
 import { authenticatePublic, normalizeDestToShopDomain } from "../../utils/public-auth";
 import { sanitizeSensitiveInfo } from "../../utils/security";
+import { API_CONFIG } from "../../utils/config";
 
 export const action = async ({ request }: ActionFunctionArgs) => {
   if (request.method === "OPTIONS") {
@@ -58,7 +59,26 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       ));
     }
   try {
-    const body = await request.json().catch(() => null) as {
+    const contentLength = request.headers.get("Content-Length");
+    if (contentLength) {
+      const size = parseInt(contentLength, 10);
+      if (!isNaN(size) && size > API_CONFIG.MAX_BODY_SIZE) {
+        logger.warn(`Extension error request body too large: ${size} bytes (max ${API_CONFIG.MAX_BODY_SIZE})`);
+        return authResult.cors(jsonWithCors(
+          { error: "Payload too large", maxSize: API_CONFIG.MAX_BODY_SIZE },
+          { status: 413, request, staticCors: true }
+        ));
+      }
+    }
+    const bodyText = await request.text();
+    if (bodyText.length > API_CONFIG.MAX_BODY_SIZE) {
+      logger.warn(`Extension error request body too large: ${bodyText.length} bytes (max ${API_CONFIG.MAX_BODY_SIZE})`);
+      return authResult.cors(jsonWithCors(
+        { error: "Payload too large", maxSize: API_CONFIG.MAX_BODY_SIZE },
+        { status: 413, request, staticCors: true }
+      ));
+    }
+    const body = JSON.parse(bodyText) as {
       extension?: string;
       endpoint?: string;
       error?: string;

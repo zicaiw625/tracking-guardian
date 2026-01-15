@@ -219,9 +219,13 @@ export const SecureUrlSchema = z
 export function isPublicUrl(urlStr: string): boolean {
   try {
     const url = new URL(urlStr);
+    if (url.protocol !== "https:") {
+      return false;
+    }
     const hostname = url.hostname.toLowerCase();
     if (hostname === "localhost") return false;
     if (hostname === "::1" || hostname === "[::1]") return false;
+    
     const ipv4Regex = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/;
     const match = hostname.match(ipv4Regex);
     if (match) {
@@ -234,6 +238,47 @@ export function isPublicUrl(urlStr: string): boolean {
       if (octet1 === 169 && octet2 === 254) return false;
       if (octet1 === 0) return false;
     }
+    
+    if (hostname.includes(":")) {
+      const ipv6Match = hostname.match(/^\[([0-9a-f:]+)\]$/i);
+      if (ipv6Match) {
+        const ipv6 = ipv6Match[1].toLowerCase();
+        if (ipv6 === "::1" || 
+            ipv6.startsWith("::ffff:127.") || 
+            ipv6.startsWith("::ffff:10.") || 
+            ipv6.startsWith("::ffff:172.16.") || 
+            ipv6.startsWith("::ffff:172.17.") ||
+            ipv6.startsWith("::ffff:172.18.") ||
+            ipv6.startsWith("::ffff:172.19.") ||
+            ipv6.startsWith("::ffff:172.20.") ||
+            ipv6.startsWith("::ffff:172.21.") ||
+            ipv6.startsWith("::ffff:172.22.") ||
+            ipv6.startsWith("::ffff:172.23.") ||
+            ipv6.startsWith("::ffff:172.24.") ||
+            ipv6.startsWith("::ffff:172.25.") ||
+            ipv6.startsWith("::ffff:172.26.") ||
+            ipv6.startsWith("::ffff:172.27.") ||
+            ipv6.startsWith("::ffff:172.28.") ||
+            ipv6.startsWith("::ffff:172.29.") ||
+            ipv6.startsWith("::ffff:172.30.") ||
+            ipv6.startsWith("::ffff:172.31.") ||
+            ipv6.startsWith("::ffff:192.168.") ||
+            ipv6.startsWith("fc00:") || 
+            ipv6.startsWith("fd00:") || 
+            ipv6.startsWith("fe80:") ||
+            ipv6.startsWith("fec0:") ||
+            ipv6.startsWith("ff00:") ||
+            ipv6 === "::" ||
+            ipv6.startsWith("2001:db8:")) {
+          return false;
+        }
+      }
+    }
+    
+    if (hostname.endsWith(".local") || hostname.endsWith(".internal") || hostname.endsWith(".lan")) {
+      return false;
+    }
+    
     return true;
   } catch {
     return false;

@@ -4,6 +4,10 @@ export const SECURITY_HEADERS = {
     "X-Content-Type-Options": "nosniff",
     "X-Frame-Options": "DENY",
     "X-XSS-Protection": "1; mode=block",
+    "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate",
+    "Pragma": "no-cache",
+    "Expires": "0",
+    "Referrer-Policy": "strict-origin-when-cross-origin",
 } as const;
 
 export const STATIC_CORS_HEADERS = {
@@ -182,6 +186,11 @@ export function jsonWithCors<T>(data: T, init?: CorsResponseInit): Response {
         corsHeaders = SECURITY_HEADERS;
     }
     const mergedHeaders = new Headers(corsHeaders as Record<string, string>);
+    if (!mergedHeaders.has("Cache-Control")) {
+        mergedHeaders.set("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate");
+        mergedHeaders.set("Pragma", "no-cache");
+        mergedHeaders.set("Expires", "0");
+    }
     if (additionalHeaders) {
         const headersToAdd = additionalHeaders instanceof Headers
             ? additionalHeaders

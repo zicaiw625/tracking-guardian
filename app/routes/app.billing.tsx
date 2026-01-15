@@ -139,6 +139,37 @@ export const action = async ({ request }: ActionFunctionArgs) => {
                 );
             }
             if (result.success && result.confirmationUrl) {
+                try {
+                    const confirmationUrlObj = new URL(result.confirmationUrl);
+                    const allowedDomains = [
+                        "admin.shopify.com",
+                        "partners.shopify.com",
+                        "shopify.com",
+                    ];
+                    const hostname = confirmationUrlObj.hostname.toLowerCase();
+                    const isAllowed = allowedDomains.some(domain => 
+                        hostname === domain || hostname.endsWith(`.${domain}`)
+                    );
+                    if (!isAllowed) {
+                        logger.error(`Invalid confirmationUrl domain in redirect: ${hostname}`, {
+                            shopDomain,
+                            confirmationUrl: result.confirmationUrl,
+                        });
+                        return json({
+                            success: false,
+                            error: "Invalid confirmation URL domain",
+                        });
+                    }
+                } catch (error) {
+                    logger.error(`Invalid confirmationUrl format in redirect: ${result.confirmationUrl}`, {
+                        shopDomain,
+                        error: error instanceof Error ? error.message : String(error),
+                    });
+                    return json({
+                        success: false,
+                        error: "Invalid confirmation URL format",
+                    });
+                }
                 return redirect(result.confirmationUrl);
             }
             return json({

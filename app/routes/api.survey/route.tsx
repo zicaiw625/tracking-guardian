@@ -7,6 +7,7 @@ import { randomUUID } from "crypto";
 import { canUseModule, getUiModuleConfigs } from "../../services/ui-extension.server";
 import { authenticatePublic, normalizeDestToShopDomain } from "../../utils/public-auth";
 import { hashValueSync } from "../../utils/crypto.server";
+import { API_CONFIG } from "../../utils/config";
 
 export const action = async ({ request }: ActionFunctionArgs) => {
   if (request.method === "OPTIONS") {
@@ -79,8 +80,27 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         { status: 429, request, staticCors: true, headers }
       ));
     }
-    try {
-      const body = await request.json().catch(() => null);
+  try {
+    const contentLength = request.headers.get("Content-Length");
+    if (contentLength) {
+      const size = parseInt(contentLength, 10);
+      if (!isNaN(size) && size > API_CONFIG.MAX_BODY_SIZE) {
+        logger.warn(`Survey request body too large: ${size} bytes (max ${API_CONFIG.MAX_BODY_SIZE})`);
+        return authResult.cors(jsonWithCors(
+          { error: "Payload too large", maxSize: API_CONFIG.MAX_BODY_SIZE },
+          { status: 413, request, staticCors: true }
+        ));
+      }
+    }
+    const bodyText = await request.text();
+    if (bodyText.length > API_CONFIG.MAX_BODY_SIZE) {
+      logger.warn(`Survey request body too large: ${bodyText.length} bytes (max ${API_CONFIG.MAX_BODY_SIZE})`);
+      return authResult.cors(jsonWithCors(
+        { error: "Payload too large", maxSize: API_CONFIG.MAX_BODY_SIZE },
+        { status: 413, request, staticCors: true }
+      ));
+    }
+      const body = JSON.parse(bodyText);
       if (!body || typeof body !== "object") {
         return authResult.cors(jsonWithCors(
           { error: "Invalid request body" },
