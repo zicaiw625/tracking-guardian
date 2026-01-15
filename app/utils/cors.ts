@@ -3,7 +3,6 @@ import { isValidShopifyOrigin, isValidDevOrigin, isDevMode, extractOriginHost, S
 export const SECURITY_HEADERS = {
     "X-Content-Type-Options": "nosniff",
     "X-Frame-Options": "DENY",
-    "X-XSS-Protection": "1; mode=block",
     "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate",
     "Pragma": "no-cache",
     "Expires": "0",

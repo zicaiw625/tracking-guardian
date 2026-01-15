@@ -8,6 +8,7 @@ import {
   getAuditAssetSummary,
   updateMigrationStatus,
   deleteAuditAsset,
+  getAuditAssetWithRawSnippet,
   type AssetSourceType,
   type AssetCategory,
   type RiskLevel,
@@ -28,6 +29,19 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     return json({ error: "Shop not found" }, { status: 404 });
   }
   const url = new URL(request.url);
+  const assetId = url.searchParams.get("assetId");
+  if (assetId) {
+    try {
+      const result = await getAuditAssetWithRawSnippet(assetId, shop.id);
+      if (!result) {
+        return json({ error: "Asset not found" }, { status: 404 });
+      }
+      return json({ asset: result.asset, rawSnippet: result.rawSnippet });
+    } catch (error) {
+      logger.error("Failed to fetch audit asset with raw snippet", { error });
+      return json({ error: "Failed to fetch asset" }, { status: 500 });
+    }
+  }
   const category = url.searchParams.get("category") as AssetCategory | null;
   const riskLevel = url.searchParams.get("riskLevel") as RiskLevel | null;
   const migrationStatus = url.searchParams.get("migrationStatus") as MigrationStatus | null;
@@ -95,6 +109,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
             riskLevel: "high",
             suggestedMigration: "web_pixel",
             details: {
+              content: scriptContent,
               source: "manual_paste",
               analysisRiskScore: analysisResult.riskScore,
               detectedPatterns: analysisResult.platformDetails
@@ -112,6 +127,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
             riskLevel: analysisResult.riskScore > 60 ? "high" : "medium",
             suggestedMigration: "none",
             details: {
+              content: scriptContent,
               source: "manual_paste",
               analysisRiskScore: analysisResult.riskScore,
               risks: analysisResult.risks,

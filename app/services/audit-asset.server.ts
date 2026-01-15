@@ -1,6 +1,7 @@
 import crypto, { randomUUID } from "crypto";
 import prisma from "../db.server";
 import { logger } from "../utils/logger.server";
+import { encryptRawSnippet } from "../infrastructure/crypto/encryption.server";
 
 export type AssetSourceType = "api_scan" | "manual_paste" | "merchant_confirmed";
 
@@ -174,6 +175,17 @@ export async function createAuditAsset(
       },
     });
     if (existing) {
+      const rawContent = input.details?.content as string | undefined;
+      const detailsForStorage = { ...input.details };
+      let encryptedSnippet: string | null = null;
+      if (rawContent && typeof rawContent === "string" && rawContent.trim().length > 0) {
+        try {
+          encryptedSnippet = encryptRawSnippet(rawContent);
+          delete detailsForStorage.content;
+        } catch (error) {
+          logger.error("Failed to encrypt raw snippet", { shopId, error });
+        }
+      }
       const updated = await prisma.auditAsset.update({
         where: { id: existing.id },
         data: {
@@ -183,8 +195,9 @@ export async function createAuditAsset(
           displayName: input.displayName,
           riskLevel: input.riskLevel || inferRiskLevel(input.category, input.sourceType, input.platform),
           suggestedMigration: input.suggestedMigration || inferSuggestedMigration(input.category, input.platform),
-          details: input.details as object,
+          details: detailsForStorage as object,
           scanReportId: input.scanReportId,
+          ...(encryptedSnippet !== null && { rawSnippetEncrypted: encryptedSnippet }),
         },
         select: {
           id: true,
@@ -215,6 +228,17 @@ export async function createAuditAsset(
       logger.info("AuditAsset updated", { id: updated.id, shopId, fingerprint });
       return mapToRecord(updated);
     }
+    const rawContent = input.details?.content as string | undefined;
+    const detailsForStorage = { ...input.details };
+    let encryptedSnippet: string | null = null;
+    if (rawContent && typeof rawContent === "string" && rawContent.trim().length > 0) {
+      try {
+        encryptedSnippet = encryptRawSnippet(rawContent);
+        delete detailsForStorage.content;
+      } catch (error) {
+        logger.error("Failed to encrypt raw snippet", { shopId, error });
+      }
+    }
     const asset = await prisma.auditAsset.create({
       data: {
         id: randomUUID(),
@@ -227,8 +251,9 @@ export async function createAuditAsset(
         riskLevel: input.riskLevel || inferRiskLevel(input.category, input.sourceType, input.platform),
         suggestedMigration: input.suggestedMigration || inferSuggestedMigration(input.category, input.platform),
         migrationStatus: "pending",
-        details: input.details as object,
+        details: detailsForStorage as object,
         scanReportId: input.scanReportId,
+        ...(encryptedSnippet !== null && { rawSnippetEncrypted: encryptedSnippet }),
         updatedAt: new Date(),
       },
       select: {
@@ -291,6 +316,17 @@ export async function batchCreateAuditAssets(
             const existing = await tx.auditAsset.findUnique({
               where: { shopId_fingerprint: { shopId, fingerprint } },
             });
+            const rawContent = input.details?.content as string | undefined;
+            const detailsForStorage = { ...input.details };
+            let encryptedSnippet: string | null = null;
+            if (rawContent && typeof rawContent === "string" && rawContent.trim().length > 0) {
+              try {
+                encryptedSnippet = encryptRawSnippet(rawContent);
+                delete detailsForStorage.content;
+              } catch (error) {
+                logger.error("Failed to encrypt raw snippet in batch", { shopId, error });
+              }
+            }
             if (existing) {
               await tx.auditAsset.update({
                 where: { id: existing.id },
@@ -301,8 +337,9 @@ export async function batchCreateAuditAssets(
                   displayName: input.displayName,
                   riskLevel: input.riskLevel || inferRiskLevel(input.category, input.sourceType, input.platform),
                   suggestedMigration: input.suggestedMigration || inferSuggestedMigration(input.category, input.platform),
-                  details: input.details as object,
+                  details: detailsForStorage as object,
                   scanReportId: scanReportId || input.scanReportId,
+                  ...(encryptedSnippet !== null && { rawSnippetEncrypted: encryptedSnippet }),
                 },
               });
               updated++;
@@ -319,8 +356,9 @@ export async function batchCreateAuditAssets(
                   riskLevel: input.riskLevel || inferRiskLevel(input.category, input.sourceType, input.platform),
                   suggestedMigration: input.suggestedMigration || inferSuggestedMigration(input.category, input.platform),
                   migrationStatus: "pending",
-                  details: input.details as object,
+                  details: detailsForStorage as object,
                   scanReportId: scanReportId || input.scanReportId,
+                  ...(encryptedSnippet !== null && { rawSnippetEncrypted: encryptedSnippet }),
                   updatedAt: new Date(),
                 },
               });
@@ -373,6 +411,39 @@ export async function batchCreateAuditAssets(
   }
   logger.info("Batch AuditAssets processed", { shopId, created, updated, failed, duplicates, total: assets.length });
   return { created, updated, failed, duplicates };
+}
+
+export async function getAuditAssetWithRawSnippet(assetId: string, shopId: string): Promise<{ asset: AuditAssetRecord; rawSnippet: string | null } | null> {
+  const asset = await prisma.auditAsset.findFirst({
+    where: { id: assetId, shopId },
+    select: {
+      id: true,
+      shopId: true,
+      sourceType: true,
+      category: true,
+      platform: true,
+      displayName: true,
+      fingerprint: true,
+      riskLevel: true,
+      suggestedMigration: true,
+      migrationStatus: true,
+      migratedAt: true,
+      details: true,
+      scanReportId: true,
+      createdAt: true,
+      updatedAt: true,
+      rawSnippetEncrypted: true,
+    },
+  });
+  if (!asset) {
+    return null;
+  }
+  const { decryptRawSnippet } = await import("../infrastructure/crypto/encryption.server");
+  const rawSnippet = decryptRawSnippet(asset.rawSnippetEncrypted);
+  return {
+    asset: mapToRecord(asset),
+    rawSnippet,
+  };
 }
 
 export async function getAuditAssets(

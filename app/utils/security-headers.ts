@@ -44,7 +44,6 @@ export function buildCspHeader(
 
 export const EMBEDDED_APP_HEADERS: Record<string, string> = {
   "X-Content-Type-Options": "nosniff",
-  "X-XSS-Protection": "1; mode=block",
   "Referrer-Policy": "strict-origin-when-cross-origin",
   "X-DNS-Prefetch-Control": "on",
   "Permissions-Policy":
@@ -54,7 +53,6 @@ export const EMBEDDED_APP_HEADERS: Record<string, string> = {
 export const API_SECURITY_HEADERS: Record<string, string> = {
   "X-Content-Type-Options": "nosniff",
   "X-Frame-Options": "DENY",
-  "X-XSS-Protection": "1; mode=block",
   "Referrer-Policy": "strict-origin-when-cross-origin",
   "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate",
   Pragma: "no-cache",
