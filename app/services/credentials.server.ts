@@ -2,6 +2,7 @@ import { decryptJson } from "../utils/crypto.server";
 import { logger } from "../utils/logger.server";
 import type { PlatformCredentials } from "../types";
 import { ok, err, type Result, fromThrowable } from "../types/result";
+import { isProduction } from "../utils/config";
 
 export type CredentialErrorType =
   | "DECRYPTION_FAILED"
@@ -63,8 +64,15 @@ function tryReadLegacy(
     return result;
   }
   if (typeof legacyCredentials === "object" && legacyCredentials !== null) {
-    logger.info(`Using legacy plaintext credentials for ${platform} - please migrate`);
-    return ok(legacyCredentials as PlatformCredentials);
+    logger.error(`Legacy plaintext credentials detected for ${platform} - migration required`, {
+      platform,
+      isProduction: isProduction(),
+    });
+    return err({
+      type: "LEGACY_MIGRATION_NEEDED",
+      message: "Legacy plaintext credentials are not allowed. Please migrate to encrypted credentials.",
+      platform,
+    });
   }
   return err({
     type: "NO_CREDENTIALS",

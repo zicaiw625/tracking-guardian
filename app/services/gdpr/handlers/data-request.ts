@@ -1,5 +1,6 @@
 import prisma from "../../../db.server";
 import { logger } from "../../../utils/logger.server";
+import { hashValueSync } from "../../../utils/crypto.server";
 import type {
   DataRequestPayload,
   DataRequestResult,
@@ -34,7 +35,23 @@ async function fetchSurveyResponsesBatch(
   feedback: string | null;
   createdAt: Date;
 }>> {
-  return [];
+  const responses = await prisma.surveyResponse.findMany({
+    where: {
+      shopId,
+      orderId: { in: orderIds },
+    },
+    select: {
+      id: true,
+      orderId: true,
+      orderNumber: true,
+      rating: true,
+      source: true,
+      feedback: true,
+      createdAt: true,
+    },
+    take: MAX_RECORDS_PER_TABLE,
+  });
+  return responses;
 }
 
 async function fetchPixelReceiptsBatch(
@@ -98,28 +115,71 @@ export async function processDataRequest(
     return createEmptyDataRequestResult(dataRequestId, customerId);
   }
   const orderIdStrings = ordersRequested.map((id) => String(id));
-  const orderBatches = batchArray(orderIdStrings, BATCH_SIZE);
+  const checkoutTokenHashes = orderIdStrings.map((orderId) => {
+    const checkoutTokenHash = hashValueSync(orderId);
+    return `checkout_${checkoutTokenHash}`;
+  });
+  const allOrderIdPatterns = [...orderIdStrings, ...checkoutTokenHashes];
+  const orderBatches = batchArray(allOrderIdPatterns, BATCH_SIZE);
   logger.debug(`[GDPR] Processing ${orderBatches.length} batches of orders`, {
     totalOrders: orderIdStrings.length,
     batchSize: BATCH_SIZE,
   });
   const allSurveyResponses: Awaited<ReturnType<typeof fetchSurveyResponsesBatch>> = [];
   const allPixelReceipts: Awaited<ReturnType<typeof fetchPixelReceiptsBatch>> = [];
+  const allConversionLogs: Array<{
+    id: string;
+    orderId: string;
+    orderNumber: string | null;
+    orderValue: number;
+    currency: string;
+    platform: string;
+    eventType: string;
+    status: string;
+    clientSideSent: boolean;
+    serverSideSent: boolean;
+    createdAt: Date;
+    sentAt: Date | null;
+  }> = [];
   for (const batch of orderBatches) {
-    const [surveyResponses, pixelReceipts] = await Promise.all([
+    const [surveyResponses, pixelReceipts, conversionLogs] = await Promise.all([
       fetchSurveyResponsesBatch(shop.id, batch),
       fetchPixelReceiptsBatch(shop.id, batch),
+      prisma.conversionLog.findMany({
+        where: {
+          shopId: shop.id,
+          orderId: { in: batch },
+        },
+        select: {
+          id: true,
+          orderId: true,
+          orderNumber: true,
+          orderValue: true,
+          currency: true,
+          platform: true,
+          eventType: true,
+          status: true,
+          clientSideSent: true,
+          serverSideSent: true,
+          createdAt: true,
+          sentAt: true,
+        },
+        take: MAX_RECORDS_PER_TABLE,
+      }),
     ]);
     allSurveyResponses.push(...surveyResponses);
     allPixelReceipts.push(...pixelReceipts);
+    allConversionLogs.push(...conversionLogs);
     if (
       allSurveyResponses.length >= MAX_RECORDS_PER_TABLE ||
-      allPixelReceipts.length >= MAX_RECORDS_PER_TABLE
+      allPixelReceipts.length >= MAX_RECORDS_PER_TABLE ||
+      allConversionLogs.length >= MAX_RECORDS_PER_TABLE
     ) {
       logger.warn(`[GDPR] Reached max records limit for data export`, {
         shopDomain,
         surveyResponses: allSurveyResponses.length,
         pixelReceipts: allPixelReceipts.length,
+        conversionLogs: allConversionLogs.length,
         maxLimit: MAX_RECORDS_PER_TABLE,
       });
       break;
@@ -127,6 +187,7 @@ export async function processDataRequest(
   }
   const surveyResponses = allSurveyResponses.slice(0, MAX_RECORDS_PER_TABLE);
   const pixelReceipts = allPixelReceipts.slice(0, MAX_RECORDS_PER_TABLE);
+  const conversionLogs = allConversionLogs.slice(0, MAX_RECORDS_PER_TABLE);
   const exportedSurveyResponses: ExportedSurveyResponse[] = surveyResponses.map((survey) => ({
     orderId: survey.orderId,
     orderNumber: survey.orderNumber,
@@ -144,14 +205,27 @@ export async function processDataRequest(
     pixelTimestamp: receipt.pixelTimestamp ? receipt.pixelTimestamp.toISOString() : null,
     createdAt: receipt.createdAt.toISOString(),
   }));
+  const exportedConversionLogs: ExportedConversionLog[] = conversionLogs.map((log) => ({
+    orderId: log.orderId,
+    orderNumber: log.orderNumber,
+    orderValue: Number(log.orderValue),
+    currency: log.currency,
+    platform: log.platform,
+    eventType: log.eventType,
+    status: log.status,
+    clientSideSent: log.clientSideSent,
+    serverSideSent: log.serverSideSent,
+    createdAt: log.createdAt.toISOString(),
+    sentAt: log.sentAt ? log.sentAt.toISOString() : null,
+  }));
   const result: DataRequestResult = {
     dataRequestId,
     customerId,
     ordersIncluded: ordersRequested,
     dataLocated: {
       conversionLogs: {
-        count: 0,
-        recordIds: [],
+        count: conversionLogs.length,
+        recordIds: conversionLogs.map((log) => log.id),
       },
       surveyResponses: {
         count: surveyResponses.length,
@@ -163,7 +237,7 @@ export async function processDataRequest(
       },
     },
     exportedData: {
-      conversionLogs: [],
+      conversionLogs: exportedConversionLogs,
       surveyResponses: exportedSurveyResponses,
       pixelEventReceipts: exportedPixelReceipts,
     },
@@ -173,6 +247,7 @@ export async function processDataRequest(
   };
   logger.info(`[GDPR] Data request completed for ${shopDomain}`, {
     dataRequestId,
+    conversionLogs: result.dataLocated.conversionLogs.count,
     surveyResponses: result.dataLocated.surveyResponses.count,
     pixelEventReceipts: result.dataLocated.pixelEventReceipts.count,
     exportFormat: result.exportFormat,

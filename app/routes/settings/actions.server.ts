@@ -74,8 +74,8 @@ export async function handleSaveAlert(
       select: { id: true, settings: true },
     });
   } catch (error) {
-    if (error instanceof Error && error.message.includes("settings") && error.message.includes("does not exist")) {
-      logger.warn("Shop.settings column does not exist, trying without it", { shopId });
+    if (error instanceof Error && (error.message.includes("settings") && (error.message.includes("does not exist") || error.message.includes("P2022")))) {
+      logger.error("Shop.settings column does not exist. Database migration required. Please run: ALTER TABLE \"Shop\" ADD COLUMN IF NOT EXISTS \"settings\" JSONB;", { shopId, error: error.message });
       shop = await prisma.shop.findUnique({
         where: { id: shopId },
         select: { id: true },
@@ -140,23 +140,8 @@ export async function handleSaveAlert(
     });
   } catch (error) {
     if (error instanceof Error && (error.message.includes("settings") && error.message.includes("does not exist") || error.message.includes("P2022"))) {
-      logger.error("Shop.settings column does not exist in database. Attempting to add it...", { shopId, error });
-      try {
-        await prisma.$executeRawUnsafe(`ALTER TABLE "Shop" ADD COLUMN IF NOT EXISTS "settings" JSONB;`);
-        logger.info("Successfully added Shop.settings column", { shopId });
-        await prisma.shop.update({
-          where: { id: shopId },
-          data: {
-            settings: {
-              ...currentSettings,
-              alertConfigs,
-            },
-          },
-        });
-      } catch (migrationError) {
-        logger.error("Failed to add Shop.settings column automatically", { shopId, error: migrationError });
-        return json({ success: false, error: "Database migration required. Please run: ALTER TABLE \"Shop\" ADD COLUMN IF NOT EXISTS \"settings\" JSONB;" }, { status: 500 });
-      }
+      logger.error("Shop.settings column does not exist. Database migration required.", { shopId, error: error.message });
+      return json({ success: false, error: "Database migration required. Please run: ALTER TABLE \"Shop\" ADD COLUMN IF NOT EXISTS \"settings\" JSONB;" }, { status: 500 });
     } else {
       throw error;
     }

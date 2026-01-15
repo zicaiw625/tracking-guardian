@@ -47,46 +47,12 @@ export async function settingsLoader({ request }: LoaderFunctionArgs) {
       });
     } catch (error) {
       if (error instanceof Error && (error.message.includes("settings") && (error.message.includes("does not exist") || error.message.includes("P2022")))) {
-        logger.warn("Shop.settings column does not exist, attempting to add it...", { shopDomain });
-        try {
-          await prisma.$executeRawUnsafe(`ALTER TABLE "Shop" ADD COLUMN IF NOT EXISTS "settings" JSONB;`);
-          logger.info("Successfully added Shop.settings column", { shopDomain });
-          shop = await prisma.shop.findUnique({
-            where: { shopDomain },
-            select: {
-              id: true,
-              plan: true,
-              ingestionSecret: true,
-              previousIngestionSecret: true,
-              previousSecretExpiry: true,
-              weakConsentMode: true,
-              consentStrategy: true,
-              dataRetentionDays: true,
-              settings: true,
-              pixelConfigs: {
-                where: { isActive: true },
-                select: {
-                  id: true,
-                  platform: true,
-                  platformId: true,
-                  serverSideEnabled: true,
-                  clientSideEnabled: true,
-                  isActive: true,
-                  updatedAt: true,
-                  environment: true,
-                  configVersion: true,
-                  rollbackAllowed: true,
-                },
-              },
-            },
-          });
-        } catch (migrationError) {
-          logger.error("Failed to add Shop.settings column automatically, using fallback", { shopDomain, error: migrationError });
-          hasSettingsColumn = false;
-          shop = await prisma.shop.findUnique({
-            where: { shopDomain },
-            select: {
-              id: true,
+        logger.error("Shop.settings column does not exist. Database migration required. Please run: ALTER TABLE \"Shop\" ADD COLUMN IF NOT EXISTS \"settings\" JSONB;", { shopDomain, error: error.message });
+        hasSettingsColumn = false;
+        shop = await prisma.shop.findUnique({
+          where: { shopDomain },
+          select: {
+            id: true,
               plan: true,
               ingestionSecret: true,
               previousIngestionSecret: true,
@@ -114,7 +80,6 @@ export async function settingsLoader({ request }: LoaderFunctionArgs) {
           if (shop) {
             (shop as { settings?: unknown }).settings = null;
           }
-        }
       } else {
         throw error;
       }

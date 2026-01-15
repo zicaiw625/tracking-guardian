@@ -55,9 +55,9 @@ let secretsValidated = false;
 let securityChecked = false;
 let headersValidated = false;
 let configValidated = false;
-function enforceSecurityOnce() {
+async function enforceSecurityOnce() {
     if (!securityChecked) {
-        enforceSecurityChecks();
+        await enforceSecurityChecks();
         securityChecked = true;
     }
 }
@@ -99,7 +99,7 @@ function validateConfigOnce() {
     }
 }
 export default async function handleRequest(request: Request, responseStatusCode: number, responseHeaders: Headers, remixContext: EntryContext) {
-    enforceSecurityOnce();
+    await enforceSecurityOnce();
     validateSecretsOnce();
     validateConfigOnce();
     validateHeadersOnce();

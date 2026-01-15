@@ -1,5 +1,6 @@
 import prisma from "../../../db.server";
 import { logger } from "../../../utils/logger.server";
+import { hashValueSync } from "../../../utils/crypto.server";
 import type { CustomerRedactPayload, CustomerRedactResult } from "../types";
 import { createEmptyCustomerRedactResult } from "../types";
 
@@ -22,20 +23,45 @@ export async function processCustomerRedact(
     return createEmptyCustomerRedactResult(customerId);
   }
   const orderIdStrings = ordersToRedact.map((id: number | string) => String(id));
-  const pixelReceiptResult = await prisma.pixelEventReceipt.deleteMany({
-    where: {
-      shopId: shop.id,
-      orderKey: { in: orderIdStrings },
-    },
+  const checkoutTokenHashes = orderIdStrings.map((orderId) => {
+    const checkoutTokenHash = hashValueSync(orderId);
+    return `checkout_${checkoutTokenHash}`;
   });
+  const allOrderIdPatterns = [...orderIdStrings, ...checkoutTokenHashes];
+  const [pixelReceiptResult, surveyResponseResult, conversionJobResult, conversionLogResult] = await Promise.all([
+    prisma.pixelEventReceipt.deleteMany({
+      where: {
+        shopId: shop.id,
+        orderKey: { in: allOrderIdPatterns },
+      },
+    }),
+    prisma.surveyResponse.deleteMany({
+      where: {
+        shopId: shop.id,
+        orderId: { in: allOrderIdPatterns },
+      },
+    }),
+    prisma.conversionJob.deleteMany({
+      where: {
+        shopId: shop.id,
+        orderId: { in: allOrderIdPatterns },
+      },
+    }),
+    prisma.conversionLog.deleteMany({
+      where: {
+        shopId: shop.id,
+        orderId: { in: allOrderIdPatterns },
+      },
+    }),
+  ]);
   const result: CustomerRedactResult = {
     customerId,
     ordersRedacted: ordersToRedact,
     deletedCounts: {
-      conversionLogs: 0,
-      conversionJobs: 0,
+      conversionLogs: conversionLogResult.count,
+      conversionJobs: conversionJobResult.count,
       pixelEventReceipts: pixelReceiptResult.count,
-      surveyResponses: 0,
+      surveyResponses: surveyResponseResult.count,
     },
   };
   logger.info(`[GDPR] Customer redact completed for ${shopDomain}`, {

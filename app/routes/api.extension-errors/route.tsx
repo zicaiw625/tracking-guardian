@@ -5,6 +5,7 @@ import { optionsResponse, jsonWithCors } from "../../utils/cors";
 import { checkRateLimitAsync } from "../../middleware/rate-limit";
 import prisma from "../../db.server";
 import { authenticatePublic, normalizeDestToShopDomain } from "../../utils/public-auth";
+import { sanitizeSensitiveInfo } from "../../utils/security";
 
 export const action = async ({ request }: ActionFunctionArgs) => {
   if (request.method === "OPTIONS") {
@@ -72,13 +73,23 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         { status: 400, request, staticCors: true }
       ));
     }
+    const MAX_ERROR_LENGTH = 2000;
+    const MAX_STACK_LENGTH = 8000;
+    const sanitizedError = sanitizeSensitiveInfo(body.error);
+    const truncatedError = sanitizedError.length > MAX_ERROR_LENGTH
+      ? sanitizedError.substring(0, MAX_ERROR_LENGTH) + "... [truncated]"
+      : sanitizedError;
+    const sanitizedStack = body.stack ? sanitizeSensitiveInfo(body.stack) : null;
+    const truncatedStack = sanitizedStack && sanitizedStack.length > MAX_STACK_LENGTH
+      ? sanitizedStack.substring(0, MAX_STACK_LENGTH) + "... [truncated]"
+      : sanitizedStack;
     const errorData = {
       shopId: shop.id,
       shopDomain,
       extension: body.extension,
       endpoint: body.endpoint,
-      error: body.error,
-      stack: body.stack || null,
+      error: truncatedError,
+      stack: truncatedStack,
       target: body.target || null,
       orderId: body.orderId || null,
       timestamp: body.timestamp ? new Date(body.timestamp) : new Date(),
@@ -118,10 +129,10 @@ export const action = async ({ request }: ActionFunctionArgs) => {
           shopDomain,
           extension: body.extension,
           endpoint: body.endpoint,
-          error: body.error,
-          stack: body.stack || null,
-          target: body.target || null,
-          orderId: body.orderId || null,
+          error: errorData.error,
+          stack: errorData.stack,
+          target: errorData.target,
+          orderId: errorData.orderId,
           createdAt: errorData.timestamp,
         },
       });

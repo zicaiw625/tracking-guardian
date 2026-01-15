@@ -79,6 +79,12 @@ export const loader = async ({ request, params }: LoaderFunctionArgs) => {
       return json({ error: "Failed to load report data", report: null }, { status: 500 });
     }
 
+    const headers = new Headers();
+    headers.set("Referrer-Policy", "no-referrer");
+    headers.set("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate");
+    headers.set("Pragma", "no-cache");
+    headers.set("Expires", "0");
+
     return json({
       report: {
         runId: reportData.runId,
@@ -100,7 +106,7 @@ export const loader = async ({ request, params }: LoaderFunctionArgs) => {
         events: reportData.events,
         sandboxLimitations: reportData.sandboxLimitations,
       },
-    });
+    }, { headers });
   } catch (error) {
     logger.error("Failed to load shared verification report", {
       error,

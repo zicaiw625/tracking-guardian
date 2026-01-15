@@ -1,4 +1,6 @@
 import { logger } from "./logger.server";
+import prisma from "../db.server";
+import { isProduction } from "./config";
 
 interface SecretConfig {
     name: string;
@@ -172,14 +174,55 @@ export function checkSecurityViolations(): SecurityViolation[] {
     }
     return violations;
 }
-export function enforceSecurityChecks(): void {
+export async function checkLegacyPlaintextCredentials(): Promise<SecurityViolation[]> {
+    const violations: SecurityViolation[] = [];
+    if (!isProduction()) {
+        return violations;
+    }
+    try {
+        const configsWithLegacy = await prisma.pixelConfig.findMany({
+            where: {
+                credentials_legacy: { not: null },
+            },
+            select: {
+                id: true,
+                shopId: true,
+                platform: true,
+                credentials_legacy: true,
+            },
+            take: 100,
+        });
+        for (const config of configsWithLegacy) {
+            if (config.credentials_legacy && typeof config.credentials_legacy === "object") {
+                violations.push({
+                    type: "fatal",
+                    code: "LEGACY_PLAINTEXT_CREDENTIALS",
+                    message: `[P0-3 SECURITY VIOLATION] Legacy plaintext credentials detected in production for PixelConfig ${config.id} (platform: ${config.platform}, shopId: ${config.shopId}). ` +
+                        "Legacy plaintext credentials are not allowed in production. " +
+                        "Please migrate to encrypted credentials using credentialsEncrypted field. " +
+                        "Run a migration script to encrypt and move credentials, then clear credentials_legacy.",
+                });
+            }
+        }
+        if (violations.length > 0) {
+            logger.error(`Found ${violations.length} PixelConfig(s) with legacy plaintext credentials in production`);
+        }
+    } catch (error) {
+        logger.warn("Failed to check for legacy plaintext credentials during startup", error);
+    }
+    return violations;
+}
+
+export async function enforceSecurityChecks(): Promise<void> {
     const violations = checkSecurityViolations();
-    const fatalViolations = violations.filter(v => v.type === "fatal");
-    const warnings = violations.filter(v => v.type === "warning");
+    const legacyCredentialViolations = await checkLegacyPlaintextCredentials();
+    const allViolations = [...violations, ...legacyCredentialViolations];
+    const fatalViolations = allViolations.filter(v => v.type === "fatal");
+    const warnings = allViolations.filter(v => v.type === "warning");
     for (const warning of warnings) {
         logger.warn(warning.message, { code: warning.code });
     }
-    if (violations.length > 0) {
+    if (allViolations.length > 0) {
         const summary = [
             "\n" + "=".repeat(80),
             "SECURITY CHECK SUMMARY",
@@ -202,7 +245,7 @@ export function enforceSecurityChecks(): void {
             `${errorMessage}\n\n` +
             `${"=".repeat(80)}\n`);
     }
-    if (violations.length === 0) {
+    if (allViolations.length === 0) {
         logger.info("Security checks passed - no violations detected");
     }
 }

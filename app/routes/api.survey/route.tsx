@@ -6,6 +6,7 @@ import prisma from "../../db.server";
 import { randomUUID } from "crypto";
 import { canUseModule, getUiModuleConfigs } from "../../services/ui-extension.server";
 import { authenticatePublic, normalizeDestToShopDomain } from "../../utils/public-auth";
+import { hashValueSync } from "../../utils/crypto.server";
 
 export const action = async ({ request }: ActionFunctionArgs) => {
   if (request.method === "OPTIONS") {
@@ -98,12 +99,16 @@ export const action = async ({ request }: ActionFunctionArgs) => {
           { status: 400, request, staticCors: true }
         ));
       }
-      const finalOrderId = orderId || (checkoutToken ? `checkout_${checkoutToken}` : `survey_${shop.id}_${Date.now()}`);
+      let finalOrderId: string;
       if (orderId) {
+        finalOrderId = orderId;
         logger.info("Survey response with orderId", { shopDomain, orderId });
       } else if (checkoutToken) {
-        logger.info("Survey response with checkoutToken", { shopDomain, checkoutToken });
+        const checkoutTokenHash = hashValueSync(checkoutToken);
+        finalOrderId = `checkout_${checkoutTokenHash}`;
+        logger.info("Survey response with checkoutToken (hashed)", { shopDomain, checkoutTokenHash: checkoutTokenHash.substring(0, 8) });
       } else {
+        finalOrderId = `survey_${shop.id}_${Date.now()}`;
         logger.warn("Survey response without orderId or checkoutToken, using fallback", { shopDomain });
       }
       await prisma.surveyResponse.create({

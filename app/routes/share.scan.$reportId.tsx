@@ -83,6 +83,12 @@ export const loader = async ({ request, params }: LoaderFunctionArgs) => {
     const riskItems = validateRiskItemsArray(scanReport.riskItems);
     const identifiedPlatforms = validateStringArray(scanReport.identifiedPlatforms);
 
+    const headers = new Headers();
+    headers.set("Referrer-Policy", "no-referrer");
+    headers.set("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate");
+    headers.set("Pragma", "no-cache");
+    headers.set("Expires", "0");
+
     return json({
       report: {
         id: scanReport.id,
@@ -94,7 +100,7 @@ export const loader = async ({ request, params }: LoaderFunctionArgs) => {
         createdAt: scanReport.createdAt.toISOString(),
         completedAt: scanReport.completedAt?.toISOString() || null,
       },
-    });
+    }, { headers });
   } catch (error) {
     logger.error("Failed to load shared scan report", {
       error,

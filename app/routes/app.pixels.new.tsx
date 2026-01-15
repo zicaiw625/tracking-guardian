@@ -230,6 +230,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       plan: true,
       ingestionSecret: true,
       webPixelId: true,
+      updatedAt: true,
     },
   });
   if (!shop) {
@@ -251,7 +252,8 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       id: shop.id,
       domain: shop.shopDomain,
       webPixelId: shop.webPixelId,
-      ingestionSecret: shop.ingestionSecret,
+      hasIngestionSecret: !!shop.ingestionSecret,
+      lastRotatedAt: shop.updatedAt ? shop.updatedAt.toISOString() : null,
     },
     templates,
     isStarterOrAbove,
