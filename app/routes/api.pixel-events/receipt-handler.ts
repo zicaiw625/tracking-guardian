@@ -77,6 +77,11 @@ export async function upsertPixelEventReceipt(
   const payloadData = payload?.data as Record<string, unknown> | undefined;
   const extractedOrderKey = orderKey || (payloadData?.orderId as string | undefined);
   try {
+    let sanitizedPayload: Record<string, unknown> | null = null;
+    if (verificationRunId && payload) {
+      const { sanitizePII } = await import("../../services/event-log.server");
+      sanitizedPayload = sanitizePII(payload) as unknown as Record<string, unknown>;
+    }
     await prisma.pixelEventReceipt.upsert({
       where: {
         shopId_eventId_eventType: {
@@ -93,14 +98,14 @@ export async function upsertPixelEventReceipt(
         pixelTimestamp: new Date(payload.timestamp),
         originHost: originHost || null,
         verificationRunId: verificationRunId || null,
-        payloadJson: verificationRunId ? (payload || null) : null,
+        payloadJson: sanitizedPayload,
         orderKey: extractedOrderKey || null,
       },
       update: {
         pixelTimestamp: new Date(payload.timestamp),
         originHost: originHost || null,
         verificationRunId: verificationRunId || null,
-        payloadJson: verificationRunId ? (payload || null) : null,
+        payloadJson: sanitizedPayload,
         orderKey: extractedOrderKey || null,
       },
     });

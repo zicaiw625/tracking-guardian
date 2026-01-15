@@ -89,42 +89,37 @@ export function validateEventPayload(
   };
 }
 
-export async function checkEventDeduplication(
+export async function checkDeliveryDeduplication(
   shopId: string,
-  eventId: string | null,
-  eventName: string,
-  destinationType?: string
-): Promise<{ isDuplicate: boolean; existingEventId?: string }> {
-  if (!eventId) {
-    return { isDuplicate: false };
-  }
+  eventLogId: string,
+  destinationType: string,
+  environment: "test" | "live"
+): Promise<{ isDuplicate: boolean }> {
   try {
-    const eventType = eventName === "checkout_completed" ? "purchase" : eventName;
-    const existing = await prisma.pixelEventReceipt.findUnique({
+    const existing = await prisma.deliveryAttempt.findUnique({
       where: {
-        shopId_eventId_eventType: {
+        shopId_eventLogId_destinationType_environment: {
           shopId,
-          eventId,
-          eventType,
+          eventLogId,
+          destinationType,
+          environment,
         },
       },
       select: {
         id: true,
-        eventId: true,
+        status: true,
       },
     });
-    if (existing) {
-      return {
-        isDuplicate: true,
-        existingEventId: existing.eventId || undefined,
-      };
+    if (existing && existing.status === "ok") {
+      return { isDuplicate: true };
     }
     return { isDuplicate: false };
   } catch (error) {
-    logger.error("Failed to check event deduplication", {
+    logger.error("Failed to check delivery deduplication", {
       shopId,
-      eventId,
-      eventName,
+      eventLogId,
+      destinationType,
+      environment,
       error,
     });
     return { isDuplicate: false };
@@ -146,12 +141,40 @@ export async function logEvent(
   errorDetail?: string,
   httpStatus?: number | null,
   responseBody?: string | null,
-  latencyMs?: number | null
+  latencyMs?: number | null,
+  requestPayload?: unknown
 ): Promise<void> {
   if (!eventId || !destinationType) {
     return;
   }
   try {
+    const { sanitizePII } = await import("../event-log.server");
+    const canonicalPayload: PixelEventPayload = {
+      eventName: payload.eventName,
+      timestamp: payload.timestamp,
+      shopDomain: payload.shopDomain,
+      nonce: payload.nonce,
+      consent: payload.consent,
+      data: {
+        orderId: payload.data?.orderId || undefined,
+        orderNumber: payload.data?.orderNumber || undefined,
+        value: payload.data?.value || 0,
+        currency: payload.data?.currency || "USD",
+        tax: payload.data?.tax,
+        shipping: payload.data?.shipping,
+        checkoutToken: payload.data?.checkoutToken || undefined,
+        items: payload.data?.items || [],
+        itemCount: payload.data?.itemCount,
+        url: payload.data?.url || undefined,
+        title: payload.data?.title || undefined,
+        productId: payload.data?.productId || undefined,
+        productTitle: payload.data?.productTitle || undefined,
+        price: payload.data?.price,
+        quantity: payload.data?.quantity,
+        environment: payload.data?.environment || undefined,
+      },
+    };
+    const sanitizedPayload = sanitizePII(canonicalPayload) as PixelEventPayload;
     let eventLog = await prisma.eventLog.findUnique({
       where: {
         shopId_eventId: {
@@ -170,13 +193,14 @@ export async function logEvent(
           eventName,
           source: "web_pixel",
           occurredAt: new Date(payload.timestamp),
-          normalizedEventJson: payload as unknown as Record<string, unknown>,
+          normalizedEventJson: sanitizedPayload as unknown as Record<string, unknown>,
           shopifyContextJson: null,
         },
       });
     }
     const platform = destinationType.split(":")[0];
     const environment = (payload.data as { environment?: "test" | "live" })?.environment || "live";
+    const sanitizedRequestPayload = requestPayload ? sanitizePII(requestPayload) : null;
     await prisma.deliveryAttempt.upsert({
       where: {
         shopId_eventLogId_destinationType_environment: {
@@ -194,7 +218,7 @@ export async function logEvent(
         destinationType,
         platform,
         environment,
-        requestPayloadJson: payload as unknown as Record<string, unknown>,
+        requestPayloadJson: sanitizedRequestPayload ? (sanitizedRequestPayload as unknown as Record<string, unknown>) : null,
         status: status === "ok" ? "ok" : "fail",
         ok: status === "ok",
         errorCode: errorCode || null,
@@ -212,6 +236,7 @@ export async function logEvent(
         httpStatus: httpStatus || null,
         responseBodySnippet: responseBody ? (responseBody.length > 500 ? responseBody.substring(0, 500) : responseBody) : null,
         latencyMs: latencyMs || null,
+        requestPayloadJson: sanitizedRequestPayload ? (sanitizedRequestPayload as unknown as Record<string, unknown>) : undefined,
       },
     });
   } catch (error) {
@@ -233,19 +258,20 @@ export async function processEventPipeline(
 ): Promise<EventPipelineResult> {
   const validation = validateEventPayload(payload);
   if (!validation.valid) {
-    await logEvent(
-      shopId,
-      payload.eventName,
-      eventId,
-      payload,
-      null,
-      "fail",
-      "validation_failed",
-      validation.errors.join("; "),
-      null,
-      null,
-      null
-    );
+      await logEvent(
+        shopId,
+        payload.eventName,
+        eventId,
+        payload,
+        null,
+        "fail",
+        "validation_failed",
+        validation.errors.join("; "),
+        null,
+        null,
+        null,
+        null
+      );
         const shop = await prisma.shop.findUnique({
       where: { id: shopId },
       select: { shopDomain: true },
@@ -263,43 +289,6 @@ export async function processEventPipeline(
     destinations.length > 0 && typeof destinations[0] === 'string'
       ? (destinations as string[]).map(d => ({ platform: d }))
       : (destinations as Array<{ platform: string; configId?: string; platformId?: string }>);
-  const deduplicationResults: boolean[] = [];
-  for (const destConfig of destinationConfigs) {
-    const dedupKey = destConfig.configId || destConfig.platform;
-    const dedupResult = await checkEventDeduplication(
-      shopId,
-      eventId,
-      payload.eventName,
-      dedupKey
-    );
-    if (dedupResult.isDuplicate) {
-      logger.info("Event deduplicated", {
-        shopId,
-        eventId,
-        destination: destConfig.platform,
-        configId: destConfig.configId,
-        platformId: destConfig.platformId,
-        existingEventId: dedupResult.existingEventId,
-      });
-            const shop = await prisma.shop.findUnique({
-        where: { id: shopId },
-        select: { shopDomain: true },
-      });
-      if (shop) {
-        const { metrics } = await import("../../utils/metrics-collector");
-        const destination = destConfig.configId
-          ? `${destConfig.platform}:${destConfig.configId}`
-          : destConfig.platformId
-          ? `${destConfig.platform}:${destConfig.platformId}`
-          : destConfig.platform;
-        metrics.pxDedupDropped(shop.shopDomain, destination);
-      }
-      deduplicationResults.push(true);
-    } else {
-      deduplicationResults.push(false);
-    }
-  }
-  const isDeduplicated = deduplicationResults.some((dup) => dup);
   function normalizeValue(value: unknown): number {
     if (typeof value === "number") {
       return Math.max(0, Math.round(value * 100) / 100);
@@ -400,12 +389,28 @@ export async function processEventPipeline(
       .filter(item => item.id);
   }
   const normalizedPayload: PixelEventPayload = {
-    ...payload,
+    eventName: payload.eventName,
+    timestamp: payload.timestamp,
+    shopDomain: payload.shopDomain,
+    nonce: payload.nonce,
+    consent: payload.consent,
     data: {
-      ...payload.data,
+      orderId: payload.data?.orderId || undefined,
+      orderNumber: payload.data?.orderNumber || undefined,
       value: normalizedValue !== undefined ? normalizedValue : 0,
       currency: normalizedCurrency,
+      tax: payload.data?.tax,
+      shipping: payload.data?.shipping,
+      checkoutToken: payload.data?.checkoutToken || undefined,
       items: normalizedItems || [],
+      itemCount: payload.data?.itemCount,
+      url: payload.data?.url || undefined,
+      title: payload.data?.title || undefined,
+      productId: payload.data?.productId || undefined,
+      productTitle: payload.data?.productTitle || undefined,
+      price: payload.data?.price,
+      quantity: payload.data?.quantity,
+      environment: payload.data?.environment || undefined,
     },
   };
   let finalEventId = eventId;
@@ -440,175 +445,102 @@ export async function processEventPipeline(
       checkoutToken: normalizedPayload.data?.checkoutToken || null,
     });
   }
-  if (!isDeduplicated) {
-    const destinationNames = destinationConfigs.map(d => d.platform);
-    logger.info(`Routing ${normalizedPayload.eventName} event to ${destinationConfigs.length} destination(s)`, {
-      shopId,
-      eventId: finalEventId,
-      eventName: normalizedPayload.eventName,
-      destinations: destinationNames,
-      configCount: destinationConfigs.length,
-      normalizedValue: normalizedPayload.data.value,
-      normalizedCurrency: normalizedPayload.data.currency,
-      itemsCount: normalizedPayload.data.items?.length || 0,
-      hasOrderId: !!normalizedPayload.data.orderId,
-      hasCheckoutToken: !!normalizedPayload.data.checkoutToken,
+  const { sanitizePII } = await import("../event-log.server");
+  const canonicalPayload: PixelEventPayload = {
+    eventName: normalizedPayload.eventName,
+    timestamp: normalizedPayload.timestamp,
+    shopDomain: normalizedPayload.shopDomain,
+    nonce: normalizedPayload.nonce,
+    consent: normalizedPayload.consent,
+    data: {
+      orderId: normalizedPayload.data?.orderId || undefined,
+      orderNumber: normalizedPayload.data?.orderNumber || undefined,
+      value: normalizedPayload.data?.value || 0,
+      currency: normalizedPayload.data?.currency || "USD",
+      tax: normalizedPayload.data?.tax,
+      shipping: normalizedPayload.data?.shipping,
+      checkoutToken: normalizedPayload.data?.checkoutToken || undefined,
+      items: normalizedPayload.data?.items || [],
+      itemCount: normalizedPayload.data?.itemCount,
+      url: normalizedPayload.data?.url || undefined,
+      title: normalizedPayload.data?.title || undefined,
+      productId: normalizedPayload.data?.productId || undefined,
+      productTitle: normalizedPayload.data?.productTitle || undefined,
+      price: normalizedPayload.data?.price,
+      quantity: normalizedPayload.data?.quantity,
+      environment: normalizedPayload.data?.environment || undefined,
+    },
+  };
+  const sanitizedPayload = sanitizePII(canonicalPayload) as PixelEventPayload;
+  let eventLog = await prisma.eventLog.findUnique({
+    where: {
+      shopId_eventId: {
+        shopId,
+        eventId: finalEventId,
+      },
+    },
+  });
+  if (!eventLog) {
+    const eventLogId = generateSimpleId("eventlog");
+    eventLog = await prisma.eventLog.create({
+      data: {
+        id: eventLogId,
+        shopId,
+        eventId: finalEventId,
+        eventName: normalizedPayload.eventName,
+        source: "web_pixel",
+        occurredAt: new Date(normalizedPayload.timestamp),
+        normalizedEventJson: sanitizedPayload as unknown as Record<string, unknown>,
+        shopifyContextJson: null,
+      },
     });
-    const sendPromises = destinationConfigs.map(async (destConfig) => {
-      const destination = destConfig.platform;
-      try {
-        logger.debug(`Sending ${normalizedPayload.eventName} to ${destination}`, {
+  }
+  const destinationNames = destinationConfigs.map(d => d.platform);
+  logger.info(`Routing ${normalizedPayload.eventName} event to ${destinationConfigs.length} destination(s)`, {
+    shopId,
+    eventId: finalEventId,
+    eventName: normalizedPayload.eventName,
+    destinations: destinationNames,
+    configCount: destinationConfigs.length,
+    normalizedValue: normalizedPayload.data.value,
+    normalizedCurrency: normalizedPayload.data.currency,
+    itemsCount: normalizedPayload.data.items?.length || 0,
+    hasOrderId: !!normalizedPayload.data.orderId,
+    hasCheckoutToken: !!normalizedPayload.data.checkoutToken,
+  });
+  const shop = await prisma.shop.findUnique({
+    where: { id: shopId },
+    select: { shopDomain: true },
+  });
+  const shopDomain = shop?.shopDomain || null;
+  const metricsModule = shopDomain ? await import("../../utils/metrics-collector") : null;
+  const sendPromises = destinationConfigs.map(async (destConfig) => {
+    const destination = destConfig.platform;
+    const destinationType = destConfig.configId
+      ? `${destination}:${destConfig.configId}`
+      : destConfig.platformId
+      ? `${destination}:${destConfig.platformId}`
+      : destination;
+    const env = environment || (normalizedPayload.data as { environment?: "test" | "live" })?.environment || "live";
+    const dedupResult = await checkDeliveryDeduplication(
+      shopId,
+      eventLog!.id,
+      destinationType,
+      env
+    );
+      if (dedupResult.isDuplicate) {
+        logger.info("Event delivery deduplicated", {
           shopId,
           eventId: finalEventId,
-          eventName: normalizedPayload.eventName,
-          platform: destination,
+          destination: destConfig.platform,
           configId: destConfig.configId,
           platformId: destConfig.platformId,
-        });
-        let eventIdForSend = finalEventId;
-        if (!eventIdForSend) {
-          logger.error(`Missing eventId for ${normalizedPayload.eventName} event, generating fallback ID`, {
-            shopId,
-            eventName: normalizedPayload.eventName,
-            destination,
-            configId: destConfig.configId,
-          });
-          eventIdForSend = generateCanonicalEventId(
-            normalizedPayload.data?.orderId || null,
-            normalizedPayload.data?.checkoutToken || null,
-            normalizedPayload.eventName,
-            normalizedPayload.shopDomain,
-            normalizedItems?.map(item => ({ id: item.id, quantity: item.quantity })) || undefined,
-            "v2",
-            payload.nonce || null
-          );
-        }
-                const sendStartTime = Date.now();
-        const sendResult = await sendPixelEventToPlatform(
-          shopId,
-          destination,
-          normalizedPayload,
-          eventIdForSend,
-          destConfig.configId,
-          destConfig.platformId,
-          environment
-        );
-        const sendLatencyMs = Date.now() - sendStartTime;
-        const destinationType = destConfig.configId
-          ? `${destination}:${destConfig.configId}`
-          : destConfig.platformId
-          ? `${destination}:${destConfig.platformId}`
-          : destination;
-        const shop = await prisma.shop.findUnique({
-          where: { id: shopId },
-          select: { shopDomain: true },
-        });
-        if (shop) {
-          const { metrics } = await import("../../utils/metrics-collector");
-          if (sendResult.success) {
-            metrics.pxDestinationOk(shop.shopDomain, destinationType);
-          } else {
-            metrics.pxDestinationFail(shop.shopDomain, destinationType, sendResult.error || "unknown");
-          }
-          metrics.pxDestinationLatency(shop.shopDomain, destinationType, sendLatencyMs);
-        }
-        await logEvent(
-          shopId,
-          normalizedPayload.eventName,
-          finalEventId,
-          normalizedPayload,
           destinationType,
-          sendResult.ok ?? sendResult.success ? "ok" : "fail",
-          sendResult.ok ?? sendResult.success ? undefined : (sendResult.errorCode || "send_failed"),
-          sendResult.error || null,
-          sendResult.httpStatus ?? sendResult.responseStatus ?? null,
-          sendResult.responseBody ?? null,
-          sendResult.latencyMs ?? sendLatencyMs
-        );
-        if (sendResult.success) {
-          logger.info(`Successfully sent ${normalizedPayload.eventName} to ${destination}`, {
-            shopId,
-            eventId: finalEventId,
-            eventName: normalizedPayload.eventName,
-            platform: destination,
-            configId: destConfig.configId,
-            platformId: destConfig.platformId,
-            latencyMs: sendLatencyMs,
-          });
-        } else {
-          logger.warn(`Failed to send ${normalizedPayload.eventName} to ${destination}`, {
-            shopId,
-            eventName: normalizedPayload.eventName,
-            eventId: finalEventId,
-            platform: destination,
-            configId: destConfig.configId,
-            platformId: destConfig.platformId,
-            error: sendResult.error,
-            latencyMs: sendLatencyMs,
-          });
-        }
-        return sendResult;
-      } catch (error) {
-        logger.error(`Error sending ${normalizedPayload.eventName} to ${destination}`, {
-          shopId,
-          eventName: normalizedPayload.eventName,
-          eventId,
-          platform: destination,
-          configId: destConfig.configId,
-          platformId: destConfig.platformId,
-          error: error instanceof Error ? error.message : String(error),
         });
-        const destinationType = destConfig.configId
-          ? `${destination}:${destConfig.configId}`
-          : destConfig.platformId
-          ? `${destination}:${destConfig.platformId}`
-          : destination;
-        await logEvent(
-          shopId,
-          normalizedPayload.eventName,
-          finalEventId,
-          normalizedPayload,
-          destinationType,
-          "fail",
-          "send_error",
-          error instanceof Error ? error.message : String(error),
-          null,
-          null,
-          null
-        );
-        return {
-          success: false,
-          platform: destination,
-          error: error instanceof Error ? error.message : String(error),
-        };
-      }
-    });
-    const results = await Promise.allSettled(sendPromises);
-    const successCount = results.filter(
-      (r) => r.status === "fulfilled" && r.value.success
-    ).length;
-    logger.info(`Event ${normalizedPayload.eventName} routing completed - sent to destinations`, {
-      shopId,
-      eventId: finalEventId,
-      eventName: normalizedPayload.eventName,
-      totalDestinations: destinationConfigs.length,
-      successful: successCount,
-      failed: destinationConfigs.length - successCount,
-      normalizedValue: normalizedPayload.data.value,
-      normalizedCurrency: normalizedPayload.data.currency,
-      itemsCount: normalizedPayload.data.items?.length || 0,
-      eventIdSource: eventId ? "from_client" : "generated_by_server",
-      hasOrderId: !!normalizedPayload.data.orderId,
-      hasCheckoutToken: !!normalizedPayload.data.checkoutToken,
-    });
-  } else {
-    const logPromises = destinationConfigs.map((destConfig) => {
-      const destinationType = destConfig.configId
-        ? `${destConfig.platform}:${destConfig.configId}`
-        : destConfig.platformId
-        ? `${destConfig.platform}:${destConfig.platformId}`
-        : destConfig.platform;
-      return logEvent(
+        if (shopDomain && metricsModule) {
+          metricsModule.metrics.pxDedupDropped(shopDomain, destinationType);
+        }
+      await logEvent(
         shopId,
         normalizedPayload.eventName,
         finalEventId,
@@ -616,20 +548,162 @@ export async function processEventPipeline(
         destinationType,
         "ok",
         "deduplicated",
-        "Event was deduplicated",
+        "Event was already successfully delivered to this destination",
+        null,
         null,
         null,
         null
       );
-    });
-    await Promise.allSettled(logPromises);
-  }
-  const destinationNames = destinationConfigs.map(d => d.platform);
+      return {
+        success: true,
+        platform: destination,
+        deduplicated: true,
+      };
+    }
+    try {
+      logger.debug(`Sending ${normalizedPayload.eventName} to ${destination}`, {
+        shopId,
+        eventId: finalEventId,
+        eventName: normalizedPayload.eventName,
+        platform: destination,
+        configId: destConfig.configId,
+        platformId: destConfig.platformId,
+      });
+      let eventIdForSend = finalEventId;
+      if (!eventIdForSend) {
+        logger.error(`Missing eventId for ${normalizedPayload.eventName} event, generating fallback ID`, {
+          shopId,
+          eventName: normalizedPayload.eventName,
+          destination,
+          configId: destConfig.configId,
+        });
+        eventIdForSend = generateCanonicalEventId(
+          normalizedPayload.data?.orderId || null,
+          normalizedPayload.data?.checkoutToken || null,
+          normalizedPayload.eventName,
+          normalizedPayload.shopDomain,
+          normalizedItems?.map(item => ({ id: item.id, quantity: item.quantity })) || undefined,
+          "v2",
+          payload.nonce || null
+        );
+      }
+      const sendStartTime = Date.now();
+      const sendResult = await sendPixelEventToPlatform(
+        shopId,
+        destination,
+        normalizedPayload,
+        eventIdForSend,
+        destConfig.configId,
+        destConfig.platformId,
+        env
+      );
+      const sendLatencyMs = Date.now() - sendStartTime;
+      if (shopDomain && metricsModule) {
+        if (sendResult.success) {
+          metricsModule.metrics.pxDestinationOk(shopDomain, destinationType);
+        } else {
+          metricsModule.metrics.pxDestinationFail(shopDomain, destinationType, sendResult.error || "unknown");
+        }
+        metricsModule.metrics.pxDestinationLatency(shopDomain, destinationType, sendLatencyMs);
+      }
+      await logEvent(
+        shopId,
+        normalizedPayload.eventName,
+        finalEventId,
+        normalizedPayload,
+        destinationType,
+        sendResult.ok ?? sendResult.success ? "ok" : "fail",
+        sendResult.ok ?? sendResult.success ? undefined : (sendResult.errorCode || "send_failed"),
+        sendResult.error || null,
+        sendResult.httpStatus ?? sendResult.responseStatus ?? null,
+        sendResult.responseBody ?? null,
+        sendResult.latencyMs ?? sendLatencyMs,
+        sendResult.requestPayload
+      );
+      if (sendResult.success) {
+        logger.info(`Successfully sent ${normalizedPayload.eventName} to ${destination}`, {
+          shopId,
+          eventId: finalEventId,
+          eventName: normalizedPayload.eventName,
+          platform: destination,
+          configId: destConfig.configId,
+          platformId: destConfig.platformId,
+          latencyMs: sendLatencyMs,
+        });
+      } else {
+        logger.warn(`Failed to send ${normalizedPayload.eventName} to ${destination}`, {
+          shopId,
+          eventName: normalizedPayload.eventName,
+          eventId: finalEventId,
+          platform: destination,
+          configId: destConfig.configId,
+          platformId: destConfig.platformId,
+          error: sendResult.error,
+          latencyMs: sendLatencyMs,
+        });
+      }
+      return sendResult;
+    } catch (error) {
+      logger.error(`Error sending ${normalizedPayload.eventName} to ${destination}`, {
+        shopId,
+        eventName: normalizedPayload.eventName,
+        eventId,
+        platform: destination,
+        configId: destConfig.configId,
+        platformId: destConfig.platformId,
+        error: error instanceof Error ? error.message : String(error),
+      });
+      await logEvent(
+        shopId,
+        normalizedPayload.eventName,
+        finalEventId,
+        normalizedPayload,
+        destinationType,
+        "fail",
+        "send_error",
+        error instanceof Error ? error.message : String(error),
+        null,
+        null,
+        null,
+        null
+      );
+      return {
+        success: false,
+        platform: destination,
+        error: error instanceof Error ? error.message : String(error),
+      };
+    }
+  });
+  const results = await Promise.allSettled(sendPromises);
+  const successCount = results.filter(
+    (r) => r.status === "fulfilled" && r.value.success
+  ).length;
+  const deduplicatedCount = results.filter(
+    (r) => r.status === "fulfilled" && (r.value as { deduplicated?: boolean }).deduplicated
+  ).length;
+  logger.info(`Event ${normalizedPayload.eventName} routing completed - sent to destinations`, {
+    shopId,
+    eventId: finalEventId,
+    eventName: normalizedPayload.eventName,
+    totalDestinations: destinationConfigs.length,
+    successful: successCount,
+    failed: destinationConfigs.length - successCount - deduplicatedCount,
+    deduplicated: deduplicatedCount,
+    normalizedValue: normalizedPayload.data.value,
+    normalizedCurrency: normalizedPayload.data.currency,
+    itemsCount: normalizedPayload.data.items?.length || 0,
+    eventIdSource: eventId ? "from_client" : "generated_by_server",
+    hasOrderId: !!normalizedPayload.data.orderId,
+    hasCheckoutToken: !!normalizedPayload.data.checkoutToken,
+  });
+  const hasDeduplicated = results.some(
+    (r) => r.status === "fulfilled" && (r.value as { deduplicated?: boolean }).deduplicated
+  );
   return {
     success: true,
     eventId: finalEventId || undefined,
     destinations: destinationNames,
-    deduplicated: isDeduplicated,
+    deduplicated: hasDeduplicated,
   };
 }
 

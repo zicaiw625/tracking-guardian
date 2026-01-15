@@ -3,7 +3,7 @@ import { logger } from "../utils/logger.server";
 import { generateSimpleId } from "../utils/helpers";
 import type { PixelEventPayload } from "../routes/api.pixel-events/types";
 
-function sanitizePII(payload: unknown): unknown {
+export function sanitizePII(payload: unknown): unknown {
   if (!payload || typeof payload !== "object") {
     return payload;
   }
@@ -193,6 +193,8 @@ export interface CreateEventLogOptions {
 
 export async function createEventLog(options: CreateEventLogOptions): Promise<string | null> {
   try {
+    const sanitizedEventJson = sanitizePII(options.normalizedEventJson) as Record<string, unknown>;
+    const sanitizedShopifyContextJson = options.shopifyContextJson ? sanitizePII(options.shopifyContextJson) as Record<string, unknown> : null;
     const eventLogId = generateSimpleId("eventlog");
     await prisma.eventLog.upsert({
       where: {
@@ -208,12 +210,12 @@ export async function createEventLog(options: CreateEventLogOptions): Promise<st
         eventName: options.eventName,
         source: options.source || "web_pixel",
         occurredAt: options.occurredAt,
-        normalizedEventJson: options.normalizedEventJson as unknown as Record<string, unknown>,
-        shopifyContextJson: options.shopifyContextJson as unknown as Record<string, unknown> | null,
+        normalizedEventJson: sanitizedEventJson,
+        shopifyContextJson: sanitizedShopifyContextJson,
       },
       update: {
-        normalizedEventJson: options.normalizedEventJson as unknown as Record<string, unknown>,
-        shopifyContextJson: options.shopifyContextJson as unknown as Record<string, unknown> | null,
+        normalizedEventJson: sanitizedEventJson,
+        shopifyContextJson: sanitizedShopifyContextJson,
       },
     });
     return eventLogId;
@@ -239,6 +241,7 @@ export async function createDeliveryAttempt(
   options: CreateDeliveryAttemptOptions
 ): Promise<string | null> {
   try {
+    const sanitizedRequestPayload = sanitizePII(options.requestPayloadJson) as Record<string, unknown>;
     const attemptId = generateSimpleId("delivery");
     const platform = options.destinationType.split(":")[0];
     await prisma.deliveryAttempt.create({
@@ -250,7 +253,7 @@ export async function createDeliveryAttempt(
         destinationType: options.destinationType,
         platform,
         environment: options.environment,
-        requestPayloadJson: options.requestPayloadJson as unknown as Record<string, unknown>,
+        requestPayloadJson: sanitizedRequestPayload,
         status: "pending",
         ok: false,
         errorCode: null,

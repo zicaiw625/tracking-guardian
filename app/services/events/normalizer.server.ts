@@ -37,13 +37,13 @@ export function normalizeEvent(
   const currency = normalizeCurrency(data.currency);
   const items = normalizeItems(data.items);
   const metadata: Record<string, unknown> = {};
-  const excludedKeys = new Set([
-    "orderId", "checkoutToken", "orderNumber",
-    "value", "currency", "items",
-    "productId", "productTitle", "price", "quantity",
+  const allowedMetadataKeys = new Set([
+    "url",
+    "title",
+    "environment",
   ]);
   for (const [key, value] of Object.entries(data)) {
-    if (!excludedKeys.has(key) && value !== undefined && value !== null) {
+    if (allowedMetadataKeys.has(key) && value !== undefined && value !== null) {
       metadata[key] = value;
     }
   }

@@ -185,19 +185,49 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       primaryDomain: shop.primaryDomain,
       storefrontDomains: shop.storefrontDomains,
     });
-    const referer = request.headers.get("Referer");
-    const shopOriginValidation = validatePixelOriginForShop(origin, shopAllowedDomains, {
-      referer,
-      shopDomain: shop.shopDomain,
-    });
-    if (!shopOriginValidation.valid && shopOriginValidation.shouldReject) {
-      logger.warn(
-        `Rejected pixel origin at Stage 2 in /ingest for ${shop.shopDomain}: ` +
-          `origin=${origin?.substring(0, 100) || "null"}, referer=${referer?.substring(0, 100) || "null"}, reason=${shopOriginValidation.reason}`
-      );
-      return jsonWithCors({ error: "Origin not allowlisted" }, { status: 403, request, shopAllowedDomains });
-    }
     const isNullOrigin = origin === "null" || origin === null;
+    const referer = request.headers.get("Referer");
+    if (isNullOrigin && isProduction) {
+      const allowNullOrigin = process.env.PIXEL_ALLOW_NULL_ORIGIN === "true" || process.env.PIXEL_ALLOW_NULL_ORIGIN === "1";
+      if (!allowNullOrigin) {
+        logger.error(`Null origin request rejected for ${shopDomain} in production: PIXEL_ALLOW_NULL_ORIGIN not set. If ingestionSecret is compromised, null origin requests pose significant security risk. Production environment must set PIXEL_ALLOW_NULL_ORIGIN=true to allow null origin requests from Shopify Web Worker sandbox environments.`);
+        const anomalyCheck = trackAnomaly(shopDomain, "invalid_origin");
+        if (anomalyCheck.shouldBlock) {
+          logger.warn(`Circuit breaker triggered for ${shopDomain}: ${anomalyCheck.reason}`);
+        }
+        metrics.pixelRejection({
+          shopDomain,
+          reason: "invalid_origin",
+          originType: "null_origin_blocked",
+        });
+        return jsonWithCors(
+          { error: "Null origin not allowed", errorCode: "null_origin_blocked" },
+          { status: 403, request, shopAllowedDomains }
+        );
+      }
+    }
+    if (!isNullOrigin) {
+      const shopOriginValidation = validatePixelOriginForShop(origin, shopAllowedDomains, {
+        referer,
+        shopDomain: shop.shopDomain,
+      });
+      if (!shopOriginValidation.valid && shopOriginValidation.shouldReject) {
+        const anomalyCheck = trackAnomaly(shop.shopDomain, "invalid_origin");
+        if (anomalyCheck.shouldBlock) {
+          logger.warn(`Circuit breaker triggered for ${shop.shopDomain}: ${anomalyCheck.reason}`);
+        }
+        metrics.pixelRejection({
+          shopDomain: shop.shopDomain,
+          reason: "origin_not_allowlisted",
+          originType: shopOriginValidation.reason,
+        });
+        logger.warn(
+          `Rejected pixel origin at Stage 2 in /ingest for ${shop.shopDomain}: ` +
+            `origin=${origin?.substring(0, 100) || "null"}, referer=${referer?.substring(0, 100) || "null"}, reason=${shopOriginValidation.reason}`
+        );
+        return jsonWithCors({ error: "Origin not allowlisted" }, { status: 403, request, shopAllowedDomains });
+      }
+    }
     if (isProduction) {
       if (!shop.ingestionSecret) {
         logger.error(`Missing ingestionSecret for ${shopDomain} in production - HMAC verification required`);
@@ -248,14 +278,6 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         );
       }
       if (isNullOrigin) {
-        const allowNullOrigin = process.env.PIXEL_ALLOW_NULL_ORIGIN === "true" || process.env.PIXEL_ALLOW_NULL_ORIGIN === "1";
-        if (!allowNullOrigin) {
-          logger.error(`Null origin request rejected for ${shopDomain} in production: PIXEL_ALLOW_NULL_ORIGIN not set. If ingestionSecret is compromised, null origin requests pose significant security risk. Production environment must set PIXEL_ALLOW_NULL_ORIGIN=true to allow null origin requests from Shopify Web Worker sandbox environments.`);
-          return jsonWithCors(
-            { error: "Null origin not allowed", errorCode: "null_origin_blocked" },
-            { status: 403, request }
-          );
-        }
         if (usedPreviousSecret) {
           logger.warn(`Null origin request accepted with previous secret for ${shopDomain} in production. Previous secret expires: ${shop.previousSecretExpiry?.toISOString()}. If ingestionSecret is compromised, immediately rotate secret and review access logs. Null origin requests cannot be validated via Origin header and rely solely on HMAC signature.`);
         } else {
@@ -300,6 +322,14 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       destinations: string[];
     }> = [];
     const serverSideConfigs = pixelConfigs.filter(config => config.serverSideEnabled === true);
+    const activeVerificationRun = isPurchaseEvent ? await prisma.verificationRun.findFirst({
+      where: {
+        shopId: shop.id,
+        status: "running",
+      },
+      orderBy: { createdAt: "desc" },
+      select: { id: true },
+    }) : null;
     const keyValidation: KeyValidationResult = (() => {
       if (isProduction) {
         return {
@@ -445,14 +475,6 @@ export const action = async ({ request }: ActionFunctionArgs) => {
           consentResult
         );
         try {
-          const activeVerificationRun = await prisma.verificationRun.findFirst({
-            where: {
-              shopId: shop.id,
-              status: "running",
-            },
-            orderBy: { createdAt: "desc" },
-            select: { id: true },
-          });
           const primaryPlatform = platformsToRecord.length > 0 ? platformsToRecord[0].platform : null;
           await upsertPixelEventReceipt(
             shop.id,
@@ -616,9 +638,51 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       primaryDomain: shop.primaryDomain,
       storefrontDomains: shop.storefrontDomains,
     });
+    const isNullOrigin = origin === "null" || origin === null;
+    const referer = request.headers.get("Referer");
+    if (isNullOrigin && isProduction) {
+      const allowNullOrigin = process.env.PIXEL_ALLOW_NULL_ORIGIN === "true" || process.env.PIXEL_ALLOW_NULL_ORIGIN === "1";
+      if (!allowNullOrigin) {
+        logger.error(`Null origin request rejected for ${shop.shopDomain} in production: PIXEL_ALLOW_NULL_ORIGIN not set. If ingestionSecret is compromised, null origin requests pose significant security risk. Production environment must set PIXEL_ALLOW_NULL_ORIGIN=true to allow null origin requests from Shopify Web Worker sandbox environments.`);
+        const anomalyCheck = trackAnomaly(shop.shopDomain, "invalid_origin");
+        if (anomalyCheck.shouldBlock) {
+          logger.warn(`Circuit breaker triggered for ${shop.shopDomain}: ${anomalyCheck.reason}`);
+        }
+        metrics.pixelRejection({
+          shopDomain: shop.shopDomain,
+          reason: "invalid_origin",
+          originType: "null_origin_blocked",
+        });
+        return jsonWithCors(
+          { error: "Null origin not allowed", errorCode: "null_origin_blocked" },
+          { status: 403, request, shopAllowedDomains }
+        );
+      }
+    }
+    if (!isNullOrigin) {
+      const shopOriginValidation = validatePixelOriginForShop(origin, shopAllowedDomains, {
+        referer,
+        shopDomain: shop.shopDomain,
+      });
+      if (!shopOriginValidation.valid && shopOriginValidation.shouldReject) {
+        const anomalyCheck = trackAnomaly(shop.shopDomain, "invalid_origin");
+        if (anomalyCheck.shouldBlock) {
+          logger.warn(`Circuit breaker triggered for ${shop.shopDomain}: ${anomalyCheck.reason}`);
+        }
+        metrics.pixelRejection({
+          shopDomain: shop.shopDomain,
+          reason: "origin_not_allowlisted",
+          originType: shopOriginValidation.reason,
+        });
+        logger.warn(
+          `Rejected pixel origin at Stage 2 for ${shop.shopDomain}: ` +
+            `origin=${origin?.substring(0, 100) || "null"}, referer=${referer?.substring(0, 100) || "null"}, reason=${shopOriginValidation.reason}`
+        );
+        return jsonWithCors({ error: "Origin not allowlisted" }, { status: 403, request, shopAllowedDomains });
+      }
+    }
     const signature = request.headers.get("X-Tracking-Guardian-Signature");
     const isProduction = !isDevMode();
-    const isNullOrigin = origin === "null" || origin === null;
     let hmacValidationResult: { valid: boolean; reason?: string; errorCode?: string } | null = null;
     if (isProduction) {
       if (!shop.ingestionSecret) {
@@ -691,11 +755,10 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         );
       }
       if (isNullOrigin) {
-        const allowNullOrigin = process.env.PIXEL_ALLOW_NULL_ORIGIN === "true" || process.env.PIXEL_ALLOW_NULL_ORIGIN === "1";
-        if (allowNullOrigin) {
-          logger.debug(`Null origin request accepted with valid HMAC and ingestionSecret for ${shop.shopDomain} in production (PIXEL_ALLOW_NULL_ORIGIN=true)`);
+        if (usedPreviousSecret) {
+          logger.warn(`Null origin request accepted with previous secret for ${shop.shopDomain} in production. Previous secret expires: ${shop.previousSecretExpiry?.toISOString()}. If ingestionSecret is compromised, immediately rotate secret and review access logs. Null origin requests cannot be validated via Origin header and rely solely on HMAC signature.`);
         } else {
-          logger.warn(`Null origin request accepted but PIXEL_ALLOW_NULL_ORIGIN not set for ${shop.shopDomain} - this may cause issues in production`);
+          logger.debug(`Null origin request accepted with valid HMAC and ingestionSecret for ${shop.shopDomain} in production (PIXEL_ALLOW_NULL_ORIGIN=true). Null origin requests are allowed but require valid HMAC signature as they cannot be validated via Origin header.`);
         }
       } else {
         logger.debug(`HMAC signature verified for ${shop.shopDomain} in production${usedPreviousSecret ? " (using previous secret)" : ""}`);
@@ -753,27 +816,6 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       return emptyResponseWithCors(request);
     }
     const consentResult = checkInitialConsent(payload.consent);
-    const referer = request.headers.get("Referer");
-    const shopOriginValidation = validatePixelOriginForShop(origin, shopAllowedDomains, {
-      referer,
-      shopDomain: shop.shopDomain,
-    });
-    if (!shopOriginValidation.valid && shopOriginValidation.shouldReject) {
-      const anomalyCheck = trackAnomaly(shop.shopDomain, "invalid_origin");
-      if (anomalyCheck.shouldBlock) {
-        logger.warn(`Circuit breaker triggered for ${shop.shopDomain}: ${anomalyCheck.reason}`);
-      }
-      metrics.pixelRejection({
-        shopDomain: shop.shopDomain,
-        reason: "origin_not_allowlisted",
-        originType: shopOriginValidation.reason,
-      });
-      logger.warn(
-        `Rejected pixel origin at Stage 2 for ${shop.shopDomain}: ` +
-          `origin=${origin?.substring(0, 100) || "null"}, referer=${referer?.substring(0, 100) || "null"}, reason=${shopOriginValidation.reason}`
-      );
-      return emptyResponseWithCors(request, shopAllowedDomains);
-    }
     const keyValidation: KeyValidationResult = (() => {
       if (isProduction) {
         return {
@@ -877,15 +919,15 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       clientSideConfigs,
       consentResult
     );
+    const activeVerificationRun = isPurchaseEvent ? await prisma.verificationRun.findFirst({
+      where: {
+        shopId: shop.id,
+        status: "running",
+      },
+      orderBy: { createdAt: "desc" },
+      select: { id: true },
+    }) : null;
     if (isPurchaseEvent) {
-      const activeVerificationRun = await prisma.verificationRun.findFirst({
-        where: {
-          shopId: shop.id,
-          status: "running",
-        },
-        orderBy: { createdAt: "desc" },
-        select: { id: true },
-      });
       const primaryPlatform = platformsToRecord.length > 0 ? platformsToRecord[0].platform : pixelConfigs.length > 0 ? pixelConfigs[0].platform : null;
       await upsertPixelEventReceipt(
         shop.id,

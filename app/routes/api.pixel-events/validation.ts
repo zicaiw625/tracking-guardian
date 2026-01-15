@@ -164,6 +164,60 @@ function validateConsentFormat(
   return null;
 }
 
+function sanitizeEventData(
+  eventData: Record<string, unknown> | undefined
+): PixelEventPayload["data"] {
+  if (!eventData || typeof eventData !== "object") {
+    return {};
+  }
+  const allowedKeys = new Set([
+    "orderId",
+    "orderNumber",
+    "value",
+    "currency",
+    "tax",
+    "shipping",
+    "checkoutToken",
+    "items",
+    "itemCount",
+    "url",
+    "title",
+    "productId",
+    "productTitle",
+    "price",
+    "quantity",
+    "environment",
+  ]);
+  const sanitized: PixelEventPayload["data"] = {};
+  for (const [key, value] of Object.entries(eventData)) {
+    if (allowedKeys.has(key)) {
+      if (key === "items" && Array.isArray(value)) {
+        sanitized.items = value.map((item: unknown) => {
+          if (typeof item === "object" && item !== null) {
+            const itemObj = item as Record<string, unknown>;
+            return {
+              id: String(itemObj.id || ""),
+              name: String(itemObj.name || ""),
+              price: typeof itemObj.price === "number" ? itemObj.price : 0,
+              quantity: typeof itemObj.quantity === "number" ? itemObj.quantity : 1,
+            };
+          }
+          return { id: "", name: "", price: 0, quantity: 1 };
+        });
+      } else if (key === "orderId" || key === "checkoutToken") {
+        sanitized[key] = value === null || value === undefined ? null : String(value);
+      } else if (key === "orderNumber" || key === "url" || key === "title" || key === "productId" || key === "productTitle" || key === "environment") {
+        sanitized[key] = value === null || value === undefined ? undefined : String(value);
+      } else if (key === "value" || key === "currency" || key === "tax" || key === "shipping" || key === "itemCount" || key === "price" || key === "quantity") {
+        if (typeof value === "number") {
+          sanitized[key] = value;
+        }
+      }
+    }
+  }
+  return sanitized;
+}
+
 function validateCheckoutCompletedFields(
   eventData: Record<string, unknown> | undefined
 ): ValidationResult | null {
@@ -246,13 +300,14 @@ export function validateRequest(body: unknown): ValidationResult {
   if (consentError) {
     return consentError;
   }
-  const eventData = (data.data || (context as Record<string, unknown>)?.data) as PixelEventPayload["data"] | undefined;
+  const rawEventData = (data.data || (context as Record<string, unknown>)?.data) as Record<string, unknown> | undefined;
   if (eventName === "checkout_completed") {
-    const checkoutError = validateCheckoutCompletedFields(eventData as Record<string, unknown> | undefined);
+    const checkoutError = validateCheckoutCompletedFields(rawEventData);
     if (checkoutError) {
       return checkoutError;
     }
   }
+  const sanitizedEventData = sanitizeEventData(rawEventData);
   const finalEventId = eventId || nonce;
   return {
     valid: true,
@@ -262,7 +317,7 @@ export function validateRequest(body: unknown): ValidationResult {
       shopDomain,
       nonce: finalEventId,
       consent,
-      data: eventData || {},
+      data: sanitizedEventData,
     },
   };
 }
