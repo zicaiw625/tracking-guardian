@@ -8,12 +8,13 @@ import {
 import { logger } from "../../utils/logger.server";
 import type { OrderTrackingSettings } from "../../types/ui-extension";
 
-import { authenticate, createAdminClientForShop } from "../../shopify.server";
+import { createAdminClientForShop } from "../../shopify.server";
 import { optionsResponse, jsonWithCors } from "../../utils/cors";
 import { withRateLimit, pathShopKeyExtractor, type RateLimitedHandler } from "../../middleware/rate-limit";
 import { withConditionalCache } from "../../lib/with-cache";
 import { TTL } from "../../utils/cache";
 import { getUiModuleConfig } from "../../services/ui-extension.server";
+import { authenticatePublic, normalizeDestToShopDomain } from "../../utils/public-auth";
 
 interface FulfillmentNode {
   trackingInfo?: {
@@ -72,46 +73,29 @@ const cachedLoader = withConditionalCache(
 
 export const loader = cachedLoader;
 
-async function authenticatePublicExtension(request: Request): Promise<{ shop: string; [key: string]: unknown }> {
-  try {
-    const authResult = await authenticate.public.checkout(request) as unknown as { 
-      session: { shop: string; [key: string]: unknown } 
-    };
-    return authResult.session;
-  } catch (checkoutError) {
-    try {
-      const authResult = await authenticate.public.customerAccount(request) as unknown as { 
-        session: { shop: string; [key: string]: unknown } 
-      };
-      return authResult.session;
-    } catch (customerAccountError) {
-      logger.warn("Public extension authentication failed", {
-        checkoutError: checkoutError instanceof Error ? checkoutError.message : String(checkoutError),
-        customerAccountError: customerAccountError instanceof Error ? customerAccountError.message : String(customerAccountError),
-      });
-      throw checkoutError;
-    }
-  }
-}
-
 async function loaderImpl(request: Request) {
+  let authResult: Awaited<ReturnType<typeof authenticatePublic>> | null = null;
   try {
     const url = new URL(request.url);
     const orderId = url.searchParams.get("orderId");
     const trackingNumber = url.searchParams.get("trackingNumber");
     if (!orderId) {
+      authResult = await authenticatePublic(request).catch(() => null);
+      if (authResult) {
+        return authResult.cors(jsonWithCors({ error: "Missing orderId" }, { status: 400, request, staticCors: true }));
+      }
       return jsonWithCors({ error: "Missing orderId" }, { status: 400, request, staticCors: true });
     }
-    let session: { shop: string; [key: string]: unknown };
     try {
-      session = await authenticatePublicExtension(request);
+      authResult = await authenticatePublic(request);
     } catch (authError) {
       return jsonWithCors(
         { error: "Unauthorized: Invalid authentication" },
         { status: 401, request, staticCors: true }
       );
     }
-    const shopDomain = session.shop;
+    const shopDomain = normalizeDestToShopDomain(authResult.sessionToken.dest);
+    const customerId = authResult.sessionToken.sub;
     const shop = await prisma.shop.findUnique({
       where: { shopDomain },
       select: {
@@ -119,7 +103,7 @@ async function loaderImpl(request: Request) {
       },
     });
     if (!shop) {
-      return jsonWithCors({ error: "Shop not found" }, { status: 404, request, staticCors: true });
+      return authResult.cors(jsonWithCors({ error: "Shop not found" }, { status: 404, request, staticCors: true }));
     }
     const trackingModuleConfig = await getUiModuleConfig(shop.id, "order_tracking");
     const trackingSettings = trackingModuleConfig.isEnabled
@@ -140,6 +124,10 @@ async function loaderImpl(request: Request) {
           query GetOrderFulfillments($id: ID!) {
             order(id: $id) {
               id
+              customer {
+                id
+              }
+              checkoutToken
               fulfillments(first: 10) {
                 edges {
                   node {
@@ -167,16 +155,47 @@ async function loaderImpl(request: Request) {
           });
           return { data: null };
         });
-        if (fulfillmentData.data?.order?.fulfillments?.edges?.length > 0) {
-          const firstFulfillment = fulfillmentData.data.order.fulfillments.edges[0].node;
-          if (firstFulfillment.trackingInfo) {
-            trackingNumberFromShopify = firstFulfillment.trackingInfo.number || null;
-            carrierFromShopify = firstFulfillment.trackingInfo.company || null;
-            trackingUrlFromShopify = firstFulfillment.trackingInfo.url || null;
-            logger.info(`Found tracking info from Shopify for orderId: ${orderId}`, {
-              trackingNumber: trackingNumberFromShopify,
-              carrier: carrierFromShopify,
-            });
+        if (fulfillmentData.data?.order) {
+          if (authResult.surface === "customer_account" && customerId) {
+            const orderCustomerId = fulfillmentData.data.order.customer?.id || null;
+            if (orderCustomerId) {
+              const tokenCustomerId = customerId.includes("/") ? customerId.split("/").pop() : customerId;
+              const orderCustomerIdNum = orderCustomerId.includes("/") ? orderCustomerId.split("/").pop() : orderCustomerId;
+              if (tokenCustomerId !== orderCustomerIdNum) {
+                logger.warn(`Order access denied: customer mismatch for orderId: ${orderId}, shop: ${shopDomain}`, {
+                  tokenCustomerId: tokenCustomerId,
+                  orderCustomerId: orderCustomerIdNum,
+                });
+                return authResult.cors(jsonWithCors({ error: "Order access denied" }, { status: 403, request, staticCors: true }));
+              }
+            } else {
+              logger.warn(`Order access denied: order has no customer for orderId: ${orderId}, shop: ${shopDomain}`);
+              return authResult.cors(jsonWithCors({ error: "Order access denied" }, { status: 403, request, staticCors: true }));
+            }
+          } else if (authResult.surface === "checkout") {
+            const url = new URL(request.url);
+            const checkoutToken = url.searchParams.get("checkoutToken");
+            if (!checkoutToken) {
+              logger.warn(`Order access denied: checkout context requires checkoutToken for orderId: ${orderId}, shop: ${shopDomain}`);
+              return authResult.cors(jsonWithCors({ error: "Order access denied: checkout context requires checkoutToken" }, { status: 403, request, staticCors: true }));
+            }
+            const orderCheckoutToken = fulfillmentData.data.order.checkoutToken || null;
+            if (orderCheckoutToken && orderCheckoutToken !== checkoutToken) {
+              logger.warn(`Order access denied: checkoutToken mismatch for orderId: ${orderId}, shop: ${shopDomain}`);
+              return authResult.cors(jsonWithCors({ error: "Order access denied" }, { status: 403, request, staticCors: true }));
+            }
+          }
+          if (fulfillmentData.data.order.fulfillments?.edges?.length > 0) {
+            const firstFulfillment = fulfillmentData.data.order.fulfillments.edges[0].node;
+            if (firstFulfillment.trackingInfo) {
+              trackingNumberFromShopify = firstFulfillment.trackingInfo.number || null;
+              carrierFromShopify = firstFulfillment.trackingInfo.company || null;
+              trackingUrlFromShopify = firstFulfillment.trackingInfo.url || null;
+              logger.info(`Found tracking info from Shopify for orderId: ${orderId}`, {
+                trackingNumber: trackingNumberFromShopify,
+                carrier: carrierFromShopify,
+              });
+            }
           }
         }
       }
@@ -189,7 +208,7 @@ async function loaderImpl(request: Request) {
     }
     const trackingNumberToUse = trackingNumber || trackingNumberFromShopify || null;
     if (!trackingNumberToUse) {
-      return jsonWithCors(
+      return authResult.cors(jsonWithCors(
         {
           success: true,
           tracking: {
@@ -203,7 +222,7 @@ async function loaderImpl(request: Request) {
           },
         },
         { status: 200, request, staticCors: true }
-      );
+      ));
     }
     if (trackingSettings?.provider && trackingSettings.provider !== "native" && trackingNumberToUse) {
       const config: TrackingProviderConfig = {
@@ -236,7 +255,7 @@ async function loaderImpl(request: Request) {
     }
     if (!trackingInfo) {
       if (trackingNumberToUse) {
-        return jsonWithCors(
+        return authResult.cors(jsonWithCors(
           {
             success: true,
             tracking: {
@@ -250,9 +269,9 @@ async function loaderImpl(request: Request) {
             },
           },
           { status: 200, request, staticCors: true }
-        );
+        ));
       }
-      return jsonWithCors(
+      return authResult.cors(jsonWithCors(
         {
           success: true,
           tracking: {
@@ -265,9 +284,9 @@ async function loaderImpl(request: Request) {
           },
         },
         { status: 200, request, staticCors: true }
-      );
+      ));
     }
-    return jsonWithCors({
+    return authResult.cors(jsonWithCors({
       success: true,
       tracking: {
         trackingNumber: trackingInfo.trackingNumber,
@@ -282,11 +301,14 @@ async function loaderImpl(request: Request) {
           status: event.status,
         })),
       },
-    }, { request, staticCors: true });
+    }, { request, staticCors: true }));
   } catch (error) {
     logger.error("Failed to fetch tracking info", {
       error: error instanceof Error ? error.message : String(error),
     });
+    if (authResult) {
+      return authResult.cors(jsonWithCors({ error: "Failed to fetch tracking info" }, { status: 500, request, staticCors: true }));
+    }
     return jsonWithCors({ error: "Failed to fetch tracking info" }, { status: 500, request, staticCors: true });
   }
 }

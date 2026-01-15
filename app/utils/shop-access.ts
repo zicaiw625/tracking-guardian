@@ -204,7 +204,22 @@ export function verifyWithGraceWindow(shop: ShopVerificationData, verifyFn: (sec
     if (shop.ingestionSecret && verifyFn(shop.ingestionSecret)) {
         return { matched: true, usedPreviousSecret: false };
     }
-    if (shop.previousIngestionSecret && verifyFn(shop.previousIngestionSecret)) {
+    if (shop.previousIngestionSecret && shop.previousSecretExpiry && new Date() < shop.previousSecretExpiry && verifyFn(shop.previousIngestionSecret)) {
+        logger.info(`[Grace Window] Request verified using previous secret for ${shop.shopDomain}. ` +
+            `Expires: ${shop.previousSecretExpiry?.toISOString()}`);
+        return { matched: true, usedPreviousSecret: true };
+    }
+    return { matched: false, usedPreviousSecret: false };
+}
+
+export async function verifyWithGraceWindowAsync(shop: ShopVerificationData, verifyFn: (secret: string) => Promise<boolean>): Promise<{
+    matched: boolean;
+    usedPreviousSecret: boolean;
+}> {
+    if (shop.ingestionSecret && await verifyFn(shop.ingestionSecret)) {
+        return { matched: true, usedPreviousSecret: false };
+    }
+    if (shop.previousIngestionSecret && shop.previousSecretExpiry && new Date() < shop.previousSecretExpiry && await verifyFn(shop.previousIngestionSecret)) {
         logger.info(`[Grace Window] Request verified using previous secret for ${shop.shopDomain}. ` +
             `Expires: ${shop.previousSecretExpiry?.toISOString()}`);
         return { matched: true, usedPreviousSecret: true };

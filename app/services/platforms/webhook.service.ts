@@ -25,9 +25,55 @@ const FORBIDDEN_PATTERNS = [
   /^https?:\/\/172\.(1[6-9]|2[0-9]|3[0-1])\./,
   /^https?:\/\/192\.168\./,
   /^https?:\/\/\[::1\]/,
+  /^https?:\/\/\[fc00:/i,
+  /^https?:\/\/\[fe80:/i,
+  /^https?:\/\/\[::ffff:0?:/i,
   /^file:/i,
   /^ftp:/i,
 ];
+
+function isPrivateIPv6(ip: string): boolean {
+  if (!ip.startsWith('[') || !ip.endsWith(']')) {
+    return false;
+  }
+  const ipv6 = ip.slice(1, -1).toLowerCase();
+  if (ipv6 === '::1' || ipv6 === '::') {
+    return true;
+  }
+  if (ipv6.startsWith('fc00:') || ipv6.startsWith('fc01:') || ipv6.startsWith('fd00:')) {
+    return true;
+  }
+  if (ipv6.startsWith('fe80:') || ipv6.startsWith('fe90:') || ipv6.startsWith('fea0:') || ipv6.startsWith('feb0:')) {
+    return true;
+  }
+  if (ipv6.startsWith('ff00:') || ipv6.startsWith('ff01:') || ipv6.startsWith('ff02:') || ipv6.startsWith('ff03:') || 
+      ipv6.startsWith('ff04:') || ipv6.startsWith('ff05:') || ipv6.startsWith('ff08:') || ipv6.startsWith('ff0e:')) {
+    return true;
+  }
+  if (ipv6.startsWith('2001:db8:')) {
+    return true;
+  }
+  if (ipv6.startsWith('::ffff:')) {
+    const ipv4 = ipv6.substring(7);
+    if (/^10\./.test(ipv4) || /^172\.(1[6-9]|2[0-9]|3[0-1])\./.test(ipv4) || /^192\.168\./.test(ipv4) || /^127\./.test(ipv4) || /^169\.254\./.test(ipv4) || /^0\./.test(ipv4)) {
+      return true;
+    }
+  }
+  if (ipv6.startsWith('2001:10:') || ipv6.startsWith('2001:20:')) {
+    return true;
+  }
+  return false;
+}
+
+function isPrivateIPv4(ip: string): boolean {
+  if (/^10\./.test(ip)) return true;
+  if (/^172\.(1[6-9]|2[0-9]|3[0-1])\./.test(ip)) return true;
+  if (/^192\.168\./.test(ip)) return true;
+  if (/^127\./.test(ip)) return true;
+  if (/^169\.254\./.test(ip)) return true;
+  if (/^0\./.test(ip)) return true;
+  return false;
+}
 
 function isWebhookCredentials(creds: PlatformCredentials): creds is WebhookCredentials {
   return (
@@ -76,7 +122,6 @@ function buildDefaultPayload(data: ConversionData, eventId: string): Record<stri
   };
 }
 function validateEndpointUrl(url: string): { valid: boolean; error?: string } {
-
   if (!url.startsWith('https://') && !url.startsWith('http://localhost')) {
     return { valid: false, error: 'Endpoint URL must use HTTPS' };
   }
@@ -90,9 +135,69 @@ function validateEndpointUrl(url: string): { valid: boolean; error?: string } {
   try {
     const parsed = new URL(url);
     const hostname = parsed.hostname;
+    
     if (/^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(hostname)) {
+      if (isPrivateIPv4(hostname)) {
+        return { valid: false, error: 'IP addresses are not allowed; use domain names instead' };
+      }
       return { valid: false, error: 'IP addresses are not allowed; use domain names instead' };
     }
+    
+    if (hostname.startsWith('[') && hostname.endsWith(']')) {
+      if (isPrivateIPv6(hostname)) {
+        return { valid: false, error: 'Private IPv6 addresses are not allowed' };
+      }
+      return { valid: false, error: 'IPv6 addresses are not allowed; use domain names instead' };
+    }
+    
+    return { valid: true };
+  } catch {
+    return { valid: false, error: 'Invalid URL format' };
+  }
+}
+
+async function validateEndpointUrlWithDNS(url: string): Promise<{ valid: boolean; error?: string }> {
+  const basicValidation = validateEndpointUrl(url);
+  if (!basicValidation.valid) {
+    return basicValidation;
+  }
+  
+  try {
+    const parsed = new URL(url);
+    const hostname = parsed.hostname;
+    
+    if (/^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(hostname) || (hostname.startsWith('[') && hostname.endsWith(']'))) {
+      return { valid: true };
+    }
+    
+    try {
+      const dns = await import('dns');
+      const { promisify } = await import('util');
+      const lookup = promisify(dns.lookup);
+      const resolved = await lookup(hostname, { family: 0, all: false });
+      const resolvedIp = Array.isArray(resolved) ? resolved[0].address : resolved.address;
+      
+      if (/^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(resolvedIp)) {
+        if (isPrivateIPv4(resolvedIp)) {
+          return { valid: false, error: 'DNS resolution points to private IP address (DNS rebinding protection)' };
+        }
+      } else if (resolvedIp.includes(':')) {
+        const ipv6Formatted = resolvedIp.startsWith('[') && resolvedIp.endsWith(']') ? resolvedIp : `[${resolvedIp}]`;
+        if (isPrivateIPv6(ipv6Formatted)) {
+          return { valid: false, error: 'DNS resolution points to private IPv6 address (DNS rebinding protection)' };
+        }
+      }
+      
+      if (resolvedIp === '127.0.0.1' || resolvedIp === '::1' || resolvedIp === 'localhost') {
+        return { valid: false, error: 'DNS resolution points to localhost (DNS rebinding protection)' };
+      }
+    } catch (dnsError) {
+      logger.warn(`DNS lookup failed for ${hostname}, rejecting URL due to DNS resolution failure (security risk)`, {
+        error: dnsError instanceof Error ? dnsError.message : String(dnsError),
+      });
+      return { valid: false, error: 'DNS resolution failed - cannot verify endpoint safety' };
+    }
+    
     return { valid: true };
   } catch {
     return { valid: false, error: 'Invalid URL format' };
@@ -117,7 +222,7 @@ export class WebhookPlatformService implements IPlatformService {
         },
       };
     }
-    const urlValidation = validateEndpointUrl(credentials.endpointUrl);
+    const urlValidation = await validateEndpointUrlWithDNS(credentials.endpointUrl);
     if (!urlValidation.valid) {
       return {
         success: false,

@@ -149,6 +149,7 @@ export {
   getDecryptedIngestionSecret,
   getShopForVerification,
   verifyWithGraceWindow,
+  verifyWithGraceWindowAsync,
   type DecryptedShop,
   type ShopVerificationData,
   type ShopWithDecryptedSecret,

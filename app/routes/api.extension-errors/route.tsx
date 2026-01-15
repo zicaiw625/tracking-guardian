@@ -1,32 +1,10 @@
 import type { ActionFunctionArgs } from "@remix-run/node";
 import { randomUUID } from "crypto";
-import { authenticate } from "../../shopify.server";
 import { logger } from "../../utils/logger.server";
 import { optionsResponse, jsonWithCors } from "../../utils/cors";
 import { checkRateLimitAsync } from "../../middleware/rate-limit";
 import prisma from "../../db.server";
-
-async function authenticatePublicExtension(request: Request): Promise<{ shop: string; [key: string]: unknown }> {
-  try {
-    const authResult = await authenticate.public.checkout(request) as unknown as { 
-      session: { shop: string; [key: string]: unknown } 
-    };
-    return authResult.session;
-  } catch (checkoutError) {
-    try {
-      const authResult = await authenticate.public.customerAccount(request) as unknown as { 
-        session: { shop: string; [key: string]: unknown } 
-      };
-      return authResult.session;
-    } catch (customerAccountError) {
-      logger.warn("Public extension authentication failed for extension-errors", {
-        checkoutError: checkoutError instanceof Error ? checkoutError.message : String(checkoutError),
-        customerAccountError: customerAccountError instanceof Error ? customerAccountError.message : String(customerAccountError),
-      });
-      throw checkoutError;
-    }
-  }
-}
+import { authenticatePublic, normalizeDestToShopDomain } from "../../utils/public-auth";
 
 export const action = async ({ request }: ActionFunctionArgs) => {
   if (request.method === "OPTIONS") {
@@ -35,26 +13,26 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   if (request.method !== "POST") {
     return jsonWithCors({ error: "Method not allowed" }, { status: 405, request, staticCors: true });
   }
-  let session: { shop: string; [key: string]: unknown };
+  let authResult;
   try {
-    session = await authenticatePublicExtension(request);
+    authResult = await authenticatePublic(request);
   } catch (authError) {
     return jsonWithCors(
       { error: "Unauthorized: Invalid authentication" },
       { status: 401, request, staticCors: true }
     );
   }
-  const shopDomain = session.shop;
+  const shopDomain = normalizeDestToShopDomain(authResult.sessionToken.dest);
   const shop = await prisma.shop.findUnique({
     where: { shopDomain },
     select: { id: true },
   });
   if (!shop) {
     logger.warn(`Extension error report for unknown shop: ${shopDomain}`);
-    return jsonWithCors(
+    return authResult.cors(jsonWithCors(
       { error: "Shop not found" },
       { status: 404, request, staticCors: true }
-    );
+    ));
   }
   const rateLimitKey = `extension-errors:${shopDomain}`;
   const rateLimitResult = await checkRateLimitAsync(rateLimitKey, 100, 60 * 1000);
@@ -70,14 +48,14 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       shopDomain,
       retryAfter: rateLimitResult.retryAfter,
     });
-    return jsonWithCors(
-      {
-        error: "Too many error reports",
-        retryAfter: rateLimitResult.retryAfter,
-      },
-      { status: 429, request, staticCors: true, headers }
-    );
-  }
+      return authResult.cors(jsonWithCors(
+        {
+          error: "Too many error reports",
+          retryAfter: rateLimitResult.retryAfter,
+        },
+        { status: 429, request, staticCors: true, headers }
+      ));
+    }
   try {
     const body = await request.json().catch(() => null) as {
       extension?: string;
@@ -88,11 +66,11 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       orderId?: string | null;
       timestamp?: string;
     } | null;
-    if (!body || !body.extension || !body.endpoint || !body.error) {
-      return jsonWithCors(
+      if (!body || !body.extension || !body.endpoint || !body.error) {
+      return authResult.cors(jsonWithCors(
         { error: "Missing required fields: extension, endpoint, error" },
         { status: 400, request, staticCors: true }
-      );
+      ));
     }
     const errorData = {
       shopId: shop.id,
@@ -154,13 +132,19 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         dbError: dbError instanceof Error ? dbError.message : String(dbError),
       });
     }
-    return jsonWithCors({ success: true }, { request, staticCors: true });
+    return authResult.cors(jsonWithCors({ success: true }, { request, staticCors: true }));
   } catch (error) {
     logger.error("Failed to process extension error report", {
       error: error instanceof Error ? error.message : String(error),
       shopDomain,
       stack: error instanceof Error ? error.stack : undefined,
     });
+    if (authResult) {
+      return authResult.cors(jsonWithCors(
+        { error: "Internal server error" },
+        { status: 500, request, staticCors: true }
+      ));
+    }
     return jsonWithCors(
       { error: "Internal server error" },
       { status: 500, request, staticCors: true }

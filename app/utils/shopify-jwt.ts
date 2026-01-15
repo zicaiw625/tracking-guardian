@@ -25,7 +25,7 @@ function normalizeHost(input: string): string {
         throw new Error("Invalid host input");
     }
     let cleaned = input.trim();
-    cleaned = cleaned.replace(/^https?:\/\
+    cleaned = cleaned.replace(/^https?:\/\//, "");
     const pathIndex = cleaned.indexOf("/");
     if (pathIndex !== -1) {
         cleaned = cleaned.substring(0, pathIndex);
@@ -59,7 +59,7 @@ function normalizeIssuer(input: string): string {
     if (result.startsWith("<") && result.endsWith(">")) {
         result = result.slice(1, -1).trim();
     }
-    result = result.replace(/^https?:\/\
+    result = result.replace(/^https?:\/\//, "");
     return result;
 }
 export async function verifyShopifyJwt(

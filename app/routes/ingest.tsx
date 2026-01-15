@@ -5,6 +5,7 @@ import { processBatchEvents } from "~/services/events/pipeline.server";
 import { logger, metrics } from "~/utils/logger.server";
 import { getShopForPixelVerificationWithConfigs } from "./api.pixel-events/key-validation";
 import { validatePixelEventHMAC } from "./api.pixel-events/hmac-validation";
+import { verifyWithGraceWindowAsync } from "~/utils/shop-access";
 import { validateRequest, isPrimaryEvent } from "./api.pixel-events/validation";
 import { API_CONFIG, RATE_LIMIT_CONFIG, CIRCUIT_BREAKER_CONFIG } from "~/utils/config";
 import {
@@ -236,18 +237,9 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         );
         return result.valid;
       };
-      let hmacValid = false;
-      let usedPreviousSecret = false;
-      if (shop.ingestionSecret && await verifyWithSecret(shop.ingestionSecret)) {
-        hmacValid = true;
-        usedPreviousSecret = false;
-      } else if (shop.previousIngestionSecret && shop.previousSecretExpiry && new Date() < shop.previousSecretExpiry) {
-        if (await verifyWithSecret(shop.previousIngestionSecret)) {
-          hmacValid = true;
-          usedPreviousSecret = true;
-          logger.info(`[Grace Window] HMAC verified using previous secret for ${shopDomain}. Expires: ${shop.previousSecretExpiry.toISOString()}`);
-        }
-      }
+      const graceResult = await verifyWithGraceWindowAsync(shop, verifyWithSecret);
+      const hmacValid = graceResult.matched;
+      const usedPreviousSecret = graceResult.usedPreviousSecret;
       if (!hmacValid) {
         logger.error(`HMAC verification failed for ${shopDomain} in production: both current and previous secrets failed`);
         return jsonWithCors(
@@ -666,15 +658,23 @@ export const action = async ({ request }: ActionFunctionArgs) => {
           { status: 403, request, shopAllowedDomains }
         );
       }
-      const hmacResult = await validatePixelEventHMAC(
-        request,
-        bodyText,
-        shop.ingestionSecret,
-        payload.timestamp,
-        TIMESTAMP_WINDOW_MS
-      );
-      hmacValidationResult = hmacResult;
-      if (!hmacResult.valid) {
+      const verifyWithSecret = async (secret: string) => {
+        const result = await validatePixelEventHMAC(
+          request,
+          bodyText,
+          secret,
+          payload.timestamp,
+          TIMESTAMP_WINDOW_MS
+        );
+        return result.valid;
+      };
+      const graceResult = await verifyWithGraceWindowAsync(shop, verifyWithSecret);
+      const hmacValid = graceResult.matched;
+      const usedPreviousSecret = graceResult.usedPreviousSecret;
+      if (hmacValid) {
+        hmacValidationResult = { valid: true };
+      }
+      if (!hmacValid) {
         const anomalyCheck = trackAnomaly(shop.shopDomain, "invalid_key");
         if (anomalyCheck.shouldBlock) {
           logger.warn(`Circuit breaker triggered for ${shop.shopDomain}: ${anomalyCheck.reason}`);
@@ -682,11 +682,11 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         metrics.pixelRejection({
           shopDomain: shop.shopDomain,
           reason: "invalid_key",
-          originType: hmacResult.errorCode || "unknown",
+          originType: "unknown",
         });
-        logger.error(`HMAC verification failed for ${shop.shopDomain} in production: ${hmacResult.reason}`);
+        logger.error(`HMAC verification failed for ${shop.shopDomain} in production: both current and previous secrets failed`);
         return jsonWithCors(
-          { error: "Invalid signature", errorCode: hmacResult.errorCode },
+          { error: "Invalid signature", errorCode: "invalid_signature" },
           { status: 403, request, shopAllowedDomains }
         );
       }
@@ -698,22 +698,27 @@ export const action = async ({ request }: ActionFunctionArgs) => {
           logger.warn(`Null origin request accepted but PIXEL_ALLOW_NULL_ORIGIN not set for ${shop.shopDomain} - this may cause issues in production`);
         }
       } else {
-        logger.debug(`HMAC signature verified for ${shop.shopDomain} in production`);
+        logger.debug(`HMAC signature verified for ${shop.shopDomain} in production${usedPreviousSecret ? " (using previous secret)" : ""}`);
       }
     } else if (shop.ingestionSecret && signature) {
-      const hmacResult = await validatePixelEventHMAC(
-        request,
-        bodyText,
-        shop.ingestionSecret,
-        payload.timestamp,
-        TIMESTAMP_WINDOW_MS
-      );
-      hmacValidationResult = hmacResult;
-      if (!hmacResult.valid) {
-        logger.warn(`HMAC verification failed in dev mode for ${shop.shopDomain}: ${hmacResult.reason}`);
-        logger.warn(`⚠️ This request would be rejected in production. Please ensure HMAC signature is valid.`);
+      const verifyWithSecret = async (secret: string) => {
+        const result = await validatePixelEventHMAC(
+          request,
+          bodyText,
+          secret,
+          payload.timestamp,
+          TIMESTAMP_WINDOW_MS
+        );
+        return result.valid;
+      };
+      const graceResult = await verifyWithGraceWindowAsync(shop, verifyWithSecret);
+      if (graceResult.matched) {
+        hmacValidationResult = { valid: true };
+        logger.debug(`HMAC signature verified in dev mode for ${shop.shopDomain}${graceResult.usedPreviousSecret ? " (using previous secret)" : ""}`);
       } else {
-        logger.debug(`HMAC signature verified in dev mode for ${shop.shopDomain}`);
+        hmacValidationResult = { valid: false, reason: "HMAC verification failed" };
+        logger.warn(`HMAC verification failed in dev mode for ${shop.shopDomain}: both current and previous secrets failed`);
+        logger.warn(`⚠️ This request would be rejected in production. Please ensure HMAC signature is valid.`);
       }
     }
     const pixelConfigs = shop.pixelConfigs;

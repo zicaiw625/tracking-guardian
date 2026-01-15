@@ -1,13 +1,11 @@
 #!/bin/bash
 
-
-
-
-
-
-
-
-export DATABASE_URL="postgresql://tracking_guardian_user:xQI5eAKFVwYXmnrrVtngV3NpaLh2bQhx@dpg-d51ta6uuk2gs73a4a7l0-a.singapore-postgres.render.com/tracking_guardian?sslmode=require"
+if [ -z "$DATABASE_URL" ]; then
+  echo "错误: DATABASE_URL 环境变量未设置"
+  echo "请设置 DATABASE_URL 环境变量，例如："
+  echo "  export DATABASE_URL='postgresql://user:password@host:port/database?sslmode=require'"
+  exit 1
+fi
 
 echo "正在执行数据库迁移..."
 echo "数据库连接: $(echo $DATABASE_URL | sed 's/:[^:@]*@/:***@/')"
