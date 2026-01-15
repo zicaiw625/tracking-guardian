@@ -88,7 +88,7 @@ export async function getConfigVersionHistory(
       version: config.configVersion,
       config: {
         platformId: config.platformId,
-        credentialsEncrypted: config.credentialsEncrypted,
+        credentialsEncrypted: config.credentialsEncrypted ? "***已设置***" : null,
         eventMappings: config.eventMappings as Record<string, string> | null,
         environment: config.environment,
         clientSideEnabled: config.clientSideEnabled,
@@ -109,7 +109,7 @@ export async function getConfigVersionHistory(
         version: config.configVersion - 1,
         config: {
           platformId: previous.platformId || null,
-          credentialsEncrypted: previous.credentialsEncrypted || null,
+          credentialsEncrypted: previous.credentialsEncrypted ? "***已设置***" : null,
           eventMappings: previous.eventMappings || null,
           environment: previous.environment || "test",
           clientSideEnabled: previous.clientSideEnabled ?? true,

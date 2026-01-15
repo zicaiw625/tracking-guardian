@@ -325,6 +325,14 @@ export async function getAllConfigVersions(
   }));
 }
 
+function redactCredentials<T extends Record<string, any>>(obj: T | null): T | null {
+  if (!obj) return obj;
+  const copy = { ...obj };
+  if ("credentialsEncrypted" in copy) copy.credentialsEncrypted = copy.credentialsEncrypted ? "***已设置***" : null;
+  if ("credentials_legacy" in copy) copy.credentials_legacy = copy.credentials_legacy ? "***已设置***" : null;
+  return copy;
+}
+
 export async function getConfigComparison(
   shopId: string,
   platform: string,
@@ -366,11 +374,11 @@ export async function getConfigComparison(
     eventMappings: config.eventMappings as Record<string, unknown> | null,
     clientConfig: config.clientConfig as Record<string, unknown> | null,
     environment: config.environment as PixelEnvironment,
-    credentialsEncrypted: config.credentialsEncrypted,
+    credentialsEncrypted: config.credentialsEncrypted ? "***已设置***" : null,
     version: config.configVersion,
     updatedAt: config.updatedAt,
   };
-  const previous = config.previousConfig as PixelConfigSnapshot | null;
+  const previous = redactCredentials(config.previousConfig as PixelConfigSnapshot | null);
   const differences: Array<{
     field: string;
     current: unknown;
@@ -436,11 +444,12 @@ export async function getConfigVersionHistory(
   });
   return configs.map((config, index) => {
     const previousConfig = config.previousConfig as Record<string, unknown> | null;
+    const redactedConfig = redactCredentials(previousConfig as any);
     return {
       version: config.configVersion,
       timestamp: config.updatedAt,
       operation: "pixel_config_updated",
-      changes: previousConfig || {},
+      changes: redactedConfig || {},
     };
   });
 }

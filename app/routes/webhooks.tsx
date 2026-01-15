@@ -9,10 +9,15 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   let context: WebhookContext;
   try {
     const authResult = await authenticate.webhook(request);
+    const webhookId =
+      (authResult as any).webhookId ??
+      request.headers.get("X-Shopify-Event-Id") ??
+      request.headers.get("X-Shopify-Webhook-Id") ??
+      null;
     context = {
       topic: authResult.topic,
       shop: authResult.shop,
-      webhookId: request.headers.get("X-Shopify-Webhook-Id"),
+      webhookId,
       payload: authResult.payload,
       admin: authResult.admin as WebhookContext["admin"],
       session: authResult.session,

@@ -162,11 +162,16 @@ export function createWebhookHandler<TPayload = unknown, TOutput = unknown>(
 ): (args: ActionFunctionArgs) => Promise<Response> {
   return async ({ request }: ActionFunctionArgs) => {
     try {
-      const { topic, shop, payload, admin } = await authenticate.webhook(request);
+      const authResult = await authenticate.webhook(request);
+      const { topic, shop, payload, admin } = authResult;
       if (config.topic && topic !== config.topic) {
         return new Response("OK", { status: 200 });
       }
-      const webhookId = request.headers.get("X-Shopify-Webhook-Id");
+      const webhookId =
+        (authResult as any).webhookId ??
+        request.headers.get("X-Shopify-Event-Id") ??
+        request.headers.get("X-Shopify-Webhook-Id") ??
+        null;
       let validatedPayload: TPayload;
       if (config.validate) {
         const validationResult = config.validate(payload);
