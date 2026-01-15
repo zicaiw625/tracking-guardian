@@ -2,6 +2,7 @@ import type { ActionFunctionArgs, LoaderFunctionArgs } from "@remix-run/node";
 import { json } from "@remix-run/node";
 import { logger } from "./logger.server";
 import { AppError, ErrorCode, isAppError, ensureAppError } from "./errors/index";
+import { readJsonWithSizeLimit } from "./body-size-guard";
 
 export type ActionHandler<T = unknown> = (
   args: ActionFunctionArgs
@@ -92,8 +93,11 @@ export function withLoaderErrorHandling<T>(
 
 export async function parseJsonBody<T>(request: Request): Promise<T> {
   try {
-    return (await request.json()) as T;
-  } catch {
+    return await readJsonWithSizeLimit<T>(request);
+  } catch (error) {
+    if (error instanceof Response) {
+      throw error;
+    }
     throw new AppError(ErrorCode.VALIDATION_ERROR, "Invalid JSON body");
   }
 }

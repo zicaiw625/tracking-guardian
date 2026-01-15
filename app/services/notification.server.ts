@@ -140,6 +140,17 @@ async function sendSlackAlert(settings: SlackAlertSettings, data: AlertData): Pr
         logger.warn(`Blocked attempt to send Slack alert to non-public URL: ${settings.webhookUrl}`);
         return false;
     }
+    try {
+        const webhookUrl = new URL(settings.webhookUrl);
+        const hostname = webhookUrl.hostname.toLowerCase();
+        if (hostname !== "hooks.slack.com") {
+            logger.warn(`Blocked attempt to send Slack alert to non-Slack domain: ${hostname}. Only hooks.slack.com is allowed.`);
+            return false;
+        }
+    } catch {
+        logger.warn(`Invalid Slack webhook URL format: ${settings.webhookUrl}`);
+        return false;
+    }
     const discrepancyPercent = (data.orderDiscrepancy * 100).toFixed(1);
     const dateStr = data.reportDate.toLocaleDateString("zh-CN");
     const appUrl = getAppUrl();

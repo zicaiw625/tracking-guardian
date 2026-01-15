@@ -24,8 +24,8 @@ import type { AlertSettings } from "./types";
 
 import {
   checkRateLimitAsync,
-  createRateLimitResponse,
-} from "../../utils/rate-limiter";
+  pathShopKeyExtractor,
+} from "../../middleware/rate-limit";
 import {
   SecureEmailSchema,
   SecureUrlSchema,
@@ -157,12 +157,28 @@ export async function handleSaveAlert(
 }
 
 export async function handleTestAlert(request: Request, formData: FormData) {
-  const { isLimited, retryAfter } = await checkRateLimitAsync(request, "alert-test", {
-    maxRequests: 5,
-    windowMs: 60 * 1000,
-  });
-  if (isLimited) {
-    return createRateLimitResponse(retryAfter);
+  const rateLimitKey = `alert-test:${pathShopKeyExtractor(request)}`;
+  const rateLimit = await checkRateLimitAsync(rateLimitKey, 5, 60 * 1000);
+  if (!rateLimit.allowed) {
+    return json(
+      {
+        success: false,
+        error: {
+          code: "RATE_LIMITED",
+          message: "Too many requests. Please try again later.",
+          retryAfter: rateLimit.retryAfter,
+        },
+      },
+      {
+        status: 429,
+        headers: {
+          "Retry-After": String(rateLimit.retryAfter || 60),
+          "X-RateLimit-Limit": "5",
+          "X-RateLimit-Remaining": String(rateLimit.remaining || 0),
+          "X-RateLimit-Reset": String(Math.ceil((rateLimit.resetAt || Date.now()) / 1000)),
+        },
+      }
+    );
   }
   const channel = formData.get("channel") as string;
   let settings: AlertSettings;

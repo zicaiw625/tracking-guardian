@@ -43,11 +43,16 @@ export function parseGDPRDataRequestPayload(data: unknown, shopDomain: string): 
         logger.warn(`[GDPR] Invalid data_request payload from ${shopDomain}`, { errors });
         return null;
     }
+    const payloadShopDomain = raw.shop_domain as string;
+    if (payloadShopDomain !== shopDomain) {
+        logger.warn(`[GDPR] shop_domain mismatch in data_request payload: expected ${shopDomain}, got ${payloadShopDomain}`);
+        return null;
+    }
     const customer = raw.customer as Record<string, unknown> | undefined;
     const dataRequest = raw.data_request as Record<string, unknown> | undefined;
     return {
         shop_id: raw.shop_id as number,
-        shop_domain: raw.shop_domain as string,
+        shop_domain: payloadShopDomain,
         orders_requested: Array.isArray(raw.orders_requested)
             ? raw.orders_requested.filter((id): id is number => typeof id === "number")
             : [],
@@ -73,10 +78,15 @@ export function parseGDPRCustomerRedactPayload(data: unknown, shopDomain: string
         logger.warn(`[GDPR] Invalid customer_redact payload from ${shopDomain}`, { errors });
         return null;
     }
+    const payloadShopDomain = raw.shop_domain as string;
+    if (payloadShopDomain !== shopDomain) {
+        logger.warn(`[GDPR] shop_domain mismatch in customer_redact payload: expected ${shopDomain}, got ${payloadShopDomain}`);
+        return null;
+    }
     const customer = raw.customer as Record<string, unknown> | undefined;
     return {
         shop_id: raw.shop_id as number,
-        shop_domain: raw.shop_domain as string,
+        shop_domain: payloadShopDomain,
         customer_id: typeof customer?.id === "number" ? customer.id : undefined,
         orders_to_redact: Array.isArray(raw.orders_to_redact)
             ? raw.orders_to_redact.filter((id): id is number => typeof id === "number")
@@ -101,8 +111,13 @@ export function parseGDPRShopRedactPayload(data: unknown, shopDomain: string): G
         logger.warn(`[GDPR] Invalid shop_redact payload from ${shopDomain}`, { errors });
         return null;
     }
+    const payloadShopDomain = raw.shop_domain as string;
+    if (payloadShopDomain !== shopDomain) {
+        logger.warn(`[GDPR] shop_domain mismatch in shop_redact payload: expected ${shopDomain}, got ${payloadShopDomain}`);
+        return null;
+    }
     return {
         shop_id: raw.shop_id as number,
-        shop_domain: raw.shop_domain as string,
+        shop_domain: payloadShopDomain,
     };
 }

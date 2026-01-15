@@ -4,12 +4,13 @@ import { authenticate } from "../shopify.server";
 import { trackEvent } from "../services/analytics.server";
 import prisma from "../db.server";
 import { logger } from "../utils/logger.server";
+import { readJsonWithSizeLimit } from "../utils/body-size-guard";
 
 export const action = async ({ request }: ActionFunctionArgs) => {
   const { session } = await authenticate.admin(request);
   const shopDomain = session.shop;
   try {
-    const body = await request.json();
+    const body = await readJsonWithSizeLimit(request);
     const { event, metadata, eventId, timestamp } = body;
     if (!event) {
       return json({ error: "Event is required" }, { status: 400 });

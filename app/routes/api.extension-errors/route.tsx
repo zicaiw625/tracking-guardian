@@ -7,6 +7,7 @@ import prisma from "../../db.server";
 import { authenticatePublic, normalizeDestToShopDomain, getPublicCorsForOptions } from "../../utils/public-auth";
 import { sanitizeSensitiveInfo } from "../../utils/security";
 import { API_CONFIG } from "../../utils/config";
+import { readJsonWithSizeLimit } from "../../utils/body-size-guard";
 
 export const action = async ({ request }: ActionFunctionArgs) => {
   if (request.method === "OPTIONS") {
@@ -60,26 +61,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       ));
     }
   try {
-    const contentLength = request.headers.get("Content-Length");
-    if (contentLength) {
-      const size = parseInt(contentLength, 10);
-      if (!isNaN(size) && size > API_CONFIG.MAX_BODY_SIZE) {
-        logger.warn(`Extension error request body too large: ${size} bytes (max ${API_CONFIG.MAX_BODY_SIZE})`);
-        return authResult.cors(json(
-          { error: "Payload too large", maxSize: API_CONFIG.MAX_BODY_SIZE },
-      { status: 413 }
-    ));
-      }
-    }
-    const bodyText = await request.text();
-    if (bodyText.length > API_CONFIG.MAX_BODY_SIZE) {
-      logger.warn(`Extension error request body too large: ${bodyText.length} bytes (max ${API_CONFIG.MAX_BODY_SIZE})`);
-      return authResult.cors(json(
-        { error: "Payload too large", maxSize: API_CONFIG.MAX_BODY_SIZE },
-        { status: 413 }
-      ));
-    }
-    const body = JSON.parse(bodyText) as {
+    const body = await readJsonWithSizeLimit<{
       extension?: string;
       endpoint?: string;
       error?: string;
@@ -87,7 +69,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       target?: string;
       orderId?: string | null;
       timestamp?: string;
-    } | null;
+    }>(request);
       if (!body || !body.extension || !body.endpoint || !body.error) {
       return authResult.cors(json(
         { error: "Missing required fields: extension, endpoint, error" },

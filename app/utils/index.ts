@@ -195,24 +195,12 @@ export {
 } from "./cache";
 
 export {
-  checkRateLimit,
-  checkRateLimitAsync,
-  resetRateLimit,
-  createRateLimitResponse,
-  addRateLimitHeaders,
-  withRateLimit,
-  getRateLimitConfig,
-  getRateLimitStats,
   trackAnomaly,
   unblockShop,
   clearAllTracking,
   getBlockedShops,
   getAnomalyStats,
   cleanupAnomalyTrackers,
-  SECURITY_HEADERS,
-  addSecurityHeaders as addRateLimiterSecurityHeaders,
-  type RateLimitConfig,
-  type RateLimitResult,
 } from "./rate-limiter";
 
 export {

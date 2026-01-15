@@ -22,12 +22,14 @@ export interface ValidationError {
 
 export type ValidateResult<T> = ValidationResult<T> | ValidationError;
 
+import { readJsonWithSizeLimit } from "../body-size-guard";
+
 export async function validateJsonBodyResult<T>(
   request: Request,
   schema: ZodSchema<T>
 ): AsyncResult<T, AppError> {
   try {
-    const body = await request.json();
+    const body = await readJsonWithSizeLimit(request);
     const result = schema.safeParse(body);
     if (!result.success) {
       return err(zodErrorToAppError(result.error));
@@ -50,7 +52,7 @@ export async function validateJsonBody<T>(
   schema: ZodSchema<T>
 ): Promise<ValidateResult<T>> {
   try {
-    const body = await request.json();
+    const body = await readJsonWithSizeLimit(request);
     const result = schema.safeParse(body);
     if (!result.success) {
       const details = formatZodErrorsToRecord(result.error);

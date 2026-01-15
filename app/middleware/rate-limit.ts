@@ -297,6 +297,17 @@ export function pathShopKeyExtractor(request: Request): string {
   }
 }
 
+export function shopDomainIpKeyExtractor(request: Request): string {
+  if (!request || typeof request.headers?.get !== "function") {
+    logger.warn("[rate-limit] shopDomainIpKeyExtractor called with invalid request");
+    return "unknown:unknown";
+  }
+  const shop = request.headers.get("x-shopify-shop-domain");
+  const ip = ipKeyExtractor(request);
+  const sanitizedShop = shop ? shop.replace(/[^a-zA-Z0-9.\-_]/g, "").slice(0, 100) : "unknown";
+  return `${sanitizedShop}:${ip}`;
+}
+
 function resolveRequest(args: unknown): Request | undefined {
   if (!args) return undefined;
   if (args instanceof Request) return args;

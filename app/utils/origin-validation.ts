@@ -7,16 +7,15 @@ export const SHOPIFY_ALLOWLIST = [
 ] as const;
 
 function shouldAllowNullOrigin(): boolean {
-    const envValue = process.env.PIXEL_ALLOW_NULL_ORIGIN;
-    if (envValue) {
-        const normalized = envValue.toLowerCase();
-        return normalized === "true" || normalized === "1" || normalized === "yes";
-    }
     const nodeEnv = process.env.NODE_ENV;
     if (nodeEnv === "development" || nodeEnv === "test") {
         return true;
     }
-    return false;
+    const pixelAllowNullOrigin = process.env.PIXEL_ALLOW_NULL_ORIGIN;
+    if (pixelAllowNullOrigin === undefined || pixelAllowNullOrigin === "") {
+        return true;
+    }
+    return pixelAllowNullOrigin.toLowerCase() === "true" || pixelAllowNullOrigin === "1";
 }
 const ALLOWED_ORIGIN_PATTERNS: Array<{
     pattern: RegExp;

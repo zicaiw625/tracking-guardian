@@ -34,8 +34,25 @@ function checkGraphQLOnly() {
 }
 
 function checkDataEncryption() {
-  const cryptoDir = join(process.cwd(), "app/infrastructure/crypto");
-  if (existsSync(cryptoDir)) {
+  const cryptoFiles = [
+    join(process.cwd(), "app/utils/crypto.server.ts"),
+    join(process.cwd(), "app/utils/token-encryption.ts"),
+    join(process.cwd(), "app/utils/encrypted-session-storage.ts"),
+  ];
+  let foundEncryption = false;
+  for (const file of cryptoFiles) {
+    if (existsSync(file)) {
+      try {
+        const content = readFileSync(file, "utf-8");
+        if (content.includes("encrypt") || content.includes("decrypt") || content.includes("AES") || content.includes("GCM") || content.includes("encryptJson") || content.includes("decryptJson")) {
+          foundEncryption = true;
+          break;
+        }
+      } catch {
+      }
+    }
+  }
+  if (foundEncryption) {
     checks.push({
       name: "Data Encryption Check",
       status: "pass",

@@ -17,6 +17,7 @@ import {
 } from "../services/audit-asset.server";
 import { analyzeScriptContent } from "../services/scanner/content-analysis";
 import { logger } from "../utils/logger.server";
+import { API_CONFIG } from "../utils/config";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   const { session } = await authenticate.admin(request);
@@ -177,7 +178,16 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         return json({ success });
       }
       case "create_from_list": {
-        const body = await request.json();
+        const { readJsonWithSizeLimit } = await import("../utils/body-size-guard");
+        let body;
+        try {
+          body = await readJsonWithSizeLimit(request);
+        } catch (error) {
+          if (error instanceof Response) {
+            return error;
+          }
+          return json({ error: "Failed to parse request body" }, { status: 400 });
+        }
         const platforms = (body.platforms as string[]) || [];
         const items = (body.items as Array<{ name: string; type: string }>) || [];
         const createdAssets = [];

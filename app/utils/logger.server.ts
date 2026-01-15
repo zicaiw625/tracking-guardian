@@ -116,7 +116,7 @@ const SENSITIVE_FIELD_PATTERNS = [
   "last_name",
   "fullname",
   "full_name",
-  "name",
+  "customer_name",
   "address",
   "street",
   "city",

@@ -255,6 +255,11 @@ const REQUIRED_IN_PRODUCTION = [
     "ENCRYPTION_SECRET",
     "CRON_SECRET",
 ] as const;
+
+const PIXEL_INGESTION_ENABLED_CHECK = {
+    key: "PIXEL_ALLOW_NULL_ORIGIN",
+    reason: "Production environment must explicitly set PIXEL_ALLOW_NULL_ORIGIN to allow null origin requests from Shopify Web Worker sandbox environments. If not set, null origin requests will be rejected, causing event loss. Set PIXEL_ALLOW_NULL_ORIGIN=true to allow (requires valid HMAC signature) or PIXEL_ALLOW_NULL_ORIGIN=false to explicitly block.",
+} as const;
 const RECOMMENDED = [
     { key: "ENCRYPTION_SALT", reason: "for consistent encryption across deployments" },
     { key: "RESEND_API_KEY", reason: "for email notifications" },
@@ -288,6 +293,12 @@ export function validateConfig(): ConfigValidationResult {
     for (const { key, reason } of RECOMMENDED) {
         if (!process.env[key]) {
             warnings.push(`${key} not set - ${reason}`);
+        }
+    }
+    if (isProduction) {
+        const pixelAllowNullOrigin = process.env.PIXEL_ALLOW_NULL_ORIGIN;
+        if (pixelAllowNullOrigin === undefined || pixelAllowNullOrigin === "") {
+            warnings.push(`PIXEL_ALLOW_NULL_ORIGIN not set in production. Defaulting to allow null origin with HMAC signature requirement. ${PIXEL_INGESTION_ENABLED_CHECK.reason}`);
         }
     }
     if (process.env.ENCRYPTION_SECRET && process.env.ENCRYPTION_SECRET.length < 32) {

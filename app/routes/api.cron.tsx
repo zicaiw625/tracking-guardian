@@ -1,4 +1,5 @@
 import type { ActionFunctionArgs } from "@remix-run/node";
+import { json } from "@remix-run/node";
 import { randomUUID } from "crypto";
 import { validateCronAuth, verifyReplayProtection } from "../cron/auth";
 import { withCronLock } from "../utils/cron-lock";
@@ -11,6 +12,7 @@ import { CronRequestSchema } from "../schemas/api-schemas";
 import { runAllShopsDeliveryHealthCheck } from "../services/delivery-health.server";
 import { runAllShopsReconciliation } from "../services/reconciliation.server";
 import { processConversionJobs } from "../services/conversion-job.server";
+import { readJsonWithSizeLimit } from "../utils/body-size-guard";
 
 export const action = async ({ request }: ActionFunctionArgs) => {
   const requestId = randomUUID();
@@ -43,9 +45,12 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   let requestBody: unknown = null;
   try {
     if (request.headers.get("Content-Type")?.includes("application/json")) {
-      requestBody = await request.json();
+      requestBody = await readJsonWithSizeLimit(request);
     }
   } catch (error) {
+    if (error instanceof Response) {
+      return error;
+    }
     logger.warn("Failed to parse cron request body", { requestId, error });
   }
 
