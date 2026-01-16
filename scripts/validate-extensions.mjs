@@ -278,6 +278,64 @@ function checkBackendUrlInjection() {
     };
 }
 
+function checkBuildArtifactsForPlaceholder() {
+    const placeholderPattern = /__BACKEND_URL_PLACEHOLDER__/;
+    const artifactDirs = [
+        { path: path.join(EXTENSIONS_DIR, "tracking-pixel", "dist"), label: "tracking-pixel" },
+        { path: path.join(EXTENSIONS_DIR, "thank-you-blocks", "dist"), label: "thank-you-blocks" },
+    ];
+    const violations = [];
+    const existingDirs = artifactDirs.filter(dir => fs.existsSync(dir.path));
+    if (existingDirs.length === 0) {
+        return {
+            name: "构建产物占位符检查",
+            passed: true,
+            violations,
+            message: "未找到构建产物，跳过占位符检查",
+        };
+    }
+    function scanDirectory(dirPath) {
+        const entries = fs.readdirSync(dirPath, { withFileTypes: true });
+        for (const entry of entries) {
+            const fullPath = path.join(dirPath, entry.name);
+            const relativePath = path.relative(PROJECT_ROOT, fullPath);
+            if (entry.isDirectory()) {
+                scanDirectory(fullPath);
+            } else if (entry.isFile()) {
+                try {
+                    const content = fs.readFileSync(fullPath, "utf-8");
+                    if (placeholderPattern.test(content)) {
+                        violations.push({
+                            file: relativePath,
+                            line: 0,
+                            content: "__BACKEND_URL_PLACEHOLDER__",
+                            description: "构建产物中包含 BACKEND_URL 占位符",
+                        });
+                    }
+                } catch (error) {
+                    violations.push({
+                        file: relativePath,
+                        line: 0,
+                        content: "",
+                        description: `读取构建产物失败: ${error instanceof Error ? error.message : String(error)}`,
+                    });
+                }
+            }
+        }
+    }
+    for (const dir of existingDirs) {
+        scanDirectory(dir.path);
+    }
+    return {
+        name: "构建产物占位符检查",
+        passed: violations.length === 0,
+        violations,
+        message: violations.length === 0
+            ? "构建产物中未发现 BACKEND_URL 占位符"
+            : `发现 ${violations.length} 个构建产物占位符问题`,
+    };
+}
+
 function main() {
     console.log("🔍 开始验证 Shopify 扩展...\n");
     console.log("=".repeat(60));
@@ -285,6 +343,7 @@ function main() {
     results.push(checkExtensionConfigs());
     results.push(checkSourceStructure());
     results.push(checkBackendUrlInjection());
+    results.push(checkBuildArtifactsForPlaceholder());
     console.log("\n📊 检查结果汇总:\n");
     let allPassed = true;
     for (const result of results) {

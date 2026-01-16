@@ -10,7 +10,6 @@ export async function processCustomerRedact(
   const customerId = payload.customer_id;
   const ordersToRedact = payload.orders_to_redact || [];
   logger.info(`[GDPR] Processing customer redact for ${shopDomain}`, {
-    customerId,
     ordersCount: ordersToRedact.length,
   });
   const shop = await prisma.shop.findUnique({
@@ -60,7 +59,6 @@ export async function processCustomerRedact(
     },
   };
   logger.info(`[GDPR] Customer redact completed for ${shopDomain}`, {
-    customerId,
     ...result.deletedCounts,
   });
   return result;

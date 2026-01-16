@@ -17,6 +17,7 @@ interface EnvConfig {
     SHOPIFY_API_KEY?: string;
     SHOPIFY_API_SECRET?: string;
     SHOPIFY_APP_URL?: string;
+    PUBLIC_APP_URL?: string;
     ENCRYPTION_SECRET?: string;
     CRON_SECRET?: string;
     NODE_ENV: "development" | "production" | "test";
@@ -325,10 +326,24 @@ export function validateConfig(): ConfigValidationResult {
     }
     if (process.env.SHOPIFY_APP_URL) {
         try {
-            new URL(process.env.SHOPIFY_APP_URL);
+            const parsed = new URL(process.env.SHOPIFY_APP_URL);
+            if (isProduction && parsed.protocol !== "https:") {
+                errors.push("SHOPIFY_APP_URL must use https in production");
+            }
         }
         catch {
             errors.push("SHOPIFY_APP_URL must be a valid URL");
+        }
+    }
+    if (process.env.PUBLIC_APP_URL) {
+        try {
+            const parsed = new URL(process.env.PUBLIC_APP_URL);
+            if (isProduction && parsed.protocol !== "https:") {
+                errors.push("PUBLIC_APP_URL must use https in production");
+            }
+        }
+        catch {
+            errors.push("PUBLIC_APP_URL must be a valid URL");
         }
     }
     return {
