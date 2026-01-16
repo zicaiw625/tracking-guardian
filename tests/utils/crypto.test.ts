@@ -278,7 +278,7 @@ describe("Crypto Utils", () => {
     });
     it("should match normalized orderIds", () => {
       expect(matchKeysEqual(
-        { orderId: "gid:
+        { orderId: "gid://shopify/Order/12345", checkoutToken: null },
         { orderId: "12345", checkoutToken: null }
       )).toBe(true);
     });
@@ -389,7 +389,7 @@ describe("Crypto Utils", () => {
     });
     it("should handle order IDs with leading zeros", () => {
       expect(normalizeOrderId("00012345")).toBe("00012345");
-      expect(normalizeOrderId("gid:
+      expect(normalizeOrderId("gid://shopify/Order/00012345")).toBe("00012345");
       expect(normalizeOrderId("gid://shopify/Order/789012")).toBe("789012");
     });
     it("should handle whitespace in emails", () => {

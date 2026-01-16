@@ -39,13 +39,13 @@ const shopVerificationCacheRedis = new RedisCache<ShopVerificationDataWithoutSec
   useRedis: true,
 });
 
-const shopWithConfigsCacheRedis = new RedisCache<ShopWithPixelConfigsWithoutSecrets>({
+const shopWithConfigsCacheRedis = new RedisCache<ShopWithPixelConfigsWithoutSecrets | null>({
   prefix: "shop:configs:",
   defaultTtlMs: TTL.SHORT,
   useRedis: true,
 });
 
-const shopWithConfigsCacheMemory = new SimpleCache<ShopWithPixelConfigsEncrypted>({
+const shopWithConfigsCacheMemory = new SimpleCache<ShopWithPixelConfigsEncrypted | null>({
   maxSize: 1000,
   defaultTtlMs: TTL.VERY_SHORT,
 });
@@ -63,8 +63,8 @@ function getVerificationKey(shopDomain: string): string {
   return shopDomain.toLowerCase();
 }
 
-function getConfigsKey(shopDomain: string): string {
-  return shopDomain.toLowerCase();
+function getConfigsKey(shopDomain: string, environment: "test" | "live" = "live"): string {
+  return `${shopDomain.toLowerCase()}:${environment}`;
 }
 
 function getBillingKey(shopId: string, yearMonth: string): string {
@@ -129,9 +129,10 @@ export async function invalidateShopVerification(shopDomain: string): Promise<vo
 }
 
 export async function getCachedShopWithConfigs(
-  shopDomain: string
+  shopDomain: string,
+  environment: "test" | "live" = "live"
 ): Promise<ShopWithPixelConfigs | null | undefined> {
-  const key = getConfigsKey(shopDomain);
+  const key = getConfigsKey(shopDomain, environment);
   try {
     const memoryCached = shopWithConfigsCacheMemory.get(key);
     if (memoryCached !== undefined) {
@@ -150,13 +151,15 @@ export async function getCachedShopWithConfigs(
 export async function cacheShopWithConfigsEncrypted(
   shopDomain: string,
   data: ShopWithPixelConfigsEncrypted | null,
-  ttlMs?: number
+  ttlMs?: number,
+  environment: "test" | "live" = "live"
 ): Promise<void> {
-  const key = getConfigsKey(shopDomain);
+  const key = getConfigsKey(shopDomain, environment);
   try {
     if (data === null) {
-      shopWithConfigsCacheMemory.delete(key);
-      await shopWithConfigsCacheRedis.delete(key);
+      const negativeTtl = ttlMs ?? TTL.VERY_SHORT;
+      shopWithConfigsCacheMemory.set(key, null, negativeTtl);
+      await shopWithConfigsCacheRedis.set(key, null, negativeTtl);
     } else {
       const withoutSecrets: ShopWithPixelConfigsWithoutSecrets = {
         id: data.id,
@@ -174,11 +177,20 @@ export async function cacheShopWithConfigsEncrypted(
   }
 }
 
-export async function invalidateShopConfigs(shopDomain: string): Promise<void> {
-  const key = getConfigsKey(shopDomain);
+export async function invalidateShopConfigs(
+  shopDomain: string,
+  environment?: "test" | "live"
+): Promise<void> {
   try {
-    await shopWithConfigsCacheRedis.delete(key);
-    shopWithConfigsCacheMemory.delete(key);
+    if (environment) {
+      const key = getConfigsKey(shopDomain, environment);
+      await shopWithConfigsCacheRedis.delete(key);
+      shopWithConfigsCacheMemory.delete(key);
+    } else {
+      const pattern = `${shopDomain.toLowerCase()}:*`;
+      await shopWithConfigsCacheRedis.deletePattern(pattern);
+      shopWithConfigsCacheMemory.deletePattern(pattern);
+    }
     await invalidateShopVerification(shopDomain);
     logger.debug("Invalidated shop configs cache", { shopDomain });
   } catch (error) {
@@ -263,9 +275,9 @@ export async function warmShopCache(
       batch.map(async (domain) => {
         const data = await getShopFn(domain);
         if (data) {
-          const encrypted = await getShopForVerificationWithConfigsEncrypted(domain);
+          const encrypted = await getShopForVerificationWithConfigsEncrypted(domain, "live");
           if (encrypted) {
-            await cacheShopWithConfigsEncrypted(domain, encrypted);
+            await cacheShopWithConfigsEncrypted(domain, encrypted, undefined, "live");
           }
         }
         return domain;

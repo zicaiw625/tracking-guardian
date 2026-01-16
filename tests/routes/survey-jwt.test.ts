@@ -53,7 +53,7 @@ function generateMockJwt(
   const now = Math.floor(Date.now() / 1000);
   const fullPayload = {
     iss: "https://test-shop.myshopify.com/admin",
-    dest: "https:
+    dest: "https://test-shop.myshopify.com",
     aud: "test-client-id",
     sub: "12345",
     exp: now + 3600,
@@ -77,7 +77,7 @@ describe("P1-4: Survey API JWT Verification", () => {
   });
   describe("Missing Token → 401 Unauthorized", () => {
     it("returns 401 when Authorization header is missing", async () => {
-      const request = new Request("https:
+      const request = new Request("https://example.com/api/survey", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -179,12 +179,12 @@ describe("P1-4: Survey API JWT Verification", () => {
     it("returns 401 for JWT not yet valid (future nbf)", async () => {
       const now = Math.floor(Date.now() / 1000);
       const futureToken = generateMockJwt({
-        dest: "https:
+        dest: "https://test-shop.myshopify.com",
         exp: now + 7200,
         nbf: now + 3600,
         iat: now,
       });
-      const request = new Request("https:
+      const request = new Request("https://example.com/api/survey", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -496,7 +496,7 @@ describe("CSRF Prevention via JWT", () => {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "Origin": "https:
+        "Origin": "https://attacker.example.com",
         "X-Shopify-Shop-Domain": "victim-shop.myshopify.com",
         "Authorization": "Bearer fake-token",
       },
@@ -512,7 +512,7 @@ describe("CSRF Prevention via JWT", () => {
 
   it("validates JWT independently of Origin header", async () => {
     const validToken = generateMockJwt({
-      dest: "https:
+      dest: "https://test-shop.myshopify.com",
     });
     vi.mocked(prisma.shop.findUnique).mockResolvedValue({
       id: "shop-id",
@@ -527,7 +527,7 @@ describe("CSRF Prevention via JWT", () => {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "Origin": "https:
+        "Origin": "https://attacker.example.com",
         "X-Shopify-Shop-Domain": "test-shop.myshopify.com",
         "Authorization": `Bearer ${validToken}`,
       },

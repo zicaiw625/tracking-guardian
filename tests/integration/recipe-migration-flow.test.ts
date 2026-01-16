@@ -64,7 +64,7 @@ describe("Recipe Migration Flow Integration", () => {
     const shopDomain = "test-store.myshopify.com";
     it("should complete full GA4 migration workflow", async () => {
       const scriptContent = `
-        <script async src="https:
+        <script async src="https://www.googletagmanager.com/gtag/js?id=G-ABCDEF1234"></script>
         <script>
           window.dataLayer = window.dataLayer || [];
           function gtag(){dataLayer.push(arguments);}
