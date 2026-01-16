@@ -281,18 +281,30 @@ export function ipKeyExtractor(request: Request): string {
   return isProduction ? "untrusted" : "unknown";
 }
 
-export function shopKeyExtractor(request: Request): string {
+export function shopQueryKeyExtractor(request: Request): string {
   if (!request || typeof request.url !== "string") {
-    logger.warn("[rate-limit] shopKeyExtractor called with invalid request");
+    logger.warn("[rate-limit] shopQueryKeyExtractor called with invalid request");
     return "unknown";
   }
   try {
     const url = new URL(request.url);
     return url.searchParams.get("shop") ?? "unknown";
   } catch (error) {
-    logger.warn("[rate-limit] shopKeyExtractor failed to parse URL", { error });
+    logger.warn("[rate-limit] shopQueryKeyExtractor failed to parse URL", { error });
     return "unknown";
   }
+}
+
+export function shopHeaderKeyExtractor(request: Request): string {
+  if (!request || typeof request.headers?.get !== "function") {
+    logger.warn("[rate-limit] shopHeaderKeyExtractor called with invalid request");
+    return "unknown";
+  }
+  const shop = request.headers.get("x-shopify-shop-domain");
+  if (!shop) {
+    return "unknown";
+  }
+  return shop.replace(/[^a-zA-Z0-9.\-_]/g, "").slice(0, 100) || "unknown";
 }
 
 export function pathIpKeyExtractor(request: Request): string {
@@ -317,7 +329,7 @@ export function pathShopKeyExtractor(request: Request): string {
   }
   try {
     const url = new URL(request.url);
-    const shop = shopKeyExtractor(request);
+    const shop = shopQueryKeyExtractor(request);
     return `${url.pathname}:${shop}`;
   } catch (error) {
     logger.warn("[rate-limit] pathShopKeyExtractor failed to parse URL", { error });
@@ -452,7 +464,7 @@ export const strictRateLimit: RateLimitConfig = {
 export const webhookRateLimit: RateLimitConfig = {
   maxRequests: RATE_LIMIT_CONFIG.WEBHOOKS.maxRequests,
   windowMs: RATE_LIMIT_CONFIG.WEBHOOKS.windowMs,
-  keyExtractor: shopKeyExtractor,
+  keyExtractor: shopDomainIpKeyExtractor,
 };
 
 export async function checkRateLimitAsync(

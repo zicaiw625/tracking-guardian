@@ -209,22 +209,23 @@ async function validateEndpointUrlWithDNS(url: string): Promise<{ valid: boolean
       const dns = await import('dns');
       const { promisify } = await import('util');
       const lookup = promisify(dns.lookup);
-      const resolved = await lookup(hostname, { family: 0, all: false });
-      const resolvedIp = Array.isArray(resolved) ? resolved[0].address : resolved.address;
-      
-      if (/^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(resolvedIp)) {
-        if (isPrivateIPv4(resolvedIp)) {
-          return { valid: false, error: 'DNS resolution points to private IP address (DNS rebinding protection)' };
+      const resolved = await lookup(hostname, { family: 0, all: true });
+      const records = Array.isArray(resolved) ? resolved : [resolved];
+      for (const record of records) {
+        const resolvedIp = record.address;
+        if (/^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(resolvedIp)) {
+          if (isPrivateIPv4(resolvedIp)) {
+            return { valid: false, error: 'DNS resolution points to private IP address (DNS rebinding protection)' };
+          }
+        } else if (resolvedIp.includes(':')) {
+          const ipv6Formatted = resolvedIp.startsWith('[') && resolvedIp.endsWith(']') ? resolvedIp : `[${resolvedIp}]`;
+          if (isPrivateIPv6(ipv6Formatted)) {
+            return { valid: false, error: 'DNS resolution points to private IPv6 address (DNS rebinding protection)' };
+          }
         }
-      } else if (resolvedIp.includes(':')) {
-        const ipv6Formatted = resolvedIp.startsWith('[') && resolvedIp.endsWith(']') ? resolvedIp : `[${resolvedIp}]`;
-        if (isPrivateIPv6(ipv6Formatted)) {
-          return { valid: false, error: 'DNS resolution points to private IPv6 address (DNS rebinding protection)' };
+        if (resolvedIp === '127.0.0.1' || resolvedIp === '::1' || resolvedIp === 'localhost') {
+          return { valid: false, error: 'DNS resolution points to localhost (DNS rebinding protection)' };
         }
-      }
-      
-      if (resolvedIp === '127.0.0.1' || resolvedIp === '::1' || resolvedIp === 'localhost') {
-        return { valid: false, error: 'DNS resolution points to localhost (DNS rebinding protection)' };
       }
     } catch (dnsError) {
       logger.warn(`DNS lookup failed for ${hostname}, rejecting URL due to DNS resolution failure (security risk)`, {

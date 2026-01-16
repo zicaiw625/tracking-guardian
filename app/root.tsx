@@ -39,6 +39,7 @@ export function ErrorBoundary() {
   let message = "系统遇到了一个意外问题。请稍后再试。";
   let code = "UNKNOWN_ERROR";
   let status = 500;
+  const isProduction = process.env.NODE_ENV === "production";
   if (isRouteErrorResponse(error)) {
     status = error.status;
     title = error.status === 404
@@ -77,6 +78,10 @@ export function ErrorBoundary() {
     if (process.env.NODE_ENV === "development") {
       console.error("Unknown error type caught in root ErrorBoundary:", error);
     }
+  }
+  if (isProduction && status >= 500) {
+    message = "系统遇到了一个意外问题。请稍后再试。";
+    code = `ERROR_${status}`;
   }
   return (
     <html lang="zh-CN">

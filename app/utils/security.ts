@@ -120,22 +120,48 @@ export function validateOrigin(
   if (!origin) {
     return { valid: true };
   }
-  const normalizedOrigin = origin.toLowerCase();
+  let parsedOrigin: URL;
+  try {
+    parsedOrigin = new URL(origin);
+  } catch {
+    return { valid: false, error: `Origin ${origin} not allowed` };
+  }
+  const originHost = parsedOrigin.hostname.toLowerCase();
+  const originValue = parsedOrigin.origin.toLowerCase();
   for (const allowed of allowedOrigins) {
-    if (allowed === "*") {
+    const normalizedAllowed = allowed.toLowerCase();
+    if (normalizedAllowed === "*") {
       return { valid: true };
     }
-    if (normalizedOrigin === allowed.toLowerCase()) {
-      return { valid: true };
+    if (normalizedAllowed.includes("://") && normalizedAllowed.includes("*.")) {
+      const [, hostPart] = normalizedAllowed.split("://");
+      const wildcardHost = hostPart.split("/")[0];
+      if (wildcardHost.startsWith("*.")) {
+        const domain = wildcardHost.slice(2);
+        if (originHost === domain || originHost.endsWith(`.${domain}`)) {
+          return { valid: true };
+        }
+      }
+      continue;
     }
-    if (allowed.startsWith("*.")) {
-      const domain = allowed.substring(2);
-      if (
-        normalizedOrigin.endsWith(domain) ||
-        normalizedOrigin === domain.substring(1)
-      ) {
+    if (normalizedAllowed.startsWith("*.")) {
+      const domain = normalizedAllowed.slice(2);
+      if (originHost === domain || originHost.endsWith(`.${domain}`)) {
         return { valid: true };
       }
+      continue;
+    }
+    if (normalizedAllowed.includes("://")) {
+      try {
+        const allowedUrl = new URL(normalizedAllowed);
+        if (allowedUrl.origin.toLowerCase() === originValue) {
+          return { valid: true };
+        }
+      } catch {
+        continue;
+      }
+    } else if (originHost === normalizedAllowed) {
+      return { valid: true };
     }
   }
   return {
