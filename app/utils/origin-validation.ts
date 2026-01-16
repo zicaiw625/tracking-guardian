@@ -73,7 +73,7 @@ export function isValidShopifyOrigin(origin: string | null): boolean {
     }
     return ALLOWED_ORIGIN_PATTERNS.some(({ pattern }) => pattern.test(origin));
 }
-export function validatePixelOriginPreBody(origin: string | null): {
+export function validatePixelOriginPreBody(origin: string | null, hasSignatureHeaderOrHMAC: boolean = false): {
     valid: boolean;
     reason: string;
     shouldLog: boolean;
@@ -82,12 +82,35 @@ export function validatePixelOriginPreBody(origin: string | null): {
     const devMode = isDevMode();
     const allowNullOrigin = shouldAllowNullOrigin();
     if (origin === "null" || origin === null) {
-        const allowed = allowNullOrigin;
+        if (devMode || allowNullOrigin) {
+            return {
+                valid: true,
+                reason: "null_origin_allowed",
+                shouldLog: false,
+                shouldReject: false,
+            };
+        }
+        if (!devMode) {
+            if (hasSignatureHeaderOrHMAC) {
+                return {
+                    valid: true,
+                    reason: "null_origin_allowed_with_signature",
+                    shouldLog: false,
+                    shouldReject: false,
+                };
+            }
+            return {
+                valid: false,
+                reason: "null_origin_blocked_missing_signature",
+                shouldLog: true,
+                shouldReject: true,
+            };
+        }
         return {
-            valid: allowed,
-            reason: allowed ? "null_origin_allowed" : "null_origin_blocked",
-            shouldLog: !allowed,
-            shouldReject: !allowed,
+            valid: false,
+            reason: "null_origin_blocked",
+            shouldLog: true,
+            shouldReject: true,
         };
     }
     if (!origin) {
@@ -172,11 +195,17 @@ export function validatePixelOriginForShop(
         }
     }
     if (effectiveOrigin === "null" || effectiveOrigin === null) {
-        const allowed = allowNullOrigin;
+        if (devMode || allowNullOrigin) {
+            return {
+                valid: true,
+                reason: "null_origin_allowed",
+                shouldReject: false,
+            };
+        }
         return {
-            valid: allowed,
-            reason: allowed ? "null_origin_allowed" : "null_origin_blocked",
-            shouldReject: !allowed,
+            valid: false,
+            reason: "null_origin_blocked",
+            shouldReject: true,
         };
     }
     if (!effectiveOrigin) {

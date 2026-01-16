@@ -47,16 +47,14 @@ export interface ConversionLogResult {
 export async function isClientEventRecorded(
   shopId: string,
   orderId: string,
-  eventType: string
+  eventType: string,
+  shopDomain: string
 ): Promise<boolean> {
-  const eventId = generateCanonicalEventId(orderId, null, eventType, "", undefined, "v2", null);
-  const existing = await prisma.pixelEventReceipt.findUnique({
+  const existing = await prisma.pixelEventReceipt.findFirst({
     where: {
-      shopId_eventId_eventType: {
-        shopId,
-        eventId,
-        eventType,
-      },
+      shopId,
+      orderKey: orderId,
+      eventType,
     },
     select: { id: true },
   });

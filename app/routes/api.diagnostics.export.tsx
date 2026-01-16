@@ -88,7 +88,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     select: {
       createdAt: true,
       eventType: true,
-      signatureStatus: true,
+      originHost: true,
     },
   });
   const recentConversions = await prisma.pixelEventReceipt.count({
@@ -120,7 +120,6 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       recentReceipt: recentReceipt
         ? {
             eventType: recentReceipt.eventType,
-            signatureStatus: recentReceipt.signatureStatus,
             hoursSinceLastEvent: Math.round(
               (Date.now() - recentReceipt.createdAt.getTime()) / (1000 * 60 * 60)
             ),

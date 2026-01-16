@@ -30,8 +30,10 @@ export async function authenticatePublic(request: Request): Promise<PublicAuthRe
 
 export async function handlePublicPreflight(request: Request): Promise<Response> {
   try {
-    await authenticate.public.checkout(request);
-    return new Response(null, { status: 204 });
+    const { cors } = await authenticate.public.checkout(request);
+    return cors(new Response(null, { status: 204 }), {
+      corsHeaders: ["Authorization"],
+    });
   } catch (e) {
     if (e instanceof Response) {
       return e;
@@ -39,8 +41,10 @@ export async function handlePublicPreflight(request: Request): Promise<Response>
   }
 
   try {
-    await authenticate.public.customerAccount(request);
-    return new Response(null, { status: 204 });
+    const { cors } = await authenticate.public.customerAccount(request);
+    return cors(new Response(null, { status: 204 }), {
+      corsHeaders: ["Authorization"],
+    });
   } catch (e) {
     if (e instanceof Response) {
       return e;

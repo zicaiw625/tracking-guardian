@@ -19,13 +19,12 @@ export interface JobCompletionData {
 
 export interface PixelReceiptData {
   shopId: string;
+  eventId: string;
   orderId: string;
   eventType: string;
   checkoutToken?: string | null;
   consentState?: Prisma.JsonValue;
   originHost?: string | null;
-  signatureStatus: string;
-  trustLevel: string;
   pixelTimestamp?: Date;
   capiInput?: Prisma.JsonValue;
 }
@@ -239,30 +238,27 @@ export async function batchInsertReceipts(
         receipts.map((receipt) =>
           tx.pixelEventReceipt.upsert({
             where: {
-              shopId_orderId_eventType: {
+              shopId_eventId_eventType: {
                 shopId: receipt.shopId,
-                orderId: receipt.orderId,
+                eventId: receipt.eventId,
                 eventType: receipt.eventType,
               },
             },
             create: {
               id: randomUUID(),
               shopId: receipt.shopId,
-              orderId: receipt.orderId,
+              eventId: receipt.eventId,
               eventType: receipt.eventType,
               checkoutToken: receipt.checkoutToken,
-              consentState: toInputJsonValue(receipt.consentState),
               originHost: receipt.originHost,
-              signatureStatus: receipt.signatureStatus,
-              trustLevel: receipt.trustLevel,
               pixelTimestamp: receipt.pixelTimestamp ?? now,
-              isTrusted: receipt.trustLevel === "trusted",
-              metadata: toInputJsonValue(receipt.capiInput),
+              payloadJson: toInputJsonValue(receipt.capiInput),
+              orderKey: receipt.orderId,
             },
             update: {
-              consentState: toInputJsonValue(receipt.consentState),
-              trustLevel: receipt.trustLevel,
-              signatureStatus: receipt.signatureStatus,
+              checkoutToken: receipt.checkoutToken,
+              originHost: receipt.originHost,
+              orderKey: receipt.orderId,
             },
           })
         )

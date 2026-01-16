@@ -308,14 +308,13 @@ export function validateRequest(body: unknown): ValidationResult {
     }
   }
   const sanitizedEventData = sanitizeEventData(rawEventData);
-  const finalEventId = eventId || nonce;
   return {
     valid: true,
     payload: {
       eventName: eventName as PixelEventName,
       timestamp,
       shopDomain,
-      nonce: finalEventId,
+      nonce: nonce || undefined,
       consent,
       data: sanitizedEventData,
     },

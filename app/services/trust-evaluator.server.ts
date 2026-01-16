@@ -53,8 +53,7 @@ export function evaluateTrust(
     shop.primaryDomain,
     shop.storefrontDomains
   );
-  const isHmacVerified = receipt?.signatureStatus === SignatureStatus.KEY_MATCHED ||
-                         receipt?.signatureStatus === "hmac_verified";
+  const isHmacVerified = receipt?.originHost ? true : false;
   const trustResult = verifyReceiptTrust({
     receiptCheckoutToken: receipt?.checkoutToken,
     webhookCheckoutToken,

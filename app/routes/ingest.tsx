@@ -106,7 +106,8 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       { status: 415, request }
     );
   }
-  const preBodyValidation = validatePixelOriginPreBody(origin);
+  const hasSignatureHeader = !!signature;
+  const preBodyValidation = validatePixelOriginPreBody(origin, hasSignatureHeader);
   if (!preBodyValidation.valid) {
     const shopDomainHeader = request.headers.get("x-shopify-shop-domain") || "unknown";
     const anomalyCheck = trackAnomaly(shopDomainHeader, "invalid_origin");
@@ -428,7 +429,6 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       logger.debug(`Event ${payload.eventName} at index ${i} not accepted for ${shopDomain} (mode: ${mode}) - skipping`);
       continue;
     }
-    const prdEventId = payload.nonce;
     const eventType = payload.eventName === "checkout_completed" ? "purchase" : payload.eventName;
     const isPurchaseEvent = eventType === "purchase";
     const items = payload.data.items as Array<{
@@ -467,7 +467,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         orderId = matchKeyResult.orderId;
         usedCheckoutTokenAsFallback = matchKeyResult.usedCheckoutTokenAsFallback;
         eventIdentifier = orderId;
-        const alreadyRecorded = await isClientEventRecorded(shop.id, orderId, eventType);
+        const alreadyRecorded = await isClientEventRecorded(shop.id, orderId, eventType, shopDomain);
         if (alreadyRecorded) {
           logger.debug(`Purchase event already recorded for order ${orderId}, skipping`, {
             shopId: shop.id,
@@ -476,7 +476,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
           });
           continue;
         }
-        const nonceFromBody = prdEventId || payload.nonce;
+        const nonceFromBody = payload.nonce;
         const nonceResult = await createEventNonce(
           shop.id,
           orderId,
@@ -509,13 +509,13 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         eventIdentifier = null;
       }
     }
-    const eventId = prdEventId || generateEventIdForType(
+    const eventId = generateEventIdForType(
       eventIdentifier,
       eventType,
       shopDomain,
       payload.data.checkoutToken,
       normalizedItems.length > 0 ? normalizedItems : undefined,
-      payload.nonce || null
+      null
     );
     const consentResult = checkInitialConsent(payload.consent);
     const { platformsToRecord, skippedPlatforms } = filterPlatformsByConsent(
