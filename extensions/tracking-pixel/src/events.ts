@@ -12,6 +12,31 @@ export function toNumber(value: string | number | undefined | null, defaultValue
   return isNaN(parsed) ? defaultValue : parsed;
 }
 
+const MAX_ITEMS_PER_EVENT = 50;
+
+function truncateItems(items: Array<{
+  id?: string;
+  name?: string;
+  price?: number;
+  quantity?: number;
+  variantId?: string | null;
+  productId?: string | null;
+  productTitle?: string | null;
+}>): Array<{
+  id: string;
+  quantity: number;
+  price: number;
+}> {
+  return items
+    .slice(0, MAX_ITEMS_PER_EVENT)
+    .map(item => ({
+      id: item.id || "",
+      quantity: item.quantity || 1,
+      price: item.price || 0,
+    }))
+    .filter(item => item.id);
+}
+
 export interface EventSenderConfig {
   backendUrl: string | null;
   shopDomain: string;
@@ -269,20 +294,21 @@ export function subscribeToCheckoutCompleted(
       log("checkout_completed: No orderId or checkoutToken, skipping");
       return;
     }
+    const allItems = checkout.lineItems?.map(item => ({
+      id: item.id || item.variant?.id || "",
+      name: item.title || "",
+      price: toNumber(item.variant?.price?.amount),
+      quantity: item.quantity || 1,
+      variantId: item.variant?.id || null,
+      productId: item.variant?.product?.id || null,
+      productTitle: item.variant?.product?.title || null,
+    })) || [];
     sendToBackend("checkout_completed", {
       orderId: orderId || null,
       checkoutToken: checkoutToken || null,
       value: toNumber(checkout.totalPrice?.amount),
       currency: checkout.currencyCode || null,
-      items: checkout.lineItems?.map(item => ({
-        id: item.id || item.variant?.id || "",
-        name: item.title || "",
-        price: toNumber(item.variant?.price?.amount),
-        quantity: item.quantity || 1,
-        variantId: item.variant?.id || null,
-        productId: item.variant?.product?.id || null,
-        productTitle: item.variant?.product?.title || null,
-      })) || [],
+      items: truncateItems(allItems),
     });
   });
   log("Tracking Guardian pixel initialized - checkout_completed subscribed");
@@ -300,19 +326,20 @@ function subscribeToCheckoutStarted(
     const typedEvent = event as { data?: { checkout?: CheckoutData } };
     const checkout = typedEvent.data?.checkout;
     if (!checkout) return;
+    const allItems = checkout.lineItems?.map(item => ({
+      id: item.id || item.variant?.id || "",
+      name: item.title || "",
+      price: toNumber(item.variant?.price?.amount),
+      quantity: item.quantity || 1,
+      variantId: item.variant?.id || null,
+      productId: item.variant?.product?.id || null,
+      productTitle: item.variant?.product?.title || null,
+    })) || [];
     sendToBackend("checkout_started", {
       checkoutToken: checkout.token || null,
       value: toNumber(checkout.totalPrice?.amount),
       currency: checkout.currencyCode || null,
-      items: checkout.lineItems?.map(item => ({
-        id: item.id || item.variant?.id || "",
-        name: item.title || "",
-        price: toNumber(item.variant?.price?.amount),
-        quantity: item.quantity || 1,
-        variantId: item.variant?.id || null,
-        productId: item.variant?.product?.id || null,
-        productTitle: item.variant?.product?.title || null,
-      })) || [],
+      items: truncateItems(allItems),
     });
   });
   log("checkout_started event subscribed");
@@ -437,19 +464,20 @@ function subscribeToCheckoutContactInfoSubmitted(
     const typedEvent = event as { data?: { checkout?: CheckoutData } };
     const checkout = typedEvent.data?.checkout;
     if (!checkout) return;
+    const allItems = checkout.lineItems?.map(item => ({
+      id: item.id || item.variant?.id || "",
+      name: item.title || "",
+      price: toNumber(item.variant?.price?.amount),
+      quantity: item.quantity || 1,
+      variantId: item.variant?.id || null,
+      productId: item.variant?.product?.id || null,
+      productTitle: item.variant?.product?.title || null,
+    })) || [];
     sendToBackend("checkout_contact_info_submitted", {
       checkoutToken: checkout.token || null,
       value: toNumber(checkout.totalPrice?.amount),
       currency: checkout.currencyCode || null,
-      items: checkout.lineItems?.map(item => ({
-        id: item.id || item.variant?.id || "",
-        name: item.title || "",
-        price: toNumber(item.variant?.price?.amount),
-        quantity: item.quantity || 1,
-        variantId: item.variant?.id || null,
-        productId: item.variant?.product?.id || null,
-        productTitle: item.variant?.product?.title || null,
-      })) || [],
+      items: truncateItems(allItems),
     });
   });
   log("checkout_contact_info_submitted event subscribed");
@@ -467,19 +495,20 @@ function subscribeToCheckoutShippingInfoSubmitted(
     const typedEvent = event as { data?: { checkout?: CheckoutData } };
     const checkout = typedEvent.data?.checkout;
     if (!checkout) return;
+    const allItems = checkout.lineItems?.map(item => ({
+      id: item.id || item.variant?.id || "",
+      name: item.title || "",
+      price: toNumber(item.variant?.price?.amount),
+      quantity: item.quantity || 1,
+      variantId: item.variant?.id || null,
+      productId: item.variant?.product?.id || null,
+      productTitle: item.variant?.product?.title || null,
+    })) || [];
     sendToBackend("checkout_shipping_info_submitted", {
       checkoutToken: checkout.token || null,
       value: toNumber(checkout.totalPrice?.amount),
       currency: checkout.currencyCode || null,
-      items: checkout.lineItems?.map(item => ({
-        id: item.id || item.variant?.id || "",
-        name: item.title || "",
-        price: toNumber(item.variant?.price?.amount),
-        quantity: item.quantity || 1,
-        variantId: item.variant?.id || null,
-        productId: item.variant?.product?.id || null,
-        productTitle: item.variant?.product?.title || null,
-      })) || [],
+      items: truncateItems(allItems),
     });
   });
   log("checkout_shipping_info_submitted event subscribed");
@@ -497,19 +526,20 @@ function subscribeToPaymentInfoSubmitted(
     const typedEvent = event as { data?: { checkout?: CheckoutData } };
     const checkout = typedEvent.data?.checkout;
     if (!checkout) return;
+    const allItems = checkout.lineItems?.map(item => ({
+      id: item.id || item.variant?.id || "",
+      name: item.title || "",
+      price: toNumber(item.variant?.price?.amount),
+      quantity: item.quantity || 1,
+      variantId: item.variant?.id || null,
+      productId: item.variant?.product?.id || null,
+      productTitle: item.variant?.product?.title || null,
+    })) || [];
     sendToBackend("payment_info_submitted", {
       checkoutToken: checkout.token || null,
       value: toNumber(checkout.totalPrice?.amount),
       currency: checkout.currencyCode || null,
-      items: checkout.lineItems?.map(item => ({
-        id: item.id || item.variant?.id || "",
-        name: item.title || "",
-        price: toNumber(item.variant?.price?.amount),
-        quantity: item.quantity || 1,
-        variantId: item.variant?.id || null,
-        productId: item.variant?.product?.id || null,
-        productTitle: item.variant?.product?.title || null,
-      })) || [],
+      items: truncateItems(allItems),
     });
   });
   log("payment_info_submitted event subscribed");

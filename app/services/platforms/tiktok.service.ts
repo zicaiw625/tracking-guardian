@@ -20,8 +20,9 @@ import {
   classifyJsError,
   parseTikTokError,
 } from "./base-platform.service";
+import { CAPI_CONFIG } from "../../utils/config";
 
-const TIKTOK_API_URL = "https://business-api.tiktok.com";
+const TIKTOK_API_URL = CAPI_CONFIG.TIKTOK.trackEndpoint;
 const PIXEL_ID_PATTERN = /^[A-Z0-9]{20,}$/i;
 
 function isTikTokCredentials(credentials: unknown): credentials is TikTokCredentials {

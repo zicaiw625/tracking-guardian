@@ -6,11 +6,12 @@ import { getPlatformEventName } from "../pixel-mapping.server";
 import type { Platform } from "~/types/platform";
 import type { PlatformCredentials } from "~/types";
 import { fetchWithTimeout, DEFAULT_API_TIMEOUT_MS } from "../platforms/interface";
+import { CAPI_CONFIG } from "~/utils/config";
 
 const GA4_MEASUREMENT_PROTOCOL_URL = "https://www.google-analytics.com/mp/collect";
 const META_API_BASE_URL = "https://graph.facebook.com";
 const META_API_VERSION = "v21.0";
-const TIKTOK_API_URL = "https://business-api.tiktok.com/open_api/v1.3/event/track/";
+const TIKTOK_API_URL = CAPI_CONFIG.TIKTOK.trackEndpoint;
 
 interface PixelEventSendResult {
   success: boolean;

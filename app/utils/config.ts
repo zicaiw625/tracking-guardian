@@ -28,7 +28,7 @@ interface EnvConfig {
 }
 
 export const API_CONFIG = {
-    MAX_BODY_SIZE: 32 * 1024,
+    MAX_BODY_SIZE: 256 * 1024,
     TIMESTAMP_WINDOW_MS: 10 * 60 * 1000,
     DEFAULT_TIMEOUT_MS: 30 * 1000,
     JWT_EXPIRY_BUFFER_MS: 5 * 60 * 1000,
@@ -191,6 +191,7 @@ export const CAPI_CONFIG = {
     },
     TIKTOK: {
         baseUrl: "https://business-api.tiktok.com",
+        trackEndpoint: "https://business-api.tiktok.com/open_api/v1.3/event/track/",
         timeout: 30000,
     },
 } as const;

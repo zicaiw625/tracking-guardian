@@ -250,18 +250,6 @@ export function matchKeysEqual(a: MatchKeyInput, b: MatchKeyInput): boolean {
     if (a.orderId && b.orderId) {
         return normalizeOrderId(a.orderId) === normalizeOrderId(b.orderId);
     }
-    if (a.orderId && b.checkoutToken) {
-        const normalizedA = normalizeOrderId(a.orderId);
-        if (b.checkoutToken.includes(normalizedA)) {
-            return true;
-        }
-    }
-    if (b.orderId && a.checkoutToken) {
-        const normalizedB = normalizeOrderId(b.orderId);
-        if (a.checkoutToken.includes(normalizedB)) {
-            return true;
-        }
-    }
     if (a.checkoutToken && b.checkoutToken) {
         return a.checkoutToken === b.checkoutToken;
     }
