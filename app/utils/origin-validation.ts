@@ -7,21 +7,14 @@ export const SHOPIFY_ALLOWLIST = [
 ] as const;
 
 function shouldAllowNullOrigin(): boolean {
-    const pixelAllowNullOrigin = process.env.PIXEL_ALLOW_NULL_ORIGIN;
-    if (pixelAllowNullOrigin !== undefined && pixelAllowNullOrigin !== "") {
-        const normalized = pixelAllowNullOrigin.toLowerCase().trim();
-        if (normalized === "false" || normalized === "0") {
-            return false;
-        }
-        if (normalized === "true" || normalized === "1") {
-            return true;
-        }
-    }
+    const v = process.env.PIXEL_ALLOW_NULL_ORIGIN?.toLowerCase().trim();
+    if (v === "false" || v === "0") return false;
+    if (v === "true" || v === "1") return true;
+
     const nodeEnv = process.env.NODE_ENV;
-    if (nodeEnv === "development" || nodeEnv === "test") {
-        return true;
-    }
-    return true;
+    if (nodeEnv === "development" || nodeEnv === "test") return true;
+
+    return false;
 }
 const ALLOWED_ORIGIN_PATTERNS: Array<{
     pattern: RegExp;

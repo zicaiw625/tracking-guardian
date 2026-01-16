@@ -5,6 +5,7 @@ import prisma from "../db.server";
 import { generateMigrationChecklist } from "../services/migration-checklist.server";
 import { generateChecklistPDF } from "../services/checklist-pdf.server";
 import { logger } from "../utils/logger.server";
+import { sanitizeFilename } from "../utils/responses";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   try {
@@ -33,7 +34,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       status: 200,
       headers: {
         "Content-Type": "application/pdf",
-        "Content-Disposition": `attachment; filename="${filename}"`,
+        "Content-Disposition": `attachment; filename="${sanitizeFilename(filename)}"`,
         "Content-Length": pdfBuffer.length.toString(),
       },
     });

@@ -46,6 +46,7 @@ import { normalizePlanId, type PlanId, planSupportsReportExport } from "../servi
 import { UpgradePrompt } from "~/components/ui/UpgradePrompt";
 import { trackEvent } from "../services/analytics.server";
 import { safeFireAndForget } from "../utils/helpers";
+import { sanitizeFilename } from "../utils/responses";
 
 const ReportComparison = lazy(() => import("~/components/verification/ReportComparison").then(module => ({
   default: module.ReportComparison,
@@ -150,7 +151,7 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
     return new Response(pdfBuffer, {
       headers: {
         "Content-Type": "application/pdf",
-        "Content-Disposition": `attachment; filename="${filename}"`,
+        "Content-Disposition": `attachment; filename="${sanitizeFilename(filename)}"`,
       },
     });
   }
@@ -168,7 +169,7 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
     return new Response(csv, {
       headers: {
         "Content-Type": "text/csv; charset=utf-8",
-        "Content-Disposition": `attachment; filename="${filename}"`,
+        "Content-Disposition": `attachment; filename="${sanitizeFilename(filename)}"`,
       },
     });
   }

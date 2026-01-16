@@ -3,6 +3,7 @@ import { authenticate } from "../shopify.server";
 import prisma from "../db.server";
 import { logger } from "../utils/logger.server";
 import { getExistingWebPixels, isOurWebPixel, needsSettingsUpgrade } from "../services/migration.server";
+import { sanitizeFilename } from "../utils/responses";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   const { session, admin } = await authenticate.admin(request);
@@ -133,7 +134,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   return new Response(JSON.stringify(exportData, null, 2), {
     headers: {
       "Content-Type": "application/json; charset=utf-8",
-      "Content-Disposition": `attachment; filename="${filename}"`,
+      "Content-Disposition": `attachment; filename="${sanitizeFilename(filename)}"`,
     },
   });
 };

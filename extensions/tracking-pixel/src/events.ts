@@ -216,7 +216,12 @@ export function createEventSender(config: EventSenderConfig) {
     );
     try {
       const timestamp = Date.now();
-      const nonce = `${timestamp}-${Math.random().toString(36).substring(2, 10)}`;
+      const randomBytes = new Uint8Array(6);
+      crypto.getRandomValues(randomBytes);
+      const randomHex = Array.from(randomBytes)
+        .map(b => b.toString(16).padStart(2, "0"))
+        .join("");
+      const nonce = `${timestamp}-${randomHex}`;
       eventQueue.push({
         eventName,
         data,

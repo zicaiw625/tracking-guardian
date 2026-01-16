@@ -7,6 +7,7 @@ import { authenticate } from "../shopify.server";
 import { validateRiskItemsArray, validateStringArray } from "../utils/scan-data-validation";
 import { checkFeatureAccess } from "../services/billing/feature-gates.server";
 import { normalizePlanId, type PlanId } from "../services/billing/plans";
+import { sanitizeFilename } from "../utils/responses";
 
 function sanitizeForCSV(value: string): string {
   if (typeof value !== "string") {
@@ -183,7 +184,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     return new Response(csvContent, {
       headers: {
         "Content-Type": "text/csv; charset=utf-8",
-        "Content-Disposition": `attachment; filename="${filename}"`,
+        "Content-Disposition": `attachment; filename="${sanitizeFilename(filename)}"`,
       },
     });
   } catch (error) {

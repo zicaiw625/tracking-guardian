@@ -4,6 +4,7 @@ import { authenticate } from "../shopify.server";
 import prisma from "../db.server";
 import { generateVerificationReportData, generateVerificationReportPDF } from "../services/verification-report.server";
 import { logger } from "../utils/logger.server";
+import { sanitizeFilename } from "../utils/responses";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   try {
@@ -44,7 +45,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       status: 200,
       headers: {
         "Content-Type": "application/pdf",
-        "Content-Disposition": `attachment; filename="${filename}"`,
+        "Content-Disposition": `attachment; filename="${sanitizeFilename(filename)}"`,
         "Content-Length": pdfBuffer.length.toString(),
       },
     });

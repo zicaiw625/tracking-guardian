@@ -45,6 +45,7 @@ import {
 } from "../utils/scan-data-validation";
 import { containsSensitiveInfo, sanitizeSensitiveInfo } from "../utils/security";
 import { safeFireAndForget } from "../utils/helpers";
+import { sanitizeFilename } from "../utils/responses";
 
 const TIMEOUTS = {
     IDLE_CALLBACK: 100,
@@ -915,7 +916,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
                 status: 200,
                 headers: {
                     "Content-Type": "text/csv; charset=utf-8",
-                    "Content-Disposition": `attachment; filename="${filename}"`,
+                    "Content-Disposition": `attachment; filename="${sanitizeFilename(filename)}"`,
                 },
             });
         } catch (error) {

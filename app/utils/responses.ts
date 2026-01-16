@@ -117,13 +117,17 @@ export function surveySuccessResponse(message: string = "Survey submitted succes
   });
 }
 
+export function sanitizeFilename(filename: string): string {
+  return filename.replace(/[^a-zA-Z0-9._-]/g, "_");
+}
+
 export function createExportResponse(
   data: unknown,
   filename: string
 ): Response {
   const headers = new Headers();
   headers.set("Content-Type", "application/json");
-  headers.set("Content-Disposition", `attachment; filename="${filename}"`);
+  headers.set("Content-Disposition", `attachment; filename="${sanitizeFilename(filename)}"`);
   return new Response(JSON.stringify(data, null, 2), {
     status: 200,
     headers,
@@ -136,7 +140,7 @@ export function createCsvExportResponse(
 ): Response {
   const headers = new Headers();
   headers.set("Content-Type", "text/csv");
-  headers.set("Content-Disposition", `attachment; filename="${filename}"`);
+  headers.set("Content-Disposition", `attachment; filename="${sanitizeFilename(filename)}"`);
   return new Response(csv, {
     status: 200,
     headers,

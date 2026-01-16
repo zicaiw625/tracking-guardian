@@ -26,7 +26,7 @@ import {
 import type { KeyValidationResult } from "./api.pixel-events/types";
 import { checkInitialConsent, filterPlatformsByConsent, logConsentFilterMetrics } from "./api.pixel-events/consent-filter";
 import { trackAnomaly } from "~/utils/rate-limiter";
-import { checkRateLimitAsync, shopDomainIpKeyExtractor } from "~/middleware/rate-limit";
+import { checkRateLimitAsync, shopDomainIpKeyExtractor, ipKeyExtractor } from "~/middleware/rate-limit";
 import { checkCircuitBreaker } from "~/utils/circuit-breaker";
 import { safeFireAndForget } from "~/utils/helpers";
 import { trackEvent } from "~/services/analytics.server";
@@ -50,12 +50,54 @@ function isAcceptableContentType(contentType: string | null): boolean {
 }
 
 export const action = async ({ request }: ActionFunctionArgs) => {
-  const origin = request.headers.get("Origin");
   if (request.method === "OPTIONS") {
     return optionsResponse(request);
   }
   if (request.method !== "POST") {
     return jsonWithCors({ error: "Method not allowed" }, { status: 405, request });
+  }
+  const ipKey = ipKeyExtractor(request);
+  const ipRateLimit = await checkRateLimitAsync(ipKey, 200, 60 * 1000);
+  if (!ipRateLimit.allowed) {
+    logger.warn(`IP rate limit exceeded for ingest`, {
+      ip: ipKey,
+      retryAfter: ipRateLimit.retryAfter,
+    });
+    return jsonWithCors(
+      {
+        error: "Too Many Requests",
+        message: "Rate limit exceeded. Please try again later.",
+        retryAfter: ipRateLimit.retryAfter,
+      },
+      {
+        status: 429,
+        request,
+        headers: {
+          "Retry-After": String(ipRateLimit.retryAfter || 60),
+          "X-RateLimit-Limit": "200",
+          "X-RateLimit-Remaining": String(ipRateLimit.remaining || 0),
+          "X-RateLimit-Reset": String(Math.ceil((ipRateLimit.resetAt || Date.now()) / 1000)),
+        },
+      }
+    );
+  }
+  const origin = request.headers.get("Origin");
+  const isNullOrigin = origin === "null" || origin === null;
+  const isProduction = !isDevMode();
+  const signature = request.headers.get("X-Tracking-Guardian-Signature");
+  if (isNullOrigin && isProduction && !signature) {
+    const shopDomainHeader = request.headers.get("x-shopify-shop-domain") || "unknown";
+    logger.error(`Null origin request rejected early for ${shopDomainHeader} in production: missing HMAC signature. Null origin requests require valid HMAC signature for security.`);
+    const anomalyCheck = trackAnomaly(shopDomainHeader, "invalid_origin");
+    if (anomalyCheck.shouldBlock) {
+      logger.warn(`Circuit breaker triggered for ${shopDomainHeader}: ${anomalyCheck.reason}`);
+    }
+    metrics.pixelRejection({
+      shopDomain: shopDomainHeader,
+      reason: "invalid_origin",
+      originType: "null_origin_missing_signature",
+    });
+    return emptyResponseWithCors(request);
   }
   const contentType = request.headers.get("Content-Type");
   if (!isAcceptableContentType(contentType)) {
@@ -186,8 +228,6 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   const firstPayload = firstEventValidation.payload;
   const shopDomain = firstPayload.shopDomain;
   const timestamp = batchTimestamp || firstPayload.timestamp;
-  const signature = request.headers.get("X-Tracking-Guardian-Signature");
-  const isProduction = !isDevMode();
   const environment = (firstPayload.data as { environment?: "test" | "live" })?.environment || "live";
   const shop = await getShopForPixelVerificationWithConfigs(shopDomain, environment);
   if (!shop || !shop.isActive) {
@@ -201,10 +241,8 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     primaryDomain: shop.primaryDomain,
     storefrontDomains: shop.storefrontDomains,
   });
-  const isNullOrigin = origin === "null" || origin === null;
   const referer = request.headers.get("Referer");
   if (isNullOrigin && isProduction) {
-    const signature = request.headers.get("X-Tracking-Guardian-Signature");
     if (!signature) {
       logger.error(`Null origin request rejected for ${shopDomain} in production: missing HMAC signature. Null origin requests require valid HMAC signature for security.`);
       const anomalyCheck = trackAnomaly(shopDomain, "invalid_origin");
