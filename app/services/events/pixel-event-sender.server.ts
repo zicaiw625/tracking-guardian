@@ -240,10 +240,7 @@ async function sendToMeta(
         "Content-Type": "application/json",
         Authorization: "Bearer ***REDACTED***",
       },
-      body: {
-        ...eventPayload,
-        access_token: "***REDACTED***",
-      },
+      body: eventPayload,
     };
     const sendStartTime = Date.now();
     const response = await fetchWithTimeout(
@@ -254,10 +251,7 @@ async function sendToMeta(
           "Content-Type": "application/json",
           Authorization: `Bearer ${metaCreds.accessToken}`,
         },
-        body: JSON.stringify({
-          ...eventPayload,
-          access_token: metaCreds.accessToken,
-        }),
+        body: JSON.stringify(eventPayload),
       },
       DEFAULT_API_TIMEOUT_MS
     );

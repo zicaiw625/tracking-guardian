@@ -114,6 +114,19 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         finalOrderId = `survey_${shop.id}_${Date.now()}`;
         logger.warn("Survey response without orderId or checkoutToken, using fallback", { shopDomain });
       }
+      if (timestamp !== undefined && timestamp !== null && typeof timestamp !== "string") {
+        return addSecurityHeaders(authResult.cors(json(
+          { error: "Invalid timestamp" },
+          { status: 400 }
+        )));
+      }
+      const createdAt = timestamp ? new Date(timestamp) : new Date();
+      if (Number.isNaN(createdAt.getTime())) {
+        return addSecurityHeaders(authResult.cors(json(
+          { error: "Invalid timestamp" },
+          { status: 400 }
+        )));
+      }
       await prisma.surveyResponse.create({
         data: {
           id: randomUUID(),
@@ -121,7 +134,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
           orderId: finalOrderId,
           feedback: option,
           source: "thank_you_block",
-          createdAt: timestamp ? new Date(timestamp) : new Date(),
+          createdAt,
         },
       });
     logger.info("Survey response received", {
