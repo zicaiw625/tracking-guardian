@@ -81,7 +81,7 @@ export const HEALTH_CHECK_HEADERS: Record<string, string> = {
 export const PUBLIC_PAGE_HEADERS: Record<string, string> = {
   "X-Content-Type-Options": "nosniff",
   "X-Frame-Options": "DENY",
-  "Referrer-Policy": "strict-origin-when-cross-origin",
+  "Referrer-Policy": "no-referrer",
   "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate",
   "Pragma": "no-cache",
   "Expires": "0",

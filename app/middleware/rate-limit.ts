@@ -237,24 +237,48 @@ class DistributedRateLimitStore {
 
 const rateLimitStore = new DistributedRateLimitStore();
 
+const DEFAULT_TRUSTED_IP_HEADERS = ["cf-connecting-ip"];
+const DEVELOPMENT_IP_HEADERS = ["cf-connecting-ip", "x-real-ip", "x-forwarded-for"];
+
+function getTrustedIpHeaders(): string[] {
+  const rawHeaders = process.env.RATE_LIMIT_TRUSTED_IP_HEADERS;
+  if (!rawHeaders) {
+    return DEFAULT_TRUSTED_IP_HEADERS;
+  }
+  return rawHeaders
+    .split(",")
+    .map(header => header.trim().toLowerCase())
+    .filter(Boolean);
+}
+
+function resolveIpFromHeader(headers: Headers, headerName: string): string | null {
+  const value = headers.get(headerName);
+  if (!value) {
+    return null;
+  }
+  if (headerName === "x-forwarded-for") {
+    return value.split(",")[0]?.trim() || null;
+  }
+  return value;
+}
+
 export function ipKeyExtractor(request: Request): string {
   if (!request || typeof request.headers?.get !== "function") {
     logger.warn("[rate-limit] ipKeyExtractor called with invalid request");
     return "unknown";
   }
-  const cfConnectingIp = request.headers.get("cf-connecting-ip");
-  if (cfConnectingIp) {
-    return cfConnectingIp;
+  const isProduction = process.env.NODE_ENV === "production";
+  const headersToCheck = isProduction ? getTrustedIpHeaders() : DEVELOPMENT_IP_HEADERS;
+  if (headersToCheck.length === 0) {
+    return isProduction ? "untrusted" : "unknown";
   }
-  const realIp = request.headers.get("x-real-ip");
-  if (realIp) {
-    return realIp;
+  for (const headerName of headersToCheck) {
+    const resolved = resolveIpFromHeader(request.headers, headerName);
+    if (resolved) {
+      return resolved;
+    }
   }
-  const forwardedFor = request.headers.get("x-forwarded-for");
-  if (forwardedFor) {
-    return forwardedFor.split(",")[0]?.trim() ?? "unknown";
-  }
-  return "unknown";
+  return isProduction ? "untrusted" : "unknown";
 }
 
 export function shopKeyExtractor(request: Request): string {

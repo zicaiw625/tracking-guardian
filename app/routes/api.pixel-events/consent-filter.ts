@@ -1,4 +1,4 @@
-import { isMarketingPlatform, isAnalyticsPlatform, PLATFORM_CONSENT_CONFIG } from "../../utils/platform-consent";
+import { getEffectiveConsentCategory, PLATFORM_CONSENT_CONFIG } from "../../utils/platform-consent";
 import { logger, metrics } from "../../utils/logger.server";
 import type { ConsentState } from "./types";
 
@@ -55,6 +55,9 @@ export function filterPlatformsByConsent(
     platformId?: string | null;
     clientSideEnabled?: boolean;
     serverSideEnabled?: boolean;
+    clientConfig?: {
+      treatAsMarketing?: boolean;
+    } | null;
   }>,
   consentResult: ConsentCheckResult
 ): PlatformFilterResult {
@@ -62,8 +65,10 @@ export function filterPlatformsByConsent(
   const skippedPlatforms: string[] = [];
   for (const config of pixelConfigs) {
     const platform = config.platform;
-    const isMarketing = isMarketingPlatform(platform);
-    const isAnalytics = isAnalyticsPlatform(platform);
+    const treatAsMarketing = config.clientConfig?.treatAsMarketing === true;
+    const consentCategory = getEffectiveConsentCategory(platform, treatAsMarketing);
+    const isMarketing = consentCategory === "marketing";
+    const isAnalytics = consentCategory === "analytics";
     const requiresSaleOfData = platformRequiresSaleOfData(platform);
     if (requiresSaleOfData && consentResult.saleOfDataAllowed !== true) {
       logger.debug(
