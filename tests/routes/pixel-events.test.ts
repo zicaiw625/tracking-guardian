@@ -74,8 +74,8 @@ describe("Pixel Events API - Origin Validation", () => {
       expect(isValidDevOrigin("http://localhost:3000")).toBe(true);
       expect(isValidDevOrigin("https://localhost:3000")).toBe(true);
       expect(isValidDevOrigin("http://127.0.0.1:3000")).toBe(true);
-      expect(isValidDevOrigin("https:
-      expect(isValidDevOrigin("http:
+      expect(isValidDevOrigin("https://127.0.0.1:3000")).toBe(true);
+      expect(isValidDevOrigin("http://localhost:5173")).toBe(true);
       expect(isValidDevOrigin("https://localhost:3000")).toBe(true);
       expect(isValidDevOrigin("http://127.0.0.1:3000")).toBe(true);
     });
@@ -181,7 +181,7 @@ describe("Pixel Events API - Request Validation", () => {
       shopDomain: "test-store.myshopify.com",
       timestamp: Date.now(),
       data: {
-        orderId: "gid:
+        orderId: "gid://shopify/Order/12345",
         value: 99.99,
         currency: "USD",
       },

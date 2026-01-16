@@ -181,7 +181,7 @@ describe("validatePixelEvent", () => {
       eventName: "page_viewed",
       timestamp: Date.now(),
       shopDomain: "test-shop.myshopify.com",
-      data: { url: "https:
+      data: { url: "https://example.com" },
     };
     const result = validatePixelEvent(payload);
     expect(result.success).toBe(true);

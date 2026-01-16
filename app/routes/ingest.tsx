@@ -256,7 +256,8 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     matched: false,
     reason: signature ? "hmac_not_verified" : "signature_missing",
   };
-  if (signature && shop.ingestionSecret) {
+  const hasAnySecret = Boolean(shop.ingestionSecret || shop.previousIngestionSecret);
+  if (signature && hasAnySecret) {
     const verifyWithSecret = async (secret: string) => {
       const result = await validatePixelEventHMAC(
         request,
@@ -282,7 +283,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       };
       logger.warn(`HMAC verification failed for ${shopDomain}: signature did not match current or previous secret`);
     }
-  } else if (signature && !shop.ingestionSecret) {
+  } else if (signature && !hasAnySecret) {
     keyValidation = {
       matched: false,
       reason: "secret_missing",
@@ -293,11 +294,33 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       matched: false,
       reason: "signature_present_no_secret",
     };
+  } else if (!signature && !hasAnySecret) {
+    keyValidation = {
+      matched: false,
+      reason: "secret_missing",
+    };
   } else if (!signature && !isProduction) {
     keyValidation = {
       matched: true,
       reason: "signature_skipped_dev",
     };
+  }
+  if (isProduction && !keyValidation.matched) {
+    const rejectionReason = keyValidation.reason === "secret_missing"
+      ? "no_ingestion_key"
+      : "invalid_key";
+    metrics.pixelRejection({
+      shopDomain,
+      reason: rejectionReason,
+    });
+    logger.warn(`Rejected ingest request for ${shopDomain}`, {
+      reason: keyValidation.reason,
+    });
+    const status = keyValidation.reason === "secret_missing" ? 409 : 401;
+    const errorMessage = keyValidation.reason === "secret_missing"
+      ? "Ingestion secret not configured"
+      : "Invalid signature";
+    return jsonWithCors({ error: errorMessage }, { status, request });
   }
   const rateLimitKey = shopDomainIpKeyExtractor(request);
   const rateLimit = await checkRateLimitAsync(
