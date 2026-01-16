@@ -5,6 +5,7 @@ import { logger, createRequestLogger, type RequestLogger } from "../utils/logger
 import { type Result, ok, err } from "../types/result";
 import type { AdminApiContext, Session } from "@shopify/shopify-app-remix/server";
 import { safeFireAndForget } from "../utils/helpers";
+import { readJsonWithSizeLimit } from "../utils/body-size-guard";
 
 export interface AuthContext {
   session: Session;
@@ -217,8 +218,12 @@ async function parseRequestBody(request: Request): Promise<unknown> {
   const contentType = request.headers.get("Content-Type") || "";
   if (contentType.includes("application/json")) {
     try {
-      return await request.json();
-    } catch {
+      return await readJsonWithSizeLimit(request);
+    } catch (error) {
+      if (error instanceof Response) {
+        throw error;
+      }
+      logger.warn("Failed to parse JSON body", { error: error instanceof Error ? error.message : String(error) });
       return {};
     }
   }

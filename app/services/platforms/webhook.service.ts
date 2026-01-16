@@ -18,8 +18,21 @@ const DEFAULT_TIMEOUT_MS = 30000;
 const MAX_RETRIES = 3;
 const RETRY_DELAY_MS = 1000;
 
-const FORBIDDEN_PATTERNS = [
+const FORBIDDEN_PATTERNS_PRODUCTION = [
   /^https?:\/\/localhost/i,
+  /^https?:\/\/127\./,
+  /^https?:\/\/10\./,
+  /^https?:\/\/172\.(1[6-9]|2[0-9]|3[0-1])\./,
+  /^https?:\/\/192\.168\./,
+  /^https?:\/\/\[::1\]/,
+  /^https?:\/\/\[fc00:/i,
+  /^https?:\/\/\[fe80:/i,
+  /^https?:\/\/\[::ffff:0?:/i,
+  /^file:/i,
+  /^ftp:/i,
+];
+
+const FORBIDDEN_PATTERNS_DEVELOPMENT = [
   /^https?:\/\/127\./,
   /^https?:\/\/10\./,
   /^https?:\/\/172\.(1[6-9]|2[0-9]|3[0-1])\./,
@@ -122,13 +135,35 @@ function buildDefaultPayload(data: ConversionData, eventId: string): Record<stri
   };
 }
 function validateEndpointUrl(url: string): { valid: boolean; error?: string } {
-  if (!url.startsWith('https://') && !url.startsWith('http://localhost')) {
-    return { valid: false, error: 'Endpoint URL must use HTTPS' };
-  }
-
-  for (const pattern of FORBIDDEN_PATTERNS) {
-    if (pattern.test(url)) {
-      return { valid: false, error: 'Endpoint URL points to a private/local network (not allowed)' };
+  const isProduction = process.env.NODE_ENV === 'production';
+  
+  if (isProduction) {
+    if (!url.startsWith('https://')) {
+      return { valid: false, error: 'Endpoint URL must use HTTPS in production' };
+    }
+    for (const pattern of FORBIDDEN_PATTERNS_PRODUCTION) {
+      if (pattern.test(url)) {
+        return { valid: false, error: 'Endpoint URL points to a private/local network (not allowed in production)' };
+      }
+    }
+  } else {
+    if (!url.startsWith('https://') && !url.startsWith('http://localhost')) {
+      return { valid: false, error: 'Endpoint URL must use HTTPS or http://localhost (development only)' };
+    }
+    if (url.startsWith('http://localhost')) {
+      for (const pattern of FORBIDDEN_PATTERNS_DEVELOPMENT) {
+        if (pattern.test(url)) {
+          return { valid: false, error: 'Endpoint URL points to a private network (not allowed even in development)' };
+        }
+      }
+      return { valid: true };
+    }
+    if (url.startsWith('https://')) {
+      for (const pattern of FORBIDDEN_PATTERNS_PRODUCTION) {
+        if (pattern.test(url)) {
+          return { valid: false, error: 'Endpoint URL points to a private/local network (not allowed)' };
+        }
+      }
     }
   }
 

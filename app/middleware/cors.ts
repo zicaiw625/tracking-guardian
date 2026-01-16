@@ -1,4 +1,7 @@
 import type { Middleware, MiddlewareContext, CorsOptions } from "./types";
+import { getDynamicCorsHeaders, getPixelEventsCorsHeaders, SECURITY_HEADERS } from "../utils/cors";
+import { isValidShopifyOrigin, isValidDevOrigin, isDevMode } from "../utils/origin-validation";
+
 
 const DEFAULT_CORS_OPTIONS: Required<CorsOptions> = {
   origin: "*",
@@ -51,6 +54,7 @@ export function buildCorsHeaders(
   if (opts.maxAge > 0) {
     headers["Access-Control-Max-Age"] = String(opts.maxAge);
   }
+  Object.assign(headers, SECURITY_HEADERS);
   return headers;
 }
 
@@ -88,56 +92,69 @@ export function withCors(options: CorsOptions = {}): Middleware {
 }
 
 export function withPixelCors(customHeaders: string[] = []): Middleware {
-  return withCors({
-    origin: (origin) => {
-      if (!origin) return null;
-      if (origin.startsWith("https://")) {
-        return origin;
-      }
-      if (origin.startsWith("http://")) {
-        return null;
-      }
-      return null;
-    },
-    methods: ["GET", "POST", "OPTIONS"],
-    allowedHeaders: [
-      "Content-Type",
-      "X-Shopify-Shop-Domain",
-      "X-Tracking-Guardian-Timestamp",
-      "X-Tracking-Guardian-Signature",
-      ...customHeaders,
-    ],
-    exposedHeaders: ["X-RateLimit-Remaining", "X-RateLimit-Reset"],
-    credentials: false,
-    maxAge: 3600,
-  });
+  return async (context: MiddlewareContext) => {
+    const { request } = context;
+    const corsHeaders = getPixelEventsCorsHeaders(request, {
+      customHeaders,
+    });
+    if (request.method === "OPTIONS") {
+      return {
+        continue: false,
+        response: new Response(null, {
+          status: 204,
+          headers: corsHeaders,
+        }),
+      };
+    }
+    context.meta.corsHeaders = corsHeaders;
+    return { continue: true, context };
+  };
 }
 
 export function withShopCors(
   allowedDomains: string[],
   customHeaders: string[] = []
 ): Middleware {
-  return withCors({
-    origin: (origin) => {
-      if (!origin) return null;
-      try {
-        const originUrl = new URL(origin);
-        if (allowedDomains.includes(originUrl.host)) {
-          return origin;
+  return async (context: MiddlewareContext) => {
+    const { request } = context;
+    const origin = request.headers.get("Origin");
+    const corsHeaders: Record<string, string> = {
+      ...SECURITY_HEADERS,
+      "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+      "Access-Control-Allow-Headers": ["Content-Type", "X-Shopify-Shop-Domain", ...customHeaders].join(", "),
+      "Access-Control-Max-Age": "3600",
+      "Vary": "Origin",
+    };
+    if (origin === "null" || origin === null || !origin) {
+      corsHeaders["Access-Control-Allow-Origin"] = "*";
+    } else {
+      const originHost = origin ? new URL(origin).hostname : null;
+      if (originHost) {
+        const isAllowed = allowedDomains.some(domain => {
+          const normalizedDomain = domain.toLowerCase();
+          return originHost === normalizedDomain || originHost.endsWith(`.${normalizedDomain}`);
+        });
+        if (isAllowed) {
+          corsHeaders["Access-Control-Allow-Origin"] = origin;
+        } else if (isValidShopifyOrigin(origin)) {
+          corsHeaders["Access-Control-Allow-Origin"] = origin;
+        } else if (isDevMode() && isValidDevOrigin(origin)) {
+          corsHeaders["Access-Control-Allow-Origin"] = origin;
         }
-      } catch {
       }
-      return null;
-    },
-    methods: ["GET", "POST", "OPTIONS"],
-    allowedHeaders: [
-      "Content-Type",
-      "X-Shopify-Shop-Domain",
-      ...customHeaders,
-    ],
-    credentials: false,
-    maxAge: 3600,
-  });
+    }
+    if (request.method === "OPTIONS") {
+      return {
+        continue: false,
+        response: new Response(null, {
+          status: 204,
+          headers: corsHeaders,
+        }),
+      };
+    }
+    context.meta.corsHeaders = corsHeaders;
+    return { continue: true, context };
+  };
 }
 
 export function jsonWithCors<T>(

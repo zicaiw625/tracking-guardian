@@ -142,37 +142,6 @@ export function validateSecurityHeaders(): {
   };
 }
 
-export function getCorsPreflightHeaders(
-  origin: string,
-  allowedOrigins: string[] = []
-): Record<string, string> {
-  const isAllowed =
-    allowedOrigins.length === 0 || allowedOrigins.includes(origin);
-  if (!isAllowed) {
-    return {};
-  }
-  return {
-    "Access-Control-Allow-Origin": origin,
-    "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
-    "Access-Control-Allow-Headers": "Content-Type, Authorization",
-    "Access-Control-Max-Age": "86400",
-  };
-}
-
-export function getCorsResponseHeaders(
-  origin: string,
-  allowedOrigins: string[] = []
-): Record<string, string> {
-  const isAllowed =
-    allowedOrigins.length === 0 || allowedOrigins.includes(origin);
-  if (!isAllowed) {
-    return {};
-  }
-  return {
-    "Access-Control-Allow-Origin": origin,
-    "Access-Control-Allow-Credentials": "true",
-  };
-}
 
 export function getRateLimitHeaders(
   limit: number,

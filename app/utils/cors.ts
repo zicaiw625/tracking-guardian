@@ -1,5 +1,6 @@
 import { json } from "@remix-run/node";
 import { isValidShopifyOrigin, isValidDevOrigin, isDevMode, extractOriginHost, SHOPIFY_ALLOWLIST, } from "./origin-validation";
+
 export const SECURITY_HEADERS = {
     "X-Content-Type-Options": "nosniff",
     "X-Frame-Options": "DENY",

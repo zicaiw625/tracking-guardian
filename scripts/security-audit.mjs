@@ -203,28 +203,38 @@ function checkGDPRWebhooks() {
 }
 
 function checkScopes() {
-  const envExample = join(process.cwd(), ".env.example");
   const complianceDoc = join(process.cwd(), "COMPLIANCE.md");
   if (existsSync(complianceDoc)) {
     const content = readFileSync(complianceDoc, "utf-8");
-    if (content.includes("Scopes Justification") || content.includes("权限说明")) {
+    const hasScopesJustification = content.includes("Scopes Justification") || content.includes("权限说明");
+    const hasDataTypes = content.includes("数据类型") || content.includes("Data Types");
+    const hasRetention = content.includes("数据保留") || content.includes("Data Retention");
+    const hasDeletion = content.includes("数据删除") || content.includes("Data Deletion");
+    const hasThirdParty = content.includes("第三方") || content.includes("Third Party");
+    if (hasScopesJustification && hasDataTypes && hasRetention && hasDeletion && hasThirdParty) {
       checks.push({
         name: "Scopes Documentation Check",
         status: "pass",
-        message: "权限说明文档完整",
+        message: "合规文档完整，包含权限说明、数据类型、保留周期、删除流程和第三方共享说明",
       });
     } else {
+      const missing = [];
+      if (!hasScopesJustification) missing.push("权限说明");
+      if (!hasDataTypes) missing.push("数据类型");
+      if (!hasRetention) missing.push("保留周期");
+      if (!hasDeletion) missing.push("删除流程");
+      if (!hasThirdParty) missing.push("第三方共享");
       checks.push({
         name: "Scopes Documentation Check",
         status: "warning",
-        message: "权限说明文档可能不完整",
+        message: `合规文档存在但缺少部分内容: ${missing.join(", ")}`,
       });
     }
   } else {
     checks.push({
       name: "Scopes Documentation Check",
       status: "fail",
-      message: "合规文档未找到",
+      message: "合规文档未找到 (COMPLIANCE.md)",
     });
   }
 }

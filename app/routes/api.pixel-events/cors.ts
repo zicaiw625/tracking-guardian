@@ -4,6 +4,7 @@ import {
   jsonWithCors as jsonWithCorsBase,
 } from "../../utils/cors";
 
+
 export const PIXEL_CUSTOM_HEADERS = [
   "X-Tracking-Guardian-Timestamp",
   "X-Tracking-Guardian-Signature",
