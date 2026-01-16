@@ -101,16 +101,16 @@ export function SecurityTab({
               <Text as="p" variant="bodySm" tone="subdued">
                 • <strong>TLS 加密</strong>：所有数据传输均通过 HTTPS 加密
                 <br />• <strong>Origin 验证</strong>：仅接受来自 Shopify checkout 页面的请求（含 Referer/ShopDomain fallback，生产环境会记录 fallback 使用情况）
-                <br />• <strong>HMAC 签名</strong>：用于防误报/防跨店伪造和基础抗滥用，不承诺强防伪造（密钥在客户端可见，主要依赖多层防护）
+                <br />• <strong>HMAC 签名</strong>：用于完整性校验与基础抗滥用，不承诺强鉴权（密钥在客户端可见，最终真实性依赖 webhook/订单对账）
                 <br />• <strong>速率限制</strong>：防止滥用和异常流量
                 <br />• <strong>数据最小化</strong>：v1.0 版本不处理任何 PII 数据（包括哈希值）
               </Text>
               <Text as="p" variant="bodySm" tone="caution">
                 <strong>安全边界说明：</strong>此令牌主要用于事件关联和诊断，配合上述多层防护机制共同保障安全。
-                不要将此令牌视为强安全凭证，真正的安全由整体架构设计提供。
+                不要将此令牌视为强安全凭证，真正的安全由 webhook/订单对账与整体架构设计提供。
                 <br />
                 <strong>关于 HMAC 签名密钥：</strong>由于 ingestion_key 通过 Web Pixel settings 下发到客户端，无法做到真正保密。
-                此 HMAC 签名机制的主要目的是防误报/防跨店伪造和基础抗滥用，不承诺"强防伪造"。
+                此 HMAC 签名机制主要用于完整性校验与基础抗滥用，不承诺"强防伪造"。
               </Text>
               <Box
                 background="bg-surface-secondary"
@@ -176,7 +176,7 @@ export function SecurityTab({
                 <Card>
                   <BlockStack gap="400">
                     <Text as="h3" variant="headingMd">
-                      HMAC 密钥安全监控（过去24小时）
+                      HMAC 完整性监控（过去24小时）
                     </Text>
                     <Text as="p" variant="bodySm" tone="subdued">
                       实时监控密钥轮换状态和可疑注入活动，确保系统安全。建议定期检查此面板，及时发现潜在安全风险。
@@ -377,10 +377,10 @@ export function SecurityTab({
                 <Banner tone="critical">
                   <BlockStack gap="200">
                     <Text as="p" variant="bodySm" fontWeight="semibold">
-                      <strong>⚠️ 未配置关联令牌：</strong>请立即生成令牌以确保像素事件正常接收
+                      <strong>⚠️ 未配置关联令牌：</strong>请立即生成令牌以确保像素事件完整性校验可用
                     </Text>
                     <Text as="p" variant="bodySm">
-                      未配置令牌时，所有像素事件将被拒绝。请点击上方"生成令牌"按钮创建新令牌。
+                      未配置令牌时，像素事件仍可接收，但完整性信号与关联能力会下降。请点击上方"生成令牌"按钮创建新令牌。
                     </Text>
                   </BlockStack>
                 </Banner>
@@ -388,7 +388,7 @@ export function SecurityTab({
               <Banner tone="critical">
                 <BlockStack gap="200">
                   <Text as="p" variant="bodySm" fontWeight="semibold">
-                    ⚠️ P0 安全警告：PIXEL_ALLOW_NULL_ORIGIN 配置与 ingestionSecret 轮换策略
+                    ⚠️ P0 安全提示：PIXEL_ALLOW_NULL_ORIGIN 配置与 ingestionKey 管理
                   </Text>
                   <Text as="p" variant="bodySm">
                     <strong>生产环境必须设置：</strong>
@@ -397,24 +397,23 @@ export function SecurityTab({
                     <br />• 部署前必须确认环境变量已正确配置，否则生产环境将拒绝 null origin 请求
                   </Text>
                   <Text as="p" variant="bodySm">
-                    <strong>ingestionSecret 泄漏风险（P0 级别）：</strong>
-                    <br />• 如果 ingestionSecret 泄漏，攻击者可能利用 null origin 场景放大攻击面
-                    <br />• 生产环境依赖 HMAC 签名来保护 null origin 请求，但 ingestionSecret 泄漏会完全削弱此保护
-                    <br />• null origin 请求无法通过 Origin 验证，只能依赖 HMAC 签名，因此 ingestionSecret 的安全性至关重要
-                    <br />• 如果 ingestionSecret 泄漏，null origin 会放大攻击面，必须立即轮换令牌
+                    <strong>ingestionKey 可见性风险：</strong>
+                    <br />• ingestion_key 会下发到像素客户端，属于公开信号，不能作为强鉴权凭证
+                    <br />• null origin 请求无法依赖 Origin 验证，HMAC 只能作为完整性信号与抗噪手段
+                    <br />• 真实订单与转化真实性应以 Shopify webhook/订单对账为准
                   </Text>
                   <Text as="p" variant="bodySm">
                     <strong>必须执行的措施：</strong>
-                    <br />• <strong>定期轮换 ingestionSecret</strong>（建议每 90 天，使用上方"更换令牌"按钮）
+                    <br />• <strong>定期轮换 ingestionKey</strong>（建议每 90 天，使用上方"更换令牌"按钮）
                     <br />• <strong>监控异常事件接收模式</strong>（在 Dashboard 中查看事件统计，特别关注 null origin 请求）
-                    <br />• <strong>如果怀疑泄漏，立即更换令牌</strong>并检查事件日志，审查访问记录
+                    <br />• <strong>如果怀疑滥用，立即更换令牌</strong>并检查事件日志，审查访问记录
                     <br />• <strong>确保生产环境已正确设置</strong> <code>PIXEL_ALLOW_NULL_ORIGIN=true</code>（部署时检查环境变量）
                     <br />• <strong>使用令牌轮换机制</strong>（更换后旧令牌有 30 分钟过渡期，确保平滑过渡）
                     <br />• <strong>记录并审计令牌轮换操作</strong>，建立运维手册和操作流程
                     <br />• <strong>建立令牌过期机制</strong>（系统已支持 previousIngestionSecret 和 previousSecretExpiry，建议定期轮换）
                   </Text>
                   <Text as="p" variant="bodySm" tone="subdued">
-                    <strong>令牌轮换机制说明：</strong>更换令牌时，系统会自动保存旧令牌为 previousIngestionSecret，并在 30 分钟内同时接受新旧令牌，确保 Web Pixel 配置更新期间不会丢失事件。过渡期结束后，旧令牌自动失效。如果发现泄漏，应立即轮换令牌，系统会自动同步新令牌到 Web Pixel 配置。轮换后，请检查事件接收日志，确认新令牌正常工作。
+                    <strong>令牌轮换机制说明：</strong>更换令牌时，系统会自动保存旧令牌为 previousIngestionSecret，并在 30 分钟内同时接受新旧令牌，确保 Web Pixel 配置更新期间不会丢失事件。过渡期结束后，旧令牌自动失效。如果发现滥用，应立即轮换令牌，系统会自动同步新令牌到 Web Pixel 配置。轮换后，请检查事件接收日志，确认新令牌正常工作。
                   </Text>
                 </BlockStack>
               </Banner>
@@ -424,7 +423,7 @@ export function SecurityTab({
                     工作原理：
                   </Text>
                   <Text as="p" variant="bodySm">
-                    服务端会验证此令牌，缺少或错误的令牌会导致像素事件被拒绝（204 响应）。
+                    服务端会记录此令牌并将其作为完整性信号，缺少或错误的令牌不会阻断接收，但会降低事件信任度。
                     更换令牌后，App Pixel 会自动更新，旧令牌会有 30 分钟的过渡期（grace window）。
                   </Text>
                   <Text as="p" variant="bodySm">

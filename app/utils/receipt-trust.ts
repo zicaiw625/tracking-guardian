@@ -52,12 +52,7 @@ export function verifyReceiptTrust(options: VerifyReceiptOptions): ReceiptTrustR
         };
     }
     if (!ingestionKeyMatched) {
-        return {
-            trusted: false,
-            level: "untrusted",
-            reason: "hmac_signature_invalid",
-            details: "HMAC signature validation failed (previously called ingestion_key_invalid)",
-        };
+        logger.debug("Ingestion key signal missing or invalid for receipt trust evaluation");
     }
     if (!receiptCheckoutToken) {
         return {

@@ -420,7 +420,7 @@ SCOPES=read_script_tags,read_pixels,write_pixels,read_customer_events,read_order
   - PRD 8.2 定义的批量事件接口，唯一推荐使用的端点
   - 支持批量格式：`{ events: [event1, event2, ...], timestamp: number }`
   - 同时支持单事件格式（向后兼容）
-  - 支持 CORS、HMAC 验证、时间窗校验、nonce 防重放等安全机制
+  - 支持 CORS、HMAC 完整性校验、时间窗校验、nonce 防重放等安全机制
   - Web Pixel Extension 已实现批量发送到 `/ingest` 端点，符合 PRD 性能目标
   - **审计结论对齐**：接口形态与 PRD 8.2 完全一致，解决了"Ingest API 形态不一致"问题
   
@@ -551,7 +551,7 @@ ScriptTag 清理需要商家手动操作：
 4. **最佳实践**：
    - 定期轮换 `ingestion_key`（虽然客户端仍可提取新密钥，但可限制旧密钥的有效期）
    - 监控异常请求模式，及时响应安全事件
-   - 在生产环境启用所有安全校验（Origin、HMAC、nonce、timestamp 等）
+   - 在生产环境启用所有安全校验（Origin、nonce、timestamp 等，HMAC 作为完整性信号）
    - 使用服务端追踪（CAPI）作为主要追踪方式，客户端追踪作为补充
 
 **结论**：`ingestion_key` 的设计目标是"提高攻击门槛"而非"完全防止攻击"。通过多层防护机制，可以有效防止大部分自动化攻击和误用，但对于有能力的攻击者，客户端密钥的提取是不可避免的。这是客户端安全模型的权衡，需要在安全性和可用性之间取得平衡。

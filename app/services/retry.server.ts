@@ -12,7 +12,7 @@ import {
 import { checkBillingGate, incrementMonthlyUsage, type PlanId } from "./billing.server";
 import { decryptCredentials } from "./credentials.server";
 import { sendConversionToPlatform } from "./platforms";
-import { generateEventId } from "../utils/crypto.server";
+import { generateEventId as generateStableEventId } from "./capi-dedup.server";
 import { logger } from "../utils/logger.server";
 import { toJsonInput } from "../utils/prisma-json";
 import type { PlatformSendResult } from "./platforms/interface";
@@ -235,6 +235,7 @@ export async function processPendingConversions(): Promise<{
         select: {
           id: true,
           plan: true,
+          shopDomain: true,
           pixelConfigs: {
             where: { serverSideEnabled: true },
             select: {
@@ -307,7 +308,12 @@ export async function processPendingConversions(): Promise<{
         currency: log.currency,
       };
       
-      const eventId = log.eventId || generateEventId();
+      const eventId = log.eventId || generateStableEventId(
+        log.orderId,
+        log.eventType,
+        log.Shop.shopDomain,
+        log.platform
+      );
       const sendResult = await sendConversionToPlatform(
         log.platform,
         credentialsResult.value.credentials,
@@ -365,6 +371,7 @@ export async function processRetries(): Promise<{
         select: {
           id: true,
           plan: true,
+          shopDomain: true,
           pixelConfigs: {
             where: { serverSideEnabled: true },
             select: {
@@ -437,7 +444,12 @@ export async function processRetries(): Promise<{
         currency: log.currency,
       };
       
-      const eventId = log.eventId || generateEventId();
+      const eventId = log.eventId || generateStableEventId(
+        log.orderId,
+        log.eventType,
+        log.Shop.shopDomain,
+        log.platform
+      );
       const sendResult = await sendConversionToPlatform(
         log.platform,
         credentialsResult.value.credentials,

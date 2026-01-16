@@ -66,13 +66,13 @@ export async function processConversionJobs(
 async function processSingleJob(job: { id: string; shopId: string; orderId: string; orderNumber: string | null; orderValue: any; currency: string; capiInput: any; shop: { id: string; shopDomain: string; plan: string | null; consentStrategy: string; pixelConfigs: Array<{ platform: string; serverSideEnabled: boolean; credentialsEncrypted: string | null; credentials_legacy: any }> } }): Promise<void> {
   const { decryptCredentials } = await import("./credentials.server");
   const { sendConversionToPlatform } = await import("./platforms");
-  const { generateEventId } = await import("../utils/crypto.server");
+  const { generateEventId } = await import("./capi-dedup.server");
   
   if (!job.capiInput || typeof job.capiInput !== "object") {
     throw new Error(`Job ${job.id} missing capiInput`);
   }
   
-  const capiInput = job.capiInput as { value?: number; currency?: string; lineItems?: Array<{ id: string; quantity: number; price: number }> };
+  const capiInput = job.capiInput as { value?: number; currency?: string; lineItems?: Array<{ id: string; quantity: number; price: number }>; eventType?: string };
   const conversionData = {
     orderId: job.orderId,
     orderNumber: job.orderNumber,
@@ -80,8 +80,7 @@ async function processSingleJob(job: { id: string; shopId: string; orderId: stri
     currency: capiInput.currency ?? job.currency,
     lineItems: capiInput.lineItems,
   };
-  
-  const eventId = generateEventId();
+  const eventType = typeof capiInput.eventType === "string" ? capiInput.eventType : "purchase";
   const serverSideConfigs = job.shop.pixelConfigs.filter(config => config.serverSideEnabled === true);
   
   if (serverSideConfigs.length === 0) {
@@ -111,7 +110,7 @@ async function processSingleJob(job: { id: string; shopId: string; orderId: stri
         config.platform,
         credentialsResult.value.credentials,
         conversionData,
-        eventId
+        generateEventId(job.orderId, eventType, job.shop.shopDomain, config.platform)
       );
       
       if (!sendResult.success) {

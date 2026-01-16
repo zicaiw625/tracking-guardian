@@ -40,7 +40,7 @@ function truncateItems(items: Array<{
 export interface EventSenderConfig {
   backendUrl: string | null;
   shopDomain: string;
-  ingestionSecret?: string;
+  ingestionKey?: string;
   isDevMode: boolean;
   consentManager: ConsentManager;
   logger?: (...args: unknown[]) => void;
@@ -138,7 +138,7 @@ interface QueuedEvent {
 }
 
 export function createEventSender(config: EventSenderConfig) {
-  const { backendUrl, shopDomain, ingestionSecret, isDevMode, consentManager, logger, environment = "live" } = config;
+  const { backendUrl, shopDomain, ingestionKey, isDevMode, consentManager, logger, environment = "live" } = config;
   const log = logger || (() => {});
   if (!backendUrl) {
     if (isDevMode) {
@@ -189,10 +189,10 @@ export function createEventSender(config: EventSenderConfig) {
         "Content-Type": "application/json",
         "X-Tracking-Guardian-Timestamp": String(timestamp),
       };
-      if (ingestionSecret) {
+      if (ingestionKey) {
         try {
           const bodyHash = sha256Hex(body);
-          const signature = generateHMACSignature(ingestionSecret, timestamp, bodyHash);
+          const signature = generateHMACSignature(ingestionKey, timestamp, bodyHash);
           headers["X-Tracking-Guardian-Signature"] = signature;
           if (isDevMode) {
             log(`Batch HMAC signature generated for ${eventsToSend.length} events`);

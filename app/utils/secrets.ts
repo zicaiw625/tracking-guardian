@@ -151,7 +151,6 @@ export function checkSecurityViolations(): SecurityViolation[] {
                     "Web Pixel API may send requests with Origin=null from sandbox environments. " +
                     "Without explicit configuration, these requests will be silently rejected, causing data loss. " +
                     "If your deployment receives pixel events, you MUST set PIXEL_ALLOW_NULL_ORIGIN=true. " +
-                    "Null origin requests require valid HMAC signature for security. " +
                     "If you do not receive pixel events, you can set PIXEL_ALLOW_NULL_ORIGIN=false explicitly.",
             });
         } else {

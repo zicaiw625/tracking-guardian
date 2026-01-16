@@ -198,7 +198,7 @@ Tracking Guardian 是一个 Shopify 应用，作为**数据处理者**（Data Pr
 ### 传输加密
 - 所有 API 通信均使用 TLS 1.2+ 加密
 - Webhook 端点使用 HMAC 签名验证
-- 像素事件使用 HMAC + 时间窗 + nonce 防重放机制
+- 像素事件使用 HMAC 完整性校验 + 时间窗 + nonce 防重放机制（密钥来自像素 settings，用于完整性与关联，不作为强鉴权）
 
 ### 存储加密
 - 平台凭证（Access Token、API Secret）使用 AES-256-GCM 加密存储
@@ -216,9 +216,10 @@ Tracking Guardian 是一个 Shopify 应用，作为**数据处理者**（Data Pr
 - 日志保留周期：90 天（生产环境）
 
 ### 防重放攻击
-- 像素事件使用 HMAC 签名验证
+- 像素事件使用 HMAC 完整性校验
 - 时间窗验证（10 分钟）
 - Nonce 防重放机制（Redis 存储，1 小时过期）
+- 订单真实性以 Shopify webhook/后台订单对账为准，像素事件仅用于接收、关联与噪声过滤
 
 ### 速率限制
 - 像素事件：50 请求/分钟
@@ -247,6 +248,7 @@ Tracking Guardian 是一个 Shopify 应用，作为**数据处理者**（Data Pr
 - ✅ 隐私政策公开可访问
 - ✅ 数据处理透明
 - ✅ PCD 功能硬门禁（未批准时禁用）
+- ✅ Shopify 2025-12-10 起对 Web Pixel PII 访问强制执行 protected scopes 要求，已在文档与产品提示中强调
 
 ---
 
