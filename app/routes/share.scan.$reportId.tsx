@@ -20,18 +20,24 @@ import {
 import { validateRiskItemsArray, validateStringArray } from "../utils/scan-data-validation";
 import { PUBLIC_PAGE_HEADERS, addSecurityHeadersToHeaders } from "../utils/security-headers";
 
+const publicJson = (data: unknown, init: ResponseInit = {}) => {
+  const headers = new Headers(init.headers);
+  addSecurityHeadersToHeaders(headers, PUBLIC_PAGE_HEADERS);
+  return json(data, { ...init, headers });
+};
+
 export const loader = async ({ request, params }: LoaderFunctionArgs) => {
   try {
     const reportId = params.reportId;
     if (!reportId) {
-      throw new Response("Missing reportId", { status: 400 });
+      return publicJson({ error: "Missing reportId", report: null }, { status: 400 });
     }
 
     const url = new URL(request.url);
     const token = url.searchParams.get("token");
 
     if (!token) {
-      return json({ error: "Missing share token", report: null }, { status: 403 });
+      return publicJson({ error: "Missing share token", report: null }, { status: 403 });
     }
 
     const scanReport = await prisma.scanReport.findUnique({
@@ -53,11 +59,11 @@ export const loader = async ({ request, params }: LoaderFunctionArgs) => {
     });
 
     if (!scanReport) {
-      return json({ error: "Report not found", report: null }, { status: 404 });
+      return publicJson({ error: "Report not found", report: null }, { status: 404 });
     }
 
     if (!scanReport.shareTokenHash) {
-      return json({ error: "Share link not available", report: null }, { status: 403 });
+      return publicJson({ error: "Share link not available", report: null }, { status: 403 });
     }
 
     const shop = await prisma.shop.findUnique({
@@ -66,7 +72,7 @@ export const loader = async ({ request, params }: LoaderFunctionArgs) => {
     });
 
     if (!shop) {
-      return json({ error: "Shop not found", report: null }, { status: 404 });
+      return publicJson({ error: "Shop not found", report: null }, { status: 404 });
     }
 
     const expectedTokenHash = createHash("sha256")
@@ -77,24 +83,21 @@ export const loader = async ({ request, params }: LoaderFunctionArgs) => {
     const actualBuffer = Buffer.from(scanReport.shareTokenHash, "hex");
     
     if (expectedBuffer.length !== actualBuffer.length) {
-      return json({ error: "Invalid share token", report: null }, { status: 403 });
+      return publicJson({ error: "Invalid share token", report: null }, { status: 403 });
     }
     
     if (!timingSafeEqual(expectedBuffer, actualBuffer)) {
-      return json({ error: "Invalid share token", report: null }, { status: 403 });
+      return publicJson({ error: "Invalid share token", report: null }, { status: 403 });
     }
 
     if (scanReport.shareTokenExpiresAt && new Date() > scanReport.shareTokenExpiresAt) {
-      return json({ error: "Share link has expired", report: null }, { status: 403 });
+      return publicJson({ error: "Share link has expired", report: null }, { status: 403 });
     }
 
     const riskItems = validateRiskItemsArray(scanReport.riskItems);
     const identifiedPlatforms = validateStringArray(scanReport.identifiedPlatforms);
 
-    const headers = new Headers();
-    addSecurityHeadersToHeaders(headers, PUBLIC_PAGE_HEADERS);
-
-    return json({
+    return publicJson({
       report: {
         id: scanReport.id,
         shopDomain: shop.shopDomain,
@@ -105,13 +108,13 @@ export const loader = async ({ request, params }: LoaderFunctionArgs) => {
         createdAt: scanReport.createdAt.toISOString(),
         completedAt: scanReport.completedAt?.toISOString() || null,
       },
-    }, { headers });
+    });
   } catch (error) {
     logger.error("Failed to load shared scan report", {
       error,
       reportId: params.reportId,
     });
-    return json(
+    return publicJson(
       { error: error instanceof Error ? error.message : "Failed to load report", report: null },
       { status: 500 }
     );

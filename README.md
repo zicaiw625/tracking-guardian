@@ -246,7 +246,17 @@ PIXEL_ALLOW_NULL_ORIGIN=true
 # 可选：安全相关环境变量
 CRON_SECRET=your_cron_secret_min_32_chars  # 用于 cron job 鉴权
 ENCRYPTION_SECRET=your_encryption_secret_min_32_chars  # 用于数据加密
+ENCRYPTION_SALT=your_encryption_salt_min_16_chars
+PIXEL_STRICT_ORIGIN=false
 ```
+
+`ENCRYPTION_SALT` **必须稳定不变**（不要在每次部署时更换），否则历史密文将无法解密。可使用以下命令生成一次并持久保存：
+
+```bash
+openssl rand -hex 16
+```
+
+`PIXEL_STRICT_ORIGIN=true` 时，即使请求带签名也必须通过 origin allowlist 校验；默认保持宽松策略以兼容 Shopify 沙箱环境。
 
 3. **初始化数据库**
 

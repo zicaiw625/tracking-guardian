@@ -17,22 +17,27 @@ import {
   Layout,
   ProgressBar,
 } from "@shopify/polaris";
-import { getVerificationRun } from "../services/verification.server";
 import { generateVerificationReportData } from "../services/verification-report.server";
 import { PUBLIC_PAGE_HEADERS, addSecurityHeadersToHeaders } from "../utils/security-headers";
+
+const publicJson = (data: unknown, init: ResponseInit = {}) => {
+  const headers = new Headers(init.headers);
+  addSecurityHeadersToHeaders(headers, PUBLIC_PAGE_HEADERS);
+  return json(data, { ...init, headers });
+};
 
 export const loader = async ({ request, params }: LoaderFunctionArgs) => {
   try {
     const publicId = params.publicId;
     if (!publicId) {
-      throw new Response("Missing publicId", { status: 400 });
+      return publicJson({ error: "Missing publicId", report: null }, { status: 400 });
     }
 
     const url = new URL(request.url);
     const token = url.searchParams.get("token");
 
     if (!token) {
-      return json({ error: "Missing share token", report: null }, { status: 403 });
+      return publicJson({ error: "Missing share token", report: null }, { status: 403 });
     }
 
     const run = await prisma.verificationRun.findUnique({
@@ -47,11 +52,11 @@ export const loader = async ({ request, params }: LoaderFunctionArgs) => {
     });
     
     if (!run) {
-      return json({ error: "Report not found", report: null }, { status: 404 });
+      return publicJson({ error: "Report not found", report: null }, { status: 404 });
     }
     
     if (!run.publicTokenHash) {
-      return json({ error: "Share link not available", report: null }, { status: 403 });
+      return publicJson({ error: "Share link not available", report: null }, { status: 403 });
     }
     
     const shop = await prisma.shop.findUnique({
@@ -60,7 +65,7 @@ export const loader = async ({ request, params }: LoaderFunctionArgs) => {
     });
     
     if (!shop) {
-      return json({ error: "Shop not found", report: null }, { status: 404 });
+      return publicJson({ error: "Shop not found", report: null }, { status: 404 });
     }
 
     const expectedTokenHash = createHash("sha256")
@@ -71,26 +76,23 @@ export const loader = async ({ request, params }: LoaderFunctionArgs) => {
     const actualBuffer = Buffer.from(run.publicTokenHash, "hex");
     
     if (expectedBuffer.length !== actualBuffer.length) {
-      return json({ error: "Invalid share token", report: null }, { status: 403 });
+      return publicJson({ error: "Invalid share token", report: null }, { status: 403 });
     }
     
     if (!timingSafeEqual(expectedBuffer, actualBuffer)) {
-      return json({ error: "Invalid share token", report: null }, { status: 403 });
+      return publicJson({ error: "Invalid share token", report: null }, { status: 403 });
     }
 
     if (run.shareTokenExpiresAt && new Date() > run.shareTokenExpiresAt) {
-      return json({ error: "Share link has expired", report: null }, { status: 403 });
+      return publicJson({ error: "Share link has expired", report: null }, { status: 403 });
     }
 
     const reportData = await generateVerificationReportData(run.shopId, run.id);
     if (!reportData) {
-      return json({ error: "Failed to load report data", report: null }, { status: 500 });
+      return publicJson({ error: "Failed to load report data", report: null }, { status: 500 });
     }
 
-    const headers = new Headers();
-    addSecurityHeadersToHeaders(headers, PUBLIC_PAGE_HEADERS);
-
-    return json({
+    return publicJson({
       report: {
         runId: reportData.runId,
         runName: reportData.runName,
@@ -111,13 +113,13 @@ export const loader = async ({ request, params }: LoaderFunctionArgs) => {
         events: reportData.events,
         sandboxLimitations: reportData.sandboxLimitations,
       },
-    }, { headers });
+    });
   } catch (error) {
     logger.error("Failed to load shared verification report", {
       error,
       publicId: params.publicId,
     });
-    return json(
+    return publicJson(
       { error: error instanceof Error ? error.message : "Failed to load report", report: null },
       { status: 500 }
     );

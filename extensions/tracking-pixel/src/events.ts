@@ -137,6 +137,21 @@ interface QueuedEvent {
   nonce: string;
 }
 
+function generateNonce(): { timestamp: number; nonce: string } {
+  const timestamp = Date.now();
+  let randomHex = "";
+  if (globalThis.crypto && typeof globalThis.crypto.getRandomValues === "function") {
+    const randomBytes = new Uint8Array(6);
+    globalThis.crypto.getRandomValues(randomBytes);
+    randomHex = Array.from(randomBytes)
+      .map(b => b.toString(16).padStart(2, "0"))
+      .join("");
+  } else {
+    randomHex = Array.from({ length: 12 }, () => Math.floor(Math.random() * 16).toString(16)).join("");
+  }
+  return { timestamp, nonce: `${timestamp}-${randomHex}` };
+}
+
 export function createEventSender(config: EventSenderConfig) {
   const { backendUrl, shopDomain, ingestionKey, isDevMode, consentManager, logger, environment = "live" } = config;
   const log = logger || (() => {});
@@ -240,13 +255,7 @@ export function createEventSender(config: EventSenderConfig) {
       `analytics=${consentManager.analyticsAllowed}, marketing=${consentManager.marketingAllowed}, saleOfData=${consentManager.saleOfDataAllowed}`
     );
     try {
-      const timestamp = Date.now();
-      const randomBytes = new Uint8Array(6);
-      crypto.getRandomValues(randomBytes);
-      const randomHex = Array.from(randomBytes)
-        .map(b => b.toString(16).padStart(2, "0"))
-        .join("");
-      const nonce = `${timestamp}-${randomHex}`;
+      const { timestamp, nonce } = generateNonce();
       eventQueue.push({
         eventName,
         data,
