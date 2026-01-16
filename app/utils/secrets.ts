@@ -22,7 +22,7 @@ const REQUIRED_SECRETS: SecretConfig[] = [
     {
         name: "Encryption Salt",
         envVar: "ENCRYPTION_SALT",
-        required: false,
+        required: true,
         minLength: 16,
         description: "Salt for key derivation. Use a unique value for each deployment.",
     },
@@ -123,6 +123,14 @@ export function checkSecurityViolations(): SecurityViolation[] {
                 message: "[SECURITY] CRON_SECRET is not set in production. " +
                     "This is required for cron endpoint authentication. " +
                     "Generate with: openssl rand -base64 32",
+            });
+        }
+        if (!process.env.ENCRYPTION_SALT) {
+            violations.push({
+                type: "fatal",
+                code: "MISSING_ENCRYPTION_SALT",
+                message: "[SECURITY] ENCRYPTION_SALT is not set in production. " +
+                    "This is required for consistent key derivation across deployments.",
             });
         }
         const appUrl = process.env.SHOPIFY_APP_URL;
