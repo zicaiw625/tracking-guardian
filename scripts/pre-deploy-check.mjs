@@ -186,20 +186,27 @@ function checkDuplicateImports() {
 
 function checkBackendUrlInjection() {
     const configFiles = [
-        "extensions/shared/config.ts",
-        "extensions/thank-you-blocks/src/config.ts",
+        { path: "extensions/shared/config.ts", requirePlaceholder: true },
+        { path: "extensions/thank-you-blocks/src/config.ts", requirePlaceholder: false },
     ];
     const missingFiles = [];
     const missingPlaceholder = [];
+    const sharedConfigImportPattern = /import\s+.*\bBACKEND_URL\b.*from\s+["']\.\.\/\.\.\/shared\/config["']/;
     for (const configFile of configFiles) {
-        const filePath = path.join(__dirname, "..", configFile);
+        const filePath = path.join(__dirname, "..", configFile.path);
         if (!fs.existsSync(filePath)) {
-            missingFiles.push(configFile);
+            missingFiles.push(configFile.path);
             continue;
         }
         const content = fs.readFileSync(filePath, "utf-8");
-        if (!content.includes("__BACKEND_URL_PLACEHOLDER__")) {
-            missingPlaceholder.push(configFile);
+        if (configFile.requirePlaceholder) {
+            if (!content.includes("__BACKEND_URL_PLACEHOLDER__")) {
+                missingPlaceholder.push(configFile.path);
+            }
+        } else {
+            if (!sharedConfigImportPattern.test(content)) {
+                missingPlaceholder.push(`${configFile.path}: 未找到从 shared/config 导入 BACKEND_URL 的语句`);
+            }
         }
     }
     const buildScriptPath = path.join(__dirname, "build-extensions.mjs");
@@ -209,7 +216,7 @@ function checkBackendUrlInjection() {
         issues.push(`缺少配置文件: ${missingFiles.join(", ")}`);
     }
     if (missingPlaceholder.length > 0) {
-        issues.push(`配置文件缺少占位符: ${missingPlaceholder.join(", ")}`);
+        issues.push(`配置文件问题: ${missingPlaceholder.join(", ")}`);
     }
     if (!buildScriptContent.includes("THANK_YOU_CONFIG_FILE")) {
         issues.push("build-extensions.mjs 未处理 thank-you-blocks 配置文件");
@@ -281,12 +288,13 @@ function checkNetworkAccessPermission() {
 
 function checkExtensionUrlInjected() {
     const configFiles = [
-        { path: "extensions/shared/config.ts", label: "Shared config" },
-        { path: "extensions/thank-you-blocks/src/config.ts", label: "Thank-you blocks config" },
+        { path: "extensions/shared/config.ts", label: "Shared config", requireBuildTimeUrl: true },
+        { path: "extensions/thank-you-blocks/src/config.ts", label: "Thank-you blocks config", requireBuildTimeUrl: false },
     ];
     const issues = [];
     const placeholderPattern = /__BACKEND_URL_PLACEHOLDER__/;
     const buildTimeUrlPattern = /const\s+BUILD_TIME_URL\s*=\s*(["'])([^"']+)\1;/;
+    const sharedConfigImportPattern = /import\s+.*\bBACKEND_URL\b.*from\s+["']\.\.\/\.\.\/shared\/config["']/;
     const isCI = process.env.CI === "true" || process.env.GITHUB_ACTIONS === "true" || process.env.RENDER === "true";
     
     for (const configFile of configFiles) {
@@ -296,20 +304,27 @@ function checkExtensionUrlInjected() {
             continue;
         }
         const content = fs.readFileSync(filePath, "utf-8");
-        const match = content.match(buildTimeUrlPattern);
-        if (!match) {
-            issues.push(`${configFile.label}: 未找到 BUILD_TIME_URL 定义`);
-            continue;
-        }
-        const urlValue = match[2];
-        if (placeholderPattern.test(urlValue)) {
-            const errorMsg = `${configFile.label}: URL 仍为占位符，需要在部署前运行 'pnpm ext:inject' 或 'pnpm deploy:ext'。这是严重的配置错误，如果占位符未被替换，像素扩展将无法发送事件到后端，导致事件丢失。必须在生产环境部署前修复。`;
-            issues.push(errorMsg);
-        } else if (urlValue.includes("localhost") || urlValue.includes("127.0.0.1")) {
-            if (isCI) {
-                issues.push(`${configFile.label}: URL 指向 localhost，生产环境将无法工作。CI/CD 环境中必须设置正确的 SHOPIFY_APP_URL`);
-            } else {
-                issues.push(`${configFile.label}: URL 指向 localhost，生产环境将无法工作`);
+        
+        if (configFile.requireBuildTimeUrl) {
+            const match = content.match(buildTimeUrlPattern);
+            if (!match) {
+                issues.push(`${configFile.label}: 未找到 BUILD_TIME_URL 定义`);
+                continue;
+            }
+            const urlValue = match[2];
+            if (placeholderPattern.test(urlValue)) {
+                const errorMsg = `${configFile.label}: URL 仍为占位符，需要在部署前运行 'pnpm ext:inject' 或 'pnpm deploy:ext'。这是严重的配置错误，如果占位符未被替换，像素扩展将无法发送事件到后端，导致事件丢失。必须在生产环境部署前修复。`;
+                issues.push(errorMsg);
+            } else if (urlValue.includes("localhost") || urlValue.includes("127.0.0.1")) {
+                if (isCI) {
+                    issues.push(`${configFile.label}: URL 指向 localhost，生产环境将无法工作。CI/CD 环境中必须设置正确的 SHOPIFY_APP_URL`);
+                } else {
+                    issues.push(`${configFile.label}: URL 指向 localhost，生产环境将无法工作`);
+                }
+            }
+        } else {
+            if (!sharedConfigImportPattern.test(content)) {
+                issues.push(`${configFile.label}: 未找到从 shared/config 导入 BACKEND_URL 的语句`);
             }
         }
     }

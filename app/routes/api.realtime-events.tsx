@@ -63,28 +63,27 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
         let lastEventId: string | null = null;
         pollInterval = setInterval(async () => {
           try {
-            const whereClause: {
-              shopId: string;
-              createdAt?: { gt: Date };
-            } = {
-              shopId: shop.id,
-            };
+            const now = Date.now();
+            const timeWindowStart = new Date(now - 60000);
+            let minCreatedAt: Date = timeWindowStart;
+            
             if (lastEventId) {
               const lastEvent = await prisma.pixelEventReceipt.findUnique({
                 where: { id: lastEventId },
                 select: { createdAt: true },
               });
               if (lastEvent) {
-                whereClause.createdAt = { gt: lastEvent.createdAt };
+                minCreatedAt = lastEvent.createdAt > timeWindowStart ? lastEvent.createdAt : timeWindowStart;
               } else {
                 lastEventId = null;
               }
             }
+            
             const recentReceipts = await prisma.pixelEventReceipt.findMany({
               where: {
-                ...whereClause,
+                shopId: shop.id,
                 createdAt: {
-                  gt: new Date(Date.now() - 60000),
+                  gt: minCreatedAt,
                 },
               },
               orderBy: { createdAt: "asc" },

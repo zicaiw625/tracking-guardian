@@ -205,12 +205,13 @@ function checkSourceStructure() {
 
 function checkBackendUrlInjection() {
     const configFiles = [
-        { path: "extensions/shared/config.ts", label: "Shared config" },
-        { path: "extensions/thank-you-blocks/src/config.ts", label: "Thank-you blocks config" },
+        { path: "extensions/shared/config.ts", label: "Shared config", requireBuildTimeUrl: true },
+        { path: "extensions/thank-you-blocks/src/config.ts", label: "Thank-you blocks config", requireBuildTimeUrl: false },
     ];
     const violations = [];
     const placeholderPattern = /__BACKEND_URL_PLACEHOLDER__/;
     const buildTimeUrlPattern = /const\s+BUILD_TIME_URL\s*=\s*(["'])([^"']+)\1;/;
+    const sharedConfigImportPattern = /import\s+.*\bBACKEND_URL\b.*from\s+["']\.\.\/\.\.\/shared\/config["']/;
     const isCI = process.env.CI === "true" || process.env.GITHUB_ACTIONS === "true" || process.env.RENDER === "true";
     
     for (const configFile of configFiles) {
@@ -225,31 +226,43 @@ function checkBackendUrlInjection() {
             continue;
         }
         const content = fs.readFileSync(filePath, "utf-8");
-        const match = content.match(buildTimeUrlPattern);
-        if (!match) {
-            violations.push({
-                file: configFile.path,
-                line: 0,
-                content: "",
-                description: "未找到 BUILD_TIME_URL 定义",
-            });
-            continue;
-        }
-        const urlValue = match[2];
-        if (placeholderPattern.test(urlValue)) {
-            violations.push({
-                file: configFile.path,
-                line: 0,
-                content: urlValue,
-                description: "URL 仍为占位符，需要在部署前运行 'pnpm ext:inject' 或 'pnpm deploy:ext'",
-            });
-        } else if (urlValue.includes("localhost") || urlValue.includes("127.0.0.1")) {
-            if (isCI) {
+        
+        if (configFile.requireBuildTimeUrl) {
+            const match = content.match(buildTimeUrlPattern);
+            if (!match) {
+                violations.push({
+                    file: configFile.path,
+                    line: 0,
+                    content: "",
+                    description: "未找到 BUILD_TIME_URL 定义",
+                });
+                continue;
+            }
+            const urlValue = match[2];
+            if (placeholderPattern.test(urlValue)) {
                 violations.push({
                     file: configFile.path,
                     line: 0,
                     content: urlValue,
-                    description: "URL 指向 localhost，生产环境将无法工作。CI/CD 环境中必须设置正确的 SHOPIFY_APP_URL",
+                    description: "URL 仍为占位符，需要在部署前运行 'pnpm ext:inject' 或 'pnpm deploy:ext'",
+                });
+            } else if (urlValue.includes("localhost") || urlValue.includes("127.0.0.1")) {
+                if (isCI) {
+                    violations.push({
+                        file: configFile.path,
+                        line: 0,
+                        content: urlValue,
+                        description: "URL 指向 localhost，生产环境将无法工作。CI/CD 环境中必须设置正确的 SHOPIFY_APP_URL",
+                    });
+                }
+            }
+        } else {
+            if (!sharedConfigImportPattern.test(content)) {
+                violations.push({
+                    file: configFile.path,
+                    line: 0,
+                    content: "",
+                    description: "未找到从 shared/config 导入 BACKEND_URL 的语句",
                 });
             }
         }

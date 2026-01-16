@@ -2,6 +2,7 @@ import prisma from "../db.server";
 import { logger } from "../utils/logger.server";
 import { getShopByIdWithDecryptedFields } from "../utils/shop-access";
 import { apiVersion } from "../shopify.server";
+import { SecureShopDomainSchema } from "../utils/security";
 
 function extractPlatformFromPayload(payload: Record<string, unknown> | null): string | null {
     if (!payload) return null;
@@ -45,8 +46,16 @@ async function getShopifyOrderStats(shopDomain: string, accessToken: string | nu
     count: number;
     revenue: number;
 } | null> {
+    const validationResult = SecureShopDomainSchema.safeParse(shopDomain);
+    if (!validationResult.success) {
+        logger.warn(`[Reconciliation] Invalid shop domain format: ${shopDomain}`, {
+            errors: validationResult.error.errors,
+        });
+        return null;
+    }
+    const validatedDomain = validationResult.data;
     if (!accessToken) {
-        logger.warn(`No access token for shop ${shopDomain}, skipping Shopify order fetch`);
+        logger.warn(`No access token for shop ${validatedDomain}, skipping Shopify order fetch`);
         return null;
     }
     const query = `

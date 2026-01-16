@@ -2,6 +2,7 @@ import { ApiVersion, type AdminApiContext } from "@shopify/shopify-app-remix/ser
 import prisma from "../../db.server";
 import { decryptAccessToken } from "../../utils/token-encryption";
 import { logger, createTimer } from "../../utils/logger.server";
+import { SecureShopDomainSchema } from "../../utils/security";
 
 interface GraphQLClientResponse {
   json: () => Promise<unknown>;
@@ -315,15 +316,23 @@ export async function createAdminClientForShop(
   shopDomain: string
 ): Promise<AdminApiContext | null> {
   try {
-    let accessToken = await getAccessTokenFromSession(shopDomain);
-    if (!accessToken) {
-      accessToken = await getAccessTokenFromShop(shopDomain);
-    }
-    if (!accessToken) {
-      logger.info(`[Admin] No usable offline token for ${shopDomain}`);
+    const validationResult = SecureShopDomainSchema.safeParse(shopDomain);
+    if (!validationResult.success) {
+      logger.warn(`[Admin] Invalid shop domain format: ${shopDomain}`, {
+        errors: validationResult.error.errors,
+      });
       return null;
     }
-    const graphqlClient = createEnhancedGraphQLClient(shopDomain, accessToken);
+    const validatedDomain = validationResult.data;
+    let accessToken = await getAccessTokenFromSession(validatedDomain);
+    if (!accessToken) {
+      accessToken = await getAccessTokenFromShop(validatedDomain);
+    }
+    if (!accessToken) {
+      logger.info(`[Admin] No usable offline token for ${validatedDomain}`);
+      return null;
+    }
+    const graphqlClient = createEnhancedGraphQLClient(validatedDomain, accessToken);
     return graphqlClient as AdminApiContext;
   } catch (error) {
     logger.error(`[Admin] Failed to create client for ${shopDomain}`, error);

@@ -1,3 +1,5 @@
+import { SecureShopDomainSchema } from "./security";
+
 function logWarn(message: string) {
   console.warn(message);
 }
@@ -150,10 +152,20 @@ export const ENCRYPTION_CONFIG = {
 
 export const SHOPIFY_API_CONFIG = {
     VERSION: "2025-07",
-    getGraphQLEndpoint: (shopDomain: string): string =>
-        `https://${shopDomain}/admin/api/${SHOPIFY_API_CONFIG.VERSION}/graphql.json`,
+    getGraphQLEndpoint: (shopDomain: string): string => {
+        const validationResult = SecureShopDomainSchema.safeParse(shopDomain);
+        if (!validationResult.success) {
+            throw new Error(`Invalid shop domain format: ${shopDomain}`);
+        }
+        return `https://${validationResult.data}/admin/api/${SHOPIFY_API_CONFIG.VERSION}/graphql.json`;
+    },
     getAdminUrl: (shopDomain: string, path: string = ""): string => {
-        const storeHandle = shopDomain.replace(".myshopify.com", "");
+        const validationResult = SecureShopDomainSchema.safeParse(shopDomain);
+        if (!validationResult.success) {
+            throw new Error(`Invalid shop domain format: ${shopDomain}`);
+        }
+        const validatedDomain = validationResult.data;
+        const storeHandle = validatedDomain.replace(".myshopify.com", "");
         return `https://${storeHandle}.myshopify.com/admin${path}`;
     },
 } as const;
