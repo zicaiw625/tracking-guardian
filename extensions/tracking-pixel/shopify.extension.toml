@@ -16,7 +16,7 @@ type = "object"
 
 [settings.fields.ingestion_key]
 name = "Ingestion Key"
-description = "Store-scoped key for event correlation. Auto-generated during app installation."
+description = "Public store-scoped key for event correlation and configuration lookup. Auto-generated during app installation."
 type = "single_line_text_field"
 
 [settings.fields.shop_domain]

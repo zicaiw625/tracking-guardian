@@ -11,7 +11,7 @@ register(({ analytics, settings, init, customerPrivacy }: {
   init: PixelInit;
   customerPrivacy?: { subscribe?: (event: string, handler: (e: unknown) => void) => void };
 }) => {
-  const ingestionSecret = settings.ingestion_key;
+  const ingestionKey = settings.ingestion_key;
   const shopDomain = settings.shop_domain || init.data?.shop?.myshopifyDomain || "";
   const placeholderDetected = BACKEND_URL && (BACKEND_URL.includes("__BACKEND_URL_PLACEHOLDER__") || BACKEND_URL.includes("PLACEHOLDER"));
   const backendUrl = !placeholderDetected && BACKEND_URL && isAllowedBackendUrl(BACKEND_URL) ? BACKEND_URL : null;
@@ -35,7 +35,7 @@ register(({ analytics, settings, init, customerPrivacy }: {
   if (isDevMode) {
     log("Development mode enabled", {
       shopDomain,
-      hasIngestionSecret: !!ingestionSecret,
+      hasIngestionKey: !!ingestionKey,
       backendUrl,
       placeholderDetected,
     });
@@ -67,7 +67,7 @@ register(({ analytics, settings, init, customerPrivacy }: {
   const sendToBackend = createEventSender({
     backendUrl,
     shopDomain,
-    ingestionSecret,
+    ingestionKey,
     isDevMode,
     consentManager,
     logger: log,

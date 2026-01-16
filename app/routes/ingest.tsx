@@ -86,20 +86,6 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   const isNullOrigin = origin === "null" || origin === null;
   const isProduction = !isDevMode();
   const signature = request.headers.get("X-Tracking-Guardian-Signature");
-  if (isNullOrigin && isProduction && !signature) {
-    const shopDomainHeader = request.headers.get("x-shopify-shop-domain") || "unknown";
-    logger.error(`Null origin request rejected early for ${shopDomainHeader} in production: missing HMAC signature. Null origin requests require valid HMAC signature for security.`);
-    const anomalyCheck = trackAnomaly(shopDomainHeader, "invalid_origin");
-    if (anomalyCheck.shouldBlock) {
-      logger.warn(`Circuit breaker triggered for ${shopDomainHeader}: ${anomalyCheck.reason}`);
-    }
-    metrics.pixelRejection({
-      shopDomain: shopDomainHeader,
-      reason: "invalid_origin",
-      originType: "null_origin_missing_signature",
-    });
-    return emptyResponseWithCors(request);
-  }
   const contentType = request.headers.get("Content-Type");
   if (!isAcceptableContentType(contentType)) {
     return jsonWithCors(
@@ -244,31 +230,6 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     storefrontDomains: shop.storefrontDomains,
   });
   const referer = request.headers.get("Referer");
-  if (isNullOrigin && isProduction) {
-    if (!signature) {
-      logger.error(`Null origin request rejected for ${shopDomain} in production: missing HMAC signature. Null origin requests require valid HMAC signature for security.`);
-      const anomalyCheck = trackAnomaly(shopDomain, "invalid_origin");
-      if (anomalyCheck.shouldBlock) {
-        logger.warn(`Circuit breaker triggered for ${shopDomain}: ${anomalyCheck.reason}`);
-      }
-      metrics.pixelRejection({
-        shopDomain,
-        reason: "invalid_origin",
-        originType: "null_origin_missing_signature",
-      });
-      return jsonWithCors(
-        { error: "Null origin requires signature", errorCode: "null_origin_missing_signature" },
-        { status: 403, request, shopAllowedDomains }
-      );
-    }
-    if (!shop.ingestionSecret) {
-      logger.error(`Null origin request rejected for ${shopDomain} in production: missing ingestionSecret. Null origin requests require valid HMAC signature for security.`);
-      return jsonWithCors(
-        { error: "Missing signature", errorCode: "missing_secret_null_origin" },
-        { status: 403, request }
-      );
-    }
-  }
   if (!isNullOrigin) {
     const shopOriginValidation = validatePixelOriginForShop(origin, shopAllowedDomains, {
       referer,
@@ -291,21 +252,11 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       return jsonWithCors({ error: "Origin not allowlisted" }, { status: 403, request, shopAllowedDomains });
     }
   }
-  if (isProduction) {
-    if (!shop.ingestionSecret) {
-      logger.error(`Missing ingestionSecret for ${shopDomain} in production - HMAC verification required`);
-      return jsonWithCors(
-        { error: "Server configuration error", errorCode: "missing_secret" },
-        { status: 500, request }
-      );
-    }
-    if (!signature) {
-      logger.error(`Missing HMAC signature for ${shopDomain} in production - rejecting`);
-      return jsonWithCors(
-        { error: "Missing signature", errorCode: "missing_signature" },
-        { status: 403, request }
-      );
-    }
+  let keyValidation: KeyValidationResult = {
+    matched: false,
+    reason: signature ? "hmac_not_verified" : "signature_missing",
+  };
+  if (signature && shop.ingestionSecret) {
     const verifyWithSecret = async (secret: string) => {
       const result = await validatePixelEventHMAC(
         request,
@@ -317,24 +268,36 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       return result.valid;
     };
     const graceResult = await verifyWithGraceWindowAsync(shop, verifyWithSecret);
-    const hmacValid = graceResult.matched;
-    const usedPreviousSecret = graceResult.usedPreviousSecret;
-    if (!hmacValid) {
-      logger.error(`HMAC verification failed for ${shopDomain} in production: both current and previous secrets failed`);
-      return jsonWithCors(
-        { error: "Invalid signature", errorCode: "invalid_signature" },
-        { status: 403, request }
-      );
-    }
-    if (isNullOrigin) {
-      if (usedPreviousSecret) {
-        logger.warn(`Null origin request accepted with previous secret for ${shopDomain} in production. Previous secret expires: ${shop.previousSecretExpiry?.toISOString()}. If ingestionSecret is compromised, immediately rotate secret and review access logs. Null origin requests cannot be validated via Origin header and rely solely on HMAC signature.`);
-      } else {
-        logger.debug(`Null origin request accepted with valid HMAC and ingestionSecret for ${shopDomain} in production. Null origin requests are allowed but require valid HMAC signature as they cannot be validated via Origin header.`);
-      }
+    if (graceResult.matched) {
+      keyValidation = {
+        matched: true,
+        reason: "hmac_verified",
+        usedPreviousSecret: graceResult.usedPreviousSecret,
+      };
+      logger.debug(`HMAC signature verified for ${shopDomain}${graceResult.usedPreviousSecret ? " (using previous secret)" : ""}`);
     } else {
-      logger.debug(`HMAC signature verified for ${shopDomain} in production${usedPreviousSecret ? " (using previous secret)" : ""}`);
+      keyValidation = {
+        matched: false,
+        reason: "hmac_invalid",
+      };
+      logger.warn(`HMAC verification failed for ${shopDomain}: signature did not match current or previous secret`);
     }
+  } else if (signature && !shop.ingestionSecret) {
+    keyValidation = {
+      matched: false,
+      reason: "secret_missing",
+    };
+    logger.warn(`HMAC signature received for ${shopDomain} but ingestion secret is missing`);
+  } else if (signature) {
+    keyValidation = {
+      matched: false,
+      reason: "signature_present_no_secret",
+    };
+  } else if (!signature && !isProduction) {
+    keyValidation = {
+      matched: true,
+      reason: "signature_skipped_dev",
+    };
   }
   const rateLimitKey = shopDomainIpKeyExtractor(request);
   const rateLimit = await checkRateLimitAsync(
@@ -389,26 +352,6 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   }> = [];
   const serverSideConfigs = pixelConfigs.filter(config => config.serverSideEnabled === true);
   let activeVerificationRunId: string | null | undefined = undefined;
-  const keyValidation: KeyValidationResult = (() => {
-    if (isProduction) {
-      return {
-        matched: true,
-        reason: "hmac_verified",
-      };
-    } else {
-      if (signature && shop.ingestionSecret) {
-        return {
-          matched: true,
-          reason: "hmac_verified",
-        };
-      } else {
-        return {
-          matched: !signature || !shop.ingestionSecret,
-          reason: !signature ? "no_signature_in_dev" : (!shop.ingestionSecret ? "no_secret_in_dev" : "hmac_not_verified"),
-        };
-      }
-    }
-  })();
   for (let i = 0; i < events.length; i++) {
     const eventValidation = validateRequest(events[i]);
     if (!eventValidation.valid) {
