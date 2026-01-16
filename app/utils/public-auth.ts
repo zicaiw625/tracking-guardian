@@ -63,12 +63,7 @@ export async function handlePublicPreflight(request: Request): Promise<Response>
     });
   }
 
-  const headers = new Headers();
-  headers.set("Access-Control-Allow-Origin", "*");
-  headers.set("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
-  headers.set("Access-Control-Allow-Headers", "Authorization, Content-Type");
-  headers.set("Access-Control-Max-Age", "86400");
-  return new Response(null, { status: 204, headers });
+  return new Response(null, { status: 204 });
 }
 
 export function normalizeDestToShopDomain(dest: string): string {
