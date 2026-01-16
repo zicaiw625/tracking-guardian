@@ -212,6 +212,17 @@ export interface MatchKeyResult {
     normalizedOrderId: string | null;
     checkoutToken: string | null;
 }
+export function makeOrderKey(input: { orderId?: string | number | null; checkoutToken?: string | null }): string | null {
+    if (input.orderId != null && input.orderId !== "") {
+        return normalizeOrderId(input.orderId);
+    }
+    if (input.checkoutToken != null && input.checkoutToken !== "") {
+        const checkoutTokenHash = hashValueSync(input.checkoutToken);
+        return `checkout_${checkoutTokenHash}`;
+    }
+    return null;
+}
+
 export function generateMatchKey(input: MatchKeyInput): MatchKeyResult {
     const { orderId, checkoutToken } = input;
     if (orderId != null && orderId !== "") {
@@ -224,8 +235,10 @@ export function generateMatchKey(input: MatchKeyInput): MatchKeyResult {
         };
     }
     if (checkoutToken != null && checkoutToken !== "") {
+        const checkoutTokenHash = hashValueSync(checkoutToken);
+        const hashedKey = `checkout_${checkoutTokenHash}`;
         return {
-            matchKey: checkoutToken,
+            matchKey: hashedKey,
             isOrderId: false,
             normalizedOrderId: null,
             checkoutToken,

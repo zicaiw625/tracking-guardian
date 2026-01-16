@@ -23,7 +23,7 @@ export function generateOrderMatchKey(
 ): MatchKeyResult {
   const matchKeyResult = generateMatchKey({ orderId: orderId || null, checkoutToken: checkoutToken || null });
   return {
-    orderId: matchKeyResult.normalizedOrderId || matchKeyResult.matchKey,
+    orderId: matchKeyResult.matchKey,
     usedCheckoutTokenAsFallback: !matchKeyResult.isOrderId && !!matchKeyResult.checkoutToken,
   };
 }

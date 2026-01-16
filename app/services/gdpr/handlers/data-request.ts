@@ -1,6 +1,5 @@
 import prisma from "../../../db.server";
 import { logger } from "../../../utils/logger.server";
-import { hashValueSync } from "../../../utils/crypto.server";
 import type {
   DataRequestPayload,
   DataRequestResult,
@@ -115,11 +114,7 @@ export async function processDataRequest(
     return createEmptyDataRequestResult(dataRequestId, customerId);
   }
   const orderIdStrings = ordersRequested.map((id) => String(id));
-  const checkoutTokenHashes = orderIdStrings.map((orderId) => {
-    const checkoutTokenHash = hashValueSync(orderId);
-    return `checkout_${checkoutTokenHash}`;
-  });
-  const allOrderIdPatterns = [...orderIdStrings, ...checkoutTokenHashes];
+  const allOrderIdPatterns = orderIdStrings;
   const orderBatches = batchArray(allOrderIdPatterns, BATCH_SIZE);
   logger.debug(`[GDPR] Processing ${orderBatches.length} batches of orders`, {
     totalOrders: orderIdStrings.length,

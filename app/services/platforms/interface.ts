@@ -71,6 +71,7 @@ export async function fetchWithTimeout(
     return await fetch(url, {
       ...options,
       signal: controller.signal,
+      redirect: "error",
     });
   } finally {
     clearTimeout(timeoutId);

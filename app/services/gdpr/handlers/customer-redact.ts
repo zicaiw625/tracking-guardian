@@ -1,6 +1,5 @@
 import prisma from "../../../db.server";
 import { logger } from "../../../utils/logger.server";
-import { hashValueSync } from "../../../utils/crypto.server";
 import type { CustomerRedactPayload, CustomerRedactResult } from "../types";
 import { createEmptyCustomerRedactResult } from "../types";
 
@@ -23,11 +22,7 @@ export async function processCustomerRedact(
     return createEmptyCustomerRedactResult(customerId);
   }
   const orderIdStrings = ordersToRedact.map((id: number | string) => String(id));
-  const checkoutTokenHashes = orderIdStrings.map((orderId) => {
-    const checkoutTokenHash = hashValueSync(orderId);
-    return `checkout_${checkoutTokenHash}`;
-  });
-  const allOrderIdPatterns = [...orderIdStrings, ...checkoutTokenHashes];
+  const allOrderIdPatterns = orderIdStrings;
   const [pixelReceiptResult, surveyResponseResult, conversionJobResult, conversionLogResult] = await Promise.all([
     prisma.pixelEventReceipt.deleteMany({
       where: {

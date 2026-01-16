@@ -32,6 +32,7 @@ import { safeFireAndForget } from "~/utils/helpers.server";
 import { trackEvent } from "~/services/analytics.server";
 import { normalizePlanId } from "~/services/billing/plans";
 import { isPlanAtLeast } from "~/utils/plans";
+import { hashValueSync } from "~/utils/crypto.server";
 import prisma from "~/db.server";
 
 const MAX_BATCH_SIZE = 100;
@@ -502,8 +503,9 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     } else {
       const checkoutToken = payload.data.checkoutToken;
       if (checkoutToken) {
-        orderId = checkoutToken;
-        eventIdentifier = checkoutToken;
+        const checkoutTokenHash = hashValueSync(checkoutToken);
+        orderId = `checkout_${checkoutTokenHash}`;
+        eventIdentifier = orderId;
       } else {
         orderId = `session_${payload.timestamp}_${shopDomain.replace(/\./g, "_")}`;
         eventIdentifier = null;

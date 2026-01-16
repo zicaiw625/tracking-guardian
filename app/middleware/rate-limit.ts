@@ -242,13 +242,17 @@ export function ipKeyExtractor(request: Request): string {
     logger.warn("[rate-limit] ipKeyExtractor called with invalid request");
     return "unknown";
   }
-  const forwardedFor = request.headers.get("x-forwarded-for");
-  if (forwardedFor) {
-    return forwardedFor.split(",")[0]?.trim() ?? "unknown";
+  const cfConnectingIp = request.headers.get("cf-connecting-ip");
+  if (cfConnectingIp) {
+    return cfConnectingIp;
   }
   const realIp = request.headers.get("x-real-ip");
   if (realIp) {
     return realIp;
+  }
+  const forwardedFor = request.headers.get("x-forwarded-for");
+  if (forwardedFor) {
+    return forwardedFor.split(",")[0]?.trim() ?? "unknown";
   }
   return "unknown";
 }

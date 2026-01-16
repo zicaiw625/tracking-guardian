@@ -6,7 +6,7 @@ import prisma from "../../db.server";
 import { randomUUID } from "crypto";
 import { canUseModule, getUiModuleConfigs } from "../../services/ui-extension.server";
 import { authenticatePublic, normalizeDestToShopDomain, handlePublicPreflight, addSecurityHeaders } from "../../utils/public-auth";
-import { hashValueSync } from "../../utils/crypto.server";
+import { makeOrderKey } from "../../utils/crypto.server";
 import { API_CONFIG } from "../../utils/config";
 import { readJsonWithSizeLimit } from "../../utils/body-size-guard";
 
@@ -101,14 +101,15 @@ export const action = async ({ request }: ActionFunctionArgs) => {
           { status: 400 }
         )));
       }
+      const orderKey = makeOrderKey({ orderId, checkoutToken });
       let finalOrderId: string;
-      if (orderId) {
-        finalOrderId = orderId;
-        logger.info("Survey response with orderId", { shopDomain, orderId });
-      } else if (checkoutToken) {
-        const checkoutTokenHash = hashValueSync(checkoutToken);
-        finalOrderId = `checkout_${checkoutTokenHash}`;
-        logger.info("Survey response with checkoutToken (hashed)", { shopDomain, checkoutTokenHash: checkoutTokenHash.substring(0, 8) });
+      if (orderKey) {
+        finalOrderId = orderKey;
+        if (orderId) {
+          logger.info("Survey response with orderId", { shopDomain, orderId });
+        } else if (checkoutToken) {
+          logger.info("Survey response with checkoutToken (hashed)", { shopDomain, orderKey: orderKey.substring(0, 20) });
+        }
       } else {
         finalOrderId = `survey_${shop.id}_${Date.now()}`;
         logger.warn("Survey response without orderId or checkoutToken, using fallback", { shopDomain });
