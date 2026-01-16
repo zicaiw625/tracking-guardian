@@ -15,6 +15,7 @@ import { defaultLoaderCache } from "../../lib/with-cache";
 import { TTL } from "../../utils/cache";
 import { getUiModuleConfig } from "../../services/ui-extension.server";
 import { authenticatePublic, normalizeDestToShopDomain, handlePublicPreflight, addSecurityHeaders } from "../../utils/public-auth";
+import { z } from "zod";
 
 interface FulfillmentNode {
   trackingInfo?: {
@@ -38,6 +39,20 @@ type TrackingApiPayload = {
   };
 };
 
+const orderIdSchema = z
+  .string()
+  .min(1)
+  .max(128)
+  .refine((value) => /^gid:\/\/shopify\/Order\/\d+$/.test(value) || /^\d+$/.test(value), {
+    message: "Invalid orderId format",
+  });
+
+const querySchema = z.object({
+  orderId: orderIdSchema,
+  trackingNumber: z.string().min(1).max(64).optional(),
+  checkoutToken: z.string().min(1).max(128).optional(),
+});
+
 export const action = async ({ request }: ActionFunctionArgs) => {
   if (request.method === "OPTIONS") {
     return handlePublicPreflight(request);
@@ -53,14 +68,25 @@ async function loaderImpl(request: Request) {
   let authResult: Awaited<ReturnType<typeof authenticatePublic>> | null = null;
   try {
     const url = new URL(request.url);
-    const orderId = url.searchParams.get("orderId");
-    const trackingNumber = url.searchParams.get("trackingNumber");
-    if (!orderId) {
+    const orderIdRaw = url.searchParams.get("orderId")?.trim() || "";
+    if (!orderIdRaw) {
       authResult = await authenticatePublic(request).catch(() => null);
       if (authResult) {
         return addSecurityHeaders(authResult.cors(json({ error: "Missing orderId" }, { status: 400 })));
       }
       return addSecurityHeaders(json({ error: "Missing orderId" }, { status: 400 }));
+    }
+    const queryParse = querySchema.safeParse({
+      orderId: orderIdRaw,
+      trackingNumber: url.searchParams.get("trackingNumber")?.trim() || undefined,
+      checkoutToken: url.searchParams.get("checkoutToken")?.trim() || undefined,
+    });
+    if (!queryParse.success) {
+      authResult = await authenticatePublic(request).catch(() => null);
+      if (authResult) {
+        return addSecurityHeaders(authResult.cors(json({ error: "Invalid query parameters" }, { status: 400 })));
+      }
+      return addSecurityHeaders(json({ error: "Invalid query parameters" }, { status: 400 }));
     }
     try {
       authResult = await authenticatePublic(request);
@@ -70,6 +96,7 @@ async function loaderImpl(request: Request) {
         { status: 401 }
       ));
     }
+    const { orderId, trackingNumber, checkoutToken } = queryParse.data;
     const shopDomain = normalizeDestToShopDomain(authResult.sessionToken.dest);
     const cacheKey = `tracking:${shopDomain}:${orderId}`;
     const cachedData = defaultLoaderCache.get(cacheKey) as TrackingApiPayload | undefined;
@@ -176,8 +203,6 @@ async function loaderImpl(request: Request) {
               return addSecurityHeaders(authResult.cors(json({ error: "Order access denied" }, { status: 403 })));
             }
           } else if (authResult.surface === "checkout") {
-            const url = new URL(request.url);
-            const checkoutToken = url.searchParams.get("checkoutToken");
             if (!checkoutToken) {
               logger.warn(`Order access denied: checkout context requires checkoutToken for orderId: ${orderId}, shop: ${shopDomain}`);
               return addSecurityHeaders(authResult.cors(json({ error: "Order access denied: checkout context requires checkoutToken" }, { status: 403 })));

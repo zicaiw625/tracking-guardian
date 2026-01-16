@@ -86,6 +86,10 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   const isNullOrigin = origin === "null" || origin === null;
   const isProduction = !isDevMode();
   const signature = request.headers.get("X-Tracking-Guardian-Signature");
+  const strictOrigin = (() => {
+    const value = process.env.PIXEL_STRICT_ORIGIN?.toLowerCase().trim();
+    return value === "true" || value === "1" || value === "yes";
+  })();
   const contentType = request.headers.get("Content-Type");
   if (!isAcceptableContentType(contentType)) {
     return jsonWithCors(
@@ -107,7 +111,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
           `reason: ${preBodyValidation.reason}`
       );
     }
-    if (preBodyValidation.shouldReject && !hasSignatureHeader) {
+    if (preBodyValidation.shouldReject && (!hasSignatureHeader || strictOrigin)) {
       metrics.pixelRejection({
         shopDomain: shopDomainHeader,
         reason: preBodyValidation.reason as "invalid_origin" | "invalid_origin_protocol",
@@ -246,7 +250,13 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         `Origin validation warning at Stage 2 in /ingest for ${shop.shopDomain}: ` +
           `origin=${origin?.substring(0, 100) || "null"}, referer=${referer?.substring(0, 100) || "null"}, reason=${shopOriginValidation.reason}`
       );
-      if (!hasSignatureHeader) {
+      if (hasSignatureHeader && !strictOrigin) {
+        logger.warn(`Signed ingest request allowed despite origin rejection for ${shop.shopDomain}`, {
+          origin: origin?.substring(0, 100) || "null",
+          reason: shopOriginValidation.reason,
+        });
+      }
+      if (!hasSignatureHeader || strictOrigin) {
         metrics.pixelRejection({
           shopDomain: shop.shopDomain,
           reason: "origin_not_allowlisted",
