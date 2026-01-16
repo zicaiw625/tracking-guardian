@@ -1,4 +1,8 @@
-import { logger } from "./logger.server";
+/**
+ * Client-safe utility functions.
+ * This file does NOT import any server-only modules (e.g., logger.server).
+ * All functions in this file can be safely used in client-side code.
+ */
 
 export function safeParseFloat(
   value: string | number | undefined | null,
@@ -277,27 +281,6 @@ export async function retry<T>(
   throw new Error("Retry function failed without capturing an error");
 }
 
-export function safeFireAndForget<T>(
-  promise: Promise<T>,
-  errorContext?: {
-    operation?: string;
-    metadata?: Record<string, unknown>;
-  }
-): void {
-  promise.catch((error) => {
-    const errorMessage = error instanceof Error ? error.message : String(error);
-    const errorStack = error instanceof Error ? error.stack : undefined;
-    logger.error(
-      errorContext?.operation || "Fire-and-forget operation failed",
-      error instanceof Error ? error : new Error(String(error)),
-      {
-        ...errorContext?.metadata,
-        errorMessage,
-        errorStack,
-      }
-    );
-  });
-}
 
 export async function parallelLimit<T, R>(
   items: T[],
@@ -395,4 +378,17 @@ export function extractShopifyId(gid: string | number): string {
     return parts[parts.length - 1];
   }
   return gid;
+}
+
+export function getShopSubdomain(shopDomain: string): string {
+  const normalized = normalizeShopDomain(shopDomain);
+  if (normalized.includes(".")) {
+    return normalized.split(".")[0];
+  }
+  return normalized;
+}
+
+export function getShopifyAdminUrl(shopDomain: string, path: string = ""): string {
+  const subdomain = getShopSubdomain(shopDomain);
+  return `https://admin.shopify.com/store/${subdomain}${path}`;
 }

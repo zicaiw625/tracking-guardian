@@ -201,6 +201,7 @@ export async function logEvent(
     const platform = destinationType.split(":")[0];
     const environment = (payload.data as { environment?: "test" | "live" })?.environment || "live";
     const sanitizedRequestPayload = requestPayload ? sanitizePII(requestPayload) : null;
+    const safePayload = sanitizedRequestPayload && isObject(sanitizedRequestPayload) ? (sanitizedRequestPayload as unknown as Record<string, unknown>) : {};
     await prisma.deliveryAttempt.upsert({
       where: {
         shopId_eventLogId_destinationType_environment: {
@@ -218,7 +219,7 @@ export async function logEvent(
         destinationType,
         platform,
         environment,
-        requestPayloadJson: sanitizedRequestPayload ? (sanitizedRequestPayload as unknown as Record<string, unknown>) : null,
+        requestPayloadJson: safePayload,
         status: status === "ok" ? "ok" : "fail",
         ok: status === "ok",
         errorCode: errorCode || null,
@@ -236,7 +237,7 @@ export async function logEvent(
         httpStatus: httpStatus || null,
         responseBodySnippet: responseBody ? (responseBody.length > 500 ? responseBody.substring(0, 500) : responseBody) : null,
         latencyMs: latencyMs || null,
-        requestPayloadJson: sanitizedRequestPayload ? (sanitizedRequestPayload as unknown as Record<string, unknown>) : undefined,
+        requestPayloadJson: sanitizedRequestPayload && isObject(sanitizedRequestPayload) ? (sanitizedRequestPayload as unknown as Record<string, unknown>) : undefined,
       },
     });
   } catch (error) {

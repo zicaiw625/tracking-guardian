@@ -26,12 +26,18 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     if (error instanceof Response) {
       const errorStatus = error.status;
       const topic = request.headers.get("X-Shopify-Topic") || "unknown";
-      logger.warn(`[Webhook] HMAC validation failed - returning 400`, {
+      const isGDPRTopic = topic === "customers/data_request" || topic === "customers/redact" || topic === "shop/redact";
+      if (errorStatus === 401) {
+        return error;
+      }
+      const statusCode = isGDPRTopic ? 401 : 401;
+      logger.warn(`[Webhook] HMAC validation failed - returning ${statusCode}`, {
         topic,
         shop: request.headers.get("X-Shopify-Shop-Domain") || "unknown",
         originalStatus: errorStatus,
+        isGDPRTopic,
       });
-      return new Response("Bad Request: Invalid HMAC", { status: 400 });
+      return new Response("Unauthorized: Invalid HMAC", { status: statusCode });
     }
     if (error instanceof SyntaxError) {
       logger.warn("[Webhook] Payload JSON parse error - returning 400");

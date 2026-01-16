@@ -9,7 +9,7 @@ import {
 } from "../services/pixel-rollback.server";
 import { logger } from "../utils/logger.server";
 import { trackEvent } from "../services/analytics.server";
-import { safeFireAndForget } from "../utils/helpers";
+import { safeFireAndForget } from "../utils/helpers.server";
 import { normalizePlanId } from "../services/billing/plans";
 import { isPlanAtLeast } from "../utils/plans";
 import { isV1SupportedPlatform, getV1Platforms } from "../utils/v1-platforms";

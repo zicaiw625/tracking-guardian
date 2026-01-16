@@ -12,6 +12,7 @@ import {
 import { ShareIcon, ArrowRightIcon, InfoIcon, ClipboardIcon, ExportIcon } from "~/components/icons";
 import type { MigrationAction } from "../../services/scanner/types";
 import { getPlatformName } from "./utils";
+import { getShopifyAdminUrl } from "../../utils/helpers";
 
 interface MigrationWizardProps {
   migrationActions: MigrationAction[];
@@ -34,8 +35,8 @@ export function MigrationWizard({ migrationActions, shopDomain }: MigrationWizar
       ) || ["无"]),
       "",
       "## 快速链接",
-      `- Pixels 管理: https://admin.shopify.com/store/${shopDomain}/settings/notifications`,
-      `- Checkout Editor: https://admin.shopify.com/store/${shopDomain}/themes/current/editor`,
+      shopDomain ? `- Pixels 管理: ${getShopifyAdminUrl(shopDomain, "/settings/notifications")}` : "- Pixels 管理: (需要店铺域名)",
+      shopDomain ? `- Checkout Editor: ${getShopifyAdminUrl(shopDomain, "/themes/current/editor")}` : "- Checkout Editor: (需要店铺域名)",
       "- 应用迁移工具: /app/migrate",
     ].join("\n");
     navigator.clipboard.writeText(checklist);
@@ -84,9 +85,10 @@ export function MigrationWizard({ migrationActions, shopDomain }: MigrationWizar
           </Text>
           <InlineStack gap="300" wrap>
             <Button
-              url={`https://admin.shopify.com/store/${shopDomain || ""}/settings/notifications`}
+              url={shopDomain ? getShopifyAdminUrl(shopDomain, "/settings/notifications") : "#"}
               external
               icon={ShareIcon}
+              disabled={!shopDomain}
             >
               管理 Pixels（Shopify 后台）
             </Button>
@@ -105,8 +107,9 @@ export function MigrationWizard({ migrationActions, shopDomain }: MigrationWizar
           </Text>
           <InlineStack gap="300" wrap>
             <Button
-              url={`https://admin.shopify.com/store/${shopDomain || ""}/themes/current/editor?template=checkout`}
+              url={shopDomain ? getShopifyAdminUrl(shopDomain, "/themes/current/editor?template=checkout") : "#"}
               external
+              disabled={!shopDomain}
               icon={ShareIcon}
             >
               打开 Checkout Editor

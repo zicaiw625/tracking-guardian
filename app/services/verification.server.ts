@@ -4,7 +4,7 @@ import { reconcilePixelVsCapi, performBulkLocalConsistencyCheck, performChannelR
 import type { AdminApiContext } from "@shopify/shopify-app-remix/server";
 import type { Prisma } from "@prisma/client";
 import { trackEvent } from "./analytics.server";
-import { safeFireAndForget } from "../utils/helpers";
+import { safeFireAndForget } from "../utils/helpers.server";
 import { normalizePlanId } from "../services/billing/plans";
 import { isPlanAtLeast } from "../utils/plans";
 

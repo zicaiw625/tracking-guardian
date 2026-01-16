@@ -21,6 +21,7 @@ import { UI_MODULES, type ModuleKey, validateModuleTargets } from "../types/ui-e
 import { PageIntroCard } from "~/components/layout/PageIntroCard";
 import { checkCustomerAccountsEnabled } from "../services/customer-accounts.server";
 import { logger } from "../utils/logger.server";
+import { getShopifyAdminUrl } from "../utils/helpers";
 import * as fs from "fs";
 import * as path from "path";
 
@@ -132,7 +133,7 @@ export default function UiModulePublishGuide() {
       backAction={{ content: "返回模块列表", url: "/app/modules" }}
       primaryAction={orderStatusBlocked ? {
         content: "前往启用 Customer Accounts",
-        url: `https://admin.shopify.com/store/${shopDomain}/settings/customer-accounts`,
+        url: getShopifyAdminUrl(shopDomain, "/settings/customer-accounts"),
         external: true,
       } : undefined}
     >
@@ -179,7 +180,7 @@ export default function UiModulePublishGuide() {
                   </List>
                   <InlineStack gap="200">
                     <Button
-                      url={`https://admin.shopify.com/store/${shopDomain}/settings/customer-accounts`}
+                      url={getShopifyAdminUrl(shopDomain, "/settings/customer-accounts")}
                       variant="primary"
                       size="large"
                       external
@@ -235,7 +236,7 @@ export default function UiModulePublishGuide() {
                   </List>
                   <InlineStack gap="200">
                     <Button
-                      url={`https://admin.shopify.com/store/${shopDomain}/settings/customer-accounts`}
+                      url={getShopifyAdminUrl(shopDomain, "/settings/customer-accounts")}
                       variant="primary"
                       size="large"
                       external
@@ -282,7 +283,7 @@ export default function UiModulePublishGuide() {
                       </Text>
                     </BlockStack>
                     <Button
-                      url={`https://admin.shopify.com/store/${shopDomain}/settings/customer-accounts`}
+                      url={getShopifyAdminUrl(shopDomain, "/settings/customer-accounts")}
                       variant="primary"
                       size="large"
                       external
@@ -410,7 +411,7 @@ export default function UiModulePublishGuide() {
                       )}
                     </BlockStack>
                     <Button
-                      url={`https://admin.shopify.com/store/${shopDomain}/settings/customer-accounts`}
+                      url={getShopifyAdminUrl(shopDomain, "/settings/customer-accounts")}
                       variant="primary"
                       size="large"
                       external
@@ -577,11 +578,11 @@ export default function UiModulePublishGuide() {
                         进入 <strong>Shopify Admin</strong> → <strong>设置</strong> → <strong>结账和订单处理</strong> → <strong>Checkout Editor</strong>。
                       </Text>
                       <Text as="p" variant="bodySm" tone="subdued">
-                        💡 提示：您也可以直接访问 <code>https://admin.shopify.com/store/{'{'}您的店铺域名{'}'}/settings/checkout</code> 并点击"Checkout Editor"按钮。
+                        💡 提示：您也可以直接访问 <code>{getShopifyAdminUrl(shopDomain, "/settings/checkout")}</code> 并点击"Checkout Editor"按钮。
                       </Text>
                       <InlineStack gap="200">
                         <Button
-                          url={`https://admin.shopify.com/store/${shopDomain}/settings/checkout`}
+                          url={getShopifyAdminUrl(shopDomain, "/settings/checkout")}
                           variant="primary"
                           size="medium"
                           external
@@ -589,7 +590,7 @@ export default function UiModulePublishGuide() {
                           一键打开 Checkout Editor（Deep Link）
                         </Button>
                         <Button
-                          url={`https://admin.shopify.com/store/${shopDomain}/settings/checkout?page=thank-you`}
+                          url={getShopifyAdminUrl(shopDomain, "/settings/checkout?page=thank-you")}
                           variant="plain"
                           size="slim"
                           external
@@ -597,7 +598,7 @@ export default function UiModulePublishGuide() {
                           直接跳转到 Thank You 页面
                         </Button>
                         <Button
-                          url={`https://admin.shopify.com/store/${shopDomain}/settings/checkout?page=order-status`}
+                          url={getShopifyAdminUrl(shopDomain, "/settings/checkout?page=order-status")}
                           variant="plain"
                           size="slim"
                           external
@@ -934,17 +935,17 @@ export default function UiModulePublishGuide() {
                     <List type="bullet">
                       <List.Item>
                         <Text as="span" variant="bodySm">
-                          通用入口：<code>https://admin.shopify.com/store/{'{'}您的店铺域名{'}'}/settings/checkout</code>
+                          通用入口：<code>{getShopifyAdminUrl(shopDomain, "/settings/checkout")}</code>
                         </Text>
                       </List.Item>
                       <List.Item>
                         <Text as="span" variant="bodySm">
-                          直接定位到 Thank You 页面：<code>https://admin.shopify.com/store/{'{'}您的店铺域名{'}'}/settings/checkout?page=thank-you</code>
+                          直接定位到 Thank You 页面：<code>{getShopifyAdminUrl(shopDomain, "/settings/checkout?page=thank-you")}</code>
                         </Text>
                       </List.Item>
                       <List.Item>
                         <Text as="span" variant="bodySm">
-                          直接定位到 Order Status 页面（Customer Accounts）：<code>https://admin.shopify.com/store/{'{'}您的店铺域名{'}'}/settings/checkout?page=order-status</code>
+                          直接定位到 Order Status 页面（Customer Accounts）：<code>{getShopifyAdminUrl(shopDomain, "/settings/checkout?page=order-status")}</code>
                         </Text>
                       </List.Item>
                     </List>

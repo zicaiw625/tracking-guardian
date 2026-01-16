@@ -20,7 +20,7 @@ import {
 import { normalizePlanId, type PlanId } from "../services/billing/plans";
 import { UpgradePrompt } from "~/components/ui/UpgradePrompt";
 import { trackEvent } from "../services/analytics.server";
-import { safeFireAndForget } from "../utils/helpers";
+import { safeFireAndForget } from "../utils/helpers.server";
 
 const RealtimeEventMonitor = lazy(() => import("~/components/verification/RealtimeEventMonitor").then(module => ({
   default: module.RealtimeEventMonitor,

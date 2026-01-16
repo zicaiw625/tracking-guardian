@@ -5,7 +5,7 @@ import {
   generateEncryptedIngestionSecret,
 } from "../../utils/token-encryption";
 import { logger } from "../../utils/logger.server";
-import { safeFireAndForget } from "../../utils/helpers";
+import { safeFireAndForget } from "../../utils/helpers.server";
 import type { ShopQueryResponse, ShopTierValue , WebhookRegisterResults } from "../../types/shopify";
 import { cleanupDeprecatedWebhookSubscriptions } from "./webhook-cleanup.server";
 import { scanShopTracking } from "../scanner.server";

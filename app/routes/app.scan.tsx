@@ -44,7 +44,8 @@ import {
     safeFormatDate,
 } from "../utils/scan-data-validation";
 import { containsSensitiveInfo, sanitizeSensitiveInfo } from "../utils/security";
-import { safeFireAndForget } from "../utils/helpers";
+import { getShopifyAdminUrl } from "../utils/helpers";
+import { safeFireAndForget } from "../utils/helpers.server";
 import { sanitizeFilename } from "../utils/responses";
 
 const TIMEOUTS = {
@@ -178,7 +179,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
         const riskItems = validateRiskItemsArray(latestScanRaw.riskItems);
         const assetCount = riskItems.length;
         const { trackEvent } = await import("~/services/analytics.server");
-        const { safeFireAndForget } = await import("~/utils/helpers");
+        const { safeFireAndForget } = await import("~/utils/helpers.server");
         safeFireAndForget(
             trackEvent({
                 shopId: shop.id,
@@ -1706,8 +1707,8 @@ export function ScanPage({
                 ...items,
                 "",
                 "## 快速链接",
-                `- Pixels 管理: https://admin.shopify.com/store/${shop?.domain || 'shop'}/settings/notifications`,
-                `- Checkout Editor: https://admin.shopify.com/store/${shop?.domain || 'shop'}/themes/current/editor`,
+                shop?.domain ? `- Pixels 管理: ${getShopifyAdminUrl(shop.domain, "/settings/notifications")}` : "- Pixels 管理: (需要店铺域名)",
+                shop?.domain ? `- Checkout Editor: ${getShopifyAdminUrl(shop.domain, "/themes/current/editor")}` : "- Checkout Editor: (需要店铺域名)",
                 "- 应用迁移工具: /app/migrate",
             ].join("\n");
         } else {
@@ -2814,7 +2815,8 @@ export function ScanPage({
                 </Text>
                 <InlineStack gap="300" wrap>
                   <Button
-                    url={`https://admin.shopify.com/store/${shop?.domain || 'shop'}/settings/notifications`}
+                    url={shop?.domain ? getShopifyAdminUrl(shop.domain, "/settings/notifications") : "#"}
+                    disabled={!shop?.domain}
                     external
                     icon={ShareIcon}
                   >
@@ -2838,7 +2840,8 @@ export function ScanPage({
                 </Text>
                 <InlineStack gap="300" wrap>
                   <Button
-                    url={`https://admin.shopify.com/store/${shop?.domain || 'shop'}/themes/current/editor`}
+                    url={shop?.domain ? getShopifyAdminUrl(shop.domain, "/themes/current/editor") : "#"}
+                    disabled={!shop?.domain}
                     external
                     icon={ShareIcon}
                   >

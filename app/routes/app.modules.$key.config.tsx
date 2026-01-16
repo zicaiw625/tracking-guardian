@@ -24,6 +24,7 @@ import { getPlanOrDefault, type PlanId } from "../services/billing/plans";
 import { isPlanAtLeast } from "../utils/plans";
 import { PageIntroCard } from "~/components/layout/PageIntroCard";
 import { checkCustomerAccountsEnabled } from "../services/customer-accounts.server";
+import { getShopifyAdminUrl } from "../utils/helpers";
 
 export const loader = async ({ request, params }: LoaderFunctionArgs) => {
   const { session, admin } = await authenticate.admin(request);
@@ -167,7 +168,7 @@ export default function UiModuleConfigPage() {
                           </Text>
                         </BlockStack>
                         <Button
-                          url={`https://admin.shopify.com/store/${shopDomain}/settings/customer-accounts`}
+                          url={getShopifyAdminUrl(shopDomain, "/settings/customer-accounts")}
                           variant="primary"
                           size="large"
                           external
@@ -202,7 +203,7 @@ export default function UiModuleConfigPage() {
                       )}
                       <InlineStack gap="200" align="start">
                         <Button
-                          url={`https://admin.shopify.com/store/${shopDomain}/settings/customer-accounts`}
+                          url={getShopifyAdminUrl(shopDomain, "/settings/customer-accounts")}
                           variant="primary"
                           size="medium"
                           external
@@ -221,7 +222,7 @@ export default function UiModuleConfigPage() {
                       </Text>
                       <InlineStack gap="200" align="start">
                         <Button
-                          url={`https://admin.shopify.com/store/${shopDomain}/settings/customer-accounts`}
+                          url={getShopifyAdminUrl(shopDomain, "/settings/customer-accounts")}
                           variant="secondary"
                           size="medium"
                           external

@@ -36,7 +36,7 @@ import { getScriptTagDeprecationStatus, getAdditionalScriptsDeprecationStatus, g
 import type { ScriptTag, RiskItem } from "../types";
 import { logger } from "../utils/logger.server";
 import { trackEvent } from "../services/analytics.server";
-import { safeFireAndForget } from "../utils/helpers";
+import { safeFireAndForget } from "../utils/helpers.server";
 import { normalizePlanId } from "../services/billing/plans";
 import { isPlanAtLeast } from "../utils/plans";
 

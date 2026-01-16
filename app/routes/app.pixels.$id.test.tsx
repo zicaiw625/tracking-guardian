@@ -64,7 +64,7 @@ export const loader = async ({ request, params }: LoaderFunctionArgs) => {
   const hasVerificationAccess = planSupportsFeature(planId, "verification");
     if (!hasVerificationAccess) {
     const { trackEvent } = await import("~/services/analytics.server");
-    const { safeFireAndForget } = await import("~/utils/helpers");
+    const { safeFireAndForget } = await import("~/utils/helpers.server");
     safeFireAndForget(
             trackEvent({
         shopId: shop.id,

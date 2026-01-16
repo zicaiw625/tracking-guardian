@@ -330,7 +330,7 @@ export default function VerificationPage() {
       return;
     }
         const { trackEvent } = require("../services/analytics.server");
-    const { safeFireAndForget } = require("../utils/helpers");
+    const { safeFireAndForget } = require("../utils/helpers.server");
     safeFireAndForget(
       trackEvent({
         shopId: shop?.id || "",
@@ -353,7 +353,7 @@ export default function VerificationPage() {
       return;
     }
         const { trackEvent } = require("../services/analytics.server");
-    const { safeFireAndForget } = require("../utils/helpers");
+    const { safeFireAndForget } = require("../utils/helpers.server");
     safeFireAndForget(
       trackEvent({
         shopId: shop?.id || "",

@@ -47,6 +47,7 @@ import { getPlanOrDefault, type PlanId, BILLING_PLANS } from "../services/billin
 import { logger } from "../utils/logger.server";
 import { PCD_CONFIG } from "../utils/config";
 import { checkCustomerAccountsEnabled } from "../services/customer-accounts.server";
+import { getShopifyAdminUrl } from "../utils/helpers";
 
 interface LoaderData {
   shop: {
@@ -248,7 +249,7 @@ function ModuleCard({
                 当前状态：{isOrderStatusBlocked ? "❌ 已禁用（需要 Customer Accounts）" : module.isEnabled ? "⚠️ 已启用但无法使用（需要 Customer Accounts）" : "❌ 未启用（需要 Customer Accounts）"}
               </Text>
               <Button
-                url={`https://admin.shopify.com/store/${shopDomain}/settings/customer-accounts`}
+                url={getShopifyAdminUrl(shopDomain, "/settings/customer-accounts")}
                 variant="primary"
                 size="slim"
                 external
@@ -537,7 +538,7 @@ function ModuleCard({
                         </BlockStack>
                         {!customerAccountsEnabled && (
                           <Button
-                            url={`https://admin.shopify.com/store/${shopDomain}/settings/customer-accounts`}
+                            url={getShopifyAdminUrl(shopDomain, "/settings/customer-accounts")}
                             variant="primary"
                             size="large"
                             external
@@ -761,7 +762,7 @@ export default function UiBlocksPage() {
               </List>
               <InlineStack gap="200">
                 <Button
-                  url={`https://admin.shopify.com/store/${shopDomain}/settings/customer-accounts`}
+                  url={getShopifyAdminUrl(shopDomain, "/settings/customer-accounts")}
                   variant="primary"
                   size="large"
                   external
@@ -817,7 +818,7 @@ export default function UiBlocksPage() {
               </List>
               <InlineStack gap="200">
                 <Button
-                  url={`https://admin.shopify.com/store/${shopDomain}/settings/customer-accounts`}
+                  url={getShopifyAdminUrl(shopDomain, "/settings/customer-accounts")}
                   variant="primary"
                   size="large"
                   external
@@ -873,7 +874,7 @@ export default function UiBlocksPage() {
               </List>
               <InlineStack gap="200">
                 <Button
-                  url={`https://admin.shopify.com/store/${shopDomain}/settings/customer-accounts`}
+                  url={getShopifyAdminUrl(shopDomain, "/settings/customer-accounts")}
                   variant="primary"
                   size="large"
                   external
@@ -926,7 +927,7 @@ export default function UiBlocksPage() {
               </List>
               <InlineStack gap="200">
                 <Button
-                  url={`https://admin.shopify.com/store/${shopDomain}/settings/customer-accounts`}
+                  url={getShopifyAdminUrl(shopDomain, "/settings/customer-accounts")}
                   variant="primary"
                   size="medium"
                   external
@@ -981,7 +982,7 @@ export default function UiBlocksPage() {
                   </List>
                 </BlockStack>
                 <Button
-                  url={`https://admin.shopify.com/store/${shopDomain}/settings/customer-accounts`}
+                  url={getShopifyAdminUrl(shopDomain, "/settings/customer-accounts")}
                   variant="primary"
                   size="large"
                   external
@@ -1006,7 +1007,7 @@ export default function UiBlocksPage() {
               </Text>
               <InlineStack gap="200">
                 <Button
-                  url={`https://admin.shopify.com/store/${shopDomain}/settings/customer-accounts`}
+                  url={getShopifyAdminUrl(shopDomain, "/settings/customer-accounts")}
                   variant="primary"
                   size="medium"
                   external
@@ -1067,7 +1068,7 @@ export default function UiBlocksPage() {
                   </List>
                 </BlockStack>
                 <Button
-                  url={`https://admin.shopify.com/store/${shopDomain}/settings/customer-accounts`}
+                  url={getShopifyAdminUrl(shopDomain, "/settings/customer-accounts")}
                   variant="primary"
                   size="large"
                   external
@@ -1315,7 +1316,7 @@ export default function UiBlocksPage() {
                 查看 Customer Accounts UI Extensions 文档
               </Button>
               <Button
-                url={`https://admin.shopify.com/store/${shopDomain}/settings/checkout`}
+                url={getShopifyAdminUrl(shopDomain, "/settings/checkout")}
                 variant="primary"
                 size="medium"
                 external
@@ -1323,7 +1324,7 @@ export default function UiBlocksPage() {
                 一键打开 Checkout Editor（Deep Link）
               </Button>
               <Button
-                url={`https://admin.shopify.com/store/${shopDomain}/settings/checkout?page=thank-you`}
+                url={getShopifyAdminUrl(shopDomain, "/settings/checkout?page=thank-you")}
                 variant="plain"
                 size="slim"
                 external
@@ -1331,7 +1332,7 @@ export default function UiBlocksPage() {
                 跳转到 Thank You 页面
               </Button>
               <Button
-                url={`https://admin.shopify.com/store/${shopDomain}/settings/checkout?page=order-status`}
+                url={getShopifyAdminUrl(shopDomain, "/settings/checkout?page=order-status")}
                 variant="plain"
                 size="slim"
                 external

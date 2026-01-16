@@ -42,6 +42,7 @@ import {
 import { isPlanAtLeast } from "../utils/plans";
 import { DEPRECATION_DATES, formatDeadlineDate, SHOPIFY_HELP_LINKS } from "../utils/migration-deadlines";
 import { getPixelEventIngestionUrl } from "../utils/config";
+import { getShopifyAdminUrl } from "../utils/helpers";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   const { session, admin } = await authenticate.admin(request);
@@ -1358,7 +1359,7 @@ export default function Index() {
               </List>
               <InlineStack gap="200" align="start">
                 <Button
-                  url={`https://admin.shopify.com/store/${shopDomain}/settings/customer-accounts`}
+                  url={getShopifyAdminUrl(shopDomain, "/settings/customer-accounts")}
                   variant="primary"
                   size="medium"
                   external

@@ -4,7 +4,7 @@ import { AppError, ErrorCode, ensureAppError } from "../utils/errors";
 import { logger, createRequestLogger, type RequestLogger } from "../utils/logger.server";
 import { type Result, ok, err } from "../types/result";
 import type { AdminApiContext, Session } from "@shopify/shopify-app-remix/server";
-import { safeFireAndForget } from "../utils/helpers";
+import { safeFireAndForget } from "../utils/helpers.server";
 import { readJsonWithSizeLimit } from "../utils/body-size-guard";
 
 export interface AuthContext {

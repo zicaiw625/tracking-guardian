@@ -28,7 +28,7 @@ import { checkInitialConsent, filterPlatformsByConsent, logConsentFilterMetrics 
 import { trackAnomaly } from "~/utils/rate-limiter";
 import { checkRateLimitAsync, shopDomainIpKeyExtractor, ipKeyExtractor } from "~/middleware/rate-limit";
 import { checkCircuitBreaker } from "~/utils/circuit-breaker";
-import { safeFireAndForget } from "~/utils/helpers";
+import { safeFireAndForget } from "~/utils/helpers.server";
 import { trackEvent } from "~/services/analytics.server";
 import { normalizePlanId } from "~/services/billing/plans";
 import { isPlanAtLeast } from "~/utils/plans";

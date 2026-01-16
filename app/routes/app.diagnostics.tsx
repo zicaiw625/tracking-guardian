@@ -7,6 +7,7 @@ import { authenticate } from "../shopify.server";
 import prisma from "../db.server";
 import { getExistingWebPixels, isOurWebPixel, needsSettingsUpgrade } from "../services/migration.server";
 import { DEPRECATION_DATES, formatDeadlineDate } from "../utils/migration-deadlines";
+import { getShopifyAdminUrl } from "../utils/helpers";
 interface DiagnosticCheck {
     name: string;
     status: "pass" | "fail" | "warning" | "pending";
@@ -279,6 +280,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
         };
     });
     return json({
+        shopDomain,
         checks,
         summary,
         eventFunnel,
@@ -348,6 +350,7 @@ function StatusBadge({ status }: { status: string }) {
 
 export default function DiagnosticsPage() {
     const data = useLoaderData<typeof loader>();
+    const { shopDomain } = data;
     const revalidator = useRevalidator();
     const { showSuccess } = useToastContext();
     const getStatusBadge = (status: DiagnosticCheck["status"]) => {
@@ -955,7 +958,7 @@ export default function DiagnosticsPage() {
                     </Text>
                     <InlineStack gap="200">
                       <Button
-                        url="https://admin.shopify.com/store/{shopDomain}/settings/customer-events"
+                        url={getShopifyAdminUrl(shopDomain, "/settings/customer-events")}
                         external
                         size="slim"
                       >

@@ -15,7 +15,7 @@ import { isPlanAtLeast } from "../utils/plans";
 
 import { logger } from "../utils/logger.server";
 import { trackEvent } from "../services/analytics.server";
-import { safeFireAndForget } from "../utils/helpers";
+import { safeFireAndForget } from "../utils/helpers.server";
 export const loader = async ({ request }: LoaderFunctionArgs) => {
     const { BILLING_PLANS, PLAN_IDS } = await import("../services/billing.server");
     const { session, admin } = await authenticate.admin(request);

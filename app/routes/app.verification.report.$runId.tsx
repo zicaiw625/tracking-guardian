@@ -45,7 +45,7 @@ import {
 import { normalizePlanId, type PlanId, planSupportsReportExport } from "../services/billing/plans";
 import { UpgradePrompt } from "~/components/ui/UpgradePrompt";
 import { trackEvent } from "../services/analytics.server";
-import { safeFireAndForget } from "../utils/helpers";
+import { safeFireAndForget } from "../utils/helpers.server";
 import { sanitizeFilename } from "../utils/responses";
 
 const ReportComparison = lazy(() => import("~/components/verification/ReportComparison").then(module => ({
