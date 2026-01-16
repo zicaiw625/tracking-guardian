@@ -77,6 +77,28 @@ export const HEALTH_CHECK_HEADERS: Record<string, string> = {
   "X-Content-Type-Options": "nosniff",
   "Cache-Control": "max-age=10, must-revalidate",
 };
+
+export const PUBLIC_PAGE_HEADERS: Record<string, string> = {
+  "X-Content-Type-Options": "nosniff",
+  "X-Frame-Options": "DENY",
+  "Referrer-Policy": "strict-origin-when-cross-origin",
+  "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate",
+  "Pragma": "no-cache",
+  "Expires": "0",
+  "X-Robots-Tag": "noindex",
+  "Content-Security-Policy": buildCspHeader({
+    "default-src": ["'self'"],
+    "script-src": ["'self'"],
+    "style-src": ["'self'", "'unsafe-inline'"],
+    "img-src": ["'self'", "data:", "https:"],
+    "font-src": ["'self'"],
+    "connect-src": ["'self'"],
+    "frame-ancestors": ["'none'"],
+    "base-uri": ["'self'"],
+    "form-action": ["'self'"],
+    "object-src": ["'none'"],
+  }),
+};
 export function addSecurityHeadersToHeaders(headers: Headers, securityHeaders: Record<string, string>): void {
     for (const [key, value] of Object.entries(securityHeaders)) {
         if (!headers.has(key)) {

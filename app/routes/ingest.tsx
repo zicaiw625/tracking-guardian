@@ -35,7 +35,7 @@ import { isPlanAtLeast } from "~/utils/plans";
 import { hashValueSync } from "~/utils/crypto.server";
 import prisma from "~/db.server";
 
-const MAX_BATCH_SIZE = 100;
+const MAX_BATCH_SIZE = 10;
 const MAX_BODY_SIZE = API_CONFIG.MAX_BODY_SIZE;
 const TIMESTAMP_WINDOW_MS = API_CONFIG.TIMESTAMP_WINDOW_MS;
 const INGEST_RATE_LIMIT = RATE_LIMIT_CONFIG.PIXEL_EVENTS;

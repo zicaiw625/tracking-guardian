@@ -1,20 +1,21 @@
 import type { LoaderFunctionArgs } from "@remix-run/node";
 import { json } from "@remix-run/node";
 import { useLoaderData } from "@remix-run/react";
-import { addSecurityHeaders } from "../utils/public-auth";
 import { getDynamicCorsHeaders } from "../utils/cors";
+import { PUBLIC_PAGE_HEADERS, addSecurityHeadersToHeaders } from "../utils/security-headers";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   const corsHeaders = getDynamicCorsHeaders(request);
   const response = json({
     appName: "Tracking Guardian",
     appDomain: process.env.SHOPIFY_APP_URL || process.env.APP_URL || "https://tracking-guardian.onrender.com",
-    lastUpdated: "2025-01-XX",
+    lastUpdated: "2025-01-15",
   });
   const headers = new Headers(response.headers);
   Object.entries(corsHeaders).forEach(([key, value]) => {
     headers.set(key, value);
   });
+  addSecurityHeadersToHeaders(headers, PUBLIC_PAGE_HEADERS);
   return new Response(response.body, {
     status: response.status,
     statusText: response.statusText,
@@ -200,12 +201,12 @@ export default function PrivacyPage() {
 
           <div class="section">
             <h2>数据保留</h2>
-            <p>我们遵循数据最小化原则，仅保存必要的数据，并定期清理过期数据：</p>
+            <p>我们遵循数据最小化原则，仅保存必要的数据，并定期清理过期数据。所有数据类型的保留周期由店铺的数据保留设置控制（默认 90 天）：</p>
             <ul>
-              <li><strong>ConversionJob（转化任务）</strong>：30 天</li>
-              <li><strong>PixelEventReceipt（像素收据）</strong>：7 天</li>
-              <li><strong>ConversionLog（发送日志）</strong>：90 天</li>
-              <li><strong>ReconciliationReport（对账报告）</strong>：365 天</li>
+              <li><strong>ConversionJob（转化任务）</strong>：按店铺数据保留周期（默认 90 天）</li>
+              <li><strong>PixelEventReceipt（像素收据）</strong>：按店铺数据保留周期（默认 90 天）</li>
+              <li><strong>ConversionLog（发送日志）</strong>：按店铺数据保留周期（默认 90 天）</li>
+              <li><strong>ReconciliationReport（对账报告）</strong>：按店铺数据保留周期（默认 90 天）</li>
             </ul>
           </div>
 
@@ -213,9 +214,9 @@ export default function PrivacyPage() {
             <h2>数据删除</h2>
             <p>我们支持多种数据删除方式：</p>
             <ul>
-              <li><strong>卸载应用</strong>：收到 <code>APP_UNINSTALLED</code> webhook 后，48 小时内删除所有数据</li>
+              <li><strong>卸载应用</strong>：收到 <code>APP_UNINSTALLED</code> webhook 后，立即标记为 inactive，并在 48 小时内由定时清理任务删除所有数据</li>
               <li><strong>GDPR 客户数据删除请求</strong>：响应 <code>CUSTOMERS_DATA_REQUEST</code> 或 <code>CUSTOMERS_REDACT</code> webhook</li>
-              <li><strong>店铺数据删除请求</strong>：响应 <code>SHOP_REDACT</code> webhook</li>
+              <li><strong>店铺数据删除请求</strong>：响应 <code>SHOP_REDACT</code> webhook，立即删除所有数据</li>
             </ul>
           </div>
 

@@ -19,6 +19,7 @@ import {
 } from "@shopify/polaris";
 import { getVerificationRun } from "../services/verification.server";
 import { generateVerificationReportData } from "../services/verification-report.server";
+import { PUBLIC_PAGE_HEADERS, addSecurityHeadersToHeaders } from "../utils/security-headers";
 
 export const loader = async ({ request, params }: LoaderFunctionArgs) => {
   try {
@@ -87,12 +88,7 @@ export const loader = async ({ request, params }: LoaderFunctionArgs) => {
     }
 
     const headers = new Headers();
-    headers.set("Referrer-Policy", "no-referrer");
-    headers.set("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate");
-    headers.set("Pragma", "no-cache");
-    headers.set("Expires", "0");
-    headers.set("X-Frame-Options", "DENY");
-    headers.set("X-Robots-Tag", "noindex");
+    addSecurityHeadersToHeaders(headers, PUBLIC_PAGE_HEADERS);
 
     return json({
       report: {

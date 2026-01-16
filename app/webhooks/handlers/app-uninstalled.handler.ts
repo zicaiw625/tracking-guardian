@@ -81,7 +81,7 @@ export async function handleAppUninstalled(
         uninstalledAt: new Date(),
       },
     });
-    logger.info(`Marked shop ${shop} as inactive`);
+    logger.info(`Marked shop ${shop} as inactive - will be deleted within 48 hours by cleanup task`);
   }
   logger.info(`Successfully processed APP_UNINSTALLED for shop ${shop}`);
   return {

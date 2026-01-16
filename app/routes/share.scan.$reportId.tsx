@@ -18,6 +18,7 @@ import {
   List,
 } from "@shopify/polaris";
 import { validateRiskItemsArray, validateStringArray } from "../utils/scan-data-validation";
+import { PUBLIC_PAGE_HEADERS, addSecurityHeadersToHeaders } from "../utils/security-headers";
 
 export const loader = async ({ request, params }: LoaderFunctionArgs) => {
   try {
@@ -91,12 +92,7 @@ export const loader = async ({ request, params }: LoaderFunctionArgs) => {
     const identifiedPlatforms = validateStringArray(scanReport.identifiedPlatforms);
 
     const headers = new Headers();
-    headers.set("Referrer-Policy", "no-referrer");
-    headers.set("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate");
-    headers.set("Pragma", "no-cache");
-    headers.set("Expires", "0");
-    headers.set("X-Frame-Options", "DENY");
-    headers.set("X-Robots-Tag", "noindex");
+    addSecurityHeadersToHeaders(headers, PUBLIC_PAGE_HEADERS);
 
     return json({
       report: {

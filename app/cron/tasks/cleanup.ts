@@ -2,10 +2,12 @@ import prisma from "../../db.server";
 import { logger } from "../../utils/logger.server";
 import { cleanupExpiredDrafts } from "../../services/migration-draft.server";
 import { WebhookStatus, GDPRJobStatus, JobStatus } from "../../types/enums";
+import { processShopRedact } from "../../services/gdpr/handlers/shop-redact";
 
 const EVENT_NONCE_EXPIRY_HOURS = 24;
 const GDPR_JOB_RETENTION_DAYS = 90;
 const MIN_AUDIT_LOG_RETENTION_DAYS = 180;
+const UNINSTALL_DELETION_HOURS = 48;
 
 export interface CleanupResult {
   eventNoncesDeleted: number;
@@ -20,6 +22,7 @@ export interface CleanupResult {
   webhookLogsDeleted: number;
   reconciliationReportsDeleted: number;
   scanReportsDeleted: number;
+  uninstalledShopsDeleted: number;
 }
 
 export async function cleanupExpiredData(): Promise<CleanupResult> {
@@ -36,6 +39,7 @@ export async function cleanupExpiredData(): Promise<CleanupResult> {
     webhookLogsDeleted: 0,
     reconciliationReportsDeleted: 0,
     scanReportsDeleted: 0,
+    uninstalledShopsDeleted: 0,
   };
 
   try {
@@ -424,6 +428,34 @@ export async function cleanupExpiredData(): Promise<CleanupResult> {
     }
   } catch (error) {
     logger.error("Failed to cleanup expired previous ingestion secrets", { error });
+  }
+
+  try {
+    const uninstallCutoff = new Date(Date.now() - UNINSTALL_DELETION_HOURS * 60 * 60 * 1000);
+    const uninstalledShops = await prisma.shop.findMany({
+      where: {
+        isActive: false,
+        uninstalledAt: {
+          not: null,
+          lte: uninstallCutoff,
+        },
+      },
+      select: {
+        shopDomain: true,
+      },
+    });
+
+    for (const shop of uninstalledShops) {
+      try {
+        await processShopRedact(shop.shopDomain, {});
+        result.uninstalledShopsDeleted++;
+        logger.info(`Deleted all data for uninstalled shop ${shop.shopDomain} (uninstalled > ${UNINSTALL_DELETION_HOURS}h ago)`);
+      } catch (error) {
+        logger.error(`Failed to delete data for uninstalled shop ${shop.shopDomain}`, { error });
+      }
+    }
+  } catch (error) {
+    logger.error("Failed to cleanup uninstalled shops", { error });
   }
 
   return result;

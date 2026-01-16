@@ -163,6 +163,13 @@ const SENSITIVE_FIELD_PATTERNS = [
   "remoteaddr",
   "x_forwarded_for",
   "x-forwarded-for",
+  "trackingnumber",
+  "tracking_number",
+  "tracking",
+  "checkouttoken",
+  "checkout_token",
+  "sharetoken",
+  "share_token",
 ];
 
 const EXCLUDED_FIELDS = [

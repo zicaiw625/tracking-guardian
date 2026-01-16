@@ -28,7 +28,7 @@ interface EnvConfig {
 }
 
 export const API_CONFIG = {
-    MAX_BODY_SIZE: 256 * 1024,
+    MAX_BODY_SIZE: 20 * 1024,
     TIMESTAMP_WINDOW_MS: 10 * 60 * 1000,
     DEFAULT_TIMEOUT_MS: 30 * 1000,
     JWT_EXPIRY_BUFFER_MS: 5 * 60 * 1000,

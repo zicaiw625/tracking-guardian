@@ -4,7 +4,7 @@
 
 Tracking Guardian 是一个 Shopify 应用，作为**数据处理者**（Data Processor）代表商家（数据控制者）处理转化追踪数据。本文档详细说明了应用的数据处理实践、权限使用、合规措施以及第三方共享政策。
 
-**最后更新**: 2025-01-XX  
+**最后更新**: 2025-01-15  
 **应用版本**: 1.0.0  
 **Shopify API 版本**: 2025-07
 
@@ -91,15 +91,18 @@ Tracking Guardian 是一个 Shopify 应用，作为**数据处理者**（Data Pr
 
 我们遵循数据最小化原则，仅保存必要的数据，并定期清理过期数据：
 
+所有数据类型的保留周期由店铺的 `dataRetentionDays` 设置控制（默认 90 天）。超过保留期的数据将通过定时任务（Cron）自动清理。
+
 | 数据类型 | 保留周期 | 清理机制 |
 |---------|---------|---------|
-| ConversionJob（转化任务） | 30 天 | 自动清理 |
-| PixelEventReceipt（像素收据） | 7 天 | 自动清理 |
-| ConversionLog（发送日志） | 90 天 | 自动清理 |
-| ReconciliationReport（对账报告） | 365 天 | 自动清理 |
-| Webhook 处理日志 | 7 天 | 自动清理 |
-| 订单元数据 | 30 天 | 自动清理 |
-| 客户事件数据 | 7 天 | 自动清理 |
+| ConversionJob（转化任务） | 按店铺 dataRetentionDays（默认 90 天） | 自动清理 |
+| PixelEventReceipt（像素收据） | 按店铺 dataRetentionDays（默认 90 天） | 自动清理 |
+| ConversionLog（发送日志） | 按店铺 dataRetentionDays（默认 90 天） | 自动清理 |
+| ReconciliationReport（对账报告） | 按店铺 dataRetentionDays（默认 90 天） | 自动清理 |
+| Webhook 处理日志 | 按店铺 dataRetentionDays（默认 90 天） | 自动清理 |
+| 订单元数据 | 按店铺 dataRetentionDays（默认 90 天） | 自动清理 |
+| 客户事件数据 | 按店铺 dataRetentionDays（默认 90 天） | 自动清理 |
+| AuditLog（审计日志） | 至少 180 天或按店铺 dataRetentionDays（取较大值） | 自动清理 |
 
 所有数据清理通过定时任务（Cron）自动执行，无需人工干预。
 
@@ -111,8 +114,8 @@ Tracking Guardian 是一个 Shopify 应用，作为**数据处理者**（Data Pr
 
 ### 1. 应用卸载
 - **触发**: 收到 `APP_UNINSTALLED` webhook
-- **处理**: 48 小时内删除所有与该店铺相关的数据
-- **范围**: 包括所有配置、日志、订单数据、像素配置等
+- **处理**: 卸载时立即标记店铺为 inactive，并在 48 小时内由定时清理任务删除所有与该店铺相关的数据
+- **范围**: 包括所有配置、日志、订单数据、像素配置等（通过调用与 `shop/redact` 相同的删除逻辑）
 
 ### 2. GDPR 客户数据删除请求
 - **触发**: 收到 `CUSTOMERS_DATA_REQUEST` 或 `CUSTOMERS_REDACT` webhook
@@ -258,7 +261,7 @@ Tracking Guardian 是一个 Shopify 应用，作为**数据处理者**（Data Pr
 
 ## 更新历史
 
-- **2025-01-XX**: 初始版本
+- **2025-01-15**: 初始版本
 
 ---
 

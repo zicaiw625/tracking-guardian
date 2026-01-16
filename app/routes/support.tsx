@@ -15,6 +15,7 @@ import {
 import polarisStyles from "@shopify/polaris/build/esm/styles.css?url";
 import translations from "@shopify/polaris/locales/en.json" with { type: "json" };
 import { getPolarisTranslations } from "../utils/polaris-i18n";
+import { PUBLIC_PAGE_HEADERS, addSecurityHeadersToHeaders } from "../utils/security-headers";
 
 const i18n = getPolarisTranslations(translations);
 
@@ -22,10 +23,17 @@ export const links = () => [{ rel: "stylesheet", href: polarisStyles }];
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   const url = new URL(request.url);
-  return json({
+  const response = json({
     host: url.host,
     contactEmail: "support@tracking-guardian.app",
     faqUrl: "https://help.tracking-guardian.app",
+  });
+  const headers = new Headers(response.headers);
+  addSecurityHeadersToHeaders(headers, PUBLIC_PAGE_HEADERS);
+  return new Response(response.body, {
+    status: response.status,
+    statusText: response.statusText,
+    headers,
   });
 };
 
@@ -86,9 +94,12 @@ export default function PublicSupportPage() {
                       <Text as="span" fontWeight="bold">
                         What events are collected?
                       </Text>{" "}
-                      Web Pixel only subscribes to{" "}
-                      <code>checkout_completed</code>. No browsing/add-to-cart
-                      events are collected.
+                      By default, Web Pixel subscribes to{" "}
+                      <code>checkout_completed</code> only (purchase_only mode). 
+                      Optional full_funnel mode can be enabled by merchants to collect additional events 
+                      (checkout_started, page_viewed, add_to_cart, product_viewed, checkout_contact_info_submitted, 
+                      checkout_shipping_info_submitted, payment_info_submitted) with explicit merchant consent and 
+                      proper privacy policy disclosure.
                     </List.Item>
                     <List.Item>
                       <Text as="span" fontWeight="bold">
