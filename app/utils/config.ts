@@ -266,6 +266,7 @@ const REQUIRED_IN_PRODUCTION = [
     "SHOPIFY_API_SECRET",
     "SHOPIFY_APP_URL",
     "ENCRYPTION_SECRET",
+    "ENCRYPTION_SALT",
     "CRON_SECRET",
 ] as const;
 
@@ -274,7 +275,6 @@ const PIXEL_INGESTION_ENABLED_CHECK = {
     reason: "Production environment must explicitly set PIXEL_ALLOW_NULL_ORIGIN to allow null origin requests from Shopify Web Worker sandbox environments. If not set, null origin requests will be rejected, causing event loss. Set PIXEL_ALLOW_NULL_ORIGIN=true to allow (requires valid HMAC signature) or PIXEL_ALLOW_NULL_ORIGIN=false to explicitly block.",
 } as const;
 const RECOMMENDED = [
-    { key: "ENCRYPTION_SALT", reason: "for consistent encryption across deployments" },
     { key: "RESEND_API_KEY", reason: "for email notifications" },
     { key: "REDIS_URL", reason: "for shared rate limiting in multi-instance deployments" },
 ] as const;
