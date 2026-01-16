@@ -597,15 +597,3 @@ ALTER TABLE "WorkspaceMember" ADD CONSTRAINT "WorkspaceMember_workspaceId_fkey" 
 ALTER TABLE "WorkspaceShop" ADD CONSTRAINT "WorkspaceShop_workspaceId_fkey" FOREIGN KEY ("workspaceId") REFERENCES "Workspace"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 ALTER TABLE "ShopGroupMember" ADD CONSTRAINT "ShopGroupMember_groupId_fkey" FOREIGN KEY ("groupId") REFERENCES "ShopGroup"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-[schema-engine] error: Error: kill EPERM
-    at ChildProcess.kill (node:internal/child_process:511:26)
-    at Ia.stop (/Users/wangzicai/Documents/tracking-guardian/node_modules/.pnpm/prisma@5.22.0/node_modules/prisma/build/index.js:531:2458)
-    at en.stop (/Users/wangzicai/Documents/tracking-guardian/node_modules/.pnpm/prisma@5.22.0/node_modules/prisma/build/index.js:547:363)
-    at wb.parse (/Users/wangzicai/Documents/tracking-guardian/node_modules/.pnpm/prisma@5.22.0/node_modules/prisma/build/index.js:1040:1893)
-    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
-    at async aAt (/Users/wangzicai/Documents/tracking-guardian/node_modules/.pnpm/prisma@5.22.0/node_modules/prisma/build/index.js:2002:1678) {
-  errno: -1,
-  code: 'EPERM',
-  syscall: 'kill'
-}
-

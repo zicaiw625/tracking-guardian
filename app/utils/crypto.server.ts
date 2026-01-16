@@ -22,10 +22,13 @@ let hasWarnedAboutFallback = false;
 export function getEncryptionKey(): Buffer {
     const secret = process.env.ENCRYPTION_SECRET;
     const devSecret = process.env.DEV_ENCRYPTION_SECRET;
-    const salt = process.env.ENCRYPTION_SALT || DEFAULT_ENCRYPTION_SALT;
     const isProduction = process.env.NODE_ENV === "production";
     const isCI = process.env.CI === "true" || process.env.CI === "1";
     const isTest = process.env.NODE_ENV === "test";
+    if (!process.env.ENCRYPTION_SALT && isProduction) {
+        throw new Error("ENCRYPTION_SALT must be set in production environments");
+    }
+    const salt = process.env.ENCRYPTION_SALT || DEFAULT_ENCRYPTION_SALT;
     let effectiveSecret: string;
     let usingFallback = false;
     if (secret) {
@@ -76,9 +79,6 @@ export function getEncryptionKey(): Buffer {
     if (cachedKey && cachedKeySecret === effectiveSecret && cachedKeySalt === effectiveSalt) {
         return cachedKey;
     }
-    if (!process.env.ENCRYPTION_SALT && isProduction) {
-        logger.warn("⚠️ [STARTUP] ENCRYPTION_SALT not set. Using default salt.");
-    }
     cachedKey = scryptSync(effectiveSecret, effectiveSalt, 32, SCRYPT_PARAMS);
     cachedKeySecret = effectiveSecret;
     cachedKeySalt = effectiveSalt;
@@ -126,7 +126,7 @@ export function validateEncryptionConfig(): {
         );
     }
     if (!process.env.ENCRYPTION_SALT && isProduction) {
-        warnings.push("ENCRYPTION_SALT not set - using default salt");
+        throw new Error("ENCRYPTION_SALT must be set in production environments");
     }
     return { valid: true, warnings, secretSource };
 }
