@@ -101,18 +101,20 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     if (anomalyCheck.shouldBlock) {
       logger.warn(`Circuit breaker triggered for ${shopDomainHeader}: ${anomalyCheck.reason}`);
     }
-    metrics.pixelRejection({
-      shopDomain: shopDomainHeader,
-      reason: preBodyValidation.reason as "invalid_origin" | "invalid_origin_protocol",
-      originType: preBodyValidation.reason,
-    });
     if (preBodyValidation.shouldLog) {
       logger.warn(
-        `Rejected pixel origin at Stage 1 in /ingest: ${origin?.substring(0, 100) || "null"}, ` +
+        `Origin validation warning at Stage 1 in /ingest: ${origin?.substring(0, 100) || "null"}, ` +
           `reason: ${preBodyValidation.reason}`
       );
     }
-    return jsonWithCors({ error: "Invalid origin" }, { status: 403, request });
+    if (preBodyValidation.shouldReject && !hasSignatureHeader) {
+      metrics.pixelRejection({
+        shopDomain: shopDomainHeader,
+        reason: preBodyValidation.reason as "invalid_origin" | "invalid_origin_protocol",
+        originType: preBodyValidation.reason,
+      });
+      return jsonWithCors({ error: "Invalid origin" }, { status: 403, request });
+    }
   }
   const timestampHeader = request.headers.get("X-Tracking-Guardian-Timestamp");
   const shopDomainHeader = request.headers.get("x-shopify-shop-domain") || "unknown";
@@ -240,16 +242,18 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       if (anomalyCheck.shouldBlock) {
         logger.warn(`Circuit breaker triggered for ${shop.shopDomain}: ${anomalyCheck.reason}`);
       }
-      metrics.pixelRejection({
-        shopDomain: shop.shopDomain,
-        reason: "origin_not_allowlisted",
-        originType: shopOriginValidation.reason,
-      });
       logger.warn(
-        `Rejected pixel origin at Stage 2 in /ingest for ${shop.shopDomain}: ` +
+        `Origin validation warning at Stage 2 in /ingest for ${shop.shopDomain}: ` +
           `origin=${origin?.substring(0, 100) || "null"}, referer=${referer?.substring(0, 100) || "null"}, reason=${shopOriginValidation.reason}`
       );
-      return jsonWithCors({ error: "Origin not allowlisted" }, { status: 403, request, shopAllowedDomains });
+      if (!hasSignatureHeader) {
+        metrics.pixelRejection({
+          shopDomain: shop.shopDomain,
+          reason: "origin_not_allowlisted",
+          originType: shopOriginValidation.reason,
+        });
+        return jsonWithCors({ error: "Origin not allowlisted" }, { status: 403, request, shopAllowedDomains });
+      }
     }
   }
   let keyValidation: KeyValidationResult = {

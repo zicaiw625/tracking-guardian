@@ -14,7 +14,7 @@ register(({ analytics, settings, init, customerPrivacy }: {
   const ingestionKey = settings.ingestion_key;
   const shopDomain = settings.shop_domain || init.data?.shop?.myshopifyDomain || "";
   const placeholderDetected = BACKEND_URL && (BACKEND_URL.includes("__BACKEND_URL_PLACEHOLDER__") || BACKEND_URL.includes("PLACEHOLDER"));
-  const backendUrl = !placeholderDetected && BACKEND_URL && isAllowedBackendUrl(BACKEND_URL) ? BACKEND_URL : null;
+  const backendUrl = !placeholderDetected && BACKEND_URL && isAllowedBackendUrl(BACKEND_URL, { shopDomain }) ? BACKEND_URL : null;
   const isDevMode = (() => {
     if (shopDomain.includes(".myshopify.dev") || /-(dev|staging|test)\./i.test(shopDomain)) {
       return true;
@@ -53,7 +53,7 @@ register(({ analytics, settings, init, customerPrivacy }: {
     } else {
       log("Backend URL not resolved (占位符未替换或未配置)", {
         rawBackendUrl: BACKEND_URL,
-        isAllowed: BACKEND_URL ? isAllowedBackendUrl(BACKEND_URL) : false,
+        isAllowed: BACKEND_URL ? isAllowedBackendUrl(BACKEND_URL, { shopDomain }) : false,
         placeholderDetected,
       });
     }
