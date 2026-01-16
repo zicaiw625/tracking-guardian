@@ -96,6 +96,16 @@ try {
     distribution: AppDistribution.AppStore,
     hooks: {
       afterAuth: async ({ session, admin }: { session: { shop: string; accessToken?: string }; admin?: AdminApiContext }) => {
+        if (shopify) {
+          try {
+            await shopify.registerWebhooks({ session });
+          } catch (webhookError) {
+            logger.error("[Webhooks] Failed to register webhooks", {
+              shop: session.shop,
+              error: webhookError instanceof Error ? webhookError.message : String(webhookError),
+            });
+          }
+        }
         await handleAfterAuth(
           { session, admin }
         );

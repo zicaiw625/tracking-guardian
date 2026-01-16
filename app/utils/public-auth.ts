@@ -29,29 +29,46 @@ export async function authenticatePublic(request: Request): Promise<PublicAuthRe
 }
 
 export async function handlePublicPreflight(request: Request): Promise<Response> {
+  let checkoutCors: ((response: Response, options?: { corsHeaders?: string[] }) => Response) | null = null;
+  let customerAccountCors: ((response: Response, options?: { corsHeaders?: string[] }) => Response) | null = null;
+
   try {
-    const { cors } = await authenticate.public.checkout(request);
-    return cors(new Response(null, { status: 204 }), {
-      corsHeaders: ["Authorization"],
-    });
+    const result = await authenticate.public.checkout(request);
+    checkoutCors = result.cors;
   } catch (e) {
     if (e instanceof Response) {
-      return e;
+    } else {
+      logger.debug("Checkout surface preflight failed", {
+        error: e instanceof Error ? e.message : String(e),
+      });
     }
   }
 
   try {
-    const { cors } = await authenticate.public.customerAccount(request);
-    return cors(new Response(null, { status: 204 }), {
-      corsHeaders: ["Authorization"],
-    });
+    const result = await authenticate.public.customerAccount(request);
+    customerAccountCors = result.cors;
   } catch (e) {
     if (e instanceof Response) {
-      return e;
+    } else {
+      logger.debug("Customer account surface preflight failed", {
+        error: e instanceof Error ? e.message : String(e),
+      });
     }
   }
 
-  return new Response(null, { status: 204 });
+  const cors = checkoutCors || customerAccountCors;
+  if (cors) {
+    return cors(new Response(null, { status: 204 }), {
+      corsHeaders: ["Authorization"],
+    });
+  }
+
+  const headers = new Headers();
+  headers.set("Access-Control-Allow-Origin", "*");
+  headers.set("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+  headers.set("Access-Control-Allow-Headers", "Authorization, Content-Type");
+  headers.set("Access-Control-Max-Age", "86400");
+  return new Response(null, { status: 204, headers });
 }
 
 export function normalizeDestToShopDomain(dest: string): string {

@@ -364,9 +364,8 @@ export function isShopifyDomain(domain: string): boolean {
 }
 
 export function generateSimpleId(prefix: string = ""): string {
-  const timestamp = Date.now().toString(36);
-  const random = Math.random().toString(36).substring(2, 8);
-  return prefix ? `${prefix}_${timestamp}${random}` : `${timestamp}${random}`;
+  const uuid = crypto.randomUUID();
+  return prefix ? `${prefix}_${uuid}` : uuid;
 }
 
 export function extractShopifyId(gid: string | number): string {

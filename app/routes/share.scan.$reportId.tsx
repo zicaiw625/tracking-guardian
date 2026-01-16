@@ -95,6 +95,8 @@ export const loader = async ({ request, params }: LoaderFunctionArgs) => {
     headers.set("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate");
     headers.set("Pragma", "no-cache");
     headers.set("Expires", "0");
+    headers.set("X-Frame-Options", "DENY");
+    headers.set("X-Robots-Tag", "noindex");
 
     return json({
       report: {
