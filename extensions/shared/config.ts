@@ -44,12 +44,15 @@ function matchesWildcard(hostname: string, pattern: string): boolean {
   return regex.test(hostname);
 }
 
-export function isAllowedBackendUrl(url: string | null): boolean {
+export function isAllowedBackendUrl(
+  url: string | null,
+  context?: { shopDomain?: string | null; hostname?: string | null }
+): boolean {
   if (!url) return false;
   try {
     const parsed = new URL(url);
     const host = parsed.hostname;
-    const isDev = isDevMode();
+    const isDev = isDevMode(context);
     if (!isDev && parsed.protocol !== "https:") {
       return false;
     }
@@ -71,13 +74,30 @@ export function isAllowedBackendUrl(url: string | null): boolean {
   }
 }
 
-export function isDevMode(): boolean {
+function resolveHostname(context?: { shopDomain?: string | null; hostname?: string | null }): string | null {
+  if (context?.hostname) {
+    return context.hostname;
+  }
+  if (context?.shopDomain) {
+    return context.shopDomain;
+  }
+  if (typeof globalThis !== "undefined") {
+    const location = (globalThis as { location?: { hostname?: string } }).location;
+    if (location?.hostname) {
+      return location.hostname;
+    }
+  }
+  return null;
+}
+
+export function isDevMode(context?: { shopDomain?: string | null; hostname?: string | null }): boolean {
   try {
-    if (typeof window !== "undefined" && window.location) {
-      const hostname = window.location.hostname;
-      if (hostname === "localhost" || hostname === "127.0.0.1" || hostname.includes(".myshopify.dev") || /-(dev|staging|test)\./i.test(hostname)) {
-        return true;
-      }
+    const hostname = resolveHostname(context);
+    if (!hostname) {
+      return false;
+    }
+    if (hostname === "localhost" || hostname === "127.0.0.1" || hostname.includes(".myshopify.dev") || /-(dev|staging|test)\./i.test(hostname)) {
+      return true;
     }
   } catch {
     return false;
