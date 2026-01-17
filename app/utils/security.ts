@@ -28,25 +28,31 @@ export function sanitizeString(input: unknown): string {
 }
 
 export function sanitizeObject<T extends Record<string, unknown>>(obj: T): T {
-  const sanitized: Record<string, unknown> = {};
-  for (const [key, value] of Object.entries(obj)) {
-    if (typeof value === "string") {
-      sanitized[key] = sanitizeString(value);
-    } else if (value && typeof value === "object" && !Array.isArray(value)) {
-      sanitized[key] = sanitizeObject(value as Record<string, unknown>);
-    } else if (Array.isArray(value)) {
-      sanitized[key] = value.map((item) =>
-        typeof item === "string"
-          ? sanitizeString(item)
-          : item && typeof item === "object"
-            ? sanitizeObject(item as Record<string, unknown>)
-            : item
-      );
-    } else {
-      sanitized[key] = value;
+  const visited = new WeakSet<object>();
+  const sanitizeValue = (value: unknown, depth: number): unknown => {
+    if (depth > 5) {
+      return "[TRUNCATED]";
     }
-  }
-  return sanitized as T;
+    if (typeof value === "string") {
+      return sanitizeString(value);
+    }
+    if (!value || typeof value !== "object") {
+      return value;
+    }
+    if (visited.has(value)) {
+      return "[CIRCULAR]";
+    }
+    visited.add(value);
+    if (Array.isArray(value)) {
+      return value.map((item) => sanitizeValue(item, depth + 1));
+    }
+    const sanitized: Record<string, unknown> = {};
+    for (const [key, entryValue] of Object.entries(value as Record<string, unknown>)) {
+      sanitized[key] = sanitizeValue(entryValue, depth + 1);
+    }
+    return sanitized;
+  };
+  return sanitizeValue(obj, 0) as T;
 }
 
 export function escapeHtml(input: string): string {
@@ -118,7 +124,7 @@ export function validateOrigin(
   allowedOrigins: string[]
 ): { valid: boolean; error?: string } {
   if (!origin) {
-    return { valid: true };
+    return { valid: false, error: "Missing origin header" };
   }
   let parsedOrigin: URL;
   try {
@@ -212,9 +218,6 @@ export const SecureEmailSchema = z
   .email()
   .max(254)
   .refine((email) => !email.includes(".."), {
-    message: "Invalid email format",
-  })
-  .refine((email) => !containsSqlInjectionPattern(email), {
     message: "Invalid email format",
   })
   .transform((email) => email.toLowerCase().trim());
