@@ -27,7 +27,6 @@ import type { KeyValidationResult } from "~/lib/pixel-events/types";
 import { checkInitialConsent, filterPlatformsByConsent, logConsentFilterMetrics } from "~/lib/pixel-events/consent-filter";
 import { trackAnomaly } from "~/utils/rate-limiter";
 import { checkRateLimitAsync, shopDomainIpKeyExtractor, ipKeyExtractor } from "~/middleware/rate-limit";
-import { checkCircuitBreaker } from "~/utils/circuit-breaker";
 import { safeFireAndForget } from "~/utils/helpers.server";
 import { trackEvent } from "~/services/analytics.server";
 import { normalizePlanId } from "~/services/billing/plans";
@@ -83,7 +82,8 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       }
     );
   }
-  const origin = request.headers.get("Origin");
+  const originHeaderPresent = request.headers.has("Origin");
+  const origin = originHeaderPresent ? request.headers.get("Origin") : null;
   const isNullOrigin = origin === "null" || origin === null;
   const isProduction = !isDevMode();
   const allowUnsignedEvents = process.env.ALLOW_UNSIGNED_PIXEL_EVENTS === "true";
@@ -100,7 +100,12 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     );
   }
   const hasSignatureHeader = !!signature;
-  const preBodyValidation = validatePixelOriginPreBody(origin, hasSignatureHeader);
+  
+  if (!originHeaderPresent && isProduction) {
+    return jsonWithCors({ error: "Missing Origin" }, { status: 403, request });
+  }
+  
+  const preBodyValidation = validatePixelOriginPreBody(origin, hasSignatureHeader, originHeaderPresent);
   if (!preBodyValidation.valid) {
     const shopDomainHeader = request.headers.get("x-shopify-shop-domain") || "unknown";
     const anomalyCheck = trackAnomaly(shopDomainHeader, "invalid_origin");
@@ -238,35 +243,33 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     storefrontDomains: shop.storefrontDomains,
   });
   const referer = request.headers.get("Referer");
-  if (!isNullOrigin) {
-    const shopOriginValidation = validatePixelOriginForShop(origin, shopAllowedDomains, {
-      referer,
-      shopDomain: shop.shopDomain,
-      hasSignatureHeaderOrHMAC: hasSignatureHeader,
-    });
-    if (!shopOriginValidation.valid && shopOriginValidation.shouldReject) {
-      const anomalyCheck = trackAnomaly(shop.shopDomain, "invalid_origin");
-      if (anomalyCheck.shouldBlock) {
-        logger.warn(`Circuit breaker triggered for ${shop.shopDomain}: ${anomalyCheck.reason}`);
-      }
-      logger.warn(
-        `Origin validation warning at Stage 2 in /ingest for ${shop.shopDomain}: ` +
-          `origin=${origin?.substring(0, 100) || "null"}, referer=${referer?.substring(0, 100) || "null"}, reason=${shopOriginValidation.reason}`
-      );
-      if (hasSignatureHeader && !strictOrigin && !isProduction) {
-        logger.warn(`Signed ingest request allowed despite origin rejection for ${shop.shopDomain}`, {
-          origin: origin?.substring(0, 100) || "null",
-          reason: shopOriginValidation.reason,
-        });
-      }
-      if (!hasSignatureHeader || strictOrigin || isProduction) {
-        metrics.pixelRejection({
-          shopDomain: shop.shopDomain,
-          reason: "origin_not_allowlisted",
-          originType: shopOriginValidation.reason,
-        });
-        return jsonWithCors({ error: "Origin not allowlisted" }, { status: 403, request, shopAllowedDomains });
-      }
+  const shopOriginValidation = validatePixelOriginForShop(origin, shopAllowedDomains, {
+    referer,
+    shopDomain: shop.shopDomain,
+    hasSignatureHeaderOrHMAC: hasSignatureHeader,
+  });
+  if (!shopOriginValidation.valid && shopOriginValidation.shouldReject) {
+    const anomalyCheck = trackAnomaly(shop.shopDomain, "invalid_origin");
+    if (anomalyCheck.shouldBlock) {
+      logger.warn(`Circuit breaker triggered for ${shop.shopDomain}: ${anomalyCheck.reason}`);
+    }
+    logger.warn(
+      `Origin validation warning at Stage 2 in /ingest for ${shop.shopDomain}: ` +
+        `origin=${origin?.substring(0, 100) || "null"}, referer=${referer?.substring(0, 100) || "null"}, reason=${shopOriginValidation.reason}`
+    );
+    if (hasSignatureHeader && !strictOrigin && !isProduction) {
+      logger.warn(`Signed ingest request allowed despite origin rejection for ${shop.shopDomain}`, {
+        origin: origin?.substring(0, 100) || "null",
+        reason: shopOriginValidation.reason,
+      });
+    }
+    if (!hasSignatureHeader || strictOrigin || isProduction) {
+      metrics.pixelRejection({
+        shopDomain: shop.shopDomain,
+        reason: "origin_not_allowlisted",
+        originType: shopOriginValidation.reason,
+      });
+      return jsonWithCors({ error: "Origin not allowlisted" }, { status: 403, request, shopAllowedDomains });
     }
   }
   let keyValidation: KeyValidationResult = {

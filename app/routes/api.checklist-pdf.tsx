@@ -5,7 +5,7 @@ import { generateMigrationChecklist } from "../services/migration-checklist.serv
 import { generateChecklistPDF } from "../services/checklist-pdf.server";
 import { logger } from "../utils/logger.server";
 import { sanitizeFilename } from "../utils/responses";
-import { jsonApi } from "../utils/security-headers";
+import { jsonApi, withSecurityHeaders } from "../utils/security-headers";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   try {
@@ -32,13 +32,18 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     const pdfBuffer = await generateChecklistPDF(checklist, shopDomain);
     const filename = `migration_checklist_${shopDomain}_${new Date().toISOString().split("T")[0]}.pdf`;
 
+    const headers = withSecurityHeaders({
+      "Content-Type": "application/pdf",
+      "Content-Disposition": `attachment; filename="${sanitizeFilename(filename)}"`,
+      "Content-Length": pdfBuffer.length.toString(),
+      "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate",
+      "Pragma": "no-cache",
+      "Expires": "0",
+    });
+
     return new Response(pdfBuffer, {
       status: 200,
-      headers: {
-        "Content-Type": "application/pdf",
-        "Content-Disposition": `attachment; filename="${sanitizeFilename(filename)}"`,
-        "Content-Length": pdfBuffer.length.toString(),
-      },
+      headers,
     });
   } catch (error) {
     logger.error("Failed to export migration checklist PDF", { error });

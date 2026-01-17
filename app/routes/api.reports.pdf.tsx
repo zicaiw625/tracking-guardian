@@ -4,7 +4,7 @@ import prisma from "../db.server";
 import { generateVerificationReportData, generateVerificationReportPDF } from "../services/verification-report.server";
 import { logger } from "../utils/logger.server";
 import { sanitizeFilename } from "../utils/responses";
-import { jsonApi } from "../utils/security-headers";
+import { jsonApi, withSecurityHeaders } from "../utils/security-headers";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   try {
@@ -43,13 +43,18 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     const pdfBuffer = await generateVerificationReportPDF(reportData);
     const filename = `verification_report_${reportData.runId}_${new Date().toISOString().split("T")[0]}.pdf`;
 
+    const headers = withSecurityHeaders({
+      "Content-Type": "application/pdf",
+      "Content-Disposition": `attachment; filename="${sanitizeFilename(filename)}"`,
+      "Content-Length": pdfBuffer.length.toString(),
+      "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate",
+      "Pragma": "no-cache",
+      "Expires": "0",
+    });
+
     return new Response(pdfBuffer, {
       status: 200,
-      headers: {
-        "Content-Type": "application/pdf",
-        "Content-Disposition": `attachment; filename="${sanitizeFilename(filename)}"`,
-        "Content-Length": pdfBuffer.length.toString(),
-      },
+      headers,
     });
   } catch (error) {
     logger.error("Failed to export verification report PDF", { error });

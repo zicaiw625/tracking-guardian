@@ -73,6 +73,7 @@ interface AnomalyTracker {
 
 const anomalyTrackers = new Map<string, AnomalyTracker>();
 const ANOMALY_WINDOW_MS = 5 * 60 * 1000;
+const MAX_ANOMALY_TRACKERS = 10000;
 
 const ANOMALY_THRESHOLDS = {
   invalidKey: 25,
@@ -84,6 +85,33 @@ const ANOMALY_THRESHOLDS = {
 
 const blockedShops = new Map<string, { blockedAt: number; reason: string }>();
 const BLOCKED_SHOP_COOLDOWN_MS = 10 * 60 * 1000;
+const MAX_BLOCKED_SHOPS = 5000;
+
+function evictOldestAnomalyTrackers(count: number): void {
+  if (anomalyTrackers.size === 0) return;
+  const entries = Array.from(anomalyTrackers.entries())
+    .sort((a, b) => a[1].lastReset - b[1].lastReset);
+  const toRemove = entries.slice(0, count);
+  for (const [shopDomain] of toRemove) {
+    anomalyTrackers.delete(shopDomain);
+  }
+  if (toRemove.length > 0) {
+    logger.debug(`[Anomaly Tracking] Evicted ${toRemove.length} oldest anomaly trackers (size limit: ${MAX_ANOMALY_TRACKERS})`);
+  }
+}
+
+function evictOldestBlockedShops(count: number): void {
+  if (blockedShops.size === 0) return;
+  const entries = Array.from(blockedShops.entries())
+    .sort((a, b) => a[1].blockedAt - b[1].blockedAt);
+  const toRemove = entries.slice(0, count);
+  for (const [shopDomain] of toRemove) {
+    blockedShops.delete(shopDomain);
+  }
+  if (toRemove.length > 0) {
+    logger.debug(`[Anomaly Tracking] Evicted ${toRemove.length} oldest blocked shops (size limit: ${MAX_BLOCKED_SHOPS})`);
+  }
+}
 
 export function trackAnomaly(
   shopDomain: string,
@@ -98,6 +126,26 @@ export function trackAnomaly(
   if (blocked && now - blocked.blockedAt < BLOCKED_SHOP_COOLDOWN_MS) {
     return { shouldBlock: true, reason: blocked.reason, severity: "critical" };
   }
+  
+  if (anomalyTrackers.size >= MAX_ANOMALY_TRACKERS) {
+    cleanupAnomalyTrackers();
+    if (anomalyTrackers.size >= MAX_ANOMALY_TRACKERS) {
+      evictOldestAnomalyTrackers(Math.ceil(MAX_ANOMALY_TRACKERS * 0.1));
+    }
+  }
+  
+  if (blockedShops.size >= MAX_BLOCKED_SHOPS) {
+    const nowForCleanup = Date.now();
+    blockedShops.forEach((info, domain) => {
+      if (nowForCleanup - info.blockedAt > BLOCKED_SHOP_COOLDOWN_MS) {
+        blockedShops.delete(domain);
+      }
+    });
+    if (blockedShops.size >= MAX_BLOCKED_SHOPS) {
+      evictOldestBlockedShops(Math.ceil(MAX_BLOCKED_SHOPS * 0.1));
+    }
+  }
+  
   let tracker = anomalyTrackers.get(shopDomain);
   if (!tracker || now - tracker.lastReset > ANOMALY_WINDOW_MS) {
     tracker = {
@@ -244,6 +292,12 @@ export function cleanupAnomalyTrackers(): number {
   anomalyTrackers.forEach((tracker, shopDomain) => {
     if (now - tracker.lastReset > ANOMALY_WINDOW_MS) {
       anomalyTrackers.delete(shopDomain);
+      cleaned++;
+    }
+  });
+  blockedShops.forEach((info, shopDomain) => {
+    if (now - info.blockedAt > BLOCKED_SHOP_COOLDOWN_MS) {
+      blockedShops.delete(shopDomain);
       cleaned++;
     }
   });
@@ -444,3 +498,17 @@ export async function getRateLimitStats(): Promise<{
     };
   }
 }
+
+let cleanupInterval: ReturnType<typeof setInterval> | null = null;
+
+function startAnomalyCleanup(): void {
+  if (cleanupInterval) return;
+  cleanupInterval = setInterval(() => {
+    cleanupAnomalyTrackers();
+  }, 60000);
+  if (cleanupInterval.unref) {
+    cleanupInterval.unref();
+  }
+}
+
+startAnomalyCleanup();

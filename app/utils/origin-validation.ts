@@ -73,7 +73,7 @@ export function isValidShopifyOrigin(origin: string | null): boolean {
     }
     return ALLOWED_ORIGIN_PATTERNS.some(({ pattern }) => pattern.test(origin));
 }
-export function validatePixelOriginPreBody(origin: string | null, hasSignatureHeaderOrHMAC: boolean = false): {
+export function validatePixelOriginPreBody(origin: string | null, hasSignatureHeaderOrHMAC: boolean = false, originHeaderPresent: boolean = true): {
     valid: boolean;
     reason: string;
     shouldLog: boolean;
@@ -81,7 +81,9 @@ export function validatePixelOriginPreBody(origin: string | null, hasSignatureHe
 } {
     const devMode = isDevMode();
     const allowNullOrigin = shouldAllowNullOrigin();
-    if (origin === "null" || origin === null) {
+    const isProduction = !devMode;
+    
+    if (origin === "null") {
         if (devMode || allowNullOrigin) {
             return {
                 valid: true,
@@ -105,6 +107,48 @@ export function validatePixelOriginPreBody(origin: string | null, hasSignatureHe
             shouldReject: true,
         };
     }
+    
+    if (origin === null) {
+        if (!originHeaderPresent) {
+            if (isProduction) {
+                return {
+                    valid: false,
+                    reason: "missing_origin",
+                    shouldLog: true,
+                    shouldReject: true,
+                };
+            }
+            return {
+                valid: devMode,
+                reason: devMode ? "no_origin_dev" : "missing_origin",
+                shouldLog: !devMode,
+                shouldReject: !devMode,
+            };
+        }
+        if (devMode || allowNullOrigin) {
+            return {
+                valid: true,
+                reason: "null_origin_allowed",
+                shouldLog: false,
+                shouldReject: false,
+            };
+        }
+        if (hasSignatureHeaderOrHMAC) {
+            return {
+                valid: true,
+                reason: "null_origin_allowed_with_signature",
+                shouldLog: true,
+                shouldReject: false,
+            };
+        }
+        return {
+            valid: false,
+            reason: "null_origin_blocked",
+            shouldLog: true,
+            shouldReject: true,
+        };
+    }
+    
     if (!origin) {
         return {
             valid: devMode,
