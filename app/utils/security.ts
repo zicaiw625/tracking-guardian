@@ -29,6 +29,7 @@ export function sanitizeString(input: unknown): string {
 
 export function sanitizeObject<T extends Record<string, unknown>>(obj: T): T {
   const MAX_ARRAY_ITEMS = 50;
+  const MAX_OBJECT_KEYS = 100;
   const visited = new WeakSet<object>();
   const sanitizeValue = (value: unknown, depth: number): unknown => {
     if (depth > 5) {
@@ -54,8 +55,13 @@ export function sanitizeObject<T extends Record<string, unknown>>(obj: T): T {
       return items;
     }
     const sanitized: Record<string, unknown> = {};
-    for (const [key, entryValue] of Object.entries(value as Record<string, unknown>)) {
+    const entries = Object.entries(value as Record<string, unknown>);
+    const limitedEntries = entries.slice(0, MAX_OBJECT_KEYS);
+    for (const [key, entryValue] of limitedEntries) {
       sanitized[key] = sanitizeValue(entryValue, depth + 1);
+    }
+    if (entries.length > MAX_OBJECT_KEYS) {
+      sanitized._truncated = `...(${entries.length - MAX_OBJECT_KEYS} more keys)`;
     }
     return sanitized;
   };
