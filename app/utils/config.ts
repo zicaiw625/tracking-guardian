@@ -82,7 +82,41 @@ function getRetentionDays(envKey: string, defaultValue: number, minValue?: numbe
     return parsed;
 }
 
-export const RETENTION_CONFIG = {
+type RetentionConfig = {
+    MIN_DAYS: number;
+    MAX_DAYS: number;
+    DEFAULT_DAYS: number;
+    AUDIT_LOG_DAYS: number;
+    NONCE_EXPIRY_MS: number;
+    WEBHOOK_LOG_DAYS: number;
+    RECEIPT_DAYS: number;
+};
+
+function normalizeRetentionConfig(config: RetentionConfig): RetentionConfig {
+    let minDays = config.MIN_DAYS;
+    let maxDays = config.MAX_DAYS;
+    if (minDays > maxDays) {
+        logWarn(`[P2-03] RETENTION_MIN_DAYS (${minDays}) exceeds RETENTION_MAX_DAYS (${maxDays}); using MIN for both`);
+        maxDays = minDays;
+    }
+    let defaultDays = config.DEFAULT_DAYS;
+    if (defaultDays < minDays) {
+        logWarn(`[P2-03] RETENTION_DEFAULT_DAYS (${defaultDays}) below MIN_DAYS (${minDays}); using MIN_DAYS`);
+        defaultDays = minDays;
+    }
+    if (defaultDays > maxDays) {
+        logWarn(`[P2-03] RETENTION_DEFAULT_DAYS (${defaultDays}) above MAX_DAYS (${maxDays}); using MAX_DAYS`);
+        defaultDays = maxDays;
+    }
+    return {
+        ...config,
+        MIN_DAYS: minDays,
+        MAX_DAYS: maxDays,
+        DEFAULT_DAYS: defaultDays,
+    };
+}
+
+export const RETENTION_CONFIG = normalizeRetentionConfig({
     MIN_DAYS: getRetentionDays("RETENTION_MIN_DAYS", 30, 1),
     MAX_DAYS: getRetentionDays("RETENTION_MAX_DAYS", 365),
     DEFAULT_DAYS: getRetentionDays("RETENTION_DEFAULT_DAYS", 90),
@@ -90,7 +124,7 @@ export const RETENTION_CONFIG = {
     NONCE_EXPIRY_MS: getRetentionDays("RETENTION_NONCE_EXPIRY_HOURS", 1) * 60 * 60 * 1000,
     WEBHOOK_LOG_DAYS: getRetentionDays("RETENTION_WEBHOOK_LOG_DAYS", 7),
     RECEIPT_DAYS: getRetentionDays("RETENTION_RECEIPT_DAYS", 90),
-} as const;
+} as RetentionConfig);
 
 export function getRetentionConfigSummary(): Record<string, { value: number | string; unit: string; source: "default" | "env" }> {
     return {
@@ -632,6 +666,9 @@ export function validateAllConfig(): { valid: boolean; errors: string[] } {
     }
     if (RETENTION_CONFIG.MIN_DAYS > RETENTION_CONFIG.MAX_DAYS) {
         errors.push("Retention MIN_DAYS cannot exceed MAX_DAYS");
+    }
+    if (RETENTION_CONFIG.DEFAULT_DAYS < RETENTION_CONFIG.MIN_DAYS || RETENTION_CONFIG.DEFAULT_DAYS > RETENTION_CONFIG.MAX_DAYS) {
+        errors.push("Retention DEFAULT_DAYS must be within MIN_DAYS and MAX_DAYS");
     }
     if (ENCRYPTION_CONFIG.IV_LENGTH !== 16) {
         errors.push("IV length must be 16 for AES-256-GCM");

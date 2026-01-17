@@ -31,6 +31,7 @@ export type RateLimitedHandler<T> = (
 interface MemoryRateLimitEntry {
   count: number;
   windowStart: number;
+  expiresAt: number;
 }
 
 class InMemoryRateLimitStore {
@@ -56,7 +57,7 @@ class InMemoryRateLimitStore {
     const now = Date.now();
     let cleaned = 0;
     for (const [key, entry] of this.store.entries()) {
-      if (now - entry.windowStart > 5 * 60 * 1000) {
+      if (now >= entry.expiresAt) {
         this.store.delete(key);
         cleaned++;
       }
@@ -77,11 +78,11 @@ class InMemoryRateLimitStore {
   check(key: string, maxRequests: number, windowMs: number): RateLimitResult {
     const now = Date.now();
     const entry = this.store.get(key);
-    if (!entry || now - entry.windowStart >= windowMs) {
+    if (!entry || now >= entry.expiresAt) {
       if (this.store.size >= this.maxKeys && !entry) {
         this.cleanup();
       }
-      this.store.set(key, { count: 1, windowStart: now });
+      this.store.set(key, { count: 1, windowStart: now, expiresAt: now + windowMs });
       return {
         allowed: true,
         remaining: maxRequests - 1,
@@ -89,7 +90,7 @@ class InMemoryRateLimitStore {
       };
     }
     entry.count++;
-    const resetAt = entry.windowStart + windowMs;
+    const resetAt = entry.expiresAt;
     if (entry.count > maxRequests) {
       const retryAfter = Math.ceil((resetAt - now) / 1000);
       return {
