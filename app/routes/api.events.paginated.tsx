@@ -1,8 +1,9 @@
-import { json, type LoaderFunctionArgs } from "@remix-run/node";
+import type { LoaderFunctionArgs } from "@remix-run/node";
 import { authenticate } from "../shopify.server";
 import prisma from "../db.server";
 import { logger } from "../utils/logger.server";
 import { paginateConversionLogs } from "../services/db/query-optimizer.server";
+import { jsonApi } from "../utils/security-headers";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   const { session } = await authenticate.admin(request);
@@ -12,7 +13,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     select: { id: true },
   });
   if (!shop) {
-    return json({ error: "Shop not found" }, { status: 404 });
+    return jsonApi({ error: "Shop not found" }, { status: 404 });
   }
   const url = new URL(request.url);
   const cursor = url.searchParams.get("cursor") || undefined;
@@ -27,7 +28,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       take,
       orderBy,
     });
-    return json({
+    return jsonApi({
       items: result.items.map(item => ({
         id: item.id,
         orderId: item.orderId,
@@ -53,6 +54,6 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     logger.error("Failed to paginate events", error instanceof Error ? error : new Error(String(error)), {
       shopId: shop.id,
     });
-    return json({ error: "Failed to fetch events" }, { status: 500 });
+    return jsonApi({ error: "Failed to fetch events" }, { status: 500 });
   }
 };

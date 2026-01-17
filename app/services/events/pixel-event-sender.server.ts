@@ -1,4 +1,4 @@
-import type { PixelEventPayload } from "~/routes/api.pixel-events/types";
+import type { PixelEventPayload } from "~/lib/pixel-events/types";
 import { logger } from "~/utils/logger.server";
 import { getShopPixelConfigs } from "../db/pixel-config-repository.server";
 import { decryptCredentials } from "../credentials.server";

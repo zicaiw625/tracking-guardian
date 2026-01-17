@@ -14,7 +14,7 @@ import {
 } from "@shopify/polaris";
 import { mapEventToPlatform } from "~/services/events/mapping.server";
 import { normalizeEvent } from "~/services/events/normalizer.server";
-import type { PixelEventPayload } from "~/routes/api.pixel-events/types";
+import type { PixelEventPayload } from "~/lib/pixel-events/types";
 
 export interface EventMappingVisualizerProps {
   shopifyEvent: PixelEventPayload;

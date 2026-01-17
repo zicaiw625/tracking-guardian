@@ -1,4 +1,4 @@
-import type { PixelEventPayload } from "~/routes/api.pixel-events/types";
+import type { PixelEventPayload } from "~/lib/pixel-events/types";
 
 export interface EventMapping {
   shopifyEvent: string;

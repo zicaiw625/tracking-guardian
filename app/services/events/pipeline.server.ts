@@ -1,6 +1,6 @@
 import prisma from "~/db.server";
 import { logger } from "~/utils/logger.server";
-import type { PixelEventPayload } from "~/routes/api.pixel-events/types";
+import type { PixelEventPayload } from "~/lib/pixel-events/types";
 import { sendPixelEventToPlatform } from "./pixel-event-sender.server";
 import { generateCanonicalEventId } from "../event-normalizer.server";
 import { generateSimpleId, parallelLimit } from "~/utils/helpers";

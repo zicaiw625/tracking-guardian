@@ -68,7 +68,7 @@ function checkDataEncryption() {
 }
 
 function checkHMACValidation() {
-  const hmacValidationFile = join(process.cwd(), "app/routes/api.pixel-events/hmac-validation.ts");
+  const hmacValidationFile = join(process.cwd(), "app/lib/pixel-events/hmac-validation.ts");
   const webhooksFile = join(process.cwd(), "app/routes/webhooks.tsx");
   const ingestFile = join(process.cwd(), "app/routes/ingest.tsx");
   const routesDir = join(process.cwd(), "app/routes");

@@ -278,4 +278,4 @@ Tracking Guardian 是一个 Shopify 应用，作为**数据处理者**（Data Pr
 - 加密实现: `app/utils/crypto.server.ts`
 - GDPR 处理: `app/webhooks/handlers/gdpr.handler.ts`
 - 日志脱敏: `app/utils/logger.server.ts`
-- HMAC 验证: `app/routes/api.pixel-events/hmac-validation.ts`
+- HMAC 验证: `app/lib/pixel-events/hmac-validation.ts`

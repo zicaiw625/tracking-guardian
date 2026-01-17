@@ -1,7 +1,7 @@
 import prisma from "../db.server";
 import { logger } from "../utils/logger.server";
 import { generateSimpleId } from "../utils/helpers";
-import type { PixelEventPayload } from "../routes/api.pixel-events/types";
+import type { PixelEventPayload } from "../lib/pixel-events/types";
 
 export function sanitizePII(payload: unknown): unknown {
   if (!payload || typeof payload !== "object") {

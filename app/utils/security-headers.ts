@@ -1,3 +1,5 @@
+import { json } from "@remix-run/node";
+
 export const API_CSP_DIRECTIVES: Record<string, string[]> = {
   "default-src": ["'none'"],
   "frame-ancestors": ["'none'"],
@@ -184,4 +186,16 @@ export function getRateLimitExceededHeaders(
     "Retry-After": String(retryAfterSeconds),
     "X-RateLimit-Remaining": "0",
   };
+}
+
+export function jsonApi<T>(
+  data: T,
+  init?: ResponseInit
+): Response {
+  const headers = new Headers(init?.headers);
+  addSecurityHeadersToHeaders(headers, API_SECURITY_HEADERS);
+  return json(data, {
+    ...init,
+    headers,
+  });
 }

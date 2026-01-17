@@ -1,10 +1,10 @@
 import type { ActionFunctionArgs } from "@remix-run/node";
-import { json } from "@remix-run/node";
 import { createHash, randomBytes } from "crypto";
 import prisma from "../db.server";
 import { logger } from "../utils/logger.server";
 import { authenticate } from "../shopify.server";
 import { readJsonWithSizeLimit } from "../utils/body-size-guard";
+import { jsonApi } from "../utils/security-headers";
 
 const SHARE_TOKEN_EXPIRY_DAYS = 7;
 
@@ -25,7 +25,7 @@ function generateShareToken(reportId: string, reportType: string): string {
 
 export const action = async ({ request }: ActionFunctionArgs) => {
   if (request.method !== "POST") {
-    return json({ error: "Method not allowed" }, { status: 405 });
+    return jsonApi({ error: "Method not allowed" }, { status: 405 });
   }
   try {
     const { session } = await authenticate.admin(request);
@@ -35,7 +35,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       select: { id: true },
     });
     if (!shop) {
-      return json({ error: "Shop not found" }, { status: 404 });
+      return jsonApi({ error: "Shop not found" }, { status: 404 });
     }
     let body: ShareRequest | null;
     try {
@@ -44,10 +44,10 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       if (error instanceof Response) {
         return error;
       }
-      return json({ error: "Failed to parse request body" }, { status: 400 });
+      return jsonApi({ error: "Failed to parse request body" }, { status: 400 });
     }
     if (!body || !body.reportType || !body.reportId) {
-      return json({ error: "Missing required fields: reportType, reportId" }, { status: 400 });
+      return jsonApi({ error: "Missing required fields: reportType, reportId" }, { status: 400 });
     }
     const { reportType, reportId } = body;
     if (reportType === "scan") {
@@ -59,7 +59,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         select: { id: true },
       });
       if (!scanReport) {
-        return json({ error: "Scan report not found" }, { status: 404 });
+        return jsonApi({ error: "Scan report not found" }, { status: 404 });
       }
       const shareToken = generateShareToken(reportId, reportType);
       const expiresAt = new Date();
@@ -81,16 +81,11 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         reportId,
         expiresAt: expiresAt.toISOString(),
       });
-      const headers = new Headers();
-      headers.set("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate");
-      headers.set("Pragma", "no-cache");
-      headers.set("Expires", "0");
-      headers.set("Referrer-Policy", "no-referrer");
-      return json({
+      return jsonApi({
         success: true,
         shareUrl,
         expiresAt: expiresAt.toISOString(),
-      }, { headers });
+      });
     }
     if (reportType === "verification") {
       const verificationRun = await prisma.verificationRun.findFirst({
@@ -101,7 +96,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         select: { id: true, publicId: true },
       });
       if (!verificationRun) {
-        return json({ error: "Verification run not found" }, { status: 404 });
+        return jsonApi({ error: "Verification run not found" }, { status: 404 });
       }
       let publicId = verificationRun.publicId;
       if (!publicId) {
@@ -135,21 +130,16 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         publicId,
         expiresAt: expiresAt.toISOString(),
       });
-      const headers = new Headers();
-      headers.set("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate");
-      headers.set("Pragma", "no-cache");
-      headers.set("Expires", "0");
-      headers.set("Referrer-Policy", "no-referrer");
-      return json({
+      return jsonApi({
         success: true,
         shareUrl,
         expiresAt: expiresAt.toISOString(),
-      }, { headers });
+      });
     }
-    return json({ error: "Invalid report type" }, { status: 400 });
+    return jsonApi({ error: "Invalid report type" }, { status: 400 });
   } catch (error) {
     logger.error("Failed to generate share link", { error });
-    return json(
+    return jsonApi(
       { error: error instanceof Error ? error.message : "Failed to generate share link" },
       { status: 500 }
     );

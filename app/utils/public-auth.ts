@@ -1,5 +1,6 @@
 import { authenticate } from "../shopify.server";
 import { logger } from "./logger.server";
+import { API_SECURITY_HEADERS, addSecurityHeadersToHeaders } from "./security-headers";
 
 export interface PublicAuthResult {
   sessionToken: {
@@ -59,8 +60,7 @@ export function normalizeDestToShopDomain(dest: string): string {
 
 export function addSecurityHeaders(response: Response): Response {
   const headers = new Headers(response.headers);
-  headers.set("Cache-Control", "no-store");
-  headers.set("X-Content-Type-Options", "nosniff");
+  addSecurityHeadersToHeaders(headers, API_SECURITY_HEADERS);
   return new Response(response.body, {
     status: response.status,
     statusText: response.statusText,

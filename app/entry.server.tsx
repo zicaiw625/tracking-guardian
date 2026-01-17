@@ -10,7 +10,7 @@ import { logger } from "./utils/logger.server";
 import { EMBEDDED_APP_HEADERS, addSecurityHeadersToHeaders, validateSecurityHeaders, } from "./utils/security-headers";
 import { RedisClientFactory } from "./utils/redis-client";
 import prisma from "./db.server";
-import { getCorsHeadersPreBody } from "./routes/api.pixel-events/cors";
+import { getCorsHeadersPreBody } from "./lib/pixel-events/cors";
 const ABORT_DELAY = 5000;
 
 if (typeof process !== "undefined") {

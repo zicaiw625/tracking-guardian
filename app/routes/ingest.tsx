@@ -1,13 +1,13 @@
 import type { ActionFunctionArgs, LoaderFunctionArgs } from "@remix-run/node";
-import { jsonWithCors, getCorsHeadersPreBody, emptyResponseWithCors, optionsResponse } from "./api.pixel-events/cors";
-import type { PixelEventPayload } from "./api.pixel-events/types";
+import { jsonWithCors, getCorsHeadersPreBody, emptyResponseWithCors, optionsResponse } from "~/lib/pixel-events/cors";
+import type { PixelEventPayload } from "~/lib/pixel-events/types";
 import { processBatchEvents } from "~/services/events/pipeline.server";
 import { logger, metrics } from "~/utils/logger.server";
 import { appMetrics } from "~/utils/metrics-collector";
-import { getShopForPixelVerificationWithConfigs } from "./api.pixel-events/key-validation";
-import { validatePixelEventHMAC } from "./api.pixel-events/hmac-validation";
+import { getShopForPixelVerificationWithConfigs } from "~/lib/pixel-events/key-validation";
+import { validatePixelEventHMAC } from "~/lib/pixel-events/hmac-validation";
 import { verifyWithGraceWindowAsync } from "~/utils/shop-access";
-import { validateRequest, isPrimaryEvent } from "./api.pixel-events/validation";
+import { validateRequest, isPrimaryEvent } from "~/lib/pixel-events/validation";
 import { API_CONFIG, RATE_LIMIT_CONFIG, CIRCUIT_BREAKER_CONFIG } from "~/utils/config";
 import {
   isDevMode,
@@ -22,9 +22,9 @@ import {
   createEventNonce,
   upsertPixelEventReceipt,
   evaluateTrustLevel,
-} from "./api.pixel-events/receipt-handler";
-import type { KeyValidationResult } from "./api.pixel-events/types";
-import { checkInitialConsent, filterPlatformsByConsent, logConsentFilterMetrics } from "./api.pixel-events/consent-filter";
+} from "~/lib/pixel-events/receipt-handler";
+import type { KeyValidationResult } from "~/lib/pixel-events/types";
+import { checkInitialConsent, filterPlatformsByConsent, logConsentFilterMetrics } from "~/lib/pixel-events/consent-filter";
 import { trackAnomaly } from "~/utils/rate-limiter";
 import { checkRateLimitAsync, shopDomainIpKeyExtractor, ipKeyExtractor } from "~/middleware/rate-limit";
 import { checkCircuitBreaker } from "~/utils/circuit-breaker";

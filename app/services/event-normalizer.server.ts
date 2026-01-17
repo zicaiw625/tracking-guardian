@@ -1,6 +1,6 @@
 import { createHash, randomBytes } from "crypto";
 import { logger } from "../utils/logger.server";
-import type { PixelEventPayload, PixelEventName, PixelEventData } from "../routes/api.pixel-events/types";
+import type { PixelEventPayload, PixelEventName, PixelEventData } from "../lib/pixel-events/types";
 import { mapEventToPlatform } from "./events/mapping.server";
 import { normalizeEventParameters } from "./event-parameter-normalization.server";
 import type { EventMapping } from "./event-mapping";

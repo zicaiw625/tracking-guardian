@@ -436,7 +436,7 @@ SCOPES=read_script_tags,read_pixels,write_pixels,read_customer_events,read_order
   
 - **重要说明**：
   - **`/ingest` 是唯一的事件接收入口**，不存在其他接收端点
-  - `app/routes/api.pixel-events/` 目录仅包含共享的工具函数（cors、validation、hmac-validation 等），不是独立的路由端点
+  - `app/lib/pixel-events/` 目录仅包含共享的工具函数（cors、validation、hmac-validation 等），不是独立的路由端点
   - 所有像素事件必须发送到 `POST /ingest`，不要使用其他路径
   - 对外文档和第三方集成必须使用 `POST /ingest`（符合 PRD 8.2）
   - Web Pixel Extension 使用批量格式发送到 `/ingest` 端点，提高性能

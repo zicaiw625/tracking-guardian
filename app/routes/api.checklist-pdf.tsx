@@ -1,11 +1,11 @@
 import type { LoaderFunctionArgs } from "@remix-run/node";
-import { json } from "@remix-run/node";
 import { authenticate } from "../shopify.server";
 import prisma from "../db.server";
 import { generateMigrationChecklist } from "../services/migration-checklist.server";
 import { generateChecklistPDF } from "../services/checklist-pdf.server";
 import { logger } from "../utils/logger.server";
 import { sanitizeFilename } from "../utils/responses";
+import { jsonApi } from "../utils/security-headers";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   try {
@@ -17,13 +17,13 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     });
 
     if (!shop) {
-      return json({ error: "Shop not found" }, { status: 404 });
+      return jsonApi({ error: "Shop not found" }, { status: 404 });
     }
 
     const { checkFeatureAccess } = await import("../services/billing/feature-gates.server");
     const gateResult = checkFeatureAccess(shop.plan as any, "report_export");
     if (!gateResult.allowed) {
-      return json({ error: gateResult.reason || "需要 Growth 及以上套餐才能导出报告" }, { status: 402 });
+      return jsonApi({ error: gateResult.reason || "需要 Growth 及以上套餐才能导出报告" }, { status: 402 });
     }
 
     const checklist = await generateMigrationChecklist(shop.id);
@@ -40,7 +40,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     });
   } catch (error) {
     logger.error("Failed to export migration checklist PDF", { error });
-    return json(
+    return jsonApi(
       { error: error instanceof Error ? error.message : "Failed to export checklist PDF" },
       { status: 500 }
     );

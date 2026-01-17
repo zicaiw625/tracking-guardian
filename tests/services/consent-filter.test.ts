@@ -17,7 +17,7 @@ import {
   checkInitialConsent,
   filterPlatformsByConsent,
   type ConsentCheckResult,
-} from "../../app/routes/api.pixel-events/consent-filter";
+} from "../../app/lib/pixel-events/consent-filter";
 
 describe("Consent Filter - checkInitialConsent", () => {
   describe("Marketing Consent", () => {

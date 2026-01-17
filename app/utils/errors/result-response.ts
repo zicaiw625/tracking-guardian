@@ -3,6 +3,7 @@ import type { Result, AsyncResult } from "../../types/result";
 import { isOk, isErr, err } from "../../types/result";
 import { AppError, ErrorCode, type ErrorCodeType, ensureAppError, type ErrorMetadata } from "./app-error";
 import { logger } from "../logger.server";
+import { jsonApi } from "../security-headers";
 
 export interface ApiSuccessResponse<T> {
   success: true;
@@ -35,7 +36,7 @@ export function resultToResponse<T>(
     const data = options?.transform
       ? options.transform(result.value)
       : result.value;
-    return json<ApiSuccessResponse<typeof data>>(
+    return jsonApi<ApiSuccessResponse<typeof data>>(
       { success: true, data },
       { status: successStatus, headers }
     );
@@ -73,7 +74,7 @@ export function errorToResponse(
   if (error.metadata.retryAfter && status === 429) {
     headers.set("Retry-After", String(Math.ceil(Number(error.metadata.retryAfter) / 1000)));
   }
-  return json(response, { status, headers });
+  return jsonApi(response, { status, headers });
 }
 
 export async function asyncResultToResponse<T>(
@@ -217,7 +218,7 @@ export function successResponse<T>(
   data: T,
   status: number = 200
 ): Response {
-  return json<ApiSuccessResponse<T>>(
+  return jsonApi<ApiSuccessResponse<T>>(
     { success: true, data },
     { status }
   );
@@ -229,7 +230,7 @@ export function errorResponse(
   status: number = 400,
   extra?: { field?: string; retryAfter?: number }
 ): Response {
-  return json<ApiErrorResponse>(
+  return jsonApi<ApiErrorResponse>(
     {
       success: false,
       error: { code, message, ...extra },
@@ -260,7 +261,7 @@ export function tooManyRequests(retryAfter?: number): Response {
   if (retryAfter) {
     headers.set("Retry-After", String(retryAfter));
   }
-  return json<ApiErrorResponse>(
+  return jsonApi<ApiErrorResponse>(
     {
       success: false,
       error: {

@@ -1,16 +1,18 @@
 import type { LoaderFunctionArgs } from "@remix-run/node";
-import { json } from "@remix-run/node";
 import { timingSafeEqual } from "crypto";
 import prisma from "../db.server";
 import { logger } from "../utils/logger.server";
 import { MONITORING_CONFIG } from "../utils/config";
+import { jsonApi } from "../utils/security-headers";
 
-interface HealthStatus {
+interface BasicHealthStatus {
     status: "healthy" | "degraded" | "unhealthy";
-    timestamp: string;
+}
+
+interface DetailedHealthStatus extends BasicHealthStatus {
     version: string;
     uptime: number;
-    checks?: {
+    checks: {
         database: HealthCheck;
         memory: HealthCheck;
     };
@@ -114,54 +116,45 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
             hasAuthHeader: !!request.headers.get("Authorization"),
         });
     }
-    const uptime = Math.round((Date.now() - startTime) / 1000);
-    const baseResponse: HealthStatus = {
-        status: "healthy",
-        timestamp: new Date().toISOString(),
-        version: process.env.npm_package_version || "1.0.0",
-        uptime,
-    };
     if (detailed) {
+        const uptime = Math.round((Date.now() - startTime) / 1000);
         const [dbCheck, memCheck] = await Promise.all([
             checkDatabase(),
             Promise.resolve(checkMemory()),
         ]);
-        baseResponse.checks = {
-            database: dbCheck,
-            memory: memCheck,
-        };
         const checks = [dbCheck, memCheck];
         const hasFailed = checks.some(c => c.status === "fail");
         const hasWarning = checks.some(c => c.status === "warn");
-        if (hasFailed) {
-            baseResponse.status = "unhealthy";
-        } else if (hasWarning) {
-            baseResponse.status = "degraded";
-        }
+        const status = hasFailed ? "unhealthy" : (hasWarning ? "degraded" : "healthy");
+        const detailedResponse: DetailedHealthStatus = {
+            status,
+            timestamp: new Date().toISOString(),
+            version: process.env.npm_package_version || "1.0.0",
+            uptime,
+            checks: {
+                database: dbCheck,
+                memory: memCheck,
+            },
+        };
+        const statusCode = status === "unhealthy" ? 503 : 200;
+            return jsonApi(detailedResponse, {
+                status: statusCode,
+            });
     } else {
         try {
             await prisma.$queryRaw`SELECT 1`;
+            const basicResponse: BasicHealthStatus = {
+                status: "healthy",
+            };
+            return jsonApi(basicResponse, {
+                status: 200,
+            });
         } catch (error) {
             logger.error("Health check failed: Database unreachable", error);
-            return json(
-                {
-                    status: "unhealthy",
-                    timestamp: new Date().toISOString(),
-                    version: process.env.npm_package_version || "1.0.0",
-                    uptime,
-                    error: "Database connection failed",
-                } as HealthStatus & { error: string },
-                { status: 503 }
-            );
+            const errorResponse: BasicHealthStatus = {
+                status: "unhealthy",
+            };
+            return jsonApi(errorResponse, { status: 503 });
         }
     }
-    const statusCode = baseResponse.status === "unhealthy" ? 503 : 200;
-    return json(baseResponse, {
-        status: statusCode,
-        headers: {
-            "Cache-Control": "no-cache, no-store, must-revalidate",
-            "Pragma": "no-cache",
-            "Expires": "0",
-        },
-    });
 };

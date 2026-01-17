@@ -12,7 +12,7 @@ import {
 } from "@shopify/polaris";
 import { CopyIcon } from "~/components/icons";
 import { useToastContext } from "~/components/ui";
-import type { PixelEventPayload } from "~/routes/api.pixel-events/types";
+import type { PixelEventPayload } from "~/lib/pixel-events/types";
 
 interface CanonicalEventData {
   event_name: string;
