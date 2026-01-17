@@ -160,8 +160,19 @@ async function loaderImpl(request: Request) {
       ));
     }
     const shopDomain = normalizeDestToShopDomain(authResult.sessionToken.dest);
+    const customerGidFromToken = authResult.sessionToken.sub || null;
+    if (!customerGidFromToken) {
+      logger.warn(`Reorder request without customer ID for shop ${shopDomain}`, {
+        context: "Reorder is only available in customer account (order status) context, not in checkout (thank you) context",
+      });
+      return addSecurityHeaders(authResult.cors(json(
+        { error: "Reorder is only available in order status page", reason: "Customer authentication required" },
+      { status: 403 }
+    )));
+    }
     const orderIdHash = hashValueSync(orderId).slice(0, 12);
-    const cacheKey = `reorder:${shopDomain}:${orderId}`;
+    const customerKey = hashValueSync(customerGidFromToken).slice(0, 16);
+    const cacheKey = `reorder:${shopDomain}:${orderId}:cust:${customerKey}`;
     const cachedData = defaultLoaderCache.get(cacheKey) as { reorderUrl: string } | undefined;
     if (cachedData !== undefined) {
       return addSecurityHeaders(authResult.cors(json(cachedData)));
@@ -221,16 +232,6 @@ async function loaderImpl(request: Request) {
       logger.warn(`Reorder module not enabled for shop ${shopDomain}`);
       return addSecurityHeaders(authResult.cors(json(
         { error: "Reorder module is not enabled" },
-      { status: 403 }
-    )));
-    }
-    const customerGidFromToken = authResult.sessionToken.sub || null;
-    if (!customerGidFromToken) {
-      logger.warn(`Reorder request without customer ID for shop ${shopDomain}`, {
-        context: "Reorder is only available in customer account (order status) context, not in checkout (thank you) context",
-      });
-      return addSecurityHeaders(authResult.cors(json(
-        { error: "Reorder is only available in order status page", reason: "Customer authentication required" },
       { status: 403 }
     )));
     }

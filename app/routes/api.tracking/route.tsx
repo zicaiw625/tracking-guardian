@@ -100,7 +100,12 @@ async function loaderImpl(request: Request) {
     const { orderId, trackingNumber, checkoutToken } = queryParse.data;
     const gidOrderId = /^\d+$/.test(orderId) ? `gid://shopify/Order/${orderId}` : orderId;
     const shopDomain = normalizeDestToShopDomain(authResult.sessionToken.dest);
-    const cacheKey = `tracking:${shopDomain}:${orderId}`;
+    const customerId = authResult.sessionToken.sub || "";
+    const surface = authResult.surface;
+    const cacheKey =
+      surface === "customer_account"
+        ? `tracking:${shopDomain}:${orderId}:cust:${hashValueSync(customerId).slice(0, 16)}`
+        : `tracking:${shopDomain}:${orderId}:co:${hashValueSync(checkoutToken || "").slice(0, 16)}`;
     const cachedData = defaultLoaderCache.get(cacheKey) as TrackingApiPayload | undefined;
     if (cachedData !== undefined) {
       return addSecurityHeaders(authResult.cors(json(cachedData)));
@@ -127,7 +132,6 @@ async function loaderImpl(request: Request) {
         { status: 429, headers }
       )));
     }
-    const customerId = authResult.sessionToken.sub;
     const shop = await prisma.shop.findUnique({
       where: { shopDomain },
       select: {
