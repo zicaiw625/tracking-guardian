@@ -16,7 +16,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     return handlePublicPreflight(request);
   }
   if (request.method !== "POST") {
-    return json({ error: "Method not allowed" }, { status: 405 });
+    return addSecurityHeaders(json({ error: "Method not allowed" }, { status: 405 }));
   }
   let authResult;
   try {

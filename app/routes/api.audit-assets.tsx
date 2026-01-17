@@ -113,7 +113,7 @@ async function handleCreateFromPaste(
           source: "manual_paste",
           analysisRiskScore: analysisResult.riskScore,
           detectedPatterns: analysisResult.platformDetails
-            .filter(d => d.type === platform)
+            .filter(d => d.platform === platform)
             .map(d => d.matchedPattern),
         },
       });

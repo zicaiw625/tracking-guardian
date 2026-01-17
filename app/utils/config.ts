@@ -308,7 +308,7 @@ const REQUIRED_IN_PRODUCTION = [
 
 const PIXEL_INGESTION_ENABLED_CHECK = {
     key: "PIXEL_ALLOW_NULL_ORIGIN",
-    reason: "Production environment defaults to blocking null origin requests (may cause event loss). Requests with X-Tracking-Guardian-Signature header will bypass origin validation and be verified via HMAC instead. Set PIXEL_ALLOW_NULL_ORIGIN=true to explicitly allow all null origin requests, or PIXEL_ALLOW_NULL_ORIGIN=false to explicitly block even signed requests.",
+    reason: "Production environment defaults to blocking null origin requests (may cause event loss). In production, all requests with null/invalid origin will be rejected regardless of signature presence. Set PIXEL_ALLOW_NULL_ORIGIN=true to explicitly allow null origin requests, or leave unset/false to block them.",
 } as const;
 const RECOMMENDED = [
     { key: "RESEND_API_KEY", reason: "for email notifications" },

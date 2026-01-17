@@ -11,6 +11,15 @@ import { PCD_CONFIG, API_CONFIG } from "../../utils/config";
 import { readJsonWithSizeLimit } from "../../utils/body-size-guard";
 import { authenticatePublic, normalizeDestToShopDomain, handlePublicPreflight, addSecurityHeaders } from "../../utils/public-auth";
 import { hashValueSync } from "../../utils/crypto.server";
+import { z } from "zod";
+
+const orderIdSchema = z
+  .string()
+  .min(1)
+  .max(128)
+  .refine((value) => /^gid:\/\/shopify\/Order\/\d+$/.test(value) || /^\d+$/.test(value), {
+    message: "Invalid orderId format",
+  });
 
 export const action = async ({ request }: ActionFunctionArgs) => {
   if (request.method === "OPTIONS") {
@@ -31,10 +40,10 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     const shopDomain = normalizeDestToShopDomain(authResult.sessionToken.dest);
     if (!PCD_CONFIG.APPROVED) {
       logger.warn(`Reorder feature requires PCD approval for shop ${shopDomain} - hard disabled at action level`);
-      return authResult.cors(json(
+      return addSecurityHeaders(authResult.cors(json(
         { error: "Reorder feature requires Protected Customer Data approval", reason: "pcd_not_approved", requiresPcdApproval: true },
       { status: 403 }
-    ));
+    )));
     }
     const shop = await prisma.shop.findUnique({
       where: { shopDomain },
@@ -90,10 +99,15 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     try {
       const body = await readJsonWithSizeLimit(request);
       const url = new URL(request.url);
-      const orderId = body?.orderId || url.searchParams.get("orderId");
-      if (!orderId) {
+      const orderIdRaw = body?.orderId || url.searchParams.get("orderId");
+      if (!orderIdRaw) {
         return addSecurityHeaders(authResult.cors(json({ error: "Missing orderId" }, { status: 400 })));
       }
+      const orderIdParse = orderIdSchema.safeParse(orderIdRaw);
+      if (!orderIdParse.success) {
+        return addSecurityHeaders(authResult.cors(json({ error: "Invalid orderId format" }, { status: 400 })));
+      }
+      const orderId = orderIdParse.data;
       const newUrl = new URL(request.url);
       newUrl.searchParams.set("orderId", orderId);
       const newRequest = new Request(newUrl.toString(), {
@@ -119,14 +133,23 @@ export const loader = async (args: LoaderFunctionArgs) => {
 async function loaderImpl(request: Request) {
   try {
     const url = new URL(request.url);
-    const orderId = url.searchParams.get("orderId");
-    if (!orderId) {
+    const orderIdRaw = url.searchParams.get("orderId");
+    if (!orderIdRaw) {
       let authResult = await authenticatePublic(request).catch(() => null);
       if (authResult) {
         return addSecurityHeaders(authResult.cors(json({ error: "Missing orderId" }, { status: 400 })));
       }
       return addSecurityHeaders(json({ error: "Missing orderId" }, { status: 400 }));
     }
+    const orderIdParse = orderIdSchema.safeParse(orderIdRaw);
+    if (!orderIdParse.success) {
+      let authResult = await authenticatePublic(request).catch(() => null);
+      if (authResult) {
+        return addSecurityHeaders(authResult.cors(json({ error: "Invalid orderId format" }, { status: 400 })));
+      }
+      return addSecurityHeaders(json({ error: "Invalid orderId format" }, { status: 400 }));
+    }
+    const orderId = orderIdParse.data;
     let authResult;
     try {
       authResult = await authenticatePublic(request);
@@ -167,10 +190,10 @@ async function loaderImpl(request: Request) {
     }
     if (!PCD_CONFIG.APPROVED) {
       logger.warn(`Reorder feature requires PCD approval for shop ${shopDomain}`);
-      return authResult.cors(json(
+      return addSecurityHeaders(authResult.cors(json(
         { error: "Reorder feature requires Protected Customer Data approval", reason: "pcd_not_approved", requiresPcdApproval: true },
       { status: 403 }
-    ));
+    )));
     }
     const shop = await prisma.shop.findUnique({
       where: { shopDomain },
@@ -206,10 +229,10 @@ async function loaderImpl(request: Request) {
       logger.warn(`Reorder request without customer ID for shop ${shopDomain}`, {
         context: "Reorder is only available in customer account (order status) context, not in checkout (thank you) context",
       });
-      return authResult.cors(json(
+      return addSecurityHeaders(authResult.cors(json(
         { error: "Reorder is only available in order status page", reason: "Customer authentication required" },
       { status: 403 }
-    ));
+    )));
     }
     const admin = await createAdminClientForShop(shopDomain);
     if (!admin) {
