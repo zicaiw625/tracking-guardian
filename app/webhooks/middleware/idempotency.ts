@@ -1,3 +1,4 @@
+import { randomUUID } from "crypto";
 import prisma from "../../db.server";
 import { WebhookStatus } from "../../types";
 import { logger } from "../../utils/logger.server";
@@ -20,7 +21,7 @@ export async function tryAcquireWebhookLock(
   try {
     await prisma.webhookLog.create({
       data: {
-        id: generateSimpleId("webhook") || crypto.randomUUID(),
+        id: generateSimpleId("webhook") || randomUUID(),
         shopDomain,
         webhookId,
         topic,

@@ -388,7 +388,7 @@ export function analyzeScriptContent(content: string): ScriptAnalysisResult {
                     "🎯 **Google Ads 转化追踪**\n" +
                     "  → 迁移到: Shopify 官方 Google & YouTube 应用\n" +
                     "  → 原因: 官方应用原生支持 Enhanced Conversions，Tracking Guardian 不支持 Google Ads CAPI\n" +
-                    "  → 链接: https://apps.shopify.com/microsoft-channel",
+                    "  → 链接: https://apps.shopify.com/google",
                 );
                 break;
             case "gtm":

@@ -85,6 +85,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   const origin = request.headers.get("Origin");
   const isNullOrigin = origin === "null" || origin === null;
   const isProduction = !isDevMode();
+  const allowUnsignedEvents = process.env.ALLOW_UNSIGNED_PIXEL_EVENTS === "true";
   const signature = request.headers.get("X-Tracking-Guardian-Signature");
   const strictOrigin = (() => {
     const value = process.env.PIXEL_STRICT_ORIGIN?.toLowerCase().trim();
@@ -308,15 +309,20 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       matched: false,
       reason: "signature_present_no_secret",
     };
+  } else if (!signature && allowUnsignedEvents) {
+    keyValidation = {
+      matched: true,
+      reason: "signature_skipped_env",
+    };
   } else if (!signature && !hasAnySecret) {
     keyValidation = {
       matched: false,
       reason: "secret_missing",
     };
-  } else if (!signature && !isProduction) {
+  } else if (!signature) {
     keyValidation = {
-      matched: true,
-      reason: "signature_skipped_dev",
+      matched: false,
+      reason: "signature_missing",
     };
   }
   if (isProduction && !keyValidation.matched) {
@@ -497,7 +503,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       shopDomain,
       payload.data.checkoutToken,
       normalizedItems.length > 0 ? normalizedItems : undefined,
-      null
+      payload.nonce ?? null
     );
     const consentResult = checkInitialConsent(payload.consent);
     const { platformsToRecord, skippedPlatforms } = filterPlatformsByConsent(
