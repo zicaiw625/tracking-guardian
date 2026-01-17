@@ -55,13 +55,23 @@ export function sanitizeObject<T extends Record<string, unknown>>(obj: T): T {
       return items;
     }
     const sanitized: Record<string, unknown> = {};
-    const entries = Object.entries(value as Record<string, unknown>);
-    const limitedEntries = entries.slice(0, MAX_OBJECT_KEYS);
-    for (const [key, entryValue] of limitedEntries) {
-      sanitized[key] = sanitizeValue(entryValue, depth + 1);
+    let processed = 0;
+    let total = 0;
+    for (const key in value as Record<string, unknown>) {
+      if (!Object.prototype.hasOwnProperty.call(value, key)) {
+        continue;
+      }
+      total += 1;
+      if (processed < MAX_OBJECT_KEYS) {
+        sanitized[key] = sanitizeValue(
+          (value as Record<string, unknown>)[key],
+          depth + 1
+        );
+        processed += 1;
+      }
     }
-    if (entries.length > MAX_OBJECT_KEYS) {
-      sanitized._truncated = `...(${entries.length - MAX_OBJECT_KEYS} more keys)`;
+    if (total > MAX_OBJECT_KEYS) {
+      sanitized._truncated = `...(${total - MAX_OBJECT_KEYS} more keys)`;
     }
     return sanitized;
   };
