@@ -2,6 +2,7 @@ import { Prisma } from "@prisma/client";
 import { logger } from "../utils/logger.server";
 import prisma from "../db.server";
 import { generateSimpleId } from "../utils/helpers";
+import { sanitizePII } from "./event-log.server";
 
 export type AnalyticsEvent =
   | "app_onboarding_started"
@@ -73,11 +74,12 @@ export async function trackEvent(data: AnalyticsEventData): Promise<void> {
     const timestamp = data.timestamp || new Date();
     const eventId = data.eventId || generateSimpleId("app_event");
     const normalizedMetadata = normalizeMetadata(data.metadata);
+    const sanitizedMetadata = sanitizePII(normalizedMetadata) as Record<string, unknown> | undefined;
     logger.info("[Analytics] Track event", {
       shopId: data.shopId,
       shopDomain: data.shopDomain,
       event: data.event,
-      metadata: normalizedMetadata,
+      metadata: sanitizedMetadata,
       timestamp: timestamp.toISOString(),
     });
   } catch (error) {

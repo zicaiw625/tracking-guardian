@@ -102,10 +102,6 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   }
   const hasSignatureHeader = !!signature;
   
-  if (!originHeaderPresent && isProduction) {
-    return jsonWithCors({ error: "Missing Origin" }, { status: 403, request });
-  }
-  
   const preBodyValidation = validatePixelOriginPreBody(origin, hasSignatureHeader, originHeaderPresent);
   if (!preBodyValidation.valid) {
     const shopDomainHeader = request.headers.get("x-shopify-shop-domain") || "unknown";

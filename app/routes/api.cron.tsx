@@ -1,4 +1,4 @@
-import type { ActionFunctionArgs } from "@remix-run/node";
+import type { ActionFunctionArgs, LoaderFunctionArgs } from "@remix-run/node";
 import { json } from "@remix-run/node";
 import { randomUUID } from "crypto";
 import { validateCronAuth, verifyReplayProtection } from "../cron/auth";
@@ -14,11 +14,12 @@ import { runAllShopsReconciliation } from "../services/reconciliation.server";
 import { processConversionJobs } from "../services/conversion-job.server";
 import { readJsonWithSizeLimit } from "../utils/body-size-guard";
 
-export const action = async ({ request }: ActionFunctionArgs) => {
+async function handleCron(request: Request): Promise<Response> {
   const requestId = randomUUID();
   const startTime = Date.now();
 
-  if (request.method !== "POST") {
+  const method = request.method.toUpperCase();
+  if (method !== "GET" && method !== "POST") {
     return cronErrorResponse(requestId, Date.now() - startTime, "Method not allowed", 405);
   }
 
@@ -168,4 +169,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     "Task execution completed but no result returned",
     500
   );
-};
+}
+
+export const loader = async ({ request }: LoaderFunctionArgs) => handleCron(request);
+export const action = async ({ request }: ActionFunctionArgs) => handleCron(request);
