@@ -3,6 +3,7 @@ import { logger } from "../utils/logger.server";
 import { getShopByIdWithDecryptedFields } from "../utils/shop-access";
 import { apiVersion } from "../shopify.server";
 import { SecureShopDomainSchema } from "../utils/security";
+import { fetchWithTimeout } from "../utils/http";
 
 function extractPlatformFromPayload(payload: Record<string, unknown> | null): string | null {
     if (!payload) return null;
@@ -81,6 +82,7 @@ async function getShopifyOrderStats(shopDomain: string, accessToken: string | nu
     }
   `;
     const dateQuery = `financial_status:paid created_at:>=${startDate.toISOString()} created_at:<${endDate.toISOString()}`;
+    const timeoutMs = 30000;
     async function makeRequest(cursor: string | null = null, retryCount = 0): Promise<{
         data: {
             ordersCount?: {
@@ -104,17 +106,21 @@ async function getShopifyOrderStats(shopDomain: string, accessToken: string | nu
         } | null;
         errors?: unknown[];
     }> {
-        const response = await fetch(`https://${shopDomain}/admin/api/${apiVersion}/graphql.json`, {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json",
-                "X-Shopify-Access-Token": accessToken!,
+        const response = await fetchWithTimeout(
+            `https://${shopDomain}/admin/api/${apiVersion}/graphql.json`,
+            {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "X-Shopify-Access-Token": accessToken!,
+                },
+                body: JSON.stringify({
+                    query,
+                    variables: { query: dateQuery, cursor }
+                }),
             },
-            body: JSON.stringify({
-                query,
-                variables: { query: dateQuery, cursor }
-            }),
-        });
+            timeoutMs
+        );
         if (response.status === 429) {
             const retryAfter = parseInt(response.headers.get("Retry-After") || "2", 10);
             const maxRetries = 3;

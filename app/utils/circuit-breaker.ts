@@ -204,16 +204,22 @@ export async function getCircuitBreakerStats(): Promise<{
 }> {
   try {
     const client = await getRedisClient();
-    const keys = await client.keys(`${CIRCUIT_BREAKER_PREFIX}*`);
+    let cursor = "0";
+    let activeBreakers = 0;
     let trippedCount = 0;
-    for (const key of keys) {
-      const data = await client.hGetAll(key);
-      if (data.tripped === "1") {
-        trippedCount++;
+    do {
+      const result = await client.scan(cursor, `${CIRCUIT_BREAKER_PREFIX}*`, 200);
+      cursor = result.cursor;
+      activeBreakers += result.keys.length;
+      for (const key of result.keys) {
+        const data = await client.hGetAll(key);
+        if (data.tripped === "1") {
+          trippedCount++;
+        }
       }
-    }
+    } while (cursor !== "0");
     return {
-      activeBreakers: keys.length,
+      activeBreakers,
       trippedBreakers: trippedCount,
     };
   } catch {
