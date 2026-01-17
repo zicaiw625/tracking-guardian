@@ -124,6 +124,9 @@ export function validateOrigin(
   allowedOrigins: string[]
 ): { valid: boolean; error?: string } {
   if (!origin) {
+    if (allowedOrigins.some((allowed) => allowed.trim() === "*")) {
+      return { valid: true };
+    }
     return { valid: false, error: "Missing origin header" };
   }
   let parsedOrigin: URL;

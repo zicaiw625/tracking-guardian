@@ -64,7 +64,7 @@ class InMemoryRateLimitStore {
     }
     if (this.store.size > this.maxKeys) {
       const entries = Array.from(this.store.entries())
-        .sort((a, b) => a[1].windowStart - b[1].windowStart);
+        .sort((a, b) => a[1].expiresAt - b[1].expiresAt);
       const toRemove = entries.slice(0, this.store.size - this.maxKeys);
       for (const [key] of toRemove) {
         this.store.delete(key);
