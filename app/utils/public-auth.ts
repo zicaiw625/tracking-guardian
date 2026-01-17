@@ -1,6 +1,7 @@
 import { authenticate } from "../shopify.server";
 import { logger } from "./logger.server";
 import { API_SECURITY_HEADERS, addSecurityHeadersToHeaders } from "./security-headers";
+import { getDynamicCorsHeaders } from "./cors";
 
 export interface PublicAuthResult {
   sessionToken: {
@@ -36,17 +37,60 @@ export async function handlePublicPreflight(request: Request): Promise<Response>
     const { cors } = await authenticate.public.checkout(request);
     return cors(new Response(null, { status: 204 }), { corsHeaders });
   } catch (e) {
-    if (e instanceof Response) return e;
+    if (e instanceof Response) {
+      const headers = getDynamicCorsHeaders(request, corsHeaders);
+      const responseHeaders = new Headers(e.headers);
+      Object.entries(headers).forEach(([key, value]) => {
+        if (value) {
+          responseHeaders.set(key, value);
+        }
+      });
+      return new Response(null, {
+        status: e.status || 204,
+        headers: responseHeaders,
+      });
+    }
   }
 
   try {
     const { cors } = await authenticate.public.customerAccount(request);
     return cors(new Response(null, { status: 204 }), { corsHeaders });
   } catch (e) {
-    if (e instanceof Response) return e;
+    if (e instanceof Response) {
+      const headers = getDynamicCorsHeaders(request, corsHeaders);
+      const responseHeaders = new Headers(e.headers);
+      Object.entries(headers).forEach(([key, value]) => {
+        if (value) {
+          responseHeaders.set(key, value);
+        }
+      });
+      return new Response(null, {
+        status: e.status || 204,
+        headers: responseHeaders,
+      });
+    }
   }
 
-  return new Response(null, { status: 204 });
+  const headers = getDynamicCorsHeaders(request, corsHeaders);
+  const origin = request.headers.get("Origin");
+  const finalHeaders = new Headers(headers);
+  if (!finalHeaders.has("Access-Control-Allow-Origin")) {
+    if (origin && origin !== "null") {
+      finalHeaders.set("Access-Control-Allow-Origin", origin);
+    } else {
+      finalHeaders.set("Access-Control-Allow-Origin", "*");
+    }
+  }
+  if (!finalHeaders.has("Access-Control-Allow-Methods")) {
+    finalHeaders.set("Access-Control-Allow-Methods", "POST, OPTIONS");
+  }
+  if (!finalHeaders.has("Access-Control-Allow-Headers")) {
+    finalHeaders.set("Access-Control-Allow-Headers", corsHeaders.join(", "));
+  }
+  return new Response(null, {
+    status: 204,
+    headers: finalHeaders,
+  });
 }
 
 export function normalizeDestToShopDomain(dest: string): string {

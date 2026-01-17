@@ -1,6 +1,7 @@
 import { randomUUID } from "crypto";
 import prisma from "../../db.server";
 import { logger } from "../../utils/logger.server";
+import { isPrismaError, getPrismaErrorCode } from "../../utils/type-guards";
 import type { WebhookContext, WebhookHandlerResult } from "../types";
 
 interface RefundWebhookPayload {
@@ -71,7 +72,7 @@ export async function handleRefundsCreate(
       orderId: snapshot.orderId,
     };
   } catch (error) {
-    if (error instanceof Error && error.message.includes("Unique constraint")) {
+    if (isPrismaError(error) && getPrismaErrorCode(error) === "P2002") {
       logger.debug(`Refund snapshot already exists: ${(payload as RefundWebhookPayload).id} for ${shop}`);
       return {
         success: true,

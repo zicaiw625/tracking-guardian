@@ -76,11 +76,14 @@ function validateSecretsOnce() {
         try {
             ensureSecretsValid();
             logger.info("Secrets validation passed");
+            secretsValidated = true;
         }
         catch (error) {
             logger.error("Secrets validation failed", error);
+            if (process.env.NODE_ENV === "production") {
+                throw error;
+            }
         }
-        secretsValidated = true;
     }
 }
 function validateConfigOnce() {

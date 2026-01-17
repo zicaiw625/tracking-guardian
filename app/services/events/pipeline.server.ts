@@ -588,6 +588,28 @@ export async function processEventPipeline(
           payload.nonce || null
         );
       }
+      if (normalizedPayload.eventName === "checkout_completed" && normalizedPayload.data?.orderId) {
+        const orderSnapshot = await prisma.shopifyOrderSnapshot.findUnique({
+          where: {
+            shopId_orderId: {
+              shopId,
+              orderId: normalizedPayload.data.orderId,
+            },
+          },
+          select: {
+            id: true,
+          },
+        });
+        if (!orderSnapshot) {
+          logger.warn("checkout_completed event without order snapshot", {
+            shopId,
+            orderId: normalizedPayload.data.orderId,
+            eventId: finalEventId,
+            destination,
+            configId: destConfig.configId,
+          });
+        }
+      }
       const sendStartTime = Date.now();
       const sendResult = await sendPixelEventToPlatform(
         shopId,

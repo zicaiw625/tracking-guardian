@@ -133,7 +133,7 @@ export class AfterShipProvider implements ITrackingProvider {
       }
       return this.transformTracking(trackings[0]);
     } catch (error) {
-      logger.error(`AfterShip getTracking failed for ${trackingNumber}:`, error);
+      logger.error("AfterShip getTracking failed", error, { trackingNumber });
       return {
         trackingNumber,
         error: error instanceof Error ? error.message : "Unknown error",
@@ -181,7 +181,7 @@ export class AfterShipProvider implements ITrackingProvider {
       await this.request<{ tracking: AfterShipTracking }>("POST", "/trackings", body);
       return true;
     } catch (error) {
-      logger.error(`AfterShip registerTracking failed for ${trackingNumber}:`, error);
+      logger.error("AfterShip registerTracking failed", error, { trackingNumber });
       return false;
     }
   }
@@ -190,7 +190,7 @@ export class AfterShipProvider implements ITrackingProvider {
       await this.request<void>("DELETE", `/trackings/${trackingNumber}`);
       return true;
     } catch (error) {
-      logger.error(`AfterShip unregisterTracking failed for ${trackingNumber}:`, error);
+      logger.error("AfterShip unregisterTracking failed", error, { trackingNumber });
       return false;
     }
   }
@@ -251,7 +251,7 @@ export class AfterShipProvider implements ITrackingProvider {
       }
       return null;
     } catch (error) {
-      logger.error(`AfterShip detectCarrier failed for ${trackingNumber}:`, error);
+      logger.error("AfterShip detectCarrier failed", error, { trackingNumber });
       return null;
     }
   }

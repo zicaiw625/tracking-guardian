@@ -133,7 +133,6 @@ async function sendEmailAlert(settings: EmailAlertSettings, data: AlertData): Pr
     }
     return true;
 }
-import { isPublicUrl } from "../utils/security";
 import { fetchWithTimeout } from "./platforms/interface";
 
 function validateSlackWebhookUrl(raw: string): { ok: boolean; reason?: string } {
