@@ -14,6 +14,7 @@ export interface RedisClientWrapper {
   hMSet(key: string, fields: Record<string, string>): Promise<void>;
   hIncrBy(key: string, field: string, increment: number): Promise<number>;
   keys(pattern: string): Promise<string[]>;
+  scan(cursor: string, pattern: string, count?: number): Promise<{ cursor: string; keys: string[] }>;
   isConnected(): boolean;
   getConnectionInfo(): ConnectionInfo;
 }
@@ -207,6 +208,19 @@ class InMemoryFallback implements RedisClientWrapper {
       }
     }
     return results;
+  }
+  async scan(
+    cursor: string,
+    pattern: string,
+    count: number = 100
+  ): Promise<{ cursor: string; keys: string[] }> {
+    const keys = await this.keys(pattern);
+    const start = Number.parseInt(cursor, 10);
+    const offset = Number.isNaN(start) ? 0 : start;
+    const batch = keys.slice(offset, offset + count);
+    const nextOffset = offset + count;
+    const nextCursor = nextOffset >= keys.length ? "0" : String(nextOffset);
+    return { cursor: nextCursor, keys: batch };
   }
   isConnected(): boolean {
     return true;
@@ -412,6 +426,14 @@ class RedisClientFactory {
           return await client.keys(pattern);
         } catch {
           return this.fallback.keys(pattern);
+        }
+      },
+      scan: async (cursor: string, pattern: string, count: number = 100): Promise<{ cursor: string; keys: string[] }> => {
+        try {
+          const result = await client.scan(cursor, { MATCH: pattern, COUNT: count });
+          return { cursor: result.cursor, keys: result.keys };
+        } catch {
+          return this.fallback.scan(cursor, pattern, count);
         }
       },
       isConnected: (): boolean => {

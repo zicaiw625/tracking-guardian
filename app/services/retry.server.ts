@@ -1,6 +1,7 @@
 import prisma from "../db.server";
 import { Prisma } from "@prisma/client";
-import type { PlatformError ,
+import type {
+  PlatformError,
   ConversionData,
   PlatformCredentials,
   ConversionApiResponse,
@@ -224,130 +225,135 @@ export async function processPendingConversions(): Promise<{
   limitExceeded: number;
 }> {
   const limit = 50;
-  const logs = await prisma.conversionLog.findMany({
-    where: {
-      status: ConversionLogStatus.PENDING,
-    },
-    take: limit,
-    orderBy: { createdAt: "asc" },
-    include: {
-      Shop: {
-        select: {
-          id: true,
-          plan: true,
-          shopDomain: true,
-          pixelConfigs: {
-            where: { serverSideEnabled: true },
-            select: {
-              platform: true,
-              credentialsEncrypted: true,
-              credentials_legacy: true,
-            },
-          },
-        },
-      },
-    },
-  });
-  
-  if (logs.length === 0) {
-    return { processed: 0, succeeded: 0, failed: 0, limitExceeded: 0 };
-  }
-  
+  const maxBatches = Math.max(
+    1,
+    Number.parseInt(process.env.RETRY_PROCESSING_MAX_BATCHES || "20", 10) || 20
+  );
   let processed = 0;
   let succeeded = 0;
   let failed = 0;
   let limitExceeded = 0;
-  
-  for (const log of logs) {
-    try {
-      const gateResult = await checkBillingGate(log.shopId, (log.Shop.plan || "free") as PlanId);
-      if (!gateResult.allowed) {
-        await prisma.conversionLog.update({
-          where: { id: log.id },
-          data: {
-            status: "limit_exceeded",
-            errorMessage: gateResult.reason,
+  for (let batch = 0; batch < maxBatches; batch++) {
+    const logs = await prisma.conversionLog.findMany({
+      where: {
+        status: ConversionLogStatus.PENDING,
+      },
+      take: limit,
+      orderBy: { createdAt: "asc" },
+      include: {
+        Shop: {
+          select: {
+            id: true,
+            plan: true,
+            shopDomain: true,
+            pixelConfigs: {
+              where: { serverSideEnabled: true },
+              select: {
+                platform: true,
+                credentialsEncrypted: true,
+                credentials_legacy: true,
+              },
+            },
           },
+        },
+      },
+    });
+    if (logs.length === 0) {
+      break;
+    }
+    for (const log of logs) {
+      try {
+        const gateResult = await checkBillingGate(log.shopId, (log.Shop.plan || "free") as PlanId);
+        if (!gateResult.allowed) {
+          await prisma.conversionLog.update({
+            where: { id: log.id },
+            data: {
+              status: "limit_exceeded",
+              errorMessage: gateResult.reason,
+            },
+          });
+          limitExceeded++;
+          processed++;
+          continue;
+        }
+        
+        const config = log.Shop.pixelConfigs.find(c => c.platform === log.platform);
+        if (!config) {
+          await prisma.conversionLog.update({
+            where: { id: log.id },
+            data: {
+              status: ConversionLogStatus.FAILED,
+              errorMessage: `No server-side config found for platform ${log.platform}`,
+            },
+          });
+          failed++;
+          processed++;
+          continue;
+        }
+        
+        const credentialsResult = await decryptCredentials({
+          credentialsEncrypted: config.credentialsEncrypted,
+          credentials_legacy: config.credentials_legacy,
+          platform: log.platform,
         });
-        limitExceeded++;
+        
+        if (!credentialsResult.ok) {
+          await scheduleRetry(log.id, credentialsResult.error.message);
+          failed++;
+          processed++;
+          continue;
+        }
+        
+        const conversionData: ConversionData = {
+          orderId: log.orderId,
+          orderNumber: log.orderNumber,
+          value: Number(log.orderValue),
+          currency: log.currency,
+        };
+        
+        const eventId = log.eventId || generateStableEventId(
+          log.orderId,
+          log.eventType,
+          log.Shop.shopDomain,
+          log.platform
+        );
+        const sendResult = await sendConversionToPlatform(
+          log.platform,
+          credentialsResult.value.credentials,
+          conversionData,
+          eventId
+        );
+        
+        if (sendResult.success) {
+          await incrementMonthlyUsage(log.shopId, log.orderId);
+          await prisma.conversionLog.update({
+            where: { id: log.id },
+            data: {
+              status: ConversionLogStatus.SENT,
+              sentAt: new Date(),
+              serverSideSent: true,
+              platformResponse: toJsonInput(sendResult.response),
+            },
+          });
+          succeeded++;
+        } else {
+          await scheduleRetry(log.id, sendResult.error?.message || "Platform send failed");
+          failed++;
+        }
         processed++;
-        continue;
-      }
-      
-      const config = log.Shop.pixelConfigs.find(c => c.platform === log.platform);
-      if (!config) {
-        await prisma.conversionLog.update({
-          where: { id: log.id },
-          data: {
-            status: ConversionLogStatus.FAILED,
-            errorMessage: `No server-side config found for platform ${log.platform}`,
-          },
+      } catch (error) {
+        logger.error(`Error processing pending conversion log ${log.id}`, {
+          error: error instanceof Error ? error.message : String(error),
         });
+        await scheduleRetry(log.id, error instanceof Error ? error.message : String(error));
         failed++;
         processed++;
-        continue;
       }
-      
-      const credentialsResult = await decryptCredentials({
-        credentialsEncrypted: config.credentialsEncrypted,
-        credentials_legacy: config.credentials_legacy,
-        platform: log.platform,
-      });
-      
-      if (!credentialsResult.ok) {
-        await scheduleRetry(log.id, credentialsResult.error.message);
-        failed++;
-        processed++;
-        continue;
-      }
-      
-      const conversionData: ConversionData = {
-        orderId: log.orderId,
-        orderNumber: log.orderNumber,
-        value: Number(log.orderValue),
-        currency: log.currency,
-      };
-      
-      const eventId = log.eventId || generateStableEventId(
-        log.orderId,
-        log.eventType,
-        log.Shop.shopDomain,
-        log.platform
-      );
-      const sendResult = await sendConversionToPlatform(
-        log.platform,
-        credentialsResult.value.credentials,
-        conversionData,
-        eventId
-      );
-      
-      if (sendResult.success) {
-        await incrementMonthlyUsage(log.shopId, log.orderId);
-        await prisma.conversionLog.update({
-          where: { id: log.id },
-          data: {
-            status: ConversionLogStatus.SENT,
-            sentAt: new Date(),
-            serverSideSent: true,
-            platformResponse: toJsonInput(sendResult.response),
-          },
-        });
-        succeeded++;
-      } else {
-        await scheduleRetry(log.id, sendResult.error?.message || "Platform send failed");
-        failed++;
-      }
-      processed++;
-    } catch (error) {
-      logger.error(`Error processing pending conversion log ${log.id}`, {
-        error: error instanceof Error ? error.message : String(error),
-      });
-      await scheduleRetry(log.id, error instanceof Error ? error.message : String(error));
-      failed++;
-      processed++;
+    }
+    if (logs.length < limit) {
+      break;
     }
   }
-  
   return { processed, succeeded, failed, limitExceeded };
 }
 
@@ -358,132 +364,137 @@ export async function processRetries(): Promise<{
   limitExceeded: number;
 }> {
   const limit = 50;
-  const now = new Date();
-  const logs = await prisma.conversionLog.findMany({
-    where: {
-      status: ConversionLogStatus.RETRYING,
-      nextRetryAt: { lte: now },
-    },
-    take: limit,
-    orderBy: { nextRetryAt: "asc" },
-    include: {
-      Shop: {
-        select: {
-          id: true,
-          plan: true,
-          shopDomain: true,
-          pixelConfigs: {
-            where: { serverSideEnabled: true },
-            select: {
-              platform: true,
-              credentialsEncrypted: true,
-              credentials_legacy: true,
-            },
-          },
-        },
-      },
-    },
-  });
-  
-  if (logs.length === 0) {
-    return { processed: 0, succeeded: 0, failed: 0, limitExceeded: 0 };
-  }
-  
+  const maxBatches = Math.max(
+    1,
+    Number.parseInt(process.env.RETRY_PROCESSING_MAX_BATCHES || "20", 10) || 20
+  );
   let processed = 0;
   let succeeded = 0;
   let failed = 0;
   let limitExceeded = 0;
-  
-  for (const log of logs) {
-    try {
-      const gateResult = await checkBillingGate(log.shopId, (log.Shop.plan || "free") as PlanId);
-      if (!gateResult.allowed) {
-        await prisma.conversionLog.update({
-          where: { id: log.id },
-          data: {
-            status: "limit_exceeded",
-            errorMessage: gateResult.reason,
+  for (let batch = 0; batch < maxBatches; batch++) {
+    const now = new Date();
+    const logs = await prisma.conversionLog.findMany({
+      where: {
+        status: ConversionLogStatus.RETRYING,
+        nextRetryAt: { lte: now },
+      },
+      take: limit,
+      orderBy: { nextRetryAt: "asc" },
+      include: {
+        Shop: {
+          select: {
+            id: true,
+            plan: true,
+            shopDomain: true,
+            pixelConfigs: {
+              where: { serverSideEnabled: true },
+              select: {
+                platform: true,
+                credentialsEncrypted: true,
+                credentials_legacy: true,
+              },
+            },
           },
+        },
+      },
+    });
+    if (logs.length === 0) {
+      break;
+    }
+    for (const log of logs) {
+      try {
+        const gateResult = await checkBillingGate(log.shopId, (log.Shop.plan || "free") as PlanId);
+        if (!gateResult.allowed) {
+          await prisma.conversionLog.update({
+            where: { id: log.id },
+            data: {
+              status: "limit_exceeded",
+              errorMessage: gateResult.reason,
+            },
+          });
+          limitExceeded++;
+          processed++;
+          continue;
+        }
+        
+        const config = log.Shop.pixelConfigs.find(c => c.platform === log.platform);
+        if (!config) {
+          await prisma.conversionLog.update({
+            where: { id: log.id },
+            data: {
+              status: ConversionLogStatus.FAILED,
+              errorMessage: `No server-side config found for platform ${log.platform}`,
+            },
+          });
+          failed++;
+          processed++;
+          continue;
+        }
+        
+        const credentialsResult = await decryptCredentials({
+          credentialsEncrypted: config.credentialsEncrypted,
+          credentials_legacy: config.credentials_legacy,
+          platform: log.platform,
         });
-        limitExceeded++;
+        
+        if (!credentialsResult.ok) {
+          await scheduleRetry(log.id, credentialsResult.error.message);
+          failed++;
+          processed++;
+          continue;
+        }
+        
+        const conversionData: ConversionData = {
+          orderId: log.orderId,
+          orderNumber: log.orderNumber,
+          value: Number(log.orderValue),
+          currency: log.currency,
+        };
+        
+        const eventId = log.eventId || generateStableEventId(
+          log.orderId,
+          log.eventType,
+          log.Shop.shopDomain,
+          log.platform
+        );
+        const sendResult = await sendConversionToPlatform(
+          log.platform,
+          credentialsResult.value.credentials,
+          conversionData,
+          eventId
+        );
+        
+        if (sendResult.success) {
+          await incrementMonthlyUsage(log.shopId, log.orderId);
+          await prisma.conversionLog.update({
+            where: { id: log.id },
+            data: {
+              status: ConversionLogStatus.SENT,
+              sentAt: new Date(),
+              serverSideSent: true,
+              platformResponse: toJsonInput(sendResult.response),
+            },
+          });
+          succeeded++;
+        } else {
+          await scheduleRetry(log.id, sendResult.error?.message || "Platform send failed");
+          failed++;
+        }
         processed++;
-        continue;
-      }
-      
-      const config = log.Shop.pixelConfigs.find(c => c.platform === log.platform);
-      if (!config) {
-        await prisma.conversionLog.update({
-          where: { id: log.id },
-          data: {
-            status: ConversionLogStatus.FAILED,
-            errorMessage: `No server-side config found for platform ${log.platform}`,
-          },
+      } catch (error) {
+        logger.error(`Error processing retry for conversion log ${log.id}`, {
+          error: error instanceof Error ? error.message : String(error),
         });
+        await scheduleRetry(log.id, error instanceof Error ? error.message : String(error));
         failed++;
         processed++;
-        continue;
       }
-      
-      const credentialsResult = await decryptCredentials({
-        credentialsEncrypted: config.credentialsEncrypted,
-        credentials_legacy: config.credentials_legacy,
-        platform: log.platform,
-      });
-      
-      if (!credentialsResult.ok) {
-        await scheduleRetry(log.id, credentialsResult.error.message);
-        failed++;
-        processed++;
-        continue;
-      }
-      
-      const conversionData: ConversionData = {
-        orderId: log.orderId,
-        orderNumber: log.orderNumber,
-        value: Number(log.orderValue),
-        currency: log.currency,
-      };
-      
-      const eventId = log.eventId || generateStableEventId(
-        log.orderId,
-        log.eventType,
-        log.Shop.shopDomain,
-        log.platform
-      );
-      const sendResult = await sendConversionToPlatform(
-        log.platform,
-        credentialsResult.value.credentials,
-        conversionData,
-        eventId
-      );
-      
-      if (sendResult.success) {
-        await incrementMonthlyUsage(log.shopId, log.orderId);
-        await prisma.conversionLog.update({
-          where: { id: log.id },
-          data: {
-            status: ConversionLogStatus.SENT,
-            sentAt: new Date(),
-            serverSideSent: true,
-            platformResponse: toJsonInput(sendResult.response),
-          },
-        });
-        succeeded++;
-      } else {
-        await scheduleRetry(log.id, sendResult.error?.message || "Platform send failed");
-        failed++;
-      }
-      processed++;
-    } catch (error) {
-      logger.error(`Error processing retry for conversion log ${log.id}`, {
-        error: error instanceof Error ? error.message : String(error),
-      });
-      await scheduleRetry(log.id, error instanceof Error ? error.message : String(error));
-      failed++;
-      processed++;
+    }
+    if (logs.length < limit) {
+      break;
     }
   }
-  
   return { processed, succeeded, failed, limitExceeded };
 }
 

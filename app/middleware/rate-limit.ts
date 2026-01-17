@@ -201,8 +201,14 @@ class DistributedRateLimitStore {
   async getSize(): Promise<number> {
     try {
       const client = await this.getClient();
-      const keys = await client.keys(`${RATE_LIMIT_PREFIX}*`);
-      return keys.length;
+      let cursor = "0";
+      let count = 0;
+      do {
+        const result = await client.scan(cursor, `${RATE_LIMIT_PREFIX}*`, 500);
+        cursor = result.cursor;
+        count += result.keys.length;
+      } while (cursor !== "0");
+      return count;
     } catch {
       return memoryRateLimitStore.getSize();
     }
@@ -211,10 +217,14 @@ class DistributedRateLimitStore {
     memoryRateLimitStore.clear();
     try {
       const client = await this.getClient();
-      const keys = await client.keys(`${RATE_LIMIT_PREFIX}*`);
-      for (const key of keys) {
-        await client.del(key);
-      }
+      let cursor = "0";
+      do {
+        const result = await client.scan(cursor, `${RATE_LIMIT_PREFIX}*`, 500);
+        cursor = result.cursor;
+        if (result.keys.length > 0) {
+          await Promise.all(result.keys.map((key) => client.del(key)));
+        }
+      } while (cursor !== "0");
     } catch (error) {
       logger.error("Failed to clear Redis rate limit entries", error);
     }

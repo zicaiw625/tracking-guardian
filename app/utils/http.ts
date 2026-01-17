@@ -94,7 +94,7 @@ export async function httpRequest<T = unknown>(
     retries = 0,
     baseDelayMs = DEFAULT_BASE_DELAY_MS,
     maxDelayMs = DEFAULT_MAX_DELAY_MS,
-    retryOn = ["timeout", "network", "5xx"],
+    retryOn = ["timeout", "network", "5xx", "429"],
     ...fetchOptions
   } = options;
   let lastError: Error | undefined;
