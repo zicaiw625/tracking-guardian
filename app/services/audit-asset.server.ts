@@ -177,13 +177,16 @@ export async function createAuditAsset(
     if (existing) {
       const rawContent = input.details?.content as string | undefined;
       const detailsForStorage = { ...input.details };
+      delete (detailsForStorage as any).content;
       let encryptedSnippet: string | null = null;
       if (rawContent && typeof rawContent === "string" && rawContent.trim().length > 0) {
         try {
           encryptedSnippet = encryptRawSnippet(rawContent);
-          delete detailsForStorage.content;
         } catch (error) {
           logger.error("Failed to encrypt raw snippet", { shopId, error });
+          if (input.sourceType === "manual_paste") {
+            throw new Error("Failed to encrypt manual paste content - refusing to store");
+          }
         }
       }
       const updated = await prisma.auditAsset.update({
@@ -230,13 +233,16 @@ export async function createAuditAsset(
     }
     const rawContent = input.details?.content as string | undefined;
     const detailsForStorage = { ...input.details };
+    delete (detailsForStorage as any).content;
     let encryptedSnippet: string | null = null;
     if (rawContent && typeof rawContent === "string" && rawContent.trim().length > 0) {
       try {
         encryptedSnippet = encryptRawSnippet(rawContent);
-        delete detailsForStorage.content;
       } catch (error) {
         logger.error("Failed to encrypt raw snippet", { shopId, error });
+        if (input.sourceType === "manual_paste") {
+          throw new Error("Failed to encrypt manual paste content - refusing to store");
+        }
       }
     }
     const asset = await prisma.auditAsset.create({
@@ -318,13 +324,16 @@ export async function batchCreateAuditAssets(
             });
             const rawContent = input.details?.content as string | undefined;
             const detailsForStorage = { ...input.details };
+            delete (detailsForStorage as any).content;
             let encryptedSnippet: string | null = null;
             if (rawContent && typeof rawContent === "string" && rawContent.trim().length > 0) {
               try {
                 encryptedSnippet = encryptRawSnippet(rawContent);
-                delete detailsForStorage.content;
               } catch (error) {
                 logger.error("Failed to encrypt raw snippet in batch", { shopId, error });
+                if (input.sourceType === "manual_paste") {
+                  throw new Error("Failed to encrypt manual paste content - refusing to store");
+                }
               }
             }
             if (existing) {

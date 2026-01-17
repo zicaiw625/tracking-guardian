@@ -87,7 +87,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   const origin = originHeaderPresent ? request.headers.get("Origin") : null;
   const isNullOrigin = origin === "null" || origin === null;
   const isProduction = !isDevMode();
-  const allowUnsignedEvents = process.env.ALLOW_UNSIGNED_PIXEL_EVENTS === "true";
+  const allowUnsignedEvents = isProduction ? false : process.env.ALLOW_UNSIGNED_PIXEL_EVENTS === "true";
   const signature = request.headers.get("X-Tracking-Guardian-Signature");
   const strictOrigin = (() => {
     const value = process.env.PIXEL_STRICT_ORIGIN?.toLowerCase().trim();

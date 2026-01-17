@@ -198,14 +198,13 @@ export class MetaPlatformService implements IPlatformService {
       ],
       ...(credentials.testEventCode && { test_event_code: credentials.testEventCode }),
     };
-    const url = `${META_API_BASE_URL}/${META_API_VERSION}/${credentials.pixelId}/events`;
+    const url = `${META_API_BASE_URL}/${META_API_VERSION}/${credentials.pixelId}/events?access_token=${encodeURIComponent(credentials.accessToken)}`;
     const response = await fetchWithTimeout(
       url,
       {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "Authorization": `Bearer ${credentials.accessToken}`,
         },
         body: JSON.stringify(eventPayload),
       },

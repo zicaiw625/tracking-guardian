@@ -1,3 +1,4 @@
+import crypto from "crypto";
 import type {
   ConversionData,
   ConversionApiResponse,
@@ -81,9 +82,10 @@ export async function fetchWithTimeout(
 export function generateDedupeEventId(
   orderId: string,
   eventType: string = "purchase",
-  timestamp: number = Date.now()
+  timestamp?: number
 ): string {
-  return `${orderId}_${eventType}_${timestamp}`;
+  const deterministic = `${orderId}_${eventType}`;
+  return crypto.createHash("sha256").update(deterministic).digest("hex").slice(0, 32);
 }
 
 export async function measureDuration<T>(

@@ -29,7 +29,7 @@ Tracking Guardian 是一个 Shopify 应用，作为**数据处理者**（Data Pr
 ### `read_customer_events`
 - **用途**: 读取客户事件数据，用于转化追踪和事件匹配
 - **数据处理**: 仅处理事件元数据（事件类型、时间戳、订单关联），不收集客户个人信息
-- **保留周期**: 事件数据保留 7 天
+- **保留周期**: 按店铺 dataRetentionDays（默认 90 天）
 
 ### `read_orders`
 - **用途**: 

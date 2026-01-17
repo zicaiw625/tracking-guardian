@@ -227,6 +227,7 @@ export const CAPI_CONFIG = {
     TIKTOK: {
         baseUrl: "https://business-api.tiktok.com",
         trackEndpoint: "https://business-api.tiktok.com/open_api/v1.3/event/track/",
+        version: "v1.3",
         timeout: 30000,
     },
 } as const;
@@ -345,6 +346,9 @@ export function validateConfig(): ConfigValidationResult {
     }
     if (isProduction && process.env.TRUST_PROXY !== "true") {
         errors.push("TRUST_PROXY must be true in production (required for correct IP rate limiting to prevent self-DoS)");
+    }
+    if (isProduction && process.env.ALLOW_UNSIGNED_PIXEL_EVENTS === "true") {
+        errors.push("ALLOW_UNSIGNED_PIXEL_EVENTS cannot be true in production");
     }
     if (isProduction) {
         const pixelAllowNullOrigin = process.env.PIXEL_ALLOW_NULL_ORIGIN;
