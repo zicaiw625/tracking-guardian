@@ -1,4 +1,5 @@
 import { logger } from "../utils/logger.server";
+import { fetchWithTimeout } from "./platforms/interface";
 
 export type TrackingProvider = "aftership" | "17track" | "native";
 
@@ -54,7 +55,7 @@ export class AfterShipTracker {
       if (carrier) {
         url.searchParams.append("slug", carrier);
       }
-      const response = await fetch(url.toString(), {
+      const response = await fetchWithTimeout(url.toString(), {
         method: "GET",
         headers: {
           "as-api-key": this.apiKey,
@@ -107,7 +108,7 @@ export class AfterShipTracker {
     orderId?: string
   ): Promise<boolean> {
     try {
-      const response = await fetch(`${this.baseUrl}/trackings`, {
+      const response = await fetchWithTimeout(`${this.baseUrl}/trackings`, {
         method: "POST",
         headers: {
           "as-api-key": this.apiKey,
@@ -140,7 +141,7 @@ export class SeventeenTrackTracker {
   }
   async getTracking(trackingNumber: string, carrier?: string): Promise<TrackingInfo | null> {
     try {
-      const response = await fetch(`${this.baseUrl}/gettrackinfo`, {
+      const response = await fetchWithTimeout(`${this.baseUrl}/gettrackinfo`, {
         method: "POST",
         headers: {
           "17token": this.apiKey,

@@ -134,21 +134,26 @@ async function sendEmailAlert(settings: EmailAlertSettings, data: AlertData): Pr
     return true;
 }
 import { isPublicUrl } from "../utils/security";
+import { fetchWithTimeout } from "./platforms/interface";
+
+function validateSlackWebhookUrl(raw: string): { ok: boolean; reason?: string } {
+    try {
+        const u = new URL(raw);
+        if (u.protocol !== "https:") return { ok: false, reason: "https_required" };
+        if (u.hostname !== "hooks.slack.com") return { ok: false, reason: "host_not_allowed" };
+        if (!u.pathname.startsWith("/services/") && !u.pathname.startsWith("/triggers/")) {
+            return { ok: false, reason: "path_not_allowed" };
+        }
+        return { ok: true };
+    } catch {
+        return { ok: false, reason: "invalid_url" };
+    }
+}
 
 async function sendSlackAlert(settings: SlackAlertSettings, data: AlertData): Promise<boolean> {
-    if (!isPublicUrl(settings.webhookUrl)) {
-        logger.warn(`Blocked attempt to send Slack alert to non-public URL: ${settings.webhookUrl}`);
-        return false;
-    }
-    try {
-        const webhookUrl = new URL(settings.webhookUrl);
-        const hostname = webhookUrl.hostname.toLowerCase();
-        if (hostname !== "hooks.slack.com") {
-            logger.warn(`Blocked attempt to send Slack alert to non-Slack domain: ${hostname}. Only hooks.slack.com is allowed.`);
-            return false;
-        }
-    } catch {
-        logger.warn(`Invalid Slack webhook URL format: ${settings.webhookUrl}`);
+    const validation = validateSlackWebhookUrl(settings.webhookUrl);
+    if (!validation.ok) {
+        logger.warn(`Invalid Slack webhook URL`, { reason: validation.reason });
         return false;
     }
     const discrepancyPercent = (data.orderDiscrepancy * 100).toFixed(1);
@@ -214,12 +219,19 @@ async function sendSlackAlert(settings: SlackAlertSettings, data: AlertData): Pr
             },
         ],
     };
-    const response = await fetch(settings.webhookUrl, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-    });
-    return response.ok;
+    try {
+        const response = await fetchWithTimeout(settings.webhookUrl, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload),
+        });
+        return response.ok;
+    } catch (error) {
+        logger.error("Failed to send Slack alert", {
+            error: error instanceof Error ? error.message : String(error),
+        });
+        return false;
+    }
 }
 async function sendTelegramAlert(settings: TelegramAlertSettings, data: AlertData): Promise<boolean> {
     const discrepancyPercent = (data.orderDiscrepancy * 100).toFixed(1);
@@ -234,16 +246,23 @@ async function sendTelegramAlert(settings: TelegramAlertSettings, data: AlertDat
 📉 差异率: *${discrepancyPercent}%*
 请及时检查追踪配置！
   `.trim();
-    const response = await fetch(`https://api.telegram.org/bot${settings.botToken}/sendMessage`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-            chat_id: settings.chatId,
-            text: message,
-            parse_mode: "Markdown",
-        }),
-    });
-    return response.ok;
+    try {
+        const response = await fetchWithTimeout(`https://api.telegram.org/bot${settings.botToken}/sendMessage`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                chat_id: settings.chatId,
+                text: message,
+                parse_mode: "Markdown",
+            }),
+        });
+        return response.ok;
+    } catch (error) {
+        logger.error("Failed to send Telegram alert", {
+            error: error instanceof Error ? error.message : String(error),
+        });
+        return false;
+    }
 }
 export async function testNotification(channel: string, settings: EmailAlertSettings | SlackAlertSettings | TelegramAlertSettings): Promise<{
     success: boolean;

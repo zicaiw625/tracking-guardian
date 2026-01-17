@@ -1,5 +1,6 @@
 import { createHmac } from "crypto";
 import { logger } from "../../utils/logger.server";
+import { fetchWithTimeout } from "../platforms/interface";
 import type {
   ITrackingProvider,
   TrackingProviderCredentials,
@@ -87,7 +88,7 @@ export class AfterShipProvider implements ITrackingProvider {
       "as-api-key": this.apiKey,
       "Content-Type": "application/json",
     };
-    const response = await fetch(url, {
+    const response = await fetchWithTimeout(url, {
       method,
       headers,
       body: body ? JSON.stringify(body) : undefined,
@@ -108,7 +109,7 @@ export class AfterShipProvider implements ITrackingProvider {
       if (carrier) {
         url.searchParams.append("slug", carrier);
       }
-      const response = await fetch(url.toString(), {
+      const response = await fetchWithTimeout(url.toString(), {
         method: "GET",
         headers: {
           "as-api-key": this.apiKey,

@@ -29,38 +29,20 @@ export async function authenticatePublic(request: Request): Promise<PublicAuthRe
 }
 
 export async function handlePublicPreflight(request: Request): Promise<Response> {
-  let checkoutCors: ((response: Response, options?: { corsHeaders?: string[] }) => Response) | null = null;
-  let customerAccountCors: ((response: Response, options?: { corsHeaders?: string[] }) => Response) | null = null;
+  const corsHeaders = ["Authorization", "Content-Type"];
 
   try {
-    const result = await authenticate.public.checkout(request);
-    checkoutCors = result.cors;
+    const { cors } = await authenticate.public.checkout(request);
+    return cors(new Response(null, { status: 204 }), { corsHeaders });
   } catch (e) {
-    if (e instanceof Response) {
-    } else {
-      logger.debug("Checkout surface preflight failed", {
-        error: e instanceof Error ? e.message : String(e),
-      });
-    }
+    if (e instanceof Response) return e;
   }
 
   try {
-    const result = await authenticate.public.customerAccount(request);
-    customerAccountCors = result.cors;
+    const { cors } = await authenticate.public.customerAccount(request);
+    return cors(new Response(null, { status: 204 }), { corsHeaders });
   } catch (e) {
-    if (e instanceof Response) {
-    } else {
-      logger.debug("Customer account surface preflight failed", {
-        error: e instanceof Error ? e.message : String(e),
-      });
-    }
-  }
-
-  const cors = checkoutCors || customerAccountCors;
-  if (cors) {
-    return cors(new Response(null, { status: 204 }), {
-      corsHeaders: ["Authorization"],
-    });
+    if (e instanceof Response) return e;
   }
 
   return new Response(null, { status: 204 });

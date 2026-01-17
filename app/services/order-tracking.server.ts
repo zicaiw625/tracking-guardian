@@ -1,6 +1,7 @@
 import { logger } from "../utils/logger.server";
 import prisma from "../db.server";
 import { getUiModuleConfig } from "./ui-extension.server";
+import { fetchWithTimeout } from "./platforms/interface";
 
 export interface TrackingProvider {
   name: "aftership" | "17track" | "native";
@@ -29,7 +30,7 @@ export async function fetchTrackingFromAfterShip(
   try {
     const url = new URL("https://api.aftership.com/v4/trackings");
     url.searchParams.append("tracking_numbers", trackingNumber);
-    const response = await fetch(url.toString(), {
+    const response = await fetchWithTimeout(url.toString(), {
       headers: {
         "as-api-key": apiKey,
         "Content-Type": "application/json",
@@ -82,7 +83,7 @@ export async function fetchTrackingFrom17Track(
   apiKey: string
 ): Promise<TrackingInfo | null> {
   try {
-    const response = await fetch(`https://api.17track.net/track/v2.2/register`, {
+    const response = await fetchWithTimeout(`https://api.17track.net/track/v2.2/register`, {
       method: "POST",
       headers: {
         "17token": apiKey,

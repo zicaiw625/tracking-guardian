@@ -150,6 +150,7 @@ function createEnhancedGraphQLClient(
               operationName: options?.operationName,
             }),
             signal: abortController.signal,
+            redirect: "error",
           });
           clearTimeout(timeoutId);
           lastResponse = response;
