@@ -47,10 +47,6 @@ export function sanitizePII(payload: unknown): unknown {
     "headers",
     "body",
     "data",
-    "pixel_code",
-    "pixelcode",
-    "test_event_code",
-    "testeventcode",
     "product_id",
     "productid",
     "variant_id",
@@ -122,6 +118,10 @@ export function sanitizePII(payload: unknown): unknown {
     "api_secret",
     "apisecret",
     "authorization",
+    "pixel_code",
+    "pixelcode",
+    "test_event_code",
+    "testeventcode",
   ]);
   const result: Record<string, unknown> = {};
   for (const key of Object.keys(obj)) {

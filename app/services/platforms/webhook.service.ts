@@ -101,7 +101,7 @@ function applyTemplate(template: string, data: Record<string, unknown>): string 
     const keys = key.trim().split('.');
     let value: unknown = data;
     for (const k of keys) {
-      if (value && typeof value === 'object' && k in value) {
+      if (value && typeof value === 'object' && Object.prototype.hasOwnProperty.call(value, k)) {
         value = (value as Record<string, unknown>)[k];
       } else {
         return match;
@@ -126,7 +126,7 @@ function buildDefaultPayload(data: ConversionData, eventId: string): Record<stri
     value: data.value,
     currency: data.currency,
     items: data.lineItems?.map(item => ({
-      product_id: item.productId,
+      product_id: item.productId ?? item.id,
       variant_id: item.variantId,
       name: item.name,
       quantity: item.quantity,

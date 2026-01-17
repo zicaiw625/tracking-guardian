@@ -72,7 +72,19 @@ async function processSingleJob(job: { id: string; shopId: string; orderId: stri
     throw new Error(`Job ${job.id} missing capiInput`);
   }
   
-  const capiInput = job.capiInput as { value?: number; currency?: string; lineItems?: Array<{ id: string; quantity: number; price: number }>; eventType?: string };
+  const capiInput = job.capiInput as {
+    value?: number;
+    currency?: string;
+    lineItems?: Array<{
+      id: string;
+      quantity: number;
+      price: number;
+      productId?: string;
+      variantId?: string;
+      name?: string;
+    }>;
+    eventType?: string;
+  };
   const conversionData = {
     orderId: job.orderId,
     orderNumber: job.orderNumber,

@@ -97,6 +97,7 @@ async function loaderImpl(request: Request) {
       ));
     }
     const { orderId, trackingNumber, checkoutToken } = queryParse.data;
+    const gidOrderId = /^\d+$/.test(orderId) ? `gid://shopify/Order/${orderId}` : orderId;
     const shopDomain = normalizeDestToShopDomain(authResult.sessionToken.dest);
     const cacheKey = `tracking:${shopDomain}:${orderId}`;
     const cachedData = defaultLoaderCache.get(cacheKey) as TrackingApiPayload | undefined;
@@ -174,7 +175,7 @@ async function loaderImpl(request: Request) {
           }
         `, {
           variables: {
-            id: orderId,
+            id: gidOrderId,
           },
         });
         const fulfillmentData = await fulfillmentResponse.json().catch((jsonError) => {

@@ -144,7 +144,7 @@ export class TikTokPlatformService implements IPlatformService {
     const timestamp = new Date().toISOString();
     const contents =
       data.lineItems?.map((item) => ({
-        content_id: item.productId,
+        content_id: item.productId ?? item.variantId ?? item.id,
         content_name: item.name,
         quantity: item.quantity,
         price: item.price,
@@ -172,7 +172,7 @@ export class TikTokPlatformService implements IPlatformService {
     const timestamp = new Date().toISOString();
     const contents =
       data.lineItems?.map((item) => ({
-        content_id: item.productId,
+        content_id: item.productId ?? item.variantId ?? item.id,
         content_name: item.name,
         quantity: item.quantity,
         price: item.price,

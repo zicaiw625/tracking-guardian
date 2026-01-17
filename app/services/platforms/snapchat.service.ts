@@ -138,7 +138,7 @@ export class SnapchatPlatformService implements IPlatformService {
       currency: data.currency,
       transaction_id: data.orderId,
       number_items: data.lineItems?.reduce((sum, item) => sum + item.quantity, 0) || 1,
-      item_ids: data.lineItems?.map(item => item.productId) || [],
+      item_ids: data.lineItems?.map(item => item.productId ?? item.variantId ?? item.id) || [],
     };
   }
   private async sendRequest(
@@ -157,7 +157,7 @@ export class SnapchatPlatformService implements IPlatformService {
       currency: data.currency,
       transaction_id: data.orderId,
       number_items: data.lineItems?.reduce((sum, item) => sum + item.quantity, 0) || 1,
-      item_ids: data.lineItems?.map(item => item.productId) || [],
+      item_ids: data.lineItems?.map(item => item.productId ?? item.variantId ?? item.id) || [],
     };
     const response = await fetchWithTimeout(
       SNAPCHAT_API_BASE_URL,

@@ -185,7 +185,7 @@ export class PinterestPlatformService implements IPlatformService {
     const eventTime = Math.floor(Date.now() / 1000);
     const contents =
       data.lineItems?.map((item) => ({
-        id: item.productId,
+        id: item.productId ?? item.variantId ?? item.id,
         item_price: item.price.toString(),
         quantity: item.quantity,
       })) || [];

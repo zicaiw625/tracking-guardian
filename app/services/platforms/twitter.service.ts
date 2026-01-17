@@ -142,7 +142,7 @@ export class TwitterPlatformService implements IPlatformService {
       number_items: data.lineItems?.reduce((sum, item) => sum + item.quantity, 0) || 1,
       order_id: data.orderId,
       contents: data.lineItems?.map(item => ({
-        content_id: item.productId,
+        content_id: item.productId ?? item.variantId ?? item.id,
         content_name: item.name,
         content_price: item.price.toString(),
         num_items: item.quantity,
@@ -168,7 +168,7 @@ export class TwitterPlatformService implements IPlatformService {
           number_items: data.lineItems?.reduce((sum, item) => sum + item.quantity, 0) || 1,
           order_id: data.orderId,
           contents: data.lineItems?.map(item => ({
-            content_id: item.productId,
+            content_id: item.productId ?? item.variantId ?? item.id,
             content_name: item.name,
             content_price: item.price.toString(),
             num_items: item.quantity,

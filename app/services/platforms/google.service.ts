@@ -135,7 +135,7 @@ export class GooglePlatformService implements IPlatformService {
             currency: data.currency,
             items:
               data.lineItems?.map((item) => ({
-                item_id: item.productId,
+                item_id: item.productId ?? item.variantId ?? item.id,
                 item_name: item.name,
                 quantity: item.quantity,
                 price: item.price,
@@ -164,7 +164,7 @@ export class GooglePlatformService implements IPlatformService {
             currency: data.currency,
             items:
               data.lineItems?.map((item) => ({
-                item_id: item.productId,
+                item_id: item.productId ?? item.variantId ?? item.id,
                 item_name: item.name,
                 quantity: item.quantity,
                 price: item.price,
