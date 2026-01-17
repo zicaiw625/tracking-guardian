@@ -50,9 +50,10 @@ export interface EventSenderConfig {
 function generateHMACSignature(
   secret: string,
   timestamp: number,
+  shopDomain: string,
   bodyHash: string
 ): string {
-  const message = `${timestamp}:${bodyHash}`;
+  const message = `${timestamp}:${shopDomain}:${bodyHash}`;
   return bytesToHex(hmac(sha256, utf8ToBytes(secret), utf8ToBytes(message)));
 }
 
@@ -205,7 +206,7 @@ export function createEventSender(config: EventSenderConfig) {
       if (ingestionKey) {
         try {
           const bodyHash = sha256Hex(body);
-          const signature = generateHMACSignature(ingestionKey, timestamp, bodyHash);
+          const signature = generateHMACSignature(ingestionKey, timestamp, shopDomain, bodyHash);
           headers["X-Tracking-Guardian-Signature"] = signature;
           if (isDevMode) {
             log(`Batch HMAC signature generated for ${eventsToSend.length} events`);

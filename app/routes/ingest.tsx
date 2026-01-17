@@ -280,6 +280,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         request,
         bodyText,
         secret,
+        shopDomain,
         timestamp,
         TIMESTAMP_WINDOW_MS
       );

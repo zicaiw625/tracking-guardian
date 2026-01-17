@@ -15,9 +15,10 @@ export interface HMACValidationResult {
 export function generateHMACSignature(
   secret: string,
   timestamp: number,
+  shopDomain: string,
   bodyHash: string
 ): string {
-  const message = `${timestamp}:${bodyHash}`;
+  const message = `${timestamp}:${shopDomain}:${bodyHash}`;
   const hmac = createHmac(HMAC_ALGORITHM, secret);
   hmac.update(message);
   return hmac.digest("hex");
@@ -27,6 +28,7 @@ export function verifyHMACSignature(
   signature: string | null,
   secret: string,
   timestamp: number,
+  shopDomain: string,
   bodyHash: string,
   timestampWindowMs: number = 5 * 60 * 1000
 ): HMACValidationResult {
@@ -46,7 +48,7 @@ export function verifyHMACSignature(
       errorCode: "timestamp_out_of_window",
     };
   }
-  const expectedSignature = generateHMACSignature(secret, timestamp, bodyHash);
+  const expectedSignature = generateHMACSignature(secret, timestamp, shopDomain, bodyHash);
   try {
     const signatureBuffer = Buffer.from(signature, "hex");
     const expectedBuffer = Buffer.from(expectedSignature, "hex");
@@ -98,6 +100,7 @@ export async function validatePixelEventHMAC(
   request: Request,
   bodyText: string,
   secret: string,
+  shopDomain: string,
   payloadTimestamp: number,
   timestampWindowMs: number = 5 * 60 * 1000
 ): Promise<HMACValidationResult> {
@@ -126,5 +129,5 @@ export async function validatePixelEventHMAC(
   }
   const crypto = await import("crypto");
   const bodyHash = crypto.createHash("sha256").update(bodyText).digest("hex");
-  return verifyHMACSignature(signature, secret, headerTimestamp, bodyHash, timestampWindowMs);
+  return verifyHMACSignature(signature, secret, headerTimestamp, shopDomain, bodyHash, timestampWindowMs);
 }

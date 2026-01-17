@@ -193,7 +193,10 @@ export function jsonApi<T>(
   init?: ResponseInit
 ): Response {
   const headers = new Headers(init?.headers);
-  addSecurityHeadersToHeaders(headers, API_SECURITY_HEADERS);
+  const securityHeaders = process.env.NODE_ENV === "production"
+    ? getProductionSecurityHeaders(API_SECURITY_HEADERS)
+    : API_SECURITY_HEADERS;
+  addSecurityHeadersToHeaders(headers, securityHeaders);
   return json(data, {
     ...init,
     headers,

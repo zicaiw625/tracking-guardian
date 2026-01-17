@@ -280,7 +280,9 @@ export function ipKeyExtractor(request: Request): string {
   }
   const isProduction = process.env.NODE_ENV === "production";
   const trustProxy = process.env.TRUST_PROXY === "true";
-  const headersToCheck = isProduction ? getTrustedIpHeaders() : DEVELOPMENT_IP_HEADERS;
+  const headersToCheck = !isProduction ? DEVELOPMENT_IP_HEADERS :
+    trustProxy ? getTrustedIpHeaders() :
+    [];
   if (headersToCheck.length === 0) {
     return isProduction ? "untrusted" : "unknown";
   }
