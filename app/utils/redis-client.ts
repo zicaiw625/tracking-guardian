@@ -209,12 +209,18 @@ class InMemoryFallback implements RedisClientWrapper {
     }
     return results;
   }
-  async scan(cursor: string, pattern: string, count: number = 100): Promise<{ cursor: string; keys: string[] }> {
-    if (cursor !== "0") {
-      return { cursor: "0", keys: [] };
-    }
+  async scan(
+    cursor: string,
+    pattern: string,
+    count: number = 100
+  ): Promise<{ cursor: string; keys: string[] }> {
     const keys = await this.keys(pattern);
-    return { cursor: "0", keys: keys.slice(0, count) };
+    const start = Number.parseInt(cursor, 10);
+    const offset = Number.isNaN(start) ? 0 : start;
+    const batch = keys.slice(offset, offset + count);
+    const nextOffset = offset + count;
+    const nextCursor = nextOffset >= keys.length ? "0" : String(nextOffset);
+    return { cursor: nextCursor, keys: batch };
   }
   isConnected(): boolean {
     return true;

@@ -1,6 +1,7 @@
 import prisma from "../db.server";
 import { Prisma } from "@prisma/client";
-import type { PlatformError ,
+import type {
+  PlatformError,
   ConversionData,
   PlatformCredentials,
   ConversionApiResponse,
@@ -224,7 +225,10 @@ export async function processPendingConversions(): Promise<{
   limitExceeded: number;
 }> {
   const limit = 50;
-  const maxBatches = Number(process.env.RETRY_PROCESSING_MAX_BATCHES || "20");
+  const maxBatches = Math.max(
+    1,
+    Number.parseInt(process.env.RETRY_PROCESSING_MAX_BATCHES || "20", 10) || 20
+  );
   let processed = 0;
   let succeeded = 0;
   let failed = 0;
@@ -360,7 +364,10 @@ export async function processRetries(): Promise<{
   limitExceeded: number;
 }> {
   const limit = 50;
-  const maxBatches = Number(process.env.RETRY_PROCESSING_MAX_BATCHES || "20");
+  const maxBatches = Math.max(
+    1,
+    Number.parseInt(process.env.RETRY_PROCESSING_MAX_BATCHES || "20", 10) || 20
+  );
   let processed = 0;
   let succeeded = 0;
   let failed = 0;
