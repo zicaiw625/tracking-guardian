@@ -35,7 +35,7 @@ import { isPlanAtLeast } from "~/utils/plans";
 import { hashValueSync } from "~/utils/crypto.server";
 import prisma from "~/db.server";
 
-const MAX_BATCH_SIZE = 10;
+const MAX_BATCH_SIZE = 100;
 const MAX_BODY_SIZE = API_CONFIG.MAX_BODY_SIZE;
 const TIMESTAMP_WINDOW_MS = API_CONFIG.TIMESTAMP_WINDOW_MS;
 const INGEST_RATE_LIMIT = RATE_LIMIT_CONFIG.PIXEL_EVENTS;
@@ -111,7 +111,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
           `reason: ${preBodyValidation.reason}`
       );
     }
-    if (preBodyValidation.shouldReject && (!hasSignatureHeader || strictOrigin)) {
+    if (preBodyValidation.shouldReject && (isProduction || !hasSignatureHeader || strictOrigin)) {
       metrics.pixelRejection({
         shopDomain: shopDomainHeader,
         reason: preBodyValidation.reason as "invalid_origin" | "invalid_origin_protocol",
@@ -250,13 +250,13 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         `Origin validation warning at Stage 2 in /ingest for ${shop.shopDomain}: ` +
           `origin=${origin?.substring(0, 100) || "null"}, referer=${referer?.substring(0, 100) || "null"}, reason=${shopOriginValidation.reason}`
       );
-      if (hasSignatureHeader && !strictOrigin) {
+      if (hasSignatureHeader && !strictOrigin && !isProduction) {
         logger.warn(`Signed ingest request allowed despite origin rejection for ${shop.shopDomain}`, {
           origin: origin?.substring(0, 100) || "null",
           reason: shopOriginValidation.reason,
         });
       }
-      if (!hasSignatureHeader || strictOrigin) {
+      if (!hasSignatureHeader || strictOrigin || isProduction) {
         metrics.pixelRejection({
           shopDomain: shop.shopDomain,
           reason: "origin_not_allowlisted",
