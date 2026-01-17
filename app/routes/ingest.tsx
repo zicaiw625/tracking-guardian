@@ -588,26 +588,31 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       { request }
     );
   }
-  safeFireAndForget(
-    processBatchEvents(shop.id, validatedEvents, environment).then((results) => {
-      const successCount = results.filter(r => r.success).length;
-      const errorCount = results.filter(r => !r.success).length;
-      logger.info(`Batch ingest processed`, {
-        shopDomain,
-        total: validatedEvents.length,
-        accepted: successCount,
-        errors: errorCount,
-      });
-    }),
-    {
-      operation: "processBatchEvents",
-      metadata: {
-        shopId: shop.id,
-        shopDomain,
-        total: validatedEvents.length,
-      },
-    }
-  );
+  const PROCESSING_TIMEOUT_MS = 10000;
+  const processingPromise = processBatchEvents(shop.id, validatedEvents, environment).then((results) => {
+    const successCount = results.filter(r => r.success).length;
+    const errorCount = results.filter(r => !r.success).length;
+    logger.info(`Batch ingest processed`, {
+      shopDomain,
+      total: validatedEvents.length,
+      accepted: successCount,
+      errors: errorCount,
+    });
+    return results;
+  });
+  const timeoutPromise = new Promise<never>((_, reject) => {
+    setTimeout(() => {
+      reject(new Error("Processing timeout"));
+    }, PROCESSING_TIMEOUT_MS);
+  });
+  Promise.race([processingPromise, timeoutPromise]).catch((error) => {
+    logger.warn(`Batch ingest processing timeout or error`, {
+      shopDomain,
+      shopId: shop.id,
+      total: validatedEvents.length,
+      error: error instanceof Error ? error.message : String(error),
+    });
+  });
   return jsonWithCors(
     {
       accepted_count: validatedEvents.length,

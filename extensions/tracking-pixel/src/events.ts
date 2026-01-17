@@ -146,8 +146,6 @@ function generateNonce(): { timestamp: number; nonce: string } {
     randomHex = Array.from(randomBytes)
       .map(b => b.toString(16).padStart(2, "0"))
       .join("");
-  } else {
-    randomHex = Array.from({ length: 12 }, () => Math.floor(Math.random() * 16).toString(16)).join("");
   }
   return { timestamp, nonce: `${timestamp}-${randomHex}` };
 }

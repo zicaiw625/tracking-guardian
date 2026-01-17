@@ -54,8 +54,12 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     if (context.webhookId) {
       const lock = await tryAcquireWebhookLock(context.shop, context.webhookId, context.topic);
       if (!lock.acquired) {
-        logger.info(`[Webhook Idempotency] Skipping duplicate (early check): ${context.topic} for ${context.shop}`);
-        return new Response("OK (duplicate)", { status: 200 });
+        if (lock.existing) {
+          logger.info(`[Webhook Idempotency] Skipping duplicate (early check): ${context.topic} for ${context.shop}`);
+          return new Response("OK (duplicate)", { status: 200 });
+        }
+        logger.error(`[Webhook Idempotency] Failed to acquire lock (system error): ${context.topic} for ${context.shop}`);
+        return new Response("Temporary error", { status: 500 });
       }
     }
     shopRecord = await prisma.shop.findUnique({

@@ -280,17 +280,6 @@ export function ipKeyExtractor(request: Request): string {
   }
   const isProduction = process.env.NODE_ENV === "production";
   const trustProxy = process.env.TRUST_PROXY === "true";
-  if (isProduction && !trustProxy) {
-    try {
-      const url = new URL(request.url);
-      if (url.pathname === "/ingest" || url.pathname.startsWith("/api/")) {
-        const shopDomain = request.headers.get("x-shopify-shop-domain");
-        return shopDomain ? shopDomain.replace(/[^a-zA-Z0-9.\-_]/g, "").slice(0, 100) : "unknown_shop";
-      }
-    } catch {
-    }
-    return "untrusted";
-  }
   const headersToCheck = isProduction ? getTrustedIpHeaders() : DEVELOPMENT_IP_HEADERS;
   if (headersToCheck.length === 0) {
     return isProduction ? "untrusted" : "unknown";
