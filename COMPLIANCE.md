@@ -223,7 +223,7 @@ Tracking Guardian 是一个 Shopify 应用，作为**数据处理者**（Data Pr
 
 ### 速率限制
 - 像素事件：50 请求/分钟
-- Survey：100 请求/分钟
+- Survey：10 请求/分钟
 - Tracking API：30 请求/分钟
 - Webhook：100 请求/分钟
 

@@ -248,7 +248,7 @@ class DistributedRateLimitStore {
 
 const rateLimitStore = new DistributedRateLimitStore();
 
-const DEFAULT_TRUSTED_IP_HEADERS = ["cf-connecting-ip"];
+const DEFAULT_TRUSTED_IP_HEADERS = ["x-forwarded-for", "x-real-ip", "cf-connecting-ip"];
 const DEVELOPMENT_IP_HEADERS = ["cf-connecting-ip", "x-real-ip", "x-forwarded-for"];
 
 function getTrustedIpHeaders(): string[] {

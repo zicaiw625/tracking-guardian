@@ -219,7 +219,7 @@ export function createEventSender(config: EventSenderConfig) {
         }
       }
       const hasCheckoutCompleted = eventsToSend.some(e => e.eventName === "checkout_completed");
-      if (hasCheckoutCompleted && !immediate) {
+      if (hasCheckoutCompleted) {
         sendCheckoutCompletedWithRetry(url, body, isDevMode, log, 0, headers);
       } else {
         fetch(url, {
