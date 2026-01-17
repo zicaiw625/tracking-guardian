@@ -181,6 +181,16 @@ export function checkSecurityViolations(): SecurityViolation[] {
                     "This may not comply with GDPR requirements. Consider using 'strict' or 'balanced'.",
             });
         }
+        if (process.env.TRUST_PROXY !== "true") {
+            violations.push({
+                type: "fatal",
+                code: "TRUST_PROXY_NOT_SET",
+                message: "[P0-2 SECURITY] TRUST_PROXY must be 'true' in production. " +
+                    "Without TRUST_PROXY=true, rate limiting will use a single shared key for all requests, " +
+                    "causing potential self-DoS and incorrect rate limiting. " +
+                    "Set TRUST_PROXY=true and configure RATE_LIMIT_TRUSTED_IP_HEADERS if needed.",
+            });
+        }
     }
     const suspiciousPatterns = [
         /^(test|demo|example|placeholder|changeme|secret|password|xxx+|000+)$/i,

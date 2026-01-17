@@ -168,11 +168,12 @@ export function createWebhookHandler<TPayload = unknown, TOutput = unknown>(
       if (config.topic && topic !== config.topic) {
         return new Response("OK", { status: 200 });
       }
-      const webhookId =
-        (authResult as any).webhookId ??
-        request.headers.get("X-Shopify-Event-Id") ??
-        request.headers.get("X-Shopify-Webhook-Id") ??
-        null;
+      const webhookId = (() => {
+        if (authResult && typeof authResult === "object" && "webhookId" in authResult && typeof authResult.webhookId === "string") {
+          return authResult.webhookId;
+        }
+        return request.headers.get("X-Shopify-Event-Id") ?? request.headers.get("X-Shopify-Webhook-Id") ?? null;
+      })();
       let validatedPayload: TPayload;
       if (config.validate) {
         const validationResult = config.validate(payload);

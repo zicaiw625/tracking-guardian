@@ -1,20 +1,6 @@
 import { z } from "zod";
 import { buildCspHeader, CSP_DIRECTIVES, API_SECURITY_HEADERS, addSecurityHeaders } from "./security-headers";
 
-export const MAX_BODY_SIZE = {
-  PIXEL_EVENT: 10 * 1024,
-  WEBHOOK: 100 * 1024,
-  API: 50 * 1024,
-  FORM: 100 * 1024,
-} as const;
-
-export const RATE_LIMITS = {
-  PIXEL_EVENTS: { windowMs: 60_000, maxRequests: 100 },
-  API: { windowMs: 60_000, maxRequests: 60 },
-  WEBHOOK: { windowMs: 60_000, maxRequests: 200 },
-  AUTH: { windowMs: 60_000, maxRequests: 10 },
-} as const;
-
 export function sanitizeString(input: unknown): string {
   if (typeof input !== "string") {
     return "";

@@ -414,6 +414,17 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       });
       continue;
     }
+    const now = Date.now();
+    const eventTimeDiff = Math.abs(now - payload.timestamp);
+    if (eventTimeDiff > TIMESTAMP_WINDOW_MS) {
+      logger.debug(`Event at index ${i} timestamp outside window: diff=${eventTimeDiff}ms, skipping`, {
+        shopDomain,
+        eventTimestamp: payload.timestamp,
+        currentTime: now,
+        windowMs: TIMESTAMP_WINDOW_MS,
+      });
+      continue;
+    }
     if (!isPrimaryEvent(payload.eventName, mode)) {
       logger.debug(`Event ${payload.eventName} at index ${i} not accepted for ${shopDomain} (mode: ${mode}) - skipping`);
       continue;

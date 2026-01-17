@@ -2,6 +2,7 @@ import { authenticate } from "../shopify.server";
 import { logger } from "./logger.server";
 import { API_SECURITY_HEADERS, addSecurityHeadersToHeaders } from "./security-headers";
 import { getDynamicCorsHeaders } from "./cors";
+import { isValidShopifyOrigin } from "./origin-validation";
 
 export interface PublicAuthResult {
   sessionToken: {
@@ -75,10 +76,13 @@ export async function handlePublicPreflight(request: Request): Promise<Response>
   const origin = request.headers.get("Origin");
   const finalHeaders = new Headers(headers);
   if (!finalHeaders.has("Access-Control-Allow-Origin")) {
-    if (origin && origin !== "null") {
+    if (origin && origin !== "null" && isValidShopifyOrigin(origin)) {
       finalHeaders.set("Access-Control-Allow-Origin", origin);
     } else {
-      finalHeaders.set("Access-Control-Allow-Origin", "*");
+      return new Response(null, {
+        status: 403,
+        headers: finalHeaders,
+      });
     }
   }
   if (!finalHeaders.has("Access-Control-Allow-Methods")) {

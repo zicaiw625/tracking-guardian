@@ -10,6 +10,7 @@ import { canUseModule, getUiModuleConfigs } from "../../services/ui-extension.se
 import { PCD_CONFIG, API_CONFIG } from "../../utils/config";
 import { readJsonWithSizeLimit } from "../../utils/body-size-guard";
 import { authenticatePublic, normalizeDestToShopDomain, handlePublicPreflight, addSecurityHeaders } from "../../utils/public-auth";
+import { hashValueSync } from "../../utils/crypto.server";
 
 export const action = async ({ request }: ActionFunctionArgs) => {
   if (request.method === "OPTIONS") {
@@ -136,6 +137,7 @@ async function loaderImpl(request: Request) {
       ));
     }
     const shopDomain = normalizeDestToShopDomain(authResult.sessionToken.dest);
+    const orderIdHash = hashValueSync(orderId).slice(0, 12);
     const cacheKey = `reorder:${shopDomain}:${orderId}`;
     const cachedData = defaultLoaderCache.get(cacheKey) as { reorderUrl: string } | undefined;
     if (cachedData !== undefined) {
@@ -300,7 +302,7 @@ async function loaderImpl(request: Request) {
       }
     }
     if (!orderData.data?.order) {
-      logger.info(`Order not found (may be still creating) for orderId: ${orderId}, shop: ${shopDomain}`);
+      logger.info(`Order not found (may be still creating) for orderId: ${orderIdHash}, shop: ${shopDomain}`);
       return addSecurityHeaders(authResult.cors(json(
         {
           success: false,
@@ -326,21 +328,21 @@ async function loaderImpl(request: Request) {
           ? orderCustomerId.split("/").pop()
           : orderCustomerId;
         if (tokenCustomerId !== orderCustomerIdNum) {
-          logger.warn(`Order access denied: customer mismatch for orderId: ${orderId}, shop: ${shopDomain}`, {
+          logger.warn(`Order access denied: customer mismatch for orderId: ${orderIdHash}, shop: ${shopDomain}`, {
             tokenCustomerId: tokenCustomerId,
             orderCustomerId: orderCustomerIdNum,
           });
           return addSecurityHeaders(authResult.cors(json({ error: "Order access denied" }, { status: 403 })));
         }
       } else {
-        logger.warn(`Order access attempt without customer ID in token for orderId: ${orderId}, shop: ${shopDomain}`);
+        logger.warn(`Order access attempt without customer ID in token for orderId: ${orderIdHash}, shop: ${shopDomain}`);
         return addSecurityHeaders(authResult.cors(json(
           { error: "Unauthorized: Customer authentication required" },
           { status: 401 }
         )));
       }
     }
-    logger.info(`Reorder URL requested for orderId: ${orderId}, shop: ${shopDomain}`);
+    logger.info(`Reorder URL requested for orderId: ${orderIdHash}, shop: ${shopDomain}`);
     const lineItems = orderData.data.order.lineItems.edges || [];
     const relativeUrl = (() => {
       if (lineItems.length === 0) {

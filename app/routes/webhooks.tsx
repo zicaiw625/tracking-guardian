@@ -5,15 +5,18 @@ import { logger } from "../utils/logger.server";
 import { dispatchWebhook, type WebhookContext, type ShopWithPixelConfigs } from "../webhooks";
 import { tryAcquireWebhookLock } from "../webhooks/middleware/idempotency";
 
+function getWebhookId(authResult: Awaited<ReturnType<typeof authenticate.webhook>>, request: Request): string | null {
+  if (authResult && typeof authResult === "object" && "webhookId" in authResult && typeof authResult.webhookId === "string") {
+    return authResult.webhookId;
+  }
+  return request.headers.get("X-Shopify-Event-Id") ?? request.headers.get("X-Shopify-Webhook-Id") ?? null;
+}
+
 export const action = async ({ request }: ActionFunctionArgs) => {
   let context: WebhookContext;
   try {
     const authResult = await authenticate.webhook(request);
-    const webhookId =
-      (authResult as any).webhookId ??
-      request.headers.get("X-Shopify-Event-Id") ??
-      request.headers.get("X-Shopify-Webhook-Id") ??
-      null;
+    const webhookId = getWebhookId(authResult, request);
     context = {
       topic: authResult.topic,
       shop: authResult.shop,

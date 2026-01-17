@@ -21,7 +21,9 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     }
 
     const { checkFeatureAccess } = await import("../services/billing/feature-gates.server");
-    const gateResult = checkFeatureAccess(shop.plan as any, "report_export");
+    const { normalizePlanId } = await import("../services/billing/plans");
+    const planId = normalizePlanId(shop.plan || "free");
+    const gateResult = checkFeatureAccess(planId, "report_export");
     if (!gateResult.allowed) {
       return jsonApi({ error: gateResult.reason || "需要 Growth 及以上套餐才能导出报告" }, { status: 402 });
     }

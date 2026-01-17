@@ -15,6 +15,7 @@ import { defaultLoaderCache } from "../../lib/with-cache";
 import { TTL } from "../../utils/cache";
 import { getUiModuleConfig } from "../../services/ui-extension.server";
 import { authenticatePublic, normalizeDestToShopDomain, handlePublicPreflight, addSecurityHeaders } from "../../utils/public-auth";
+import { hashValueSync } from "../../utils/crypto.server";
 import { z } from "zod";
 
 interface FulfillmentNode {
@@ -144,7 +145,8 @@ async function loaderImpl(request: Request) {
     let trackingNumberFromShopify: string | null = null;
     let carrierFromShopify: string | null = null;
     let trackingUrlFromShopify: string | null = null;
-    logger.info(`Tracking info requested for orderId: ${orderId}, shop: ${shopDomain}`, {
+    const orderIdHash = hashValueSync(orderId).slice(0, 12);
+    logger.info(`Tracking info requested for orderId: ${orderIdHash}, shop: ${shopDomain}`, {
       hasTrackingNumber: !!trackingNumber,
       hasThirdPartyProvider: !!trackingSettings?.provider && trackingSettings.provider !== "native",
     });
@@ -181,7 +183,7 @@ async function loaderImpl(request: Request) {
         const fulfillmentData = await fulfillmentResponse.json().catch((jsonError) => {
           logger.warn("Failed to parse fulfillment GraphQL response as JSON", {
             error: jsonError instanceof Error ? jsonError.message : String(jsonError),
-            orderId,
+            orderIdHash,
             shopDomain,
           });
           return { data: null };
@@ -193,24 +195,24 @@ async function loaderImpl(request: Request) {
               const tokenCustomerId = customerId.includes("/") ? customerId.split("/").pop() : customerId;
               const orderCustomerIdNum = orderCustomerId.includes("/") ? orderCustomerId.split("/").pop() : orderCustomerId;
               if (tokenCustomerId !== orderCustomerIdNum) {
-                logger.warn(`Order access denied: customer mismatch for orderId: ${orderId}, shop: ${shopDomain}`, {
+                logger.warn(`Order access denied: customer mismatch for orderId: ${orderIdHash}, shop: ${shopDomain}`, {
                   tokenCustomerId: tokenCustomerId,
                   orderCustomerId: orderCustomerIdNum,
                 });
                 return addSecurityHeaders(authResult.cors(json({ error: "Order access denied" }, { status: 403 })));
               }
             } else {
-              logger.warn(`Order access denied: order has no customer for orderId: ${orderId}, shop: ${shopDomain}`);
+              logger.warn(`Order access denied: order has no customer for orderId: ${orderIdHash}, shop: ${shopDomain}`);
               return addSecurityHeaders(authResult.cors(json({ error: "Order access denied" }, { status: 403 })));
             }
           } else if (authResult.surface === "checkout") {
             if (!checkoutToken) {
-              logger.warn(`Order access denied: checkout context requires checkoutToken for orderId: ${orderId}, shop: ${shopDomain}`);
+              logger.warn(`Order access denied: checkout context requires checkoutToken for orderId: ${orderIdHash}, shop: ${shopDomain}`);
               return addSecurityHeaders(authResult.cors(json({ error: "Order access denied: checkout context requires checkoutToken" }, { status: 403 })));
             }
             const orderCheckoutToken = fulfillmentData.data.order.checkoutToken || null;
             if (orderCheckoutToken && orderCheckoutToken !== checkoutToken) {
-              logger.warn(`Order access denied: checkoutToken mismatch for orderId: ${orderId}, shop: ${shopDomain}`);
+              logger.warn(`Order access denied: checkoutToken mismatch for orderId: ${orderIdHash}, shop: ${shopDomain}`);
               return addSecurityHeaders(authResult.cors(json({ error: "Order access denied" }, { status: 403 })));
             }
           }
@@ -220,7 +222,7 @@ async function loaderImpl(request: Request) {
               trackingNumberFromShopify = firstFulfillment.trackingInfo.number || null;
               carrierFromShopify = firstFulfillment.trackingInfo.company || null;
               trackingUrlFromShopify = firstFulfillment.trackingInfo.url || null;
-              logger.info(`Found tracking info from Shopify for orderId: ${orderId}`, {
+              logger.info(`Found tracking info from Shopify for orderId: ${orderIdHash}`, {
                 trackingNumber: trackingNumberFromShopify,
                 carrier: carrierFromShopify,
               });
@@ -231,7 +233,7 @@ async function loaderImpl(request: Request) {
     } catch (error) {
       logger.warn("Failed to query Shopify order fulfillments", {
         error: error instanceof Error ? error.message : String(error),
-        orderId,
+        orderIdHash,
         shopDomain,
       });
     }
@@ -271,12 +273,12 @@ async function loaderImpl(request: Request) {
             carrier: enrichedTracking.carrier || trackingInfo?.carrier || "unknown",
             trackingNumber: enrichedTracking.trackingNumber || trackingInfo?.trackingNumber || trackingNumberToUse,
           };
-          logger.info(`Third-party tracking enrich successful for orderId: ${orderId}, provider: ${trackingSettings.provider}`);
+          logger.info(`Third-party tracking enrich successful for orderId: ${orderIdHash}, provider: ${trackingSettings.provider}`);
         } else {
-          logger.warn(`Third-party tracking enrich failed for orderId: ${orderId}, provider: ${trackingSettings.provider}, falling back to Shopify data`);
+          logger.warn(`Third-party tracking enrich failed for orderId: ${orderIdHash}, provider: ${trackingSettings.provider}, falling back to Shopify data`);
         }
       } catch (error) {
-        logger.error(`Third-party tracking enrich error for orderId: ${orderId}`, {
+        logger.error(`Third-party tracking enrich error for orderId: ${orderIdHash}`, {
           error: error instanceof Error ? error.message : String(error),
           provider: trackingSettings.provider,
         });

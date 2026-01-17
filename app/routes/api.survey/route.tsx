@@ -6,7 +6,7 @@ import prisma from "../../db.server";
 import { randomUUID } from "crypto";
 import { canUseModule, getUiModuleConfigs } from "../../services/ui-extension.server";
 import { authenticatePublic, normalizeDestToShopDomain, handlePublicPreflight, addSecurityHeaders } from "../../utils/public-auth";
-import { makeOrderKey } from "../../utils/crypto.server";
+import { makeOrderKey, hashValueSync } from "../../utils/crypto.server";
 import { API_CONFIG } from "../../utils/config";
 import { readJsonWithSizeLimit } from "../../utils/body-size-guard";
 import { containsSensitiveInfo, sanitizeSensitiveInfo } from "../../utils/security";
@@ -121,10 +121,11 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       if (orderKey) {
         finalOrderId = orderKey;
         if (orderId) {
-          const orderIdSuffix = orderId.slice(-4);
-          logger.info("Survey response with orderId", { shopDomain, orderIdSuffix });
+          const orderIdHash = hashValueSync(orderId).slice(0, 12);
+          logger.info("Survey response with orderId", { shopDomain, orderIdHash });
         } else if (checkoutToken) {
-          logger.info("Survey response with checkoutToken (hashed)", { shopDomain, orderKey: orderKey.substring(0, 20) });
+          const checkoutTokenHash = hashValueSync(checkoutToken).slice(0, 12);
+          logger.info("Survey response with checkoutToken", { shopDomain, checkoutTokenHash });
         }
       } else {
         finalOrderId = `survey_${shop.id}_${Date.now()}`;
