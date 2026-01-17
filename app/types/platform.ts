@@ -372,19 +372,21 @@ export function validatePlatformCredentials(
 }
 
 export interface LineItem {
-  productId: string;
-  variantId: string;
-  name: string;
+  id: string;
   quantity: number;
   price: number;
+  productId?: string;
+  variantId?: string;
+  name?: string;
 }
 
 export const LineItemSchema = z.object({
-  productId: z.string(),
-  variantId: z.string(),
-  name: z.string(),
+  id: z.string(),
   quantity: z.number().int().positive(),
   price: z.number().nonnegative(),
+  productId: z.string().optional(),
+  variantId: z.string().optional(),
+  name: z.string().optional(),
 });
 
 export interface ConversionData {

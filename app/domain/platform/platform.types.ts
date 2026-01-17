@@ -46,11 +46,12 @@ export type TypedPlatformCredentials =
   | TypedTikTokCredentials;
 
 export interface ConversionLineItem {
-  productId: string;
-  variantId?: string;
-  name: string;
+  id: string;
   quantity: number;
   price: number;
+  productId?: string;
+  variantId?: string;
+  name?: string;
 }
 
 export interface ConversionData {

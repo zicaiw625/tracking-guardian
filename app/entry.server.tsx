@@ -10,6 +10,7 @@ import { logger } from "./utils/logger.server";
 import { EMBEDDED_APP_HEADERS, addSecurityHeadersToHeaders, validateSecurityHeaders, } from "./utils/security-headers";
 import { RedisClientFactory } from "./utils/redis-client";
 import prisma from "./db.server";
+import { getCorsHeadersPreBody } from "./routes/api.pixel-events/cors";
 const ABORT_DELAY = 5000;
 
 if (typeof process !== "undefined") {
@@ -113,13 +114,13 @@ export default async function handleRequest(request: Request, responseStatusCode
                     path: url.pathname,
                     method: request.method,
                 });
+                const headers = new Headers(getCorsHeadersPreBody(request));
+                headers.set("Content-Type", "application/json");
                 return new Response(
                     JSON.stringify({ error: "Payload too large", maxSize: API_CONFIG.MAX_BODY_SIZE }),
                     {
                         status: 413,
-                        headers: {
-                            "Content-Type": "application/json",
-                        },
+                        headers,
                     }
                 );
             }
