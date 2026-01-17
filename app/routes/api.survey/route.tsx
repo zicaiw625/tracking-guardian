@@ -9,6 +9,7 @@ import { authenticatePublic, normalizeDestToShopDomain, handlePublicPreflight, a
 import { makeOrderKey } from "../../utils/crypto.server";
 import { API_CONFIG } from "../../utils/config";
 import { readJsonWithSizeLimit } from "../../utils/body-size-guard";
+import { containsSensitiveInfo, sanitizeSensitiveInfo } from "../../utils/security";
 
 export const action = async ({ request }: ActionFunctionArgs) => {
   if (request.method === "OPTIONS") {
@@ -101,6 +102,20 @@ export const action = async ({ request }: ActionFunctionArgs) => {
           { status: 400 }
         )));
       }
+      const trimmed = option.trim();
+      if (trimmed.length === 0 || trimmed.length > 200) {
+        return addSecurityHeaders(authResult.cors(json(
+          { error: "Invalid option length" },
+          { status: 400 }
+        )));
+      }
+      if (containsSensitiveInfo(trimmed)) {
+        return addSecurityHeaders(authResult.cors(json(
+          { error: "Option contains sensitive info" },
+          { status: 400 }
+        )));
+      }
+      const safeOption = sanitizeSensitiveInfo(trimmed);
       const orderKey = makeOrderKey({ orderId, checkoutToken });
       let finalOrderId: string;
       if (orderKey) {
@@ -133,14 +148,13 @@ export const action = async ({ request }: ActionFunctionArgs) => {
           id: randomUUID(),
           shopId: shop.id,
           orderId: finalOrderId,
-          feedback: option,
+          feedback: safeOption,
           source: "thank_you_block",
           createdAt,
         },
       });
     logger.info("Survey response received", {
       shopDomain,
-      option,
       timestamp,
     });
     return addSecurityHeaders(authResult.cors(json(

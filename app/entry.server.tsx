@@ -52,61 +52,37 @@ if (typeof process !== "undefined") {
   process.on("SIGTERM", () => cleanup("SIGTERM"));
   process.on("SIGINT", () => cleanup("SIGINT"));
 }
-let secretsValidated = false;
-let securityChecked = false;
-let headersValidated = false;
-let configValidated = false;
-async function enforceSecurityOnce() {
-    if (!securityChecked) {
-        await enforceSecurityChecks();
-        securityChecked = true;
+
+(async () => {
+  try {
+    await enforceSecurityChecks();
+    ensureSecretsValid();
+    const configResult = validateConfig();
+    if (configResult.errors.length > 0) {
+      logger.error("Configuration errors:", undefined, { errors: configResult.errors });
+      if (process.env.NODE_ENV === "production") {
+        throw new Error(`Configuration errors: ${configResult.errors.join(", ")}`);
+      }
     }
-}
-function validateHeadersOnce() {
-    if (!headersValidated) {
-        const validation = validateSecurityHeaders();
-        if (!validation.valid) {
-            logger.warn("Security headers configuration issues:", { issues: validation.issues });
-        }
-        headersValidated = true;
+    if (configResult.warnings.length > 0) {
+      logger.warn("Configuration warnings:", { warnings: configResult.warnings });
     }
-}
-function validateSecretsOnce() {
-    if (!secretsValidated) {
-        try {
-            ensureSecretsValid();
-            logger.info("Secrets validation passed");
-            secretsValidated = true;
-        }
-        catch (error) {
-            logger.error("Secrets validation failed", error);
-            if (process.env.NODE_ENV === "production") {
-                throw error;
-            }
-        }
+    logConfigStatus();
+    const headersValidation = validateSecurityHeaders();
+    if (!headersValidation.valid) {
+      logger.warn("Security headers configuration issues:", { issues: headersValidation.issues });
     }
-}
-function validateConfigOnce() {
-    if (!configValidated) {
-        const result = validateConfig();
-        if (result.errors.length > 0) {
-            logger.error("Configuration errors:", undefined, { errors: result.errors });
-            if (process.env.NODE_ENV === "production") {
-                throw new Error(`Configuration errors: ${result.errors.join(", ")}`);
-            }
-        }
-        if (result.warnings.length > 0) {
-            logger.warn("Configuration warnings:", { warnings: result.warnings });
-        }
-        logConfigStatus();
-        configValidated = true;
+    logger.info("Startup security checks completed successfully");
+  } catch (error) {
+    logger.error("Startup security checks failed", error);
+    if (process.env.NODE_ENV === "production") {
+      process.exit(1);
     }
-}
+    throw error;
+  }
+})();
+
 export default async function handleRequest(request: Request, responseStatusCode: number, responseHeaders: Headers, remixContext: EntryContext) {
-    await enforceSecurityOnce();
-    validateSecretsOnce();
-    validateConfigOnce();
-    validateHeadersOnce();
     const url = new URL(request.url);
     if (url.pathname === "/ingest" && request.method === "POST") {
         const contentLength = request.headers.get("Content-Length");
