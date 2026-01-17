@@ -18,53 +18,80 @@ export function safeJsonStringify(value: unknown): string | null {
   }
 }
 
-export function deepClone<T>(value: T): T {
-  if (value === null || typeof value !== "object") {
+export { deepClone } from "./helpers";
+
+export function isRecord(value: unknown): value is Record<string, unknown> {
+  return value !== null && typeof value === "object" && !Array.isArray(value);
+}
+
+export function extractPlatformFromPayload(payload: unknown): string | null {
+  if (!isRecord(payload)) return null;
+  if (typeof payload.platform === "string") {
+    return payload.platform;
+  }
+  if (typeof payload.destination === "string") {
+    return payload.destination;
+  }
+  return null;
+}
+
+export interface ReceiptParsedData {
+  platform: string;
+  value: number;
+  hasValue: boolean;
+  hasCurrency: boolean;
+}
+
+export function parseReceiptPayload(receiptPayload: unknown): ReceiptParsedData | null {
+  const payload = isRecord(receiptPayload) ? receiptPayload : null;
+  const platform = extractPlatformFromPayload(payload);
+  if (!platform) {
+    return null;
+  }
+  const data = payload && isRecord(payload.data) ? payload.data : null;
+  const value = data && typeof data.value === "number" ? data.value : 0;
+  const hasValue = value > 0;
+  const hasCurrency = data !== null && typeof data.currency === "string" && data.currency.trim().length > 0;
+  return {
+    platform,
+    value,
+    hasValue,
+    hasCurrency,
+  };
+}
+
+function isString(value: unknown): value is string {
+  return typeof value === "string";
+}
+
+function isNumber(value: unknown): value is number {
+  return typeof value === "number" && !Number.isNaN(value);
+}
+
+export function extractStringValue(data: Record<string, unknown> | null | undefined, key: string, defaultValue: string = ""): string {
+  if (!data) return defaultValue;
+  const value = data[key];
+  return isString(value) ? value : defaultValue;
+}
+
+export function extractNumberValue(data: Record<string, unknown> | null | undefined, key: string, defaultValue: number = 0): number {
+  if (!data) return defaultValue;
+  const value = data[key];
+  return isNumber(value) ? value : defaultValue;
+}
+
+export function normalizeDecimalValue(value: unknown): number {
+  if (typeof value === "number") {
     return value;
   }
-  if (value instanceof Date) {
-    return new Date(value.getTime()) as T;
+  if (value !== null && typeof value === "object" && "toNumber" in value && typeof (value as { toNumber(): number }).toNumber === "function") {
+    return (value as { toNumber(): number }).toNumber();
   }
-  if (value instanceof RegExp) {
-    return new RegExp(value.source, value.flags) as T;
+  if (typeof value === "string") {
+    const parsed = Number.parseFloat(value);
+    return Number.isNaN(parsed) ? 0 : parsed;
   }
-  if (value instanceof Map) {
-    const clonedMap = new Map();
-    value.forEach((val, key) => {
-      clonedMap.set(deepClone(key), deepClone(val));
-    });
-    return clonedMap as T;
-  }
-  if (value instanceof Set) {
-    const clonedSet = new Set();
-    value.forEach((val) => {
-      clonedSet.add(deepClone(val));
-    });
-    return clonedSet as T;
-  }
-  if (Array.isArray(value)) {
-    return value.map((item) => deepClone(item)) as T;
-  }
-  if (value instanceof ArrayBuffer) {
-    return value.slice(0) as T;
-  }
-  if (value instanceof Error) {
-    const clonedError = new (value.constructor as new (message: string) => Error)(value.message);
-    clonedError.name = value.name;
-    clonedError.stack = value.stack;
-    return clonedError as T;
-  }
-  const cloned = {} as T;
-  for (const key in value) {
-    if (Object.prototype.hasOwnProperty.call(value, key)) {
-      try {
-        (cloned as Record<string, unknown>)[key] = deepClone((value as Record<string, unknown>)[key]);
-      } catch {
-        (cloned as Record<string, unknown>)[key] = (value as Record<string, unknown>)[key];
-      }
-    }
-  }
-  return cloned;
+  return 0;
 }
 
 export function truncate(str: string, maxLength: number): string {
@@ -318,51 +345,7 @@ export function deepMerge<T extends object>(...objects: Partial<T>[]): T {
   return result;
 }
 
-export function sleep(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms));
-}
-
-export async function retry<T>(
-  fn: () => Promise<T>,
-  options: {
-    maxAttempts?: number;
-    baseDelayMs?: number;
-    maxDelayMs?: number;
-    shouldRetry?: (error: unknown) => boolean;
-  } = {}
-): Promise<T> {
-  const {
-    maxAttempts = 3,
-    baseDelayMs = 1000,
-    maxDelayMs = 30000,
-    shouldRetry = () => true,
-  } = options;
-  const safeMaxAttempts = Math.max(1, maxAttempts);
-  let lastError: unknown;
-  for (let attempt = 1; attempt <= safeMaxAttempts; attempt++) {
-    try {
-      return await fn();
-    } catch (error) {
-      lastError = error;
-      if (attempt === safeMaxAttempts || !shouldRetry(error)) {
-        throw error;
-      }
-      const delay = Math.min(baseDelayMs * Math.pow(2, attempt - 1), maxDelayMs);
-      await sleep(delay);
-    }
-  }
-  throw lastError ?? new Error("Retry function failed without capturing an error");
-}
-
-import { parallelLimit as parallelLimitWithIndex } from "./helpers";
-
-export async function parallelLimit<T, R>(
-  items: T[],
-  limit: number,
-  fn: (item: T) => Promise<R>
-): Promise<R[]> {
-  return parallelLimitWithIndex(items, limit, (item, _index) => fn(item));
-}
+export { delay as sleep, retry, parallelLimit } from "./helpers";
 
 export function debounce<T extends (...args: unknown[]) => unknown>(
   fn: T,

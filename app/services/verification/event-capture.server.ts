@@ -1,16 +1,6 @@
 import prisma from "~/db.server";
 import { logger } from "~/utils/logger.server";
-
-function extractPlatformFromPayload(payload: Record<string, unknown> | null): string | null {
-  if (!payload) return null;
-  if (payload.platform && typeof payload.platform === "string") {
-    return payload.platform;
-  }
-  if (payload.destination && typeof payload.destination === "string") {
-    return payload.destination;
-  }
-  return null;
-}
+import { extractPlatformFromPayload } from "~/utils/common";
 
 export interface CapturedEvent {
   id: string;

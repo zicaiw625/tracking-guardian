@@ -3,16 +3,22 @@ import prisma from "../db.server";
 import type { AdminApiContext } from "@shopify/shopify-app-remix/server";
 import { logger } from "../utils/logger.server";
 import { Decimal } from "@prisma/client/runtime/library";
+import { extractPlatformFromPayload, isRecord, extractStringValue, extractNumberValue } from "../utils/common";
 
-function extractPlatformFromPayload(payload: Record<string, unknown> | null): string | null {
-  if (!payload) return null;
-  if (payload.platform && typeof payload.platform === "string") {
-    return payload.platform;
-  }
-  if (payload.destination && typeof payload.destination === "string") {
-    return payload.destination;
-  }
-  return null;
+const ONE_HOUR_MS = 60 * 60 * 1000;
+const ONE_DAY_MS = 24 * 60 * 60 * 1000;
+const SEVEN_DAYS_MS = 7 * ONE_DAY_MS;
+const DEFAULT_TIMEOUT_MS = 10000;
+const DEFAULT_MAX_CONCURRENT = 5;
+const VALUE_MATCH_THRESHOLD = 0.01;
+const TIMESTAMP_SECOND_THRESHOLD = 10000000000;
+
+function isString(value: unknown): value is string {
+  return typeof value === "string";
+}
+
+function isNumber(value: unknown): value is number {
+  return typeof value === "number" && !Number.isNaN(value);
 }
 
 export interface ReconciliationResult {
@@ -142,152 +148,155 @@ function extractOrderId(gid: string): string {
   return match ? match[1] : gid;
 }
 
-export async function runReconciliation(
-  admin: AdminApiContext,
-  shopId: string,
-  startDate: Date,
-  endDate: Date
-): Promise<ReconciliationResult> {
-  logger.info("Starting reconciliation", { shopId, startDate, endDate });
-  const shopifyOrders = await fetchShopifyOrders(admin, startDate, endDate);
-  const pixelReceipts = await prisma.pixelEventReceipt.findMany({
-    where: {
-      shopId,
-      createdAt: { gte: startDate, lte: endDate },
-      eventType: { in: ["purchase", "checkout_completed"] },
-    },
-    select: {
-      id: true,
-      orderKey: true,
-      eventType: true,
-      createdAt: true,
-      payloadJson: true,
-    },
-  });
+type PixelReceiptType = {
+  id: string;
+  orderKey: string | null;
+  eventType: string;
+  createdAt: Date;
+  payloadJson: unknown;
+};
+
+function matchOrdersWithReceipts(
+  shopifyOrders: ShopifyOrder[],
+  pixelReceipts: PixelReceiptType[]
+): {
+  shopifyOrderMap: Map<string, ShopifyOrder>;
+  receiptMap: Map<string, PixelReceiptType[]>;
+} {
   const shopifyOrderMap = new Map<string, ShopifyOrder>();
   shopifyOrders.forEach(order => {
     const orderId = extractOrderId(order.id);
     shopifyOrderMap.set(orderId, order);
   });
-  const receiptMap = new Map<string, typeof pixelReceipts[0][]>();
+  const receiptMap = new Map<string, PixelReceiptType[]>();
   pixelReceipts.forEach(receipt => {
     if (!receipt.orderKey) return;
     const existing = receiptMap.get(receipt.orderKey) || [];
     existing.push(receipt);
     receiptMap.set(receipt.orderKey, existing);
   });
-  const discrepancies: OrderDiscrepancy[] = [];
-  const platformStats: Record<string, PlatformReconciliation> = {};
-  const issues: ReconciliationIssue[] = [];
-  let totalShopifyRevenue = 0;
+  return { shopifyOrderMap, receiptMap };
+}
+
+function calculatePlatformStats(
+  receipts: PixelReceiptType[],
+  platformStats: Record<string, PlatformReconciliation>
+): { totalTrackedRevenue: number; matchedOrders: number } {
   let totalTrackedRevenue = 0;
   let matchedOrders = 0;
-  for (const [orderId, shopifyOrder] of shopifyOrderMap) {
-    const shopifyValue = parseFloat(shopifyOrder.totalPriceSet.shopMoney.amount);
-    const shopifyCurrency = shopifyOrder.totalPriceSet.shopMoney.currencyCode;
-    totalShopifyRevenue += shopifyValue;
-    const receipts = receiptMap.get(orderId) || [];
-    if (receipts.length === 0) {
+  for (const receipt of receipts) {
+    const payload = isRecord(receipt.payloadJson) ? receipt.payloadJson : null;
+    const platform = extractPlatformFromPayload(payload) || "unknown";
+    if (!platformStats[platform]) {
+      platformStats[platform] = {
+        platform,
+        ordersTracked: 0,
+        ordersSent: 0,
+        ordersFailed: 0,
+        successRate: 0,
+        revenueTracked: 0,
+        avgLatencyMs: 0,
+        dedupConflicts: 0,
+      };
+    }
+    const data = payload && isRecord(payload.data) ? payload.data : null;
+    const trackedValue = extractNumberValue(data, "value", 0);
+    const trackedCurrency = extractStringValue(data, "currency", "");
+    const hasValue = trackedValue > 0 && trackedCurrency.length > 0;
+    platformStats[platform].ordersTracked++;
+    platformStats[platform].revenueTracked += trackedValue;
+    if (hasValue) {
+      platformStats[platform].ordersSent++;
+      totalTrackedRevenue += trackedValue;
+    } else {
+      platformStats[platform].ordersFailed++;
+    }
+  }
+  if (receipts.length > 0) {
+    matchedOrders = 1;
+  }
+  return { totalTrackedRevenue, matchedOrders };
+}
+
+function detectOrderDiscrepancies(
+  orderId: string,
+  shopifyOrder: ShopifyOrder,
+  receipts: PixelReceiptType[],
+  platformStats: Record<string, PlatformReconciliation>
+): OrderDiscrepancy[] {
+  const discrepancies: OrderDiscrepancy[] = [];
+  const shopifyValue = parseFloat(shopifyOrder.totalPriceSet.shopMoney.amount);
+  const shopifyCurrency = shopifyOrder.totalPriceSet.shopMoney.currencyCode;
+  for (const receipt of receipts) {
+    const payload = isRecord(receipt.payloadJson) ? receipt.payloadJson : null;
+    const platform = extractPlatformFromPayload(payload) || "unknown";
+    const data = payload && isRecord(payload.data) ? payload.data : null;
+    const trackedValue = extractNumberValue(data, "value", 0);
+    const trackedCurrency = extractStringValue(data, "currency", shopifyCurrency);
+    const hasValue = trackedValue > 0 && !!trackedCurrency;
+    if (hasValue && Math.abs(trackedValue - shopifyValue) > 0.01) {
       discrepancies.push({
         orderId,
         orderNumber: shopifyOrder.name,
         shopifyValue,
         shopifyCurrency,
-        trackedValue: null,
-        trackedCurrency: null,
-        discrepancyType: "missing",
-        details: "订单未被追踪",
+        trackedValue,
+        trackedCurrency,
+        discrepancyType: "value_mismatch",
+        details: `金额差异: Shopify ${shopifyValue} vs 追踪 ${trackedValue}`,
       });
-    } else {
-      matchedOrders++;
-      for (const receipt of receipts) {
-        const payload = receipt.payloadJson as Record<string, unknown> | null;
-        const platform = extractPlatformFromPayload(payload) || "unknown";
-        if (!platformStats[platform]) {
-          platformStats[platform] = {
-            platform,
-            ordersTracked: 0,
-            ordersSent: 0,
-            ordersFailed: 0,
-            successRate: 0,
-            revenueTracked: 0,
-            avgLatencyMs: 0,
-            dedupConflicts: 0,
-          };
+    }
+    if (hasValue && trackedCurrency !== shopifyCurrency) {
+      discrepancies.push({
+        orderId,
+        orderNumber: shopifyOrder.name,
+        shopifyValue,
+        shopifyCurrency,
+        trackedValue,
+        trackedCurrency,
+        discrepancyType: "currency_mismatch",
+        details: `币种差异: Shopify ${shopifyCurrency} vs 追踪 ${trackedCurrency}`,
+      });
+    }
+  }
+  if (receipts.length > 1) {
+    const platformCounts = new Map<string, number>();
+    receipts.forEach(r => {
+      const receiptPayload = isRecord(r.payloadJson) ? r.payloadJson : null;
+      const receiptPlatform = extractPlatformFromPayload(receiptPayload) || "unknown";
+      platformCounts.set(receiptPlatform, (platformCounts.get(receiptPlatform) || 0) + 1);
+    });
+    for (const [platform, count] of platformCounts) {
+      if (count > 1) {
+        if (platformStats[platform]) {
+          platformStats[platform].dedupConflicts++;
         }
-        const data = payload?.data as Record<string, unknown> | undefined;
-        const trackedValue = typeof data?.value === "number" ? data.value : 0;
-        const trackedCurrency = (data?.currency as string) || shopifyCurrency;
-        const hasValue = trackedValue > 0 && !!trackedCurrency;
-        platformStats[platform].ordersTracked++;
-        platformStats[platform].revenueTracked += trackedValue;
-        if (hasValue) {
-          platformStats[platform].ordersSent++;
-          totalTrackedRevenue += trackedValue;
-        } else {
-          platformStats[platform].ordersFailed++;
-        }
-        if (hasValue && Math.abs(trackedValue - shopifyValue) > 0.01) {
-          discrepancies.push({
-            orderId,
-            orderNumber: shopifyOrder.name,
-            shopifyValue,
-            shopifyCurrency,
-            trackedValue,
-            trackedCurrency,
-            discrepancyType: "value_mismatch",
-            details: `金额差异: Shopify ${shopifyValue} vs 追踪 ${trackedValue}`,
-          });
-        }
-        if (hasValue && trackedCurrency !== shopifyCurrency) {
-          discrepancies.push({
-            orderId,
-            orderNumber: shopifyOrder.name,
-            shopifyValue,
-            shopifyCurrency,
-            trackedValue,
-            trackedCurrency,
-            discrepancyType: "currency_mismatch",
-            details: `币种差异: Shopify ${shopifyCurrency} vs 追踪 ${trackedCurrency}`,
-          });
-        }
-      }
-      if (receipts.length > 1) {
-        const platformCounts = new Map<string, number>();
-        receipts.forEach(r => {
-          const platform = r.platform || "unknown";
-          platformCounts.set(platform, (platformCounts.get(platform) || 0) + 1);
+        const firstReceipt = receipts[0];
+        const payload = isRecord(firstReceipt.payloadJson) ? firstReceipt.payloadJson : null;
+        const data = payload && isRecord(payload.data) ? payload.data : null;
+        const trackedValue = extractNumberValue(data, "value", 0);
+        const trackedCurrency = extractStringValue(data, "currency", shopifyCurrency);
+        discrepancies.push({
+          orderId,
+          orderNumber: shopifyOrder.name,
+          shopifyValue,
+          shopifyCurrency,
+          trackedValue,
+          trackedCurrency,
+          discrepancyType: "duplicate",
+          details: `${platform} 平台重复发送 ${count} 次`,
         });
-        for (const [platform, count] of platformCounts) {
-          if (count > 1) {
-            if (platformStats[platform]) {
-              platformStats[platform].dedupConflicts++;
-            }
-            const firstReceipt = receipts[0];
-            const payload = firstReceipt.payloadJson as Record<string, unknown> | null;
-            const data = payload?.data as Record<string, unknown> | undefined;
-            const trackedValue = typeof data?.value === "number" ? data.value : 0;
-            const trackedCurrency = (data?.currency as string) || shopifyCurrency;
-            discrepancies.push({
-              orderId,
-              orderNumber: shopifyOrder.name,
-              shopifyValue,
-              shopifyCurrency,
-              trackedValue,
-              trackedCurrency,
-              discrepancyType: "duplicate",
-              details: `${platform} 平台重复发送 ${count} 次`,
-            });
-          }
-        }
       }
     }
   }
-  for (const stats of Object.values(platformStats)) {
-    stats.successRate = stats.ordersTracked > 0
-      ? stats.ordersSent / stats.ordersTracked
-      : 0;
-  }
+  return discrepancies;
+}
+
+function generateReconciliationIssues(
+  discrepancies: OrderDiscrepancy[],
+  shopifyOrders: ShopifyOrder[]
+): ReconciliationIssue[] {
+  const issues: ReconciliationIssue[] = [];
   const missingCount = discrepancies.filter(d => d.discrepancyType === "missing").length;
   if (missingCount > 0) {
     issues.push({
@@ -319,24 +328,124 @@ export async function runReconciliation(
       count: duplicateCount,
     });
   }
-  const totalTrackedEvents = pixelReceipts.length;
+  return issues;
+}
+
+function processOrderReconciliation(
+  orderId: string,
+  shopifyOrder: ShopifyOrder,
+  receipts: PixelReceiptType[],
+  platformStats: Record<string, PlatformReconciliation>,
+  discrepancies: OrderDiscrepancy[]
+): { revenue: number; matched: boolean } {
+  const shopifyValue = parseFloat(shopifyOrder.totalPriceSet.shopMoney.amount);
+  if (receipts.length === 0) {
+    discrepancies.push({
+      orderId,
+      orderNumber: shopifyOrder.name,
+      shopifyValue,
+      shopifyCurrency: shopifyOrder.totalPriceSet.shopMoney.currencyCode,
+      trackedValue: null,
+      trackedCurrency: null,
+      discrepancyType: "missing",
+      details: "订单未被追踪",
+    });
+    return { revenue: 0, matched: false };
+  }
+  const statsResult = calculatePlatformStats(receipts, platformStats);
+  const orderDiscrepancies = detectOrderDiscrepancies(
+    orderId,
+    shopifyOrder,
+    receipts,
+    platformStats
+  );
+  discrepancies.push(...orderDiscrepancies);
+  return { revenue: statsResult.totalTrackedRevenue, matched: true };
+}
+
+function calculateReconciliationSummary(
+  shopifyOrders: ShopifyOrder[],
+  pixelReceipts: PixelReceiptType[],
+  matchedOrders: number,
+  totalShopifyRevenue: number,
+  totalTrackedRevenue: number
+) {
+  return {
+    totalShopifyOrders: shopifyOrders.length,
+    totalShopifyRevenue,
+    totalTrackedEvents: pixelReceipts.length,
+    totalTrackedRevenue,
+    matchRate: shopifyOrders.length > 0 ? matchedOrders / shopifyOrders.length : 1,
+    revenueMatchRate: totalShopifyRevenue > 0
+      ? Math.min(totalTrackedRevenue / totalShopifyRevenue, 1)
+      : 1,
+  };
+}
+
+export async function runReconciliation(
+  admin: AdminApiContext,
+  shopId: string,
+  startDate: Date,
+  endDate: Date
+): Promise<ReconciliationResult> {
+  logger.info("Starting reconciliation", { shopId, startDate, endDate });
+  const shopifyOrders = await fetchShopifyOrders(admin, startDate, endDate);
+  const pixelReceipts = await prisma.pixelEventReceipt.findMany({
+    where: {
+      shopId,
+      createdAt: { gte: startDate, lte: endDate },
+      eventType: { in: ["purchase", "checkout_completed"] },
+    },
+    select: {
+      id: true,
+      orderKey: true,
+      eventType: true,
+      createdAt: true,
+      payloadJson: true,
+    },
+  });
+  const { shopifyOrderMap, receiptMap } = matchOrdersWithReceipts(shopifyOrders, pixelReceipts);
+  const discrepancies: OrderDiscrepancy[] = [];
+  const platformStats: Record<string, PlatformReconciliation> = {};
+  let totalShopifyRevenue = 0;
+  let totalTrackedRevenue = 0;
+  let matchedOrders = 0;
+  
+  for (const [orderId, shopifyOrder] of shopifyOrderMap) {
+    const shopifyValue = parseFloat(shopifyOrder.totalPriceSet.shopMoney.amount);
+    totalShopifyRevenue += shopifyValue;
+    const receipts = receiptMap.get(orderId) || [];
+    const result = processOrderReconciliation(orderId, shopifyOrder, receipts, platformStats, discrepancies);
+    totalTrackedRevenue += result.revenue;
+    if (result.matched) {
+      matchedOrders++;
+    }
+  }
+  
+  for (const stats of Object.values(platformStats)) {
+    stats.successRate = stats.ordersTracked > 0
+      ? stats.ordersSent / stats.ordersTracked
+      : 0;
+  }
+  
+  const issues = generateReconciliationIssues(discrepancies, shopifyOrders);
+  const summary = calculateReconciliationSummary(
+    shopifyOrders,
+    pixelReceipts,
+    matchedOrders,
+    totalShopifyRevenue,
+    totalTrackedRevenue
+  );
+  
   const result: ReconciliationResult = {
     shopId,
     period: { start: startDate, end: endDate },
-    summary: {
-      totalShopifyOrders: shopifyOrders.length,
-      totalShopifyRevenue,
-      totalTrackedEvents,
-      totalTrackedRevenue,
-      matchRate: shopifyOrders.length > 0 ? matchedOrders / shopifyOrders.length : 1,
-      revenueMatchRate: totalShopifyRevenue > 0
-        ? Math.min(totalTrackedRevenue / totalShopifyRevenue, 1)
-        : 1,
-    },
+    summary,
     platforms: platformStats,
     discrepancies,
     issues,
   };
+  
   logger.info("Reconciliation completed", {
     shopId,
     totalOrders: shopifyOrders.length,
@@ -458,20 +567,19 @@ export interface LocalConsistencyCheck {
   issues: string[];
 }
 
-export async function checkLocalConsistency(
+async function fetchShopifyOrderData(
   shopId: string,
   orderId: string,
   admin?: AdminApiContext,
   signal?: AbortSignal
-): Promise<LocalConsistencyCheck | null> {
+): Promise<{ value: number; currency: string; itemCount: number } | null> {
   if (signal?.aborted) {
     return null;
   }
-  let shopifyOrder: { value: number; currency: string; itemCount: number } | null = null;
   if (admin) {
     const orders = await fetchShopifyOrders(
       admin,
-      new Date(Date.now() - 7 * 24 * 60 * 60 * 1000),
+      new Date(Date.now() - SEVEN_DAYS_MS),
       new Date(),
       100
     );
@@ -480,7 +588,7 @@ export async function checkLocalConsistency(
     }
     const order = orders.find((o) => extractOrderId(o.id) === orderId);
     if (order) {
-      shopifyOrder = {
+      return {
         value: parseFloat(order.totalPriceSet.shopMoney.amount),
         currency: order.totalPriceSet.shopMoney.currencyCode,
         itemCount: 0,
@@ -490,35 +598,217 @@ export async function checkLocalConsistency(
   if (signal?.aborted) {
     return null;
   }
-  if (!shopifyOrder) {
-    const receipt = await prisma.pixelEventReceipt.findFirst({
-      where: {
-        shopId,
-        orderKey: orderId,
-      },
-      orderBy: { createdAt: "desc" },
-      select: {
-        payloadJson: true,
-      },
-    });
-    if (signal?.aborted) {
-      return null;
+  const receipt = await prisma.pixelEventReceipt.findFirst({
+    where: {
+      shopId,
+      orderKey: orderId,
+    },
+    orderBy: { createdAt: "desc" },
+    select: {
+      payloadJson: true,
+    },
+  });
+  if (signal?.aborted) {
+    return null;
+  }
+  if (receipt) {
+    const payload = isRecord(receipt.payloadJson) ? receipt.payloadJson : null;
+    const data = payload && isRecord(payload.data) ? payload.data : null;
+    const value = extractNumberValue(data, "value", 0);
+    const currency = extractStringValue(data, "currency", "USD");
+    if (value > 0) {
+      return {
+        value,
+        currency,
+        itemCount: 0,
+      };
     }
-    if (receipt) {
-      const payload = receipt.payloadJson as Record<string, unknown> | null;
-      const data = payload?.data as Record<string, unknown> | undefined;
-      const value = typeof data?.value === "number" ? data.value : 0;
-      const currency = (data?.currency as string) || "USD";
-      if (value > 0) {
-        shopifyOrder = {
-          value,
-          currency,
-          itemCount: 0,
-        };
+  }
+  return null;
+}
+
+function checkPixelReceipt(
+  pixelReceipt: { id: string; orderKey: string | null; payloadJson: unknown } | null,
+  shopifyOrder: { value: number; currency: string }
+): { valid: boolean; errors: string[]; valueMatch: boolean; currencyMatch: boolean } {
+  const errors: string[] = [];
+  let valid = true;
+  let valueMatch = false;
+  let currencyMatch = false;
+  if (!pixelReceipt) {
+    return { valid: false, errors: ["缺少 Pixel 收据"], valueMatch: false, currencyMatch: false };
+  }
+  const payload = isRecord(pixelReceipt.payloadJson) ? pixelReceipt.payloadJson : null;
+  if (!payload) {
+    valid = false;
+    errors.push("Pixel 收据缺少 payload");
+  } else {
+    if (!("event_name" in payload || "eventName" in payload)) {
+      errors.push("缺少 event_name");
+    }
+    if (!("event_time" in payload || "eventTime" in payload)) {
+      errors.push("缺少 event_time");
+    }
+  }
+  const data = payload && isRecord(payload.data) ? payload.data : null;
+  const orderValue = data?.value ?? data?.orderValue;
+  const currency = data?.currency;
+  if (orderValue !== undefined && orderValue !== null) {
+    const pixelValue = isNumber(orderValue) ? orderValue : Number(orderValue);
+    if (!Number.isNaN(pixelValue)) {
+      valueMatch = Math.abs(pixelValue - shopifyOrder.value) < VALUE_MATCH_THRESHOLD;
+      currencyMatch = isString(currency) && currency === shopifyOrder.currency;
+    }
+  }
+  return { valid: valid && errors.length === 0, errors, valueMatch, currencyMatch };
+}
+
+type CapiEventCheck = {
+  platform: string;
+  value: number;
+  currency: string;
+  status: string;
+  valueMatch: boolean;
+  currencyMatch: boolean;
+};
+
+function checkCapiEvents(
+  capiEvents: Array<{
+    id: string;
+    orderKey: string | null;
+    eventType: string;
+    payloadJson: unknown;
+    createdAt: Date;
+  }>,
+  shopifyOrder: { value: number; currency: string },
+  issues: string[]
+): CapiEventCheck[] {
+  return capiEvents.map((event) => {
+    const payload = isRecord(event.payloadJson) ? event.payloadJson : null;
+    const platform = extractPlatformFromPayload(payload) || "unknown";
+    const data = payload && isRecord(payload.data) ? payload.data : null;
+    const value = extractNumberValue(data, "value", 0);
+    const currency = extractStringValue(data, "currency", "");
+    const valueMatch = Math.abs(value - shopifyOrder.value) < VALUE_MATCH_THRESHOLD;
+    const currencyMatch = currency === shopifyOrder.currency;
+    if (!valueMatch && value > 0) {
+      issues.push(`${platform} Pixel 金额不匹配: ${value} vs ${shopifyOrder.value}`);
+    }
+    if (!currencyMatch && currency.length > 0) {
+      issues.push(`${platform} Pixel 币种不匹配: ${currency} vs ${shopifyOrder.currency}`);
+    }
+    const eventId = payload ? (extractStringValue(payload, "eventId") || extractStringValue(payload, "event_id")) : "";
+    if (!eventId) {
+      issues.push(`${platform} Pixel 缺少 event_id（可能影响去重）`);
+    }
+    const pixelTimestamp = payload ? (extractNumberValue(payload, "event_time") || extractNumberValue(payload, "eventTime")) : undefined;
+    if (pixelTimestamp !== undefined && pixelTimestamp > 0) {
+      const eventTime = pixelTimestamp < TIMESTAMP_SECOND_THRESHOLD ? pixelTimestamp * 1000 : pixelTimestamp;
+      const orderTime = event.createdAt.getTime();
+      const timeDiff = Math.abs(eventTime - orderTime);
+      if (timeDiff > ONE_HOUR_MS) {
+        issues.push(`${platform} Pixel 事件时间戳异常（延迟 ${Math.round(timeDiff / 1000 / 60)} 分钟）`);
+      }
+    }
+    return {
+      platform,
+      value,
+      currency,
+      status: value > 0 ? "sent" : "pending",
+      valueMatch,
+      currencyMatch,
+    };
+  });
+}
+
+function collectPixelIssues(
+  pixelCheck: { valid: boolean; errors: string[]; valueMatch: boolean; currencyMatch: boolean },
+  pixelReceipt: { id: string; orderKey: string | null; payloadJson: unknown } | null,
+  shopifyOrder: { value: number; currency: string },
+  issues: string[]
+): void {
+  if (!pixelCheck.valid && pixelCheck.errors.length > 0) {
+    issues.push(...pixelCheck.errors);
+  }
+  if (!pixelCheck.valueMatch && pixelReceipt) {
+    const payload = isRecord(pixelReceipt.payloadJson) ? pixelReceipt.payloadJson : null;
+    const data = payload && isRecord(payload.data) ? payload.data : null;
+    const orderValue = data?.value ?? data?.orderValue;
+    if (orderValue !== undefined && orderValue !== null) {
+      const pixelValue = isNumber(orderValue) ? orderValue : Number(orderValue);
+      if (!Number.isNaN(pixelValue)) {
+        issues.push(`Pixel 金额不匹配: ${pixelValue} vs ${shopifyOrder.value}`);
       }
     }
   }
-  if (!shopifyOrder) {
+  if (!pixelCheck.currencyMatch && pixelReceipt) {
+    const payload = isRecord(pixelReceipt.payloadJson) ? pixelReceipt.payloadJson : null;
+    const data = payload && isRecord(payload.data) ? payload.data : null;
+    const currency = extractStringValue(data, "currency", "");
+    if (currency.length > 0) {
+      issues.push(`Pixel 币种不匹配: ${currency} vs ${shopifyOrder.currency}`);
+    }
+  }
+}
+
+function collectCapiIssues(
+  capiEvents: Array<{ payloadJson: unknown }>,
+  capiEventChecks: CapiEventCheck[],
+  issues: string[]
+): void {
+  const platformCounts = new Map<string, number>();
+  capiEvents.forEach((event) => {
+    const payload = isRecord(event.payloadJson) ? event.payloadJson : null;
+    const eventPlatform = extractPlatformFromPayload(payload) || "unknown";
+    const count = platformCounts.get(eventPlatform) || 0;
+    platformCounts.set(eventPlatform, count + 1);
+  });
+  platformCounts.forEach((count, platform) => {
+    if (count > 1) {
+      issues.push(`${platform} CAPI 重复发送 ${count} 次（可能影响去重）`);
+    }
+  });
+  if (capiEventChecks.length === 0) {
+    issues.push("缺少 CAPI 事件");
+  } else {
+    const failedPlatforms = capiEventChecks.filter((c) => c.status !== "sent");
+    if (failedPlatforms.length > 0) {
+      issues.push(`${failedPlatforms.length} 个平台的 CAPI 发送失败`);
+    }
+  }
+}
+
+function evaluateConsistency(
+  pixelReceipt: { id: string; orderKey: string | null; payloadJson: unknown } | null,
+  pixelValid: boolean,
+  capiEventChecks: CapiEventCheck[]
+): "consistent" | "partial" | "inconsistent" {
+  if (!pixelReceipt || !pixelValid || capiEventChecks.length === 0) {
+    return "inconsistent";
+  }
+  const failedPlatforms = capiEventChecks.filter((c) => c.status !== "sent");
+  if (failedPlatforms.length > 0) {
+    return "partial";
+  }
+  const valueMismatches = capiEventChecks.filter((c) => !c.valueMatch);
+  const currencyMismatches = capiEventChecks.filter((c) => !c.currencyMatch);
+  if (valueMismatches.length > 0 || currencyMismatches.length > 0) {
+    return "partial";
+  }
+  return "consistent";
+}
+
+export async function checkLocalConsistency(
+  shopId: string,
+  orderId: string,
+  admin?: AdminApiContext,
+  signal?: AbortSignal
+): Promise<LocalConsistencyCheck | null> {
+  if (signal?.aborted) {
+    return null;
+  }
+  const shopifyOrder = await fetchShopifyOrderData(shopId, orderId, admin, signal);
+  if (!shopifyOrder || signal?.aborted) {
     return null;
   }
   if (signal?.aborted) {
@@ -558,121 +848,15 @@ export async function checkLocalConsistency(
     return null;
   }
   const issues: string[] = [];
-  let consistencyStatus: "consistent" | "partial" | "inconsistent" = "consistent";
-  let pixelPayloadValid = true;
-  const pixelPayloadErrors: string[] = [];
-  if (pixelReceipt) {
-    const payload = pixelReceipt.payloadJson as Record<string, unknown> | null;
-    if (!payload) {
-      pixelPayloadValid = false;
-      pixelPayloadErrors.push("Pixel 收据缺少 payload");
-    } else {
-      try {
-        if (payload && typeof payload === "object") {
-          if (!("event_name" in payload || "eventName" in payload)) {
-            pixelPayloadErrors.push("缺少 event_name");
-          }
-          if (!("event_time" in payload || "eventTime" in payload)) {
-            pixelPayloadErrors.push("缺少 event_time");
-          }
-        }
-      } catch (error) {
-        pixelPayloadValid = false;
-        pixelPayloadErrors.push("Payload 格式无效");
-      }
-    }
-    const data = payload?.data as Record<string, unknown> | undefined;
-    const orderValue = data?.value || data?.orderValue;
-    const currency = data?.currency;
-    if (orderValue !== undefined && orderValue !== null) {
-      const pixelValue = Number(orderValue);
-      const valueMatch = Math.abs(pixelValue - shopifyOrder.value) < 0.01;
-      const currencyMatch = currency ? String(currency) === shopifyOrder.currency : false;
-      if (!valueMatch) {
-        issues.push(`Pixel 金额不匹配: ${pixelValue} vs ${shopifyOrder.value}`);
-      }
-      if (currency && !currencyMatch) {
-        issues.push(`Pixel 币种不匹配: ${String(currency)} vs ${shopifyOrder.currency}`);
-      }
-    }
-  } else {
-    issues.push("缺少 Pixel 收据");
-  }
-  const capiEventChecks = capiEvents.map((event) => {
-    const payload = event.payloadJson as Record<string, unknown> | null;
-    const platform = extractPlatformFromPayload(payload) || "unknown";
-    const data = payload?.data as Record<string, unknown> | undefined;
-    const value = typeof data?.value === "number" ? data.value : 0;
-    const currency = (data?.currency as string) || "";
-    const valueMatch = Math.abs(value - shopifyOrder!.value) < 0.01;
-    const currencyMatch = currency === shopifyOrder!.currency;
-    if (!valueMatch && value > 0) {
-      issues.push(`${platform} Pixel 金额不匹配: ${value} vs ${shopifyOrder!.value}`);
-    }
-    if (!currencyMatch && currency) {
-      issues.push(`${platform} Pixel 币种不匹配: ${currency} vs ${shopifyOrder!.currency}`);
-    }
-    const eventId = payload?.eventId as string | undefined || payload?.event_id as string | undefined;
-    if (!eventId) {
-      issues.push(`${platform} Pixel 缺少 event_id（可能影响去重）`);
-    }
-    const pixelTimestamp = payload?.event_time as number | undefined || payload?.eventTime as number | undefined;
-    if (pixelTimestamp) {
-      const eventTime = typeof pixelTimestamp === "number" ? pixelTimestamp * 1000 : new Date(pixelTimestamp).getTime();
-      const orderTime = event.createdAt.getTime();
-      const timeDiff = Math.abs(eventTime - orderTime);
-      const oneHour = 60 * 60 * 1000;
-      if (timeDiff > oneHour) {
-        issues.push(`${platform} Pixel 事件时间戳异常（延迟 ${Math.round(timeDiff / 1000 / 60)} 分钟）`);
-      }
-    }
-    return {
-      platform,
-      value,
-      currency,
-      status: value > 0 ? "sent" : "pending",
-      valueMatch,
-      currencyMatch,
-    };
-  });
-  const platformCounts = new Map<string, number>();
-  capiEvents.forEach((event) => {
-    const payload = event.payloadJson as Record<string, unknown> | null;
-    const eventPlatform = extractPlatformFromPayload(payload) || "unknown";
-    const count = platformCounts.get(eventPlatform) || 0;
-    platformCounts.set(eventPlatform, count + 1);
-  });
-  platformCounts.forEach((count, platform) => {
-    if (count > 1) {
-      issues.push(`${platform} CAPI 重复发送 ${count} 次（可能影响去重）`);
-    }
-  });
-  if (capiEventChecks.length === 0) {
-    issues.push("缺少 CAPI 事件");
-    consistencyStatus = "inconsistent";
-  } else {
-    const failedPlatforms = capiEventChecks.filter((c) => c.status !== "sent");
-    if (failedPlatforms.length > 0) {
-      consistencyStatus = "partial";
-      issues.push(`${failedPlatforms.length} 个平台的 CAPI 发送失败`);
-    }
-    const valueMismatches = capiEventChecks.filter((c) => !c.valueMatch);
-    const currencyMismatches = capiEventChecks.filter((c) => !c.currencyMatch);
-    if (valueMismatches.length > 0 || currencyMismatches.length > 0) {
-      if (consistencyStatus === "consistent") {
-        consistencyStatus = "partial";
-      }
-    }
-  }
-  if (!pixelReceipt || !pixelPayloadValid || capiEventChecks.length === 0) {
-    consistencyStatus = "inconsistent";
-  }
-  const pixelPayload = pixelReceipt?.payloadJson as Record<string, unknown> | null;
-  const pixelData = pixelPayload?.data as Record<string, unknown> | undefined;
-  const pixelValue = typeof pixelData?.value === "number" ? pixelData.value : 0;
-  const pixelCurrency = (pixelData?.currency as string) || "";
-  const valueMatch = pixelReceipt && Math.abs(pixelValue - shopifyOrder.value) < 0.01;
-  const currencyMatch = pixelReceipt && pixelCurrency === shopifyOrder.currency;
+  const pixelCheck = checkPixelReceipt(pixelReceipt, shopifyOrder);
+  collectPixelIssues(pixelCheck, pixelReceipt, shopifyOrder, issues);
+  const capiEventChecks = checkCapiEvents(capiEvents, shopifyOrder, issues);
+  collectCapiIssues(capiEvents, capiEventChecks, issues);
+  const consistencyStatus = evaluateConsistency(pixelReceipt, pixelCheck.valid, capiEventChecks);
+  const pixelPayload = pixelReceipt && isRecord(pixelReceipt.payloadJson) ? pixelReceipt.payloadJson : null;
+  const pixelData = pixelPayload && isRecord(pixelPayload.data) ? pixelPayload.data : null;
+  const pixelValue = extractNumberValue(pixelData, "value", 0);
+  const pixelCurrency = extractStringValue(pixelData, "currency", "");
 
   return {
     orderId,
@@ -680,15 +864,83 @@ export async function checkLocalConsistency(
     shopifyOrder,
     pixelReceipt: {
       hasReceipt: !!pixelReceipt,
-      payloadValid: pixelPayloadValid,
-      valueMatch: valueMatch || false,
-      currencyMatch: currencyMatch || false,
-      payloadErrors: pixelPayloadErrors.length > 0 ? pixelPayloadErrors : undefined,
+      payloadValid: pixelCheck.valid,
+      valueMatch: pixelCheck.valueMatch,
+      currencyMatch: pixelCheck.currencyMatch,
+      payloadErrors: pixelCheck.errors.length > 0 ? pixelCheck.errors : undefined,
     },
     capiEvents: capiEventChecks,
     consistencyStatus,
     issues,
   };
+}
+
+async function executeWithTimeout<T>(
+  promise: Promise<T>,
+  timeoutMs: number,
+  onTimeout: () => void
+): Promise<T | null> {
+  let timeoutId: NodeJS.Timeout | null = null;
+  const timeoutPromise = new Promise<null>((resolve) => {
+    timeoutId = setTimeout(() => {
+      onTimeout();
+      resolve(null);
+    }, timeoutMs);
+  });
+  try {
+    const result = await Promise.race([promise, timeoutPromise]);
+    if (timeoutId !== null) {
+      clearTimeout(timeoutId);
+      timeoutId = null;
+    }
+    return result;
+  } catch (error) {
+    if (timeoutId !== null) {
+      clearTimeout(timeoutId);
+      timeoutId = null;
+    }
+    throw error;
+  }
+}
+
+async function checkOrderWithTimeout(
+  shopId: string,
+  orderId: string,
+  admin: AdminApiContext | undefined,
+  timeoutMs: number
+): Promise<LocalConsistencyCheck | null> {
+  const timeoutController = new AbortController();
+  let isTimedOut = false;
+  const onTimeout = () => {
+    isTimedOut = true;
+    timeoutController.abort();
+    logger.warn("Local consistency check timed out", {
+      shopId,
+      orderId,
+      timeoutMs,
+    });
+  };
+  try {
+    const checkPromise = checkLocalConsistency(shopId, orderId, admin, timeoutController.signal);
+    const result = await executeWithTimeout(checkPromise, timeoutMs, onTimeout);
+    if (result === null && !isTimedOut) {
+      logger.warn("Local consistency check returned null", {
+        shopId,
+        orderId,
+        wasAborted: timeoutController.signal.aborted,
+      });
+    }
+    return result;
+  } catch (error) {
+    if (!isTimedOut && !timeoutController.signal.aborted) {
+      logger.warn("Failed to check local consistency", { orderId, error });
+    }
+    return null;
+  } finally {
+    if (!timeoutController.signal.aborted) {
+      timeoutController.abort();
+    }
+  }
 }
 
 export async function performChannelReconciliation(
@@ -701,95 +953,13 @@ export async function performChannelReconciliation(
   }
 ): Promise<LocalConsistencyCheck[]> {
   const results: LocalConsistencyCheck[] = [];
-  const maxConcurrent = options?.maxConcurrent || 5;
-  const timeout = options?.timeout || 10000;
+  const maxConcurrent = options?.maxConcurrent || DEFAULT_MAX_CONCURRENT;
+  const timeout = options?.timeout || DEFAULT_TIMEOUT_MS;
   for (let i = 0; i < orderIds.length; i += maxConcurrent) {
     const batch = orderIds.slice(i, i + maxConcurrent);
-    const batchPromises = batch.map(async (orderId) => {
-      let timeoutId: NodeJS.Timeout | null = null;
-      let timeoutController: AbortController | null = null;
-      let isTimedOut = false;
-      let checkPromise: Promise<LocalConsistencyCheck | null> | null = null;
-      try {
-        timeoutController = new AbortController();
-        const timeoutSignal = timeoutController.signal;
-        checkPromise = checkLocalConsistency(shopId, orderId, admin, timeoutSignal);
-        const timeoutPromise = new Promise<null>((resolve) => {
-          if (timeoutSignal.aborted) {
-            resolve(null);
-            return;
-          }
-          timeoutId = setTimeout(() => {
-            if (!timeoutSignal.aborted) {
-              isTimedOut = true;
-              timeoutController?.abort();
-            }
-            resolve(null);
-          }, timeout);
-        });
-        const check = await Promise.race([checkPromise, timeoutPromise]);
-        if (timeoutId !== null) {
-          clearTimeout(timeoutId);
-          timeoutId = null;
-        }
-        if (isTimedOut || (check === null && timeoutController?.signal.aborted)) {
-          if (isTimedOut) {
-            logger.warn("Local consistency check timed out", {
-              shopId,
-              orderId,
-              timeoutMs: timeout
-            });
-          }
-          if (checkPromise && timeoutController && !timeoutController.signal.aborted) {
-            timeoutController.abort();
-            let cleanupTimeoutId: NodeJS.Timeout | null = null;
-            try {
-              await Promise.race([
-                checkPromise.catch(() => null),
-                new Promise<void>(resolve => {
-                  cleanupTimeoutId = setTimeout(() => {
-                    resolve();
-                  }, 1000);
-                })
-              ]);
-            } catch {
-            } finally {
-              if (cleanupTimeoutId !== null) {
-                clearTimeout(cleanupTimeoutId);
-              }
-            }
-          }
-          return null;
-        }
-        if (check === null) {
-          logger.warn("Local consistency check returned null", {
-            shopId,
-            orderId,
-            wasAborted: timeoutController?.signal.aborted ?? false,
-          });
-          return null;
-        }
-        return check;
-      } catch (error) {
-        if (timeoutId !== null) {
-          clearTimeout(timeoutId);
-          timeoutId = null;
-        }
-        if (!isTimedOut && !timeoutController?.signal.aborted) {
-          logger.warn("Failed to check local consistency", { orderId, error });
-        }
-        return null;
-      } finally {
-        if (timeoutId !== null) {
-          clearTimeout(timeoutId);
-          timeoutId = null;
-        }
-        if (timeoutController && !timeoutController.signal.aborted) {
-          timeoutController.abort();
-        }
-        timeoutController = null;
-      }
-    });
+    const batchPromises = batch.map((orderId) =>
+      checkOrderWithTimeout(shopId, orderId, admin, timeout)
+    );
     const batchResults = await Promise.all(batchPromises);
     results.push(...batchResults.filter((r): r is LocalConsistencyCheck => r !== null));
   }
@@ -829,7 +999,9 @@ export async function performBulkLocalConsistencyCheck(
     distinct: ["orderKey"],
     take: options?.maxOrders || 100,
   });
-  let orderIds = receipts.map((r) => r.orderKey).filter(Boolean) as string[];
+  const orderIds: string[] = receipts
+    .map((r) => r.orderKey)
+    .filter((key): key is string => typeof key === "string" && key.length > 0);
   if (options?.sampleRate && options.sampleRate < 1.0) {
     const sampleSize = Math.floor(orderIds.length * options.sampleRate);
     orderIds = orderIds.slice(0, sampleSize);

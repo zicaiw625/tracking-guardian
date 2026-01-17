@@ -74,7 +74,8 @@ export async function getShopPixelConfigs(
   options: { serverSideOnly?: boolean; skipCache?: boolean; environment?: "test" | "live" } = {}
 ): Promise<PixelConfigCredentials[]> {
   const { serverSideOnly = false, skipCache = false, environment } = options;
-  const cacheKey = `configs:${shopId}:${serverSideOnly ? "server" : "all"}:${environment || "live"}`;
+  const env = environment || "live";
+  const cacheKey = buildCacheKey(shopId, serverSideOnly, env);
   if (!skipCache) {
     const cached = shopPixelConfigsCache.get(cacheKey);
     if (cached !== undefined) {
@@ -132,25 +133,27 @@ export async function getPixelConfigSummaries(
   return configs;
 }
 
-export async function upsertPixelConfig(
-  shopId: string,
-  input: PixelConfigInput,
-  options?: { saveSnapshot?: boolean }
-): Promise<PixelConfigFull> {
+function validatePlatformSupport(platform: string): void {
   const v1SupportedPlatforms = ["google", "meta", "tiktok"];
-  if (!v1SupportedPlatforms.includes(input.platform)) {
+  if (!v1SupportedPlatforms.includes(platform)) {
     throw new Error(
-      `平台 ${input.platform} 在 v1.0 版本中不支持。v1.0 仅支持: ${v1SupportedPlatforms.join(", ")}。` +
+      `平台 ${platform} 在 v1.0 版本中不支持。v1.0 仅支持: ${v1SupportedPlatforms.join(", ")}。` +
       `其他平台（如 Snapchat、Twitter、Pinterest）将在 v1.1+ 版本中提供支持。`
     );
   }
+}
+
+async function validateFeatureGates(
+  shopId: string,
+  input: PixelConfigInput
+): Promise<void> {
   const { checkV1FeatureBoundary } = await import("../../utils/version-gate");
+  const { requireEntitlementOrThrow } = await import("../billing/entitlement.server");
   if (input.serverSideEnabled) {
     const gateResult = checkV1FeatureBoundary("server_side");
     if (!gateResult.allowed) {
       throw new Error(gateResult.reason || "此功能在当前版本中不可用");
     }
-    const { requireEntitlementOrThrow } = await import("../billing/entitlement.server");
     await requireEntitlementOrThrow(shopId, "pixel_destinations");
   }
   if (input.clientConfig && typeof input.clientConfig === 'object' && 'mode' in input.clientConfig) {
@@ -159,34 +162,148 @@ export async function upsertPixelConfig(
       await requireEntitlementOrThrow(shopId, "full_funnel");
     }
   }
-  const { platform, ...data } = input;
-  const { saveSnapshot = true } = options || {};
-  if (data.serverSideEnabled === true && !data.credentialsEncrypted) {
+}
+
+function validateCredentials(input: PixelConfigInput): void {
+  if (input.serverSideEnabled === true && !input.credentialsEncrypted) {
     throw new Error(
       "启用服务端追踪时必须提供 credentialsEncrypted。如果只需要客户端追踪，请设置 serverSideEnabled: false。"
     );
   }
-  const environment = input.environment || "test";
-  const platformId = data.platformId ?? null;
-  const existingConfig = platformId
-    ? await prisma.pixelConfig.findUnique({
-        where: {
-          shopId_platform_environment_platformId: {
-            shopId,
-            platform,
-            environment,
-            platformId,
-          },
-        },
-      })
-    : await prisma.pixelConfig.findFirst({
-        where: {
+}
+
+async function findExistingConfig(
+  shopId: string,
+  platform: PlatformType,
+  environment: string,
+  platformId: string | null
+): Promise<PixelConfigFull | null> {
+  if (platformId) {
+    return prisma.pixelConfig.findUnique({
+      where: {
+        shopId_platform_environment_platformId: {
           shopId,
           platform,
           environment,
-          platformId: null,
+          platformId,
         },
-      });
+      },
+    });
+  }
+  return prisma.pixelConfig.findFirst({
+    where: {
+      shopId,
+      platform,
+      environment,
+      platformId: null,
+    },
+  });
+}
+
+async function executeUpsertWithPlatformId(
+  shopId: string,
+  platform: PlatformType,
+  environment: string,
+  platformId: string,
+  data: Omit<PixelConfigInput, 'platform'>
+): Promise<PixelConfigFull> {
+  return prisma.pixelConfig.upsert({
+    where: {
+      shopId_platform_environment_platformId: {
+        shopId,
+        platform,
+        environment,
+        platformId,
+      },
+    },
+    create: {
+      id: randomUUID(),
+      shopId,
+      platform,
+      platformId,
+      credentialsEncrypted: data.credentialsEncrypted ?? null,
+      clientConfig: data.clientConfig ?? undefined,
+      clientSideEnabled: data.clientSideEnabled ?? true,
+      serverSideEnabled: data.serverSideEnabled ?? false,
+      eventMappings: data.eventMappings ?? undefined,
+      isActive: data.isActive ?? true,
+      configVersion: 1,
+      environment,
+      updatedAt: new Date(),
+    },
+    update: {
+      platformId: data.platformId ?? undefined,
+      credentialsEncrypted: data.credentialsEncrypted ?? undefined,
+      clientConfig: data.clientConfig ?? undefined,
+      clientSideEnabled: data.clientSideEnabled ?? undefined,
+      serverSideEnabled: data.serverSideEnabled ?? false,
+      eventMappings: data.eventMappings ?? undefined,
+      isActive: data.isActive ?? undefined,
+    },
+  });
+}
+
+async function executeUpsertWithoutPlatformId(
+  shopId: string,
+  platform: PlatformType,
+  environment: string,
+  data: Omit<PixelConfigInput, 'platform'>
+): Promise<PixelConfigFull> {
+  const existing = await prisma.pixelConfig.findFirst({
+    where: {
+      shopId,
+      platform,
+      environment,
+      platformId: null,
+    },
+  });
+  if (existing) {
+    return prisma.pixelConfig.update({
+      where: { id: existing.id },
+      data: {
+        credentialsEncrypted: data.credentialsEncrypted ?? null,
+        clientConfig: data.clientConfig ?? undefined,
+        clientSideEnabled: data.clientSideEnabled ?? false,
+        serverSideEnabled: data.serverSideEnabled ?? false,
+        eventMappings: data.eventMappings ?? undefined,
+        isActive: data.isActive ?? true,
+        ...(("migrationStatus" in data && data.migrationStatus) ? { migrationStatus: data.migrationStatus as string } : {}),
+        updatedAt: new Date(),
+      },
+    });
+  }
+  return prisma.pixelConfig.create({
+    data: {
+      id: randomUUID(),
+      shopId,
+      platform,
+      platformId: null,
+      environment,
+      credentialsEncrypted: data.credentialsEncrypted ?? null,
+      clientConfig: data.clientConfig ?? undefined,
+      clientSideEnabled: data.clientSideEnabled ?? false,
+      serverSideEnabled: data.serverSideEnabled ?? false,
+      eventMappings: data.eventMappings ?? undefined,
+      isActive: data.isActive ?? true,
+      migrationStatus: ("migrationStatus" in data && data.migrationStatus) ? (data.migrationStatus as string) : "not_started",
+      updatedAt: new Date(),
+    },
+  });
+}
+
+export async function upsertPixelConfig(
+  shopId: string,
+  input: PixelConfigInput,
+  options?: { saveSnapshot?: boolean }
+): Promise<PixelConfigFull> {
+  validatePlatformSupport(input.platform);
+  await validateFeatureGates(shopId, input);
+  validateCredentials(input);
+  const { platform, ...data } = input;
+  const { saveSnapshot = true } = options || {};
+  const environment = input.environment || "test";
+  const platformId = data.platformId ?? null;
+  const existingConfig = await findExistingConfig(shopId, platform, environment, platformId);
   if (existingConfig && saveSnapshot) {
     await saveConfigSnapshot(shopId, platform, environment as "test" | "live").catch((error) => {
       const errorMessage = error instanceof Error ? error.message : String(error);
@@ -198,83 +315,8 @@ export async function upsertPixelConfig(
     });
   }
   const config = platformId
-    ? await prisma.pixelConfig.upsert({
-        where: {
-          shopId_platform_environment_platformId: {
-            shopId,
-            platform,
-            environment,
-            platformId,
-          },
-        },
-        create: {
-          id: randomUUID(),
-          shopId,
-          platform,
-          platformId,
-          credentialsEncrypted: data.credentialsEncrypted ?? null,
-          clientConfig: data.clientConfig ?? undefined,
-          clientSideEnabled: data.clientSideEnabled ?? true,
-          serverSideEnabled: data.serverSideEnabled ?? false,
-          eventMappings: data.eventMappings ?? undefined,
-          isActive: data.isActive ?? true,
-          configVersion: 1,
-          environment,
-          updatedAt: new Date(),
-        } as unknown as Prisma.PixelConfigCreateInput,
-        update: {
-          platformId: data.platformId ?? undefined,
-          credentialsEncrypted: data.credentialsEncrypted ?? undefined,
-          clientConfig: data.clientConfig ?? undefined,
-          clientSideEnabled: data.clientSideEnabled ?? undefined,
-          serverSideEnabled: data.serverSideEnabled ?? false,
-          eventMappings: data.eventMappings ?? undefined,
-          isActive: data.isActive ?? undefined,
-        },
-      })
-    : (async () => {
-        const existing = await prisma.pixelConfig.findFirst({
-          where: {
-            shopId,
-            platform,
-            environment,
-            platformId: null,
-          },
-        });
-        if (existing) {
-          return await prisma.pixelConfig.update({
-            where: { id: existing.id },
-            data: {
-              credentialsEncrypted: data.credentialsEncrypted ?? null,
-              clientConfig: data.clientConfig ?? undefined,
-              clientSideEnabled: data.clientSideEnabled ?? false,
-              serverSideEnabled: data.serverSideEnabled ?? false,
-              eventMappings: data.eventMappings ?? undefined,
-              isActive: data.isActive ?? true,
-              ...(("migrationStatus" in data && data.migrationStatus) ? { migrationStatus: data.migrationStatus as string } : {}),
-              updatedAt: new Date(),
-            },
-          });
-        } else {
-          return await prisma.pixelConfig.create({
-            data: {
-              id: randomUUID(),
-              shopId,
-              platform,
-              platformId: null,
-              environment,
-              credentialsEncrypted: data.credentialsEncrypted ?? null,
-              clientConfig: data.clientConfig ?? undefined,
-              clientSideEnabled: data.clientSideEnabled ?? false,
-              serverSideEnabled: data.serverSideEnabled ?? false,
-              eventMappings: data.eventMappings ?? undefined,
-              isActive: data.isActive ?? true,
-              migrationStatus: ("migrationStatus" in data && data.migrationStatus) ? (data.migrationStatus as string) : "not_started",
-              updatedAt: new Date(),
-            } as unknown as Prisma.PixelConfigCreateInput,
-          });
-        }
-      })();
+    ? await executeUpsertWithPlatformId(shopId, platform, environment, platformId, data)
+    : await executeUpsertWithoutPlatformId(shopId, platform, environment, data);
   invalidatePixelConfigCache(shopId);
   return config;
 }
@@ -331,16 +373,6 @@ export async function batchGetPixelConfigs(
   if (serverSideOnly) {
     where.serverSideEnabled = true;
   }
-  const configs = await prisma.pixelConfig.findMany({
-    where,
-    select: CREDENTIALS_SELECT,
-  });
-  const result = new Map<string, PixelConfigCredentials[]>();
-  for (const shopId of uniqueIds) {
-    result.set(shopId, []);
-  }
-  for (const config of configs) {
-  }
   const configsWithShop = await prisma.pixelConfig.findMany({
     where,
     select: {
@@ -348,9 +380,13 @@ export async function batchGetPixelConfigs(
       shopId: true,
     },
   });
+  const result = new Map<string, PixelConfigCredentials[]>();
+  for (const shopId of uniqueIds) {
+    result.set(shopId, []);
+  }
   for (const config of configsWithShop) {
     const shopConfigs = result.get(config.shopId);
-    if (shopConfigs) {
+    if (shopConfigs !== undefined) {
       shopConfigs.push(config);
     }
   }
@@ -374,6 +410,10 @@ export async function hasServerSideConfigs(shopId: string): Promise<boolean> {
   );
 }
 
+function isPlatformType(value: string): value is PlatformType {
+  return value === "google" || value === "meta" || value === "tiktok" || value === "snapchat" || value === "twitter" || value === "pinterest" || value === "webhook";
+}
+
 export async function getConfiguredPlatforms(
   shopId: string
 ): Promise<PlatformType[]> {
@@ -384,14 +424,27 @@ export async function getConfiguredPlatforms(
     },
     select: { platform: true },
   });
-  return configs.map((c) => c.platform as PlatformType);
+  return configs
+    .map((c) => c.platform)
+    .filter((platform): platform is PlatformType => isPlatformType(platform));
+}
+
+const CACHE_KEY_PREFIX = "configs";
+
+function buildCacheKey(shopId: string, serverSideOnly: boolean, environment: string): string {
+  return `${CACHE_KEY_PREFIX}:${shopId}:${serverSideOnly ? "server" : "all"}:${environment}`;
 }
 
 export function invalidatePixelConfigCache(shopId: string): void {
-  shopPixelConfigsCache.delete(`configs:${shopId}:all:live`);
-  shopPixelConfigsCache.delete(`configs:${shopId}:all:test`);
-  shopPixelConfigsCache.delete(`configs:${shopId}:server:live`);
-  shopPixelConfigsCache.delete(`configs:${shopId}:server:test`);
+  const keys = [
+    buildCacheKey(shopId, false, "live"),
+    buildCacheKey(shopId, false, "test"),
+    buildCacheKey(shopId, true, "live"),
+    buildCacheKey(shopId, true, "test"),
+  ];
+  for (const key of keys) {
+    shopPixelConfigsCache.delete(key);
+  }
 }
 
 export function clearPixelConfigCache(): void {

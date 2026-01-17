@@ -22,14 +22,19 @@ export interface ShopWithBilling extends ShopBasic {
   billingCycleStart: Date | null;
 }
 
+const CACHE_TTL_SHOP_PIXELS_MS = 2 * 60 * 1000;
+const CACHE_TTL_SHOP_BY_DOMAIN_MS = 10 * 60 * 1000;
+const CACHE_MAX_SIZE_SHOP = 500;
+const CACHE_MAX_SIZE_DOMAIN = 1000;
+
 const shopWithPixelsCache = new SimpleCache<ShopWithPixels | null>({
-  maxSize: 500,
-  defaultTtlMs: 2 * 60 * 1000,
+  maxSize: CACHE_MAX_SIZE_SHOP,
+  defaultTtlMs: CACHE_TTL_SHOP_PIXELS_MS,
 });
 
 const shopByDomainCache = new SimpleCache<string | null>({
-  maxSize: 1000,
-  defaultTtlMs: 10 * 60 * 1000,
+  maxSize: CACHE_MAX_SIZE_DOMAIN,
+  defaultTtlMs: CACHE_TTL_SHOP_BY_DOMAIN_MS,
 });
 
 const SHOP_BASIC_SELECT = {
@@ -55,24 +60,41 @@ const SHOP_WITH_BILLING_SELECT = {
   billingCycleStart: true,
 } as const;
 
+const CACHE_KEY_PREFIX_SHOP = "shop";
+const CACHE_KEY_PREFIX_SHOP_PIXELS = "shop-pixels";
+const CACHE_KEY_PREFIX_DOMAIN = "domain";
+
+function buildShopCacheKey(shopId: string): string {
+  return `${CACHE_KEY_PREFIX_SHOP}:${shopId}`;
+}
+
+function buildShopPixelsCacheKey(shopId: string): string {
+  return `${CACHE_KEY_PREFIX_SHOP_PIXELS}:${shopId}`;
+}
+
+function buildDomainCacheKey(domain: string): string {
+  return `${CACHE_KEY_PREFIX_DOMAIN}:${domain}`;
+}
+
 export async function getShopById(shopId: string): Promise<ShopBasic | null> {
-  const cached = shopConfigCache.get(`shop:${shopId}`);
+  const cacheKey = buildShopCacheKey(shopId);
+  const cached = shopConfigCache.get(cacheKey);
   if (cached !== undefined) {
-    return cached as ShopBasic;
+    return cached;
   }
   const shop = await getDb().shop.findUnique({
     where: { id: shopId },
     select: SHOP_BASIC_SELECT,
   });
   if (shop) {
-    shopConfigCache.set(`shop:${shopId}`, shop as ShopBasic);
+    shopConfigCache.set(cacheKey, shop);
   }
-  return shop as ShopBasic | null;
+  return shop;
 }
 
 export async function getShopIdByDomain(domain: string): Promise<string | null> {
   const normalizedDomain = domain.toLowerCase().trim();
-  const cacheKey = `domain:${normalizedDomain}`;
+  const cacheKey = buildDomainCacheKey(normalizedDomain);
   const cached = shopByDomainCache.get(cacheKey);
   if (cached !== undefined) {
     return cached;
@@ -87,7 +109,7 @@ export async function getShopIdByDomain(domain: string): Promise<string | null> 
 }
 
 export async function getShopWithPixels(shopId: string): Promise<ShopWithPixels | null> {
-  const cacheKey = `shop-pixels:${shopId}`;
+  const cacheKey = buildShopPixelsCacheKey(shopId);
   const cached = shopWithPixelsCache.get(cacheKey);
   if (cached !== undefined) {
     return cached;
@@ -100,9 +122,10 @@ export async function getShopWithPixels(shopId: string): Promise<ShopWithPixels 
     shopWithPixelsCache.set(cacheKey, null);
     return null;
   }
+  const storefrontDomains = Array.isArray(shop.storefrontDomains) ? shop.storefrontDomains : null;
   const result: ShopWithPixels = {
     ...shop,
-    storefrontDomains: shop.storefrontDomains as string[] | null,
+    storefrontDomains,
   };
   shopWithPixelsCache.set(cacheKey, result);
   return result;
@@ -113,8 +136,10 @@ export async function getShopWithBilling(shopId: string): Promise<ShopWithBillin
     where: { id: shopId },
     select: SHOP_WITH_BILLING_SELECT,
   });
-  return shop as ShopWithBilling | null;
+  return shop;
 }
+
+const BATCH_QUERY_CHUNK_SIZE = 100;
 
 export async function batchGetShops(shopIds: string[]): Promise<Map<string, ShopBasic>> {
   if (shopIds.length === 0) return new Map();
@@ -122,22 +147,30 @@ export async function batchGetShops(shopIds: string[]): Promise<Map<string, Shop
   const result = new Map<string, ShopBasic>();
   const uncachedIds: string[] = [];
   for (const id of uniqueIds) {
-    const cached = shopConfigCache.get(`shop:${id}`);
+    const cacheKey = buildShopCacheKey(id);
+    const cached = shopConfigCache.get(cacheKey);
     if (cached !== undefined) {
-      result.set(id, cached as ShopBasic);
+      result.set(id, cached);
     } else {
       uncachedIds.push(id);
     }
   }
   if (uncachedIds.length > 0) {
-    const shops = await getDb().shop.findMany({
-      where: { id: { in: uncachedIds } },
-      select: SHOP_BASIC_SELECT,
-    });
+    const chunks: string[][] = [];
+    for (let i = 0; i < uncachedIds.length; i += BATCH_QUERY_CHUNK_SIZE) {
+      chunks.push(uncachedIds.slice(i, i + BATCH_QUERY_CHUNK_SIZE));
+    }
+    const shopPromises = chunks.map(chunk =>
+      getDb().shop.findMany({
+        where: { id: { in: chunk } },
+        select: SHOP_BASIC_SELECT,
+      })
+    );
+    const shopsArrays = await Promise.all(shopPromises);
+    const shops = shopsArrays.flat();
     for (const shop of shops) {
-      const basic = shop as ShopBasic;
-      result.set(shop.id, basic);
-      shopConfigCache.set(`shop:${shop.id}`, basic);
+      result.set(shop.id, shop);
+      shopConfigCache.set(buildShopCacheKey(shop.id), shop);
     }
   }
   return result;
@@ -151,7 +184,8 @@ export async function batchGetShopsWithPixels(
   const result = new Map<string, ShopWithPixels>();
   const uncachedIds: string[] = [];
   for (const id of uniqueIds) {
-    const cached = shopWithPixelsCache.get(`shop-pixels:${id}`);
+    const cacheKey = buildShopPixelsCacheKey(id);
+    const cached = shopWithPixelsCache.get(cacheKey);
     if (cached !== undefined && cached !== null) {
       result.set(id, cached);
     } else {
@@ -159,30 +193,45 @@ export async function batchGetShopsWithPixels(
     }
   }
   if (uncachedIds.length > 0) {
-    const shops = await getDb().shop.findMany({
-      where: { id: { in: uncachedIds } },
-      select: SHOP_WITH_PIXELS_SELECT,
-    });
+    const chunks: string[][] = [];
+    for (let i = 0; i < uncachedIds.length; i += BATCH_QUERY_CHUNK_SIZE) {
+      chunks.push(uncachedIds.slice(i, i + BATCH_QUERY_CHUNK_SIZE));
+    }
+    const shopPromises = chunks.map(chunk =>
+      getDb().shop.findMany({
+        where: { id: { in: chunk } },
+        select: SHOP_WITH_PIXELS_SELECT,
+      })
+    );
+    const shopsArrays = await Promise.all(shopPromises);
+    const shops = shopsArrays.flat();
     for (const shop of shops) {
+      const storefrontDomains = Array.isArray(shop.storefrontDomains) ? shop.storefrontDomains : null;
       const withPixels: ShopWithPixels = {
         ...shop,
-        storefrontDomains: shop.storefrontDomains as string[] | null,
+        storefrontDomains,
       };
       result.set(shop.id, withPixels);
-      shopWithPixelsCache.set(`shop-pixels:${shop.id}`, withPixels);
+      shopWithPixelsCache.set(buildShopPixelsCacheKey(shop.id), withPixels);
     }
   }
   return result;
 }
 
 export function invalidateShopCache(shopId: string): void {
-  shopConfigCache.delete(`shop:${shopId}`);
-  shopWithPixelsCache.delete(`shop-pixels:${shopId}`);
+  shopConfigCache.delete(buildShopCacheKey(shopId));
+  shopWithPixelsCache.delete(buildShopPixelsCacheKey(shopId));
 }
 
 export function invalidateShopCacheByDomain(domain: string): void {
   const normalizedDomain = domain.toLowerCase().trim();
-  shopByDomainCache.delete(`domain:${normalizedDomain}`);
+  const domainCacheKey = buildDomainCacheKey(normalizedDomain);
+  const shopId = shopByDomainCache.get(domainCacheKey);
+  shopByDomainCache.delete(domainCacheKey);
+  if (shopId) {
+    shopConfigCache.delete(buildShopCacheKey(shopId));
+    shopWithPixelsCache.delete(buildShopPixelsCacheKey(shopId));
+  }
 }
 
 export function clearShopCaches(): void {
@@ -223,24 +272,6 @@ export function getSlowQueryLogs(): SlowQueryLog[] {
 
 export function clearSlowQueryLogs(): void {
   slowQueryLogs.length = 0;
-}
-
-async function withTiming<T>(
-  queryName: string,
-  operation: () => Promise<T>,
-  params?: unknown
-): Promise<T> {
-  const start = Date.now();
-  try {
-    const result = await operation();
-    const durationMs = Date.now() - start;
-    logSlowQuery(queryName, durationMs, params);
-    return result;
-  } catch (error) {
-    const durationMs = Date.now() - start;
-    logSlowQuery(`${queryName} (ERROR)`, durationMs, params);
-    throw error;
-  }
 }
 
 export async function chunkedBatchGetShops(

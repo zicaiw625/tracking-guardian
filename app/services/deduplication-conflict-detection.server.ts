@@ -1,16 +1,11 @@
 import prisma from "../db.server";
 import { logger } from "../utils/logger.server";
+import { extractPlatformFromPayload, isRecord } from "../utils/common";
 
-function extractPlatformFromPayload(payload: Record<string, unknown> | null): string | null {
-  if (!payload) return null;
-  if (payload.platform && typeof payload.platform === "string") {
-    return payload.platform;
-  }
-  if (payload.destination && typeof payload.destination === "string") {
-    return payload.destination;
-  }
-  return null;
-}
+const ONE_MINUTE_MS = 60 * 1000;
+const HIGH_SEVERITY_THRESHOLD = 3;
+const PURCHASE_CONFLICT_THRESHOLD = 5;
+const TOTAL_CONFLICT_MULTIPLIER = 2;
 
 export interface DeduplicationConflict {
   eventId: string;
@@ -39,6 +34,8 @@ export interface DeduplicationConflictStats {
   recentConflicts: DeduplicationConflict[];
 }
 
+const MAX_RECEIPTS_FOR_CONFLICT_DETECTION = 10000;
+
 export async function detectDeduplicationConflicts(
   shopId: string,
   hours: number = 24
@@ -49,6 +46,7 @@ export async function detectDeduplicationConflicts(
     where: {
       shopId,
       createdAt: { gte: since },
+      orderKey: { not: null },
     },
     select: {
       id: true,
@@ -57,6 +55,7 @@ export async function detectDeduplicationConflicts(
       createdAt: true,
       payloadJson: true,
     },
+    take: MAX_RECEIPTS_FOR_CONFLICT_DETECTION,
     orderBy: {
       createdAt: "desc",
     },
@@ -64,10 +63,12 @@ export async function detectDeduplicationConflicts(
   const conflictMap = new Map<string, DeduplicationConflict>();
   for (const receipt of receipts) {
     if (!receipt.orderKey) continue;
-    const payload = receipt.payloadJson as Record<string, unknown> | null;
+    const payload = isRecord(receipt.payloadJson) ? receipt.payloadJson : null;
     const platform = extractPlatformFromPayload(payload);
     if (!platform) continue;
-    const eventId = payload?.eventId as string | undefined || payload?.event_id as string | undefined || receipt.id;
+    const eventId = payload 
+      ? (typeof payload.eventId === "string" ? payload.eventId : typeof payload.event_id === "string" ? payload.event_id : receipt.id)
+      : receipt.id;
     const key = `${eventId}:${platform}:${receipt.orderKey}`;
     const existing = conflictMap.get(key);
     if (existing) {
@@ -124,7 +125,7 @@ function calculateSeverity(conflict: DeduplicationConflict): "high" | "medium" |
         conflict.occurrences[0].timestamp.getTime() -
         conflict.occurrences[1].timestamp.getTime()
       );
-      if (timeDiff < 60000) {
+      if (timeDiff < ONE_MINUTE_MS) {
         return "high";
       }
       return "medium";
@@ -187,7 +188,7 @@ export interface DeduplicationAlertResult {
 }
 export async function checkDeduplicationAlerts(
   shopId: string,
-  threshold: number = 5
+  threshold: number = PURCHASE_CONFLICT_THRESHOLD
 ): Promise<DeduplicationAlertResult> {
   const stats = await getDeduplicationConflictStats(shopId, 24);
   const highSeverityConflicts = stats.recentConflicts.filter(
@@ -196,7 +197,7 @@ export async function checkDeduplicationAlerts(
   const purchaseConflicts = stats.recentConflicts.filter(
     (c) => c.eventType === "purchase" || c.eventType === "checkout_completed"
   ).length;
-  if (highSeverityConflicts >= 3) {
+  if (highSeverityConflicts >= HIGH_SEVERITY_THRESHOLD) {
     return {
       shouldAlert: true,
       reason: `检测到 ${highSeverityConflicts} 个高严重程度去重冲突，可能影响转化追踪准确性`,
@@ -220,7 +221,7 @@ export async function checkDeduplicationAlerts(
       },
     };
   }
-  if (stats.totalConflicts >= threshold * 2) {
+  if (stats.totalConflicts >= threshold * TOTAL_CONFLICT_MULTIPLIER) {
     return {
       shouldAlert: true,
       reason: `检测到 ${stats.totalConflicts} 个去重冲突，建议检查事件发送逻辑`,

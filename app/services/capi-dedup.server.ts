@@ -2,17 +2,7 @@ import { randomUUID, createHash } from "crypto";
 import prisma from "../db.server";
 import { logger } from "../utils/logger.server";
 import { generateEventId as generateEventIdUnified } from "../utils/crypto.server";
-
-function extractPlatformFromPayload(payload: Record<string, unknown> | null): string | null {
-  if (!payload) return null;
-  if (payload.platform && typeof payload.platform === "string") {
-    return payload.platform;
-  }
-  if (payload.destination && typeof payload.destination === "string") {
-    return payload.destination;
-  }
-  return null;
-}
+import { extractPlatformFromPayload, isRecord } from "../utils/common";
 
 export interface DedupResult {
   shouldSend: boolean;
