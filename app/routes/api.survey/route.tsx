@@ -106,7 +106,8 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       if (orderKey) {
         finalOrderId = orderKey;
         if (orderId) {
-          logger.info("Survey response with orderId", { shopDomain, orderId });
+          const orderIdSuffix = orderId.slice(-4);
+          logger.info("Survey response with orderId", { shopDomain, orderIdSuffix });
         } else if (checkoutToken) {
           logger.info("Survey response with checkoutToken (hashed)", { shopDomain, orderKey: orderKey.substring(0, 20) });
         }

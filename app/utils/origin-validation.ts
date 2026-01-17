@@ -90,9 +90,17 @@ export function validatePixelOriginPreBody(origin: string | null, hasSignatureHe
                 shouldReject: false,
             };
         }
+        if (hasSignatureHeaderOrHMAC) {
+            return {
+                valid: true,
+                reason: "null_origin_allowed_with_signature",
+                shouldLog: true,
+                shouldReject: false,
+            };
+        }
         return {
             valid: false,
-            reason: hasSignatureHeaderOrHMAC ? "null_origin_blocked_with_signature" : "null_origin_blocked",
+            reason: "null_origin_blocked",
             shouldLog: true,
             shouldReject: true,
         };
@@ -153,6 +161,7 @@ export function validatePixelOriginForShop(
     options?: {
         referer?: string | null;
         shopDomain?: string | null;
+        hasSignatureHeaderOrHMAC?: boolean;
     }
 ): {
     valid: boolean;
@@ -162,6 +171,7 @@ export function validatePixelOriginForShop(
 } {
     const devMode = isDevMode();
     const allowNullOrigin = shouldAllowNullOrigin();
+    const hasSignatureHeaderOrHMAC = options?.hasSignatureHeaderOrHMAC ?? false;
     let effectiveOrigin = origin;
     let originSource = "origin_header";
     if ((origin === "null" || !origin) && options) {
@@ -186,6 +196,13 @@ export function validatePixelOriginForShop(
                 shouldReject: false,
             };
         }
+        if (hasSignatureHeaderOrHMAC) {
+            return {
+                valid: true,
+                reason: "null_origin_allowed_with_signature",
+                shouldReject: false,
+            };
+        }
         return {
             valid: false,
             reason: "null_origin_blocked",
@@ -203,19 +220,26 @@ export function validatePixelOriginForShop(
         const url = new URL(effectiveOrigin);
         const hostname = url.hostname.toLowerCase();
         if (originSource !== "origin_header") {
+            const safeRefererHost = (() => {
+                try {
+                    return options?.referer ? new URL(options.referer).hostname : null;
+                } catch {
+                    return null;
+                }
+            })();
             if (devMode) {
                 logger.debug(`[Origin Fallback] Using ${originSource} for origin validation (dev mode)`, {
                     originalOrigin: origin,
                     effectiveOrigin,
                     shopDomain: options?.shopDomain,
-                    referer: options?.referer,
+                    refererHost: safeRefererHost,
                 });
             } else {
                 logger.warn(`[Origin Fallback] Using ${originSource} for origin validation`, {
                     originalOrigin: origin,
                     effectiveOrigin,
                     shopDomain: options?.shopDomain,
-                    referer: options?.referer,
+                    refererHost: safeRefererHost,
                     securityNote: "Origin header missing - using fallback. This may indicate a configuration issue or security concern.",
                     alertLevel: "warning",
                     timestamp: new Date().toISOString(),

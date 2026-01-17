@@ -60,8 +60,9 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   const ipKey = ipKeyExtractor(request);
   const ipRateLimit = await checkRateLimitAsync(ipKey, 200, 60 * 1000);
   if (!ipRateLimit.allowed) {
+    const ipHash = ipKey === "untrusted" || ipKey === "unknown" ? ipKey : hashValueSync(ipKey).slice(0, 12);
     logger.warn(`IP rate limit exceeded for ingest`, {
-      ip: ipKey,
+      ipHash,
       retryAfter: ipRateLimit.retryAfter,
     });
     return jsonWithCors(
@@ -241,6 +242,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     const shopOriginValidation = validatePixelOriginForShop(origin, shopAllowedDomains, {
       referer,
       shopDomain: shop.shopDomain,
+      hasSignatureHeaderOrHMAC: hasSignatureHeader,
     });
     if (!shopOriginValidation.valid && shopOriginValidation.shouldReject) {
       const anomalyCheck = trackAnomaly(shop.shopDomain, "invalid_origin");
@@ -456,9 +458,10 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         eventIdentifier = orderId;
         const alreadyRecorded = await isClientEventRecorded(shop.id, orderId, eventType, shopDomain);
         if (alreadyRecorded) {
-          logger.debug(`Purchase event already recorded for order ${orderId}, skipping`, {
+          const orderIdHash = hashValueSync(orderId).slice(0, 12);
+          logger.debug(`Purchase event already recorded for order ${orderIdHash}, skipping`, {
             shopId: shop.id,
-            orderId,
+            orderIdHash,
             eventType,
           });
           continue;
@@ -472,9 +475,10 @@ export const action = async ({ request }: ActionFunctionArgs) => {
           eventType
         );
         if (nonceResult.isReplay) {
-          logger.debug(`Replay detected for order ${orderId}, skipping`, {
+          const orderIdHash = hashValueSync(orderId).slice(0, 12);
+          logger.debug(`Replay detected for order ${orderIdHash}, skipping`, {
             shopId: shop.id,
-            orderId,
+            orderIdHash,
             eventType,
           });
           continue;
@@ -540,9 +544,10 @@ export const action = async ({ request }: ActionFunctionArgs) => {
           orderId || null
         );
       } catch (error) {
+        const orderIdHash = orderId ? hashValueSync(orderId).slice(0, 12) : null;
         logger.warn(`Failed to write receipt for purchase event at index ${i}`, {
           shopId: shop.id,
-          orderId,
+          orderIdHash,
           error: error instanceof Error ? error.message : String(error),
         });
       }

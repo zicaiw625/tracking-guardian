@@ -307,7 +307,7 @@ const REQUIRED_IN_PRODUCTION = [
 
 const PIXEL_INGESTION_ENABLED_CHECK = {
     key: "PIXEL_ALLOW_NULL_ORIGIN",
-    reason: "Production environment must explicitly set PIXEL_ALLOW_NULL_ORIGIN to allow null origin requests from Shopify Web Worker sandbox environments. If not set, null origin requests will be rejected, causing event loss. Set PIXEL_ALLOW_NULL_ORIGIN=true to allow or PIXEL_ALLOW_NULL_ORIGIN=false to explicitly block.",
+    reason: "Production environment defaults to blocking null origin requests (may cause event loss). Requests with X-Tracking-Guardian-Signature header will bypass origin validation and be verified via HMAC instead. Set PIXEL_ALLOW_NULL_ORIGIN=true to explicitly allow all null origin requests, or PIXEL_ALLOW_NULL_ORIGIN=false to explicitly block even signed requests.",
 } as const;
 const RECOMMENDED = [
     { key: "RESEND_API_KEY", reason: "for email notifications" },
@@ -343,10 +343,13 @@ export function validateConfig(): ConfigValidationResult {
             warnings.push(`${key} not set - ${reason}`);
         }
     }
+    if (isProduction && process.env.TRUST_PROXY !== "true") {
+        errors.push("TRUST_PROXY must be true in production (required for correct IP rate limiting to prevent self-DoS)");
+    }
     if (isProduction) {
         const pixelAllowNullOrigin = process.env.PIXEL_ALLOW_NULL_ORIGIN;
         if (pixelAllowNullOrigin === undefined || pixelAllowNullOrigin === "") {
-            warnings.push(`PIXEL_ALLOW_NULL_ORIGIN not set in production. Defaulting to allow null origin requests. ${PIXEL_INGESTION_ENABLED_CHECK.reason}`);
+            warnings.push(`PIXEL_ALLOW_NULL_ORIGIN not set in production. Defaulting to block null origin requests (may cause event loss). ${PIXEL_INGESTION_ENABLED_CHECK.reason}`);
         }
     }
     if (process.env.ENCRYPTION_SECRET && process.env.ENCRYPTION_SECRET.length < 32) {
