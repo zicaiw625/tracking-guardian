@@ -32,6 +32,7 @@ import { trackEvent } from "~/services/analytics.server";
 import { normalizePlanId } from "~/services/billing/plans";
 import { isPlanAtLeast } from "~/utils/plans";
 import { hashValueSync } from "~/utils/crypto.server";
+import { sanitizePII } from "~/services/event-log.server";
 import prisma from "~/db.server";
 
 const MAX_BATCH_SIZE = 100;
@@ -409,7 +410,8 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       });
       continue;
     }
-    const payload = eventValidation.payload;
+    const rawPayload = eventValidation.payload;
+    const payload = sanitizePII(rawPayload) as PixelEventPayload;
     if (payload.shopDomain !== shopDomain) {
       logger.warn(`Event at index ${i} has different shopDomain`, {
         expected: shopDomain,

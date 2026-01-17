@@ -19,6 +19,7 @@ import {
 } from "@shopify/polaris";
 import { validateRiskItemsArray, validateStringArray } from "../utils/scan-data-validation";
 import { PUBLIC_PAGE_HEADERS, addSecurityHeadersToHeaders } from "../utils/security-headers";
+import { checkRateLimitAsync, ipKeyExtractor } from "../middleware/rate-limit";
 
 const publicJson = (data: unknown, init: ResponseInit = {}) => {
   const headers = new Headers(init.headers);
@@ -28,6 +29,25 @@ const publicJson = (data: unknown, init: ResponseInit = {}) => {
 
 export const loader = async ({ request, params }: LoaderFunctionArgs) => {
   try {
+    const ipKey = ipKeyExtractor(request);
+    const rateLimitResult = await checkRateLimitAsync(ipKey, 60, 60 * 1000);
+    if (!rateLimitResult.allowed) {
+      return publicJson(
+        {
+          error: "Too many requests",
+          report: null,
+        },
+        {
+          status: 429,
+          headers: {
+            "Retry-After": String(rateLimitResult.retryAfter || 60),
+            "X-RateLimit-Limit": "60",
+            "X-RateLimit-Remaining": String(rateLimitResult.remaining || 0),
+            "X-RateLimit-Reset": String(Math.ceil((rateLimitResult.resetAt || Date.now()) / 1000)),
+          },
+        }
+      );
+    }
     const reportId = params.reportId;
     if (!reportId) {
       return publicJson({ error: "Missing reportId", report: null }, { status: 400 });

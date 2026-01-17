@@ -70,7 +70,7 @@ export function filterPlatformsByConsent(
     const isMarketing = consentCategory === "marketing";
     const isAnalytics = consentCategory === "analytics";
     const requiresSaleOfData = platformRequiresSaleOfData(platform);
-    if (requiresSaleOfData && consentResult.saleOfDataAllowed !== true) {
+    if (requiresSaleOfData && consentResult.saleOfDataAllowed === false) {
       logger.debug(
         `Skipping ${platform} ConversionLog: ` +
           `sale_of_data required but not allowed (saleOfData=${consentResult.saleOfDataAllowed})`

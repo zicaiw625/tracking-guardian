@@ -319,28 +319,33 @@ async function loaderImpl(request: Request) {
       )));
     }
     const orderCustomerId = orderData.data.order.customer?.id || null;
-    if (orderCustomerId) {
-      if (customerGidFromToken) {
-        const tokenCustomerId = customerGidFromToken.includes("/")
-          ? customerGidFromToken.split("/").pop()
-          : customerGidFromToken;
-        const orderCustomerIdNum = orderCustomerId.includes("/")
-          ? orderCustomerId.split("/").pop()
-          : orderCustomerId;
-        if (tokenCustomerId !== orderCustomerIdNum) {
-          logger.warn(`Order access denied: customer mismatch for orderId: ${orderIdHash}, shop: ${shopDomain}`, {
-            tokenCustomerId: tokenCustomerId,
-            orderCustomerId: orderCustomerIdNum,
-          });
-          return addSecurityHeaders(authResult.cors(json({ error: "Order access denied" }, { status: 403 })));
-        }
-      } else {
-        logger.warn(`Order access attempt without customer ID in token for orderId: ${orderIdHash}, shop: ${shopDomain}`);
-        return addSecurityHeaders(authResult.cors(json(
-          { error: "Unauthorized: Customer authentication required" },
-          { status: 401 }
-        )));
+    if (!orderCustomerId) {
+      logger.warn(`Reorder denied: order has no customer for orderId: ${orderIdHash}, shop: ${shopDomain}`);
+      return addSecurityHeaders(authResult.cors(json(
+        { error: "This order does not support reorder", reason: "order_has_no_customer" },
+        { status: 403 }
+      )));
+    }
+    if (customerGidFromToken) {
+      const tokenCustomerId = customerGidFromToken.includes("/")
+        ? customerGidFromToken.split("/").pop()
+        : customerGidFromToken;
+      const orderCustomerIdNum = orderCustomerId.includes("/")
+        ? orderCustomerId.split("/").pop()
+        : orderCustomerId;
+      if (tokenCustomerId !== orderCustomerIdNum) {
+        logger.warn(`Order access denied: customer mismatch for orderId: ${orderIdHash}, shop: ${shopDomain}`, {
+          tokenCustomerId: tokenCustomerId,
+          orderCustomerId: orderCustomerIdNum,
+        });
+        return addSecurityHeaders(authResult.cors(json({ error: "Order access denied" }, { status: 403 })));
       }
+    } else {
+      logger.warn(`Order access attempt without customer ID in token for orderId: ${orderIdHash}, shop: ${shopDomain}`);
+      return addSecurityHeaders(authResult.cors(json(
+        { error: "Unauthorized: Customer authentication required" },
+        { status: 401 }
+      )));
     }
     logger.info(`Reorder URL requested for orderId: ${orderIdHash}, shop: ${shopDomain}`);
     const lineItems = orderData.data.order.lineItems.edges || [];

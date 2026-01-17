@@ -95,7 +95,7 @@ export function checkPlatformEligibility(
   const platformCategory = getEffectiveConsentCategory(platform, treatAsMarketing);
   const config = PLATFORM_CONSENT_CONFIG[platform];
   const requiresSaleOfData = config?.requiresSaleOfData ?? true;
-  if (requiresSaleOfData && consentState?.saleOfDataAllowed !== true) {
+  if (requiresSaleOfData && consentState?.saleOfDataAllowed === false) {
     logger.debug(`[P0-04] Platform blocked by explicit sale_of_data opt-out`, {
       platform,
       category: platformCategory,
