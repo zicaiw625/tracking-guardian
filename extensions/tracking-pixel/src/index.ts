@@ -28,9 +28,7 @@ register(({ analytics, settings, init, customerPrivacy }: {
   }
   if (placeholderDetected) {
     const errorMsg = "严重错误：检测到 BACKEND_URL 占位符未替换。像素扩展将无法发送事件到后端，导致事件丢失。这是严重的配置错误，必须在生产环境部署前修复。请在 CI/CD 流程中运行 'pnpm ext:inject' 或 'pnpm deploy:ext'。";
-    if (isDevMode) {
-      console.error("[Tracking Guardian] ❌", errorMsg);
-    }
+    console.error("[Tracking Guardian] ❌", errorMsg);
   }
   if (isDevMode) {
     log("Development mode enabled", {

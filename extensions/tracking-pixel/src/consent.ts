@@ -21,10 +21,10 @@ export function createConsentManager(logger?: (...args: unknown[]) => void): Con
     source: "init" | "event"
   ): void {
     if (!status || typeof status !== "object") {
-      marketingAllowed = true;
-      analyticsAllowed = true;
+      marketingAllowed = false;
+      analyticsAllowed = false;
       saleOfDataAllowed = undefined;
-      log(`${source} customerPrivacy not available, treating as unknown/allowed to avoid event loss`);
+      log(`${source} customerPrivacy not available, using conservative default (deny all) for compliance`);
       return;
     }
     customerPrivacyStatus = status;

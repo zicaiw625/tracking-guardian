@@ -32,7 +32,6 @@ import { trackEvent } from "~/services/analytics.server";
 import { normalizePlanId } from "~/services/billing/plans";
 import { isPlanAtLeast } from "~/utils/plans";
 import { hashValueSync } from "~/utils/crypto.server";
-import { sanitizePII } from "~/services/event-log.server";
 import prisma from "~/db.server";
 
 const MAX_BATCH_SIZE = 100;
@@ -407,8 +406,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       });
       continue;
     }
-    const rawPayload = eventValidation.payload;
-    const payload = sanitizePII(rawPayload) as PixelEventPayload;
+    const payload = eventValidation.payload;
     if (payload.shopDomain !== shopDomain) {
       logger.warn(`Event at index ${i} has different shopDomain`, {
         expected: shopDomain,
@@ -523,8 +521,18 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       payload.nonce ?? null
     );
     const consentResult = checkInitialConsent(payload.consent);
+    const mappedConfigs = serverSideConfigs.map(config => ({
+      platform: config.platform,
+      id: config.id,
+      platformId: config.platformId,
+      clientSideEnabled: config.clientSideEnabled,
+      serverSideEnabled: config.serverSideEnabled,
+      clientConfig: config.clientConfig && typeof config.clientConfig === 'object' && 'treatAsMarketing' in config.clientConfig
+        ? { treatAsMarketing: (config.clientConfig as { treatAsMarketing?: boolean }).treatAsMarketing }
+        : null,
+    }));
     const { platformsToRecord, skippedPlatforms } = filterPlatformsByConsent(
-      serverSideConfigs,
+      mappedConfigs,
       consentResult
     );
     const destinations = platformsToRecord.map(p => p.platform);
