@@ -493,6 +493,18 @@ ScriptTag 清理需要商家手动操作：
 - 订单和退款相关 webhooks 将在 v1.1+ 版本中启用，用于增强验收验证和对账功能
 - 代码中已实现相关处理器，但 `shopify.app.toml` 中暂未订阅，符合 v1.0 最小权限原则
 
+## Shopify App Store 审核 - Reviewer 快速验收路径
+
+提交审核时可将以下步骤放入 Review notes / Test instructions，便于审核人员快速验收：
+
+1. 安装应用后进入 **Audit**：点 Scan，生成风险报告
+2. 进入 **Pixels**：创建一个 Pixel 配置（Test 模式），并说明 server-side 默认关闭
+3. 在店铺下一个测试单
+4. 进入 **Verification**：跑一次 quick run，看到事件收据与参数完整率
+5. （Growth+）下载 PDF 报告（如果 reviewer 用的是免费计划，就说明该入口会提示升级）
+
+Customer Account / Thank you block 与 Web Pixel 的配合、以及 PCD 的说明（默认不依赖 PII；2025-12-10 后 PII 字段需获批 PCD 才会出现），可参考 [COMPLIANCE.md](COMPLIANCE.md) 与应用内文案。
+
 ## Built for Shopify (BFS) 特性
 
 ### 上架与 BFS 策略

@@ -128,10 +128,17 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   const actionType = formData.get("_action");
   const shop = await prisma.shop.findUnique({
     where: { shopDomain },
-    select: { id: true },
+    select: { id: true, plan: true },
   });
   if (!shop) {
     return json({ error: "Shop not found" }, { status: 404 });
+  }
+  if (actionType === "create_run" || actionType === "run_verification" || actionType === "verifyTestItem") {
+    const planId = normalizePlanId(shop.plan || "free") as PlanId;
+    const gateResult = checkFeatureAccess(planId, "verification");
+    if (!gateResult.allowed) {
+      return json({ success: false, error: gateResult.reason }, { status: 402 });
+    }
   }
   if (actionType === "create_run") {
     const runType = (formData.get("runType") as "quick" | "full") || "quick";

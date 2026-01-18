@@ -42,84 +42,112 @@ export async function cleanupExpiredData(): Promise<CleanupResult> {
       cutoffDate.setDate(cutoffDate.getDate() - retentionDays);
 
       try {
-        const receiptIds = await prisma.pixelEventReceipt.findMany({
-          where: {
-            shopId: shop.id,
-            createdAt: { lt: cutoffDate },
-          },
-          select: { id: true },
-          take: BATCH_SIZE,
-        });
-
-        if (receiptIds.length > 0) {
+        let cursor: string | undefined;
+        while (true) {
+          const receiptIds = await prisma.pixelEventReceipt.findMany({
+            where: {
+              shopId: shop.id,
+              createdAt: { lt: cutoffDate },
+            },
+            select: { id: true },
+            orderBy: { id: "asc" },
+            take: BATCH_SIZE,
+            ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
+          });
+          if (receiptIds.length === 0) break;
           const deleteResult = await prisma.pixelEventReceipt.deleteMany({
-            where: { id: { in: receiptIds.map(r => r.id) } },
+            where: { id: { in: receiptIds.map((r) => r.id) } },
           });
           pixelEventReceiptsDeleted += deleteResult.count;
-          logger.debug(`Cleaned up ${deleteResult.count} pixel event receipts for shop ${shop.shopDomain}`, {
-            shopId: shop.id,
-            retentionDays,
-          });
+          if (deleteResult.count > 0) {
+            logger.debug(`Cleaned up ${deleteResult.count} pixel event receipts for shop ${shop.shopDomain}`, {
+              shopId: shop.id,
+              retentionDays,
+            });
+          }
+          if (receiptIds.length < BATCH_SIZE) break;
+          cursor = receiptIds[receiptIds.length - 1].id;
         }
 
-        const scanReportIds = await prisma.scanReport.findMany({
-          where: {
-            shopId: shop.id,
-            createdAt: { lt: cutoffDate },
-          },
-          select: { id: true },
-          take: BATCH_SIZE,
-        });
-
-        if (scanReportIds.length > 0) {
+        cursor = undefined;
+        while (true) {
+          const scanReportIds = await prisma.scanReport.findMany({
+            where: {
+              shopId: shop.id,
+              createdAt: { lt: cutoffDate },
+            },
+            select: { id: true },
+            orderBy: { id: "asc" },
+            take: BATCH_SIZE,
+            ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
+          });
+          if (scanReportIds.length === 0) break;
           const deleteResult = await prisma.scanReport.deleteMany({
-            where: { id: { in: scanReportIds.map(r => r.id) } },
+            where: { id: { in: scanReportIds.map((r) => r.id) } },
           });
           scanReportsDeleted += deleteResult.count;
-          logger.debug(`Cleaned up ${deleteResult.count} scan reports for shop ${shop.shopDomain}`, {
-            shopId: shop.id,
-            retentionDays,
-          });
+          if (deleteResult.count > 0) {
+            logger.debug(`Cleaned up ${deleteResult.count} scan reports for shop ${shop.shopDomain}`, {
+              shopId: shop.id,
+              retentionDays,
+            });
+          }
+          if (scanReportIds.length < BATCH_SIZE) break;
+          cursor = scanReportIds[scanReportIds.length - 1].id;
         }
 
-        const eventLogIds = await prisma.eventLog.findMany({
-          where: {
-            shopId: shop.id,
-            createdAt: { lt: cutoffDate },
-          },
-          select: { id: true },
-          take: BATCH_SIZE,
-        });
-
-        if (eventLogIds.length > 0) {
+        cursor = undefined;
+        while (true) {
+          const eventLogIds = await prisma.eventLog.findMany({
+            where: {
+              shopId: shop.id,
+              createdAt: { lt: cutoffDate },
+            },
+            select: { id: true },
+            orderBy: { id: "asc" },
+            take: BATCH_SIZE,
+            ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
+          });
+          if (eventLogIds.length === 0) break;
           const deleteResult = await prisma.eventLog.deleteMany({
-            where: { id: { in: eventLogIds.map(e => e.id) } },
+            where: { id: { in: eventLogIds.map((e) => e.id) } },
           });
           eventLogsDeleted += deleteResult.count;
-          logger.debug(`Cleaned up ${deleteResult.count} event logs for shop ${shop.shopDomain}`, {
-            shopId: shop.id,
-            retentionDays,
-          });
+          if (deleteResult.count > 0) {
+            logger.debug(`Cleaned up ${deleteResult.count} event logs for shop ${shop.shopDomain}`, {
+              shopId: shop.id,
+              retentionDays,
+            });
+          }
+          if (eventLogIds.length < BATCH_SIZE) break;
+          cursor = eventLogIds[eventLogIds.length - 1].id;
         }
 
-        const deliveryAttemptIds = await prisma.deliveryAttempt.findMany({
-          where: {
-            shopId: shop.id,
-            createdAt: { lt: cutoffDate },
-          },
-          select: { id: true },
-          take: BATCH_SIZE,
-        });
-
-        if (deliveryAttemptIds.length > 0) {
+        cursor = undefined;
+        while (true) {
+          const deliveryAttemptIds = await prisma.deliveryAttempt.findMany({
+            where: {
+              shopId: shop.id,
+              createdAt: { lt: cutoffDate },
+            },
+            select: { id: true },
+            orderBy: { id: "asc" },
+            take: BATCH_SIZE,
+            ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
+          });
+          if (deliveryAttemptIds.length === 0) break;
           const deleteResult = await prisma.deliveryAttempt.deleteMany({
-            where: { id: { in: deliveryAttemptIds.map(d => d.id) } },
+            where: { id: { in: deliveryAttemptIds.map((d) => d.id) } },
           });
           deliveryAttemptsDeleted += deleteResult.count;
-          logger.debug(`Cleaned up ${deleteResult.count} delivery attempts for shop ${shop.shopDomain}`, {
-            shopId: shop.id,
-            retentionDays,
-          });
+          if (deleteResult.count > 0) {
+            logger.debug(`Cleaned up ${deleteResult.count} delivery attempts for shop ${shop.shopDomain}`, {
+              shopId: shop.id,
+              retentionDays,
+            });
+          }
+          if (deliveryAttemptIds.length < BATCH_SIZE) break;
+          cursor = deliveryAttemptIds[deliveryAttemptIds.length - 1].id;
         }
       } catch (error) {
         logger.error(`Failed to cleanup data for shop ${shop.shopDomain}`, {
