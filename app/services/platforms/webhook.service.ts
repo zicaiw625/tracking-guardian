@@ -136,40 +136,45 @@ function buildDefaultPayload(data: ConversionData, eventId: string): Record<stri
 }
 function validateEndpointUrl(url: string): { valid: boolean; error?: string } {
   const isProduction = process.env.NODE_ENV === 'production';
-  
-  if (isProduction) {
-    if (!url.startsWith('https://')) {
-      return { valid: false, error: 'Endpoint URL must use HTTPS in production' };
-    }
-    for (const pattern of FORBIDDEN_PATTERNS_PRODUCTION) {
-      if (pattern.test(url)) {
-        return { valid: false, error: 'Endpoint URL points to a private/local network (not allowed in production)' };
-      }
-    }
-  } else {
-    if (!url.startsWith('https://') && !url.startsWith('http://localhost')) {
-      return { valid: false, error: 'Endpoint URL must use HTTPS or http://localhost (development only)' };
-    }
-    if (url.startsWith('http://localhost')) {
-      for (const pattern of FORBIDDEN_PATTERNS_DEVELOPMENT) {
-        if (pattern.test(url)) {
-          return { valid: false, error: 'Endpoint URL points to a private network (not allowed even in development)' };
-        }
-      }
-      return { valid: true };
-    }
-    if (url.startsWith('https://')) {
-      for (const pattern of FORBIDDEN_PATTERNS_PRODUCTION) {
-        if (pattern.test(url)) {
-          return { valid: false, error: 'Endpoint URL points to a private/local network (not allowed)' };
-        }
-      }
-    }
-  }
-
   try {
     const parsed = new URL(url);
-    const hostname = parsed.hostname;
+    const protocol = parsed.protocol;
+    const hostname = parsed.hostname.toLowerCase();
+
+    if (isProduction) {
+      if (protocol !== 'https:') {
+        return { valid: false, error: 'Endpoint URL must use HTTPS in production' };
+      }
+      for (const pattern of FORBIDDEN_PATTERNS_PRODUCTION) {
+        if (pattern.test(url)) {
+          return { valid: false, error: 'Endpoint URL points to a private/local network (not allowed in production)' };
+        }
+      }
+    } else {
+      const isLocalHttp = protocol === 'http:' && (hostname === 'localhost' || hostname === '127.0.0.1');
+      const isHttps = protocol === 'https:';
+      if (!isLocalHttp && !isHttps) {
+        return { valid: false, error: 'Endpoint URL must use HTTPS or http://localhost (development only)' };
+      }
+      if (isLocalHttp) {
+        if (hostname === '127.0.0.1') {
+          return { valid: true };
+        }
+        for (const pattern of FORBIDDEN_PATTERNS_DEVELOPMENT) {
+          if (pattern.test(url)) {
+            return { valid: false, error: 'Endpoint URL points to a private network (not allowed even in development)' };
+          }
+        }
+        return { valid: true };
+      }
+      if (isHttps) {
+        for (const pattern of FORBIDDEN_PATTERNS_PRODUCTION) {
+          if (pattern.test(url)) {
+            return { valid: false, error: 'Endpoint URL points to a private/local network (not allowed)' };
+          }
+        }
+      }
+    }
     
     if (/^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(hostname)) {
       if (isPrivateIPv4(hostname)) {
