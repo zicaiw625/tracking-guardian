@@ -101,7 +101,7 @@ services:
     runtime: node
     region: singapore  # 与 web service 相同区域
     schedule: "*/5 * * * *"
-    startCommand: 'curl -X POST -H "Authorization: Bearer $CRON_SECRET" -H "Content-Type: application/json" "$SHOPIFY_APP_URL/api/cron"'
+    startCommand: bash scripts/render-cron.sh
     envVars:
       - key: DATABASE_URL
         fromDatabase:
@@ -110,7 +110,10 @@ services:
       - key: CRON_SECRET
         sync: false  # 需要手动设置，必须与 web service 的 CRON_SECRET 相同
       - key: SHOPIFY_APP_URL
-        sync: false  # 需要手动设置，web service 的完整 URL
+        sync: false  # 需要手动设置，web service 的完整 URL（格式：https://tracking-guardian.onrender.com）
+      # 备用：如果 SHOPIFY_APP_URL 未设置，可以使用 APP_URL
+      - key: APP_URL
+        sync: false  # 可选，如果 SHOPIFY_APP_URL 已设置则不需要
       # 可选：如果 cron 任务需要访问 Shopify API
       - key: SHOPIFY_API_KEY
         sync: false

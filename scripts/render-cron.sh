@@ -17,7 +17,23 @@
 set -e
 
 
-APP_URL="${APP_URL:-https://tracking-guardian.onrender.com}"
+# 优先使用 SHOPIFY_APP_URL，如果没有则使用 APP_URL，最后使用默认值
+if [ -n "${SHOPIFY_APP_URL}" ]; then
+    APP_URL="${SHOPIFY_APP_URL}"
+elif [ -n "${APP_URL}" ]; then
+    APP_URL="${APP_URL}"
+else
+    APP_URL="https://tracking-guardian.onrender.com"
+fi
+
+# 验证 URL 格式
+if [[ ! "${APP_URL}" =~ ^https?:// ]]; then
+    echo "❌ Error: APP_URL or SHOPIFY_APP_URL must be a valid URL starting with http:// or https://"
+    echo "   Current value: ${APP_URL}"
+    echo "   Please set SHOPIFY_APP_URL or APP_URL environment variable"
+    exit 1
+fi
+
 CRON_ENDPOINT="${APP_URL}/api/cron"
 CRON_SECRET="${CRON_SECRET:?Error: CRON_SECRET environment variable is required}"
 TIMEOUT="${TIMEOUT:-300}"
