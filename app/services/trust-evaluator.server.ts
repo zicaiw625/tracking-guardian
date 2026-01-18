@@ -55,7 +55,7 @@ export function evaluateTrust(
   );
   const isHmacVerified = receipt?.originHost ? true : false;
   const trustResult = verifyReceiptTrust({
-    receiptCheckoutToken: receipt?.checkoutToken,
+    receiptCheckoutToken: undefined,
     webhookCheckoutToken,
     ingestionKeyMatched: isHmacVerified,
     receiptExists: !!receipt,
@@ -67,10 +67,12 @@ export function evaluateTrust(
   });
   const trustMetadata = buildTrustMetadata(trustResult, {
     hasReceipt: !!receipt,
-    receiptTrustLevel: receipt?.trustLevel,
     webhookHasCheckoutToken: !!webhookCheckoutToken,
   });
-  const rawConsentState = parseConsentState(receipt?.consentState);
+  const consentFromPayload = receipt?.payloadJson && typeof receipt.payloadJson === 'object' && receipt.payloadJson !== null && 'consent' in receipt.payloadJson
+    ? (receipt.payloadJson as Record<string, unknown>).consent
+    : null;
+  const rawConsentState = parseConsentState(consentFromPayload);
   const consentState: ConsentState | null = rawConsentState
     ? {
         marketing: rawConsentState.marketing,
@@ -172,14 +174,10 @@ export function buildConsentEvidence(
 }
 
 export function didReceiptMatchByToken(
-  receipt: ReceiptFields | null,
-  webhookCheckoutToken: string | undefined
+  _receipt: ReceiptFields | null,
+  _webhookCheckoutToken: string | undefined
 ): boolean {
-  return !!(
-    receipt &&
-    webhookCheckoutToken &&
-    receipt.checkoutToken === webhookCheckoutToken
-  );
+  return false;
 }
 
 export function hasAnyConsentSignal(consentState: ConsentState | null): boolean {

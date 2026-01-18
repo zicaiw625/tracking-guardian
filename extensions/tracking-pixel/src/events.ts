@@ -61,6 +61,8 @@ function sha256Hex(input: string): string {
   return bytesToHex(sha256(utf8ToBytes(input)));
 }
 
+const REQUEST_TIMEOUT_MS = 4000;
+const MAX_TOTAL_RETRY_MS = 5000;
 const RETRY_DELAYS_MS = [0, 300, 1200];
 const MAX_RETRIES = RETRY_DELAYS_MS.length;
 
@@ -69,19 +71,20 @@ async function sendCheckoutCompletedWithRetry(
   body: string,
   isDevMode: boolean,
   log: (...args: unknown[]) => void,
-  retryIndex = 0,
-  headers: Record<string, string> = {}
+  retryIndex: number,
+  headers: Record<string, string>,
+  startTime: number
 ): Promise<void> {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
   try {
-      const response = await fetch(url, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          ...headers,
-        },
-        keepalive: true,
-        body,
-      });
+    const response = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...headers },
+      keepalive: true,
+      body,
+      signal: controller.signal,
+    });
     if (isDevMode) {
       log(`checkout_completed sent, status: ${response.status}, attempt: ${retryIndex + 1}/${MAX_RETRIES}`);
     }
@@ -97,31 +100,31 @@ async function sendCheckoutCompletedWithRetry(
       }
       return;
     }
-    if (retryIndex < MAX_RETRIES - 1) {
+    if (retryIndex < MAX_RETRIES - 1 && Date.now() - startTime <= MAX_TOTAL_RETRY_MS) {
       const delay = RETRY_DELAYS_MS[retryIndex + 1];
       if (isDevMode) {
         log(`checkout_completed server error ${response.status}, retrying in ${delay}ms (attempt ${retryIndex + 2}/${MAX_RETRIES})`);
       }
-      const retryHeaders = { ...headers };
       setTimeout(() => {
-        sendCheckoutCompletedWithRetry(url, body, isDevMode, log, retryIndex + 1, retryHeaders);
+        sendCheckoutCompletedWithRetry(url, body, isDevMode, log, retryIndex + 1, { ...headers }, startTime);
       }, delay);
     } else if (isDevMode) {
       log(`checkout_completed failed after ${MAX_RETRIES} attempts with server error ${response.status}`);
     }
   } catch (error) {
-    if (retryIndex < MAX_RETRIES - 1) {
+    if (retryIndex < MAX_RETRIES - 1 && Date.now() - startTime <= MAX_TOTAL_RETRY_MS) {
       const delay = RETRY_DELAYS_MS[retryIndex + 1];
       if (isDevMode) {
         log(`checkout_completed network error, retrying in ${delay}ms (attempt ${retryIndex + 2}/${MAX_RETRIES}):`, error);
       }
-      const retryHeaders = { ...headers };
       setTimeout(() => {
-        sendCheckoutCompletedWithRetry(url, body, isDevMode, log, retryIndex + 1, retryHeaders);
+        sendCheckoutCompletedWithRetry(url, body, isDevMode, log, retryIndex + 1, { ...headers }, startTime);
       }, delay);
     } else if (isDevMode) {
       log(`checkout_completed failed after ${MAX_RETRIES} attempts with network error:`, error);
     }
+  } finally {
+    clearTimeout(timeoutId);
   }
 }
 
@@ -225,18 +228,23 @@ export function createEventSender(config: EventSenderConfig) {
       }
       const hasCheckoutCompleted = eventsToSend.some(e => e.eventName === "checkout_completed");
       if (hasCheckoutCompleted) {
-        sendCheckoutCompletedWithRetry(url, body, isDevMode, log, 0, headers);
+        sendCheckoutCompletedWithRetry(url, body, isDevMode, log, 0, headers, Date.now());
       } else {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
         fetch(url, {
           method: "POST",
           headers,
           keepalive: true,
           body,
-        }).catch((error) => {
-          if (isDevMode) {
-            log(`Batch send failed (${eventsToSend.length} events):`, error);
-          }
-        });
+          signal: controller.signal,
+        })
+          .finally(() => clearTimeout(timeoutId))
+          .catch((error) => {
+            if (isDevMode) {
+              log(`Batch send failed (${eventsToSend.length} events):`, error);
+            }
+          });
       }
       if (isDevMode) {
         log(`Batch sent: ${eventsToSend.length} events to /ingest`);

@@ -22,8 +22,6 @@ export interface PixelReceiptData {
   eventId: string;
   orderId: string;
   eventType: string;
-  checkoutToken?: string | null;
-  consentState?: Prisma.JsonValue;
   originHost?: string | null;
   pixelTimestamp?: Date;
   capiInput?: Prisma.JsonValue;
@@ -249,14 +247,12 @@ export async function batchInsertReceipts(
               shopId: receipt.shopId,
               eventId: receipt.eventId,
               eventType: receipt.eventType,
-              checkoutToken: receipt.checkoutToken,
               originHost: receipt.originHost,
               pixelTimestamp: receipt.pixelTimestamp ?? now,
               payloadJson: toInputJsonValue(receipt.capiInput),
               orderKey: receipt.orderId,
             },
             update: {
-              checkoutToken: receipt.checkoutToken,
               originHost: receipt.originHost,
               orderKey: receipt.orderId,
             },

@@ -261,18 +261,48 @@ export interface CursorPaginationResult<T> {
   hasMore: boolean;
 }
 
+function parseCursor(cursor: string): { createdAt: Date; id: string } | null {
+  const idx = cursor.lastIndexOf("|");
+  if (idx === -1) return null;
+  const createdAt = new Date(cursor.slice(0, idx));
+  const id = cursor.slice(idx + 1);
+  if (isNaN(createdAt.getTime()) || !id) return null;
+  return { createdAt, id };
+}
+
 export async function paginateConversionLogs(
   shopId: string,
   params: CursorPaginationParams
 ): Promise<CursorPaginationResult<{ id: string; orderId: string; status: string; createdAt: Date }>> {
   const { cursor, take, orderBy = "desc" } = params;
-  const where: Prisma.PixelEventReceiptWhereInput = {
+  const baseWhere: Prisma.PixelEventReceiptWhereInput = {
     shopId,
     eventType: { in: ["purchase", "checkout_completed"] },
   };
+  let cursorWhere: Prisma.PixelEventReceiptWhereInput | null = null;
   if (cursor) {
-    where.id = { gt: cursor };
+    const parsed = parseCursor(cursor);
+    if (parsed) {
+      if (orderBy === "desc") {
+        cursorWhere = {
+          OR: [
+            { createdAt: { lt: parsed.createdAt } },
+            { createdAt: parsed.createdAt, id: { lt: parsed.id } },
+          ],
+        };
+      } else {
+        cursorWhere = {
+          OR: [
+            { createdAt: { gt: parsed.createdAt } },
+            { createdAt: parsed.createdAt, id: { gt: parsed.id } },
+          ],
+        };
+      }
+    }
   }
+  const where: Prisma.PixelEventReceiptWhereInput = cursorWhere
+    ? { AND: [baseWhere, cursorWhere] }
+    : baseWhere;
   const receipts = await prisma.pixelEventReceipt.findMany({
     where,
     select: {
@@ -282,7 +312,7 @@ export async function paginateConversionLogs(
       payloadJson: true,
     },
     take: take + 1,
-    orderBy: { createdAt: orderBy },
+    orderBy: [{ createdAt: orderBy }, { id: orderBy }],
   });
   const items = receipts.map(receipt => {
     const payload = isRecord(receipt.payloadJson) ? receipt.payloadJson : null;
@@ -299,7 +329,10 @@ export async function paginateConversionLogs(
   });
   const hasMore = items.length > take;
   const resultItems = hasMore ? items.slice(0, -1) : items;
-  const nextCursor = hasMore ? resultItems[resultItems.length - 1]?.id ?? null : null;
+  const last = resultItems[resultItems.length - 1];
+  const nextCursor = hasMore && last
+    ? `${last.createdAt.toISOString()}|${last.id}`
+    : null;
   return {
     items: resultItems,
     nextCursor,

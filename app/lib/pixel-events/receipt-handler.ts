@@ -11,6 +11,24 @@ import type { PixelEventPayload, KeyValidationResult } from "./types";
 import { generateCanonicalEventId } from "../../services/event-normalizer.server";
 import { getRedisClient } from "../../utils/redis-client";
 
+function buildMinimalPayloadForReceipt(payload: PixelEventPayload): Record<string, unknown> {
+  const items = (payload.data?.items ?? [])
+    .slice(0, 50)
+    .map((i) => ({
+      id: String(i?.id ?? ""),
+      quantity: typeof i?.quantity === "number" ? i.quantity : 1,
+    }));
+  return {
+    consent: payload.consent,
+    data: {
+      value: payload.data?.value ?? 0,
+      currency: payload.data?.currency ?? "USD",
+      items,
+    },
+    eventName: payload.eventName,
+  };
+}
+
 export interface MatchKeyResult {
   orderId: string;
   usedCheckoutTokenAsFallback: boolean;
@@ -75,10 +93,14 @@ export async function upsertPixelEventReceipt(
   const payloadData = payload?.data as Record<string, unknown> | undefined;
   const extractedOrderKey = orderKey || (payloadData?.orderId as string | undefined);
   try {
-    let sanitizedPayload: Record<string, unknown> | null = null;
-    if (verificationRunId && payload) {
-      const { sanitizePII } = await import("../../services/event-log.server");
-      sanitizedPayload = sanitizePII(payload) as unknown as Record<string, unknown>;
+    let payloadToStore: Record<string, unknown> | null = null;
+    if (payload) {
+      if (verificationRunId) {
+        const { sanitizePII } = await import("../../services/event-log.server");
+        payloadToStore = sanitizePII(payload) as unknown as Record<string, unknown>;
+      } else {
+        payloadToStore = buildMinimalPayloadForReceipt(payload);
+      }
     }
     await prisma.pixelEventReceipt.upsert({
       where: {
@@ -96,14 +118,14 @@ export async function upsertPixelEventReceipt(
         pixelTimestamp: new Date(payload.timestamp),
         originHost: originHost || null,
         verificationRunId: verificationRunId || null,
-        payloadJson: sanitizedPayload,
+        payloadJson: payloadToStore,
         orderKey: extractedOrderKey || null,
       },
       update: {
         pixelTimestamp: new Date(payload.timestamp),
         originHost: originHost || null,
         verificationRunId: verificationRunId || null,
-        payloadJson: sanitizedPayload,
+        payloadJson: payloadToStore,
         orderKey: extractedOrderKey || null,
       },
     });

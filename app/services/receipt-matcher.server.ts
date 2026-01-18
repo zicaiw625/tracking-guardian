@@ -10,7 +10,7 @@ export interface ReceiptFields {
   id: string;
   shopId: string;
   eventType: string;
-  platform: string | null;
+  payloadJson?: unknown;
 }
 
 export interface JobForReceiptMatch {

@@ -83,20 +83,8 @@ describe("Batch Operations", () => {
   describe("batchInsertReceipts", () => {
     it("should handle partial failures with Promise.allSettled", async () => {
       const receipts = [
-        {
-          shopId: "shop1",
-          orderId: "order1",
-          eventType: "purchase",
-          signatureStatus: "valid",
-          trustLevel: "trusted",
-        },
-        {
-          shopId: "shop2",
-          orderId: "order2",
-          eventType: "purchase",
-          signatureStatus: "valid",
-          trustLevel: "trusted",
-        },
+        { shopId: "shop1", eventId: "evt1", orderId: "order1", eventType: "purchase" },
+        { shopId: "shop2", eventId: "evt2", orderId: "order2", eventType: "purchase" },
       ];
       mockDb.$transaction.mockImplementation(async (callback) => {
         const tx = {
@@ -116,13 +104,7 @@ describe("Batch Operations", () => {
     });
     it("should handle transaction failure correctly", async () => {
       const receipts = [
-        {
-          shopId: "shop1",
-          orderId: "order1",
-          eventType: "purchase",
-          signatureStatus: "valid",
-          trustLevel: "trusted",
-        },
+        { shopId: "shop1", eventId: "evt1", orderId: "order1", eventType: "purchase" },
       ];
       mockDb.$transaction.mockRejectedValue(new Error("Transaction failed"));
       const result = await batchInsertReceipts(receipts);
