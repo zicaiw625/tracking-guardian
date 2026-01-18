@@ -1,7 +1,7 @@
 import { createHash } from "crypto";
 import { randomUUID } from "crypto";
 import prisma from "../../db.server";
-import { generateEventId, generateMatchKey } from "../../utils/crypto.server";
+import { generateEventId, generateMatchKey, makeOrderKey } from "../../utils/crypto.server";
 import { extractOriginHost } from "../../utils/origin-validation";
 import { logger } from "../../utils/logger.server";
 import { RETENTION_CONFIG } from "../../utils/config";
@@ -64,18 +64,34 @@ export interface ConversionLogResult {
 
 export async function isClientEventRecorded(
   shopId: string,
-  orderId: string,
-  eventType: string
+  orderKey: string,
+  eventType: string,
+  opts?: { checkoutToken?: string | null }
 ): Promise<boolean> {
   const existing = await prisma.pixelEventReceipt.findFirst({
     where: {
       shopId,
-      orderKey: orderId,
+      orderKey,
       eventType,
     },
     select: { id: true },
   });
-  return !!existing;
+  if (existing) return true;
+  if (opts?.checkoutToken != null && opts.checkoutToken !== "") {
+    const altKey = makeOrderKey({ checkoutToken: opts.checkoutToken });
+    if (altKey && altKey !== orderKey) {
+      const altExisting = await prisma.pixelEventReceipt.findFirst({
+        where: {
+          shopId,
+          orderKey: altKey,
+          eventType,
+        },
+        select: { id: true },
+      });
+      if (altExisting) return true;
+    }
+  }
+  return false;
 }
 
 export async function upsertPixelEventReceipt(

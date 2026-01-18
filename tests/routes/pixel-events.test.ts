@@ -60,6 +60,7 @@ describe("Pixel Events API - Origin Validation", () => {
     it("rejects fake checkout domains (security fix)", () => {
       expect(isValidShopifyOrigin("https://checkout.evil.com")).toBe(false);
       expect(isValidShopifyOrigin("https://checkout.shopify.com.attacker.com")).toBe(false);
+      expect(isValidShopifyOrigin("https://checkout.shopify.com.evil.com")).toBe(false);
       expect(isValidShopifyOrigin("https://fake-checkout.other.com")).toBe(false);
     });
   });
