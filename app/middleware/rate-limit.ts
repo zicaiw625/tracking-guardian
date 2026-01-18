@@ -250,9 +250,15 @@ const rateLimitStore = new DistributedRateLimitStore();
 
 const DEFAULT_TRUSTED_IP_HEADERS = ["x-forwarded-for", "x-real-ip", "cf-connecting-ip"];
 const DEVELOPMENT_IP_HEADERS = ["cf-connecting-ip", "x-real-ip", "x-forwarded-for"];
-const requiresTrustedProxy = process.env.NODE_ENV === "production" && process.env.TRUST_PROXY !== "true";
-if (requiresTrustedProxy) {
-  throw new Error("TRUST_PROXY must be true in production for correct IP rate limiting");
+let trustedProxyValidated = false;
+function enforceTrustedProxy(): void {
+  if (trustedProxyValidated) {
+    return;
+  }
+  trustedProxyValidated = true;
+  if (process.env.NODE_ENV === "production" && process.env.TRUST_PROXY !== "true") {
+    throw new Error("TRUST_PROXY must be true in production for correct IP rate limiting");
+  }
 }
 
 function getTrustedIpHeaders(): string[] {
@@ -389,6 +395,7 @@ export function withRateLimit<T>(
   } = config;
   const createWrappedHandler = (handler: RateLimitedHandler<T>): RateLimitedHandler<T | Response> => {
     return async (args) => {
+      enforceTrustedProxy();
       const request = resolveRequest(args);
       if (!request || typeof request.url !== "string") {
         const errorMsg = `[rate-limit] Invalid args: expected Remix args { request }, got: ${args ? Object.keys(args).join(", ") : "undefined"}`;
@@ -490,6 +497,7 @@ export async function checkRateLimitAsync(
   maxRequests: number,
   windowMs: number
 ): Promise<RateLimitResult> {
+  enforceTrustedProxy();
   return rateLimitStore.checkAsync(key, maxRequests, windowMs);
 }
 
@@ -498,6 +506,7 @@ export function checkRateLimitSync(
   maxRequests: number,
   windowMs: number
 ): RateLimitResult {
+  enforceTrustedProxy();
   return rateLimitStore.check(key, maxRequests, windowMs);
 }
 
