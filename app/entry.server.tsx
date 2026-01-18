@@ -57,6 +57,9 @@ if (typeof process !== "undefined") {
   try {
     await enforceSecurityChecks();
     ensureSecretsValid();
+    if (process.env.NODE_ENV === "production" && process.env.TRUST_PROXY !== "true") {
+      throw new Error("TRUST_PROXY must be true in production for correct IP rate limiting");
+    }
     const configResult = validateConfig();
     if (configResult.errors.length > 0) {
       logger.error("Configuration errors:", undefined, { errors: configResult.errors });
