@@ -1,5 +1,5 @@
 import type { ActionFunctionArgs, LoaderFunctionArgs } from "@remix-run/node";
-import { jsonWithCors, getCorsHeadersPreBody, emptyResponseWithCors, optionsResponse } from "~/lib/pixel-events/cors";
+import { jsonWithCors, emptyResponseWithCors, optionsResponse } from "~/lib/pixel-events/cors";
 import type { PixelEventPayload } from "~/lib/pixel-events/types";
 import { processBatchEvents } from "~/services/events/pipeline.server";
 import { logger, metrics } from "~/utils/logger.server";
@@ -8,7 +8,7 @@ import { getShopForPixelVerificationWithConfigs } from "~/lib/pixel-events/key-v
 import { validatePixelEventHMAC } from "~/lib/pixel-events/hmac-validation";
 import { verifyWithGraceWindowAsync } from "~/utils/shop-access";
 import { validateRequest, isPrimaryEvent } from "~/lib/pixel-events/validation";
-import { API_CONFIG, RATE_LIMIT_CONFIG, CIRCUIT_BREAKER_CONFIG, isStrictSecurityMode } from "~/utils/config";
+import { API_CONFIG, RATE_LIMIT_CONFIG, isStrictSecurityMode } from "~/utils/config";
 import {
   isDevMode,
   validatePixelOriginPreBody,
@@ -35,13 +35,8 @@ import { hashValueSync } from "~/utils/crypto.server";
 import prisma from "~/db.server";
 
 const MAX_BATCH_SIZE = 100;
-const MAX_BODY_SIZE = API_CONFIG.MAX_BODY_SIZE;
 const TIMESTAMP_WINDOW_MS = API_CONFIG.TIMESTAMP_WINDOW_MS;
 const INGEST_RATE_LIMIT = RATE_LIMIT_CONFIG.PIXEL_EVENTS;
-const CIRCUIT_BREAKER_CONFIG_LOCAL = {
-  threshold: CIRCUIT_BREAKER_CONFIG.DEFAULT_THRESHOLD,
-  windowMs: CIRCUIT_BREAKER_CONFIG.DEFAULT_WINDOW_MS,
-};
 
 function isAcceptableContentType(contentType: string | null): boolean {
   if (!contentType) return false;
@@ -106,7 +101,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     const shopDomainHeader = request.headers.get("x-shopify-shop-domain") || "unknown";
     const anomalyCheck = trackAnomaly(shopDomainHeader, "invalid_origin");
     if (anomalyCheck.shouldBlock) {
-      logger.warn(`Circuit breaker triggered for ${shopDomainHeader}: ${anomalyCheck.reason}`);
+      logger.warn(`Anomaly threshold reached for ${shopDomainHeader}: ${anomalyCheck.reason}`);
     }
     if (preBodyValidation.shouldLog) {
       logger.warn(
@@ -130,7 +125,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     if (isNaN(timestamp)) {
       const anomalyCheck = trackAnomaly(shopDomainHeader, "invalid_timestamp");
       if (anomalyCheck.shouldBlock) {
-        logger.warn(`Circuit breaker triggered for ${shopDomainHeader}: ${anomalyCheck.reason}`);
+        logger.warn(`Anomaly threshold reached for ${shopDomainHeader}: ${anomalyCheck.reason}`);
       }
       logger.debug("Invalid timestamp format in header, dropping request");
       return emptyResponseWithCors(request);
@@ -140,7 +135,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     if (timeDiff > TIMESTAMP_WINDOW_MS) {
       const anomalyCheck = trackAnomaly(shopDomainHeader, "invalid_timestamp");
       if (anomalyCheck.shouldBlock) {
-        logger.warn(`Circuit breaker triggered for ${shopDomainHeader}: ${anomalyCheck.reason}`);
+        logger.warn(`Anomaly threshold reached for ${shopDomainHeader}: ${anomalyCheck.reason}`);
       }
       logger.debug(`Timestamp outside window: diff=${timeDiff}ms, dropping request`);
       return emptyResponseWithCors(request);
@@ -258,7 +253,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   if (!shopOriginValidation.valid && shopOriginValidation.shouldReject) {
     const anomalyCheck = trackAnomaly(shop.shopDomain, "invalid_origin");
     if (anomalyCheck.shouldBlock) {
-      logger.warn(`Circuit breaker triggered for ${shop.shopDomain}: ${anomalyCheck.reason}`);
+      logger.warn(`Anomaly threshold reached for ${shop.shopDomain}: ${anomalyCheck.reason}`);
     }
     logger.warn(
       `Origin validation warning at Stage 2 in /ingest for ${shop.shopDomain}: ` +

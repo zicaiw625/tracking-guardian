@@ -2,6 +2,9 @@ import type { ActionFunctionArgs } from "@remix-run/node";
 import { authenticate } from "../shopify.server";
 import prisma from "../db.server";
 import { logger } from "../utils/logger.server";
+import { RATE_LIMIT_CONFIG } from "../utils/config";
+import { checkRateLimitAsync, ipKeyExtractor } from "../middleware/rate-limit";
+import { hashValueSync } from "../utils/crypto.server";
 import { dispatchWebhook, type WebhookContext, type ShopWithPixelConfigs } from "../webhooks";
 import { tryAcquireWebhookLock } from "../webhooks/middleware/idempotency";
 
@@ -13,6 +16,28 @@ function getWebhookId(authResult: Awaited<ReturnType<typeof authenticate.webhook
 }
 
 export const action = async ({ request }: ActionFunctionArgs) => {
+  const ipKey = ipKeyExtractor(request);
+  const rateLimit = await checkRateLimitAsync(
+    ipKey,
+    RATE_LIMIT_CONFIG.WEBHOOKS.maxRequests,
+    RATE_LIMIT_CONFIG.WEBHOOKS.windowMs
+  );
+  if (!rateLimit.allowed) {
+    const ipHash = ipKey === "untrusted" || ipKey === "unknown" ? ipKey : hashValueSync(ipKey).slice(0, 12);
+    logger.warn("[Webhook] Rate limit exceeded", {
+      ipHash,
+      retryAfter: rateLimit.retryAfter,
+    });
+    return new Response("Too Many Requests", {
+      status: 429,
+      headers: {
+        "Retry-After": String(rateLimit.retryAfter || 60),
+        "X-RateLimit-Limit": String(RATE_LIMIT_CONFIG.WEBHOOKS.maxRequests),
+        "X-RateLimit-Remaining": String(rateLimit.remaining || 0),
+        "X-RateLimit-Reset": String(Math.ceil((rateLimit.resetAt || Date.now()) / 1000)),
+      },
+    });
+  }
   let context: WebhookContext;
   try {
     const authResult = await authenticate.webhook(request);
