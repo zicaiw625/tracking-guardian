@@ -249,6 +249,16 @@ export async function checkLegacyPlaintextCredentials(): Promise<SecurityViolati
             logger.error(`Found ${violations.length} PixelConfig(s) with legacy plaintext credentials in production`);
         }
     } catch (error) {
+        // Handle column not found error (P2022) - credentials_legacy column may not exist in the database
+        if (error && typeof error === "object" && "code" in error && error.code === "P2022") {
+            const errorMessage = error instanceof Error ? error.message : String(error);
+            if (errorMessage.includes("credentials_legacy") && errorMessage.includes("does not exist")) {
+                logger.warn("PixelConfig.credentials_legacy column does not exist in database. This is expected if the column was removed or not yet created. Skipping legacy credentials check.", {
+                    error: errorMessage,
+                });
+                return violations;
+            }
+        }
         logger.warn("Failed to check for legacy plaintext credentials during startup", error);
     }
     return violations;
