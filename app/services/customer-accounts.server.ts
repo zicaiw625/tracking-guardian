@@ -16,9 +16,7 @@ export async function checkCustomerAccountsEnabled(
       query GetCustomerAccountsStatus {
         shop {
           checkoutApiSupported
-          features {
-            customerAccounts
-          }
+          customerAccounts
         }
       }
     `);
@@ -27,9 +25,7 @@ export async function checkCustomerAccountsEnabled(
       data?: {
         shop?: {
           checkoutApiSupported?: boolean;
-          features?: {
-            customerAccounts?: boolean;
-          };
+          customerAccounts?: "DISABLED" | "OPTIONAL" | "REQUIRED";
         };
       };
       errors?: Array<{ message?: string }>;
@@ -47,14 +43,16 @@ export async function checkCustomerAccountsEnabled(
 
     const shop = data.data?.shop;
     const checkoutApiSupported = shop?.checkoutApiSupported === true;
-    const customerAccountsFeature = shop?.features?.customerAccounts === true;
+    const customerAccountsSetting = shop?.customerAccounts;
+    const customerAccountsOn =
+      customerAccountsSetting === "OPTIONAL" || customerAccountsSetting === "REQUIRED";
 
-    const enabled = checkoutApiSupported || customerAccountsFeature;
+    const enabled = checkoutApiSupported || customerAccountsOn;
 
     return {
       enabled,
       checkedAt: new Date(),
-      confidence: checkoutApiSupported ? "high" : customerAccountsFeature ? "medium" : "low",
+      confidence: checkoutApiSupported ? "high" : customerAccountsOn ? "medium" : "low",
     };
   } catch (error) {
     logger.error("Failed to check Customer Accounts status:", error);
