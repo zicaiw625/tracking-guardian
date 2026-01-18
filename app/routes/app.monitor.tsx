@@ -121,18 +121,19 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   };
   try {
     const reconData = await getReconciliationDashboardData(shop.id, 7);
+    const ov = reconData.overview;
     reconciliation = {
-      last7Days: reconData.reports.map(r => ({
-        platform: r.platform,
-        shopifyOrders: r.shopifyOrders,
-        platformConversions: r.platformConversions,
-        orderDiscrepancy: r.orderDiscrepancy,
-        revenueDiscrepancy: r.revenueDiscrepancy,
+      last7Days: reconData.platformBreakdown.map((p) => ({
+        platform: p.platform,
+        shopifyOrders: p.webhookOrders,
+        platformConversions: p.pixelReceipts,
+        orderDiscrepancy: p.gapPercentage,
+        revenueDiscrepancy: p.gapPercentage,
       })),
       summary: {
-        totalOrders: reconData.summary.totalShopifyOrders,
-        totalConversions: reconData.summary.totalPlatformConversions,
-        avgDiscrepancy: reconData.summary.avgOrderDiscrepancy,
+        totalOrders: ov.totalWebhookOrders || ov.totalPixelReceipts,
+        totalConversions: ov.totalSentToPlatforms,
+        avgDiscrepancy: ov.gapPercentage,
       },
     };
   } catch (error) {

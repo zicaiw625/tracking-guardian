@@ -37,6 +37,9 @@ function validatePerformanceAuth(request: Request): boolean {
 
 export const action = async ({ request }: ActionFunctionArgs) => {
   if (process.env.NODE_ENV === "production") {
+    if (request.method === "POST") {
+      return new Response(null, { status: 204 });
+    }
     return jsonWithCors(
       { error: "Not found" },
       { status: 404, request, staticCors: true }

@@ -449,7 +449,10 @@ export async function getReconciliationDashboardData(
     startDate.setUTCDate(startDate.getUTCDate() - days);
     const shop = await prisma.shop.findUnique({
         where: { id: shopId },
-        select: { consentStrategy: true },
+        select: {
+            consentStrategy: true,
+            pixelConfigs: { where: { isActive: true }, select: { platform: true } },
+        },
     });
     const currentStrategy = shop?.consentStrategy || "strict";
     const pixelReceipts = await prisma.pixelEventReceipt.findMany({
@@ -509,7 +512,7 @@ export async function getReconciliationDashboardData(
         }
     }
     gapAnalysis.sort((a, b) => b.count - a.count);
-    const platforms = shop?.pixelConfigs?.map((c: { platform: string }) => c.platform) || [];
+    const platforms = shop?.pixelConfigs?.map((c) => c.platform) ?? [];
     const platformBreakdown = platforms.map(platform => {
         const platformReceipts = pixelReceipts.filter(() => true);
         const uniqueOrderCount = new Set(platformReceipts.filter(r => r.orderKey).map(r => r.orderKey!)).size;
