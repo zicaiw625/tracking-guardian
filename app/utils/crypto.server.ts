@@ -55,12 +55,11 @@ export function getEncryptionKey(): Buffer {
                 "Set ENCRYPTION_SECRET, DEV_ENCRYPTION_SECRET, or ALLOW_INSECURE_TEST_SECRET=true for local tests."
             );
         }
-        const hasShopifyCredentials = Boolean(process.env.SHOPIFY_API_SECRET);
-        const hasShopifyAppUrl = Boolean(process.env.SHOPIFY_APP_URL?.includes(".myshopify."));
-        if (hasShopifyCredentials && hasShopifyAppUrl) {
+        const hasShopifyCredentials = Boolean(process.env.SHOPIFY_API_KEY && process.env.SHOPIFY_API_SECRET);
+        if (hasShopifyCredentials) {
             throw new Error(
                 "ENCRYPTION_SECRET or DEV_ENCRYPTION_SECRET must be set when connecting to a live Shopify app. " +
-                "Detected SHOPIFY_API_SECRET and a myshopify.com URL. " +
+                "Detected Shopify API credentials in the environment. " +
                 "Generate a secure secret using: openssl rand -base64 32"
             );
         }
