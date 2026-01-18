@@ -1,0 +1,3 @@
+-- This migration was created to resolve a missing migration file issue.
+-- The fields (payloadJson, orderKey) were already added in migration 20260110000000_add_pixel_event_receipt_fields.
+-- This is a no-op migration to maintain migration history consistency.
