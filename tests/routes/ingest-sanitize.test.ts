@@ -77,6 +77,7 @@ describe("P0 Fix: checkoutToken and nonce preservation after sanitizePII removal
         expect(matchKeyResult.usedCheckoutTokenAsFallback).toBe(true);
         expect(matchKeyResult.orderId).toBeTruthy();
         expect(matchKeyResult.orderId).toContain("checkout");
+        expect(matchKeyResult.altOrderKey).toBeNull();
       }
     });
 
@@ -107,7 +108,29 @@ describe("P0 Fix: checkoutToken and nonce preservation after sanitizePII removal
 
         expect(matchKeyResult.usedCheckoutTokenAsFallback).toBe(true);
         expect(matchKeyResult.orderId).toBeTruthy();
+        expect(matchKeyResult.altOrderKey).toBeNull();
       }
+    });
+  });
+
+  describe("dual key when both orderId and checkoutToken exist", () => {
+    it("should set orderId as primary key and altOrderKey as checkout hash", () => {
+      const matchKeyResult = generateOrderMatchKey(
+        "gid://shopify/Order/99999",
+        "token_dual_key_abc",
+        "test-shop.myshopify.com"
+      );
+      expect(matchKeyResult.usedCheckoutTokenAsFallback).toBe(false);
+      expect(matchKeyResult.orderId).toBe("99999");
+      expect(matchKeyResult.altOrderKey).toBeTruthy();
+      expect(matchKeyResult.altOrderKey).toMatch(/^checkout_[a-f0-9]+$/);
+    });
+
+    it("should have altOrderKey null when only orderId", () => {
+      const matchKeyResult = generateOrderMatchKey("12345", null, "test-shop.myshopify.com");
+      expect(matchKeyResult.orderId).toBe("12345");
+      expect(matchKeyResult.altOrderKey).toBeNull();
+      expect(matchKeyResult.usedCheckoutTokenAsFallback).toBe(false);
     });
   });
 
@@ -244,6 +267,7 @@ describe("P0 Fix: checkoutToken and nonce preservation after sanitizePII removal
 
         expect(matchKeyResult.usedCheckoutTokenAsFallback).toBe(true);
         expect(matchKeyResult.orderId).toBeTruthy();
+        expect(matchKeyResult.altOrderKey).toBeNull();
       }
     });
   });

@@ -172,6 +172,7 @@ model PixelEventReceipt {
   originHost        String?
   payloadJson       Json?
   orderKey          String?
+  altOrderKey       String?
   createdAt         DateTime         @default(now())
   Shop              Shop             @relation(fields: [shopId], references: [id], onDelete: Cascade)
   VerificationRun   VerificationRun? @relation(fields: [verificationRunId], references: [id], onDelete: SetNull)
@@ -183,6 +184,7 @@ model PixelEventReceipt {
   @@index([eventType])
   @@index([shopId, eventType, pixelTimestamp])
   @@index([orderKey])
+  @@index([altOrderKey])
   @@index([eventId])
 }
 

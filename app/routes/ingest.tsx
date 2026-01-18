@@ -457,6 +457,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         : 1,
     })).filter(item => item.id) || [];
     let orderId: string | null = null;
+    let altOrderKey: string | null = null;
     let usedCheckoutTokenAsFallback = false;
     let eventIdentifier: string | null = null;
     if (isPurchaseEvent) {
@@ -467,9 +468,10 @@ export const action = async ({ request }: ActionFunctionArgs) => {
           shopDomain
         );
         orderId = matchKeyResult.orderId;
+        altOrderKey = matchKeyResult.altOrderKey;
         usedCheckoutTokenAsFallback = matchKeyResult.usedCheckoutTokenAsFallback;
         eventIdentifier = orderId;
-        const alreadyRecorded = await isClientEventRecorded(shop.id, orderId, eventType, payload.data?.checkoutToken != null ? { checkoutToken: payload.data.checkoutToken } : undefined);
+        const alreadyRecorded = await isClientEventRecorded(shop.id, orderId, eventType, altOrderKey != null ? { altOrderKey } : undefined);
         if (alreadyRecorded) {
           const orderIdHash = hashValueSync(orderId).slice(0, 12);
           logger.debug(`Purchase event already recorded for order ${orderIdHash}, skipping`, {
@@ -564,7 +566,8 @@ export const action = async ({ request }: ActionFunctionArgs) => {
           eventType,
           activeVerificationRunId ?? null,
           primaryPlatform || null,
-          orderId || null
+          orderId || null,
+          altOrderKey
         );
       } catch (error) {
         const orderIdHash = orderId ? hashValueSync(orderId).slice(0, 12) : null;

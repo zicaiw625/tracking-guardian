@@ -9,6 +9,7 @@ import { runAllShopAlertChecks } from "../services/alert-dispatcher.server";
 import { cleanupExpiredData } from "../cron/tasks/cleanup";
 import { validateInput } from "../schemas/api-schemas";
 import { CronRequestSchema } from "../schemas/api-schemas";
+import { processConversionJobs } from "../services/conversion-job.server";
 import { runAllShopsDeliveryHealthCheck } from "../services/delivery-health.server";
 import { runAllShopsReconciliation } from "../services/reconciliation.server";
 import { readJsonWithSizeLimit } from "../utils/body-size-guard";
@@ -105,6 +106,17 @@ async function handleCron(request: Request): Promise<Response> {
         results.process_gdpr = {
           status: "skipped",
           message: "GDPR requests are processed synchronously via webhook handlers",
+        };
+      }
+
+      if (task === "all" || task === "process_conversion") {
+        logger.info("[Cron] Running process conversion jobs", { requestId });
+        const conversionResult = await processConversionJobs();
+        results.process_conversion = {
+          processed: conversionResult.processed,
+          succeeded: conversionResult.succeeded,
+          failed: conversionResult.failed,
+          errors: conversionResult.errors,
         };
       }
 

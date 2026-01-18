@@ -611,7 +611,7 @@ Customer Account / Thank you block 与 Web Pixel 的配合、以及 PCD 的说�
      - 验证 `PIXEL_ALLOW_NULL_ORIGIN=true` 环境变量已正确设置（生产环境必须设置）
      - 确认事件仍能正常接收和处理（不因 Origin 校验失败而丢失）
      - 检查日志中 Origin: null 的请求是否被正确标记和允许
-   - **重点验证**：某些 Shopify 场景（如 Web Worker 沙箱环境）可能出现 `Origin: null`，生产环境默认会拒绝此类请求。必须设置 `PIXEL_ALLOW_NULL_ORIGIN=true` 才能正常接收事件。如果未设置此环境变量，像素事件将在 Origin: null 场景下被拒绝，导致事件丢失。
+   - **重点验证**：某些 Shopify 场景（如 Web Worker 沙箱环境）可能出现 `Origin: null`。未设置 `PIXEL_ALLOW_NULL_ORIGIN` 时：无签名的 Origin: null/缺失 请求会被拒绝，带签名的会放行。建议显式设置 `PIXEL_ALLOW_NULL_ORIGIN=true` 以正常接收所有 Origin: null 的 pixel 事件。
    - **实战建议**：使用压测脚本的 `--null-origin-only` 参数专门测试 Origin: null 场景，确保生产环境配置正确。
    - **执行命令**：
      ```bash

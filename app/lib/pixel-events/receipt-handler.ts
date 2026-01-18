@@ -31,18 +31,31 @@ function buildMinimalPayloadForReceipt(payload: PixelEventPayload): Record<strin
 
 export interface MatchKeyResult {
   orderId: string;
+  altOrderKey: string | null;
   usedCheckoutTokenAsFallback: boolean;
 }
 
 export function generateOrderMatchKey(
   orderId: string | null | undefined,
   checkoutToken: string | null | undefined,
-  shopDomain?: string
+  _shopDomain?: string
 ): MatchKeyResult {
-  const matchKeyResult = generateMatchKey({ orderId: orderId || null, checkoutToken: checkoutToken || null });
+  const hasOrderId = orderId != null && orderId !== "";
+  const hasCheckout = checkoutToken != null && checkoutToken !== "";
+  if (hasOrderId && hasCheckout) {
+    const orderKey = generateMatchKey({ orderId, checkoutToken: null }).matchKey;
+    const altOrderKey = makeOrderKey({ checkoutToken });
+    return {
+      orderId: orderKey,
+      altOrderKey: altOrderKey ?? null,
+      usedCheckoutTokenAsFallback: false,
+    };
+  }
+  const r = generateMatchKey({ orderId: orderId || null, checkoutToken: checkoutToken || null });
   return {
-    orderId: matchKeyResult.matchKey,
-    usedCheckoutTokenAsFallback: !matchKeyResult.isOrderId && !!matchKeyResult.checkoutToken,
+    orderId: r.matchKey,
+    altOrderKey: null,
+    usedCheckoutTokenAsFallback: !r.isOrderId && !!r.checkoutToken,
   };
 }
 
@@ -66,32 +79,24 @@ export async function isClientEventRecorded(
   shopId: string,
   orderKey: string,
   eventType: string,
-  opts?: { checkoutToken?: string | null }
+  opts?: { altOrderKey?: string | null }
 ): Promise<boolean> {
+  const orList: Array<{ orderKey?: string; altOrderKey?: string }> = [
+    { orderKey },
+    { altOrderKey: orderKey },
+  ];
+  if (opts?.altOrderKey != null && opts.altOrderKey !== "" && opts.altOrderKey !== orderKey) {
+    orList.push({ orderKey: opts.altOrderKey }, { altOrderKey: opts.altOrderKey });
+  }
   const existing = await prisma.pixelEventReceipt.findFirst({
     where: {
       shopId,
-      orderKey,
       eventType,
+      OR: orList,
     },
     select: { id: true },
   });
-  if (existing) return true;
-  if (opts?.checkoutToken != null && opts.checkoutToken !== "") {
-    const altKey = makeOrderKey({ checkoutToken: opts.checkoutToken });
-    if (altKey && altKey !== orderKey) {
-      const altExisting = await prisma.pixelEventReceipt.findFirst({
-        where: {
-          shopId,
-          orderKey: altKey,
-          eventType,
-        },
-        select: { id: true },
-      });
-      if (altExisting) return true;
-    }
-  }
-  return false;
+  return !!existing;
 }
 
 export async function upsertPixelEventReceipt(
@@ -102,7 +107,8 @@ export async function upsertPixelEventReceipt(
   eventType: string = "purchase",
   verificationRunId?: string | null,
   platform?: string | null,
-  orderKey?: string | null
+  orderKey?: string | null,
+  altOrderKey?: string | null
 ): Promise<ReceiptCreateResult> {
   const originHost = extractOriginHost(origin);
   const payloadData = payload?.data as Record<string, unknown> | undefined;
@@ -135,6 +141,7 @@ export async function upsertPixelEventReceipt(
         verificationRunId: verificationRunId || null,
         payloadJson: payloadToStore,
         orderKey: extractedOrderKey || null,
+        altOrderKey: altOrderKey ?? null,
       },
       update: {
         pixelTimestamp: new Date(payload.timestamp),
@@ -142,6 +149,7 @@ export async function upsertPixelEventReceipt(
         verificationRunId: verificationRunId || null,
         payloadJson: payloadToStore,
         orderKey: extractedOrderKey || null,
+        altOrderKey: altOrderKey ?? null,
       },
     });
     return { success: true, eventId };

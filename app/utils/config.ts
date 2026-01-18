@@ -308,7 +308,7 @@ const REQUIRED_IN_PRODUCTION = [
 
 const PIXEL_INGESTION_ENABLED_CHECK = {
     key: "PIXEL_ALLOW_NULL_ORIGIN",
-    reason: "Production environment defaults to blocking null origin requests (may cause event loss). In production, all requests with null/invalid origin will be rejected regardless of signature presence. Set PIXEL_ALLOW_NULL_ORIGIN=true to explicitly allow null origin requests, or leave unset/false to block them.",
+    reason: "When unset in production: unsigned null/missing Origin requests are rejected; signed null/missing Origin requests are allowed. Set PIXEL_ALLOW_NULL_ORIGIN=true to explicitly allow, or false to reject; explicit setting reduces ambiguity and alert noise.",
 } as const;
 const RECOMMENDED = [
     { key: "RESEND_API_KEY", reason: "for email notifications" },
@@ -353,7 +353,7 @@ export function validateConfig(): ConfigValidationResult {
     if (isProduction) {
         const pixelAllowNullOrigin = process.env.PIXEL_ALLOW_NULL_ORIGIN;
         if (pixelAllowNullOrigin === undefined || pixelAllowNullOrigin === "") {
-            warnings.push(`PIXEL_ALLOW_NULL_ORIGIN not set in production. Defaulting to block null origin requests (may cause event loss). ${PIXEL_INGESTION_ENABLED_CHECK.reason}`);
+            warnings.push(`PIXEL_ALLOW_NULL_ORIGIN not set in production. ${PIXEL_INGESTION_ENABLED_CHECK.reason}`);
         }
     }
     if (process.env.ENCRYPTION_SECRET && process.env.ENCRYPTION_SECRET.length < 32) {

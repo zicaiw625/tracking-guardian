@@ -148,10 +148,8 @@ export function checkSecurityViolations(): SecurityViolation[] {
                 type: "fatal",
                 code: "PIXEL_NULL_ORIGIN_NOT_CONFIGURED",
                 message: "[P0-2 CONFIGURATION ERROR] PIXEL_ALLOW_NULL_ORIGIN is not set in production. " +
-                    "Web Pixel API may send requests with Origin=null from sandbox environments. " +
-                    "Without explicit configuration, these requests will be silently rejected, causing data loss. " +
-                    "If your deployment receives pixel events, you MUST set PIXEL_ALLOW_NULL_ORIGIN=true. " +
-                    "If you do not receive pixel events, you can set PIXEL_ALLOW_NULL_ORIGIN=false explicitly.",
+                    "When unset: unsigned null/missing Origin requests are rejected; signed null/missing Origin requests are allowed. " +
+                    "If your deployment receives pixel events, set PIXEL_ALLOW_NULL_ORIGIN=true; otherwise set PIXEL_ALLOW_NULL_ORIGIN=false explicitly.",
             });
         } else {
             const normalized = allowNullOrigin.toLowerCase().trim();

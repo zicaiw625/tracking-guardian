@@ -1,5 +1,6 @@
 import { randomUUID } from "crypto";
 import prisma from "../../db.server";
+import { createConversionJob } from "../../services/db/conversion-repository.server";
 import { logger } from "../../utils/logger.server";
 import type { WebhookContext, WebhookHandlerResult } from "../types";
 
@@ -93,6 +94,34 @@ export async function handleOrdersCreate(
       },
     });
     logger.info(`Order snapshot created/updated: ${snapshot.orderId} for ${shop}`);
+    const skipEnqueue =
+      snapshot.financialStatus === "cancelled" ||
+      snapshot.cancelledAt != null ||
+      snapshot.totalValue <= 0;
+    if (!skipEnqueue) {
+      const existingReceipt = await prisma.pixelEventReceipt.findFirst({
+        where: {
+          shopId: shopRecord.id,
+          eventType: "purchase",
+          OR: [{ orderKey: snapshot.orderId }, { altOrderKey: snapshot.orderId }],
+        },
+        select: { id: true },
+      });
+      if (!existingReceipt) {
+        await createConversionJob({
+          shopId: shopRecord.id,
+          orderId: snapshot.orderId,
+          orderNumber: snapshot.orderNumber,
+          orderValue: snapshot.totalValue,
+          currency: snapshot.currency,
+          capiInput: {
+            value: snapshot.totalValue,
+            currency: snapshot.currency,
+            eventType: "purchase",
+          },
+        });
+      }
+    }
     return {
       success: true,
       message: "OK",
