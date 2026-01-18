@@ -8,7 +8,7 @@ import { getShopForPixelVerificationWithConfigs } from "~/lib/pixel-events/key-v
 import { validatePixelEventHMAC } from "~/lib/pixel-events/hmac-validation";
 import { verifyWithGraceWindowAsync } from "~/utils/shop-access";
 import { validateRequest, isPrimaryEvent } from "~/lib/pixel-events/validation";
-import { API_CONFIG, RATE_LIMIT_CONFIG, CIRCUIT_BREAKER_CONFIG } from "~/utils/config";
+import { API_CONFIG, RATE_LIMIT_CONFIG, CIRCUIT_BREAKER_CONFIG, isStrictSecurityMode } from "~/utils/config";
 import {
   isDevMode,
   validatePixelOriginPreBody,
@@ -228,9 +228,20 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   const environment = (firstPayload.data as { environment?: "test" | "live" })?.environment || "live";
   const shop = await getShopForPixelVerificationWithConfigs(shopDomain, environment);
   if (!shop || !shop.isActive) {
+    if (isProduction) {
+      logger.warn(`Shop not found or inactive for ingest`, {
+        shopDomain,
+        exists: !!shop,
+        isActive: shop?.isActive,
+      });
+      return jsonWithCors(
+        { error: "Invalid request" },
+        { status: 401, request }
+      );
+    }
     return jsonWithCors(
       { error: "Shop not found or inactive" },
-      { status: 404, request }
+      { status: 401, request }
     );
   }
   const shopAllowedDomains = buildShopAllowedDomains({
@@ -327,7 +338,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       reason: "signature_missing",
     };
   }
-  if (isProduction && !keyValidation.matched) {
+  if (isStrictSecurityMode() && !keyValidation.matched) {
     const rejectionReason = keyValidation.reason === "secret_missing"
       ? "no_ingestion_key"
       : "invalid_key";
@@ -338,11 +349,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     logger.warn(`Rejected ingest request for ${shopDomain}`, {
       reason: keyValidation.reason,
     });
-    const status = keyValidation.reason === "secret_missing" ? 409 : 401;
-    const errorMessage = keyValidation.reason === "secret_missing"
-      ? "Ingestion secret not configured"
-      : "Invalid signature";
-    return jsonWithCors({ error: errorMessage }, { status, request });
+    return jsonWithCors({ error: "Invalid signature" }, { status: 401, request });
   }
   const rateLimitKey = shopDomainIpKeyExtractor(request);
   const rateLimit = await checkRateLimitAsync(

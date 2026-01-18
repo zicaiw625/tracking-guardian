@@ -5,6 +5,7 @@ import { generateVerificationReportData, generateVerificationReportPDF } from ".
 import { logger } from "../utils/logger.server";
 import { sanitizeFilename } from "../utils/responses";
 import { jsonApi, withSecurityHeaders } from "../utils/security-headers";
+import { isProduction } from "../utils/config";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   try {
@@ -58,8 +59,11 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     });
   } catch (error) {
     logger.error("Failed to export verification report PDF", { error });
+    const errorMessage = isProduction()
+      ? "Failed to export report PDF"
+      : (error instanceof Error ? error.message : "Failed to export report PDF");
     return jsonApi(
-      { error: error instanceof Error ? error.message : "Failed to export report PDF" },
+      { error: errorMessage },
       { status: 500 }
     );
   }

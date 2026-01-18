@@ -112,6 +112,18 @@ export const loader = async ({ request, params }: LoaderFunctionArgs) => {
       return publicJson({ error: "Failed to load report data", report: null }, { status: 500 });
     }
 
+    const publicEvents = reportData.events.map((event) => ({
+      testItemId: event.testItemId,
+      eventType: event.eventType,
+      platform: event.platform,
+      status: event.status,
+      params: event.params ? {
+        value: event.params.value,
+        currency: event.params.currency,
+      } : undefined,
+      sandboxLimitations: event.sandboxLimitations,
+    }));
+
     return publicJson({
       report: {
         runId: reportData.runId,
@@ -130,7 +142,7 @@ export const loader = async ({ request, params }: LoaderFunctionArgs) => {
         startedAt: reportData.startedAt?.toISOString() || null,
         completedAt: reportData.completedAt?.toISOString() || null,
         createdAt: reportData.createdAt.toISOString(),
-        events: reportData.events,
+        events: publicEvents,
         sandboxLimitations: reportData.sandboxLimitations,
       },
     });

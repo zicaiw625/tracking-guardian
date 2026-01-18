@@ -4,6 +4,7 @@ import prisma from "../db.server";
 import { logger } from "../utils/logger.server";
 import { getExistingWebPixels, isOurWebPixel, needsSettingsUpgrade } from "../services/migration.server";
 import { sanitizeFilename } from "../utils/responses";
+import { withSecurityHeaders, API_SECURITY_HEADERS } from "../utils/security-headers";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   const { session, admin } = await authenticate.admin(request);
@@ -132,10 +133,14 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   };
   const dateSuffix = generatedAt.toISOString().split("T")[0];
   const filename = `diagnostic-package-${shop.shopDomain}-${dateSuffix}.json`;
+  const headers = withSecurityHeaders({
+    "Content-Type": "application/json; charset=utf-8",
+    "Content-Disposition": `attachment; filename="${sanitizeFilename(filename)}"`,
+    "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate",
+    "Pragma": "no-cache",
+    "Expires": "0",
+  }, API_SECURITY_HEADERS);
   return new Response(JSON.stringify(exportData, null, 2), {
-    headers: {
-      "Content-Type": "application/json; charset=utf-8",
-      "Content-Disposition": `attachment; filename="${sanitizeFilename(filename)}"`,
-    },
+    headers,
   });
 };

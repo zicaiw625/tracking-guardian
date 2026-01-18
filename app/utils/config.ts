@@ -422,6 +422,21 @@ export function isProduction(): boolean {
 export function isDevelopment(): boolean {
     return process.env.NODE_ENV !== "production";
 }
+export function isStrictSecurityMode(): boolean {
+    const securityEnforcement = process.env.SECURITY_ENFORCEMENT?.toLowerCase().trim();
+    if (securityEnforcement === "strict") {
+        return true;
+    }
+    if (securityEnforcement === "relaxed") {
+        return false;
+    }
+    const isProd = isProduction();
+    const isLocalDev = process.env.LOCAL_DEV === "true" || process.env.LOCAL_DEV === "1";
+    if (isProd) {
+        return true;
+    }
+    return !isLocalDev;
+}
 
 export const PCD_CONFIG = {
     APPROVED: getBoolEnv("PCD_APPROVED", false),

@@ -1,6 +1,7 @@
 import { timingSafeEqual } from "crypto";
 import { createHmac } from "crypto";
 import { logger } from "../utils/logger.server";
+import { isStrictSecurityMode } from "../utils/config";
 
 const REPLAY_WINDOW_SECONDS = 300;
 const MIN_SECRET_LENGTH = 32;
@@ -9,8 +10,8 @@ export function validateCronAuth(request: Request): Response | null {
   const cronSecret = process.env.CRON_SECRET;
   const cronSecretPrevious = process.env.CRON_SECRET_PREVIOUS || "";
 
-  if (!cronSecret && process.env.NODE_ENV !== "production") {
-    logger.warn("CRON_SECRET not configured - allowing unauthenticated access in development");
+  if (!cronSecret && !isStrictSecurityMode()) {
+    logger.warn("CRON_SECRET not configured - allowing unauthenticated access in non-strict mode");
     return null;
   }
 
