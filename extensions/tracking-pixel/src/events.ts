@@ -148,6 +148,12 @@ function generateNonce(): { timestamp: number; nonce: string } {
       .map(b => b.toString(16).padStart(2, "0"))
       .join("");
   }
+  if (!randomHex) {
+    randomHex = Array.from({ length: 3 }, () => Math.floor(Math.random() * 0xffffffff)
+      .toString(16)
+      .padStart(8, "0"))
+      .join("");
+  }
   return { timestamp, nonce: `${timestamp}-${randomHex}` };
 }
 
