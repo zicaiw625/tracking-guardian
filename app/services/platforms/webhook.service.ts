@@ -157,6 +157,9 @@ function validateEndpointUrl(url: string): { valid: boolean; error?: string } {
         return { valid: false, error: 'Endpoint URL must use HTTPS or http://localhost (development only)' };
       }
       if (isLocalHttp) {
+        if (hostname === '127.0.0.1') {
+          return { valid: true };
+        }
         for (const pattern of FORBIDDEN_PATTERNS_DEVELOPMENT) {
           if (pattern.test(url)) {
             return { valid: false, error: 'Endpoint URL points to a private network (not allowed even in development)' };
