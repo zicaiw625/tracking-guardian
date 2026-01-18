@@ -86,7 +86,12 @@ export async function handlePublicPreflight(request: Request): Promise<Response>
     }
   }
   if (!finalHeaders.has("Access-Control-Allow-Methods")) {
-    finalHeaders.set("Access-Control-Allow-Methods", "POST, OPTIONS");
+    const reqMethod = request.headers.get("Access-Control-Request-Method")?.toUpperCase();
+    const allow = new Set(["GET", "POST", "OPTIONS"]);
+    if (reqMethod) {
+      allow.add(reqMethod);
+    }
+    finalHeaders.set("Access-Control-Allow-Methods", Array.from(allow).join(", "));
   }
   if (!finalHeaders.has("Access-Control-Allow-Headers")) {
     finalHeaders.set("Access-Control-Allow-Headers", corsHeaders.join(", "));
