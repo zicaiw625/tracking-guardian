@@ -110,19 +110,27 @@ export function validatePixelOriginPreBody(origin: string | null, hasSignatureHe
     
     if (origin === null) {
         if (!originHeaderPresent) {
-            if (isProduction) {
+            if (devMode || allowNullOrigin) {
                 return {
-                    valid: false,
-                    reason: "missing_origin",
+                    valid: true,
+                    reason: "missing_origin_allowed",
+                    shouldLog: false,
+                    shouldReject: false,
+                };
+            }
+            if (hasSignatureHeaderOrHMAC) {
+                return {
+                    valid: true,
+                    reason: "missing_origin_allowed_with_signature",
                     shouldLog: true,
-                    shouldReject: true,
+                    shouldReject: false,
                 };
             }
             return {
-                valid: devMode,
-                reason: devMode ? "no_origin_dev" : "missing_origin",
-                shouldLog: !devMode,
-                shouldReject: !devMode,
+                valid: false,
+                reason: "missing_origin",
+                shouldLog: true,
+                shouldReject: true,
             };
         }
         if (devMode || allowNullOrigin) {
