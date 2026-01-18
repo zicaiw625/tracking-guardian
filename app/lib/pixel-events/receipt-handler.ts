@@ -65,8 +65,7 @@ export interface ConversionLogResult {
 export async function isClientEventRecorded(
   shopId: string,
   orderId: string,
-  eventType: string,
-  shopDomain: string
+  eventType: string
 ): Promise<boolean> {
   const existing = await prisma.pixelEventReceipt.findFirst({
     where: {

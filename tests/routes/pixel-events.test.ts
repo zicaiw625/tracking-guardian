@@ -44,24 +44,23 @@ describe("Pixel Events API - Origin Validation", () => {
       expect(isValidShopifyOrigin(null)).toBe(false);
     });
     it("accepts *.myshopify.com origins", () => {
-      expect(isValidShopifyOrigin("https://test-shop.myshopify.com"));
-      expect(isValidShopifyOrigin("https://test-shop.myshopify.com"));
+      expect(isValidShopifyOrigin("https://test-shop.myshopify.com")).toBe(true);
     });
     it("rejects invalid domains", () => {
-      expect(isValidShopifyOrigin("https://test-shop.myshopify.com"));
-      expect(isValidShopifyOrigin("https://test-shop.myshopify.com"));
-      expect(isValidShopifyOrigin("https://test-shop.myshopify.com"));
+      expect(isValidShopifyOrigin("https://evil.com")).toBe(false);
+      expect(isValidShopifyOrigin("https://phishing-site.com")).toBe(false);
+      expect(isValidShopifyOrigin("https://not-myshopify.com")).toBe(false);
     });
     it("rejects non-HTTPS origins", () => {
       expect(isValidShopifyOrigin("http://test-shop.myshopify.com")).toBe(false);
     });
     it("accepts checkout domains", () => {
-      expect(isValidShopifyOrigin("https://test-shop.myshopify.com"));
+      expect(isValidShopifyOrigin("https://checkout.shopify.com")).toBe(true);
     });
     it("rejects fake checkout domains (security fix)", () => {
-      expect(isValidShopifyOrigin("https://test-shop.myshopify.com"));
-      expect(isValidShopifyOrigin("https://test-shop.myshopify.com"));
-      expect(isValidShopifyOrigin("https://test-shop.myshopify.com"));
+      expect(isValidShopifyOrigin("https://checkout.evil.com")).toBe(false);
+      expect(isValidShopifyOrigin("https://checkout.shopify.com.attacker.com")).toBe(false);
+      expect(isValidShopifyOrigin("https://fake-checkout.other.com")).toBe(false);
     });
   });
   describe("Dev origin validation", () => {
@@ -294,23 +293,24 @@ describe("Pixel Events API - Idempotent Writes", () => {
     const mockUpsert = vi.fn().mockResolvedValue({
       id: "receipt-1",
       shopId: "shop-1",
-      orderId: "order-1",
+      eventId: "evt-1",
       eventType: "purchase",
     });
     (prisma.pixelEventReceipt.upsert as any) = mockUpsert;
     await prisma.pixelEventReceipt.upsert({
       where: {
-        shopId_orderId_eventType: {
+        shopId_eventId_eventType: {
           shopId: "shop-1",
-          orderId: "order-1",
+          eventId: "evt-1",
           eventType: "purchase",
         },
       },
       create: {
         shopId: "shop-1",
-        orderId: "order-1",
+        eventId: "evt-1",
         eventType: "purchase",
         pixelTimestamp: new Date(),
+        orderKey: "order-1",
       },
       update: {
         pixelTimestamp: new Date(),
@@ -318,9 +318,9 @@ describe("Pixel Events API - Idempotent Writes", () => {
     });
     expect(mockUpsert).toHaveBeenCalledTimes(1);
     expect(mockUpsert.mock.calls[0][0].where).toEqual({
-      shopId_orderId_eventType: {
+      shopId_eventId_eventType: {
         shopId: "shop-1",
-        orderId: "order-1",
+        eventId: "evt-1",
         eventType: "purchase",
       },
     });

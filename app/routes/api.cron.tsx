@@ -11,7 +11,6 @@ import { validateInput } from "../schemas/api-schemas";
 import { CronRequestSchema } from "../schemas/api-schemas";
 import { runAllShopsDeliveryHealthCheck } from "../services/delivery-health.server";
 import { runAllShopsReconciliation } from "../services/reconciliation.server";
-import { processConversionJobs } from "../services/conversion-job.server";
 import { readJsonWithSizeLimit } from "../utils/body-size-guard";
 
 async function handleCron(request: Request): Promise<Response> {
@@ -98,17 +97,6 @@ async function handleCron(request: Request): Promise<Response> {
           succeeded: reconciliationResult.succeeded,
           failed: reconciliationResult.failed,
           reportsGenerated: reconciliationResult.results.length,
-        };
-      }
-
-      if (task === "all" || task === "process_jobs") {
-        logger.info("[Cron] Processing conversion jobs", { requestId });
-        const jobsResult = await processConversionJobs();
-        results.process_jobs = {
-          status: "completed",
-          processed: jobsResult.processed,
-          succeeded: jobsResult.succeeded,
-          failed: jobsResult.failed,
         };
       }
 

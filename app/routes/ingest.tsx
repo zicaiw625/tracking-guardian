@@ -469,7 +469,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         orderId = matchKeyResult.orderId;
         usedCheckoutTokenAsFallback = matchKeyResult.usedCheckoutTokenAsFallback;
         eventIdentifier = orderId;
-        const alreadyRecorded = await isClientEventRecorded(shop.id, orderId, eventType, shopDomain);
+        const alreadyRecorded = await isClientEventRecorded(shop.id, orderId, eventType);
         if (alreadyRecorded) {
           const orderIdHash = hashValueSync(orderId).slice(0, 12);
           logger.debug(`Purchase event already recorded for order ${orderIdHash}, skipping`, {
