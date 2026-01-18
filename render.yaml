@@ -68,6 +68,9 @@ services:
         generateValue: true  # 自动生成加密密钥
       - key: ENCRYPTION_SALT
         generateValue: true
+      # Proxy Configuration (REQUIRED for rate limiting in production)
+      - key: TRUST_PROXY
+        value: "true"  # 必须设置为 true，用于正确的 IP 限流（防止自 DoS）
       # PCD (Protected Customer Data) 配置
       # 重要：仅在获得 Shopify PCD 批准后设为 true
       # 默认 false 表示 PII 增强匹配功能禁用
