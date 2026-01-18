@@ -92,7 +92,6 @@ export async function validateEvents(
       orderKey: true,
       payloadJson: true,
       eventType: true,
-      payloadJson: true,
     },
     orderBy: { createdAt: "desc" },
     take: limit,

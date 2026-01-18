@@ -999,7 +999,7 @@ export async function performBulkLocalConsistencyCheck(
     distinct: ["orderKey"],
     take: options?.maxOrders || 100,
   });
-  const orderIds: string[] = receipts
+  let orderIds: string[] = receipts
     .map((r) => r.orderKey)
     .filter((key): key is string => typeof key === "string" && key.length > 0);
   if (options?.sampleRate && options.sampleRate < 1.0) {
