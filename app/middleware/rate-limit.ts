@@ -250,6 +250,10 @@ const rateLimitStore = new DistributedRateLimitStore();
 
 const DEFAULT_TRUSTED_IP_HEADERS = ["x-forwarded-for", "x-real-ip", "cf-connecting-ip"];
 const DEVELOPMENT_IP_HEADERS = ["cf-connecting-ip", "x-real-ip", "x-forwarded-for"];
+const requiresTrustedProxy = process.env.NODE_ENV === "production" && process.env.TRUST_PROXY !== "true";
+if (requiresTrustedProxy) {
+  throw new Error("TRUST_PROXY must be true in production for correct IP rate limiting");
+}
 
 function getTrustedIpHeaders(): string[] {
   const rawHeaders = process.env.RATE_LIMIT_TRUSTED_IP_HEADERS;
