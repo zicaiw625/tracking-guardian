@@ -1,6 +1,7 @@
 import { randomUUID } from "crypto";
 import prisma from "../../db.server";
 import { createConversionJob } from "../../services/db/conversion-repository.server";
+import { makeOrderKey, normalizeOrderId } from "../../utils/crypto.server";
 import { logger } from "../../utils/logger.server";
 import type { WebhookContext, WebhookHandlerResult } from "../types";
 
@@ -13,6 +14,7 @@ interface OrderWebhookPayload {
   cancelled_at?: string | null;
   updated_at?: string;
   created_at?: string;
+  checkout_token?: string | null;
 }
 
 function extractOrderSnapshot(payload: OrderWebhookPayload): {
@@ -99,15 +101,38 @@ export async function handleOrdersCreate(
       snapshot.cancelledAt != null ||
       snapshot.totalValue <= 0;
     if (!skipEnqueue) {
+      const orderKeyNorm = normalizeOrderId(snapshot.orderId);
+      const checkoutKey =
+        orderPayload.checkout_token != null && orderPayload.checkout_token !== ""
+          ? makeOrderKey({ checkoutToken: orderPayload.checkout_token })
+          : null;
+      const orConditions: Array<{ orderKey?: string; altOrderKey?: string }> = [
+        { orderKey: orderKeyNorm },
+        { altOrderKey: orderKeyNorm },
+      ];
+      if (checkoutKey) {
+        orConditions.push({ orderKey: checkoutKey }, { altOrderKey: checkoutKey });
+      }
       const existingReceipt = await prisma.pixelEventReceipt.findFirst({
         where: {
           shopId: shopRecord.id,
           eventType: "purchase",
-          OR: [{ orderKey: snapshot.orderId }, { altOrderKey: snapshot.orderId }],
+          OR: orConditions,
         },
-        select: { id: true },
+        select: { id: true, orderKey: true },
       });
-      if (!existingReceipt) {
+      if (existingReceipt) {
+        if (
+          checkoutKey != null &&
+          existingReceipt.orderKey !== null &&
+          existingReceipt.orderKey === checkoutKey
+        ) {
+          await prisma.pixelEventReceipt.update({
+            where: { id: existingReceipt.id },
+            data: { orderKey: orderKeyNorm, altOrderKey: checkoutKey },
+          });
+        }
+      } else {
         await createConversionJob({
           shopId: shopRecord.id,
           orderId: snapshot.orderId,
