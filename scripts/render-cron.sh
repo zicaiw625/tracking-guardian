@@ -66,18 +66,34 @@ fi
 
 
 echo "[Cron] Sending POST request..."
+# 临时关闭 set -e，以便 curl 失败时能捕获退出码和输出
+set +e
 RESPONSE=$(curl -s -w "\n%{http_code}" \
     -X POST \
     "${HEADERS[@]}" \
     --max-time "${TIMEOUT}" \
     "${CRON_ENDPOINT}" 2>&1)
-
+CURL_EXIT=$?
+set -e
 
 HTTP_CODE=$(echo "${RESPONSE}" | tail -n 1)
 BODY=$(echo "${RESPONSE}" | sed '$d')
 
 echo "[Cron] Response code: ${HTTP_CODE}"
 
+# curl 未收到 HTTP 响应（连接/解析/超时等）
+if [ "${CURL_EXIT:-1}" -ne 0 ] || [ "${HTTP_CODE}" = "000" ] || [ -z "${HTTP_CODE}" ]; then
+    echo -e "${RED}[Cron] ✗ Request failed (curl exit: ${CURL_EXIT}, HTTP: ${HTTP_CODE:-none})${NC}"
+    echo "[Cron] Response/Error: ${BODY}"
+    case "${CURL_EXIT}" in
+        6)  echo "[Cron] Hint: Could not resolve host - check APP_URL/SHOPIFY_APP_URL and DNS" ;;
+        7)  echo "[Cron] Hint: Connection refused - is the web service running and reachable?" ;;
+        28) echo "[Cron] Hint: Timeout (${TIMEOUT}s) - service may be cold-starting or overloaded" ;;
+        35) echo "[Cron] Hint: SSL connect error - check TLS/HTTPS configuration" ;;
+        *)  echo "[Cron] Hint: See curl man page for exit code ${CURL_EXIT}" ;;
+    esac
+    exit 1
+fi
 
 if [ "${HTTP_CODE}" = "200" ]; then
     echo -e "${GREEN}[Cron] ✓ Cron job executed successfully${NC}"
@@ -94,11 +110,16 @@ elif [ "${HTTP_CODE}" = "409" ]; then
 elif [ "${HTTP_CODE}" = "401" ] || [ "${HTTP_CODE}" = "403" ]; then
     echo -e "${RED}[Cron] ✗ Authentication failed${NC}"
     echo "[Cron] Response: ${BODY}"
-    echo "[Cron] Please check CRON_SECRET configuration"
+    echo "[Cron] Please check CRON_SECRET matches between cron job and web service"
     exit 1
 elif [ "${HTTP_CODE}" = "503" ]; then
-    echo -e "${RED}[Cron] ✗ Service unavailable${NC}"
+    echo -e "${RED}[Cron] ✗ Service unavailable (CRON_SECRET not configured or app boot error)${NC}"
     echo "[Cron] Response: ${BODY}"
+    exit 1
+elif [ "${HTTP_CODE}" = "500" ]; then
+    echo -e "${RED}[Cron] ✗ Server error during cron execution${NC}"
+    echo "[Cron] Response: ${BODY}"
+    echo "[Cron] Check application logs (delivery_health, reconciliation, cleanup, process_conversion, alerts)"
     exit 1
 else
     echo -e "${RED}[Cron] ✗ Unexpected response code: ${HTTP_CODE}${NC}"
