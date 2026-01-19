@@ -567,7 +567,8 @@ export const action = async ({ request }: ActionFunctionArgs) => {
           activeVerificationRunId ?? null,
           primaryPlatform || null,
           orderId || null,
-          altOrderKey
+          altOrderKey,
+          destinations.length > 0
         );
       } catch (error) {
         const orderIdHash = orderId ? hashValueSync(orderId).slice(0, 12) : null;

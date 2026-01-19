@@ -79,6 +79,8 @@ Tracking Guardian 是一个 Shopify 应用，作为**数据处理者**（Data Pr
 
 ### Protected Customer Data (PCD) 处理
 
+订单及客户相关信息属于 Shopify 的 Protected Customer Data (PCD)，需通过 Shopify 审核后才能访问；未获批时订单相关信息可能不可用，此为平台合规行为。
+
 本应用包含需要 Shopify PCD 批准的功能（如 Reorder 模块）。这些功能通过 `PCD_APPROVED` 环境变量控制：
 
 - **默认状态**: `PCD_APPROVED=false`，所有 PCD 相关功能被硬性禁用

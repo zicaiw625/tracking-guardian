@@ -22,6 +22,7 @@ import { PageIntroCard } from "~/components/layout/PageIntroCard";
 import { checkCustomerAccountsEnabled } from "../services/customer-accounts.server";
 import { logger } from "../utils/logger.server";
 import { getShopifyAdminUrl } from "../utils/helpers";
+import { PCD_ORDER_UNAVAILABLE_MERCHANT } from "~/constants/pcd";
 import * as fs from "fs";
 import * as path from "path";
 
@@ -996,6 +997,11 @@ export default function UiModulePublishGuide() {
                       <List.Item>
                         <Text as="span" variant="bodySm">
                           UI Extensions 运行在严格沙箱环境中，不能随意注入脚本或访问 DOM。
+                        </Text>
+                      </List.Item>
+                      <List.Item>
+                        <Text as="span" variant="bodySm">
+                          {PCD_ORDER_UNAVAILABLE_MERCHANT}
                         </Text>
                       </List.Item>
                       <List.Item>

@@ -154,7 +154,26 @@ function createEnhancedGraphQLClient(
           });
           clearTimeout(timeoutId);
           lastResponse = response;
-          const jsonResponse = await response.clone().json() as ShopifyGraphQLResponse;
+          let jsonResponse: ShopifyGraphQLResponse;
+          try {
+            jsonResponse = await response.clone().json() as ShopifyGraphQLResponse;
+          } catch (parseErr) {
+            const raw = await response.text().catch(() => "");
+            const preview = raw.slice(0, 200).replace(/\s+/g, " ");
+            logger.warn("[GraphQL] Response is not valid JSON", {
+              shopDomain,
+              operationName: options?.operationName,
+              status: response.status,
+              preview,
+            });
+            if (RETRYABLE_STATUS_CODES.has(response.status) && attempt < config.maxRetries) {
+              const retryAfter = response.headers.get("Retry-After");
+              const delay = calculateRetryDelay(attempt, config, retryAfter);
+              await sleep(delay);
+              continue;
+            }
+            throw new Error(`GraphQL response is not valid JSON (HTTP ${response.status})`);
+          }
           if (jsonResponse.extensions?.cost) {
             const cost = jsonResponse.extensions.cost;
             logger.debug("[GraphQL] Request cost", {
@@ -256,11 +275,24 @@ function createEnhancedGraphQLClient(
         duration: timer.elapsed(),
       });
       if (lastResponse) {
-        return {
-          json: async () => lastResponse!.json(),
-          status: lastResponse.status,
-          headers: lastResponse.headers,
-        };
+        try {
+          const parsed = await lastResponse.json();
+          return {
+            json: async () => parsed,
+            status: lastResponse.status,
+            headers: lastResponse.headers,
+          };
+        } catch (e) {
+          const raw = await lastResponse.text().catch(() => "");
+          const preview = raw.slice(0, 200).replace(/\s+/g, " ");
+          logger.warn("[GraphQL] lastResponse is not valid JSON", {
+            shopDomain,
+            operationName: options?.operationName,
+            status: lastResponse.status,
+            preview,
+          });
+          throw new Error("GraphQL response is not valid JSON after retries");
+        }
       }
       throw lastError || new Error("GraphQL request failed after all retries");
     },

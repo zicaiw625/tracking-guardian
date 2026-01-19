@@ -46,6 +46,7 @@ import {
 import { getPlanOrDefault, type PlanId, BILLING_PLANS } from "../services/billing/plans";
 import { logger } from "../utils/logger.server";
 import { PCD_CONFIG } from "../utils/config";
+import { PCD_ORDER_UNAVAILABLE_MERCHANT } from "~/constants/pcd";
 import { checkCustomerAccountsEnabled } from "../services/customer-accounts.server";
 import { getShopifyAdminUrl } from "../utils/helpers";
 
@@ -308,7 +309,7 @@ function ModuleCard({
                         <strong>⚠️ Reorder 功能需要 Protected Customer Data (PCD) 审核批准</strong>
                       </Text>
                       <Text as="p" variant="bodySm">
-                        Reorder 功能当前默认禁用，因为需要访问 Protected Customer Data (PCD)。这是 Shopify 平台的安全和隐私要求，所有访问 PCD 的应用必须通过审核。
+                        {PCD_ORDER_UNAVAILABLE_MERCHANT} Reorder 功能当前默认禁用，因为需要访问 PCD；通过审核后可在设置中启用。
                       </Text>
                       <Divider />
                       <Text as="p" variant="bodySm" fontWeight="semibold">

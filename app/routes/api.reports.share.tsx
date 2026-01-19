@@ -6,11 +6,20 @@ import { authenticate } from "../shopify.server";
 import { readJsonWithSizeLimit } from "../utils/body-size-guard";
 import { jsonApi } from "../utils/security-headers";
 
-const SHARE_TOKEN_EXPIRY_DAYS = 7;
+const DEFAULT_SHARE_TOKEN_EXPIRY_DAYS = 3;
+
+function getShareTokenExpiryDays(): number {
+  const v = process.env.SHARE_TOKEN_EXPIRY_DAYS;
+  if (v == null || v === "") return DEFAULT_SHARE_TOKEN_EXPIRY_DAYS;
+  const n = parseInt(v, 10);
+  return Number.isNaN(n) || n < 1 ? DEFAULT_SHARE_TOKEN_EXPIRY_DAYS : n;
+}
 
 interface ShareRequest {
-  reportType: "scan" | "verification";
-  reportId: string;
+  reportType?: "scan" | "verification";
+  reportId?: string;
+  action?: string;
+  revoke?: boolean;
 }
 
 function generateShareToken(reportId: string, reportType: string): string {
@@ -50,6 +59,40 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       return jsonApi({ error: "Missing required fields: reportType, reportId" }, { status: 400 });
     }
     const { reportType, reportId } = body;
+    const isRevoke = body.action === "revoke" || body.revoke === true;
+    if (isRevoke) {
+      if (reportType === "scan") {
+        const scanReport = await prisma.scanReport.findFirst({
+          where: { id: reportId, shopId: shop.id },
+          select: { id: true },
+        });
+        if (!scanReport) {
+          return jsonApi({ error: "Scan report not found" }, { status: 404 });
+        }
+        await prisma.scanReport.update({
+          where: { id: reportId },
+          data: { shareTokenHash: null, shareTokenExpiresAt: null },
+        });
+        logger.info("Share link revoked for scan report", { shopId: shop.id, reportId });
+        return jsonApi({ success: true, revoked: true });
+      }
+      if (reportType === "verification") {
+        const run = await prisma.verificationRun.findFirst({
+          where: { id: reportId, shopId: shop.id },
+          select: { id: true },
+        });
+        if (!run) {
+          return jsonApi({ error: "Verification run not found" }, { status: 404 });
+        }
+        await prisma.verificationRun.update({
+          where: { id: reportId },
+          data: { publicTokenHash: null, shareTokenExpiresAt: null },
+        });
+        logger.info("Share link revoked for verification report", { shopId: shop.id, reportId });
+        return jsonApi({ success: true, revoked: true });
+      }
+      return jsonApi({ error: "Invalid report type" }, { status: 400 });
+    }
     if (reportType === "scan") {
       const scanReport = await prisma.scanReport.findFirst({
         where: {
@@ -63,7 +106,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       }
       const shareToken = generateShareToken(reportId, reportType);
       const expiresAt = new Date();
-      expiresAt.setDate(expiresAt.getDate() + SHARE_TOKEN_EXPIRY_DAYS);
+      expiresAt.setDate(expiresAt.getDate() + getShareTokenExpiryDays());
       const baseUrl = process.env.SHOPIFY_APP_URL || process.env.PUBLIC_APP_URL || "https://app.tracking-guardian.com";
       const shareUrl = `${baseUrl}/share/scan/${reportId}?token=${shareToken}`;
       const tokenHash = createHash("sha256")
@@ -111,7 +154,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       }
       const shareToken = generateShareToken(reportId, reportType);
       const expiresAt = new Date();
-      expiresAt.setDate(expiresAt.getDate() + SHARE_TOKEN_EXPIRY_DAYS);
+      expiresAt.setDate(expiresAt.getDate() + getShareTokenExpiryDays());
       const baseUrl = process.env.SHOPIFY_APP_URL || process.env.PUBLIC_APP_URL || "https://app.tracking-guardian.com";
       const shareUrl = `${baseUrl}/share/verification/${publicId}?token=${shareToken}`;
       const tokenHash = createHash("sha256")

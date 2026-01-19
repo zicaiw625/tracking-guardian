@@ -22,7 +22,35 @@ export function ReportShare({ runId, shopId }: ReportShareProps) {
   const { showSuccess, showError } = useToastContext();
   const [shareUrl, setShareUrl] = useState<string | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [isRevoking, setIsRevoking] = useState(false);
   const [expiresAt, setExpiresAt] = useState<Date | null>(null);
+  const handleRevoke = useCallback(async () => {
+    setIsRevoking(true);
+    try {
+      const response = await fetch("/api/reports/share", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          reportType: "verification",
+          reportId: runId,
+          action: "revoke",
+        }),
+      });
+      if (!response.ok) {
+        throw new Error("失效失败");
+      }
+      const data = await response.json().catch(() => ({}));
+      if (data.revoked) {
+        setShareUrl(null);
+        setExpiresAt(null);
+        showSuccess("旧链接已失效");
+      }
+    } catch (error) {
+      showError("失效旧链接失败：" + (error instanceof Error ? error.message : "未知错误"));
+    } finally {
+      setIsRevoking(false);
+    }
+  }, [runId, showSuccess, showError]);
   const handleGenerateShare = useCallback(async () => {
     setIsGenerating(true);
     try {
@@ -61,7 +89,7 @@ export function ReportShare({ runId, shopId }: ReportShareProps) {
           <Text as="h3" variant="headingMd">
             分享报告
           </Text>
-          <Badge tone="info">7 天有效</Badge>
+          <Badge tone="info">3 天有效</Badge>
         </InlineStack>
         {!shareUrl ? (
           <BlockStack gap="300">
@@ -79,7 +107,7 @@ export function ReportShare({ runId, shopId }: ReportShareProps) {
         ) : (
           <BlockStack gap="300">
             <Banner tone="success">
-              <Text as="p">分享链接已生成，7 天后自动过期</Text>
+              <Text as="p">分享链接已生成，3 天后自动过期</Text>
             </Banner>
             <Box background="bg-surface-secondary" padding="400" borderRadius="200">
               <BlockStack gap="200">
@@ -108,9 +136,14 @@ export function ReportShare({ runId, shopId }: ReportShareProps) {
                 )}
               </BlockStack>
             </Box>
-            <Button onClick={handleGenerateShare} variant="secondary">
-              重新生成链接
-            </Button>
+            <InlineStack gap="200">
+              <Button onClick={handleGenerateShare} variant="secondary">
+                重新生成链接
+              </Button>
+              <Button onClick={handleRevoke} variant="secondary" tone="critical" loading={isRevoking}>
+                失效旧链接
+              </Button>
+            </InlineStack>
           </BlockStack>
         )}
       </BlockStack>

@@ -169,6 +169,11 @@ export default function PrivacyPage() {
                 <li>支付信息（信用卡号、支付方式详情）</li>
               </ul>
             </div>
+
+            <h3>会话与鉴权</h3>
+            <p>
+              为完成 Shopify 鉴权与会话管理，我们可能存储<strong>店铺管理员或员工的标识信息</strong>（例如邮箱）作为会话（Session）数据的一部分。来源为 Shopify OAuth，用途为鉴权与会话维持，保留周期随 Session 过期或按 Shopify 会话策略。前述「不收集的数据」仅针对<strong>终端客户</strong>，不针对商家或店铺员工。
+            </p>
           </div>
 
           <div className="section">
@@ -193,10 +198,13 @@ export default function PrivacyPage() {
             </div>
 
             <h3>对账与诊断</h3>
-            <p>比对 Webhook 订单与像素事件，帮助您发现追踪缺口并优化配置。</p>
+            <p>比对 Webhook 订单与像素事件，帮助您发现追踪缺口并优化配置。当用户未给予相应同意导致事件不向任何平台发送时，我们仍可能为去重与诊断目的保存<strong>最小元数据</strong>（如订单键、事件类型、时间戳），<strong>不保存</strong>事件负载中的商品、金额等明细。</p>
 
             <h3>合规执行</h3>
             <p>根据客户的同意状态，自动决定是否向特定平台发送数据，确保符合 GDPR/CCPA。</p>
+
+            <h3>部分功能与 PCD</h3>
+            <p>部分功能（如订单状态、再购）需访问 Shopify Protected Customer Data (PCD)；仅在应用通过 Shopify PCD 审核后可用，且遵循平台对订单/客户数据的访问与展示限制。</p>
           </div>
 
           <div className="section">

@@ -351,12 +351,6 @@ async function sendToPlatform(
         sanitizedHeaders[key] = value;
       }
     }
-    const requestPayload = {
-      url: sanitizedUrl,
-      method: "POST",
-      headers: sanitizedHeaders,
-      body: requestBody,
-    };
     const sendStartTime = Date.now();
     const response = await fetchWithTimeout(url, {
       method: "POST",
@@ -365,6 +359,24 @@ async function sendToPlatform(
     }, DEFAULT_API_TIMEOUT_MS);
     const latencyMs = Date.now() - sendStartTime;
     const { success, body: responseBody } = await config.parseResponse(response);
+    const isProduction = process.env.NODE_ENV === "production";
+    const requestPayload = isProduction
+      ? {
+          url: sanitizedUrl,
+          method: "POST" as const,
+          headers: sanitizedHeaders,
+          platform,
+          status: success ? ("ok" as const) : ("fail" as const),
+          latencyMs,
+          httpStatus: response.status,
+          ...(success ? {} : { errorCode: `http_${response.status}` }),
+        }
+      : {
+          url: sanitizedUrl,
+          method: "POST" as const,
+          headers: sanitizedHeaders,
+          body: requestBody,
+        };
     if (success) {
       return {
         success: true,

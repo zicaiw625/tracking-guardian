@@ -1,3 +1,5 @@
+import { PCD_ORDER_UNAVAILABLE_USER } from "./pcd-copy";
+
 export interface OrderContext {
   checkoutToken: string | null;
   orderId: string | null;
@@ -105,9 +107,9 @@ export function getOrderContext(api: unknown): OrderContext {
     }
   }
   if (!result.orderId && !result.checkoutToken) {
-    const errorMessage = "订单信息不可用：Order ID 和 checkout token 均为空。这可能是由于 Protected Customer Data (PCD) 限制导致的。部分功能可能无法正常工作。如果您的应用已通过 PCD 审核，请检查配置是否正确。";
+    const errorMessage = `订单信息不可用（Order ID 和 checkout token 均为空）。${PCD_ORDER_UNAVAILABLE_USER}`;
     const criticalMessage = "严重：订单信息完全不可用。这会导致以下功能无法正常工作：1) 问卷提交无法关联订单；2) 再购功能无法获取订单详情；3) 帮助中心无法提供订单相关支持。请确保应用已通过 PCD 审核，或联系技术支持。";
-    const userVisibleMessage = "⚠️ 订单信息不可用 - 功能暂时无法使用：由于 Protected Customer Data (PCD) 限制，当前无法获取订单信息（Order ID 和 checkout token 均为空）。问卷功能、再购功能和帮助中心可能暂时不可用。这是 Shopify 平台的隐私保护机制，部分订单信息需要 PCD 审核批准后才能访问。如果您的应用已通过 PCD 审核，请检查配置是否正确。商家可在应用后台查看详细错误信息和上报记录。此错误已自动上报，商家会收到通知。如果订单信息持续不可用，请联系技术支持。";
+    const userVisibleMessage = `⚠️ 订单信息不可用 - 功能暂时无法使用：${PCD_ORDER_UNAVAILABLE_USER}`;
     if (typeof console !== "undefined" && console.warn) {
       console.warn(`[Tracking Guardian] ⚠️ ${errorMessage}错误已自动上报，商家会收到通知。`);
     }

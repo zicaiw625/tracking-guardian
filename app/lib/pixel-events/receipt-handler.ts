@@ -109,14 +109,15 @@ export async function upsertPixelEventReceipt(
   verificationRunId?: string | null,
   platform?: string | null,
   orderKey?: string | null,
-  altOrderKey?: string | null
+  altOrderKey?: string | null,
+  storePayload: boolean = true
 ): Promise<ReceiptCreateResult> {
   const originHost = extractOriginHost(origin);
   const payloadData = payload?.data as Record<string, unknown> | undefined;
   const extractedOrderKey = orderKey || (payloadData?.orderId as string | undefined);
   try {
     let payloadToStore: Record<string, unknown> | null = null;
-    if (payload) {
+    if (storePayload && payload) {
       if (verificationRunId) {
         const { sanitizePII } = await import("../../services/event-log.server");
         payloadToStore = sanitizePII(payload) as unknown as Record<string, unknown>;

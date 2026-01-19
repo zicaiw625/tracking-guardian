@@ -12,6 +12,7 @@ import { useState, useEffect } from "react";
 import { getValidatedBackendUrl, isDevMode } from "./config";
 import { reportExtensionError } from "./error-reporting";
 import { getOrderContext } from "./order-context";
+import { PCD_ORDER_UNAVAILABLE_USER } from "./pcd-copy";
 
 function SurveyModule({ 
   question, 
@@ -41,9 +42,8 @@ function SurveyModule({
         <BlockStack spacing="base">
           <Text size="medium" emphasis="bold">{question}</Text>
           <Text size="large" appearance="critical" emphasis="bold">⚠️ 订单信息不可用 - 功能暂时无法使用</Text>
-          <Text appearance="subdued" emphasis="bold">由于 Protected Customer Data (PCD) 限制，当前无法获取订单信息（Order ID 和 checkout token 均为空）。</Text>
-          <Text appearance="subdued">问卷功能暂时不可用。这是 Shopify 平台的隐私保护机制，部分订单信息需要 PCD 审核批准后才能访问。</Text>
-          <Text appearance="subdued" emphasis="bold">如果您的应用已通过 PCD 审核，请检查配置是否正确。商家可在应用后台查看详细错误信息和上报记录。此错误已自动上报，商家会收到通知。如果订单信息持续不可用，请联系技术支持。</Text>
+          <Text appearance="subdued">问卷功能暂时不可用。</Text>
+          <Text appearance="subdued">{PCD_ORDER_UNAVAILABLE_USER}</Text>
         </BlockStack>
       </View>
     );
@@ -261,7 +261,7 @@ function ThankYouBlocks() {
       const token = await api.sessionToken.get();
       const orderContext = getOrderContext(api);
       if (!orderContext.orderId && !orderContext.checkoutToken) {
-        const errorMessage = "订单信息不可用：Order ID 和 checkout token 均为空。这可能是由于 Protected Customer Data (PCD) 限制导致的。如果您的应用已通过 PCD 审核，请检查配置是否正确。此错误会导致问卷提交无法关联订单，功能无法正常工作。错误已自动上报，商家会收到通知。";
+        const errorMessage = `订单信息不可用（Order ID 和 checkout token 均为空）。${PCD_ORDER_UNAVAILABLE_USER}`;
         if (isDevMode()) {
           console.error("[ThankYouBlocks] " + errorMessage);
         }
@@ -346,9 +346,8 @@ function ThankYouBlocks() {
         <View border="base" cornerRadius="base" padding="base" background="bg-surface-critical-subdued">
           <BlockStack spacing="base">
             <Text size="large" emphasis="bold" appearance="critical">⚠️ 订单信息不可用 - 功能暂时无法使用</Text>
-            <Text appearance="subdued" emphasis="bold">由于 Protected Customer Data (PCD) 限制，当前无法获取订单信息（Order ID 和 checkout token 均为空）。</Text>
-            <Text appearance="subdued">问卷功能和帮助中心可能暂时不可用。这是 Shopify 平台的隐私保护机制，部分订单信息需要 PCD 审核批准后才能访问。</Text>
-            <Text appearance="subdued" emphasis="bold">如果您的应用已通过 PCD 审核，请检查配置是否正确。商家可在应用后台查看详细错误信息和上报记录。此错误已自动上报，商家会收到通知。如果订单信息持续不可用，请联系技术支持。</Text>
+            <Text appearance="subdued">问卷功能和帮助中心可能暂时不可用。</Text>
+            <Text appearance="subdued">{PCD_ORDER_UNAVAILABLE_USER}</Text>
           </BlockStack>
         </View>
       )}

@@ -19,6 +19,7 @@ import {
   Link,
   List,
 } from "@shopify/polaris";
+import { PCD_ORDER_UNAVAILABLE_MERCHANT } from "~/constants/pcd";
 import { RefreshIcon, HistoryIcon } from "~/components/icons";
 import type { TokenIssues } from "../types";
 import { ConfigComparison } from "~/components/settings/ConfigComparison";
@@ -176,6 +177,9 @@ export function ServerTrackingTab({
               }}
             >
               <BlockStack gap="200">
+                <Text as="p" variant="bodySm">
+                  {PCD_ORDER_UNAVAILABLE_MERCHANT}
+                </Text>
                 <Text as="p" variant="bodySm">
                   自 <strong>2025-12-10</strong> 起，Shopify Web Pixels 中的客户个人信息（PII，如邮箱/电话/地址）将仅在应用获得批准的 <strong>Protected Customer Data (PCD)</strong> 权限后才会填充。未获批的应用，<strong>buyer.email / phone / address 等可能全为 null</strong>。
                 </Text>

@@ -1915,7 +1915,7 @@ export function ScanPage({
                               }
                               if (navigator.clipboard && navigator.clipboard.writeText) {
                                 await navigator.clipboard.writeText(shareUrl);
-                                showSuccess("报告链接已复制到剪贴板（7天内有效）");
+                                showSuccess("报告链接已复制到剪贴板（3天内有效）");
                               } else {
                                 showError("浏览器不支持分享或复制功能");
                               }
@@ -1949,6 +1949,34 @@ export function ScanPage({
                         }}
                       >
                         分享报告链接（免费）
+                      </Button>
+                      <Button
+                        variant="secondary"
+                        onClick={async () => {
+                          try {
+                            const response = await fetch("/api/reports/share", {
+                              method: "POST",
+                              headers: { "Content-Type": "application/json" },
+                              body: JSON.stringify({
+                                reportType: "scan",
+                                reportId: latestScan.id,
+                                action: "revoke",
+                              }),
+                            });
+                            if (!response.ok) {
+                              const data = await response.json().catch(() => ({}));
+                              throw new Error(data.error || "失效失败");
+                            }
+                            const data = await response.json().catch(() => ({}));
+                            if (data.revoked) {
+                              showSuccess("旧链接已失效");
+                            }
+                          } catch (error) {
+                            showError("失效旧链接失败：" + (error instanceof Error ? error.message : "未知错误"));
+                          }
+                        }}
+                      >
+                        失效旧链接
                       </Button>
                     </InlineStack>
                   )}

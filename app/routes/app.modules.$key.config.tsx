@@ -25,6 +25,7 @@ import { isPlanAtLeast } from "../utils/plans";
 import { PageIntroCard } from "~/components/layout/PageIntroCard";
 import { checkCustomerAccountsEnabled } from "../services/customer-accounts.server";
 import { getShopifyAdminUrl } from "../utils/helpers";
+import { PCD_ORDER_UNAVAILABLE_MERCHANT } from "~/constants/pcd";
 
 export const loader = async ({ request, params }: LoaderFunctionArgs) => {
   const { session, admin } = await authenticate.admin(request);
@@ -280,7 +281,7 @@ export default function UiModuleConfigPage() {
                               ⚠️ 需要 Protected Customer Data (PCD) 审核批准
                             </Text>
                             <Text as="p" variant="bodySm">
-                              再购功能需要 Shopify Protected Customer Data (PCD) 权限批准才能稳定可用。需要访问客户账户信息（如客户邮箱、地址等），这些数据受 PCD 保护。
+                              {PCD_ORDER_UNAVAILABLE_MERCHANT} 再购功能需要访问客户账户信息（如客户邮箱、地址等），因此需 PCD 权限批准才能稳定可用。
                             </Text>
                             <Divider />
                             <Text as="p" variant="bodySm" fontWeight="semibold">
@@ -445,6 +446,9 @@ export default function UiModuleConfigPage() {
               <BlockStack gap="300">
                 <Text as="p" variant="bodySm" fontWeight="semibold">
                   <strong>⚠️ Protected Customer Data (PCD) 重要说明</strong>
+                </Text>
+                <Text as="p" variant="bodySm">
+                  {PCD_ORDER_UNAVAILABLE_MERCHANT}
                 </Text>
                 <Text as="p" variant="bodySm">
                   自 <strong>2025-12-10</strong> 起，Shopify Web Pixels 中的客户个人信息（PII，如邮箱/电话/地址）将仅在应用获得批准的 <strong>Protected Customer Data (PCD)</strong> 权限后才会填充。未获批的应用，<strong>buyer.email / phone / address 等可能全为 null</strong>。
