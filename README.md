@@ -158,6 +158,7 @@ v1.0 版本**已包含**服务器端转化追踪能力，支持以下平台：
 - **UI**: Shopify Polaris
 - **数据库**: PostgreSQL + Prisma ORM
 - **扩展**: Web Pixel Extension + Checkout UI Extension
+- **环境切换与回滚**：仅通过 `app/services/pixel-rollback.server.ts` 实现，勿使用其它遗留实现。
 
 ## 快速开始
 

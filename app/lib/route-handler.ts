@@ -6,6 +6,7 @@ import { type Result, ok, err } from "../types/result";
 import type { AdminApiContext, Session } from "@shopify/shopify-app-remix/server";
 import { safeFireAndForget } from "../utils/helpers.server";
 import { readJsonWithSizeLimit } from "../utils/body-size-guard";
+import { addSecurityHeaders } from "../utils/security-headers";
 
 export interface AuthContext {
   session: Session;
@@ -49,10 +50,10 @@ export function createActionHandler<TInput = unknown, TOutput = unknown>(
       };
     } catch (error) {
       requestLogger.error("Authentication failed", error);
-      return json(
+      return addSecurityHeaders(json(
         { success: false, error: "Authentication required", code: ErrorCode.AUTH_INVALID_TOKEN },
         { status: 401 }
-      );
+      ));
     }
     try {
       let input: TInput;
@@ -70,10 +71,10 @@ export function createActionHandler<TInput = unknown, TOutput = unknown>(
       if (!result.ok) {
         return handleError(result.error, ctx, config.onError);
       }
-      return json(
+      return addSecurityHeaders(json(
         { success: true, data: result.value },
         { status: config.successStatus || 200 }
-      );
+      ));
     } catch (error) {
       const appError = ensureAppError(error);
       return handleError(appError, ctx, config.onError);
