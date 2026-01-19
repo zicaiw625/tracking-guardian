@@ -283,37 +283,27 @@ export function isPublicUrl(urlStr: string): boolean {
     }
     
     if (hostname.includes(":")) {
-      const ipv6Match = hostname.match(/^\[([0-9a-f:]+)\]$/i);
-      if (ipv6Match) {
-        const ipv6 = ipv6Match[1].toLowerCase();
-        if (ipv6 === "::1" || 
-            ipv6.startsWith("::ffff:127.") || 
-            ipv6.startsWith("::ffff:10.") || 
-            ipv6.startsWith("::ffff:172.16.") || 
-            ipv6.startsWith("::ffff:172.17.") ||
-            ipv6.startsWith("::ffff:172.18.") ||
-            ipv6.startsWith("::ffff:172.19.") ||
-            ipv6.startsWith("::ffff:172.20.") ||
-            ipv6.startsWith("::ffff:172.21.") ||
-            ipv6.startsWith("::ffff:172.22.") ||
-            ipv6.startsWith("::ffff:172.23.") ||
-            ipv6.startsWith("::ffff:172.24.") ||
-            ipv6.startsWith("::ffff:172.25.") ||
-            ipv6.startsWith("::ffff:172.26.") ||
-            ipv6.startsWith("::ffff:172.27.") ||
-            ipv6.startsWith("::ffff:172.28.") ||
-            ipv6.startsWith("::ffff:172.29.") ||
-            ipv6.startsWith("::ffff:172.30.") ||
-            ipv6.startsWith("::ffff:172.31.") ||
-            ipv6.startsWith("::ffff:192.168.") ||
-            ipv6.startsWith("fc00:") || 
-            ipv6.startsWith("fd00:") || 
-            ipv6.startsWith("fe80:") ||
-            ipv6.startsWith("fec0:") ||
-            ipv6.startsWith("ff00:") ||
-            ipv6 === "::" ||
-            ipv6.startsWith("2001:db8:")) {
-          return false;
+      const ipv6 = hostname.replace(/^\[|\]$/g, "").split("%")[0].toLowerCase();
+      if (ipv6 === "::1") return false;
+      if (ipv6.startsWith("fc") || ipv6.startsWith("fd")) return false;
+      if (ipv6.startsWith("fe80:")) return false;
+      if (ipv6.startsWith("ff")) return false;
+      if (ipv6 === "::") return false;
+      if (ipv6.startsWith("2001:db8:")) return false;
+      if (ipv6.startsWith("fec0:")) return false;
+      if (ipv6.startsWith("::ffff:")) {
+        const tail = ipv6.slice("::ffff:".length);
+        if (/^(127\.|10\.|192\.168\.|172\.(1[6-9]|2\d|3[0-1])\.)/.test(tail)) return false;
+        if (tail.startsWith("0.")) return false;
+        if (tail.startsWith("169.254.")) return false;
+        const hexParts = tail.split(":");
+        if (hexParts.length >= 2) {
+          const hi = parseInt(hexParts[0], 16);
+          const lo = parseInt(hexParts[1], 16);
+          if (!isNaN(hi) && !isNaN(lo)) {
+            const o1 = (hi >> 8) & 0xff, o2 = hi & 0xff;
+            if (o1 === 127 || o1 === 10 || (o1 === 172 && o2 >= 16 && o2 <= 31) || (o1 === 192 && o2 === 168) || (o1 === 169 && o2 === 254) || o1 === 0) return false;
+          }
         }
       }
     }

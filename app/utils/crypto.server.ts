@@ -130,7 +130,7 @@ export function validateEncryptionConfig(): {
     return { valid: true, warnings, secretSource };
 }
 const ALGORITHM = "aes-256-gcm";
-const IV_LENGTH = 16;
+export const IV_LENGTH = 16;
 const AUTH_TAG_LENGTH = 16;
 export function encrypt(plaintext: string): string {
     const key = getEncryptionKey();

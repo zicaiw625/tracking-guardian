@@ -316,6 +316,10 @@ pnpm install --frozen-lockfile && pnpm generate && pnpm db:deploy && pnpm ext:in
 3. 验证扩展构建产物中不再包含 `__BACKEND_URL_PLACEHOLDER__` 占位符
 4. 确保该 URL 已在 Web Pixel Extension 的 allowlist 中配置（Partner Dashboard → App → API access → UI extensions network access）
 
+#### Webhook 路径与 raw body（HMAC 校验）
+
+对 `/webhooks`（及实际挂载的 webhook 路径）**禁止**添加会提前 `json()`/`text()`/`bodyParser` 消费 `Request` body 的中间件或全局逻辑；否则 `authenticate.webhook` 无法读取 raw body，HMAC 验证会失败。若使用自定义 Express/Connect 适配，需在配置中排除 webhook 路径的 body 解析。
+
 #### Render 部署（推荐 - 免费数据库）
 
 项目包含 `render.yaml` Blueprint 文件，支持一键部署：
@@ -540,10 +544,15 @@ Customer Account / Thank you block 与 Web Pixel 的配合、以及 PCD 的说�
 ### 安全与合规
 
 - **最小权限原则**：仅请求必需的 API 权限
-- **数据加密**：所有敏感凭证使用 AES-256-GCM 加密存储
+- **数据加密**：所有敏感凭证使用 AES-256-GCM 加密存储。IV 长度由 `app/utils/crypto.server` 的 `IV_LENGTH`（当前 16 bytes）统一管理，`token-encryption` 与通用 `encrypt`/`decrypt` 均使用该常量。若未来迁移到 12-byte IV，需引入版本前缀、保留对 16-byte 旧格式的解密，并在迁移脚本与运行手册中写清兼容期与轮换方式。
 - **隐私策略**：可配置的 consent 策略（严格/平衡模式）
 - **数据保留**：可配置的数据保留期限（30-365天）
 - **审计日志**：所有敏感操作均记录审计日志
+
+#### 后续加固与架构建议
+
+- **用户可配置 URL 且服务端 fetch**：仅 hostname 字符串/`isPublicUrl` 不足，需在服务端做 DNS 解析后对解析结果做私网/本地/metadata 段拦截，并对 30x 重定向的最终落点做同样校验。
+- **`/ingest` 处理模型**：当前为「快速返回 + 后台继续处理」；中长期可改为写入队列（Redis/DB job）→ 独立 worker 拉取，以降低高峰期 worker 占满风险。
 
 #### 像素扩展 ingestion_key 威胁模型
 

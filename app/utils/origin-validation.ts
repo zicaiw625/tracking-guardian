@@ -31,9 +31,29 @@ const ALLOWED_ORIGIN_PATTERNS: Array<{
         example: "https://checkout.shopify.com",
     },
     {
-        pattern: /^https:\/\/[a-zA-Z0-9-]+\.shopify\.com$/,
-        description: "Shopify internal domains",
+        pattern: /^https:\/\/admin\.shopify\.com$/,
+        description: "Shopify admin domain",
         example: "https://admin.shopify.com",
+    },
+    {
+        pattern: /^https:\/\/shopifypreview\.com$/,
+        description: "Shopify preview domain",
+        example: "https://shopifypreview.com",
+    },
+    {
+        pattern: /^https:\/\/[a-zA-Z0-9-]+\.checkout\.shopify\.com$/,
+        description: "Shopify checkout subdomains",
+        example: "https://xxx.checkout.shopify.com",
+    },
+    {
+        pattern: /^https:\/\/[a-zA-Z0-9-]+\.admin\.shopify\.com$/,
+        description: "Shopify admin subdomains",
+        example: "https://xxx.admin.shopify.com",
+    },
+    {
+        pattern: /^https:\/\/[a-zA-Z0-9-]+\.shopifypreview\.com$/,
+        description: "Shopify preview subdomains",
+        example: "https://xxx.shopifypreview.com",
     },
 ];
 const DEV_ORIGIN_PATTERNS: Array<{
