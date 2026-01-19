@@ -1,5 +1,5 @@
 import { json } from "@remix-run/node";
-import { isValidShopifyOrigin, isValidDevOrigin, isDevMode, extractOriginHost, SHOPIFY_ALLOWLIST, } from "./origin-validation";
+import { isValidShopifyOrigin, isValidDevOrigin, isDevMode, extractOriginHost, SHOPIFY_PLATFORM_HOSTS, } from "./origin-validation";
 
 export const SECURITY_HEADERS = {
     "X-Content-Type-Options": "nosniff",
@@ -104,7 +104,7 @@ export function getPixelEventsCorsHeadersForShop(request: Request, shopAllowedDo
         }
     }
     if (originHost) {
-        const isShopifyPlatform = SHOPIFY_ALLOWLIST.some(domain => originHost === domain || originHost.endsWith(`.${domain}`));
+        const isShopifyPlatform = SHOPIFY_PLATFORM_HOSTS.some(domain => originHost === domain || originHost.endsWith(`.${domain}`));
         if (isShopifyPlatform) {
             return {
                 ...baseHeaders,

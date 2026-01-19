@@ -126,13 +126,18 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
                 });
             }
             else {
+                const missingIngestionKey = !hasIngestionKey;
                 checks.push({
                     name: "Web Pixel",
-                    status: "pass",
-                    message: "Web Pixel 已安装",
-                    details: `Pixel ID: ${ourPixel.id}` +
-                        (hasShopDomain ? ` | shop_domain: ✓` : "") +
-                        (hasIngestionKey ? ` | ingestion_key: ✓` : ""),
+                    status: missingIngestionKey ? "warning" : "pass",
+                    message: missingIngestionKey
+                        ? "Web Pixel 已安装（ingestion_key 缺失）"
+                        : "Web Pixel 已安装",
+                    details: missingIngestionKey
+                        ? `像素配置缺失 ingestion_key，生产严格模式下 /ingest 将拒绝事件，请在 Admin 中配置 Ingestion Key 并同步到 Pixel 设置。Pixel ID: ${ourPixel.id}`
+                        : `Pixel ID: ${ourPixel.id}` +
+                            (hasShopDomain ? ` | shop_domain: ✓` : "") +
+                            (hasIngestionKey ? ` | ingestion_key: ✓` : ""),
                 });
             }
         }

@@ -17,6 +17,8 @@ import { logger } from "../../utils/logger.server";
 const DEFAULT_TIMEOUT_MS = 30000;
 const MAX_RETRIES = 3;
 const RETRY_DELAY_MS = 1000;
+const DNS_VALIDATION_CACHE_TTL_MS = 15 * 60 * 1000;
+const dnsValidationCache = new Map<string, { valid: boolean; error?: string; checkedAt: number }>();
 
 const FORBIDDEN_PATTERNS_PRODUCTION = [
   /^https?:\/\/localhost/i,
@@ -222,15 +224,18 @@ async function validateEndpointUrlWithDNS(url: string): Promise<{ valid: boolean
   if (!basicValidation.valid) {
     return basicValidation;
   }
-  
   try {
     const parsed = new URL(url);
     const hostname = parsed.hostname;
-    
     if (/^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(hostname) || (hostname.startsWith('[') && hostname.endsWith(']'))) {
       return { valid: true };
     }
-    
+    const cacheKey = hostname.toLowerCase();
+    const now = Date.now();
+    const cached = dnsValidationCache.get(cacheKey);
+    if (cached && (now - cached.checkedAt) < DNS_VALIDATION_CACHE_TTL_MS) {
+      return { valid: cached.valid, error: cached.error };
+    }
     try {
       const dns = await import('dns');
       const { promisify } = await import('util');
@@ -241,26 +246,34 @@ async function validateEndpointUrlWithDNS(url: string): Promise<{ valid: boolean
         const resolvedIp = record.address;
         if (/^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(resolvedIp)) {
           if (isPrivateIPv4(resolvedIp)) {
-            return { valid: false, error: 'DNS resolution points to private IP address (DNS rebinding protection)' };
+            const result = { valid: false as const, error: 'DNS resolution points to private IP address (DNS rebinding protection)' };
+            dnsValidationCache.set(cacheKey, { ...result, checkedAt: now });
+            return result;
           }
         } else if (resolvedIp.includes(':')) {
           const ipv6Formatted = resolvedIp.startsWith('[') && resolvedIp.endsWith(']') ? resolvedIp : `[${resolvedIp}]`;
           if (isPrivateIPv6(ipv6Formatted)) {
-            return { valid: false, error: 'DNS resolution points to private IPv6 address (DNS rebinding protection)' };
+            const result = { valid: false as const, error: 'DNS resolution points to private IPv6 address (DNS rebinding protection)' };
+            dnsValidationCache.set(cacheKey, { ...result, checkedAt: now });
+            return result;
           }
         }
         if (resolvedIp === '127.0.0.1' || resolvedIp === '::1' || resolvedIp === 'localhost') {
-          return { valid: false, error: 'DNS resolution points to localhost (DNS rebinding protection)' };
+          const result = { valid: false as const, error: 'DNS resolution points to localhost (DNS rebinding protection)' };
+          dnsValidationCache.set(cacheKey, { ...result, checkedAt: now });
+          return result;
         }
       }
+      dnsValidationCache.set(cacheKey, { valid: true, checkedAt: now });
+      return { valid: true };
     } catch (dnsError) {
       logger.warn(`DNS lookup failed for ${hostname}, rejecting URL due to DNS resolution failure (security risk)`, {
         error: dnsError instanceof Error ? dnsError.message : String(dnsError),
       });
-      return { valid: false, error: 'DNS resolution failed - cannot verify endpoint safety' };
+      const result = { valid: false as const, error: 'DNS resolution failed - cannot verify endpoint safety' };
+      dnsValidationCache.set(cacheKey, { ...result, checkedAt: now });
+      return result;
     }
-    
-    return { valid: true };
   } catch {
     return { valid: false, error: 'Invalid URL format' };
   }

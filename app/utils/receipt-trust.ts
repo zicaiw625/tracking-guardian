@@ -1,5 +1,5 @@
 import { logger } from "./logger.server";
-import { SHOPIFY_ALLOWLIST, extractOriginHost as extractOriginHostFromValidation, buildShopAllowedDomains as buildShopAllowedDomainsFromValidation } from "./origin-validation";
+import { SHOPIFY_PLATFORM_HOSTS, extractOriginHost as extractOriginHostFromValidation, buildShopAllowedDomains as buildShopAllowedDomainsFromValidation } from "./origin-validation";
 
 export { extractOriginHostFromValidation as extractOriginHost };
 
@@ -103,7 +103,7 @@ export function verifyReceiptTrust(options: VerifyReceiptOptions): ReceiptTrustR
                 return normalizedOrigin === normalizedDomain ||
                     normalizedOrigin.endsWith(`.${normalizedDomain}`);
             });
-            const isShopifyPlatform = SHOPIFY_ALLOWLIST.some(domain => {
+            const isShopifyPlatform = SHOPIFY_PLATFORM_HOSTS.some(domain => {
                 const normalizedOrigin = receiptOriginHost.toLowerCase();
                 return normalizedOrigin === domain || normalizedOrigin.endsWith(`.${domain}`);
             });

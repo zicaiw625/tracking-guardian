@@ -139,7 +139,7 @@ export {
   validatePixelOriginForShop,
   extractOriginHost,
   getAllowedPatterns,
-  SHOPIFY_ALLOWLIST,
+  SHOPIFY_PLATFORM_HOSTS,
 } from "./origin-validation";
 
 export {

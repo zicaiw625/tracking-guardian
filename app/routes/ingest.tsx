@@ -602,6 +602,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       { request }
     );
   }
+  await processBatchEvents(shop.id, validatedEvents, environment, { persistOnly: true });
   const PROCESSING_TIMEOUT_MS = 10000;
   const processingPromise = processBatchEvents(shop.id, validatedEvents, environment).then((results) => {
     const successCount = results.filter(r => r.success).length;

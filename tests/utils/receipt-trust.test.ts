@@ -243,9 +243,10 @@ describe("buildShopAllowedDomains", () => {
     expect(domains).toContain("shop.example.com");
     expect(domains).toContain("store.example.org");
   });
-  it("should always include Shopify checkout domain", () => {
+  it("should not include Shopify platform hosts (only shop-specific domains)", () => {
     const domains = buildShopAllowedDomains("mystore.myshopify.com");
-    expect(domains).toContain("checkout.shopify.com");
+    expect(domains).not.toContain("checkout.shopify.com");
+    expect(domains).toContain("mystore.myshopify.com");
   });
   it("should deduplicate domains", () => {
     const domains = buildShopAllowedDomains(

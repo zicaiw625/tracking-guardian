@@ -30,6 +30,9 @@ register(({ analytics, settings, init, customerPrivacy }: {
     const errorMsg = "严重错误：检测到 BACKEND_URL 占位符未替换。像素扩展将无法发送事件到后端，导致事件丢失。这是严重的配置错误，必须在生产环境部署前修复。请在 CI/CD 流程中运行 'pnpm ext:inject' 或 'pnpm deploy:ext'。";
     console.error("[Tracking Guardian] ❌", errorMsg);
   }
+  if (backendUrl && (!ingestionKey || (typeof ingestionKey === "string" && ingestionKey.trim() === ""))) {
+    console.error("[Tracking Guardian] 像素配置缺失 ingestion_key。生产严格模式下 /ingest 将拒绝所有像素事件，导致静默失败。请在 Admin 设置中配置 Ingestion Key，并确保 Web Pixel 的 settings 中包含 ingestion_key。");
+  }
   if (isDevMode) {
     log("Development mode enabled", {
       shopDomain,

@@ -255,7 +255,8 @@ export async function processEventPipeline(
   payload: PixelEventPayload,
   eventId: string | null,
   destinations: string[] | Array<{ platform: string; configId?: string; platformId?: string }>,
-  environment?: "test" | "live"
+  environment?: "test" | "live",
+  pipelineOptions?: { skipDelivery?: boolean }
 ): Promise<EventPipelineResult> {
   const validation = validateEventPayload(payload);
   if (!validation.valid) {
@@ -495,6 +496,13 @@ export async function processEventPipeline(
         shopifyContextJson: null,
       },
     });
+  }
+  if (pipelineOptions?.skipDelivery) {
+    return {
+      success: true,
+      eventId: finalEventId || undefined,
+      destinations: destinationConfigs.map(d => d.platform),
+    };
   }
   const destinationNames = destinationConfigs.map(d => d.platform);
   logger.info(`Routing ${normalizedPayload.eventName} event to ${destinationConfigs.length} destination(s)`, {
@@ -737,11 +745,13 @@ export async function processBatchEvents(
     eventId: string | null;
     destinations: string[];
   }>,
-  environment?: "test" | "live"
+  environment?: "test" | "live",
+  options?: { persistOnly?: boolean }
 ): Promise<EventPipelineResult[]> {
   const concurrency = Number(process.env.PIPELINE_CONCURRENCY || 5);
+  const pipelineOptions = options?.persistOnly ? { skipDelivery: true } : undefined;
   return parallelLimit(events, concurrency, (event) =>
-    processEventPipeline(shopId, event.payload, event.eventId, event.destinations, environment)
+    processEventPipeline(shopId, event.payload, event.eventId, event.destinations, environment, pipelineOptions)
   );
 }
 

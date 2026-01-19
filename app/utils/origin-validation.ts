@@ -1,8 +1,7 @@
 import { logger } from "./logger.server";
-export const SHOPIFY_ALLOWLIST = [
+export const SHOPIFY_PLATFORM_HOSTS = [
     "checkout.shopify.com",
-    "shopify.com",
-    "myshopify.com",
+    "admin.shopify.com",
     "shopifypreview.com",
 ] as const;
 
@@ -187,7 +186,7 @@ export function validatePixelOriginPreBody(origin: string | null, hasSignatureHe
         }
         if (url.protocol === "https:") {
             const hostname = url.hostname.toLowerCase();
-            const isShopifyDomain = SHOPIFY_ALLOWLIST.some(domain => 
+            const isShopifyDomain = SHOPIFY_PLATFORM_HOSTS.some(domain => 
                 hostname === domain || hostname.endsWith(`.${domain}`)
             );
             if (isShopifyDomain) {
@@ -310,7 +309,7 @@ export function validatePixelOriginForShop(
                 return { valid: true, reason: "subdomain_match", matched: domain, shouldReject: false };
             }
         }
-        for (const shopifyDomain of SHOPIFY_ALLOWLIST) {
+        for (const shopifyDomain of SHOPIFY_PLATFORM_HOSTS) {
             if (hostname === shopifyDomain || hostname.endsWith(`.${shopifyDomain}`)) {
                 return { valid: true, reason: "shopify_platform_domain", matched: shopifyDomain, shouldReject: false };
             }
@@ -335,7 +334,7 @@ function expandDomainVariants(domain: string): string[] {
     if (normalized.endsWith(".myshopify.com")) {
         return variants;
     }
-    for (const shopifyDomain of SHOPIFY_ALLOWLIST) {
+    for (const shopifyDomain of SHOPIFY_PLATFORM_HOSTS) {
         if (normalized === shopifyDomain || normalized.endsWith(`.${shopifyDomain}`)) {
             return variants;
         }
@@ -375,9 +374,6 @@ export function buildShopAllowedDomains(options: {
                 }
             }
         }
-    }
-    for (const shopifyDomain of SHOPIFY_ALLOWLIST) {
-        domains.add(shopifyDomain);
     }
     return Array.from(domains);
 }
