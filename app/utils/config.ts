@@ -604,7 +604,7 @@ export function getPixelEventIngestionUrl(): {
             isLocalhost: false,
             warning: "检测到占位符 __BACKEND_URL_PLACEHOLDER__，URL 未在构建时替换。这是严重的配置错误，必须在上线前修复。请在 CI/CD 流程中运行 'pnpm ext:inject' 或确保 SHOPIFY_APP_URL 已正确注入。如果占位符未被替换，像素扩展将无法发送事件到后端，导致事件丢失。这是导致事件丢失的常见原因，必须在生产环境部署前修复。",
             placeholderDetected: true,
-            pixelExtensionUrl: null,
+            pixelExtensionUrl: undefined,
         };
     }
     try {
@@ -674,6 +674,8 @@ export function getConfigSummary(): Record<string, unknown> {
         shopifyApiVersion: CONFIG.shopify.VERSION,
     };
 }
+
+export const getPcdConfigSummary = getConfigSummary;
 
 export function validateAllConfig(): { valid: boolean; errors: string[] } {
     const errors: string[] = [];

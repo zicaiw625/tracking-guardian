@@ -17,6 +17,7 @@ import {
   Layout,
   List,
 } from "@shopify/polaris";
+import type { RiskItem } from "../types";
 import { validateRiskItemsArray, validateStringArray } from "../utils/scan-data-validation";
 import { PUBLIC_PAGE_HEADERS, addSecurityHeadersToHeaders } from "../utils/security-headers";
 import { checkRateLimitAsync, ipKeyExtractor } from "../middleware/rate-limit";
@@ -141,9 +142,23 @@ export const loader = async ({ request, params }: LoaderFunctionArgs) => {
   }
 };
 
+type ShareScanRiskItem = RiskItem & { platform?: string; recommendation?: string };
+
+type ShareScanReport = {
+  id: string;
+  shopDomain: string;
+  riskScore: number;
+  riskItems: ShareScanRiskItem[];
+  identifiedPlatforms: string[];
+  status: string;
+  createdAt: string;
+  completedAt: string | null;
+};
+type ShareScanLoaderData = { report: ShareScanReport } | { report: null; error: string };
+
 export default function SharedScanReport() {
-  const loaderData = useLoaderData<typeof loader>();
-  const report = "report" in loaderData ? loaderData.report : null;
+  const loaderData = useLoaderData<ShareScanLoaderData>();
+  const report = loaderData.report ?? null;
   const error = "error" in loaderData ? loaderData.error : null;
 
   if (error || !report) {
@@ -195,7 +210,7 @@ export default function SharedScanReport() {
                     风险评分
                   </Text>
                   <Badge tone={riskLevel}>
-                    {report.riskScore} / 100 ({riskLabel})
+                    {`${report.riskScore} / 100 (${riskLabel})`}
                   </Badge>
                 </BlockStack>
               </Layout.Section>

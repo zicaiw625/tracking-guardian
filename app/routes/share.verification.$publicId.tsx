@@ -16,6 +16,7 @@ import {
   Banner,
   Layout,
   ProgressBar,
+  List,
 } from "@shopify/polaris";
 import { generateVerificationReportData } from "../services/verification-report.server";
 import { PUBLIC_PAGE_HEADERS, addSecurityHeadersToHeaders } from "../utils/security-headers";
@@ -158,9 +159,37 @@ export const loader = async ({ request, params }: LoaderFunctionArgs) => {
   }
 };
 
+type SandboxLimitations = {
+  missingFields: Array<{ eventType: string; fields: string[]; reason: string }>;
+  unavailableEvents: string[];
+  notes: string[];
+};
+
+type ShareVerificationReport = {
+  runId: string;
+  runName: string;
+  shopDomain: string;
+  runType: string;
+  status: string;
+  platforms: string[];
+  totalTests: number;
+  passedTests: number;
+  failedTests: number;
+  missingParamTests?: number;
+  parameterCompleteness: number;
+  valueAccuracy: number;
+  platformResults: Record<string, { sent: number; failed: number }>;
+  startedAt: string | null;
+  completedAt: string | null;
+  createdAt: string;
+  events: unknown[];
+  sandboxLimitations?: SandboxLimitations;
+};
+type ShareVerificationLoaderData = { report: ShareVerificationReport } | { report: null; error: string };
+
 export default function SharedVerificationReport() {
-  const loaderData = useLoaderData<typeof loader>();
-  const report = "report" in loaderData ? loaderData.report : null;
+  const loaderData = useLoaderData<ShareVerificationLoaderData>();
+  const report = loaderData.report ?? null;
   const error = "error" in loaderData ? loaderData.error : null;
 
   if (error || !report) {

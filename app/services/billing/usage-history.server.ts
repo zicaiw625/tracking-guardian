@@ -1,5 +1,6 @@
 import prisma from "../../db.server";
 import { logger } from "../../utils/logger.server";
+import { extractPlatformFromPayload } from "../../utils/common";
 import type { PlanId } from "./plans";
 
 export interface UsageHistoryPoint {
@@ -99,7 +100,7 @@ export async function getUsageHistory(
   );
   const platformTotals: Record<string, number> = {};
   pixelReceipts.forEach((receipt) => {
-    const platform = receipt.platform || "unknown";
+    const platform = extractPlatformFromPayload(receipt.payloadJson as Record<string, unknown> | null) || "unknown";
     platformTotals[platform] = (platformTotals[platform] || 0) + 1;
   });
   return {

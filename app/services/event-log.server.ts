@@ -1,3 +1,4 @@
+import { Prisma } from "@prisma/client";
 import prisma from "../db.server";
 import { logger } from "../utils/logger.server";
 import { generateSimpleId } from "../utils/helpers";
@@ -227,12 +228,12 @@ export async function createEventLog(options: CreateEventLogOptions): Promise<st
         eventName: options.eventName,
         source: options.source || "web_pixel",
         occurredAt: options.occurredAt,
-        normalizedEventJson: sanitizedEventJson,
-        shopifyContextJson: sanitizedShopifyContextJson,
+        normalizedEventJson: sanitizedEventJson as Prisma.InputJsonValue,
+        shopifyContextJson: sanitizedShopifyContextJson === null ? Prisma.JsonNull : (sanitizedShopifyContextJson as Prisma.InputJsonValue),
       },
       update: {
-        normalizedEventJson: sanitizedEventJson,
-        shopifyContextJson: sanitizedShopifyContextJson,
+        normalizedEventJson: sanitizedEventJson as Prisma.InputJsonValue,
+        shopifyContextJson: sanitizedShopifyContextJson === null ? Prisma.JsonNull : (sanitizedShopifyContextJson as Prisma.InputJsonValue),
       },
     });
     return eventLogId;
@@ -270,7 +271,7 @@ export async function createDeliveryAttempt(
         destinationType: options.destinationType,
         platform,
         environment: options.environment,
-        requestPayloadJson: sanitizedRequestPayload,
+        requestPayloadJson: sanitizedRequestPayload as Prisma.InputJsonValue,
         status: "pending",
         ok: false,
         errorCode: null,
@@ -526,6 +527,7 @@ export async function getDeliveryAttemptStats(
       select: {
         status: true,
         latencyMs: true,
+        errorCode: true,
       },
     });
     const total = attempts.length;

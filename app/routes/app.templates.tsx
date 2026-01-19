@@ -28,8 +28,8 @@ import {
   createPixelTemplate,
   updatePixelTemplate,
   deletePixelTemplate,
-  type PixelTemplateConfig,
 } from "../services/batch-pixel-apply.server";
+import type { PixelTemplateConfig } from "../utils/type-guards";
 import { getWizardTemplates, generateTemplateShareLink, saveWizardConfigAsTemplate } from "../services/pixel-template.server";
 import { useToastContext, EnhancedEmptyState } from "~/components/ui";
 import { logger } from "../utils/logger.server";
@@ -98,17 +98,15 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         return json({ success: false, error: "缺少必要参数" }, { status: 400 });
       }
       const platforms = JSON.parse(platformsJson) as PixelTemplateConfig[];
-      const result = await createPixelTemplate({
-        ownerId: shop.id,
+      const template = await createPixelTemplate({
+        shopId: shop.id,
         name,
         description: description || undefined,
         platforms,
         isPublic,
       });
-      if (result.success) {
-        logger.info("Template created", { templateId: result.templateId, shopId: shop.id });
-      }
-      return json(result);
+      logger.info("Template created", { templateId: template.id, shopId: shop.id });
+      return json({ success: true, templateId: template.id });
     } catch (error) {
       logger.error("Failed to create template", error);
       return json(
@@ -229,10 +227,12 @@ export default function TemplatesPage() {
   const [shareLink, setShareLink] = useState<string | null>(null);
   const [isGeneratingShareLink, setIsGeneratingShareLink] = useState(false);
   const planDef = getPlanDefinition(planId);
-  if (actionData) {
-    if (actionData.success) {
-      if ("message" in actionData && typeof actionData.message === "string") {
-        showSuccess(actionData.message);
+  type ActionResult = { success: boolean; templateId?: string; error?: string; shareLink?: string; message?: string };
+  const ad = actionData as ActionResult | undefined;
+  if (ad) {
+    if (ad.success) {
+      if ("message" in ad && typeof ad.message === "string") {
+        showSuccess(ad.message);
       } else {
         showSuccess("操作成功");
       }
@@ -243,8 +243,8 @@ export default function TemplatesPage() {
         setTemplateDescription("");
         setTemplateIsPublic(false);
       }
-    } else if ("error" in actionData && typeof actionData.error === "string") {
-      showError(actionData.error);
+    } else if ("error" in ad && typeof ad.error === "string") {
+      showError(ad.error);
     }
   }
   const handleCreateTemplate = useCallback(() => {

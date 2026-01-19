@@ -260,7 +260,7 @@ export default function MigratePage() {
                 迁移进度
               </Text>
               <Badge tone={progress === 100 ? "success" : progress > 0 ? "info" : undefined}>
-                {Math.round(progress)}%
+                {`${Math.round(progress)}%`}
               </Badge>
             </InlineStack>
             <ProgressBar progress={progress} tone={progress === 100 ? "success" : undefined} />
@@ -285,7 +285,7 @@ export default function MigratePage() {
                       <BlockStack gap="200">
                         <InlineStack gap="200" blockAlign="center">
                           {stepStatus.completed ? (
-                            <CheckCircleIcon tone="success" />
+                            <CheckCircleIcon />
                           ) : (
                             <Text as="span" variant="headingLg" fontWeight="bold">
                               {index + 1}

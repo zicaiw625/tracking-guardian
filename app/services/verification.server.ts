@@ -249,6 +249,9 @@ export async function analyzeRecentEvents(
       id: true,
       shopId: true,
       platforms: true,
+      runType: true,
+      runName: true,
+      startedAt: true,
     },
   });
   if (!run) {
@@ -526,8 +529,8 @@ export async function analyzeRecentEvents(
       issues: string[];
     }> = [];
     try {
-      const maxCheckOrders = Math.min(orderIds.length, 50);
-      const sampleOrderIds = orderIds.slice(0, maxCheckOrders);
+      const maxCheckOrders = Math.min(orderIds.size, 50);
+      const sampleOrderIds = Array.from(orderIds).slice(0, maxCheckOrders);
       const bulkCheckResult = await performBulkLocalConsistencyCheck(
         shopId,
         since,

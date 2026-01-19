@@ -61,7 +61,7 @@ export async function getUsageTracking(
         },
       }),
     ]);
-    const monthlyOrders = new Set(orderReceipts.filter((log: { orderKey: string | null }) => log.orderKey).map((log: { orderKey: string }) => log.orderKey)).size;
+    const monthlyOrders = new Set(orderReceipts.filter((log): log is { orderKey: string } => log.orderKey != null).map((log) => log.orderKey)).size;
     const { getPixelDestinationsLimit, getUiModulesLimit, getPlanLimit } = await import("./plans");
     const pixelLimit = getPixelDestinationsLimit(planId);
     const uiLimit = getUiModulesLimit(planId);

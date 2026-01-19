@@ -414,6 +414,7 @@ export async function validateTestEnvironment(
       currency: "USD",
       lineItems: [
         {
+          id: "test-product-1",
           productId: "test-product-1",
           name: "Test Product",
           price: 1.0,

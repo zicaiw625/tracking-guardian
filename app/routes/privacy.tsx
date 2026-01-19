@@ -125,15 +125,15 @@ export default function PrivacyPage() {
         `}</style>
       </head>
       <body>
-        <div class="container">
+        <div className="container">
           <h1>隐私政策</h1>
-          <div class="meta">
+          <div className="meta">
             <p><strong>应用名称：</strong>{appName}</p>
             <p><strong>最后更新：</strong>{lastUpdated}</p>
             <p><strong>应用域名：</strong><a href={appDomain}>{appDomain}</a></p>
           </div>
 
-          <div class="section">
+          <div className="section">
             <h2>概述</h2>
             <p>
               {appName} 是一个 Shopify 应用，作为<strong>数据处理者</strong>（Data Processor）代表商家（数据控制者）处理转化追踪数据。
@@ -141,7 +141,7 @@ export default function PrivacyPage() {
             </p>
           </div>
 
-          <div class="section">
+          <div className="section">
             <h2>收集的数据类型</h2>
             <h3>订单数据</h3>
             <ul>
@@ -159,7 +159,7 @@ export default function PrivacyPage() {
             </ul>
 
             <h3>不收集的数据（PII）</h3>
-            <div class="highlight">
+            <div className="highlight">
               <p><strong>我们不收集以下个人身份信息：</strong></p>
               <ul>
                 <li>客户姓名</li>
@@ -171,12 +171,12 @@ export default function PrivacyPage() {
             </div>
           </div>
 
-          <div class="section">
+          <div className="section">
             <h2>数据用途</h2>
             <h3>转化追踪</h3>
             <p>将购买事件发送到您配置的广告平台（Meta、TikTok、GA4），帮助您准确衡量广告投资回报。</p>
 
-            <div class="warning">
+            <div className="warning">
               <p><strong>重要：服务端追踪默认关闭</strong></p>
               <p>
                 所有新创建的像素配置中，服务端转化追踪（Server-side CAPI/MP）默认关闭（<code>serverSideEnabled: false</code>）。
@@ -199,7 +199,7 @@ export default function PrivacyPage() {
             <p>根据客户的同意状态，自动决定是否向特定平台发送数据，确保符合 GDPR/CCPA。</p>
           </div>
 
-          <div class="section">
+          <div className="section">
             <h2>数据保留</h2>
             <p>我们遵循数据最小化原则，仅保存必要的数据，并定期清理过期数据。所有数据类型的保留周期由店铺的数据保留设置控制（默认 90 天）：</p>
             <ul>
@@ -210,7 +210,7 @@ export default function PrivacyPage() {
             </ul>
           </div>
 
-          <div class="section">
+          <div className="section">
             <h2>数据删除</h2>
             <p>我们支持多种数据删除方式：</p>
             <ul>
@@ -220,7 +220,7 @@ export default function PrivacyPage() {
             </ul>
           </div>
 
-          <div class="section">
+          <div className="section">
             <h2>第三方共享</h2>
             <p>
               当您启用服务端追踪时，数据可能被发送到以下平台：
@@ -236,7 +236,7 @@ export default function PrivacyPage() {
             </p>
           </div>
 
-          <div class="section">
+          <div className="section">
             <h2>安全措施</h2>
             <ul>
               <li><strong>传输加密</strong>：所有 API 通信均使用 TLS 1.2+ 加密</li>
@@ -247,7 +247,7 @@ export default function PrivacyPage() {
             </ul>
           </div>
 
-          <div class="section">
+          <div className="section">
             <h2>数据主体权利</h2>
             <p>根据 GDPR 和 CCPA，您享有以下权利：</p>
             <ul>
@@ -260,14 +260,14 @@ export default function PrivacyPage() {
             <p>本应用通过 Shopify GDPR webhooks 自动处理这些请求。</p>
           </div>
 
-          <div class="section">
+          <div className="section">
             <h2>完整合规文档</h2>
             <p>
               更多详细信息，请参阅：<a href="/COMPLIANCE.md">完整合规说明文档 (COMPLIANCE.md)</a>
             </p>
           </div>
 
-          <div class="section">
+          <div className="section">
             <h2>联系方式</h2>
             <p>
               如有任何关于数据处理或隐私的问题，请通过 Shopify App 内支持渠道联系我们。

@@ -291,11 +291,13 @@ export async function processPendingConversions(): Promise<{
           continue;
         }
         
-        const credentialsResult = await decryptCredentials({
-          credentialsEncrypted: config.credentialsEncrypted,
-          credentials_legacy: config.credentials_legacy,
-          platform: log.platform,
-        });
+        const credentialsResult = await decryptCredentials(
+          {
+            credentialsEncrypted: config.credentialsEncrypted,
+            credentials_legacy: config.credentials_legacy,
+          },
+          log.platform
+        );
         
         if (!credentialsResult.ok) {
           await scheduleRetry(log.id, credentialsResult.error.message);
@@ -432,11 +434,13 @@ export async function processRetries(): Promise<{
           continue;
         }
         
-        const credentialsResult = await decryptCredentials({
-          credentialsEncrypted: config.credentialsEncrypted,
-          credentials_legacy: config.credentials_legacy,
-          platform: log.platform,
-        });
+        const credentialsResult = await decryptCredentials(
+          {
+            credentialsEncrypted: config.credentialsEncrypted,
+            credentials_legacy: config.credentials_legacy,
+          },
+          log.platform
+        );
         
         if (!credentialsResult.ok) {
           await scheduleRetry(log.id, credentialsResult.error.message);

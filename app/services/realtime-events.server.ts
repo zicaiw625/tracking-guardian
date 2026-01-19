@@ -1,5 +1,6 @@
 import { logger } from "../utils/logger.server";
 import prisma from "../db.server";
+import { extractPlatformFromPayload } from "../utils/common";
 
 export interface RealtimeEvent {
   id: string;

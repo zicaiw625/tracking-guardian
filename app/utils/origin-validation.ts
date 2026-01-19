@@ -317,7 +317,7 @@ export function validatePixelOriginForShop(
         if (isDevMode() && (hostname === "localhost" || hostname === "127.0.0.1")) {
             return { valid: true, reason: "dev_localhost", shouldReject: false };
         }
-        trackRejectedOrigin(origin);
+        trackRejectedOrigin(origin ?? "");
         return {
             valid: false,
             reason: `origin_not_allowlisted:${hostname}`,

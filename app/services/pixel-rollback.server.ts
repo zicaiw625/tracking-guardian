@@ -325,12 +325,12 @@ export async function getAllConfigVersions(
   }));
 }
 
-function redactCredentials<T extends Record<string, any>>(obj: T | null): T | null {
+function redactCredentials<T extends object>(obj: T | null): T | null {
   if (!obj) return obj;
-  const copy = { ...obj };
+  const copy = { ...obj } as Record<string, unknown>;
   if ("credentialsEncrypted" in copy) copy.credentialsEncrypted = copy.credentialsEncrypted ? "***已设置***" : null;
   if ("credentials_legacy" in copy) copy.credentials_legacy = copy.credentials_legacy ? "***已设置***" : null;
-  return copy;
+  return copy as T;
 }
 
 export async function getConfigComparison(

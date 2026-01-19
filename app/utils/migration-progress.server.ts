@@ -88,8 +88,8 @@ export async function calculateMigrationProgress(shopId: string): Promise<Migrat
     status: verificationRuns[0].status === "completed" ? "completed" as const : (verificationRuns[0].status === "running" ? "running" as const : "pending" as const),
     completedAt: verificationRuns[0].completedAt,
   } : {
-    status: null as const,
-    completedAt: null as const,
+    status: null,
+    completedAt: null,
   };
   return {
     currentStage,

@@ -97,7 +97,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       )));
     }
     try {
-      const body = await readJsonWithSizeLimit(request);
+      const body = (await readJsonWithSizeLimit(request)) as Record<string, unknown> | null;
       const url = new URL(request.url);
       const orderIdRaw = body?.orderId || url.searchParams.get("orderId");
       if (!orderIdRaw) {

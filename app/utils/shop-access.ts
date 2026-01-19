@@ -2,7 +2,7 @@ import { timingSafeEqual, createHash } from "crypto";
 import prisma from "../db.server";
 import { decryptAccessToken, decryptIngestionSecret, TokenDecryptionError, encryptAccessToken, isTokenEncrypted, encryptIngestionSecret } from "./token-encryption";
 import { logger } from "./logger.server";
-import type { Shop, PixelConfig, AlertConfig } from "@prisma/client";
+import type { Shop, PixelConfig } from "@prisma/client";
 
 export function timingSafeEquals(a: string, b: string): boolean {
     const hashA = createHash("sha256").update(a).digest();

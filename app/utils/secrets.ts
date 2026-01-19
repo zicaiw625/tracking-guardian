@@ -1,3 +1,4 @@
+import { Prisma } from "@prisma/client";
 import { logger } from "./logger.server";
 import prisma from "../db.server";
 import { isProduction } from "./config";
@@ -221,7 +222,7 @@ export async function checkLegacyPlaintextCredentials(): Promise<SecurityViolati
     try {
         const configsWithLegacy = await prisma.pixelConfig.findMany({
             where: {
-                credentials_legacy: { not: null },
+                credentials_legacy: { not: Prisma.DbNull },
             },
             select: {
                 id: true,
@@ -257,7 +258,7 @@ export async function checkLegacyPlaintextCredentials(): Promise<SecurityViolati
                 return violations;
             }
         }
-        logger.warn("Failed to check for legacy plaintext credentials during startup", error);
+        logger.warn("Failed to check for legacy plaintext credentials during startup", { error: error instanceof Error ? error.message : String(error) });
     }
     return violations;
 }

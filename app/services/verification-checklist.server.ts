@@ -11,7 +11,23 @@ export interface TestChecklistItem {
   steps: string[];
   expectedResults: string[];
   estimatedTime: number;
-  category: "purchase" | "cart";
+  category: "purchase" | "cart" | "refund" | "order_edit";
+}
+
+export interface PixelLayerItem {
+  eventName: string;
+  description: string;
+  required: boolean;
+  verificationPoints: string[];
+  expectedParams?: string[];
+}
+
+export interface OrderLayerItem {
+  eventType: string;
+  description: string;
+  required: boolean;
+  verificationPoints: string[];
+  expectedFields?: string[];
 }
 
 export interface TestChecklist {
@@ -19,10 +35,12 @@ export interface TestChecklist {
   generatedAt: Date;
   testType: "quick" | "full" | "custom";
   items: TestChecklistItem[];
+  pixelLayer: PixelLayerItem[];
+  orderLayer: OrderLayerItem[];
   totalEstimatedTime: number;
   requiredItemsCount: number;
   optionalItemsCount: number;
-    shopifyOfficialGuides?: {
+  shopifyOfficialGuides?: {
     testCheckout: string;
     testPixels: string;
   };
@@ -48,15 +66,35 @@ export function generateTestChecklist(
   const requiredItems = selectedItems.filter((item) => item.required);
   const optionalItems = selectedItems.filter((item) => !item.required);
   const totalEstimatedTime = selectedItems.reduce((sum, item) => sum + item.estimatedTime, 0);
+  const pixelLayer: PixelLayerItem[] = selectedItems
+    .filter((i) => i.category === "purchase" || i.category === "cart")
+    .map((i) => ({
+      eventName: i.eventType,
+      description: i.description,
+      required: i.required,
+      verificationPoints: i.expectedResults,
+      expectedParams: [],
+    }));
+  const orderLayer: OrderLayerItem[] = selectedItems
+    .filter((i) => i.category === "refund" || i.category === "order_edit")
+    .map((i) => ({
+      eventType: i.eventType,
+      description: i.description,
+      required: i.required,
+      verificationPoints: i.expectedResults,
+      expectedFields: [],
+    }));
   return {
     shopId,
     generatedAt: new Date(),
     testType,
     items: selectedItems,
+    pixelLayer,
+    orderLayer,
     totalEstimatedTime,
     requiredItemsCount: requiredItems.length,
     optionalItemsCount: optionalItems.length,
-        shopifyOfficialGuides: {
+    shopifyOfficialGuides: {
       testCheckout: SHOPIFY_OFFICIAL_TEST_GUIDE,
       testPixels: SHOPIFY_PIXEL_TEST_GUIDE,
     },

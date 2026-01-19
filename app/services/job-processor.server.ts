@@ -3,7 +3,7 @@ import { logger } from "../utils/logger.server";
 import { getPlatformService } from "./platforms/factory";
 import type { ConversionJob } from "@prisma/client";
 import { getPendingJobs, updateJobStatus, claimJobsForProcessing, type JobForProcessing } from "./db/conversion-repository.server";
-import { JobStatus } from "../types";
+import { JobStatus, type JobStatusType } from "../types";
 import type { Prisma } from "@prisma/client";
 import { normalizeDecimalValue } from "../utils/common";
 
@@ -52,7 +52,7 @@ export async function processConversionJobs(
   await claimJobsForProcessing(jobIds);
   const errors: Array<{ jobId: string; error: string }> = [];
   const completedJobs: Array<{ id: string; completedAt: Date }> = [];
-  const failedJobs: Array<{ id: string; status: JobStatus; attempts: number; errorMessage: string; lastAttemptAt: Date }> = [];
+  const failedJobs: Array<{ id: string; status: JobStatusType; attempts: number; errorMessage: string; lastAttemptAt: Date }> = [];
   let succeeded = 0;
   let failed = 0;
   const now = new Date();
@@ -175,11 +175,13 @@ async function sendToPlatform(
   const { generateEventId } = await import("./capi-dedup.server");
   
   try {
-    const credentialsResult = await decryptCredentials({
-      credentialsEncrypted: config.credentialsEncrypted,
-      credentials_legacy: config.credentials_legacy,
-      platform: config.platform,
-    });
+    const credentialsResult = await decryptCredentials(
+      {
+        credentialsEncrypted: config.credentialsEncrypted,
+        credentials_legacy: config.credentials_legacy,
+      },
+      config.platform
+    );
     
     if (!credentialsResult.ok) {
       logger.warn(`Failed to decrypt credentials for ${config.platform} in job ${job.id}`, {

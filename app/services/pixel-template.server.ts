@@ -1,7 +1,7 @@
 import prisma from "../db.server";
 import { logger } from "../utils/logger.server";
 import { getPixelTemplates, createPixelTemplate } from "./batch-pixel-apply.server";
-import type { PixelTemplateConfig } from "./batch-pixel-apply.server";
+import type { PixelTemplateConfig } from "../utils/type-guards";
 
 export interface WizardTemplate {
   id: string;
@@ -170,7 +170,7 @@ export async function getWizardTemplates(shopId: string): Promise<{
         platforms,
         eventMappings,
         isPublic: t.isPublic,
-        usageCount: t.usageCount,
+        usageCount: t.usageCount ?? 0,
       };
     });
   } catch (error) {
@@ -235,17 +235,15 @@ export async function saveWizardConfigAsTemplate(
       clientSideEnabled: true,
       serverSideEnabled: false,
     }));
-    const result = await createPixelTemplate({
-      ownerId: shopId,
+    const template = await createPixelTemplate({
+      shopId,
       name,
       description,
       platforms: platformConfigs,
       isPublic,
     });
-    if (result.success) {
-      logger.info("Wizard config saved as template", { templateId: result.templateId, shopId, name });
-    }
-    return result;
+    logger.info("Wizard config saved as template", { templateId: template.id, shopId, name });
+    return { success: true, templateId: template.id };
   } catch (error) {
     logger.error("Failed to save wizard config as template", { shopId, error });
     return { success: false, error: "保存模板失败" };

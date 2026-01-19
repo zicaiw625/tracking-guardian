@@ -100,15 +100,17 @@ export default function AuditPage() {
       { method: "post" }
     );
   };
+  type ScanData = { success?: boolean; auditAssetsCount?: number };
+  const scanData = scanFetcher.data as ScanData | undefined;
   useEffect(() => {
-    if (scanFetcher.state === "idle" && scanFetcher.data?.success) {
+    if (scanFetcher.state === "idle" && scanData?.success) {
       setIsScanning(false);
       revalidator.revalidate();
     }
   }, [scanFetcher.state, scanFetcher.data, revalidator]);
   
-  const displayAuditAssetsCount = scanFetcher.data?.auditAssetsCount !== undefined 
-    ? scanFetcher.data.auditAssetsCount 
+  const displayAuditAssetsCount = scanData?.auditAssetsCount !== undefined 
+    ? scanData.auditAssetsCount 
     : auditAssets.length;
   const handleManualPasteComplete = () => {
     setCurrentStep("checklist");
@@ -117,7 +119,7 @@ export default function AuditPage() {
     return (
       <Page title="Audit">
         <Card>
-          <Text>Shop not found</Text>
+          <Text as="p">Shop not found</Text>
         </Card>
       </Page>
     );
@@ -153,13 +155,13 @@ export default function AuditPage() {
                   <ProgressBar progress={50} />
                   <InlineStack align="center" gap="200">
                     <Spinner size="small" />
-                    <Text>正在扫描...</Text>
+                    <Text as="p">正在扫描...</Text>
                   </InlineStack>
                 </BlockStack>
-              ) : hasScanResult || scanFetcher.data?.success ? (
+              ) : hasScanResult || scanData?.success ? (
                 <BlockStack gap="300">
                   <Banner tone="success">
-                    <Text>扫描完成！发现 {displayAuditAssetsCount} 个追踪资产</Text>
+                    <Text as="p">扫描完成！发现 {displayAuditAssetsCount} 个追踪资产</Text>
                   </Banner>
                   <Button onClick={() => setCurrentStep("manual")}>
                     下一步：手动补充
@@ -205,7 +207,7 @@ export default function AuditPage() {
               </Text>
               {displayAuditAssetsCount === 0 ? (
                 <Banner tone="info">
-                  <Text>暂无扫描结果，请先完成步骤 1 和 2</Text>
+                  <Text as="p">暂无扫描结果，请先完成步骤 1 和 2</Text>
                 </Banner>
               ) : (
                 <BlockStack gap="300">

@@ -164,7 +164,7 @@ export async function processDataRequest(
     ]);
     allSurveyResponses.push(...surveyResponses);
     allPixelReceipts.push(...pixelReceipts);
-    allConversionLogs.push(...conversionLogs);
+    allConversionLogs.push(...conversionLogs.map((l) => ({ ...l, orderValue: Number(l.orderValue) })));
     if (
       allSurveyResponses.length >= MAX_RECORDS_PER_TABLE ||
       allPixelReceipts.length >= MAX_RECORDS_PER_TABLE ||

@@ -433,8 +433,9 @@ class RedisClientFactory {
       },
       scan: async (cursor: string, pattern: string, count: number = 100): Promise<{ cursor: string; keys: string[] }> => {
         try {
-          const result = await client.scan(cursor, { MATCH: pattern, COUNT: count });
-          return { cursor: result.cursor, keys: result.keys };
+          const cursorNum = parseInt(cursor, 10);
+          const result = await client.scan(isNaN(cursorNum) ? 0 : cursorNum, { MATCH: pattern, COUNT: count });
+          return { cursor: String(result.cursor), keys: result.keys };
         } catch {
           return this.fallback.scan(cursor, pattern, count);
         }

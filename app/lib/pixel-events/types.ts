@@ -47,6 +47,8 @@ export interface PixelEventData {
   productTitle?: string;
   price?: number;
   quantity?: number;
+  environment?: string;
+  [key: string]: unknown;
 }
 
 export interface PixelEventPayload {

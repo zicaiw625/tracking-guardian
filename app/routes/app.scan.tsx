@@ -1982,7 +1982,6 @@ export function ScanPage({
                   secondaryAction={{
                     content: "了解更多",
                     url: "https://help.shopify.com/en/manual/pixels/web-pixels",
-                    external: true,
                   }}
                 />
               )}

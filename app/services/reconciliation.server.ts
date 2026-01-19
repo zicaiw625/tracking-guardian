@@ -50,7 +50,7 @@ async function getShopifyOrderStats(shopDomain: string, accessToken: string | nu
     const validationResult = SecureShopDomainSchema.safeParse(shopDomain);
     if (!validationResult.success) {
         logger.warn(`[Reconciliation] Invalid shop domain format: ${shopDomain}`, {
-            errors: validationResult.error.errors,
+            errors: validationResult.error.issues,
         });
         return null;
     }
@@ -151,9 +151,10 @@ async function getShopifyOrderStats(shopDomain: string, accessToken: string | nu
         while (hasMorePages && pageCount < maxPages) {
             const result = await makeRequest(cursor);
             if (result.errors || !result.data) {
-                const hasAccessError = result.errors?.some((err: { message?: string }) => 
-                    err.message?.includes("read_orders") || err.message?.includes("Required access")
-                );
+                const hasAccessError = result.errors?.some((err: unknown) => {
+                    const m = (err as { message?: string })?.message;
+                    return typeof m === "string" && (m.includes("read_orders") || m.includes("Required access"));
+                });
                 if (hasAccessError) {
                     logger.warn(`[P0-02] Missing read_orders scope for ${shopDomain}`, { errors: result.errors });
                     return null;

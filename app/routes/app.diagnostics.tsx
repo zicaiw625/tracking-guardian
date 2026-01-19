@@ -54,6 +54,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     });
     if (!shop) {
         return json({
+            shopDomain,
             checks: [
                 {
                     name: "Shop 配置",
@@ -722,17 +723,17 @@ export default function DiagnosticsPage() {
                     "后端处理",
                     "CAPI 结果",
                   ]}
-                  rows={data.recentEvents.map((event: {
+                  rows={(data.recentEvents as Array<{
                     id: string;
                     orderId: string | null;
                     eventType: string;
-                    createdAt: Date;
+                    createdAt: Date | string;
                     isTrusted: boolean;
                     signatureStatus: string;
                     jobStatus: string;
                     platformResults?: unknown;
                     jobError?: string | null;
-                  }) => {
+                  }>).map((event) => {
                     const platforms = event.platformResults
                         ? Object.keys(event.platformResults as Record<string, string>).join(", ")
                         : "-";

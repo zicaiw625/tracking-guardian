@@ -1,5 +1,6 @@
 import prisma from "../db.server";
 import { logger } from "../utils/logger.server";
+import { extractPlatformFromPayload } from "../utils/common";
 
 export interface EventValidationResult {
   eventId: string;
@@ -79,9 +80,6 @@ export async function validateEvents(
   if (since) {
     where.createdAt = { gte: since };
   }
-  if (platform) {
-    where.platform = platform;
-  }
   if (eventType) {
     where.eventType = eventType;
   }
@@ -96,7 +94,10 @@ export async function validateEvents(
     orderBy: { createdAt: "desc" },
     take: limit,
   });
-  const results: EventValidationResult[] = receipts.map((receipt) => {
+  const receiptsToProcess = platform
+    ? receipts.filter((r) => extractPlatformFromPayload(r.payloadJson as Record<string, unknown> | null) === platform)
+    : receipts;
+  const results: EventValidationResult[] = receiptsToProcess.map((receipt) => {
     const payload = receipt.payloadJson as Record<string, unknown> | null;
     const platform = extractPlatformFromPayload(payload);
     if (!platform) {

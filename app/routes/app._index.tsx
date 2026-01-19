@@ -637,7 +637,7 @@ const RiskScoreCard = memo(function RiskScoreCard({
                       <Text as="span" variant="bodySm">
                         {index + 1}. {source.source}
                       </Text>
-                      <Badge tone="critical">{source.count} 个</Badge>
+                      <Badge tone="critical">{`${source.count} 个`}</Badge>
                     </InlineStack>
                   </List.Item>
                 ))}
@@ -708,10 +708,10 @@ const MigrationProgressCard = memo(function MigrationProgressCard({
                   <Text as="span" variant="bodySm">Pixels 状态</Text>
                   <InlineStack gap="200">
                     <Badge tone={migrationProgress.pixelsStatus.test > 0 ? "warning" : undefined}>
-                      Test: {migrationProgress.pixelsStatus.test}
+                      {`Test: ${migrationProgress.pixelsStatus.test}`}
                     </Badge>
                     <Badge tone={migrationProgress.pixelsStatus.live > 0 ? "success" : undefined}>
-                      Live: {migrationProgress.pixelsStatus.live}
+                      {`Live: ${migrationProgress.pixelsStatus.live}`}
                     </Badge>
                   </InlineStack>
                 </InlineStack>
@@ -720,7 +720,7 @@ const MigrationProgressCard = memo(function MigrationProgressCard({
                 <InlineStack align="space-between" blockAlign="center">
                   <Text as="span" variant="bodySm">Modules 启用数</Text>
                   <Badge tone={migrationProgress.modulesEnabled > 0 ? "success" : undefined}>
-                    {migrationProgress.modulesEnabled} 个
+                    {`${migrationProgress.modulesEnabled} 个`}
                   </Badge>
                 </InlineStack>
               )}
@@ -1232,15 +1232,29 @@ export default function Index() {
   const [showWelcomeBanner, setShowWelcomeBanner] = useState(true);
   const [showScanProgress, setShowScanProgress] = useState(false);
   const [scanStartedAt] = useState(() => new Date());
-  const data: DashboardData = {
+  const data = {
     ...loaderData,
     latestScan: loaderData.latestScan
       ? {
           ...loaderData.latestScan,
-          createdAt: new Date(loaderData.latestScan.createdAt),
+          createdAt: new Date(loaderData.latestScan.createdAt as string),
         }
       : null,
-  };
+    migrationProgress: loaderData.migrationProgress
+      ? {
+          ...loaderData.migrationProgress,
+          verificationLatest: loaderData.migrationProgress.verificationLatest
+            ? {
+                ...loaderData.migrationProgress.verificationLatest,
+                completedAt:
+                  loaderData.migrationProgress.verificationLatest.completedAt != null
+                    ? new Date(loaderData.migrationProgress.verificationLatest.completedAt as string)
+                    : null,
+              }
+            : undefined,
+        }
+      : undefined,
+  } as DashboardData;
   const customerAccountsEnabled = loaderData.customerAccountsEnabled ?? false;
   const shopDomain = loaderData.shopDomain ?? "";
   useEffect(() => {

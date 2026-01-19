@@ -61,6 +61,8 @@ export interface TokenIssues {
 export interface SettingsLoaderData {
   shop: ShopSettingsData | null;
   tokenIssues: TokenIssues;
+  pcdApproved?: boolean;
+  pcdStatusMessage?: string;
   currentMonitoringData?: {
     failureRate: number;
     missingParamsRate: number;

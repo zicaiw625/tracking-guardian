@@ -109,40 +109,38 @@ async function applyTemplateToShop(
   if (template.platforms.length === 0) {
     return { success: true };
   }
-  const upserts = template.platforms.map(platformConfig => 
-    prisma.pixelConfig.upsert({
-      where: {
-        shopId_platform_environment_platformId: {
-          shopId,
-          platform: platformConfig.platform,
-          environment: "live",
-          platformId: null,
-        },
-      },
-      update: {
-        eventMappings: platformConfig.eventMappings as Prisma.JsonValue,
-        clientSideEnabled: platformConfig.clientSideEnabled ?? true,
-        serverSideEnabled: platformConfig.serverSideEnabled ?? false,
-        updatedAt: new Date(),
-      },
-      create: {
-        id: `config-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-        shopId,
-        platform: platformConfig.platform,
-        eventMappings: platformConfig.eventMappings as Prisma.JsonValue,
-        clientSideEnabled: platformConfig.clientSideEnabled ?? true,
-        serverSideEnabled: platformConfig.serverSideEnabled ?? false,
-        isActive: true,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      },
-    })
-  );
   try {
-    await prisma.$transaction(upserts, {
-      maxWait: 5000,
-      timeout: 10000,
-    });
+    await prisma.$transaction(async (tx) => {
+      for (const platformConfig of template.platforms) {
+        await tx.pixelConfig.upsert({
+          where: {
+            shopId_platform_environment_platformId: {
+              shopId,
+              platform: platformConfig.platform,
+              environment: "live",
+              platformId: (platformConfig as { platformId?: string }).platformId || "",
+            },
+          },
+          update: {
+            eventMappings: (platformConfig.eventMappings ?? {}) as Prisma.InputJsonValue,
+            clientSideEnabled: platformConfig.clientSideEnabled ?? true,
+            serverSideEnabled: platformConfig.serverSideEnabled ?? false,
+            updatedAt: new Date(),
+          },
+          create: {
+            id: `config-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+            shopId,
+            platform: platformConfig.platform,
+            eventMappings: (platformConfig.eventMappings ?? {}) as Prisma.InputJsonValue,
+            clientSideEnabled: platformConfig.clientSideEnabled ?? true,
+            serverSideEnabled: platformConfig.serverSideEnabled ?? false,
+            isActive: true,
+            createdAt: new Date(),
+            updatedAt: new Date(),
+          },
+        });
+      }
+    }, { timeout: 10000 });
     return { success: true };
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);

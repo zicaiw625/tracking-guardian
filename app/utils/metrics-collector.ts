@@ -20,7 +20,7 @@ interface AggregatedMetric {
     p95?: number;
 }
 
-const metrics: MetricEntry[] = [];
+const metricsStore: MetricEntry[] = [];
 const MAX_METRICS_SIZE = 10000;
 const AGGREGATION_INTERVAL_MS = 60 * 1000;
 
@@ -61,22 +61,22 @@ export function recordHistogram(name: string, value: number, labels: Record<stri
 }
 
 function addMetric(name: string, type: MetricType, value: number, labels: Record<string, string> = {}): void {
-    metrics.push({
+    metricsStore.push({
         name,
         type,
         value,
         labels,
         timestamp: Date.now(),
     });
-    if (metrics.length > MAX_METRICS_SIZE) {
-        metrics.splice(0, metrics.length - MAX_METRICS_SIZE);
+    if (metricsStore.length > MAX_METRICS_SIZE) {
+        metricsStore.splice(0, metricsStore.length - MAX_METRICS_SIZE);
     }
 }
 
 export function getAggregatedMetrics(windowMs: number = 60000): Record<string, AggregatedMetric> {
     const now = Date.now();
     const windowStart = now - windowMs;
-    const filtered = metrics.filter(m => m.timestamp >= windowStart);
+    const filtered = metricsStore.filter(m => m.timestamp >= windowStart);
     const aggregated: Record<string, AggregatedMetric> = {};
     for (const metric of filtered) {
         const key = metricKey(metric.name, metric.labels);
@@ -128,7 +128,7 @@ export function getHistogramStats(name: string, labels: Record<string, string> =
 }
 
 export function resetMetrics(): void {
-    metrics.length = 0;
+    metricsStore.length = 0;
     counters.clear();
     gauges.clear();
     histograms.clear();
@@ -172,6 +172,8 @@ export const appMetrics = {
     pxDestinationLatency: (shopDomain: string, destination: string, latencyMs: number) =>
         recordHistogram("px_destination_latency_ms", latencyMs, { shop: shopDomain, destination }),
 };
+
+export const metrics = appMetrics;
 
 if (process.env.NODE_ENV === "production") {
     setInterval(() => {

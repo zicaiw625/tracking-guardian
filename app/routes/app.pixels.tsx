@@ -45,7 +45,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     select: { id: true, shopDomain: true },
   });
   if (!shop) {
-    return json({ shop: null, pixelConfigs: [] });
+    return json({ shop: null, pixelConfigs: [], latestByKey: {}, backendUrlInfo: getPixelEventIngestionUrl() });
   }
   const pixelConfigs = await prisma.pixelConfig.findMany({
     where: { shopId: shop.id, isActive: true },
@@ -150,7 +150,7 @@ export default function PixelsListPage() {
         <Badge tone="warning">测试</Badge>
       ),
       statusCell,
-      <Badge key={`version-${config.id}`}>v{String(config.configVersion)}</Badge>,
+      <Badge key={`version-${config.id}`}>{`v${config.configVersion}`}</Badge>,
       new Date(config.updatedAt).toLocaleString("zh-CN"),
       <InlineStack key={`actions-${config.id}`} gap="200">
         <Button size="slim" url={`/app/pixels/${config.id}/test`}>
@@ -299,7 +299,7 @@ export default function PixelsListPage() {
                 <Text as="h2" variant="headingMd">
                   已配置的 Pixel
                 </Text>
-                <Badge tone="success">{String(pixelConfigs.length)} 个</Badge>
+                <Badge tone="success">{`${pixelConfigs.length} 个`}</Badge>
               </InlineStack>
               {pixelConfigs.length === 0 ? (
                 <BlockStack gap="200">

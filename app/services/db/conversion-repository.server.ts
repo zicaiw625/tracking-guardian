@@ -224,7 +224,7 @@ export async function createConversionJob(data: {
       orderNumber: data.orderNumber,
       orderValue: data.orderValue,
       currency: data.currency,
-      capiInput: data.capiInput ? toInputJsonValue(data.capiInput) : null,
+      capiInput: toInputJsonValue(data.capiInput),
       status: JobStatus.QUEUED,
     },
     update: {

@@ -118,24 +118,18 @@ export async function settingsLoader({ request }: LoaderFunctionArgs) {
       }
     }
     const alertConfigs: AlertConfigDisplay[] = [];
-    if (hasSettingsColumn && shop?.settings) {
+    if (hasSettingsColumn && (shop as { settings?: unknown })?.settings) {
       try {
-        const settings = shop.settings as Record<string, unknown>;
+        const settings = (shop as { settings?: unknown }).settings as Record<string, unknown>;
         const configs = (settings.alertConfigs as Array<Record<string, unknown>>) || [];
         for (const config of configs) {
           alertConfigs.push({
             id: (config.id as string) || `alert_${Date.now()}`,
             channel: (config.channel as "email" | "slack" | "telegram") || "email",
-            enabled: (config.enabled as boolean) || false,
-            threshold: ((config.thresholds as Record<string, number>)?.failureRate || 0.1) * 100,
-            email: (config.emailMasked as string) || undefined,
-            webhookUrl: (config.configured === true ? "configured" : undefined),
-            botToken: (config.botTokenMasked as string) || undefined,
-            chatId: (config.chatId as string) || undefined,
+            isEnabled: (config.enabled as boolean) || false,
+            discrepancyThreshold: ((config.thresholds as Record<string, number>)?.failureRate || 0.1) * 100,
             frequency: (config.frequency as "instant" | "daily" | "weekly") || "daily",
-            failureRateThreshold: ((config.thresholds as Record<string, number>)?.failureRate || 0.1) * 100,
-            missingParamsThreshold: ((config.thresholds as Record<string, number>)?.missingParams || 0.1) * 100,
-            volumeDropThreshold: ((config.thresholds as Record<string, number>)?.volumeDrop || 0.2) * 100,
+            settings: config as Record<string, unknown>,
           });
         }
       } catch (error) {

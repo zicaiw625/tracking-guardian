@@ -210,7 +210,7 @@ export async function getDashboardData(shopDomain: string): Promise<DashboardDat
       config.credentialsEncrypted.trim().length > 0
   ).length || 0;
   const hasServerSideConfig = serverSideConfigsCount > 0;
-  const settings = shop.settings && typeof shop.settings === 'object' ? shop.settings as Record<string, unknown> : null;
+  const settings = (shop as { settings?: unknown }).settings && typeof (shop as { settings?: unknown }).settings === 'object' ? (shop as { settings?: unknown }).settings as Record<string, unknown> : null;
   const alertConfigs = settings?.alertConfigs && Array.isArray(settings.alertConfigs) ? settings.alertConfigs : [];
   const hasAlertConfig = alertConfigs.length > 0;
   const { score, status, factors } = await calculateHealthScore(
@@ -422,7 +422,7 @@ export async function getDashboardData(shopDomain: string): Promise<DashboardDat
       .map((r, index) => ({
         id: `alert-${Date.now()}-${index}`,
         type: "unknown",
-        severity: r.severity || "info",
+        severity: (r.severity === "high" ? "critical" : r.severity === "medium" ? "warning" : "info") as "info" | "warning" | "critical",
         message: r.message || "告警触发",
         triggeredAt: new Date(),
       }));

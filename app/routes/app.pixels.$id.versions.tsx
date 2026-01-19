@@ -8,6 +8,8 @@ import { ConfigVersionManager } from "~/components/migrate/ConfigVersionManager"
 import { authenticate } from "~/shopify.server";
 import prisma from "~/db.server";
 import { getConfigVersionHistory, rollbackConfig } from "~/services/pixel-config-version.server";
+import type { Platform } from "~/services/migration.server";
+import type { PlatformType } from "~/types/enums";
 import { logger } from "~/utils/logger.server";
 
 export const loader = async ({ request, params }: LoaderFunctionArgs) => {
@@ -70,11 +72,8 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
   const actionType = formData.get("_action");
   if (actionType === "getConfigVersionHistory") {
     try {
-      const history = await getConfigVersionHistory(
-        shop.id,
-        pixelConfig.platform as "google" | "meta" | "tiktok" | "",
-        pixelConfig.environment as "test" | "live"
-      );
+      const platform = (pixelConfig.platform && ["meta", "google", "tiktok"].includes(pixelConfig.platform) ? pixelConfig.platform : "meta") as Platform;
+      const history = await getConfigVersionHistory(shop.id, platform, pixelConfig.environment as "test" | "live");
       if (!history) {
         return json({ success: false, error: "配置不存在" }, { status: 404 });
       }
@@ -89,11 +88,8 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
   }
   if (actionType === "rollbackConfig") {
     try {
-      const result = await rollbackConfig(
-        shop.id,
-        pixelConfig.platform as "google" | "meta" | "tiktok" | "",
-        pixelConfig.environment as "test" | "live"
-      );
+      const platform = (pixelConfig.platform && ["meta", "google", "tiktok"].includes(pixelConfig.platform) ? pixelConfig.platform : "meta") as Platform;
+      const result = await rollbackConfig(shop.id, platform, pixelConfig.environment as "test" | "live");
       return json(result);
     } catch (error) {
       logger.error("Failed to rollback config", error);
@@ -147,7 +143,7 @@ export default function PixelVersionsPage() {
       </Card>
       <ConfigVersionManager
         shopId={shop.id}
-        platform={pixelConfig.platform as "google" | "meta" | "tiktok" | ""}
+        platform={(pixelConfig.platform && ["meta", "google", "tiktok"].includes(pixelConfig.platform) ? pixelConfig.platform : "meta") as PlatformType}
         currentVersion={pixelConfig.configVersion}
         historyEndpoint={`/app/pixels/${pixelConfig.id}/versions`}
       />

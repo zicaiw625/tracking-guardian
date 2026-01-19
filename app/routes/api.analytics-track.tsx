@@ -1,6 +1,6 @@
 import type { ActionFunctionArgs } from "@remix-run/node";
 import { authenticate } from "../shopify.server";
-import { trackEvent } from "../services/analytics.server";
+import { trackEvent, type AnalyticsEvent } from "../services/analytics.server";
 import prisma from "../db.server";
 import { logger } from "../utils/logger.server";
 import { readJsonWithSizeLimit } from "../utils/body-size-guard";
@@ -10,8 +10,8 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   const { session } = await authenticate.admin(request);
   const shopDomain = session.shop;
   try {
-    const body = await readJsonWithSizeLimit(request);
-    const { event, metadata, eventId, timestamp } = body;
+    const body = (await readJsonWithSizeLimit(request)) as { event?: unknown; metadata?: unknown; eventId?: string; timestamp?: string | number } | null;
+    const { event, metadata, eventId, timestamp } = body ?? {};
     if (!event) {
       return jsonApi({ error: "Event is required" }, { status: 400 });
     }
@@ -25,9 +25,9 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     await trackEvent({
       shopId: shop.id,
       shopDomain: shop.shopDomain,
-      event,
-      metadata,
-      eventId,
+      event: event as AnalyticsEvent,
+      metadata: metadata as Record<string, unknown> | undefined,
+      eventId: typeof eventId === "string" ? eventId : undefined,
       timestamp: timestamp ? new Date(timestamp) : undefined,
     });
     return jsonApi({ success: true });

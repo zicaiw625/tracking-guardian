@@ -37,6 +37,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     return json({
       shop: null,
       planId: "free" as PlanId,
+      hasAgencyAccess: false,
     });
   }
 
@@ -160,7 +161,7 @@ export default function WorkspacePage() {
               <Layout.Section variant="oneHalf">
                 <BlockStack gap="300">
                   <InlineStack gap="200" blockAlign="center">
-                    <CheckCircleIcon tone="success" />
+                    <CheckCircleIcon />
                     <Text as="h3" variant="headingSm">
                       Workspace 管理
                     </Text>
@@ -175,7 +176,7 @@ export default function WorkspacePage() {
               <Layout.Section variant="oneHalf">
                 <BlockStack gap="300">
                   <InlineStack gap="200" blockAlign="center">
-                    <CheckCircleIcon tone="success" />
+                    <CheckCircleIcon />
                     <Text as="h3" variant="headingSm">
                       批量操作
                     </Text>
@@ -190,7 +191,7 @@ export default function WorkspacePage() {
               <Layout.Section variant="oneHalf">
                 <BlockStack gap="300">
                   <InlineStack gap="200" blockAlign="center">
-                    <CheckCircleIcon tone="success" />
+                    <CheckCircleIcon />
                     <Text as="h3" variant="headingSm">
                       团队协作
                     </Text>
@@ -205,7 +206,7 @@ export default function WorkspacePage() {
               <Layout.Section variant="oneHalf">
                 <BlockStack gap="300">
                   <InlineStack gap="200" blockAlign="center">
-                    <CheckCircleIcon tone="success" />
+                    <CheckCircleIcon />
                     <Text as="h3" variant="headingSm">
                       白标报告
                     </Text>

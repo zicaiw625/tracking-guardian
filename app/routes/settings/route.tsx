@@ -278,7 +278,7 @@ export default function SettingsPage() {
           primaryAction={{ content: "订阅与计费", url: "/app/billing" }}
           secondaryAction={{ content: "隐私设置", url: "/app/privacy" }}
         />
-        <Banner tone="attention" title="重要功能快速访问">
+        <Banner tone="warning" title="重要功能快速访问">
           <BlockStack gap="300">
             <Text as="p" variant="bodySm" fontWeight="semibold">
               以下功能可通过左侧导航菜单或下方按钮直接访问

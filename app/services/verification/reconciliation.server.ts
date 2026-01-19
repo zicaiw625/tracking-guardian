@@ -1,5 +1,6 @@
 import prisma from "~/db.server";
 import { logger } from "~/utils/logger.server";
+import { extractPlatformFromPayload } from "~/utils/common";
 import type { Prisma } from "@prisma/client";
 
 export interface ReconciliationResult {
@@ -45,26 +46,27 @@ export async function reconcileOrder(
       status: string;
     }>();
     for (const receipt of receipts) {
-      if (!receipt.platform) continue;
+      const platform = extractPlatformFromPayload(receipt.payloadJson as Record<string, unknown> | null);
+      if (!platform) continue;
       const payload = receipt.payloadJson as Record<string, unknown> | null;
       const data = payload?.data as Record<string, unknown> | undefined;
       let value = (data?.value as number) || 0;
       let currency = (data?.currency as string) || "USD";
-      if (receipt.platform === "google") {
+      if (platform === "google") {
         const events = payload?.events as Array<Record<string, unknown>> | undefined;
         if (events && events.length > 0) {
           const params = events[0].params as Record<string, unknown> | undefined;
           if (params?.value !== undefined) value = (params.value as number) || 0;
           if (params?.currency) currency = String(params.currency);
         }
-      } else if (receipt.platform === "meta" || receipt.platform === "facebook") {
+      } else if (platform === "meta" || platform === "facebook") {
         const eventsData = payload?.data as Array<Record<string, unknown>> | undefined;
         if (eventsData && eventsData.length > 0) {
           const customData = eventsData[0].custom_data as Record<string, unknown> | undefined;
           if (customData?.value !== undefined) value = (customData.value as number) || 0;
           if (customData?.currency) currency = String(customData.currency);
         }
-      } else if (receipt.platform === "tiktok") {
+      } else if (platform === "tiktok") {
         const eventsData = payload?.data as Array<Record<string, unknown>> | undefined;
         if (eventsData && eventsData.length > 0) {
           const properties = eventsData[0].properties as Record<string, unknown> | undefined;
@@ -79,10 +81,10 @@ export async function reconcileOrder(
           currency,
         };
       }
-      const key = `${receipt.platform}-${receipt.eventType}`;
+      const key = `${platform}-${receipt.eventType}`;
       const hasValue = value > 0 && !!currency;
       platformEventsMap.set(key, {
-        platform: receipt.platform,
+        platform,
         eventValue: value,
         currency,
         eventId: receipt.id,
@@ -193,7 +195,6 @@ export async function getReconciliationSummary(
       },
       select: {
         orderKey: true,
-        platform: true,
         payloadJson: true,
       },
     });
@@ -210,15 +211,16 @@ export async function getReconciliationSummary(
       if (receipt.orderKey) {
         orderIds.add(receipt.orderKey);
       }
-      if (receipt.platform) {
-        if (!byPlatform[receipt.platform]) {
-          byPlatform[receipt.platform] = {
+      const plat = extractPlatformFromPayload(receipt.payloadJson as Record<string, unknown> | null);
+      if (plat) {
+        if (!byPlatform[plat]) {
+          byPlatform[plat] = {
             total: 0,
             consistent: 0,
             inconsistent: 0,
           };
         }
-        byPlatform[receipt.platform].total++;
+        byPlatform[plat].total++;
       }
     }
     let consistentOrders = 0;

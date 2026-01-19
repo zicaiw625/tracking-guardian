@@ -14,6 +14,7 @@ import {
   Divider,
   Banner,
   DataTable,
+  List,
 } from "@shopify/polaris";
 import { RefreshIcon } from "~/components/icons";
 import { EnhancedEmptyState, useToastContext } from "~/components/ui";
@@ -463,7 +464,7 @@ export default function MonitorPage() {
                                     尝试: {stats.attempted} | 接收: {stats.received} | 丢失: {stats.lost}
                                   </Text>
                                   <Badge tone={stats.lossRate <= 5 ? "success" : stats.lossRate <= 15 ? "attention" : "critical"}>
-                                    {stats.lossRate.toFixed(1)}%
+                                    {`${stats.lossRate.toFixed(1)}%`}
                                   </Badge>
                                 </InlineStack>
                               </InlineStack>

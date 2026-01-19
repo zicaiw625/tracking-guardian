@@ -14,7 +14,7 @@ export async function processShopRedact(
       where: { shopDomain },
     });
     deletedCounts.webhookLogs = webhookLogResult.count;
-    const gdprJobResult = await tx.gdprJob.deleteMany({
+    const gdprJobResult = await tx.gDPRJob.deleteMany({
       where: { shopDomain },
     });
     deletedCounts.gdprJobs = gdprJobResult.count;

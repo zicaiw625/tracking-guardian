@@ -5,14 +5,14 @@ import { logger } from "../utils/logger.server";
 import { optionsResponse, jsonWithCors } from "../utils/cors";
 import { API_CONFIG } from "../utils/config";
 import { readJsonWithSizeLimit } from "../utils/body-size-guard";
-import { withRateLimit, ipKeyExtractor } from "../middleware/rate-limit";
+import { withRateLimit, ipKeyExtractor, type RateLimitedHandler } from "../middleware/rate-limit";
 
 const performanceRateLimit = withRateLimit({
   maxRequests: 100,
   windowMs: 60000,
   keyExtractor: ipKeyExtractor,
   message: "Too many performance metric requests",
-});
+}) as (handler: RateLimitedHandler<Response>) => RateLimitedHandler<Response>;
 
 function validatePerformanceAuth(request: Request): boolean {
   const performanceSecret = process.env.PERFORMANCE_SECRET;
@@ -35,7 +35,8 @@ function validatePerformanceAuth(request: Request): boolean {
   }
 }
 
-export const action = async ({ request }: ActionFunctionArgs) => {
+export const action = async (args: ActionFunctionArgs) => {
+  const { request } = args;
   if (process.env.NODE_ENV === "production") {
     if (request.method === "POST") {
       return new Response(null, { status: 204 });
@@ -60,13 +61,14 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       { status: 401, request, staticCors: true }
     );
   }
-  return performanceRateLimit(async () => {
+  const handler = performanceRateLimit(async (a: ActionFunctionArgs) => {
+    const req = a.request;
     try {
-      const body = await readJsonWithSizeLimit(request);
+      const body = await readJsonWithSizeLimit(req);
       if (!body || typeof body !== "object") {
         return jsonWithCors(
           { error: "Invalid request body" },
-          { status: 400, request, staticCors: true }
+          { status: 400, request: req, staticCors: true }
         );
       }
       const metric = body as {
@@ -83,7 +85,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       });
       return jsonWithCors(
         { success: true },
-        { request, staticCors: true }
+        { request: req, staticCors: true }
       );
     } catch (error) {
       logger.error("Failed to process performance metric", {
@@ -91,10 +93,11 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       });
       return jsonWithCors(
         { error: "Internal server error" },
-        { status: 500, request, staticCors: true }
+        { status: 500, request: req, staticCors: true }
       );
     }
-  })({ request });
+  });
+  return handler(args);
 };
 
 export const loader = async ({ request }: { request: Request }) => {

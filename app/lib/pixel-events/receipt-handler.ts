@@ -1,5 +1,6 @@
 import { createHash } from "crypto";
 import { randomUUID } from "crypto";
+import { Prisma } from "@prisma/client";
 import prisma from "../../db.server";
 import { generateEventId, generateMatchKey, makeOrderKey } from "../../utils/crypto.server";
 import { extractOriginHost } from "../../utils/origin-validation";
@@ -139,7 +140,7 @@ export async function upsertPixelEventReceipt(
         pixelTimestamp: new Date(payload.timestamp),
         originHost: originHost || null,
         verificationRunId: verificationRunId || null,
-        payloadJson: payloadToStore,
+        payloadJson: payloadToStore === null ? Prisma.JsonNull : (payloadToStore as Prisma.InputJsonValue),
         orderKey: extractedOrderKey || null,
         altOrderKey: altOrderKey ?? null,
       },
@@ -147,7 +148,7 @@ export async function upsertPixelEventReceipt(
         pixelTimestamp: new Date(payload.timestamp),
         originHost: originHost || null,
         verificationRunId: verificationRunId || null,
-        payloadJson: payloadToStore,
+        payloadJson: payloadToStore === null ? Prisma.JsonNull : (payloadToStore as Prisma.InputJsonValue),
         orderKey: extractedOrderKey || null,
         altOrderKey: altOrderKey ?? null,
       },

@@ -2,6 +2,7 @@ import { randomUUID } from "crypto";
 import prisma from "../db.server";
 import { sendAlert } from "./notification.server";
 import { logger } from "../utils/logger.server";
+import { extractPlatformFromPayload } from "../utils/common";
 import type { AlertConfig, AlertSettings, AlertChannel, } from "../types";
 export interface DeliveryHealthResult {
     platform: string;

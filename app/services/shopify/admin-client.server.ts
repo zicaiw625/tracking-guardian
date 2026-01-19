@@ -320,7 +320,7 @@ export async function createAdminClientForShop(
     const validationResult = SecureShopDomainSchema.safeParse(shopDomain);
     if (!validationResult.success) {
       logger.warn(`[Admin] Invalid shop domain format: ${shopDomain}`, {
-        errors: validationResult.error.errors,
+        errors: validationResult.error.issues,
       });
       return null;
     }

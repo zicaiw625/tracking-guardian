@@ -208,9 +208,11 @@ function sanitizeEventData(
         sanitized[key] = value === null || value === undefined ? null : String(value);
       } else if (key === "orderNumber" || key === "url" || key === "title" || key === "productId" || key === "productTitle" || key === "environment") {
         sanitized[key] = value === null || value === undefined ? undefined : String(value);
-      } else if (key === "value" || key === "currency" || key === "tax" || key === "shipping" || key === "itemCount" || key === "price" || key === "quantity") {
+      } else if (key === "currency") {
+        sanitized.currency = value == null || value === undefined ? undefined : String(value);
+      } else if (key === "value" || key === "tax" || key === "shipping" || key === "itemCount" || key === "price" || key === "quantity") {
         if (typeof value === "number") {
-          sanitized[key] = value;
+          (sanitized as Record<string, unknown>)[key] = value;
         }
       }
     }

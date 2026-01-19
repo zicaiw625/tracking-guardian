@@ -66,7 +66,7 @@ export async function handleSaveAlert(
     rawSettings.botToken = formData.get("botToken");
     rawSettings.chatId = formData.get("chatId");
   }
-  const encryptedSettings = await encryptAlertSettings(rawSettings as AlertSettings);
+  const encryptedSettings = await encryptAlertSettings(rawSettings as unknown as AlertSettings);
   let shop;
   try {
     shop = await prisma.shop.findUnique({
@@ -90,7 +90,7 @@ export async function handleSaveAlert(
   if (!shop) {
     return json({ success: false, error: "Shop not found" }, { status: 404 });
   }
-  const currentSettings = ((shop.settings as Record<string, unknown>) || {}) as Record<string, unknown>;
+  const currentSettings = (((shop as { settings?: unknown }).settings as Record<string, unknown>) || {}) as Record<string, unknown>;
   const alertConfigs = (currentSettings.alertConfigs as Array<Record<string, unknown>>) || [];
   const existingIndex = alertConfigs.findIndex((cfg) => cfg.channel === channel);
   const alertConfig: Record<string, unknown> = {
@@ -134,8 +134,8 @@ export async function handleSaveAlert(
       data: {
         settings: {
           ...currentSettings,
-          alertConfigs,
-        },
+          alertConfigs: alertConfigs as unknown as Prisma.InputJsonValue,
+        } as Prisma.InputJsonValue,
       },
     });
   } catch (error) {

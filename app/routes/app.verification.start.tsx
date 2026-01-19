@@ -20,7 +20,8 @@ import { authenticate } from "../shopify.server";
 import prisma from "../db.server";
 import {
   generateTestChecklist,
-  type TestChecklist,
+  type PixelLayerItem,
+  type OrderLayerItem,
 } from "../services/verification-checklist.server";
 import {
   generateChecklistMarkdown,
@@ -126,7 +127,7 @@ export default function VerificationStartPage() {
                 像素层验收（Web Pixels 标准事件）
               </Text>
               <List type="number">
-                {testChecklist.pixelLayer.map((item, index) => (
+                {testChecklist.pixelLayer.map((item: PixelLayerItem, index: number) => (
                   <List.Item key={index}>
                     <BlockStack gap="100">
                       <InlineStack gap="200" blockAlign="center">
@@ -154,7 +155,7 @@ export default function VerificationStartPage() {
                             预期参数：
                           </Text>
                           <List type="bullet">
-                            {item.expectedParams.map((param, pIndex) => (
+                            {item.expectedParams?.map((param: string, pIndex: number) => (
                               <List.Item key={pIndex}>
                                 <Text as="span" variant="bodySm">
                                   {param}
@@ -181,7 +182,7 @@ export default function VerificationStartPage() {
                 </Text>
               </Banner>
               <List type="number">
-                {testChecklist.orderLayer.map((item, index) => (
+                {testChecklist.orderLayer.map((item: OrderLayerItem, index: number) => (
                   <List.Item key={index}>
                     <BlockStack gap="100">
                       <InlineStack gap="200" blockAlign="center">
@@ -209,7 +210,7 @@ export default function VerificationStartPage() {
                             预期字段：
                           </Text>
                           <List type="bullet">
-                            {item.expectedFields.map((field, fIndex) => (
+                            {item.expectedFields?.map((field: string, fIndex: number) => (
                               <List.Item key={fIndex}>
                                 <Text as="span" variant="bodySm">
                                   {field}

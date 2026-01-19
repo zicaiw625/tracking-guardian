@@ -88,7 +88,7 @@ export function suppressMonorailErrors() {
   };
   const originalFetch = window.fetch;
   window.fetch = async (...args) => {
-    const url = typeof args[0] === "string" ? args[0] : args[0]?.url || "";
+    const url = typeof args[0] === "string" ? args[0] : args[0] instanceof URL ? args[0].href : (args[0] && typeof args[0] === "object" && "url" in args[0] ? (args[0] as Request).url : "");
     if (isTelemetryUrl(url)) {
       return Promise.resolve(new Response(null, { 
         status: 200, 
@@ -124,19 +124,19 @@ export function suppressMonorailErrors() {
   window.XMLHttpRequest = class extends OriginalXHR {
     private _url: string | null = null;
     private _isTelemetryRequest = false;
-    open(method: string, url: string | URL, ...rest: unknown[]): void {
+    open(method: string, url: string | URL, async?: boolean, username?: string | null, password?: string | null): void {
       this._url = typeof url === "string" ? url : url.toString();
       this._isTelemetryRequest = isTelemetryUrl(this._url);
       if (this._isTelemetryRequest) {
         try {
-          super.open(method, "about:blank", ...rest);
+          super.open(method, "about:blank", async ?? true, username ?? null, password ?? null);
         } catch {
         }
         return;
       }
-      return super.open(method, url, ...rest);
+      return super.open(method, url, async ?? true, username ?? null, password ?? null);
     }
-    send(...args: unknown[]): void {
+    send(body?: Document | XMLHttpRequestBodyInit | null): void {
       if (this._isTelemetryRequest) {
         try {
           Object.defineProperty(this, "readyState", { 
@@ -162,10 +162,10 @@ export function suppressMonorailErrors() {
           setTimeout(() => {
             try {
               if (this.onreadystatechange) {
-                this.onreadystatechange(new Event("readystatechange") as unknown as Event);
+                this.onreadystatechange(new ProgressEvent("readystatechange"));
               }
               if (this.onload) {
-                this.onload(new Event("load") as unknown as Event);
+                this.onload(new ProgressEvent("load"));
               }
             } catch {
             }
@@ -174,7 +174,7 @@ export function suppressMonorailErrors() {
         }
         return;
       }
-      return super.send(...args);
+      return super.send(body ?? null);
     }
   } as typeof XMLHttpRequest;
   return () => {

@@ -77,7 +77,7 @@ export async function startRecipe(
     logger.warn(`Recipe not found: ${recipeId}`);
     return null;
   }
-  const existing = await prisma.appliedRecipe.findFirst({
+  const existing = await (prisma as any).appliedRecipe.findFirst({
     where: {
       shopId,
       recipeId,
@@ -88,7 +88,7 @@ export async function startRecipe(
     logger.info(`Recipe ${recipeId} already in progress for shop ${shopId}`);
     return mapToAppliedRecipe(existing);
   }
-  const applied = await prisma.appliedRecipe.create({
+  const applied = await (prisma as any).appliedRecipe.create({
     data: {
       id: `${shopId}-${recipeId}-${Date.now()}`,
       shopId,
@@ -111,7 +111,7 @@ export async function updateRecipeConfig(
   appliedRecipeId: string,
   config: Record<string, unknown>
 ): Promise<AppliedRecipe | null> {
-  const applied = await prisma.appliedRecipe.update({
+  const applied = await (prisma as any).appliedRecipe.update({
     where: { id: appliedRecipeId },
     data: {
       config: config as object,
@@ -150,7 +150,7 @@ export async function executeRecipeStep(
   appliedRecipeId: string,
   stepOrder: number
 ): Promise<RecipeStepResult> {
-  const applied = await prisma.appliedRecipe.findUnique({
+  const applied = await (prisma as any).appliedRecipe.findUnique({
     where: { id: appliedRecipeId },
     include: { Shop: true },
   });
@@ -165,7 +165,7 @@ export async function executeRecipeStep(
   if (!step) {
     return { success: false, message: `Step ${stepOrder} not found` };
   }
-  await prisma.appliedRecipe.update({
+  await (prisma as any).appliedRecipe.update({
     where: { id: appliedRecipeId },
     data: { status: "in_progress" },
   });
@@ -190,13 +190,13 @@ export async function executeRecipeStep(
       const completedSteps = (applied.completedSteps as number[]) || [];
       if (!completedSteps.includes(stepOrder)) {
         completedSteps.push(stepOrder);
-        await prisma.appliedRecipe.update({
+        await (prisma as any).appliedRecipe.update({
           where: { id: appliedRecipeId },
           data: { completedSteps },
         });
       }
       if (completedSteps.length >= recipe.steps.length) {
-        await prisma.appliedRecipe.update({
+        await (prisma as any).appliedRecipe.update({
           where: { id: appliedRecipeId },
           data: { status: "validating" },
         });
@@ -210,7 +210,7 @@ export async function executeRecipeStep(
       stepOrder,
       error: message,
     });
-    await prisma.appliedRecipe.update({
+    await (prisma as any).appliedRecipe.update({
       where: { id: appliedRecipeId },
       data: {
         status: "failed",
@@ -248,7 +248,7 @@ export async function completeRecipeStep(
   appliedRecipeId: string,
   stepOrder: number
 ): Promise<AppliedRecipe | null> {
-  const applied = await prisma.appliedRecipe.findUnique({
+  const applied = await (prisma as any).appliedRecipe.findUnique({
     where: { id: appliedRecipeId },
   });
   if (!applied) return null;
@@ -260,7 +260,7 @@ export async function completeRecipeStep(
   }
   const allCompleted = completedSteps.length >= recipe.steps.length;
   const newStatus: AppliedRecipeStatus = allCompleted ? "validating" : "in_progress";
-  const updated = await prisma.appliedRecipe.update({
+  const updated = await (prisma as any).appliedRecipe.update({
     where: { id: appliedRecipeId },
     data: {
       completedSteps,
@@ -274,7 +274,7 @@ export async function completeRecipeStep(
 export async function runRecipeValidation(
   appliedRecipeId: string
 ): Promise<RecipeValidationResult[]> {
-  const applied = await prisma.appliedRecipe.findUnique({
+  const applied = await (prisma as any).appliedRecipe.findUnique({
     where: { id: appliedRecipeId },
     include: { Shop: true },
   });
@@ -322,7 +322,7 @@ export async function runRecipeValidation(
   const existingResults = Array.isArray(applied.validationResults)
     ? (applied.validationResults as unknown as RecipeValidationResult[])
     : [];
-  await prisma.appliedRecipe.update({
+  await (prisma as any).appliedRecipe.update({
     where: { id: appliedRecipeId },
     data: {
       validationResults: [
@@ -336,7 +336,7 @@ export async function runRecipeValidation(
   });
   const allPassed = results.every(r => r.passed);
   if (allPassed) {
-    await prisma.appliedRecipe.update({
+    await (prisma as any).appliedRecipe.update({
       where: { id: appliedRecipeId },
       data: {
         status: "completed",
@@ -426,7 +426,7 @@ async function validateEventParameters(
 }
 
 export async function getAppliedRecipes(shopId: string): Promise<AppliedRecipe[]> {
-  const applied = await prisma.appliedRecipe.findMany({
+  const applied = await (prisma as any).appliedRecipe.findMany({
     where: { shopId },
     orderBy: { createdAt: "desc" },
   });
@@ -436,7 +436,7 @@ export async function getAppliedRecipes(shopId: string): Promise<AppliedRecipe[]
 export async function getAppliedRecipe(
   appliedRecipeId: string
 ): Promise<AppliedRecipe | null> {
-  const applied = await prisma.appliedRecipe.findUnique({
+  const applied = await (prisma as any).appliedRecipe.findUnique({
     where: { id: appliedRecipeId },
   });
   return applied ? mapToAppliedRecipe(applied) : null;
@@ -445,7 +445,7 @@ export async function getAppliedRecipe(
 export async function rollbackRecipe(
   appliedRecipeId: string
 ): Promise<AppliedRecipe | null> {
-  const updated = await prisma.appliedRecipe.update({
+  const updated = await (prisma as any).appliedRecipe.update({
     where: { id: appliedRecipeId },
     data: {
       status: "rolled_back",

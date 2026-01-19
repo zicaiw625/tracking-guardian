@@ -192,12 +192,14 @@ function generateComparisonData(
   report1: VerificationReportData,
   report2: VerificationReportData
 ): ComparisonData {
+  const successRate1 = report1.summary.totalTests > 0 ? (report1.summary.passedTests / report1.summary.totalTests) * 100 : 0;
+  const successRate2 = report2.summary.totalTests > 0 ? (report2.summary.passedTests / report2.summary.totalTests) * 100 : 0;
   const metrics: ComparisonData["metrics"] = [
     {
       label: "通过率",
-      value1: `${Math.round(report1.summary.successRate)}%`,
-      value2: `${Math.round(report2.summary.successRate)}%`,
-      change: report2.summary.successRate - report1.summary.successRate,
+      value1: `${Math.round(successRate1)}%`,
+      value2: `${Math.round(successRate2)}%`,
+      change: successRate2 - successRate1,
     },
     {
       label: "参数完整率",
@@ -213,9 +215,9 @@ function generateComparisonData(
     },
     {
       label: "总事件数",
-      value1: report1.summary.totalEvents.toString(),
-      value2: report2.summary.totalEvents.toString(),
-      change: report1.summary.totalEvents > 0 ? ((report2.summary.totalEvents - report1.summary.totalEvents) / report1.summary.totalEvents) * 100 : 0,
+      value1: report1.summary.totalTests.toString(),
+      value2: report2.summary.totalTests.toString(),
+      change: report1.summary.totalTests > 0 ? ((report2.summary.totalTests - report1.summary.totalTests) / report1.summary.totalTests) * 100 : 0,
     },
   ];
   const platformStats1 = calculatePlatformStats(report1);
@@ -237,8 +239,8 @@ function generateComparisonData(
     };
   });
   const improvements: string[] = [];
-  const passRate1 = report1.summary.successRate;
-  const passRate2 = report2.summary.successRate;
+  const passRate1 = successRate1;
+  const passRate2 = successRate2;
   if (passRate2 < passRate1) {
     improvements.push("通过率有所下降，建议检查最近的配置更改");
   }

@@ -98,7 +98,7 @@ try {
       afterAuth: async ({ session, admin }: { session: { shop: string; accessToken?: string }; admin?: AdminApiContext }) => {
         if (shopify) {
           try {
-            await shopify.registerWebhooks({ session });
+            await (shopify.registerWebhooks as (opts: { session: { shop: string; accessToken?: string } }) => Promise<unknown>)({ session });
           } catch (webhookError) {
             logger.error("[Webhooks] Failed to register webhooks", {
               shop: session.shop,

@@ -14,6 +14,7 @@ import {
   Banner,
   Divider,
   Link,
+  List,
 } from "@shopify/polaris";
 import { EnhancedEmptyState, useToastContext } from "~/components/ui";
 import { PageIntroCard } from "~/components/layout/PageIntroCard";
@@ -45,7 +46,7 @@ export const loader = async ({ request, params }: LoaderFunctionArgs) => {
     select: { id: true, shopDomain: true, plan: true },
   });
   if (!shop) {
-    return json({ shop: null, pixelConfig: null });
+    return json({ shop: null, pixelConfig: null, hasVerificationAccess: false, backendUrlInfo: { url: "", usage: "none" } });
   }
   const pixelConfig = await prisma.pixelConfig.findFirst({
     where: { id: pixelConfigId, shopId: shop.id },
@@ -132,9 +133,10 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
   return json({ success: false, error: "Unknown action" }, { status: 400 });
 };
 
+type ActionResult = { success: true; valid?: boolean; message?: string; details?: unknown } | { success: false; error: string };
 export default function PixelTestPage() {
   const { shop, pixelConfig, hasVerificationAccess, backendUrlInfo } = useLoaderData<typeof loader>();
-  const actionData = useActionData<typeof action>();
+  const actionData = useActionData<typeof action>() as ActionResult | undefined;
   const submit = useSubmit();
   const navigation = useNavigation();
   const { showSuccess, showError } = useToastContext();
@@ -144,7 +146,7 @@ export default function PixelTestPage() {
       showSuccess(actionData.message || "测试环境验证通过");
     } else if (actionData.success && actionData.valid === false) {
       showError(actionData.message || "测试环境验证失败");
-    } else if (actionData.success === false && actionData.error) {
+    } else if (actionData.success === false && "error" in actionData && actionData.error) {
       showError(actionData.error);
     }
   }, [actionData, showSuccess, showError]);
@@ -196,7 +198,7 @@ export default function PixelTestPage() {
                   <Badge tone={pixelConfig.environment === "live" ? "critical" : "warning"}>
                     {pixelConfig.environment === "live" ? "生产" : "测试"}
                   </Badge>
-                  <Badge>v{String(pixelConfig.configVersion)}</Badge>
+                  <Badge>{`v${pixelConfig.configVersion}`}</Badge>
                 </InlineStack>
               </InlineStack>
               <Text as="p" tone="subdued">

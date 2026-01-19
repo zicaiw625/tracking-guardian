@@ -6,6 +6,7 @@ import {
   Badge,
   Box,
   Tooltip,
+  Banner,
 } from "@shopify/polaris";
 import { CheckCircleIcon, ClockIcon, AlertCircleIcon } from "../icons";
 import { DEPRECATION_DATES } from "../../utils/migration-deadlines";

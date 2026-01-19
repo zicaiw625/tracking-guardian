@@ -72,7 +72,7 @@ export const loader = async ({ request, params }: LoaderFunctionArgs) => {
       run: null,
       reportData: null,
       canExportReports: false,
-      gateResult: undefined,
+      gateResult: null as FeatureGateResult | null,
       currentPlan: "free" as PlanId,
     });
   }
@@ -86,7 +86,7 @@ export const loader = async ({ request, params }: LoaderFunctionArgs) => {
       run: null,
       reportData: null,
       canExportReports,
-      gateResult: gateResult.allowed ? undefined : gateResult,
+      gateResult: gateResult.allowed ? null : gateResult,
       currentPlan: planId,
     });
   }
@@ -95,7 +95,7 @@ export const loader = async ({ request, params }: LoaderFunctionArgs) => {
     safeFireAndForget(
       trackEvent({
         shopId: shop.id,
-        shopDomain: shop.shopDomain,
+        shopDomain,
         event: "app_paywall_viewed",
         metadata: {
           triggerPage: "verification_report",
@@ -148,7 +148,7 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
     }
     const timestamp = new Date().toISOString().split("T")[0];
     const filename = `verification-report-${shopDomain.replace(/\./g, "_")}-${timestamp}.pdf`;
-    return new Response(pdfBuffer, {
+    return new Response(pdfBuffer as unknown as BodyInit, {
       headers: {
         "Content-Type": "application/pdf",
         "Content-Disposition": `attachment; filename="${sanitizeFilename(filename)}"`,
@@ -229,8 +229,8 @@ export default function VerificationReportPage() {
         return <Badge>待开始</Badge>;
     }
   };
-  const formatDate = (date?: Date) => {
-    if (!date) return "未开始";
+  const formatDate = (date?: Date | string) => {
+    if (date == null) return "未开始";
     return new Date(date).toLocaleString("zh-CN");
   };
   return (
@@ -276,7 +276,7 @@ export default function VerificationReportPage() {
           <UpgradePrompt
             feature="verification"
             currentPlan={currentPlan}
-            gateResult={gateResult}
+            gateResult={gateResult ?? undefined}
           />
         )}
         <Card>
@@ -372,7 +372,7 @@ export default function VerificationReportPage() {
                   <Text as="span" variant="bodyMd" fontWeight="semibold">
                     参数完整率
                   </Text>
-                  <Text as="span" variant="headingMd" tone={reportData.summary.parameterCompleteness >= 90 ? "success" : reportData.summary.parameterCompleteness >= 70 ? "warning" : "critical"}>
+                  <Text as="span" variant="headingMd" tone={reportData.summary.parameterCompleteness >= 90 ? "success" : reportData.summary.parameterCompleteness >= 70 ? "caution" : "critical"}>
                     {reportData.summary.parameterCompleteness.toFixed(1)}%
                   </Text>
                 </InlineStack>
@@ -386,7 +386,7 @@ export default function VerificationReportPage() {
                   <Text as="span" variant="bodyMd" fontWeight="semibold">
                     金额准确率
                   </Text>
-                  <Text as="span" variant="headingMd" tone={reportData.summary.valueAccuracy >= 95 ? "success" : reportData.summary.valueAccuracy >= 80 ? "warning" : "critical"}>
+                  <Text as="span" variant="headingMd" tone={reportData.summary.valueAccuracy >= 95 ? "success" : reportData.summary.valueAccuracy >= 80 ? "caution" : "critical"}>
                     {reportData.summary.valueAccuracy.toFixed(1)}%
                   </Text>
                 </InlineStack>

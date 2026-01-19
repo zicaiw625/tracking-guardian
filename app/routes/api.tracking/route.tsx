@@ -271,11 +271,14 @@ async function loaderImpl(request: Request) {
           trackingSettings.provider
         );
         if (thirdPartyTracking) {
-          const enrichedTracking = thirdPartyTracking;
+          const src = thirdPartyTracking as unknown as Record<string, unknown>;
           trackingInfo = {
-            ...enrichedTracking,
-            carrier: enrichedTracking.carrier || trackingInfo?.carrier || "unknown",
-            trackingNumber: enrichedTracking.trackingNumber || trackingInfo?.trackingNumber || trackingNumberToUse,
+            trackingNumber: (src["trackingNumber"] as string) || trackingNumberToUse,
+            carrier: (src["carrier"] as string) || carrierFromShopify || "unknown",
+            status: (src["status"] as string) || "in_transit",
+            statusDescription: src["statusDescription"] as string | undefined,
+            estimatedDelivery: src["estimatedDelivery"] as Date | undefined,
+            events: (src["events"] as TrackingInfo["events"]) || [],
           };
           logger.info(`Third-party tracking enrich successful for orderId: ${orderIdHash}, provider: ${trackingSettings.provider}`);
         } else {
@@ -324,10 +327,10 @@ async function loaderImpl(request: Request) {
     const data: TrackingApiPayload = {
       success: true,
       tracking: {
-        trackingNumber: trackingInfo.trackingNumber,
+        trackingNumber: trackingInfo.trackingNumber ?? null,
         carrier: trackingInfo.carrier,
         status: trackingInfo.status,
-        statusDescription: trackingInfo.statusDescription,
+        statusDescription: trackingInfo.statusDescription ?? "",
         estimatedDelivery: trackingInfo.estimatedDelivery?.toISOString() || null,
         events: trackingInfo.events.map((event) => ({
           timestamp: event.timestamp.toISOString(),

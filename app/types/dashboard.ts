@@ -31,7 +31,7 @@ export interface MigrationProgress {
   modulesEnabled?: number;
   verificationLatest?: {
     status: "completed" | "running" | "pending" | null;
-    completedAt?: Date | null;
+    completedAt?: Date | string | null;
   };
 }
 

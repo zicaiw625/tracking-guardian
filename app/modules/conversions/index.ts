@@ -3,7 +3,7 @@ export {
   getBatchBackoffDelay,
   calculateNextRetryTime,
   type ProcessConversionJobsResult,
-} from "../../services/job-processor.server";
+} from "../../services/conversion-job.server";
 
 export {
   sendConversionToPlatform,

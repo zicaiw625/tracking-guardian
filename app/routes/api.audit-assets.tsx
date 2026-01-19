@@ -309,7 +309,9 @@ async function parseRequestData(request: Request): Promise<RequestData> {
   if (contentType.includes("application/json")) {
     try {
       jsonBody = await readJsonWithSizeLimit(request);
-      actionType = jsonBody?.action ?? jsonBody?._action ?? null;
+      const a = jsonBody?.action;
+      const b = jsonBody?._action;
+      actionType = typeof a === "string" ? a : typeof b === "string" ? b : null;
     } catch (error) {
       if (error instanceof Response) {
         throw error;

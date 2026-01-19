@@ -95,34 +95,6 @@ export async function getAllModulePreviewConfigs(
     result[moduleKey] = null;
   }
   return result as Record<ModuleKey, ModulePreviewConfig | null>;
-    let moduleSettings: Record<string, unknown> = {};
-    if (setting.settingsEncrypted) {
-      try {
-        moduleSettings = decryptJson<Record<string, unknown>>(setting.settingsEncrypted);
-      } catch (error) {
-        logger.error("Failed to decrypt settingsEncrypted in getAllModulePreviewConfigs", {
-          shopId,
-          moduleKey: setting.moduleKey,
-          error: error instanceof Error ? error.message : String(error),
-        });
-        moduleSettings = (setting.settingsJson as Record<string, unknown>) || {};
-      }
-    } else {
-      moduleSettings = (setting.settingsJson as Record<string, unknown>) || {};
-    }
-    result[setting.moduleKey] = {
-      moduleKey: setting.moduleKey as ModuleKey,
-      settings: moduleSettings,
-      displayRules: (setting.displayRules as {
-        enabled: boolean;
-        targets: ("thank_you" | "order_status")[];
-      }) || {
-        enabled: false,
-        targets: [],
-      },
-    };
-  }
-  return result as Record<ModuleKey, ModulePreviewConfig | null>;
 }
 
 export interface TestOrderPreview {

@@ -1,3 +1,4 @@
+import { Prisma } from "@prisma/client";
 import prisma from "~/db.server";
 import { logger } from "~/utils/logger.server";
 import type { PixelEventPayload } from "~/lib/pixel-events/types";
@@ -193,8 +194,8 @@ export async function logEvent(
           eventName,
           source: "web_pixel",
           occurredAt: new Date(payload.timestamp),
-          normalizedEventJson: sanitizedPayload as unknown as Record<string, unknown>,
-          shopifyContextJson: null,
+          normalizedEventJson: sanitizedPayload as unknown as Prisma.InputJsonValue,
+          shopifyContextJson: Prisma.JsonNull,
         },
       });
     }
@@ -219,7 +220,7 @@ export async function logEvent(
         destinationType,
         platform,
         environment,
-        requestPayloadJson: safePayload,
+        requestPayloadJson: safePayload as Prisma.InputJsonValue,
         status: status === "ok" ? "ok" : "fail",
         ok: status === "ok",
         errorCode: errorCode || null,
@@ -237,7 +238,7 @@ export async function logEvent(
         httpStatus: httpStatus || null,
         responseBodySnippet: responseBody ? (responseBody.length > 500 ? responseBody.substring(0, 500) : responseBody) : null,
         latencyMs: latencyMs || null,
-        requestPayloadJson: sanitizedRequestPayload && isObject(sanitizedRequestPayload) ? (sanitizedRequestPayload as unknown as Record<string, unknown>) : undefined,
+        requestPayloadJson: sanitizedRequestPayload && isObject(sanitizedRequestPayload) ? (sanitizedRequestPayload as unknown as Prisma.InputJsonValue) : undefined,
       },
     });
   } catch (error) {
@@ -485,17 +486,17 @@ export async function processEventPipeline(
   if (!eventLog) {
     const eventLogId = generateSimpleId("eventlog");
     eventLog = await prisma.eventLog.create({
-      data: {
-        id: eventLogId,
-        shopId,
-        eventId: finalEventId,
-        eventName: normalizedPayload.eventName,
-        source: "web_pixel",
-        occurredAt: new Date(normalizedPayload.timestamp),
-        normalizedEventJson: sanitizedPayload as unknown as Record<string, unknown>,
-        shopifyContextJson: null,
-      },
-    });
+        data: {
+          id: eventLogId,
+          shopId,
+          eventId: finalEventId,
+          eventName: normalizedPayload.eventName,
+          source: "web_pixel",
+          occurredAt: new Date(normalizedPayload.timestamp),
+          normalizedEventJson: sanitizedPayload as unknown as Prisma.InputJsonValue,
+          shopifyContextJson: Prisma.JsonNull,
+        },
+      });
   }
   if (pipelineOptions?.skipDelivery) {
     return {
@@ -645,7 +646,7 @@ export async function processEventPipeline(
         destinationType,
         sendResult.ok ?? sendResult.success ? "ok" : "fail",
         sendResult.ok ?? sendResult.success ? undefined : (sendResult.errorCode || "send_failed"),
-        sendResult.error || null,
+        sendResult.error ?? undefined,
         sendResult.httpStatus ?? null,
         sendResult.responseBody ?? null,
         sendResult.latencyMs ?? sendLatencyMs,

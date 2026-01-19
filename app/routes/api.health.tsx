@@ -10,6 +10,7 @@ interface BasicHealthStatus {
 }
 
 interface DetailedHealthStatus extends BasicHealthStatus {
+    timestamp?: string;
     version: string;
     uptime: number;
     checks: {

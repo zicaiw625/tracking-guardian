@@ -121,18 +121,19 @@ export async function fetchShopifyOrders(
       logger.error("Failed to parse GraphQL response as JSON", { error: jsonError });
       return { data: null, errors: [{ message: "Failed to parse response" }] };
     });
-    if (data.errors) {
-      const hasAccessError = data.errors.some((err: { message?: string }) => 
+    if (data && typeof data === "object" && "errors" in data && Array.isArray((data as { errors?: unknown }).errors)) {
+      const errs = (data as { errors: { message?: string }[] }).errors;
+      const hasAccessError = errs.some((err) =>
         err.message?.includes("read_orders") || err.message?.includes("Required access")
       );
       if (hasAccessError) {
-        logger.warn("Missing read_orders scope for reconciliation", { errors: data.errors });
+        logger.warn("Missing read_orders scope for reconciliation", { errors: errs });
         throw new Error("Missing read_orders scope. Please reauthorize the app with read_orders permission.");
       }
-      logger.error("GraphQL errors in fetchShopifyOrders", { errors: data.errors });
+      logger.error("GraphQL errors in fetchShopifyOrders", { errors: errs });
       return [];
     }
-    const orders = data.data?.orders?.edges?.map((edge: { node: ShopifyOrder }) => edge.node) || [];
+    const orders = (data as { data?: { orders?: { edges?: { node: ShopifyOrder }[] } } }).data?.orders?.edges?.map((edge: { node: ShopifyOrder }) => edge.node) || [];
     return orders;
   } catch (error) {
     if (error instanceof Error && error.message.includes("read_orders")) {
@@ -480,13 +481,15 @@ export async function reconcilePixelVsCapi(
     },
     select: {
       orderKey: true,
-      consentState: true,
+      payloadJson: true,
     },
   });
   const pixelMap = new Map<string, { marketing: boolean; analytics: boolean } | null>();
   pixelReceipts.forEach(r => {
     if (r.orderKey) {
-      pixelMap.set(r.orderKey, r.consentState as { marketing: boolean; analytics: boolean } | null);
+      const consent = (r.payloadJson as Record<string, unknown>)?.consent as { marketing?: boolean; analytics?: boolean } | null | undefined;
+      const c = consent && typeof consent === "object" ? { marketing: !!consent.marketing, analytics: !!consent.analytics } : null;
+      pixelMap.set(r.orderKey, c);
     }
   });
   const capiMap = new Map<string, string>();

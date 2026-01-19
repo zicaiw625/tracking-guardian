@@ -71,7 +71,7 @@ export async function cleanupExpiredData(): Promise<CleanupResult> {
 
         cursor = undefined;
         while (true) {
-          const scanReportIds = await prisma.scanReport.findMany({
+          const scanReportIds: { id: string }[] = await prisma.scanReport.findMany({
             where: {
               shopId: shop.id,
               createdAt: { lt: cutoffDate },
@@ -83,7 +83,7 @@ export async function cleanupExpiredData(): Promise<CleanupResult> {
           });
           if (scanReportIds.length === 0) break;
           const deleteResult = await prisma.scanReport.deleteMany({
-            where: { id: { in: scanReportIds.map((r) => r.id) } },
+            where: { id: { in: scanReportIds.map((r: { id: string }) => r.id) } },
           });
           scanReportsDeleted += deleteResult.count;
           if (deleteResult.count > 0) {
@@ -98,7 +98,7 @@ export async function cleanupExpiredData(): Promise<CleanupResult> {
 
         cursor = undefined;
         while (true) {
-          const eventLogIds = await prisma.eventLog.findMany({
+          const eventLogIds: { id: string }[] = await prisma.eventLog.findMany({
             where: {
               shopId: shop.id,
               createdAt: { lt: cutoffDate },
@@ -110,7 +110,7 @@ export async function cleanupExpiredData(): Promise<CleanupResult> {
           });
           if (eventLogIds.length === 0) break;
           const deleteResult = await prisma.eventLog.deleteMany({
-            where: { id: { in: eventLogIds.map((e) => e.id) } },
+            where: { id: { in: eventLogIds.map((e: { id: string }) => e.id) } },
           });
           eventLogsDeleted += deleteResult.count;
           if (deleteResult.count > 0) {
@@ -125,7 +125,7 @@ export async function cleanupExpiredData(): Promise<CleanupResult> {
 
         cursor = undefined;
         while (true) {
-          const deliveryAttemptIds = await prisma.deliveryAttempt.findMany({
+          const deliveryAttemptIds: { id: string }[] = await prisma.deliveryAttempt.findMany({
             where: {
               shopId: shop.id,
               createdAt: { lt: cutoffDate },
@@ -137,7 +137,7 @@ export async function cleanupExpiredData(): Promise<CleanupResult> {
           });
           if (deliveryAttemptIds.length === 0) break;
           const deleteResult = await prisma.deliveryAttempt.deleteMany({
-            where: { id: { in: deliveryAttemptIds.map((d) => d.id) } },
+            where: { id: { in: deliveryAttemptIds.map((d: { id: string }) => d.id) } },
           });
           deliveryAttemptsDeleted += deleteResult.count;
           if (deleteResult.count > 0) {

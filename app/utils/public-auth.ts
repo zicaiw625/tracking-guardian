@@ -17,11 +17,11 @@ export interface PublicAuthResult {
 export async function authenticatePublic(request: Request): Promise<PublicAuthResult> {
   try {
     const { sessionToken, cors } = await authenticate.public.checkout(request);
-    return { sessionToken, cors, surface: "checkout" as const };
+    return { sessionToken: sessionToken as unknown as PublicAuthResult["sessionToken"], cors, surface: "checkout" as const };
   } catch {
     try {
       const { sessionToken, cors } = await authenticate.public.customerAccount(request);
-      return { sessionToken, cors, surface: "customer_account" as const };
+      return { sessionToken: sessionToken as unknown as PublicAuthResult["sessionToken"], cors, surface: "customer_account" as const };
     } catch (error) {
       logger.warn("Public extension authentication failed", {
         error: error instanceof Error ? error.message : String(error),
@@ -36,7 +36,7 @@ export async function handlePublicPreflight(request: Request): Promise<Response>
 
   try {
     const { cors } = await authenticate.public.checkout(request);
-    return cors(new Response(null, { status: 204 }), { corsHeaders });
+    return cors(new Response(null, { status: 204 }));
   } catch (e) {
     if (e instanceof Response) {
       const headers = getDynamicCorsHeaders(request, corsHeaders);
@@ -55,7 +55,7 @@ export async function handlePublicPreflight(request: Request): Promise<Response>
 
   try {
     const { cors } = await authenticate.public.customerAccount(request);
-    return cors(new Response(null, { status: 204 }), { corsHeaders });
+    return cors(new Response(null, { status: 204 }));
   } catch (e) {
     if (e instanceof Response) {
       const headers = getDynamicCorsHeaders(request, corsHeaders);

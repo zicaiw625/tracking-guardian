@@ -10,6 +10,7 @@ import {
   Banner,
   Badge,
   Box,
+  List,
 } from "@shopify/polaris";
 import { useSubmit } from "@remix-run/react";
 
@@ -214,7 +215,7 @@ export function SecurityTab({
                               轮换次数
                             </Text>
                             <Badge tone={hmacSecurityStats.rotationCount > 0 ? "success" : "info"}>
-                              {hmacSecurityStats.rotationCount}
+                              {String(hmacSecurityStats.rotationCount)}
                             </Badge>
                           </InlineStack>
                           {hmacSecurityStats.graceWindowActive && hmacSecurityStats.graceWindowExpiry && (
@@ -272,7 +273,7 @@ export function SecurityTab({
                             </Text>
                             <InlineStack gap="200" blockAlign="center">
                               <Badge tone={hmacSecurityStats.invalidSignatureCount > 0 ? "critical" : "success"}>
-                                {hmacSecurityStats.invalidSignatureCount}
+                                {String(hmacSecurityStats.invalidSignatureCount)}
                               </Badge>
                               {hmacSecurityStats.invalidSignatureCount > 0 && hmacSecurityStats.lastInvalidSignature && (
                                 <Text as="span" variant="bodySm" tone="subdued">
@@ -286,7 +287,7 @@ export function SecurityTab({
                               Null Origin 请求数
                             </Text>
                             <Badge tone={hmacSecurityStats.nullOriginRequestCount > 10 ? "warning" : "success"}>
-                              {hmacSecurityStats.nullOriginRequestCount}
+                              {String(hmacSecurityStats.nullOriginRequestCount)}
                             </Badge>
                           </InlineStack>
                           <Divider />
@@ -295,7 +296,7 @@ export function SecurityTab({
                               可疑活动总数
                             </Text>
                             <Badge tone={hmacSecurityStats.suspiciousActivityCount > 10 ? "critical" : hmacSecurityStats.suspiciousActivityCount > 0 ? "warning" : "success"}>
-                              {hmacSecurityStats.suspiciousActivityCount}
+                              {String(hmacSecurityStats.suspiciousActivityCount)}
                             </Badge>
                           </InlineStack>
                           {hmacSecurityStats.suspiciousActivityCount > 0 && hmacSecurityStats.lastSuspiciousActivity && (

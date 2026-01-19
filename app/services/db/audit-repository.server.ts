@@ -139,9 +139,9 @@ export async function createAuditLogEntry(
         action: entry.action,
         resourceType: entry.resourceType,
         resourceId: entry.resourceId || null,
-        previousValue: entry.previousValue ? redactSensitiveFields(entry.previousValue) as Prisma.JsonValue : null,
-        newValue: entry.newValue ? redactSensitiveFields(entry.newValue) as Prisma.JsonValue : null,
-        metadata: entry.metadata as Prisma.JsonValue || null,
+        previousValue: (entry.previousValue ? (redactSensitiveFields(entry.previousValue) as Prisma.JsonValue) : Prisma.JsonNull) as Prisma.InputJsonValue,
+        newValue: (entry.newValue ? (redactSensitiveFields(entry.newValue) as Prisma.JsonValue) : Prisma.JsonNull) as Prisma.InputJsonValue,
+        metadata: (entry.metadata != null ? (entry.metadata as Prisma.JsonValue) : Prisma.JsonNull) as Prisma.InputJsonValue,
       },
     });
   } catch (error) {
@@ -166,9 +166,9 @@ export async function batchCreateAuditLogs(
       action: entry.action,
       resourceType: entry.resourceType,
       resourceId: entry.resourceId || null,
-      previousValue: entry.previousValue ? redactSensitiveFields(entry.previousValue) as Prisma.JsonValue : null,
-      newValue: entry.newValue ? redactSensitiveFields(entry.newValue) as Prisma.JsonValue : null,
-      metadata: entry.metadata as Prisma.JsonValue || null,
+      previousValue: (entry.previousValue ? (redactSensitiveFields(entry.previousValue) as Prisma.JsonValue) : Prisma.JsonNull) as Prisma.InputJsonValue,
+      newValue: (entry.newValue ? (redactSensitiveFields(entry.newValue) as Prisma.JsonValue) : Prisma.JsonNull) as Prisma.InputJsonValue,
+      metadata: (entry.metadata != null ? (entry.metadata as Prisma.JsonValue) : Prisma.JsonNull) as Prisma.InputJsonValue,
     }));
     await prisma.auditLog.createMany({
       data,

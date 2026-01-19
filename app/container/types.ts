@@ -58,6 +58,7 @@ export interface IFeatureFlags {
   debugLogging: boolean;
   extendedPayload: boolean;
   trackingApi: boolean;
+  piiHashing?: boolean;
   checkoutBlocks: boolean;
   reorderEnabled: boolean;
 }

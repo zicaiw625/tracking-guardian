@@ -45,7 +45,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       shop: null,
       configuredPlatforms: [],
       canAccessVerification: false,
-      gateResult: undefined,
+      gateResult: null as FeatureGateResult | null,
       currentPlan: "free" as PlanId,
     });
   }
@@ -57,7 +57,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     safeFireAndForget(
       trackEvent({
         shopId: shop.id,
-        shopDomain: shop.shopDomain,
+        shopDomain,
         event: "app_paywall_viewed",
         metadata: {
           triggerPage: "verification_live",
@@ -70,7 +70,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     shop: { id: shop.id, domain: shopDomain },
     configuredPlatforms,
     canAccessVerification,
-    gateResult: gateResult.allowed ? undefined : gateResult,
+    gateResult: gateResult.allowed ? null : gateResult,
     currentPlan: planId,
   });
 };
@@ -103,7 +103,7 @@ export default function VerificationLivePage() {
           primaryAction={{ content: "返回验收", url: "/app/verification" }}
           secondaryAction={{ content: "查看测试清单", url: "/app/verification/start" }}
         />
-        {!canAccessVerification && gateResult && (
+        {!canAccessVerification && gateResult != null && (
           <UpgradePrompt
             feature="verification"
             currentPlan={currentPlan}
