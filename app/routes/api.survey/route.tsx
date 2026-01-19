@@ -117,20 +117,20 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       }
       const safeOption = sanitizeSensitiveInfo(trimmed);
       const orderKey = makeOrderKey({ orderId, checkoutToken });
-      let finalOrderId: string;
-      if (orderKey) {
-        finalOrderId = orderKey;
-        if (orderId) {
-          const orderIdHash = hashValueSync(orderId).slice(0, 12);
-          logger.info("Survey response with orderId", { shopDomain, orderIdHash });
-        } else if (checkoutToken) {
-          const checkoutTokenHash = hashValueSync(checkoutToken).slice(0, 12);
-          logger.info("Survey response with checkoutToken", { shopDomain, checkoutTokenHash });
-        }
-      } else {
-        finalOrderId = `survey_${shop.id}_${Date.now()}`;
-        logger.warn("Survey response without orderId or checkoutToken, using fallback", { shopDomain });
+      if (!orderKey) {
+        return addSecurityHeaders(authResult.cors(json(
+          { error: "Order context required (orderId or checkoutToken). Unavailable when PCD is not approved." },
+          { status: 400 }
+        )));
       }
+      if (orderId) {
+        const orderIdHash = hashValueSync(orderId).slice(0, 12);
+        logger.info("Survey response with orderId", { shopDomain, orderIdHash });
+      } else if (checkoutToken) {
+        const checkoutTokenHash = hashValueSync(checkoutToken).slice(0, 12);
+        logger.info("Survey response with checkoutToken", { shopDomain, checkoutTokenHash });
+      }
+      const finalOrderId = orderKey;
       if (timestamp !== undefined && timestamp !== null && typeof timestamp !== "string") {
         return addSecurityHeaders(authResult.cors(json(
           { error: "Invalid timestamp" },

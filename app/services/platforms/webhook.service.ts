@@ -278,6 +278,45 @@ async function validateEndpointUrlWithDNS(url: string): Promise<{ valid: boolean
     return { valid: false, error: 'Invalid URL format' };
   }
 }
+
+async function revalidateDnsBeforeFetch(url: string): Promise<{ valid: boolean; error?: string }> {
+  try {
+    const parsed = new URL(url);
+    const hostname = parsed.hostname;
+    if (/^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(hostname) || (hostname.startsWith('[') && hostname.endsWith(']'))) {
+      return { valid: true };
+    }
+    try {
+      const dns = await import('dns');
+      const { promisify } = await import('util');
+      const lookup = promisify(dns.lookup);
+      const resolved = await lookup(hostname, { family: 0, all: true });
+      const records = Array.isArray(resolved) ? resolved : [resolved];
+      for (const record of records) {
+        const resolvedIp = record.address;
+        if (/^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(resolvedIp)) {
+          if (isPrivateIPv4(resolvedIp)) {
+            return { valid: false, error: 'DNS resolution points to private IP (revalidate before fetch)' };
+          }
+        } else if (resolvedIp.includes(':')) {
+          const ipv6Formatted = resolvedIp.startsWith('[') && resolvedIp.endsWith(']') ? resolvedIp : `[${resolvedIp}]`;
+          if (isPrivateIPv6(ipv6Formatted)) {
+            return { valid: false, error: 'DNS resolution points to private IPv6 (revalidate before fetch)' };
+          }
+        }
+        if (resolvedIp === '127.0.0.1' || resolvedIp === '::1' || resolvedIp === 'localhost') {
+          return { valid: false, error: 'DNS resolution points to localhost (revalidate before fetch)' };
+        }
+      }
+      return { valid: true };
+    } catch {
+      return { valid: false, error: 'DNS resolution failed - cannot verify endpoint safety (revalidate)' };
+    }
+  } catch {
+    return { valid: false, error: 'Invalid URL format' };
+  }
+}
+
 export class WebhookPlatformService implements IPlatformService {
   readonly platform: PlatformType = "webhook" as PlatformType;
   readonly displayName = "通用 HTTP Webhook";
@@ -350,6 +389,17 @@ export class WebhookPlatformService implements IPlatformService {
         break;
     }
     const timeoutMs = credentials.timeoutMs || DEFAULT_TIMEOUT_MS;
+    const revalidate = await revalidateDnsBeforeFetch(credentials.endpointUrl);
+    if (!revalidate.valid) {
+      return {
+        success: false,
+        error: {
+          type: "invalid_config",
+          message: revalidate.error || "Invalid endpoint URL",
+          isRetryable: false,
+        },
+      };
+    }
     try {
       const [response, duration] = await measureDuration(async () => {
         return fetchWithTimeout(

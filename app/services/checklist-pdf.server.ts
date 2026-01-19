@@ -51,13 +51,13 @@ export async function generateChecklistPDF(
           item.suggestedMigration === "server_side" ? "Server-side CAPI" :
           "External redirect / not supported";
         
-        doc.font("Helvetica-Bold").text(`${index + 1}. ${item.title}`, { continued: false });
+        doc.font("Helvetica-Bold").text(`${index + 1}. ${truncate(item.title, 200)}`, { continued: false });
         doc.font("Helvetica");
         doc.fontSize(10).text(`   类别: ${item.category}${item.platform ? ` | 平台: ${item.platform}` : ""}`);
-        doc.text(`   风险等级: ${riskLevelText} - ${item.riskReason}`);
+        doc.text(`   风险等级: ${riskLevelText} - ${truncate(item.riskReason, 300)}`);
         doc.text(`   推荐迁移路径: ${migrationText}`);
         doc.text(`   预计工时: ${formatTime(item.estimatedTime)}`);
-        doc.text(`   需要的信息: ${item.requiredInfo}`);
+        doc.text(`   需要的信息: ${truncate(item.requiredInfo, 300)}`);
         doc.text(`   状态: ${getStatusText(item.status)}`);
         
         if (item.description) {
@@ -73,6 +73,11 @@ export async function generateChecklistPDF(
       reject(error);
     }
   });
+}
+
+function truncate(str: string, maxLen: number): string {
+  const s = typeof str === "string" ? str : "";
+  return s.length > maxLen ? s.slice(0, maxLen) + "…" : s;
 }
 
 function formatTime(minutes: number): string {

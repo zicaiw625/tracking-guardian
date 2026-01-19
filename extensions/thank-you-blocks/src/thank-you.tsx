@@ -158,36 +158,68 @@ function ThankYouBlocks() {
           return;
         }
         const token = await api.sessionToken.get();
-        const response = await fetch(`${backendUrl}/api/ui-modules-state`, {
-          method: "GET",
-          headers: {
-            "Authorization": `Bearer ${token}`,
-          },
-        });
-        if (response.ok) {
-          const state = await response.json();
-          setModuleState(state);
-          if (isDevMode()) {
-            console.log("[ThankYouBlocks] Module state loaded:", state);
-          }
-        } else {
-          const errorText = await response.text().catch(() => `HTTP ${response.status}`);
-          const errorMessage = `Failed to fetch module state: ${response.status} ${errorText}`;
-          if (isDevMode()) {
-            console.error("[ThankYouBlocks] Module state fetch failed:", errorMessage);
-          }
-          await reportExtensionError(api, {
-            extension: "thank-you",
-            endpoint: "ui-modules-state",
-            error: errorMessage,
-            stack: null,
-            target: "thank-you",
-            timestamp: new Date().toISOString(),
+        const controller = new AbortController();
+        const tid = setTimeout(() => controller.abort(), 1000);
+        try {
+          const response = await fetch(`${backendUrl}/api/ui-modules-state`, {
+            method: "GET",
+            headers: {
+              "Authorization": `Bearer ${token}`,
+            },
+            signal: controller.signal,
           });
-          setModuleState({
-            surveyEnabled: false,
-            helpEnabled: false,
-          });
+          clearTimeout(tid);
+          if (response.ok) {
+            const state = await response.json();
+            setModuleState(state);
+            if (isDevMode()) {
+              console.log("[ThankYouBlocks] Module state loaded:", state);
+            }
+          } else {
+            const errorText = await response.text().catch(() => `HTTP ${response.status}`);
+            const errorMessage = `Failed to fetch module state: ${response.status} ${errorText}`;
+            if (isDevMode()) {
+              console.error("[ThankYouBlocks] Module state fetch failed:", errorMessage);
+            }
+            reportExtensionError(api, {
+              extension: "thank-you",
+              endpoint: "ui-modules-state",
+              error: errorMessage,
+              stack: null,
+              target: "thank-you",
+              timestamp: new Date().toISOString(),
+            });
+            setModuleState({
+              surveyEnabled: false,
+              helpEnabled: false,
+            });
+          }
+        } catch (fetchErr) {
+          clearTimeout(tid);
+          if (fetchErr instanceof Error && fetchErr.name === "AbortError") {
+            setModuleState({
+              surveyEnabled: false,
+              helpEnabled: false,
+            });
+          } else {
+            const errorMessage = fetchErr instanceof Error ? fetchErr.message : String(fetchErr);
+            const errorStack = fetchErr instanceof Error ? fetchErr.stack : undefined;
+            if (isDevMode()) {
+              console.error("[ThankYouBlocks] Failed to fetch module state:", fetchErr);
+            }
+            reportExtensionError(api, {
+              extension: "thank-you",
+              endpoint: "ui-modules-state",
+              error: errorMessage,
+              stack: errorStack,
+              target: "thank-you",
+              timestamp: new Date().toISOString(),
+            });
+            setModuleState({
+              surveyEnabled: false,
+              helpEnabled: false,
+            });
+          }
         }
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : String(error);
@@ -195,7 +227,7 @@ function ThankYouBlocks() {
         if (isDevMode()) {
           console.error("[ThankYouBlocks] Failed to fetch module state:", error);
         }
-        await reportExtensionError(api, {
+        reportExtensionError(api, {
           extension: "thank-you",
           endpoint: "ui-modules-state",
           error: errorMessage,
@@ -233,7 +265,7 @@ function ThankYouBlocks() {
         if (isDevMode()) {
           console.error("[ThankYouBlocks] " + errorMessage);
         }
-        await reportExtensionError(api, {
+        reportExtensionError(api, {
           extension: "thank-you",
           endpoint: "survey",
           error: errorMessage,
@@ -262,7 +294,7 @@ function ThankYouBlocks() {
         if (isDevMode()) {
           console.error("[ThankYouBlocks] Survey submit failed:", errorMessage);
         }
-        await reportExtensionError(api, {
+        reportExtensionError(api, {
           extension: "thank-you",
           endpoint: "survey",
           error: errorMessage,
@@ -283,7 +315,7 @@ function ThankYouBlocks() {
       if (isDevMode()) {
         console.error("[ThankYouBlocks] Survey submit failed:", error);
       }
-      await reportExtensionError(api, {
+      reportExtensionError(api, {
         extension: "thank-you",
         endpoint: "survey",
         error: errorMessage,

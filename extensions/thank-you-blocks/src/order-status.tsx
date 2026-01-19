@@ -237,37 +237,71 @@ function OrderStatusBlocks() {
           return;
         }
         const token = await api.sessionToken.get();
-        const response = await fetch(`${backendUrl}/api/ui-modules-state?target=order-status`, {
-          method: "GET",
-          headers: {
-            "Authorization": `Bearer ${token}`,
-          },
-        });
-        if (response.ok) {
-          const state = await response.json();
-          setModuleState(state);
-          if (isDevMode()) {
-            console.log("[OrderStatusBlocks] Module state loaded:", state);
-          }
-        } else {
-          const errorText = await response.text().catch(() => `HTTP ${response.status}`);
-          const errorMessage = `Failed to fetch module state: ${response.status} ${errorText}`;
-          if (isDevMode()) {
-            console.error("[OrderStatusBlocks] Module state fetch failed:", errorMessage);
-          }
-          await reportExtensionError(api, {
-            extension: "order-status",
-            endpoint: "ui-modules-state",
-            error: errorMessage,
-            stack: null,
-            target: "order-status",
-            timestamp: new Date().toISOString(),
+        const controller = new AbortController();
+        const tid = setTimeout(() => controller.abort(), 1000);
+        try {
+          const response = await fetch(`${backendUrl}/api/ui-modules-state?target=order-status`, {
+            method: "GET",
+            headers: {
+              "Authorization": `Bearer ${token}`,
+            },
+            signal: controller.signal,
           });
-          setModuleState({
-            surveyEnabled: false,
-            helpEnabled: false,
-            reorderEnabled: false,
-          });
+          clearTimeout(tid);
+          if (response.ok) {
+            const state = await response.json();
+            setModuleState(state);
+            if (isDevMode()) {
+              console.log("[OrderStatusBlocks] Module state loaded:", state);
+            }
+          } else {
+            const errorText = await response.text().catch(() => `HTTP ${response.status}`);
+            const errorMessage = `Failed to fetch module state: ${response.status} ${errorText}`;
+            if (isDevMode()) {
+              console.error("[OrderStatusBlocks] Module state fetch failed:", errorMessage);
+            }
+            reportExtensionError(api, {
+              extension: "order-status",
+              endpoint: "ui-modules-state",
+              error: errorMessage,
+              stack: null,
+              target: "order-status",
+              timestamp: new Date().toISOString(),
+            });
+            setModuleState({
+              surveyEnabled: false,
+              helpEnabled: false,
+              reorderEnabled: false,
+            });
+          }
+        } catch (fetchErr) {
+          clearTimeout(tid);
+          if (fetchErr instanceof Error && fetchErr.name === "AbortError") {
+            setModuleState({
+              surveyEnabled: false,
+              helpEnabled: false,
+              reorderEnabled: false,
+            });
+          } else {
+            const errorMessage = fetchErr instanceof Error ? fetchErr.message : String(fetchErr);
+            const errorStack = fetchErr instanceof Error ? fetchErr.stack : undefined;
+            if (isDevMode()) {
+              console.error("[OrderStatusBlocks] Failed to fetch module state:", fetchErr);
+            }
+            reportExtensionError(api, {
+              extension: "order-status",
+              endpoint: "ui-modules-state",
+              error: errorMessage,
+              stack: errorStack,
+              target: "order-status",
+              timestamp: new Date().toISOString(),
+            });
+            setModuleState({
+              surveyEnabled: false,
+              helpEnabled: false,
+              reorderEnabled: false,
+            });
+          }
         }
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : String(error);
@@ -275,7 +309,7 @@ function OrderStatusBlocks() {
         if (isDevMode()) {
           console.error("[OrderStatusBlocks] Failed to fetch module state:", error);
         }
-        await reportExtensionError(api, {
+        reportExtensionError(api, {
           extension: "order-status",
           endpoint: "ui-modules-state",
           error: errorMessage,
@@ -314,7 +348,7 @@ function OrderStatusBlocks() {
         if (isDevMode()) {
           console.error("[OrderStatusBlocks] " + errorMessage);
         }
-        await reportExtensionError(api, {
+        reportExtensionError(api, {
           extension: "order-status",
           endpoint: "survey",
           error: errorMessage,
@@ -343,7 +377,7 @@ function OrderStatusBlocks() {
         if (isDevMode()) {
           console.error("[OrderStatusBlocks] Survey submit failed:", errorMessage);
         }
-        await reportExtensionError(api, {
+        reportExtensionError(api, {
           extension: "order-status",
           endpoint: "survey",
           error: errorMessage,
@@ -364,7 +398,7 @@ function OrderStatusBlocks() {
       if (isDevMode()) {
         console.error("[OrderStatusBlocks] Survey submit failed:", error);
       }
-      await reportExtensionError(api, {
+      reportExtensionError(api, {
         extension: "order-status",
         endpoint: "survey",
         error: errorMessage,
@@ -404,7 +438,7 @@ function OrderStatusBlocks() {
         if (isDevMode()) {
           console.error("[OrderStatusBlocks] " + errorMessage);
         }
-        await reportExtensionError(api, {
+        reportExtensionError(api, {
           extension: "order-status",
           endpoint: "reorder",
           error: errorMessage,
@@ -434,7 +468,7 @@ function OrderStatusBlocks() {
         if (isDevMode()) {
           console.error("[OrderStatusBlocks] Reorder failed:", errorMessage);
         }
-        await reportExtensionError(api, {
+        reportExtensionError(api, {
           extension: "order-status",
           endpoint: "reorder",
           error: errorMessage,
@@ -458,7 +492,7 @@ function OrderStatusBlocks() {
         console.error("[OrderStatusBlocks] Reorder failed:", error);
       }
       const orderContext = getOrderContext(api);
-      await reportExtensionError(api, {
+      reportExtensionError(api, {
         extension: "order-status",
         endpoint: "reorder",
         error: errorMessage,

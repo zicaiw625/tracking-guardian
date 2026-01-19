@@ -45,6 +45,14 @@ const GDPR_TOPICS = new Set([
   "SHOP_REDACT",
 ]);
 
+const ORDERS_REFUNDS_TOPICS = new Set([
+  "ORDERS_CREATE",
+  "ORDERS_UPDATED",
+  "ORDERS_CANCELLED",
+  "ORDERS_EDITED",
+  "REFUNDS_CREATE",
+]);
+
 export async function dispatchWebhook(
   context: WebhookContext,
   shopRecord: ShopWithPixelConfigs | null,
@@ -74,6 +82,12 @@ export async function dispatchWebhook(
         `This may indicate a configuration mismatch or a legacy subscription. ` +
         `Responding 200 to prevent Shopify retries.`
     );
+    if (webhookId) {
+      await updateWebhookStatus(shop, webhookId, topic, WebhookStatus.PROCESSED);
+    }
+    return new Response("OK", { status: 200 });
+  }
+  if (ORDERS_REFUNDS_TOPICS.has(normalizedTopic) && process.env.ENABLE_ORDERS_REFUNDS_WEBHOOKS !== "true") {
     if (webhookId) {
       await updateWebhookStatus(shop, webhookId, topic, WebhookStatus.PROCESSED);
     }
