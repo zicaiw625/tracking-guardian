@@ -7,7 +7,7 @@ import { randomUUID } from "crypto";
 import { canUseModule, getUiModuleConfigs } from "../../services/ui-extension.server";
 import { authenticatePublic, normalizeDestToShopDomain, handlePublicPreflight, addSecurityHeaders } from "../../utils/public-auth";
 import { makeOrderKey, hashValueSync } from "../../utils/crypto.server";
-import { API_CONFIG } from "../../utils/config";
+import { API_CONFIG } from "../../utils/config.server";
 import { readJsonWithSizeLimit } from "../../utils/body-size-guard";
 import { containsSensitiveInfo, sanitizeSensitiveInfo } from "../../utils/security";
 

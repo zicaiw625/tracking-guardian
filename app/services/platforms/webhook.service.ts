@@ -112,6 +112,22 @@ function isWebhookCredentials(creds: PlatformCredentials): creds is WebhookCrede
   );
 }
 
+function hasCrLf(s: string): boolean {
+  return s.includes("\r") || s.includes("\n");
+}
+
+function validateCustomHeadersNoCrLf(customHeaders: Record<string, string>): { valid: boolean; error?: string } {
+  for (const [k, v] of Object.entries(customHeaders)) {
+    if (typeof k !== "string" || hasCrLf(k)) {
+      return { valid: false, error: "Custom header name or value must not contain CR/LF" };
+    }
+    if (typeof v !== "string" || hasCrLf(v)) {
+      return { valid: false, error: "Custom header name or value must not contain CR/LF" };
+    }
+  }
+  return { valid: true };
+}
+
 function applyTemplate(template: string, data: Record<string, unknown>): string {
   return template.replace(/\{\{([^}]+)\}\}/g, (match, key) => {
     const keys = key.trim().split('.');
@@ -359,11 +375,23 @@ export class WebhookPlatformService implements IPlatformService {
     } else {
       payload = JSON.stringify(buildDefaultPayload(data, eventId));
     }
+    const customHeaders = credentials.customHeaders || {};
+    const headerCheck = validateCustomHeadersNoCrLf(customHeaders);
+    if (!headerCheck.valid) {
+      return {
+        success: false,
+        error: {
+          type: "invalid_config",
+          message: headerCheck.error || "Custom header name or value must not contain CR/LF",
+          isRetryable: false,
+        },
+      };
+    }
     const headers: Record<string, string> = {
       "Content-Type": "application/json",
       "User-Agent": "TrackingGuardian/1.0",
       "X-Event-ID": eventId,
-      ...(credentials.customHeaders || {}),
+      ...customHeaders,
     };
     switch (credentials.authType) {
       case "bearer":
@@ -490,6 +518,14 @@ export class WebhookPlatformService implements IPlatformService {
     }
     if (creds.customHeaders && typeof creds.customHeaders !== "object") {
       errors.push("Custom headers must be an object");
+    } else if (creds.customHeaders && typeof creds.customHeaders === "object") {
+      const ch = creds.customHeaders as Record<string, string>;
+      for (const [k, v] of Object.entries(ch)) {
+        if (typeof k !== "string" || hasCrLf(k) || typeof v !== "string" || hasCrLf(v)) {
+          errors.push("Custom header name or value must not contain CR/LF");
+          break;
+        }
+      }
     }
     if (creds.payloadTemplate && typeof creds.payloadTemplate !== "string") {
       errors.push("Payload template must be a string");

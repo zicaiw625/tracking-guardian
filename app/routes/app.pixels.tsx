@@ -18,7 +18,7 @@ import { EnhancedEmptyState } from "~/components/ui";
 import { PageIntroCard } from "~/components/layout/PageIntroCard";
 import { authenticate } from "~/shopify.server";
 import prisma from "~/db.server";
-import { getPixelEventIngestionUrl } from "~/utils/config";
+import { getPixelEventIngestionUrl } from "~/utils/config.server";
 
 function extractPlatformFromPayload(payload: Record<string, unknown> | null): string | null {
   if (!payload) return null;

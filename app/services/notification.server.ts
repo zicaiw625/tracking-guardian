@@ -2,7 +2,7 @@ import { Resend } from "resend";
 import type { AlertData, AlertConfig, EmailAlertSettings, SlackAlertSettings, TelegramAlertSettings, } from "../types";
 import { decryptJson } from "../utils/crypto.server";
 import { logger } from "../utils/logger.server";
-import { CONFIG } from "../utils/config";
+import { CONFIG } from "../utils/config.server";
 import {
   asEmailAlertSettings,
   asSlackAlertSettings,

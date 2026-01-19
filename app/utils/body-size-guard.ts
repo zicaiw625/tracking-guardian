@@ -1,4 +1,4 @@
-import { API_CONFIG } from "./config";
+import { API_CONFIG } from "./config.server";
 import { logger } from "./logger.server";
 
 export async function readJsonWithSizeLimit<T = unknown>(

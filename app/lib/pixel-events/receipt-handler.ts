@@ -5,7 +5,7 @@ import prisma from "../../db.server";
 import { generateEventId, generateMatchKey, makeOrderKey } from "../../utils/crypto.server";
 import { extractOriginHost } from "../../utils/origin-validation";
 import { logger } from "../../utils/logger.server";
-import { RETENTION_CONFIG } from "../../utils/config";
+import { RETENTION_CONFIG } from "../../utils/config.server";
 import { generateSimpleId } from "../../utils/helpers";
 import type { TrustLevel } from "../../utils/receipt-trust";
 import type { PixelEventPayload, KeyValidationResult } from "./types";

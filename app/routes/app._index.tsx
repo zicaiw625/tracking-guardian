@@ -41,7 +41,7 @@ import {
 } from "../types/dashboard";
 import { isPlanAtLeast } from "../utils/plans";
 import { DEPRECATION_DATES, formatDeadlineDate, SHOPIFY_HELP_LINKS } from "../utils/migration-deadlines";
-import { getPixelEventIngestionUrl } from "../utils/config";
+import { getPixelEventIngestionUrl } from "../utils/config.server";
 import { getShopifyAdminUrl } from "../utils/helpers";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {

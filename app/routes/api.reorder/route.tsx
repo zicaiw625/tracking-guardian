@@ -7,7 +7,7 @@ import { defaultLoaderCache } from "../../lib/with-cache";
 import { TTL } from "../../utils/cache";
 import prisma from "../../db.server";
 import { canUseModule, getUiModuleConfigs } from "../../services/ui-extension.server";
-import { PCD_CONFIG, API_CONFIG } from "../../utils/config";
+import { PCD_CONFIG, API_CONFIG } from "../../utils/config.server";
 import { readJsonWithSizeLimit } from "../../utils/body-size-guard";
 import { authenticatePublic, normalizeDestToShopDomain, handlePublicPreflight, addSecurityHeaders } from "../../utils/public-auth";
 import { hashValueSync } from "../../utils/crypto.server";

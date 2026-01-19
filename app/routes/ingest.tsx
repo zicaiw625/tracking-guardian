@@ -8,7 +8,7 @@ import { getShopForPixelVerificationWithConfigs } from "~/lib/pixel-events/key-v
 import { validatePixelEventHMAC } from "~/lib/pixel-events/hmac-validation";
 import { verifyWithGraceWindowAsync } from "~/utils/shop-access";
 import { validateRequest, isPrimaryEvent } from "~/lib/pixel-events/validation";
-import { API_CONFIG, RATE_LIMIT_CONFIG, isStrictSecurityMode } from "~/utils/config";
+import { API_CONFIG, RATE_LIMIT_CONFIG, isStrictSecurityMode } from "~/utils/config.server";
 import {
   isDevMode,
   validatePixelOriginPreBody,

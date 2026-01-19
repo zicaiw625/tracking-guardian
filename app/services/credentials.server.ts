@@ -2,7 +2,7 @@ import { decryptJson } from "../utils/crypto.server";
 import { logger } from "../utils/logger.server";
 import type { PlatformCredentials } from "../types";
 import { ok, err, type Result, fromThrowable } from "../types/result";
-import { isProduction } from "../utils/config";
+import { isProduction } from "../utils/config.server";
 
 export type CredentialErrorType =
   | "DECRYPTION_FAILED"

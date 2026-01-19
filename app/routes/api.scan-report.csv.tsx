@@ -1,6 +1,6 @@
 import type { LoaderFunctionArgs } from "@remix-run/node";
 import { json } from "@remix-run/node";
-import { createHash, timingSafeEqual } from "crypto";
+import { createHash } from "crypto";
 import prisma from "../db.server";
 import { logger } from "../utils/logger.server";
 import { authenticate } from "../shopify.server";
@@ -8,6 +8,7 @@ import { validateRiskItemsArray, validateStringArray } from "../utils/scan-data-
 import { checkFeatureAccess } from "../services/billing/feature-gates.server";
 import { normalizePlanId, type PlanId } from "../services/billing/plans";
 import { sanitizeFilename } from "../utils/responses";
+import { timingSafeEqualHex } from "../utils/timing-safe.server";
 
 function sanitizeForCSV(value: string): string {
   if (typeof value !== "string") {
@@ -91,9 +92,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
         .update(`${scanReport.id}-${scanReport.shopId}-${token}`)
         .digest("hex");
 
-      const expectedBuffer = Buffer.from(expectedTokenHash, "hex");
-      const actualBuffer = Buffer.from(scanReport.shareTokenHash, "hex");
-      if (expectedBuffer.length !== actualBuffer.length || !timingSafeEqual(expectedBuffer, actualBuffer)) {
+      if (!timingSafeEqualHex(expectedTokenHash, scanReport.shareTokenHash)) {
         return new Response("Invalid share token", { status: 403 });
       }
 

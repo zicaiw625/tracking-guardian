@@ -45,7 +45,6 @@ import {
 } from "../types/ui-extension";
 import { getPlanOrDefault, type PlanId, BILLING_PLANS } from "../services/billing/plans";
 import { logger } from "../utils/logger.server";
-import { PCD_CONFIG } from "../utils/config";
 import { PCD_ORDER_UNAVAILABLE_MERCHANT } from "~/constants/pcd";
 import { checkCustomerAccountsEnabled } from "../services/customer-accounts.server";
 import { getShopifyAdminUrl } from "../utils/helpers";
@@ -64,6 +63,7 @@ interface LoaderData {
   modulePreviewUrls: Record<string, { thank_you?: string; order_status?: string }>;
   surveySubmissionCount?: number;
   customerAccountsEnabled: boolean;
+  pcdApproved: boolean;
 }
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
@@ -76,6 +76,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   const customerAccountsStatus = await checkCustomerAccountsEnabled(admin);
   const customerAccountsEnabled = customerAccountsStatus.enabled;
   if (!shop) {
+    const { PCD_CONFIG } = await import("../utils/config.server");
     return json<LoaderData>({
       shop: null,
       shopDomain,
@@ -87,6 +88,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       modulePreviewUrls: {},
       surveySubmissionCount: 0,
       customerAccountsEnabled: false,
+      pcdApproved: PCD_CONFIG.APPROVED,
     });
   }
   const planId = shop.plan as PlanId;
@@ -117,6 +119,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       modulePreviewUrls[module.moduleKey] = urls;
     }
   }
+  const { PCD_CONFIG } = await import("../utils/config.server");
   return json<LoaderData>({
     shop: { id: shop.id, plan: planId },
     shopDomain,
@@ -128,10 +131,12 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     modulePreviewUrls,
     surveySubmissionCount,
     customerAccountsEnabled,
+    pcdApproved: PCD_CONFIG.APPROVED,
   });
 };
 
 export const action = async ({ request }: ActionFunctionArgs) => {
+  const { PCD_CONFIG } = await import("../utils/config.server");
   const { session, admin } = await authenticate.admin(request);
   const shopDomain = session.shop;
   const formData = await request.formData();
@@ -218,6 +223,7 @@ function ModuleCard({
   surveySubmissionCount,
   customerAccountsEnabled,
   shopDomain,
+  pcdApproved,
 }: {
   module: UiModuleConfig;
   onToggle: (moduleKey: ModuleKey, enabled: boolean) => void;
@@ -229,6 +235,7 @@ function ModuleCard({
   surveySubmissionCount?: number;
   customerAccountsEnabled: boolean;
   shopDomain: string;
+  pcdApproved: boolean;
 }) {
   const info = UI_MODULES[module.moduleKey];
   const hasOrderStatusTarget = info.targets.includes("order_status");
@@ -302,7 +309,7 @@ function ModuleCard({
               <Text as="p" variant="bodySm" tone="subdued">
                 {info.description}
                 {info.disabled && info.disabledReason && `（${info.disabledReason}）`}
-                {module.moduleKey === "reorder" && !PCD_CONFIG.APPROVED && (
+                {module.moduleKey === "reorder" && !pcdApproved && (
                   <Banner tone="critical">
                     <BlockStack gap="400">
                       <Text as="p" variant="bodySm" fontWeight="semibold">
@@ -571,10 +578,10 @@ function ModuleCard({
               variant={module.isEnabled ? "secondary" : "primary"}
               onClick={() => onToggle(module.moduleKey, !module.isEnabled)}
               loading={isSubmitting}
-              disabled={(!canEnable && !module.isEnabled) || (module.moduleKey !== "reorder" && info.disabled) || (module.moduleKey === "reorder" && !PCD_CONFIG.APPROVED) || (info.targets.includes("order_status") && !customerAccountsEnabled && !module.isEnabled)}
+              disabled={(!canEnable && !module.isEnabled) || (module.moduleKey !== "reorder" && info.disabled) || (module.moduleKey === "reorder" && !pcdApproved) || (info.targets.includes("order_status") && !customerAccountsEnabled && !module.isEnabled)}
               size="slim"
             >
-              {module.isEnabled ? "停用" : info.disabled ? "v1.1+ 支持" : (module.moduleKey === "reorder" && !PCD_CONFIG.APPROVED) ? "需要 PCD 审核" : (info.targets.includes("order_status") && !customerAccountsEnabled) ? "需要 Customer Accounts" : "启用"}
+              {module.isEnabled ? "停用" : info.disabled ? "v1.1+ 支持" : (module.moduleKey === "reorder" && !pcdApproved) ? "需要 PCD 审核" : (info.targets.includes("order_status") && !customerAccountsEnabled) ? "需要 Customer Accounts" : "启用"}
             </Button>
           </InlineStack>
         </InlineStack>
@@ -616,7 +623,7 @@ function getCategoryLabel(category: string): string {
 
 
 export default function UiBlocksPage() {
-  const { shop, shopDomain, modules, enabledCount, maxModules, planInfo, isDevStore, modulePreviewUrls, surveySubmissionCount, customerAccountsEnabled } = useLoaderData<typeof loader>();
+  const { shop, shopDomain, modules, enabledCount, maxModules, planInfo, isDevStore, modulePreviewUrls, surveySubmissionCount, customerAccountsEnabled, pcdApproved } = useLoaderData<typeof loader>();
   const actionData = useActionData<typeof action>();
   const submit = useSubmit();
   const navigation = useNavigation();
@@ -1425,6 +1432,7 @@ export default function UiBlocksPage() {
                     }}
                     surveySubmissionCount={surveySubmissionCount}
                     shopDomain={shopDomain}
+                    pcdApproved={pcdApproved}
                   />
                 ))
               )}

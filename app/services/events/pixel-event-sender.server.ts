@@ -6,7 +6,7 @@ import { getPlatformEventName } from "../pixel-mapping.server";
 import type { Platform } from "~/types/platform";
 import type { PlatformCredentials } from "~/types";
 import { fetchWithTimeout, DEFAULT_API_TIMEOUT_MS } from "../platforms/interface";
-import { CAPI_CONFIG } from "~/utils/config";
+import { CAPI_CONFIG } from "~/utils/config.server";
 import { ErrorCode } from "~/utils/errors/app-error";
 
 const GA4_MEASUREMENT_PROTOCOL_URL = "https://www.google-analytics.com/mp/collect";

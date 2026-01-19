@@ -20,7 +20,7 @@ import {
   classifyJsError,
   parseTikTokError,
 } from "./base-platform.service";
-import { CAPI_CONFIG } from "../../utils/config";
+import { CAPI_CONFIG } from "../../utils/config.server";
 
 const TIKTOK_API_URL = CAPI_CONFIG.TIKTOK.trackEndpoint;
 const PIXEL_ID_PATTERN = /^[A-Z0-9]{20,}$/i;

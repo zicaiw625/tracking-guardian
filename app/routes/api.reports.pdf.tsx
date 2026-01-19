@@ -5,7 +5,7 @@ import { generateVerificationReportData, generateVerificationReportPDF } from ".
 import { logger } from "../utils/logger.server";
 import { sanitizeFilename } from "../utils/responses";
 import { jsonApi, withSecurityHeaders } from "../utils/security-headers";
-import { isProduction } from "../utils/config";
+import { isProduction } from "../utils/config.server";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   try {

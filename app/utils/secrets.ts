@@ -1,7 +1,7 @@
 import { Prisma } from "@prisma/client";
 import { logger } from "./logger.server";
 import prisma from "../db.server";
-import { isProduction } from "./config";
+import { isProduction } from "./config.server";
 
 interface SecretConfig {
     name: string;

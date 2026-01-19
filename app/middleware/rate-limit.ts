@@ -1,6 +1,6 @@
 import { json } from "@remix-run/node";
 import type { LoaderFunctionArgs, ActionFunctionArgs } from "@remix-run/node";
-import { RATE_LIMIT_CONFIG } from "../utils/config";
+import { RATE_LIMIT_CONFIG } from "../utils/config.server";
 import { logger } from "../utils/logger.server";
 import {
   getRedisClient,

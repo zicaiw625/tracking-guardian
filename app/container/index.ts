@@ -13,7 +13,7 @@ import {
   getNumEnv,
   isProduction,
   isDevelopment,
-} from "../utils/config";
+} from "../utils/config.server";
 import type {
   IAppContext,
   IScopedContext,

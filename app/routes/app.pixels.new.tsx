@@ -42,7 +42,7 @@ import { randomBytes } from "crypto";
 import { logger } from "~/utils/logger.server";
 import type { WizardTemplate } from "~/components/migrate/PixelMigrationWizard";
 import { trackEvent } from "~/services/analytics.server";
-import { getPixelEventIngestionUrl } from "~/utils/config";
+import { getPixelEventIngestionUrl } from "~/utils/config.server";
 
 const PRESET_TEMPLATES: WizardTemplate[] = [
   {

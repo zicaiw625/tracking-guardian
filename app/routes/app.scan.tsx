@@ -31,7 +31,6 @@ import { processManualPasteAssets, analyzeManualPaste } from "../services/audit-
 import { getScriptTagDeprecationStatus, getAdditionalScriptsDeprecationStatus, getMigrationUrgencyStatus, getUpgradeStatusMessage, formatDeadlineForUI, getDateDisplayLabel, DEPRECATION_DATES, type ShopTier, type ShopUpgradeStatus, } from "../utils/deprecation-dates";
 import { getPlanDefinition, normalizePlan, isPlanAtLeast } from "../utils/plans";
 import { generateMigrationTimeline, getMigrationProgress } from "../services/migration-priority.server";
-import { SCANNER_CONFIG, SCRIPT_ANALYSIS_CONFIG } from "../utils/config";
 import type { ScriptTag, RiskItem } from "../types";
 import type { MigrationAction, EnhancedScanResult } from "../services/scanner/types";
 import { logger } from "../utils/logger.server";
@@ -135,6 +134,7 @@ function isValidShopTier(tier: unknown): tier is ShopTier {
 }
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
+    const { SCANNER_CONFIG, SCRIPT_ANALYSIS_CONFIG } = await import("../utils/config.server");
     const { session, admin } = await authenticate.admin(request);
     const shopDomain = session.shop;
     const shop = await prisma.shop.findUnique({
@@ -166,6 +166,10 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
             dependencyGraph: null,
             auditAssets: [],
             migrationChecklist: null,
+            scriptAnalysisMaxContentLength: SCRIPT_ANALYSIS_CONFIG.MAX_CONTENT_LENGTH,
+            scriptAnalysisChunkSize: SCRIPT_ANALYSIS_CONFIG.CHUNK_SIZE,
+            scannerMaxScriptTags: SCANNER_CONFIG.MAX_SCRIPT_TAGS,
+            scannerMaxWebPixels: SCANNER_CONFIG.MAX_WEB_PIXELS,
         });
     }
     const latestScanRaw = await prisma.scanReport.findFirst({
@@ -414,6 +418,10 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
         dependencyGraph,
         auditAssets,
         migrationChecklist,
+        scriptAnalysisMaxContentLength: SCRIPT_ANALYSIS_CONFIG.MAX_CONTENT_LENGTH,
+        scriptAnalysisChunkSize: SCRIPT_ANALYSIS_CONFIG.CHUNK_SIZE,
+        scannerMaxScriptTags: SCANNER_CONFIG.MAX_SCRIPT_TAGS,
+        scannerMaxWebPixels: SCANNER_CONFIG.MAX_WEB_PIXELS,
     });
 };
 export const action = async ({ request }: ActionFunctionArgs) => {
@@ -977,7 +985,7 @@ export function ScanPage({
     pageSubtitle = "迁移清单 + 风险分级 + 替代路径（Web Pixel / Checkout UI Extension / 不可迁移）• 明确提示 checkout.liquid / additional scripts / script tags 在 Thank you/Order status 的弃用与限制 • 可分享链接并导出 PDF/CSV",
     showMigrationButtons = false,
 }: ScanPageProps) {
-    const { shop, latestScan, scanHistory, deprecationStatus, upgradeStatus, migrationActions, planId, planLabel, planTagline, migrationTimeline, migrationProgress, dependencyGraph, auditAssets, migrationChecklist } = useLoaderData<typeof loader>();
+    const { shop, latestScan, scanHistory, deprecationStatus, upgradeStatus, migrationActions, planId, planLabel, planTagline, migrationTimeline, migrationProgress, dependencyGraph, auditAssets, migrationChecklist, scriptAnalysisMaxContentLength, scriptAnalysisChunkSize, scannerMaxScriptTags, scannerMaxWebPixels } = useLoaderData<typeof loader>();
     const actionData = useActionData<typeof action>();
     const submit = useSubmit();
     const navigation = useNavigation();
@@ -1198,7 +1206,7 @@ export function ScanPage({
     };
     const handleAnalyzeScript = useCallback(async () => {
         if (isAnalyzing) return;
-        const MAX_CONTENT_LENGTH = SCRIPT_ANALYSIS_CONFIG.MAX_CONTENT_LENGTH;
+        const MAX_CONTENT_LENGTH = scriptAnalysisMaxContentLength;
         const trimmedContent = scriptContent.trim();
         if (!trimmedContent) {
             setAnalysisError("请输入脚本内容");
@@ -1223,7 +1231,7 @@ export function ScanPage({
             }
             abortControllerRef.current = new AbortController();
             const signal = abortControllerRef.current.signal;
-            const CHUNK_SIZE = SCRIPT_ANALYSIS_CONFIG.CHUNK_SIZE;
+            const CHUNK_SIZE = scriptAnalysisChunkSize;
             const isLargeContent = trimmedContent.length > CHUNK_SIZE;
             let result: ScriptAnalysisResult;
             if (isLargeContent) {
@@ -1371,7 +1379,7 @@ export function ScanPage({
                 setAnalysisProgress(null);
             }
         }
-    }, [scriptContent, isAnalyzing, handleAnalysisError, submit]);
+    }, [scriptContent, isAnalyzing, handleAnalysisError, submit, scriptAnalysisMaxContentLength, scriptAnalysisChunkSize]);
     const isSavingAnalysis = saveAnalysisFetcher.state === "submitting";
     const handleSaveAnalysis = useCallback(() => {
         if (!analysisResult) return;
@@ -1622,8 +1630,8 @@ export function ScanPage({
           Shopify API 结果是分页的。本扫描会自动迭代页面，但为了性能会在以下阈值停止并提示：
         </Text>
         <List type="bullet">
-          <List.Item>ScriptTags 最多处理 {SCANNER_CONFIG.MAX_SCRIPT_TAGS.toLocaleString()} 条记录</List.Item>
-          <List.Item>Web Pixel 最多处理 {SCANNER_CONFIG.MAX_WEB_PIXELS.toLocaleString()} 条记录</List.Item>
+          <List.Item>ScriptTags 最多处理 {scannerMaxScriptTags.toLocaleString()} 条记录</List.Item>
+          <List.Item>Web Pixel 最多处理 {scannerMaxWebPixels.toLocaleString()} 条记录</List.Item>
         </List>
         <Text as="p" tone="subdued">
           如果商店超过以上数量，请在「手动分析」中粘贴剩余脚本，或联系支持获取完整导出（当前上限可调整，请联系我们）。

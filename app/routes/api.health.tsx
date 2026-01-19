@@ -2,7 +2,7 @@ import type { LoaderFunctionArgs } from "@remix-run/node";
 import { timingSafeEqual } from "crypto";
 import prisma from "../db.server";
 import { logger } from "../utils/logger.server";
-import { MONITORING_CONFIG, isStrictSecurityMode } from "../utils/config";
+import { MONITORING_CONFIG, isStrictSecurityMode } from "../utils/config.server";
 import { jsonApi } from "../utils/security-headers";
 
 interface BasicHealthStatus {

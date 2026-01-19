@@ -5,7 +5,7 @@ import { createReadableStreamFromReadable, type EntryContext, } from "@remix-run
 import { isbot } from "isbot";
 import { addDocumentResponseHeaders } from "./shopify.server";
 import { ensureSecretsValid, enforceSecurityChecks } from "./utils/secrets";
-import { validateConfig, logConfigStatus, API_CONFIG } from "./utils/config";
+import { validateConfig, logConfigStatus, API_CONFIG } from "./utils/config.server";
 import { logger } from "./utils/logger.server";
 import { EMBEDDED_APP_HEADERS, addSecurityHeadersToHeaders, validateSecurityHeaders, } from "./utils/security-headers";
 import { RedisClientFactory } from "./utils/redis-client";

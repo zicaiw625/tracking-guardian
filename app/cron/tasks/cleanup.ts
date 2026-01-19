@@ -3,7 +3,7 @@ import { logger } from "../../utils/logger.server";
 import { cleanupExpiredDrafts } from "../../services/migration-draft.server";
 import { WebhookStatus, GDPRJobStatus, JobStatus } from "../../types/enums";
 import { processShopRedact } from "../../services/gdpr/handlers/shop-redact";
-import { RETENTION_CONFIG } from "../../utils/config";
+import { RETENTION_CONFIG } from "../../utils/config.server";
 
 const EVENT_NONCE_EXPIRY_HOURS = RETENTION_CONFIG.NONCE_EXPIRY_MS / (60 * 60 * 1000);
 const GDPR_JOB_RETENTION_DAYS = 90;

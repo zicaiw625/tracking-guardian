@@ -2,7 +2,7 @@ import type { RiskItem, RiskSeverity } from "../../types";
 import type { ScriptAnalysisResult } from "./types";
 import { PLATFORM_PATTERNS, getPatternType } from "./patterns";
 import { calculateRiskScore } from "./risk-assessment";
-import { SCRIPT_ANALYSIS_CONFIG } from "../../utils/config";
+import { SCRIPT_ANALYSIS_CONFIG } from "../../utils/config.shared";
 import { sanitizeSensitiveInfo } from "../../utils/security";
 
 const MAX_CONTENT_LENGTH = SCRIPT_ANALYSIS_CONFIG.MAX_CONTENT_LENGTH;

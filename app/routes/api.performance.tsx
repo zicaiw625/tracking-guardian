@@ -3,7 +3,7 @@ import { json } from "@remix-run/node";
 import { timingSafeEqual } from "crypto";
 import { logger } from "../utils/logger.server";
 import { optionsResponse, jsonWithCors } from "../utils/cors";
-import { API_CONFIG } from "../utils/config";
+import { API_CONFIG } from "../utils/config.server";
 import { readJsonWithSizeLimit } from "../utils/body-size-guard";
 import { withRateLimit, ipKeyExtractor, type RateLimitedHandler } from "../middleware/rate-limit";
 

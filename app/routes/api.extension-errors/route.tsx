@@ -6,7 +6,7 @@ import { checkRateLimitAsync } from "../../middleware/rate-limit";
 import prisma from "../../db.server";
 import { authenticatePublic, normalizeDestToShopDomain, handlePublicPreflight, addSecurityHeaders } from "../../utils/public-auth";
 import { sanitizeSensitiveInfo } from "../../utils/security";
-import { API_CONFIG } from "../../utils/config";
+import { API_CONFIG } from "../../utils/config.server";
 import { readJsonWithSizeLimit } from "../../utils/body-size-guard";
 
 export const action = async ({ request }: ActionFunctionArgs) => {
@@ -14,7 +14,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     return handlePublicPreflight(request);
   }
   if (request.method !== "POST") {
-    return json({ error: "Method not allowed" }, { status: 405 });
+    return addSecurityHeaders(json({ error: "Method not allowed" }, { status: 405 }));
   }
   let authResult;
   try {

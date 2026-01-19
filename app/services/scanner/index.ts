@@ -17,7 +17,7 @@ import { detectRisksInContent } from "./risk-detector.server";
 import { refreshTypOspStatus } from "../checkout-profile.server";
 import { logger } from "../../utils/logger.server";
 import type { Prisma } from "@prisma/client";
-import { SCANNER_CONFIG } from "../../utils/config";
+import { SCANNER_CONFIG } from "../../utils/config.server";
 import {
     batchCreateAuditAssets,
     type AuditAssetInput

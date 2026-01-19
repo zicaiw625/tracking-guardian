@@ -3,7 +3,7 @@ import { json } from "@remix-run/node";
 import { logger } from "../../utils/logger.server";
 import prisma from "../../db.server";
 import { getUiModuleConfigs, canUseModule, getDefaultSettings } from "../../services/ui-extension.server";
-import { PCD_CONFIG } from "../../utils/config";
+import { PCD_CONFIG } from "../../utils/config.server";
 import { authenticatePublic, normalizeDestToShopDomain, handlePublicPreflight, addSecurityHeaders } from "../../utils/public-auth";
 import { sanitizeUrl } from "../../utils/security";
 

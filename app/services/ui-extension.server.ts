@@ -149,7 +149,7 @@ export async function canUseModule(shopId: string, moduleKey: ModuleKey): Promis
 }> {
   const moduleInfo = UI_MODULES[moduleKey];
   if (moduleKey === "reorder") {
-    const { PCD_CONFIG } = await import("../utils/config");
+    const { PCD_CONFIG } = await import("../utils/config.server");
     if (!PCD_CONFIG.APPROVED) {
       return {
         allowed: false,
@@ -331,7 +331,7 @@ export async function updateUiModuleConfig(
     }
     if (config.isEnabled !== undefined) {
       if (moduleKey === "reorder" && config.isEnabled) {
-        const { PCD_CONFIG } = await import("../utils/config");
+        const { PCD_CONFIG } = await import("../utils/config.server");
         if (!PCD_CONFIG.APPROVED) {
           return {
             success: false,

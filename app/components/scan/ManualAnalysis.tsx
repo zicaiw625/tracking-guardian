@@ -20,7 +20,6 @@ import type { ScriptAnalysisResult } from "../../services/scanner.server";
 import { getSeverityBadge, getPlatformName } from "./utils";
 import { DEPRECATION_DATES, formatDeadlineDate } from "../../utils/migration-deadlines";
 import { AnalysisResultSummary } from "./AnalysisResultSummary";
-import { SCRIPT_ANALYSIS_CONFIG } from "../../utils/config";
 
 interface DeprecationInfo {
   badge: { text: string };
@@ -31,9 +30,10 @@ interface ManualAnalysisProps {
   deprecationStatus?: {
     additionalScripts: DeprecationInfo;
   } | null;
+  scriptAnalysisMaxContentLength?: number;
 }
 
-export function ManualAnalysis({ deprecationStatus }: ManualAnalysisProps) {
+export function ManualAnalysis({ deprecationStatus, scriptAnalysisMaxContentLength = 500000 }: ManualAnalysisProps) {
   const [scriptContent, setScriptContent] = useState("");
   const [analysisResult, setAnalysisResult] = useState<ScriptAnalysisResult | null>(null);
   const [analysisError, setAnalysisError] = useState<string | null>(null);
@@ -46,7 +46,7 @@ export function ManualAnalysis({ deprecationStatus }: ManualAnalysisProps) {
     };
   }, []);
   const handleAnalyzeScript = useCallback(async () => {
-    const MAX_CONTENT_LENGTH = SCRIPT_ANALYSIS_CONFIG.MAX_CONTENT_LENGTH;
+    const MAX_CONTENT_LENGTH = scriptAnalysisMaxContentLength;
     const trimmedContent = scriptContent.trim();
     if (!trimmedContent) {
       setAnalysisError("请输入脚本内容");
@@ -83,7 +83,7 @@ export function ManualAnalysis({ deprecationStatus }: ManualAnalysisProps) {
         setIsAnalyzing(false);
       }
     }
-  }, [scriptContent]);
+  }, [scriptContent, scriptAnalysisMaxContentLength]);
   return (
     <BlockStack gap="500">
       <Box paddingBlockStart="400">

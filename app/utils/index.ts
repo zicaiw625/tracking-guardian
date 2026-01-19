@@ -106,7 +106,7 @@ export {
   isFeatureEnabled,
   getEnabledFeatures,
   type ConfigValidationResult,
-} from "./config";
+} from "./config.server";
 
 export {
   DEPRECATION_DATES,
@@ -435,7 +435,7 @@ export {
 
 export {
   verifyShopifyJwt,
-} from "./shopify-jwt";
+} from "./shopify-jwt.server";
 
 export {
   verifyReceiptTrust,

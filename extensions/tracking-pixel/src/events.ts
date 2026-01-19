@@ -268,6 +268,20 @@ export function createEventSender(config: EventSenderConfig) {
       `analytics=${consentManager.analyticsAllowed}, marketing=${consentManager.marketingAllowed}, saleOfData=${consentManager.saleOfDataAllowed}`
     );
     try {
+      if (eventName === "checkout_completed") {
+        if (eventQueue.length > 0) {
+          await flushQueue(true);
+        }
+        const { timestamp, nonce } = generateNonce();
+        eventQueue.push({
+          eventName,
+          data,
+          timestamp,
+          nonce,
+        });
+        await flushQueue(true);
+        return;
+      }
       const { timestamp, nonce } = generateNonce();
       eventQueue.push({
         eventName,

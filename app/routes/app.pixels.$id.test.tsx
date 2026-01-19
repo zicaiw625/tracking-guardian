@@ -22,7 +22,7 @@ import { authenticate } from "~/shopify.server";
 import prisma from "~/db.server";
 import { validateTestEnvironment } from "~/services/migration-wizard.server";
 import { normalizePlanId, planSupportsFeature } from "~/services/billing/plans";
-import { getPixelEventIngestionUrl } from "~/utils/config";
+import { getPixelEventIngestionUrl } from "~/utils/config.server";
 
 const RealtimeEventMonitor = lazy(() => import("~/components/verification/RealtimeEventMonitor").then(module => ({
   default: module.RealtimeEventMonitor,

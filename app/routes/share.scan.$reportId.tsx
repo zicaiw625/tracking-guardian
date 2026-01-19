@@ -1,7 +1,7 @@
 import type { LoaderFunctionArgs } from "@remix-run/node";
 import { json } from "@remix-run/node";
 import { useLoaderData } from "@remix-run/react";
-import { createHash, timingSafeEqual } from "crypto";
+import { createHash } from "crypto";
 import prisma from "../db.server";
 import { logger } from "../utils/logger.server";
 import {
@@ -21,6 +21,7 @@ import type { RiskItem } from "../types";
 import { validateRiskItemsArray, validateStringArray } from "../utils/scan-data-validation";
 import { PUBLIC_PAGE_HEADERS, addSecurityHeadersToHeaders } from "../utils/security-headers";
 import { checkRateLimitAsync, ipKeyExtractor } from "../middleware/rate-limit";
+import { timingSafeEqualHex } from "../utils/timing-safe.server";
 
 const publicJson = (data: unknown, init: ResponseInit = {}) => {
   const headers = new Headers(init.headers);
@@ -99,15 +100,8 @@ export const loader = async ({ request, params }: LoaderFunctionArgs) => {
     const expectedTokenHash = createHash("sha256")
       .update(`${scanReport.id}-${scanReport.shopId}-${token}`)
       .digest("hex");
-    
-    const expectedBuffer = Buffer.from(expectedTokenHash, "hex");
-    const actualBuffer = Buffer.from(scanReport.shareTokenHash, "hex");
-    
-    if (expectedBuffer.length !== actualBuffer.length) {
-      return publicJson({ error: "Invalid share token", report: null }, { status: 403 });
-    }
-    
-    if (!timingSafeEqual(expectedBuffer, actualBuffer)) {
+
+    if (!timingSafeEqualHex(expectedTokenHash, scanReport.shareTokenHash)) {
       return publicJson({ error: "Invalid share token", report: null }, { status: 403 });
     }
 
@@ -128,6 +122,7 @@ export const loader = async ({ request, params }: LoaderFunctionArgs) => {
         status: scanReport.status,
         createdAt: scanReport.createdAt.toISOString(),
         completedAt: scanReport.completedAt?.toISOString() || null,
+        expiresAt: scanReport.shareTokenExpiresAt?.toISOString() ?? null,
       },
     });
   } catch (error) {
@@ -153,6 +148,7 @@ type ShareScanReport = {
   status: string;
   createdAt: string;
   completedAt: string | null;
+  expiresAt: string | null;
 };
 type ShareScanLoaderData = { report: ShareScanReport } | { report: null; error: string };
 
@@ -183,7 +179,10 @@ export default function SharedScanReport() {
       <BlockStack gap="500">
         <Banner tone="info" title="这是一个只读的分享报告">
           <Text as="p" variant="bodySm">
-            此报告由 {report.shopDomain} 分享，链接将在7天后过期。
+            此报告由 {report.shopDomain} 分享
+            {report.expiresAt
+              ? `，链接将于 ${new Date(report.expiresAt).toLocaleDateString("zh-CN")} 过期`
+              : "，链接将过期。"}
           </Text>
         </Banner>
 

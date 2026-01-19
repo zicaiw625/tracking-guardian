@@ -36,4 +36,4 @@ export {
   verifyShopifyJwt,
   extractAuthToken,
   getShopifyApiSecret,
-} from "../../utils/shopify-jwt";
+} from "../../utils/shopify-jwt.server";
