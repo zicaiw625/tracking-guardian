@@ -88,6 +88,20 @@ function isPrivateIPv4(ip: string): boolean {
   return false;
 }
 
+function isAlternativeIpHostname(hostname: string): boolean {
+  const h = hostname.toLowerCase();
+  if (/^\d+$/.test(h)) return true;
+  if (/^0x[0-9a-f]+$/.test(h)) return true;
+  if (/^0[0-7]+$/.test(h)) return true;
+  if (/^127\.\d{1,3}$/.test(h)) return true;
+  if (/^10\.\d{1,3}$/.test(h)) return true;
+  for (const seg of h.split('.')) {
+    if (/^0x[0-9a-f]+$/.test(seg)) return true;
+    if (/^0[0-7]+$/.test(seg)) return true;
+  }
+  return false;
+}
+
 function isWebhookCredentials(creds: PlatformCredentials): creds is WebhookCredentials {
   return (
     "endpointUrl" in creds &&
@@ -145,6 +159,9 @@ function validateEndpointUrl(url: string): { valid: boolean; error?: string } {
       if (protocol !== 'https:') {
         return { valid: false, error: 'Endpoint URL must use HTTPS in production' };
       }
+      if (parsed.port !== '' && parsed.port !== '443') {
+        return { valid: false, error: 'Only port 443 is allowed for HTTPS in production' };
+      }
       for (const pattern of FORBIDDEN_PATTERNS_PRODUCTION) {
         if (pattern.test(url)) {
           return { valid: false, error: 'Endpoint URL points to a private/local network (not allowed in production)' };
@@ -189,7 +206,11 @@ function validateEndpointUrl(url: string): { valid: boolean; error?: string } {
       }
       return { valid: false, error: 'IPv6 addresses are not allowed; use domain names instead' };
     }
-    
+
+    if (isAlternativeIpHostname(hostname)) {
+      return { valid: false, error: 'Hostname format not allowed (alternative IP representation)' };
+    }
+
     return { valid: true };
   } catch {
     return { valid: false, error: 'Invalid URL format' };

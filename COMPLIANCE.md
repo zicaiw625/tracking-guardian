@@ -17,7 +17,7 @@ Tracking Guardian 是一个 Shopify 应用，作为**数据处理者**（Data Pr
 ### `read_script_tags`
 - **用途**: 扫描店铺中已安装的第三方追踪脚本，帮助商家识别和审计追踪代码
 - **数据处理**: 仅读取脚本标签的 URL 和内容，不存储完整的脚本内容
-- **保留周期**: 扫描结果保留 30 天
+- **保留周期**: 扫描结果按店铺 dataRetentionDays（默认 90 天）
 
 ### `read_pixels` / `write_pixels`
 - **用途**: 
@@ -39,7 +39,7 @@ Tracking Guardian 是一个 Shopify 应用，作为**数据处理者**（Data Pr
 - **数据处理**: 
   - **不收集**: 客户姓名、邮箱、电话、地址、支付信息
   - **仅收集**: 订单 ID、订单号、金额、货币、商品信息（名称、数量、价格、SKU）、结账令牌（已哈希）
-- **保留周期**: 订单元数据保留 30 天
+- **保留周期**: 按店铺 dataRetentionDays（默认 90 天）
 
 ---
 
@@ -122,6 +122,7 @@ Tracking Guardian 是一个 Shopify 应用，作为**数据处理者**（Data Pr
 - **处理**: 
   - `CUSTOMERS_DATA_REQUEST`: 导出客户相关数据（JSON 格式）
   - `CUSTOMERS_REDACT`: 删除客户相关数据（订单、事件、日志）
+  - 数据导出中的像素事件收据（pixelEventReceipts）采用最小字段集；若未存储同意状态或可信标记，则 `consentState`、`isTrusted` 不会在导出中提供
 - **时间**: 收到请求后 30 天内完成
 
 ### 3. 店铺数据删除请求

@@ -29,6 +29,9 @@ export function withPlanGate(config: PlanGateConfig): Middleware {
       const gateResult = checkFeatureAccess(planId, config.feature);
       if (!gateResult.allowed) {
         if (config.redirectTo) {
+          if (!config.redirectTo.startsWith("/")) {
+            throw new Error("redirectTo must be a relative path");
+          }
           const redirectUrl = new URL(config.redirectTo, request.url).toString();
           return { continue: false, response: redirect(redirectUrl) };
         }
