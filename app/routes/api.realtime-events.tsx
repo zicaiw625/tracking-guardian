@@ -1,4 +1,5 @@
 import type { LoaderFunctionArgs } from "@remix-run/node";
+import type { Prisma } from "@prisma/client";
 import { authenticate } from "../shopify.server";
 import prisma from "../db.server";
 import { logger } from "../utils/logger.server";
@@ -65,27 +66,34 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
           try {
             const now = Date.now();
             const timeWindowStart = new Date(now - 60000);
-            let minCreatedAt: Date = timeWindowStart;
-            
+            let whereClause: Prisma.PixelEventReceiptWhereInput;
             if (lastEventId) {
               const lastEvent = await prisma.pixelEventReceipt.findUnique({
                 where: { id: lastEventId },
                 select: { createdAt: true },
               });
               if (lastEvent) {
-                minCreatedAt = lastEvent.createdAt > timeWindowStart ? lastEvent.createdAt : timeWindowStart;
+                whereClause = {
+                  shopId: shop.id,
+                  AND: [
+                    { createdAt: { gt: timeWindowStart } },
+                    {
+                      OR: [
+                        { createdAt: { gt: lastEvent.createdAt } },
+                        { createdAt: { equals: lastEvent.createdAt }, id: { gt: lastEventId } },
+                      ],
+                    },
+                  ],
+                };
               } else {
                 lastEventId = null;
+                whereClause = { shopId: shop.id, createdAt: { gt: timeWindowStart } };
               }
+            } else {
+              whereClause = { shopId: shop.id, createdAt: { gt: timeWindowStart } };
             }
-            
             const recentReceipts = await prisma.pixelEventReceipt.findMany({
-              where: {
-                shopId: shop.id,
-                createdAt: {
-                  gt: minCreatedAt,
-                },
-              },
+              where: whereClause,
               orderBy: { createdAt: "asc" },
               take: 10,
               select: {

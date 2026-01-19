@@ -185,6 +185,9 @@ export function validateConfig(): ConfigValidationResult {
   if (isProduction && process.env.ALLOW_UNSIGNED_PIXEL_EVENTS === "true") {
     errors.push("ALLOW_UNSIGNED_PIXEL_EVENTS cannot be true in production");
   }
+  if (isProduction && process.env.SECURITY_ENFORCEMENT?.toLowerCase().trim() === "relaxed") {
+    errors.push("SECURITY_ENFORCEMENT cannot be 'relaxed' in production");
+  }
   if (isProduction) {
     const pixelAllowNullOrigin = process.env.PIXEL_ALLOW_NULL_ORIGIN;
     if (pixelAllowNullOrigin === undefined || pixelAllowNullOrigin === "") {

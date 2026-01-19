@@ -89,7 +89,10 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
               select: { createdAt: true },
             });
             if (lastEvent) {
-              whereClause.createdAt = { gt: lastEvent.createdAt };
+              whereClause.OR = [
+                { createdAt: { gt: lastEvent.createdAt } },
+                { createdAt: { equals: lastEvent.createdAt }, id: { gt: lastEventId } },
+              ];
             }
           }
           if (runId) {
@@ -137,7 +140,6 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
           }> = [];
           const newEvents: typeof events = [];
           for (const receipt of pixelReceipts) {
-            if (lastEventId && receipt.id === lastEventId) continue;
             const orderId = receipt.orderKey || "";
             const payload = receipt.payloadJson as Record<string, unknown> | null;
             const platform = extractPlatformFromPayload(payload);

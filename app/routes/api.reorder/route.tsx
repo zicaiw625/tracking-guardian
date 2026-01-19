@@ -240,6 +240,7 @@ async function loaderImpl(request: Request) {
       logger.warn(`Failed to create admin client for shop ${shopDomain}`);
       return addSecurityHeaders(authResult.cors(json({ error: "Failed to authenticate admin" }, { status: 401 })));
     }
+    const gidOrderId = /^\d+$/.test(orderId) ? `gid://shopify/Order/${orderId}` : orderId;
     let orderResponse: Response;
     try {
       orderResponse = await admin.graphql(`
@@ -263,7 +264,7 @@ async function loaderImpl(request: Request) {
         }
       `, {
         variables: {
-          id: orderId,
+          id: gidOrderId,
         },
       });
     } catch (graphqlError) {
