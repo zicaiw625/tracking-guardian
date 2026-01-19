@@ -14,6 +14,7 @@ import {
   validatePixelOriginPreBody,
   validatePixelOriginForShop,
   buildShopAllowedDomains,
+  trackNullOriginRequest,
 } from "~/utils/origin-validation";
 import {
   generateEventIdForType,
@@ -117,6 +118,9 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       });
       return jsonWithCors({ error: "Invalid origin" }, { status: 403, request });
     }
+  }
+  if (isNullOrigin) {
+    trackNullOriginRequest();
   }
   const timestampHeader = request.headers.get("X-Tracking-Guardian-Timestamp");
   const shopDomainHeader = request.headers.get("x-shopify-shop-domain") || "unknown";

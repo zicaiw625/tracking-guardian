@@ -407,6 +407,7 @@ export function SecurityTab({
                     <strong>必须执行的措施：</strong>
                     <br />• <strong>定期轮换 ingestionKey</strong>（建议每 90 天，使用上方"更换令牌"按钮）
                     <br />• <strong>监控异常事件接收模式</strong>（在 Dashboard 中查看事件统计，特别关注 null origin 请求）
+                    <br />• null origin 请求量异常飙升时会在日志中记录 <code>[SECURITY] Null origin request spike</code>，请关注监控与日志
                     <br />• <strong>如果怀疑滥用，立即更换令牌</strong>并检查事件日志，审查访问记录
                     <br />• <strong>确保生产环境已正确设置</strong> <code>PIXEL_ALLOW_NULL_ORIGIN=true</code>（部署时检查环境变量）
                     <br />• <strong>使用令牌轮换机制</strong>（更换后旧令牌有 30 分钟过渡期，确保平滑过渡）

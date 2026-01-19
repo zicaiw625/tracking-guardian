@@ -71,6 +71,8 @@ services:
       # Proxy Configuration (REQUIRED for rate limiting in production)
       - key: TRUST_PROXY
         value: "true"  # 必须设置为 true，用于正确的 IP 限流（防止自 DoS）
+      # 可选：RATE_LIMIT_TRUSTED_IP_HEADERS。生产建议设为平台可信的 IP 头（如 Cloudflare 用 cf-connecting-ip），未设置则使用默认顺序。
+      # 勿在 staging/production 设置 LOCAL_DEV=true；否则启动时报错，且可能影响 cron 鉴权。
       # PCD (Protected Customer Data) 配置
       # 重要：仅在获得 Shopify PCD 批准后设为 true
       # 默认 false 表示 PII 增强匹配功能禁用

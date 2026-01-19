@@ -203,6 +203,16 @@ export function checkSecurityViolations(): SecurityViolation[] {
                       "Configure REDIS_URL to proceed. For single-instance only, you may set ALLOW_MEMORY_REDIS_IN_PROD=true to use in-memory (not recommended for multi-instance).",
             });
         }
+        if (process.env.LOCAL_DEV === "true" || process.env.LOCAL_DEV === "1") {
+            violations.push({
+                type: "fatal",
+                code: "LOCAL_DEV_FORBIDDEN_IN_PRODUCTION",
+                message: "[SECURITY] LOCAL_DEV=true or LOCAL_DEV=1 is set in production. " +
+                    "LOCAL_DEV must not be used in production or staging. " +
+                    "It can allow unauthenticated cron access when CRON_SECRET is missing. " +
+                    "Remove LOCAL_DEV from production and staging environment variables.",
+            });
+        }
     }
     const suspiciousPatterns = [
         /^(test|demo|example|placeholder|changeme|secret|password|xxx+|000+)$/i,

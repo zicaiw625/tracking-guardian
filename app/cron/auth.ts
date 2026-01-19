@@ -10,7 +10,7 @@ export function validateCronAuth(request: Request): Response | null {
   const cronSecretPrevious = process.env.CRON_SECRET_PREVIOUS || "";
 
   if (!cronSecret) {
-    if (process.env.LOCAL_DEV === "true") {
+    if (process.env.LOCAL_DEV === "true" && process.env.NODE_ENV !== "production") {
       logger.warn("CRON_SECRET not configured (LOCAL_DEV=true) - allowing unauthenticated access");
       return null;
     }

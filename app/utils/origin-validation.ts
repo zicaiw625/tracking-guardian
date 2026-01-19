@@ -78,6 +78,11 @@ const rejectedOrigins = new Map<string, RejectedOriginTracker>();
 const TRACKING_WINDOW_MS = 60 * 60 * 1000;
 const ALERT_THRESHOLD = 10;
 
+const NULL_ORIGIN_ALERT_THRESHOLD = 500;
+const NULL_ORIGIN_WINDOW_MS = 60 * 60 * 1000;
+let nullOriginCount = 0;
+let nullOriginWindowStart = 0;
+
 const MAX_TRACKED_ORIGINS = 10000;
 export function isDevMode(): boolean {
     const nodeEnv = process.env.NODE_ENV;
@@ -103,12 +108,20 @@ export function validatePixelOriginPreBody(origin: string | null, hasSignatureHe
     const isProduction = !devMode;
     
     if (origin === "null") {
-        if (devMode || allowNullOrigin) {
+        if (devMode) {
             return {
                 valid: true,
                 reason: "null_origin_allowed",
                 shouldLog: false,
                 shouldReject: false,
+            };
+        }
+        if (allowNullOrigin && !hasSignatureHeaderOrHMAC) {
+            return {
+                valid: false,
+                reason: "null_origin_blocked",
+                shouldLog: true,
+                shouldReject: true,
             };
         }
         if (hasSignatureHeaderOrHMAC) {
@@ -126,15 +139,23 @@ export function validatePixelOriginPreBody(origin: string | null, hasSignatureHe
             shouldReject: true,
         };
     }
-    
+
     if (origin === null) {
         if (!originHeaderPresent) {
-            if (devMode || allowNullOrigin) {
+            if (devMode) {
                 return {
                     valid: true,
                     reason: "missing_origin_allowed",
                     shouldLog: false,
                     shouldReject: false,
+                };
+            }
+            if (allowNullOrigin && !hasSignatureHeaderOrHMAC) {
+                return {
+                    valid: false,
+                    reason: "missing_origin",
+                    shouldLog: true,
+                    shouldReject: true,
                 };
             }
             if (hasSignatureHeaderOrHMAC) {
@@ -152,12 +173,20 @@ export function validatePixelOriginPreBody(origin: string | null, hasSignatureHe
                 shouldReject: true,
             };
         }
-        if (devMode || allowNullOrigin) {
+        if (devMode) {
             return {
                 valid: true,
                 reason: "null_origin_allowed",
                 shouldLog: false,
                 shouldReject: false,
+            };
+        }
+        if (allowNullOrigin && !hasSignatureHeaderOrHMAC) {
+            return {
+                valid: false,
+                reason: "null_origin_blocked",
+                shouldLog: true,
+                shouldReject: true,
             };
         }
         if (hasSignatureHeaderOrHMAC) {
@@ -260,11 +289,18 @@ export function validatePixelOriginForShop(
         }
     }
     if (effectiveOrigin === "null" || effectiveOrigin === null) {
-        if (devMode || allowNullOrigin) {
+        if (devMode) {
             return {
                 valid: true,
                 reason: "null_origin_allowed",
                 shouldReject: false,
+            };
+        }
+        if (allowNullOrigin && !hasSignatureHeaderOrHMAC) {
+            return {
+                valid: false,
+                reason: "null_origin_blocked",
+                shouldReject: true,
             };
         }
         if (hasSignatureHeaderOrHMAC) {
@@ -495,6 +531,25 @@ function evictOldestEntries(count: number): void {
         logger.info(`[Origin Tracking] Evicted ${toRemove.length} stale entries (size limit: ${MAX_TRACKED_ORIGINS})`);
     }
 }
+
+export function trackNullOriginRequest(shopDomain?: string): void {
+    const now = Date.now();
+    if (now - nullOriginWindowStart > NULL_ORIGIN_WINDOW_MS) {
+        nullOriginCount = 0;
+        nullOriginWindowStart = now;
+    }
+    nullOriginCount++;
+    if (nullOriginCount >= NULL_ORIGIN_ALERT_THRESHOLD) {
+        logger.warn("[SECURITY] Null origin request spike", {
+            count: nullOriginCount,
+            windowMs: NULL_ORIGIN_WINDOW_MS,
+            shopDomain: shopDomain ?? undefined,
+        });
+        nullOriginCount = 0;
+        nullOriginWindowStart = now;
+    }
+}
+
 function sanitizeOriginForLogging(origin: string): string {
     try {
         const url = new URL(origin);

@@ -248,7 +248,7 @@ class DistributedRateLimitStore {
 
 const rateLimitStore = new DistributedRateLimitStore();
 
-const DEFAULT_TRUSTED_IP_HEADERS = ["x-forwarded-for", "x-real-ip", "cf-connecting-ip"];
+const DEFAULT_TRUSTED_IP_HEADERS = ["cf-connecting-ip", "x-real-ip", "x-forwarded-for"];
 const DEVELOPMENT_IP_HEADERS = ["cf-connecting-ip", "x-real-ip", "x-forwarded-for"];
 let trustedProxyValidated = false;
 function enforceTrustedProxy(): void {
@@ -278,7 +278,7 @@ function resolveIpFromHeader(headers: Headers, headerName: string): string | nul
     return null;
   }
   if (headerName === "x-forwarded-for") {
-    return value.split(",")[0]?.trim() || null;
+    return value.split(",").map(s => s.trim()).filter(Boolean).pop() || null;
   }
   return value;
 }

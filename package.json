@@ -53,8 +53,6 @@
     "@shopify/shopify-api": "^11.0.0",
     "@shopify/shopify-app-remix": "^3.3.0",
     "@shopify/shopify-app-session-storage-prisma": "^5.2.0",
-    "@types/archiver": "^7.0.0",
-    "archiver": "^7.0.1",
     "chart.js": "^4.4.1",
     "isbot": "^5.1.2",
     "jose": "^6.1.3",

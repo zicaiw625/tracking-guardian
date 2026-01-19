@@ -69,7 +69,7 @@ export default defineConfig({
     assetsInlineLimit: 4096,
     sourcemap: process.env.NODE_ENV !== "production",
     rollupOptions: {
-      external: ["html-pdf-node", "archiver"],
+      external: ["html-pdf-node"],
       onwarn(warning, warn) {
         if (
           warning.code === "INCONSISTENT_IMPORT_ATTRIBUTES" &&
@@ -107,6 +107,6 @@ export default defineConfig({
       "react-chartjs-2",
       "chart.js",
     ],
-    external: ["html-pdf-node", "archiver"],
+    external: ["html-pdf-node"],
   },
 }) satisfies UserConfig;

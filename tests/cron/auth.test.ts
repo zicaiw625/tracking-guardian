@@ -71,9 +71,10 @@ describe("Cron Authentication", () => {
       expect(result).toBeInstanceOf(Response);
       expect(result?.status).toBe(401);
     });
-    it("should allow unauthenticated access in development when CRON_SECRET not set", () => {
+    it("should allow unauthenticated access in development when CRON_SECRET not set and LOCAL_DEV=true", () => {
       process.env.CRON_SECRET = "";
       process.env.NODE_ENV = "development";
+      process.env.LOCAL_DEV = "true";
       const request = createMockRequest("https://example.com/cron");
       const result = validateCronAuth(request);
       expect(result).toBeNull();
@@ -82,6 +83,15 @@ describe("Cron Authentication", () => {
     it("should return 503 when CRON_SECRET not set in production", () => {
       process.env.CRON_SECRET = "";
       process.env.NODE_ENV = "production";
+      const request = createMockRequest("https://example.com/cron");
+      const result = validateCronAuth(request);
+      expect(result).toBeInstanceOf(Response);
+      expect(result?.status).toBe(503);
+    });
+    it("should return 503 when CRON_SECRET not set and LOCAL_DEV=true in production", () => {
+      process.env.CRON_SECRET = "";
+      process.env.NODE_ENV = "production";
+      process.env.LOCAL_DEV = "true";
       const request = createMockRequest("https://example.com/cron");
       const result = validateCronAuth(request);
       expect(result).toBeInstanceOf(Response);
