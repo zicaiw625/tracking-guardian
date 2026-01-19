@@ -1,0 +1,3 @@
+ALTER TABLE "ExtensionError" ADD COLUMN IF NOT EXISTS "orderIdHash" TEXT;
+
+ALTER TABLE "ExtensionError" DROP COLUMN IF EXISTS "orderId";

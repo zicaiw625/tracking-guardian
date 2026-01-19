@@ -8,15 +8,13 @@ const MIN_SECRET_LENGTH = 32;
 export function validateCronAuth(request: Request): Response | null {
   const cronSecret = process.env.CRON_SECRET;
   const cronSecretPrevious = process.env.CRON_SECRET_PREVIOUS || "";
-  const isProd = process.env.NODE_ENV === "production";
-
-  if (!cronSecret && !isProd) {
-    logger.warn("CRON_SECRET not configured (non-prod) - allowing unauthenticated access");
-    return null;
-  }
 
   if (!cronSecret) {
-    logger.error("CRON_SECRET not configured in production - rejecting request");
+    if (process.env.LOCAL_DEV === "true") {
+      logger.warn("CRON_SECRET not configured (LOCAL_DEV=true) - allowing unauthenticated access");
+      return null;
+    }
+    logger.error("CRON_SECRET not configured - rejecting request");
     return new Response("Service unavailable: CRON_SECRET not configured", { status: 503 });
   }
 

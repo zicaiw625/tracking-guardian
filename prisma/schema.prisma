@@ -288,17 +288,17 @@ model SurveyResponse {
 }
 
 model ExtensionError {
-  id         String   @id
-  shopId     String
-  shopDomain String
-  extension  String
-  endpoint   String
-  error      String
-  stack      String?
-  target     String?
-  orderId    String?
-  createdAt  DateTime @default(now())
-  Shop       Shop     @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  id          String   @id
+  shopId      String
+  shopDomain  String
+  extension   String
+  endpoint    String
+  error       String
+  stack       String?
+  target      String?
+  orderIdHash String?
+  createdAt   DateTime @default(now())
+  Shop        Shop     @relation(fields: [shopId], references: [id], onDelete: Cascade)
 
   @@index([shopId])
   @@index([shopId, createdAt])

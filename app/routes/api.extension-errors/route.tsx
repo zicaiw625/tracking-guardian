@@ -6,8 +6,8 @@ import { checkRateLimitAsync } from "../../middleware/rate-limit";
 import prisma from "../../db.server";
 import { authenticatePublic, normalizeDestToShopDomain, handlePublicPreflight, addSecurityHeaders } from "../../utils/public-auth";
 import { sanitizeSensitiveInfo } from "../../utils/security";
-import { API_CONFIG } from "../../utils/config.server";
 import { readJsonWithSizeLimit } from "../../utils/body-size-guard";
+import { hashValueSync } from "../../utils/crypto.server";
 
 export const action = async ({ request }: ActionFunctionArgs) => {
   if (request.method === "OPTIONS") {
@@ -85,6 +85,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     const truncatedStack = sanitizedStack && sanitizedStack.length > MAX_STACK_LENGTH
       ? sanitizedStack.substring(0, MAX_STACK_LENGTH) + "... [truncated]"
       : sanitizedStack;
+    const orderIdHash = body.orderId ? hashValueSync(body.orderId).slice(0, 32) : null;
     const errorData = {
       shopId: shop.id,
       shopDomain,
@@ -93,7 +94,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       error: truncatedError,
       stack: truncatedStack,
       target: body.target || null,
-      orderId: body.orderId || null,
+      orderIdHash,
       timestamp: body.timestamp ? new Date(body.timestamp) : new Date(),
     };
     const shouldLog = rateLimitResult.remaining > 20 || Math.random() < 0.1;
@@ -105,7 +106,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
           extension: body.extension,
           endpoint: body.endpoint,
           target: body.target,
-          orderId: body.orderId,
+          orderIdHash: orderIdHash?.slice(0, 12) ?? null,
           error: truncatedError.substring(0, 200),
           remaining: rateLimitResult.remaining,
         });
@@ -117,7 +118,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         extension: body.extension,
         endpoint: body.endpoint,
         target: body.target,
-        orderId: body.orderId,
+        orderIdHash: orderIdHash?.slice(0, 12) ?? null,
         error: truncatedError,
         stack: truncatedStack,
       });
@@ -134,7 +135,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
           error: errorData.error,
           stack: errorData.stack,
           target: errorData.target,
-          orderId: errorData.orderId,
+          orderIdHash: errorData.orderIdHash,
           createdAt: errorData.timestamp,
         },
       });

@@ -102,6 +102,9 @@ async function loaderImpl(request: Request) {
     const shopDomain = normalizeDestToShopDomain(authResult.sessionToken.dest);
     const customerId = authResult.sessionToken.sub || "";
     const surface = authResult.surface;
+    if (surface === "checkout" && !checkoutToken) {
+      return addSecurityHeaders(authResult.cors(json({ error: "Order access denied: checkout context requires checkoutToken" }, { status: 403 })));
+    }
     const cacheKey =
       surface === "customer_account"
         ? `tracking:${shopDomain}:${orderId}:cust:${hashValueSync(customerId).slice(0, 16)}`
@@ -210,14 +213,14 @@ async function loaderImpl(request: Request) {
               return addSecurityHeaders(authResult.cors(json({ error: "Order access denied" }, { status: 403 })));
             }
           } else if (authResult.surface === "checkout") {
-            if (!checkoutToken) {
-              logger.warn(`Order access denied: checkout context requires checkoutToken for orderId: ${orderIdHash}, shop: ${shopDomain}`);
-              return addSecurityHeaders(authResult.cors(json({ error: "Order access denied: checkout context requires checkoutToken" }, { status: 403 })));
+            const orderCheckoutToken = fulfillmentData.data?.order?.checkoutToken ?? null;
+            if (!orderCheckoutToken) {
+              logger.warn(`Order access denied: missing order checkoutToken for orderId: ${orderIdHash}, shop: ${shopDomain}`);
+              return addSecurityHeaders(authResult.cors(json({ error: "Order access denied: missing order checkoutToken" }, { status: 403 })));
             }
-            const orderCheckoutToken = fulfillmentData.data.order.checkoutToken || null;
-            if (orderCheckoutToken && orderCheckoutToken !== checkoutToken) {
+            if (orderCheckoutToken !== checkoutToken) {
               logger.warn(`Order access denied: checkoutToken mismatch for orderId: ${orderIdHash}, shop: ${shopDomain}`);
-              return addSecurityHeaders(authResult.cors(json({ error: "Order access denied" }, { status: 403 })));
+              return addSecurityHeaders(authResult.cors(json({ error: "Order access denied: checkoutToken mismatch" }, { status: 403 })));
             }
           }
           if (fulfillmentData.data.order.fulfillments?.edges?.length > 0) {

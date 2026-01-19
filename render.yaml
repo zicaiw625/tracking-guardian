@@ -90,6 +90,12 @@ services:
       # Shopify web pixel / customer events 在沙箱里经常出现 Origin: null
       - key: PIXEL_ALLOW_NULL_ORIGIN
         value: "true"  # 允许 Origin: null 的像素请求（Shopify Web Pixel 常见情况）
+      # REDIS_URL: required in production (secrets startup enforces). Distributed rate limiting and locks. Create Redis on Render or set external redis(s):// URL.
+      - key: REDIS_URL
+        sync: false
+      # SECURITY_ENFORCEMENT: optional. Set "strict" or "relaxed" explicitly in production for audit.
+      - key: SECURITY_ENFORCEMENT
+        sync: false
 
   # P0-1: Cron Job 服务 - 定时任务（Monitoring/清理/GDPR）
   # 注意：Render Blueprint 的 cron job 需要手动设置部分环境变量

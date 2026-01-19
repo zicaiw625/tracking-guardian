@@ -71,60 +71,63 @@ async function sendCheckoutCompletedWithRetry(
   body: string,
   isDevMode: boolean,
   log: (...args: unknown[]) => void,
-  retryIndex: number,
   headers: Record<string, string>,
   startTime: number
 ): Promise<void> {
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
-  try {
-    const response = await fetch(url, {
-      method: "POST",
-      headers: { "Content-Type": "application/json", ...headers },
-      keepalive: true,
-      body,
-      signal: controller.signal,
-    });
-    if (isDevMode) {
-      log(`checkout_completed sent, status: ${response.status}, attempt: ${retryIndex + 1}/${MAX_RETRIES}`);
-    }
-    if (response.ok) {
-      if (isDevMode && retryIndex > 0) {
-        log(`checkout_completed succeeded on retry attempt ${retryIndex + 1}`);
+  for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+    try {
+      const response = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...headers },
+        keepalive: true,
+        body,
+        signal: controller.signal,
+      });
+      if (isDevMode) {
+        log(`checkout_completed sent, status: ${response.status}, attempt: ${attempt + 1}/${MAX_RETRIES}`);
+      }
+      if (response.ok) {
+        if (isDevMode && attempt > 0) {
+          log(`checkout_completed succeeded on retry attempt ${attempt + 1}`);
+        }
+        return;
+      }
+      if (response.status >= 400 && response.status < 500) {
+        if (isDevMode) {
+          log(`checkout_completed client error ${response.status}, not retrying`);
+        }
+        return;
+      }
+      if (attempt < MAX_RETRIES - 1 && Date.now() - startTime <= MAX_TOTAL_RETRY_MS) {
+        const delay = RETRY_DELAYS_MS[attempt + 1];
+        if (isDevMode) {
+          log(`checkout_completed server error ${response.status}, retrying in ${delay}ms (attempt ${attempt + 2}/${MAX_RETRIES})`);
+        }
+        await new Promise(r => setTimeout(r, delay));
+        continue;
+      }
+      if (isDevMode) {
+        log(`checkout_completed failed after ${MAX_RETRIES} attempts with server error ${response.status}`);
       }
       return;
-    }
-    if (response.status >= 400 && response.status < 500) {
+    } catch (error) {
+      if (attempt < MAX_RETRIES - 1 && Date.now() - startTime <= MAX_TOTAL_RETRY_MS) {
+        const delay = RETRY_DELAYS_MS[attempt + 1];
+        if (isDevMode) {
+          log(`checkout_completed network error, retrying in ${delay}ms (attempt ${attempt + 2}/${MAX_RETRIES}):`, error);
+        }
+        await new Promise(r => setTimeout(r, delay));
+        continue;
+      }
       if (isDevMode) {
-        log(`checkout_completed client error ${response.status}, not retrying`);
+        log(`checkout_completed failed after ${MAX_RETRIES} attempts with network error:`, error);
       }
       return;
+    } finally {
+      clearTimeout(timeoutId);
     }
-    if (retryIndex < MAX_RETRIES - 1 && Date.now() - startTime <= MAX_TOTAL_RETRY_MS) {
-      const delay = RETRY_DELAYS_MS[retryIndex + 1];
-      if (isDevMode) {
-        log(`checkout_completed server error ${response.status}, retrying in ${delay}ms (attempt ${retryIndex + 2}/${MAX_RETRIES})`);
-      }
-      setTimeout(() => {
-        sendCheckoutCompletedWithRetry(url, body, isDevMode, log, retryIndex + 1, { ...headers }, startTime);
-      }, delay);
-    } else if (isDevMode) {
-      log(`checkout_completed failed after ${MAX_RETRIES} attempts with server error ${response.status}`);
-    }
-  } catch (error) {
-    if (retryIndex < MAX_RETRIES - 1 && Date.now() - startTime <= MAX_TOTAL_RETRY_MS) {
-      const delay = RETRY_DELAYS_MS[retryIndex + 1];
-      if (isDevMode) {
-        log(`checkout_completed network error, retrying in ${delay}ms (attempt ${retryIndex + 2}/${MAX_RETRIES}):`, error);
-      }
-      setTimeout(() => {
-        sendCheckoutCompletedWithRetry(url, body, isDevMode, log, retryIndex + 1, { ...headers }, startTime);
-      }, delay);
-    } else if (isDevMode) {
-      log(`checkout_completed failed after ${MAX_RETRIES} attempts with network error:`, error);
-    }
-  } finally {
-    clearTimeout(timeoutId);
   }
 }
 
@@ -228,7 +231,7 @@ export function createEventSender(config: EventSenderConfig) {
       }
       const hasCheckoutCompleted = eventsToSend.some(e => e.eventName === "checkout_completed");
       if (hasCheckoutCompleted) {
-        sendCheckoutCompletedWithRetry(url, body, isDevMode, log, 0, headers, Date.now());
+        await sendCheckoutCompletedWithRetry(url, body, isDevMode, log, headers, Date.now());
       } else {
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);

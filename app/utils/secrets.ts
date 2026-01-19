@@ -190,6 +190,15 @@ export function checkSecurityViolations(): SecurityViolation[] {
                     "Set TRUST_PROXY=true and configure RATE_LIMIT_TRUSTED_IP_HEADERS if needed.",
             });
         }
+        if (!process.env.REDIS_URL) {
+            violations.push({
+                type: "fatal",
+                code: "REDIS_URL_REQUIRED_IN_PRODUCTION",
+                message: "[SECURITY] REDIS_URL is required in production for distributed rate limiting. " +
+                    "Multi-instance deployments without Redis allow attackers to bypass rate limits by rotating across instances. " +
+                    "Configure REDIS_URL to proceed.",
+            });
+        }
     }
     const suspiciousPatterns = [
         /^(test|demo|example|placeholder|changeme|secret|password|xxx+|000+)$/i,
