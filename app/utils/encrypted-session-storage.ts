@@ -62,6 +62,10 @@ export function createEncryptedSessionStorage(baseStorage: SessionStorage): Sess
                     catch (error) {
                         if (error instanceof TokenDecryptionError) {
                             logger.warn(`[EncryptedSessionStorage] Skipping session with undecryptable token for shop ${shop}`);
+                            const sid = (session as { id?: string }).id;
+                            if (typeof sid === "string") {
+                                await baseStorage.deleteSession(sid);
+                            }
                             continue;
                         }
                         throw error;

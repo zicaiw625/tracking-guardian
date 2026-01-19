@@ -1,7 +1,9 @@
 import { type Shop, type Prisma, type PixelConfig } from "@prisma/client";
-import { BaseRepository, type TransactionClient, type PrismaDelegate } from "./base-repository";
+import { BaseRepository, type TransactionClient, type PrismaDelegate, type QueryOptions } from "./base-repository";
+import { logger } from "../../utils/logger.server";
 import { ok, err, type AsyncResult } from "../../types/result";
 import { AppError, ErrorCode } from "../../utils/errors";
+import { ensureTokenEncrypted } from "../../utils/token-encryption";
 
 export type ShopCreate = Prisma.ShopCreateInput;
 export type ShopUpdate = Prisma.ShopUpdateInput;
@@ -22,6 +24,34 @@ export class ShopRepository extends BaseRepository<Shop, ShopCreate, ShopUpdate>
   protected getDelegate(client?: TransactionClient): PrismaDelegate<Shop> {
     const db = client || this.db;
     return db.shop as unknown as PrismaDelegate<Shop>;
+  }
+  async create(data: ShopCreate, options?: QueryOptions): AsyncResult<Shop, AppError> {
+    const processed = { ...data } as ShopCreate;
+    const at = (data as { accessToken?: string }).accessToken;
+    if (typeof at === "string" && at.length > 0) {
+      (processed as { accessToken?: string }).accessToken = ensureTokenEncrypted(at);
+    }
+    try {
+      const result = await this.getDelegate().create({ data: processed, ...options } as { data: unknown });
+      logger.debug(`${this.modelName} created`, { id: result.id });
+      return ok(result);
+    } catch (error) {
+      return err(this.handleError(error, "create"));
+    }
+  }
+  async update(id: string, data: ShopUpdate, options?: QueryOptions): AsyncResult<Shop, AppError> {
+    let processed: ShopUpdate = data;
+    const at = (data as { accessToken?: string }).accessToken;
+    if (typeof at === "string" && at.length > 0) {
+      processed = { ...data, accessToken: ensureTokenEncrypted(at) } as ShopUpdate;
+    }
+    try {
+      const result = await this.getDelegate().update({ where: { id }, data: processed, ...options } as { where: { id: string }; data: unknown });
+      logger.debug(`${this.modelName} updated`, { id });
+      return ok(result);
+    } catch (error) {
+      return err(this.handleError(error, "update"));
+    }
   }
   async findByDomain(
     shopDomain: string
@@ -87,10 +117,19 @@ export class ShopRepository extends BaseRepository<Shop, ShopCreate, ShopUpdate>
     updateData: ShopUpdate
   ): AsyncResult<Shop, AppError> {
     try {
+      const create: Prisma.ShopCreateInput = { shopDomain, ...createData };
+      if (typeof createData.accessToken === "string" && createData.accessToken.length > 0) {
+        create.accessToken = ensureTokenEncrypted(createData.accessToken);
+      }
+      let update: ShopUpdate = updateData;
+      const ua = (updateData as { accessToken?: string }).accessToken;
+      if (typeof ua === "string" && ua.length > 0) {
+        update = { ...updateData, accessToken: ensureTokenEncrypted(ua) };
+      }
       const result = await this.db.shop.upsert({
         where: { shopDomain },
-        create: { shopDomain, ...createData },
-        update: updateData,
+        create,
+        update,
       });
       return ok(result);
     } catch (error) {

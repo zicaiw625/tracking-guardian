@@ -61,7 +61,7 @@ export function createActionHandler<TInput = unknown, TOutput = unknown>(
         const body = await parseRequestBody(request);
         const validationResult = config.validate(body);
         if (!validationResult.ok) {
-          return handleError(validationResult.error, ctx, config.onError);
+          return addSecurityHeaders(handleError(validationResult.error, ctx, config.onError));
         }
         input = validationResult.value;
       } else {
@@ -69,7 +69,7 @@ export function createActionHandler<TInput = unknown, TOutput = unknown>(
       }
       const result = await config.execute(input, ctx);
       if (!result.ok) {
-        return handleError(result.error, ctx, config.onError);
+        return addSecurityHeaders(handleError(result.error, ctx, config.onError));
       }
       return addSecurityHeaders(json(
         { success: true, data: result.value },
@@ -77,7 +77,7 @@ export function createActionHandler<TInput = unknown, TOutput = unknown>(
       ));
     } catch (error) {
       const appError = ensureAppError(error);
-      return handleError(appError, ctx, config.onError);
+      return addSecurityHeaders(handleError(appError, ctx, config.onError));
     }
   };
 }
@@ -98,20 +98,20 @@ export function createLoaderHandler<TOutput>(
       };
     } catch (error) {
       requestLogger.error("Authentication failed", error);
-      return json(
+      return addSecurityHeaders(json(
         { success: false, error: "Authentication required", code: ErrorCode.AUTH_INVALID_TOKEN },
         { status: 401 }
-      );
+      ));
     }
     try {
       const result = await config.execute(ctx);
       if (!result.ok) {
-        return handleError(result.error, ctx, config.onError);
+        return addSecurityHeaders(handleError(result.error, ctx, config.onError));
       }
-      return json({ success: true, data: result.value });
+      return addSecurityHeaders(json({ success: true, data: result.value }));
     } catch (error) {
       const appError = ensureAppError(error);
-      return handleError(appError, ctx, config.onError);
+      return addSecurityHeaders(handleError(appError, ctx, config.onError));
     }
   };
 }

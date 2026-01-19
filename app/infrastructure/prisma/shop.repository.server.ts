@@ -17,6 +17,7 @@ import type {
   ConsentStrategy,
 } from "../../domain/shop/shop.entity";
 import { generateSimpleId } from "../../utils/helpers";
+import { ensureTokenEncrypted } from "../../utils/token-encryption";
 
 function mapToDomainShop(prismaShop: {
   id: string;
@@ -108,11 +109,15 @@ export class PrismaShopRepository implements IShopRepository {
   }
   async create(data: CreateShopData): AsyncResult<Shop, AppError> {
     try {
+      const rawToken = data.accessToken ?? null;
+      const accessToken = typeof rawToken === "string" && rawToken.length > 0
+        ? ensureTokenEncrypted(rawToken)
+        : rawToken;
       const shop = await this.prisma.shop.create({
         data: {
           id: generateSimpleId("shop"),
           shopDomain: data.shopDomain,
-          accessToken: data.accessToken ?? null,
+          accessToken,
           email: data.email ?? null,
           name: data.name ?? null,
           plan: data.plan ?? "free",
@@ -159,12 +164,16 @@ export class PrismaShopRepository implements IShopRepository {
     updateData: Partial<ShopUpdateData>
   ): AsyncResult<Shop, AppError> {
     try {
+      const rawToken = createData.accessToken ?? null;
+      const createAccessToken = typeof rawToken === "string" && rawToken.length > 0
+        ? ensureTokenEncrypted(rawToken)
+        : rawToken;
       const shop = await this.prisma.shop.upsert({
         where: { shopDomain },
         create: {
           id: generateSimpleId("shop"),
           shopDomain: createData.shopDomain,
-          accessToken: createData.accessToken ?? null,
+          accessToken: createAccessToken,
           email: createData.email ?? null,
           name: createData.name ?? null,
           plan: createData.plan ?? "free",

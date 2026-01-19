@@ -137,8 +137,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
           { status: 400 }
         )));
       }
-      const createdAt = timestamp ? new Date(timestamp) : new Date();
-      if (Number.isNaN(createdAt.getTime())) {
+      if (timestamp != null && timestamp !== "" && Number.isNaN(new Date(timestamp).getTime())) {
         return addSecurityHeaders(authResult.cors(json(
           { error: "Invalid timestamp" },
           { status: 400 }
@@ -151,13 +150,10 @@ export const action = async ({ request }: ActionFunctionArgs) => {
           orderId: finalOrderId,
           feedback: safeOption,
           source: "thank_you_block",
-          createdAt,
+          createdAt: new Date(),
         },
       });
-    logger.info("Survey response received", {
-      shopDomain,
-      timestamp,
-    });
+    logger.info("Survey response received", { shopDomain });
     return addSecurityHeaders(authResult.cors(json(
       { success: true, message: "Survey response recorded" }
     )));

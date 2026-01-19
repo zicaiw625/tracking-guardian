@@ -5,7 +5,7 @@ export const SHOPIFY_PLATFORM_HOSTS = [
     "shopifypreview.com",
 ] as const;
 
-function shouldAllowNullOrigin(): boolean {
+export function shouldAllowNullOrigin(): boolean {
     const v = process.env.PIXEL_ALLOW_NULL_ORIGIN?.toLowerCase().trim();
     if (v === "false" || v === "0") return false;
     if (v === "true" || v === "1") return true;
