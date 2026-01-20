@@ -173,9 +173,6 @@ function ThankYouBlocks() {
           if (response.ok) {
             const state = await response.json();
             setModuleState(state);
-            if (isDevMode()) {
-              console.log("[ThankYouBlocks] Module state loaded:", state);
-            }
           } else {
             const errorText = await response.text().catch(() => `HTTP ${response.status}`);
             const errorMessage = `Failed to fetch module state: ${response.status} ${errorText}`;

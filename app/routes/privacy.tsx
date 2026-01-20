@@ -204,7 +204,7 @@ export default function PrivacyPage() {
             <p>根据客户的同意状态，自动决定是否向特定平台发送数据，确保符合 GDPR/CCPA。</p>
 
             <h3>部分功能与 PCD</h3>
-            <p>部分功能（如订单状态、再购）需访问 Shopify Protected Customer Data (PCD)；仅在应用通过 Shopify PCD 审核后可用，且遵循平台对订单/客户数据的访问与展示限制。</p>
+            <p>订单读取（read_orders）仅用于对账、验收且字段最小化（不取姓名、邮箱、地址）；再购等需 PCD 审批的功能有硬门禁。部分功能（如订单状态、再购）需访问 Shopify Protected Customer Data (PCD)；仅在应用通过 Shopify PCD 审核后可用，且遵循平台对订单/客户数据的访问与展示限制。</p>
           </div>
 
           <div className="section">
@@ -270,9 +270,7 @@ export default function PrivacyPage() {
 
           <div className="section">
             <h2>完整合规文档</h2>
-            <p>
-              更多详细信息，请参阅：<a href="/COMPLIANCE.md">完整合规说明文档 (COMPLIANCE.md)</a>
-            </p>
+            <p>更多说明见应用内「隐私与合规」页。</p>
           </div>
 
           <div className="section">

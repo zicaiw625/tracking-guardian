@@ -79,7 +79,7 @@ Tracking Guardian 是一个 Shopify 应用，作为**数据处理者**（Data Pr
 
 ### Protected Customer Data (PCD) 处理
 
-订单及客户相关信息属于 Shopify 的 Protected Customer Data (PCD)，需通过 Shopify 审核后才能访问；未获批时订单相关信息可能不可用，此为平台合规行为。
+我们不收集终端客户 PII；订单读取仅用于对账验收且字段最小化；再购、订单状态等需 PCD 审批的功能有硬门禁。订单及客户相关信息属于 Shopify 的 Protected Customer Data (PCD)，需通过 Shopify 审核后才能访问；未获批时订单相关信息可能不可用，此为平台合规行为。
 
 本应用包含需要 Shopify PCD 批准的功能（如 Reorder 模块）。这些功能通过 `PCD_APPROVED` 环境变量控制：
 
@@ -252,6 +252,17 @@ Tracking Guardian 是一个 Shopify 应用，作为**数据处理者**（Data Pr
 - ✅ 数据处理透明
 - ✅ PCD 功能硬门禁（未批准时禁用）
 - ✅ Shopify 2025-12-10 起对 Web Pixel PII 访问强制执行 protected scopes 要求，已在文档与产品提示中强调
+
+---
+
+## PCD 申请材料要点
+
+以下内容供在 Partner Dashboard 提交 PCD 申请时填表或附件引用，代码中已有对应实现：
+
+- **数据最小化**：不取姓名、邮箱、电话、地址、支付信息；仅订单 ID、订单号、金额、货币、商品信息（名称、数量、价格、SKU）、结账令牌（已哈希）。
+- **存储与传输**：平台凭证 AES-256-GCM 加密；日志脱敏；TLS 1.2+。
+- **保留期**：由店铺 `dataRetentionDays` 控制，默认 90 天；定时任务自动清理。
+- **门禁**：`PCD_APPROVED` 未批准时，Reorder 等 PCD 功能在 API 层直接返回 403；相关 UI 禁用。
 
 ---
 

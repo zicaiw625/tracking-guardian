@@ -104,7 +104,7 @@ export function SecurityTab({
                 <br />• <strong>Origin 验证</strong>：仅接受来自 Shopify checkout 页面的请求（含 Referer/ShopDomain fallback，生产环境会记录 fallback 使用情况）
                 <br />• <strong>HMAC 签名</strong>：用于完整性校验与基础抗滥用，不承诺强鉴权（密钥在客户端可见，最终真实性依赖 webhook/订单对账）
                 <br />• <strong>速率限制</strong>：防止滥用和异常流量
-                <br />• <strong>数据最小化</strong>：v1.0 版本不处理任何 PII 数据（包括哈希值）
+                <br />• <strong>数据最小化</strong>：我们不收集、不处理、不发送终端客户 PII（包括哈希值）
               </Text>
               <Text as="p" variant="bodySm" tone="caution">
                 <strong>安全边界说明：</strong>此令牌主要用于事件关联和诊断，配合上述多层防护机制共同保障安全。
@@ -499,9 +499,7 @@ export function SecurityTab({
                   </Text>
                   <Text as="p" variant="bodySm">
                     <strong>关于 PII（邮箱/电话等）：</strong>
-                    <br />• v1.0 版本：本应用不包含任何 PII 处理功能，不收集、不处理、不发送任何个人身份信息（包括哈希值）。
-                    <br />• v1.0 仅依赖 Web Pixels 标准事件，发送订单金额、商品信息等非 PII 数据。
-                    <br />• PII 增强匹配功能将在 v1.1 版本中提供（需通过 Shopify PCD 审核）。
+                    <br />我们不收集、不发送终端客户 PII。订单读取（read_orders）仅用于对账验收，字段最小化；再购等需 PCD 审批，有硬门禁。
                   </Text>
                 </BlockStack>
               </Banner>

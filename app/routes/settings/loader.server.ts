@@ -212,7 +212,7 @@ export async function settingsLoader({ request }: LoaderFunctionArgs) {
         : null,
       tokenIssues,
       pcdApproved: false,
-      pcdStatusMessage: "v1.0 版本不包含任何 PCD/PII 处理功能",
+      pcdStatusMessage: "我们不收集终端客户 PII；read_orders 仅用于对账验收且字段最小化；再购等需 PCD 审批后启用。",
       currentMonitoringData,
       hmacSecurityStats,
     };

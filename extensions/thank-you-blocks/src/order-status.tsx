@@ -252,9 +252,6 @@ function OrderStatusBlocks() {
           if (response.ok) {
             const state = await response.json();
             setModuleState(state);
-            if (isDevMode()) {
-              console.log("[OrderStatusBlocks] Module state loaded:", state);
-            }
           } else {
             const errorText = await response.text().catch(() => `HTTP ${response.status}`);
             const errorMessage = `Failed to fetch module state: ${response.status} ${errorText}`;

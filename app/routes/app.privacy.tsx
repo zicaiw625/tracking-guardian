@@ -658,18 +658,8 @@ export default function PrivacyPage() {
             </Text>
             <List type="bullet">
               <List.Item>
-                <Link url="/docs/PRIVACY_POLICY.md" external>
+                <Link url="/privacy" external>
                   完整隐私政策
-                </Link>
-              </List.Item>
-              <List.Item>
-                <Link url="/docs/DATA_RETENTION.md" external>
-                  数据保留政策
-                </Link>
-              </List.Item>
-              <List.Item>
-                <Link url="/docs/COMPLIANCE.md" external>
-                  合规说明文档
                 </Link>
               </List.Item>
               <List.Item>

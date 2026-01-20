@@ -183,11 +183,6 @@ export function RealtimeEventMonitor({
             const rawData = JSON.parse(event.data);
             if (useVerificationEndpoint && rawData.type) {
               if (rawData.type === "connected" || rawData.type === "error" || rawData.type === "verification_run_status") {
-                if (rawData.type === "verification_run_status" && rawData.status) {
-                  if (process.env.NODE_ENV === "development") {
-                    console.log("Verification run status:", rawData);
-                  }
-                }
                 return;
               }
               // eslint-disable-next-line @typescript-eslint/no-unused-vars

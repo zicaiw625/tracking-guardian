@@ -404,6 +404,8 @@ railway up
 - 对账差异检查无法执行
 - 订单金额一致性验证失败
 
+我们不对终端客户收集 PII；read_orders 仅用于对账、验收且字段最小化；再购等需 PCD 审批，有硬门禁。
+
 **配置一致性要求**：
 
 请确保以下三个位置的 SCOPES 配置**完全一致**（包括权限顺序和拼写）：
@@ -498,6 +500,14 @@ ScriptTag 清理需要商家手动操作：
 - 订单和退款相关 webhooks 将在 v1.1+ 版本中启用，用于增强验收验证和对账功能
 - 代码中已实现相关处理器，但 `shopify.app.toml` 中暂未订阅，符合 v1.0 最小权限原则
 
+## 上架前 Checklist
+
+提交 App Review 前请确认：
+
+1. **Distribution**：Partner Dashboard → Distribution = **Public (App Store)**（否则 Billing API 不可用）。
+2. **联系方式**：`support@tracking-guardian.app`、`help.tracking-guardian.app`、`status.tracking-guardian.app` 可访问；若为占位符，已在 `app/routes/support.tsx`、`app/routes/app.support.tsx`、`app/services/ui-extension.server.ts` 中改为真实邮箱/域名。
+3. **PCD**：若保留 `read_orders` 并走强攻路线，已在 Partner 完成 PCD 申请配置，并准备好 [COMPLIANCE.md](COMPLIANCE.md) 中的「PCD 申请材料要点」作为支撑。
+
 ## Shopify App Store 审核 - Reviewer 快速验收路径
 
 提交审核时可将以下步骤放入 Review notes / Test instructions，便于审核人员快速验收：
@@ -508,7 +518,7 @@ ScriptTag 清理需要商家手动操作：
 4. 进入 **Verification**：跑一次 quick run，看到事件收据与参数完整率
 5. （Growth+）下载 PDF 报告（如果 reviewer 用的是免费计划，就说明该入口会提示升级）
 
-Customer Account / Thank you block 与 Web Pixel 的配合、以及 PCD 的说明（默认不依赖 PII；2025-12-10 后 PII 字段需获批 PCD 才会出现），可参考 [COMPLIANCE.md](COMPLIANCE.md) 与应用内文案。
+Customer Account / Thank you block 与 Web Pixel 的配合、以及 PCD 的说明：我们不收集终端客户 PII；read_orders 仅用于对账验收且字段最小化；再购、订单状态等需 PCD 审批且有硬门禁。2025-12-10 后 Web Pixel 中 PII 字段需获批 PCD 才会出现。可参考 [COMPLIANCE.md](COMPLIANCE.md) 与应用内文案。
 
 ## Built for Shopify (BFS) 特性
 

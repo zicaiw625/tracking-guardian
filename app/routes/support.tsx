@@ -86,9 +86,10 @@ export default function PublicSupportPage() {
                       <Text as="span" fontWeight="bold">
                         Do you require PII/PCD?
                       </Text>{" "}
-                      No. The app works without PII. Enhanced matching is optional
-                      and only available after Shopify PCD approval and merchant
-                      opt-in.
+                      We do not collect end-customer PII. Order read (read_orders)
+                      is used only for reconciliation and verification with minimal
+                      fields. Features like Reorder or enhanced matching require
+                      Shopify PCD approval and are gated.
                     </List.Item>
                     <List.Item>
                       <Text as="span" fontWeight="bold">
