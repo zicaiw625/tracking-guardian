@@ -1,4 +1,3 @@
-import type { Request } from "@remix-run/node";
 import type { PixelEventPayload, KeyValidationResult } from "~/lib/pixel-events/types";
 import { validateRequest, isPrimaryEvent } from "~/lib/pixel-events/validation";
 import { validatePixelEventHMAC } from "~/lib/pixel-events/hmac-validation";

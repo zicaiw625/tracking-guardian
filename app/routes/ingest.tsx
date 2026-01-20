@@ -3,16 +3,19 @@ import { jsonWithCors, emptyResponseWithCors, optionsResponse } from "~/lib/pixe
 import { processBatchEvents } from "~/services/events/pipeline.server";
 import { logger, metrics } from "~/utils/logger.server";
 import { API_CONFIG, RATE_LIMIT_CONFIG, isStrictSecurityMode } from "~/utils/config.server";
-import { isDevMode, trackNullOriginRequest } from "~/utils/origin-validation";
+import { isDevMode, trackNullOriginRequest, validatePixelOriginPreBody, validatePixelOriginForShop, buildShopAllowedDomains } from "~/utils/origin-validation";
 import { checkRateLimitAsync, shopDomainIpKeyExtractor, ipKeyExtractor } from "~/middleware/rate-limit";
 import { safeFireAndForget } from "~/utils/helpers.server";
 import { hashValueSync } from "~/utils/crypto.server";
-import {
-  parseAndValidateRequest,
-  validateOriginAndShop,
-  validateHMACSignature,
-  validateEvents,
-} from "~/lib/pixel-events/ingest-helpers.server";
+import { trackAnomaly } from "~/utils/rate-limiter";
+import { getShopForPixelVerificationWithConfigs } from "~/lib/pixel-events/key-validation";
+import type { KeyValidationResult, PixelEventPayload } from "~/lib/pixel-events/types";
+import { validateRequest, isPrimaryEvent } from "~/lib/pixel-events/validation";
+import { validatePixelEventHMAC } from "~/lib/pixel-events/hmac-validation";
+import { verifyWithGraceWindowAsync } from "~/utils/shop-access";
+import { generateEventIdForType, generateOrderMatchKey, isClientEventRecorded, createEventNonce, upsertPixelEventReceipt } from "~/lib/pixel-events/receipt-handler";
+import { checkInitialConsent, filterPlatformsByConsent, logConsentFilterMetrics } from "~/lib/pixel-events/consent-filter";
+import prisma from "~/db.server";
 
 const MAX_BATCH_SIZE = 100;
 const TIMESTAMP_WINDOW_MS = API_CONFIG.TIMESTAMP_WINDOW_MS;
@@ -408,7 +411,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     eventId: string | null;
     destinations: string[];
   }> = [];
-  const serverSideConfigs = pixelConfigs.filter(config => config.serverSideEnabled === true);
+  const serverSideConfigs = pixelConfigs.filter((config: { serverSideEnabled?: boolean | null }) => config.serverSideEnabled === true);
   let activeVerificationRunId: string | null | undefined = undefined;
   for (let i = 0; i < events.length; i++) {
     const eventValidation = validateRequest(events[i]);
@@ -480,7 +483,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         orderId = matchKeyResult.orderId;
         altOrderKey = matchKeyResult.altOrderKey;
         eventIdentifier = orderId;
-        const alreadyRecorded = await isClientEventRecorded(shop.id, orderId, eventType, altOrderKey != null ? { altOrderKey } : undefined);
+        const alreadyRecorded = await isClientEventRecorded(shop.id, matchKeyResult.orderId, eventType, altOrderKey != null ? { altOrderKey } : undefined);
         if (alreadyRecorded) {
           const orderIdHash = hashValueSync(orderId).slice(0, 12);
           logger.debug(`Purchase event already recorded for order ${orderIdHash}, skipping`, {
@@ -493,7 +496,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         const nonceFromBody = payload.nonce;
         const nonceResult = await createEventNonce(
           shop.id,
-          orderId,
+          matchKeyResult.orderId,
           payload.timestamp,
           nonceFromBody,
           eventType
@@ -534,13 +537,13 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       payload.nonce ?? null
     );
     const consentResult = checkInitialConsent(payload.consent);
-    const mappedConfigs = serverSideConfigs.map(config => ({
+    const mappedConfigs = serverSideConfigs.map((config: { platform: string; id: string; platformId?: string | null; clientSideEnabled?: boolean | null; serverSideEnabled?: boolean | null; clientConfig?: unknown }) => ({
       platform: config.platform,
       id: config.id,
-      platformId: config.platformId,
-      clientSideEnabled: config.clientSideEnabled,
-      serverSideEnabled: config.serverSideEnabled,
-      clientConfig: config.clientConfig && typeof config.clientConfig === 'object' && 'treatAsMarketing' in config.clientConfig
+      platformId: config.platformId ?? undefined,
+      clientSideEnabled: config.clientSideEnabled ?? undefined,
+      serverSideEnabled: config.serverSideEnabled ?? undefined,
+      clientConfig: config.clientConfig && typeof config.clientConfig === 'object' && 'treatAsMarketing' in (config.clientConfig as object)
         ? { treatAsMarketing: (config.clientConfig as { treatAsMarketing?: boolean }).treatAsMarketing }
         : null,
     }));
@@ -548,7 +551,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       mappedConfigs,
       consentResult
     );
-    const destinations = platformsToRecord.map(p => p.platform);
+    const destinations = platformsToRecord.map((p: { platform: string }) => p.platform);
     if (isPurchaseEvent && orderId) {
       if (activeVerificationRunId === undefined) {
         const run = await prisma.verificationRun.findFirst({

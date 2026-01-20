@@ -54,7 +54,7 @@ export async function performEnhancedChannelReconciliation(
   hours: number = 24
 ): Promise<MultiPlatformReconciliationResult> {
   const since = new Date();
-  since.setHours(since.getHours() - hours);
+  since.setUTCHours(since.getUTCHours() - hours);
   const now = new Date();
   const shop = await prisma.shop.findUnique({
     where: { id: shopId },

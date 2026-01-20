@@ -257,13 +257,15 @@ export async function runDailyReconciliation(shopId: string): Promise<Reconcilia
         const uniqueOrders = new Set(platformReceipts.map(r => r.orderKey).filter(Boolean));
         const sentOrders = uniqueOrders.size;
         let sentRevenue = 0;
+        const seenOrderKeys = new Set<string>();
         for (const receipt of platformReceipts) {
+            const key = receipt.orderKey;
+            if (!key || seenOrderKeys.has(key)) continue;
+            seenOrderKeys.add(key);
             const payload = receipt.payloadJson as Record<string, unknown> | null;
             const data = payload?.data as Record<string, unknown> | undefined;
             const value = typeof data?.value === "number" ? data.value : 0;
-            if (value > 0) {
-                sentRevenue += value;
-            }
+            if (value > 0) sentRevenue += value;
         }
         const totalOrders = shopifyStats ? shopifyOrderCount : sentOrders;
         const totalRevenue = shopifyStats ? shopifyRevenue : sentRevenue;
@@ -468,6 +470,7 @@ export async function getReconciliationDashboardData(
         select: {
             orderKey: true,
             createdAt: true,
+            payloadJson: true,
         },
     });
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -516,7 +519,7 @@ export async function getReconciliationDashboardData(
     gapAnalysis.sort((a, b) => b.count - a.count);
     const platforms = shop?.pixelConfigs?.map((c) => c.platform) ?? [];
     const platformBreakdown = platforms.map(platform => {
-        const platformReceipts = pixelReceipts.filter(() => true);
+        const platformReceipts = pixelReceipts.filter(r => extractPlatformFromPayload(r.payloadJson as Record<string, unknown> | null) === platform);
         const uniqueOrderCount = new Set(platformReceipts.filter(r => r.orderKey).map(r => r.orderKey!)).size;
         return {
             platform,
