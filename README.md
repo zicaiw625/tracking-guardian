@@ -242,19 +242,12 @@ SCOPES=read_script_tags,read_pixels,write_pixels,read_customer_events,read_order
 # P0-2: Web Pixel Origin null 兼容配置（生产环境必须设置）
 # Shopify web pixel / customer events 在沙箱里经常出现 Origin: null
 # 生产环境必须设置此变量为 true，否则会拦截掉真实事件
-PIXEL_ALLOW_NULL_ORIGIN=true
+PIXEL_ALLOW_NULL_ORIGIN_WITH_SIGNATURE_ONLY=true
 
-# PIXEL_ALLOW_NULL_ORIGIN 语义说明：
-# - true: 允许**带签名**的 null/missing Origin 请求（无签名仍拒绝）
-#   * 当请求包含有效的 HMAC 签名或 ingestionKey 时，即使 Origin 为 null 或缺失也会被允许
-#   * 这是生产环境的推荐设置，因为某些 Shopify Web Worker 沙箱环境可能出现 Origin: null
-#   * 无签名的 null/missing Origin 请求仍会被拒绝（安全策略）
-# - false: 全部拒绝 null/missing Origin（含签名）
-#   * 无论请求是否包含签名，所有 null 或缺失的 Origin 都会被拒绝
-#   * 这是最严格的安全策略，但可能导致部分 Shopify 沙箱环境中的合法请求被拒绝
-# - 默认行为（未设置）:
-#   * 开发/测试环境：允许 null/missing Origin（等同于 true）
-#   * 生产环境：未设置时会阻止启动，必须明确设置 true 或 false
+# PIXEL_ALLOW_NULL_ORIGIN_WITH_SIGNATURE_ONLY 语义说明：
+# - true: 允许 null/missing Origin 仅当请求带签名，并为之设置 CORS（推荐：生产且接收 pixel 事件时显式设置）
+# - false: 不支持 null（CORS 不配合，null 请求将失败，导致事件丢失）
+# - 生产未设置时会阻止启动，必须明确设置 true 或 false
 
 # 可选：安全相关环境变量
 CRON_SECRET=your_cron_secret_min_32_chars  # 用于 cron job 鉴权
@@ -342,7 +335,7 @@ pnpm install --frozen-lockfile && pnpm generate && pnpm db:deploy && pnpm ext:in
 4. 设置 Shopify API 环境变量
 
 **重要配置说明**：
-- `PIXEL_ALLOW_NULL_ORIGIN` 已在 `render.yaml` 中自动设置为 `true`，确保 Web Pixel 事件能正常接收
+- `PIXEL_ALLOW_NULL_ORIGIN_WITH_SIGNATURE_ONLY` 已在 `render.yaml` 中自动设置为 `true`，确保 Web Pixel 事件能正常接收
 - Cron Job 服务已自动配置，请确保在 Render Dashboard 中为 cron job 设置以下环境变量（从 web service 复制）：
   - `CRON_SECRET`（必须与 web service 相同）
   - `SHOPIFY_APP_URL`（web service 的完整 URL）
@@ -640,10 +633,10 @@ Customer Account / Thank you block 与 Web Pixel 的配合、以及 PCD 的说�
 2. **Origin: null 场景测试（上线前必须执行）**
    - **测试目标**：验证 Web Pixel 在沙箱环境中发送事件时 Origin 为 null 的情况
    - **验证内容**：
-     - 验证 `PIXEL_ALLOW_NULL_ORIGIN=true` 环境变量已正确设置（生产环境必须设置）
+     - 验证 `PIXEL_ALLOW_NULL_ORIGIN_WITH_SIGNATURE_ONLY=true` 环境变量已正确设置（生产环境必须设置）
      - 确认事件仍能正常接收和处理（不因 Origin 校验失败而丢失）
      - 检查日志中 Origin: null 的请求是否被正确标记和允许
-   - **重点验证**：某些 Shopify 场景（如 Web Worker 沙箱环境）可能出现 `Origin: null`。未设置 `PIXEL_ALLOW_NULL_ORIGIN` 时：无签名的 Origin: null/缺失 请求会被拒绝，带签名的会放行。建议显式设置 `PIXEL_ALLOW_NULL_ORIGIN=true` 以正常接收所有 Origin: null 的 pixel 事件。
+   - **重点验证**：某些 Shopify 场景（如 Web Worker 沙箱环境）可能出现 `Origin: null`。建议显式设置 `PIXEL_ALLOW_NULL_ORIGIN_WITH_SIGNATURE_ONLY=true` 以正常接收 null/missing origin 的 pixel 事件（仅带签名请求放行）；=false 时 null 请求将无法通过 CORS，导致事件丢失。
    - **实战建议**：使用压测脚本的 `--null-origin-only` 参数专门测试 Origin: null 场景，确保生产环境配置正确。
    - **执行命令**：
      ```bash
@@ -651,7 +644,7 @@ Customer Account / Thank you block 与 Web Pixel 的配合、以及 PCD 的说�
      node scripts/load-test-pixel-ingestion.mjs --null-origin-only
      
      # 验证环境变量已设置
-     echo $PIXEL_ALLOW_NULL_ORIGIN
+     echo $PIXEL_ALLOW_NULL_ORIGIN_WITH_SIGNATURE_ONLY
      ```
    - **验收标准**：
      - 所有 Origin: null 请求应成功处理
@@ -697,7 +690,7 @@ SHOPIFY_APP_URL=https://your-app.com SHOP_DOMAIN=test-shop.myshopify.com INGESTI
 - [ ] 事件处理延迟 < 2秒（P95）
 - [ ] 错误率 < 0.1%
 - [ ] 数据库连接池无耗尽
-- [ ] 环境变量 `PIXEL_ALLOW_NULL_ORIGIN=true` 已设置
+- [ ] 环境变量 `PIXEL_ALLOW_NULL_ORIGIN_WITH_SIGNATURE_ONLY=true` 已设置
 - [ ] 压测结果已记录并归档
 
 ### 商家体验

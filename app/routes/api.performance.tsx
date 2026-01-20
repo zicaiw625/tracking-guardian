@@ -41,22 +41,22 @@ export const action = async (args: ActionFunctionArgs) => {
     }
     return jsonWithCors(
       { error: "Not found" },
-      { status: 404, request, staticCors: true }
+      { status: 404, request }
     );
   }
   if (request.method === "OPTIONS") {
-    return optionsResponse(request, true);
+    return optionsResponse(request);
   }
   if (request.method !== "POST") {
     return jsonWithCors(
       { error: "Method not allowed" },
-      { status: 405, request, staticCors: true }
+      { status: 405, request }
     );
   }
   if (!validatePerformanceAuth(request)) {
     return jsonWithCors(
       { error: "Unauthorized" },
-      { status: 401, request, staticCors: true }
+      { status: 401, request }
     );
   }
   const handler = performanceRateLimit(async (a: ActionFunctionArgs) => {
@@ -66,7 +66,7 @@ export const action = async (args: ActionFunctionArgs) => {
       if (!body || typeof body !== "object") {
         return jsonWithCors(
           { error: "Invalid request body" },
-          { status: 400, request: req, staticCors: true }
+          { status: 400, request: req }
         );
       }
       const metric = body as {
@@ -83,7 +83,7 @@ export const action = async (args: ActionFunctionArgs) => {
       });
       return jsonWithCors(
         { success: true },
-        { request: req, staticCors: true }
+        { request: req }
       );
     } catch (error) {
       logger.error("Failed to process performance metric", {
@@ -91,7 +91,7 @@ export const action = async (args: ActionFunctionArgs) => {
       });
       return jsonWithCors(
         { error: "Internal server error" },
-        { status: 500, request: req, staticCors: true }
+        { status: 500, request: req }
       );
     }
   });
@@ -102,17 +102,17 @@ export const loader = async ({ request }: { request: Request }) => {
   if (process.env.NODE_ENV === "production") {
     return jsonWithCors(
       { error: "Not found" },
-      { status: 404, request, staticCors: true }
+      { status: 404, request }
     );
   }
   if (!validatePerformanceAuth(request)) {
     return jsonWithCors(
       { error: "Unauthorized" },
-      { status: 401, request, staticCors: true }
+      { status: 401, request }
     );
   }
   return jsonWithCors(
     { message: "Performance endpoint - POST to submit performance metrics" },
-    { request, staticCors: true }
+    { request }
   );
 };

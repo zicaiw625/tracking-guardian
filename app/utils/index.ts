@@ -335,7 +335,6 @@ export {
   addCorsHeaders,
   getDynamicCorsHeaders,
   jsonWithCors,
-  STATIC_CORS_HEADERS,
   type CorsResponseInit,
 } from "./cors";
 

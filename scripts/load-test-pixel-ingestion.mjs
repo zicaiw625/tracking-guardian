@@ -188,11 +188,11 @@ async function testNullOrigin() {
     const status = response.status;
     if (status >= 200 && status < 300) {
       console.log("✅ Origin: null 请求成功");
-      console.log("提示: 如果生产环境需要支持 Origin: null，请设置 PIXEL_ALLOW_NULL_ORIGIN=true");
+      console.log("提示: 如果生产环境需要支持 Origin: null，请设置 PIXEL_ALLOW_NULL_ORIGIN_WITH_SIGNATURE_ONLY=true");
     } else if (status === 403) {
       console.log("⚠️  Origin: null 请求被拒绝");
       console.log("提示: 某些 Shopify 场景（如 Web Worker 沙箱环境）可能出现 Origin: null");
-      console.log("如果生产环境需要支持，请设置 PIXEL_ALLOW_NULL_ORIGIN=true");
+      console.log("如果生产环境需要支持，请设置 PIXEL_ALLOW_NULL_ORIGIN_WITH_SIGNATURE_ONLY=true");
     } else {
       console.log(`❌ Origin: null 请求失败，状态码: ${status}`);
     }

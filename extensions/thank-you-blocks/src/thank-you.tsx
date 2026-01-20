@@ -160,7 +160,7 @@ function ThankYouBlocks() {
         }
         const token = await api.sessionToken.get();
         const controller = new AbortController();
-        const tid = setTimeout(() => controller.abort(), 1000);
+        const tid = setTimeout(() => controller.abort(), 1800);
         try {
           const response = await fetch(`${backendUrl}/api/ui-modules-state`, {
             method: "GET",

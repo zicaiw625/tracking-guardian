@@ -90,8 +90,8 @@ services:
         sync: false
       # P0-2: Web Pixel Origin null 兼容配置
       # Shopify web pixel / customer events 在沙箱里经常出现 Origin: null
-      - key: PIXEL_ALLOW_NULL_ORIGIN
-        value: "true"  # 允许 Origin: null 的像素请求（Shopify Web Pixel 常见情况）
+      - key: PIXEL_ALLOW_NULL_ORIGIN_WITH_SIGNATURE_ONLY
+        value: "true"
       # REDIS_URL: 生产环境推荐。用于分布式限流与锁。在 Render 创建 Redis (New > Key Value)，把 Internal URL 填到 REDIS_URL。
       # 仅单实例且暂不接入 Redis 时：启用 ALLOW_MEMORY_REDIS_IN_PROD，用进程内内存代替（多实例时限流可被绕过，仅临时方案）。
       - key: REDIS_URL

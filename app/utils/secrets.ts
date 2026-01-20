@@ -143,14 +143,14 @@ export function checkSecurityViolations(): SecurityViolation[] {
                     `Current value starts with: ${appUrl.substring(0, 10)}...`,
             });
         }
-        const allowNullOrigin = process.env.PIXEL_ALLOW_NULL_ORIGIN;
+        const allowNullOrigin = process.env.PIXEL_ALLOW_NULL_ORIGIN_WITH_SIGNATURE_ONLY;
         if (allowNullOrigin === undefined || allowNullOrigin === "") {
             violations.push({
                 type: "fatal",
                 code: "PIXEL_NULL_ORIGIN_NOT_CONFIGURED",
-                message: "[P0-2 CONFIGURATION ERROR] PIXEL_ALLOW_NULL_ORIGIN is not set in production. " +
-                    "When unset: unsigned null/missing Origin requests are rejected; signed null/missing Origin requests are allowed. " +
-                    "If your deployment receives pixel events, set PIXEL_ALLOW_NULL_ORIGIN=true; otherwise set PIXEL_ALLOW_NULL_ORIGIN=false explicitly.",
+                message: "[P0-2 CONFIGURATION ERROR] PIXEL_ALLOW_NULL_ORIGIN_WITH_SIGNATURE_ONLY is not set in production. " +
+                    "Production recommendation: PIXEL_ALLOW_NULL_ORIGIN_WITH_SIGNATURE_ONLY=true (null/missing origin allowed only when request has signature). " +
+                    "When false: null requests fail CORS and events are lost. If your deployment receives pixel events, set =true; otherwise =false explicitly.",
             });
         } else {
             const normalized = allowNullOrigin.toLowerCase().trim();
@@ -158,7 +158,7 @@ export function checkSecurityViolations(): SecurityViolation[] {
                 violations.push({
                     type: "fatal",
                     code: "PIXEL_NULL_ORIGIN_INVALID",
-                    message: "[P0-2 CONFIGURATION ERROR] PIXEL_ALLOW_NULL_ORIGIN has invalid value. " +
+                    message: "[P0-2 CONFIGURATION ERROR] PIXEL_ALLOW_NULL_ORIGIN_WITH_SIGNATURE_ONLY has invalid value. " +
                         "Allowed values: 'true', '1', 'false', '0'. " +
                         `Current value: ${allowNullOrigin}`,
                 });

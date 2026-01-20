@@ -308,7 +308,7 @@ async function getAccessTokenFromSession(
       isOnline: false,
       accessToken: { not: "" },
     },
-    orderBy: { id: "desc" },
+    orderBy: { createdAt: "desc" },
   });
   if (offlineSession?.accessToken) {
     try {

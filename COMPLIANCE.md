@@ -68,6 +68,12 @@ Tracking Guardian 是一个 Shopify 应用，作为**数据处理者**（Data Pr
 - 转化任务执行日志
 - Webhook 处理日志
 
+#### Session（OAuth/会话存储）
+- **可能字段**：`firstName`、`lastName`、`email`（来自 Shopify 在线 Session，仅店铺管理员/员工，非终端客户）
+- **用途**：鉴权与会话维持
+- **保留**：随 Session 过期或应用卸载
+- **删除**：Session 清理、APP_UNINSTALLED / SHOP_REDACT 等既有逻辑
+
 ### 不收集的数据（PII）
 
 **我们明确不收集以下个人身份信息：**
@@ -105,6 +111,7 @@ Tracking Guardian 是一个 Shopify 应用，作为**数据处理者**（Data Pr
 | 订单元数据 | 按店铺 dataRetentionDays（默认 90 天） | 自动清理 |
 | 客户事件数据 | 按店铺 dataRetentionDays（默认 90 天） | 自动清理 |
 | AuditLog（审计日志） | 至少 180 天或按店铺 dataRetentionDays（取较大值） | 自动清理 |
+| Session（OAuth） | 随 Session 生命周期 | 过期或卸载时清理 |
 
 所有数据清理通过定时任务（Cron）自动执行，无需人工干预。
 

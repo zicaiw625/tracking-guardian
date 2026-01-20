@@ -139,9 +139,9 @@ const REQUIRED_IN_PRODUCTION = [
 ] as const;
 
 const PIXEL_INGESTION_ENABLED_CHECK = {
-  key: "PIXEL_ALLOW_NULL_ORIGIN",
+  key: "PIXEL_ALLOW_NULL_ORIGIN_WITH_SIGNATURE_ONLY",
   reason:
-    "When unset in production: unsigned null/missing Origin requests are rejected; signed null/missing Origin requests are allowed. Set PIXEL_ALLOW_NULL_ORIGIN=true to explicitly allow, or false to reject; explicit setting reduces ambiguity and alert noise.",
+    "Production recommendation: PIXEL_ALLOW_NULL_ORIGIN_WITH_SIGNATURE_ONLY=true (null/missing origin allowed only when request has signature). When false: null requests fail CORS and events are lost. If your deployment receives pixel events, set =true explicitly.",
 } as const;
 
 const RECOMMENDED = [
@@ -189,9 +189,9 @@ export function validateConfig(): ConfigValidationResult {
     errors.push("SECURITY_ENFORCEMENT cannot be 'relaxed' in production");
   }
   if (isProduction) {
-    const pixelAllowNullOrigin = process.env.PIXEL_ALLOW_NULL_ORIGIN;
+    const pixelAllowNullOrigin = process.env.PIXEL_ALLOW_NULL_ORIGIN_WITH_SIGNATURE_ONLY;
     if (pixelAllowNullOrigin === undefined || pixelAllowNullOrigin === "") {
-      warnings.push(`PIXEL_ALLOW_NULL_ORIGIN not set in production. ${PIXEL_INGESTION_ENABLED_CHECK.reason}`);
+      warnings.push(`PIXEL_ALLOW_NULL_ORIGIN_WITH_SIGNATURE_ONLY not set in production. ${PIXEL_INGESTION_ENABLED_CHECK.reason}`);
     }
   }
   if (process.env.ENCRYPTION_SECRET && process.env.ENCRYPTION_SECRET.length < 32) {

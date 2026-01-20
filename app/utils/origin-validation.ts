@@ -6,7 +6,7 @@ export const SHOPIFY_PLATFORM_HOSTS = [
 ] as const;
 
 export function shouldAllowNullOrigin(): boolean {
-    const v = process.env.PIXEL_ALLOW_NULL_ORIGIN?.toLowerCase().trim();
+    const v = process.env.PIXEL_ALLOW_NULL_ORIGIN_WITH_SIGNATURE_ONLY?.toLowerCase().trim();
     if (v === "false" || v === "0") return false;
     if (v === "true" || v === "1") return true;
 
@@ -606,7 +606,7 @@ export function getAllowedPatterns(): Array<{
             pattern: 'Origin: "null"',
             description: nullOriginAllowed
                 ? "Web Pixel sandbox (allowed by policy)"
-                : "Web Pixel sandbox (blocked: set PIXEL_ALLOW_NULL_ORIGIN=true to allow)",
+                : "Web Pixel sandbox (blocked: set PIXEL_ALLOW_NULL_ORIGIN_WITH_SIGNATURE_ONLY=true to allow)",
             example: 'Origin: null',
         },
         ...ALLOWED_ORIGIN_PATTERNS.map(p => ({

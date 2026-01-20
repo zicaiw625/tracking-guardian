@@ -702,13 +702,13 @@ export default function PixelTestPage() {
                       2. Origin: null 场景测试（必须执行）
                     </Text>
                     <Text as="p" variant="bodySm">
-                      某些 Shopify 场景（如 Web Worker 沙箱环境）可能出现 <code>Origin: null</code>，生产环境必须设置 <code>PIXEL_ALLOW_NULL_ORIGIN=true</code> 才能正常接收事件。如果未设置此环境变量，像素事件将在 Origin: null 场景下被拒绝，导致事件丢失。这是上线前必须验证的关键配置，避免在生产环境出现事件丢失。
+                      某些 Shopify 场景（如 Web Worker 沙箱环境）可能出现 <code>Origin: null</code>，生产环境必须设置 <code>PIXEL_ALLOW_NULL_ORIGIN_WITH_SIGNATURE_ONLY=true</code> 才能正常接收事件。如果未设置此环境变量，像素事件将在 Origin: null 场景下被拒绝，导致事件丢失。这是上线前必须验证的关键配置，避免在生产环境出现事件丢失。
                     </Text>
                     <Text as="p" variant="bodySm" tone="subdued">
-                      <strong>执行方法：</strong>使用压测脚本的 <code>--null-origin-only</code> 参数专门测试 Origin: null 场景，确保生产环境配置正确。运行命令：<code>node scripts/load-test-pixel-ingestion.mjs --null-origin-only</code>。如果测试失败，请检查环境变量 <code>PIXEL_ALLOW_NULL_ORIGIN</code> 是否已设置为 <code>true</code>。这是上线前必须验证的关键测试，避免在生产环境出现事件丢失。
+                      <strong>执行方法：</strong>使用压测脚本的 <code>--null-origin-only</code> 参数专门测试 Origin: null 场景，确保生产环境配置正确。运行命令：<code>node scripts/load-test-pixel-ingestion.mjs --null-origin-only</code>。如果测试失败，请检查环境变量 <code>PIXEL_ALLOW_NULL_ORIGIN_WITH_SIGNATURE_ONLY</code> 是否已设置为 <code>true</code>。这是上线前必须验证的关键测试，避免在生产环境出现事件丢失。
                     </Text>
                     <Text as="p" variant="bodySm" tone="subdued">
-                      <strong>环境变量配置：</strong>在生产环境部署时，确保在环境变量中设置 <code>PIXEL_ALLOW_NULL_ORIGIN=true</code>。如果未设置此环境变量，像素事件将在 Origin: null 场景下被拒绝，导致事件丢失。这是上线前必须验证的关键配置，必须在生产环境部署前完成验证。
+                      <strong>环境变量配置：</strong>在生产环境部署时，确保在环境变量中设置 <code>PIXEL_ALLOW_NULL_ORIGIN_WITH_SIGNATURE_ONLY=true</code>。如果未设置此环境变量，像素事件将在 Origin: null 场景下被拒绝，导致事件丢失。这是上线前必须验证的关键配置，必须在生产环境部署前完成验证。
                     </Text>
                     <Text as="p" variant="bodySm" fontWeight="semibold">
                       验收标准：

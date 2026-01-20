@@ -76,17 +76,17 @@ describe("Web Pixel E2E Flow", () => {
       expect(result.reason).toBe("null_origin_allowed");
     });
     it("should block null origin when policy disabled via env", () => {
-      const originalEnv = process.env.PIXEL_ALLOW_NULL_ORIGIN;
-      process.env.PIXEL_ALLOW_NULL_ORIGIN = "false";
+      const originalEnv = process.env.PIXEL_ALLOW_NULL_ORIGIN_WITH_SIGNATURE_ONLY;
+      process.env.PIXEL_ALLOW_NULL_ORIGIN_WITH_SIGNATURE_ONLY = "false";
       try {
         const result = validatePixelOriginPreBody("null");
         expect(result.valid).toBe(false);
         expect(result.reason).toBe("null_origin_blocked");
       } finally {
         if (originalEnv === undefined) {
-          delete process.env.PIXEL_ALLOW_NULL_ORIGIN;
+          delete process.env.PIXEL_ALLOW_NULL_ORIGIN_WITH_SIGNATURE_ONLY;
         } else {
-          process.env.PIXEL_ALLOW_NULL_ORIGIN = originalEnv;
+          process.env.PIXEL_ALLOW_NULL_ORIGIN_WITH_SIGNATURE_ONLY = originalEnv;
         }
       }
     });

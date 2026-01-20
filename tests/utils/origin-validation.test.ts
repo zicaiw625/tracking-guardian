@@ -33,18 +33,18 @@ describe("validatePixelOriginPreBody", () => {
       expect(r.shouldReject).toBe(false);
     });
 
-    it("in production, PIXEL_ALLOW_NULL_ORIGIN=false, no signature: invalid, null_origin_blocked, shouldReject true", () => {
+    it("in production, PIXEL_ALLOW_NULL_ORIGIN_WITH_SIGNATURE_ONLY=false, no signature: invalid, null_origin_blocked, shouldReject true", () => {
       process.env.NODE_ENV = "production";
-      process.env.PIXEL_ALLOW_NULL_ORIGIN = "false";
+      process.env.PIXEL_ALLOW_NULL_ORIGIN_WITH_SIGNATURE_ONLY = "false";
       const r = validatePixelOriginPreBody("null", false, true);
       expect(r.valid).toBe(false);
       expect(r.reason).toBe("null_origin_blocked");
       expect(r.shouldReject).toBe(true);
     });
 
-    it("in production, PIXEL_ALLOW_NULL_ORIGIN=true, no signature: invalid (allowNull+!sig blocks), shouldReject true", () => {
+    it("in production, PIXEL_ALLOW_NULL_ORIGIN_WITH_SIGNATURE_ONLY=true, no signature: invalid (allowNull+!sig blocks), shouldReject true", () => {
       process.env.NODE_ENV = "production";
-      process.env.PIXEL_ALLOW_NULL_ORIGIN = "true";
+      process.env.PIXEL_ALLOW_NULL_ORIGIN_WITH_SIGNATURE_ONLY = "true";
       const r = validatePixelOriginPreBody("null", false, true);
       expect(r.valid).toBe(false);
       expect(r.reason).toBe("null_origin_blocked");
@@ -53,7 +53,7 @@ describe("validatePixelOriginPreBody", () => {
 
     it("in production, hasSignature: valid, null_origin_allowed_with_signature, shouldReject false", () => {
       process.env.NODE_ENV = "production";
-      process.env.PIXEL_ALLOW_NULL_ORIGIN = "false";
+      process.env.PIXEL_ALLOW_NULL_ORIGIN_WITH_SIGNATURE_ONLY = "false";
       const r = validatePixelOriginPreBody("null", true, true);
       expect(r.valid).toBe(true);
       expect(r.reason).toBe("null_origin_allowed_with_signature");
@@ -72,7 +72,7 @@ describe("validatePixelOriginPreBody", () => {
 
     it("in production, originHeaderPresent false, no allowNull, no sig: invalid, missing_origin, shouldReject true", () => {
       process.env.NODE_ENV = "production";
-      process.env.PIXEL_ALLOW_NULL_ORIGIN = "false";
+      process.env.PIXEL_ALLOW_NULL_ORIGIN_WITH_SIGNATURE_ONLY = "false";
       const r = validatePixelOriginPreBody(null, false, false);
       expect(r.valid).toBe(false);
       expect(r.reason).toBe("missing_origin");
@@ -81,7 +81,7 @@ describe("validatePixelOriginPreBody", () => {
 
     it("in production, originHeaderPresent false, hasSignature: valid, missing_origin_allowed_with_signature", () => {
       process.env.NODE_ENV = "production";
-      process.env.PIXEL_ALLOW_NULL_ORIGIN = "false";
+      process.env.PIXEL_ALLOW_NULL_ORIGIN_WITH_SIGNATURE_ONLY = "false";
       const r = validatePixelOriginPreBody(null, true, false);
       expect(r.valid).toBe(true);
       expect(r.reason).toBe("missing_origin_allowed_with_signature");
@@ -170,9 +170,9 @@ describe("validatePixelOriginForShop", () => {
       expect(r.shouldReject).toBe(false);
     });
 
-    it("in production, PIXEL_ALLOW_NULL_ORIGIN=false, no sig: invalid, null_origin_blocked, shouldReject true", () => {
+    it("in production, PIXEL_ALLOW_NULL_ORIGIN_WITH_SIGNATURE_ONLY=false, no sig: invalid, null_origin_blocked, shouldReject true", () => {
       process.env.NODE_ENV = "production";
-      process.env.PIXEL_ALLOW_NULL_ORIGIN = "false";
+      process.env.PIXEL_ALLOW_NULL_ORIGIN_WITH_SIGNATURE_ONLY = "false";
       const r = validatePixelOriginForShop("null", allowed, { hasSignatureHeaderOrHMAC: false });
       expect(r.valid).toBe(false);
       expect(r.reason).toBe("null_origin_blocked");
@@ -181,7 +181,7 @@ describe("validatePixelOriginForShop", () => {
 
     it("in production, hasSignature: valid, null_origin_allowed_with_signature", () => {
       process.env.NODE_ENV = "production";
-      process.env.PIXEL_ALLOW_NULL_ORIGIN = "false";
+      process.env.PIXEL_ALLOW_NULL_ORIGIN_WITH_SIGNATURE_ONLY = "false";
       const r = validatePixelOriginForShop("null", allowed, { hasSignatureHeaderOrHMAC: true });
       expect(r.valid).toBe(true);
       expect(r.reason).toBe("null_origin_allowed_with_signature");
