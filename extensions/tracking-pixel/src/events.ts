@@ -215,7 +215,7 @@ export function createEventSender(config: EventSenderConfig) {
           consent: {
             marketing: consentManager.marketingAllowed,
             analytics: consentManager.analyticsAllowed,
-            saleOfData: consentManager.saleOfDataAllowed,
+            saleOfDataAllowed: consentManager.saleOfDataAllowed,
           },
           data: {
             ...event.data,

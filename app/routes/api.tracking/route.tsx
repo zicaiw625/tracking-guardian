@@ -211,7 +211,10 @@ async function loaderImpl(request: Request) {
               return addSecurityHeaders(authResult.cors(json({ error: "Order access denied: missing order checkoutToken" }, { status: 403 })));
             }
             if (orderCheckoutToken !== checkoutToken) {
-              logger.warn(`Order access denied: checkoutToken mismatch for orderId: ${orderIdHash}, shop: ${shopDomain}`);
+              const checkoutTokenHash = checkoutToken ? hashValueSync(checkoutToken).slice(0, 12) : "null";
+              logger.warn(`Order access denied: checkoutToken mismatch for orderId: ${orderIdHash}, shop: ${shopDomain}`, {
+                checkoutTokenHash,
+              });
               return addSecurityHeaders(authResult.cors(json({ error: "Order access denied: checkoutToken mismatch" }, { status: 403 })));
             }
           }

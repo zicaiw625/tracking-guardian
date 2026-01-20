@@ -67,6 +67,7 @@ export const ConsentStateSchema = z.object({
   marketing: z.boolean().optional(),
   analytics: z.boolean().optional(),
   saleOfData: z.boolean().optional(),
+  saleOfDataAllowed: z.boolean().optional(),
 });
 
 export const LineItemSchema = z.object({

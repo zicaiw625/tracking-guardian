@@ -33,6 +33,7 @@ export interface VerifyReceiptOptions {
         allowNullOrigin?: boolean;
         maxReceiptAgeMs?: number;
         maxTimeSkewMs?: number;
+        strictMode?: boolean;
     };
 }
 const DEFAULT_MAX_RECEIPT_AGE_MS = 60 * 60 * 1000;
@@ -51,7 +52,16 @@ export function verifyReceiptTrust(options: VerifyReceiptOptions): ReceiptTrustR
             details: "No pixel event receipt found for this order",
         };
     }
+    const strictMode = validationOptions?.strictMode ?? false;
     if (!ingestionKeyMatched) {
+        if (strictMode) {
+            return {
+                trusted: false,
+                level: "untrusted",
+                reason: "hmac_signature_invalid",
+                details: "HMAC signature validation failed in strict mode",
+            };
+        }
         logger.debug("Ingestion key signal missing or invalid for receipt trust evaluation");
     }
     if (!receiptCheckoutToken) {

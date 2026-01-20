@@ -22,7 +22,7 @@ export interface PlatformFilterResult {
 export function checkInitialConsent(consent: ConsentState | undefined): ConsentCheckResult {
   const hasMarketingConsent = consent?.marketing === true;
   const hasAnalyticsConsent = consent?.analytics === true;
-  const saleOfDataAllowed = consent?.saleOfData === true;
+  const saleOfDataAllowed = consent?.saleOfDataAllowed === true;
   return {
     hasAnyConsent: hasAnalyticsConsent,
     hasMarketingConsent,

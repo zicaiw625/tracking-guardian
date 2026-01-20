@@ -468,10 +468,16 @@ export function parseConsentStateResult(json: unknown): Result<ConsentStateJson,
   if (data.saleOfData !== undefined && typeof data.saleOfData !== 'boolean') {
     return err({ type: 'INVALID_TYPE', message: 'saleOfData must be boolean', field: 'saleOfData' });
   }
+  if (data.saleOfDataAllowed !== undefined && typeof data.saleOfDataAllowed !== 'boolean') {
+    return err({ type: 'INVALID_TYPE', message: 'saleOfDataAllowed must be boolean', field: 'saleOfDataAllowed' });
+  }
+  const saleOfData = data.saleOfDataAllowed !== undefined
+    ? (typeof data.saleOfDataAllowed === 'boolean' ? data.saleOfDataAllowed : undefined)
+    : (typeof data.saleOfData === 'boolean' ? data.saleOfData : undefined);
   return ok({
     marketing: typeof data.marketing === 'boolean' ? data.marketing : undefined,
     analytics: typeof data.analytics === 'boolean' ? data.analytics : undefined,
-    saleOfData: typeof data.saleOfData === 'boolean' ? data.saleOfData : undefined,
+    saleOfData,
   });
 }
 

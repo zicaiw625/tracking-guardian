@@ -18,7 +18,7 @@ export interface PixelEventPayload {
   consent?: {
     marketing?: boolean;
     analytics?: boolean;
-    saleOfData?: boolean;
+    saleOfDataAllowed?: boolean;
   };
   data: {
     orderId?: string | null;
@@ -167,6 +167,9 @@ export function validateConsentFormat(consent: unknown): {
   if (consentObj.analytics !== undefined && typeof consentObj.analytics !== 'boolean') {
     return { valid: false, error: 'consent.analytics must be boolean' };
   }
+  if (consentObj.saleOfDataAllowed !== undefined && typeof consentObj.saleOfDataAllowed !== 'boolean') {
+    return { valid: false, error: 'consent.saleOfDataAllowed must be boolean' };
+  }
   if (consentObj.saleOfData !== undefined && typeof consentObj.saleOfData !== 'boolean') {
     return { valid: false, error: 'consent.saleOfData must be boolean' };
   }
@@ -265,6 +268,9 @@ export function hasAnalyticsConsent(consent: PixelEventPayload['consent'] | unde
 }
 
 export function isSaleOfDataAllowed(consent: PixelEventPayload['consent'] | undefined): boolean {
+  if (consent?.saleOfDataAllowed !== undefined) {
+    return consent.saleOfDataAllowed === true;
+  }
   return consent?.saleOfData === true;
 }
 
@@ -273,7 +279,10 @@ export function getConsentSummary(consent: PixelEventPayload['consent'] | undefi
   const parts: string[] = [];
   if (consent.marketing === true) parts.push('marketing');
   if (consent.analytics === true) parts.push('analytics');
-  if (consent.saleOfData === true) parts.push('saleOfData');
+  const saleOfDataAllowed = consent.saleOfDataAllowed !== undefined
+    ? consent.saleOfDataAllowed
+    : consent.saleOfData;
+  if (saleOfDataAllowed === true) parts.push('saleOfDataAllowed');
   return parts.length > 0 ? parts.join(',') : 'none_granted';
 }
 

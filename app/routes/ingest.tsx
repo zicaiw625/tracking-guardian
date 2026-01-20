@@ -13,9 +13,7 @@ import type { KeyValidationResult, PixelEventPayload } from "~/lib/pixel-events/
 import { validateRequest, isPrimaryEvent } from "~/lib/pixel-events/validation";
 import { validatePixelEventHMAC } from "~/lib/pixel-events/hmac-validation";
 import { verifyWithGraceWindowAsync } from "~/utils/shop-access";
-import { generateEventIdForType, generateOrderMatchKey, isClientEventRecorded, createEventNonce, upsertPixelEventReceipt } from "~/lib/pixel-events/receipt-handler";
-import { checkInitialConsent, filterPlatformsByConsent, logConsentFilterMetrics } from "~/lib/pixel-events/consent-filter";
-import prisma from "~/db.server";
+import { validateEvents, normalizeEvents, deduplicateEvents, distributeEvents } from "~/lib/pixel-events/ingest-pipeline.server";
 
 const MAX_BATCH_SIZE = 100;
 const TIMESTAMP_WINDOW_MS = API_CONFIG.TIMESTAMP_WINDOW_MS;
@@ -214,7 +212,8 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     );
     return emptyResponseWithCors(request);
   }
-  const environment = (firstPayload.data as { environment?: "test" | "live" })?.environment || "live";
+  const rawEnvironment = (firstPayload.data as { environment?: string })?.environment;
+  const environment = rawEnvironment === "test" || rawEnvironment === "live" ? rawEnvironment : "live";
   const shop = await getShopForPixelVerificationWithConfigs(shopDomain, environment);
   if (!shop || !shop.isActive) {
     if (isProduction) {
@@ -406,214 +405,31 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       }
     }
   }
-  const validatedEvents: Array<{
+  const serverSideConfigs = pixelConfigs.filter((config: { serverSideEnabled?: boolean | null }) => config.serverSideEnabled === true);
+  
+  const validatedEvents = validateEvents(events, shopDomain, timestamp);
+  const normalizedEvents = normalizeEvents(validatedEvents, shopDomain, mode);
+  const deduplicatedEvents = await deduplicateEvents(normalizedEvents, shop.id, shopDomain);
+  const processedEvents = await distributeEvents(
+    deduplicatedEvents,
+    shop.id,
+    shopDomain,
+    serverSideConfigs,
+    keyValidation,
+    origin,
+    undefined
+  );
+  
+  const validatedEventsForPipeline: Array<{
     payload: PixelEventPayload;
     eventId: string | null;
     destinations: string[];
-  }> = [];
-  const serverSideConfigs = pixelConfigs.filter((config: { serverSideEnabled?: boolean | null }) => config.serverSideEnabled === true);
-  let activeVerificationRunId: string | null | undefined = undefined;
-  for (let i = 0; i < events.length; i++) {
-    const eventValidation = validateRequest(events[i]);
-    if (!eventValidation.valid) {
-      logger.warn(`Invalid event at index ${i} in batch`, {
-        shopDomain,
-        error: eventValidation.error,
-      });
-      continue;
-    }
-    const payload = eventValidation.payload;
-    if (payload.shopDomain !== shopDomain) {
-      logger.warn(`Event at index ${i} has different shopDomain`, {
-        expected: shopDomain,
-        actual: payload.shopDomain,
-      });
-      continue;
-    }
-    const now = Date.now();
-    const eventTimeDiff = Math.abs(now - payload.timestamp);
-    if (eventTimeDiff > TIMESTAMP_WINDOW_MS) {
-      logger.debug(`Event at index ${i} timestamp outside window: diff=${eventTimeDiff}ms, skipping`, {
-        shopDomain,
-        eventTimestamp: payload.timestamp,
-        currentTime: now,
-        windowMs: TIMESTAMP_WINDOW_MS,
-      });
-      continue;
-    }
-    if (!isPrimaryEvent(payload.eventName, mode)) {
-      logger.debug(`Event ${payload.eventName} at index ${i} not accepted for ${shopDomain} (mode: ${mode}) - skipping`);
-      continue;
-    }
-    const eventType = payload.eventName === "checkout_completed" ? "purchase" : payload.eventName;
-    const isPurchaseEvent = eventType === "purchase";
-    const items = payload.data.items as Array<{
-      id?: string;
-      quantity?: number | string;
-      variantId?: string;
-      variant_id?: string;
-      productId?: string;
-      product_id?: string;
-    }> | undefined;
-    const normalizedItems = items?.map(item => ({
-      id: String(
-        item.variantId ||
-        item.variant_id ||
-        item.productId ||
-        item.product_id ||
-        item.id ||
-        ""
-      ).trim(),
-      quantity: typeof item.quantity === "number"
-        ? Math.max(1, Math.floor(item.quantity))
-        : typeof item.quantity === "string"
-        ? Math.max(1, parseInt(item.quantity, 10) || 1)
-        : 1,
-    })).filter(item => item.id) || [];
-    let orderId: string | null = null;
-    let altOrderKey: string | null = null;
-    let eventIdentifier: string | null = null;
-    if (isPurchaseEvent) {
-      try {
-        const matchKeyResult = generateOrderMatchKey(
-          payload.data.orderId,
-          payload.data.checkoutToken,
-          shopDomain
-        );
-        orderId = matchKeyResult.orderId;
-        altOrderKey = matchKeyResult.altOrderKey;
-        eventIdentifier = orderId;
-        const alreadyRecorded = await isClientEventRecorded(shop.id, matchKeyResult.orderId, eventType, altOrderKey != null ? { altOrderKey } : undefined);
-        if (alreadyRecorded) {
-          const orderIdHash = hashValueSync(orderId).slice(0, 12);
-          logger.debug(`Purchase event already recorded for order ${orderIdHash}, skipping`, {
-            shopId: shop.id,
-            orderIdHash,
-            eventType,
-          });
-          continue;
-        }
-        const nonceFromBody = payload.nonce;
-        const nonceResult = await createEventNonce(
-          shop.id,
-          matchKeyResult.orderId,
-          payload.timestamp,
-          nonceFromBody,
-          eventType
-        );
-        if (nonceResult.isReplay) {
-          const orderIdHash = hashValueSync(orderId).slice(0, 12);
-          logger.debug(`Replay detected for order ${orderIdHash}, skipping`, {
-            shopId: shop.id,
-            orderIdHash,
-            eventType,
-          });
-          continue;
-        }
-      } catch (error) {
-        logger.warn(`Failed to process purchase event at index ${i}`, {
-          shopDomain,
-          error: error instanceof Error ? error.message : String(error),
-        });
-        continue;
-      }
-    } else {
-      const checkoutToken = payload.data.checkoutToken;
-      if (checkoutToken) {
-        const checkoutTokenHash = hashValueSync(checkoutToken);
-        orderId = `checkout_${checkoutTokenHash}`;
-        eventIdentifier = orderId;
-      } else {
-        orderId = `session_${payload.timestamp}_${shopDomain.replace(/\./g, "_")}`;
-        eventIdentifier = null;
-      }
-    }
-    const eventId = generateEventIdForType(
-      eventIdentifier,
-      eventType,
-      shopDomain,
-      payload.data.checkoutToken,
-      normalizedItems.length > 0 ? normalizedItems : undefined,
-      payload.nonce ?? null
-    );
-    const consentResult = checkInitialConsent(payload.consent);
-    const mappedConfigs = serverSideConfigs.map((config: { platform: string; id: string; platformId?: string | null; clientSideEnabled?: boolean | null; serverSideEnabled?: boolean | null; clientConfig?: unknown }) => ({
-      platform: config.platform,
-      id: config.id,
-      platformId: config.platformId ?? undefined,
-      clientSideEnabled: config.clientSideEnabled ?? undefined,
-      serverSideEnabled: config.serverSideEnabled ?? undefined,
-      clientConfig: config.clientConfig && typeof config.clientConfig === 'object' && 'treatAsMarketing' in (config.clientConfig as object)
-        ? { treatAsMarketing: (config.clientConfig as { treatAsMarketing?: boolean }).treatAsMarketing }
-        : null,
-    }));
-    const { platformsToRecord, skippedPlatforms } = filterPlatformsByConsent(
-      mappedConfigs,
-      consentResult
-    );
-    const destinations = platformsToRecord.map((p: { platform: string }) => p.platform);
-    if (isPurchaseEvent && orderId) {
-      if (activeVerificationRunId === undefined) {
-        const run = await prisma.verificationRun.findFirst({
-          where: { shopId: shop.id, status: "running" },
-          orderBy: { createdAt: "desc" },
-          select: { id: true },
-        });
-        activeVerificationRunId = run?.id ?? null;
-      }
-      logConsentFilterMetrics(
-        shopDomain,
-        orderId,
-        platformsToRecord,
-        skippedPlatforms,
-        consentResult
-      );
-      try {
-        const primaryPlatform = platformsToRecord.length > 0 ? platformsToRecord[0].platform : null;
-        await upsertPixelEventReceipt(
-          shop.id,
-          eventId,
-          payload,
-          origin,
-          eventType,
-          activeVerificationRunId ?? null,
-          primaryPlatform || null,
-          orderId || null,
-          altOrderKey,
-          destinations.length > 0
-        );
-      } catch (error) {
-        const orderIdHash = orderId ? hashValueSync(orderId).slice(0, 12) : null;
-        logger.warn(`Failed to write receipt for purchase event at index ${i}`, {
-          shopId: shop.id,
-          orderIdHash,
-          error: error instanceof Error ? error.message : String(error),
-        });
-      }
-    }
-    if (destinations.length === 0) {
-      logger.debug(`Event at index ${i} has no allowed platforms after consent filtering, skipping`, {
-        shopDomain,
-        eventName: payload.eventName,
-        consent: payload.consent,
-      });
-      continue;
-    }
-    const payloadWithTrust = {
-      ...payload,
-      data: {
-        ...payload.data,
-        hmacTrustLevel: keyValidation.trustLevel || "untrusted",
-        hmacMatched: keyValidation.matched,
-      },
-    };
-    validatedEvents.push({
-      payload: payloadWithTrust,
-      eventId,
-      destinations,
-    });
-  }
-  if (validatedEvents.length === 0) {
+  }> = processedEvents.map(event => ({
+    payload: event.payload,
+    eventId: event.eventId,
+    destinations: event.destinations,
+  }));
+  if (validatedEventsForPipeline.length === 0) {
     logger.debug(`All events filtered for ${shopDomain} (mode: ${mode}) - returning empty accepted_count`);
     return jsonWithCors(
       {
@@ -624,12 +440,12 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     );
   }
   const PROCESSING_TIMEOUT_MS = 10000;
-  const processingPromise = processBatchEvents(shop.id, validatedEvents, environment).then((results) => {
+  const processingPromise = processBatchEvents(shop.id, validatedEventsForPipeline, environment).then((results) => {
     const successCount = results.filter(r => r.success).length;
     const errorCount = results.filter(r => !r.success).length;
     logger.info(`Batch ingest processed`, {
       shopDomain,
-      total: validatedEvents.length,
+      total: validatedEventsForPipeline.length,
       accepted: successCount,
       errors: errorCount,
     });
@@ -639,16 +455,16 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     logger.warn(`Batch ingest processing taking longer than ${PROCESSING_TIMEOUT_MS}ms`, {
       shopDomain,
       shopId: shop.id,
-      total: validatedEvents.length,
+      total: validatedEventsForPipeline.length,
     });
   }, PROCESSING_TIMEOUT_MS);
   safeFireAndForget(processingPromise.finally(() => clearTimeout(timeoutId)), {
     operation: "Batch ingest processing",
-    metadata: { shopDomain, shopId: shop.id, total: validatedEvents.length },
+    metadata: { shopDomain, shopId: shop.id, total: validatedEventsForPipeline.length },
   });
   return jsonWithCors(
     {
-      accepted_count: validatedEvents.length,
+      accepted_count: validatedEventsForPipeline.length,
       errors: [],
     },
     { request }

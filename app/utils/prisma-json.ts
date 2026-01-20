@@ -30,6 +30,7 @@ export const ConsentStateSchema = z.object({
   marketing: z.boolean().optional(),
   analytics: z.boolean().optional(),
   saleOfData: z.boolean().optional(),
+  saleOfDataAllowed: z.boolean().optional(),
 });
 
 const TrustLevelValues = ["trusted", "partial", "untrusted", "unknown"] as const;

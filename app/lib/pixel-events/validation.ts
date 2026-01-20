@@ -154,6 +154,13 @@ function validateConsentFormat(
       code: "invalid_consent_format",
     };
   }
+  if (consentObj.saleOfDataAllowed !== undefined && typeof consentObj.saleOfDataAllowed !== "boolean") {
+    return {
+      valid: false,
+      error: "consent.saleOfDataAllowed must be boolean",
+      code: "invalid_consent_format",
+    };
+  }
   if (consentObj.saleOfData !== undefined && typeof consentObj.saleOfData !== "boolean") {
     return {
       valid: false,
@@ -206,8 +213,15 @@ function sanitizeEventData(
         });
       } else if (key === "orderId" || key === "checkoutToken") {
         sanitized[key] = value === null || value === undefined ? null : String(value);
-      } else if (key === "orderNumber" || key === "url" || key === "title" || key === "productId" || key === "productTitle" || key === "environment") {
+      } else if (key === "orderNumber" || key === "url" || key === "title" || key === "productId" || key === "productTitle") {
         sanitized[key] = value === null || value === undefined ? undefined : String(value);
+      } else if (key === "environment") {
+        const envStr = value === null || value === undefined ? undefined : String(value);
+        if (envStr === "test" || envStr === "live") {
+          sanitized.environment = envStr;
+        } else {
+          sanitized.environment = "live";
+        }
       } else if (key === "currency") {
         sanitized.currency = value == null || value === undefined ? undefined : String(value);
       } else if (key === "value" || key === "tax" || key === "shipping" || key === "itemCount" || key === "price" || key === "quantity") {
@@ -297,11 +311,21 @@ export function validateRequest(body: unknown): ValidationResult {
     return { valid: false, error: "Invalid event format", code: "invalid_body" };
   }
   const { eventName, timestamp, shopDomain, nonce, context } = normalized;
-  const consent = (data.consent || (context as Record<string, unknown>)?.consent) as PixelEventPayload["consent"] | undefined;
-  const consentError = validateConsentFormat(consent);
+  const rawConsent = (data.consent || (context as Record<string, unknown>)?.consent) as Record<string, unknown> | undefined;
+  const consentError = validateConsentFormat(rawConsent);
   if (consentError) {
     return consentError;
   }
+  const normalizedConsent = rawConsent ? (() => {
+    const saleOfDataAllowed = rawConsent.saleOfDataAllowed !== undefined
+      ? (typeof rawConsent.saleOfDataAllowed === "boolean" ? rawConsent.saleOfDataAllowed : undefined)
+      : (typeof rawConsent.saleOfData === "boolean" ? rawConsent.saleOfData : undefined);
+    return {
+      marketing: typeof rawConsent.marketing === "boolean" ? rawConsent.marketing : undefined,
+      analytics: typeof rawConsent.analytics === "boolean" ? rawConsent.analytics : undefined,
+      saleOfDataAllowed,
+    };
+  })() : undefined;
   const rawEventData = (data.data || (context as Record<string, unknown>)?.data) as Record<string, unknown> | undefined;
   if (eventName === "checkout_completed") {
     const checkoutError = validateCheckoutCompletedFields(rawEventData);
@@ -317,7 +341,7 @@ export function validateRequest(body: unknown): ValidationResult {
       timestamp,
       shopDomain,
       nonce: nonce || undefined,
-      consent,
+      consent: normalizedConsent,
       data: sanitizedEventData,
     },
   };

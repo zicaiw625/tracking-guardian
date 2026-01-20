@@ -23,7 +23,7 @@ export const FUNNEL_EVENTS = [
 export interface ConsentState {
   marketing?: boolean;
   analytics?: boolean;
-  saleOfData?: boolean;
+  saleOfDataAllowed?: boolean;
 }
 
 export interface PixelEventData {

@@ -47,21 +47,13 @@ function normalizeConsentState(consent: unknown): ConsentState | null {
     return null;
   }
   const data = consent as Record<string, unknown>;
-  const rawConsentState = parseConsentState(consent);
-  if (!rawConsentState) {
-    const saleOfData = data.saleOfDataAllowed !== undefined
-      ? (typeof data.saleOfDataAllowed === 'boolean' ? data.saleOfDataAllowed : undefined)
-      : (typeof data.saleOfData === 'boolean' ? data.saleOfData : undefined);
-    return {
-      marketing: typeof data.marketing === 'boolean' ? data.marketing : undefined,
-      analytics: typeof data.analytics === 'boolean' ? data.analytics : undefined,
-      saleOfDataAllowed: saleOfData,
-    };
-  }
+  const saleOfDataAllowed = data.saleOfDataAllowed !== undefined
+    ? (typeof data.saleOfDataAllowed === 'boolean' ? data.saleOfDataAllowed : undefined)
+    : (typeof data.saleOfData === 'boolean' ? data.saleOfData : undefined);
   return {
-    marketing: rawConsentState.marketing,
-    analytics: rawConsentState.analytics,
-    saleOfDataAllowed: rawConsentState.saleOfData,
+    marketing: typeof data.marketing === 'boolean' ? data.marketing : undefined,
+    analytics: typeof data.analytics === 'boolean' ? data.analytics : undefined,
+    saleOfDataAllowed,
   };
 }
 
@@ -76,6 +68,7 @@ export function evaluateTrust(
     shop.storefrontDomains
   );
   const isHmacVerified = receipt?.originHost ? true : false;
+  const strictMode = shop.consentStrategy === "strict";
   const trustResult = verifyReceiptTrust({
     receiptCheckoutToken: undefined,
     webhookCheckoutToken,
@@ -85,7 +78,10 @@ export function evaluateTrust(
     allowedDomains: shopAllowedDomains,
     clientCreatedAt: receipt?.pixelTimestamp,
     serverCreatedAt: receipt?.createdAt,
-    options: DEFAULT_TRUST_OPTIONS,
+    options: {
+      ...DEFAULT_TRUST_OPTIONS,
+      strictMode,
+    },
   });
   const trustMetadata = buildTrustMetadata(trustResult, {
     hasReceipt: !!receipt,

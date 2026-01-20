@@ -1,5 +1,6 @@
 import { randomBytes } from "crypto";
 import { AsyncLocalStorage } from "async_hooks";
+import { hashValueSync } from "./crypto.server";
 
 type LogLevel = "debug" | "info" | "warn" | "error";
 
@@ -213,7 +214,11 @@ function sanitizeContext(context: LogContext, depth: number = 0): LogContext {
       continue;
     }
     if (SENSITIVE_FIELD_PATTERNS.some((f) => lowerKey.includes(f))) {
-      sanitized[key] = "[REDACTED]";
+      if ((lowerKey.includes("trackingnumber") || lowerKey.includes("checkouttoken")) && typeof value === "string" && value.length > 0) {
+        sanitized[key] = hashValueSync(value).slice(0, 12);
+      } else {
+        sanitized[key] = "[REDACTED]";
+      }
     } else if (typeof value === "object" && value !== null) {
       if (Array.isArray(value)) {
         const sanitizedArray = value.slice(0, 10).map((item) =>

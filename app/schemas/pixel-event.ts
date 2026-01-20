@@ -16,6 +16,7 @@ export const ConsentSchema = z.object({
   marketing: z.boolean().optional(),
   analytics: z.boolean().optional(),
   saleOfData: z.boolean().optional(),
+  saleOfDataAllowed: z.boolean().optional(),
 }).strict();
 
 export type ConsentInput = z.infer<typeof ConsentSchema>;
