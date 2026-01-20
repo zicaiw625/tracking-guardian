@@ -1,5 +1,4 @@
 import prisma from "../db.server";
-import { logger } from "../utils/logger.server";
 import PDFDocument from "pdfkit";
 import { getVerificationRun, type VerificationSummary, type VerificationEventResult } from "./verification.server";
 
@@ -131,7 +130,6 @@ function analyzeSandboxLimitations(results: VerificationEventResult[]): {
   const missingFields = Array.from(missingFieldsMap.entries()).map(([eventType, fields]) => {
     const knownLimitations = STRICT_SANDBOX_FIELD_LIMITATIONS[eventType] || [];
     const knownFields = Array.from(fields).filter(f => knownLimitations.some(kl => f.includes(kl) || kl.includes(f)));
-    const unknownFields = Array.from(fields).filter(f => !knownFields.includes(f));
     let reason = "Web Pixel 运行在 strict sandbox (Web Worker) 环境中，无法访问 DOM、localStorage、第三方 cookie 等，部分字段可能不可用";
     if (knownFields.length > 0) {
       reason += `。已知限制字段：${knownFields.join(", ")}`;

@@ -1,7 +1,5 @@
 import prisma from "../../db.server";
-import { logger } from "../../utils/logger.server";
 import { extractPlatformFromPayload } from "../../utils/common";
-import type { PlanId } from "./plans";
 
 export interface UsageHistoryPoint {
   date: string;

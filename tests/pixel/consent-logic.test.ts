@@ -3,7 +3,7 @@ import { describe, it, expect } from "vitest";
 function hasAnalyticsConsent(
   marketingAllowed: boolean,
   analyticsAllowed: boolean,
-  saleOfDataAllowed: boolean
+  _saleOfDataAllowed: boolean
 ): boolean {
   return analyticsAllowed === true;
 }

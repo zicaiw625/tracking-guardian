@@ -17,10 +17,7 @@ import {
   DEFAULT_API_TIMEOUT_MS,
 } from "./interface";
 import {
-  BasePlatformService,
-  classifyHttpError,
   classifyJsError,
-  parseGoogleError,
 } from "./base-platform.service";
 
 const GA4_MEASUREMENT_PROTOCOL_URL = process.env.GA4_USE_EU_ENDPOINT === "true"
@@ -121,7 +118,7 @@ export class GooglePlatformService implements IPlatformService {
   }
   async buildPayload(
     data: ConversionData,
-    eventId: string
+    _eventId: string
   ): Promise<Record<string, unknown>> {
     const providedClientId = (data as ConversionData & { clientId?: string }).clientId;
     const clientId = providedClientId || `server.${Date.now()}.${data.orderId.slice(-8)}`;

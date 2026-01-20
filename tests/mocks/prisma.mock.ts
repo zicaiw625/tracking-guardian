@@ -1,5 +1,4 @@
 import { vi, type Mock } from "vitest";
-import type { PrismaClient } from "@prisma/client";
 
 export interface MockPrismaClient {
   shop: MockModel;

@@ -6,7 +6,7 @@ import {
 } from "../../utils/token-encryption";
 import { logger } from "../../utils/logger.server";
 import { safeFireAndForget } from "../../utils/helpers.server";
-import type { ShopQueryResponse, ShopTierValue , WebhookRegisterResults } from "../../types/shopify";
+import type { ShopQueryResponse, ShopTierValue } from "../../types/shopify";
 import { cleanupDeprecatedWebhookSubscriptions } from "./webhook-cleanup.server";
 import { scanShopTracking } from "../scanner.server";
 import { batchCreateAuditAssets, type AuditAssetInput, type RiskLevel, type SuggestedMigration } from "../audit-asset.server";
@@ -155,7 +155,7 @@ async function runPostInstallScan(
         clearTimeout(timeoutId);
         timeoutId = null;
       }
-    } catch (timeoutError) {
+    } catch {
       if (timeoutId !== null) {
         clearTimeout(timeoutId);
         timeoutId = null;

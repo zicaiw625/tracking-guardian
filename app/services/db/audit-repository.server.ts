@@ -121,7 +121,7 @@ function redactSensitiveFields(
   return redacted;
 }
 
-export function extractRequestContext(request: Request): Record<string, never> {
+export function extractRequestContext(_request: Request): Record<string, never> {
   return {};
 }
 

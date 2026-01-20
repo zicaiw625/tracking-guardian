@@ -22,6 +22,7 @@ export async function aggregateDailyMetrics(
   startOfDay.setUTCHours(0, 0, 0, 0);
   const endOfDay = new Date(date);
   endOfDay.setUTCHours(23, 59, 59, 999);
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const receipts = await prisma.pixelEventReceipt.findMany({
     where: {
       shopId,
@@ -76,7 +77,8 @@ export async function aggregateDailyMetrics(
   };
   try {
     void 0; // TODO: persist metrics when daily table is available
-  } catch (error) {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  } catch (_error) {
     logger.debug("Daily metrics table not available, skipping aggregation", {
       shopId,
       date: startOfDay.toISOString(),
@@ -101,6 +103,7 @@ export async function getAggregatedMetrics(
     successRate: number;
   }>;
 }> {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const receipts = await prisma.pixelEventReceipt.findMany({
     where: {
       shopId,

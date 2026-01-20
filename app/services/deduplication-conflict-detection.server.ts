@@ -1,5 +1,4 @@
 import prisma from "../db.server";
-import { logger } from "../utils/logger.server";
 import { extractPlatformFromPayload, isRecord } from "../utils/common";
 
 const ONE_MINUTE_MS = 60 * 1000;

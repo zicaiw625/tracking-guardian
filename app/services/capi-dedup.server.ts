@@ -1,8 +1,8 @@
-import { randomUUID, createHash } from "crypto";
+import { createHash } from "crypto";
 import prisma from "../db.server";
 import { logger } from "../utils/logger.server";
 import { generateEventId as generateEventIdUnified } from "../utils/crypto.server";
-import { extractPlatformFromPayload, isRecord } from "../utils/common";
+import { extractPlatformFromPayload } from "../utils/common";
 
 export interface DedupResult {
   shouldSend: boolean;
@@ -57,7 +57,7 @@ export async function checkShouldSend(
   platform: string,
   config: Partial<DedupConfig> = {}
 ): Promise<DedupResult> {
-  const { windowHours, maxAttempts, checkPixelReceipt, strictMode } = {
+  const { windowHours, checkPixelReceipt } = {
     ...DEFAULT_CONFIG,
     ...config,
   };
@@ -171,6 +171,7 @@ export async function analyzeDedupConflicts(
     platform: string;
     count: number;
   }> = [];
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   for (const [_key, events] of groupedEvents) {
     const payload = events[0].payloadJson as Record<string, unknown> | null;
     const platform = extractPlatformFromPayload(payload) || "unknown";

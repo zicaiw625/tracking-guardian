@@ -18,7 +18,6 @@ import {
 } from "./interface";
 import {
   classifyJsError,
-  parseTikTokError,
 } from "./base-platform.service";
 import { CAPI_CONFIG } from "../../utils/config.server";
 
@@ -210,6 +209,7 @@ export class TikTokPlatformService implements IPlatformService {
       const errorMessage = errorData.message || "Unknown TikTok API error";
       throw new Error(`TikTok API error: ${errorMessage}`);
     }
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const result = await response.json();
     return {
       success: true,

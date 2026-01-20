@@ -227,7 +227,7 @@ export function mergeEventMappings(
 export function validateEventMapping(
   platform: string,
   shopifyEvent: string,
-  platformEvent: string
+  _platformEvent: string
 ): { valid: boolean; error?: string } {
   const platformMapping = getPlatformEventMapping(platform);
   if (!platformMapping) {

@@ -1,6 +1,5 @@
 import { createHash } from "crypto";
 import type { PixelEventPayload } from "~/lib/pixel-events/types";
-import { normalizeParameterValue } from "./mapping.server";
 
 export interface CanonicalEvent {
   eventName: string;

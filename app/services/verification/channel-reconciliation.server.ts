@@ -1,6 +1,5 @@
 import prisma from "../../db.server";
-import { logger } from "../../utils/logger.server";
-import { extractPlatformFromPayload, isRecord } from "../../utils/common";
+import { extractPlatformFromPayload } from "../../utils/common";
 
 export interface ChannelReconciliationDetail {
   platform: string;
@@ -166,9 +165,6 @@ export async function performEnhancedChannelReconciliation(
       };
     });
     const platformOrderIds = new Set(platformLogs.map((l: { orderId: string }) => l.orderId));
-    const platformOrderMap = new Map(
-      platformLogs.map((l: { orderId: string }) => [l.orderId, l])
-    );
     const platformTotalValue = platformLogs.reduce(
       (sum: number, l: { orderValue: { toNumber: () => number } | number }) => {
         const value = typeof l.orderValue === 'object' && 'toNumber' in l.orderValue
@@ -439,7 +435,6 @@ export async function getOrderCrossPlatformComparison(
   });
   const configuredPlatforms =
     shop?.pixelConfigs.map((c: { platform: string }) => c.platform) || [];
-  const platformsWithEvents = new Set(platformEvents.map((e: { platform: string }) => e.platform));
   const discrepancies: Array<{
     platform: string;
     type: "missing" | "value_mismatch" | "timing_delay";

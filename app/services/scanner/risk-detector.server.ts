@@ -1,5 +1,4 @@
-import type { RiskItem, RiskSeverity } from "../../types";
-import type { ScriptAnalysisResult } from "./types";
+import type { RiskItem } from "../../types";
 import { analyzeScriptContent } from "./content-analysis";
 
 export interface RiskDetectionResult {
@@ -35,7 +34,7 @@ export function detectRisksInContent(content: string): RiskDetectionResult {
   };
 }
 
-function enhanceRiskDescription(risk: RiskItem, content: string): RiskItem {
+function enhanceRiskDescription(risk: RiskItem, _content: string): RiskItem {
   switch (risk.id) {
     case "pii_access":
       return {

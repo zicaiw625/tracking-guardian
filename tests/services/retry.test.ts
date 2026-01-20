@@ -1,11 +1,10 @@
-import { describe, it, expect, beforeEach, vi } from "vitest";
+import { describe, it, expect } from "vitest";
 import {
   platformErrorToFailureReason,
   classifyFailureReason,
   shouldNotifyImmediately,
   shouldRetryFromPlatformError,
   getRetryDelay,
-  type FailureReason,
 } from "../../app/services/retry.server";
 import type { PlatformError } from "../../app/services/platforms/base.server";
 

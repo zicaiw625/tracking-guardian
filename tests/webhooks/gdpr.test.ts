@@ -285,16 +285,6 @@ describe("GDPR Compliance Webhooks", () => {
   });
   describe("Audit Logging for GDPR", () => {
     it("should log GDPR requests without storing PII", async () => {
-      const mockPayload = {
-        shop_id: 123456789,
-        shop_domain: "test-shop.myshopify.com",
-        customer: {
-          id: 987654321,
-          email: "customer@example.com",
-          phone: "+1234567890",
-        },
-        orders_to_redact: [1001, 1002],
-      };
       expect(true).toBe(true);
     });
   });
@@ -431,33 +421,3 @@ describe("GDPR Compliance Webhooks", () => {
     });
   });
 });
-
-interface CustomerDataRequestPayload {
-  shop_id: number;
-  shop_domain: string;
-  orders_requested: number[];
-  customer: {
-    id: number;
-    email?: string;
-    phone?: string;
-  };
-  data_request: {
-    id: number;
-  };
-}
-
-interface CustomerRedactPayload {
-  shop_id: number;
-  shop_domain: string;
-  orders_to_redact: number[];
-  customer: {
-    id: number;
-    email?: string;
-    phone?: string;
-  };
-}
-
-interface ShopRedactPayload {
-  shop_id: number;
-  shop_domain: string;
-}

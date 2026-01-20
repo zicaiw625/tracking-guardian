@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { buildCspHeader, CSP_DIRECTIVES, API_SECURITY_HEADERS, addSecurityHeaders } from "./security-headers";
+import { buildCspHeader, CSP_DIRECTIVES, API_SECURITY_HEADERS } from "./security-headers";
 
 export function sanitizeString(input: unknown): string {
   if (typeof input !== "string") {

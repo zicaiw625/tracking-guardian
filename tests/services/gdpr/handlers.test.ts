@@ -177,7 +177,7 @@ describe("GDPR Handlers", () => {
       vi.mocked(prisma.pixelEventReceipt.findMany).mockResolvedValue([
         { checkoutToken: "token-123" },
       ] as never);
-      const result = await processCustomerRedact("test-shop.myshopify.com", {
+      await processCustomerRedact("test-shop.myshopify.com", {
         customer_id: 123,
         orders_to_redact: [1001],
       });

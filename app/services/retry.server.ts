@@ -1,10 +1,7 @@
 import prisma from "../db.server";
-import { Prisma } from "@prisma/client";
 import type {
   PlatformError,
   ConversionData,
-  PlatformCredentials,
-  ConversionApiResponse,
 } from "../types";
 import {
   calculateBackoff,
@@ -16,7 +13,6 @@ import { sendConversionToPlatform } from "./platforms";
 import { generateEventId as generateStableEventId } from "./capi-dedup.server";
 import { logger } from "../utils/logger.server";
 import { toJsonInput } from "../utils/prisma-json";
-import type { PlatformSendResult } from "./platforms/interface";
 import { ConversionLogStatus } from "../types/enums";
 
 export { processConversionJobs, calculateNextRetryTime } from "./conversion-job.server";
@@ -129,7 +125,6 @@ export function shouldNotifyImmediately(reason: FailureReason): boolean {
   return reason === "token_expired" || reason === "config_error";
 }
 
-const MAX_ATTEMPTS = 5;
 const BASE_DELAY_MS = 60 * 1000;
 const MAX_DELAY_MS = 2 * 60 * 60 * 1000;
 
@@ -189,33 +184,6 @@ export async function scheduleRetry(
     });
     return { scheduled: false, failureReason: "unknown" };
   }
-}
-
-interface PlatformSendResultInternal {
-  success: boolean;
-  response?: ConversionApiResponse;
-  error?: string;
-}
-
-async function sendToPlatformFromLog(
-  platform: string,
-  credentials: PlatformCredentials,
-  conversionData: ConversionData,
-  eventId: string
-): Promise<PlatformSendResultInternal> {
-  const result = await sendConversionToPlatform(
-    platform,
-    credentials,
-    conversionData,
-    eventId
-  );
-  if (!result.success) {
-    throw new Error(result.error?.message || "Platform send failed");
-  }
-  return {
-    success: true,
-    response: result.response,
-  };
 }
 
 export async function processPendingConversions(): Promise<{
@@ -597,7 +565,7 @@ export async function retryAllDeadLetters(shopId: string): Promise<number> {
   }
 }
 
-export async function checkTokenExpirationIssues(shopId: string): Promise<{
+export async function checkTokenExpirationIssues(_shopId: string): Promise<{
   hasIssues: boolean;
   affectedPlatforms: string[];
 }> {

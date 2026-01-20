@@ -210,7 +210,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 };
 
 export default function TemplatesPage() {
-  const { shop, templates, planId, canManageTemplates, isAgency } = useLoaderData<typeof loader>();
+  const { shop, templates, canManageTemplates, isAgency } = useLoaderData<typeof loader>();
   const actionData = useActionData<typeof action>();
   const submit = useSubmit();
   const navigation = useNavigation();

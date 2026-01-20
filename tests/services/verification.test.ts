@@ -39,7 +39,6 @@ import {
   generateTestOrderGuide,
   exportVerificationReport,
   VERIFICATION_TEST_ITEMS,
-  type VerificationSummary,
 } from "../../app/services/verification.server";
 
 describe("Verification Service", () => {

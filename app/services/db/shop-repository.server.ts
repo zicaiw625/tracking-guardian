@@ -251,6 +251,7 @@ const slowQueryLogs: SlowQueryLog[] = [];
 const SLOW_QUERY_THRESHOLD_MS = 100;
 const MAX_SLOW_QUERY_LOGS = 100;
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 function logSlowQuery(query: string, durationMs: number, params?: unknown): void {
   if (durationMs >= SLOW_QUERY_THRESHOLD_MS) {
     slowQueryLogs.push({

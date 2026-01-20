@@ -1,9 +1,7 @@
-import { randomUUID } from "crypto";
 import prisma from "../db.server";
 import { getPlanOrDefault, type PlanId } from "./billing/plans";
 import { logger } from "../utils/logger.server";
 import type { AdminApiContext } from "@shopify/shopify-app-remix/server";
-import { encryptJson, decryptJson } from "../utils/crypto.server";
 import { validateTarget } from "../utils/target-validator";
 
 export {
@@ -26,6 +24,7 @@ import {
   type ModuleKey,
   type ModuleSettings,
   type DisplayRules,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   type LocalizationSettings,
   type UiModuleConfig,
   type SurveySettings,

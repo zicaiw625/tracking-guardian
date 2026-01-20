@@ -1,7 +1,5 @@
-import prisma from "../db.server";
 import { logger } from "../utils/logger.server";
-import { getPlatformService } from "./platforms/factory";
-import type { ConversionJob , Prisma } from "@prisma/client";
+import type { Prisma } from "@prisma/client";
 import { getPendingJobs, updateJobStatus, claimJobsForProcessing, type JobForProcessing } from "./db/conversion-repository.server";
 import { JobStatus, type JobStatusType } from "../types";
 import { normalizeDecimalValue } from "../utils/common";
@@ -14,6 +12,7 @@ export interface ProcessConversionJobsResult {
 }
 
 const BATCH_SIZE = 10;
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 const MAX_RETRIES = 5;
 const BASE_BACKOFF_MS = 1000;
 const MAX_BACKOFF_MS = 30000;

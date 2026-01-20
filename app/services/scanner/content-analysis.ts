@@ -1,4 +1,4 @@
-import type { RiskItem, RiskSeverity } from "../../types";
+import type { RiskSeverity } from "../../types";
 import type { ScriptAnalysisResult } from "./types";
 import { PLATFORM_PATTERNS, getPatternType } from "./patterns";
 import { calculateRiskScore } from "./risk-assessment";

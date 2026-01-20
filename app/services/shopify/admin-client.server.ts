@@ -157,7 +157,7 @@ function createEnhancedGraphQLClient(
           let jsonResponse: ShopifyGraphQLResponse;
           try {
             jsonResponse = await response.clone().json() as ShopifyGraphQLResponse;
-          } catch (parseErr) {
+          } catch {
             const raw = await response.text().catch(() => "");
             const preview = raw.slice(0, 200).replace(/\s+/g, " ");
             logger.warn("[GraphQL] Response is not valid JSON", {
@@ -282,7 +282,7 @@ function createEnhancedGraphQLClient(
             status: lastResponse.status,
             headers: lastResponse.headers,
           };
-        } catch (e) {
+        } catch {
           const raw = await lastResponse.text().catch(() => "");
           const preview = raw.slice(0, 200).replace(/\s+/g, " ");
           logger.warn("[GraphQL] lastResponse is not valid JSON", {

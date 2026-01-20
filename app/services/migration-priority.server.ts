@@ -1,8 +1,6 @@
 import prisma from "../db.server";
 import { logger } from "../utils/logger.server";
 import {
-  getScriptTagCreationStatus,
-  getScriptTagExecutionStatus,
   DEPRECATION_DATES,
 } from "../utils/deprecation-dates";
 
@@ -298,6 +296,7 @@ export async function calculateAllAssetPriorities(
       logger.error(`Failed to calculate priority for asset ${asset.id}:`, error);
     }
   }
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   for (const [assetId, result] of priorityResults.entries()) {
     if (result.dependencies.length > 0) {
       const dependencyPriorities = result.dependencies

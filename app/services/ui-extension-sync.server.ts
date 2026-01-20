@@ -5,7 +5,7 @@ import { getUiModuleConfig } from "./ui-extension.server";
 
 export async function syncUiExtensionSettings(
   shopId: string,
-  admin: AdminApiContext
+  _admin: AdminApiContext
 ): Promise<{ success: boolean; synced: number; errors: string[] }> {
   const { getUiModuleConfigs, MODULE_KEYS } = await import("./ui-extension.server");
   const configs = await getUiModuleConfigs(shopId);
@@ -25,7 +25,7 @@ export async function syncUiExtensionSettings(
 export async function syncSingleModule(
   shopId: string,
   moduleKey: ModuleKey,
-  admin: AdminApiContext
+  _admin: AdminApiContext
 ): Promise<{ success: boolean; error?: string }> {
   const config = await getUiModuleConfig(shopId, moduleKey);
   logger.info("Single module config checked", { shopId, moduleKey, isEnabled: config.isEnabled });

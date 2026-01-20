@@ -1,9 +1,8 @@
-import { describe, it, expect, beforeEach, vi } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import {
   calculatePriority,
   calculateAssetPriority,
   type PriorityFactors,
-  type PriorityResult,
 } from "../../app/services/migration-priority.server";
 import { createMockPrismaClient } from "../mocks/prisma.mock";
 

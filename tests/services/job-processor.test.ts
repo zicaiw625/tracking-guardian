@@ -48,13 +48,6 @@ describe("Job Processor - Bug Fixes", () => {
         },
       };
       const mockPixelConfig = mockJob.shop.pixelConfigs[0];
-      const mockCapiInput = {
-        orderId: "order-123",
-        value: 100,
-        currency: "USD",
-        items: [],
-      };
-      const eventId = "event-123";
       (decryptCredentials as ReturnType<typeof vi.fn>).mockResolvedValue({
         ok: true,
         value: {

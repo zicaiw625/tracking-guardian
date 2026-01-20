@@ -5,7 +5,6 @@ import {
   matchAdditionalScriptsToRecipes,
   getSuggestedRecipesForPlatforms,
   getRecipesByCategory,
-  type RecipeMatch,
 } from "../../../app/services/recipes/matcher";
 import {
   GA4_BASIC_RECIPE,

@@ -164,6 +164,7 @@ export function evaluatePlatformConsent(platform: string, consentState: ConsentS
 }
 export function evaluatePlatformConsentWithStrategy(platform: string, consentStrategy: string, consentState: ConsentState | null, hasPixelReceipt: boolean, treatAsMarketing = false): ConsentDecision {
     const config = PLATFORM_CONSENT_CONFIG[platform];
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const category = getEffectiveConsentCategory(platform, treatAsMarketing);
     const requiresSaleOfData = config?.requiresSaleOfData ?? true;
     if (requiresSaleOfData && consentState?.saleOfDataAllowed === false) {

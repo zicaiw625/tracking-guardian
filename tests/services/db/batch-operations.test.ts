@@ -1,6 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { batchCompleteJobs, batchInsertReceipts, batchUpdateShops } from "../../../app/services/db/batch-operations.server";
-import { JobStatus } from "../../../app/types";
 
 vi.mock("../../../app/container", () => ({
   getDb: vi.fn(() => mockDb),

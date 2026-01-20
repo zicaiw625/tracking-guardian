@@ -1,7 +1,6 @@
-import { json } from "@remix-run/node";
 import type { Result, AsyncResult } from "../../types/result";
 import { isOk, isErr, err } from "../../types/result";
-import { AppError, ErrorCode, type ErrorCodeType, ensureAppError, type ErrorMetadata } from "./app-error";
+import { AppError, ErrorCode, type ErrorCodeType, ensureAppError } from "./app-error";
 import { logger } from "../logger.server";
 import { jsonApi } from "../security-headers";
 

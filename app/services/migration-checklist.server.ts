@@ -1,5 +1,4 @@
 import prisma from "../db.server";
-import { logger } from "../utils/logger.server";
 import { extractRequiredInfo, getRiskReason } from "./report-generator.server";
 import type { AuditAsset } from "@prisma/client";
 
@@ -31,6 +30,7 @@ export interface MigrationChecklist {
   generatedAt: Date;
 }
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 function calculatePriority(
   asset: AuditAsset,
   category: string,

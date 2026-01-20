@@ -1,8 +1,6 @@
-import { randomUUID } from "crypto";
 import prisma from "../db.server";
 import type { AdminApiContext } from "@shopify/shopify-app-remix/server";
 import { logger } from "../utils/logger.server";
-import { Decimal } from "@prisma/client/runtime/library";
 import { extractPlatformFromPayload, isRecord, extractStringValue, extractNumberValue } from "../utils/common";
 
 const ONE_HOUR_MS = 60 * 60 * 1000;
@@ -230,6 +228,7 @@ function detectOrderDiscrepancies(
   const shopifyCurrency = shopifyOrder.totalPriceSet.shopMoney.currencyCode;
   for (const receipt of receipts) {
     const payload = isRecord(receipt.payloadJson) ? receipt.payloadJson : null;
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const platform = extractPlatformFromPayload(payload) || "unknown";
     const data = payload && isRecord(payload.data) ? payload.data : null;
     const trackedValue = extractNumberValue(data, "value", 0);
@@ -858,7 +857,9 @@ export async function checkLocalConsistency(
   const consistencyStatus = evaluateConsistency(pixelReceipt, pixelCheck.valid, capiEventChecks);
   const pixelPayload = pixelReceipt && isRecord(pixelReceipt.payloadJson) ? pixelReceipt.payloadJson : null;
   const pixelData = pixelPayload && isRecord(pixelPayload.data) ? pixelPayload.data : null;
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const pixelValue = extractNumberValue(pixelData, "value", 0);
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const pixelCurrency = extractStringValue(pixelData, "currency", "");
 
   return {

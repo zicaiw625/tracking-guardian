@@ -1,4 +1,3 @@
-import { logger } from "~/utils/logger.server";
 
 export interface PixelTemplate {
   id: string;

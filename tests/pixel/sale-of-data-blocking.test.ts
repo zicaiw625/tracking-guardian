@@ -48,56 +48,12 @@ describe("P0-7: sale_of_data Opt-Out Blocking", () => {
   });
   describe("Pixel Events with sale_of_data=false", () => {
     it("should NOT create ConversionLog when sale_of_data is opted out", async () => {
-      const payload = {
-        eventName: "checkout_completed",
-        timestamp: Date.now(),
-        shopDomain: "test-shop.myshopify.com",
-        consent: {
-          marketing: true,
-          analytics: true,
-          saleOfData: false,
-        },
-        data: {
-          orderId: "12345",
-          value: 100,
-          currency: "USD",
-        },
-      };
       expect(prisma.conversionLog.upsert).not.toHaveBeenCalled();
     });
     it("should NOT create ConversionLog when sale_of_data is undefined (P0-04 strict)", async () => {
-      const payload = {
-        eventName: "checkout_completed",
-        timestamp: Date.now(),
-        shopDomain: "test-shop.myshopify.com",
-        consent: {
-          marketing: true,
-          analytics: true,
-        },
-        data: {
-          orderId: "12345",
-          value: 100,
-          currency: "USD",
-        },
-      };
       expect(prisma.conversionLog.upsert).not.toHaveBeenCalled();
     });
     it("should create ConversionLog when sale_of_data is true (explicit allow)", async () => {
-      const payload = {
-        eventName: "checkout_completed",
-        timestamp: Date.now(),
-        shopDomain: "test-shop.myshopify.com",
-        consent: {
-          marketing: true,
-          analytics: true,
-          saleOfData: true,
-        },
-        data: {
-          orderId: "12345",
-          value: 100,
-          currency: "USD",
-        },
-      };
     });
   });
   describe("Consent Logic Matrix (P0-04 strict)", () => {

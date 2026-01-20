@@ -1,7 +1,6 @@
 import { Prisma } from "@prisma/client";
 import { logger } from "../utils/logger.server";
 import prisma from "../db.server";
-import { generateSimpleId } from "../utils/helpers";
 import { sanitizePII } from "./event-log.server";
 
 export type AnalyticsEvent =

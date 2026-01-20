@@ -1,6 +1,4 @@
-import { randomUUID } from "crypto";
 import prisma from "../db.server";
-import { sendAlert } from "./notification.server";
 import { logger } from "../utils/logger.server";
 import { extractPlatformFromPayload } from "../utils/common";
 import type { AlertConfig, AlertSettings, AlertChannel, } from "../types";
@@ -33,6 +31,7 @@ export interface DeliveryHealthReport {
     orderDiscrepancy: number;
     alertSent: boolean;
 }
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 function parseAlertConfig(dbConfig: {
     id: string;
     channel: string;
@@ -59,6 +58,7 @@ function parseAlertConfig(dbConfig: {
         isEnabled: dbConfig.isEnabled,
     };
 }
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 function categorizeFailureReason(errorMessage: string | null): string {
     if (!errorMessage)
         return "unknown";
@@ -96,6 +96,7 @@ export async function runDailyDeliveryHealthCheck(shopId: string): Promise<Deliv
             },
         },
     });
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const alertConfigs: Array<{
         id: string;
         channel: string;
@@ -165,7 +166,7 @@ export async function runDailyDeliveryHealthCheck(shopId: string): Promise<Deliv
     }
     return results;
 }
-export async function getDeliveryHealthHistory(shopId: string, days = 30): Promise<DeliveryHealthReport[]> {
+export async function getDeliveryHealthHistory(shopId: string, _days = 30): Promise<DeliveryHealthReport[]> {
     return [];
 }
 export async function getDeliveryHealthSummary(shopId: string): Promise<Record<string, DeliveryHealthSummary>> {

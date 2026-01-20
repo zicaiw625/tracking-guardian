@@ -1,13 +1,13 @@
 import prisma from "../db.server";
 import { logger } from "../utils/logger.server";
-import { reconcilePixelVsCapi, performBulkLocalConsistencyCheck, performChannelReconciliation, type ReconciliationResult } from "./enhanced-reconciliation.server";
+import { reconcilePixelVsCapi, performBulkLocalConsistencyCheck, performChannelReconciliation } from "./enhanced-reconciliation.server";
 import type { AdminApiContext } from "@shopify/shopify-app-remix/server";
 import type { Prisma } from "@prisma/client";
 import { trackEvent } from "./analytics.server";
 import { safeFireAndForget } from "../utils/helpers.server";
 import { normalizePlanId } from "../services/billing/plans";
 import { isPlanAtLeast } from "../utils/plans";
-import { extractPlatformFromPayload, isRecord } from "../utils/common";
+import { extractPlatformFromPayload } from "../utils/common";
 
 export interface VerificationTestItem {
   id: string;
@@ -149,7 +149,7 @@ export async function createVerificationRun(
     testItems?: string[];
   }
 ): Promise<string> {
-  const { runName = "验收测试", runType = "quick", platforms = [], testItems = [] } = options;
+  const { runName = "验收测试", runType = "quick", platforms = [] } = options;
   let targetPlatforms = platforms;
   if (targetPlatforms.length === 0) {
     const configs = await prisma.pixelConfig.findMany({
@@ -292,7 +292,6 @@ export async function analyzeRecentEvents(
       orderIds.add(orderId);
     }
     const discrepancies: string[] = [];
-    const errors: string[] = [];
     const data = payload?.data as Record<string, unknown> | undefined;
     let value: number | undefined;
     let currency: string | undefined;

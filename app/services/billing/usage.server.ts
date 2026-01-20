@@ -37,6 +37,7 @@ export async function getMonthlyUsage(
   const currentYearMonth = getCurrentYearMonth();
   const currentMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
   const previousMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const previousMonthEnd = new Date(now.getFullYear(), now.getMonth(), 0);
   const previousYearMonth = `${previousMonthStart.getFullYear()}-${String(previousMonthStart.getMonth() + 1).padStart(2, "0")}`;
   
@@ -255,7 +256,7 @@ export async function isOrderAlreadyCounted(
 
 export async function incrementMonthlyUsage(
   shopId: string,
-  orderId: string
+  _orderId: string
 ): Promise<number> {
   const yearMonth = getCurrentYearMonth();
   await prisma.monthlyUsage.upsert({

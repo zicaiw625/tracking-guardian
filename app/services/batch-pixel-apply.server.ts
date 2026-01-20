@@ -70,7 +70,7 @@ export async function updatePixelTemplate(
   return { success: true, template: updated };
 }
 
-export async function deletePixelTemplate(templateId: string, shopId: string): Promise<{ success: boolean; error?: string }> {
+export async function deletePixelTemplate(templateId: string, _shopId: string): Promise<{ success: boolean; error?: string }> {
   const template = await getPixelTemplate(templateId);
   if (!template) {
     return { success: false, error: "Template not found" };

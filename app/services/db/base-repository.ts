@@ -2,7 +2,7 @@ import { type PrismaClient } from "@prisma/client";
 import { getDb } from "../../container";
 import { AppError, ErrorCode, Errors } from "../../utils/errors";
 import { logger } from "../../utils/logger.server";
-import { ok, err, type Result, type AsyncResult } from "../../types/result";
+import { ok, err, type AsyncResult } from "../../types/result";
 import { isPrismaError, getPrismaErrorCode, getPrismaErrorTarget } from "../../utils/type-guards";
 
 export interface BaseModel {

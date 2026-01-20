@@ -3,7 +3,6 @@ import type {
   ConversionApiResponse,
   PlatformCredentials,
   PlatformError,
-  PlatformErrorType,
 } from "../../types";
 import type { PlatformType } from "~/types/enums";
 import { logger } from "~/utils/logger.server";

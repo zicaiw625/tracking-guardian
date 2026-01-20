@@ -1,7 +1,7 @@
 import type { ActionFunctionArgs, LoaderFunctionArgs } from "@remix-run/node";
 import { json } from "@remix-run/node";
 import { logger } from "./logger.server";
-import { AppError, ErrorCode, isAppError, ensureAppError } from "./errors/index";
+import { AppError, ErrorCode, ensureAppError } from "./errors/index";
 import { readJsonWithSizeLimit } from "./body-size-guard";
 
 export type ActionHandler<T = unknown> = (

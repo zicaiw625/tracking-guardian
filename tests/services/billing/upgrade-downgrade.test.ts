@@ -131,12 +131,6 @@ describe("Plan Upgrade/Downgrade", () => {
     function getPlanFeatures(plan: PlanId): readonly string[] {
       return BILLING_PLANS[plan].features;
     }
-    function hasFeature(plan: PlanId, feature: string): boolean {
-      const features = getPlanFeatures(plan);
-      return features.some((f) =>
-        f.toLowerCase().includes(feature.toLowerCase())
-      );
-    }
     it("should have basic features in free plan", () => {
       const features = getPlanFeatures("free");
       expect(features.length).toBeGreaterThan(0);

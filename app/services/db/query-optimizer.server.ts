@@ -1,15 +1,7 @@
 import prisma from "../../db.server";
 import { logger } from "../../utils/logger.server";
 import { Prisma } from "@prisma/client";
-import { isRecord, extractPlatformFromPayload, normalizeDecimalValue, parseReceiptPayload, type ReceiptParsedData } from "../../utils/common";
-
-function isPrismaDecimal(value: unknown): value is Prisma.Decimal {
-  return value !== null && typeof value === "object" && "toNumber" in value && typeof (value as { toNumber(): number }).toNumber === "function";
-}
-
-function normalizeOrderValue(value: unknown): number {
-  return normalizeDecimalValue(value);
-}
+import { isRecord, extractPlatformFromPayload, normalizeDecimalValue, parseReceiptPayload } from "../../utils/common";
 
 export interface ShopWithConfigs {
   id: string;

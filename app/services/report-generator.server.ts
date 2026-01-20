@@ -1,4 +1,3 @@
-import { logger } from "../utils/logger.server";
 
 export interface RiskReasonParams {
   category: string;
@@ -15,7 +14,7 @@ export interface RequiredInfoParams {
 }
 
 export function getRiskReason(params: RiskReasonParams): string {
-  const { category, platform, riskLevel, details } = params;
+  const { category, platform, riskLevel } = params;
   if (riskLevel === "high") {
     if (category === "script_tag" || category === "checkout_script") {
       return "脚本标签在 Thank you/Order status 页面已被弃用，可能导致功能失效";

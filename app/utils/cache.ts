@@ -1,4 +1,4 @@
-import { getRedisClient, type RedisClientWrapper } from "./redis-client";
+import { getRedisClient } from "./redis-client";
 import { logger } from "./logger.server";
 
 interface CacheEntry<T> {

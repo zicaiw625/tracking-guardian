@@ -170,6 +170,7 @@ export async function updateWebhookStatus(
       }
       return;
     } catch (error) {
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
       lastError = error;
       const isPrismaErr = isPrismaError(error);
       const errorCode = isPrismaErr ? getPrismaErrorCode(error) : null;

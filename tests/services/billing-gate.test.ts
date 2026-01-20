@@ -233,7 +233,7 @@ describe("Billing Gate Service", () => {
       };
       (prisma.monthlyUsage.findUnique as ReturnType<typeof vi.fn>).mockResolvedValue(mockCurrentUsage);
       const mockExecuteRaw = vi.fn().mockResolvedValue(0);
-      const mockTransaction = vi.fn().mockImplementation(async (callback) => {
+      vi.fn().mockImplementation(async (callback) => {
         const mockTx = {
           conversionJob: {
             findUnique: vi.fn().mockResolvedValue(null),

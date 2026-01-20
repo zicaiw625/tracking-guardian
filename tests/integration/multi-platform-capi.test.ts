@@ -254,12 +254,7 @@ describe("Multi-Platform CAPI Integration", () => {
     });
   });
   describe("Credential decryption failure handling", () => {
-    it("should skip platform when credentials cannot be decrypted", () => {
-      const pixelConfig = {
-        platform: "meta",
-        credentialsEncrypted: "invalid-encrypted-data",
-        credentials: null,
-      };
+    it("should skip platform when credentials cannot be decrypted", async () => {
       let credentials = null;
       try {
         throw new Error("Decryption failed");

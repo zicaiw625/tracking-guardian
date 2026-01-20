@@ -80,7 +80,7 @@ function generateFingerprint(
 
 function inferSuggestedMigration(
   category: AssetCategory,
-  platform?: string
+  _platform?: string
 ): SuggestedMigration {
   switch (category) {
     case "pixel":
@@ -129,7 +129,7 @@ async function calculatePriorityAndTimeEstimate(
 function inferRiskLevel(
   category: AssetCategory,
   sourceType: AssetSourceType,
-  platform?: string
+  _platform?: string
 ): RiskLevel {
   if (sourceType === "api_scan" && category === "pixel") {
     return "high";

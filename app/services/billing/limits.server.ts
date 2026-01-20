@@ -1,6 +1,5 @@
 import prisma from "~/db.server";
-import { logger } from "~/utils/logger.server";
-import { BILLING_PLANS, type PlanId, getPlanOrDefault, getPixelDestinationsLimit, getUiModulesLimit } from "./plans";
+import { type PlanId, getPlanOrDefault, getPixelDestinationsLimit, getUiModulesLimit } from "./plans";
 import { getMaxShops } from "./plans";
 import { canManageMultipleShops } from "../multi-shop.server";
 

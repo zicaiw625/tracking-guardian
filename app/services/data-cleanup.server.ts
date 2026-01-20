@@ -2,6 +2,7 @@ import prisma from "../db.server";
 import { logger } from "../utils/logger.server";
 
 const BATCH_SIZE = 1000;
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 const MIN_AUDIT_LOG_RETENTION_DAYS = 180;
 
 export interface CleanupResult {

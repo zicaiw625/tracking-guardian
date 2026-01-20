@@ -1,8 +1,5 @@
-import { logger } from '../utils/logger.server';
 import {
   validatePixelEvent as validateWithZod,
-  validateSimplePixelEvent,
-  type PixelEventInput
 } from '../schemas';
 
 export type PixelEventName =

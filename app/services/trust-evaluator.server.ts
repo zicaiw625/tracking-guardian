@@ -14,7 +14,6 @@ import {
 import { parseConsentState } from '../types';
 import type { TrustVerificationOptions } from '../types/consent';
 import type { ReceiptFields } from './receipt-matcher.server';
-import { SignatureStatus } from '../types/enums';
 import { logger } from '../utils/logger.server';
 
 export interface ShopTrustContext {

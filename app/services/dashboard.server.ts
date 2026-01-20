@@ -10,7 +10,6 @@ import { runAlertChecks } from "./alert-dispatcher.server";
 import { logger } from "../utils/logger.server";
 import { calculateMigrationProgress } from "../utils/migration-progress.server";
 import { getTierDisplayInfo } from "./shop-tier.server";
-import { DEPRECATION_DATES } from "../utils/deprecation-dates";
 import { isValidShopTier } from "../domain/shop/shop.entity";
 
 export type {
@@ -29,6 +28,7 @@ export {
 
 import type { DashboardData, HealthStatus, UpgradeStatus } from "../types/dashboard";
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
 
 async function calculateHealthScore(
@@ -326,6 +326,7 @@ export async function getDashboardData(shopDomain: string): Promise<DashboardDat
     let topRiskSources: Array<{ source: string; count: number; category: string }> = [];
   try {
     if (latestScan) {
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
       const assetSummary = await getAuditAssetSummary(shop.id);
       const categoryLabels: Record<string, string> = {
         pixel: "像素追踪",

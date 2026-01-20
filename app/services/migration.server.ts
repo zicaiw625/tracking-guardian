@@ -2,11 +2,8 @@ import { randomUUID } from "crypto";
 import type { AdminApiContext } from "@shopify/shopify-app-remix/server";
 import { Prisma } from "@prisma/client";
 import { encryptJson } from "../utils/crypto.server";
-import type { PlatformCredentials } from "../types";
 import { logger } from "../utils/logger.server";
 import prisma from "../db.server";
-import { canCreatePixelConfig } from "./billing/feature-gates.server";
-import { normalizePlan } from "../utils/plans";
 import { validateCredentials } from "../types/platform";
 import { saveConfigSnapshot } from "./pixel-rollback.server";
 import { DEPRECATION_DATES, getDateDisplayLabel } from "../utils/deprecation-dates";
@@ -216,7 +213,6 @@ export interface CreateWebPixelResult {
 import {
     DEFAULT_PIXEL_CONFIG,
     parseAndValidatePixelConfig,
-    buildPixelConfigString,
     type PixelConfigV1,
     type WebPixelSettings as WebPixelSettingsSchema,
 } from "../schemas/settings";
@@ -574,7 +570,7 @@ export function getScriptTagDeletionGuidance(scriptTagId: number, shopDomain?: s
     };
 }
 
-export function getScriptTagMigrationGuidance(platform: string, scriptTagId: number): {
+export function getScriptTagMigrationGuidance(platform: string, _scriptTagId: number): {
     title: string;
     steps: string[];
     deadline?: string;

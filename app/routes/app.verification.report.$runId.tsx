@@ -1,7 +1,7 @@
 import type { LoaderFunctionArgs, ActionFunctionArgs } from "@remix-run/node";
 import { json } from "@remix-run/node";
 import { useLoaderData, useSubmit, useActionData } from "@remix-run/react";
-import { useState, lazy } from "react";
+import { useState } from "react";
 import {
   Page,
   Layout,

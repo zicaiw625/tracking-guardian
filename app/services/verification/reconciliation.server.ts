@@ -1,7 +1,6 @@
 import prisma from "~/db.server";
 import { logger } from "~/utils/logger.server";
 import { extractPlatformFromPayload } from "~/utils/common";
-import type { Prisma } from "@prisma/client";
 
 export interface ReconciliationResult {
   orderId: string;

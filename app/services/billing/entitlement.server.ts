@@ -3,10 +3,7 @@ import { logger } from "~/utils/logger.server";
 import {
   type PlanId,
   getPlanOrDefault,
-  getPixelDestinationsLimit,
-  getUiModulesLimit,
   planSupportsFeature,
-  BILLING_PLANS,
 } from "./plans";
 import {
   checkPixelDestinationsLimit,
@@ -49,7 +46,6 @@ export async function checkEntitlement(
   entitlement: Entitlement
 ): Promise<EntitlementCheckResult> {
   const shopPlan = await getShopPlan(shopId);
-  const planConfig = getPlanOrDefault(shopPlan);
   switch (entitlement) {
     case "full_funnel":
       if (shopPlan === "free" || shopPlan === "starter") {

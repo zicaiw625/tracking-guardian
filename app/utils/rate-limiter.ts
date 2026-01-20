@@ -1,11 +1,6 @@
-import { getRedisClient, getRedisClientSync, type RedisClientWrapper } from "./redis-client";
+import { getRedisClient } from "./redis-client";
 import { logger } from "./logger.server";
-import { API_SECURITY_HEADERS, addSecurityHeaders } from "./security-headers";
-
-interface RateLimitEntry {
-  count: number;
-  resetTime: number;
-}
+import { API_SECURITY_HEADERS } from "./security-headers";
 
 export interface RateLimitConfig {
   maxRequests: number;
@@ -383,7 +378,6 @@ export function checkRateLimit(
     ...(DEFAULT_CONFIGS[endpoint] || DEFAULT_CONFIGS.api),
     ...customConfig,
   };
-  const key = getRateLimitKey(request, endpoint);
   const now = Date.now();
   logger.warn(
     "checkRateLimit called (sync version). This function has race conditions. Use checkRateLimitAsync instead."

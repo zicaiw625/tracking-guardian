@@ -36,9 +36,7 @@ import {
   getDefaultSettings,
   getDefaultDisplayRules,
   MODULE_KEYS,
-  UI_MODULES,
 } from "../../app/services/ui-extension.server";
-import type { ModuleKey } from "../../app/types/ui-extension";
 
 describe("UI Extension Service", () => {
   beforeEach(() => {

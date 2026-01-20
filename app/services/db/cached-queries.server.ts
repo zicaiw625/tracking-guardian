@@ -163,7 +163,7 @@ const alertConfigsCache = new QueryCache<
   Awaited<ReturnType<typeof fetchAlertConfigs>>
 >();
 
-async function fetchAlertConfigs(shopId: string) {
+async function fetchAlertConfigs(_shopId: string) {
   return [];
 }
 

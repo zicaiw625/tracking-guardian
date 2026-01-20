@@ -1,11 +1,10 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { describe, it, expect } from "vitest";
 import {
   verifyReceiptTrust,
   isSendAllowedByTrust,
   buildTrustMetadata,
   extractOriginHost,
   buildShopAllowedDomains,
-  type VerifyReceiptOptions,
 } from "../../app/utils/receipt-trust";
 
 describe("verifyReceiptTrust", () => {

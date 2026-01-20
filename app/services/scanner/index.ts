@@ -1,17 +1,20 @@
 import type { AdminApiContext } from "@shopify/shopify-app-remix/server";
 import prisma from "../../db.server";
-import type { ScanResult, ScriptTag, CheckoutConfig } from "../../types";
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+import type { ScriptTag, CheckoutConfig, ScanResult } from "../../types";
 import type {
     WebPixelInfo,
     EnhancedScanResult,
     ScanError,
     GraphQLEdge,
     GraphQLPageInfo,
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     ScriptAnalysisResult
 } from "./types";
-import { detectPlatforms, PLATFORM_PATTERNS } from "./patterns";
+import { detectPlatforms } from "./patterns";
 import { assessRisks, calculateRiskScore } from "./risk-assessment";
 import { generateMigrationActions } from "./migration-actions";
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 import { analyzeScriptContent } from "./content-analysis";
 import { detectRisksInContent } from "./risk-detector.server";
 import { refreshTypOspStatus } from "../checkout-profile.server";
@@ -67,13 +70,6 @@ function isValidScriptTag(tag: unknown): tag is ScriptTag {
         (typeof tag.src === "string" || tag.src === null || tag.src === undefined) &&
         typeof tag.display_scope === "string"
     );
-}
-
-function validateScriptTagsArray(tags: unknown): ScriptTag[] {
-    if (!Array.isArray(tags)) {
-        return [];
-    }
-    return tags.filter(isValidScriptTag);
 }
 
 function isValidRiskItem(item: unknown): item is import("../../types").RiskItem {

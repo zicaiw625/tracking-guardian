@@ -442,7 +442,7 @@ export async function getConfigVersionHistory(
       previousConfig: true,
     },
   });
-  return configs.map((config, index) => {
+  return configs.map((config, _index) => {
     const previousConfig = config.previousConfig as Record<string, unknown> | null;
     const redactedConfig = redactCredentials(previousConfig as any);
     return {

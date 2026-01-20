@@ -59,6 +59,7 @@ function SurveyModule({
       } else {
         setError("提交失败，请稍后重试");
       }
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     } catch (_err) {
       setError("提交失败，请稍后重试");
     } finally {
@@ -148,6 +149,7 @@ function ReorderModule({
     setError(null);
     try {
       await onReorder();
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     } catch (_err) {
       setError("操作失败，请稍后重试");
     } finally {
@@ -420,6 +422,7 @@ function OrderStatusBlocks() {
   try {
     orderContext = getOrderContext(api);
     hasOrderContext = !!(orderContext.orderId || orderContext.checkoutToken);
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   } catch (_error) {
     orderContext = { orderId: null, checkoutToken: null };
     hasOrderContext = false;

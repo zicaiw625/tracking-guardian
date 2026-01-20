@@ -169,6 +169,7 @@ export function sanitizePII(payload: unknown): unknown {
   return result;
 }
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 function sanitizeCredentials(payload: unknown): unknown {
   if (!payload || typeof payload !== "object") {
     return payload;

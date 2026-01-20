@@ -2,7 +2,7 @@ import { randomUUID } from "crypto";
 import prisma from "../../db.server";
 import { logger } from "../../utils/logger.server";
 import type { AdminApiContext } from "@shopify/shopify-app-remix/server";
-import { createWebPixel, updateWebPixel } from "../migration.server";
+import { createWebPixel } from "../migration.server";
 
 export interface BatchMigrationJob {
   id: string;

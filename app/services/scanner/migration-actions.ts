@@ -1,17 +1,13 @@
 import type { MigrationAction, EnhancedScanResult } from "./types";
 import {
-    PLATFORM_PATTERNS,
     identifyPlatformFromSrc,
     getPlatformInfo,
-    type PlatformSupportLevel,
 } from "./patterns";
 import {
     getScriptTagCreationStatus,
     getScriptTagExecutionStatus,
-    getAdditionalScriptsDeprecationStatus,
     DEPRECATION_DATES,
     getDateDisplayLabel,
-    type ShopTier,
 } from "../../utils/deprecation-dates";
 import { isOurWebPixel, needsSettingsUpgrade } from "../migration.server";
 import { logger } from "../../utils/logger.server";

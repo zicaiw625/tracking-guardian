@@ -2,7 +2,7 @@ import { randomUUID } from "crypto";
 import prisma from "../db.server";
 import { logger } from "../utils/logger.server";
 import { extractPlatformFromPayload } from "../utils/common";
-import { BILLING_PLANS, getMaxShops } from "./billing/plans";
+import { getMaxShops } from "./billing/plans";
 import type { PlanId } from "./billing/plans";
 
 export interface ShopGroupInfo {

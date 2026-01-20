@@ -33,6 +33,7 @@ export function ThresholdConfigSection({
     }
   }>();
   const [missingParamsThreshold, setMissingParamsThreshold] = useState(5);
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [volumeDropThreshold, _setVolumeDropThreshold] = useState(50);
   useEffect(() => {
     recommendationsFetcher.load("/api/threshold-recommendations?action=recommendations");

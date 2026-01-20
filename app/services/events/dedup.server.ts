@@ -44,7 +44,7 @@ export function generateDeduplicationKey(
 
 export function extractDeduplicationInfo(
   payload: PixelEventPayload,
-  shopDomain: string
+  _shopDomain: string
 ): {
   orderId: string | null;
   checkoutToken: string | null;

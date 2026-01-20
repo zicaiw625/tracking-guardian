@@ -3,7 +3,6 @@ import {
   calculateSuccessRateByDestination,
   calculateSuccessRateByEventType,
   getSuccessRateHistory,
-  type SuccessRateStats,
 } from "../../../app/services/monitoring/event-success-rate.server";
 import prisma from "../../../app/db.server";
 

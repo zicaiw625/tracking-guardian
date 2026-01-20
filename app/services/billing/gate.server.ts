@@ -3,7 +3,7 @@ import { billingCache } from "~/utils/cache";
 import { logger } from "~/utils/logger.server";
 import { BILLING_PLANS, type PlanId, getPlanOrDefault } from "./plans";
 import { getOrCreateMonthlyUsage , getCurrentYearMonth } from "./usage.server";
-import { ok, err, type Result, type AsyncResult, fromPromise } from "~/types/result";
+import { ok, err, type AsyncResult, fromPromise } from "~/types/result";
 import { JobStatus, ConversionLogStatus } from "~/types/enums";
 
 export type BillingErrorType =

@@ -31,7 +31,6 @@ import prisma from "../../app/db.server";
 describe("Pixel Events API - Origin Validation", () => {
   describe("isValidShopifyOrigin", () => {
     let isValidShopifyOrigin: (origin: string | null) => boolean;
-    let isValidDevOrigin: (origin: string | null) => boolean;
     beforeEach(async () => {
       const module = await import("../../app/utils/origin-validation");
       isValidShopifyOrigin = module.isValidShopifyOrigin;

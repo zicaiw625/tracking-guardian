@@ -1,3 +1,4 @@
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 const APP_VERSION = "1.0";
 
 export interface VersionGateResult {

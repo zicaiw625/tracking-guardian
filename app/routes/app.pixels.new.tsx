@@ -221,6 +221,7 @@ function generateIngestionSecret(): string {
 }
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const { session, admin: _admin } = await authenticate.admin(request);
   const shopDomain = session.shop;
   const shop = await prisma.shop.findUnique({

@@ -2,8 +2,6 @@ import type { PixelEventPayload } from "~/lib/pixel-events/types";
 import { logger } from "~/utils/logger.server";
 import { getShopPixelConfigs } from "../db/pixel-config-repository.server";
 import { decryptCredentials } from "../credentials.server";
-import { getPlatformEventName } from "../pixel-mapping.server";
-import type { Platform } from "~/types/platform";
 import type { PlatformCredentials } from "~/types";
 import { fetchWithTimeout, DEFAULT_API_TIMEOUT_MS } from "../platforms/interface";
 import { CAPI_CONFIG } from "~/utils/config.server";
@@ -146,6 +144,7 @@ const platformConfigs: Record<string, PlatformSendConfig> = {
     },
     buildHeaders: () => ({ "Content-Type": "application/json" }),
     buildPayload: (credentials, eventName, payload, eventId, customMappings) => {
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
       const creds = credentials as { measurementId?: string; apiSecret?: string };
       const platformEventName = mapShopifyEventToPlatform(eventName, "google", customMappings);
       const eventData = extractEventData(payload);
@@ -301,6 +300,7 @@ const platformConfigs: Record<string, PlatformSendConfig> = {
   },
 };
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 function validatePlatformCredentials(
   credentials: PlatformCredentials,
   requiredFields: string[]

@@ -1,5 +1,4 @@
 import prisma from "../db.server";
-import { logger } from "../utils/logger.server";
 import type { AuditAsset } from "@prisma/client";
 import { getMigrationChecklist } from "./migration-checklist.server";
 import { generateMigrationTimeline } from "./migration-priority.server";

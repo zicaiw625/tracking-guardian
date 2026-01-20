@@ -1,7 +1,6 @@
 import type {
   JobStatusType,
   TrustLevelType,
-  SignatureStatusType,
   PlatformType,
   ConsentStrategyType,
 } from './enums';

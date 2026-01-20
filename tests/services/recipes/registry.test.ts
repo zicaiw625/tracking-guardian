@@ -12,7 +12,6 @@ import {
   getStableRecipes,
   searchRecipes,
 } from "../../../app/services/recipes/registry";
-import type { MigrationRecipe } from "../../../app/services/recipes/types";
 
 describe("Recipe Registry", () => {
   describe("RECIPE_REGISTRY", () => {

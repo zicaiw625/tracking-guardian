@@ -94,6 +94,7 @@ export function parsePixelConfig(configStr?: string): PixelConfig {
       enabled_platforms,
       strictness,
     };
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   } catch (_e) {
     return DEFAULT_PIXEL_CONFIG;
   }

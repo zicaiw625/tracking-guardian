@@ -223,7 +223,7 @@ export async function executeRecipeStep(
 
 async function executeAutoAction(
   actionName: string,
-  context: RecipeExecutionContext
+  _context: RecipeExecutionContext
 ): Promise<RecipeStepResult> {
   switch (actionName) {
     case "enable_web_pixel":

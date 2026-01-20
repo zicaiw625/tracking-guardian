@@ -49,7 +49,6 @@ import {
 } from "../../app/services/recipes/registry";
 import {
   startRecipe,
-  updateRecipeConfig,
   validateRecipeConfig,
   completeRecipeStep,
   getAppliedRecipes,
@@ -61,7 +60,6 @@ describe("Recipe Migration Flow Integration", () => {
   });
   describe("Complete GA4 Migration Flow", () => {
     const shopId = "shop-test-123";
-    const shopDomain = "test-store.myshopify.com";
     it("should complete full GA4 migration workflow", async () => {
       const scriptContent = `
         <script async src="https://www.googletagmanager.com/gtag/js?id=G-ABCDEF1234"></script>

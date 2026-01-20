@@ -131,6 +131,7 @@ export function validateEncryptionConfig(): {
 }
 const ALGORITHM = "aes-256-gcm";
 export const IV_LENGTH = 16;
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 const AUTH_TAG_LENGTH = 16;
 export function encrypt(plaintext: string): string {
     const key = getEncryptionKey();

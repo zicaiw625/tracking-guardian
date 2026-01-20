@@ -26,7 +26,7 @@ export function checkParamCompleteness(
   let mapping: EventMapping | undefined;
   mapping = platformMapping.mappings[eventType];
   if (!mapping) {
-    for (const [shopifyEvent, m] of Object.entries(platformMapping.mappings)) {
+    for (const [, m] of Object.entries(platformMapping.mappings)) {
       if (m.platformEvent === eventType) {
         mapping = m;
         break;

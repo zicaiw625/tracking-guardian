@@ -6,7 +6,6 @@ import { tiktokService, TikTokPlatformService } from './tiktok.service';
 import type {
   ConversionData,
   PlatformCredentials,
-  ConversionApiResponse,
 } from '../../types';
 import { isV1SupportedPlatform, getV1Platforms } from '../../utils/v1-platforms';
 

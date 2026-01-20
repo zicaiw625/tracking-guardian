@@ -1,7 +1,6 @@
-import prisma from "../db.server";
-import { logger } from "../utils/logger.server";
 import { getPixelTemplates, createPixelTemplate } from "./batch-pixel-apply.server";
 import type { PixelTemplateConfig } from "../utils/type-guards";
+import { logger } from "../utils/logger.server";
 
 export interface WizardTemplate {
   id: string;

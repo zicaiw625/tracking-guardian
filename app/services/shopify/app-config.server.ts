@@ -55,7 +55,7 @@ if (!appUrl || appUrl === "") {
 
 try {
   new URL(finalAppUrl);
-} catch (urlError) {
+} catch {
   const error = new Error(
     `SHOPIFY_APP_URL is not a valid URL: ${finalAppUrl}. Please set a valid URL in your environment variables.`
   );

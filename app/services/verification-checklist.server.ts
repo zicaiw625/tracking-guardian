@@ -1,5 +1,3 @@
-import { logger } from "../utils/logger.server";
-import type { VerificationTestItem } from "./verification.server";
 
 export interface TestChecklistItem {
   id: string;

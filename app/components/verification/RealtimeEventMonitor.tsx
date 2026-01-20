@@ -190,6 +190,7 @@ export function RealtimeEventMonitor({
                 }
                 return;
               }
+              // eslint-disable-next-line @typescript-eslint/no-unused-vars
               const { type: _type, ...eventData } = rawData;
               const data = eventData as unknown as RealtimeEvent;
               if (typeof data.timestamp === "string") {

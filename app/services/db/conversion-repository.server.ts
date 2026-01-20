@@ -1,4 +1,3 @@
-import { logger } from "../../utils/logger.server";
 import { Prisma } from "@prisma/client";
 import type { ConversionJob } from "@prisma/client";
 import { JobStatus } from "../../types";
@@ -141,7 +140,7 @@ export async function getPendingJobs(
 
 export async function claimJobsForProcessing(
   jobIds: string[],
-  processedBy?: string
+  _processedBy?: string
 ): Promise<number> {
   if (jobIds.length === 0) return 0;
   const result = await prisma.conversionJob.updateMany({

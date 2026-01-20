@@ -1,4 +1,4 @@
-import { Platform, type PlatformType } from "../../types/enums";
+import type { PlatformType } from "../../types/enums";
 import type {
   ConversionData,
   PlatformCredentials,
@@ -15,7 +15,9 @@ import { fetchWithTimeout, measureDuration } from "./interface";
 import { logger } from "../../utils/logger.server";
 
 const DEFAULT_TIMEOUT_MS = 30000;
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 const MAX_RETRIES = 3;
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 const RETRY_DELAY_MS = 1000;
 const DNS_VALIDATION_CACHE_TTL_MS = 15 * 60 * 1000;
 const dnsValidationCache = new Map<string, { valid: boolean; error?: string; checkedAt: number }>();

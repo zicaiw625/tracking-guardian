@@ -1,7 +1,5 @@
 import { logger } from "../utils/logger.server";
-import prisma from "../db.server";
 import type { ModuleKey } from "../types/ui-extension";
-import { decryptJson } from "../utils/crypto.server";
 
 export interface ModulePreviewConfig {
   moduleKey: ModuleKey;
@@ -80,14 +78,14 @@ export function validateModuleConfig(
 }
 
 export async function getModulePreviewConfig(
-  shopId: string,
-  moduleKey: ModuleKey
+  _shopId: string,
+  _moduleKey: ModuleKey
 ): Promise<ModulePreviewConfig | null> {
   return null;
 }
 
 export async function getAllModulePreviewConfigs(
-  shopId: string
+  _shopId: string
 ): Promise<Record<ModuleKey, ModulePreviewConfig | null>> {
   const result: Record<string, ModulePreviewConfig | null> = {};
   const moduleKeys: ModuleKey[] = ["survey", "helpdesk", "order_tracking", "reorder", "upsell"];
@@ -108,7 +106,7 @@ import type { AdminApiContext } from "@shopify/shopify-app-remix/server";
 
 export async function createTestOrderForPreview(
   shopDomain: string,
-  admin: AdminApiContext
+  _admin: AdminApiContext
 ): Promise<TestOrderPreview | null> {
   try {
     logger.info("Creating test order for preview", { shopDomain });

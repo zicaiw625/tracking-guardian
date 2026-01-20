@@ -1,5 +1,4 @@
 import prisma from "../db.server";
-import { logger } from "../utils/logger.server";
 import { extractPlatformFromPayload } from "../utils/common";
 
 export interface EventValidationResult {

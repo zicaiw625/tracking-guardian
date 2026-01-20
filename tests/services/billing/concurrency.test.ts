@@ -46,7 +46,7 @@ describe("Billing Concurrency", () => {
       const shopId = "shop1";
       const orderId = "order1";
       const limit = 10;
-      prisma.$transaction.mockImplementation(async (callback, options) => {
+      prisma.$transaction.mockImplementation(async (callback, _options) => {
         const tx = {
           conversionJob: {
             findUnique: vi.fn().mockResolvedValue(null),
@@ -73,7 +73,7 @@ describe("Billing Concurrency", () => {
       const orderId = "order1";
       const limit = 10;
       let attemptCount = 0;
-      prisma.$transaction.mockImplementation(async (callback, options) => {
+      prisma.$transaction.mockImplementation(async (callback, _options) => {
         attemptCount++;
         if (attemptCount < 2) {
           const error = new Error("Serialization failure");
@@ -105,7 +105,7 @@ describe("Billing Concurrency", () => {
       const shopId = "shop1";
       const orderId = "order1";
       const limit = 10;
-      prisma.$transaction.mockImplementation(async (callback, options) => {
+      prisma.$transaction.mockImplementation(async (callback, _options) => {
         const tx = {
           conversionJob: {
             findUnique: vi.fn().mockResolvedValue(null),
@@ -132,7 +132,7 @@ describe("Billing Concurrency", () => {
       const shopId = "shop1";
       const orderId = "order1";
       const limit = 10;
-      prisma.$transaction.mockImplementation(async (callback, options) => {
+      prisma.$transaction.mockImplementation(async (callback, _options) => {
         const tx = {
           conversionJob: {
             findUnique: vi.fn().mockResolvedValue({ status: "completed" }),
@@ -151,7 +151,7 @@ describe("Billing Concurrency", () => {
       const shopId = "shop1";
       const orderId = "order1";
       const limit = 10;
-      prisma.$transaction.mockImplementation(async (callback, options) => {
+      prisma.$transaction.mockImplementation(async (callback, _options) => {
         expect(options?.isolationLevel).toBe("Serializable");
         expect(options?.maxWait).toBe(5000);
         const tx = {
@@ -181,7 +181,7 @@ describe("Billing Concurrency", () => {
       const shopId = "shop1";
       const orderId = "order1";
       const shopPlan = "starter" as const;
-      prisma.$transaction.mockImplementation(async (callback, options) => {
+      prisma.$transaction.mockImplementation(async (callback, _options) => {
         expect(options?.isolationLevel).toBe("Serializable");
         expect(options?.maxWait).toBe(5000);
         const tx = {
@@ -214,7 +214,7 @@ describe("Billing Concurrency", () => {
       const orderId = "order1";
       const shopPlan = "starter" as const;
       let attemptCount = 0;
-      prisma.$transaction.mockImplementation(async (callback, options) => {
+      prisma.$transaction.mockImplementation(async (callback, _options) => {
         attemptCount++;
         if (attemptCount < 2) {
           const error = new Error("Serialization failure");
@@ -246,7 +246,7 @@ describe("Billing Concurrency", () => {
       const shopId = "shop1";
       const orderId = "order1";
       const shopPlan = "starter" as const;
-      prisma.$transaction.mockImplementation(async (callback, options) => {
+      prisma.$transaction.mockImplementation(async (callback, _options) => {
         const tx = {
           conversionJob: {
             findUnique: vi.fn().mockResolvedValue(null),

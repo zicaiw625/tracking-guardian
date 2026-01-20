@@ -1,7 +1,4 @@
-import { randomUUID } from "crypto";
-import prisma from "../db.server";
 import { logger } from "../utils/logger.server";
-import { getShopGroupDetails } from "./multi-shop.server";
 
 export interface CreateCommentInput {
   taskId: string;
@@ -44,7 +41,7 @@ export async function getTaskComments(taskId: string, requesterShopId: string): 
 
 export async function createSystemComment(
   taskId: string,
-  content: string
+  _content: string
 ): Promise<void> {
   logger.debug(`createSystemComment called but migrationTask table no longer exists`, {
     taskId,

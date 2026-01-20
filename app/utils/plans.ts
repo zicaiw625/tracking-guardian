@@ -1,8 +1,6 @@
 import {
-  BILLING_PLANS,
   type PlanId as BillingPlanId,
   normalizePlanId,
-  getPlanConfig,
   getPlanOrDefault,
   isHigherTier,
 } from "../services/billing/plans";
@@ -19,6 +17,7 @@ export interface PlanDefinition {
 
 export const PLAN_ORDER: PlanId[] = ["free", "starter", "growth", "agency"];
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 const PLAN_ORDER_COMPAT: PlanId[] = ["free", "starter", "growth", "pro", "agency"];
 
 export function getPlanDefinition(plan: string | null | undefined): PlanDefinition {

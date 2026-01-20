@@ -105,7 +105,6 @@ export function analyzeManualPaste(
 }
 
 function splitCodeSnippets(content: string): string[] {
-  const snippets: string[] = [];
   const scriptMatches = content.match(/<script[^>]*>([\s\S]*?)<\/script>/gi);
   if (scriptMatches && scriptMatches.length > 1) {
     return scriptMatches;

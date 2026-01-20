@@ -626,7 +626,7 @@ export async function createOneTimePurchase(
 
 export async function getOneTimePurchaseStatus(
   admin: AdminGraphQL,
-  shopDomain: string
+  _shopDomain: string
 ): Promise<OneTimePurchaseStatus> {
   try {
     const response = await admin.graphql(GET_ONE_TIME_PURCHASES_QUERY);

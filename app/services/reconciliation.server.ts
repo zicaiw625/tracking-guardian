@@ -384,7 +384,7 @@ export async function getReconciliationSummary(shopId: string, days: number = 30
     }
     return summary;
 }
-export async function getLatestReconciliation(shopId: string): Promise<Map<string, ReconciliationResult>> {
+export async function getLatestReconciliation(_shopId: string): Promise<Map<string, ReconciliationResult>> {
     return new Map();
 }
 
@@ -470,6 +470,7 @@ export async function getReconciliationDashboardData(
             createdAt: true,
         },
     });
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const receiptByOrderId = new Map(
         pixelReceipts
             .filter(r => r.orderKey)

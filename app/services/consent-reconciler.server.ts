@@ -1,14 +1,5 @@
-import prisma from "../db.server";
-import { logger } from "../utils/logger.server";
 import { evaluatePlatformConsentWithStrategy, type ConsentState } from "../utils/platform-consent";
-const CONSENT_TIMEOUT_HOURS = 24;
-const BATCH_SIZE = 100;
-interface ConsentReconciliationResult {
-    processed: number;
-    resolved: number;
-    expired: number;
-    errors: number;
-}
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 function evaluateConsentForPlatform(platform: string, strategy: string, consentState: ConsentState | null, hasVerifiedReceipt: boolean): {
     allowed: boolean;
     reason: string;

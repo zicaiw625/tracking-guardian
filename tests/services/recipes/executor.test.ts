@@ -3,7 +3,6 @@ import {
   GA4_BASIC_RECIPE,
   META_CAPI_RECIPE,
 } from "../../../app/services/recipes/registry";
-import type { MigrationRecipe } from "../../../app/services/recipes/types";
 
 vi.mock("../../../app/db.server", () => ({
   default: {
@@ -163,7 +162,7 @@ describe("Recipe Executor", () => {
       };
       vi.mocked(prisma.appliedRecipe.findFirst).mockResolvedValue(null);
       vi.mocked(prisma.appliedRecipe.create).mockResolvedValue(mockApplied as any);
-      const result = await startRecipe(mockShopId, mockRecipeId, initialConfig);
+      await startRecipe(mockShopId, mockRecipeId, initialConfig);
       expect(prisma.appliedRecipe.create).toHaveBeenCalledWith(
         expect.objectContaining({
           data: expect.objectContaining({
@@ -187,7 +186,7 @@ describe("Recipe Executor", () => {
       };
       vi.mocked(prisma.appliedRecipe.findFirst).mockResolvedValue(null);
       vi.mocked(prisma.appliedRecipe.create).mockResolvedValue(mockApplied as any);
-      const result = await startRecipe(mockShopId, mockRecipeId, {}, sourceIdentifier);
+      await startRecipe(mockShopId, mockRecipeId, {}, sourceIdentifier);
       expect(prisma.appliedRecipe.create).toHaveBeenCalledWith(
         expect.objectContaining({
           data: expect.objectContaining({

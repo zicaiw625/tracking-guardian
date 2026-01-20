@@ -1,5 +1,4 @@
 import prisma from '../db.server';
-import { matchKeysEqual } from '../utils/crypto.server';
 import { logger } from '../utils/logger.server';
 
 export interface ReceiptFields {
@@ -77,7 +76,7 @@ export function findReceiptFromMap(
   receiptMap: Map<string, ReceiptFields>,
   shopId: string,
   orderId: string,
-  webhookCheckoutToken: string | undefined
+  _webhookCheckoutToken: string | undefined
 ): ReceiptFields | null {
   const orderKey = buildReceiptKey(shopId, 'order', orderId);
   const receipt = receiptMap.get(orderKey);

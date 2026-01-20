@@ -364,7 +364,7 @@ function getNestedValue(obj: unknown, path: string): unknown {
 export function normalizeParameterValue(
   value: unknown,
   parameterName: string,
-  platform: string
+  _platform: string
 ): unknown {
   if (value === null || value === undefined) {
     return undefined;

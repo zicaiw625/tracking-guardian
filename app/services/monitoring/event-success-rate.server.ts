@@ -1,5 +1,4 @@
 import prisma from "../../db.server";
-import { logger } from "../../utils/logger.server";
 
 function extractPlatformFromPayload(payload: Record<string, unknown> | null): string | null {
   if (!payload) return null;
