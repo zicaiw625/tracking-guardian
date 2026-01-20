@@ -1,14 +1,56 @@
 import { describe, it, expect, vi } from "vitest";
+
+const mockPrisma = vi.hoisted(() => {
+  const createMockModel = () => ({
+    findUnique: vi.fn(),
+    findFirst: vi.fn(),
+    findMany: vi.fn(),
+    create: vi.fn(),
+    createMany: vi.fn(),
+    update: vi.fn(),
+    updateMany: vi.fn(),
+    upsert: vi.fn(),
+    delete: vi.fn(),
+    deleteMany: vi.fn(),
+    count: vi.fn(),
+    aggregate: vi.fn(),
+    groupBy: vi.fn(),
+  });
+  const client = {
+    shop: createMockModel(),
+    pixelConfig: createMockModel(),
+    conversionJob: createMockModel(),
+    conversionLog: createMockModel(),
+    pixelEventReceipt: createMockModel(),
+    eventNonce: createMockModel(),
+    alertConfig: createMockModel(),
+    scanReport: createMockModel(),
+    reconciliationReport: createMockModel(),
+    auditLog: createMockModel(),
+    monthlyUsage: createMockModel(),
+    webhookLog: createMockModel(),
+    session: createMockModel(),
+    surveyResponse: createMockModel(),
+    gDPRJob: createMockModel(),
+    auditAsset: createMockModel(),
+    verificationRun: createMockModel(),
+    shopGroup: createMockModel(),
+    pixelTemplate: createMockModel(),
+    $transaction: vi.fn((fn: (tx: unknown) => unknown) => fn(client)),
+    $connect: vi.fn(),
+    $disconnect: vi.fn(),
+  };
+  return client;
+});
+
+vi.mock("../../app/db.server", () => ({ default: mockPrisma }));
+
 import {
   calculatePriority,
   calculateAssetPriority,
   type PriorityFactors,
 } from "../../app/services/migration-priority.server";
-import { createMockPrismaClient } from "../mocks/prisma.mock";
-
-vi.mock("../../app/db.server", () => ({
-  default: createMockPrismaClient(),
-}));
+import prisma from "../../app/db.server";
 
 describe("Migration Priority Service", () => {
   describe("calculatePriority", () => {

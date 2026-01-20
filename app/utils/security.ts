@@ -236,6 +236,21 @@ export const SecureEmailSchema = z
     message: "Invalid email format",
   })
   .transform((email) => email.toLowerCase().trim());
+
+/**
+ * Validates an email string for use in mailto: links. Use when building mailto: from
+ * config or future user input to avoid injection and oversize. Returns the normalized
+ * email or null if invalid.
+ */
+export function validateEmailForMailto(value: string | null | undefined): string | null {
+  if (value == null || typeof value !== "string") return null;
+  const trimmed = value.trim();
+  if (trimmed.length === 0 || trimmed.length > 254) return null;
+  if (trimmed.includes("..")) return null;
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed)) return null;
+  return trimmed.toLowerCase();
+}
+
 export const SecureOrderIdSchema = z
   .string()
   .min(1)

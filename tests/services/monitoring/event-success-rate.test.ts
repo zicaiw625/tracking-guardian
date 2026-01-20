@@ -1,16 +1,11 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
-import {
-  calculateSuccessRateByDestination,
-  calculateSuccessRateByEventType,
-  getSuccessRateHistory,
-} from "../../../app/services/monitoring/event-success-rate.server";
+import { getEventSuccessRate } from "../../../app/services/monitoring/event-success-rate.server";
 import prisma from "../../../app/db.server";
 
 vi.mock("../../../app/db.server", () => ({
   default: {
-    conversionLog: {
-      groupBy: vi.fn(),
-      count: vi.fn(),
+    pixelEventReceipt: {
+      findMany: vi.fn(),
     },
   },
 }));
@@ -19,77 +14,93 @@ describe("Event Success Rate Monitoring", () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
-  describe("calculateSuccessRateByDestination", () => {
+
+  describe("getEventSuccessRate", () => {
     it("should calculate success rate for each platform", async () => {
       const shopId = "shop-1";
-      const since = new Date(Date.now() - 24 * 60 * 60 * 1000);
-      vi.mocked(prisma.conversionLog.groupBy).mockResolvedValue([
+      vi.mocked(prisma.pixelEventReceipt.findMany).mockResolvedValue([
         {
-          destination: "google",
-          _count: { id: 100 },
-          _sum: { orderValue: 10000 },
+          payloadJson: {
+            platform: "google",
+            data: { value: 10, currency: "USD" },
+          },
         },
         {
-          destination: "meta",
-          _count: { id: 80 },
-          _sum: { orderValue: 8000 },
+          payloadJson: {
+            platform: "google",
+            data: { value: 20, currency: "EUR" },
+          },
+        },
+        {
+          payloadJson: {
+            destination: "meta",
+            data: { value: 15, currency: "GBP" },
+          },
+        },
+        {
+          payloadJson: {
+            platform: "meta",
+            data: {}, // missing value/currency -> failure
+          },
         },
       ] as any);
-      vi.mocked(prisma.conversionLog.count)
-        .mockResolvedValueOnce(120)
-        .mockResolvedValueOnce(100);
-      const result = await calculateSuccessRateByDestination(shopId, since);
+      const result = await getEventSuccessRate(shopId, 24);
       expect(result).toBeDefined();
-      expect(Array.isArray(result)).toBe(true);
+      expect(result.total).toBe(4);
+      expect(result.success).toBe(3);
+      expect(result.failure).toBe(1);
+      expect(result.successRate).toBe(75);
+      expect(result.failureRate).toBe(25);
+      expect(result.byPlatform).toBeDefined();
+      expect(result.byPlatform.google).toBeDefined();
+      expect(result.byPlatform.google.total).toBe(2);
+      expect(result.byPlatform.google.success).toBe(2);
+      expect(result.byPlatform.google.successRate).toBe(100);
+      expect(result.byPlatform.meta).toBeDefined();
+      expect(result.byPlatform.meta.total).toBe(2);
+      expect(result.byPlatform.meta.success).toBe(1);
+      expect(result.byPlatform.meta.failure).toBe(1);
+      expect(result.byPlatform.meta.successRate).toBe(50);
     });
+
     it("should handle zero events gracefully", async () => {
       const shopId = "shop-1";
-      const since = new Date(Date.now() - 24 * 60 * 60 * 1000);
-      vi.mocked(prisma.conversionLog.groupBy).mockResolvedValue([]);
-      vi.mocked(prisma.conversionLog.count).mockResolvedValue(0);
-      const result = await calculateSuccessRateByDestination(shopId, since);
-      expect(result).toEqual([]);
+      vi.mocked(prisma.pixelEventReceipt.findMany).mockResolvedValue([]);
+      const result = await getEventSuccessRate(shopId, 24);
+      expect(result).toBeDefined();
+      expect(result.total).toBe(0);
+      expect(result.success).toBe(0);
+      expect(result.failure).toBe(0);
+      expect(result.successRate).toBe(0);
+      expect(result.failureRate).toBe(0);
+      expect(result.byPlatform).toEqual({});
     });
-  });
-  describe("calculateSuccessRateByEventType", () => {
-    it("should calculate success rate for each event type", async () => {
+
+    it("should use unknown platform when payload has no platform or destination", async () => {
       const shopId = "shop-1";
-      const since = new Date(Date.now() - 24 * 60 * 60 * 1000);
-      vi.mocked(prisma.conversionLog.groupBy).mockResolvedValue([
+      vi.mocked(prisma.pixelEventReceipt.findMany).mockResolvedValue([
         {
-          eventType: "purchase",
-          _count: { id: 100 },
-          _sum: { orderValue: 10000 },
-        },
-        {
-          eventType: "add_to_cart",
-          _count: { id: 50 },
-          _sum: { orderValue: 5000 },
+          payloadJson: {
+            data: { value: 5, currency: "USD" },
+          },
         },
       ] as any);
-      vi.mocked(prisma.conversionLog.count)
-        .mockResolvedValueOnce(120)
-        .mockResolvedValueOnce(60);
-      const result = await calculateSuccessRateByEventType(shopId, since);
-      expect(result).toBeDefined();
-      expect(Array.isArray(result)).toBe(true);
+      const result = await getEventSuccessRate(shopId, 24);
+      expect(result.byPlatform.unknown).toBeDefined();
+      expect(result.byPlatform.unknown.total).toBe(1);
+      expect(result.byPlatform.unknown.success).toBe(1);
     });
-  });
-  describe("getSuccessRateHistory", () => {
-    it("should return hourly success rate data", async () => {
+
+    it("should treat missing or null value as failure", async () => {
       const shopId = "shop-1";
-      const hours = 24;
-      vi.mocked(prisma.conversionLog.groupBy).mockResolvedValue([
-        {
-          hour: new Date(),
-          destination: "google",
-          _count: { id: 10 },
-        },
+      vi.mocked(prisma.pixelEventReceipt.findMany).mockResolvedValue([
+        { payloadJson: { platform: "google", data: { value: null, currency: "USD" } } },
+        { payloadJson: { platform: "google", data: { currency: "USD" } } },
+        { payloadJson: { platform: "google", data: { value: 0, currency: "USD" } } }, // 0 is valid
       ] as any);
-      vi.mocked(prisma.conversionLog.count).mockResolvedValue(12);
-      const result = await getSuccessRateHistory(shopId, hours);
-      expect(result).toBeDefined();
-      expect(Array.isArray(result)).toBe(true);
+      const result = await getEventSuccessRate(shopId, 24);
+      expect(result.success).toBe(1); // only value: 0
+      expect(result.failure).toBe(2);
     });
   });
 });

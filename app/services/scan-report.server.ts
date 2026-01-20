@@ -1,24 +1,6 @@
 import prisma from "../db.server";
+import { escapeCSV } from "../utils/csv.server";
 import { validateRiskItemsArray, validateStringArray } from "../utils/scan-data-validation";
-
-function sanitizeForCSV(value: string): string {
-  if (typeof value !== "string") {
-    value = String(value);
-  }
-  const trimmed = value.trim();
-  if (trimmed.length > 0 && /^[=+\-@]/.test(trimmed)) {
-    return `'${value}`;
-  }
-  return value;
-}
-
-function escapeCSV(value: string): string {
-  const sanitized = sanitizeForCSV(value);
-  if (sanitized.includes(",") || sanitized.includes('"') || sanitized.includes("\n")) {
-    return `"${sanitized.replace(/"/g, '""')}"`;
-  }
-  return sanitized;
-}
 
 export async function generateScanReportCSV(reportId: string, shopId: string): Promise<string> {
   const scanReport = await prisma.scanReport.findFirst({

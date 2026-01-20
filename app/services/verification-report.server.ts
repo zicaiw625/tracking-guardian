@@ -1,5 +1,6 @@
 import prisma from "../db.server";
 import PDFDocument from "pdfkit";
+import { escapeCSV } from "../utils/csv.server";
 import { getVerificationRun, type VerificationSummary, type VerificationEventResult } from "./verification.server";
 
 const STRICT_SANDBOX_FIELD_LIMITATIONS: Record<string, string[]> = {
@@ -290,25 +291,6 @@ export async function generateVerificationReportData(
     completedAt: verificationSummary.completedAt,
     createdAt: run.createdAt,
   };
-}
-
-function sanitizeForCSV(value: string): string {
-  if (typeof value !== "string") {
-    value = String(value);
-  }
-  const trimmed = value.trim();
-  if (trimmed.length > 0 && /^[=+\-@]/.test(trimmed)) {
-    return `'${value}`;
-  }
-  return value;
-}
-
-function escapeCSV(value: string): string {
-  const sanitized = sanitizeForCSV(value);
-  if (sanitized.includes(",") || sanitized.includes('"') || sanitized.includes("\n")) {
-    return `"${sanitized.replace(/"/g, '""')}"`;
-  }
-  return sanitized;
 }
 
 export function generateVerificationReportCSV(data: VerificationReportData): string {

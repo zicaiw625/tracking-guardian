@@ -217,7 +217,15 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   }
   const firstPayload = firstEventValidation.payload;
   const shopDomain = firstPayload.shopDomain;
-  const timestamp = batchTimestamp || firstPayload.timestamp;
+  const timestamp = batchTimestamp ?? firstPayload.timestamp;
+  const nowForWindow = Date.now();
+  if (Math.abs(nowForWindow - timestamp) > TIMESTAMP_WINDOW_MS) {
+    logger.debug(
+      `Payload timestamp outside window: diff=${Math.abs(nowForWindow - timestamp)}ms, dropping request`,
+      { shopDomain }
+    );
+    return emptyResponseWithCors(request);
+  }
   const environment = (firstPayload.data as { environment?: "test" | "live" })?.environment || "live";
   const shop = await getShopForPixelVerificationWithConfigs(shopDomain, environment);
   if (!shop || !shop.isActive) {
@@ -310,11 +318,6 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       reason: "secret_missing",
     };
     logger.warn(`HMAC signature received for ${shopDomain} but ingestion secret is missing`);
-  } else if (signature) {
-    keyValidation = {
-      matched: false,
-      reason: "signature_present_no_secret",
-    };
   } else if (!signature && allowUnsignedEvents) {
     keyValidation = {
       matched: true,

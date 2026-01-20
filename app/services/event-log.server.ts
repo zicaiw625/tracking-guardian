@@ -2,6 +2,7 @@ import { Prisma } from "@prisma/client";
 import prisma from "../db.server";
 import { logger } from "../utils/logger.server";
 import { generateSimpleId } from "../utils/helpers";
+import { escapeCSV } from "../utils/csv.server";
 import type { PixelEventPayload } from "../lib/pixel-events/types";
 
 export function sanitizePII(payload: unknown): unknown {
@@ -45,14 +46,13 @@ export function sanitizePII(payload: unknown): unknown {
     "engagementtimemsec",
     "url",
     "method",
-    "headers",
-    "body",
     "data",
     "product_id",
     "productid",
     "variant_id",
     "variantid",
   ]);
+  /** PII/sensitive fields to strip. When adding new payload or platform params, update this set if they can carry PII. */
   const piiFields = new Set([
     "email",
     "phone",
@@ -65,6 +65,11 @@ export function sanitizePII(payload: unknown): unknown {
     "lastname",
     "full_name",
     "fullname",
+    "given_name",
+    "givenname",
+    "surname",
+    "middle_name",
+    "middlename",
     "address",
     "street",
     "city",
@@ -112,6 +117,18 @@ export function sanitizePII(payload: unknown): unknown {
     "customeremailhash",
     "customer_phone_hash",
     "customerphonehash",
+    "dob",
+    "date_of_birth",
+    "birthday",
+    "birth_date",
+    "birthdate",
+    "gender",
+    "sex",
+    "fax",
+    "fax_number",
+    "faxnumber",
+    "cookie",
+    "cookies",
   ]);
   const sensitiveKeys = new Set([
     "access_token",
@@ -410,25 +427,6 @@ export async function getEventLogs(
     });
     return [];
   }
-}
-
-function sanitizeForCSV(value: string): string {
-  if (typeof value !== "string") {
-    value = String(value);
-  }
-  const trimmed = value.trim();
-  if (trimmed.length > 0 && /^[=+\-@]/.test(trimmed)) {
-    return `'${value}`;
-  }
-  return value;
-}
-
-function escapeCSV(value: string): string {
-  const sanitized = sanitizeForCSV(value);
-  if (sanitized.includes(",") || sanitized.includes('"') || sanitized.includes("\n")) {
-    return `"${sanitized.replace(/"/g, '""')}"`;
-  }
-  return sanitized;
 }
 
 export async function exportEventLogsAsCSV(

@@ -105,9 +105,7 @@ export function validatePixelOriginPreBody(origin: string | null, hasSignatureHe
 } {
     const devMode = isDevMode();
     const allowNullOrigin = shouldAllowNullOrigin();
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const isProduction = !devMode;
-    
+
     if (origin === "null") {
         if (devMode) {
             return {

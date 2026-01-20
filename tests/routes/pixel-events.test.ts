@@ -34,7 +34,6 @@ describe("Pixel Events API - Origin Validation", () => {
     beforeEach(async () => {
       const module = await import("../../app/utils/origin-validation");
       isValidShopifyOrigin = module.isValidShopifyOrigin;
-      isValidDevOrigin = module.isValidDevOrigin;
     });
     it("accepts 'null' string (Web Pixel sandbox)", () => {
       expect(isValidShopifyOrigin("null")).toBe(true);

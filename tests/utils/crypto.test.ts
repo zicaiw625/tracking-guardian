@@ -112,6 +112,7 @@ describe("Crypto Utils", () => {
     beforeEach(() => {
       vi.resetModules();
       process.env = { ...originalEnv };
+      process.env.CI = "0";
     });
     afterEach(() => {
       process.env = originalEnv;
@@ -226,10 +227,10 @@ describe("Crypto Utils", () => {
       const eventId2 = generateEventId("99999", "purchase", "test.myshopify.com");
       expect(eventId1).not.toBe(eventId2);
     });
-    it("should include orderId and eventType in output", () => {
+    it("should produce 32-char hex and be deterministic for same inputs", () => {
       const eventId = generateEventId("12345", "purchase", "test.myshopify.com");
-      expect(eventId).toContain("12345");
-      expect(eventId).toContain("purchase");
+      expect(eventId).toMatch(/^[0-9a-f]{32}$/);
+      expect(generateEventId("12345", "purchase", "test.myshopify.com")).toBe(eventId);
     });
   });
   describe("generateMatchKey (P1-04)", () => {
@@ -245,19 +246,19 @@ describe("Crypto Utils", () => {
         orderId: "gid://shopify/Order/123456",
         checkoutToken: null
       });
-      expect(result.matchKey).toBe("12345");
+      expect(result.matchKey).toBe("123456");
       expect(result.isOrderId).toBe(true);
     });
-    it("should fall back to checkoutToken when orderId is null", () => {
+    it("should fall back to checkoutToken when orderId is null (matchKey is hashed)", () => {
       const result = generateMatchKey({ orderId: null, checkoutToken: "token123" });
-      expect(result.matchKey).toBe("token123");
+      expect(result.matchKey).toMatch(/^checkout_[a-f0-9]{64}$/);
       expect(result.isOrderId).toBe(false);
       expect(result.normalizedOrderId).toBeNull();
       expect(result.checkoutToken).toBe("token123");
     });
-    it("should fall back to checkoutToken when orderId is empty string", () => {
+    it("should fall back to checkoutToken when orderId is empty string (matchKey is hashed)", () => {
       const result = generateMatchKey({ orderId: "", checkoutToken: "token456" });
-      expect(result.matchKey).toBe("token456");
+      expect(result.matchKey).toMatch(/^checkout_[a-f0-9]{64}$/);
       expect(result.isOrderId).toBe(false);
     });
     it("should throw error when both orderId and checkoutToken are null", () => {
@@ -327,6 +328,7 @@ describe("Crypto Utils", () => {
     const originalEnv = process.env;
     beforeEach(() => {
       process.env = { ...originalEnv };
+      process.env.CI = "0";
       resetEncryptionKeyCache();
     });
     afterEach(() => {

@@ -40,8 +40,8 @@ describe("Credentials Service", () => {
     });
     it("should return error result when no credentials available", () => {
       const pixelConfig: PixelConfigForCredentials = {
-        credentialsEncrypted: null,
-        credentials: undefined,
+        credentialsEncrypted: undefined,
+        credentials_legacy: undefined,
         platform: "google",
       };
       const result = decryptCredentials(pixelConfig, "google");
@@ -51,31 +51,31 @@ describe("Credentials Service", () => {
         expect(result.error.platform).toBe("google");
       }
     });
-    it("should use legacy plaintext credentials as fallback", () => {
+    it("should return LEGACY_MIGRATION_NEEDED when legacy plaintext credentials are used (plaintext no longer allowed)", () => {
       const credentials: MetaCredentials = {
         pixelId: "123456789",
         accessToken: "token123",
       };
       const pixelConfig: PixelConfigForCredentials = {
-        credentialsEncrypted: null,
-        credentials: credentials,
+        credentialsEncrypted: undefined,
+        credentials_legacy: credentials,
         platform: "meta",
       };
       const result = decryptCredentials(pixelConfig, "meta");
-      expect(result.ok).toBe(true);
-      if (result.ok) {
-        expect(result.value.credentials).toEqual(credentials);
-        expect(result.value.usedLegacy).toBe(true);
+      expect(result.ok).toBe(false);
+      if (!result.ok) {
+        expect(result.error.type).toBe("LEGACY_MIGRATION_NEEDED");
+        expect(result.error.message).toContain("encrypted");
       }
     });
-    it("should fallback to legacy when encrypted fails", () => {
+    it("should fallback to legacy encrypted string when credentialsEncrypted fails", () => {
       const credentials: GoogleCredentials = {
         measurementId: "G-XXXXXXXX",
         apiSecret: "secret123",
       };
       const pixelConfig: PixelConfigForCredentials = {
         credentialsEncrypted: "invalid:encrypted:data",
-        credentials: credentials,
+        credentials_legacy: encryptJson(credentials),
         platform: "google",
       };
       const result = decryptCredentials(pixelConfig, "google");

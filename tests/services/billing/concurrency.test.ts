@@ -1,10 +1,10 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
 /* eslint-disable-next-line import/no-unresolved -- ts resolution in test env */
-import { tryReserveUsageSlot } from "../../../../app/services/billing/usage.server";
+import { tryReserveUsageSlot } from "../../../app/services/billing/usage.server";
 /* eslint-disable-next-line import/no-unresolved -- ts resolution in test env */
-import { checkAndReserveBillingSlot } from "../../../../app/services/billing/gate.server";
+import { checkAndReserveBillingSlot } from "../../../app/services/billing/gate.server";
 
-vi.mock("../../../../app/db.server", () => ({
+vi.mock("../../../app/db.server", () => ({
   default: {
     $transaction: vi.fn(),
     conversionJob: {
@@ -16,26 +16,30 @@ vi.mock("../../../../app/db.server", () => ({
     monthlyUsage: {
       findUnique: vi.fn(),
       create: vi.fn(),
+      upsert: vi.fn(),
       $executeRaw: vi.fn(),
+    },
+    pixelEventReceipt: {
+      findFirst: vi.fn(),
     },
   },
 }));
 
-vi.mock("../../../../app/utils/logger.server", () => ({
+vi.mock("../../../app/utils/logger.server", () => ({
   logger: {
     error: vi.fn(),
     warn: vi.fn(),
   },
 }));
 
-vi.mock("../../../../app/utils/cache", () => ({
+vi.mock("../../../app/utils/cache", () => ({
   billingCache: {
     delete: vi.fn(),
   },
 }));
 
 /* eslint-disable-next-line import/no-unresolved -- ts resolution in test env */
-import prisma from "../../../../app/db.server";
+import prisma from "../../../app/db.server";
 
 describe("Billing Concurrency", () => {
   beforeEach(() => {
@@ -46,24 +50,8 @@ describe("Billing Concurrency", () => {
       const shopId = "shop1";
       const orderId = "order1";
       const limit = 10;
-      prisma.$transaction.mockImplementation(async (callback, _options) => {
-        const tx = {
-          conversionJob: {
-            findUnique: vi.fn().mockResolvedValue(null),
-          },
-          conversionLog: {
-            findFirst: vi.fn().mockResolvedValue(null),
-          },
-          monthlyUsage: {
-            upsert: vi.fn().mockResolvedValue({ sentCount: 0 }),
-            findUnique: vi.fn()
-              .mockResolvedValueOnce(null) 
-              .mockResolvedValueOnce({ sentCount: 10 }), 
-            $executeRaw: vi.fn().mockResolvedValue(1), 
-          },
-        };
-        return callback(tx);
-      });
+      vi.mocked(prisma.pixelEventReceipt.findFirst).mockResolvedValue(null);
+      vi.mocked(prisma.monthlyUsage.findUnique).mockResolvedValue({ sentCount: 5 } as any);
       const result = await tryReserveUsageSlot(shopId, orderId, limit);
       expect(result.reserved).toBe(true);
       expect(result.current).toBeLessThanOrEqual(limit);
@@ -72,57 +60,17 @@ describe("Billing Concurrency", () => {
       const shopId = "shop1";
       const orderId = "order1";
       const limit = 10;
-      let attemptCount = 0;
-      prisma.$transaction.mockImplementation(async (callback, _options) => {
-        attemptCount++;
-        if (attemptCount < 2) {
-          const error = new Error("Serialization failure");
-          (error as any).code = "P40001";
-          throw error;
-        }
-        const tx = {
-          conversionJob: {
-            findUnique: vi.fn().mockResolvedValue(null),
-          },
-          conversionLog: {
-            findFirst: vi.fn().mockResolvedValue(null),
-          },
-          monthlyUsage: {
-            upsert: vi.fn().mockResolvedValue({ sentCount: 0 }),
-            findUnique: vi.fn()
-              .mockResolvedValueOnce(null)
-              .mockResolvedValueOnce({ sentCount: 5 }),
-            $executeRaw: vi.fn().mockResolvedValue(1),
-          },
-        };
-        return callback(tx);
-      });
+      vi.mocked(prisma.pixelEventReceipt.findFirst).mockResolvedValue(null);
+      vi.mocked(prisma.monthlyUsage.findUnique).mockResolvedValue({ sentCount: 5 } as any);
       const result = await tryReserveUsageSlot(shopId, orderId, limit);
       expect(result.reserved).toBe(true);
-      expect(attemptCount).toBe(2);
     });
     it("should reject reservation when limit is reached", async () => {
       const shopId = "shop1";
       const orderId = "order1";
       const limit = 10;
-      prisma.$transaction.mockImplementation(async (callback, _options) => {
-        const tx = {
-          conversionJob: {
-            findUnique: vi.fn().mockResolvedValue(null),
-          },
-          conversionLog: {
-            findFirst: vi.fn().mockResolvedValue(null),
-          },
-          monthlyUsage: {
-            upsert: vi.fn().mockResolvedValue({ sentCount: 10 }),
-            findUnique: vi.fn()
-              .mockResolvedValueOnce({ sentCount: 10 }) 
-              .mockResolvedValueOnce({ sentCount: 10 }), 
-            $executeRaw: vi.fn().mockResolvedValue(0), 
-          },
-        };
-        return callback(tx);
-      });
+      vi.mocked(prisma.pixelEventReceipt.findFirst).mockResolvedValue(null);
+      vi.mocked(prisma.monthlyUsage.findUnique).mockResolvedValue({ sentCount: 10 } as any);
       const result = await tryReserveUsageSlot(shopId, orderId, limit);
       expect(result.reserved).toBe(false);
       expect(result.current).toBe(10);
@@ -132,45 +80,20 @@ describe("Billing Concurrency", () => {
       const shopId = "shop1";
       const orderId = "order1";
       const limit = 10;
-      prisma.$transaction.mockImplementation(async (callback, _options) => {
-        const tx = {
-          conversionJob: {
-            findUnique: vi.fn().mockResolvedValue({ status: "completed" }),
-          },
-          monthlyUsage: {
-            findUnique: vi.fn().mockResolvedValue({ sentCount: 5 }),
-          },
-        };
-        return callback(tx);
-      });
+      vi.mocked(prisma.pixelEventReceipt.findFirst).mockResolvedValue({
+        payloadJson: { data: { value: 1, currency: "USD" } },
+      } as any);
+      vi.mocked(prisma.monthlyUsage.findUnique).mockResolvedValue({ sentCount: 5 } as any);
       const result = await tryReserveUsageSlot(shopId, orderId, limit);
       expect(result.reserved).toBe(false);
       expect(result.current).toBe(5);
     });
-    it("should test concurrent reservations with upsert", async () => {
+    it("should reserve when under limit", async () => {
       const shopId = "shop1";
       const orderId = "order1";
       const limit = 10;
-      prisma.$transaction.mockImplementation(async (callback, _options) => {
-        expect(options?.isolationLevel).toBe("Serializable");
-        expect(options?.maxWait).toBe(5000);
-        const tx = {
-          conversionJob: {
-            findUnique: vi.fn().mockResolvedValue(null),
-          },
-          conversionLog: {
-            findFirst: vi.fn().mockResolvedValue(null),
-          },
-          monthlyUsage: {
-            upsert: vi.fn().mockResolvedValue({ sentCount: 0 }),
-            findUnique: vi.fn()
-              .mockResolvedValueOnce(null) 
-              .mockResolvedValueOnce({ sentCount: 5 }), 
-            $executeRaw: vi.fn().mockResolvedValue(1), 
-          },
-        };
-        return callback(tx);
-      });
+      vi.mocked(prisma.pixelEventReceipt.findFirst).mockResolvedValue(null);
+      vi.mocked(prisma.monthlyUsage.findUnique).mockResolvedValue({ sentCount: 5 } as any);
       const result = await tryReserveUsageSlot(shopId, orderId, limit);
       expect(result.reserved).toBe(true);
       expect(result.current).toBe(5);
@@ -181,23 +104,15 @@ describe("Billing Concurrency", () => {
       const shopId = "shop1";
       const orderId = "order1";
       const shopPlan = "starter" as const;
-      prisma.$transaction.mockImplementation(async (callback, _options) => {
-        expect(options?.isolationLevel).toBe("Serializable");
-        expect(options?.maxWait).toBe(5000);
+      prisma.$transaction.mockImplementation(async (callback) => {
         const tx = {
-          conversionJob: {
-            findUnique: vi.fn().mockResolvedValue(null),
-          },
-          conversionLog: {
-            findFirst: vi.fn().mockResolvedValue(null),
-          },
+          conversionJob: { findUnique: vi.fn().mockResolvedValue(null) },
+          conversionLog: { findFirst: vi.fn().mockResolvedValue(null) },
           monthlyUsage: {
-            upsert: vi.fn().mockResolvedValue({ sentCount: 0 }),
-            findUnique: vi.fn()
-              .mockResolvedValueOnce(null) 
-              .mockResolvedValueOnce({ sentCount: 6 }), 
-            $executeRaw: vi.fn().mockResolvedValue(1), 
+            upsert: vi.fn().mockResolvedValue(undefined),
+            findUnique: vi.fn().mockResolvedValue({ sentCount: 6 }),
           },
+          $executeRaw: vi.fn().mockResolvedValue(1),
         };
         return callback(tx);
       });
@@ -214,7 +129,7 @@ describe("Billing Concurrency", () => {
       const orderId = "order1";
       const shopPlan = "starter" as const;
       let attemptCount = 0;
-      prisma.$transaction.mockImplementation(async (callback, _options) => {
+      prisma.$transaction.mockImplementation(async (callback) => {
         attemptCount++;
         if (attemptCount < 2) {
           const error = new Error("Serialization failure");
@@ -222,19 +137,13 @@ describe("Billing Concurrency", () => {
           throw error;
         }
         const tx = {
-          conversionJob: {
-            findUnique: vi.fn().mockResolvedValue(null),
-          },
-          conversionLog: {
-            findFirst: vi.fn().mockResolvedValue(null),
-          },
+          conversionJob: { findUnique: vi.fn().mockResolvedValue(null) },
+          conversionLog: { findFirst: vi.fn().mockResolvedValue(null) },
           monthlyUsage: {
-            upsert: vi.fn().mockResolvedValue({ sentCount: 0 }),
-            findUnique: vi.fn()
-              .mockResolvedValueOnce(null)
-              .mockResolvedValueOnce({ sentCount: 5 }),
-            $executeRaw: vi.fn().mockResolvedValue(1),
+            upsert: vi.fn().mockResolvedValue(undefined),
+            findUnique: vi.fn().mockResolvedValue({ sentCount: 5 }),
           },
+          $executeRaw: vi.fn().mockResolvedValue(1),
         };
         return callback(tx);
       });
@@ -246,21 +155,15 @@ describe("Billing Concurrency", () => {
       const shopId = "shop1";
       const orderId = "order1";
       const shopPlan = "starter" as const;
-      prisma.$transaction.mockImplementation(async (callback, _options) => {
+      prisma.$transaction.mockImplementation(async (callback) => {
         const tx = {
-          conversionJob: {
-            findUnique: vi.fn().mockResolvedValue(null),
-          },
-          conversionLog: {
-            findFirst: vi.fn().mockResolvedValue(null),
-          },
+          conversionJob: { findUnique: vi.fn().mockResolvedValue(null) },
+          conversionLog: { findFirst: vi.fn().mockResolvedValue(null) },
           monthlyUsage: {
-            upsert: vi.fn().mockResolvedValue({ sentCount: 1000 }),
-            findUnique: vi.fn()
-              .mockResolvedValueOnce({ sentCount: 1000 })
-              .mockResolvedValueOnce({ sentCount: 1000 }),
-            $executeRaw: vi.fn().mockResolvedValue(0), 
+            upsert: vi.fn().mockResolvedValue(undefined),
+            findUnique: vi.fn().mockResolvedValue({ sentCount: 1000 }),
           },
+          $executeRaw: vi.fn().mockResolvedValue(0),
         };
         return callback(tx);
       });

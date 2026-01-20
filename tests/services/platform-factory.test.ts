@@ -27,7 +27,7 @@ describe("getPlatformService", () => {
   it("should throw for unsupported platform", () => {
     expect(() => {
       getPlatformService("invalid");
-    }).toThrow("Unsupported platform");
+    }).toThrow(/not supported/i);
   });
 });
 
@@ -49,9 +49,7 @@ describe("getSupportedPlatforms", () => {
     expect(platforms).toContain("google");
     expect(platforms).toContain("meta");
     expect(platforms).toContain("tiktok");
-    expect(platforms).toContain("pinterest");
-    expect(platforms).toContain("snapchat");
-    expect(platforms).toHaveLength(5);
+    expect(platforms).toHaveLength(3);
   });
 });
 

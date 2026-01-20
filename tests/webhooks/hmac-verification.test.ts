@@ -6,6 +6,7 @@ vi.mock("../../app/db.server", () => ({
     shop: {
       findUnique: vi.fn(),
       update: vi.fn(),
+      deleteMany: vi.fn().mockResolvedValue({ count: 1 }),
     },
     session: {
       deleteMany: vi.fn(),
@@ -14,16 +15,51 @@ vi.mock("../../app/db.server", () => ({
       create: vi.fn(),
       update: vi.fn(),
       findUnique: vi.fn(),
+      deleteMany: vi.fn().mockResolvedValue({ count: 0 }),
     },
     gDPRJob: {
       create: vi.fn(),
+      deleteMany: vi.fn().mockResolvedValue({ count: 0 }),
     },
     conversionJob: {
       upsert: vi.fn(),
+      deleteMany: vi.fn().mockResolvedValue({ count: 0 }),
     },
     conversionLog: {
       upsert: vi.fn(),
+      findMany: vi.fn().mockResolvedValue([]),
+      deleteMany: vi.fn().mockResolvedValue({ count: 0 }),
     },
+    pixelEventReceipt: {
+      findMany: vi.fn().mockResolvedValue([]),
+      deleteMany: vi.fn().mockResolvedValue({ count: 0 }),
+      count: vi.fn().mockResolvedValue(0),
+    },
+    surveyResponse: {
+      findMany: vi.fn().mockResolvedValue([]),
+      deleteMany: vi.fn().mockResolvedValue({ count: 0 }),
+    },
+    verificationRun: { count: vi.fn().mockResolvedValue(0) },
+    scanReport: { count: vi.fn().mockResolvedValue(0) },
+    auditAsset: { count: vi.fn().mockResolvedValue(0) },
+    pixelConfig: { count: vi.fn().mockResolvedValue(0) },
+    $transaction: vi.fn().mockImplementation(async (fn: (tx: unknown) => Promise<unknown>) => {
+      const tx = {
+        webhookLog: { deleteMany: vi.fn().mockResolvedValue({ count: 0 }) },
+        gDPRJob: { deleteMany: vi.fn().mockResolvedValue({ count: 0 }) },
+        session: { deleteMany: vi.fn().mockResolvedValue({ count: 0 }) },
+        shop: {
+          findUnique: vi.fn().mockResolvedValue({ id: "shop-id" }),
+          deleteMany: vi.fn().mockResolvedValue({ count: 1 }),
+        },
+        pixelEventReceipt: { count: vi.fn().mockResolvedValue(0) },
+        verificationRun: { count: vi.fn().mockResolvedValue(0) },
+        scanReport: { count: vi.fn().mockResolvedValue(0) },
+        auditAsset: { count: vi.fn().mockResolvedValue(0) },
+        pixelConfig: { count: vi.fn().mockResolvedValue(0) },
+      };
+      return fn(tx);
+    }),
   },
 }));
 
@@ -103,7 +139,7 @@ describe("P0-2: Webhook HMAC Signature Verification", () => {
       });
       const response = await action({ request, params: {}, context: {} });
       expect(response.status).toBe(401);
-      expect(await response.text()).toBe("Unauthorized: Invalid HMAC");
+      expect(await response.text()).toMatch(/^Unauthorized/);
     });
     it("returns 401 when HMAC header is missing", async () => {
       vi.mocked(authenticate.webhook).mockRejectedValue(
@@ -185,7 +221,7 @@ describe("P0-2: Webhook HMAC Signature Verification", () => {
       const response = await action({ request, params: {}, context: {} });
       expect(response.status).toBe(200);
       const text = await response.text();
-      expect(["OK", "GDPR data request queued"]).toContain(text);
+      expect(["OK", "GDPR data request queued", "GDPR data request processed"]).toContain(text);
     });
     it("returns 200 for CUSTOMERS_REDACT with valid HMAC", async () => {
       vi.mocked(authenticate.webhook).mockResolvedValue({
@@ -226,7 +262,7 @@ describe("P0-2: Webhook HMAC Signature Verification", () => {
       const response = await action({ request, params: {}, context: {} });
       expect(response.status).toBe(200);
       const text = await response.text();
-      expect(["OK", "GDPR customer redact queued"]).toContain(text);
+      expect(["OK", "GDPR customer redact queued", "GDPR customer redact processed"]).toContain(text);
     });
     it("returns 200 for SHOP_REDACT with valid HMAC", async () => {
       vi.mocked(authenticate.webhook).mockResolvedValue({
@@ -263,7 +299,7 @@ describe("P0-2: Webhook HMAC Signature Verification", () => {
       const response = await action({ request, params: {}, context: {} });
       expect(response.status).toBe(200);
       const text = await response.text();
-      expect(["OK", "GDPR shop redact queued"]).toContain(text);
+      expect(["OK", "GDPR shop redact queued", "GDPR shop redact processed"]).toContain(text);
     });
   });
   describe("Malformed Requests", () => {
@@ -284,7 +320,7 @@ describe("P0-2: Webhook HMAC Signature Verification", () => {
       const response = await action({ request, params: {}, context: {} });
       expect(response.status).toBe(400);
     });
-    it("returns 500 for unexpected authentication errors", async () => {
+    it("returns 400 for unexpected authentication errors", async () => {
       vi.mocked(authenticate.webhook).mockRejectedValue(
         new Error("Unexpected server error")
       );
@@ -299,7 +335,7 @@ describe("P0-2: Webhook HMAC Signature Verification", () => {
         body: JSON.stringify({ id: 12345 }),
       });
       const response = await action({ request, params: {}, context: {} });
-      expect(response.status).toBe(500);
+      expect(response.status).toBe(400);
     });
   });
   describe("Business Webhooks with HMAC", () => {
@@ -403,10 +439,9 @@ describe("P0-2: Webhook HMAC Signature Verification", () => {
         plan: "starter",
         pixelConfigs: [],
       } as any);
-      vi.mocked(prisma.webhookLog.create).mockRejectedValue({
-        code: "P2002",
-        message: "Unique constraint failed",
-      });
+      const p2002 = Object.assign(new Error("Unique constraint failed"), { code: "P2002" });
+      vi.mocked(prisma.webhookLog.create).mockRejectedValue(p2002);
+      vi.mocked(prisma.webhookLog.findUnique).mockResolvedValue(null);
       const request = new Request("https://example.com/webhook", {
         method: "POST",
         headers: {

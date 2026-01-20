@@ -16,6 +16,9 @@ vi.mock("../../../app/db.server", () => ({
     conversionLog: {
       findFirst: vi.fn(),
     },
+    pixelEventReceipt: {
+      findFirst: vi.fn(),
+    },
   },
 }));
 
@@ -225,7 +228,7 @@ describe("Recipe Executor", () => {
       status: "in_progress",
       config: { measurementId: "G-TEST123" },
       completedSteps: [],
-      shop: { shopDomain: "test-store.myshopify.com" },
+      Shop: { shopDomain: "test-store.myshopify.com" },
     };
     it("should execute auto action step", async () => {
       vi.mocked(prisma.appliedRecipe.findUnique).mockResolvedValue(mockAppliedRecipe as any);
@@ -333,11 +336,11 @@ describe("Recipe Executor", () => {
       config: {},
       completedSteps: [1, 2, 3, 4],
       validationResults: [],
-      shop: { shopDomain: "test-store.myshopify.com" },
+      Shop: { shopDomain: "test-store.myshopify.com" },
     };
     it("should run validation tests", async () => {
       vi.mocked(prisma.appliedRecipe.findUnique).mockResolvedValue(mockAppliedRecipe as any);
-      vi.mocked(prisma.conversionLog.findFirst).mockResolvedValue(null);
+      vi.mocked(prisma.pixelEventReceipt.findFirst).mockResolvedValue(null);
       vi.mocked(prisma.appliedRecipe.update).mockResolvedValue({
         ...mockAppliedRecipe,
         validationResults: [{ testName: "test", passed: false }],
@@ -352,13 +355,11 @@ describe("Recipe Executor", () => {
         id: "event-1",
         shopId: "shop-123",
         eventType: "purchase",
-        status: "sent",
-        eventId: "evt-123",
-        sentAt: new Date(),
         createdAt: new Date(),
+        payloadJson: { eventId: "evt-123", data: {} },
       };
       vi.mocked(prisma.appliedRecipe.findUnique).mockResolvedValue(mockAppliedRecipe as any);
-      vi.mocked(prisma.conversionLog.findFirst).mockResolvedValue(mockEvent as any);
+      vi.mocked(prisma.pixelEventReceipt.findFirst).mockResolvedValue(mockEvent as any);
       vi.mocked(prisma.appliedRecipe.update).mockResolvedValue({
         ...mockAppliedRecipe,
         status: "completed",
@@ -369,7 +370,7 @@ describe("Recipe Executor", () => {
     });
     it("should fail event_received test when no event found", async () => {
       vi.mocked(prisma.appliedRecipe.findUnique).mockResolvedValue(mockAppliedRecipe as any);
-      vi.mocked(prisma.conversionLog.findFirst).mockResolvedValue(null);
+      vi.mocked(prisma.pixelEventReceipt.findFirst).mockResolvedValue(null);
       vi.mocked(prisma.appliedRecipe.update).mockResolvedValue(mockAppliedRecipe as any);
       const results = await runRecipeValidation("applied-1");
       const eventTest = results.find(r => r.testName === "purchase_event_received");
@@ -384,7 +385,7 @@ describe("Recipe Executor", () => {
     });
     it("should save validation results to database", async () => {
       vi.mocked(prisma.appliedRecipe.findUnique).mockResolvedValue(mockAppliedRecipe as any);
-      vi.mocked(prisma.conversionLog.findFirst).mockResolvedValue(null);
+      vi.mocked(prisma.pixelEventReceipt.findFirst).mockResolvedValue(null);
       vi.mocked(prisma.appliedRecipe.update).mockResolvedValue(mockAppliedRecipe as any);
       await runRecipeValidation("applied-1");
       expect(prisma.appliedRecipe.update).toHaveBeenCalledWith(
@@ -484,7 +485,7 @@ describe("Recipe Executor", () => {
       expect(updated).toBeDefined();
       const mockWithSteps = {
         ...mockStarted,
-        shop: { shopDomain: "test.myshopify.com" },
+        Shop: { shopDomain: "test.myshopify.com" },
       };
       vi.mocked(prisma.appliedRecipe.findUnique).mockResolvedValue(mockWithSteps as any);
       for (let i = 1; i <= 4; i++) {
@@ -496,10 +497,11 @@ describe("Recipe Executor", () => {
         const stepResult = await executeRecipeStep("applied-1", i);
         expect(stepResult.success).toBe(true);
       }
-      vi.mocked(prisma.conversionLog.findFirst).mockResolvedValue({
-        id: "log-1",
+      vi.mocked(prisma.pixelEventReceipt.findFirst).mockResolvedValue({
+        id: "evt-1",
         eventType: "purchase",
-        status: "sent",
+        createdAt: new Date(),
+        payloadJson: { eventId: "e1", data: {} },
       } as any);
       vi.mocked(prisma.appliedRecipe.update).mockResolvedValue({
         ...mockWithSteps,

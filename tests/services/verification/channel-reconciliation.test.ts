@@ -21,6 +21,9 @@ vi.mock("../../../app/db.server", () => ({
     reconciliationReport: {
       findMany: vi.fn(),
     },
+    pixelEventReceipt: {
+      findMany: vi.fn().mockResolvedValue([]),
+    },
   },
 }));
 

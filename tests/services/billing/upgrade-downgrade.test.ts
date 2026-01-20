@@ -62,9 +62,15 @@ describe("Plan Upgrade/Downgrade", () => {
   });
   describe("detectPlanFromPrice", () => {
     it("should detect starter plan from price", () => {
+      expect(detectPlanFromPrice(29)).toBe("starter");
       expect(detectPlanFromPrice(49)).toBe("starter");
       expect(detectPlanFromPrice(49.00)).toBe("starter");
-      expect(detectPlanFromPrice(99)).toBe("starter");
+      expect(detectPlanFromPrice(78)).toBe("starter");
+    });
+    it("should detect growth plan from price", () => {
+      expect(detectPlanFromPrice(79)).toBe("growth");
+      expect(detectPlanFromPrice(99)).toBe("growth");
+      expect(detectPlanFromPrice(198)).toBe("growth");
     });
     it("should detect agency plan from price (growth and agency both use 199)", () => {
       expect(detectPlanFromPrice(199)).toBe("agency");
@@ -73,7 +79,8 @@ describe("Plan Upgrade/Downgrade", () => {
     it("should default to free for prices below starter threshold", () => {
       expect(detectPlanFromPrice(0)).toBe("free");
       expect(detectPlanFromPrice(15)).toBe("free");
-      expect(detectPlanFromPrice(48)).toBe("free");
+      expect(detectPlanFromPrice(28)).toBe("free");
+      expect(detectPlanFromPrice(29)).toBe("starter");
     });
     it("should return highest tier for very high prices", () => {
       expect(detectPlanFromPrice(500)).toBe("agency");

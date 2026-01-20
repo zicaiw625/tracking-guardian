@@ -1,4 +1,5 @@
 import type { TestChecklist, TestChecklistItem } from "~/services/verification-checklist.server";
+import { escapeCSV } from "~/utils/csv";
 
 export type TestChecklistInput = Omit<TestChecklist, "generatedAt"> & { generatedAt?: Date | string };
 
@@ -57,25 +58,6 @@ export function generateChecklistMarkdown(checklist: TestChecklistInput): string
   markdown += `- [ ] 所有配置的平台都收到事件\n`;
   markdown += `- [ ] 在第三方平台（GA4/Meta/TikTok）中验证事件已接收\n\n`;
   return markdown;
-}
-
-function sanitizeForCSV(value: string): string {
-  if (typeof value !== "string") {
-    value = String(value);
-  }
-  const trimmed = value.trim();
-  if (trimmed.length > 0 && /^[=+\-@]/.test(trimmed)) {
-    return `'${value}`;
-  }
-  return value;
-}
-
-function escapeCSV(value: string): string {
-  const sanitized = sanitizeForCSV(value);
-  if (sanitized.includes(",") || sanitized.includes('"') || sanitized.includes("\n")) {
-    return `"${sanitized.replace(/"/g, '""')}"`;
-  }
-  return sanitized;
 }
 
 export function generateChecklistCSV(checklist: TestChecklistInput): string {

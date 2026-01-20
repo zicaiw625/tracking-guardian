@@ -360,7 +360,7 @@ export async function batchUpdateShops(
   return {
     success: true,
     processed,
-    failed: 0,
+    failed: errors.length,
     errors,
   };
 }

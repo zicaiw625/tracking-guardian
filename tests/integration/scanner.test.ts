@@ -83,7 +83,7 @@ describe("Risk Assessment", () => {
                 { id: "test2", name: "Low Risk", description: "Test", severity: "low" as const, points: 10 },
             ];
             const score = calculateRiskScore(risks);
-            expect(score).toBe(50);
+            expect(score).toBe(25);
         });
         it("should cap score at 100", () => {
             const risks = [

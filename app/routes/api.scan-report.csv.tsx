@@ -6,28 +6,10 @@ import { authenticate } from "../shopify.server";
 import { validateRiskItemsArray, validateStringArray } from "../utils/scan-data-validation";
 import { checkFeatureAccess } from "../services/billing/feature-gates.server";
 import { normalizePlanId, type PlanId } from "../services/billing/plans";
+import { escapeCSV } from "../utils/csv.server";
 import { sanitizeFilename } from "../utils/responses";
 import { timingSafeEqualHex } from "../utils/timing-safe.server";
 import { withSecurityHeaders } from "../utils/security-headers";
-
-function sanitizeForCSV(value: string): string {
-  if (typeof value !== "string") {
-    value = String(value);
-  }
-  const trimmed = value.trim();
-  if (trimmed.length > 0 && /^[=+\-@]/.test(trimmed)) {
-    return `'${value}`;
-  }
-  return value;
-}
-
-function escapeCSV(value: string): string {
-  const sanitized = sanitizeForCSV(value);
-  if (sanitized.includes(",") || sanitized.includes('"') || sanitized.includes("\n")) {
-    return `"${sanitized.replace(/"/g, '""')}"`;
-  }
-  return sanitized;
-}
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   try {

@@ -190,7 +190,7 @@ describe("Cleanup Task", () => {
       expect(result.scanReportsDeleted).toBe(2);
       expect(prisma.scanReport.findMany).toHaveBeenCalled();
       const scanReportCall = (prisma.scanReport.findMany as ReturnType<typeof vi.fn>).mock.calls[0][0];
-      expect(scanReportCall.where.shopId).toEqual({ in: ["shop1"] });
+      expect(scanReportCall.where.shopId).toBe("shop1");
       expect(scanReportCall.where.createdAt).toBeDefined();
       expect(scanReportCall.select).toEqual({ id: true });
     });

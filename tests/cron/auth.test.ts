@@ -155,6 +155,7 @@ describe("Cron Authentication", () => {
       const request = createMockRequest("https://example.com/cron", {
         headers: {
           "X-Cron-Timestamp": "not-a-number",
+          "X-Cron-Signature": "00",
         },
       });
       const result = verifyReplayProtection(request, cronSecret);

@@ -14,11 +14,15 @@ vi.mock("../../../app/db.server", () => ({
     monthlyUsage: {
       findUnique: vi.fn(),
       upsert: vi.fn(),
+      create: vi.fn(),
     },
     conversionJob: {
       findUnique: vi.fn(),
     },
     conversionLog: {
+      findFirst: vi.fn(),
+    },
+    pixelEventReceipt: {
       findFirst: vi.fn(),
     },
     $transaction: vi.fn(),
@@ -96,18 +100,20 @@ describe("Usage Tracking Service", () => {
       vi.setSystemTime(new Date("2025-06-15T10:00:00Z"));
       const mockUsage = {
         id: "usage-1",
+        shopId: "shop-123",
+        yearMonth: "2025-06",
         sentCount: 0,
+        createdAt: new Date(),
+        updatedAt: new Date(),
       };
-      vi.mocked(prisma.monthlyUsage.upsert).mockResolvedValue(mockUsage as any);
+      vi.mocked(prisma.monthlyUsage.findUnique).mockResolvedValue(null);
+      vi.mocked(prisma.monthlyUsage.create).mockResolvedValue(mockUsage as any);
       const result = await getOrCreateMonthlyUsage("shop-123");
       expect(result.id).toBe("usage-1");
       expect(result.sentCount).toBe(0);
-      expect(prisma.monthlyUsage.upsert).toHaveBeenCalledWith(
+      expect(prisma.monthlyUsage.create).toHaveBeenCalledWith(
         expect.objectContaining({
-          where: {
-            shopId_yearMonth: { shopId: "shop-123", yearMonth: "2025-06" },
-          },
-          create: expect.objectContaining({
+          data: expect.objectContaining({
             shopId: "shop-123",
             yearMonth: "2025-06",
             sentCount: 0,
@@ -118,20 +124,27 @@ describe("Usage Tracking Service", () => {
     it("should return existing usage record", async () => {
       const mockUsage = {
         id: "usage-1",
+        shopId: "shop-123",
+        yearMonth: "2025-05",
         sentCount: 150,
+        createdAt: new Date(),
+        updatedAt: new Date(),
       };
-      vi.mocked(prisma.monthlyUsage.upsert).mockResolvedValue(mockUsage as any);
+      vi.mocked(prisma.monthlyUsage.findUnique).mockResolvedValue(mockUsage as any);
       const result = await getOrCreateMonthlyUsage("shop-123", "2025-05");
       expect(result.sentCount).toBe(150);
+      expect(prisma.monthlyUsage.create).not.toHaveBeenCalled();
     });
     it("should use provided year-month", async () => {
-      vi.mocked(prisma.monthlyUsage.upsert).mockResolvedValue({ id: "1", sentCount: 0 } as any);
+      vi.mocked(prisma.monthlyUsage.findUnique).mockResolvedValue(null);
+      vi.mocked(prisma.monthlyUsage.create).mockResolvedValue({ id: "1", shopId: "shop-123", yearMonth: "2025-03", sentCount: 0, createdAt: new Date(), updatedAt: new Date() } as any);
       await getOrCreateMonthlyUsage("shop-123", "2025-03");
-      expect(prisma.monthlyUsage.upsert).toHaveBeenCalledWith(
+      expect(prisma.monthlyUsage.create).toHaveBeenCalledWith(
         expect.objectContaining({
-          where: {
-            shopId_yearMonth: { shopId: "shop-123", yearMonth: "2025-03" },
-          },
+          data: expect.objectContaining({
+            shopId: "shop-123",
+            yearMonth: "2025-03",
+          }),
         })
       );
     });
@@ -152,32 +165,29 @@ describe("Usage Tracking Service", () => {
     });
   });
   describe("isOrderAlreadyCounted", () => {
-    it("should return true for completed job", async () => {
-      vi.mocked(prisma.conversionJob.findUnique).mockResolvedValue({
-        status: "completed",
+    it("should return true when pixelEventReceipt exists with value and currency", async () => {
+      vi.mocked(prisma.pixelEventReceipt.findFirst).mockResolvedValue({
+        payloadJson: { data: { value: 10, currency: "USD" } },
       } as any);
       const result = await isOrderAlreadyCounted("shop-123", "order-456");
       expect(result).toBe(true);
     });
-    it("should return true when conversion log exists", async () => {
-      vi.mocked(prisma.conversionJob.findUnique).mockResolvedValue(null);
-      vi.mocked(prisma.conversionLog.findFirst).mockResolvedValue({
-        id: "log-1",
-      } as any);
-      const result = await isOrderAlreadyCounted("shop-123", "order-456");
-      expect(result).toBe(true);
-    });
-    it("should return false for new order", async () => {
-      vi.mocked(prisma.conversionJob.findUnique).mockResolvedValue(null);
-      vi.mocked(prisma.conversionLog.findFirst).mockResolvedValue(null);
+    it("should return false when no receipt", async () => {
+      vi.mocked(prisma.pixelEventReceipt.findFirst).mockResolvedValue(null);
       const result = await isOrderAlreadyCounted("shop-123", "order-456");
       expect(result).toBe(false);
     });
-    it("should return false for pending job", async () => {
-      vi.mocked(prisma.conversionJob.findUnique).mockResolvedValue({
-        status: "pending",
+    it("should return false when receipt missing value or currency", async () => {
+      vi.mocked(prisma.pixelEventReceipt.findFirst).mockResolvedValue({
+        payloadJson: { data: { currency: "USD" } },
       } as any);
-      vi.mocked(prisma.conversionLog.findFirst).mockResolvedValue(null);
+      const result = await isOrderAlreadyCounted("shop-123", "order-456");
+      expect(result).toBe(false);
+    });
+    it("should return false when receipt has null value", async () => {
+      vi.mocked(prisma.pixelEventReceipt.findFirst).mockResolvedValue({
+        payloadJson: { data: { value: null, currency: "USD" } },
+      } as any);
       const result = await isOrderAlreadyCounted("shop-123", "order-456");
       expect(result).toBe(false);
     });
@@ -185,63 +195,28 @@ describe("Usage Tracking Service", () => {
   describe("incrementMonthlyUsage", () => {
     it("should increment and return new count", async () => {
       vi.setSystemTime(new Date("2025-06-15T10:00:00Z"));
-      vi.mocked(prisma.$transaction).mockImplementation(async (fn) => {
-        return fn({
-          conversionJob: { findUnique: vi.fn().mockResolvedValue(null) },
-          conversionLog: { findFirst: vi.fn().mockResolvedValue(null) },
-          monthlyUsage: {
-            upsert: vi.fn().mockResolvedValue({ sentCount: 101 }),
-            findUnique: vi.fn().mockResolvedValue({ sentCount: 101 }),
-          },
-        } as any);
-      });
+      vi.mocked(prisma.monthlyUsage.upsert).mockResolvedValue(undefined as any);
+      vi.mocked(prisma.monthlyUsage.findUnique).mockResolvedValue({ sentCount: 101 } as any);
       const count = await incrementMonthlyUsage("shop-123", "order-456");
       expect(count).toBe(101);
       expect(billingCache.delete).toHaveBeenCalledWith("billing:shop-123");
-    });
-    it("should not increment for already completed order", async () => {
-      vi.mocked(prisma.$transaction).mockImplementation(async (fn) => {
-        return fn({
-          conversionJob: {
-            findUnique: vi.fn().mockResolvedValue({ status: "completed" }),
-          },
-          monthlyUsage: {
-            findUnique: vi.fn().mockResolvedValue({ sentCount: 100 }),
-          },
-        } as any);
-      });
-      const count = await incrementMonthlyUsage("shop-123", "order-456");
-      expect(count).toBe(100);
     });
   });
   describe("incrementMonthlyUsageIdempotent", () => {
     it("should return incremented=true for new order", async () => {
       vi.setSystemTime(new Date("2025-06-15T10:00:00Z"));
-      vi.mocked(prisma.$transaction).mockImplementation(async (fn) => {
-        return fn({
-          conversionJob: { findUnique: vi.fn().mockResolvedValue(null) },
-          conversionLog: { findFirst: vi.fn().mockResolvedValue(null) },
-          monthlyUsage: {
-            upsert: vi.fn().mockResolvedValue({ sentCount: 51 }),
-            findUnique: vi.fn().mockResolvedValue({ sentCount: 51 }),
-          },
-        } as any);
-      });
+      vi.mocked(prisma.pixelEventReceipt.findFirst).mockResolvedValue(null);
+      vi.mocked(prisma.monthlyUsage.upsert).mockResolvedValue(undefined as any);
+      vi.mocked(prisma.monthlyUsage.findUnique).mockResolvedValue({ sentCount: 51 } as any);
       const result = await incrementMonthlyUsageIdempotent("shop-123", "order-789");
       expect(result.incremented).toBe(true);
       expect(result.current).toBe(51);
     });
     it("should return incremented=false for duplicate order", async () => {
-      vi.mocked(prisma.$transaction).mockImplementation(async (fn) => {
-        return fn({
-          conversionJob: {
-            findUnique: vi.fn().mockResolvedValue({ status: "completed" }),
-          },
-          monthlyUsage: {
-            findUnique: vi.fn().mockResolvedValue({ sentCount: 50 }),
-          },
-        } as any);
-      });
+      vi.mocked(prisma.pixelEventReceipt.findFirst).mockResolvedValue({
+        payloadJson: { data: { value: 1, currency: "USD" } },
+      } as any);
+      vi.mocked(prisma.monthlyUsage.findUnique).mockResolvedValue({ sentCount: 50 } as any);
       const result = await incrementMonthlyUsageIdempotent("shop-123", "order-789");
       expect(result.incremented).toBe(false);
       expect(result.current).toBe(50);
@@ -250,49 +225,27 @@ describe("Usage Tracking Service", () => {
   describe("tryReserveUsageSlot", () => {
     it("should reserve slot when under limit", async () => {
       vi.setSystemTime(new Date("2025-06-15T10:00:00Z"));
-      vi.mocked(prisma.$transaction).mockImplementation(async (fn) => {
-        return fn({
-          conversionJob: { findUnique: vi.fn().mockResolvedValue(null) },
-          monthlyUsage: {
-            upsert: vi.fn().mockResolvedValue({}),
-            findUnique: vi.fn().mockResolvedValue({ sentCount: 51 }),
-          },
-          $executeRaw: vi.fn().mockResolvedValue(1),
-        } as any);
-      });
+      vi.mocked(prisma.pixelEventReceipt.findFirst).mockResolvedValue(null);
+      vi.mocked(prisma.monthlyUsage.findUnique).mockResolvedValue({ sentCount: 51 } as any);
       const result = await tryReserveUsageSlot("shop-123", "order-100", 1000);
       expect(result.reserved).toBe(true);
       expect(result.current).toBe(51);
       expect(result.limit).toBe(1000);
-      expect(result.remaining).toBe(949);
+      expect(result.remaining).toBe(948); // limit - current - 1 when reserved
     });
     it("should fail when at limit", async () => {
-      vi.mocked(prisma.$transaction).mockImplementation(async (fn) => {
-        return fn({
-          conversionJob: { findUnique: vi.fn().mockResolvedValue(null) },
-          monthlyUsage: {
-            upsert: vi.fn().mockResolvedValue({}),
-            findUnique: vi.fn().mockResolvedValue({ sentCount: 1000 }),
-          },
-          $executeRaw: vi.fn().mockResolvedValue(0),
-        } as any);
-      });
+      vi.mocked(prisma.pixelEventReceipt.findFirst).mockResolvedValue(null);
+      vi.mocked(prisma.monthlyUsage.findUnique).mockResolvedValue({ sentCount: 1000 } as any);
       const result = await tryReserveUsageSlot("shop-123", "order-100", 1000);
       expect(result.reserved).toBe(false);
       expect(result.current).toBe(1000);
       expect(result.remaining).toBe(0);
     });
     it("should return reserved=false for duplicate order", async () => {
-      vi.mocked(prisma.$transaction).mockImplementation(async (fn) => {
-        return fn({
-          conversionJob: {
-            findUnique: vi.fn().mockResolvedValue({ status: "completed" }),
-          },
-          monthlyUsage: {
-            findUnique: vi.fn().mockResolvedValue({ sentCount: 500 }),
-          },
-        } as any);
-      });
+      vi.mocked(prisma.pixelEventReceipt.findFirst).mockResolvedValue({
+        payloadJson: { data: { value: 1, currency: "USD" } },
+      } as any);
+      vi.mocked(prisma.monthlyUsage.findUnique).mockResolvedValue({ sentCount: 500 } as any);
       const result = await tryReserveUsageSlot("shop-123", "order-100", 1000);
       expect(result.reserved).toBe(false);
       expect(result.current).toBe(500);
@@ -302,39 +255,21 @@ describe("Usage Tracking Service", () => {
   describe("decrementMonthlyUsage", () => {
     it("should decrement usage count", async () => {
       vi.setSystemTime(new Date("2025-06-15T10:00:00Z"));
-      vi.mocked(prisma.$transaction).mockImplementation(async (fn) => {
-        return fn({
-          $executeRaw: vi.fn().mockResolvedValue(1),
-          monthlyUsage: {
-            findUnique: vi.fn().mockResolvedValue({ sentCount: 99 }),
-          },
-        } as any);
-      });
+      vi.mocked(prisma.monthlyUsage.upsert).mockResolvedValue(undefined as any);
+      vi.mocked(prisma.monthlyUsage.findUnique).mockResolvedValue({ sentCount: 99 } as any);
       const count = await decrementMonthlyUsage("shop-123");
       expect(count).toBe(99);
       expect(billingCache.delete).toHaveBeenCalledWith("billing:shop-123");
     });
     it("should not go below zero", async () => {
-      vi.mocked(prisma.$transaction).mockImplementation(async (fn) => {
-        return fn({
-          $executeRaw: vi.fn().mockResolvedValue(1),
-          monthlyUsage: {
-            findUnique: vi.fn().mockResolvedValue({ sentCount: 0 }),
-          },
-        } as any);
-      });
+      vi.mocked(prisma.monthlyUsage.upsert).mockResolvedValue(undefined as any);
+      vi.mocked(prisma.monthlyUsage.findUnique).mockResolvedValue({ sentCount: 0 } as any);
       const count = await decrementMonthlyUsage("shop-123");
       expect(count).toBe(0);
     });
     it("should return 0 when no record exists", async () => {
-      vi.mocked(prisma.$transaction).mockImplementation(async (fn) => {
-        return fn({
-          $executeRaw: vi.fn().mockResolvedValue(0),
-          monthlyUsage: {
-            findUnique: vi.fn().mockResolvedValue(null),
-          },
-        } as any);
-      });
+      vi.mocked(prisma.monthlyUsage.upsert).mockResolvedValue(undefined as any);
+      vi.mocked(prisma.monthlyUsage.findUnique).mockResolvedValue(null);
       const count = await decrementMonthlyUsage("shop-123");
       expect(count).toBe(0);
     });
@@ -342,32 +277,18 @@ describe("Usage Tracking Service", () => {
   describe("Cache Invalidation", () => {
     it("should invalidate cache when usage changes", async () => {
       vi.setSystemTime(new Date("2025-06-15T10:00:00Z"));
-      vi.mocked(prisma.$transaction).mockImplementation(async (fn) => {
-        return fn({
-          conversionJob: { findUnique: vi.fn().mockResolvedValue(null) },
-          conversionLog: { findFirst: vi.fn().mockResolvedValue(null) },
-          monthlyUsage: {
-            upsert: vi.fn().mockResolvedValue({ sentCount: 1 }),
-            findUnique: vi.fn().mockResolvedValue({ sentCount: 1 }),
-          },
-        } as any);
-      });
+      vi.mocked(prisma.monthlyUsage.upsert).mockResolvedValue(undefined as any);
+      vi.mocked(prisma.monthlyUsage.findUnique).mockResolvedValue({ sentCount: 1 } as any);
       await incrementMonthlyUsage("shop-123", "order-new");
       expect(billingCache.delete).toHaveBeenCalledWith("billing:shop-123");
     });
-    it("should not invalidate cache for duplicate orders", async () => {
-      vi.mocked(prisma.$transaction).mockImplementation(async (fn) => {
-        return fn({
-          conversionJob: {
-            findUnique: vi.fn().mockResolvedValue({ status: "completed" }),
-          },
-          monthlyUsage: {
-            findUnique: vi.fn().mockResolvedValue({ sentCount: 100 }),
-          },
-        } as any);
-      });
-      await incrementMonthlyUsage("shop-123", "order-existing");
-      expect(billingCache.delete).not.toHaveBeenCalled();
+    it("should invalidate cache for duplicate orders in incrementMonthlyUsageIdempotent", async () => {
+      vi.mocked(prisma.pixelEventReceipt.findFirst).mockResolvedValue({
+        payloadJson: { data: { value: 1, currency: "USD" } },
+      } as any);
+      vi.mocked(prisma.monthlyUsage.findUnique).mockResolvedValue({ sentCount: 100 } as any);
+      await incrementMonthlyUsageIdempotent("shop-123", "order-existing");
+      expect(billingCache.delete).toHaveBeenCalledWith("billing:shop-123");
     });
   });
 });

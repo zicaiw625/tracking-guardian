@@ -5,7 +5,7 @@ import prisma from "../../db.server";
 import { getUiModuleConfigs, canUseModule, getDefaultSettings } from "../../services/ui-extension.server";
 import { PCD_CONFIG } from "../../utils/config.server";
 import { authenticatePublic, normalizeDestToShopDomain, handlePublicPreflight, addSecurityHeaders } from "../../utils/public-auth";
-import { sanitizeUrl } from "../../utils/security";
+import { sanitizeUrl, validateEmailForMailto } from "../../utils/security";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   if (request.method === "OPTIONS") {
@@ -162,7 +162,8 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
         }
       }
     }
-    const helpSupportUrl = helpContactUrl || (helpConfig?.contactEmail ? `mailto:${helpConfig.contactEmail}` : (defaultHelpSettings.contactEmail ? `mailto:${defaultHelpSettings.contactEmail}` : undefined));
+    const contactEmail = validateEmailForMailto(helpConfig?.contactEmail) ?? validateEmailForMailto(defaultHelpSettings.contactEmail);
+    const helpSupportUrl = helpContactUrl || (contactEmail ? `mailto:${contactEmail}` : undefined);
     const surveyEnabled = (surveyModule?.isEnabled ?? false) && surveyAllowed.allowed && surveyEnabledForTarget;
     const helpEnabled = (helpModule?.isEnabled ?? false) && helpAllowed.allowed && helpEnabledForTarget;
     const reorderEnabled = PCD_CONFIG.APPROVED && (reorderModule?.isEnabled ?? false) && reorderAllowed.allowed && reorderEnabledForTarget && normalizedTarget === "order_status";
