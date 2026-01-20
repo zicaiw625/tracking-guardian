@@ -1,5 +1,6 @@
 import prisma from "../db.server";
 import { logger } from "../utils/logger.server";
+import { parseReceiptPayload, extractPlatformFromPayload, isRecord } from "../utils/common";
 
 export interface DailyAggregatedMetrics {
   shopId: string;
@@ -35,12 +36,34 @@ export async function aggregateDailyMetrics(
       },
     },
     select: {
-      eventType: true,
+      payloadJson: true,
       createdAt: true,
     },
     take: 10000,
   });
   const orders: Array<{ platform: string; status: string; value: number }> = [];
+  for (const receipt of receipts) {
+    const parsed = parseReceiptPayload(receipt.payloadJson);
+    if (!parsed) {
+      const payload = isRecord(receipt.payloadJson) ? receipt.payloadJson : null;
+      const platform = extractPlatformFromPayload(payload) || "unknown";
+      const data = payload && isRecord(payload.data) ? payload.data : null;
+      const value = data && typeof data.value === "number" ? data.value : 0;
+      const hasValue = value > 0;
+      const hasCurrency = data !== null && typeof data.currency === "string" && data.currency.trim().length > 0;
+      orders.push({
+        platform,
+        status: hasValue && hasCurrency ? "ok" : "pending",
+        value,
+      });
+    } else {
+      orders.push({
+        platform: parsed.platform,
+        status: parsed.hasValue && parsed.hasCurrency ? "ok" : "pending",
+        value: parsed.value,
+      });
+    }
+  }
   const totalOrders = orders.length;
   const successfulOrders = orders.filter((o) => o.status === "ok").length;
   const totalValue = orders.reduce((sum, o) => sum + o.value, 0);
@@ -62,7 +85,8 @@ export async function aggregateDailyMetrics(
       },
     },
   });
-  const missingParamsRate = 0;
+  const ordersWithMissingParams = orders.filter((o) => o.status !== "ok").length;
+  const missingParamsRate = totalOrders > 0 ? ordersWithMissingParams / totalOrders : 0;
   const metrics: DailyAggregatedMetrics = {
     shopId,
     date: startOfDay,
@@ -116,12 +140,36 @@ export async function getAggregatedMetrics(
       },
     },
     select: {
-      eventType: true,
+      payloadJson: true,
       createdAt: true,
     },
     take: 10000,
   });
   const orders: Array<{ platform: string; status: string; value: number; createdAt: Date }> = [];
+  for (const receipt of receipts) {
+    const parsed = parseReceiptPayload(receipt.payloadJson);
+    if (!parsed) {
+      const payload = isRecord(receipt.payloadJson) ? receipt.payloadJson : null;
+      const platform = extractPlatformFromPayload(payload) || "unknown";
+      const data = payload && isRecord(payload.data) ? payload.data : null;
+      const value = data && typeof data.value === "number" ? data.value : 0;
+      const hasValue = value > 0;
+      const hasCurrency = data !== null && typeof data.currency === "string" && data.currency.trim().length > 0;
+      orders.push({
+        platform,
+        status: hasValue && hasCurrency ? "ok" : "pending",
+        value,
+        createdAt: receipt.createdAt,
+      });
+    } else {
+      orders.push({
+        platform: parsed.platform,
+        status: parsed.hasValue && parsed.hasCurrency ? "ok" : "pending",
+        value: parsed.value,
+        createdAt: receipt.createdAt,
+      });
+    }
+  }
   const totalOrders = orders.length;
   const successfulOrders = orders.filter((o) => o.status === "ok").length;
   const totalValue = orders.reduce((sum, o) => sum + o.value, 0);

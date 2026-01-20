@@ -1,162 +1,53 @@
-import type { ActionFunctionArgs, LoaderFunctionArgs } from "@remix-run/node";
-import { jsonWithCors, emptyResponseWithCors, optionsResponse } from "~/lib/pixel-events/cors";
-import { processBatchEvents } from "~/services/events/pipeline.server";
-import { logger, metrics } from "~/utils/logger.server";
-import { API_CONFIG, RATE_LIMIT_CONFIG, isStrictSecurityMode } from "~/utils/config.server";
-import { isDevMode, trackNullOriginRequest } from "~/utils/origin-validation";
-import { checkRateLimitAsync, shopDomainIpKeyExtractor, ipKeyExtractor } from "~/middleware/rate-limit";
-import { safeFireAndForget } from "~/utils/helpers.server";
+import type { Request } from "@remix-run/node";
+import type { PixelEventPayload, KeyValidationResult } from "~/lib/pixel-events/types";
+import { validateRequest, isPrimaryEvent } from "~/lib/pixel-events/validation";
+import { validatePixelEventHMAC } from "~/lib/pixel-events/hmac-validation";
+import { verifyWithGraceWindowAsync } from "~/utils/shop-access";
+import { getShopForPixelVerificationWithConfigs } from "~/lib/pixel-events/key-validation";
+import { validatePixelOriginPreBody, validatePixelOriginForShop, buildShopAllowedDomains } from "~/utils/origin-validation";
+import { generateEventIdForType, generateOrderMatchKey, isClientEventRecorded, createEventNonce, upsertPixelEventReceipt } from "~/lib/pixel-events/receipt-handler";
+import { checkInitialConsent, filterPlatformsByConsent, logConsentFilterMetrics } from "~/lib/pixel-events/consent-filter";
+import { API_CONFIG, isStrictSecurityMode } from "~/utils/config.server";
+import { isDevMode } from "~/utils/origin-validation";
 import { hashValueSync } from "~/utils/crypto.server";
-import {
-  parseAndValidateRequest,
-  validateOriginAndShop,
-  validateHMACSignature,
-  validateEvents,
-} from "~/lib/pixel-events/ingest-helpers.server";
+import { logger, metrics } from "~/utils/logger.server";
+import { trackAnomaly } from "~/utils/rate-limiter";
+import prisma from "~/db.server";
 
-const MAX_BATCH_SIZE = 100;
 const TIMESTAMP_WINDOW_MS = API_CONFIG.TIMESTAMP_WINDOW_MS;
-const INGEST_RATE_LIMIT = RATE_LIMIT_CONFIG.PIXEL_EVENTS;
 
-function isAcceptableContentType(contentType: string | null): boolean {
-  if (!contentType) return false;
-  const lower = contentType.toLowerCase();
-  return lower.includes("text/plain") || lower.includes("application/json");
+export interface ParseRequestResult {
+  bodyText: string;
+  bodyData: unknown;
+  events: unknown[];
+  batchTimestamp?: number;
+  firstPayload: PixelEventPayload;
+  shopDomain: string;
+  timestamp: number;
+  environment: "test" | "live";
 }
 
-export const action = async ({ request }: ActionFunctionArgs) => {
-  if (request.method === "OPTIONS") {
-    return optionsResponse(request);
-  }
-  if (request.method !== "POST") {
-    return jsonWithCors({ error: "Method not allowed" }, { status: 405, request });
-  }
-  const ipKey = ipKeyExtractor(request);
-  const ipRateLimit = await checkRateLimitAsync(ipKey, 200, 60 * 1000);
-  if (!ipRateLimit.allowed) {
-    const ipHash = ipKey === "untrusted" || ipKey === "unknown" ? ipKey : hashValueSync(ipKey).slice(0, 12);
-    logger.warn(`IP rate limit exceeded for ingest`, {
-      ipHash,
-      retryAfter: ipRateLimit.retryAfter,
-    });
-    return jsonWithCors(
-      {
-        error: "Too Many Requests",
-        message: "Rate limit exceeded. Please try again later.",
-        retryAfter: ipRateLimit.retryAfter,
-      },
-      {
-        status: 429,
-        request,
-        headers: {
-          "Retry-After": String(ipRateLimit.retryAfter || 60),
-          "X-RateLimit-Limit": "200",
-          "X-RateLimit-Remaining": String(ipRateLimit.remaining || 0),
-          "X-RateLimit-Reset": String(Math.ceil((ipRateLimit.resetAt || Date.now()) / 1000)),
-        },
-      }
+export async function parseAndValidateRequest(request: Request): Promise<ParseRequestResult | Response> {
+  const bodyText = await request.text();
+  if (bodyText.length > API_CONFIG.MAX_BODY_SIZE) {
+    return new Response(
+      JSON.stringify({ error: "Payload too large", maxSize: API_CONFIG.MAX_BODY_SIZE }),
+      { status: 413, headers: { "Content-Type": "application/json" } }
     );
   }
-  const originHeaderPresent = request.headers.has("Origin");
-  const origin = originHeaderPresent ? request.headers.get("Origin") : null;
-  const isNullOrigin = origin === "null" || origin === null;
-  const isProduction = !isDevMode();
-  const allowUnsignedEvents = isProduction ? false : process.env.ALLOW_UNSIGNED_PIXEL_EVENTS === "true";
-  const signature = request.headers.get("X-Tracking-Guardian-Signature");
-  const strictOrigin = (() => {
-    const value = process.env.PIXEL_STRICT_ORIGIN?.toLowerCase().trim();
-    return value === "true" || value === "1" || value === "yes";
-  })();
-  const contentType = request.headers.get("Content-Type");
-  if (!isAcceptableContentType(contentType)) {
-    return jsonWithCors(
-      { error: "Content-Type must be text/plain or application/json" },
-      { status: 415, request }
-    );
-  }
-  const hasSignatureHeader = !!signature;
-  
-  const preBodyValidation = validatePixelOriginPreBody(origin, hasSignatureHeader, originHeaderPresent);
-  if (!preBodyValidation.valid) {
-    const shopDomainHeader = request.headers.get("x-shopify-shop-domain") || "unknown";
-    const anomalyCheck = trackAnomaly(shopDomainHeader, "invalid_origin");
-    if (anomalyCheck.shouldBlock) {
-      logger.warn(`Anomaly threshold reached for ${shopDomainHeader}: ${anomalyCheck.reason}`);
-    }
-    if (preBodyValidation.shouldLog) {
-      logger.warn(
-        `Origin validation warning at Stage 1 in /ingest: ${origin?.substring(0, 100) || "null"}, ` +
-          `reason: ${preBodyValidation.reason}`
-      );
-    }
-    if (preBodyValidation.shouldReject && (isProduction || !hasSignatureHeader || strictOrigin)) {
-      metrics.pixelRejection({
-        shopDomain: shopDomainHeader,
-        reason: preBodyValidation.reason as "invalid_origin" | "invalid_origin_protocol",
-        originType: preBodyValidation.reason,
-      });
-      return jsonWithCors({ error: "Invalid origin" }, { status: 403, request });
-    }
-  }
-  if (isNullOrigin) {
-    trackNullOriginRequest();
-  }
-  const timestampHeader = request.headers.get("X-Tracking-Guardian-Timestamp");
-  const shopDomainHeader = request.headers.get("x-shopify-shop-domain") || "unknown";
-  if (timestampHeader) {
-    const timestamp = parseInt(timestampHeader, 10);
-    if (isNaN(timestamp)) {
-      const anomalyCheck = trackAnomaly(shopDomainHeader, "invalid_timestamp");
-      if (anomalyCheck.shouldBlock) {
-        logger.warn(`Anomaly threshold reached for ${shopDomainHeader}: ${anomalyCheck.reason}`);
-      }
-      logger.debug("Invalid timestamp format in header, dropping request");
-      return emptyResponseWithCors(request);
-    }
-    const now = Date.now();
-    const timeDiff = Math.abs(now - timestamp);
-    if (timeDiff > TIMESTAMP_WINDOW_MS) {
-      const anomalyCheck = trackAnomaly(shopDomainHeader, "invalid_timestamp");
-      if (anomalyCheck.shouldBlock) {
-        logger.warn(`Anomaly threshold reached for ${shopDomainHeader}: ${anomalyCheck.reason}`);
-      }
-      logger.debug(`Timestamp outside window: diff=${timeDiff}ms, dropping request`);
-      return emptyResponseWithCors(request);
-    }
-  }
-  const contentLength = request.headers.get("Content-Length");
-  if (contentLength) {
-    const size = parseInt(contentLength, 10);
-    if (!isNaN(size) && size > API_CONFIG.MAX_BODY_SIZE) {
-      logger.warn(`Request body too large: ${size} bytes (max ${API_CONFIG.MAX_BODY_SIZE})`);
-      return jsonWithCors(
-        { error: "Payload too large", maxSize: API_CONFIG.MAX_BODY_SIZE },
-        { status: 413, request }
-      );
-    }
-  }
-  let bodyText: string;
   let bodyData: unknown;
   try {
-    bodyText = await request.text();
-    if (bodyText.length > API_CONFIG.MAX_BODY_SIZE) {
-      logger.warn(`Request body too large: ${bodyText.length} bytes (max ${API_CONFIG.MAX_BODY_SIZE})`);
-      return jsonWithCors(
-        { error: "Payload too large", maxSize: API_CONFIG.MAX_BODY_SIZE },
-        { status: 413, request }
-      );
-    }
     bodyData = JSON.parse(bodyText);
   } catch (error) {
     if (error instanceof SyntaxError) {
-      return jsonWithCors(
-        { error: "Invalid JSON body" },
-        { status: 400, request }
+      return new Response(
+        JSON.stringify({ error: "Invalid JSON body" }),
+        { status: 400, headers: { "Content-Type": "application/json" } }
       );
     }
-    return jsonWithCors(
-      { error: "Failed to read request body" },
-      { status: 400, request }
+    return new Response(
+      JSON.stringify({ error: "Failed to read request body" }),
+      { status: 400, headers: { "Content-Type": "application/json" } }
     );
   }
   const isBatchFormat =
@@ -173,31 +64,25 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   } else {
     const singleEventValidation = validateRequest(bodyData);
     if (!singleEventValidation.valid) {
-      logger.debug(
-        `Pixel payload validation failed: code=${singleEventValidation.code}, error=${singleEventValidation.error}`
+      return new Response(
+        JSON.stringify({ error: "Invalid request" }),
+        { status: 400, headers: { "Content-Type": "application/json" } }
       );
-      return jsonWithCors({ error: "Invalid request" }, { status: 400, request });
     }
     events = [bodyData];
     batchTimestamp = singleEventValidation.payload.timestamp;
   }
   if (events.length === 0) {
-    return jsonWithCors(
-      { error: "events array cannot be empty" },
-      { status: 400, request }
-    );
-  }
-  if (events.length > MAX_BATCH_SIZE) {
-    return jsonWithCors(
-      { error: `events array exceeds maximum size of ${MAX_BATCH_SIZE}` },
-      { status: 400, request }
+    return new Response(
+      JSON.stringify({ error: "events array cannot be empty" }),
+      { status: 400, headers: { "Content-Type": "application/json" } }
     );
   }
   const firstEventValidation = validateRequest(events[0]);
   if (!firstEventValidation.valid) {
-    return jsonWithCors(
-      { error: "Invalid event in batch", details: firstEventValidation.error },
-      { status: 400, request }
+    return new Response(
+      JSON.stringify({ error: "Invalid event in batch", details: firstEventValidation.error }),
+      { status: 400, headers: { "Content-Type": "application/json" } }
     );
   }
   const firstPayload = firstEventValidation.payload;
@@ -205,13 +90,49 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   const timestamp = batchTimestamp ?? firstPayload.timestamp;
   const nowForWindow = Date.now();
   if (Math.abs(nowForWindow - timestamp) > TIMESTAMP_WINDOW_MS) {
-    logger.debug(
-      `Payload timestamp outside window: diff=${Math.abs(nowForWindow - timestamp)}ms, dropping request`,
-      { shopDomain }
-    );
-    return emptyResponseWithCors(request);
+    return new Response(null, { status: 204 });
   }
   const environment = (firstPayload.data as { environment?: "test" | "live" })?.environment || "live";
+  return {
+    bodyText,
+    bodyData,
+    events,
+    batchTimestamp,
+    firstPayload,
+    shopDomain,
+    timestamp,
+    environment,
+  };
+}
+
+export async function validateOriginAndShop(
+  request: Request,
+  origin: string | null,
+  hasSignatureHeader: boolean,
+  shopDomain: string,
+  environment: "test" | "live",
+  isProduction: boolean,
+  strictOrigin: boolean
+): Promise<{ shop: Awaited<ReturnType<typeof getShopForPixelVerificationWithConfigs>>; shopAllowedDomains: string[] } | Response> {
+  const preBodyValidation = validatePixelOriginPreBody(origin, hasSignatureHeader, request.headers.has("Origin"));
+  if (!preBodyValidation.valid) {
+    const shopDomainHeader = request.headers.get("x-shopify-shop-domain") || "unknown";
+    const anomalyCheck = trackAnomaly(shopDomainHeader, "invalid_origin");
+    if (anomalyCheck.shouldBlock) {
+      logger.warn(`Anomaly threshold reached for ${shopDomainHeader}: ${anomalyCheck.reason}`);
+    }
+    if (preBodyValidation.shouldReject && (isProduction || !hasSignatureHeader || strictOrigin)) {
+      metrics.pixelRejection({
+        shopDomain: shopDomainHeader,
+        reason: preBodyValidation.reason as "invalid_origin" | "invalid_origin_protocol",
+        originType: preBodyValidation.reason,
+      });
+      return new Response(
+        JSON.stringify({ error: "Invalid origin" }),
+        { status: 403, headers: { "Content-Type": "application/json" } }
+      );
+    }
+  }
   const shop = await getShopForPixelVerificationWithConfigs(shopDomain, environment);
   if (!shop || !shop.isActive) {
     if (isProduction) {
@@ -220,14 +141,14 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         exists: !!shop,
         isActive: shop?.isActive,
       });
-      return jsonWithCors(
-        { error: "Invalid request" },
-        { status: 401, request }
+      return new Response(
+        JSON.stringify({ error: "Invalid request" }),
+        { status: 401, headers: { "Content-Type": "application/json" } }
       );
     }
-    return jsonWithCors(
-      { error: "Shop not found or inactive" },
-      { status: 401, request }
+    return new Response(
+      JSON.stringify({ error: "Shop not found or inactive" }),
+      { status: 401, headers: { "Content-Type": "application/json" } }
     );
   }
   const shopAllowedDomains = buildShopAllowedDomains({
@@ -246,10 +167,6 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     if (anomalyCheck.shouldBlock) {
       logger.warn(`Anomaly threshold reached for ${shop.shopDomain}: ${anomalyCheck.reason}`);
     }
-    logger.warn(
-      `Origin validation warning at Stage 2 in /ingest for ${shop.shopDomain}: ` +
-        `origin=${origin?.substring(0, 100) || "null"}, referer=${referer?.substring(0, 100) || "null"}, reason=${shopOriginValidation.reason}`
-    );
     if (hasSignatureHeader && !strictOrigin && !isProduction) {
       logger.warn(`Signed ingest request allowed despite origin rejection for ${shop.shopDomain}`, {
         origin: origin?.substring(0, 100) || "null",
@@ -262,9 +179,24 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         reason: "origin_not_allowlisted",
         originType: shopOriginValidation.reason,
       });
-      return jsonWithCors({ error: "Origin not allowlisted" }, { status: 403, request, shopAllowedDomains });
+      return new Response(
+        JSON.stringify({ error: "Origin not allowlisted" }),
+        { status: 403, headers: { "Content-Type": "application/json" } }
+      );
     }
   }
+  return { shop, shopAllowedDomains };
+}
+
+export async function validateHMACSignature(
+  request: Request,
+  bodyText: string,
+  shop: NonNullable<Awaited<ReturnType<typeof getShopForPixelVerificationWithConfigs>>>,
+  shopDomain: string,
+  timestamp: number,
+  signature: string | null,
+  allowUnsignedEvents: boolean
+): Promise<KeyValidationResult> {
   let keyValidation: KeyValidationResult = {
     matched: false,
     reason: signature ? "hmac_not_verified" : "signature_missing",
@@ -337,19 +269,6 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       trustLevel: "untrusted",
     };
   }
-  if (isStrictSecurityMode() && !keyValidation.matched) {
-    const rejectionReason = keyValidation.reason === "secret_missing"
-      ? "no_ingestion_key"
-      : "invalid_key";
-    metrics.pixelRejection({
-      shopDomain,
-      reason: rejectionReason,
-    });
-    logger.warn(`Rejected ingest request for ${shopDomain}`, {
-      reason: keyValidation.reason,
-    });
-    return jsonWithCors({ error: "Invalid signature" }, { status: 401, request });
-  }
   if (!keyValidation.matched && !isStrictSecurityMode()) {
     logger.warn(`HMAC validation failed but allowing request in non-strict mode`, {
       shopDomain,
@@ -357,58 +276,25 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       trustLevel: keyValidation.trustLevel,
     });
   }
-  const rateLimitKey = shopDomainIpKeyExtractor(request);
-  const rateLimit = await checkRateLimitAsync(
-    rateLimitKey,
-    INGEST_RATE_LIMIT.maxRequests,
-    INGEST_RATE_LIMIT.windowMs
-  );
-  if (!rateLimit.allowed) {
-    logger.warn(`Rate limit exceeded for ingest`, {
-      shopDomain,
-      retryAfter: rateLimit.retryAfter,
-      remaining: rateLimit.remaining,
-    });
-    const rateLimitResponse = jsonWithCors(
-      {
-        error: "Too Many Requests",
-        message: "Rate limit exceeded. Please try again later.",
-        retryAfter: rateLimit.retryAfter,
-      },
-      {
-        status: 429,
-        request,
-        headers: {
-          "Retry-After": String(rateLimit.retryAfter || 60),
-          "X-RateLimit-Limit": String(INGEST_RATE_LIMIT.maxRequests),
-          "X-RateLimit-Remaining": String(rateLimit.remaining || 0),
-          "X-RateLimit-Reset": String(Math.ceil((rateLimit.resetAt || Date.now()) / 1000)),
-        },
-      }
-    );
-    return rateLimitResponse;
-  }
-  const pixelConfigs = shop.pixelConfigs;
-  let mode: "purchase_only" | "full_funnel" = "purchase_only";
-  for (const config of pixelConfigs) {
-    if (config.clientConfig && typeof config.clientConfig === 'object') {
-      if ('mode' in config.clientConfig) {
-        const configMode = config.clientConfig.mode;
-        if (configMode === 'full_funnel') {
-          mode = "full_funnel";
-          break;
-        } else if (configMode === 'purchase_only') {
-          mode = "purchase_only";
-        }
-      }
-    }
-  }
-  const validatedEvents: Array<{
-    payload: PixelEventPayload;
-    eventId: string | null;
-    destinations: string[];
-  }> = [];
-  const serverSideConfigs = pixelConfigs.filter(config => config.serverSideEnabled === true);
+  return keyValidation;
+}
+
+export interface ValidatedEvent {
+  payload: PixelEventPayload;
+  eventId: string | null;
+  destinations: string[];
+}
+
+export async function validateEvents(
+  events: unknown[],
+  shop: NonNullable<Awaited<ReturnType<typeof getShopForPixelVerificationWithConfigs>>>,
+  shopDomain: string,
+  origin: string | null,
+  mode: "purchase_only" | "full_funnel",
+  keyValidation: KeyValidationResult
+): Promise<ValidatedEvent[]> {
+  const validatedEvents: ValidatedEvent[] = [];
+  const serverSideConfigs = shop.pixelConfigs.filter(config => config.serverSideEnabled === true);
   let activeVerificationRunId: string | null | undefined = undefined;
   for (let i = 0; i < events.length; i++) {
     const eventValidation = validateRequest(events[i]);
@@ -610,55 +496,5 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       destinations,
     });
   }
-  if (validatedEvents.length === 0) {
-    logger.debug(`All events filtered for ${shopDomain} (mode: ${mode}) - returning empty accepted_count`);
-    return jsonWithCors(
-      {
-        accepted_count: 0,
-        errors: [],
-      },
-      { request }
-    );
-  }
-  const PROCESSING_TIMEOUT_MS = 10000;
-  const processingPromise = processBatchEvents(shop.id, validatedEvents, environment).then((results) => {
-    const successCount = results.filter(r => r.success).length;
-    const errorCount = results.filter(r => !r.success).length;
-    logger.info(`Batch ingest processed`, {
-      shopDomain,
-      total: validatedEvents.length,
-      accepted: successCount,
-      errors: errorCount,
-    });
-    return results;
-  });
-  const timeoutId = setTimeout(() => {
-    logger.warn(`Batch ingest processing taking longer than ${PROCESSING_TIMEOUT_MS}ms`, {
-      shopDomain,
-      shopId: shop.id,
-      total: validatedEvents.length,
-    });
-  }, PROCESSING_TIMEOUT_MS);
-  safeFireAndForget(processingPromise.finally(() => clearTimeout(timeoutId)), {
-    operation: "Batch ingest processing",
-    metadata: { shopDomain, shopId: shop.id, total: validatedEvents.length },
-  });
-  return jsonWithCors(
-    {
-      accepted_count: validatedEvents.length,
-      errors: [],
-    },
-    { request }
-  );
-};
-
-export const loader = async ({ request }: LoaderFunctionArgs) => {
-  return jsonWithCors(
-    {
-      status: "ok",
-      endpoint: "ingest",
-      message: "This is the only pixel event ingestion endpoint. Use POST /ingest to send pixel events.",
-    },
-    { request }
-  );
-};
+  return validatedEvents;
+}

@@ -8,6 +8,7 @@ export interface HMACValidationResult {
   valid: boolean;
   reason?: string;
   errorCode?: "missing_signature" | "invalid_signature" | "timestamp_out_of_window" | "missing_timestamp_header" | "timestamp_mismatch";
+  trustLevel?: "trusted" | "partial" | "untrusted";
 }
 
 export function generateHMACSignature(
@@ -35,6 +36,7 @@ export function verifyHMACSignature(
       valid: false,
       reason: "Missing HMAC signature",
       errorCode: "missing_signature",
+      trustLevel: "untrusted",
     };
   }
   const now = Date.now();
@@ -44,6 +46,7 @@ export function verifyHMACSignature(
       valid: false,
       reason: `Timestamp outside window: ${timeDiff}ms (max: ${timestampWindowMs}ms)`,
       errorCode: "timestamp_out_of_window",
+      trustLevel: "untrusted",
     };
   }
   const expectedSignature = generateHMACSignature(secret, timestamp, shopDomain, bodyHash);
@@ -55,6 +58,7 @@ export function verifyHMACSignature(
         valid: false,
         reason: "Invalid signature length",
         errorCode: "invalid_signature",
+        trustLevel: "untrusted",
       };
     }
     if (!timingSafeEqual(signatureBuffer, expectedBuffer)) {
@@ -62,9 +66,10 @@ export function verifyHMACSignature(
         valid: false,
         reason: "HMAC signature mismatch",
         errorCode: "invalid_signature",
+        trustLevel: "untrusted",
       };
     }
-    return { valid: true };
+    return { valid: true, trustLevel: "trusted" };
   } catch (error) {
     logger.warn("HMAC signature verification error:", {
       error: error instanceof Error ? error.message : String(error),
@@ -74,6 +79,7 @@ export function verifyHMACSignature(
       valid: false,
       reason: "Invalid signature format (expected hex)",
       errorCode: "invalid_signature",
+      trustLevel: "untrusted",
     };
   }
 }
@@ -108,6 +114,7 @@ export async function validatePixelEventHMAC(
       valid: false,
       reason: "Missing HMAC signature header",
       errorCode: "missing_signature",
+      trustLevel: "untrusted",
     };
   }
   const headerTimestamp = extractTimestampHeader(request);
@@ -116,6 +123,7 @@ export async function validatePixelEventHMAC(
       valid: false,
       reason: "Missing timestamp header",
       errorCode: "missing_timestamp_header",
+      trustLevel: "untrusted",
     };
   }
   if (headerTimestamp !== payloadTimestamp) {
@@ -123,6 +131,7 @@ export async function validatePixelEventHMAC(
       valid: false,
       reason: `Timestamp mismatch: header=${headerTimestamp}, payload=${payloadTimestamp}`,
       errorCode: "timestamp_mismatch",
+      trustLevel: "untrusted",
     };
   }
   const crypto = await import("crypto");

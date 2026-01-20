@@ -160,6 +160,15 @@ export function validateSecurityHeaders(): {
   if (!WEBHOOK_SECURITY_HEADERS["Content-Security-Policy"]) {
     issues.push("Webhook headers should include Content-Security-Policy");
   }
+  const frameAncestors = CSP_DIRECTIVES["frame-ancestors"];
+  if (!frameAncestors || !Array.isArray(frameAncestors)) {
+    issues.push("CSP_DIRECTIVES.frame-ancestors must be an array");
+  } else {
+    const hasAdminShopify = frameAncestors.includes("https://admin.shopify.com");
+    if (!hasAdminShopify) {
+      issues.push("CSP_DIRECTIVES.frame-ancestors must include https://admin.shopify.com for embedded app compatibility");
+    }
+  }
   return {
     valid: issues.length === 0,
     issues,

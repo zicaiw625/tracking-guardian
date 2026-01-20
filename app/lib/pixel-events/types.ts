@@ -90,6 +90,7 @@ export interface KeyValidationResult {
   matched: boolean;
   reason: string;
   usedPreviousSecret?: boolean;
+  trustLevel?: "trusted" | "partial" | "untrusted";
 }
 
 export interface ShopContext {

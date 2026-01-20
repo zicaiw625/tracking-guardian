@@ -85,6 +85,16 @@ export function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+function safeUrlForLogs(raw: string): string {
+  try {
+    const u = new URL(raw);
+    u.search = "";
+    return u.toString();
+  } catch {
+    return "[invalid-url]";
+  }
+}
+
 export async function httpRequest<T = unknown>(
   url: string,
   options: HttpRequestOptions = {}
@@ -105,7 +115,7 @@ export async function httpRequest<T = unknown>(
       const duration = Date.now() - startTime;
       if (!response.ok && isRetryableStatus(response.status, retryOn) && attempt < retries) {
         const retryAfter = extractRetryAfter(response) || calculateBackoffDelay(attempt + 1, baseDelayMs, maxDelayMs);
-        logger.debug(`HTTP ${response.status} from ${url}, retrying in ${retryAfter}ms`, {
+        logger.debug(`HTTP ${response.status} from ${safeUrlForLogs(url)}, retrying in ${retryAfter}ms`, {
           attempt: attempt + 1,
           maxAttempts: retries + 1,
         });
@@ -139,7 +149,7 @@ export async function httpRequest<T = unknown>(
       if (shouldRetry) {
         const delay = calculateBackoffDelay(attempt + 1, baseDelayMs, maxDelayMs);
         logger.debug(`HTTP error: ${lastError.message}, retrying in ${delay}ms`, {
-          url,
+          url: safeUrlForLogs(url),
           attempt: attempt + 1,
           maxAttempts: retries + 1,
           isTimeout,

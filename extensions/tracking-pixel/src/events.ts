@@ -144,23 +144,38 @@ interface QueuedEvent {
   nonce: string;
 }
 
-function generateNonce(): { timestamp: number; nonce: string } {
+let cryptoUnavailableWarningLogged = false;
+
+function generateNonce(): { timestamp: number; nonce: string; cryptoAvailable: boolean } {
   const timestamp = Date.now();
   let randomHex = "";
+  let cryptoAvailable = false;
   if (globalThis.crypto && typeof globalThis.crypto.getRandomValues === "function") {
-    const randomBytes = new Uint8Array(6);
-    globalThis.crypto.getRandomValues(randomBytes);
-    randomHex = Array.from(randomBytes)
-      .map(b => b.toString(16).padStart(2, "0"))
-      .join("");
+    try {
+      const randomBytes = new Uint8Array(6);
+      globalThis.crypto.getRandomValues(randomBytes);
+      randomHex = Array.from(randomBytes)
+        .map(b => b.toString(16).padStart(2, "0"))
+        .join("");
+      cryptoAvailable = true;
+    } catch (error) {
+      if (!cryptoUnavailableWarningLogged) {
+        console.warn("Crypto.getRandomValues() failed, falling back to Math.random(). Replay protection may be disabled.", error);
+        cryptoUnavailableWarningLogged = true;
+      }
+    }
   }
   if (!randomHex) {
+    if (!cryptoUnavailableWarningLogged) {
+      console.warn("Crypto API not available, using Math.random(). Replay protection disabled.");
+      cryptoUnavailableWarningLogged = true;
+    }
     randomHex = Array.from({ length: 3 }, () => Math.floor(Math.random() * 0xffffffff)
       .toString(16)
       .padStart(8, "0"))
       .join("");
   }
-  return { timestamp, nonce: `${timestamp}-${randomHex}` };
+  return { timestamp, nonce: `${timestamp}-${randomHex}`, cryptoAvailable };
 }
 
 export function createEventSender(config: EventSenderConfig) {
@@ -275,7 +290,10 @@ export function createEventSender(config: EventSenderConfig) {
         if (eventQueue.length > 0) {
           await flushQueue(true);
         }
-        const { timestamp, nonce } = generateNonce();
+        const { timestamp, nonce, cryptoAvailable } = generateNonce();
+        if (!cryptoAvailable && isDevMode) {
+          log("Warning: Nonce generated without crypto API. Replay protection may be disabled.");
+        }
         eventQueue.push({
           eventName,
           data,
@@ -285,7 +303,10 @@ export function createEventSender(config: EventSenderConfig) {
         await flushQueue(true);
         return;
       }
-      const { timestamp, nonce } = generateNonce();
+      const { timestamp, nonce, cryptoAvailable: cryptoAvailable2 } = generateNonce();
+      if (!cryptoAvailable2 && isDevMode) {
+        log("Warning: Nonce generated without crypto API. Replay protection may be disabled.");
+      }
       eventQueue.push({
         eventName,
         data,
