@@ -1,4 +1,4 @@
-import { Banner, BlockStack, Text, List, Link } from "@shopify/polaris";
+import { Banner, BlockStack, Text, List } from "@shopify/polaris";
 import { AlertTriangleIcon } from "~/components/icons";
 
 export function CheckoutExtensibilityWarning() {

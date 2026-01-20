@@ -1,5 +1,4 @@
 import { createHash } from "crypto";
-import { randomUUID } from "crypto";
 import { Prisma } from "@prisma/client";
 import prisma from "../../db.server";
 import { generateEventId, generateMatchKey, makeOrderKey } from "../../utils/crypto.server";
@@ -161,16 +160,6 @@ export async function upsertPixelEventReceipt(
     });
     return { success: false, eventId };
   }
-}
-
-function normalizeCurrencyForStorage(currency: unknown): string {
-  if (currency && typeof currency === 'string' && currency.trim()) {
-    const normalized = currency.trim().toUpperCase();
-    if (/^[A-Z]{3}$/.test(normalized)) {
-      return normalized;
-    }
-  }
-  return "USD";
 }
 
 export async function getActivePixelConfigs(

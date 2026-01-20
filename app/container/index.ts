@@ -2,7 +2,6 @@ import type { PrismaClient } from "@prisma/client";
 import prisma from "../db.server";
 import { logger as baseLogger } from "../utils/logger.server";
 import {
-  CONFIG,
   FEATURE_FLAGS,
   RETENTION_CONFIG,
   API_CONFIG,
@@ -30,18 +29,8 @@ import {
   createAppContext,
   createScopedContext,
   createRequestContext,
-  createRequestContextFromValues,
-  withRequestContext,
   withRequestContextAsync,
-  getCurrentRequestContext,
-  updateRequestContext,
-  setShopDomain,
-  setOrderId,
-  setJobId,
-  setPlatform,
   getRequestElapsedMs,
-  generateRequestId,
-  generateCorrelationId,
 } from "./context";
 
 export type {

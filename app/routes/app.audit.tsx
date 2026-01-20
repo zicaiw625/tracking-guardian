@@ -16,14 +16,13 @@ import {
 import { authenticate } from "../shopify.server";
 import prisma from "../db.server";
 import { scanShopTracking } from "../services/scanner.server";
-import { analyzeScriptContent } from "../services/scanner/content-analysis";
 import { ManualPastePanel } from "../components/scan/ManualPastePanel";
 import { PageIntroCard } from "../components/layout/PageIntroCard";
 
 type Step = "scan" | "manual" | "checklist";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
-  const { session, admin } = await authenticate.admin(request);
+  const { session } = await authenticate.admin(request);
   const shopDomain = session.shop;
   const shop = await prisma.shop.findUnique({
     where: { shopDomain },
@@ -88,7 +87,6 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 
 export default function AuditPage() {
   const { shop, scanResult, auditAssets } = useLoaderData<typeof loader>();
-  const submit = useSubmit();
   const scanFetcher = useFetcher();
   const revalidator = useRevalidator();
   const [currentStep, setCurrentStep] = useState<Step>("scan");
@@ -107,7 +105,7 @@ export default function AuditPage() {
       setIsScanning(false);
       revalidator.revalidate();
     }
-  }, [scanFetcher.state, scanFetcher.data, revalidator]);
+  }, [scanFetcher.state, scanFetcher.data, revalidator, scanData?.success]);
   
   const displayAuditAssetsCount = scanData?.auditAssetsCount !== undefined 
     ? scanData.auditAssetsCount 
@@ -125,7 +123,6 @@ export default function AuditPage() {
     );
   }
   const hasScanResult = scanResult?.status === "completed";
-  const hasManualAssets = auditAssets.some(a => a.sourceType === "manual_paste");
   return (
     <Page
       title="Audit 扫描"

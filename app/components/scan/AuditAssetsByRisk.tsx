@@ -10,9 +10,8 @@ import {
   Icon,
   Banner,
 } from "@shopify/polaris";
-import { AlertCircleIcon, CheckCircleIcon, ArrowRightIcon, InfoIcon, ClockIcon, LockIcon } from "~/components/icons";
+import { AlertCircleIcon, CheckCircleIcon, ArrowRightIcon, ClockIcon, LockIcon } from "~/components/icons";
 import type { AuditAssetRecord } from "~/services/audit-asset.server";
-import { UpgradePrompt } from "~/components/ui/UpgradePrompt";
 import type { PlanId } from "~/services/billing/plans";
 
 interface AuditAssetsByRiskProps {

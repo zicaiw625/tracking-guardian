@@ -15,10 +15,7 @@ import {
 } from "@shopify/polaris";
 import { authenticate } from "../shopify.server";
 import prisma from "../db.server";
-import {
-  getUiModuleConfigs,
-  type UiModuleConfig,
-} from "../services/ui-extension.server";
+import { getUiModuleConfigs } from "../services/ui-extension.server";
 import { UI_MODULES, type ModuleKey } from "../types/ui-extension";
 import { getPlanOrDefault, type PlanId } from "../services/billing/plans";
 import { isPlanAtLeast } from "../utils/plans";
@@ -71,7 +68,7 @@ export const loader = async ({ request, params }: LoaderFunctionArgs) => {
 
 
 export default function UiModuleConfigPage() {
-  const { shop, shopDomain, moduleKey, moduleInfo, moduleConfig, canEdit, planInfo, customerAccountsStatus, hasOrderStatusTarget } =
+  const { shopDomain, moduleKey, moduleInfo, moduleConfig, canEdit, planInfo, customerAccountsStatus, hasOrderStatusTarget } =
     useLoaderData<typeof loader>();
   const customerAccountsEnabled = customerAccountsStatus?.enabled ?? false;
   return (

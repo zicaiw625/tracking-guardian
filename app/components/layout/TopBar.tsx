@@ -7,7 +7,7 @@ import {
   ActionList,
   Box,
 } from "@shopify/polaris";
-import { useCallback, useState } from "react";
+import { useState } from "react";
 import { QuestionCircleIcon } from "~/components/icons";
 import { SHOPIFY_HELP_LINKS } from "~/utils/migration-deadlines";
 import { getPlanConfig, type PlanId } from "~/services/billing/plans";
@@ -22,8 +22,8 @@ interface TopBarProps {
 export function TopBar({
   shopDomain,
   planId,
-  planDisplayName,
-  currentShopId,
+  planDisplayName: _planDisplayName,
+  currentShopId: _currentShopId,
 }: TopBarProps) {
   const [popoverActive, setPopoverActive] = useState(false);
   const planConfig = getPlanConfig(planId);
@@ -35,19 +35,6 @@ export function TopBar({
         : planId === "growth"
           ? "success"
           : "new";
-  const handleUpgradeClick = useCallback(() => {
-    void fetch("/api/analytics-track", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        event: "app_upgrade_clicked",
-        metadata: {
-          plan: planId,
-          triggerPage: "top_bar",
-        },
-      }),
-    });
-  }, [planId]);
   return (
     <Box
       background="bg-surface"

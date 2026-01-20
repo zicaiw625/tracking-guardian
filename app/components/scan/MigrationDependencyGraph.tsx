@@ -9,7 +9,6 @@ import {
   List,
   Banner,
 } from "@shopify/polaris";
-import { AlertCircleIcon, CheckCircleIcon } from "~/components/icons";
 import type { DependencyGraph } from "~/services/dependency-analysis.server";
 
 function formatTime(minutes: number): string {
@@ -28,7 +27,7 @@ interface MigrationDependencyGraphProps {
 
 export function MigrationDependencyGraph({
   dependencyGraph,
-  onAssetClick,
+  onAssetClick: _onAssetClick,
 }: MigrationDependencyGraphProps) {
   const { sortedNodes, cycles, criticalPath } = useMemo(() => {
     if (!dependencyGraph) {
@@ -192,7 +191,7 @@ export function MigrationDependencyGraph({
                 </Badge>
               </InlineStack>
               <List type="number">
-                {criticalPath.map((nodeId, index) => {
+                {criticalPath.map((nodeId, _index) => {
                   const node = dependencyGraph.nodes.find((n) => n.id === nodeId);
                   if (!node) return null;
                   return (

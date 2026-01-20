@@ -1,10 +1,9 @@
 import prisma from "../db.server";
 import { logger } from "../utils/logger.server";
 import { getPlatformService } from "./platforms/factory";
-import type { ConversionJob } from "@prisma/client";
+import type { ConversionJob , Prisma } from "@prisma/client";
 import { getPendingJobs, updateJobStatus, claimJobsForProcessing, type JobForProcessing } from "./db/conversion-repository.server";
 import { JobStatus, type JobStatusType } from "../types";
-import type { Prisma } from "@prisma/client";
 import { normalizeDecimalValue } from "../utils/common";
 
 export interface ProcessConversionJobsResult {

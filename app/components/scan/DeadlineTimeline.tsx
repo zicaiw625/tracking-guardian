@@ -8,7 +8,6 @@ import {
   Tooltip,
   Banner,
 } from "@shopify/polaris";
-import { CheckCircleIcon, ClockIcon, AlertCircleIcon } from "../icons";
 import { DEPRECATION_DATES } from "../../utils/migration-deadlines";
 
 export type TimelineTier = "plus" | "non_plus" | "unknown";
@@ -66,24 +65,6 @@ const TIMELINE_EVENTS: TimelineEvent[] = [
   },
 ];
 
-function getEventIcon(event: TimelineEvent, isPassed: boolean) {
-  if (isPassed) {
-    return CheckCircleIcon;
-  }
-  if (event.type === "deadline") {
-    return AlertCircleIcon;
-  }
-  return ClockIcon;
-}
-
-function getEventTone(event: TimelineEvent, isPassed: boolean): "success" | "critical" | "warning" | "subdued" | "info" {
-  if (isPassed) return "subdued";
-  if (event.type === "deadline") return "critical";
-  if (event.type === "warning") return "warning";
-  if (event.type === "auto_action") return "info";
-  return "subdued";
-}
-
 function getDaysUntil(date: Date, now: Date = new Date()): number {
   const diff = date.getTime() - now.getTime();
   return Math.ceil(diff / (1000 * 60 * 60 * 24));
@@ -132,8 +113,6 @@ export function DeadlineTimeline({
               const isPassed = event.date <= now;
               const isNext = event === nextEvent;
               const daysUntil = getDaysUntil(event.date, now);
-              const IconComponent = getEventIcon(event, isPassed);
-              const tone = getEventTone(event, isPassed);
               const isLast = index === relevantEvents.length - 1;
               return (
                 <Box key={event.id} paddingBlockEnd={isLast ? "0" : "400"}>

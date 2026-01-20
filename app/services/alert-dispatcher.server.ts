@@ -4,9 +4,7 @@ import { sendAlert } from "./notification.server";
 import { decryptAlertSettings } from "./alert-settings.server";
 import { getEventMonitoringStats, getMissingParamsStats, getEventVolumeStats } from "./monitoring.server";
 import { detectVolumeAnomaly } from "./monitoring/volume-anomaly.server";
-import { getEventSuccessRate } from "./monitoring/event-success-rate.server";
 import type { AlertData } from "../types/webhook";
-import type { AlertSettings } from "../routes/settings/types";
 
 export interface AlertCheckResult {
   triggered: boolean;
@@ -136,7 +134,7 @@ export async function checkVolumeDrop(shopId: string, threshold: number = 0.2): 
   return { triggered: false, severity: "low", message: "" };
 }
 
-export async function checkDedupConflicts(shopId: string): Promise<AlertCheckResult> {
+export async function checkDedupConflicts(_shopId: string): Promise<AlertCheckResult> {
   return { triggered: false, severity: "low", message: "" };
 }
 
@@ -269,7 +267,7 @@ async function dispatchAlerts(shopId: string, results: AlertCheckResult[]): Prom
   }
 }
 
-export async function getAlertHistory(shopId: string, limit: number = 50): Promise<AlertHistory[]> {
+export async function getAlertHistory(shopId: string, _limit: number = 50): Promise<AlertHistory[]> {
   return [];
 }
 
@@ -279,7 +277,7 @@ export async function acknowledgeAlert(alertId: string): Promise<void> {
 
 export async function getThresholdRecommendations(shopId: string): Promise<Record<string, number>> {
   const stats = await getEventMonitoringStats(shopId);
-  const volumeStats = await getEventVolumeStats(shopId);
+  await getEventVolumeStats(shopId);
   return {
     failureRate: Math.max(0.05, stats.failureRate / 100 * 1.5),
     missingParams: 0.1,

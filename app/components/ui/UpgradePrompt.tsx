@@ -8,7 +8,7 @@ import {
   Card,
 } from "@shopify/polaris";
 import { LockIcon } from "~/components/icons";
-import { BILLING_PLANS, type PlanId } from "~/services/billing/plans";
+import { type PlanId } from "~/services/billing/plans";
 import { isPlanAtLeast, getPlanDefinition } from "~/utils/plans";
 import type { FeatureGateResult } from "~/services/billing/feature-gates.server";
 

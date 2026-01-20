@@ -4,7 +4,6 @@ import {
   BlockStack,
   InlineStack,
   Badge,
-  Box,
   Divider,
   DataTable,
   EmptyState,
@@ -53,7 +52,7 @@ function formatChanges(changes: Record<string, unknown>): string {
   return parts.join(", ") || "配置变更";
 }
 
-export function VersionHistory({ history, platform }: VersionHistoryProps) {
+export function VersionHistory({ history, platform: _platform }: VersionHistoryProps) {
   if (history.length === 0) {
     return (
       <Card>

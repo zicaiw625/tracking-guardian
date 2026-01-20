@@ -5,7 +5,6 @@ import {
   Text,
   Checkbox,
   TextField,
-  Select,
   FormLayout,
   Tag,
   Box,
@@ -38,7 +37,7 @@ const COMMON_COUNTRIES = [
 export function DisplayRulesEditor({
   displayRules,
   onChange,
-  moduleKey,
+  moduleKey: _moduleKey,
 }: DisplayRulesEditorProps) {
   const [customerTagInput, setCustomerTagInput] = useState("");
   const handleTargetToggle = useCallback(

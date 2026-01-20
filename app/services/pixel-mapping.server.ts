@@ -127,10 +127,6 @@ export function sanitizeEventParams(
           .filter((id) => id.length > 0);
         sanitized.content_type = "product";
       }
-      if (sanitized.value !== undefined && sanitized.currency) {
-        sanitized.value = sanitized.value;
-        sanitized.currency = sanitized.currency;
-      }
       break;
     case "tiktok":
       if (sanitized.items && Array.isArray(sanitized.items)) {

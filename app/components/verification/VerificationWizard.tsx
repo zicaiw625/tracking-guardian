@@ -12,7 +12,7 @@ import {
   Banner,
   ProgressBar,
 } from "@shopify/polaris";
-import { CheckCircleIcon, AlertCircleIcon, PlayIcon, ClipboardIcon } from "~/components/icons";
+import { CheckCircleIcon, PlayIcon } from "~/components/icons";
 import type { TestChecklist } from "~/services/verification-checklist.server";
 import { CheckoutCompletedBehaviorHint } from "./CheckoutCompletedBehaviorHint";
 
@@ -24,13 +24,12 @@ export interface VerificationWizardProps {
 }
 
 export function VerificationWizard({
-  shopId,
+  shopId: _shopId,
   testChecklist,
   onStartTest,
   onComplete,
 }: VerificationWizardProps) {
   const [completedItems, setCompletedItems] = useState<Set<string>>(new Set());
-  const [currentStep, setCurrentStep] = useState<number>(0);
   const handleItemComplete = useCallback((itemId: string) => {
     setCompletedItems((prev) => {
       const next = new Set(prev);

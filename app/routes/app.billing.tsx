@@ -2,16 +2,13 @@ import type { ActionFunctionArgs, LoaderFunctionArgs } from "@remix-run/node";
 import { json, redirect } from "@remix-run/node";
 import { useLoaderData, useSubmit, useNavigation, useSearchParams, useActionData } from "@remix-run/react";
 import { useEffect } from "react";
-import { Page, Layout, Card, Text, BlockStack, InlineStack, Button, Badge, Box, Divider, Banner, ProgressBar, List, Icon, DataTable, } from "@shopify/polaris";
-import { CheckCircleIcon } from "~/components/icons";
+import { Page, Layout, Card, Text, BlockStack, InlineStack, Button, Badge, Box, Divider, Banner, ProgressBar, List, DataTable, } from "@shopify/polaris";
 import { useToastContext } from "~/components/ui";
 import { PageIntroCard } from "~/components/layout/PageIntroCard";
 import { authenticate } from "../shopify.server";
 import prisma from "../db.server";
 import { createSubscription, getSubscriptionStatus, cancelSubscription, checkOrderLimit, handleSubscriptionConfirmation, getBillingHistory, type BillingHistoryItem, type PlanId } from "../services/billing.server";
 import { getUsageHistory } from "../services/billing/usage-history.server";
-import { normalizePlanId } from "../services/billing/plans";
-import { isPlanAtLeast } from "../utils/plans";
 
 import { logger } from "../utils/logger.server";
 import { trackEvent } from "../services/analytics.server";
@@ -192,7 +189,6 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 export default function BillingPage() {
     const loaderData = useLoaderData<typeof loader>();
     const { subscription, usage, plans, planIds, billingHistory, billingPortalUrl } = loaderData;
-    const usageHistory = "usageHistory" in loaderData ? loaderData.usageHistory : null;
     const actionData = useActionData<typeof action>();
     const submit = useSubmit();
     const navigation = useNavigation();

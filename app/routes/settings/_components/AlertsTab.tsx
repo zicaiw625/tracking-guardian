@@ -14,11 +14,8 @@ import {
   List,
 } from "@shopify/polaris";
 import { EnhancedEmptyState } from "~/components/ui";
-import { ThresholdSlider } from "~/components/settings/ThresholdSlider";
-import { ThresholdConfigCard, type ThresholdConfig } from "~/components/settings/ThresholdConfigCard";
+import { ThresholdConfigCard } from "~/components/settings/ThresholdConfigCard";
 import type { AlertConfigDisplay } from "../types";
-import { useState, useEffect } from "react";
-import { useFetcher } from "@remix-run/react";
 
 interface AlertsTabProps {
   shop: {
@@ -69,8 +66,8 @@ export function AlertsTab({
   setTelegramToken,
   telegramChatId,
   setTelegramChatId,
-  alertThreshold,
-  setAlertThreshold,
+  alertThreshold: _alertThreshold,
+  setAlertThreshold: _setAlertThreshold,
   alertEnabled,
   setAlertEnabled,
   alertFormDirty,

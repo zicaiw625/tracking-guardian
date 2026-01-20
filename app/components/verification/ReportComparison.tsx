@@ -3,11 +3,8 @@ import {
   Card,
   Text,
   BlockStack,
-  InlineStack,
   Button,
   Select,
-  Badge,
-  Box,
   Divider,
   DataTable,
   Banner,
@@ -21,7 +18,7 @@ interface ReportComparisonProps {
   availableRuns: Array<{ runId: string; runName: string; completedAt?: Date }>;
 }
 
-export function ReportComparison({ shopId, availableRuns }: ReportComparisonProps) {
+export function ReportComparison({ shopId: _shopId, availableRuns }: ReportComparisonProps) {
   const { showError } = useToastContext();
   const [run1Id, setRun1Id] = useState<string>("");
   const [run2Id, setRun2Id] = useState<string>("");

@@ -134,9 +134,11 @@ export const platformOrchestrator = new PlatformOrchestrator(platformRegistry);
 export function initializePlatformRegistry(
   services?: Partial<Record<Platform, IPlatformService>>
 ): void {
+  /* eslint-disable @typescript-eslint/no-require-imports -- dynamic load to avoid circular deps */
   const { googleService } = require("./google.service");
   const { metaService } = require("./meta.service");
   const { tiktokService } = require("./tiktok.service");
+  /* eslint-enable @typescript-eslint/no-require-imports */
   platformRegistry.register("google", services?.google ?? googleService);
   platformRegistry.register("meta", services?.meta ?? metaService);
   platformRegistry.register("tiktok", services?.tiktok ?? tiktokService);

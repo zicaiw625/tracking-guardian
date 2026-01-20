@@ -94,7 +94,7 @@ export function parsePixelConfig(configStr?: string): PixelConfig {
       enabled_platforms,
       strictness,
     };
-  } catch (e) {
+  } catch (_e) {
     return DEFAULT_PIXEL_CONFIG;
   }
 }

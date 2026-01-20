@@ -1,7 +1,7 @@
 import type { LoaderFunctionArgs } from "@remix-run/node";
 import { json } from "@remix-run/node";
 import { useLoaderData , useNavigate } from "@remix-run/react";
-import { useState, useEffect, memo, useMemo } from "react";
+import { useState, useEffect, memo, useMemo , lazy, Suspense } from "react";
 import {
   Page,
   Layout,
@@ -19,11 +19,10 @@ import {
   ProgressBar,
   List,
 } from "@shopify/polaris";
-import { CheckCircleIcon, AlertCircleIcon, ArrowRightIcon, ClockIcon, LockIcon } from "~/components/icons";
+import { CheckCircleIcon, ArrowRightIcon, ClockIcon, LockIcon } from "~/components/icons";
 import { EnhancedEmptyState, CardSkeleton } from "~/components/ui";
 import { UpgradeHealthCheck } from "~/components/onboarding/UpgradeHealthCheck";
 import { PostInstallScanProgress } from "~/components/onboarding/PostInstallScanProgress";
-import { lazy, Suspense } from "react";
 const RiskDistributionChart = lazy(() => import("~/components/dashboard/RiskDistributionChart").then(module => ({ default: module.RiskDistributionChart })));
 const DependencyGraphPreview = lazy(() => import("~/components/dashboard/DependencyGraphPreview").then(module => ({ default: module.DependencyGraphPreview })));
 import { HealthMetrics24hCard } from "~/components/dashboard/HealthMetrics24hCard";
@@ -214,6 +213,7 @@ type SerializedLatestScan = {
   identifiedPlatforms: string[];
 } | null;
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars -- reserved for dashboard
 const MigrationStatusCard = memo(function MigrationStatusCard({
   typOspPagesEnabled,
   riskScore,
@@ -736,10 +736,9 @@ const MigrationProgressCard = memo(function MigrationProgressCard({
           </BlockStack>
         )}
         <BlockStack gap="200">
-          {migrationProgress.stages.map((stage, index) => {
+          {migrationProgress.stages.map((stage, _index) => {
             const isCompleted = stage.completed;
             const isCurrent = stage.stage === migrationProgress.currentStage;
-            const isPending = !isCompleted && !isCurrent && !stage.inProgress;
             return (
               <InlineStack key={stage.stage} gap="300" blockAlign="center">
                 {isCompleted ? (
@@ -861,6 +860,7 @@ const LatestScanCard = memo(function LatestScanCard({ latestScan }: { latestScan
   );
 });
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars -- reserved for dashboard
 const SetupProgressCard = memo(function SetupProgressCard({
   steps,
   nextStep,
@@ -1028,7 +1028,7 @@ function MigrationDeadlineBanner({ scriptTagsCount }: { scriptTagsCount: number 
 
 function MigrationChecklistPreviewCard({
   checklist,
-  estimatedTimeMinutes,
+  estimatedTimeMinutes: _estimatedTimeMinutes,
 }: {
   checklist: DashboardData["migrationChecklist"];
   estimatedTimeMinutes?: number;

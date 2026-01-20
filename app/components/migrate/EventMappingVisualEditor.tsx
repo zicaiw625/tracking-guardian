@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo } from "react";
+import { useState, useCallback } from "react";
 import {
   Card,
   Text,
@@ -11,13 +11,8 @@ import {
   Select,
   Banner,
   Icon,
-  ButtonGroup,
 } from "@shopify/polaris";
-import {
-  CheckCircleIcon,
-  AlertCircleIcon,
-  ArrowRightIcon,
-} from "~/components/icons";
+import { ArrowRightIcon } from "~/components/icons";
 
 type Platform = "google" | "meta" | "tiktok";
 

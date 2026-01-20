@@ -1,5 +1,4 @@
 import type { LoaderFunctionArgs } from "@remix-run/node";
-import { json } from "@remix-run/node";
 import { createHash } from "crypto";
 import prisma from "../db.server";
 import { logger } from "../utils/logger.server";
@@ -9,6 +8,7 @@ import { checkFeatureAccess } from "../services/billing/feature-gates.server";
 import { normalizePlanId, type PlanId } from "../services/billing/plans";
 import { sanitizeFilename } from "../utils/responses";
 import { timingSafeEqualHex } from "../utils/timing-safe.server";
+import { withSecurityHeaders } from "../utils/security-headers";
 
 function sanitizeForCSV(value: string): string {
   if (typeof value !== "string") {
@@ -181,10 +181,10 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     const filename = `scan-report-${shop.shopDomain.replace(/\./g, "_")}-${scanReport.id}-${new Date().toISOString().split("T")[0]}.csv`;
 
     return new Response(csvContent, {
-      headers: {
+      headers: withSecurityHeaders({
         "Content-Type": "text/csv; charset=utf-8",
         "Content-Disposition": `attachment; filename="${sanitizeFilename(filename)}"`,
-      },
+      }),
     });
   } catch (error) {
     logger.error("Failed to export scan report CSV", {

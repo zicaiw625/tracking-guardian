@@ -13,8 +13,6 @@ import {
   Badge,
   Box,
   ButtonGroup,
-  Icon,
-  Collapsible,
   Tabs,
   Link,
   List,

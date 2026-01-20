@@ -14,8 +14,6 @@ import {
 } from "@shopify/polaris";
 import { AlertCircleIcon, CheckCircleIcon, ArrowRightIcon } from "~/components/icons";
 import type { ScriptTag } from "../../types";
-import { getPlatformName } from "./utils";
-
 interface ROIEstimatorProps {
   riskScore: number;
   scriptTags: ScriptTag[];

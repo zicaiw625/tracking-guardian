@@ -1,4 +1,4 @@
-import { Spinner, BlockStack, Text, Box } from "@shopify/polaris";
+import { Spinner, BlockStack, Text } from "@shopify/polaris";
 import React from "react";
 
 interface LoadingSpinnerProps {

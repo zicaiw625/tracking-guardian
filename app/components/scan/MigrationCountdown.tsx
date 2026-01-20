@@ -10,9 +10,8 @@ import {
   Icon,
   Divider,
   Banner,
-  Tooltip,
 } from "@shopify/polaris";
-import { AlertCircleIcon, CheckCircleIcon, ClockIcon } from "../icons";
+import { CheckCircleIcon, ClockIcon } from "../icons";
 import { DEPRECATION_DATES, SHOPIFY_HELP_LINKS } from "../../utils/migration-deadlines";
 
 export type ShopTier = "plus" | "non_plus" | "unknown";

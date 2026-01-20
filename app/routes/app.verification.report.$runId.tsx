@@ -1,7 +1,7 @@
 import type { LoaderFunctionArgs, ActionFunctionArgs } from "@remix-run/node";
 import { json } from "@remix-run/node";
 import { useLoaderData, useSubmit, useActionData } from "@remix-run/react";
-import { useState, Suspense, lazy } from "react";
+import { useState, lazy } from "react";
 import {
   Page,
   Layout,
@@ -18,25 +18,15 @@ import {
   List,
   Box,
 } from "@shopify/polaris";
-import {
-  CheckCircleIcon,
-  AlertCircleIcon,
-  ExportIcon,
-  RefreshIcon,
-  FileIcon,
-} from "~/components/icons";
-import { CardSkeleton, useToastContext, EnhancedEmptyState } from "~/components/ui";
+import { ExportIcon, FileIcon } from "~/components/icons";
+import { useToastContext, EnhancedEmptyState } from "~/components/ui";
 import { PageIntroCard } from "~/components/layout/PageIntroCard";
 import { authenticate } from "../shopify.server";
 import prisma from "../db.server";
-import {
-  getVerificationRun,
-  type VerificationSummary,
-} from "../services/verification.server";
+import { getVerificationRun } from "../services/verification.server";
 import {
   generateVerificationReportData,
   generateVerificationReportCSV,
-  type VerificationReportData,
 } from "../services/verification-report.server";
 import {
   checkFeatureAccess,
@@ -47,10 +37,6 @@ import { UpgradePrompt } from "~/components/ui/UpgradePrompt";
 import { trackEvent } from "../services/analytics.server";
 import { safeFireAndForget } from "../utils/helpers.server";
 import { sanitizeFilename } from "../utils/responses";
-
-const ReportComparison = lazy(() => import("~/components/verification/ReportComparison").then(module => ({
-  default: module.ReportComparison,
-})));
 
 export const loader = async ({ request, params }: LoaderFunctionArgs) => {
   const { session } = await authenticate.admin(request);
@@ -179,8 +165,8 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
 export default function VerificationReportPage() {
   const { shop, run, reportData, canExportReports, gateResult, currentPlan } = useLoaderData<typeof loader>();
   const submit = useSubmit();
-  const actionData = useActionData<typeof action>();
-  const { showError } = useToastContext();
+  useActionData<typeof action>();
+  useToastContext();
   const [isExporting, setIsExporting] = useState(false);
   if (!shop) {
     return (

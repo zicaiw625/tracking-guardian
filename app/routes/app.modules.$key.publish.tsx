@@ -123,7 +123,6 @@ export const loader = async ({ request, params }: LoaderFunctionArgs) => {
 export default function UiModulePublishGuide() {
   const { moduleName, targets, shopDomain, customerAccountsStatus, hasOrderStatusTarget, networkAccessConfigured, networkAccessCheckError, backendUrlInjected, backendUrlCheckError } = useLoaderData<typeof loader>();
   const targetCards = targets.map((target) => TARGET_DETAILS[target]);
-  const orderStatusTarget = targetCards.find((card) => card.target === "customer-account.order-status.block.render");
   const customerAccountsEnabled = customerAccountsStatus?.enabled ?? false;
   const canPublishOrderStatus = !hasOrderStatusTarget || customerAccountsEnabled;
   const orderStatusBlocked = hasOrderStatusTarget && !customerAccountsEnabled;

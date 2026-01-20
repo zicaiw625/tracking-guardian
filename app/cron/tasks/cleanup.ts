@@ -33,7 +33,7 @@ async function deleteInBatches(
 ): Promise<number> {
   let totalDeleted = 0;
   let cursor: string | undefined;
-  while (true) {
+  for (;;) {
     const records = await fetchBatch(cursor);
     if (records.length === 0) {
       break;

@@ -59,7 +59,7 @@ function SurveyModule({
       } else {
         setError("提交失败，请稍后重试");
       }
-    } catch (err) {
+    } catch (_err) {
       setError("提交失败，请稍后重试");
     } finally {
       setSubmitting(false);
@@ -336,7 +336,7 @@ function ThankYouBlocks() {
   try {
     orderContext = getOrderContext(api);
     hasOrderContext = !!(orderContext.orderId || orderContext.checkoutToken);
-  } catch (error) {
+  } catch (_error) {
     orderContext = { orderId: null, checkoutToken: null };
     hasOrderContext = false;
   }

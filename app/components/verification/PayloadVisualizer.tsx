@@ -8,7 +8,6 @@ import {
   Box,
   Badge,
   Button,
-  Icon,
 } from "@shopify/polaris";
 import { CopyIcon } from "~/components/icons";
 import { useToastContext } from "~/components/ui";

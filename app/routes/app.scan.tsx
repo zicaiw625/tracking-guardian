@@ -1,4 +1,3 @@
-import { json, redirect } from "@remix-run/node";
 import type { loader } from "./app.scan/loader.server";
 import type { action } from "./app.scan/action.server";
 
@@ -6,38 +5,25 @@ export { loader } from "./app.scan/loader.server";
 export { action } from "./app.scan/action.server";
 import { useLoaderData, useSubmit, useNavigation, useFetcher, useActionData } from "@remix-run/react";
 import { useState, useCallback, useMemo, useEffect, useRef, lazy, Suspense } from "react";
-import { Page, Layout, Card, Text, BlockStack, InlineStack, Badge, Button, Banner, Box, Divider, ProgressBar, Icon, DataTable, Link, Tabs, TextField, Modal, List, RangeSlider, } from "@shopify/polaris";
+import { Page, Layout, Card, Text, BlockStack, InlineStack, Badge, Button, Banner, Box, Divider, ProgressBar, Icon, DataTable, Tabs, Modal, List, RangeSlider, } from "@shopify/polaris";
 import { AlertCircleIcon, CheckCircleIcon, SearchIcon, ArrowRightIcon, ClipboardIcon, RefreshIcon, InfoIcon, ExportIcon, ShareIcon, SettingsIcon, ClockIcon, } from "~/components/icons";
 import { CardSkeleton, EnhancedEmptyState, useToastContext } from "~/components/ui";
 import { AnalysisResultSummary } from "~/components/scan";
 import { MigrationDependencyGraph } from "~/components/scan/MigrationDependencyGraph";
 import { AuditAssetsByRisk } from "~/components/scan/AuditAssetsByRisk";
-import { analyzeDependencies } from "~/services/dependency-analysis.server";
 import { ManualInputWizard, type ManualInputData } from "~/components/scan/ManualInputWizard";
 import { MigrationChecklistEnhanced } from "~/components/scan/MigrationChecklistEnhanced";
-import { generateMigrationChecklist } from "~/services/migration-checklist.server";
 import { ManualPastePanel } from "~/components/scan/ManualPastePanel";
 import { GuidedSupplement } from "~/components/scan/GuidedSupplement";
 import { PageIntroCard } from "~/components/layout/PageIntroCard";
 import { AuditPaywallCard } from "~/components/paywall/AuditPaywallCard";
 
 const ScriptCodeEditor = lazy(() => import("~/components/scan/ScriptCodeEditor").then(module => ({ default: module.ScriptCodeEditor })));
-import { authenticate } from "../shopify.server";
-import prisma from "../db.server";
-import { scanShopTracking, getScanHistory, type ScriptAnalysisResult } from "../services/scanner.server";
+import { type ScriptAnalysisResult } from "../services/scanner.server";
 import { analyzeScriptContent } from "../services/scanner/content-analysis";
 import { calculateRiskScore } from "../services/scanner/risk-assessment";
-import { refreshTypOspStatus } from "../services/checkout-profile.server";
-import { generateMigrationActions } from "../services/scanner/migration-actions";
-import { getExistingWebPixels } from "../services/migration.server";
-import { createAuditAsset, batchCreateAuditAssets, getAuditAssets, type AuditAssetInput } from "../services/audit-asset.server";
-import { processManualPasteAssets, analyzeManualPaste } from "../services/audit-asset-analysis.server";
-import { getScriptTagDeprecationStatus, getAdditionalScriptsDeprecationStatus, getMigrationUrgencyStatus, getUpgradeStatusMessage, formatDeadlineForUI, getDateDisplayLabel, DEPRECATION_DATES, type ShopTier, type ShopUpgradeStatus, } from "../utils/deprecation-dates";
-import { getPlanDefinition, normalizePlan, isPlanAtLeast } from "../utils/plans";
-import { generateMigrationTimeline, getMigrationProgress } from "../services/migration-priority.server";
-import type { ScriptTag, RiskItem } from "../types";
-import type { MigrationAction, EnhancedScanResult } from "../services/scanner/types";
-import { logger } from "../utils/logger.server";
+import { getDateDisplayLabel, DEPRECATION_DATES } from "../utils/deprecation-dates";
+import { isPlanAtLeast } from "../utils/plans";
 import {
     validateScriptTagsArray,
     validateRiskItemsArray,
@@ -46,10 +32,8 @@ import {
     safeParseDate,
     safeFormatDate,
 } from "../utils/scan-data-validation";
-import { containsSensitiveInfo, sanitizeSensitiveInfo } from "../utils/security";
+import { containsSensitiveInfo } from "../utils/security";
 import { getShopifyAdminUrl } from "../utils/helpers";
-import { safeFireAndForget } from "../utils/helpers.server";
-import { sanitizeFilename } from "../utils/responses";
 import { TIMEOUTS } from "../utils/scan-constants";
 import { isFetcherResult, parseDateSafely, type FetcherResult } from "../utils/scan-validation";
 
@@ -77,10 +61,8 @@ function getUpgradeBannerTone(
         case "medium": return "warning";
         case "resolved": return "success";
         case "low": return "info";
-        default: {
-            const _exhaustive: never = urgency;
+        default:
             return "info";
-        }
     }
 }
 
@@ -765,7 +747,7 @@ export function ScanPage({
                 return <Badge>未知</Badge>;
         }
     };
-    const getPlatformName = (platform: string) => {
+    const getPlatformName = useCallback((platform: string) => {
         const names: Record<string, string> = {
             google: "GA4 (Measurement Protocol)",
             meta: "Meta (Facebook) Pixel",
@@ -774,7 +756,7 @@ export function ScanPage({
             clarity: "Microsoft Clarity ⚠️",
         };
         return names[platform] || platform;
-    };
+    }, []);
     const getStatusText = useCallback((status: string | null | undefined): string => {
         if (!status) return "未知";
         switch (status) {
@@ -979,7 +961,9 @@ export function ScanPage({
                               try {
                                 const errorData = await response.json();
                                 msg = errorData.error || msg;
-                              } catch {}
+                              } catch {
+                                // no-op: use default msg if JSON parse fails
+                              }
                               showError(msg);
                               return;
                             }
@@ -1031,7 +1015,8 @@ export function ScanPage({
                                   showSuccess("报告链接已分享");
                                   return;
                                 } catch (error) {
-                                  if (error instanceof Error && error.name !== 'AbortError') {
+                                  if (error instanceof Error && error.name !== "AbortError") {
+                                    showError("分享失败：" + error.message);
                                   }
                                 }
                               }
@@ -1054,7 +1039,8 @@ export function ScanPage({
                                   showSuccess("报告摘要已分享");
                                   return;
                                 } catch (error) {
-                                  if (error instanceof Error && error.name !== 'AbortError') {
+                                  if (error instanceof Error && error.name !== "AbortError") {
+                                    showError("分享失败：" + error.message);
                                   }
                                 }
                               }

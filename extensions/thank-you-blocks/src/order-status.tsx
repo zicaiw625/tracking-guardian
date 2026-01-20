@@ -59,7 +59,7 @@ function SurveyModule({
       } else {
         setError("提交失败，请稍后重试");
       }
-    } catch (err) {
+    } catch (_err) {
       setError("提交失败，请稍后重试");
     } finally {
       setSubmitting(false);
@@ -148,7 +148,7 @@ function ReorderModule({
     setError(null);
     try {
       await onReorder();
-    } catch (err) {
+    } catch (_err) {
       setError("操作失败，请稍后重试");
     } finally {
       setLoading(false);
@@ -217,8 +217,8 @@ function OrderStatusBlocks() {
   } | null>(null);
   const [loading, setLoading] = useState(true);
   const [reorderUrl, setReorderUrl] = useState<string | null>(null);
-  const [reorderLoading, setReorderLoading] = useState(false);
-  
+  const [, setReorderLoading] = useState(false);
+
   useEffect(() => {
     const fetchModuleState = async () => {
       try {
@@ -420,7 +420,7 @@ function OrderStatusBlocks() {
   try {
     orderContext = getOrderContext(api);
     hasOrderContext = !!(orderContext.orderId || orderContext.checkoutToken);
-  } catch (error) {
+  } catch (_error) {
     orderContext = { orderId: null, checkoutToken: null };
     hasOrderContext = false;
   }
@@ -463,6 +463,7 @@ function OrderStatusBlocks() {
             errorMessage = errorData.error;
           }
         } catch {
+          // no-op: use errorMessage from errorText
         }
         if (isDevMode()) {
           console.error("[OrderStatusBlocks] Reorder failed:", errorMessage);

@@ -41,6 +41,7 @@ async function tryCleanupWebPixel(
             }
           }
         } catch {
+          // no-op: ignore per-pixel delete errors, continue with rest
         }
       }
     }

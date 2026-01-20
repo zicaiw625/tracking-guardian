@@ -14,7 +14,7 @@ import {
   Badge,
   Box,
 } from "@shopify/polaris";
-import { ClipboardIcon, CheckCircleIcon } from "~/components/icons";
+import { ClipboardIcon } from "~/components/icons";
 import { PageIntroCard } from "~/components/layout/PageIntroCard";
 import { authenticate } from "../shopify.server";
 import prisma from "../db.server";
@@ -52,7 +52,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 };
 
 export default function VerificationStartPage() {
-  const { shop, testChecklist, testItems } = useLoaderData<typeof loader>();
+  const { shop, testChecklist } = useLoaderData<typeof loader>();
   if (!shop || !testChecklist) {
     return (
       <Page title="验收测试清单">

@@ -4,7 +4,6 @@ import { RATE_LIMIT_CONFIG } from "../utils/config.server";
 import { logger } from "../utils/logger.server";
 import {
   getRedisClient,
-  getRedisClientSync,
   getRedisConnectionInfo,
   type RedisClientWrapper,
 } from "../utils/redis-client";
@@ -278,7 +277,7 @@ function resolveIpFromHeader(headers: Headers, headerName: string): string | nul
     return null;
   }
   if (headerName === "x-forwarded-for") {
-    return value.split(",").map(s => s.trim()).filter(Boolean).pop() || null;
+    return (value.split(",").map(s => s.trim()).filter(Boolean))[0] || null;
   }
   return value;
 }

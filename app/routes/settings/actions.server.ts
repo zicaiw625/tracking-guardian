@@ -469,7 +469,7 @@ export async function handleRotateIngestionSecret(
 export async function handleUpdatePrivacySettings(
   formData: FormData,
   shopId: string,
-  sessionShop: string
+  _sessionShop: string
 ) {
   const consentStrategy =
     (formData.get("consentStrategy") as string) || "strict";

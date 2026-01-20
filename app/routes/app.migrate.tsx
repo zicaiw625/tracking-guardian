@@ -1,7 +1,6 @@
 import type { LoaderFunctionArgs } from "@remix-run/node";
 import { json } from "@remix-run/node";
-import { useLoaderData, useNavigate } from "@remix-run/react";
-import { useState } from "react";
+import { useLoaderData } from "@remix-run/react";
 import {
   Page,
   Card,
@@ -21,7 +20,6 @@ import { PageIntroCard } from "~/components/layout/PageIntroCard";
 import { CheckoutCompletedBehaviorHint } from "~/components/verification/CheckoutCompletedBehaviorHint";
 import { authenticate } from "../shopify.server";
 import prisma from "../db.server";
-import { scanShopTracking } from "../services/scanner.server";
 import { normalizePlanId, type PlanId } from "../services/billing/plans";
 import { isPlanAtLeast } from "../utils/plans";
 
@@ -120,7 +118,6 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 
 export default function MigratePage() {
   const { shop, planId, steps } = useLoaderData<typeof loader>();
-  const navigate = useNavigate();
 
   const getStepProgress = () => {
     const completedCount = Object.values(steps).filter((s) => s.completed).length;

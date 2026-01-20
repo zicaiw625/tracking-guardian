@@ -7,10 +7,8 @@ import {
   Button,
   Badge,
   Box,
-  Divider,
   Icon,
   Collapsible,
-  Link,
 } from "@shopify/polaris";
 import { CheckCircleIcon, ClockIcon, AlertCircleIcon, ArrowRightIcon } from "~/components/icons";
 import type { MigrationTimeline } from "~/services/migration-priority.server";
@@ -43,7 +41,7 @@ export function MigrationTimelineView({
       blockedItems: blocked,
       completedItems: completed,
     };
-  }, [timeline.assets]);
+  }, [timeline]);
   const toggleSection = (section: string) => {
     setExpandedSections((prev) => {
       const next = new Set(prev);

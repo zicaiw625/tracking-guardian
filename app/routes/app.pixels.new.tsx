@@ -221,7 +221,7 @@ function generateIngestionSecret(): string {
 }
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
-  const { session, admin } = await authenticate.admin(request);
+  const { session, admin: _admin } = await authenticate.admin(request);
   const shopDomain = session.shop;
   const shop = await prisma.shop.findUnique({
     where: { shopDomain },
@@ -454,8 +454,9 @@ export const action = async ({ request }: ActionFunctionArgs) => {
             });
             assetCount = assets;
           }
-        } catch (error) {
-                  }
+        } catch {
+          // no-op: ignore errors when counting assets
+        }
         safeFireAndForget(
           trackEvent({
             shopId: shop.id,

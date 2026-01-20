@@ -43,7 +43,8 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
             isClosed = true;
             try {
               controller.close();
-            } catch (error) {
+            } catch {
+              // no-op: close() may throw if stream already closed
             }
           }
         };

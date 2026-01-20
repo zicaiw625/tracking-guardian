@@ -1,4 +1,4 @@
-import type { Result, AsyncResult } from "../../types/result";
+import type { AsyncResult } from "../../types/result";
 import type { AppError } from "../../utils/errors";
 import type { PlanId } from "../../services/billing/plans";
 import type {

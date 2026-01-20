@@ -228,6 +228,7 @@ export function getBatchMigrationSummary(job: BatchMigrationJob): {
   };
   const template = activeJobs.get(job.id);
   if (template) {
+    // no-op: template used for future template-based summary
   }
   return summary;
 }

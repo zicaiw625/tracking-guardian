@@ -296,7 +296,7 @@ export function validateRequest(body: unknown): ValidationResult {
   if (!normalized) {
     return { valid: false, error: "Invalid event format", code: "invalid_body" };
   }
-  const { eventName, timestamp, shopDomain, eventId, nonce, context } = normalized;
+  const { eventName, timestamp, shopDomain, nonce, context } = normalized;
   const consent = (data.consent || (context as Record<string, unknown>)?.consent) as PixelEventPayload["consent"] | undefined;
   const consentError = validateConsentFormat(consent);
   if (consentError) {

@@ -1,5 +1,5 @@
 import type { Middleware, MiddlewareContext, CorsOptions } from "./types";
-import { getDynamicCorsHeaders, getPixelEventsCorsHeaders, SECURITY_HEADERS } from "../utils/cors";
+import { getPixelEventsCorsHeaders, SECURITY_HEADERS } from "../utils/cors";
 import { isValidShopifyOrigin, isValidDevOrigin, isDevMode } from "../utils/origin-validation";
 
 

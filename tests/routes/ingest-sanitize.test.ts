@@ -38,8 +38,7 @@ vi.mock("../../app/utils/logger", () => ({
 }));
 
 import prisma from "../../app/db.server";
-import { generateOrderMatchKey } from "../../app/lib/pixel-events/receipt-handler";
-import { createEventNonce } from "../../app/lib/pixel-events/receipt-handler";
+import { generateOrderMatchKey , createEventNonce } from "../../app/lib/pixel-events/receipt-handler";
 import { validateRequest } from "../../app/lib/pixel-events/validation";
 import { getRedisClient } from "../../app/utils/redis-client";
 

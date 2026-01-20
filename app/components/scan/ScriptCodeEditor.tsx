@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback, useRef } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import {
   Card,
   Text,
@@ -8,11 +8,10 @@ import {
   Badge,
   Box,
   Button,
-  Icon,
   Banner,
   List,
 } from "@shopify/polaris";
-import { ClipboardIcon, CheckCircleIcon, InfoIcon } from "~/components/icons";
+import { ClipboardIcon, CheckCircleIcon } from "~/components/icons";
 import type { ScriptAnalysisResult } from "~/services/scanner/types";
 
 interface ScriptCodeEditorProps {
@@ -27,53 +26,6 @@ interface ScriptCodeEditorProps {
   enableBatchPaste?: boolean;
 }
 
-function highlightCode(content: string): string {
-  if (!content) return "";
-  let highlighted = content
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#x27;");
-  const patterns = [
-    {
-      regex: /(&lt;\/?[\w\s="'-]+&gt;)/g,
-      replacement: '<span style="color: #800000; font-weight: 500">$1</span>',
-    },
-    {
-      regex: /\b(gtag|fbq|ttq|pintrk|snap|twq|dataLayer\.push)\b/gi,
-      replacement: '<span style="color: #0451A5; font-weight: 600">$1</span>',
-    },
-    {
-      regex: /(&#x27;|&quot;)(purchase|Purchase|CompletePayment|PageView|ViewContent|AddToCart|InitiateCheckout|BeginCheckout|Search|ViewItem)(&#x27;|&quot;)/gi,
-      replacement: '<span style="color: #811F3F; font-weight: 600">$1$2$3</span>',
-    },
-    {
-      regex: /\b(G-[A-Z0-9]+|AW-\d+|\d{15,16}|[A-Z0-9]{20,30})\b/g,
-      replacement: '<span style="color: #098658; font-weight: 500">$1</span>',
-    },
-    {
-      regex: /(&#x27;|&quot;)(?:(?=(\\?))\2.)*?\1/g,
-      replacement: '<span style="color: #A31515">$&</span>',
-    },
-    {
-      regex: /\b\d+\.?\d*\b/g,
-      replacement: '<span style="color: #098658">$&</span>',
-    },
-    {
-      regex: /(\w+)\s*\(/g,
-      replacement: '<span style="color: #795E26; font-weight: 600">$1</span>(',
-    },
-    {
-      regex: /(&lt;!--[\s\S]*?--&gt;|\/\/.*|\/\*[\s\S]*?\*\/)/g,
-      replacement: '<span style="color: #6A9955; font-style: italic">$1</span>',
-    },
-  ];
-  patterns.forEach(({ regex, replacement }) => {
-    highlighted = highlighted.replace(regex, replacement);
-  });
-  return highlighted;
-}
 function detectScriptFragments(content: string): string[] {
   if (!content.trim()) return [];
   const fragments: string[] = [];
@@ -218,9 +170,7 @@ export function ScriptCodeEditor({
   const [showPreview, setShowPreview] = useState(false);
   const [copied, setCopied] = useState(false);
   const [fragments, setFragments] = useState<string[]>([]);
-  const [activeFragmentIndex, setActiveFragmentIndex] = useState<number | null>(null);
   const analysisTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const highlightedCode = useMemo(() => highlightCode(value), [value]);
   const detectedFragments = useMemo(() => {
     if (!enableBatchPaste || !value.trim()) return [];
     return detectScriptFragments(value);
@@ -259,9 +209,6 @@ export function ScriptCodeEditor({
       }
     }
   };
-  const handleFragmentClick = useCallback((index: number) => {
-    setActiveFragmentIndex(index === activeFragmentIndex ? null : index);
-  }, [activeFragmentIndex]);
   return (
     <BlockStack gap="400">
       <Card>

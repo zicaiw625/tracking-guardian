@@ -179,6 +179,7 @@ export function validateModuleTargets(moduleKey: ModuleKey, targets: string[]): 
     errors.push("必须至少选择一个 target");
     return { valid: false, errors, warnings };
   }
+  /* eslint-disable-next-line @typescript-eslint/no-require-imports -- conditional dynamic import */
   const { validateTarget } = require("../utils/target-validator");
   const targetMapping: Record<string, string> = {
     "thank_you": "purchase.thank-you.block.render",

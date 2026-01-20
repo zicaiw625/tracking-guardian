@@ -1,6 +1,7 @@
 import { PrismaClient } from "@prisma/client";
 import { logger } from "./utils/logger.server";
 
+/* eslint-disable no-var -- declare global requires var for mutable global in TS */
 declare global {
   var prisma: PrismaClient;
 }

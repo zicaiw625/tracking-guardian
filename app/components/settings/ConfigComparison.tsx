@@ -46,7 +46,7 @@ export function ConfigComparison({
   current,
   previous,
   differences,
-  platform,
+  platform: _platform,
 }: ConfigComparisonProps) {
   if (!previous) {
     return (

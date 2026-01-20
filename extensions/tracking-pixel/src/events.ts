@@ -180,7 +180,7 @@ export function createEventSender(config: EventSenderConfig) {
   }
   const eventQueue: QueuedEvent[] = [];
   let flushTimer: ReturnType<typeof setTimeout> | null = null;
-  const flushQueue = async (immediate = false) => {
+  const flushQueue = async (_immediate = false) => {
     if (eventQueue.length === 0) return;
     const eventsToSend = [...eventQueue];
     eventQueue.length = 0;

@@ -1,5 +1,5 @@
 import { memo } from "react";
-import { Card, BlockStack, Text, Button, InlineStack, Icon, Box } from "@shopify/polaris";
+import { Card, BlockStack, Text, Button, InlineStack, Box } from "@shopify/polaris";
 import { EmptyStateDisplay } from "./ErrorDisplay";
 
 export interface EnhancedEmptyStateProps {

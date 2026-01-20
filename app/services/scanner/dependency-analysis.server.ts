@@ -40,7 +40,7 @@ function detectDependencies(
     }
   }
   switch (asset.category) {
-    case "survey":
+    case "survey": {
       const orderTracking = allAssets.find(
         (a) => a.category === "support" && a.platform === "order_tracking"
       );
@@ -72,7 +72,8 @@ function detectDependencies(
         }
       }
       break;
-    case "affiliate":
+    }
+    case "affiliate": {
       const pixelAssets = allAssets.filter(
         (a) => a.category === "pixel" &&
                a.platform === asset.platform &&
@@ -89,7 +90,8 @@ function detectDependencies(
         }
       }
       break;
-    case "analytics":
+    }
+    case "analytics": {
       const analyticsPixels = allAssets.filter(
         (a) => a.category === "pixel" && a.migrationStatus !== "completed"
       );
@@ -105,7 +107,8 @@ function detectDependencies(
         }
       }
       break;
-    case "support":
+    }
+    case "support": {
       const supportOrderTracking = allAssets.find(
         (a) => a.category === "support" &&
                a.platform === "order_tracking" &&
@@ -115,6 +118,7 @@ function detectDependencies(
         dependencies.push(supportOrderTracking.id);
       }
       break;
+    }
   }
   if (asset.platform) {
     if (asset.category !== "pixel") {

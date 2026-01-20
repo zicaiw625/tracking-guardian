@@ -15,16 +15,6 @@ interface DiagnosticCheck {
     details?: string;
 }
 
-interface _DiagnosticsData {
-    checks: DiagnosticCheck[];
-    summary: {
-        total: number;
-        passed: number;
-        failed: number;
-        warnings: number;
-    };
-    lastUpdated: string;
-}
 interface EventFunnel {
     pixelRequests: number;
     passedOrigin: number;
@@ -247,7 +237,6 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
         },
     });
     const trustedReceiptsCount = pixelReceiptsCount;
-    const matchedWebhookCount = 0;
     const sentToPlatformsCount = pixelReceiptsCount;
     const eventFunnel: EventFunnel = {
         pixelRequests: pixelReceiptsCount,

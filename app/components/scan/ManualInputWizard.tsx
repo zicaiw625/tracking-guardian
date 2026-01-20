@@ -4,7 +4,6 @@ import {
   BlockStack,
   InlineStack,
   Text,
-  Button,
   Checkbox,
   TextField,
   Banner,
@@ -13,7 +12,7 @@ import {
   Box,
   Badge,
 } from "@shopify/polaris";
-import { CheckCircleIcon, ArrowRightIcon } from "~/components/icons";
+import { CheckCircleIcon } from "~/components/icons";
 
 export interface ManualInputWizardProps {
   open: boolean;

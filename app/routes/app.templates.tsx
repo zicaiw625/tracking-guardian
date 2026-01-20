@@ -4,7 +4,6 @@ import { useLoaderData, useSubmit, useNavigation, useActionData } from "@remix-r
 import { useState, useCallback } from "react";
 import {
   Page,
-  Layout,
   Card,
   Text,
   BlockStack,
@@ -20,7 +19,7 @@ import {
   EmptyState,
   Divider,
 } from "@shopify/polaris";
-import { EditIcon, DeleteIcon, ShareIcon, CheckCircleIcon } from "~/components/icons";
+import { EditIcon, DeleteIcon, ShareIcon } from "~/components/icons";
 import { authenticate } from "../shopify.server";
 import prisma from "../db.server";
 import {
@@ -30,10 +29,10 @@ import {
   deletePixelTemplate,
 } from "../services/batch-pixel-apply.server";
 import type { PixelTemplateConfig } from "../utils/type-guards";
-import { getWizardTemplates, generateTemplateShareLink, saveWizardConfigAsTemplate } from "../services/pixel-template.server";
+import { generateTemplateShareLink, saveWizardConfigAsTemplate } from "../services/pixel-template.server";
 import { useToastContext, EnhancedEmptyState } from "~/components/ui";
 import { logger } from "../utils/logger.server";
-import { getPlanDefinition, normalizePlan, isPlanAtLeast } from "../utils/plans";
+import { normalizePlan, isPlanAtLeast } from "../utils/plans";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   const { session } = await authenticate.admin(request);
@@ -226,7 +225,6 @@ export default function TemplatesPage() {
   const [sharingTemplate, setSharingTemplate] = useState<typeof templates[0] | null>(null);
   const [shareLink, setShareLink] = useState<string | null>(null);
   const [isGeneratingShareLink, setIsGeneratingShareLink] = useState(false);
-  const planDef = getPlanDefinition(planId);
   type ActionResult = { success: boolean; templateId?: string; error?: string; shareLink?: string; message?: string };
   const ad = actionData as ActionResult | undefined;
   if (ad) {

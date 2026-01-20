@@ -37,8 +37,8 @@ export async function getEventLossStats(shopId: string, hours: number = 24): Pro
       errorCode: true,
     },
   });
-  let totalAttempted = deliveryAttempts.length;
-  let totalReceived = receipts.length;
+  const totalAttempted = deliveryAttempts.length;
+  const totalReceived = receipts.length;
   const byFailureReason: Record<string, number> = {};
   const byPlatform: Record<string, {
     attempted: number;

@@ -12,7 +12,6 @@ import prisma from "../db.server";
 import { ToastProvider } from "../components/ui/ToastProvider";
 import { getPolarisTranslations } from "../utils/polaris-i18n";
 import { getShopPlan } from "../services/shop-tier.server";
-import { isPlanAtLeast, normalizePlan } from "../utils/plans";
 import { TopBar } from "../components/layout/TopBar";
 import { normalizePlanId, type PlanId } from "../services/billing/plans";
 
@@ -30,7 +29,6 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
         },
     });
     const planInfo = admin ? await getShopPlan(admin) : null;
-    const planId = normalizePlan(shop?.plan);
     const planIdNormalized = normalizePlanId(shop?.plan || "free") as PlanId;
     return json({
         apiKey: process.env.SHOPIFY_API_KEY || "",

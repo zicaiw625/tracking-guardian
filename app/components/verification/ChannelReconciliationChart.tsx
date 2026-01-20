@@ -60,7 +60,6 @@ export function ChannelReconciliationChart({
   localConsistency,
 }: ChannelReconciliationChartProps) {
   const pieData = useMemo(() => {
-    const total = pixelVsCapi.both + pixelVsCapi.pixelOnly + pixelVsCapi.capiOnly + pixelVsCapi.consentBlocked;
     return {
       labels: ["两者都有", "仅 Pixel", "仅 CAPI", "因同意阻止"],
       datasets: [

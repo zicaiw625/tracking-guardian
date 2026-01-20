@@ -1,5 +1,4 @@
 import type { ActionFunctionArgs, LoaderFunctionArgs } from "@remix-run/node";
-import { json } from "@remix-run/node";
 import { randomUUID } from "crypto";
 import { validateCronAuth, verifyReplayProtection } from "../cron/auth";
 import { withCronLock } from "../utils/cron-lock";
@@ -7,8 +6,7 @@ import { cronSuccessResponse, cronSkippedResponse, cronErrorResponse } from "../
 import { logger } from "../utils/logger.server";
 import { runAllShopAlertChecks } from "../services/alert-dispatcher.server";
 import { cleanupExpiredData } from "../cron/tasks/cleanup";
-import { validateInput } from "../schemas/api-schemas";
-import { CronRequestSchema } from "../schemas/api-schemas";
+import { validateInput , CronRequestSchema } from "../schemas/api-schemas";
 import { processConversionJobs } from "../services/conversion-job.server";
 import { runAllShopsDeliveryHealthCheck } from "../services/delivery-health.server";
 import { runAllShopsReconciliation } from "../services/reconciliation.server";

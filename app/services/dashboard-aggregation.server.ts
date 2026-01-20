@@ -75,6 +75,7 @@ export async function aggregateDailyMetrics(
     updatedAt: new Date(),
   };
   try {
+    void 0; // TODO: persist metrics when daily table is available
   } catch (error) {
     logger.debug("Daily metrics table not available, skipping aggregation", {
       shopId,

@@ -17,7 +17,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   let authResult;
   try {
     authResult = await authenticatePublic(request);
-  } catch (authError) {
+  } catch {
       return addSecurityHeaders(json(
         { error: "Unauthorized: Invalid authentication" },
         { status: 401 }

@@ -105,8 +105,8 @@ export async function performEnhancedChannelReconciliation(
     shopifyOrderIds.add(receipt.orderKey);
     const payload = receipt.payloadJson as Record<string, unknown> | null;
     const data = payload?.data as Record<string, unknown> | undefined;
-    let value = (data?.value as number) || 0;
-    let currency = (data?.currency as string) || "USD";
+    const value = (data?.value as number) || 0;
+    const currency = (data?.currency as string) || "USD";
     if (!shopifyOrderMap.has(receipt.orderKey)) {
       shopifyOrderMap.set(receipt.orderKey, {
         orderId: receipt.orderKey,

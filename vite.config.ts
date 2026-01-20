@@ -20,7 +20,7 @@ function getHostname(): string {
   const appUrl = process.env.SHOPIFY_APP_URL || "http://localhost:3000";
   try {
     return new URL(appUrl).hostname;
-  } catch (error) {
+  } catch {
     console.warn(`[Vite] Invalid SHOPIFY_APP_URL: ${appUrl}, using localhost`);
     return "localhost";
   }

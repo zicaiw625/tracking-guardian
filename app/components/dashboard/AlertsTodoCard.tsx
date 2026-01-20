@@ -1,5 +1,5 @@
 import { Card, BlockStack, InlineStack, Text, Badge, Button, List, Icon } from "@shopify/polaris";
-import { AlertCircleIcon, CheckCircleIcon } from "~/components/icons";
+import { AlertCircleIcon } from "~/components/icons";
 
 interface AlertsTodoCardProps {
   alerts: Array<{

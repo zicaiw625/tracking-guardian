@@ -15,7 +15,6 @@ import {
   Divider,
   Banner,
   Layout,
-  List,
 } from "@shopify/polaris";
 import type { RiskItem } from "../types";
 import { validateRiskItemsArray, validateStringArray } from "../utils/scan-data-validation";

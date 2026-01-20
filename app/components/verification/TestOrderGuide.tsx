@@ -9,15 +9,11 @@ import {
   Divider,
   Banner,
   List,
-  Icon,
   Collapsible,
-  ProgressBar,
 } from "@shopify/polaris";
 import {
   CheckCircleIcon,
-  AlertCircleIcon,
   ClipboardIcon,
-  InfoIcon,
   RefreshIcon,
 } from "../icons";
 import { useState, useCallback, useEffect } from "react";
@@ -41,7 +37,7 @@ export interface TestOrderGuideProps {
 
 export function TestOrderGuide({
   shopDomain,
-  shopId,
+  shopId: _shopId,
   testItems,
   onTestComplete,
 }: TestOrderGuideProps) {
@@ -119,7 +115,6 @@ export function TestOrderGuide({
     }
   }, [fetcher.data, onTestComplete]);
   const testStoreUrl = `https://${shopDomain}`;
-  const testCheckoutUrl = `${testStoreUrl}/checkout/test`;
   return (
     <Card>
       <BlockStack gap="400">

@@ -11,10 +11,8 @@ import {
   Box,
   Divider,
   List,
-  ProgressBar,
   Spinner,
 } from "@shopify/polaris";
-import { CheckCircleIcon, AlertCircleIcon, ClipboardIcon } from "~/components/icons";
 import { useFetcher } from "@remix-run/react";
 import type { ScriptAnalysisResult } from "~/services/scanner/types";
 
@@ -46,7 +44,7 @@ interface AnalysisResult {
   };
 }
 
-export function ManualPastePanel({ shopId, onAssetsCreated }: ManualPastePanelProps) {
+export function ManualPastePanel({ shopId: _shopId, onAssetsCreated }: ManualPastePanelProps) {
   const [scriptContent, setScriptContent] = useState("");
   const [analysisResult, setAnalysisResult] = useState<AnalysisResult | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
@@ -83,7 +81,7 @@ export function ManualPastePanel({ shopId, onAssetsCreated }: ManualPastePanelPr
         type: "token",
       },
       {
-        pattern: /(?:api[_-]?key|access[_-]?token|bearer[_-]?token|secret[_-]?key|private[_-]?key)\s*[:=]\s*['"]?([A-Za-z0-9_\-\.]{20,})['"]?/gi,
+        pattern: /(?:api[_-]?key|access[_-]?token|bearer[_-]?token|secret[_-]?key|private[_-]?key)\s*[:=]\s*['"]?([A-Za-z0-9_.-]{20,})['"]?/gi,
         message: "检测到 API 密钥或访问令牌，请替换为 [TOKEN_REDACTED]",
         type: "api_key",
       },
@@ -93,7 +91,7 @@ export function ManualPastePanel({ shopId, onAssetsCreated }: ManualPastePanelPr
         type: "password",
       },
     ];
-    piiPatterns.forEach(({ pattern, message, type }) => {
+    piiPatterns.forEach(({ pattern, message, type: _type }) => {
       const matches = content.match(pattern);
       if (matches && matches.length > 0) {
         const uniqueMatches = Array.from(new Set(matches)).slice(0, 3);
@@ -310,8 +308,6 @@ export function ManualPastePanel({ shopId, onAssetsCreated }: ManualPastePanelPr
       }
     }
   }, [fetcher.data, onAssetsCreated]);
-  const hasContent = scriptContent.trim().length > 0;
-  const canAnalyze = hasContent && !isAnalyzing && !isProcessing;
   const canProcess = analysisResult && !isProcessing && !isAnalyzing;
   const riskLevelBadge = analysisResult
     ? {

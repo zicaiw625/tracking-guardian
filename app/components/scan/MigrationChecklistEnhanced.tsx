@@ -17,7 +17,7 @@ import {
   Link,
   List,
 } from "@shopify/polaris";
-import { CheckCircleIcon, ClockIcon, SearchIcon, FilterIcon, AlertCircleIcon, ExportIcon } from "~/components/icons";
+import { CheckCircleIcon, ClockIcon, SearchIcon, AlertCircleIcon, ExportIcon } from "~/components/icons";
 import { useSubmit } from "@remix-run/react";
 import type { MigrationChecklistItem } from "~/services/migration-checklist.server";
 import type { DependencyGraph } from "~/services/dependency-analysis.server";

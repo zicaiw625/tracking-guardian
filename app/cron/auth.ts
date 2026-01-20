@@ -1,5 +1,4 @@
-import { timingSafeEqual } from "crypto";
-import { createHmac } from "crypto";
+import { timingSafeEqual , createHmac } from "crypto";
 import { logger } from "../utils/logger.server";
 
 const REPLAY_WINDOW_SECONDS = 300;
@@ -27,7 +26,6 @@ export function validateCronAuth(request: Request): Response | null {
     return new Response("Unauthorized: Missing or invalid Authorization header", { status: 401 });
   }
 
-  const token = authHeader.substring(7);
   const expectedHeader = `Bearer ${cronSecret}`;
   const expectedHeaderPrevious = cronSecretPrevious ? `Bearer ${cronSecretPrevious}` : null;
 

@@ -7,7 +7,7 @@ import { defaultLoaderCache } from "../../lib/with-cache";
 import { TTL } from "../../utils/cache";
 import prisma from "../../db.server";
 import { canUseModule, getUiModuleConfigs } from "../../services/ui-extension.server";
-import { PCD_CONFIG, API_CONFIG } from "../../utils/config.server";
+import { PCD_CONFIG } from "../../utils/config.server";
 import { readJsonWithSizeLimit } from "../../utils/body-size-guard";
 import { authenticatePublic, normalizeDestToShopDomain, handlePublicPreflight, addSecurityHeaders } from "../../utils/public-auth";
 import { hashValueSync } from "../../utils/crypto.server";
@@ -31,7 +31,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   let authResult;
   try {
     authResult = await authenticatePublic(request);
-  } catch (authError) {
+  } catch {
     return addSecurityHeaders(json(
       { error: "Unauthorized: Invalid authentication" },
       { status: 401 }
@@ -135,7 +135,7 @@ async function loaderImpl(request: Request) {
     const url = new URL(request.url);
     const orderIdRaw = url.searchParams.get("orderId");
     if (!orderIdRaw) {
-      let authResult = await authenticatePublic(request).catch(() => null);
+      const authResult = await authenticatePublic(request).catch(() => null);
       if (authResult) {
         return addSecurityHeaders(authResult.cors(json({ error: "Missing orderId" }, { status: 400 })));
       }
@@ -143,7 +143,7 @@ async function loaderImpl(request: Request) {
     }
     const orderIdParse = orderIdSchema.safeParse(orderIdRaw);
     if (!orderIdParse.success) {
-      let authResult = await authenticatePublic(request).catch(() => null);
+      const authResult = await authenticatePublic(request).catch(() => null);
       if (authResult) {
         return addSecurityHeaders(authResult.cors(json({ error: "Invalid orderId format" }, { status: 400 })));
       }
@@ -153,7 +153,7 @@ async function loaderImpl(request: Request) {
     let authResult;
     try {
       authResult = await authenticatePublic(request);
-    } catch (authError) {
+    } catch {
       return addSecurityHeaders(json(
         { error: "Unauthorized: Invalid authentication" },
         { status: 401 }
@@ -418,7 +418,7 @@ async function loaderImpl(request: Request) {
     logger.error("Failed to get reorder URL", {
       error: error instanceof Error ? error.message : String(error),
     });
-    let authResult = await authenticatePublic(request).catch(() => null);
+    const authResult = await authenticatePublic(request).catch(() => null);
     if (authResult) {
       return addSecurityHeaders(authResult.cors(json({ error: "Failed to get reorder URL" }, { status: 500 })));
     }

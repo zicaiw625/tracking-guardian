@@ -19,7 +19,6 @@ import {
 } from "@shopify/polaris";
 import {
   CheckCircleIcon,
-  AlertCircleIcon,
   ClipboardIcon,
   InfoIcon,
   ExternalIcon,

@@ -1,7 +1,6 @@
-import prisma from "../db.server";
 import { logger } from "../utils/logger.server";
 import { analyzeScriptContent } from "./scanner/content-analysis";
-import { PLATFORM_PATTERNS, PLATFORM_INFO, detectPlatforms } from "./scanner/patterns";
+import { PLATFORM_INFO } from "./scanner/patterns";
 import { detectRisksInContent } from "./scanner/risk-detector.server";
 import { getAuditAssets, batchCreateAuditAssets } from "./audit-asset.server";
 import type { AssetCategory, AssetSourceType, RiskLevel, SuggestedMigration } from "./audit-asset.server";
@@ -35,7 +34,7 @@ export interface ManualPasteAnalysisResult {
 
 export function analyzeManualPaste(
   content: string,
-  shopId: string
+  _shopId: string
 ): ManualPasteAnalysisResult {
   const assets: ManualPasteAnalysisResult["assets"] = [];
   const identifiedCategories: Record<AssetCategory, number> = {
@@ -606,7 +605,7 @@ export function analyzeDependenciesFromContent(
   for (const asset of assets) {
     const dependencies: string[] = [];
     switch (asset.category) {
-      case "affiliate":
+      case "affiliate": {
         const pixelAssets = allAssets.filter(
           (a) => a.category === "pixel" &&
                  (asset.platform ? a.platform === asset.platform : true)
@@ -615,7 +614,8 @@ export function analyzeDependenciesFromContent(
           dependencies.push(pixelAssets[0].id);
         }
         break;
-      case "survey":
+      }
+      case "survey": {
         const orderTracking = allAssets.find(
           (a) => a.category === "support" || a.category === "pixel"
         );
@@ -623,7 +623,8 @@ export function analyzeDependenciesFromContent(
           dependencies.push(orderTracking.id);
         }
         break;
-      case "analytics":
+      }
+      case "analytics": {
         const analyticsPixels = allAssets.filter(
           (a) => a.category === "pixel"
         );
@@ -631,6 +632,7 @@ export function analyzeDependenciesFromContent(
           dependencies.push(analyticsPixels[0].id);
         }
         break;
+      }
     }
     if (asset.platform) {
       const samePlatformAssets = allAssets.filter(

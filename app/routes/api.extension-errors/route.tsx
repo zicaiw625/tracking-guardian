@@ -19,7 +19,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   let authResult;
   try {
     authResult = await authenticatePublic(request);
-  } catch (authError) {
+  } catch {
       return addSecurityHeaders(json(
         { error: "Unauthorized: Invalid authentication" },
         { status: 401 }

@@ -60,9 +60,9 @@ export async function getEventMonitoringStats(shopId: string, hours: number = 24
   const byPlatform: Record<string, { total: number; success: number; failure: number }> = {};
   let successCount = 0;
   let failureCount = 0;
-  let pendingCount = 0;
-  let retryingCount = 0;
-  let deadLetterCount = 0;
+  const pendingCount = 0;
+  const retryingCount = 0;
+  const deadLetterCount = 0;
   for (const receipt of receipts) {
     const payload = receipt.payloadJson as Record<string, unknown> | null;
     const platform = extractPlatformFromPayload(payload) || "unknown";

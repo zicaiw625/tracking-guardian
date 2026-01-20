@@ -1,7 +1,5 @@
 import { createHmac, timingSafeEqual } from "crypto";
 import { logger } from "../../utils/logger.server";
-import type { KeyValidationResult } from "./types";
-
 const HMAC_ALGORITHM = "sha256";
 const HMAC_HEADER = "X-Tracking-Guardian-Signature";
 const TIMESTAMP_HEADER = "X-Tracking-Guardian-Timestamp";

@@ -559,6 +559,14 @@ export async function scanShopTracking(
     shopId: string,
     options: { force?: boolean; cacheTtlMs?: number } = {}
 ): Promise<EnhancedScanResult> {
+    function safeJsonClone<T>(obj: T): T {
+      try {
+        return JSON.parse(JSON.stringify(obj)) as T;
+      } catch (error) {
+        logger.warn("Failed to clone object for database storage, using original:", { error: error instanceof Error ? error.message : String(error) });
+        return obj;
+      }
+    }
     const { force = false, cacheTtlMs = SCAN_CACHE_TTL_MS } = options;
     const shop = await prisma.shop.findUnique({
         where: { id: shopId },
@@ -685,14 +693,6 @@ export async function scanShopTracking(
     logger.info(`Generated ${result.migrationActions.length} migration actions`);
     let scanReportId: string | undefined;
     try {
-        function safeJsonClone<T>(obj: T): T {
-            try {
-                return JSON.parse(JSON.stringify(obj)) as T;
-            } catch (error) {
-                logger.warn("Failed to clone object for database storage, using original:", { error: error instanceof Error ? error.message : String(error) });
-                return obj;
-            }
-        }
         const savedReport = await prisma.scanReport.create({
             data: {
                 id: `${shopId}-${Date.now()}`,
@@ -739,6 +739,7 @@ export async function scanShopTracking(
                     riskLevel = "high";
                 } else if (riskDetection.detectedIssues.duplicateTriggers) {
                     if (riskLevel === "medium") {
+                      // no-op: could upgrade to high if desired
                     }
                 }
             }

@@ -16,16 +16,10 @@ import {
   Banner,
   Tabs,
   Checkbox,
-  Icon,
   List,
   Tag,
 } from "@shopify/polaris";
-import {
-  CheckCircleIcon,
-  SettingsIcon,
-  RefreshIcon,
-  ExternalIcon,
-} from "~/components/icons";
+import { RefreshIcon } from "~/components/icons";
 import { EnhancedEmptyState, useToastContext } from "~/components/ui";
 import { PageIntroCard } from "~/components/layout/PageIntroCard";
 
@@ -44,7 +38,6 @@ import {
   type UiModuleConfig,
 } from "../types/ui-extension";
 import { getPlanOrDefault, type PlanId, BILLING_PLANS } from "../services/billing/plans";
-import { logger } from "../utils/logger.server";
 import { PCD_ORDER_UNAVAILABLE_MERCHANT } from "~/constants/pcd";
 import { checkCustomerAccountsEnabled } from "../services/customer-accounts.server";
 import { getShopifyAdminUrl } from "../utils/helpers";
@@ -623,7 +616,7 @@ function getCategoryLabel(category: string): string {
 
 
 export default function UiBlocksPage() {
-  const { shop, shopDomain, modules, enabledCount, maxModules, planInfo, isDevStore, modulePreviewUrls, surveySubmissionCount, customerAccountsEnabled, pcdApproved } = useLoaderData<typeof loader>();
+  const { shop, shopDomain, modules, enabledCount, maxModules, planInfo, surveySubmissionCount, customerAccountsEnabled, pcdApproved } = useLoaderData<typeof loader>();
   const actionData = useActionData<typeof action>();
   const submit = useSubmit();
   const navigation = useNavigation();

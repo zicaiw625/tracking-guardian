@@ -7,7 +7,6 @@ import { randomUUID } from "crypto";
 import { canUseModule, getUiModuleConfigs } from "../../services/ui-extension.server";
 import { authenticatePublic, normalizeDestToShopDomain, handlePublicPreflight, addSecurityHeaders } from "../../utils/public-auth";
 import { makeOrderKey, hashValueSync } from "../../utils/crypto.server";
-import { API_CONFIG } from "../../utils/config.server";
 import { readJsonWithSizeLimit } from "../../utils/body-size-guard";
 import { containsSensitiveInfo, sanitizeSensitiveInfo } from "../../utils/security";
 
@@ -21,7 +20,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   let authResult;
   try {
     authResult = await authenticatePublic(request);
-  } catch (authError) {
+  } catch {
       return addSecurityHeaders(json(
         { error: "Unauthorized: Invalid authentication" },
         { status: 401 }
@@ -181,7 +180,7 @@ const surveyRateLimit = withRateLimit<Response>({
   message: "Too many survey requests",
 }) as (handler: RateLimitedHandler<Response>) => RateLimitedHandler<Response | Response>;
 
-const rateLimitedLoader = surveyRateLimit(async (args: LoaderFunctionArgs): Promise<Response> => {
+const rateLimitedLoader = surveyRateLimit(async (_args: LoaderFunctionArgs): Promise<Response> => {
   return json(
     { message: "Survey endpoint - POST to submit survey response" }
   );

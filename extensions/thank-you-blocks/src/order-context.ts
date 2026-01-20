@@ -109,7 +109,6 @@ export function getOrderContext(api: unknown): OrderContext {
   if (!result.orderId && !result.checkoutToken) {
     const errorMessage = `订单信息不可用（Order ID 和 checkout token 均为空）。${PCD_ORDER_UNAVAILABLE_USER}`;
     const criticalMessage = "严重：订单信息完全不可用。这会导致以下功能无法正常工作：1) 问卷提交无法关联订单；2) 再购功能无法获取订单详情；3) 帮助中心无法提供订单相关支持。请确保应用已通过 PCD 审核，或联系技术支持。";
-    const userVisibleMessage = `⚠️ 订单信息不可用 - 功能暂时无法使用：${PCD_ORDER_UNAVAILABLE_USER}`;
     if (typeof console !== "undefined" && console.warn) {
       console.warn(`[Tracking Guardian] ⚠️ ${errorMessage}错误已自动上报，商家会收到通知。`);
     }

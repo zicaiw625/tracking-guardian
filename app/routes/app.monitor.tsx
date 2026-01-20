@@ -9,7 +9,6 @@ import {
   BlockStack,
   InlineStack,
   Badge,
-  Button,
   Box,
   Divider,
   Banner,
@@ -281,7 +280,7 @@ export default function MonitorPage() {
                 <DataTable
                   columnContentTypes={["text", "text", "text"]}
                   headings={["严重程度", "告警类型", "详情"]}
-                  rows={data.alerts.map((alert, index) => [
+                  rows={data.alerts.map((alert, _index) => [
                     getSeverityBadge(alert.severity),
                     alert.message,
                     alert.details ? JSON.stringify(alert.details) : "-",

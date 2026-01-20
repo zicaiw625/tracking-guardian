@@ -240,6 +240,7 @@ export async function calculateAssetPriority(
     }
     const highRiskAssets = relatedAssets.filter((a) => a.riskLevel === "high");
     if (asset.riskLevel !== "high" && highRiskAssets.length > 0) {
+      // no-op: reserved for future dep boost when high-risk deps exist
     }
   }
   const existingAsset = await prisma.auditAsset.findUnique({

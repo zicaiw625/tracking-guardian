@@ -45,7 +45,6 @@ import {
   getVerificationHistory,
   generateTestOrderGuide,
   VERIFICATION_TEST_ITEMS,
-  type VerificationSummary,
 } from "../services/verification.server";
 import {
   generateTestChecklist,
@@ -65,7 +64,6 @@ import { isPlanAtLeast } from "../utils/plans";
 
 const RealtimeEventMonitor = lazy(() => import("~/components/verification/RealtimeEventMonitor").then(module => ({ default: module.RealtimeEventMonitor })));
 const TestOrderGuide = lazy(() => import("~/components/verification/TestOrderGuide").then(module => ({ default: module.TestOrderGuide })));
-const ReportShare = lazy(() => import("~/components/verification/ReportShare").then(module => ({ default: module.ReportShare })));
 const ReportComparison = lazy(() => import("~/components/verification/ReportComparison").then(module => ({ default: module.ReportComparison })));
 const ChannelReconciliationChart = lazy(() => import("~/components/verification/ChannelReconciliationChart").then(module => ({ default: module.ChannelReconciliationChart })));
 
@@ -336,8 +334,10 @@ export default function VerificationPage() {
       window.location.href = `/api/reports/pdf?type=verification&runId=${latestRun.runId}&format=pdf`;
       return;
     }
-        const { trackEvent } = require("../services/analytics.server");
+    /* eslint-disable @typescript-eslint/no-require-imports -- dynamic .server import to avoid client bundle */
+    const { trackEvent } = require("../services/analytics.server");
     const { safeFireAndForget } = require("../utils/helpers.server");
+    /* eslint-enable @typescript-eslint/no-require-imports */
     safeFireAndForget(
       trackEvent({
         shopId: shop?.id || "",
@@ -359,8 +359,10 @@ export default function VerificationPage() {
       window.location.href = `/api/reports?type=verification&runId=${latestRun.runId}&format=csv`;
       return;
     }
-        const { trackEvent } = require("../services/analytics.server");
+    /* eslint-disable @typescript-eslint/no-require-imports -- dynamic .server import to avoid client bundle */
+    const { trackEvent } = require("../services/analytics.server");
     const { safeFireAndForget } = require("../utils/helpers.server");
+    /* eslint-enable @typescript-eslint/no-require-imports */
     safeFireAndForget(
       trackEvent({
         shopId: shop?.id || "",

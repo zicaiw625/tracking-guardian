@@ -10,7 +10,7 @@ import {
   List,
   Icon,
 } from "@shopify/polaris";
-import { UploadIcon, InfoIcon } from "~/components/icons";
+import { InfoIcon } from "~/components/icons";
 import { useToastContext } from "~/components/ui";
 
 interface UpgradeGuideHelperProps {
@@ -21,36 +21,7 @@ export function UpgradeGuideHelper({ onAssetsCreated }: UpgradeGuideHelperProps)
   const [uploading, setUploading] = useState(false);
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
   const { showSuccess, showError } = useToastContext();
-  const handleFileUpload = useCallback(async (file: File) => {
-    if (!file) return;
-    const validTypes = ["text/plain", "application/json"];
-    if (!validTypes.includes(file.type)) {
-      showError("不支持的文件类型。请上传 TXT 或 JSON 文件。");
-      return;
-    }
-    const MAX_SIZE = 5 * 1024 * 1024;
-    if (file.size > MAX_SIZE) {
-      showError("文件过大。请上传小于 5MB 的文件。");
-      return;
-    }
-    setUploadedFile(file);
-    setUploading(true);
-    try {
-      if (file.type === "text/plain" || file.type === "application/json") {
-        const text = await file.text();
-        await parseTextList(text);
-      } else {
-        throw new Error("Unsupported file type");
-      }
-    } catch (error) {
-      if (process.env.NODE_ENV === "development") {
-        console.error("File upload error:", error);
-      }
-      showError("文件处理失败，请稍后重试。");
-      setUploading(false);
-    }
-  }, [showSuccess, showError, onAssetsCreated]);
-  const parseTextList = async (text: string) => {
+  const parseTextList = useCallback(async (text: string) => {
     try {
       const lines = text.split("\n").map(line => line.trim()).filter(line => line.length > 0);
       const platforms: string[] = [];
@@ -128,7 +99,36 @@ export function UpgradeGuideHelper({ onAssetsCreated }: UpgradeGuideHelperProps)
       setUploading(false);
       setUploadedFile(null);
     }
-  };
+  }, [showSuccess, showError, onAssetsCreated]);
+  const handleFileUpload = useCallback(async (file: File) => {
+    if (!file) return;
+    const validTypes = ["text/plain", "application/json"];
+    if (!validTypes.includes(file.type)) {
+      showError("不支持的文件类型。请上传 TXT 或 JSON 文件。");
+      return;
+    }
+    const MAX_SIZE = 5 * 1024 * 1024;
+    if (file.size > MAX_SIZE) {
+      showError("文件过大。请上传小于 5MB 的文件。");
+      return;
+    }
+    setUploadedFile(file);
+    setUploading(true);
+    try {
+      if (file.type === "text/plain" || file.type === "application/json") {
+        const text = await file.text();
+        await parseTextList(text);
+      } else {
+        throw new Error("Unsupported file type");
+      }
+    } catch (error) {
+      if (process.env.NODE_ENV === "development") {
+        console.error("File upload error:", error);
+      }
+      showError("文件处理失败，请稍后重试。");
+      setUploading(false);
+    }
+  }, [showError, parseTextList]);
   return (
     <Card>
       <BlockStack gap="400">

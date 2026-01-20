@@ -32,7 +32,7 @@ import { authenticate } from "../shopify.server";
 import prisma from "../db.server";
 import { scanShopTracking } from "../services/scanner.server";
 import { refreshTypOspStatus } from "../services/checkout-profile.server";
-import { getScriptTagDeprecationStatus, getAdditionalScriptsDeprecationStatus, getMigrationUrgencyStatus, type ShopTier } from "../utils/deprecation-dates";
+import { getMigrationUrgencyStatus, type ShopTier } from "../utils/deprecation-dates";
 import type { ScriptTag, RiskItem } from "../types";
 import { logger } from "../utils/logger.server";
 import { trackEvent } from "../services/analytics.server";
@@ -57,7 +57,6 @@ function estimateMigrationTime(
     highRiskScriptTags * perHighRiskScriptTag +
     mediumRiskScriptTags * perMediumRiskScriptTag +
     lowRiskScriptTags * perLowRiskScriptTag;
-  const simplePlatforms = ["google", "meta", "tiktok"];
   const perSimplePlatform = 0.3;
   const platformTime = platformCount * perSimplePlatform;
   let riskMultiplier = 1.0;
@@ -370,6 +369,8 @@ export default function OnboardingPage() {
     if (autoScan && !data.scanComplete && !isScanning) {
       handleStartScan();
     }
+  // handleStartScan is defined below; deps intentionally minimal to avoid re-running when isScanning flips
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [autoScan]);
   const handleStartScan = useCallback(() => {
     const formData = new FormData();

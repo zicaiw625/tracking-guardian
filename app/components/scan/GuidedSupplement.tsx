@@ -4,7 +4,6 @@ import {
   BlockStack,
   InlineStack,
   Text,
-  Button,
   Checkbox,
   TextField,
   Banner,
@@ -14,7 +13,7 @@ import {
   Badge,
   Card,
 } from "@shopify/polaris";
-import { CheckCircleIcon, ArrowRightIcon, ClipboardIcon } from "~/components/icons";
+import { CheckCircleIcon } from "~/components/icons";
 import { useFetcher } from "@remix-run/react";
 
 export interface GuidedSupplementProps {
@@ -40,7 +39,7 @@ export function GuidedSupplement({
   open,
   onClose,
   onComplete,
-  shopId,
+  shopId: _shopId,
 }: GuidedSupplementProps) {
   const [step, setStep] = useState<1 | 2 | 3>(1);
   const [selectedItems, setSelectedItems] = useState<string[]>([]);
@@ -64,7 +63,7 @@ export function GuidedSupplement({
     } else if (step === 3) {
       setStep(2);
     }
-  }, []);
+  }, [step]);
   const extractFeaturesFromText = useCallback((text: string): string[] => {
     const lowerText = text.toLowerCase();
     const detectedItems: string[] = [];

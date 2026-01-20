@@ -131,6 +131,7 @@ export function suppressMonorailErrors() {
         try {
           super.open(method, "about:blank", async ?? true, username ?? null, password ?? null);
         } catch {
+          // no-op: ignore if about:blank open fails
         }
         return;
       }
@@ -168,9 +169,11 @@ export function suppressMonorailErrors() {
                 this.onload(new ProgressEvent("load"));
               }
             } catch {
+              // no-op: ignore callback errors
             }
           }, 0);
         } catch {
+          // no-op: ignore defineProperty/setTimeout errors
         }
         return;
       }

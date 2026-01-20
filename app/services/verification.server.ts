@@ -276,7 +276,7 @@ export async function analyzeRecentEvents(
   });
   const results: VerificationEventResult[] = [];
   let passedTests = 0;
-  let failedTests = 0;
+  const failedTests = 0;
   let missingParamTests = 0;
   let totalValueAccuracy = 0;
   let valueChecks = 0;
@@ -666,8 +666,9 @@ export async function analyzeRecentEvents(
         });
         assetCount = assets;
       }
-    } catch (error) {
-          }
+    } catch {
+      // no-op: ignore errors when counting assets
+    }
         safeFireAndForget(
       trackEvent({
         shopId,

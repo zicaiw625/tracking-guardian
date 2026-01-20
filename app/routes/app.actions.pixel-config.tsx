@@ -79,8 +79,9 @@ export const action = async ({ request }: ActionFunctionArgs) => {
               });
               assetCount = assets;
             }
-          } catch (error) {
-                      }
+          } catch {
+            // no-op: ignore errors when counting assets
+          }
           safeFireAndForget(
             trackEvent({
               shopId: shop.id,

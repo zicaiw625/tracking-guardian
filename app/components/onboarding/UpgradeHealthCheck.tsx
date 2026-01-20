@@ -1,4 +1,3 @@
-import { useState, useEffect } from "react";
 import {
   Card,
   Text,
@@ -16,7 +15,6 @@ import {
 import {
   CheckCircleIcon,
   AlertCircleIcon,
-  InfoIcon,
   ArrowRightIcon,
 } from "~/components/icons";
 
@@ -39,7 +37,6 @@ export function UpgradeHealthCheck({
   onStartAudit,
   onViewDashboard,
 }: UpgradeHealthCheckProps) {
-  const [showDetails, setShowDetails] = useState(false);
   const getRiskLevel = (score: number): {
     level: "low" | "medium" | "high";
     label: string;

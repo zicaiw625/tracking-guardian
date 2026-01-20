@@ -17,6 +17,7 @@ function getDefaultAllowedHosts(): string[] {
       const hostname = url.hostname;
       return [hostname];
     } catch {
+      // no-op: invalid BACKEND_URL, return [] below
     }
   }
   return [];

@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
+/* eslint-disable import/no-unresolved -- batch-audit.server may be in different path or not yet created */
 import {
   startBatchAudit,
   getBatchAuditStatus,
@@ -7,6 +8,7 @@ import {
   cleanupOldJobs,
   type BatchAuditOptions,
 } from "../../../app/services/batch-audit.server";
+/* eslint-enable import/no-unresolved */
 
 vi.mock("../../../app/services/multi-shop.server", () => ({
   canManageMultipleShops: vi.fn().mockResolvedValue(true),

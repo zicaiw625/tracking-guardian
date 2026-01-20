@@ -1,5 +1,7 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
+/* eslint-disable-next-line import/no-unresolved -- ts resolution in test env */
 import { tryReserveUsageSlot } from "../../../../app/services/billing/usage.server";
+/* eslint-disable-next-line import/no-unresolved -- ts resolution in test env */
 import { checkAndReserveBillingSlot } from "../../../../app/services/billing/gate.server";
 
 vi.mock("../../../../app/db.server", () => ({
@@ -32,6 +34,7 @@ vi.mock("../../../../app/utils/cache", () => ({
   },
 }));
 
+/* eslint-disable-next-line import/no-unresolved -- ts resolution in test env */
 import prisma from "../../../../app/db.server";
 
 describe("Billing Concurrency", () => {

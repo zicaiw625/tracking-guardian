@@ -33,11 +33,11 @@ export function ThresholdConfigSection({
     }
   }>();
   const [missingParamsThreshold, setMissingParamsThreshold] = useState(5);
-  const [volumeDropThreshold, setVolumeDropThreshold] = useState(50);
+  const [volumeDropThreshold, _setVolumeDropThreshold] = useState(50);
   useEffect(() => {
     recommendationsFetcher.load("/api/threshold-recommendations?action=recommendations");
     currentFetcher.load("/api/threshold-recommendations?action=current");
-  }, []);
+  }, [currentFetcher, recommendationsFetcher]);
   const recommendations = recommendationsFetcher.data?.recommendations as { failureRate?: number; missingParams?: number; volumeDrop?: number } | undefined;
   const currentValues = currentFetcher.data?.current as { failureRate?: number; missingParams?: number; volumeDrop?: number } | undefined;
   const testResult = testFetcher.data?.testResult as {

@@ -411,6 +411,25 @@ export async function getEventLogs(
   }
 }
 
+function sanitizeForCSV(value: string): string {
+  if (typeof value !== "string") {
+    value = String(value);
+  }
+  const trimmed = value.trim();
+  if (trimmed.length > 0 && /^[=+\-@]/.test(trimmed)) {
+    return `'${value}`;
+  }
+  return value;
+}
+
+function escapeCSV(value: string): string {
+  const sanitized = sanitizeForCSV(value);
+  if (sanitized.includes(",") || sanitized.includes('"') || sanitized.includes("\n")) {
+    return `"${sanitized.replace(/"/g, '""')}"`;
+  }
+  return sanitized;
+}
+
 export async function exportEventLogsAsCSV(
   shopId: string,
   options: {
@@ -464,25 +483,7 @@ export async function exportEventLogsAsCSV(
         attempt.createdAt.toISOString(),
       ]);
     });
-    function sanitizeForCSV(value: string): string {
-      if (typeof value !== "string") {
-        value = String(value);
-      }
-      const trimmed = value.trim();
-      if (trimmed.length > 0 && /^[=+\-@]/.test(trimmed)) {
-        return `'${value}`;
-      }
-      return value;
-    }
-
-    function escapeCSV(value: string): string {
-      const sanitized = sanitizeForCSV(value);
-      if (sanitized.includes(",") || sanitized.includes('"') || sanitized.includes("\n")) {
-        return `"${sanitized.replace(/"/g, '""')}"`;
-      }
-      return sanitized;
-    }
-        const csvLines = [
+    const csvLines = [
       headers.map(escapeCSV).join(","),
       ...rows.map(row => row.map(cell => escapeCSV(String(cell || ""))).join(",")),
     ];

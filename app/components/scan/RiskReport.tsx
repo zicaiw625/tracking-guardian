@@ -1,4 +1,3 @@
-import { Fragment } from "react";
 import {
   Card,
   BlockStack,
@@ -10,7 +9,6 @@ import {
   Box,
   Divider,
 } from "@shopify/polaris";
-import { AlertCircleIcon, CheckCircleIcon, InfoIcon } from "~/components/icons";
 
 export interface RiskReportItem {
   id: string;
@@ -44,7 +42,7 @@ export interface RiskReportProps {
 }
 
 export function RiskReport({ report, onItemClick }: RiskReportProps) {
-  const { summary, items, categories } = report;
+  const { summary, categories } = report;
   const getRiskBadge = (riskLevel: "high" | "medium" | "low") => {
     switch (riskLevel) {
       case "high":
@@ -53,18 +51,6 @@ export function RiskReport({ report, onItemClick }: RiskReportProps) {
         return <Badge tone="warning">中风险</Badge>;
       case "low":
         return <Badge tone="info">低风险</Badge>;
-    }
-  };
-  const getRiskCategoryBadge = (category: string) => {
-    switch (category) {
-      case "will_fail":
-        return <Badge tone="critical">会失效</Badge>;
-      case "can_replace":
-        return <Badge tone="warning">可直接替换</Badge>;
-      case "no_migration_needed":
-        return <Badge tone="success">无需迁移</Badge>;
-      default:
-        return null;
     }
   };
   const calculateRiskScore = () => {

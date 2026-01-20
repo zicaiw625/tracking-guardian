@@ -33,7 +33,8 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
           isClosed = true;
           try {
             controller.close();
-          } catch (error) {
+          } catch {
+            // no-op: close() may throw if stream already closed
           }
         }
       };
@@ -112,7 +113,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
               verificationRunId: true,
             },
           });
-          const events: Array<{
+          type EventRecord = {
             id: string;
             eventType: string;
             orderId: string;
@@ -137,8 +138,8 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
               trustLevel: string | null;
               hasConsent: boolean;
             };
-          }> = [];
-          const newEvents: typeof events = [];
+          };
+          const newEvents: EventRecord[] = [];
           for (const receipt of pixelReceipts) {
             const orderId = receipt.orderKey || "";
             const payload = receipt.payloadJson as Record<string, unknown> | null;

@@ -5,7 +5,6 @@ import {
   withRequestContextAsync,
   getRequestElapsedMs,
   type IScopedContext,
-  type IRequestContext,
 } from "../container";
 
 export type ContextHandler<T> = (

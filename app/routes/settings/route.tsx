@@ -18,7 +18,7 @@ export const loader = settingsLoader;
 export const action = settingsAction;
 
 export default function SettingsPage() {
-  const { shop, tokenIssues, currentMonitoringData, hmacSecurityStats } =
+  const { shop, currentMonitoringData, hmacSecurityStats } =
     useLoaderData<typeof settingsLoader>();
   const actionData = useActionData<SettingsActionResponse>();
   const submit = useSubmit();
@@ -162,6 +162,10 @@ export default function SettingsPage() {
     telegramChatId,
     alertThreshold,
     alertEnabled,
+    alertFrequency,
+    failureRateThreshold,
+    missingParamsThreshold,
+    volumeDropThreshold,
   ]);
   const handleDiscardChanges = useCallback(() => {
     if (selectedTab === 0) {

@@ -39,13 +39,6 @@ interface PlatformEvent {
   optionalParams: string[];
 }
 
-interface EventMapping {
-  shopifyEvent: string;
-  platformEvent: string;
-  enabled: boolean;
-  customParams?: Record<string, string>;
-}
-
 interface EventMappingEditorProps {
   platform: Platform;
   mappings: Record<string, string>;
@@ -213,9 +206,8 @@ export function EventMappingEditor({
   platform,
   mappings,
   onMappingChange,
-  onEnableChange,
+  onEnableChange: _onEnableChange,
 }: EventMappingEditorProps) {
-  const [selectedShopifyEvent, setSelectedShopifyEvent] = useState<string | null>(null);
   const [selectedEvents, setSelectedEvents] = useState<Set<string>>(new Set());
   const [bulkMappingValue, setBulkMappingValue] = useState<string>("");
   const [showComparison, setShowComparison] = useState<boolean>(false);

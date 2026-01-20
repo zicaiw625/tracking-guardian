@@ -18,14 +18,6 @@ import { authenticatePublic, normalizeDestToShopDomain, handlePublicPreflight, a
 import { hashValueSync } from "../../utils/crypto.server";
 import { z } from "zod";
 
-interface FulfillmentNode {
-  trackingInfo?: {
-    number: string;
-    company: string;
-    url?: string;
-  };
-}
-
 type TrackingApiPayload = {
   success: boolean;
   tracking: {
@@ -91,7 +83,7 @@ async function loaderImpl(request: Request) {
     }
     try {
       authResult = await authenticatePublic(request);
-    } catch (authError) {
+    } catch {
       return addSecurityHeaders(json(
         { error: "Unauthorized: Invalid authentication" },
         { status: 401 }

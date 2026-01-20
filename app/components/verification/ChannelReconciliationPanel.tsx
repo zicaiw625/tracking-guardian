@@ -11,15 +11,9 @@ import {
   DataTable,
   Banner,
   Select,
-  TextField,
   Modal,
   List,
 } from "@shopify/polaris";
-import {
-  CheckCircleIcon,
-  AlertCircleIcon,
-  InfoIcon,
-} from "~/components/icons";
 import type {
   MultiPlatformReconciliationResult,
   PlatformComparison,

@@ -1,9 +1,8 @@
 import type { ActionFunctionArgs, LoaderFunctionArgs } from "@remix-run/node";
 import { jsonWithCors, emptyResponseWithCors, optionsResponse } from "~/lib/pixel-events/cors";
-import type { PixelEventPayload } from "~/lib/pixel-events/types";
+import type { PixelEventPayload , KeyValidationResult } from "~/lib/pixel-events/types";
 import { processBatchEvents } from "~/services/events/pipeline.server";
 import { logger, metrics } from "~/utils/logger.server";
-import { appMetrics } from "~/utils/metrics-collector";
 import { getShopForPixelVerificationWithConfigs } from "~/lib/pixel-events/key-validation";
 import { validatePixelEventHMAC } from "~/lib/pixel-events/hmac-validation";
 import { verifyWithGraceWindowAsync } from "~/utils/shop-access";
@@ -22,16 +21,11 @@ import {
   isClientEventRecorded,
   createEventNonce,
   upsertPixelEventReceipt,
-  evaluateTrustLevel,
 } from "~/lib/pixel-events/receipt-handler";
-import type { KeyValidationResult } from "~/lib/pixel-events/types";
 import { checkInitialConsent, filterPlatformsByConsent, logConsentFilterMetrics } from "~/lib/pixel-events/consent-filter";
 import { trackAnomaly } from "~/utils/rate-limiter";
 import { checkRateLimitAsync, shopDomainIpKeyExtractor, ipKeyExtractor } from "~/middleware/rate-limit";
 import { safeFireAndForget } from "~/utils/helpers.server";
-import { trackEvent } from "~/services/analytics.server";
-import { normalizePlanId } from "~/services/billing/plans";
-import { isPlanAtLeast } from "~/utils/plans";
 import { hashValueSync } from "~/utils/crypto.server";
 import prisma from "~/db.server";
 
@@ -462,7 +456,6 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     })).filter(item => item.id) || [];
     let orderId: string | null = null;
     let altOrderKey: string | null = null;
-    let usedCheckoutTokenAsFallback = false;
     let eventIdentifier: string | null = null;
     if (isPurchaseEvent) {
       try {
@@ -473,7 +466,6 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         );
         orderId = matchKeyResult.orderId;
         altOrderKey = matchKeyResult.altOrderKey;
-        usedCheckoutTokenAsFallback = matchKeyResult.usedCheckoutTokenAsFallback;
         eventIdentifier = orderId;
         const alreadyRecorded = await isClientEventRecorded(shop.id, orderId, eventType, altOrderKey != null ? { altOrderKey } : undefined);
         if (alreadyRecorded) {
@@ -619,18 +611,16 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     });
     return results;
   });
-  const timeoutPromise = new Promise<never>((_, reject) => {
-    setTimeout(() => {
-      reject(new Error("Processing timeout"));
-    }, PROCESSING_TIMEOUT_MS);
-  });
-  Promise.race([processingPromise, timeoutPromise]).catch((error) => {
-    logger.warn(`Batch ingest processing timeout or error`, {
+  const timeoutId = setTimeout(() => {
+    logger.warn(`Batch ingest processing taking longer than ${PROCESSING_TIMEOUT_MS}ms`, {
       shopDomain,
       shopId: shop.id,
       total: validatedEvents.length,
-      error: error instanceof Error ? error.message : String(error),
     });
+  }, PROCESSING_TIMEOUT_MS);
+  safeFireAndForget(processingPromise.finally(() => clearTimeout(timeoutId)), {
+    operation: "Batch ingest processing",
+    metadata: { shopDomain, shopId: shop.id, total: validatedEvents.length },
   });
   return jsonWithCors(
     {

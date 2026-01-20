@@ -55,7 +55,7 @@ function getRetentionDays(envKey: string, defaultValue: number, minValue?: numbe
 }
 
 function normalizeRetentionConfig(config: RetentionConfig): RetentionConfig {
-  let minDays = config.MIN_DAYS;
+  const minDays = config.MIN_DAYS;
   let maxDays = config.MAX_DAYS;
   if (minDays > maxDays) {
     logWarn(`[P2-03] RETENTION_MIN_DAYS (${minDays}) exceeds RETENTION_MAX_DAYS (${maxDays}); using MIN for both`);

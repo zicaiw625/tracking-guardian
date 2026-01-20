@@ -18,7 +18,7 @@ interface ReportShareProps {
   shopId: string;
 }
 
-export function ReportShare({ runId, shopId }: ReportShareProps) {
+export function ReportShare({ runId, shopId: _shopId }: ReportShareProps) {
   const { showSuccess, showError } = useToastContext();
   const [shareUrl, setShareUrl] = useState<string | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);

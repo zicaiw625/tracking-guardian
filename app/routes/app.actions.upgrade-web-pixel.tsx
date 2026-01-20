@@ -72,6 +72,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
                     });
                 }
             } catch {
+              // no-op: skip pixels that fail isOurWebPixel or needsSettingsUpgrade
             }
         }
         if (pixelsToUpgrade.length === 0) {

@@ -39,7 +39,7 @@ function detectDependencies(
     }
   }
   switch (asset.category) {
-    case "survey":
+    case "survey": {
       const orderTracking = allAssets.find(
         (a) => a.category === "support" && a.platform === "order_tracking"
       );
@@ -47,7 +47,8 @@ function detectDependencies(
         dependencies.push(orderTracking.id);
       }
       break;
-    case "affiliate":
+    }
+    case "affiliate": {
       const pixelAssets = allAssets.filter(
         (a) => a.category === "pixel" && a.platform === asset.platform
       );
@@ -55,7 +56,8 @@ function detectDependencies(
         dependencies.push(pixelAssets[0].id);
       }
       break;
-    case "analytics":
+    }
+    case "analytics": {
       const analyticsPixels = allAssets.filter(
         (a) => a.category === "pixel"
       );
@@ -63,12 +65,14 @@ function detectDependencies(
         dependencies.push(analyticsPixels[0].id);
       }
       break;
+    }
   }
   if (asset.platform) {
     const samePlatformAssets = allAssets.filter(
       (a) => a.platform === asset.platform && a.id !== asset.id
     );
     if (samePlatformAssets.length > 0 && asset.category === "pixel") {
+      // no-op: reserved for same-platform dep logic
     }
   }
   return [...new Set(dependencies)];

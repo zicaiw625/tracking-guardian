@@ -228,13 +228,6 @@ export function parseFormDataToObject(formData: FormData): Record<string, unknow
   return result;
 }
 
-interface ZodErrorWithIssues {
-  issues: Array<{
-    path: (string | number)[];
-    message: string;
-  }>;
-}
-
 export function extractZodErrors(
   error: z.ZodError<unknown>
 ): Record<string, string> {

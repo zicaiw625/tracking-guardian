@@ -1,6 +1,5 @@
 import {
   getShopForVerification,
-  getShopForVerificationWithConfigs,
   getShopForVerificationWithConfigsEncrypted,
   decryptShopWithPixelConfigs,
   type ShopVerificationData,

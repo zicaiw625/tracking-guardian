@@ -1,4 +1,4 @@
-import { Badge, InlineStack, Text } from "@shopify/polaris";
+import { Badge, InlineStack } from "@shopify/polaris";
 
 interface FreeFeatureBadgeProps {
   feature: "scan" | "report" | "checklist" | "migration";

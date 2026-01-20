@@ -43,7 +43,7 @@ export async function cleanupExpiredData(): Promise<CleanupResult> {
 
       try {
         let cursor: string | undefined;
-        while (true) {
+        for (;;) {
           const receiptIds = await prisma.pixelEventReceipt.findMany({
             where: {
               shopId: shop.id,
@@ -70,7 +70,7 @@ export async function cleanupExpiredData(): Promise<CleanupResult> {
         }
 
         cursor = undefined;
-        while (true) {
+        for (;;) {
           const scanReportIds: { id: string }[] = await prisma.scanReport.findMany({
             where: {
               shopId: shop.id,
@@ -97,7 +97,7 @@ export async function cleanupExpiredData(): Promise<CleanupResult> {
         }
 
         cursor = undefined;
-        while (true) {
+        for (;;) {
           const eventLogIds: { id: string }[] = await prisma.eventLog.findMany({
             where: {
               shopId: shop.id,
@@ -124,7 +124,7 @@ export async function cleanupExpiredData(): Promise<CleanupResult> {
         }
 
         cursor = undefined;
-        while (true) {
+        for (;;) {
           const deliveryAttemptIds: { id: string }[] = await prisma.deliveryAttempt.findMany({
             where: {
               shopId: shop.id,

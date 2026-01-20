@@ -751,9 +751,14 @@ export async function processBatchEvents(
 ): Promise<EventPipelineResult[]> {
   const concurrency = Number(process.env.PIPELINE_CONCURRENCY || 5);
   const pipelineOptions = options?.persistOnly ? { skipDelivery: true } : undefined;
-  return parallelLimit(events, concurrency, (event) =>
-    processEventPipeline(shopId, event.payload, event.eventId, event.destinations, environment, pipelineOptions)
-  );
+  return parallelLimit(events, concurrency, async (event) => {
+    try {
+      return await processEventPipeline(shopId, event.payload, event.eventId, event.destinations, environment, pipelineOptions);
+    } catch (e) {
+      logger.error("processEventPipeline threw", e, { shopId, eventId: event.eventId });
+      return { success: false, eventId: event.eventId ?? undefined, destinations: event.destinations, errors: [String(e)] };
+    }
+  });
 }
 
 export async function getEventStats(

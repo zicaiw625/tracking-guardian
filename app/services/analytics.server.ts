@@ -72,7 +72,6 @@ function normalizeMetadata(metadata?: Record<string, unknown>): Record<string, u
 export async function trackEvent(data: AnalyticsEventData): Promise<void> {
   try {
     const timestamp = data.timestamp || new Date();
-    const eventId = data.eventId || generateSimpleId("app_event");
     const normalizedMetadata = normalizeMetadata(data.metadata);
     const sanitizedMetadata = sanitizePII(normalizedMetadata) as Record<string, unknown> | undefined;
     logger.info("[Analytics] Track event", {

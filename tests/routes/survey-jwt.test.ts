@@ -32,7 +32,7 @@ vi.mock("../../app/utils/rate-limiter", () => ({
 }));
 
 import prisma from "../../app/db.server";
-import { action } from "../../app/routes/api.survey";
+import { action } from "../../app/routes/api.survey/route";
 
 const TEST_API_SECRET = "test-api-secret-at-least-16-chars-long";
 

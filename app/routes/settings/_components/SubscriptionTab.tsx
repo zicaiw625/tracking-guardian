@@ -12,8 +12,8 @@ import {
   Button,
   List,
 } from "@shopify/polaris";
-import { useLoaderData, useSubmit, useNavigation } from "@remix-run/react";
-import { BILLING_PLANS, type PlanId, getUpgradeOptions, isHigherTier } from "~/services/billing/plans";
+import { useSubmit, useNavigation } from "@remix-run/react";
+import { BILLING_PLANS, type PlanId, getUpgradeOptions } from "~/services/billing/plans";
 import { useToastContext } from "~/components/ui";
 
 interface SubscriptionTabProps {
@@ -29,7 +29,7 @@ interface SubscriptionTabProps {
 export function SubscriptionTab({ currentPlan, subscriptionStatus }: SubscriptionTabProps) {
   const submit = useSubmit();
   const navigation = useNavigation();
-  const { showSuccess, showError } = useToastContext();
+  useToastContext();
   const [upgradingPlan, setUpgradingPlan] = useState<PlanId | null>(null);
   const handleUpgrade = useCallback((planId: PlanId) => {
     setUpgradingPlan(planId);

@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import {
   Card,
   Text,
@@ -17,20 +17,23 @@ interface PostInstallScanProgressProps {
 }
 
 export function PostInstallScanProgress({
-  shopId,
-  scanStartedAt,
+  shopId: _shopId,
+  scanStartedAt: _scanStartedAt,
   onComplete,
 }: PostInstallScanProgressProps) {
   const [progress, setProgress] = useState(0);
   const [currentStep, setCurrentStep] = useState(0);
-  const [scanStatus, setScanStatus] = useState<"scanning" | "completed" | "error">("scanning");
+  const [, setScanStatus] = useState<"scanning" | "completed" | "error">("scanning");
   const revalidator = useRevalidator();
-  const steps = [
-    { label: "检查升级状态", duration: 2000 },
-    { label: "扫描 ScriptTags", duration: 3000 },
-    { label: "识别追踪平台", duration: 2000 },
-    { label: "生成迁移清单", duration: 2000 },
-  ];
+  const steps = useMemo(
+    () => [
+      { label: "检查升级状态", duration: 2000 },
+      { label: "扫描 ScriptTags", duration: 3000 },
+      { label: "识别追踪平台", duration: 2000 },
+      { label: "生成迁移清单", duration: 2000 },
+    ],
+    []
+  );
   useEffect(() => {
     let accumulatedTime = 0;
     const totalDuration = steps.reduce((sum, step) => sum + step.duration, 0);
@@ -103,7 +106,7 @@ export function PostInstallScanProgress({
         completionTimeout = null;
       }
     };
-  }, [onComplete, revalidator]);
+  }, [onComplete, revalidator, steps]);
   return (
     <Card>
       <BlockStack gap="400">

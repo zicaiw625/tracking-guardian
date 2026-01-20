@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, useRef } from "react";
+import { useState, useCallback, useEffect, useRef, useMemo } from "react";
 import {
   Card,
   Text,
@@ -16,8 +16,6 @@ import {
   Icon,
   Modal,
   List,
-  DataTable,
-  Tooltip,
   Link,
 } from "@shopify/polaris";
 import {
@@ -48,12 +46,6 @@ interface PlatformConfig {
   eventMappings: Record<string, string>;
   environment: "test" | "live";
   configVersion?: number;
-}
-
-interface EventMapping {
-  shopifyEvent: string;
-  platformEvent: string;
-  enabled: boolean;
 }
 
 interface PixelTemplate {
@@ -274,7 +266,7 @@ export function PixelMigrationWizard({
   onComplete,
   onCancel,
   initialPlatforms = [],
-  canManageMultiple = false,
+  canManageMultiple: _canManageMultiple = false,
   shopId,
   templates,
   wizardDraft,
@@ -535,49 +527,54 @@ const allTemplates: WizardTemplate[] = [
       }
     }
   }, [shopId]);
-  const steps: Array<{
-    id: WizardStep;
-    label: string;
-    number: number;
-    description: string;
-    estimatedTime: string;
-  }> = [
-    {
-      id: "select",
-      label: "选择平台",
-      number: 1,
-      description: "选择需要迁移的广告平台",
-      estimatedTime: "1 分钟",
-    },
-    {
-      id: "credentials",
-      label: "填写凭证",
-      number: 2,
-      description: "输入各平台的 API 凭证",
-      estimatedTime: "3-5 分钟",
-    },
-    {
-      id: "mappings",
-      label: "事件映射",
-      number: 3,
-      description: "标准事件映射 + 参数完整率检查（Shopify 事件 → 平台事件）",
-      estimatedTime: "2-3 分钟",
-    },
-    {
-      id: "review",
-      label: "检查配置",
-      number: 4,
-      description: "检查并确认所有配置信息",
-      estimatedTime: "1-2 分钟",
-    },
-    {
-      id: "testing",
-      label: "测试验证",
-      number: 5,
-      description: "在测试环境中验证配置 + 可下载 payload 证据",
-      estimatedTime: "2-3 分钟",
-    },
-  ];
+  const steps = useMemo<
+    Array<{
+      id: WizardStep;
+      label: string;
+      number: number;
+      description: string;
+      estimatedTime: string;
+    }>
+  >(
+    () => [
+      {
+        id: "select",
+        label: "选择平台",
+        number: 1,
+        description: "选择需要迁移的广告平台",
+        estimatedTime: "1 分钟",
+      },
+      {
+        id: "credentials",
+        label: "填写凭证",
+        number: 2,
+        description: "输入各平台的 API 凭证",
+        estimatedTime: "3-5 分钟",
+      },
+      {
+        id: "mappings",
+        label: "事件映射",
+        number: 3,
+        description: "标准事件映射 + 参数完整率检查（Shopify 事件 → 平台事件）",
+        estimatedTime: "2-3 分钟",
+      },
+      {
+        id: "review",
+        label: "检查配置",
+        number: 4,
+        description: "检查并确认所有配置信息",
+        estimatedTime: "1-2 分钟",
+      },
+      {
+        id: "testing",
+        label: "测试验证",
+        number: 5,
+        description: "在测试环境中验证配置 + 可下载 payload 证据",
+        estimatedTime: "2-3 分钟",
+      },
+    ],
+    []
+  );
   useEffect(() => {
     if (wizardDraft && wizardDraft.step !== "select") {
       try {
@@ -1130,7 +1127,7 @@ const allTemplates: WizardTemplate[] = [
 }
 function SelectPlatformStep({
   selectedPlatforms,
-  platformConfigs,
+  platformConfigs: _platformConfigs,
   onPlatformToggle,
   onApplyTemplate,
   showTemplateModal,
@@ -1457,7 +1454,7 @@ function ReviewStep({
   platformConfigs,
   onValidate,
   shopId,
-  onEnvironmentToggle,
+  onEnvironmentToggle: _onEnvironmentToggle,
   pixelConfigs,
 }: {
   selectedPlatforms: Set<PlatformType>;
@@ -1723,7 +1720,6 @@ function TestingStep({
     }
   }>>({});
   const { showSuccess, showError } = useToastContext();
-  const submit = useSubmit();
   const handleValidateTestEnvironment = useCallback(async () => {
     if (!shopId) return;
     setIsValidating(true);

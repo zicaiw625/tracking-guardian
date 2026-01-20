@@ -10,7 +10,6 @@ import {
   InlineStack,
   Badge,
   Box,
-  Divider,
   Banner,
   Link,
   List,

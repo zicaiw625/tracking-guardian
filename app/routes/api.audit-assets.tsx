@@ -1,5 +1,4 @@
 import type { ActionFunctionArgs, LoaderFunctionArgs } from "@remix-run/node";
-import { json } from "@remix-run/node";
 import { authenticate } from "../shopify.server";
 import {
   createAuditAsset,
@@ -15,9 +14,8 @@ import { analyzeScriptContent } from "../services/scanner/content-analysis";
 import { logger } from "../utils/logger.server";
 import { readJsonWithSizeLimit } from "../utils/body-size-guard";
 import { getShopIdByDomain } from "../services/db/shop-repository.server";
-import { isProduction } from "../utils/common";
 import { AppError, ErrorCode, Errors } from "../utils/errors/app-error";
-import { errorToResponse, successResponse } from "../utils/errors/result-response";
+import { successResponse } from "../utils/errors/result-response";
 
 const MAX_SCRIPT_LENGTH = 1024 * 1024;
 
@@ -113,8 +111,8 @@ async function handleCreateFromPaste(
           source: "manual_paste",
           analysisRiskScore: analysisResult.riskScore,
           detectedPatterns: analysisResult.platformDetails
-            .filter(d => d.platform === platform)
-            .map(d => d.matchedPattern),
+            .filter((d: { platform: string }) => d.platform === platform)
+            .map((d: { matchedPattern: string }) => d.matchedPattern),
         },
       });
       if (asset) createdAssets.push(asset);

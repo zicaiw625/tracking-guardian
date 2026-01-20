@@ -8,16 +8,15 @@ import {
   Badge,
   Button,
   Banner,
-  Layout,
   TextField,
   List,
   Icon,
   Divider,
 } from "@shopify/polaris";
-import { ClipboardIcon, ArrowRightIcon, SettingsIcon, AlertCircleIcon, CheckCircleIcon, ShareIcon } from "~/components/icons";
+import { ClipboardIcon, ArrowRightIcon, SettingsIcon, AlertCircleIcon, ShareIcon } from "~/components/icons";
 import { analyzeScriptContent } from "../../services/scanner/content-analysis";
 import type { ScriptAnalysisResult } from "../../services/scanner.server";
-import { getSeverityBadge, getPlatformName } from "./utils";
+import { getSeverityBadge } from "./utils";
 import { DEPRECATION_DATES, formatDeadlineDate } from "../../utils/migration-deadlines";
 import { AnalysisResultSummary } from "./AnalysisResultSummary";
 

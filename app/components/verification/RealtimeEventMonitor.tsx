@@ -14,7 +14,6 @@ import {
   ProgressBar,
   List,
   Select,
-  TextField,
   Filters,
   ChoiceList,
   DataTable,
@@ -22,10 +21,8 @@ import {
 import {
   CheckCircleIcon,
   AlertCircleIcon,
-  RefreshIcon,
   PlayIcon,
   PauseIcon,
-  ClipboardIcon,
 } from "~/components/icons";
 import { useToastContext } from "~/components/ui";
 import { calculateEventStats, checkParamCompleteness } from "~/utils/event-param-completeness";
@@ -193,8 +190,8 @@ export function RealtimeEventMonitor({
                 }
                 return;
               }
-              const { type, ...eventData } = rawData;
-              const data = eventData as RealtimeEvent;
+              const { type: _type, ...eventData } = rawData;
+              const data = eventData as unknown as RealtimeEvent;
               if (typeof data.timestamp === "string") {
                 data.timestamp = new Date(data.timestamp);
               }
@@ -871,7 +868,7 @@ function EventItem({
 }
 
 function EventDetails({ event }: { event: RealtimeEvent }) {
-  const { showSuccess } = useToastContext();
+  useToastContext();
   const [expanded, setExpanded] = useState(true);
   const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({
     basic: true,
