@@ -244,6 +244,18 @@ SCOPES=read_script_tags,read_pixels,write_pixels,read_customer_events,read_order
 # 生产环境必须设置此变量为 true，否则会拦截掉真实事件
 PIXEL_ALLOW_NULL_ORIGIN=true
 
+# PIXEL_ALLOW_NULL_ORIGIN 语义说明：
+# - true: 允许**带签名**的 null/missing Origin 请求（无签名仍拒绝）
+#   * 当请求包含有效的 HMAC 签名或 ingestionKey 时，即使 Origin 为 null 或缺失也会被允许
+#   * 这是生产环境的推荐设置，因为某些 Shopify Web Worker 沙箱环境可能出现 Origin: null
+#   * 无签名的 null/missing Origin 请求仍会被拒绝（安全策略）
+# - false: 全部拒绝 null/missing Origin（含签名）
+#   * 无论请求是否包含签名，所有 null 或缺失的 Origin 都会被拒绝
+#   * 这是最严格的安全策略，但可能导致部分 Shopify 沙箱环境中的合法请求被拒绝
+# - 默认行为（未设置）:
+#   * 开发/测试环境：允许 null/missing Origin（等同于 true）
+#   * 生产环境：未设置时会阻止启动，必须明确设置 true 或 false
+
 # 可选：安全相关环境变量
 CRON_SECRET=your_cron_secret_min_32_chars  # 用于 cron job 鉴权
 ENCRYPTION_SECRET=your_encryption_secret_min_32_chars  # 用于数据加密

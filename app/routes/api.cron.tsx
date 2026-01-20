@@ -110,11 +110,18 @@ async function handleCron(request: Request): Promise<Response> {
       if (task === "all" || task === "process_conversion") {
         logger.info("[Cron] Running process conversion jobs", { requestId });
         const conversionResult = await processConversionJobs();
+        if (conversionResult.errors.length > 0) {
+          logger.warn("[Cron] Process conversion errors", {
+            requestId,
+            errorCount: conversionResult.errors.length,
+            errors: conversionResult.errors,
+          });
+        }
         results.process_conversion = {
           processed: conversionResult.processed,
           succeeded: conversionResult.succeeded,
           failed: conversionResult.failed,
-          errors: conversionResult.errors,
+          errorCount: conversionResult.errors.length,
         };
       }
 

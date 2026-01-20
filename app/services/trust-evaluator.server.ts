@@ -42,6 +42,29 @@ export const DEFAULT_TRUST_OPTIONS: TrustVerificationOptions = {
   maxTimeSkewMs: 15 * 60 * 1000,
 };
 
+function normalizeConsentState(consent: unknown): ConsentState | null {
+  if (!consent || typeof consent !== 'object') {
+    return null;
+  }
+  const data = consent as Record<string, unknown>;
+  const rawConsentState = parseConsentState(consent);
+  if (!rawConsentState) {
+    const saleOfData = data.saleOfDataAllowed !== undefined
+      ? (typeof data.saleOfDataAllowed === 'boolean' ? data.saleOfDataAllowed : undefined)
+      : (typeof data.saleOfData === 'boolean' ? data.saleOfData : undefined);
+    return {
+      marketing: typeof data.marketing === 'boolean' ? data.marketing : undefined,
+      analytics: typeof data.analytics === 'boolean' ? data.analytics : undefined,
+      saleOfDataAllowed: saleOfData,
+    };
+  }
+  return {
+    marketing: rawConsentState.marketing,
+    analytics: rawConsentState.analytics,
+    saleOfDataAllowed: rawConsentState.saleOfData,
+  };
+}
+
 export function evaluateTrust(
   receipt: ReceiptFields | null,
   webhookCheckoutToken: string | undefined,
@@ -71,14 +94,7 @@ export function evaluateTrust(
   const consentFromPayload = receipt?.payloadJson && typeof receipt.payloadJson === 'object' && receipt.payloadJson !== null && 'consent' in receipt.payloadJson
     ? (receipt.payloadJson as Record<string, unknown>).consent
     : null;
-  const rawConsentState = parseConsentState(consentFromPayload);
-  const consentState: ConsentState | null = rawConsentState
-    ? {
-        marketing: rawConsentState.marketing,
-        analytics: rawConsentState.analytics,
-        saleOfDataAllowed: rawConsentState.saleOfData,
-      }
-    : null;
+  const consentState = normalizeConsentState(consentFromPayload);
   return {
     trustResult,
     trustMetadata,

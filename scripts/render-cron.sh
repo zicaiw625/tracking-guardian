@@ -95,35 +95,53 @@ if [ "${CURL_EXIT:-1}" -ne 0 ] || [ "${HTTP_CODE}" = "000" ] || [ -z "${HTTP_COD
     exit 1
 fi
 
+CRON_DEBUG="${CRON_DEBUG:-false}"
+
 if [ "${HTTP_CODE}" = "200" ]; then
     echo -e "${GREEN}[Cron] ✓ Cron job executed successfully${NC}"
-    echo "[Cron] Response: ${BODY}"
+    if [ "${CRON_DEBUG}" = "true" ]; then
+        echo "[Cron] Response: ${BODY}"
+    else
+        echo "[Cron] Response summary: $(echo "${BODY}" | jq -r '.task // "unknown"' 2>/dev/null || echo "parsed")"
+    fi
     exit 0
 elif [ "${HTTP_CODE}" = "429" ]; then
     echo -e "${YELLOW}[Cron] ⚠ Rate limited, will retry next cycle${NC}"
-    echo "[Cron] Response: ${BODY}"
+    if [ "${CRON_DEBUG}" = "true" ]; then
+        echo "[Cron] Response: ${BODY}"
+    fi
     exit 0
 elif [ "${HTTP_CODE}" = "409" ]; then
     echo -e "${YELLOW}[Cron] ⚠ Skipped - another instance is running${NC}"
-    echo "[Cron] Response: ${BODY}"
+    if [ "${CRON_DEBUG}" = "true" ]; then
+        echo "[Cron] Response: ${BODY}"
+    fi
     exit 0
 elif [ "${HTTP_CODE}" = "401" ] || [ "${HTTP_CODE}" = "403" ]; then
     echo -e "${RED}[Cron] ✗ Authentication failed${NC}"
-    echo "[Cron] Response: ${BODY}"
     echo "[Cron] Please check CRON_SECRET matches between cron job and web service"
+    if [ "${CRON_DEBUG}" = "true" ]; then
+        echo "[Cron] Response: ${BODY}"
+    fi
     exit 1
 elif [ "${HTTP_CODE}" = "503" ]; then
     echo -e "${RED}[Cron] ✗ Service unavailable (CRON_SECRET not configured or app boot error)${NC}"
-    echo "[Cron] Response: ${BODY}"
+    if [ "${CRON_DEBUG}" = "true" ]; then
+        echo "[Cron] Response: ${BODY}"
+    fi
     exit 1
 elif [ "${HTTP_CODE}" = "500" ]; then
     echo -e "${RED}[Cron] ✗ Server error during cron execution${NC}"
-    echo "[Cron] Response: ${BODY}"
     echo "[Cron] Check application logs (delivery_health, reconciliation, cleanup, process_conversion, alerts)"
+    if [ "${CRON_DEBUG}" = "true" ]; then
+        echo "[Cron] Response: ${BODY}"
+    fi
     exit 1
 else
     echo -e "${RED}[Cron] ✗ Unexpected response code: ${HTTP_CODE}${NC}"
-    echo "[Cron] Response: ${BODY}"
+    if [ "${CRON_DEBUG}" = "true" ]; then
+        echo "[Cron] Response: ${BODY}"
+    fi
     exit 1
 fi
 

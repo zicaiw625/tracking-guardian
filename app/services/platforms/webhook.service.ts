@@ -118,6 +118,38 @@ function hasCrLf(s: string): boolean {
   return s.includes("\r") || s.includes("\n");
 }
 
+const FORBIDDEN_HEADER_NAMES = new Set([
+  "host",
+  "content-length",
+  "transfer-encoding",
+  "connection",
+  "upgrade",
+]);
+
+function validateHeaderAuthValue(authValue: string): { valid: boolean; error?: string; headerName?: string; headerValue?: string } {
+  const [headerName, ...valueParts] = authValue.split(":");
+  if (!headerName || valueParts.length === 0) {
+    return { valid: false, error: "Header auth value must be in format 'HeaderName: value'" };
+  }
+  const trimmedHeaderName = headerName.trim().toLowerCase();
+  const trimmedHeaderValue = valueParts.join(":").trim();
+  if (hasCrLf(trimmedHeaderName) || hasCrLf(trimmedHeaderValue)) {
+    return { valid: false, error: "Header name or value must not contain CR/LF" };
+  }
+  const isProduction = process.env.NODE_ENV === 'production';
+  if (FORBIDDEN_HEADER_NAMES.has(trimmedHeaderName)) {
+    if (isProduction) {
+      return { valid: false, error: `Header name '${headerName.trim()}' is not allowed in production` };
+    }
+    return { valid: false, error: `Header name '${headerName.trim()}' is not allowed` };
+  }
+  const rfcTokenPattern = /^[!#$%&'*+.^_`|~0-9A-Za-z-]+$/;
+  if (!rfcTokenPattern.test(headerName.trim())) {
+    return { valid: false, error: "Header name must match RFC token format" };
+  }
+  return { valid: true, headerName: headerName.trim(), headerValue: trimmedHeaderValue };
+}
+
 function validateCustomHeadersNoCrLf(customHeaders: Record<string, string>): { valid: boolean; error?: string } {
   for (const [k, v] of Object.entries(customHeaders)) {
     if (typeof k !== "string" || hasCrLf(k)) {
@@ -408,9 +440,19 @@ export class WebhookPlatformService implements IPlatformService {
         break;
       case "header":
         if (credentials.authValue) {
-          const [headerName, ...valueParts] = credentials.authValue.split(":");
-          if (headerName && valueParts.length > 0) {
-            headers[headerName.trim()] = valueParts.join(":").trim();
+          const headerValidation = validateHeaderAuthValue(credentials.authValue);
+          if (!headerValidation.valid) {
+            return {
+              success: false,
+              error: {
+                type: "invalid_config",
+                message: headerValidation.error || "Invalid header auth value",
+                isRetryable: false,
+              },
+            };
+          }
+          if (headerValidation.headerName && headerValidation.headerValue !== undefined) {
+            headers[headerValidation.headerName] = headerValidation.headerValue;
           }
         }
         break;
@@ -517,6 +559,12 @@ export class WebhookPlatformService implements IPlatformService {
     }
     if (creds.authType && creds.authType !== "none" && !creds.authValue) {
       errors.push("Auth value is required for the selected auth type");
+    }
+    if (creds.authType === "header" && creds.authValue && typeof creds.authValue === "string") {
+      const headerValidation = validateHeaderAuthValue(creds.authValue);
+      if (!headerValidation.valid) {
+        errors.push(headerValidation.error || "Invalid header auth value");
+      }
     }
     if (creds.customHeaders && typeof creds.customHeaders !== "object") {
       errors.push("Custom headers must be an object");

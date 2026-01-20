@@ -4,7 +4,18 @@ import { isValidShopifyOrigin, isValidDevOrigin, isDevMode } from "../utils/orig
 
 
 const DEFAULT_CORS_OPTIONS: Required<CorsOptions> = {
-  origin: "*",
+  origin: (origin: string | null) => {
+    if (!origin || origin === "null") {
+      return null;
+    }
+    if (isValidShopifyOrigin(origin)) {
+      return origin;
+    }
+    if (isDevMode() && isValidDevOrigin(origin)) {
+      return origin;
+    }
+    return null;
+  },
   methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
   allowedHeaders: ["Content-Type", "Authorization", "X-Shopify-Shop-Domain"],
   exposedHeaders: [],
@@ -28,7 +39,11 @@ export function buildCorsHeaders(
       allowedOrigin = origin;
     }
   } else if (opts.origin === "*") {
-    allowedOrigin = "*";
+    if (isDevMode()) {
+      allowedOrigin = "*";
+    } else {
+      allowedOrigin = null;
+    }
   } else if (typeof opts.origin === "string") {
     allowedOrigin = opts.origin;
   }
