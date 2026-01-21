@@ -83,7 +83,25 @@ function processConfigFiles(targets, handler) {
     return updatedCount;
 }
 
+function loadEnv() {
+    const envPath = path.join(__dirname, "..", ".env");
+    if (!fs.existsSync(envPath)) return;
+    const content = fs.readFileSync(envPath, "utf-8");
+    for (const line of content.split(/\r?\n/)) {
+        const trimmed = line.trim();
+        if (!trimmed || trimmed.startsWith("#")) continue;
+        const m = trimmed.match(/^([^=]+)=(.*)$/);
+        if (!m) continue;
+        const key = m[1].trim();
+        let val = m[2].trim();
+        if ((val.startsWith('"') && val.endsWith('"')) || (val.startsWith("'") && val.endsWith("'"))) val = val.slice(1, -1);
+        if (key in process.env) continue;
+        process.env[key] = val;
+    }
+}
+
 function injectBackendUrl() {
+    loadEnv();
     const backendUrl = process.env.SHOPIFY_APP_URL;
     const isCI = process.env.CI === "true" || process.env.GITHUB_ACTIONS === "true" || process.env.RENDER === "true";
     if (!backendUrl) {
