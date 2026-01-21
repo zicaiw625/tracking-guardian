@@ -25,11 +25,11 @@ describe("validatePixelOriginPreBody", () => {
       expect(r.shouldReject).toBe(false);
     });
 
-    it("in dev with hasSignature: valid, null_origin_allowed (dev short-circuits before signature branch)", () => {
+    it("in dev with hasSignature: valid, null_origin_allowed_with_signature (signature branch takes precedence)", () => {
       process.env.NODE_ENV = "test";
       const r = validatePixelOriginPreBody("null", true, true);
       expect(r.valid).toBe(true);
-      expect(r.reason).toBe("null_origin_allowed");
+      expect(r.reason).toBe("null_origin_allowed_with_signature");
       expect(r.shouldReject).toBe(false);
     });
 

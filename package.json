@@ -18,6 +18,7 @@
     "db:deploy": "prisma migrate deploy",
     "db:studio": "prisma studio",
     "render-build": "pnpm generate && pnpm db:deploy && pnpm ext:inject && pnpm ext:validate && pnpm build",
+    "pretest": "prisma generate",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",

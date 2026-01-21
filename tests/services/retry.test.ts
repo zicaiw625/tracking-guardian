@@ -1,4 +1,11 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
+
+vi.mock("../../app/db.server", () => ({
+  default: {
+    conversionLog: { findUnique: vi.fn(), findMany: vi.fn(), update: vi.fn(), updateMany: vi.fn(), count: vi.fn() },
+  },
+}));
+
 import {
   platformErrorToFailureReason,
   classifyFailureReason,

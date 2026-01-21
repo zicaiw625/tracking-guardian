@@ -1,18 +1,13 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
-vi.mock("../../app/db.server", () => ({
-  default: {
-    shop: {
-      findUnique: vi.fn(),
-    },
-    uiExtensionSetting: {
-      findMany: vi.fn(),
-      findUnique: vi.fn(),
-      upsert: vi.fn(),
-      count: vi.fn(),
-    },
+const mockPrisma = vi.hoisted(() => ({
+  shop: {
+    findUnique: vi.fn(),
+    update: vi.fn(),
   },
 }));
+
+vi.mock("../../app/db.server", () => ({ default: mockPrisma }));
 
 vi.mock("../../app/utils/logger.server", () => ({
   logger: {
@@ -21,6 +16,10 @@ vi.mock("../../app/utils/logger.server", () => ({
     error: vi.fn(),
     debug: vi.fn(),
   },
+}));
+
+vi.mock("../../app/utils/version-gate", () => ({
+  isModuleAvailableInV1: vi.fn(() => true),
 }));
 
 import prisma from "../../app/db.server";
@@ -40,7 +39,8 @@ import {
 
 describe("UI Extension Service", () => {
   beforeEach(() => {
-    vi.clearAllMocks();
+    vi.mocked(prisma.shop.findUnique).mockReset();
+    vi.mocked(prisma.shop.update).mockReset();
   });
   describe("getDefaultSettings", () => {
     it("should return default settings for survey module", () => {
@@ -84,10 +84,9 @@ describe("UI Extension Service", () => {
   });
   describe("canUseModule", () => {
     it("should allow free plan to use starter modules", async () => {
-      vi.mocked(prisma.shop.findUnique).mockResolvedValue({
-        plan: "free",
-      } as any);
-      vi.mocked(prisma.uiExtensionSetting.count).mockResolvedValue(0);
+      vi.mocked(prisma.shop.findUnique)
+        .mockResolvedValueOnce({ plan: "free" } as any)
+        .mockResolvedValueOnce({ settings: { uiModules: {} } } as any);
       const result = await canUseModule("shop-1", "survey");
       expect(result).toBeDefined();
       expect(result).toHaveProperty("allowed");
@@ -95,18 +94,16 @@ describe("UI Extension Service", () => {
       expect(result).toHaveProperty("currentPlan");
     });
     it("should allow starter plan to use starter modules", async () => {
-      vi.mocked(prisma.shop.findUnique).mockResolvedValue({
-        plan: "starter",
-      } as any);
-      vi.mocked(prisma.uiExtensionSetting.count).mockResolvedValue(0);
+      vi.mocked(prisma.shop.findUnique)
+        .mockResolvedValueOnce({ plan: "starter" } as any)
+        .mockResolvedValueOnce({ settings: { uiModules: {} } } as any);
       const result = await canUseModule("shop-1", "survey");
       expect(result).toBeDefined();
     });
     it("should enforce module limit for starter plan", async () => {
-      vi.mocked(prisma.shop.findUnique).mockResolvedValue({
-        plan: "starter",
-      } as any);
-      vi.mocked(prisma.uiExtensionSetting.count).mockResolvedValue(1);
+      vi.mocked(prisma.shop.findUnique)
+        .mockResolvedValueOnce({ plan: "starter" } as any)
+        .mockResolvedValueOnce({ settings: { uiModules: { survey: { isEnabled: true } } } } as any);
       const result = await canUseModule("shop-1", "survey");
       expect(result.allowed).toBe(false);
       expect(result.reason).toBeDefined();
@@ -120,7 +117,7 @@ describe("UI Extension Service", () => {
   });
   describe("getUiModuleConfigs", () => {
     it("should return all module configs with defaults when none exist", async () => {
-      vi.mocked(prisma.uiExtensionSetting.findMany).mockResolvedValue([]);
+      vi.mocked(prisma.shop.findUnique).mockResolvedValue({ settings: {} } as any);
       const configs = await getUiModuleConfigs("shop-1");
       expect(configs).toBeDefined();
       expect(configs.length).toBe(MODULE_KEYS.length);
@@ -131,17 +128,17 @@ describe("UI Extension Service", () => {
       });
     });
     it("should merge existing settings with defaults", async () => {
-      const mockSettings = [
-        {
-          shopId: "shop-1",
-          moduleKey: "survey",
-          isEnabled: true,
-          settingsJson: { title: "Custom Title" },
-          displayRules: { enabled: true, targets: ["thank_you"] },
-          localization: null,
+      vi.mocked(prisma.shop.findUnique).mockResolvedValue({
+        settings: {
+          uiModules: {
+            survey: {
+              isEnabled: true,
+              settings: { title: "Custom Title" },
+              displayRules: { enabled: true, targets: ["thank_you"] },
+            },
+          },
         },
-      ];
-      vi.mocked(prisma.uiExtensionSetting.findMany).mockResolvedValue(mockSettings as any);
+      } as any);
       const configs = await getUiModuleConfigs("shop-1");
       const surveyConfig = configs.find((c) => c.moduleKey === "survey");
       expect(surveyConfig).toBeDefined();
@@ -151,7 +148,7 @@ describe("UI Extension Service", () => {
   });
   describe("getUiModuleConfig", () => {
     it("should return default config when module not configured", async () => {
-      vi.mocked(prisma.uiExtensionSetting.findUnique).mockResolvedValue(null);
+      vi.mocked(prisma.shop.findUnique).mockResolvedValue({ settings: {} } as any);
       const config = await getUiModuleConfig("shop-1", "survey");
       expect(config).toBeDefined();
       expect(config.moduleKey).toBe("survey");
@@ -159,15 +156,17 @@ describe("UI Extension Service", () => {
       expect(config.settings).toBeDefined();
     });
     it("should return existing config when module is configured", async () => {
-      const mockSetting = {
-        shopId: "shop-1",
-        moduleKey: "survey",
-        isEnabled: true,
-        settingsJson: { title: "Test Survey" },
-        displayRules: { enabled: true, targets: ["thank_you"] },
-        localization: null,
-      };
-      vi.mocked(prisma.uiExtensionSetting.findUnique).mockResolvedValue(mockSetting as any);
+      vi.mocked(prisma.shop.findUnique).mockResolvedValue({
+        settings: {
+          uiModules: {
+            survey: {
+              isEnabled: true,
+              settings: { title: "Test Survey" },
+              displayRules: { enabled: true, targets: ["thank_you"] },
+            },
+          },
+        },
+      } as any);
       const config = await getUiModuleConfig("shop-1", "survey");
       expect(config).toBeDefined();
       expect(config.moduleKey).toBe("survey");
@@ -177,27 +176,20 @@ describe("UI Extension Service", () => {
   });
   describe("updateUiModuleConfig", () => {
     it("should update module config successfully", async () => {
-      vi.mocked(prisma.shop.findUnique).mockResolvedValue({
-        plan: "starter",
-      } as any);
-      vi.mocked(prisma.uiExtensionSetting.count).mockResolvedValue(0);
-      vi.mocked(prisma.uiExtensionSetting.upsert).mockResolvedValue({
-        id: "setting-1",
-        shopId: "shop-1",
-        moduleKey: "survey",
-      } as any);
+      vi.mocked(prisma.shop.findUnique)
+        .mockResolvedValueOnce({ plan: "starter" } as any)
+        .mockResolvedValueOnce({ settings: { uiModules: {} } } as any)
+        .mockResolvedValueOnce({ settings: { uiModules: {} } } as any);
+      vi.mocked(prisma.shop.update).mockResolvedValue({} as any);
       const result = await updateUiModuleConfig("shop-1", "survey", {
         isEnabled: true,
         settings: { title: "New Title" },
       });
       expect(result.success).toBe(true);
-      expect(prisma.uiExtensionSetting.upsert).toHaveBeenCalled();
+      expect(prisma.shop.update).toHaveBeenCalled();
     });
     it("should reject when plan doesn't allow module", async () => {
-      vi.mocked(prisma.shop.findUnique).mockResolvedValue({
-        plan: "free",
-      } as any);
-      vi.mocked(prisma.uiExtensionSetting.count).mockResolvedValue(0);
+      vi.mocked(prisma.shop.findUnique).mockResolvedValue({ plan: "free" } as any);
       const result = await updateUiModuleConfig("shop-1", "survey", {
         isEnabled: true,
       });
@@ -205,13 +197,11 @@ describe("UI Extension Service", () => {
       expect(result.error).toBeDefined();
     });
     it("should handle errors gracefully", async () => {
-      vi.mocked(prisma.shop.findUnique).mockResolvedValue({
-        plan: "starter",
-      } as any);
-      vi.mocked(prisma.uiExtensionSetting.count).mockResolvedValue(0);
-      vi.mocked(prisma.uiExtensionSetting.upsert).mockRejectedValue(
-        new Error("Database error")
-      );
+      vi.mocked(prisma.shop.findUnique)
+        .mockResolvedValueOnce({ plan: "starter" } as any)
+        .mockResolvedValueOnce({ settings: { uiModules: {} } } as any)
+        .mockResolvedValueOnce({ settings: { uiModules: {} } } as any);
+      vi.mocked(prisma.shop.update).mockRejectedValue(new Error("Database error"));
       const result = await updateUiModuleConfig("shop-1", "survey", {
         isEnabled: true,
       });
@@ -221,11 +211,12 @@ describe("UI Extension Service", () => {
   });
   describe("batchToggleModules", () => {
     it("should toggle multiple modules", async () => {
-      vi.mocked(prisma.shop.findUnique).mockResolvedValue({
-        plan: "growth",
-      } as any);
-      vi.mocked(prisma.uiExtensionSetting.count).mockResolvedValue(0);
-      vi.mocked(prisma.uiExtensionSetting.upsert).mockResolvedValue({} as any);
+      vi.mocked(prisma.shop.findUnique)
+        .mockResolvedValueOnce({ plan: "growth" } as any)
+        .mockResolvedValueOnce({ settings: { uiModules: {} } } as any)
+        .mockResolvedValueOnce({ plan: "growth" } as any)
+        .mockResolvedValueOnce({ settings: { uiModules: {} } } as any);
+      vi.mocked(prisma.shop.update).mockResolvedValue({} as any);
       const result = await batchToggleModules("shop-1", [
         { moduleKey: "survey", isEnabled: true },
         { moduleKey: "helpdesk", isEnabled: false },
@@ -238,9 +229,10 @@ describe("UI Extension Service", () => {
     it("should handle partial failures", async () => {
       vi.mocked(prisma.shop.findUnique)
         .mockResolvedValueOnce({ plan: "growth" } as any)
-        .mockResolvedValueOnce({ plan: "free" } as any);
-      vi.mocked(prisma.uiExtensionSetting.count).mockResolvedValue(0);
-      vi.mocked(prisma.uiExtensionSetting.upsert).mockResolvedValue({} as any);
+        .mockResolvedValueOnce({ settings: { uiModules: {} } } as any)
+        .mockResolvedValueOnce({ plan: "free" } as any)
+        .mockResolvedValueOnce({ settings: { uiModules: {} } } as any);
+      vi.mocked(prisma.shop.update).mockResolvedValue({} as any);
       const result = await batchToggleModules("shop-1", [
         { moduleKey: "survey", isEnabled: true },
         { moduleKey: "helpdesk", isEnabled: true },
@@ -250,15 +242,15 @@ describe("UI Extension Service", () => {
   });
   describe("resetModuleToDefault", () => {
     it("should reset module to default settings", async () => {
-      vi.mocked(prisma.uiExtensionSetting.upsert).mockResolvedValue({} as any);
+      vi.mocked(prisma.shop.findUnique).mockResolvedValue({ settings: { uiModules: {} } } as any);
+      vi.mocked(prisma.shop.update).mockResolvedValue({} as any);
       const result = await resetModuleToDefault("shop-1", "survey");
       expect(result.success).toBe(true);
-      expect(prisma.uiExtensionSetting.upsert).toHaveBeenCalled();
+      expect(prisma.shop.update).toHaveBeenCalled();
     });
     it("should handle errors when resetting", async () => {
-      vi.mocked(prisma.uiExtensionSetting.upsert).mockRejectedValue(
-        new Error("Database error")
-      );
+      vi.mocked(prisma.shop.findUnique).mockResolvedValue({ settings: { uiModules: {} } } as any);
+      vi.mocked(prisma.shop.update).mockRejectedValue(new Error("Database error"));
       const result = await resetModuleToDefault("shop-1", "survey");
       expect(result.success).toBe(false);
       expect(result.error).toBeDefined();
@@ -266,34 +258,30 @@ describe("UI Extension Service", () => {
   });
   describe("getEnabledModulesCount", () => {
     it("should return count of enabled modules", async () => {
-      vi.mocked(prisma.uiExtensionSetting.count).mockResolvedValue(3);
+      vi.mocked(prisma.shop.findUnique).mockResolvedValue({
+        settings: {
+          uiModules: {
+            survey: { isEnabled: true },
+            helpdesk: { isEnabled: true },
+            order_tracking: { isEnabled: true },
+          },
+        },
+      } as any);
       const count = await getEnabledModulesCount("shop-1");
       expect(count).toBe(3);
-      expect(prisma.uiExtensionSetting.count).toHaveBeenCalledWith({
-        where: {
-          shopId: "shop-1",
-          isEnabled: true,
-        },
-      });
     });
   });
   describe("getModuleStats", () => {
     it("should return module statistics", async () => {
-      const mockSettings = [
-        {
-          moduleKey: "survey",
-          isEnabled: true,
+      vi.mocked(prisma.shop.findUnique).mockResolvedValue({
+        settings: {
+          uiModules: {
+            survey: { isEnabled: true },
+            helpdesk: { isEnabled: true },
+            reorder: { isEnabled: false },
+          },
         },
-        {
-          moduleKey: "helpdesk",
-          isEnabled: true,
-        },
-        {
-          moduleKey: "reorder",
-          isEnabled: false,
-        },
-      ];
-      vi.mocked(prisma.uiExtensionSetting.findMany).mockResolvedValue(mockSettings as any);
+      } as any);
       const stats = await getModuleStats("shop-1");
       expect(stats).toBeDefined();
       expect(stats.total).toBe(MODULE_KEYS.length);
@@ -301,7 +289,7 @@ describe("UI Extension Service", () => {
       expect(stats.byCategory).toBeDefined();
     });
     it("should handle empty settings", async () => {
-      vi.mocked(prisma.uiExtensionSetting.findMany).mockResolvedValue([]);
+      vi.mocked(prisma.shop.findUnique).mockResolvedValue({ settings: {} } as any);
       const stats = await getModuleStats("shop-1");
       expect(stats.enabled).toBe(0);
       expect(stats.total).toBe(MODULE_KEYS.length);

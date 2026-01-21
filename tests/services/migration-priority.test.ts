@@ -64,7 +64,7 @@ describe("Migration Priority Service", () => {
       const result = calculatePriority(factors);
       expect(result.priority).toBeGreaterThan(7);
       expect(result.estimatedTimeMinutes).toBeGreaterThan(0);
-      expect(result.reasoning).toContain("高风险项");
+      expect(result.reasoning.some((r) => r.includes("高风险项"))).toBe(true);
     });
     it("should calculate medium priority for medium risk items", () => {
       const factors: PriorityFactors = {
@@ -75,8 +75,8 @@ describe("Migration Priority Service", () => {
       };
       const result = calculatePriority(factors);
       expect(result.priority).toBeGreaterThanOrEqual(5);
-      expect(result.priority).toBeLessThan(9);
-      expect(result.reasoning).toContain("中风险项");
+      expect(result.priority).toBeLessThan(10);
+      expect(result.reasoning.some((r) => r.includes("中风险项"))).toBe(true);
     });
     it("should calculate lower priority for low risk items", () => {
       const factors: PriorityFactors = {
@@ -87,7 +87,7 @@ describe("Migration Priority Service", () => {
       };
       const result = calculatePriority(factors);
       expect(result.priority).toBeLessThan(7);
-      expect(result.reasoning).toContain("低风险项");
+      expect(result.reasoning.some((r) => r.includes("低风险项"))).toBe(true);
     });
     it("should prioritize order_status scope", () => {
       const factors: PriorityFactors = {

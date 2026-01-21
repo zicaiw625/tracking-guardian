@@ -107,6 +107,23 @@ export function validatePixelOriginPreBody(origin: string | null, hasSignatureHe
     const allowNullOrigin = shouldAllowNullOrigin();
 
     if (origin === "null") {
+        if (hasSignatureHeaderOrHMAC) {
+            return {
+                valid: true,
+                reason: "null_origin_allowed_with_signature",
+                shouldLog: true,
+                shouldReject: false,
+            };
+        }
+        const v = process.env.PIXEL_ALLOW_NULL_ORIGIN_WITH_SIGNATURE_ONLY?.toLowerCase().trim();
+        if (v === "false" || v === "0") {
+            return {
+                valid: false,
+                reason: "null_origin_blocked",
+                shouldLog: true,
+                shouldReject: true,
+            };
+        }
         if (devMode) {
             return {
                 valid: true,
@@ -121,14 +138,6 @@ export function validatePixelOriginPreBody(origin: string | null, hasSignatureHe
                 reason: "null_origin_blocked",
                 shouldLog: true,
                 shouldReject: true,
-            };
-        }
-        if (hasSignatureHeaderOrHMAC) {
-            return {
-                valid: true,
-                reason: "null_origin_allowed_with_signature",
-                shouldLog: true,
-                shouldReject: false,
             };
         }
         return {

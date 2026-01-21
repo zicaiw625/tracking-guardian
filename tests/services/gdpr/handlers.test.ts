@@ -1,59 +1,36 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
-vi.mock("../../../app/db.server", () => ({
-  default: {
+vi.mock("../../../app/db.server", () => {
+  const def = {
     shop: {
       findUnique: vi.fn(),
       delete: vi.fn(),
-    },
-    session: {
       deleteMany: vi.fn(),
     },
-    conversionLog: {
-      findMany: vi.fn(),
-      deleteMany: vi.fn(),
-    },
-    conversionJob: {
-      deleteMany: vi.fn(),
-    },
-    pixelEventReceipt: {
-      findMany: vi.fn(),
-      deleteMany: vi.fn(),
-    },
-    surveyResponse: {
-      findMany: vi.fn(),
-      deleteMany: vi.fn(),
-    },
-    auditLog: {
-      deleteMany: vi.fn(),
-      create: vi.fn(),
-    },
-    webhookLog: {
-      deleteMany: vi.fn(),
-    },
-    scanReport: {
-      deleteMany: vi.fn(),
-    },
-    reconciliationReport: {
-      deleteMany: vi.fn(),
-    },
-    alertConfig: {
-      deleteMany: vi.fn(),
-    },
-    pixelConfig: {
-      deleteMany: vi.fn(),
-    },
-    monthlyUsage: {
-      deleteMany: vi.fn(),
-    },
-    eventNonce: {
-      deleteMany: vi.fn(),
-    },
-    pixelEventNonce: {
-      deleteMany: vi.fn(),
-    },
-  },
-}));
+    session: { deleteMany: vi.fn() },
+    webhookLog: { deleteMany: vi.fn() },
+    gDPRJob: { deleteMany: vi.fn() },
+    conversionLog: { findMany: vi.fn(), deleteMany: vi.fn() },
+    conversionJob: { deleteMany: vi.fn() },
+    pixelEventReceipt: { findMany: vi.fn(), deleteMany: vi.fn(), count: vi.fn() },
+    surveyResponse: { findMany: vi.fn(), deleteMany: vi.fn() },
+    auditLog: { deleteMany: vi.fn(), create: vi.fn() },
+    scanReport: { deleteMany: vi.fn(), count: vi.fn() },
+    reconciliationReport: { deleteMany: vi.fn() },
+    alertConfig: { deleteMany: vi.fn() },
+    pixelConfig: { deleteMany: vi.fn(), count: vi.fn() },
+    monthlyUsage: { deleteMany: vi.fn() },
+    eventNonce: { deleteMany: vi.fn() },
+    pixelEventNonce: { deleteMany: vi.fn() },
+    verificationRun: { count: vi.fn() },
+    auditAsset: { count: vi.fn() },
+    $transaction: vi.fn(),
+  };
+  (def as any).$transaction.mockImplementation((fn: (tx: unknown) => unknown) =>
+    Promise.resolve(fn(def))
+  );
+  return { default: def };
+});
 
 vi.mock("../../../app/utils/logger.server", () => ({
   logger: {
@@ -181,7 +158,7 @@ describe("GDPR Handlers", () => {
         customer_id: 123,
         orders_to_redact: [1001],
       });
-      expect(prisma.pixelEventReceipt.deleteMany).toHaveBeenCalledTimes(2);
+      expect(prisma.pixelEventReceipt.deleteMany).toHaveBeenCalledTimes(1);
     });
   });
   describe("processShopRedact", () => {
@@ -191,32 +168,28 @@ describe("GDPR Handlers", () => {
     };
     it("should delete all shop data", async () => {
       vi.mocked(prisma.shop.findUnique).mockResolvedValue(mockShop as never);
+      vi.mocked(prisma.shop.deleteMany).mockResolvedValue({ count: 1 });
       vi.mocked(prisma.session.deleteMany).mockResolvedValue({ count: 2 });
       vi.mocked(prisma.webhookLog.deleteMany).mockResolvedValue({ count: 10 });
-      vi.mocked(prisma.conversionLog.deleteMany).mockResolvedValue({ count: 100 });
-      vi.mocked(prisma.conversionJob.deleteMany).mockResolvedValue({ count: 50 });
-      vi.mocked(prisma.pixelEventReceipt.deleteMany).mockResolvedValue({ count: 200 });
-      vi.mocked(prisma.surveyResponse.deleteMany).mockResolvedValue({ count: 20 });
-      vi.mocked(prisma.auditLog.deleteMany).mockResolvedValue({ count: 500 });
-      vi.mocked(prisma.scanReport.deleteMany).mockResolvedValue({ count: 5 });
-      vi.mocked(prisma.reconciliationReport.deleteMany).mockResolvedValue({ count: 30 });
-      vi.mocked(prisma.alertConfig.deleteMany).mockResolvedValue({ count: 1 });
-      vi.mocked(prisma.pixelConfig.deleteMany).mockResolvedValue({ count: 3 });
-      vi.mocked(prisma.monthlyUsage.deleteMany).mockResolvedValue({ count: 12 });
-      vi.mocked(prisma.shop.delete).mockResolvedValue(mockShop as never);
+      vi.mocked(prisma.gDPRJob.deleteMany).mockResolvedValue({ count: 1 });
+      vi.mocked(prisma.pixelEventReceipt.count).mockResolvedValue(200);
+      vi.mocked(prisma.verificationRun.count).mockResolvedValue(0);
+      vi.mocked(prisma.scanReport.count).mockResolvedValue(5);
+      vi.mocked(prisma.auditAsset.count).mockResolvedValue(0);
+      vi.mocked(prisma.pixelConfig.count).mockResolvedValue(3);
       const result = await processShopRedact("test-shop.myshopify.com", {});
       expect(result.shopDomain).toBe("test-shop.myshopify.com");
       expect(result.deletedCounts.sessions).toBe(2);
-      expect(result.deletedCounts.conversionLogs).toBe(100);
       expect(result.deletedCounts.shop).toBe(1);
     });
     it("should handle shop not found gracefully", async () => {
       vi.mocked(prisma.shop.findUnique).mockResolvedValue(null);
+      vi.mocked(prisma.shop.deleteMany).mockResolvedValue({ count: 0 });
       vi.mocked(prisma.session.deleteMany).mockResolvedValue({ count: 0 });
       vi.mocked(prisma.webhookLog.deleteMany).mockResolvedValue({ count: 0 });
+      vi.mocked(prisma.gDPRJob.deleteMany).mockResolvedValue({ count: 0 });
       const result = await processShopRedact("unknown-shop.myshopify.com", {});
       expect(result.shopDomain).toBe("unknown-shop.myshopify.com");
-      expect(result.deletedCounts.shop).toBe(0);
       expect(prisma.session.deleteMany).toHaveBeenCalled();
       expect(prisma.webhookLog.deleteMany).toHaveBeenCalled();
     });

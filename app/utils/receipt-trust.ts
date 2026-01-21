@@ -12,7 +12,7 @@ export function buildShopAllowedDomains(myshopifyDomain: string, primaryDomain?:
 }
 export type TrustLevel = "trusted" | "partial" | "untrusted";
 
-export type UntrustedReason = "missing_checkout_token" | "checkout_token_mismatch" | "missing_origin" | "invalid_origin" | "timestamp_mismatch" | "receipt_too_old" | "time_skew_exceeded" | "hmac_signature_invalid" | "order_not_found" | "receipt_not_found";
+export type UntrustedReason = "missing_checkout_token" | "checkout_token_mismatch" | "missing_origin" | "invalid_origin" | "timestamp_mismatch" | "receipt_too_old" | "time_skew_exceeded" | "hmac_signature_invalid" | "ingestion_key_invalid" | "order_not_found" | "receipt_not_found";
 export interface ReceiptTrustResult {
     trusted: boolean;
     level: TrustLevel;
@@ -62,7 +62,11 @@ export function verifyReceiptTrust(options: VerifyReceiptOptions): ReceiptTrustR
                 details: "HMAC signature validation failed in strict mode",
             };
         }
-        logger.debug("Ingestion key signal missing or invalid for receipt trust evaluation");
+        return {
+            trusted: false,
+            level: "untrusted",
+            reason: "ingestion_key_invalid",
+        };
     }
     if (!receiptCheckoutToken) {
         return {

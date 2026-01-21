@@ -24,6 +24,7 @@ export interface ConsentState {
   marketing?: boolean;
   analytics?: boolean;
   saleOfDataAllowed?: boolean;
+  saleOfData?: boolean;
 }
 
 export interface PixelEventData {

@@ -13,8 +13,18 @@ vi.mock("../../app/db.server", () => ({
     },
     pixelEventReceipt: {
       findMany: vi.fn(),
+      findFirst: vi.fn(),
     },
     pixelConfig: {
+      findMany: vi.fn(),
+    },
+    shop: {
+      findUnique: vi.fn(),
+    },
+    scanReport: {
+      findFirst: vi.fn(),
+    },
+    eventLog: {
       findMany: vi.fn(),
     },
   },
@@ -78,22 +88,24 @@ describe("Verification Service", () => {
       vi.mocked(prisma.verificationRun.create).mockResolvedValue(mockRun as any);
       const runId = await createVerificationRun("shop-1", {});
       expect(runId).toBe("run-1");
-      expect(prisma.verificationRun.create).toHaveBeenCalledWith({
-        data: {
-          shopId: "shop-1",
-          runName: "验收测试",
-          runType: "quick",
-          status: "pending",
-          platforms: [],
-          summaryJson: {
-            totalTests: 0,
-            passedTests: 0,
-            failedTests: 0,
-            missingParamTests: 0,
-          },
-          eventsJson: [],
-        },
-      });
+      expect(prisma.verificationRun.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            shopId: "shop-1",
+            runName: "验收测试",
+            runType: "quick",
+            status: "pending",
+            platforms: [],
+            summaryJson: {
+              totalTests: 0,
+              passedTests: 0,
+              failedTests: 0,
+              missingParamTests: 0,
+            },
+            eventsJson: [],
+          }),
+        })
+      );
     });
     it("should use configured platforms when none provided", async () => {
       const mockRun = {
@@ -218,41 +230,30 @@ describe("Verification Service", () => {
         summaryJson: {},
         eventsJson: [],
       };
-      const mockConversionLogs = [
+      const mockReceipts = [
         {
-          id: "log-1",
-          orderId: "order-1",
-          orderNumber: "1001",
-          orderValue: 100.0,
-          currency: "USD",
-          platform: "google",
+          id: "rec-1",
           eventType: "purchase",
-          status: "sent",
-          eventId: "event-1",
-          sentAt: new Date(),
+          orderKey: "order-1",
+          pixelTimestamp: new Date(),
           createdAt: new Date(),
-        },
-        {
-          id: "log-2",
-          orderId: "order-2",
-          orderNumber: "1002",
-          orderValue: 200.0,
-          currency: "USD",
-          platform: "meta",
-          eventType: "purchase",
-          status: "failed",
-          errorMessage: "API error",
-          createdAt: new Date(),
+          payloadJson: { platform: "google", data: { value: 100, currency: "USD" }, eventId: "evt-1" },
         },
       ];
       vi.mocked(prisma.verificationRun.findUnique).mockResolvedValue(mockRun as any);
-      vi.mocked(prisma.conversionLog.findMany).mockResolvedValue(mockConversionLogs as any);
-      vi.mocked(prisma.pixelEventReceipt.findMany).mockResolvedValue([]);
+      vi.mocked(prisma.pixelEventReceipt.findMany).mockResolvedValue(mockReceipts as any);
+      vi.mocked(prisma.pixelEventReceipt.findFirst).mockResolvedValue(null);
+      vi.mocked(prisma.eventLog.findMany).mockResolvedValue([]);
       vi.mocked(prisma.verificationRun.update).mockResolvedValue({
         ...mockRun,
         status: "completed",
         completedAt: new Date(),
       } as any);
+      vi.mocked(prisma.shop.findUnique)
+        .mockResolvedValueOnce({ shopDomain: "test-shop.myshopify.com" } as any)
+        .mockResolvedValueOnce({ plan: "free" } as any);
+      vi.mocked(prisma.pixelConfig.findMany).mockResolvedValue([]);
+      vi.mocked(prisma.scanReport.findFirst).mockResolvedValue(null);
       const result = await analyzeRecentEvents("shop-1", "run-1", {});
       expect(result).toBeDefined();
       expect(result.status).toBe("completed");
@@ -270,35 +271,37 @@ describe("Verification Service", () => {
         summaryJson: {},
         eventsJson: [],
       };
-      const mockConversionLogs = [
+      const mockReceipts = [
         {
-          id: "log-1",
-          orderId: "order-1",
-          orderValue: null,
-          currency: "USD",
-          platform: "google",
+          id: "rec-1",
           eventType: "purchase",
-          status: "sent",
+          orderKey: "order-1",
+          pixelTimestamp: new Date(),
           createdAt: new Date(),
+          payloadJson: { platform: "google", data: { currency: "USD" } },
         },
         {
-          id: "log-2",
-          orderId: "order-2",
-          orderValue: 100.0,
-          currency: null,
-          platform: "google",
+          id: "rec-2",
           eventType: "purchase",
-          status: "sent",
+          orderKey: "order-2",
+          pixelTimestamp: new Date(),
           createdAt: new Date(),
+          payloadJson: { platform: "google", data: { value: 100 } },
         },
       ];
       vi.mocked(prisma.verificationRun.findUnique).mockResolvedValue(mockRun as any);
-      vi.mocked(prisma.conversionLog.findMany).mockResolvedValue(mockConversionLogs as any);
-      vi.mocked(prisma.pixelEventReceipt.findMany).mockResolvedValue([]);
+      vi.mocked(prisma.pixelEventReceipt.findMany).mockResolvedValue(mockReceipts as any);
+      vi.mocked(prisma.pixelEventReceipt.findFirst).mockResolvedValue(null);
+      vi.mocked(prisma.eventLog.findMany).mockResolvedValue([]);
       vi.mocked(prisma.verificationRun.update).mockResolvedValue({
         ...mockRun,
         status: "completed",
       } as any);
+      vi.mocked(prisma.shop.findUnique)
+        .mockResolvedValueOnce({ shopDomain: "test-shop.myshopify.com" } as any)
+        .mockResolvedValueOnce({ plan: "free" } as any);
+      vi.mocked(prisma.pixelConfig.findMany).mockResolvedValue([]);
+      vi.mocked(prisma.scanReport.findFirst).mockResolvedValue(null);
       const result = await analyzeRecentEvents("shop-1", "run-1", {});
       expect(result.missingParamTests).toBe(2);
       expect(result.passedTests).toBe(0);
@@ -349,11 +352,13 @@ describe("Verification Service", () => {
       expect(history[0].totalTests).toBe(5);
       expect(history[1].runId).toBe("run-2");
       expect(history[1].totalTests).toBe(10);
-      expect(prisma.verificationRun.findMany).toHaveBeenCalledWith({
-        where: { shopId: "shop-1" },
-        orderBy: { createdAt: "desc" },
-        take: 10,
-      });
+      expect(prisma.verificationRun.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { shopId: "shop-1" },
+          orderBy: { createdAt: "desc" },
+          take: 10,
+        })
+      );
     });
   });
   describe("generateTestOrderGuide", () => {

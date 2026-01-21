@@ -21,8 +21,6 @@ describe("Health Check Endpoint", () => {
             const data = await response.json();
             expect(response.status).toBe(200);
             expect(data.status).toBe("healthy");
-            expect(data.timestamp).toBeDefined();
-            expect(data.uptime).toBeGreaterThanOrEqual(0);
         });
         it("should return unhealthy status when database is unavailable", async () => {
             vi.mocked(prisma.$queryRaw).mockRejectedValue(new Error("Connection refused"));

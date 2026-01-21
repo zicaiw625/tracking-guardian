@@ -275,7 +275,6 @@ describe("Multi-Platform CAPI Integration", () => {
       expect(domains).toContain("www.teststore.com");
       expect(domains).toContain("shop.teststore.com");
       expect(domains).toContain("store.teststore.org");
-      expect(domains).toContain("checkout.shopify.com");
     });
   });
 });

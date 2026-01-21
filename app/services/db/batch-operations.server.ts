@@ -1,6 +1,6 @@
 import { randomUUID } from "crypto";
 import { getDb } from "../../container";
-import { Prisma } from "@prisma/client";
+import type { Prisma } from "@prisma/client";
 import { JobStatus } from "../../types";
 import { logger } from "../../utils/logger.server";
 import { toInputJsonValue } from "../../utils/prisma-json";

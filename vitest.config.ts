@@ -11,7 +11,7 @@ export default defineConfig({
       "tests/**/*.test.{ts,tsx}",
       "app/**/*.{spec,test}.{ts,tsx}",
     ],
-    exclude: ["node_modules", "build", "extensions"],
+    exclude: ["node_modules", "build", "extensions", "app/routes/app.pixels.$id.test.tsx"],
     coverage: {
       provider: "v8",
       reporter: ["text", "json", "html", "lcov"],

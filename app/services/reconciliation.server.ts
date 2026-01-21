@@ -347,7 +347,34 @@ export async function getReconciliationHistory(shopId: string, days: number = 30
     const cutoffDate = new Date();
     cutoffDate.setUTCDate(cutoffDate.getUTCDate() - days);
     cutoffDate.setUTCHours(0, 0, 0, 0);
-    return [];
+    const rows = await prisma.reconciliationReport.findMany({
+        where: { shopId, reportDate: { gte: cutoffDate } },
+        orderBy: { reportDate: "desc" },
+        select: {
+            id: true,
+            platform: true,
+            reportDate: true,
+            shopifyOrders: true,
+            shopifyRevenue: true,
+            platformConversions: true,
+            platformRevenue: true,
+            orderDiscrepancy: true,
+            revenueDiscrepancy: true,
+            alertSent: true,
+        },
+    });
+    return rows.map((r) => ({
+        id: r.id,
+        platform: r.platform,
+        reportDate: r.reportDate,
+        shopifyOrders: r.shopifyOrders,
+        shopifyRevenue: Number(r.shopifyRevenue),
+        platformConversions: r.platformConversions,
+        platformRevenue: Number(r.platformRevenue),
+        orderDiscrepancy: r.orderDiscrepancy,
+        revenueDiscrepancy: r.revenueDiscrepancy,
+        alertSent: r.alertSent,
+    }));
 }
 export async function getReconciliationSummary(shopId: string, days: number = 30): Promise<ReconciliationSummary> {
     const history = await getReconciliationHistory(shopId, days);

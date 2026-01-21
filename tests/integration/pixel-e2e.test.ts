@@ -93,12 +93,12 @@ describe("Web Pixel E2E Flow", () => {
     it("should accept valid pixel event from myshopify.com origin", () => {
       const result = validatePixelOriginPreBody("https://test-shop.myshopify.com");
       expect(result.valid).toBe(true);
-      expect(result.reason).toBe("https_shopify_origin");
+      expect(result.reason).toBe("https_allowed_origin");
     });
     it("should accept valid pixel event from allowed origin", () => {
       const result = validatePixelOriginPreBody("https://test-store.myshopify.com");
       expect(result.valid).toBe(true);
-      expect(result.reason).toBe("https_shopify_origin");
+      expect(result.reason).toBe("https_allowed_origin");
     });
     it("should validate origin against shop's allowed domains", () => {
       const allowedDomains = buildShopAllowedDomains({
@@ -107,7 +107,7 @@ describe("Web Pixel E2E Flow", () => {
         storefrontDomains: mockShop.storefrontDomains,
       });
       const shopifyResult = validatePixelOriginForShop(
-        "https://test-shop.myshopify.com",
+        "https://test-store.myshopify.com",
         allowedDomains
       );
       expect(shopifyResult.valid).toBe(true);

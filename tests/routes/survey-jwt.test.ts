@@ -1,5 +1,12 @@
+import "./survey-jwt-env";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { createHmac } from "crypto";
+
+vi.mock("@shopify/shopify-app-session-storage-prisma", () => ({
+  PrismaSessionStorage: class {
+    constructor(_prisma: unknown) {}
+  },
+}));
 
 vi.mock("../../app/db.server", () => ({
   default: {
@@ -29,6 +36,11 @@ vi.mock("../../app/utils/rate-limiter", () => ({
     "X-Content-Type-Options": "nosniff",
     "X-Frame-Options": "DENY",
   },
+}));
+
+vi.mock("../../app/services/ui-extension.server", () => ({
+  canUseModule: vi.fn().mockResolvedValue({ allowed: true }),
+  getUiModuleConfigs: vi.fn().mockResolvedValue([{ moduleKey: "survey", isEnabled: true }]),
 }));
 
 import prisma from "../../app/db.server";
@@ -203,7 +215,7 @@ describe("P1-4: Survey API JWT Verification", () => {
     });
     it("returns 401 for JWT with invalid issuer", async () => {
       const badIssuerToken = generateMockJwt({
-        iss: "https://test-shop.myshopify.com/admin",
+        iss: "https://wrong.example.com/admin",
         dest: "https://test-shop.myshopify.com",
       });
       const request = new Request("https://example.com/api/survey", {
@@ -352,6 +364,7 @@ describe("P1-4: Survey API JWT Verification", () => {
         },
         body: JSON.stringify({
           orderId: "12345",
+          rating: 5,
         }),
       });
       const response = await action({ request, params: {}, context: {} });

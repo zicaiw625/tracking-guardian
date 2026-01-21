@@ -25,6 +25,10 @@ vi.mock("../../../app/utils/logger.server", () => ({
   },
 }));
 
+vi.mock("../../../app/utils/redirect-validation.server", () => ({
+  assertSafeRedirect: vi.fn().mockReturnValue({ valid: true }),
+}));
+
 import prisma from "../../../app/db.server";
 import {
   createSubscription,
@@ -46,7 +50,7 @@ describe("Subscription Service", () => {
   });
   describe("createSubscription", () => {
     it("should create subscription for starter plan", async () => {
-      const mockResponse = {
+      const mockAppSubscriptionCreate = {
         json: vi.fn().mockResolvedValue({
           data: {
             appSubscriptionCreate: {
@@ -61,7 +65,9 @@ describe("Subscription Service", () => {
           },
         }),
       };
-      (mockAdmin.graphql as ReturnType<typeof vi.fn>).mockResolvedValue(mockResponse);
+      (mockAdmin.graphql as ReturnType<typeof vi.fn>)
+        .mockResolvedValueOnce({ json: async () => ({ data: { shop: { currencyCode: "USD" } } }) })
+        .mockResolvedValueOnce(mockAppSubscriptionCreate);
       vi.mocked(prisma.shop.findUnique).mockResolvedValue({ id: "shop-1" } as any);
       const result = await createSubscription(
         mockAdmin,
@@ -85,7 +91,7 @@ describe("Subscription Service", () => {
       expect(mockAdmin.graphql).not.toHaveBeenCalled();
     });
     it("should handle Shopify API errors", async () => {
-      const mockResponse = {
+      const mockAppSubscriptionCreate = {
         json: vi.fn().mockResolvedValue({
           data: {
             appSubscriptionCreate: {
@@ -98,7 +104,9 @@ describe("Subscription Service", () => {
           },
         }),
       };
-      (mockAdmin.graphql as ReturnType<typeof vi.fn>).mockResolvedValue(mockResponse);
+      (mockAdmin.graphql as ReturnType<typeof vi.fn>)
+        .mockResolvedValueOnce({ json: async () => ({ data: { shop: { currencyCode: "USD" } } }) })
+        .mockResolvedValueOnce(mockAppSubscriptionCreate);
       const result = await createSubscription(
         mockAdmin,
         "test-store.myshopify.com",
@@ -122,7 +130,7 @@ describe("Subscription Service", () => {
       expect(result.error).toBe("Network error");
     });
     it("should use correct plan pricing", async () => {
-      const mockResponse = {
+      const mockAppSubscriptionCreate = {
         json: vi.fn().mockResolvedValue({
           data: {
             appSubscriptionCreate: {
@@ -133,7 +141,9 @@ describe("Subscription Service", () => {
           },
         }),
       };
-      (mockAdmin.graphql as ReturnType<typeof vi.fn>).mockResolvedValue(mockResponse);
+      (mockAdmin.graphql as ReturnType<typeof vi.fn>)
+        .mockResolvedValueOnce({ json: async () => ({ data: { shop: { currencyCode: "USD" } } }) })
+        .mockResolvedValueOnce(mockAppSubscriptionCreate);
       vi.mocked(prisma.shop.findUnique).mockResolvedValue({ id: "shop-1" } as any);
       await createSubscription(
         mockAdmin,
