@@ -19,6 +19,7 @@ export interface PixelEventPayload {
     marketing?: boolean;
     analytics?: boolean;
     saleOfDataAllowed?: boolean;
+    saleOfData?: boolean;
   };
   data: {
     orderId?: string | null;
