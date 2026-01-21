@@ -7,7 +7,6 @@ import { validatePixelOriginPreBody, validatePixelOriginForShop, buildShopAllowe
 import { generateEventIdForType, generateOrderMatchKey, isClientEventRecorded, createEventNonce, upsertPixelEventReceipt } from "~/lib/pixel-events/receipt-handler";
 import { checkInitialConsent, filterPlatformsByConsent, logConsentFilterMetrics } from "~/lib/pixel-events/consent-filter";
 import { API_CONFIG, isStrictSecurityMode } from "~/utils/config.server";
-import { isDevMode } from "~/utils/origin-validation";
 import { hashValueSync } from "~/utils/crypto.server";
 import { logger, metrics } from "~/utils/logger.server";
 import { trackAnomaly } from "~/utils/rate-limiter";

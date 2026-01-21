@@ -10,7 +10,7 @@ import { hashValueSync } from "~/utils/crypto.server";
 import { trackAnomaly } from "~/utils/rate-limiter";
 import { getShopForPixelVerificationWithConfigs } from "~/lib/pixel-events/key-validation";
 import type { KeyValidationResult, PixelEventPayload } from "~/lib/pixel-events/types";
-import { validateRequest, isPrimaryEvent } from "~/lib/pixel-events/validation";
+import { validateRequest } from "~/lib/pixel-events/validation";
 import { validatePixelEventHMAC } from "~/lib/pixel-events/hmac-validation";
 import { verifyWithGraceWindowAsync } from "~/utils/shop-access";
 import { validateEvents, normalizeEvents, deduplicateEvents, distributeEvents } from "~/lib/pixel-events/ingest-pipeline.server";

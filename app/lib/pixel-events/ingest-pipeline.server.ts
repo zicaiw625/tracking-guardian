@@ -39,7 +39,7 @@ export interface ProcessedEvent extends DeduplicatedEvent {
 export function validateEvents(
   events: unknown[],
   shopDomain: string,
-  timestamp: number
+  _timestamp: number
 ): Array<{ payload: PixelEventPayload; index: number }> {
   const validated: Array<{ payload: PixelEventPayload; index: number }> = [];
   const now = Date.now();

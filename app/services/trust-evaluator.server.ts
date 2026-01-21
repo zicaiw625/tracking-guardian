@@ -11,7 +11,6 @@ import {
   PLATFORM_CONSENT_CONFIG,
   type ConsentState,
 } from '../utils/platform-consent';
-import { parseConsentState } from '../types';
 import type { TrustVerificationOptions } from '../types/consent';
 import type { ReceiptFields } from './receipt-matcher.server';
 import { logger } from '../utils/logger.server';
