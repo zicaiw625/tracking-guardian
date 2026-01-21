@@ -135,7 +135,7 @@ export const BILLING_PLANS = {
     includesReconciliation: true,
     includesAgency: true,
     includesReportExport: true,
-    tagline: "多店管理与团队协作（批量交付）",
+    tagline: "多店/白标/团队即将推出 (v1.1)，其余能力可用",
     features: [
       "多店铺 Workspace 管理（最多 50 店）*Coming soon (v1.1)",
       "批量 Audit 扫描 *Coming soon (v1.1)",

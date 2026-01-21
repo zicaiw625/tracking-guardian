@@ -55,14 +55,14 @@ export function AuditPaywallCard({ planId }: AuditPaywallCardProps) {
         },
         {
           label: "升级解锁：",
-          text: `${agencyPlan.name} 多店管理 + 白标报告 + 批量交付`,
+          text: `多店/白标/批量即将在 v1.1 推出；${agencyPlan.name} 当前已含无限像素、全部模块、验收报告导出与 SLA`,
         },
       ];
     }
     return [
       {
         label: "已解锁：",
-        text: `${agencyPlan.name} 多店管理 + 白标报告 + 批量交付`,
+        text: `多店/白标/批量即将在 v1.1 推出；当前已含无限像素、全部模块、验收报告导出与 SLA`,
       },
       {
         label: "需要协助：",

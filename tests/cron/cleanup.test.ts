@@ -46,6 +46,14 @@ vi.mock("../../app/db.server", () => ({
       findMany: vi.fn(),
       deleteMany: vi.fn(),
     },
+    deliveryAttempt: {
+      findMany: vi.fn(),
+      deleteMany: vi.fn(),
+    },
+    eventLog: {
+      findMany: vi.fn(),
+      deleteMany: vi.fn(),
+    },
   },
 }));
 
@@ -119,6 +127,8 @@ describe("Cleanup Task", () => {
       (prisma.webhookLog.findMany as ReturnType<typeof vi.fn>).mockResolvedValue([]);
       (prisma.reconciliationReport.findMany as ReturnType<typeof vi.fn>).mockResolvedValue([]);
       (prisma.scanReport.findMany as ReturnType<typeof vi.fn>).mockResolvedValue([]);
+      (prisma.deliveryAttempt.findMany as ReturnType<typeof vi.fn>).mockResolvedValue([]);
+      (prisma.eventLog.findMany as ReturnType<typeof vi.fn>).mockResolvedValue([]);
       const result = await cleanupExpiredData();
       expect(result.shopsProcessed).toBe(2);
       expect(prisma.shop.findMany).toHaveBeenCalledWith({
@@ -148,6 +158,8 @@ describe("Cleanup Task", () => {
       (prisma.webhookLog.findMany as ReturnType<typeof vi.fn>).mockResolvedValue([]);
       (prisma.reconciliationReport.findMany as ReturnType<typeof vi.fn>).mockResolvedValue([]);
       (prisma.scanReport.findMany as ReturnType<typeof vi.fn>).mockResolvedValue([]);
+      (prisma.deliveryAttempt.findMany as ReturnType<typeof vi.fn>).mockResolvedValue([]);
+      (prisma.eventLog.findMany as ReturnType<typeof vi.fn>).mockResolvedValue([]);
       const result = await cleanupExpiredData();
       expect(result.conversionLogsDeleted).toBe(2);
       expect(prisma.conversionLog.deleteMany).toHaveBeenCalledWith({
@@ -165,6 +177,8 @@ describe("Cleanup Task", () => {
       (prisma.webhookLog.findMany as ReturnType<typeof vi.fn>).mockResolvedValue([]);
       (prisma.reconciliationReport.findMany as ReturnType<typeof vi.fn>).mockResolvedValue([]);
       (prisma.scanReport.findMany as ReturnType<typeof vi.fn>).mockResolvedValue([]);
+      (prisma.deliveryAttempt.findMany as ReturnType<typeof vi.fn>).mockResolvedValue([]);
+      (prisma.eventLog.findMany as ReturnType<typeof vi.fn>).mockResolvedValue([]);
       await cleanupExpiredData();
       expect(prisma.auditLog.findMany).toHaveBeenCalled();
       const auditLogCall = (prisma.auditLog.findMany as ReturnType<typeof vi.fn>).mock.calls[0][0];
@@ -186,6 +200,8 @@ describe("Cleanup Task", () => {
       (prisma.reconciliationReport.findMany as ReturnType<typeof vi.fn>).mockResolvedValue([]);
       (prisma.scanReport.findMany as ReturnType<typeof vi.fn>).mockResolvedValue(oldScanReports);
       (prisma.scanReport.deleteMany as ReturnType<typeof vi.fn>).mockResolvedValue({ count: 2 });
+      (prisma.deliveryAttempt.findMany as ReturnType<typeof vi.fn>).mockResolvedValue([]);
+      (prisma.eventLog.findMany as ReturnType<typeof vi.fn>).mockResolvedValue([]);
       const result = await cleanupExpiredData();
       expect(result.scanReportsDeleted).toBe(2);
       expect(prisma.scanReport.findMany).toHaveBeenCalled();
@@ -193,6 +209,37 @@ describe("Cleanup Task", () => {
       expect(scanReportCall.where.shopId).toBe("shop1");
       expect(scanReportCall.where.createdAt).toBeDefined();
       expect(scanReportCall.select).toEqual({ id: true });
+    });
+    it("should batch delete delivery attempts and event logs", async () => {
+      const mockShops = [{ id: "shop1", shopDomain: "shop1.myshopify.com", dataRetentionDays: 90 }];
+      const oldDeliveryAttempts = [{ id: "da1" }, { id: "da2" }];
+      const oldEventLogs = [{ id: "el1" }, { id: "el2" }];
+      (prisma.shop.findMany as ReturnType<typeof vi.fn>).mockResolvedValue(mockShops);
+      (prisma.conversionLog.findMany as ReturnType<typeof vi.fn>).mockResolvedValue([]);
+      (prisma.surveyResponse.findMany as ReturnType<typeof vi.fn>).mockResolvedValue([]);
+      (prisma.auditLog.findMany as ReturnType<typeof vi.fn>).mockResolvedValue([]);
+      (prisma.conversionJob.findMany as ReturnType<typeof vi.fn>).mockResolvedValue([]);
+      (prisma.pixelEventReceipt.findMany as ReturnType<typeof vi.fn>).mockResolvedValue([]);
+      (prisma.webhookLog.findMany as ReturnType<typeof vi.fn>).mockResolvedValue([]);
+      (prisma.reconciliationReport.findMany as ReturnType<typeof vi.fn>).mockResolvedValue([]);
+      (prisma.scanReport.findMany as ReturnType<typeof vi.fn>).mockResolvedValue([]);
+      (prisma.deliveryAttempt.findMany as ReturnType<typeof vi.fn>)
+        .mockResolvedValueOnce(oldDeliveryAttempts)
+        .mockResolvedValue([]);
+      (prisma.deliveryAttempt.deleteMany as ReturnType<typeof vi.fn>).mockResolvedValue({ count: 2 });
+      (prisma.eventLog.findMany as ReturnType<typeof vi.fn>)
+        .mockResolvedValueOnce(oldEventLogs)
+        .mockResolvedValue([]);
+      (prisma.eventLog.deleteMany as ReturnType<typeof vi.fn>).mockResolvedValue({ count: 2 });
+      const result = await cleanupExpiredData();
+      expect(result.deliveryAttemptsDeleted).toBe(2);
+      expect(result.eventLogsDeleted).toBe(2);
+      expect(prisma.deliveryAttempt.deleteMany).toHaveBeenCalledWith({
+        where: { id: { in: ["da1", "da2"] } },
+      });
+      expect(prisma.eventLog.deleteMany).toHaveBeenCalledWith({
+        where: { id: { in: ["el1", "el2"] } },
+      });
     });
   });
 });

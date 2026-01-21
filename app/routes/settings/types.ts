@@ -62,6 +62,7 @@ export interface SettingsLoaderData {
   tokenIssues: TokenIssues;
   pcdApproved?: boolean;
   pcdStatusMessage?: string;
+  pixelStrictOrigin?: boolean;
   currentMonitoringData?: {
     failureRate: number;
     missingParamsRate: number;

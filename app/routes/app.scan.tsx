@@ -922,12 +922,12 @@ export function ScanPage({
             {isProOrAbove && !isAgency && (
               <List type="bullet">
                 <List.Item>已解锁多渠道像素 + 事件对账 + TY/OS 高级组件</List.Item>
-                <List.Item>如需多店铺协作/白标报告，可升级至 Agency</List.Item>
+                <List.Item>多店铺、白标、团队协作即将在 v1.1 推出，可升级至 Agency 以在发布后使用</List.Item>
               </List>
             )}
             {isAgency && (
               <List type="bullet">
-                <List.Item>已解锁多店铺、协作与白标报告</List.Item>
+                <List.Item>多店铺、白标、团队协作即将在 v1.1 推出；当前已解锁无限像素、全部模块、验收报告导出与 SLA</List.Item>
                 <List.Item>如需迁移托管，可在支持渠道提交工单</List.Item>
               </List>
             )}

@@ -101,16 +101,14 @@ export default function WorkspacePage() {
               <Divider />
               <BlockStack gap="300">
                 <Text as="h3" variant="headingSm">
-                  Agency 套餐包含：
+                  Agency 套餐
+                </Text>
+                <Text as="p" variant="bodySm" tone="subdued">
+                  多店铺、批量、白标、团队协作即将在 v1.1 推出；当前已包含：
                 </Text>
                 <List type="bullet">
-                  <List.Item>多店铺 workspace 管理（最多 50 店）</List.Item>
-                  <List.Item>批量 Audit 扫描</List.Item>
-                  <List.Item>批量应用像素模板</List.Item>
-                  <List.Item>团队协作（Owner/Admin/Viewer 权限）</List.Item>
-                  <List.Item>白标报告支持</List.Item>
-                  <List.Item>专属客户成功经理</List.Item>
-                  <List.Item>SLA 保障</List.Item>
+                  <List.Item>无限像素、全部模块、验收报告导出</List.Item>
+                  <List.Item>专属客户成功经理、SLA 保障</List.Item>
                   <List.Item>每月 100,000 笔订单追踪</List.Item>
                 </List>
               </BlockStack>

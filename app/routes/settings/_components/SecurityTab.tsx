@@ -30,6 +30,7 @@ interface SecurityTabProps {
   shop: ShopData | null;
   isSubmitting: boolean;
   onRotateSecret: () => void;
+  pixelStrictOrigin?: boolean;
   hmacSecurityStats?: {
     lastRotationAt: Date | string | null;
     rotationCount: number;
@@ -47,6 +48,7 @@ export function SecurityTab({
   shop,
   isSubmitting,
   onRotateSecret,
+  pixelStrictOrigin,
   hmacSecurityStats,
 }: SecurityTabProps) {
   const submit = useSubmit();
@@ -148,6 +150,30 @@ export function SecurityTab({
                     {shop?.hasIngestionSecret ? "更换令牌" : "生成令牌"}
                   </Button>
                 </InlineStack>
+              </Box>
+              <Box
+                background="bg-surface-secondary"
+                padding="300"
+                borderRadius="200"
+              >
+                <BlockStack gap="100">
+                  <Text as="span" fontWeight="semibold">
+                    事件接收校验模式
+                  </Text>
+                  <InlineStack gap="200" blockAlign="center">
+                    <Badge tone={pixelStrictOrigin ? "success" : "warning"}>
+                      {pixelStrictOrigin ? "严格" : "宽松"}
+                    </Badge>
+                    <Text as="span" variant="bodySm" tone="subdued">
+                      {pixelStrictOrigin ? "Origin 必须过白名单" : "非白名单/HMAC 失败仍可能被接收"}
+                    </Text>
+                  </InlineStack>
+                  {!pixelStrictOrigin && (
+                    <Text as="p" variant="bodySm" tone="caution">
+                      来自非白名单来源或 HMAC 验证失败但未被拒绝的请求仍可能被接收并标为低信任，影响验收报告准确性。若需更高准确性，建议在部署环境设置 <code>PIXEL_STRICT_ORIGIN=true</code> 并配置好 Origin 白名单。
+                    </Text>
+                  )}
+                </BlockStack>
               </Box>
               {shop?.hasActiveGraceWindow && shop.graceWindowExpiry && (
                 <Banner tone="warning">

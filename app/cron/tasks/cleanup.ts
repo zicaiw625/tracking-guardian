@@ -24,6 +24,8 @@ export interface CleanupResult {
   webhookLogsDeleted: number;
   reconciliationReportsDeleted: number;
   scanReportsDeleted: number;
+  eventLogsDeleted: number;
+  deliveryAttemptsDeleted: number;
   uninstalledShopsDeleted: number;
 }
 
@@ -62,6 +64,8 @@ export async function cleanupExpiredData(): Promise<CleanupResult> {
     webhookLogsDeleted: 0,
     reconciliationReportsDeleted: 0,
     scanReportsDeleted: 0,
+    eventLogsDeleted: 0,
+    deliveryAttemptsDeleted: 0,
     uninstalledShopsDeleted: 0,
   };
 
@@ -408,6 +412,74 @@ export async function cleanupExpiredData(): Promise<CleanupResult> {
         );
       } catch (error) {
         logger.error("Failed to cleanup scan reports", { shopId: shop.id, error });
+      }
+
+      try {
+        result.deliveryAttemptsDeleted += await deleteInBatches(
+          (cursor) =>
+            prisma.deliveryAttempt.findMany({
+              where: {
+                shopId: shop.id,
+                createdAt: {
+                  lt: cutoffDate,
+                },
+              },
+              select: {
+                id: true,
+              },
+              orderBy: {
+                id: "asc",
+              },
+              take: CLEANUP_BATCH_SIZE,
+              ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
+            }),
+          async (ids) => {
+            const deleteResult = await prisma.deliveryAttempt.deleteMany({
+              where: {
+                id: {
+                  in: ids,
+                },
+              },
+            });
+            return deleteResult.count;
+          }
+        );
+      } catch (error) {
+        logger.error("Failed to cleanup delivery attempts", { shopId: shop.id, error });
+      }
+
+      try {
+        result.eventLogsDeleted += await deleteInBatches(
+          (cursor) =>
+            prisma.eventLog.findMany({
+              where: {
+                shopId: shop.id,
+                createdAt: {
+                  lt: cutoffDate,
+                },
+              },
+              select: {
+                id: true,
+              },
+              orderBy: {
+                id: "asc",
+              },
+              take: CLEANUP_BATCH_SIZE,
+              ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
+            }),
+          async (ids) => {
+            const deleteResult = await prisma.eventLog.deleteMany({
+              where: {
+                id: {
+                  in: ids,
+                },
+              },
+            });
+            return deleteResult.count;
+          }
+        );
+      } catch (error) {
+        logger.error("Failed to cleanup event logs", { shopId: shop.id, error });
       }
     }
   } catch (error) {

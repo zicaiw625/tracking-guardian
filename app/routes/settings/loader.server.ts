@@ -188,6 +188,9 @@ export async function settingsLoader({ request }: LoaderFunctionArgs) {
         logger.error("Failed to get HMAC security stats", { error });
       }
     }
+    const pixelStrictOrigin = ["true", "1", "yes"].includes(
+      (process.env.PIXEL_STRICT_ORIGIN ?? "").toLowerCase().trim()
+    );
     const data: SettingsLoaderData = {
       shop: shop
         ? {
@@ -210,6 +213,7 @@ export async function settingsLoader({ request }: LoaderFunctionArgs) {
       tokenIssues,
       pcdApproved: false,
       pcdStatusMessage: "我们不收集终端客户 PII；read_orders 仅用于对账验收且字段最小化；再购等需 PCD 审批后启用。",
+      pixelStrictOrigin,
       currentMonitoringData,
       hmacSecurityStats,
     };

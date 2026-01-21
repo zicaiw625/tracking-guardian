@@ -82,6 +82,9 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     },
   });
   if (!shop) {
+    const pixelStrictOrigin = ["true", "1", "yes"].includes(
+      (process.env.PIXEL_STRICT_ORIGIN ?? "").toLowerCase().trim()
+    );
     return json({
       shop: null,
       configuredPlatforms: [],
@@ -94,6 +97,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       canExportReports: false,
       gateResult: undefined,
       currentPlan: "free" as PlanId,
+      pixelStrictOrigin,
     });
   }
   const planId = normalizePlanId(shop.plan || "free") as PlanId;
@@ -104,6 +108,9 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   const history = await getVerificationHistory(shop.id, 5);
   const latestRun = history?.[0] ?? null;
   const testChecklist = generateTestChecklist(shop.id, "quick");
+  const pixelStrictOrigin = ["true", "1", "yes"].includes(
+    (process.env.PIXEL_STRICT_ORIGIN ?? "").toLowerCase().trim()
+  );
   return json({
     shop: { id: shop.id, domain: shopDomain },
     configuredPlatforms,
@@ -116,6 +123,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     canExportReports,
     gateResult: gateResult.allowed ? undefined : gateResult,
     currentPlan: planId,
+    pixelStrictOrigin,
   });
 };
 
@@ -292,7 +300,7 @@ function ScoreCard({
 
 export default function VerificationPage() {
   const loaderData = useLoaderData<typeof loader>();
-  const { shop, configuredPlatforms, history, latestRun, testGuide, testItems, testChecklist, canAccessVerification, canExportReports, currentPlan } = loaderData;
+  const { shop, configuredPlatforms, history, latestRun, testGuide, testItems, testChecklist, canAccessVerification, canExportReports, currentPlan, pixelStrictOrigin } = loaderData;
   const gateResult = ("gateResult" in loaderData && loaderData.gateResult) as FeatureGateResult | undefined;
   const shopDomain = shop?.domain || "";
   const actionData = useActionData<typeof action>();
@@ -1392,6 +1400,18 @@ export default function VerificationPage() {
                   </InlineStack>
                   {latestRun && latestRun.results.length > 0 ? (
                     <>
+                      {!pixelStrictOrigin && (
+                        <Banner tone="warning">
+                          <BlockStack gap="200">
+                            <Text as="p" variant="bodySm" fontWeight="semibold">
+                              事件接收校验：当前为宽松的 Origin 校验
+                            </Text>
+                            <Text as="p" variant="bodySm">
+                              来自非白名单来源或 HMAC 验证失败但未被拒绝的请求仍可能被接收并标为低信任，验收报告中的事件可能包含此类数据。若需更高准确性，建议在部署环境设置 <code>PIXEL_STRICT_ORIGIN=true</code> 并配置好 Origin 白名单。
+                            </Text>
+                          </BlockStack>
+                        </Banner>
+                      )}
                       <Banner tone="warning">
                         <BlockStack gap="200">
                           <Text as="p" variant="bodySm" fontWeight="semibold">

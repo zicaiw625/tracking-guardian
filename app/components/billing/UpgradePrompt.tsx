@@ -40,7 +40,7 @@ export function UpgradePrompt({
       verification: "验收功能",
       alerts: "告警功能",
       reconciliation: "事件对账",
-      agency: "Agency 多店功能",
+      agency: "Agency 多店功能（v1.1 即将推出）",
       pixel_destinations: "更多像素目的地",
       ui_modules: "更多 UI 模块",
     };

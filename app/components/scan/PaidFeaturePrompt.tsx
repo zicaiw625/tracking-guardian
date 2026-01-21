@@ -26,15 +26,15 @@ const FEATURE_INFO: Record<
   },
   batch_audit: {
     name: "批量 Audit 扫描",
-    description: "同时扫描多个店铺，生成统一报告",
+    description: "同时扫描多个店铺，生成统一报告（v1.1 即将推出）",
     requiredPlan: "agency",
-    cta: "升级到 Agency 解锁批量功能",
+    cta: "批量功能 v1.1 即将推出，升级至 Agency 以在发布后使用",
   },
   export_report: {
     name: "报告导出",
     description: "导出 PDF/CSV 格式的迁移报告",
-    requiredPlan: "agency",
-    cta: "升级到 Agency 解锁导出功能",
+    requiredPlan: "growth",
+    cta: "升级到 Growth 或 Agency 解锁导出功能",
   },
   verification: {
     name: "验收测试",
