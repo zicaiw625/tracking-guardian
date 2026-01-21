@@ -3,6 +3,7 @@ import { checkPixelDestinationsLimit, checkUiModulesLimit, checkMultiShopLimit }
 import { normalizePlanId, type PlanId } from "../services/billing/plans";
 import prisma from "../db.server";
 import { json, redirect } from "@remix-run/node";
+import { isSafeRedirectPath } from "../utils/redirect-validation.server";
 import { logger } from "../utils/logger.server";
 
 export interface PlanLimitConfig {
@@ -42,8 +43,8 @@ export function withPlanLimit(config: PlanLimitConfig): Middleware {
       }
       if (!limitResult.allowed) {
         if (config.redirectTo) {
-          if (!config.redirectTo.startsWith("/")) {
-            throw new Error("redirectTo must be a relative path");
+          if (!isSafeRedirectPath(config.redirectTo)) {
+            throw new Error("redirectTo must be a safe relative path");
           }
           const redirectUrl = new URL(config.redirectTo, request.url).toString();
           return { continue: false, response: redirect(redirectUrl) };

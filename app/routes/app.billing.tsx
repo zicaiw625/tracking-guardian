@@ -10,6 +10,7 @@ import prisma from "../db.server";
 import { createSubscription, getSubscriptionStatus, cancelSubscription, checkOrderLimit, handleSubscriptionConfirmation, getBillingHistory, type BillingHistoryItem, type PlanId } from "../services/billing.server";
 import { getUsageHistory } from "../services/billing/usage-history.server";
 
+import { assertSafeRedirect } from "../utils/redirect-validation.server";
 import { logger } from "../utils/logger.server";
 import { trackEvent } from "../services/analytics.server";
 import { safeFireAndForget } from "../utils/helpers.server";
