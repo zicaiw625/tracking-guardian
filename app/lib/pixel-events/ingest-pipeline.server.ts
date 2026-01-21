@@ -329,7 +329,9 @@ export async function distributeEvents(
           primaryPlatform || null,
           event.orderId || null,
           event.altOrderKey,
-          destinations.length > 0
+          destinations.length > 0,
+          keyValidation.trustLevel,
+          keyValidation.matched
         );
       } catch (error) {
         const orderIdHash = event.orderId ? hashValueSync(event.orderId).slice(0, 12) : null;

@@ -199,8 +199,10 @@ export const PRESET_TEMPLATES: PixelTemplate[] = [
   },
 ];
 
+const V1_TEMPLATE_IDS = new Set(["ga4-basic", "meta-basic", "tiktok-basic", "multi-platform", "all-platforms"]);
+
 export function getTemplates(): PixelTemplate[] {
-  return PRESET_TEMPLATES;
+  return PRESET_TEMPLATES.filter((t) => V1_TEMPLATE_IDS.has(t.id));
 }
 
 export function getTemplateById(id: string): PixelTemplate | null {
@@ -208,7 +210,7 @@ export function getTemplateById(id: string): PixelTemplate | null {
 }
 
 export function getTemplatesByPlatform(platform: string): PixelTemplate[] {
-  return PRESET_TEMPLATES.filter(t => t.platforms.includes(platform));
+  return PRESET_TEMPLATES.filter((t) => V1_TEMPLATE_IDS.has(t.id) && t.platforms.includes(platform));
 }
 
 export function validateTemplateConfig(

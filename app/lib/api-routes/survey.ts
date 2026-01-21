@@ -5,11 +5,10 @@ import { withRateLimit, pathShopKeyExtractor, type RateLimitedHandler, checkRate
 import prisma from "../../db.server";
 import { randomUUID } from "crypto";
 import { canUseModule, getUiModuleConfigs } from "../../services/ui-extension.server";
-import { handlePublicPreflight, addSecurityHeaders } from "../../utils/public-auth";
+import { authenticatePublic, normalizeDestToShopDomain, handlePublicPreflight, addSecurityHeaders } from "../../utils/public-auth";
 import { makeOrderKey, hashValueSync } from "../../utils/crypto.server";
 import { readJsonWithSizeLimit } from "../../utils/body-size-guard";
 import { containsSensitiveInfo, sanitizeSensitiveInfo } from "../../utils/security";
-import { verifyShopifyJwt, getShopifyApiSecret, extractAuthToken } from "../../utils/shopify-jwt.server";
 import { getDynamicCorsHeaders } from "../../utils/cors";
 
 export const action = async ({ request }: ActionFunctionArgs) => {
@@ -29,44 +28,30 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   if (!/^application\/json($|;)/.test(ct)) {
     return wrap(json({ error: "Content-Type must be application/json" }, { status: 415 }));
   }
-  const auth = extractAuthToken(request);
-  if (!auth) {
-    return wrap(json({ error: "Missing authentication token" }, { status: 401 }));
+  let authResult;
+  try {
+    authResult = await authenticatePublic(request);
+  } catch {
+    return wrap(json({ error: "Unauthorized: Invalid authentication" }, { status: 401 }));
   }
-  const token = auth.replace(/^Bearer\s+/i, "").trim();
-  if (!token) {
-    return wrap(json({ error: "Missing authentication token" }, { status: 401 }));
-  }
-  const shopDomainHeader = request.headers.get("X-Shopify-Shop-Domain");
-  if (!shopDomainHeader || !shopDomainHeader.trim()) {
-    return wrap(json({ error: "Missing shop domain" }, { status: 400 }));
-  }
-  const domain = shopDomainHeader.trim().toLowerCase();
-  if (!domain.endsWith(".myshopify.com") && domain !== "myshopify.com") {
-    return wrap(json({ error: "Invalid shop domain format" }, { status: 400 }));
-  }
-  const jwtResult = await verifyShopifyJwt(token, getShopifyApiSecret(), domain);
-  if (!jwtResult.valid) {
-    const err = jwtResult.error || "";
-    let msg = "Unauthorized: Invalid authentication";
-    if (/expired/.test(err)) msg = "expired";
-    else if (/not yet valid|nbf/i.test(err)) msg = "not yet valid";
-    else if (/signature|Signature/.test(err)) msg = "Invalid signature";
-    else if (/Issuer/.test(err)) msg = "Invalid issuer";
-    else if (/Shop domain mismatch/.test(err)) msg = "Shop domain mismatch";
-    return wrap(json({ error: msg }, { status: 401 }));
-  }
-  const shopDomain = jwtResult.shopDomain!;
+  const shopDomain = normalizeDestToShopDomain(authResult.sessionToken.dest);
+  const postWrap = (r: Response) => {
+    const c = getDynamicCorsHeaders(request, ["Authorization"]);
+    const h = new Headers(r.headers);
+    Object.entries(c).forEach(([k, v]) => { if (v) h.set(k, v); });
+    return addSecurityHeaders(new Response(r.body, { status: r.status, statusText: r.statusText, headers: h }));
+  };
+  const wrapCors = (r: Response) => postWrap(authResult.cors(r));
   const shop = await prisma.shop.findUnique({
     where: { shopDomain },
     select: { id: true, isActive: true },
   });
   if (!shop) {
     logger.warn(`Survey submission for unknown shop: ${shopDomain}`);
-    return wrap(json({ error: "Shop not found" }, { status: 404 }));
+    return wrapCors(json({ error: "Shop not found" }, { status: 404 }));
   }
   if (shop.isActive === false) {
-    return wrap(json({ error: "Shop is not active" }, { status: 403 }));
+    return wrapCors(json({ error: "Shop is not active" }, { status: 403 }));
   }
   const moduleCheck = await canUseModule(shop.id, "survey");
   if (!moduleCheck.allowed) {
@@ -75,13 +60,13 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       currentPlan: moduleCheck.currentPlan,
       requiredPlan: moduleCheck.requiredPlan,
     });
-    return wrap(json({ error: "Module not available", reason: moduleCheck.reason }, { status: 403 }));
+    return wrapCors(json({ error: "Module not available", reason: moduleCheck.reason }, { status: 403 }));
   }
   const modules = await getUiModuleConfigs(shop.id);
   const surveyModule = modules.find((m) => m.moduleKey === "survey");
   if (!surveyModule || !surveyModule.isEnabled) {
     logger.warn(`Survey module not enabled for shop ${shopDomain}`);
-    return wrap(json({ error: "Survey module is not enabled" }, { status: 403 }));
+    return wrapCors(json({ error: "Survey module is not enabled" }, { status: 403 }));
   }
   const rateLimitKey = `survey:${shopDomain}`;
   const rateLimitResult = await checkRateLimitAsync(rateLimitKey, 100, 60 * 1000);
@@ -93,7 +78,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     if (rateLimitResult.retryAfter) {
       headers.set("Retry-After", String(rateLimitResult.retryAfter));
     }
-    return wrap(json(
+    return wrapCors(json(
       { error: "Too many survey requests", retryAfter: rateLimitResult.retryAfter },
       { status: 429, headers }
     ));
@@ -101,25 +86,25 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   try {
     const body = await readJsonWithSizeLimit(request);
     if (!body || typeof body !== "object") {
-      return wrap(json({ error: "Invalid request body" }, { status: 400 }));
+      return wrapCors(json({ error: "Invalid request body" }, { status: 400 }));
     }
     const raw = body as { option?: string; rating?: number | string; timestamp?: string; orderId?: string | null; checkoutToken?: string | null };
     const option = raw.option ?? (raw.rating != null ? String(raw.rating) : undefined);
     const { timestamp, orderId, checkoutToken } = raw;
     if (!option) {
-      return wrap(json({ error: "Missing survey option" }, { status: 400 }));
+      return wrapCors(json({ error: "Missing survey option" }, { status: 400 }));
     }
     const trimmed = option.trim();
     if (trimmed.length === 0 || trimmed.length > 200) {
-      return wrap(json({ error: "Invalid option length" }, { status: 400 }));
+      return wrapCors(json({ error: "Invalid option length" }, { status: 400 }));
     }
     if (containsSensitiveInfo(trimmed)) {
-      return wrap(json({ error: "Option contains sensitive info" }, { status: 400 }));
+      return wrapCors(json({ error: "Option contains sensitive info" }, { status: 400 }));
     }
     const safeOption = sanitizeSensitiveInfo(trimmed);
     const orderKey = makeOrderKey({ orderId, checkoutToken });
     if (!orderKey) {
-      return wrap(json({ error: "Order context required (orderId or checkoutToken). Unavailable when PCD is not approved." }, { status: 400 }));
+      return wrapCors(json({ error: "Order context required (orderId or checkoutToken). Unavailable when PCD is not approved." }, { status: 400 }));
     }
     if (orderId) {
       const orderIdHash = hashValueSync(orderId).slice(0, 12);
@@ -130,10 +115,10 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     }
     const finalOrderId = orderKey;
     if (timestamp !== undefined && timestamp !== null && typeof timestamp !== "string") {
-      return wrap(json({ error: "Invalid timestamp" }, { status: 400 }));
+      return wrapCors(json({ error: "Invalid timestamp" }, { status: 400 }));
     }
     if (timestamp != null && timestamp !== "" && Number.isNaN(new Date(timestamp).getTime())) {
-      return wrap(json({ error: "Invalid timestamp" }, { status: 400 }));
+      return wrapCors(json({ error: "Invalid timestamp" }, { status: 400 }));
     }
     const existing = await prisma.surveyResponse.findFirst({
       where: { shopId: shop.id, orderId: finalOrderId },
@@ -144,7 +129,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         data: { feedback: safeOption },
       });
       logger.info("Survey response received", { shopDomain });
-      return wrap(json({ success: true, message: "Survey response updated", id: existing.id }));
+      return wrapCors(json({ success: true, message: "Survey response updated", id: existing.id }));
     }
     const created = await prisma.surveyResponse.create({
       data: {
@@ -157,12 +142,12 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       },
     });
     logger.info("Survey response received", { shopDomain });
-    return wrap(json({ success: true, message: "Survey response recorded", id: created.id }));
+    return wrapCors(json({ success: true, message: "Survey response recorded", id: created.id }));
   } catch (error) {
     logger.error("Failed to process survey submission", {
       error: error instanceof Error ? error.message : String(error),
     });
-    return wrap(json({ error: "Internal server error" }, { status: 500 }));
+    return wrapCors(json({ error: "Internal server error" }, { status: 500 }));
   }
 };
 

@@ -108,7 +108,7 @@ function getAllTestItems(): TestChecklistItem[] {
       description: "完成一个包含单个商品的标准订单，验证 purchase 事件触发",
       eventType: "purchase",
       required: true,
-      platforms: ["google", "meta", "tiktok", "pinterest"],
+      platforms: ["google", "meta", "tiktok"],
       steps: [
         "1. 前往商店首页",
         "2. 选择一个商品加入购物车",
@@ -136,7 +136,7 @@ function getAllTestItems(): TestChecklistItem[] {
       description: "完成一个包含多个不同商品的订单，验证 items 数组完整性",
       eventType: "purchase",
       required: false,
-      platforms: ["google", "meta", "tiktok", "pinterest"],
+      platforms: ["google", "meta", "tiktok"],
       steps: [
         "1. 前往商店首页",
         "2. 选择 2-3 个不同商品加入购物车",

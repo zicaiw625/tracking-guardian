@@ -48,7 +48,6 @@ export interface ShopSettingsData {
   hasActiveGraceWindow: boolean;
   hasExpiredPreviousSecret: boolean;
   graceWindowExpiry: Date | null;
-  weakConsentMode: boolean;
   consentStrategy: string;
   dataRetentionDays: number;
 }

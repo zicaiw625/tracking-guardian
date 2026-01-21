@@ -24,7 +24,6 @@ export async function settingsLoader({ request }: LoaderFunctionArgs) {
           ingestionSecret: true,
           previousIngestionSecret: true,
           previousSecretExpiry: true,
-          weakConsentMode: true,
           consentStrategy: true,
           dataRetentionDays: true,
           settings: true,
@@ -57,7 +56,6 @@ export async function settingsLoader({ request }: LoaderFunctionArgs) {
               ingestionSecret: true,
               previousIngestionSecret: true,
               previousSecretExpiry: true,
-              weakConsentMode: true,
               consentStrategy: true,
               dataRetentionDays: true,
               pixelConfigs: {
@@ -205,7 +203,6 @@ export async function settingsLoader({ request }: LoaderFunctionArgs) {
             graceWindowExpiry: hasActiveGraceWindow && shop.previousSecretExpiry
               ? shop.previousSecretExpiry
               : null,
-            weakConsentMode: shop.weakConsentMode,
             consentStrategy: shop.consentStrategy || "strict",
             dataRetentionDays: shop.dataRetentionDays,
           }

@@ -461,7 +461,9 @@ export async function validateEvents(
           primaryPlatform || null,
           orderId || null,
           altOrderKey,
-          destinations.length > 0
+          destinations.length > 0,
+          keyValidation.trustLevel,
+          keyValidation.matched
         );
       } catch (error) {
         const orderIdHash = orderId ? hashValueSync(orderId).slice(0, 12) : null;

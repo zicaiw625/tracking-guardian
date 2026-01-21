@@ -25,7 +25,7 @@ export const VERIFICATION_TEST_ITEMS: VerificationTestItem[] = [
     description: "完成一个包含单个商品的标准订单，验证 purchase 事件触发",
     eventType: "purchase",
     required: true,
-    platforms: ["google", "meta", "tiktok", "pinterest"],
+    platforms: ["google", "meta", "tiktok"],
   },
   {
     id: "purchase_multi",
@@ -33,7 +33,7 @@ export const VERIFICATION_TEST_ITEMS: VerificationTestItem[] = [
     description: "完成一个包含多个不同商品的订单，验证 items 数组完整性",
     eventType: "purchase",
     required: false,
-    platforms: ["google", "meta", "tiktok", "pinterest"],
+    platforms: ["google", "meta", "tiktok"],
   },
   {
     id: "purchase_discount",
@@ -41,7 +41,7 @@ export const VERIFICATION_TEST_ITEMS: VerificationTestItem[] = [
     description: "使用折扣码完成订单，验证最终金额（原价 - 折扣）计算正确",
     eventType: "purchase",
     required: false,
-    platforms: ["google", "meta", "tiktok", "pinterest"],
+    platforms: ["google", "meta", "tiktok"],
   },
   {
     id: "purchase_shipping",

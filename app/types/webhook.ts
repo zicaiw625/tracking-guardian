@@ -24,7 +24,6 @@ export interface ShopData {
   plan: string;
   monthlyOrderLimit: number;
   isActive: boolean;
-  weakConsentMode?: boolean;
   consentStrategy?: string;
 }
 

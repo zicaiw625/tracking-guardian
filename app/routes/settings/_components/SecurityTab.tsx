@@ -22,7 +22,6 @@ interface ShopData {
   hasActiveGraceWindow: boolean;
   graceWindowExpiry: Date | string | null;
   hasExpiredPreviousSecret: boolean;
-  weakConsentMode: boolean;
   consentStrategy: string;
   dataRetentionDays: number;
 }

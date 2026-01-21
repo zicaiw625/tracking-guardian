@@ -11,7 +11,11 @@ import type { PixelEventPayload, KeyValidationResult } from "./types";
 import { generateCanonicalEventId } from "../../services/event-normalizer.server";
 import { getRedisClient } from "../../utils/redis-client";
 
-function buildMinimalPayloadForReceipt(payload: PixelEventPayload): Record<string, unknown> {
+function buildMinimalPayloadForReceipt(
+  payload: PixelEventPayload,
+  trustLevel?: string,
+  hmacMatched?: boolean
+): Record<string, unknown> {
   const items = (payload.data?.items ?? [])
     .slice(0, 50)
     .map((i) => ({
@@ -26,6 +30,8 @@ function buildMinimalPayloadForReceipt(payload: PixelEventPayload): Record<strin
       items,
     },
     eventName: payload.eventName,
+    trustLevel: trustLevel ?? "untrusted",
+    hmacMatched: hmacMatched ?? false,
   };
 }
 
@@ -109,7 +115,9 @@ export async function upsertPixelEventReceipt(
   platform?: string | null,
   orderKey?: string | null,
   altOrderKey?: string | null,
-  storePayload: boolean = true
+  storePayload: boolean = true,
+  trustLevel?: string,
+  hmacMatched?: boolean
 ): Promise<ReceiptCreateResult> {
   const originHost = extractOriginHost(origin);
   const payloadData = payload?.data as Record<string, unknown> | undefined;
@@ -121,7 +129,7 @@ export async function upsertPixelEventReceipt(
         const { sanitizePII } = await import("../../services/event-log.server");
         payloadToStore = sanitizePII(payload) as unknown as Record<string, unknown>;
       } else {
-        payloadToStore = buildMinimalPayloadForReceipt(payload);
+        payloadToStore = buildMinimalPayloadForReceipt(payload, trustLevel, hmacMatched);
       }
     }
     await prisma.pixelEventReceipt.upsert({

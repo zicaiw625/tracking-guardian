@@ -580,9 +580,14 @@ function ModuleCard({
         </InlineStack>
         <InlineStack gap="100">
           {info.targets.map((target) => (
-            <Tag key={target}>
-              {target === "thank_you" ? "Thank You 页" : "Order Status 页（仅 Customer Accounts 体系）"}
-            </Tag>
+            <InlineStack key={target} gap="100" blockAlign="center">
+              <Tag>
+                {target === "thank_you" ? "Thank You 页" : "Order Status 页（仅 Customer Accounts 体系）"}
+              </Tag>
+              {target === "order_status" && (
+                <Badge tone="attention">仅 Customer Accounts 生效</Badge>
+              )}
+            </InlineStack>
           ))}
           <Tag>{getCategoryLabel(info.category)}</Tag>
         </InlineStack>
