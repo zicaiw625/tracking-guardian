@@ -24,7 +24,7 @@ export function checkInitialConsent(consent: ConsentState | undefined): ConsentC
   const hasAnalyticsConsent = consent?.analytics === true;
   const saleOfDataAllowed = (consent?.saleOfDataAllowed === true) || (consent?.saleOfData === true);
   return {
-    hasAnyConsent: hasAnalyticsConsent,
+    hasAnyConsent: hasAnalyticsConsent || hasMarketingConsent,
     hasMarketingConsent,
     hasAnalyticsConsent,
     saleOfDataAllowed,

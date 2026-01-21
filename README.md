@@ -57,7 +57,7 @@
 ### (C) 付费：Thank you / Order status 模块库（v1 包含 3 个核心模块）
 - **Post-purchase Survey（购后问卷）**：收集客户反馈，了解获客渠道（官方示例场景，有强差异化）
 - **Help & Support 模块（帮助中心/联系客服）**：迁移替代件、配置简单，包含 FAQ、联系客服、继续购物等功能
-- **Reorder（再购按钮）**：一键重新购买相同商品，仅在 Customer Accounts 的 Order status 页面可用（需要客户账户认证，不支持旧版订单状态页）
+- **Reorder（再购按钮）**：一键重新购买相同商品，仅在 Customer Accounts 的 Order status 页面可用（需要客户账户认证，不支持旧版订单状态页）。**注意**：Reorder 属于 v1.0 代码预埋，默认关闭，需 PCD 审批后开放。
 
 > **⚠️ 重要提示：Order Status 模块仅支持 Customer Accounts 体系**
 > 
@@ -121,7 +121,7 @@ v1.0 版本**已包含**服务器端转化追踪能力，支持以下平台：
 - ⚠️ **v1 暂不包含**：
   - Shipping Tracker（物流追踪）- 需深集成，v1.1+
   - Upsell Offer（二次购买优惠）- 边界条件复杂，v1.1+
-  - Reorder（再购按钮）- 集成复杂，v1.1+
+- **Reorder（再购按钮）**：代码已实现，默认关闭，需 PCD 审批后开放
 
 ## Agency 多店 / 白标 / 团队（即将推出 v1.1）
 

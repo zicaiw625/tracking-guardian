@@ -24,7 +24,7 @@ describe("Consent Filter - checkInitialConsent", () => {
     it("should detect marketing consent when marketing=true", () => {
       const result = checkInitialConsent({ marketing: true });
       expect(result.hasMarketingConsent).toBe(true);
-      expect(result.hasAnyConsent).toBe(false);
+      expect(result.hasAnyConsent).toBe(true);
     });
     it("should not detect marketing consent when marketing=false", () => {
       const result = checkInitialConsent({ marketing: false });
@@ -51,9 +51,9 @@ describe("Consent Filter - checkInitialConsent", () => {
     });
   });
   describe("Any Consent", () => {
-    it("should return hasAnyConsent=false when only marketing consent (pixel requires analytics)", () => {
+    it("should return hasAnyConsent=true when only marketing consent", () => {
       const result = checkInitialConsent({ marketing: true, analytics: false });
-      expect(result.hasAnyConsent).toBe(false);
+      expect(result.hasAnyConsent).toBe(true);
     });
     it("should return hasAnyConsent=true when only analytics consent", () => {
       const result = checkInitialConsent({ marketing: false, analytics: true });

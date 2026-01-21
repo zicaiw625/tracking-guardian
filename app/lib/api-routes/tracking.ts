@@ -17,6 +17,7 @@ import { getUiModuleConfig } from "../../services/ui-extension.server";
 import { authenticatePublic, normalizeDestToShopDomain, handlePublicPreflight, addSecurityHeaders } from "../../utils/public-auth";
 import { hashValueSync } from "../../utils/crypto.server";
 import { z } from "zod";
+import { FEATURE_FLAGS } from "../../utils/config.server";
 
 type TrackingApiPayload = {
   success: boolean;
@@ -47,6 +48,9 @@ const querySchema = z.object({
 });
 
 export const action = async ({ request }: ActionFunctionArgs) => {
+  if (!FEATURE_FLAGS.TRACKING_API) {
+    return addSecurityHeaders(json({ error: "Tracking API is not available in v1.0" }, { status: 404 }));
+  }
   if (request.method === "OPTIONS") {
     return handlePublicPreflight(request);
   }
@@ -58,6 +62,9 @@ export const loader = async (args: LoaderFunctionArgs) => {
 };
 
 async function loaderImpl(request: Request) {
+  if (!FEATURE_FLAGS.TRACKING_API) {
+    return addSecurityHeaders(json({ error: "Tracking API is not available in v1.0" }, { status: 404 }));
+  }
   let authResult: Awaited<ReturnType<typeof authenticatePublic>> | null = null;
   try {
     const url = new URL(request.url);

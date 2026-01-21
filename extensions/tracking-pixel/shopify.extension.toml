@@ -16,7 +16,7 @@ type = "object"
 
 [settings.fields.ingestion_key]
 name = "Ingestion Key"
-description = "Public store-scoped key for event correlation and configuration lookup. Auto-generated during app installation."
+description = "Store-scoped signing secret for HMAC event signature verification. Auto-generated during app installation. Keep confidential and do not expose publicly."
 type = "single_line_text_field"
 
 [settings.fields.shop_domain]

@@ -16,7 +16,7 @@ Tracking Guardian 是一个 Shopify 应用，作为**数据处理者**（Data Pr
 
 ### `read_script_tags`
 - **用途**: 扫描店铺中已安装的第三方追踪脚本，帮助商家识别和审计追踪代码
-- **数据处理**: 仅读取脚本标签的 URL 和内容，不存储完整的脚本内容
+- **数据处理**: 仅读取脚本标签的 URL，不存储完整的脚本内容。**注意**：商家手动粘贴的 Additional Scripts 内容会加密存储在 `rawSnippetEncrypted` 字段中，用于复盘和交付验证；ScriptTag 本身不抓取完整内容（仅 URL），但手动粘贴的内容会加密保存。
 - **保留周期**: 扫描结果按店铺 dataRetentionDays（默认 90 天）
 
 ### `read_pixels` / `write_pixels`
@@ -67,6 +67,7 @@ Tracking Guardian 是一个 Shopify 应用，作为**数据处理者**（Data Pr
 - 像素事件收据（用于对账）
 - 转化任务执行日志
 - Webhook 处理日志
+- 手动粘贴的 Additional Scripts 内容：商家手动粘贴的脚本内容会加密存储在 `rawSnippetEncrypted` 字段中，用于复盘和交付验证。ScriptTag 本身不抓取完整内容（仅 URL），但手动粘贴的内容会加密保存。
 
 #### Session（OAuth/会话存储）
 - **可能字段**：`firstName`、`lastName`、`email`（来自 Shopify 在线 Session，仅店铺管理员/员工，非终端客户）
