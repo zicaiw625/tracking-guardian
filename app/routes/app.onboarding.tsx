@@ -39,6 +39,9 @@ import { trackEvent } from "../services/analytics.server";
 import { safeFireAndForget } from "../utils/helpers.server";
 import { normalizePlanId } from "../services/billing/plans";
 import { isPlanAtLeast } from "../utils/plans";
+import { createWebPixel, getExistingWebPixels, isOurWebPixel, updateWebPixel } from "../services/migration.server";
+import { decryptIngestionSecret, encryptIngestionSecret, isTokenEncrypted } from "../utils/token-encryption";
+import { randomBytes } from "crypto";
 
 function estimateMigrationTime(
   scriptTagCount: number,
@@ -283,6 +286,68 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     }
   }
   if (actionType === "complete_onboarding") {
+    const autoSetup = formData.get("auto_setup") !== "false";
+    if (autoSetup) {
+      try {
+        let ingestionSecret: string | undefined = undefined;
+        if (shop.ingestionSecret) {
+          try {
+            if (isTokenEncrypted(shop.ingestionSecret)) {
+              ingestionSecret = decryptIngestionSecret(shop.ingestionSecret);
+            } else {
+              ingestionSecret = shop.ingestionSecret;
+              const encryptedSecret = encryptIngestionSecret(ingestionSecret);
+              await prisma.shop.update({
+                where: { id: shop.id },
+                data: { ingestionSecret: encryptedSecret },
+              });
+            }
+          } catch (error) {
+            logger.error(`[Onboarding] Failed to decrypt ingestionSecret for ${shopDomain}`, error);
+          }
+        }
+        if (!ingestionSecret) {
+          ingestionSecret = randomBytes(32).toString("hex");
+          const encryptedSecret = encryptIngestionSecret(ingestionSecret);
+          await prisma.shop.update({
+            where: { id: shop.id },
+            data: { ingestionSecret: encryptedSecret },
+          });
+        }
+        let ourPixelId = shop.webPixelId;
+        if (!ourPixelId) {
+          const existingPixels = await getExistingWebPixels(admin);
+          const ourPixel = existingPixels.find((p) => {
+            if (!p.settings) return false;
+            try {
+              const settings = JSON.parse(p.settings);
+              return isOurWebPixel(settings, shopDomain);
+            } catch {
+              return false;
+            }
+          });
+          ourPixelId = ourPixel?.id ?? null;
+        }
+        if (ourPixelId) {
+          const result = await updateWebPixel(admin, ourPixelId, ingestionSecret, shopDomain);
+          if (!result.success) {
+            logger.warn(`[Onboarding] Failed to update WebPixel for ${shopDomain}: ${result.error}`);
+          }
+        } else {
+          const result = await createWebPixel(admin, ingestionSecret, shopDomain);
+          if (result.success && result.webPixelId) {
+            await prisma.shop.update({
+              where: { id: shop.id },
+              data: { webPixelId: result.webPixelId },
+            });
+          } else {
+            logger.warn(`[Onboarding] Failed to create WebPixel for ${shopDomain}: ${result.error}`);
+          }
+        }
+      } catch (error) {
+        logger.error(`[Onboarding] Failed to auto-setup WebPixel for ${shopDomain}`, error);
+      }
+    }
     return redirect("/app/audit/start");
   }
   return json({ error: "未知操作" }, { status: 400 });

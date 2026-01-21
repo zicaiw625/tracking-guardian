@@ -84,6 +84,8 @@ Tracking Guardian 是一个 Shopify 应用，作为**数据处理者**（Data Pr
 - 客户地址
 - 支付信息（信用卡号、支付方式详情）
 
+**注意**：为了功能需要（如事件匹配），我们仅在必要时存储不可逆的hash值（如checkoutToken的hash），不存储客户PII明文。
+
 ### Protected Customer Data (PCD) 处理
 
 我们不收集终端客户 PII；订单读取仅用于对账验收且字段最小化；再购、订单状态等需 PCD 审批的功能有硬门禁。订单及客户相关信息属于 Shopify 的 Protected Customer Data (PCD)，需通过 Shopify 审核后才能访问；未获批时订单相关信息可能不可用，此为平台合规行为。

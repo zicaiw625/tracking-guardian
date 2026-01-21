@@ -43,7 +43,7 @@ export default function App() {
     return (<AppProvider isEmbeddedApp apiKey={apiKey} i18n={i18n as any}>
       <NavMenu>
         <a href="/app" rel="home">Dashboard</a>
-        <a href="/app/audit">Audit</a>
+        <a href="/app/audit/scan">Audit</a>
         <a href="/app/migrate">Migrate</a>
         <a href="/app/modules">Modules</a>
         <a href="/app/pixels">Pixels</a>

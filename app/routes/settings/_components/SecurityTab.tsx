@@ -524,7 +524,7 @@ export function SecurityTab({
                   </Text>
                   <Text as="p" variant="bodySm">
                     <strong>关于 PII（邮箱/电话等）：</strong>
-                    <br />我们不收集、不发送终端客户 PII。订单读取（read_orders）仅用于对账验收，字段最小化；再购等需 PCD 审批，有硬门禁。
+                    <br />我们不存储客户PII（姓名/邮箱/电话/地址），仅在必要时存不可逆hash做匹配。订单读取（read_orders）仅用于对账验收，字段最小化；再购等需 PCD 审批，有硬门禁。
                   </Text>
                 </BlockStack>
               </Banner>

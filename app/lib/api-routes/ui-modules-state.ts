@@ -5,7 +5,7 @@ import prisma from "../../db.server";
 import { getUiModuleConfigs, canUseModule, getDefaultSettings } from "../../services/ui-extension.server";
 import { PCD_CONFIG } from "../../utils/config.server";
 import { authenticatePublic, normalizeDestToShopDomain, handlePublicPreflight, addSecurityHeaders } from "../../utils/public-auth";
-import { sanitizeUrl, validateEmailForMailto } from "../../utils/security";
+import { sanitizeUrl, validateEmailForMailto, isPublicUrl } from "../../utils/security";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   if (request.method === "OPTIONS") {
@@ -69,10 +69,10 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       reorder: { enabled: reorderModule?.isEnabled, targets: reorderTargets, enabledForTarget: reorderEnabledForTarget },
     });
     const surveyConfig = surveyModule?.settings as { question?: string; sources?: Array<{ id: string; label: string }> } | undefined;
-    const helpConfig = helpModule?.settings as { faqUrl?: string; contactUrl?: string; contactEmail?: string } | undefined;
+    const helpConfig = helpModule?.settings as { faqUrl?: string; contactUrl?: string; contactEmail?: string; allowedDomains?: string[] } | undefined;
     const reorderConfig = reorderModule?.settings as { title?: string; subtitle?: string; buttonText?: string } | undefined;
     const defaultSurveySettings = getDefaultSettings("survey") as { question?: string; sources?: Array<{ id: string; label: string }> };
-    const defaultHelpSettings = getDefaultSettings("helpdesk") as { faqUrl?: string; contactUrl?: string; contactEmail?: string };
+    const defaultHelpSettings = getDefaultSettings("helpdesk") as { faqUrl?: string; contactUrl?: string; contactEmail?: string; allowedDomains?: string[] };
     const defaultReorderSettings = getDefaultSettings("reorder") as { title?: string; subtitle?: string; buttonText?: string };
     const surveyQuestion = surveyConfig?.question || defaultSurveySettings.question || "您是如何了解到我们的？";
     const surveyOptions = surveyConfig?.sources?.map(s => s.label) || defaultSurveySettings.sources?.map(s => s.label) || ["搜索引擎", "社交媒体", "朋友推荐", "广告", "其他"];
@@ -110,7 +110,25 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
               return null;
             }
           }).filter(Boolean) as string[]];
-          if (!allowedHostnames.some(allowed => urlHostname === allowed || urlHostname.endsWith(`.${allowed}`))) {
+          
+          const extraAllowedDomains = helpConfig?.allowedDomains || defaultHelpSettings.allowedDomains || [];
+          for (const domain of extraAllowedDomains) {
+            const normalizedDomain = domain.trim().toLowerCase();
+            if (normalizedDomain) {
+              allowedHostnames.push(normalizedDomain);
+            }
+          }
+          
+          const isAllowed = allowedHostnames.some(allowed => {
+            if (allowed.includes("*")) {
+              const pattern = allowed.replace(/\*/g, ".*");
+              const regex = new RegExp(`^${pattern}$`);
+              return regex.test(urlHostname);
+            }
+            return urlHostname === allowed || urlHostname.endsWith(`.${allowed}`);
+          });
+          
+          if (!isAllowed || !isPublicUrl(sanitized)) {
             logger.warn(`FAQ URL hostname not allowed for shop ${shopDomain}: ${urlHostname}`);
             helpFaqUrl = undefined;
           } else {
@@ -150,7 +168,25 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
               return null;
             }
           }).filter(Boolean) as string[]];
-          if (!allowedHostnames.some(allowed => urlHostname === allowed || urlHostname.endsWith(`.${allowed}`))) {
+          
+          const extraAllowedDomains = helpConfig?.allowedDomains || defaultHelpSettings.allowedDomains || [];
+          for (const domain of extraAllowedDomains) {
+            const normalizedDomain = domain.trim().toLowerCase();
+            if (normalizedDomain) {
+              allowedHostnames.push(normalizedDomain);
+            }
+          }
+          
+          const isAllowed = allowedHostnames.some(allowed => {
+            if (allowed.includes("*")) {
+              const pattern = allowed.replace(/\*/g, ".*");
+              const regex = new RegExp(`^${pattern}$`);
+              return regex.test(urlHostname);
+            }
+            return urlHostname === allowed || urlHostname.endsWith(`.${allowed}`);
+          });
+          
+          if (!isAllowed || !isPublicUrl(sanitized)) {
             logger.warn(`Contact URL hostname not allowed for shop ${shopDomain}: ${urlHostname}`);
             helpContactUrl = undefined;
           } else {

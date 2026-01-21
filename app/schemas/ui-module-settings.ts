@@ -76,6 +76,7 @@ export const SupportSettingsSchema = z.object({
   })).optional(),
   showChatWidget: z.boolean().default(false),
   chatWidgetUrl: z.string().optional(),
+  allowedDomains: z.array(z.string()).optional(),
 });
 
 export type SupportSettings = z.infer<typeof SupportSettingsSchema>;

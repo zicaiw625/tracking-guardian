@@ -23,6 +23,7 @@ import { CheckCircleIcon, ArrowRightIcon, ClockIcon, LockIcon } from "~/componen
 import { EnhancedEmptyState, CardSkeleton } from "~/components/ui";
 import { UpgradeHealthCheck } from "~/components/onboarding/UpgradeHealthCheck";
 import { PostInstallScanProgress } from "~/components/onboarding/PostInstallScanProgress";
+import { DataConnectionBanner } from "~/components/dashboard/DataConnectionBanner";
 const RiskDistributionChart = lazy(() => import("~/components/dashboard/RiskDistributionChart").then(module => ({ default: module.RiskDistributionChart })));
 const DependencyGraphPreview = lazy(() => import("~/components/dashboard/DependencyGraphPreview").then(module => ({ default: module.DependencyGraphPreview })));
 import { HealthMetrics24hCard } from "~/components/dashboard/HealthMetrics24hCard";
@@ -49,11 +50,62 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   const { checkCustomerAccountsEnabled } = await import("../services/customer-accounts.server");
   const customerAccountsStatus = await checkCustomerAccountsEnabled(admin);
   const backendUrlInfo = getPixelEventIngestionUrl();
+  
+  const shopDomain = session.shop;
+  const { getExistingWebPixels, isOurWebPixel, needsSettingsUpgrade } = await import("../services/migration.server");
+  const prisma = await import("../db.server").then(m => m.default);
+  
+  const shop = await prisma.shop.findUnique({
+    where: { shopDomain },
+    select: { id: true, ingestionSecret: true },
+  });
+  
+  let hasIngestionSecret = false;
+  let hasWebPixel = false;
+  let webPixelHasIngestionKey = false;
+  
+  if (shop) {
+    hasIngestionSecret = !!shop.ingestionSecret;
+    
+    try {
+      const existingPixels = await getExistingWebPixels(admin);
+      const ourPixel = existingPixels.find((p) => {
+        try {
+          const settings = JSON.parse(p.settings || "{}");
+          return isOurWebPixel(settings, shopDomain);
+        } catch {
+          return false;
+        }
+      });
+      
+      if (ourPixel) {
+        hasWebPixel = true;
+        if (ourPixel.settings) {
+          try {
+            const pixelSettings = JSON.parse(ourPixel.settings);
+            if (!needsSettingsUpgrade(pixelSettings)) {
+              webPixelHasIngestionKey = typeof pixelSettings.ingestion_key === "string" && pixelSettings.ingestion_key.length > 0;
+            }
+          } catch {
+            webPixelHasIngestionKey = false;
+          }
+        }
+      }
+    } catch {
+      void 0;
+    }
+  }
+  
   return json({
     ...data,
     customerAccountsEnabled: customerAccountsStatus.enabled,
-    shopDomain: session.shop,
+    shopDomain,
     backendUrlInfo,
+    dataConnection: {
+      hasIngestionSecret,
+      hasWebPixel,
+      webPixelHasIngestionKey,
+    },
   });
 };
 
@@ -1297,6 +1349,14 @@ export default function Index() {
       }
     >
       <BlockStack gap="500">
+        {loaderData.dataConnection && (
+          <DataConnectionBanner
+            hasIngestionSecret={loaderData.dataConnection.hasIngestionSecret}
+            hasWebPixel={loaderData.dataConnection.hasWebPixel}
+            webPixelHasIngestionKey={loaderData.dataConnection.webPixelHasIngestionKey}
+            shopDomain={shopDomain}
+          />
+        )}
         {loaderData.backendUrlInfo?.placeholderDetected && (
           <Banner tone="critical" title="⚠️ 严重错误：BACKEND_URL 未在构建时替换">
             <BlockStack gap="300">
