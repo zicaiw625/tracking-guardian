@@ -7,11 +7,13 @@ import {
   Link,
   Divider,
   useApi,
+  useOrder,
+  useSubscription,
 } from "@shopify/ui-extensions-react/customer-account";
 import { useState, useEffect } from "react";
 import { getValidatedBackendUrl, isDevMode } from "./config";
 import { reportExtensionError } from "./error-reporting";
-import { getOrderContext } from "./order-context";
+import { getOrderContextFromCustomerAccount } from "./order-context";
 import { PCD_ORDER_UNAVAILABLE_USER } from "./pcd-copy";
 
 function SurveyModule({ 
@@ -199,6 +201,8 @@ function ReorderModule({
 
 function OrderStatusBlocks() {
   const api = useApi<"customer-account.order-status.block.render">();
+  const order = useOrder();
+  const checkoutToken = useSubscription(api.checkoutToken);
   const [moduleState, setModuleState] = useState<{
     surveyEnabled: boolean;
     helpEnabled: boolean;
@@ -325,7 +329,7 @@ function OrderStatusBlocks() {
       }
     };
     fetchModuleState();
-  }, [api]);
+  }, [api, order, checkoutToken]);
   if (!moduleState || (!moduleState.surveyEnabled && !moduleState.helpEnabled && !moduleState.reorderEnabled)) {
     return null;
   }
@@ -340,7 +344,10 @@ function OrderStatusBlocks() {
         return false;
       }
       const token = await api.sessionToken.get();
-      const orderContext = getOrderContext(api);
+      const orderContext = getOrderContextFromCustomerAccount({
+        order,
+        checkoutToken,
+      });
       if (!orderContext.orderId && !orderContext.checkoutToken) {
         const errorMessage = `订单信息不可用（Order ID 和 checkout token 均为空）。${PCD_ORDER_UNAVAILABLE_USER}`;
         if (isDevMode()) {
@@ -414,16 +421,11 @@ function OrderStatusBlocks() {
   const helpEnabled = moduleState?.helpEnabled ?? false;
   const reorderEnabled = moduleState?.reorderEnabled ?? false;
   const reorderConfig = moduleState?.reorderConfig;
-  let orderContext: { orderId: string | null; checkoutToken: string | null };
-  let hasOrderContext = false;
-  try {
-    orderContext = getOrderContext(api);
-    hasOrderContext = !!(orderContext.orderId || orderContext.checkoutToken);
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  } catch (_error) {
-    orderContext = { orderId: null, checkoutToken: null };
-    hasOrderContext = false;
-  }
+  const orderContext = getOrderContextFromCustomerAccount({
+    order,
+    checkoutToken,
+  });
+  const hasOrderContext = !!(orderContext.orderId || orderContext.checkoutToken);
   const handleReorder = async (): Promise<void> => {
     try {
       setReorderLoading(true);
@@ -431,7 +433,10 @@ function OrderStatusBlocks() {
       if (!backendUrl) {
         throw new Error("Backend URL not configured");
       }
-      const orderContext = getOrderContext(api);
+      const orderContext = getOrderContextFromCustomerAccount({
+        order,
+        checkoutToken,
+      });
       if (!orderContext.orderId) {
         const errorMessage = `订单 ID 不可用。${PCD_ORDER_UNAVAILABLE_USER}`;
         if (isDevMode()) {
@@ -491,7 +496,10 @@ function OrderStatusBlocks() {
       if (isDevMode()) {
         console.error("[OrderStatusBlocks] Reorder failed:", error);
       }
-      const orderContext = getOrderContext(api);
+      const orderContext = getOrderContextFromCustomerAccount({
+        order,
+        checkoutToken,
+      });
       reportExtensionError(api, {
         extension: "order-status",
         endpoint: "reorder",

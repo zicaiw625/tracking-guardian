@@ -56,7 +56,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     const isTargetThankYou = normalizedTarget === "thank_you";
     const isTargetOrderStatus = normalizedTarget === "order_status";
     
-    const surveyEnabledForTarget = isTargetThankYou && surveyTargets.includes("thank_you");
+    const surveyEnabledForTarget = (isTargetThankYou && surveyTargets.includes("thank_you")) || (isTargetOrderStatus && surveyTargets.includes("order_status"));
     const helpEnabledForTarget = isTargetThankYou
       ? helpTargets.includes("thank_you")
       : isTargetOrderStatus && helpTargets.includes("order_status");

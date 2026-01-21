@@ -7,11 +7,12 @@ import {
   Link,
   Divider,
   useApi,
+  useSubscription,
 } from "@shopify/ui-extensions-react/checkout";
 import { useState, useEffect } from "react";
 import { getValidatedBackendUrl, isDevMode } from "./config";
 import { reportExtensionError } from "./error-reporting";
-import { getOrderContext } from "./order-context";
+import { getOrderContextFromCheckout } from "./order-context";
 import { PCD_ORDER_UNAVAILABLE_USER } from "./pcd-copy";
 
 function SurveyModule({ 
@@ -130,6 +131,8 @@ function HelpModule({
 
 function ThankYouBlocks() {
   const api = useApi();
+  const checkoutToken = useSubscription(api.checkoutToken);
+  const orderConfirmation = useSubscription(api.orderConfirmation);
   const [moduleState, setModuleState] = useState<{
     surveyEnabled: boolean;
     helpEnabled: boolean;
@@ -242,7 +245,7 @@ function ThankYouBlocks() {
       }
     };
     fetchModuleState();
-  }, [api]);
+  }, [api, checkoutToken, orderConfirmation]);
   if (!moduleState || !moduleState.surveyEnabled && !moduleState.helpEnabled) {
     return null;
   }
@@ -257,7 +260,10 @@ function ThankYouBlocks() {
         return false;
       }
       const token = await api.sessionToken.get();
-      const orderContext = getOrderContext(api);
+      const orderContext = getOrderContextFromCheckout({
+        checkoutToken,
+        orderConfirmation,
+      });
       if (!orderContext.orderId && !orderContext.checkoutToken) {
         const errorMessage = `订单信息不可用（Order ID 和 checkout token 均为空）。${PCD_ORDER_UNAVAILABLE_USER}`;
         if (isDevMode()) {
@@ -329,16 +335,11 @@ function ThankYouBlocks() {
   }
   const surveyEnabled = moduleState?.surveyEnabled ?? false;
   const helpEnabled = moduleState?.helpEnabled ?? false;
-  let orderContext: { orderId: string | null; checkoutToken: string | null };
-  let hasOrderContext = false;
-  try {
-    orderContext = getOrderContext(api);
-    hasOrderContext = !!(orderContext.orderId || orderContext.checkoutToken);
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  } catch (_error) {
-    orderContext = { orderId: null, checkoutToken: null };
-    hasOrderContext = false;
-  }
+  const orderContext = getOrderContextFromCheckout({
+    checkoutToken,
+    orderConfirmation,
+  });
+  const hasOrderContext = !!(orderContext.orderId || orderContext.checkoutToken);
   return (
     <BlockStack spacing="base">
       {!hasOrderContext && (surveyEnabled || helpEnabled) && (

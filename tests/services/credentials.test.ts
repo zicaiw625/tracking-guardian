@@ -127,9 +127,17 @@ describe("Credentials Service", () => {
     });
     it("should return ok for valid TikTok credentials", () => {
       const credentials: TikTokCredentials = {
-        pixelCode: "pixel123",
+        pixelId: "pixel123",
         accessToken: "tiktok_token",
       };
+      const result = validatePlatformCredentials(credentials, "tiktok");
+      expect(result.ok).toBe(true);
+    });
+    it("should return ok for valid TikTok credentials with pixelCode (backward compatibility)", () => {
+      const credentials = {
+        pixelCode: "pixel123",
+        accessToken: "tiktok_token",
+      } as unknown as TikTokCredentials;
       const result = validatePlatformCredentials(credentials, "tiktok");
       expect(result.ok).toBe(true);
     });
@@ -141,7 +149,7 @@ describe("Credentials Service", () => {
       expect(result.ok).toBe(false);
       if (!result.ok) {
         expect(result.error.type).toBe("VALIDATION_FAILED");
-        expect(result.error.message).toContain("pixelCode");
+        expect(result.error.message).toContain("pixelId");
       }
     });
   });

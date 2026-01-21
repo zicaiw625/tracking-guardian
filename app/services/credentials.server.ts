@@ -133,11 +133,12 @@ export function validatePlatformCredentials(
       break;
     }
     case "tiktok": {
-      const tiktokCreds = credentials as { pixelCode?: string; accessToken?: string };
-      if (!tiktokCreds.pixelCode || !tiktokCreds.accessToken) {
+      const tiktokCreds = credentials as { pixelId?: string; pixelCode?: string; accessToken?: string };
+      const pixel = tiktokCreds.pixelId ?? tiktokCreds.pixelCode;
+      if (!pixel || !tiktokCreds.accessToken) {
         return err({
           type: "VALIDATION_FAILED",
-          message: "Missing pixelCode or accessToken for TikTok",
+          message: "Missing pixelId or accessToken for TikTok",
           platform,
         });
       }
