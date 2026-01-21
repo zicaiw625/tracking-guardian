@@ -305,7 +305,7 @@ async function loaderImpl(request: Request) {
       return { data: null };
     });
     if (orderData.errors) {
-      const hasAccessError = orderData.errors.some((err: { message?: string }) => 
+      const hasAccessError = orderData.errors.some((err: { message?: string }) =>
         err.message?.includes("read_orders") || err.message?.includes("Required access")
       );
       if (hasAccessError) {

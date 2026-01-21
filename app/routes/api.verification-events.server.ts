@@ -34,7 +34,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
           try {
             controller.close();
           } catch {
-            // no-op: close() may throw if stream already closed
+            void 0;
           }
         }
       };

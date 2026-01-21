@@ -14,7 +14,7 @@ import {
 import { ClipboardIcon, CheckCircleIcon } from "~/components/icons";
 import type { ScriptAnalysisResult } from "~/services/scanner/types";
 
-interface ScriptCodeEditorProps {
+export interface ScriptCodeEditorProps {
   value: string;
   onChange: (value: string) => void;
   onAnalyze: () => void;

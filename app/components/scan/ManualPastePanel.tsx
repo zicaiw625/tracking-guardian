@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, lazy, Suspense } from "react";
+import { useState, useCallback, useEffect, Suspense } from "react";
 import {
   Card,
   BlockStack,
@@ -15,16 +15,12 @@ import {
 } from "@shopify/polaris";
 import { useFetcher } from "@remix-run/react";
 import type { ScriptAnalysisResult } from "~/services/scanner/types";
-
-const ScriptCodeEditor = lazy(() =>
-  import("~/components/scan/ScriptCodeEditor").then(module => ({
-    default: module.ScriptCodeEditor
-  }))
-);
+import type { ScriptCodeEditorProps } from "~/components/scan/ScriptCodeEditor";
 
 export interface ManualPastePanelProps {
   shopId: string;
   onAssetsCreated?: (count: number) => void;
+  scriptCodeEditor: React.ComponentType<ScriptCodeEditorProps>;
 }
 
 interface AnalysisResult {
@@ -44,7 +40,8 @@ interface AnalysisResult {
   };
 }
 
-export function ManualPastePanel({ shopId: _shopId, onAssetsCreated }: ManualPastePanelProps) {
+export function ManualPastePanel({ shopId: _shopId, onAssetsCreated, scriptCodeEditor }: ManualPastePanelProps) {
+  const Editor = scriptCodeEditor;
   const [scriptContent, setScriptContent] = useState("");
   const [analysisResult, setAnalysisResult] = useState<AnalysisResult | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
@@ -696,7 +693,7 @@ export function ManualPastePanel({ shopId: _shopId, onAssetsCreated }: ManualPas
             autoComplete="off"
           />
         }>
-          <ScriptCodeEditor
+          <Editor
             value={scriptContent}
             onChange={setScriptContent}
             onAnalyze={handleAnalyze}

@@ -44,7 +44,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
             try {
               controller.close();
             } catch {
-              // no-op: close() may throw if stream already closed
+              void 0;
             }
           }
         };
@@ -124,7 +124,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
                   eventType: receipt.eventType,
                   orderId: receipt.orderKey || "",
                   platform: platform || "pixel",
-                  timestamp: receipt.pixelTimestamp.toISOString(),
+                  timestamp: (receipt.pixelTimestamp || receipt.createdAt).toISOString(),
                   status,
                   params: {
                     value,

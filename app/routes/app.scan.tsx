@@ -2337,6 +2337,7 @@ export function ScanPage({
                         showSuccess(`成功创建 ${count} 个迁移资产`);
                         window.location.reload();
                       }}
+                      scriptCodeEditor={ScriptCodeEditor}
                     />
                     <Divider />
                     <Suspense fallback={<CardSkeleton lines={5} />}>

@@ -63,8 +63,8 @@ function validateScriptContent(scriptContent: unknown): { valid: boolean; error?
 }
 
 function validatePlatformName(platform: string): boolean {
-  return typeof platform === "string" && 
-    platform.length > 0 && 
+  return typeof platform === "string" &&
+    platform.length > 0 &&
     platform.length <= MAX_PLATFORM_NAME_LENGTH &&
     /^[a-zA-Z0-9_-]+$/.test(platform);
 }
@@ -361,18 +361,18 @@ function createValueExtractors(jsonBody: Record<string, unknown> | null, formDat
 }
 
 function isAssetCategory(value: unknown): value is AssetCategory {
-  return typeof value === "string" && 
+  return typeof value === "string" &&
     (value === "pixel" || value === "survey" || value === "support" || value === "affiliate" || value === "other");
 }
 
 function isMigrationStatus(value: unknown): value is MigrationStatus {
-  return typeof value === "string" && 
+  return typeof value === "string" &&
     (value === "pending" || value === "in_progress" || value === "completed" || value === "skipped");
 }
 
 function parseCreateFromListData(jsonBody: Record<string, unknown> | null): { platforms: string[]; items: Array<{ name: string; type: string }> } {
   const platformsJson = jsonBody?.platforms;
-  const platforms: string[] = Array.isArray(platformsJson) 
+  const platforms: string[] = Array.isArray(platformsJson)
     ? platformsJson.filter((p): p is string => validatePlatformName(p))
     : [];
   const itemsJson = jsonBody?.items;
@@ -406,7 +406,7 @@ async function handleActionByType(
   formData: FormData | null
 ): Promise<Response> {
   const extractors = createValueExtractors(jsonBody, formData);
-  
+
   switch (actionType) {
     case "create_from_paste": {
       const scriptContent = extractors.getStringValue("scriptContent");

@@ -1,7 +1,7 @@
 import type { ActionFunctionArgs, LoaderFunctionArgs } from "@remix-run/node";
 import { json } from "@remix-run/node";
 import { useLoaderData, useFetcher, useRevalidator } from "@remix-run/react";
-import { useState, useEffect } from "react";
+import { useState, useEffect, lazy } from "react";
 import {
   Page,
   Card,
@@ -18,6 +18,8 @@ import prisma from "../db.server";
 import { scanShopTracking } from "../services/scanner.server";
 import { ManualPastePanel } from "../components/scan/ManualPastePanel";
 import { PageIntroCard } from "../components/layout/PageIntroCard";
+
+const ScriptCodeEditor = lazy(() => import("~/components/scan/ScriptCodeEditor").then(m => ({ default: m.ScriptCodeEditor })));
 
 type Step = "scan" | "manual" | "checklist";
 
@@ -186,6 +188,7 @@ export default function AuditPage() {
                 onAssetsCreated={() => {
                   handleManualPasteComplete();
                 }}
+                scriptCodeEditor={ScriptCodeEditor}
               />
               <Button onClick={() => setCurrentStep("checklist")}>
                 下一步：查看清单
