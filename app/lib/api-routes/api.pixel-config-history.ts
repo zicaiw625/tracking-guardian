@@ -1,12 +1,12 @@
 import type { LoaderFunctionArgs } from "@remix-run/node";
-import { authenticate } from "../shopify.server";
+import { authenticate } from "../../shopify.server";
 import {
   getConfigComparison,
   getConfigVersionHistory,
-} from "../services/pixel-rollback.server";
-import { logger } from "../utils/logger.server";
-import prisma from "../db.server";
-import { jsonApi } from "../utils/security-headers";
+} from "../../services/pixel-rollback.server";
+import { logger } from "../../utils/logger.server";
+import prisma from "../../db.server";
+import { jsonApi } from "../../utils/security-headers";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   const { session } = await authenticate.admin(request);

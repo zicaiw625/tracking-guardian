@@ -1,9 +1,9 @@
 import type { LoaderFunctionArgs } from "@remix-run/node";
-import { authenticate } from "../shopify.server";
-import prisma from "../db.server";
-import { getThresholdRecommendations, testThresholds } from "../services/alert-dispatcher.server";
-import { getEventMonitoringStats, getMissingParamsStats } from "../services/monitoring.server";
-import { jsonApi } from "../utils/security-headers";
+import { authenticate } from "../../shopify.server";
+import prisma from "../../db.server";
+import { getThresholdRecommendations, testThresholds } from "../../services/alert-dispatcher.server";
+import { getEventMonitoringStats, getMissingParamsStats } from "../../services/monitoring.server";
+import { jsonApi } from "../../utils/security-headers";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   const { session } = await authenticate.admin(request);

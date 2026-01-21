@@ -1,5 +1,5 @@
 import type { ActionFunctionArgs, LoaderFunctionArgs } from "@remix-run/node";
-import { authenticate } from "../shopify.server";
+import { authenticate } from "../../shopify.server";
 import {
   createAuditAsset,
   getAuditAssets,
@@ -9,13 +9,13 @@ import {
   getAuditAssetWithRawSnippet,
   type AssetCategory,
   type MigrationStatus,
-} from "../services/audit-asset.server";
-import { analyzeScriptContent } from "../services/scanner/content-analysis";
-import { logger } from "../utils/logger.server";
-import { readJsonWithSizeLimit } from "../utils/body-size-guard";
-import { getShopIdByDomain } from "../services/db/shop-repository.server";
-import { AppError, ErrorCode, Errors } from "../utils/errors/app-error";
-import { successResponse } from "../utils/errors/result-response";
+} from "../../services/audit-asset.server";
+import { analyzeScriptContent } from "../../services/scanner/content-analysis";
+import { logger } from "../../utils/logger.server";
+import { readJsonWithSizeLimit } from "../../utils/body-size-guard";
+import { getShopIdByDomain } from "../../services/db/shop-repository.server";
+import { AppError, ErrorCode, Errors } from "../../utils/errors/app-error";
+import { successResponse } from "../../utils/errors/result-response";
 
 const MAX_SCRIPT_LENGTH = 1024 * 1024;
 

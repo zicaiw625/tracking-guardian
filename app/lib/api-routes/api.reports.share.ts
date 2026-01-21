@@ -1,10 +1,10 @@
 import type { ActionFunctionArgs } from "@remix-run/node";
 import { createHash, randomBytes } from "crypto";
-import prisma from "../db.server";
-import { logger } from "../utils/logger.server";
-import { authenticate } from "../shopify.server";
-import { readJsonWithSizeLimit } from "../utils/body-size-guard";
-import { jsonApi } from "../utils/security-headers";
+import prisma from "../../db.server";
+import { logger } from "../../utils/logger.server";
+import { authenticate } from "../../shopify.server";
+import { readJsonWithSizeLimit } from "../../utils/body-size-guard";
+import { jsonApi } from "../../utils/security-headers";
 
 const DEFAULT_SHARE_TOKEN_EXPIRY_DAYS = 3;
 

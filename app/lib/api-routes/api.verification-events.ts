@@ -1,8 +1,8 @@
 import type { LoaderFunctionArgs } from "@remix-run/node";
-import { authenticate } from "../shopify.server";
-import prisma from "../db.server";
-import { logger } from "../utils/logger.server";
-import { extractPlatformFromPayload } from "../utils/common";
+import { authenticate } from "../../shopify.server";
+import prisma from "../../db.server";
+import { logger } from "../../utils/logger.server";
+import { extractPlatformFromPayload } from "../../utils/common";
 import type { Prisma } from "@prisma/client";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {

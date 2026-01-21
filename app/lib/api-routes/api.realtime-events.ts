@@ -1,8 +1,8 @@
 import type { LoaderFunctionArgs } from "@remix-run/node";
 import type { Prisma } from "@prisma/client";
-import { authenticate } from "../shopify.server";
-import prisma from "../db.server";
-import { logger } from "../utils/logger.server";
+import { authenticate } from "../../shopify.server";
+import prisma from "../../db.server";
+import { logger } from "../../utils/logger.server";
 
 function extractPlatformFromPayload(payload: Record<string, unknown> | null): string | null {
   if (!payload) return null;

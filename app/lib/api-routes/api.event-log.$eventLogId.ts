@@ -1,8 +1,8 @@
 import type { LoaderFunctionArgs } from "@remix-run/node";
-import { authenticate } from "../shopify.server";
-import prisma from "../db.server";
-import { logger } from "../utils/logger.server";
-import { jsonApi } from "../utils/security-headers";
+import { authenticate } from "../../shopify.server";
+import prisma from "../../db.server";
+import { logger } from "../../utils/logger.server";
+import { jsonApi } from "../../utils/security-headers";
 
 export const loader = async ({ request, params }: LoaderFunctionArgs) => {
   const { session } = await authenticate.admin(request);

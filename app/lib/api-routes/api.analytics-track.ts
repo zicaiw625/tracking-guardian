@@ -1,10 +1,10 @@
 import type { ActionFunctionArgs } from "@remix-run/node";
-import { authenticate } from "../shopify.server";
-import { trackEvent, type AnalyticsEvent } from "../services/analytics.server";
-import prisma from "../db.server";
-import { logger } from "../utils/logger.server";
-import { readJsonWithSizeLimit } from "../utils/body-size-guard";
-import { jsonApi } from "../utils/security-headers";
+import { authenticate } from "../../shopify.server";
+import { trackEvent, type AnalyticsEvent } from "../../services/analytics.server";
+import prisma from "../../db.server";
+import { logger } from "../../utils/logger.server";
+import { readJsonWithSizeLimit } from "../../utils/body-size-guard";
+import { jsonApi } from "../../utils/security-headers";
 
 export const action = async ({ request }: ActionFunctionArgs) => {
   const { session } = await authenticate.admin(request);

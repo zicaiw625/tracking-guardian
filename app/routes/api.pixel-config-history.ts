@@ -1,6 +1,6 @@
 import type { LoaderFunctionArgs } from "@remix-run/node";
 
 export const loader = async (args: LoaderFunctionArgs) => {
-  const { loader: L } = await import("./api.pixel-config-history.server");
+  const { loader: L } = await import("../lib/api-routes/api.pixel-config-history");
   return L(args);
 };

@@ -1,7 +1,7 @@
 import type { LoaderFunctionArgs } from "@remix-run/node";
-import prisma from "../db.server";
-import { logger } from "../utils/logger.server";
-import { jsonApi } from "../utils/security-headers";
+import prisma from "../../db.server";
+import { logger } from "../../utils/logger.server";
+import { jsonApi } from "../../utils/security-headers";
 
 interface ReadinessStatus {
     ready: boolean;

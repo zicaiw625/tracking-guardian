@@ -1,11 +1,11 @@
 import type { LoaderFunctionArgs } from "@remix-run/node";
-import { authenticate } from "../shopify.server";
-import prisma from "../db.server";
-import { generateVerificationReportData, generateVerificationReportPDF } from "../services/verification-report.server";
-import { logger } from "../utils/logger.server";
-import { sanitizeFilename } from "../utils/responses";
-import { jsonApi, withSecurityHeaders } from "../utils/security-headers";
-import { isProduction } from "../utils/config.server";
+import { authenticate } from "../../shopify.server";
+import prisma from "../../db.server";
+import { generateVerificationReportData, generateVerificationReportPDF } from "../../services/verification-report.server";
+import { logger } from "../../utils/logger.server";
+import { sanitizeFilename } from "../../utils/responses";
+import { jsonApi, withSecurityHeaders } from "../../utils/security-headers";
+import { isProduction } from "../../utils/config.server";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   try {
@@ -32,8 +32,8 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       return jsonApi({ error: "Shop not found" }, { status: 404 });
     }
 
-    const { checkFeatureAccess } = await import("../services/billing/feature-gates.server");
-    const { normalizePlanId } = await import("../services/billing/plans");
+    const { checkFeatureAccess } = await import("../../services/billing/feature-gates.server");
+    const { normalizePlanId } = await import("../../services/billing/plans");
     const planId = normalizePlanId(shop.plan || "free");
     const gateResult = checkFeatureAccess(planId, "report_export");
     if (!gateResult.allowed) {
