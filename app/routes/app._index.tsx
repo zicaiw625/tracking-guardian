@@ -43,6 +43,7 @@ import { isPlanAtLeast } from "../utils/plans";
 import { DEPRECATION_DATES, formatDeadlineDate, SHOPIFY_HELP_LINKS } from "../utils/migration-deadlines";
 import { getPixelEventIngestionUrl } from "../utils/config.server";
 import { getShopifyAdminUrl } from "../utils/helpers";
+import prisma from "../db.server";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   const { session, admin } = await authenticate.admin(request);
@@ -53,7 +54,6 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   
   const shopDomain = session.shop;
   const { getExistingWebPixels, isOurWebPixel, needsSettingsUpgrade } = await import("../services/migration.server");
-  const prisma = await import("../db.server").then(m => m.default);
   
   const shop = await prisma.shop.findUnique({
     where: { shopDomain },

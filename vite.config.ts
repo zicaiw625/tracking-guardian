@@ -38,6 +38,7 @@ function suppressUndiciWarnings(): Plugin {
     "node:buffer",
     "node:crypto",
     "node:zlib",
+    "dynamic import will not move module into another chunk",
   ];
   const shouldSuppress = (message: unknown): boolean => {
     if (typeof message !== "string") return false;
@@ -118,6 +119,12 @@ export default defineConfig({
         if (
           warning.code === "MODULE_LEVEL_DIRECTIVE" ||
           (warning.message && warning.message.includes("has been externalized for browser compatibility"))
+        ) {
+          return;
+        }
+        if (
+          warning.code === "MODULE_LEVEL_DIRECTIVE" ||
+          (warning.message && warning.message.includes("dynamic import will not move module into another chunk"))
         ) {
           return;
         }
