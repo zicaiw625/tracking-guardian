@@ -415,7 +415,7 @@ describe("Platform Consent - evaluatePlatformConsentWithStrategy", () => {
       };
       const result = evaluatePlatformConsentWithStrategy(
         "meta",
-        "weak",
+        "default",
         consent,
         false
       );

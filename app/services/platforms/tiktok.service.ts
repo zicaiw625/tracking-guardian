@@ -168,7 +168,13 @@ export class TikTokPlatformService implements IPlatformService {
     data: ConversionData,
     eventId: string
   ): Promise<ConversionApiResponse> {
-    const timestamp = new Date().toISOString();
+    const dataWithTimestamp = data as ConversionData & { timestamp?: number };
+    let timestamp: string;
+    if (dataWithTimestamp.timestamp && typeof dataWithTimestamp.timestamp === 'number') {
+      timestamp = new Date(dataWithTimestamp.timestamp).toISOString();
+    } else {
+      timestamp = new Date().toISOString();
+    }
     const contents =
       data.lineItems?.map((item) => ({
         content_id: item.productId ?? item.variantId ?? item.id,

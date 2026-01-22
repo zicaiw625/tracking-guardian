@@ -150,7 +150,14 @@ export class GooglePlatformService implements IPlatformService {
     eventId: string
   ): Promise<ConversionApiResponse> {
     const providedClientId = (data as ConversionData & { clientId?: string }).clientId;
-    const clientId = providedClientId || `server.${Date.now()}.${data.orderId.slice(-8)}`;
+    let clientId: string;
+    if (providedClientId && /^\d+\.\d+$/.test(providedClientId)) {
+      clientId = providedClientId;
+    } else {
+      const timestamp = Date.now();
+      const random = Math.floor(Math.random() * 1000000000);
+      clientId = `${timestamp}.${random}`;
+    }
     const payload = {
       client_id: clientId,
       events: [

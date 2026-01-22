@@ -158,8 +158,18 @@ const platformConfigs: Record<string, PlatformSendConfig> = {
       if (eventData.items && eventData.items.length > 0) {
         params.items = buildItemContents(eventData.items, "google");
       }
+      let clientId: string;
+      const payloadData = payload.data || {};
+      const providedClientId = typeof payloadData.clientId === "string" ? payloadData.clientId : undefined;
+      if (providedClientId && /^\d+\.\d+$/.test(providedClientId)) {
+        clientId = providedClientId;
+      } else {
+        const timestamp = Date.now();
+        const random = Math.floor(Math.random() * 1000000000);
+        clientId = `${timestamp}.${random}`;
+      }
       return {
-        client_id: `server.${eventId}`,
+        client_id: clientId,
         events: [{ name: platformEventName, params }],
       };
     },
@@ -195,7 +205,12 @@ const platformConfigs: Record<string, PlatformSendConfig> = {
       const creds = credentials as { pixelId?: string; accessToken?: string; testEventCode?: string };
       const platformEventName = mapShopifyEventToPlatform(eventName, "meta", customMappings);
       const eventData = extractEventData(payload);
-      const eventTime = Math.floor(Date.now() / 1000);
+      let eventTime: number;
+      if (payload.timestamp && typeof payload.timestamp === 'number') {
+        eventTime = Math.floor(payload.timestamp / 1000);
+      } else {
+        eventTime = Math.floor(Date.now() / 1000);
+      }
       const contents = eventData.items && eventData.items.length > 0
         ? buildItemContents(eventData.items, "meta")
         : [];
@@ -253,7 +268,12 @@ const platformConfigs: Record<string, PlatformSendConfig> = {
       const creds = credentials as { pixelId?: string; accessToken?: string; testEventCode?: string };
       const platformEventName = mapShopifyEventToPlatform(eventName, "tiktok", customMappings);
       const eventData = extractEventData(payload);
-      const timestamp = new Date().toISOString();
+      let timestamp: string;
+      if (payload.timestamp && typeof payload.timestamp === 'number') {
+        timestamp = new Date(payload.timestamp).toISOString();
+      } else {
+        timestamp = new Date().toISOString();
+      }
       const contents = eventData.items && eventData.items.length > 0
         ? buildItemContents(eventData.items, "tiktok")
         : [];

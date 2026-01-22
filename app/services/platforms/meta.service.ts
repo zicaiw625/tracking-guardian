@@ -173,7 +173,13 @@ export class MetaPlatformService implements IPlatformService {
     data: ConversionData,
     eventId: string
   ): Promise<ConversionApiResponse> {
-    const eventTime = Math.floor(Date.now() / 1000);
+    const dataWithTimestamp = data as ConversionData & { timestamp?: number };
+    let eventTime: number;
+    if (dataWithTimestamp.timestamp && typeof dataWithTimestamp.timestamp === 'number') {
+      eventTime = Math.floor(dataWithTimestamp.timestamp / 1000);
+    } else {
+      eventTime = Math.floor(Date.now() / 1000);
+    }
     const contents =
       data.lineItems?.map((item) => ({
         id: item.productId ?? item.variantId ?? item.id,

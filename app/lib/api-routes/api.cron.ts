@@ -26,7 +26,7 @@ async function handleCron(request: Request): Promise<Response> {
   }
 
   const cronSecret = process.env.CRON_SECRET || "";
-  const replayCheck = verifyReplayProtection(request, cronSecret);
+  const replayCheck = await verifyReplayProtection(request, cronSecret);
   if (!replayCheck.valid) {
     logger.warn("Cron request failed replay protection", {
       requestId,

@@ -195,6 +195,9 @@ export function evaluatePlatformConsentWithStrategy(platform: string, consentStr
             }
             return evaluatePlatformConsent(platform, consentState, treatAsMarketing);
         }
+        case "weak": {
+            return evaluatePlatformConsent(platform, consentState, treatAsMarketing);
+        }
         default: {
             if (!hasPixelReceipt) {
                 return {

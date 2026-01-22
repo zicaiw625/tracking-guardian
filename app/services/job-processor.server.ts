@@ -3,6 +3,10 @@ import type { Prisma } from "@prisma/client";
 import { getPendingJobs, updateJobStatus, claimJobsForProcessing, type JobForProcessing } from "./db/conversion-repository.server";
 import { JobStatus, type JobStatusType } from "../types";
 import { normalizeDecimalValue } from "../utils/common";
+import prisma from "../db.server";
+import { normalizeOrderId } from "../utils/crypto.server";
+import { evaluateTrust, checkPlatformEligibility, buildConsentEvidence } from "./trust-evaluator.server";
+import type { ReceiptFields } from "./receipt-matcher.server";
 
 export interface ProcessConversionJobsResult {
   processed: number;
@@ -115,11 +119,14 @@ interface JobWithShop extends JobForProcessing {
     shopDomain: string;
     plan: string | null;
     consentStrategy: string;
+    primaryDomain: string | null;
+    storefrontDomains: Prisma.JsonValue;
     pixelConfigs: Array<{
       platform: string;
       serverSideEnabled: boolean;
       credentialsEncrypted: string | null;
       credentials_legacy: Prisma.JsonValue | null;
+      clientConfig: Prisma.JsonValue;
     }>;
   };
 }
@@ -235,15 +242,121 @@ async function processSingleJob(job: JobWithShop): Promise<void> {
     return;
   }
   
+  const normalizedOrderId = normalizeOrderId(job.orderId);
+  const receipt = await prisma.pixelEventReceipt.findFirst({
+    where: {
+      shopId: job.shopId,
+      eventType: "purchase",
+      OR: [
+        { orderKey: normalizedOrderId },
+        { altOrderKey: normalizedOrderId },
+      ],
+    },
+    select: {
+      id: true,
+      shopId: true,
+      orderKey: true,
+      originHost: true,
+      pixelTimestamp: true,
+      createdAt: true,
+      eventType: true,
+      payloadJson: true,
+    },
+    orderBy: { createdAt: "desc" },
+  });
+  
+  const receiptFields: ReceiptFields | null = receipt ? {
+    id: receipt.id,
+    shopId: receipt.shopId,
+    orderKey: receipt.orderKey,
+    originHost: receipt.originHost,
+    pixelTimestamp: receipt.pixelTimestamp,
+    createdAt: receipt.createdAt,
+    eventType: receipt.eventType,
+    payloadJson: receipt.payloadJson,
+  } : null;
+  
+  const storefrontDomains = Array.isArray(job.shop.storefrontDomains) 
+    ? job.shop.storefrontDomains as string[]
+    : typeof job.shop.storefrontDomains === 'string'
+    ? [job.shop.storefrontDomains]
+    : [];
+  
+  const trustEvaluation = evaluateTrust(
+    receiptFields,
+    undefined,
+    {
+      shopDomain: job.shop.shopDomain,
+      primaryDomain: job.shop.primaryDomain,
+      storefrontDomains,
+      consentStrategy: job.shop.consentStrategy,
+    }
+  );
+  
+  const consentEvidence = buildConsentEvidence(
+    job.shop.consentStrategy,
+    !!receiptFields,
+    trustEvaluation.trustResult,
+    trustEvaluation.consentState
+  );
+  
+  const allowedConfigs: typeof serverSideConfigs = [];
+  const skippedPlatforms: Array<{ platform: string; reason: string }> = [];
+  
+  for (const config of serverSideConfigs) {
+    const clientConfig = config.clientConfig && typeof config.clientConfig === 'object' 
+      ? config.clientConfig as Record<string, unknown>
+      : {};
+    const treatAsMarketing = clientConfig.treatAsMarketing === true;
+    
+    const eligibility = checkPlatformEligibility(
+      config.platform,
+      trustEvaluation.trustResult,
+      trustEvaluation.consentState,
+      job.shop.consentStrategy,
+      treatAsMarketing
+    );
+    
+    if (eligibility.allowed) {
+      allowedConfigs.push(config);
+    } else {
+      skippedPlatforms.push({
+        platform: config.platform,
+        reason: eligibility.skipReason || "unknown",
+      });
+      logger.debug(`Platform ${config.platform} skipped for job ${job.id}`, {
+        reason: eligibility.skipReason,
+        strategy: job.shop.consentStrategy,
+        hasReceipt: !!receiptFields,
+        trustLevel: trustEvaluation.trustResult.level,
+      });
+    }
+  }
+  
+  if (allowedConfigs.length === 0) {
+    logger.debug(`No allowed platforms after consent/trust filtering for job ${job.id}`, {
+      skippedPlatforms: skippedPlatforms.map(p => `${p.platform}:${p.reason}`).join(", "),
+      strategy: job.shop.consentStrategy,
+      hasReceipt: !!receiptFields,
+    });
+    await updateJobStatus(job.id, {
+      status: JobStatus.COMPLETED,
+      completedAt: new Date(),
+      consentEvidence,
+      trustMetadata: trustEvaluation.trustMetadata,
+    });
+    return;
+  }
+  
   const results = await Promise.allSettled(
-    serverSideConfigs.map(config => sendToPlatform(config, job, conversionData, eventType))
+    allowedConfigs.map(config => sendToPlatform(config, job, conversionData, eventType))
   );
   
   const platformResults: PlatformSendResult[] = results.map((result, index) => {
     if (result.status === "fulfilled") {
       return result.value;
     }
-    const platform = serverSideConfigs[index]?.platform || "unknown";
+    const platform = allowedConfigs[index]?.platform || "unknown";
     const errorMessage = result.reason instanceof Error ? result.reason.message : String(result.reason);
     logger.error(`Unexpected error sending to platform ${platform} for job ${job.id}`, {
       error: errorMessage,
@@ -258,6 +371,17 @@ async function processSingleJob(job: JobWithShop): Promise<void> {
     const errors = platformResults.map(r => `${r.platform}: ${r.error ?? "Unknown error"}`).join("; ");
     throw new Error(`All platform sends failed for job ${job.id}: ${errors}`);
   }
+  
+  await updateJobStatus(job.id, {
+    status: JobStatus.COMPLETED,
+    completedAt: new Date(),
+    consentEvidence,
+    trustMetadata: trustEvaluation.trustMetadata,
+    platformResults: {
+      sent: platformResults.filter(r => r.success).map(r => r.platform),
+      skipped: skippedPlatforms,
+    },
+  });
 }
 
 export function getBatchBackoffDelay(batchNumber: number): number {

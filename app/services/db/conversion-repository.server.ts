@@ -33,8 +33,8 @@ export interface JobStatusUpdate {
   completedAt?: Date;
   errorMessage?: string | null;
   platformResults?: Prisma.JsonValue;
-  trustMetadata?: Prisma.JsonValue;
-  consentEvidence?: Prisma.JsonValue;
+  trustMetadata?: unknown;
+  consentEvidence?: unknown;
 }
 
 interface JobShopData {

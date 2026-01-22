@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { createHmac } from "crypto";
+import { createHmac, createHash } from "crypto";
 import { createMockRequest } from "../setup";
 
 vi.mock("../../app/utils/logger.server", () => ({
@@ -38,13 +38,35 @@ describe("Cron Authentication", () => {
   afterEach(() => {
     process.env = originalEnv;
   });
+  async function createReplaySignature(
+    secret: string,
+    method: string,
+    url: string,
+    timestamp: string,
+    body?: string
+  ): Promise<string> {
+    const urlObj = new URL(url);
+    const pathname = urlObj.pathname;
+    let bodyHash = "";
+    if (body) {
+      bodyHash = createHash("sha256").update(body).digest("hex");
+    }
+    const signatureContent = `${method}:${pathname}:${timestamp}:${bodyHash}`;
+    return createHmac("sha256", secret).update(signatureContent).digest("hex");
+  }
+
   function createAuthenticatedRequest(
     secret: string = testSecret,
     overrideHeaders?: Record<string, string>
   ) {
     const timestamp = String(Math.floor(Date.now() / 1000));
-    const signature = createHmac("sha256", secret).update(timestamp).digest("hex");
-    return createMockRequest("https://example.com/cron", {
+    const url = "https://example.com/cron";
+    const method = "GET";
+    const signature = createHmac("sha256", secret)
+      .update(`${method}:/cron:${timestamp}:`)
+      .digest("hex");
+    return createMockRequest(url, {
+      method,
       headers: {
         Authorization: `Bearer ${secret}`,
         "X-Cron-Timestamp": timestamp,
@@ -114,84 +136,96 @@ describe("Cron Authentication", () => {
   });
   describe("verifyReplayProtection", () => {
     const cronSecret = "test-secret-for-hmac";
-    it("should accept request with valid timestamp and signature in production", () => {
+    it("should accept request with valid timestamp and signature in production", async () => {
       const timestamp = String(Math.floor(Date.now() / 1000));
-      const signature = createHmac("sha256", cronSecret).update(timestamp).digest("hex");
-      const request = createMockRequest("https://example.com/cron", {
+      const url = "https://example.com/cron";
+      const method = "GET";
+      const signature = await createReplaySignature(cronSecret, method, url, timestamp);
+      const request = createMockRequest(url, {
+        method,
         headers: {
           "X-Cron-Timestamp": timestamp,
           "X-Cron-Signature": signature,
         },
       });
-      const result = verifyReplayProtection(request, cronSecret);
+      const result = await verifyReplayProtection(request, cronSecret);
       expect(result.valid).toBe(true);
     });
-    it("should reject request with expired timestamp", () => {
+    it("should reject request with expired timestamp", async () => {
       const oldTimestamp = String(Math.floor(Date.now() / 1000) - 600);
-      const signature = createHmac("sha256", cronSecret).update(oldTimestamp).digest("hex");
-      const request = createMockRequest("https://example.com/cron", {
+      const url = "https://example.com/cron";
+      const method = "GET";
+      const signature = await createReplaySignature(cronSecret, method, url, oldTimestamp);
+      const request = createMockRequest(url, {
+        method,
         headers: {
           "X-Cron-Timestamp": oldTimestamp,
           "X-Cron-Signature": signature,
         },
       });
-      const result = verifyReplayProtection(request, cronSecret);
+      const result = await verifyReplayProtection(request, cronSecret);
       expect(result.valid).toBe(false);
       expect(result.error).toContain("out of range");
     });
-    it("should reject request with future timestamp", () => {
+    it("should reject request with future timestamp", async () => {
       const futureTimestamp = String(Math.floor(Date.now() / 1000) + 600);
-      const signature = createHmac("sha256", cronSecret).update(futureTimestamp).digest("hex");
-      const request = createMockRequest("https://example.com/cron", {
+      const url = "https://example.com/cron";
+      const method = "GET";
+      const signature = await createReplaySignature(cronSecret, method, url, futureTimestamp);
+      const request = createMockRequest(url, {
+        method,
         headers: {
           "X-Cron-Timestamp": futureTimestamp,
           "X-Cron-Signature": signature,
         },
       });
-      const result = verifyReplayProtection(request, cronSecret);
+      const result = await verifyReplayProtection(request, cronSecret);
       expect(result.valid).toBe(false);
     });
-    it("should reject request with invalid timestamp format", () => {
+    it("should reject request with invalid timestamp format", async () => {
       const request = createMockRequest("https://example.com/cron", {
         headers: {
           "X-Cron-Timestamp": "not-a-number",
           "X-Cron-Signature": "00",
         },
       });
-      const result = verifyReplayProtection(request, cronSecret);
+      const result = await verifyReplayProtection(request, cronSecret);
       expect(result.valid).toBe(false);
       expect(result.error).toContain("Invalid timestamp format");
     });
-    it("should allow missing timestamp in development", () => {
+    it("should allow missing timestamp in development", async () => {
       process.env.NODE_ENV = "development";
       const request = createMockRequest("https://example.com/cron");
-      const result = verifyReplayProtection(request, cronSecret);
+      const result = await verifyReplayProtection(request, cronSecret);
       expect(result.valid).toBe(true);
     });
-    it("should reject request with timestamp but missing signature in production", () => {
+    it("should reject request with timestamp but missing signature in production", async () => {
       const timestamp = String(Math.floor(Date.now() / 1000));
       const request = createMockRequest("https://example.com/cron", {
         headers: {
           "X-Cron-Timestamp": timestamp,
         },
       });
-      const result = verifyReplayProtection(request, cronSecret);
+      const result = await verifyReplayProtection(request, cronSecret);
       expect(result.valid).toBe(false);
       expect(result.error).toContain("Missing signature");
     });
-    it("should accept valid HMAC signature", () => {
+    it("should accept valid HMAC signature", async () => {
       const timestamp = String(Math.floor(Date.now() / 1000));
-      const signature = createHmac("sha256", cronSecret).update(timestamp).digest("hex");
-      const request = createMockRequest("https://example.com/cron", {
+      const url = "https://example.com/cron";
+      const method = "GET";
+      const signature = await createReplaySignature(cronSecret, method, url, timestamp);
+      const request = createMockRequest(url, {
+        method,
         headers: {
           "X-Cron-Timestamp": timestamp,
           "X-Cron-Signature": signature,
         },
       });
-      const result = verifyReplayProtection(request, cronSecret);
+      const result = await verifyReplayProtection(request, cronSecret);
       expect(result.valid).toBe(true);
     });
-    it("should reject invalid HMAC signature", () => {
+    it("should reject invalid HMAC signature", async () => {
       const timestamp = String(Math.floor(Date.now() / 1000));
       const request = createMockRequest("https://example.com/cron", {
         headers: {
@@ -199,7 +233,7 @@ describe("Cron Authentication", () => {
           "X-Cron-Signature": "invalidsignature",
         },
       });
-      const result = verifyReplayProtection(request, cronSecret);
+      const result = await verifyReplayProtection(request, cronSecret);
       expect(result.valid).toBe(false);
       expect(result.error).toContain("Invalid signature");
     });

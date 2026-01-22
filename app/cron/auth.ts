@@ -1,4 +1,4 @@
-import { timingSafeEqual , createHmac } from "crypto";
+import { timingSafeEqual , createHmac, createHash } from "crypto";
 import { logger } from "../utils/logger.server";
 
 const REPLAY_WINDOW_SECONDS = 300;
@@ -69,10 +69,10 @@ export interface ReplayProtectionResult {
   error?: string;
 }
 
-export function verifyReplayProtection(
+export async function verifyReplayProtection(
   request: Request,
   secret: string
-): ReplayProtectionResult {
+): Promise<ReplayProtectionResult> {
   const strictReplay = process.env.CRON_STRICT_REPLAY === "true";
   const isProduction = process.env.NODE_ENV === "production";
 
@@ -112,7 +112,22 @@ export function verifyReplayProtection(
     };
   }
 
-  const expectedSignature = createHmac("sha256", secret).update(timestampHeader).digest("hex");
+  const url = new URL(request.url);
+  const pathname = url.pathname;
+  const method = request.method;
+
+  let bodyHash = "";
+  try {
+    const bodyText = await request.clone().text();
+    if (bodyText) {
+      bodyHash = createHash("sha256").update(bodyText).digest("hex");
+    }
+  } catch {
+    bodyHash = "";
+  }
+
+  const signatureContent = `${method}:${pathname}:${timestampHeader}:${bodyHash}`;
+  const expectedSignature = createHmac("sha256", secret).update(signatureContent).digest("hex");
 
   if (signatureHeader.length !== expectedSignature.length) {
     return { valid: false, error: "Invalid signature length" };
