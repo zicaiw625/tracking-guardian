@@ -10,7 +10,6 @@ import { validateInput , CronRequestSchema } from "../../schemas/api-schemas";
 import { processConversionJobs } from "../../services/conversion-job.server";
 import { runAllShopsDeliveryHealthCheck } from "../../services/delivery-health.server";
 import { runAllShopsReconciliation } from "../../services/reconciliation.server";
-import { readJsonWithSizeLimit } from "../../utils/body-size-guard";
 
 async function handleCron(request: Request): Promise<Response> {
   const requestId = randomUUID();
@@ -44,7 +43,10 @@ async function handleCron(request: Request): Promise<Response> {
   let requestBody: unknown = null;
   try {
     if (request.headers.get("Content-Type")?.includes("application/json")) {
-      requestBody = await readJsonWithSizeLimit(request);
+      const bodyText = await request.text();
+      if (bodyText.trim()) {
+        requestBody = JSON.parse(bodyText);
+      }
     }
   } catch (error) {
     if (error instanceof Response) {
