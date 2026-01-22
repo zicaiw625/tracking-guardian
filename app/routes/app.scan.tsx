@@ -917,7 +917,7 @@ export function ScanPage({
             )}
             {isGrowthOrAbove && !isProOrAbove && (
               <List type="bullet">
-                <List.Item>当前可用：Web Pixel 标准事件映射（v1 最小可用迁移，v1.1+ 将支持服务端 CAPI）</List.Item>
+                <List.Item>当前可用：Web Pixel 标准事件映射（v1 最小可用迁移），v1.0 已支持服务端 CAPI（需在设置中配置凭证，默认关闭）</List.Item>
                 <List.Item>升级到 Pro 以解锁事件对账、告警与高级 TY/OS 模块</List.Item>
               </List>
             )}
@@ -1489,7 +1489,7 @@ export function ScanPage({
                     <Text as="p" variant="bodySm">
                       <strong>✅ 迁移的核心价值：</strong>
                       迁移是一次性工作，完成后可确保转化追踪在 ScriptTag 废弃后继续正常工作。
-                      v1 提供 Web Pixel 标准事件映射（GA4/Meta/TikTok），v1.1+ 将支持服务端 CAPI（不受浏览器隐私设置和广告拦截器影响）。
+                      v1 提供 Web Pixel 标准事件映射（GA4/Meta/TikTok），v1.0 已支持服务端 CAPI（需在设置中配置凭证，不受浏览器隐私设置和广告拦截器影响）。
                       实际追踪效果因店铺情况而异。
                     </Text>
                   </Banner>
@@ -1549,7 +1549,7 @@ export function ScanPage({
                     <br />
                     ✅ 验收向导 + 事件参数完整率 + 订单金额/币种一致性验证
                     <br />
-                    <Text as="span" fontWeight="semibold">⚠️ v1.1+ 规划：</Text> 服务端 CAPI（不受浏览器隐私设置和广告拦截器影响）
+                    <Text as="span" fontWeight="semibold">v1.0 已支持：</Text> 服务端 CAPI（需配置凭证，不受浏览器隐私设置和广告拦截器影响）
                     <br />
                     <Text as="span" tone="subdued">
                       注：实际归因效果因广告账户设置、流量来源等因素而异

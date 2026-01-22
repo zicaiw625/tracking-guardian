@@ -328,9 +328,9 @@ export function getUpgradeStatusMessage(upgradeStatus: ShopUpgradeStatus, hasScr
     const daysToAutoUpgrade = Math.ceil((DEPRECATION_DATES.plusAutoUpgradeStart.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
     const isInAutoUpgradeRiskWindow = tier === "plus" && daysToAutoUpgrade <= 90;
     const plusAutoUpgradeMessage = isInPlusAutoUpgradeWindow
-        ? `⚡ Plus 商家自动升级窗口已开始（${autoUpgradeStartLabel}起，日期来自 Shopify 官方公告，请以 Admin 提示为准）：Shopify 正在逐步将 Plus 商家的 Thank you / Order status 页面自动迁移到新版本。自动升级后，旧的 Additional Scripts、ScriptTags、checkout.liquid 自定义将失效。`
+        ? `⚡ Plus 商家自动升级窗口已开始（${autoUpgradeStartLabel}起，Shopify 会提前30天通知，日期来自 Shopify 官方公告，请以 Admin 提示为准）：Shopify 正在逐步将 Plus 商家的 Thank you / Order status 页面自动迁移到新版本。自动升级后，旧的 Additional Scripts、ScriptTags、checkout.liquid 自定义将失效。`
         : isInAutoUpgradeRiskWindow
-        ? `⚠️ Plus 商家自动升级风险窗口（剩余 ${daysToAutoUpgrade} 天）：Shopify 将于 ${autoUpgradeStartLabel}（日期来自 Shopify 官方公告，请以 Admin 提示为准）开始自动将 Plus 商家迁移到新版页面。自动升级后，旧的 Additional Scripts、ScriptTags、checkout.liquid 自定义将丢失。建议提前完成迁移。`
+        ? `⚠️ Plus 商家自动升级风险窗口（剩余 ${daysToAutoUpgrade} 天）：Shopify 将于 ${autoUpgradeStartLabel}（Shopify 会提前30天通知，日期来自 Shopify 官方公告，请以 Admin 提示为准）开始自动将 Plus 商家迁移到新版页面。自动升级后，旧的 Additional Scripts、ScriptTags、checkout.liquid 自定义将丢失。建议提前完成迁移。`
         : "";
     if (typOspPagesEnabled === true) {
         return {
@@ -407,8 +407,8 @@ export function getUpgradeStatusMessage(upgradeStatus: ShopUpgradeStatus, hasScr
     }
     if (tier === "plus" && isPlusDeadlinePassed) {
         const autoUpgradeNote = isInPlusAutoUpgradeWindow
-            ? `\n\n⚡ 自动升级窗口已开始：Shopify 正在将 Plus 商家自动迁移到新版页面（${autoUpgradeStartLabel}起，日期来自 Shopify 官方公告，请以 Admin 提示为准，Shopify 会提前通知）。`
-            : `\n\n📅 ${autoUpgradeStartLabel}起（日期来自 Shopify 官方公告，请以 Admin 提示为准），Shopify 将开始自动迁移 Plus 商家到新版页面（Shopify 会提前通知）。`;
+            ? `\n\n⚡ 自动升级窗口已开始：Shopify 正在将 Plus 商家自动迁移到新版页面（${autoUpgradeStartLabel}起，Shopify 会提前30天通知，日期来自 Shopify 官方公告，请以 Admin 提示为准）。`
+            : `\n\n📅 ${autoUpgradeStartLabel}起（Shopify 会提前30天通知，日期来自 Shopify 官方公告，请以 Admin 提示为准），Shopify 将开始自动迁移 Plus 商家到新版页面。`;
         return {
             isUpgraded: false,
             urgency: "critical",

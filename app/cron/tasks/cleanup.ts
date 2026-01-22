@@ -27,6 +27,7 @@ export interface CleanupResult {
   eventLogsDeleted: number;
   deliveryAttemptsDeleted: number;
   uninstalledShopsDeleted: number;
+  auditAssetsDeleted: number;
 }
 
 async function deleteInBatches(
@@ -67,6 +68,7 @@ export async function cleanupExpiredData(): Promise<CleanupResult> {
     eventLogsDeleted: 0,
     deliveryAttemptsDeleted: 0,
     uninstalledShopsDeleted: 0,
+    auditAssetsDeleted: 0,
   };
 
   try {
@@ -480,6 +482,40 @@ export async function cleanupExpiredData(): Promise<CleanupResult> {
         );
       } catch (error) {
         logger.error("Failed to cleanup event logs", { shopId: shop.id, error });
+      }
+
+      try {
+        result.auditAssetsDeleted += await deleteInBatches(
+          (cursor) =>
+            prisma.auditAsset.findMany({
+              where: {
+                shopId: shop.id,
+                createdAt: {
+                  lt: cutoffDate,
+                },
+              },
+              select: {
+                id: true,
+              },
+              orderBy: {
+                id: "asc",
+              },
+              take: CLEANUP_BATCH_SIZE,
+              ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
+            }),
+          async (ids) => {
+            const deleteResult = await prisma.auditAsset.deleteMany({
+              where: {
+                id: {
+                  in: ids,
+                },
+              },
+            });
+            return deleteResult.count;
+          }
+        );
+      } catch (error) {
+        logger.error("Failed to cleanup audit assets", { shopId: shop.id, error });
       }
     }
   } catch (error) {

@@ -279,7 +279,7 @@ export function MigrationCountdown({
               </Text>
               {shopTier === "plus" && (
                 <Text as="p" variant="bodySm" tone="subdued">
-                  Plus 商家提示：2026年1月起（日期来自 Shopify 官方公告，请以 Admin 提示为准），Shopify 将开始自动升级未迁移的店铺，届时旧版脚本将被清除。
+                  Plus 商家提示：2026年1月起（Shopify 会提前30天通知，日期来自 Shopify 官方公告，请以 Admin 提示为准），Shopify 将开始自动升级未迁移的店铺，届时旧版脚本将被清除。
                 </Text>
               )}
             </BlockStack>
@@ -290,7 +290,7 @@ export function MigrationCountdown({
             <BlockStack gap="200">
               <Text as="p">
                 {shopTier === "plus"
-                  ? "Plus 商家的 ScriptTag 和 Additional Scripts 已停止执行。请立即完成迁移！"
+                  ? "Plus 商家的 ScriptTag 已停止执行；Additional Scripts 已进入只读模式（不可编辑，PII 不可访问）。请立即完成迁移！"
                   : "迁移截止日期已过。请尽快完成迁移以恢复追踪功能。"}
               </Text>
             </BlockStack>

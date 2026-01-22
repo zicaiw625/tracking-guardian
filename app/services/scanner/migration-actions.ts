@@ -239,7 +239,7 @@ export function generateMigrationActions(result: EnhancedScanResult, shopTier: s
                 type: "configure_pixel",
                 priority: "high",
                 title: "⚡ Plus 商家自动升级窗口已开始",
-                description: `Shopify 已于 2026年1月 开始自动将 Plus 商家迁移到新版 Thank you / Order status 页面。` +
+                description: `Shopify 已于 2026年1月（Shopify 会提前30天通知）开始自动将 Plus 商家迁移到新版 Thank you / Order status 页面。` +
                     `旧的 ScriptTags、checkout.liquid 自定义将在自动升级后失效。Additional Scripts 需要通过手动粘贴识别。` +
                     `请立即确认 Web Pixel 配置正确，避免追踪中断。`,
             };
@@ -250,7 +250,7 @@ export function generateMigrationActions(result: EnhancedScanResult, shopTier: s
                 type: "configure_pixel",
                 priority: daysToAutoUpgrade <= 30 ? "high" : "medium",
                 title: `📅 Plus 自动升级倒计时：剩余 ${daysToAutoUpgrade} 天`,
-                description: `Shopify 将于 2026年1月 开始自动将 Plus 商家迁移到新版页面。` +
+                description: `Shopify 将于 2026年1月（Shopify 会提前30天通知）开始自动将 Plus 商家迁移到新版页面。` +
                     `自动升级后，旧的 Additional Scripts、ScriptTags、checkout.liquid 自定义将失效。` +
                     `建议提前完成迁移，确保控制迁移时机。`,
             };

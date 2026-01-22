@@ -444,7 +444,7 @@ const UpgradeStatusCard = memo(function UpgradeStatusCard({
                   <List type="bullet">
                     <List.Item>
                       <Text as="span" variant="bodySm">
-                        旧版 ScriptTags 和 Additional Scripts 将在截止日期后停止执行
+                        旧版 ScriptTags 将在截止日期后停止执行；Additional Scripts 将进入只读模式（不可编辑，PII 不可访问）
                       </Text>
                     </List.Item>
                     <List.Item>
@@ -523,7 +523,7 @@ const UpgradeStatusCard = memo(function UpgradeStatusCard({
                   <Banner tone="warning">
                     <BlockStack gap="100">
                       <Text as="p" variant="bodySm">
-                        <strong>{autoUpgradeLabel}</strong> 起，Shopify 开始自动升级 Plus 商家到新版 TYP/OSP 页面，legacy 定制会丢失。
+                        <strong>{autoUpgradeLabel}</strong> 起（Shopify 会提前30天通知），Shopify 开始自动升级 Plus 商家到新版 TYP/OSP 页面，legacy 定制会丢失。
                       </Text>
                       <Link
                         url="https://help.shopify.com/en/manual/checkout-settings/upgrade-guide"
@@ -1045,7 +1045,7 @@ function MigrationDeadlineBanner({ scriptTagsCount }: { scriptTagsCount: number 
         </Text>
         <BlockStack gap="100">
           <Text as="p">
-            <strong>Plus 商家:</strong> <strong>{plusDeadline}</strong> 开始限制（ScriptTag/Additional Scripts 停止执行，关键节点：升级/限制开始），<strong>{plusAutoUpgrade}</strong> 起 Shopify 开始自动升级（legacy 定制会丢失）。参考 <Link url={SHOPIFY_HELP_LINKS.UPGRADE_GUIDE} external>Shopify Help Center</Link>
+            <strong>Plus 商家:</strong> <strong>{plusDeadline}</strong> 开始限制（ScriptTag 停止执行；Additional Scripts 进入只读模式（不可编辑，PII 不可访问），关键节点：升级/限制开始），<strong>{plusAutoUpgrade}</strong> 起 Shopify 开始自动升级（legacy 定制会丢失）。参考 <Link url={SHOPIFY_HELP_LINKS.UPGRADE_GUIDE} external>Shopify Help Center</Link>
           </Text>
           <Text as="p" variant="bodySm" tone="subdued">
             <Link
@@ -1465,7 +1465,7 @@ export default function Index() {
               </Text>
               <List>
                 <List.Item>
-                  <strong>Plus 商家</strong>：<strong>{formatDeadlineDate(DEPRECATION_DATES.plusScriptTagExecutionOff, "exact")}</strong> 开始限制（ScriptTag/Additional Scripts 停止执行，关键节点：升级/限制开始），<strong>{formatDeadlineDate(DEPRECATION_DATES.plusAutoUpgradeStart, "month")}</strong> 起 Shopify 开始自动升级（legacy 定制会丢失）。参考{" "}
+                  <strong>Plus 商家</strong>：<strong>{formatDeadlineDate(DEPRECATION_DATES.plusScriptTagExecutionOff, "exact")}</strong> 开始限制（ScriptTag 停止执行；Additional Scripts 进入只读模式（不可编辑，PII 不可访问），关键节点：升级/限制开始），<strong>{formatDeadlineDate(DEPRECATION_DATES.plusAutoUpgradeStart, "month")}</strong> 起（Shopify 会提前30天通知）Shopify 开始自动升级（legacy 定制会丢失）。参考{" "}
                   <Link url={SHOPIFY_HELP_LINKS.UPGRADE_GUIDE} external>
                     Shopify Help Center 升级指南
                   </Link>
