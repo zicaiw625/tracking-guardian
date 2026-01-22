@@ -480,9 +480,14 @@ export default function MonitorPage() {
         <Layout.Section>
           <Card>
             <BlockStack gap="400">
-              <Text as="h2" variant="headingMd">
-                对账数据 (过去7天)
-              </Text>
+              <BlockStack gap="200">
+                <Text as="h2" variant="headingMd">
+                  对账数据 (过去7天)
+                </Text>
+                <Text as="p" variant="bodySm" tone="subdued">
+                  对比 Shopify webhook 订单数与像素事件捕获数。注意：此数据基于我们捕获的像素事件，非广告平台后台真实转化数。
+                </Text>
+              </BlockStack>
               <Divider />
               {data.reconciliation.last7Days.length === 0 ? (
                 <EnhancedEmptyState
@@ -501,7 +506,7 @@ export default function MonitorPage() {
                           <Text as="p" variant="headingMd">{data.reconciliation.summary.totalOrders}</Text>
                         </Box>
                         <Box>
-                          <Text as="p" variant="bodySm" tone="subdued">平台转化数</Text>
+                          <Text as="p" variant="bodySm" tone="subdued">像素事件捕获数</Text>
                           <Text as="p" variant="headingMd">{data.reconciliation.summary.totalConversions}</Text>
                         </Box>
                         <Box>
@@ -515,7 +520,7 @@ export default function MonitorPage() {
                   </Box>
                   <DataTable
                     columnContentTypes={["text", "numeric", "numeric", "numeric", "numeric"]}
-                    headings={["平台", "Shopify 订单", "平台转化", "订单差异率", "收入差异率"]}
+                    headings={["平台", "Shopify 订单", "像素事件捕获数", "订单差异率", "收入差异率"]}
                     rows={data.reconciliation.last7Days.map((r) => [
                       r.platform,
                       r.shopifyOrders.toString(),
@@ -532,9 +537,14 @@ export default function MonitorPage() {
         <Layout.Section>
           <Card>
             <BlockStack gap="400">
-              <Text as="h2" variant="headingMd">
-                交付健康度 (过去7天)
-              </Text>
+              <BlockStack gap="200">
+                <Text as="h2" variant="headingMd">
+                  交付健康度 (过去7天)
+                </Text>
+                <Text as="p" variant="bodySm" tone="subdued">
+                  监控我们发送到平台 API 的成功/失败率。此指标反映事件从我们的服务端到广告平台 API 的投递情况。
+                </Text>
+              </BlockStack>
               <Divider />
               {Object.keys(data.health).length === 0 ? (
                 <EnhancedEmptyState

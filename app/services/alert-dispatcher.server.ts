@@ -5,6 +5,7 @@ import { decryptAlertSettings } from "./alert-settings.server";
 import { getEventMonitoringStats, getMissingParamsStats, getEventVolumeStats } from "./monitoring.server";
 import { detectVolumeAnomaly } from "./monitoring/volume-anomaly.server";
 import type { AlertData } from "../types/webhook";
+import { hashValueSync } from "../utils/crypto.server";
 
 export interface AlertCheckResult {
   triggered: boolean;
@@ -313,6 +314,71 @@ export async function checkPixelHeartbeat(shopId: string): Promise<AlertCheckRes
   return { triggered: false, severity: "low", message: "" };
 }
 
+function generateAlertFingerprint(
+  alertType: string,
+  severity: string,
+  message: string,
+  details?: Record<string, unknown>
+): string {
+  const content = JSON.stringify({
+    alertType,
+    severity,
+    message,
+    details: details ? Object.keys(details).sort().reduce((acc, key) => {
+      if (key !== "configId") {
+        acc[key] = details[key];
+      }
+      return acc;
+    }, {} as Record<string, unknown>) : {},
+  });
+  return hashValueSync(content).substring(0, 32);
+}
+
+function generatePayloadHash(alertData: AlertData): string {
+  const content = JSON.stringify({
+    platform: alertData.platform,
+    shopifyOrders: alertData.shopifyOrders,
+    platformConversions: alertData.platformConversions,
+    orderDiscrepancy: alertData.orderDiscrepancy,
+  });
+  return hashValueSync(content).substring(0, 32);
+}
+
+const ALERT_COOLDOWN_MINUTES = 30;
+
+async function shouldSendAlert(
+  shopId: string,
+  fingerprint: string,
+  cooldownMinutes: number = ALERT_COOLDOWN_MINUTES
+): Promise<boolean> {
+  try {
+    const cooldownMs = cooldownMinutes * 60 * 1000;
+    const cooldownThreshold = new Date(Date.now() - cooldownMs);
+    
+    const recentAlert = await prisma.alertEvent.findFirst({
+      where: {
+        shopId,
+        fingerprint,
+        sentAt: {
+          gte: cooldownThreshold,
+        },
+      },
+      orderBy: {
+        sentAt: "desc",
+      },
+    });
+    
+    return !recentAlert;
+  } catch (error) {
+    logger.warn("Error checking alert cooldown, allowing alert", {
+      shopId,
+      fingerprint,
+      error: error instanceof Error ? error.message : String(error),
+    });
+    return true;
+  }
+}
+
 async function dispatchAlerts(shopId: string, results: AlertCheckResult[]): Promise<void> {
   try {
     let shop;
@@ -337,7 +403,6 @@ async function dispatchAlerts(shopId: string, results: AlertCheckResult[]): Prom
       return;
     }
     
-    // Group results by configId
     const resultsByConfig = new Map<string, AlertCheckResult[]>();
     for (const result of results) {
       const configId = (result.details?.configId as string) || "unknown";
@@ -358,7 +423,6 @@ async function dispatchAlerts(shopId: string, results: AlertCheckResult[]): Prom
         continue;
       }
       
-      // Get results for this specific config
       const configResults = resultsByConfig.get(configId) || [];
       if (configResults.length === 0) {
         continue;
@@ -369,7 +433,6 @@ async function dispatchAlerts(shopId: string, results: AlertCheckResult[]): Prom
         const missingStats = await getMissingParamsStats(shopId);
         const volumeStats = await getEventVolumeStats(shopId);
         
-        // Find the primary result (highest severity)
         const primaryResult = configResults.find(r => r.severity === "high") || 
                              configResults.find(r => r.severity === "medium") || 
                              configResults[0];
@@ -382,8 +445,16 @@ async function dispatchAlerts(shopId: string, results: AlertCheckResult[]): Prom
         const successRate = stats.successRate / 100 || 0;
         const successfulEvents = Math.round(totalEvents * successRate);
         
+        const alertType = primaryResult?.message?.includes("失败率") ? "failure_rate" : 
+                         primaryResult?.message?.includes("缺失参数") ? "missing_params" : 
+                         primaryResult?.message?.includes("事件量下降") ? "volume_drop" : 
+                         primaryResult?.message?.includes("去重冲突") ? "dedup_conflict" :
+                         primaryResult?.message?.includes("心跳") ? "heartbeat" : "monitoring";
+        
         const alertData: AlertData = {
-          platform: primaryResult?.message?.includes("失败率") ? "失败率告警" : primaryResult?.message?.includes("缺失参数") ? "缺失参数告警" : primaryResult?.message?.includes("事件量下降") ? "事件量下降告警" : "监控告警",
+          platform: alertType === "failure_rate" ? "失败率告警" : 
+                   alertType === "missing_params" ? "缺失参数告警" : 
+                   alertType === "volume_drop" ? "事件量下降告警" : "监控告警",
           reportDate: new Date(),
           shopifyOrders: totalEvents,
           platformConversions: successfulEvents,
@@ -391,6 +462,28 @@ async function dispatchAlerts(shopId: string, results: AlertCheckResult[]): Prom
           revenueDiscrepancy: maxDiscrepancy,
           shopDomain: shop.shopDomain || "",
         };
+        
+        const fingerprint = generateAlertFingerprint(
+          alertType,
+          primaryResult?.severity || "low",
+          primaryResult?.message || "",
+          primaryResult?.details
+        );
+        
+        const cooldownMinutes = (config.cooldownMinutes as number) || ALERT_COOLDOWN_MINUTES;
+        const shouldSend = await shouldSendAlert(shopId, fingerprint, cooldownMinutes);
+        
+        if (!shouldSend) {
+          logger.debug("Alert skipped due to cooldown", {
+            shopId,
+            configId,
+            alertType,
+            fingerprint,
+            cooldownMinutes,
+          });
+          continue;
+        }
+        
         const alertSettings = await decryptAlertSettings(settingsEncrypted);
         const configWithEncryption = {
           id: configId,
@@ -402,11 +495,35 @@ async function dispatchAlerts(shopId: string, results: AlertCheckResult[]): Prom
           settingsEncrypted,
         };
         const success = await sendAlert(configWithEncryption, alertData);
+        
         if (success) {
+          const payloadHash = generatePayloadHash(alertData);
+          try {
+            await prisma.alertEvent.create({
+              data: {
+                shopId,
+                alertType,
+                severity: primaryResult?.severity || "low",
+                fingerprint,
+                message: primaryResult?.message || "",
+                channel,
+                payloadHash,
+                sentAt: new Date(),
+              },
+            });
+          } catch (dbError) {
+            logger.warn("Failed to record alert event to database", {
+              shopId,
+              alertType,
+              error: dbError instanceof Error ? dbError.message : String(dbError),
+            });
+          }
+          
           logger.info("Alert dispatched successfully", {
             shopId,
             channel,
             configId,
+            alertType,
             resultsCount: configResults.length,
           });
         } else {
@@ -434,12 +551,52 @@ async function dispatchAlerts(shopId: string, results: AlertCheckResult[]): Prom
   }
 }
 
-export async function getAlertHistory(shopId: string, _limit: number = 50): Promise<AlertHistory[]> {
-  return [];
+export async function getAlertHistory(shopId: string, limit: number = 50): Promise<AlertHistory[]> {
+  try {
+    const events = await prisma.alertEvent.findMany({
+      where: { shopId },
+      orderBy: { sentAt: "desc" },
+      take: limit,
+      select: {
+        id: true,
+        alertType: true,
+        severity: true,
+        message: true,
+        ackAt: true,
+        sentAt: true,
+      },
+    });
+    return events.map((e: { id: string; alertType: string; severity: string; message: string; ackAt: Date | null; sentAt: Date }) => ({
+      id: e.id,
+      alertType: e.alertType,
+      severity: e.severity,
+      message: e.message,
+      acknowledged: !!e.ackAt,
+      createdAt: e.sentAt,
+    }));
+  } catch (error) {
+    logger.error("Error fetching alert history", {
+      shopId,
+      error: error instanceof Error ? error.message : String(error),
+    });
+    return [];
+  }
 }
 
 export async function acknowledgeAlert(alertId: string): Promise<void> {
-  logger.info("Alert acknowledged", { alertId });
+  try {
+    await prisma.alertEvent.update({
+      where: { id: alertId },
+      data: { ackAt: new Date() },
+    });
+    logger.info("Alert acknowledged", { alertId });
+  } catch (error) {
+    logger.error("Error acknowledging alert", {
+      alertId,
+      error: error instanceof Error ? error.message : String(error),
+    });
+    throw error;
+  }
 }
 
 export async function getThresholdRecommendations(shopId: string): Promise<Record<string, number>> {

@@ -100,12 +100,38 @@ export async function aggregateDailyMetrics(
     updatedAt: new Date(),
   };
   try {
-    void 0; // TODO: persist metrics when daily table is available
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  } catch (_error) {
-    logger.debug("Daily metrics table not available, skipping aggregation", {
+    await prisma.dailyAggregatedMetrics.upsert({
+      where: {
+        shopId_date: {
+          shopId,
+          date: startOfDay,
+        },
+      },
+      update: {
+        totalOrders,
+        totalValue,
+        successRate,
+        platformBreakdown,
+        eventVolume,
+        missingParamsRate,
+        updatedAt: new Date(),
+      },
+      create: {
+        shopId,
+        date: startOfDay,
+        totalOrders,
+        totalValue,
+        successRate,
+        platformBreakdown,
+        eventVolume,
+        missingParamsRate,
+      },
+    });
+  } catch (error) {
+    logger.debug("Failed to persist daily metrics", {
       shopId,
       date: startOfDay.toISOString(),
+      error: error instanceof Error ? error.message : String(error),
     });
   }
   return metrics;
@@ -127,7 +153,67 @@ export async function getAggregatedMetrics(
     successRate: number;
   }>;
 }> {
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  try {
+    const startDateOnly = new Date(startDate);
+    startDateOnly.setUTCHours(0, 0, 0, 0);
+    const endDateOnly = new Date(endDate);
+    endDateOnly.setUTCHours(23, 59, 59, 999);
+    
+    const persistedMetrics = await prisma.dailyAggregatedMetrics.findMany({
+      where: {
+        shopId,
+        date: {
+          gte: startDateOnly,
+          lte: endDateOnly,
+        },
+      },
+      orderBy: {
+        date: "asc",
+      },
+    });
+    
+    if (persistedMetrics.length > 0) {
+      const totalOrders = persistedMetrics.reduce((sum: number, m: { totalOrders: number }) => sum + m.totalOrders, 0);
+      const totalValue = persistedMetrics.reduce((sum: number, m: { totalValue: { toNumber?: () => number } | number }) => sum + Number(m.totalValue), 0);
+      const totalSuccessful = persistedMetrics.reduce((sum: number, m: { totalOrders: number; successRate: number }) => sum + Math.round(m.totalOrders * m.successRate), 0);
+      const successRate = totalOrders > 0 ? totalSuccessful / totalOrders : 0;
+      
+      const platformBreakdown: Record<string, { count: number; value: number }> = {};
+      for (const metric of persistedMetrics) {
+        const breakdown = metric.platformBreakdown as Record<string, { count: number; value: number }> | null;
+        if (breakdown) {
+          for (const [platform, stats] of Object.entries(breakdown)) {
+            if (!platformBreakdown[platform]) {
+              platformBreakdown[platform] = { count: 0, value: 0 };
+            }
+            platformBreakdown[platform].count += stats.count;
+            platformBreakdown[platform].value += stats.value;
+          }
+        }
+      }
+      
+      const dailyBreakdown = persistedMetrics.map((m: { date: Date; totalOrders: number; totalValue: { toNumber?: () => number } | number; successRate: number }) => ({
+        date: m.date,
+        totalOrders: m.totalOrders,
+        totalValue: Number(m.totalValue),
+        successRate: m.successRate,
+      }));
+      
+      return {
+        totalOrders,
+        totalValue,
+        successRate,
+        platformBreakdown,
+        dailyBreakdown,
+      };
+    }
+  } catch (error) {
+    logger.debug("Failed to read persisted metrics, falling back to real-time calculation", {
+      shopId,
+      error: error instanceof Error ? error.message : String(error),
+    });
+  }
+  
   const receipts = await prisma.pixelEventReceipt.findMany({
     where: {
       shopId,

@@ -29,7 +29,18 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     }
 
     const checklist = await generateMigrationChecklist(shop.id);
-    const pdfBuffer = await generateChecklistPDF(checklist, shopDomain);
+    
+    const latestScan = await prisma.scanReport.findFirst({
+      where: { shopId: shop.id },
+      orderBy: { createdAt: "desc" },
+      select: { riskScore: true },
+    });
+    
+    const pdfBuffer = await generateChecklistPDF(
+      checklist, 
+      shopDomain,
+      latestScan?.riskScore ?? null
+    );
     const filename = `migration_checklist_${shopDomain}_${new Date().toISOString().split("T")[0]}.pdf`;
 
     const headers = withSecurityHeaders({

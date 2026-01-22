@@ -87,32 +87,69 @@ async function sendEmailAlert(settings: EmailAlertSettings, data: AlertData): Pr
     const discrepancyPercent = (data.orderDiscrepancy * 100).toFixed(1);
     const dateStr = data.reportDate.toLocaleDateString("zh-CN");
     const appUrl = getAppUrl();
+    
+    const isEventDeliveryAlert = data.platform.includes("失败率") || data.platform.includes("缺失参数") || data.platform.includes("事件量下降");
+    const alertTitle = isEventDeliveryAlert ? "事件发送异常警报" : "追踪异常警报";
+    const alertDescription = isEventDeliveryAlert 
+        ? `您的店铺 <strong>${data.shopDomain}</strong> 的事件发送出现异常：`
+        : `您的店铺 <strong>${data.shopDomain}</strong> 的追踪数据出现异常：`;
+    
+    const metricLabel1 = isEventDeliveryAlert ? "总事件数" : "Shopify 订单数";
+    const metricLabel2 = isEventDeliveryAlert ? "成功发送数" : "像素事件捕获数";
+    const metricDescription = isEventDeliveryAlert
+        ? "此指标反映事件从我们的服务端到广告平台 API 的投递情况。"
+        : "此数据基于我们捕获的像素事件，非广告平台后台真实转化数。";
+    
+    const possibleCauses = isEventDeliveryAlert
+        ? [
+            "<li>平台 API 连接问题或限流</li>",
+            "<li>服务端配置错误（API 密钥、端点等）</li>",
+            "<li>网络不稳定导致发送失败</li>",
+            "<li>平台 API 返回错误</li>",
+          ]
+        : [
+            "<li>追踪代码未正确触发</li>",
+            "<li>浏览器隐私设置阻止了追踪</li>",
+            "<li>广告拦截器影响</li>",
+            "<li>Checkout Extensibility 迁移问题</li>",
+          ];
+    
+    const suggestedActions = isEventDeliveryAlert
+        ? [
+            "<li>检查平台 API 凭证配置是否正确</li>",
+            "<li>查看交付健康度报告中的失败原因</li>",
+            "<li>验证网络连接和平台 API 状态</li>",
+            "<li>检查服务端日志中的错误信息</li>",
+          ]
+        : [
+            "<li>检查 Web Pixel 是否正常工作</li>",
+            "<li>查看对账数据报告</li>",
+            "<li>验证像素事件是否正确触发</li>",
+            "<li>考虑启用服务端转化 API</li>",
+          ];
+    
     const { error } = await resend.emails.send({
         from: getEmailSender(),
         to: settings.email,
-        subject: `⚠️ 追踪异常警报 - ${data.platform} 平台 (${data.shopDomain})`,
+        subject: `⚠️ ${alertTitle} - ${data.platform} (${data.shopDomain})`,
         html: `
       <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 600px; margin: 0 auto;">
-        <h2 style="color: #d72c0d;">⚠️ 追踪异常警报</h2>
-        <p>您的店铺 <strong>${data.shopDomain}</strong> 在 <strong>${data.platform}</strong> 平台的追踪数据出现异常：</p>
+        <h2 style="color: #d72c0d;">⚠️ ${alertTitle}</h2>
+        <p>${alertDescription}</p>
         <div style="background: #f6f6f7; padding: 16px; border-radius: 8px; margin: 16px 0;">
           <p style="margin: 8px 0;"><strong>日期：</strong>${dateStr}</p>
-          <p style="margin: 8px 0;"><strong>Shopify 订单数：</strong>${data.shopifyOrders}</p>
-          <p style="margin: 8px 0;"><strong>平台记录转化数：</strong>${data.platformConversions}</p>
-          <p style="margin: 8px 0; color: #d72c0d;"><strong>差异率：</strong>${discrepancyPercent}%</p>
+          <p style="margin: 8px 0;"><strong>${metricLabel1}：</strong>${data.shopifyOrders}</p>
+          <p style="margin: 8px 0;"><strong>${metricLabel2}：</strong>${data.platformConversions}</p>
+          <p style="margin: 8px 0; color: #d72c0d;"><strong>异常率：</strong>${discrepancyPercent}%</p>
+          <p style="margin: 8px 0; color: #6d7175; font-size: 12px;">${metricDescription}</p>
         </div>
         <p>可能的原因：</p>
         <ul>
-          <li>追踪代码未正确触发</li>
-          <li>浏览器隐私设置阻止了追踪</li>
-          <li>广告拦截器影响</li>
-          <li>Checkout Extensibility 迁移问题</li>
+          ${possibleCauses.join("\n          ")}
         </ul>
         <p>建议操作：</p>
         <ol>
-          <li>检查 Web Pixel 是否正常工作</li>
-          <li>查看广告平台的事件管理器</li>
-          <li>考虑启用服务端转化 API</li>
+          ${suggestedActions.join("\n          ")}
         </ol>
         <p style="margin-top: 24px;">
           <a href="${appUrl}/app/monitor"
@@ -158,13 +195,19 @@ async function sendSlackAlert(settings: SlackAlertSettings, data: AlertData): Pr
     const discrepancyPercent = (data.orderDiscrepancy * 100).toFixed(1);
     const dateStr = data.reportDate.toLocaleDateString("zh-CN");
     const appUrl = getAppUrl();
+    
+    const isEventDeliveryAlert = data.platform.includes("失败率") || data.platform.includes("缺失参数") || data.platform.includes("事件量下降");
+    const alertTitle = isEventDeliveryAlert ? "⚠️ 事件发送异常警报" : "⚠️ 追踪异常警报";
+    const metricLabel1 = isEventDeliveryAlert ? "总事件数" : "Shopify 订单";
+    const metricLabel2 = isEventDeliveryAlert ? "成功发送数" : "像素事件捕获数";
+    
     const payload = {
         blocks: [
             {
                 type: "header",
                 text: {
                     type: "plain_text",
-                    text: "⚠️ 追踪异常警报",
+                    text: alertTitle,
                     emoji: true,
                 },
             },
@@ -177,7 +220,7 @@ async function sendSlackAlert(settings: SlackAlertSettings, data: AlertData): Pr
                     },
                     {
                         type: "mrkdwn",
-                        text: `*平台:*\n${data.platform}`,
+                        text: `*告警类型:*\n${data.platform}`,
                     },
                     {
                         type: "mrkdwn",
@@ -185,7 +228,7 @@ async function sendSlackAlert(settings: SlackAlertSettings, data: AlertData): Pr
                     },
                     {
                         type: "mrkdwn",
-                        text: `*差异率:*\n${discrepancyPercent}%`,
+                        text: `*异常率:*\n${discrepancyPercent}%`,
                     },
                 ],
             },
@@ -194,11 +237,11 @@ async function sendSlackAlert(settings: SlackAlertSettings, data: AlertData): Pr
                 fields: [
                     {
                         type: "mrkdwn",
-                        text: `*Shopify 订单:*\n${data.shopifyOrders}`,
+                        text: `*${metricLabel1}:*\n${data.shopifyOrders}`,
                     },
                     {
                         type: "mrkdwn",
-                        text: `*平台转化:*\n${data.platformConversions}`,
+                        text: `*${metricLabel2}:*\n${data.platformConversions}`,
                     },
                 ],
             },
@@ -235,15 +278,21 @@ async function sendSlackAlert(settings: SlackAlertSettings, data: AlertData): Pr
 async function sendTelegramAlert(settings: TelegramAlertSettings, data: AlertData): Promise<boolean> {
     const discrepancyPercent = (data.orderDiscrepancy * 100).toFixed(1);
     const dateStr = data.reportDate.toLocaleDateString("zh-CN");
+    
+    const isEventDeliveryAlert = data.platform.includes("失败率") || data.platform.includes("缺失参数") || data.platform.includes("事件量下降");
+    const alertTitle = isEventDeliveryAlert ? "⚠️ *事件发送异常警报*" : "⚠️ *追踪异常警报*";
+    const metricLabel1 = isEventDeliveryAlert ? "总事件数" : "Shopify 订单";
+    const metricLabel2 = isEventDeliveryAlert ? "成功发送数" : "像素事件捕获数";
+    
     const message = `
-⚠️ *追踪异常警报*
+${alertTitle}
 🏪 店铺: \`${data.shopDomain}\`
-📊 平台: ${data.platform}
+📊 告警类型: ${data.platform}
 📅 日期: ${dateStr}
-📦 Shopify 订单: ${data.shopifyOrders}
-✅ 平台转化: ${data.platformConversions}
-📉 差异率: *${discrepancyPercent}%*
-请及时检查追踪配置！
+📦 ${metricLabel1}: ${data.shopifyOrders}
+✅ ${metricLabel2}: ${data.platformConversions}
+📉 异常率: *${discrepancyPercent}%*
+请及时检查配置！
   `.trim();
     try {
         const response = await fetchWithTimeout(`https://api.telegram.org/bot${settings.botToken}/sendMessage`, {
