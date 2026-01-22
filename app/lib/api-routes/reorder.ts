@@ -14,6 +14,84 @@ import { hashValueSync } from "../../utils/crypto.server";
 import { z } from "zod";
 import { validateReorderNonce } from "../../lib/pixel-events/receipt-handler";
 
+const FORBIDDEN_PATTERNS_PRODUCTION = [
+  /^https?:\/\/localhost/i,
+  /^https?:\/\/127\./,
+  /^https?:\/\/10\./,
+  /^https?:\/\/172\.(1[6-9]|2[0-9]|3[0-1])\./,
+  /^https?:\/\/192\.168\./,
+  /^https?:\/\/\[::1\]/,
+  /^https?:\/\/\[fc00:/i,
+  /^https?:\/\/\[fe80:/i,
+  /^https?:\/\/\[::ffff:0?:/i,
+  /^file:/i,
+  /^ftp:/i,
+];
+
+function isPrivateIPv4(ip: string): boolean {
+  if (/^10\./.test(ip)) return true;
+  if (/^172\.(1[6-9]|2[0-9]|3[0-1])\./.test(ip)) return true;
+  if (/^192\.168\./.test(ip)) return true;
+  if (/^127\./.test(ip)) return true;
+  if (/^169\.254\./.test(ip)) return true;
+  if (/^0\./.test(ip)) return true;
+  return false;
+}
+
+function validateUrlForShop(url: string, allowedDomains: string[]): { valid: boolean; error?: string } {
+  const isProduction = process.env.NODE_ENV === "production";
+  try {
+    const parsed = new URL(url);
+    const protocol = parsed.protocol;
+    const hostname = parsed.hostname.toLowerCase();
+    if (isProduction) {
+      if (protocol !== "https:") {
+        return { valid: false, error: "URL must use HTTPS in production" };
+      }
+      if (parsed.port !== "" && parsed.port !== "443") {
+        return { valid: false, error: "Only port 443 is allowed for HTTPS in production" };
+      }
+      for (const pattern of FORBIDDEN_PATTERNS_PRODUCTION) {
+        if (pattern.test(url)) {
+          return { valid: false, error: "URL points to a private/local network (not allowed in production)" };
+        }
+      }
+    } else {
+      const isLocalHttp = protocol === "http:" && (hostname === "localhost" || hostname === "127.0.0.1");
+      const isHttps = protocol === "https:";
+      if (!isLocalHttp && !isHttps) {
+        return { valid: false, error: "URL must use HTTPS or http://localhost (development only)" };
+      }
+      if (isHttps) {
+        for (const pattern of FORBIDDEN_PATTERNS_PRODUCTION) {
+          if (pattern.test(url)) {
+            return { valid: false, error: "URL points to a private/local network (not allowed)" };
+          }
+        }
+      }
+    }
+    if (/^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(hostname)) {
+      if (isPrivateIPv4(hostname)) {
+        return { valid: false, error: "IP addresses are not allowed; use domain names instead" };
+      }
+      return { valid: false, error: "IP addresses are not allowed; use domain names instead" };
+    }
+    if (hostname.startsWith("[") && hostname.endsWith("]")) {
+      return { valid: false, error: "IPv6 addresses are not allowed; use domain names instead" };
+    }
+    const isAllowed = allowedDomains.some(domain => {
+      const normalizedDomain = domain.toLowerCase().replace(/^https?:\/\//, "").replace(/\/$/, "");
+      return hostname === normalizedDomain || hostname.endsWith(`.${normalizedDomain}`);
+    });
+    if (!isAllowed) {
+      return { valid: false, error: "URL domain is not in the allowed list" };
+    }
+    return { valid: true };
+  } catch {
+    return { valid: false, error: "Invalid URL format" };
+  }
+}
+
 const orderIdSchema = z
   .string()
   .min(1)
@@ -420,16 +498,43 @@ async function loaderImpl(request: Request) {
         where: { shopDomain },
         select: { primaryDomain: true, storefrontDomains: true },
       });
+      const allowedDomains: string[] = [];
       if (shop?.primaryDomain) {
+        const normalizedDomain = shop.primaryDomain.replace(/^https?:\/\//, "").replace(/\/$/, "");
+        allowedDomains.push(normalizedDomain);
         const baseUrl = shop.primaryDomain.startsWith("http")
           ? shop.primaryDomain
           : `https://${shop.primaryDomain}`;
-        reorderUrl = `${baseUrl}${relativeUrl}`;
+        const fullUrl = `${baseUrl}${relativeUrl}`;
+        const urlValidation = validateUrlForShop(fullUrl, allowedDomains);
+        if (urlValidation.valid) {
+          reorderUrl = fullUrl;
+        } else {
+          logger.warn("Reorder URL validation failed, using relative path", {
+            shopDomain,
+            error: urlValidation.error,
+            url: fullUrl.substring(0, 100),
+          });
+        }
       } else if (shop?.storefrontDomains && shop.storefrontDomains.length > 0) {
+        shop.storefrontDomains.forEach(domain => {
+          const normalizedDomain = domain.replace(/^https?:\/\//, "").replace(/\/$/, "");
+          allowedDomains.push(normalizedDomain);
+        });
         const baseUrl = shop.storefrontDomains[0].startsWith("http")
           ? shop.storefrontDomains[0]
           : `https://${shop.storefrontDomains[0]}`;
-        reorderUrl = `${baseUrl}${relativeUrl}`;
+        const fullUrl = `${baseUrl}${relativeUrl}`;
+        const urlValidation = validateUrlForShop(fullUrl, allowedDomains);
+        if (urlValidation.valid) {
+          reorderUrl = fullUrl;
+        } else {
+          logger.warn("Reorder URL validation failed, using relative path", {
+            shopDomain,
+            error: urlValidation.error,
+            url: fullUrl.substring(0, 100),
+          });
+        }
       }
     } catch (error) {
       logger.warn("Failed to fetch shop domain for reorder URL, using relative path", {

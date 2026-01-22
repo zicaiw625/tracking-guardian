@@ -273,17 +273,38 @@ export function createEventSender(config: EventSenderConfig) {
       }
     }
   };
+  const getRequiredConsentForEvent = (eventName: string): "analytics" | "marketing" | "either" => {
+    if (eventName === "checkout_completed") {
+      return "marketing";
+    }
+    if (eventName === "page_viewed" || eventName === "product_viewed" || eventName === "product_added_to_cart") {
+      return "analytics";
+    }
+    if (eventName === "checkout_started" || eventName === "checkout_contact_info_submitted" || eventName === "checkout_shipping_info_submitted" || eventName === "payment_info_submitted") {
+      return "marketing";
+    }
+    return "either";
+  };
   return async function sendToBackend(eventName: string, data: Record<string, unknown>): Promise<void> {
-    if (!consentManager.hasAnalyticsConsent() && !consentManager.hasMarketingConsent()) {
+    const requiredConsent = getRequiredConsentForEvent(eventName);
+    let hasRequiredConsent = false;
+    if (requiredConsent === "marketing") {
+      hasRequiredConsent = consentManager.hasMarketingConsent();
+    } else if (requiredConsent === "analytics") {
+      hasRequiredConsent = consentManager.hasAnalyticsConsent();
+    } else {
+      hasRequiredConsent = consentManager.hasAnalyticsConsent() || consentManager.hasMarketingConsent();
+    }
+    if (!hasRequiredConsent) {
       log(
-        `Skipping ${eventName} - neither analytics nor marketing consent granted. ` +
+        `Skipping ${eventName} - required consent (${requiredConsent}) not granted. ` +
         `analytics=${consentManager.analyticsAllowed}, marketing=${consentManager.marketingAllowed}`
       );
       return;
     }
     log(
       `${eventName}: Queuing event with consent state. ` +
-      `analytics=${consentManager.analyticsAllowed}, marketing=${consentManager.marketingAllowed}, saleOfData=${consentManager.saleOfDataAllowed}`
+      `analytics=${consentManager.analyticsAllowed}, marketing=${consentManager.marketingAllowed}, saleOfData=${consentManager.saleOfDataAllowed}, required=${requiredConsent}`
     );
     try {
       if (eventName === "checkout_completed") {

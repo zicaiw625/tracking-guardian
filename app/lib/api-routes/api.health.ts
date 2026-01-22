@@ -78,19 +78,19 @@ function checkMemory(): HealthCheck {
 }
 
 function validateDetailedHealthAuth(request: Request): boolean {
-    const cronSecret = process.env.CRON_SECRET;
-    if (!cronSecret && !isStrictSecurityMode()) {
+    const healthSecret = process.env.HEALTH_SECRET || process.env.CRON_SECRET;
+    if (!healthSecret && !isStrictSecurityMode()) {
         return true;
     }
-    if (!cronSecret) {
-        logger.warn("CRON_SECRET not configured - detailed health check disabled");
+    if (!healthSecret) {
+        logger.warn("HEALTH_SECRET and CRON_SECRET not configured - detailed health check disabled");
         return false;
     }
     const authHeader = request.headers.get("Authorization");
     if (!authHeader) {
         return false;
     }
-    const expectedHeader = `Bearer ${cronSecret}`;
+    const expectedHeader = `Bearer ${healthSecret}`;
     if (authHeader.length !== expectedHeader.length) {
         return false;
     }

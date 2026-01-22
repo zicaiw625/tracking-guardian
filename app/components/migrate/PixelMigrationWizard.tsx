@@ -453,7 +453,7 @@ const allTemplates: WizardTemplate[] = [
   ];
   const isSubmitting = navigation.state === "submitting";
   const saveDraft = useCallback(async () => {
-    const draft = {
+    const fullDraft = {
       step: currentStep,
       selectedPlatforms: Array.from(selectedPlatforms),
       platformConfigs: Object.fromEntries(
@@ -471,12 +471,15 @@ const allTemplates: WizardTemplate[] = [
       ),
       selectedTemplate,
     };
+    const draftForLocal = {
+      step: currentStep,
+      selectedPlatforms: Array.from(selectedPlatforms),
+      selectedTemplate,
+      timestamp: Date.now(),
+    };
     try {
       const DRAFT_STORAGE_KEY = shopId ? `pixel-wizard-draft-${shopId}` : "pixel-wizard-draft";
-      localStorage.setItem(DRAFT_STORAGE_KEY, JSON.stringify({
-        ...draft,
-        timestamp: Date.now(),
-      }));
+      localStorage.setItem(DRAFT_STORAGE_KEY, JSON.stringify(draftForLocal));
     } catch (error) {
       if (process.env.NODE_ENV === "development") {
         console.warn("[PixelMigrationWizard] Failed to save draft to localStorage:", error);
@@ -486,7 +489,7 @@ const allTemplates: WizardTemplate[] = [
       try {
         const formData = new FormData();
         formData.append("_action", "saveWizardDraft");
-        formData.append("draft", JSON.stringify(draft));
+        formData.append("draft", JSON.stringify(fullDraft));
         const response = await fetch("/app/migrate", {
           method: "POST",
           body: formData,
@@ -579,14 +582,13 @@ const allTemplates: WizardTemplate[] = [
     if (wizardDraft && wizardDraft.step !== "select") {
       try {
         const DRAFT_STORAGE_KEY = shopId ? `pixel-wizard-draft-${shopId}` : "pixel-wizard-draft";
-        const draft = {
+        const draftForLocal = {
           step: wizardDraft.step,
           selectedPlatforms: wizardDraft.selectedPlatforms || [],
-          configs: wizardDraft.configs || {},
           selectedTemplate: null,
           timestamp: Date.now(),
         };
-        localStorage.setItem(DRAFT_STORAGE_KEY, JSON.stringify(draft));
+        localStorage.setItem(DRAFT_STORAGE_KEY, JSON.stringify(draftForLocal));
       } catch (error) {
           if (process.env.NODE_ENV === "development") {
             console.warn("[PixelMigrationWizard] Failed to sync draft to localStorage:", error);
@@ -642,26 +644,13 @@ const allTemplates: WizardTemplate[] = [
       if (currentStep !== "select" || selectedPlatforms.size > 0) {
         try {
           const DRAFT_STORAGE_KEY = shopId ? `pixel-wizard-draft-${shopId}` : "pixel-wizard-draft";
-          const draft = {
+          const draftForLocal = {
             step: currentStep,
             selectedPlatforms: Array.from(selectedPlatforms),
-            platformConfigs: Object.fromEntries(
-              Array.from(selectedPlatforms)
-                .filter((platform) => platformConfigs[platform] !== undefined)
-                .map((platform) => [
-                  platform,
-                  {
-                    platformId: platformConfigs[platform]!.platformId,
-                    credentials: platformConfigs[platform]!.credentials,
-                    eventMappings: platformConfigs[platform]!.eventMappings,
-                    environment: platformConfigs[platform]!.environment,
-                  },
-                ])
-            ),
             selectedTemplate,
             timestamp: Date.now(),
           };
-          localStorage.setItem(DRAFT_STORAGE_KEY, JSON.stringify(draft));
+          localStorage.setItem(DRAFT_STORAGE_KEY, JSON.stringify(draftForLocal));
         } catch (error) {
             if (process.env.NODE_ENV === "development") {
               console.warn("[PixelMigrationWizard] Failed to save draft before unload:", error);
@@ -673,7 +662,7 @@ const allTemplates: WizardTemplate[] = [
     return () => {
       window.removeEventListener("beforeunload", handleBeforeUnload);
     };
-  }, [currentStep, selectedPlatforms, platformConfigs, selectedTemplate, shopId]);
+  }, [currentStep, selectedPlatforms, selectedTemplate, shopId]);
   const currentStepIndex = steps.findIndex((s) => s.id === currentStep);
   const progress = ((currentStepIndex + 1) / steps.length) * 100;
   const handlePlatformToggle = useCallback(

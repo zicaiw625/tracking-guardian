@@ -3,6 +3,7 @@ import {
   getPixelEventsCorsHeadersForShop,
   jsonWithCors as jsonWithCorsBase,
 } from "../../utils/cors";
+import { PIXEL_INGESTION_HEADERS } from "../../utils/security-headers";
 
 
 export const PIXEL_CUSTOM_HEADERS = [
@@ -11,18 +12,26 @@ export const PIXEL_CUSTOM_HEADERS = [
 ];
 
 export function getCorsHeadersPreBody(request: Request): HeadersInit {
-  return getPixelEventsCorsHeaders(request, { customHeaders: PIXEL_CUSTOM_HEADERS });
+  const corsHeaders = getPixelEventsCorsHeaders(request, { customHeaders: PIXEL_CUSTOM_HEADERS });
+  return {
+    ...PIXEL_INGESTION_HEADERS,
+    ...corsHeaders,
+  };
 }
 
 export function getCorsHeadersForShop(
   request: Request,
   shopAllowedDomains: string[]
 ): HeadersInit {
-  return getPixelEventsCorsHeadersForShop(
+  const corsHeaders = getPixelEventsCorsHeadersForShop(
     request,
     shopAllowedDomains,
     PIXEL_CUSTOM_HEADERS
   );
+  return {
+    ...PIXEL_INGESTION_HEADERS,
+    ...corsHeaders,
+  };
 }
 
 export function jsonWithCors<T>(

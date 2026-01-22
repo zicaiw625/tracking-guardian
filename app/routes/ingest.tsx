@@ -355,25 +355,73 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       trustLevel: "untrusted",
     };
   }
-  if (isStrictSecurityMode() && !keyValidation.matched) {
-    const rejectionReason = keyValidation.reason === "secret_missing"
-      ? "no_ingestion_key"
-      : "invalid_key";
-    metrics.pixelRejection({
-      shopDomain,
-      reason: rejectionReason,
-    });
-    logger.warn(`Rejected ingest request for ${shopDomain}`, {
-      reason: keyValidation.reason,
-    });
-    return jsonWithCors({ error: "Invalid signature" }, { status: 401, request });
-  }
-  if (!keyValidation.matched && !isStrictSecurityMode()) {
-    logger.warn(`HMAC validation failed but allowing request in non-strict mode`, {
-      shopDomain,
-      reason: keyValidation.reason,
-      trustLevel: keyValidation.trustLevel,
-    });
+  const hasValidOrigin = shopOriginValidation.valid || (!shopOriginValidation.shouldReject && hasSignatureHeader && !strictOrigin && !isProduction);
+  const hasValidTimestamp = timestampHeader && Math.abs(Date.now() - timestamp) <= TIMESTAMP_WINDOW_MS;
+  const hasCriticalEvent = events.some((event: unknown) => {
+    const eventValidation = validateRequest(event);
+    return eventValidation.valid && eventValidation.payload.eventName === "checkout_completed";
+  });
+  const combinedTrustSignals = {
+    originValid: hasValidOrigin,
+    timestampValid: hasValidTimestamp,
+    hmacMatched: keyValidation.matched,
+    trustLevel: keyValidation.trustLevel,
+  };
+  if (isStrictSecurityMode()) {
+    const requiresHMAC = hasCriticalEvent;
+    if (requiresHMAC && !keyValidation.matched) {
+      const rejectionReason = keyValidation.reason === "secret_missing"
+        ? "no_ingestion_key"
+        : "invalid_key";
+      metrics.pixelRejection({
+        shopDomain,
+        reason: rejectionReason,
+      });
+      logger.warn(`Rejected critical event (checkout_completed) without valid HMAC for ${shopDomain}`, {
+        reason: keyValidation.reason,
+        trustSignals: combinedTrustSignals,
+      });
+      return jsonWithCors({ error: "Invalid signature" }, { status: 401, request });
+    }
+    if (!hasValidOrigin && !keyValidation.matched) {
+      metrics.pixelRejection({
+        shopDomain,
+        reason: "invalid_origin",
+      });
+      logger.warn(`Rejected ingest request: both origin and HMAC validation failed for ${shopDomain}`, {
+        originValid: hasValidOrigin,
+        hmacMatched: keyValidation.matched,
+        reason: keyValidation.reason,
+      });
+      return jsonWithCors({ error: "Invalid request" }, { status: 403, request });
+    }
+    if (!hasValidTimestamp && !keyValidation.matched) {
+      metrics.pixelRejection({
+        shopDomain,
+        reason: "invalid_timestamp",
+      });
+      logger.warn(`Rejected ingest request: both timestamp and HMAC validation failed for ${shopDomain}`, {
+        timestampValid: hasValidTimestamp,
+        hmacMatched: keyValidation.matched,
+        reason: keyValidation.reason,
+      });
+      return jsonWithCors({ error: "Invalid request" }, { status: 403, request });
+    }
+    if (!keyValidation.matched) {
+      logger.warn(`HMAC validation failed in strict mode but allowing due to other trust signals for ${shopDomain}`, {
+        reason: keyValidation.reason,
+        trustLevel: keyValidation.trustLevel,
+        trustSignals: combinedTrustSignals,
+      });
+    }
+  } else {
+    if (!keyValidation.matched) {
+      logger.warn(`HMAC validation failed but allowing request in non-strict mode`, {
+        shopDomain,
+        reason: keyValidation.reason,
+        trustLevel: keyValidation.trustLevel,
+      });
+    }
   }
   const rateLimitKey = shopDomainIpKeyExtractor(request);
   const rateLimit = await checkRateLimitAsync(
