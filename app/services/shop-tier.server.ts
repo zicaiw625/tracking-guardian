@@ -143,7 +143,7 @@ export function getTierDisplayInfo(tier: ShopTier): {
             return {
                 label: "Shopify Plus",
                 description: "您的店铺使用 Shopify Plus 计划",
-                deadlineDate: getDateDisplayLabel(DEPRECATION_DATES.plusAutoUpgradeStart, "exact"),
+                deadlineDate: getDateDisplayLabel(DEPRECATION_DATES.plusAdditionalScriptsReadOnly, "exact"),
                 isKnown: true,
             };
         case "non_plus":

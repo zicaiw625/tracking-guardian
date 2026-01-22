@@ -22,7 +22,14 @@ export interface PlatformFilterResult {
 export function checkInitialConsent(consent: ConsentState | undefined): ConsentCheckResult {
   const hasMarketingConsent = consent?.marketing === true;
   const hasAnalyticsConsent = consent?.analytics === true;
-  const saleOfDataAllowed = (consent?.saleOfDataAllowed === true) || (consent?.saleOfData === true);
+  let saleOfDataAllowed: boolean | undefined;
+  if (consent?.saleOfDataAllowed === true || consent?.saleOfData === true) {
+    saleOfDataAllowed = true;
+  } else if (consent?.saleOfDataAllowed === false || consent?.saleOfData === false) {
+    saleOfDataAllowed = false;
+  } else {
+    saleOfDataAllowed = undefined;
+  }
   return {
     hasAnyConsent: hasAnalyticsConsent || hasMarketingConsent,
     hasMarketingConsent,
@@ -70,7 +77,7 @@ export function filterPlatformsByConsent(
     const isMarketing = consentCategory === "marketing";
     const isAnalytics = consentCategory === "analytics";
     const requiresSaleOfData = platformRequiresSaleOfData(platform);
-    if (requiresSaleOfData && (consentResult.saleOfDataAllowed === undefined || consentResult.saleOfDataAllowed === false)) {
+    if (requiresSaleOfData && consentResult.saleOfDataAllowed === false) {
       logger.debug(
         `Skipping ${platform} ConversionLog: ` +
           `sale_of_data required but not allowed (saleOfData=${consentResult.saleOfDataAllowed})`
