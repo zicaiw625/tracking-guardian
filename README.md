@@ -193,7 +193,7 @@ pnpm install
 ```env
 SHOPIFY_API_KEY=your_api_key
 SHOPIFY_API_SECRET=your_api_secret
-SCOPES=read_script_tags,read_pixels,write_pixels,read_customer_events,read_orders
+SCOPES=read_script_tags,read_pixels,write_pixels,read_orders
 SHOPIFY_APP_URL=https://your-app-url.com
 DATABASE_URL=postgresql://user:password@localhost:5432/tracking_guardian
 ```
@@ -208,7 +208,7 @@ DATABASE_URL=postgresql://user:password@localhost:5432/tracking_guardian
 
 **标准配置（所有环境必须完全一致，包括顺序和拼写）**：
 ```
-SCOPES=read_script_tags,read_pixels,write_pixels,read_customer_events,read_orders
+SCOPES=read_script_tags,read_pixels,write_pixels,read_orders
 ```
 
 **⚠️ 关键要求**：
@@ -221,7 +221,6 @@ SCOPES=read_script_tags,read_pixels,write_pixels,read_customer_events,read_order
 - `read_script_tags`：扫描旧版 ScriptTags 用于迁移建议
 - `read_pixels`：查询已安装的 Web Pixel 状态
 - `write_pixels`：创建/更新 App Pixel Extension
-- `read_customer_events`：事件对账/同意状态补充
 - `read_orders`：**必需** - 用于验收验证、对账差异检查、订单金额一致性验证
 
 **⚠️ 特别注意**：`read_orders` 权限是验收和监控功能的核心依赖。如果省略此权限，以下功能将无法正常工作：
@@ -231,9 +230,9 @@ SCOPES=read_script_tags,read_pixels,write_pixels,read_customer_events,read_order
 
 **配置一致性检查清单**：
 
-- [ ] `shopify.app.toml` 第7行的 scopes 包含所有 5 个权限（包括 `read_orders`）
-- [ ] 生产环境 `SCOPES` 环境变量（如 `render.yaml` 第60-61行）包含所有 5 个权限（包括 `read_orders`）
-- [ ] 本地开发 `.env` 文件中的 `SCOPES` 包含所有 5 个权限（包括 `read_orders`）
+- [ ] `shopify.app.toml` 第7行的 scopes 包含所有 4 个权限（包括 `read_orders`）
+- [ ] 生产环境 `SCOPES` 环境变量（如 `render.yaml` 第60-61行）包含所有 4 个权限（包括 `read_orders`）
+- [ ] 本地开发 `.env` 文件中的 `SCOPES` 包含所有 4 个权限（包括 `read_orders`）
 - [ ] 三个位置的权限顺序和拼写**完全一致**（必须完全相同）
 
 **如果配置不一致，会导致**：
@@ -396,7 +395,6 @@ railway up
 | `read_script_tags` | 扫描旧版 ScriptTags 用于迁移建议 | `scanner.server.ts` | ✅ 是 |
 | `read_pixels` | 查询已安装的 Web Pixel 状态 | `migration.server.ts` | ✅ 是 |
 | `write_pixels` | 创建/更新 App Pixel Extension | `migration.server.ts` | ✅ 是 |
-| `read_customer_events` | 事件对账/同意状态补充 | `app.migrate.tsx` 授权检测 | ✅ 是 |
 | `read_orders` | 验收验证/对账差异检查/订单金额一致性验证 | `app.verification.tsx` / `reconciliation.server.ts` | ✅ 是 |
 
 **权限说明**：所有权限均为核心功能所必需，**必须全部包含在 SCOPES 环境变量中**。
@@ -424,7 +422,7 @@ railway up
 
 **标准配置**（所有环境必须完全一致）：
 ```
-SCOPES=read_script_tags,read_pixels,write_pixels,read_customer_events,read_orders
+SCOPES=read_script_tags,read_pixels,write_pixels,read_orders
 ```
 
 **⚠️ 关键要求**：

@@ -67,27 +67,63 @@ export async function calculateBaseline(
 export async function detectVolumeAnomaly(
   shopId: string,
   currentPeriodHours: number = 24
-): Promise<VolumeAnomalyResult> {
+): Promise<VolumeAnomalyResult & { knownBehavior?: string; hasAlternativeEvents?: boolean }> {
   const baseline = await calculateBaseline(shopId, 7);
   const currentStart = new Date(Date.now() - currentPeriodHours * 60 * 60 * 1000);
-  const current = await prisma.pixelEventReceipt.count({
+  
+  const checkoutCompletedCount = await prisma.pixelEventReceipt.count({
     where: {
       shopId,
       createdAt: { gte: currentStart },
-      eventType: { in: ["purchase", "checkout_completed"] },
+      eventType: "checkout_completed",
     },
   });
+  
+  const purchaseCount = await prisma.pixelEventReceipt.count({
+    where: {
+      shopId,
+      createdAt: { gte: currentStart },
+      eventType: "purchase",
+    },
+  });
+  
+  const pageViewedCount = await prisma.pixelEventReceipt.count({
+    where: {
+      shopId,
+      createdAt: { gte: currentStart },
+      eventType: "page_viewed",
+    },
+  });
+  
+  const current = checkoutCompletedCount + purchaseCount;
+  const hasAlternativeEvents = purchaseCount > 0 || pageViewedCount > 0;
+  
   const deviation = current - baseline.average;
   const deviationPercent = baseline.average > 0 
     ? (deviation / baseline.average) * 100 
     : 0;
-  const isAnomaly = Math.abs(deviationPercent) > 20; 
+  
+  let isAnomaly = Math.abs(deviationPercent) > 20;
+  let knownBehavior: string | undefined;
+  
+  if (checkoutCompletedCount < baseline.average * 0.5 && hasAlternativeEvents) {
+    const alternativeTotal = purchaseCount + pageViewedCount;
+    if (alternativeTotal >= baseline.average * 0.8) {
+      isAnomaly = false;
+      knownBehavior = "checkout_completed 事件减少但存在 page_viewed/purchase 事件，可能是 post-purchase/upsell 导致 checkout_completed 在 upsell 页触发而非 Thank you 页，这是 Shopify 的已知行为";
+    } else if (alternativeTotal >= baseline.average * 0.5) {
+      isAnomaly = Math.abs(deviationPercent) > 30;
+      knownBehavior = "checkout_completed 事件减少但存在替代事件，可能是 post-purchase/upsell 场景，建议检查 full_funnel 模式下的 page_viewed 事件";
+    }
+  }
+  
   let severity: "low" | "medium" | "high" = "low";
   if (Math.abs(deviationPercent) > 50) {
     severity = "high";
   } else if (Math.abs(deviationPercent) > 30) {
     severity = "medium";
   }
+  
   return {
     isAnomaly,
     current,
@@ -95,6 +131,8 @@ export async function detectVolumeAnomaly(
     deviation,
     deviationPercent,
     severity,
+    knownBehavior,
+    hasAlternativeEvents,
   };
 }
 

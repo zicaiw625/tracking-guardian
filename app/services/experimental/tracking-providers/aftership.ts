@@ -1,6 +1,6 @@
 import { createHmac } from "crypto";
-import { logger } from "../../utils/logger.server";
-import { fetchWithTimeout } from "../platforms/interface";
+import { logger } from "../../../utils/logger.server";
+import { fetchWithTimeout } from "../../platforms/interface";
 import type {
   ITrackingProvider,
   TrackingProviderCredentials,

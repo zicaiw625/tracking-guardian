@@ -1,7 +1,7 @@
-import { logger } from "../utils/logger.server";
-import { fetchWithTimeout } from "./platforms/interface";
-import { isCircuitBreakerTripped, tripCircuitBreaker } from "../utils/circuit-breaker";
-import { CIRCUIT_BREAKER_CONFIG } from "../utils/config.shared";
+import { logger } from "../../utils/logger.server";
+import { fetchWithTimeout } from "../platforms/interface";
+import { isCircuitBreakerTripped, tripCircuitBreaker } from "../../utils/circuit-breaker";
+import { CIRCUIT_BREAKER_CONFIG } from "../../utils/config.shared";
 
 export type TrackingProvider = "aftership" | "17track" | "native";
 

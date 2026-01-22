@@ -123,12 +123,38 @@ export async function checkMissingParams(shopId: string, threshold: number = 0.1
 export async function checkVolumeDrop(shopId: string, threshold: number = 0.2): Promise<AlertCheckResult> {
   const anomaly = await detectVolumeAnomaly(shopId);
   const dropPercent = -anomaly.deviationPercent / 100;
+  
+  if (anomaly.knownBehavior && !anomaly.isAnomaly) {
+    return {
+      triggered: false,
+      severity: "low",
+      message: "",
+      details: { 
+        dropPercent, 
+        threshold, 
+        anomaly,
+        knownBehavior: anomaly.knownBehavior,
+        suppressed: true,
+      },
+    };
+  }
+  
   if (dropPercent > threshold) {
+    let message = `事件量下降: ${(-anomaly.deviationPercent).toFixed(1)}%`;
+    if (anomaly.knownBehavior) {
+      message += `。注意：${anomaly.knownBehavior}`;
+    }
     return {
       triggered: true,
       severity: dropPercent > 0.5 ? "high" : dropPercent > 0.3 ? "medium" : "low",
-      message: `事件量下降: ${(-anomaly.deviationPercent).toFixed(1)}%`,
-      details: { dropPercent, threshold, anomaly },
+      message,
+      details: { 
+        dropPercent, 
+        threshold, 
+        anomaly,
+        knownBehavior: anomaly.knownBehavior,
+        hasAlternativeEvents: anomaly.hasAlternativeEvents,
+      },
     };
   }
   return { triggered: false, severity: "low", message: "" };

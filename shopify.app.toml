@@ -4,7 +4,7 @@ application_url = "https://tracking-guardian.onrender.com"
 embedded = true
 
 [access_scopes]
-scopes = "read_script_tags,read_pixels,write_pixels,read_customer_events,read_orders"
+scopes = "read_script_tags,read_pixels,write_pixels,read_orders"
 
 [auth]
 redirect_urls = [

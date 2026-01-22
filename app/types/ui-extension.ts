@@ -18,6 +18,7 @@ export interface ModuleInfo {
   targets: ("thank_you" | "order_status")[];
   disabled?: boolean;
   disabledReason?: string;
+  experimental?: boolean;
 }
 
 export interface OrderTrackingSettings {
@@ -156,6 +157,7 @@ export const UI_MODULES: Record<ModuleKey, ModuleInfo> = {
     targets: ["thank_you", "order_status"],
     disabled: true,
     disabledReason: "v1.1+ 规划中",
+    experimental: true,
   },
 };
 

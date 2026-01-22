@@ -49,7 +49,13 @@ describe("Event Volume Anomaly Detection", () => {
       vi.mocked(prisma.pixelEventReceipt.findMany).mockResolvedValue(
         Array(100).fill(null).map((_, i) => ({ createdAt: new Date(base.getTime() - (i % 7) * 86400000) })) as any
       );
-      vi.mocked(prisma.pixelEventReceipt.count).mockResolvedValue(5);
+      vi.mocked(prisma.pixelEventReceipt.count).mockImplementation((args: any) => {
+        const eventType = args?.where?.eventType;
+        if (eventType === "checkout_completed") return Promise.resolve(3);
+        if (eventType === "purchase") return Promise.resolve(2);
+        if (eventType === "page_viewed") return Promise.resolve(0);
+        return Promise.resolve(0);
+      });
       const result = await detectVolumeAnomaly(shopId, hours);
       expect(result).toBeDefined();
       expect(result.isAnomaly).toBe(true);
@@ -62,7 +68,13 @@ describe("Event Volume Anomaly Detection", () => {
       vi.mocked(prisma.pixelEventReceipt.findMany).mockResolvedValue(
         Array(100).fill(null).map((_, i) => ({ createdAt: new Date(base.getTime() - (i % 7) * 86400000) })) as any
       );
-      vi.mocked(prisma.pixelEventReceipt.count).mockResolvedValue(15);
+      vi.mocked(prisma.pixelEventReceipt.count).mockImplementation((args: any) => {
+        const eventType = args?.where?.eventType;
+        if (eventType === "checkout_completed") return Promise.resolve(8);
+        if (eventType === "purchase") return Promise.resolve(7);
+        if (eventType === "page_viewed") return Promise.resolve(0);
+        return Promise.resolve(0);
+      });
       const result = await detectVolumeAnomaly(shopId, hours);
       expect(result).toBeDefined();
       expect(result.isAnomaly).toBe(false);
@@ -74,7 +86,13 @@ describe("Event Volume Anomaly Detection", () => {
       vi.mocked(prisma.pixelEventReceipt.findMany).mockResolvedValue(
         Array(100).fill(null).map((_, i) => ({ createdAt: new Date(base.getTime() - (i % 7) * 86400000) })) as any
       );
-      vi.mocked(prisma.pixelEventReceipt.count).mockResolvedValue(30);
+      vi.mocked(prisma.pixelEventReceipt.count).mockImplementation((args: any) => {
+        const eventType = args?.where?.eventType;
+        if (eventType === "checkout_completed") return Promise.resolve(15);
+        if (eventType === "purchase") return Promise.resolve(15);
+        if (eventType === "page_viewed") return Promise.resolve(0);
+        return Promise.resolve(0);
+      });
       const result = await detectVolumeAnomaly(shopId, hours);
       expect(result.severity).toBeDefined();
       expect(["low", "medium", "high"]).toContain(result.severity);
@@ -87,7 +105,13 @@ describe("Event Volume Anomaly Detection", () => {
       vi.mocked(prisma.pixelEventReceipt.findMany).mockResolvedValue(
         Array(100).fill(null).map((_, i) => ({ createdAt: new Date(base.getTime() - (i % 7) * 86400000) })) as any
       );
-      vi.mocked(prisma.pixelEventReceipt.count).mockResolvedValue(5);
+      vi.mocked(prisma.pixelEventReceipt.count).mockImplementation((args: any) => {
+        const eventType = args?.where?.eventType;
+        if (eventType === "checkout_completed") return Promise.resolve(3);
+        if (eventType === "purchase") return Promise.resolve(2);
+        if (eventType === "page_viewed") return Promise.resolve(0);
+        return Promise.resolve(0);
+      });
       const result = await checkVolumeDropAlerts(shopId, 0.5);
       expect(result.alert).toBe(true);
       expect(result.dropPercent).toBeGreaterThan(50);
@@ -98,7 +122,13 @@ describe("Event Volume Anomaly Detection", () => {
       vi.mocked(prisma.pixelEventReceipt.findMany).mockResolvedValue(
         Array(100).fill(null).map((_, i) => ({ createdAt: new Date(base.getTime() - (i % 7) * 86400000) })) as any
       );
-      vi.mocked(prisma.pixelEventReceipt.count).mockResolvedValue(85);
+      vi.mocked(prisma.pixelEventReceipt.count).mockImplementation((args: any) => {
+        const eventType = args?.where?.eventType;
+        if (eventType === "checkout_completed") return Promise.resolve(40);
+        if (eventType === "purchase") return Promise.resolve(45);
+        if (eventType === "page_viewed") return Promise.resolve(0);
+        return Promise.resolve(0);
+      });
       const result = await checkVolumeDropAlerts(shopId, 0.5);
       expect(result.alert).toBe(false);
     });

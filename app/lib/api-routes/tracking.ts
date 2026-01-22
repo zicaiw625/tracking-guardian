@@ -4,7 +4,7 @@ import {
   getTrackingInfo,
   type TrackingProviderConfig,
   type TrackingInfo,
-} from "../../services/shipping-tracker.server";
+} from "../../services/experimental/shipping-tracker.server";
 import { logger } from "../../utils/logger.server";
 import type { OrderTrackingSettings } from "../../types/ui-extension";
 

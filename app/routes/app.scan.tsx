@@ -15,6 +15,7 @@ import { ManualInputWizard, type ManualInputData } from "~/components/scan/Manua
 import { MigrationChecklistEnhanced } from "~/components/scan/MigrationChecklistEnhanced";
 import { ManualPastePanel } from "~/components/scan/ManualPastePanel";
 import { GuidedSupplement } from "~/components/scan/GuidedSupplement";
+import { RecipeMatchesCard } from "~/components/scan/RecipeMatchesCard";
 import { PageIntroCard } from "~/components/layout/PageIntroCard";
 import { AuditPaywallCard } from "~/components/paywall/AuditPaywallCard";
 
@@ -22,6 +23,7 @@ const ScriptCodeEditor = lazy(() => import("~/components/scan/ScriptCodeEditor")
 import { type ScriptAnalysisResult } from "../services/scanner.server";
 import { analyzeScriptContent } from "../services/scanner/content-analysis";
 import { calculateRiskScore } from "../services/scanner/risk-assessment";
+import type { ScanRecipeMatch } from "../services/recipes/scan-integration.server";
 import { getDateDisplayLabel, DEPRECATION_DATES } from "../utils/deprecation-dates";
 import { isPlanAtLeast } from "../utils/plans";
 import {
@@ -81,7 +83,7 @@ export function ScanPage({
     pageSubtitle = "迁移清单 + 风险分级 + 替代路径（Web Pixel / Checkout UI Extension / 不可迁移）• 明确提示 checkout.liquid / additional scripts / script tags 在 Thank you/Order status 的弃用与限制 • 可分享链接并导出 PDF/CSV",
     showMigrationButtons = false,
 }: ScanPageProps) {
-    const { shop, latestScan, scanHistory, deprecationStatus, upgradeStatus, migrationActions, planId, planLabel, planTagline, migrationTimeline, migrationProgress, dependencyGraph, auditAssets, migrationChecklist, scriptAnalysisMaxContentLength, scriptAnalysisChunkSize, scannerMaxScriptTags, scannerMaxWebPixels } = useLoaderData<typeof loader>();
+    const { shop, latestScan, scanHistory, deprecationStatus, upgradeStatus, migrationActions, planId, planLabel, planTagline, migrationTimeline, migrationProgress, dependencyGraph, auditAssets, migrationChecklist, recipeMatches, scriptAnalysisMaxContentLength, scriptAnalysisChunkSize, scannerMaxScriptTags, scannerMaxWebPixels } = useLoaderData<typeof loader>();
     const actionData = useActionData<typeof action>();
     const submit = useSubmit();
     const navigation = useNavigation();
@@ -1678,6 +1680,9 @@ export function ScanPage({
               })()}
             </BlockStack>
           </Card>)}
+        {recipeMatches && Array.isArray(recipeMatches) && recipeMatches.length > 0 && shop && (
+          <RecipeMatchesCard matches={recipeMatches.filter((m): m is ScanRecipeMatch => m !== null && typeof m === "object" && "recipeId" in m)} shopId={shop.id} />
+        )}
         {latestScan && migrationActions && migrationActions.length > 0 && !isScanning && (<Card>
             <BlockStack gap="400">
               <InlineStack align="space-between" blockAlign="center">

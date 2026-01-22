@@ -1,7 +1,7 @@
-import { logger } from "../utils/logger.server";
-import prisma from "../db.server";
-import { getUiModuleConfig } from "./ui-extension.server";
-import { fetchWithTimeout } from "./platforms/interface";
+import { logger } from "../../utils/logger.server";
+import prisma from "../../db.server";
+import { getUiModuleConfig } from "../ui-extension.server";
+import { fetchWithTimeout } from "../platforms/interface";
 
 export interface TrackingProvider {
   name: "aftership" | "17track" | "native";
@@ -190,7 +190,7 @@ export async function getOrderTracking(
       apiKey?: string;
     } | null;
     const provider = settings?.provider || "native";
-    const { canUseThirdPartyTracking } = await import("../utils/version-gate");
+    const { canUseThirdPartyTracking } = await import("../../utils/version-gate");
     if (provider !== "native") {
       const gateResult = canUseThirdPartyTracking(provider);
       if (!gateResult.allowed) {

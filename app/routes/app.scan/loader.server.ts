@@ -10,6 +10,7 @@ import { getAuditAssets } from "../../services/audit-asset.server";
 import { analyzeDependencies } from "../../services/dependency-analysis.server";
 import { generateMigrationTimeline, getMigrationProgress } from "../../services/migration-priority.server";
 import { generateMigrationChecklist } from "../../services/migration-checklist.server";
+import { matchScanResultsToRecipes } from "../../services/recipes/scan-integration.server";
 import {
     getScriptTagDeprecationStatus,
     getAdditionalScriptsDeprecationStatus,
@@ -64,6 +65,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
             dependencyGraph: null,
             auditAssets: [],
             migrationChecklist: null,
+            recipeMatches: [],
             scriptAnalysisMaxContentLength: SCRIPT_ANALYSIS_CONFIG.MAX_CONTENT_LENGTH,
             scriptAnalysisChunkSize: SCRIPT_ANALYSIS_CONFIG.CHUNK_SIZE,
             scannerMaxScriptTags: SCANNER_CONFIG.MAX_SCRIPT_TAGS,
@@ -232,7 +234,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     const upgradeStatusMessage = getUpgradeStatusMessage(shopUpgradeStatus, hasScriptTags);
     const planId = normalizePlan(shop.plan);
     const planDef = getPlanDefinition(planId);
-    const [migrationTimeline, migrationProgress, dependencyGraph, auditAssets, migrationChecklist] = await Promise.all([
+    const [migrationTimeline, migrationProgress, dependencyGraph, auditAssets, migrationChecklist, recipeMatches] = await Promise.all([
         generateMigrationTimeline(shop.id).catch((error) => {
             const errorMessage = error instanceof Error ? error.message : String(error);
             const errorStack = error instanceof Error ? error.stack : undefined;
@@ -285,6 +287,14 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
             });
             return null;
         }),
+        matchScanResultsToRecipes(scriptTags).catch((error) => {
+            const errorMessage = error instanceof Error ? error.message : String(error);
+            logger.error("Failed to match scan results to recipes", {
+                shopId: shop.id,
+                error: errorMessage,
+            });
+            return [];
+        }),
     ]);
     return json({
         shop: { id: shop.id, domain: shopDomain },
@@ -316,6 +326,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
         dependencyGraph,
         auditAssets,
         migrationChecklist,
+        recipeMatches,
         scriptAnalysisMaxContentLength: SCRIPT_ANALYSIS_CONFIG.MAX_CONTENT_LENGTH,
         scriptAnalysisChunkSize: SCRIPT_ANALYSIS_CONFIG.CHUNK_SIZE,
         scannerMaxScriptTags: SCANNER_CONFIG.MAX_SCRIPT_TAGS,
