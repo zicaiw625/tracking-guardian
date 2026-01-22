@@ -63,64 +63,90 @@ function ThankYouBlocks() {
           return;
         }
         const token = await api.sessionToken.get();
-        const controller = new AbortController();
-        const tid = setTimeout(() => controller.abort(), 1800);
-        try {
-          const response = await fetch(`${backendUrl}/api/ui-modules-state`, {
-            method: "GET",
-            headers: {
-              "Authorization": `Bearer ${token}`,
-            },
-            signal: controller.signal,
-          });
-          clearTimeout(tid);
-          if (response.ok) {
-            const state = await response.json();
-            setModuleState(state);
-          } else {
-            const errorText = await response.text().catch(() => `HTTP ${response.status}`);
-            const errorMessage = `Failed to fetch module state: ${response.status} ${errorText}`;
-            if (isDevMode()) {
-              console.error("[ThankYouBlocks] Module state fetch failed:", errorMessage);
+        let lastError: Error | null = null;
+        let retryCount = 0;
+        const maxRetries = 1;
+        while (retryCount <= maxRetries) {
+          const controller = new AbortController();
+          const tid = setTimeout(() => controller.abort(), 5000);
+          try {
+            const response = await fetch(`${backendUrl}/api/ui-modules-state`, {
+              method: "GET",
+              headers: {
+                "Authorization": `Bearer ${token}`,
+              },
+              signal: controller.signal,
+            });
+            clearTimeout(tid);
+            if (response.ok) {
+              const state = await response.json();
+              setModuleState(state);
+              return;
+            } else {
+              const errorText = await response.text().catch(() => `HTTP ${response.status}`);
+              const errorMessage = `Failed to fetch module state: ${response.status} ${errorText}`;
+              lastError = new Error(errorMessage);
+              if (retryCount < maxRetries) {
+                await new Promise(resolve => setTimeout(resolve, 500));
+                retryCount++;
+                continue;
+              }
+              if (isDevMode()) {
+                console.error("[ThankYouBlocks] Module state fetch failed:", errorMessage);
+              }
+              reportExtensionError(api, {
+                extension: "thank-you",
+                endpoint: "ui-modules-state",
+                error: errorMessage,
+                stack: null,
+                target: "thank-you",
+                timestamp: new Date().toISOString(),
+              });
+              setModuleState({
+                surveyEnabled: false,
+                helpEnabled: false,
+              });
+              return;
             }
-            reportExtensionError(api, {
-              extension: "thank-you",
-              endpoint: "ui-modules-state",
-              error: errorMessage,
-              stack: null,
-              target: "thank-you",
-              timestamp: new Date().toISOString(),
-            });
-            setModuleState({
-              surveyEnabled: false,
-              helpEnabled: false,
-            });
-          }
-        } catch (fetchErr) {
-          clearTimeout(tid);
-          if (fetchErr instanceof Error && fetchErr.name === "AbortError") {
-            setModuleState({
-              surveyEnabled: false,
-              helpEnabled: false,
-            });
-          } else {
-            const errorMessage = fetchErr instanceof Error ? fetchErr.message : String(fetchErr);
-            const errorStack = fetchErr instanceof Error ? fetchErr.stack : undefined;
-            if (isDevMode()) {
-              console.error("[ThankYouBlocks] Failed to fetch module state:", fetchErr);
+          } catch (fetchErr) {
+            clearTimeout(tid);
+            if (fetchErr instanceof Error && fetchErr.name === "AbortError") {
+              if (retryCount < maxRetries) {
+                await new Promise(resolve => setTimeout(resolve, 500));
+                retryCount++;
+                continue;
+              }
+              setModuleState({
+                surveyEnabled: false,
+                helpEnabled: false,
+              });
+              return;
+            } else {
+              lastError = fetchErr instanceof Error ? fetchErr : new Error(String(fetchErr));
+              if (retryCount < maxRetries) {
+                await new Promise(resolve => setTimeout(resolve, 500));
+                retryCount++;
+                continue;
+              }
+              const errorMessage = lastError.message;
+              const errorStack = lastError.stack;
+              if (isDevMode()) {
+                console.error("[ThankYouBlocks] Failed to fetch module state:", fetchErr);
+              }
+              reportExtensionError(api, {
+                extension: "thank-you",
+                endpoint: "ui-modules-state",
+                error: errorMessage,
+                stack: errorStack,
+                target: "thank-you",
+                timestamp: new Date().toISOString(),
+              });
+              setModuleState({
+                surveyEnabled: false,
+                helpEnabled: false,
+              });
+              return;
             }
-            reportExtensionError(api, {
-              extension: "thank-you",
-              endpoint: "ui-modules-state",
-              error: errorMessage,
-              stack: errorStack,
-              target: "thank-you",
-              timestamp: new Date().toISOString(),
-            });
-            setModuleState({
-              surveyEnabled: false,
-              helpEnabled: false,
-            });
           }
         }
       } catch (error) {

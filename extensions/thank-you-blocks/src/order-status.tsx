@@ -138,68 +138,110 @@ function OrderStatusBlocks() {
           setLoading(false);
           return;
         }
-        const token = await api.sessionToken.get();
-        const controller = new AbortController();
-        const tid = setTimeout(() => controller.abort(), 1800);
-        try {
-          const response = await fetch(`${backendUrl}/api/ui-modules-state?target=order-status`, {
-            method: "GET",
-            headers: {
-              "Authorization": `Bearer ${token}`,
-            },
-            signal: controller.signal,
-          });
-          clearTimeout(tid);
-          if (response.ok) {
-            const state = await response.json();
-            setModuleState(state);
-          } else {
-            const errorText = await response.text().catch(() => `HTTP ${response.status}`);
-            const errorMessage = `Failed to fetch module state: ${response.status} ${errorText}`;
-            if (isDevMode()) {
-              console.error("[OrderStatusBlocks] Module state fetch failed:", errorMessage);
-            }
-            reportExtensionError(api, {
-              extension: "order-status",
-              endpoint: "ui-modules-state",
-              error: errorMessage,
-              stack: null,
-              target: "order-status",
-              timestamp: new Date().toISOString(),
-            });
-            setModuleState({
-              surveyEnabled: false,
-              helpEnabled: false,
-              reorderEnabled: false,
-            });
+        const orderContext = getOrderContextFromCustomerAccount({
+          order,
+          checkoutToken,
+        });
+        if (!orderContext.orderId) {
+          if (isDevMode()) {
+            console.warn("[OrderStatusBlocks] Order ID not available, skipping module state fetch");
           }
-        } catch (fetchErr) {
-          clearTimeout(tid);
-          if (fetchErr instanceof Error && fetchErr.name === "AbortError") {
-            setModuleState({
-              surveyEnabled: false,
-              helpEnabled: false,
-              reorderEnabled: false,
+          setModuleState({
+            surveyEnabled: false,
+            helpEnabled: false,
+            reorderEnabled: false,
+          });
+          setLoading(false);
+          return;
+        }
+        const token = await api.sessionToken.get();
+        let lastError: Error | null = null;
+        let retryCount = 0;
+        const maxRetries = 1;
+        while (retryCount <= maxRetries) {
+          const controller = new AbortController();
+          const tid = setTimeout(() => controller.abort(), 5000);
+          try {
+            const response = await fetch(`${backendUrl}/api/ui-modules-state?target=order-status&orderId=${encodeURIComponent(orderContext.orderId)}`, {
+              method: "GET",
+              headers: {
+                "Authorization": `Bearer ${token}`,
+              },
+              signal: controller.signal,
             });
-          } else {
-            const errorMessage = fetchErr instanceof Error ? fetchErr.message : String(fetchErr);
-            const errorStack = fetchErr instanceof Error ? fetchErr.stack : undefined;
-            if (isDevMode()) {
-              console.error("[OrderStatusBlocks] Failed to fetch module state:", fetchErr);
+            clearTimeout(tid);
+            if (response.ok) {
+              const state = await response.json();
+              setModuleState(state);
+              return;
+            } else {
+              const errorText = await response.text().catch(() => `HTTP ${response.status}`);
+              const errorMessage = `Failed to fetch module state: ${response.status} ${errorText}`;
+              lastError = new Error(errorMessage);
+              if (retryCount < maxRetries) {
+                await new Promise(resolve => setTimeout(resolve, 500));
+                retryCount++;
+                continue;
+              }
+              if (isDevMode()) {
+                console.error("[OrderStatusBlocks] Module state fetch failed:", errorMessage);
+              }
+              reportExtensionError(api, {
+                extension: "order-status",
+                endpoint: "ui-modules-state",
+                error: errorMessage,
+                stack: null,
+                target: "order-status",
+                timestamp: new Date().toISOString(),
+              });
+              setModuleState({
+                surveyEnabled: false,
+                helpEnabled: false,
+                reorderEnabled: false,
+              });
+              return;
             }
-            reportExtensionError(api, {
-              extension: "order-status",
-              endpoint: "ui-modules-state",
-              error: errorMessage,
-              stack: errorStack,
-              target: "order-status",
-              timestamp: new Date().toISOString(),
-            });
-            setModuleState({
-              surveyEnabled: false,
-              helpEnabled: false,
-              reorderEnabled: false,
-            });
+          } catch (fetchErr) {
+            clearTimeout(tid);
+            if (fetchErr instanceof Error && fetchErr.name === "AbortError") {
+              if (retryCount < maxRetries) {
+                await new Promise(resolve => setTimeout(resolve, 500));
+                retryCount++;
+                continue;
+              }
+              setModuleState({
+                surveyEnabled: false,
+                helpEnabled: false,
+                reorderEnabled: false,
+              });
+              return;
+            } else {
+              lastError = fetchErr instanceof Error ? fetchErr : new Error(String(fetchErr));
+              if (retryCount < maxRetries) {
+                await new Promise(resolve => setTimeout(resolve, 500));
+                retryCount++;
+                continue;
+              }
+              const errorMessage = lastError.message;
+              const errorStack = lastError.stack;
+              if (isDevMode()) {
+                console.error("[OrderStatusBlocks] Failed to fetch module state:", fetchErr);
+              }
+              reportExtensionError(api, {
+                extension: "order-status",
+                endpoint: "ui-modules-state",
+                error: errorMessage,
+                stack: errorStack,
+                target: "order-status",
+                timestamp: new Date().toISOString(),
+              });
+              setModuleState({
+                surveyEnabled: false,
+                helpEnabled: false,
+                reorderEnabled: false,
+              });
+              return;
+            }
           }
         }
       } catch (error) {
@@ -349,8 +391,25 @@ function OrderStatusBlocks() {
         });
         throw new Error(errorMessage);
       }
+      const nonce = moduleState?.reorderConfig?.nonce;
+      if (!nonce) {
+        const errorMessage = "再次购买功能暂时不可用（缺少安全令牌）";
+        if (isDevMode()) {
+          console.error("[OrderStatusBlocks] " + errorMessage);
+        }
+        reportExtensionError(api, {
+          extension: "order-status",
+          endpoint: "reorder",
+          error: errorMessage,
+          stack: null,
+          target: "order-status",
+          orderId: orderContext.orderId,
+          timestamp: new Date().toISOString(),
+        });
+        throw new Error(errorMessage);
+      }
       const token = await api.sessionToken.get();
-      const response = await fetch(`${backendUrl}/api/reorder?orderId=${encodeURIComponent(orderContext.orderId)}`, {
+      const response = await fetch(`${backendUrl}/api/reorder?orderId=${encodeURIComponent(orderContext.orderId)}&nonce=${encodeURIComponent(nonce)}`, {
         method: "GET",
         headers: {
           "Authorization": `Bearer ${token}`,

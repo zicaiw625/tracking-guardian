@@ -4,8 +4,7 @@ import prisma from "../../db.server";
 import { logger } from "../../utils/logger.server";
 import { extractPlatformFromPayload } from "../../utils/common";
 import type { Prisma } from "@prisma/client";
-import { SSE_SECURITY_HEADERS } from "../../utils/security-headers";
-import { addSecurityHeadersToHeaders } from "../../utils/security-headers";
+import { SSE_SECURITY_HEADERS, addSecurityHeadersToHeaders } from "../../utils/security-headers";
 import { getRedisClient } from "../../utils/redis-client";
 import { randomBytes } from "crypto";
 
