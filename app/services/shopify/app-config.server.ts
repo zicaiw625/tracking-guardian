@@ -88,7 +88,7 @@ try {
   const config = {
     apiKey: finalApiKey,
     apiSecretKey: finalApiSecretKey,
-    apiVersion: ApiVersion.October25,
+    apiVersion: ApiVersion.July25,
     scopes: process.env.SCOPES?.split(",").filter(Boolean),
     appUrl: finalAppUrl,
     authPathPrefix: "/auth",
@@ -159,7 +159,7 @@ if (!shopify) {
 }
 
 export default shopify;
-export const apiVersion = ApiVersion.October25;
+export const apiVersion = ApiVersion.July25;
 
 export function addDocumentResponseHeaders(request: Request, headers: Headers): void {
   if (!shopify?.addDocumentResponseHeaders) {
