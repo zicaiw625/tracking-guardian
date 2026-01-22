@@ -13,6 +13,19 @@ export interface AlertCheckResult {
   details?: Record<string, unknown>;
 }
 
+export interface AlertMetrics {
+  failureRate: number;
+  missingParamsRate: number;
+  volumeDropPercent: number;
+  heartbeatTriggered: boolean;
+  dedupConflictsTriggered: boolean;
+  stats: {
+    failureStats: Awaited<ReturnType<typeof getEventMonitoringStats>>;
+    missingStats: Awaited<ReturnType<typeof getMissingParamsStats>>;
+    volumeStats: Awaited<ReturnType<typeof getEventVolumeStats>>;
+  };
+}
+
 export interface AlertHistory {
   id: string;
   alertType: string;
@@ -45,34 +58,120 @@ export async function runAlertChecks(shopId: string): Promise<AlertCheckResult[]
   if (enabledConfigs.length === 0) {
     return [];
   }
-  const config = enabledConfigs[0];
-  const thresholds = (config.thresholds as Record<string, number>) || {
-    failureRate: 0.1,
-    missingParams: 0.1,
-    volumeDrop: 0.2,
+  
+  // Get raw metrics (without threshold checks)
+  const metrics = await getAlertMetrics(shopId);
+  
+  // For each enabled config, check if it should trigger based on its own thresholds
+  const allResults: AlertCheckResult[] = [];
+  for (const config of enabledConfigs) {
+    const thresholds = (config.thresholds as Record<string, number>) || {
+      failureRate: 0.1,
+      missingParams: 0.1,
+      volumeDrop: 0.2,
+    };
+    
+    const configResults: AlertCheckResult[] = [];
+    
+    // Check failure rate with this config's threshold
+    if (metrics.failureRate > (thresholds.failureRate || 0.1)) {
+      const severity = metrics.failureRate > 0.3 ? "high" : metrics.failureRate > 0.2 ? "medium" : "low";
+      configResults.push({
+        triggered: true,
+        severity,
+        message: `事件失败率过高: ${(metrics.failureRate * 100).toFixed(1)}%`,
+        details: { 
+          failureRate: metrics.failureRate, 
+          threshold: thresholds.failureRate || 0.1,
+          configId: config.id,
+        },
+      });
+    }
+    
+    // Check missing params with this config's threshold
+    if (metrics.missingParamsRate > (thresholds.missingParams || 0.1)) {
+      const severity = metrics.missingParamsRate > 0.3 ? "high" : metrics.missingParamsRate > 0.2 ? "medium" : "low";
+      configResults.push({
+        triggered: true,
+        severity,
+        message: `缺失参数率过高: ${(metrics.missingParamsRate * 100).toFixed(1)}%`,
+        details: { 
+          missingRate: metrics.missingParamsRate, 
+          threshold: thresholds.missingParams || 0.1,
+          configId: config.id,
+        },
+      });
+    }
+    
+    // Check volume drop with this config's threshold
+    if (metrics.volumeDropPercent > (thresholds.volumeDrop || 0.2)) {
+      const severity = metrics.volumeDropPercent > 0.5 ? "high" : metrics.volumeDropPercent > 0.3 ? "medium" : "low";
+      configResults.push({
+        triggered: true,
+        severity,
+        message: `事件量下降: ${(metrics.volumeDropPercent * 100).toFixed(1)}%`,
+        details: { 
+          dropPercent: metrics.volumeDropPercent, 
+          threshold: thresholds.volumeDrop || 0.2,
+          configId: config.id,
+        },
+      });
+    }
+    
+    // Check dedup conflicts (no threshold, always check)
+    if (metrics.dedupConflictsTriggered) {
+      configResults.push({
+        triggered: true,
+        severity: "medium",
+        message: "检测到去重冲突",
+        details: { configId: config.id },
+      });
+    }
+    
+    // Check heartbeat (no threshold, always check)
+    if (metrics.heartbeatTriggered) {
+      configResults.push({
+        triggered: true,
+        severity: "medium",
+        message: "像素事件心跳异常：过去1小时内无事件",
+        details: { configId: config.id },
+      });
+    }
+    
+    allResults.push(...configResults);
+  }
+  
+  return allResults;
+}
+
+async function getAlertMetrics(shopId: string): Promise<AlertMetrics> {
+  const [failureStats, missingStats, volumeStats, dedupResult, heartbeatResult] = await Promise.all([
+    getEventMonitoringStats(shopId),
+    getMissingParamsStats(shopId),
+    getEventVolumeStats(shopId),
+    checkDedupConflicts(shopId),
+    checkPixelHeartbeat(shopId),
+  ]);
+  
+  const failureRate = failureStats.failureRate / 100;
+  const missingParamsRate = missingStats.missingParamsRate / 100;
+  
+  // Get volume drop from anomaly detection
+  const anomaly = await detectVolumeAnomaly(shopId);
+  const volumeDropPercent = anomaly.knownBehavior && !anomaly.isAnomaly ? 0 : Math.max(0, -anomaly.deviationPercent / 100);
+  
+  return {
+    failureRate,
+    missingParamsRate,
+    volumeDropPercent,
+    heartbeatTriggered: heartbeatResult.triggered,
+    dedupConflictsTriggered: dedupResult.triggered,
+    stats: {
+      failureStats,
+      missingStats,
+      volumeStats,
+    },
   };
-  const results: AlertCheckResult[] = [];
-  const failureRateResult = await checkFailureRate(shopId, thresholds.failureRate || 0.1);
-  if (failureRateResult.triggered) {
-    results.push(failureRateResult);
-  }
-  const missingParamsResult = await checkMissingParams(shopId, thresholds.missingParams || 0.1);
-  if (missingParamsResult.triggered) {
-    results.push(missingParamsResult);
-  }
-  const volumeDropResult = await checkVolumeDrop(shopId, thresholds.volumeDrop || 0.2);
-  if (volumeDropResult.triggered) {
-    results.push(volumeDropResult);
-  }
-  const dedupResult = await checkDedupConflicts(shopId);
-  if (dedupResult.triggered) {
-    results.push(dedupResult);
-  }
-  const heartbeatResult = await checkPixelHeartbeat(shopId);
-  if (heartbeatResult.triggered) {
-    results.push(heartbeatResult);
-  }
-  return results;
 }
 
 export async function runAllShopAlertChecks(): Promise<void> {
@@ -160,8 +259,39 @@ export async function checkVolumeDrop(shopId: string, threshold: number = 0.2): 
   return { triggered: false, severity: "low", message: "" };
 }
 
-export async function checkDedupConflicts(_shopId: string): Promise<AlertCheckResult> {
-  return { triggered: false, severity: "low", message: "" };
+export async function checkDedupConflicts(shopId: string): Promise<AlertCheckResult> {
+  try {
+    const { checkDeduplicationAlerts } = await import("./deduplication-conflict-detection.server");
+    const result = await checkDeduplicationAlerts(shopId);
+    
+    if (!result.shouldAlert) {
+      return { triggered: false, severity: "low", message: "" };
+    }
+    
+    // Map severity: "critical" -> "high", "warning" -> "medium", "info" -> "low"
+    const severityMap: Record<"critical" | "warning" | "info", "low" | "medium" | "high"> = {
+      critical: "high",
+      warning: "medium",
+      info: "low",
+    };
+    
+    return {
+      triggered: true,
+      severity: severityMap[result.severity] || "medium",
+      message: result.reason,
+      details: {
+        totalConflicts: result.stats.totalConflicts,
+        highSeverityConflicts: result.stats.highSeverityConflicts,
+        purchaseConflicts: result.stats.purchaseConflicts,
+      },
+    };
+  } catch (error) {
+    logger.error("Error checking dedup conflicts", {
+      shopId,
+      error: error instanceof Error ? error.message : String(error),
+    });
+    return { triggered: false, severity: "low", message: "" };
+  }
 }
 
 export async function checkPixelHeartbeat(shopId: string): Promise<AlertCheckResult> {
@@ -206,37 +336,44 @@ async function dispatchAlerts(shopId: string, results: AlertCheckResult[]): Prom
     if (alertConfigs.length === 0) {
       return;
     }
+    
+    // Group results by configId
+    const resultsByConfig = new Map<string, AlertCheckResult[]>();
+    for (const result of results) {
+      const configId = (result.details?.configId as string) || "unknown";
+      const existing = resultsByConfig.get(configId) || [];
+      existing.push(result);
+      resultsByConfig.set(configId, existing);
+    }
+    
     for (const config of alertConfigs) {
       if (!config.enabled) {
         continue;
       }
+      const configId = (config.id as string) || "unknown";
       const channel = config.channel as string;
       const thresholds = (config.thresholds as Record<string, number>) || {};
       const settingsEncrypted = config.settingsEncrypted as string;
       if (!settingsEncrypted) {
         continue;
       }
-      const shouldTrigger = results.some(result => {
-        if (!result.triggered) return false;
-        if (result.message.includes("失败率") && thresholds.failureRate !== undefined) {
-          return true;
-        }
-        if (result.message.includes("缺失参数") && thresholds.missingParams !== undefined) {
-          return true;
-        }
-        if (result.message.includes("事件量下降") && thresholds.volumeDrop !== undefined) {
-          return true;
-        }
-        return true;
-      });
-      if (!shouldTrigger) {
+      
+      // Get results for this specific config
+      const configResults = resultsByConfig.get(configId) || [];
+      if (configResults.length === 0) {
         continue;
       }
+      
       try {
         const stats = await getEventMonitoringStats(shopId);
         const missingStats = await getMissingParamsStats(shopId);
         const volumeStats = await getEventVolumeStats(shopId);
-        const primaryResult = results.find(r => r.triggered && r.severity === "high") || results[0];
+        
+        // Find the primary result (highest severity)
+        const primaryResult = configResults.find(r => r.severity === "high") || 
+                             configResults.find(r => r.severity === "medium") || 
+                             configResults[0];
+        
         const failureRate = (primaryResult?.details?.failureRate as number) || (stats.failureRate / 100) || 0;
         const missingRate = (primaryResult?.details?.missingRate as number) || (missingStats.missingParamsRate / 100) || 0;
         const dropPercent = (primaryResult?.details?.dropPercent as number) || (Math.abs(volumeStats.changePercent) / 100) || 0;
@@ -244,6 +381,7 @@ async function dispatchAlerts(shopId: string, results: AlertCheckResult[]): Prom
         const totalEvents = stats.totalEvents || 0;
         const successRate = stats.successRate / 100 || 0;
         const successfulEvents = Math.round(totalEvents * successRate);
+        
         const alertData: AlertData = {
           platform: primaryResult?.message?.includes("失败率") ? "失败率告警" : primaryResult?.message?.includes("缺失参数") ? "缺失参数告警" : primaryResult?.message?.includes("事件量下降") ? "事件量下降告警" : "监控告警",
           reportDate: new Date(),
@@ -255,7 +393,7 @@ async function dispatchAlerts(shopId: string, results: AlertCheckResult[]): Prom
         };
         const alertSettings = await decryptAlertSettings(settingsEncrypted);
         const configWithEncryption = {
-          id: (config.id as string) || `alert_${Date.now()}`,
+          id: configId,
           channel: channel as "email" | "slack" | "telegram",
           settings: alertSettings,
           discrepancyThreshold: (thresholds.failureRate || 0.1) * 100,
@@ -268,19 +406,22 @@ async function dispatchAlerts(shopId: string, results: AlertCheckResult[]): Prom
           logger.info("Alert dispatched successfully", {
             shopId,
             channel,
-            resultsCount: results.length,
+            configId,
+            resultsCount: configResults.length,
           });
         } else {
           logger.warn("Failed to dispatch alert", {
             shopId,
             channel,
-            resultsCount: results.length,
+            configId,
+            resultsCount: configResults.length,
           });
         }
       } catch (error) {
         logger.error("Error dispatching alert", {
           shopId,
           channel,
+          configId,
           error: error instanceof Error ? error.message : String(error),
         });
       }

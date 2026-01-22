@@ -11,11 +11,13 @@ import { authenticate } from "../shopify.server";
 import prisma from "../db.server";
 import { ToastProvider } from "../components/ui/ToastProvider";
 import { getPolarisTranslations } from "../utils/polaris-i18n";
-import { getShopPlan } from "../services/shop-tier.server";
+import { getShopPlan, refreshShopTierWithAdmin } from "../services/shop-tier.server";
 import { TopBar } from "../components/layout/TopBar";
 import { normalizePlanId, type PlanId } from "../services/billing/plans";
 
 const i18n = getPolarisTranslations(translations);
+
+const SHOP_TIER_CACHE_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
 
 export const links = () => [{ rel: "stylesheet", href: polarisStyles }];
 export const loader = async ({ request }: LoaderFunctionArgs) => {
@@ -26,8 +28,27 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
         select: {
             id: true,
             plan: true,
+            shopTier: true,
+            updatedAt: true,
         },
     });
+    
+    // Refresh shop tier if needed (with 24h cache)
+    if (shop && admin) {
+        const shouldRefresh = !shop.shopTier || 
+            !shop.updatedAt || 
+            (Date.now() - shop.updatedAt.getTime()) > SHOP_TIER_CACHE_TTL_MS;
+        
+        if (shouldRefresh) {
+            try {
+                await refreshShopTierWithAdmin(admin, shop.id);
+            } catch (error) {
+                // Log error but don't block page load
+                console.error("Failed to refresh shop tier:", error);
+            }
+        }
+    }
+    
     const planInfo = admin ? await getShopPlan(admin) : null;
     const planIdNormalized = normalizePlanId(shop?.plan || "free") as PlanId;
     return json({

@@ -87,12 +87,6 @@ export async function dispatchWebhook(
     }
     return new Response("OK", { status: 200 });
   }
-  if (ORDERS_REFUNDS_TOPICS.has(normalizedTopic) && process.env.ENABLE_ORDERS_REFUNDS_WEBHOOKS !== "true") {
-    if (webhookId) {
-      await updateWebhookStatus(shop, webhookId, topic, WebhookStatus.PROCESSED);
-    }
-    return new Response("OK", { status: 200 });
-  }
   try {
     const result = await handler(context, shopRecord);
     const isGDPR = GDPR_TOPICS.has(normalizedTopic);
