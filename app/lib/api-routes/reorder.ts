@@ -12,6 +12,7 @@ import { readJsonWithSizeLimit } from "../../utils/body-size-guard";
 import { authenticatePublic, normalizeDestToShopDomain, handlePublicPreflight, addSecurityHeaders } from "../../utils/public-auth";
 import { hashValueSync } from "../../utils/crypto.server";
 import { z } from "zod";
+import { validateReorderNonce } from "../../lib/pixel-events/receipt-handler";
 
 const orderIdSchema = z
   .string()
@@ -100,8 +101,12 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       const body = (await readJsonWithSizeLimit(request)) as Record<string, unknown> | null;
       const url = new URL(request.url);
       const orderIdRaw = body?.orderId || url.searchParams.get("orderId");
+      const nonce = body?.nonce || url.searchParams.get("nonce");
       if (!orderIdRaw) {
         return addSecurityHeaders(authResult.cors(json({ error: "Missing orderId" }, { status: 400 })));
+      }
+      if (!nonce) {
+        return addSecurityHeaders(authResult.cors(json({ error: "Missing nonce parameter", reason: "nonce_required" }, { status: 400 })));
       }
       const orderIdParse = orderIdSchema.safeParse(orderIdRaw);
       if (!orderIdParse.success) {
@@ -134,6 +139,7 @@ async function loaderImpl(request: Request) {
   try {
     const url = new URL(request.url);
     const orderIdRaw = url.searchParams.get("orderId");
+    const nonce = url.searchParams.get("nonce");
     if (!orderIdRaw) {
       const authResult = await authenticatePublic(request).catch(() => null);
       if (authResult) {
@@ -168,6 +174,15 @@ async function loaderImpl(request: Request) {
       return addSecurityHeaders(authResult.cors(json(
         { error: "Reorder is only available in order status page", reason: "Customer authentication required" },
       { status: 403 }
+    )));
+    }
+    if (!nonce) {
+      logger.warn(`Reorder request without nonce for shop ${shopDomain}`, {
+        orderId: hashValueSync(orderId).slice(0, 12),
+      });
+      return addSecurityHeaders(authResult.cors(json(
+        { error: "Missing nonce parameter", reason: "nonce_required" },
+      { status: 400 }
     )));
     }
     const orderIdHash = hashValueSync(orderId).slice(0, 12);
@@ -214,6 +229,17 @@ async function loaderImpl(request: Request) {
       logger.warn(`Reorder request for unknown shop: ${shopDomain}`);
       return addSecurityHeaders(authResult.cors(json({ error: "Shop not found" }, { status: 404 })));
     }
+    const nonceValidation = await validateReorderNonce(shop.id, orderId, nonce, "order_status");
+    if (!nonceValidation.valid) {
+      logger.warn(`Reorder nonce validation failed for shop ${shopDomain}`, {
+        orderId: hashValueSync(orderId).slice(0, 12),
+        error: nonceValidation.error,
+      });
+      return addSecurityHeaders(authResult.cors(json(
+        { error: "Invalid or expired nonce", reason: nonceValidation.error },
+        { status: 403 }
+      )));
+    }
     const moduleCheck = await canUseModule(shop.id, "reorder");
     if (!moduleCheck.allowed) {
       logger.warn(`Reorder module not allowed for shop ${shopDomain}`, {
@@ -232,8 +258,8 @@ async function loaderImpl(request: Request) {
       logger.warn(`Reorder module not enabled for shop ${shopDomain}`);
       return addSecurityHeaders(authResult.cors(json(
         { error: "Reorder module is not enabled" },
-      { status: 403 }
-    )));
+        { status: 403 }
+      )));
     }
     const admin = await createAdminClientForShop(shopDomain);
     if (!admin) {

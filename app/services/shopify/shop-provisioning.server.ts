@@ -346,16 +346,15 @@ export async function handleAfterAuth(
 ): Promise<void> {
   const { session, admin } = params;
   if (admin) {
-    try {
-      await cleanupDeprecatedWebhookSubscriptions(admin, session.shop);
-    } catch (cleanupError) {
-      logger.warn(`[Webhooks] Cleanup warning for ${session.shop}`, {
-        error:
-          cleanupError instanceof Error
-            ? cleanupError.message
-            : String(cleanupError),
-      });
-    }
+    safeFireAndForget(
+      cleanupDeprecatedWebhookSubscriptions(admin, session.shop),
+      {
+        operation: "cleanupDeprecatedWebhookSubscriptions",
+        metadata: {
+          shopDomain: session.shop,
+        },
+      }
+    );
   }
   const shopInfo = admin
     ? await fetchShopInfo(admin, session.shop)

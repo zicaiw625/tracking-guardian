@@ -266,24 +266,8 @@ export async function updateUiModuleConfig(
 ): Promise<{ success: boolean; error?: string }> {
   try {
     const { validateModuleSettings, validateDisplayRules, validateLocalizationSettings } = await import("../schemas/ui-module-settings");
-    const mapModuleKeyToSchema = (key: ModuleKey): "survey" | "reorder" | "support" | "shipping_tracker" | "upsell_offer" => {
-      switch (key) {
-        case "helpdesk":
-          return "support";
-        case "order_tracking":
-          return "shipping_tracker";
-        case "upsell":
-          return "upsell_offer";
-        case "survey":
-        case "reorder":
-          return key;
-        default:
-          return "survey";
-      }
-    };
     if (config.settings) {
-      const schemaModuleKey = mapModuleKeyToSchema(moduleKey);
-      const settingsValidation = validateModuleSettings(schemaModuleKey, config.settings);
+      const settingsValidation = validateModuleSettings(moduleKey, config.settings);
       if (!settingsValidation.valid) {
         return {
           success: false,

@@ -6,6 +6,7 @@ import { getUiModuleConfigs, canUseModule, getDefaultSettings } from "../../serv
 import { PCD_CONFIG } from "../../utils/config.server";
 import { authenticatePublic, normalizeDestToShopDomain, handlePublicPreflight, addSecurityHeaders } from "../../utils/public-auth";
 import { sanitizeUrl, validateEmailForMailto, isPublicUrl } from "../../utils/security";
+import { createReorderNonce } from "../../lib/pixel-events/receipt-handler";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   if (request.method === "OPTIONS") {
@@ -39,7 +40,8 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     const url = new URL(request.url);
     const target = url.searchParams.get("target") || "thank-you";
     const normalizedTarget = target === "order-status" ? "order_status" : "thank_you";
-    logger.info("UI modules state request", { shopDomain, target, normalizedTarget });
+    const orderId = url.searchParams.get("orderId") || null;
+    logger.info("UI modules state request", { shopDomain, target, normalizedTarget, hasOrderId: !!orderId });
     const modules = await getUiModuleConfigs(shop.id);
     const [surveyAllowed, helpAllowed, reorderAllowed] = await Promise.all([
       canUseModule(shop.id, "survey"),
@@ -229,6 +231,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
           title?: string;
           subtitle?: string;
           buttonText?: string;
+          nonce?: string;
         };
       } = {
         surveyEnabled: false,
@@ -259,6 +262,16 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
           subtitle: reorderConfig?.subtitle || defaultReorderSettings.subtitle,
           buttonText: reorderConfig?.buttonText || defaultReorderSettings.buttonText,
         };
+        if (orderId) {
+          const nonceResult = await createReorderNonce(shop.id, orderId, normalizedTarget);
+          if (nonceResult.success && nonceResult.nonce) {
+            state.reorderConfig.nonce = nonceResult.nonce;
+          } else {
+            logger.warn(`Failed to generate reorder nonce for shop ${shopDomain}`, {
+              error: nonceResult.error,
+            });
+          }
+        }
       }
       return addSecurityHeaders(authResult.cors(json(state)));
     } else {

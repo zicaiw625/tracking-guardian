@@ -45,14 +45,6 @@ const GDPR_TOPICS = new Set([
   "SHOP_REDACT",
 ]);
 
-const ORDERS_REFUNDS_TOPICS = new Set([
-  "ORDERS_CREATE",
-  "ORDERS_UPDATED",
-  "ORDERS_CANCELLED",
-  "ORDERS_EDITED",
-  "REFUNDS_CREATE",
-]);
-
 export async function dispatchWebhook(
   context: WebhookContext,
   shopRecord: ShopWithPixelConfigs | null,

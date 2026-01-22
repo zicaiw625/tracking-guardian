@@ -3,9 +3,9 @@ import { z } from "zod";
 export const MODULE_KEYS = [
   "survey",
   "reorder",
-  "support",
-  "shipping_tracker",
-  "upsell_offer",
+  "helpdesk",
+  "order_tracking",
+  "upsell",
 ] as const;
 
 export type ModuleKey = typeof MODULE_KEYS[number];
@@ -110,9 +110,9 @@ export const ModuleSettingsSchema = z.object({
   moduleKey: z.enum(MODULE_KEYS),
   survey: SurveySettingsSchema.optional(),
   reorder: ReorderSettingsSchema.optional(),
-  support: SupportSettingsSchema.optional(),
-  shipping_tracker: ShippingTrackerSettingsSchema.optional(),
-  upsell_offer: UpsellOfferSettingsSchema.optional(),
+  helpdesk: SupportSettingsSchema.optional(),
+  order_tracking: ShippingTrackerSettingsSchema.optional(),
+  upsell: UpsellOfferSettingsSchema.optional(),
   displayRules: DisplayRuleSchema.optional(),
   localization: z.array(LocalizationSchema).optional(),
   version: z.number().default(1),
@@ -134,13 +134,13 @@ export function validateModuleSettings(
       case "reorder":
         settingsSchema = ReorderSettingsSchema;
         break;
-      case "support":
+      case "helpdesk":
         settingsSchema = SupportSettingsSchema;
         break;
-      case "shipping_tracker":
+      case "order_tracking":
         settingsSchema = ShippingTrackerSettingsSchema;
         break;
-      case "upsell_offer":
+      case "upsell":
         settingsSchema = UpsellOfferSettingsSchema;
         break;
       default:
@@ -183,20 +183,20 @@ export function getDefaultModuleSettings(moduleKey: ModuleKey): ModuleSettings {
         ...base,
         reorder: ReorderSettingsSchema.parse({}),
       };
-    case "support":
+    case "helpdesk":
       return {
         ...base,
-        support: SupportSettingsSchema.parse({}),
+        helpdesk: SupportSettingsSchema.parse({}),
       };
-    case "shipping_tracker":
+    case "order_tracking":
       return {
         ...base,
-        shipping_tracker: ShippingTrackerSettingsSchema.parse({}),
+        order_tracking: ShippingTrackerSettingsSchema.parse({}),
       };
-    case "upsell_offer":
+    case "upsell":
       return {
         ...base,
-        upsell_offer: UpsellOfferSettingsSchema.parse({}),
+        upsell: UpsellOfferSettingsSchema.parse({}),
       };
     default:
       return base;
