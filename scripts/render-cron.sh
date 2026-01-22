@@ -51,7 +51,6 @@ echo "[Cron] Timeout: ${TIMEOUT}s"
 
 
 HEADERS=(-H "Authorization: Bearer ${CRON_SECRET}")
-HEADERS+=(-H "Content-Type: application/json")
 HEADERS+=(-H "User-Agent: RenderCronJob/1.0")
 
 

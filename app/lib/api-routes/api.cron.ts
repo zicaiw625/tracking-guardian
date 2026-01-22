@@ -41,18 +41,53 @@ async function handleCron(request: Request): Promise<Response> {
   }
 
   let requestBody: unknown = null;
-  try {
-    if (request.headers.get("Content-Type")?.includes("application/json")) {
+  const contentType = request.headers.get("Content-Type");
+  const contentLength = request.headers.get("Content-Length");
+  
+  if (contentType?.includes("application/json")) {
+    try {
       const bodyText = await request.text();
-      if (bodyText.trim()) {
-        requestBody = JSON.parse(bodyText);
+      const trimmedBody = bodyText.trim();
+      if (trimmedBody) {
+        requestBody = JSON.parse(trimmedBody);
+      } else {
+        logger.debug("Cron request has empty JSON body, using defaults", { requestId });
       }
+    } catch (error) {
+      if (error instanceof Response) {
+        logger.error("Cron request body parsing returned error response", {
+          requestId,
+          status: error.status,
+          contentType,
+          contentLength,
+        });
+        return error;
+      }
+      if (error instanceof SyntaxError) {
+        logger.warn("Cron request has invalid JSON body", {
+          requestId,
+          error: error.message,
+          contentType,
+          contentLength,
+        });
+        return cronErrorResponse(
+          requestId,
+          Date.now() - startTime,
+          "Invalid JSON body",
+          400
+        );
+      }
+      logger.warn("Failed to parse cron request body", {
+        requestId,
+        error: error instanceof Error ? error.message : String(error),
+      });
     }
-  } catch (error) {
-    if (error instanceof Response) {
-      return error;
-    }
-    logger.warn("Failed to parse cron request body", { requestId, error });
+  } else if (contentLength && parseInt(contentLength, 10) > 0) {
+    logger.warn("Cron request has body but no JSON content type", {
+      requestId,
+      contentType,
+      contentLength,
+    });
   }
 
   let cronRequest: { task?: string; force?: boolean } = { task: "all" };
