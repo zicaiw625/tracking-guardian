@@ -43,7 +43,11 @@ function ThankYouBlocks() {
     };
   } | null>(null);
   const [loading, setLoading] = useState(true);
+  const [hasFetched, setHasFetched] = useState(false);
   useEffect(() => {
+    if (hasFetched) {
+      return;
+    }
     const fetchModuleState = async () => {
       try {
         const backendUrl = getValidatedBackendUrl();
@@ -139,10 +143,11 @@ function ThankYouBlocks() {
         });
       } finally {
         setLoading(false);
+        setHasFetched(true);
       }
     };
     fetchModuleState();
-  }, [api, checkoutToken, orderConfirmation]);
+  }, [api, hasFetched]);
   if (!moduleState || !moduleState.surveyEnabled && !moduleState.helpEnabled) {
     return null;
   }

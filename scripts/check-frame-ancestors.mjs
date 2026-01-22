@@ -10,33 +10,42 @@ function checkFrameAncestors() {
   try {
     const content = readFileSync(securityHeadersFile, "utf-8");
     
-    const cspDirectivesMatch = content.match(/export const CSP_DIRECTIVES[^}]+frame-ancestors[^}]+}/s);
+    const cspDirectivesMatch = content.match(/export const CSP_DIRECTIVES\s*:\s*Record<string,\s*string\[\]>\s*=\s*\{([^}]+)\}/s);
     if (!cspDirectivesMatch) {
       checks.push({
         name: "Frame Ancestors CSP Check",
         status: "fail",
-        message: "CSP_DIRECTIVES not found or frame-ancestors not configured",
+        message: "CSP_DIRECTIVES object literal not found",
       });
       hasErrors = true;
       return;
     }
     
-    const frameAncestorsMatch = cspDirectivesMatch[0].match(/frame-ancestors[^;]+/);
+    const objectBody = cspDirectivesMatch[1];
+    const frameAncestorsMatch = objectBody.match(/"frame-ancestors"\s*:\s*\[([^\]]+)\]/);
     if (!frameAncestorsMatch) {
       checks.push({
         name: "Frame Ancestors CSP Check",
         status: "fail",
-        message: "frame-ancestors directive not found in CSP_DIRECTIVES",
+        message: "frame-ancestors directive not found in CSP_DIRECTIVES object literal",
       });
       hasErrors = true;
       return;
     }
     
-    const frameAncestorsValue = frameAncestorsMatch[0];
-    const hasAdminShopify = frameAncestorsValue.includes("https://admin.shopify.com");
-    const hasShopDomainPattern = frameAncestorsValue.includes("myshopify.com") || 
-                                  frameAncestorsValue.includes("shopDomain") ||
-                                  frameAncestorsValue.includes("shop-domain");
+    const frameAncestorsArrayContent = frameAncestorsMatch[1];
+    const arrayValues = frameAncestorsArrayContent
+      .split(",")
+      .map(v => v.trim().replace(/^["']|["']$/g, ""))
+      .filter(v => v.length > 0);
+    
+    const hasAdminShopify = arrayValues.includes("https://admin.shopify.com");
+    const hasShopDomainPattern = arrayValues.some(v => 
+      v.includes("myshopify.com") || 
+      v.includes("shopDomain") ||
+      v.includes("shop-domain")
+    );
+    const hasSelf = arrayValues.includes("'self'") || arrayValues.includes('"self"');
     
     if (!hasAdminShopify) {
       checks.push({
@@ -47,7 +56,7 @@ function checkFrameAncestors() {
       hasErrors = true;
     }
     
-    if (!hasShopDomainPattern && !frameAncestorsValue.includes("'self'")) {
+    if (!hasShopDomainPattern && !hasSelf) {
       checks.push({
         name: "Frame Ancestors CSP Check",
         status: "warn",
@@ -55,11 +64,17 @@ function checkFrameAncestors() {
       });
     }
     
-    if (hasAdminShopify && (hasShopDomainPattern || frameAncestorsValue.includes("'self'"))) {
+    if (hasAdminShopify && (hasShopDomainPattern || hasSelf)) {
       checks.push({
         name: "Frame Ancestors CSP Check",
         status: "pass",
         message: "frame-ancestors correctly configured with admin.shopify.com and shop domain support",
+      });
+    } else if (hasAdminShopify) {
+      checks.push({
+        name: "Frame Ancestors CSP Check",
+        status: "pass",
+        message: "frame-ancestors includes admin.shopify.com (shop domain handled dynamically by Shopify)",
       });
     }
   } catch (error) {

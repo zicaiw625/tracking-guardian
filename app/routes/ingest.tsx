@@ -77,6 +77,22 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   }
   const hasSignatureHeader = !!signature;
   
+  if (!originHeaderPresent && isProduction) {
+    const referer = request.headers.get("Referer");
+    if (!referer) {
+      const shopDomainHeader = request.headers.get("x-shopify-shop-domain") || "unknown";
+      logger.warn(
+        `Origin header completely missing in production (no Origin, no Referer) for ${shopDomainHeader}`
+      );
+      metrics.pixelRejection({
+        shopDomain: shopDomainHeader,
+        reason: "invalid_origin",
+        originType: "missing_origin",
+      });
+      return jsonWithCors({ error: "Invalid origin" }, { status: 403, request });
+    }
+  }
+  
   const preBodyValidation = validatePixelOriginPreBody(origin, hasSignatureHeader, originHeaderPresent);
   if (!preBodyValidation.valid) {
     const shopDomainHeader = request.headers.get("x-shopify-shop-domain") || "unknown";

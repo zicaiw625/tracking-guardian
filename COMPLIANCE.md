@@ -237,6 +237,45 @@ Tracking Guardian 是一个 Shopify 应用，作为**数据处理者**（Data Pr
 
 ---
 
+## Web Pixel 隐私处理
+
+### Customer Privacy 合规
+
+本应用严格遵循 Shopify 的 Web Pixel Customer Privacy 要求，确保在需要用户同意的地区（如 GDPR、CCPA 等）正确处理隐私信号。
+
+#### 平台层保护
+
+Shopify 平台在需要 consent 的地区会自动：
+- 延迟执行像素回调，直到用户提供必要的同意
+- 在用户同意后回放（replay）之前被延迟的事件
+- 根据用户的同意状态（marketing、analytics、saleOfData）过滤事件
+
+#### 应用层保护
+
+本应用在像素端实现了额外的隐私保护机制（双保险）：
+- 使用 `init.customerPrivacy` API 获取客户隐私状态
+- 订阅 `visitorConsentCollected` 事件，实时响应同意状态变化
+- 在未获得必要同意时，默认拒绝所有追踪事件（deny all）
+- 仅在获得明确同意后才处理相应类型的事件
+
+#### 事件回放处理
+
+当 Shopify 平台回放延迟的事件时：
+- 本应用会正常接收并处理这些回放事件
+- 事件的时间戳保持原始值，确保数据准确性
+- 所有回放事件同样经过 HMAC 验证、时间窗检查、nonce 防重放等安全机制
+
+#### 同意状态管理
+
+本应用支持以下同意类型：
+- **marketing**: 营销追踪同意
+- **analytics**: 分析追踪同意
+- **saleOfData**: 数据销售同意（CCPA）
+
+像素事件会根据这些同意状态进行过滤，确保只处理用户已同意的数据类型。
+
+---
+
 ## 合规性
 
 ### GDPR 合规

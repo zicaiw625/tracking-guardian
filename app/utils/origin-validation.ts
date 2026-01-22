@@ -289,10 +289,10 @@ export function validatePixelOriginForShop(
                 effectiveOrigin = refererUrl.origin;
                 originSource = "referer_header";
             } catch {
-                // no-op: invalid referer, keep effectiveOrigin
+                effectiveOrigin = origin;
             }
         }
-        if ((!effectiveOrigin || effectiveOrigin === "null") && options.shopDomain) {
+        if ((!effectiveOrigin || effectiveOrigin === "null") && options.shopDomain && devMode) {
             effectiveOrigin = `https://${options.shopDomain}`;
             originSource = "shop_domain_fallback";
         }
