@@ -1,5 +1,5 @@
 import { vitePlugin as remix } from "@remix-run/dev";
-import { defineConfig, type UserConfig } from "vite";
+import { defineConfig, type UserConfig, type Plugin } from "vite";
 import tsconfigPaths from "vite-tsconfig-paths";
 
 declare module "@remix-run/node" {
@@ -28,6 +28,43 @@ function getHostname(): string {
 
 const host = getHostname();
 
+function suppressUndiciWarnings(): Plugin {
+  let originalWarn: typeof console.warn;
+  let originalError: typeof console.error;
+  const suppressPatterns = [
+    "has been externalized for browser compatibility",
+    "undici",
+    "node:assert",
+    "node:buffer",
+    "node:crypto",
+    "node:zlib",
+  ];
+  const shouldSuppress = (message: unknown): boolean => {
+    if (typeof message !== "string") return false;
+    return suppressPatterns.some(pattern => message.includes(pattern));
+  };
+  return {
+    name: "suppress-undici-warnings",
+    enforce: "pre",
+    configResolved() {
+      originalWarn = console.warn;
+      originalError = console.error;
+      console.warn = (...args: unknown[]) => {
+        if (shouldSuppress(args[0])) return;
+        originalWarn.apply(console, args);
+      };
+      console.error = (...args: unknown[]) => {
+        if (shouldSuppress(args[0])) return;
+        originalError.apply(console, args);
+      };
+    },
+    buildEnd() {
+      if (originalWarn) console.warn = originalWarn;
+      if (originalError) console.error = originalError;
+    },
+  };
+}
+
 let hmrConfig;
 if (host === "localhost") {
   hmrConfig = {
@@ -54,6 +91,7 @@ export default defineConfig({
     },
   },
   plugins: [
+    suppressUndiciWarnings(),
     remix({
       future: {
         v3_fetcherPersist: true,
@@ -74,6 +112,12 @@ export default defineConfig({
         if (
           warning.code === "INCONSISTENT_IMPORT_ATTRIBUTES" &&
           warning.message?.includes("en.json")
+        ) {
+          return;
+        }
+        if (
+          warning.code === "MODULE_LEVEL_DIRECTIVE" ||
+          (warning.message && warning.message.includes("has been externalized for browser compatibility"))
         ) {
           return;
         }
@@ -107,6 +151,9 @@ export default defineConfig({
       "react-chartjs-2",
       "chart.js",
     ],
-    external: ["html-pdf-node"],
+    external: ["html-pdf-node", "undici"],
+  },
+  optimizeDeps: {
+    exclude: ["undici"],
   },
 }) satisfies UserConfig;
