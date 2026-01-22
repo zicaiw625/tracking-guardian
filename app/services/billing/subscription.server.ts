@@ -247,22 +247,6 @@ export async function getBillingHistory(
   }
 }
 
-async function getShopCurrency(admin: AdminGraphQL): Promise<string> {
-  try {
-    const response = await admin.graphql(`
-      query {
-        shop {
-          currencyCode
-        }
-      }
-    `);
-    const data = await response.json() as { data?: { shop?: { currencyCode?: string } } };
-    return data.data?.shop?.currencyCode || "USD";
-  } catch {
-    return "USD";
-  }
-}
-
 export async function createSubscription(
   admin: AdminGraphQL,
   shopDomain: string,
@@ -281,7 +265,7 @@ export async function createSubscription(
     return { success: false, error: "Invalid plan selected" };
   }
   try {
-    const currencyCode = await getShopCurrency(admin);
+    const currencyCode = "USD";
     const response = await admin.graphql(CREATE_SUBSCRIPTION_MUTATION, {
       variables: {
         name: `Tracking Guardian - ${plan.name}`,
@@ -526,7 +510,7 @@ export async function createOneTimePurchase(
     return { success: false, error: "此套餐不支持一次性收费（v1.0 中所有计划均为月付，符合 PRD 11.1 要求）" };
   }
   try {
-    const currencyCode = await getShopCurrency(admin);
+    const currencyCode = "USD";
     const response = await admin.graphql(CREATE_ONE_TIME_PURCHASE_MUTATION, {
       variables: {
         name: `Tracking Guardian - ${plan.name} (一次性)`,
