@@ -3,6 +3,10 @@ import type { Prisma } from "@prisma/client";
 import { authenticate } from "../../shopify.server";
 import prisma from "../../db.server";
 import { logger } from "../../utils/logger.server";
+import { SSE_SECURITY_HEADERS } from "../../utils/security-headers";
+import { addSecurityHeadersToHeaders } from "../../utils/security-headers";
+import { getRedisClient } from "../../utils/redis-client";
+import { randomBytes } from "crypto";
 
 function extractPlatformFromPayload(payload: Record<string, unknown> | null): string | null {
   if (!payload) return null;
@@ -31,10 +35,50 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     const platforms = platformsParam ? platformsParam.split(",") : [];
     let pollInterval: ReturnType<typeof setInterval> | null = null;
     let isClosed = false;
+    const MAX_CONCURRENT_CONNECTIONS = 5;
+    const connectionId = randomBytes(16).toString("hex");
+    const sseKey = `sse:${shop.id}:${connectionId}`;
+    const countKey = `sse:${shop.id}:count`;
+    const redisClient = await getRedisClient();
+    const currentCount = await redisClient.incr(countKey);
+    if (currentCount === 1) {
+      await redisClient.expire(countKey, 3600);
+    }
+    if (currentCount > MAX_CONCURRENT_CONNECTIONS) {
+      const decremented = currentCount - 1;
+      if (decremented <= 0) {
+        await redisClient.del(countKey);
+      } else {
+        await redisClient.set(countKey, String(decremented), { EX: 3600 });
+      }
+      return new Response("Too Many Requests", {
+        status: 429,
+        headers: {
+          "Retry-After": "60",
+          "X-RateLimit-Limit": String(MAX_CONCURRENT_CONNECTIONS),
+          "X-RateLimit-Remaining": "0",
+        },
+      });
+    }
+    await redisClient.set(sseKey, "1", { EX: 3600 });
     const stream = new ReadableStream({
       async start(controller) {
         const encoder = new TextEncoder();
-        const cleanup = () => {
+        const cleanup = async () => {
+          try {
+            await redisClient.del(sseKey);
+            const count = await redisClient.get(countKey);
+            if (count) {
+              const newCount = parseInt(count, 10) - 1;
+              if (newCount <= 0) {
+                await redisClient.del(countKey);
+              } else {
+                await redisClient.set(countKey, String(newCount), { EX: 3600 });
+              }
+            }
+          } catch (error) {
+            logger.warn("Failed to cleanup SSE connection count", { error });
+          }
           if (pollInterval !== null) {
             clearInterval(pollInterval);
             pollInterval = null;
@@ -116,6 +160,10 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
                 const data = payload?.data as Record<string, unknown> | undefined;
                 const value = typeof data?.value === "number" ? data.value : 0;
                 const currency = (data?.currency as string) || "USD";
+                const items = data?.items as Array<unknown> | undefined;
+                const itemsCount = Array.isArray(items) ? items.length : 0;
+                const trustLevel = (payload?.trustLevel as string) || "untrusted";
+                const hmacMatched = typeof payload?.hmacMatched === "boolean" ? payload.hmacMatched : false;
                 const hasValue = value > 0;
                 const hasCurrency = !!currency;
                 const status = hasValue && hasCurrency ? "success" : "pending";
@@ -129,10 +177,12 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
                   params: {
                     value,
                     currency,
+                    itemsCount,
                     hasEventId: true,
                   },
-                  details: {
-                    payload,
+                  trust: {
+                    trustLevel,
+                    hmacMatched,
                   },
                 };
                 sendMessage(event);
@@ -164,13 +214,15 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
         }
       },
     });
+    const headers = new Headers({
+      "Content-Type": "text/event-stream",
+      "Cache-Control": "no-cache",
+      "Connection": "keep-alive",
+      "X-Accel-Buffering": "no",
+    });
+    addSecurityHeadersToHeaders(headers, SSE_SECURITY_HEADERS);
     return new Response(stream, {
-      headers: {
-        "Content-Type": "text/event-stream",
-        "Cache-Control": "no-cache",
-        "Connection": "keep-alive",
-        "X-Accel-Buffering": "no",
-      },
+      headers,
     });
   } catch (error) {
     logger.error("SSE connection failed", error);

@@ -80,6 +80,14 @@ export const HEALTH_CHECK_HEADERS: Record<string, string> = {
   "Cache-Control": "max-age=10, must-revalidate",
 };
 
+export const SSE_SECURITY_HEADERS: Record<string, string> = {
+  "X-Content-Type-Options": "nosniff",
+  "X-Frame-Options": "DENY",
+  "Referrer-Policy": "strict-origin-when-cross-origin",
+  "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate",
+  "Content-Security-Policy": buildCspHeader(WEBHOOK_CSP_DIRECTIVES),
+};
+
 export const PUBLIC_PAGE_HEADERS: Record<string, string> = {
   "X-Content-Type-Options": "nosniff",
   "X-Frame-Options": "DENY",

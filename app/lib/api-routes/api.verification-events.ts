@@ -4,6 +4,10 @@ import prisma from "../../db.server";
 import { logger } from "../../utils/logger.server";
 import { extractPlatformFromPayload } from "../../utils/common";
 import type { Prisma } from "@prisma/client";
+import { SSE_SECURITY_HEADERS } from "../../utils/security-headers";
+import { addSecurityHeadersToHeaders } from "../../utils/security-headers";
+import { getRedisClient } from "../../utils/redis-client";
+import { randomBytes } from "crypto";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   const { session } = await authenticate.admin(request);
@@ -19,12 +23,52 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   const platforms = url.searchParams.get("platforms")?.split(",") || [];
   const eventTypes = url.searchParams.get("eventTypes")?.split(",") || [];
   const runId = url.searchParams.get("runId") || null;
+  const MAX_CONCURRENT_CONNECTIONS = 5;
+  const connectionId = randomBytes(16).toString("hex");
+  const sseKey = `sse:${shop.id}:${connectionId}`;
+  const countKey = `sse:${shop.id}:count`;
+  const redisClient = await getRedisClient();
+  const currentCount = await redisClient.incr(countKey);
+  if (currentCount === 1) {
+    await redisClient.expire(countKey, 3600);
+  }
+  if (currentCount > MAX_CONCURRENT_CONNECTIONS) {
+    const decremented = currentCount - 1;
+    if (decremented <= 0) {
+      await redisClient.del(countKey);
+    } else {
+      await redisClient.set(countKey, String(decremented), { EX: 3600 });
+    }
+    return new Response("Too Many Requests", {
+      status: 429,
+      headers: {
+        "Retry-After": "60",
+        "X-RateLimit-Limit": String(MAX_CONCURRENT_CONNECTIONS),
+        "X-RateLimit-Remaining": "0",
+      },
+    });
+  }
+  await redisClient.set(sseKey, "1", { EX: 3600 });
   let intervalId: ReturnType<typeof setInterval> | null = null;
   let isClosed = false;
   const stream = new ReadableStream({
     async start(controller) {
       const encoder = new TextEncoder();
-      const cleanup = () => {
+      const cleanup = async () => {
+        try {
+          await redisClient.del(sseKey);
+          const count = await redisClient.get(countKey);
+          if (count) {
+            const newCount = parseInt(count, 10) - 1;
+            if (newCount <= 0) {
+              await redisClient.del(countKey);
+            } else {
+              await redisClient.set(countKey, String(newCount), { EX: 3600 });
+            }
+          }
+        } catch (error) {
+          logger.warn("Failed to cleanup SSE connection count", { error });
+        }
         if (intervalId !== null) {
           clearInterval(intervalId);
           intervalId = null;
@@ -155,8 +199,15 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
               const events = payload?.events as Array<Record<string, unknown>> | undefined;
               if (events && events.length > 0) {
                 const params = events[0].params as Record<string, unknown> | undefined;
-                value = params?.value as number | undefined;
-                currency = params?.currency as string | undefined;
+                if (params?.value !== undefined && params?.value !== null) {
+                  const parsedValue = typeof params.value === "number" ? params.value : Number(params.value);
+                  if (Number.isFinite(parsedValue)) {
+                    value = parsedValue;
+                  }
+                }
+                if (params?.currency !== undefined && params?.currency !== null) {
+                  currency = String(params.currency);
+                }
                 if (Array.isArray(params?.items)) {
                   items = (params.items as Array<unknown>).length;
                 }
@@ -165,8 +216,15 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
               const data = payload?.data as Array<Record<string, unknown>> | undefined;
               if (data && data.length > 0) {
                 const customData = data[0].custom_data as Record<string, unknown> | undefined;
-                value = customData?.value as number | undefined;
-                currency = customData?.currency as string | undefined;
+                if (customData?.value !== undefined && customData?.value !== null) {
+                  const parsedValue = typeof customData.value === "number" ? customData.value : Number(customData.value);
+                  if (Number.isFinite(parsedValue)) {
+                    value = parsedValue;
+                  }
+                }
+                if (customData?.currency !== undefined && customData?.currency !== null) {
+                  currency = String(customData.currency);
+                }
                 if (Array.isArray(customData?.contents)) {
                   items = (customData.contents as Array<unknown>).length;
                 }
@@ -175,15 +233,26 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
               const data = payload?.data as Array<Record<string, unknown>> | undefined;
               if (data && data.length > 0) {
                 const properties = data[0].properties as Record<string, unknown> | undefined;
-                value = properties?.value as number | undefined;
-                currency = properties?.currency as string | undefined;
+                if (properties?.value !== undefined && properties?.value !== null) {
+                  const parsedValue = typeof properties.value === "number" ? properties.value : Number(properties.value);
+                  if (Number.isFinite(parsedValue)) {
+                    value = parsedValue;
+                  }
+                }
+                if (properties?.currency !== undefined && properties?.currency !== null) {
+                  currency = String(properties.currency);
+                }
                 if (Array.isArray(properties?.contents)) {
                   items = (properties.contents as Array<unknown>).length;
                 }
               }
             }
-            if (!value) missingParams.push("value");
-            if (!currency) missingParams.push("currency");
+            if (value === undefined || value === null || !Number.isFinite(value)) {
+              missingParams.push("value");
+            }
+            if (currency === undefined || currency === null || currency === "") {
+              missingParams.push("currency");
+            }
             const status: "success" | "failed" | "pending" = platform && (value !== undefined && value > 0) && currency ? "success" : "pending";
             newEvents.push({
               id: receipt.id,
@@ -235,12 +304,14 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       }
     },
   });
+  const headers = new Headers({
+    "Content-Type": "text/event-stream",
+    "Cache-Control": "no-cache",
+    "Connection": "keep-alive",
+    "X-Accel-Buffering": "no",
+  });
+  addSecurityHeadersToHeaders(headers, SSE_SECURITY_HEADERS);
   return new Response(stream, {
-    headers: {
-      "Content-Type": "text/event-stream",
-      "Cache-Control": "no-cache",
-      "Connection": "keep-alive",
-      "X-Accel-Buffering": "no",
-    },
+    headers,
   });
 };

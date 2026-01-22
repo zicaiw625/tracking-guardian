@@ -51,6 +51,13 @@ export function sanitizePII(payload: unknown): unknown {
     "productid",
     "variant_id",
     "variantid",
+    "consent",
+    "trustlevel",
+    "trust_level",
+    "hmacmatched",
+    "hmac_matched",
+    "verificationrunid",
+    "verification_run_id",
   ]);
   /** PII/sensitive fields to strip. When adding new payload or platform params, update this set if they can carry PII. */
   const piiFields = new Set([

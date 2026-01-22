@@ -41,7 +41,7 @@ const shopVerificationCacheRedis = new RedisCache<ShopVerificationDataWithoutSec
 
 const shopWithConfigsCacheRedis = new RedisCache<ShopWithPixelConfigsWithoutSecrets | null>({
   prefix: "shop:configs:",
-  defaultTtlMs: TTL.SHORT,
+  defaultTtlMs: 90 * 1000,
   useRedis: true,
 });
 
