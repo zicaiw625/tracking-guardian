@@ -1,4 +1,5 @@
 import { logger } from "./logger.server";
+import { hashValueSync } from "./crypto.server";
 import { SHOPIFY_PLATFORM_HOSTS, extractOriginHost as extractOriginHostFromValidation, buildShopAllowedDomains as buildShopAllowedDomainsFromValidation } from "./origin-validation";
 
 export { extractOriginHostFromValidation as extractOriginHost };
@@ -86,8 +87,8 @@ export function verifyReceiptTrust(options: VerifyReceiptOptions): ReceiptTrustR
     }
     if (receiptCheckoutToken !== webhookCheckoutToken) {
         logger.warn("Checkout token mismatch detected", {
-            receiptToken: receiptCheckoutToken.substring(0, 8) + "...",
-            webhookToken: webhookCheckoutToken.substring(0, 8) + "...",
+            receiptTokenFp: hashValueSync(receiptCheckoutToken).slice(0, 12),
+            webhookTokenFp: hashValueSync(webhookCheckoutToken).slice(0, 12),
         });
         return {
             trusted: false,

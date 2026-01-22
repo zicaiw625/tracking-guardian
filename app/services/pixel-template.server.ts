@@ -266,6 +266,6 @@ export async function importTemplateFromShare(
   token: string,
   targetShopId: string
 ): Promise<{ success: boolean; templateId?: string; error?: string }> {
-  logger.debug(`importTemplateFromShare called but pixelTemplate table no longer exists`, { templateId, token, targetShopId });
+  logger.debug(`importTemplateFromShare called but pixelTemplate table no longer exists`, { templateId, targetShopId });
   return { success: false, error: "模板功能已移除" };
 }
