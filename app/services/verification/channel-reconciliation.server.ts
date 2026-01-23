@@ -216,7 +216,7 @@ export async function performEnhancedChannelReconciliation(
     const valueDiscrepancyRate =
       shopifyTotalValue > 0 ? (valueDiscrepancy / shopifyTotalValue) * 100 : 0;
     const issues: ReconciliationIssue[] = [];
-    if (missingOrders.length > 0) {
+    if (missingOrders.length > 0 && shopifyOrderIds.size > 0) {
       const missingRate = (missingOrders.length / shopifyOrderIds.size) * 100;
       issues.push({
         type: "missing_order",

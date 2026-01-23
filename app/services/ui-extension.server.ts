@@ -3,6 +3,7 @@ import { getPlanOrDefault, type PlanId } from "./billing/plans";
 import { logger } from "../utils/logger.server";
 import type { AdminApiContext } from "@shopify/shopify-app-remix/server";
 import { validateTarget } from "../utils/target-validator";
+import type { Prisma } from "@prisma/client";
 
 export {
   type ModuleKey,
@@ -356,7 +357,7 @@ export async function updateUiModuleConfig(
     storedSettings.uiModules = uiModules;
     await prisma.shop.update({
       where: { id: shopId },
-      data: { settings: storedSettings as any },
+      data: { settings: storedSettings as Prisma.InputJsonValue },
     });
     if (options?.syncToExtension && options?.admin) {
       const { syncSingleModule } = await import("./ui-extension-sync.server");
@@ -419,7 +420,7 @@ export async function resetModuleToDefault(
     storedSettings.uiModules = uiModules;
     await prisma.shop.update({
       where: { id: shopId },
-      data: { settings: storedSettings as any },
+      data: { settings: storedSettings as Prisma.InputJsonValue },
     });
     return { success: true };
   } catch (error) {

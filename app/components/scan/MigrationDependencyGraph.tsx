@@ -95,17 +95,18 @@ export function MigrationDependencyGraph({
         pathLengths.set(nodeId, 1);
         return 1;
       }
-      const maxLength =
-        Math.max(
-          ...incomingEdges.map((e) => calculatePathLength(e.from))
-        ) + 1;
+      const incomingPathLengths = incomingEdges.map((e) => calculatePathLength(e.from));
+      const maxLength = incomingPathLengths.length > 0
+        ? Math.max(...incomingPathLengths) + 1
+        : 1;
       pathLengths.set(nodeId, maxLength);
       return maxLength;
     };
     dependencyGraph.nodes.forEach((node) => {
       calculatePathLength(node.id);
     });
-    const maxLength = Math.max(...Array.from(pathLengths.values()));
+    const pathLengthValues = Array.from(pathLengths.values());
+    const maxLength = pathLengthValues.length > 0 ? Math.max(...pathLengthValues) : 0;
     const criticalNode = Array.from(pathLengths.entries()).find(
       ([, length]) => length === maxLength
     )?.[0];

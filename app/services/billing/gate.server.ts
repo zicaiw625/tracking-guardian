@@ -249,102 +249,102 @@ export async function checkAndReserveBillingSlot(
     for (let attempt = 0; attempt < maxRetries; attempt++) {
       try {
         const result = await prisma.$transaction(async (tx) => {
-      const existingJob = await tx.conversionJob.findUnique({
-        where: { shopId_orderId: { shopId, orderId } },
-        select: { status: true },
-      });
-      const existingLog = await tx.conversionLog.findFirst({
-        where: {
-          shopId,
-          orderId,
-          status: ConversionLogStatus.SENT,
-        },
-        select: { id: true },
-      });
-      if (existingJob?.status === JobStatus.COMPLETED || existingLog) {
-        const usage = await tx.monthlyUsage.findUnique({
-          where: { shopId_yearMonth: { shopId, yearMonth } },
-          select: { sentCount: true },
-        });
-        const current = usage?.sentCount || 0;
-        return {
-          success: true,
-          current,
-          limit,
-          remaining: Math.max(0, limit - current),
-          alreadyCounted: true,
-          yearMonth,
-        };
-      }
-      await tx.monthlyUsage.upsert({
-        where: {
-          shopId_yearMonth: {
-            shopId,
+          const existingJob = await tx.conversionJob.findUnique({
+            where: { shopId_orderId: { shopId, orderId } },
+            select: { status: true },
+          });
+          const existingLog = await tx.conversionLog.findFirst({
+            where: {
+              shopId,
+              orderId,
+              status: ConversionLogStatus.SENT,
+            },
+            select: { id: true },
+          });
+          if (existingJob?.status === JobStatus.COMPLETED || existingLog) {
+            const usage = await tx.monthlyUsage.findUnique({
+              where: { shopId_yearMonth: { shopId, yearMonth } },
+              select: { sentCount: true },
+            });
+            const current = usage?.sentCount || 0;
+            return {
+              success: true,
+              current,
+              limit,
+              remaining: Math.max(0, limit - current),
+              alreadyCounted: true,
+              yearMonth,
+            };
+          }
+          await tx.monthlyUsage.upsert({
+            where: {
+              shopId_yearMonth: {
+                shopId,
+                yearMonth,
+              },
+            },
+            create: {
+              id: randomUUID(),
+              shopId,
+              yearMonth,
+              sentCount: 0,
+              updatedAt: new Date(),
+            },
+            update: {},
+          });
+          const updated = await tx.$executeRaw`
+            UPDATE "MonthlyUsage"
+            SET "sentCount" = "sentCount" + 1, "updatedAt" = NOW()
+            WHERE "shopId" = ${shopId}
+              AND "yearMonth" = ${yearMonth}
+              AND "sentCount" < ${limit}
+          `;
+          if (updated === 0) {
+            const currentUsage = await tx.monthlyUsage.findUnique({
+              where: { shopId_yearMonth: { shopId, yearMonth } },
+              select: { sentCount: true },
+            });
+            const current = currentUsage?.sentCount || 0;
+            return {
+              success: false,
+              current,
+              limit,
+              remaining: 0,
+              alreadyCounted: false,
+              yearMonth,
+            };
+          }
+          const finalUsage = await tx.monthlyUsage.findUnique({
+            where: { shopId_yearMonth: { shopId, yearMonth } },
+            select: { sentCount: true },
+          });
+          const current = finalUsage?.sentCount || 0;
+          if (current > limit) {
+            logger.error('Usage count exceeded limit after atomic update', {
+              shopId,
+              yearMonth,
+              current,
+              limit,
+              orderId,
+            });
+            return {
+              success: false,
+              current,
+              limit,
+              remaining: 0,
+              alreadyCounted: false,
+              yearMonth,
+            };
+          }
+          return {
+            success: true,
+            current,
+            limit,
+            remaining: Math.max(0, limit - current),
+            alreadyCounted: false,
             yearMonth,
-          },
-        },
-        create: {
-          id: randomUUID(),
-          shopId,
-          yearMonth,
-          sentCount: 0,
-          updatedAt: new Date(),
-        },
-        update: {},
-      });
-      const updated = await tx.$executeRaw`
-        UPDATE "MonthlyUsage"
-        SET "sentCount" = "sentCount" + 1, "updatedAt" = NOW()
-        WHERE "shopId" = ${shopId}
-          AND "yearMonth" = ${yearMonth}
-          AND "sentCount" < ${limit}
-      `;
-      if (updated === 0) {
-        const currentUsage = await tx.monthlyUsage.findUnique({
-          where: { shopId_yearMonth: { shopId, yearMonth } },
-          select: { sentCount: true },
-        });
-        const current = currentUsage?.sentCount || 0;
-        return {
-          success: false,
-          current,
-          limit,
-          remaining: 0,
-          alreadyCounted: false,
-          yearMonth,
-        };
-      }
-      const finalUsage = await tx.monthlyUsage.findUnique({
-        where: { shopId_yearMonth: { shopId, yearMonth } },
-        select: { sentCount: true },
-      });
-      const current = finalUsage?.sentCount || 0;
-      if (current > limit) {
-        logger.error('Usage count exceeded limit after atomic update', {
-          shopId,
-          yearMonth,
-          current,
-          limit,
-          orderId,
-        });
-        return {
-          success: false,
-          current,
-          limit,
-          remaining: 0,
-          alreadyCounted: false,
-          yearMonth,
-        };
-      }
-      return {
-        success: true,
-        current,
-        limit,
-        remaining: Math.max(0, limit - current),
-        alreadyCounted: false,
-        yearMonth,
-      };
-    }, {
+          };
+        }, {
           isolationLevel: "Serializable",
           maxWait: 5000,
         });

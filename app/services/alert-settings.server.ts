@@ -31,7 +31,7 @@ export function getMaskedAlertSettings(settings: AlertSettings): Partial<AlertSe
   if ("webhookUrl" in masked && typeof masked.webhookUrl === "string") {
     const url = masked.webhookUrl;
     if (url.length > 20) {
-      masked.webhookUrl = `${url.substring(0, 10)}...${url.substring(url.length - 10)}` as any;
+      masked.webhookUrl = `${url.substring(0, 10)}...${url.substring(url.length - 10)}` as string;
     }
   }
   return masked;

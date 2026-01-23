@@ -41,7 +41,6 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
                 })
             );
         }
-        const url = new URL(request.url);
         url.searchParams.delete("charge_id");
         url.searchParams.set("success", confirmation.success ? "true" : "false");
         if (!confirmation.success && confirmation.error) {

@@ -152,7 +152,8 @@ export async function analyzeDedupConflicts(
       payloadJson: true,
     },
   });
-  const groupedEvents = new Map<string, typeof receipts>();
+  type ReceiptWithPlatform = typeof receipts[0] & { platform: string };
+  const groupedEvents = new Map<string, ReceiptWithPlatform[]>();
   receipts.forEach(receipt => {
     if (!receipt.orderKey) return;
     const payload = receipt.payloadJson as Record<string, unknown> | null;
@@ -160,7 +161,7 @@ export async function analyzeDedupConflicts(
     if (!platform) return;
     const key = `${receipt.orderKey}:${platform}:${receipt.eventType}`;
     const existing = groupedEvents.get(key) || [];
-    existing.push({ ...receipt, platform } as any);
+    existing.push({ ...receipt, platform } as ReceiptWithPlatform);
     groupedEvents.set(key, existing);
   });
   let duplicateEvents = 0;

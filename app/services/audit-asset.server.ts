@@ -176,8 +176,8 @@ export async function createAuditAsset(
     });
     if (existing) {
       const rawContent = input.details?.content as string | undefined;
-      const detailsForStorage = { ...input.details };
-      delete (detailsForStorage as any).content;
+      const detailsForStorage: Record<string, unknown> = { ...input.details };
+      delete detailsForStorage.content;
       let encryptedSnippet: string | null = null;
       if (rawContent && typeof rawContent === "string" && rawContent.trim().length > 0) {
         try {
@@ -232,8 +232,8 @@ export async function createAuditAsset(
       return mapToRecord(updated);
     }
     const rawContent = input.details?.content as string | undefined;
-    const detailsForStorage = { ...input.details };
-    delete (detailsForStorage as any).content;
+    const detailsForStorage: Record<string, unknown> = { ...input.details };
+    delete detailsForStorage.content;
     let encryptedSnippet: string | null = null;
     if (rawContent && typeof rawContent === "string" && rawContent.trim().length > 0) {
       try {
@@ -323,8 +323,8 @@ export async function batchCreateAuditAssets(
               where: { shopId_fingerprint: { shopId, fingerprint } },
             });
             const rawContent = input.details?.content as string | undefined;
-            const detailsForStorage = { ...input.details };
-            delete (detailsForStorage as any).content;
+            const detailsForStorage: Record<string, unknown> = { ...input.details };
+            delete detailsForStorage.content;
             let encryptedSnippet: string | null = null;
             if (rawContent && typeof rawContent === "string" && rawContent.trim().length > 0) {
               try {
