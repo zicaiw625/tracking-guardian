@@ -3,8 +3,6 @@ import { json, redirect } from "@remix-run/node";
 import { useLoaderData, useSubmit, useNavigation, useSearchParams, useActionData } from "@remix-run/react";
 import { useEffect } from "react";
 import { Page, Layout, Card, Text, BlockStack, InlineStack, Button, Badge, Box, Divider, Banner, ProgressBar, List, DataTable, } from "@shopify/polaris";
-import { useAppBridge } from "@shopify/app-bridge-react";
-import { Redirect } from "@shopify/app-bridge/actions";
 import { useToastContext } from "~/components/ui";
 import { PageIntroCard } from "~/components/layout/PageIntroCard";
 import { authenticate } from "../shopify.server";
@@ -190,14 +188,12 @@ export default function BillingPage() {
     const submit = useSubmit();
     const navigation = useNavigation();
     const { showSuccess, showError } = useToastContext();
-    const app = useAppBridge();
     useEffect(() => {
         if (actionData) {
             const data = actionData as { success?: boolean; error?: string; actionType?: string; confirmationUrl?: string };
             if (data.success) {
                 if (data.confirmationUrl) {
-                    const redirect = Redirect.create(app as any);
-                    redirect.dispatch(Redirect.Action.REMOTE, data.confirmationUrl);
+                    window.location.href = data.confirmationUrl;
                     return;
                 }
                 if (data.actionType === "cancel") {
@@ -209,7 +205,7 @@ export default function BillingPage() {
                 showError("操作失败：" + data.error);
             }
         }
-    }, [actionData, showSuccess, showError, app]);
+    }, [actionData, showSuccess, showError]);
     const [searchParams] = useSearchParams();
     const isSubmitting = navigation.state === "submitting";
     const showSuccessBanner = searchParams.get("success") === "true";
