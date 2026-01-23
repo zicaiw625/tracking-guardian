@@ -108,7 +108,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     });
 };
 export const action = async ({ request }: ActionFunctionArgs) => {
-    const { session, admin } = await authenticate.admin(request);
+    const { session, admin, redirect: shopifyRedirect } = await authenticate.admin(request);
     const shopDomain = session.shop;
     const formData = await request.formData();
     const action = formData.get("_action");
@@ -159,10 +159,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
                         error: validation.error || "Invalid confirmation URL",
                     });
                 }
-                return json({
-                    success: true,
-                    confirmationUrl: result.confirmationUrl,
-                });
+                return shopifyRedirect(result.confirmationUrl, { target: "_parent" });
             }
             return json({
                 success: false,
@@ -192,10 +189,6 @@ export default function BillingPage() {
         if (actionData) {
             const data = actionData as { success?: boolean; error?: string; actionType?: string; confirmationUrl?: string };
             if (data.success) {
-                if (data.confirmationUrl) {
-                    window.location.href = data.confirmationUrl;
-                    return;
-                }
                 if (data.actionType === "cancel") {
                     showSuccess("订阅已取消");
                 } else {
