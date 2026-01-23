@@ -1,8 +1,8 @@
 import type { ActionFunctionArgs, LoaderFunctionArgs } from "@remix-run/node";
 import { json, redirect } from "@remix-run/node";
 import { useLoaderData, useSubmit, useNavigation, useSearchParams, useActionData } from "@remix-run/react";
-import { useEffect } from "react";
-import { Page, Layout, Card, Text, BlockStack, InlineStack, Button, Badge, Box, Divider, Banner, ProgressBar, List, DataTable, } from "@shopify/polaris";
+import { useEffect, useState } from "react";
+import { Page, Layout, Card, Text, BlockStack, InlineStack, Button, Badge, Box, Divider, Banner, ProgressBar, List, DataTable, Modal } from "@shopify/polaris";
 import { useToastContext } from "~/components/ui";
 import { PageIntroCard } from "~/components/layout/PageIntroCard";
 import { authenticate } from "../shopify.server";
@@ -231,6 +231,7 @@ export default function BillingPage() {
     const showErrorBanner = searchParams.get("success") === "false";
     const errorMessage = searchParams.get("error");
     const upgradePlanId = searchParams.get("upgrade");
+    const [showCancelModal, setShowCancelModal] = useState(false);
     
     useEffect(() => {
         if (upgradePlanId && !isSubmitting && !showSuccessBanner && !showErrorBanner) {
@@ -270,13 +271,18 @@ export default function BillingPage() {
     const handleCancel = () => {
         if (!subscription.subscriptionId)
             return;
-        if (!confirm("确定要取消订阅吗？取消后将降级到免费版。")) {
+        setShowCancelModal(true);
+    };
+    const confirmCancel = () => {
+        if (!subscription.subscriptionId) {
+            setShowCancelModal(false);
             return;
         }
         const formData = new FormData();
         formData.append("_action", "cancel");
         formData.append("subscriptionId", subscription.subscriptionId);
         submit(formData, { method: "post" });
+        setShowCancelModal(false);
     };
     const actionDataTyped = actionData as { success?: boolean; error?: string; confirmationUrl?: string } | undefined;
     const hasError = actionDataTyped && !actionDataTyped.success && actionDataTyped.error;
@@ -477,6 +483,27 @@ export default function BillingPage() {
             </BlockStack>
           </BlockStack>
         </Card>
+        <Modal
+          open={showCancelModal}
+          onClose={() => setShowCancelModal(false)}
+          title="确定要取消订阅吗？"
+          primaryAction={{
+            content: "确定",
+            destructive: true,
+            onAction: confirmCancel,
+            loading: isSubmitting,
+          }}
+          secondaryActions={[
+            {
+              content: "取消",
+              onAction: () => setShowCancelModal(false),
+            },
+          ]}
+        >
+          <Modal.Section>
+            <Text as="p">取消后将降级到免费版。</Text>
+          </Modal.Section>
+        </Modal>
       </BlockStack>
     </Page>);
 }

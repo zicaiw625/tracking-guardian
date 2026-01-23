@@ -62,20 +62,24 @@ export function useSubmitForm(options: UseSubmitFormOptions = {}): UseSubmitForm
 export function useConfirmSubmit(options: {
   message?: string;
   submitOptions?: UseSubmitFormOptions;
+  confirm?: (message: string) => boolean | Promise<boolean>;
 } = {}) {
-  const { message = 'Are you sure?', submitOptions } = options;
+  const { message = 'Are you sure?', submitOptions, confirm } = options;
   const { submitAction, isSubmitting, state } = useSubmitForm(submitOptions);
-  const confirmAndSubmit = useCallback((
+  const confirmAndSubmit = useCallback(async (
     action: string,
     data?: FormDataBuilder,
     customMessage?: string
   ) => {
-    const confirmed = window.confirm(customMessage || message);
+    const promptMessage = customMessage || message;
+    const confirmed = confirm
+      ? await Promise.resolve(confirm(promptMessage))
+      : true;
     if (confirmed) {
       submitAction(action, data);
     }
     return confirmed;
-  }, [submitAction, message]);
+  }, [submitAction, message, confirm]);
   return {
     confirmAndSubmit,
     isSubmitting,

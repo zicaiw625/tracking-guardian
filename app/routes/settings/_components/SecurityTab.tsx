@@ -11,8 +11,10 @@ import {
   Badge,
   Box,
   List,
+  Modal,
 } from "@shopify/polaris";
 import { useSubmit } from "@remix-run/react";
+import { useState } from "react";
 
 interface ShopData {
   id: string;
@@ -52,6 +54,9 @@ export function SecurityTab({
   hmacSecurityStats,
 }: SecurityTabProps) {
   const submit = useSubmit();
+  const [showConsentModal, setShowConsentModal] = useState(false);
+  const [pendingConsentStrategy, setPendingConsentStrategy] = useState<string | null>(null);
+  const [showRotateModal, setShowRotateModal] = useState(false);
   const handleDataRetentionChange = (value: string) => {
     const formData = new FormData();
     formData.append("_action", "updatePrivacySettings");
@@ -61,16 +66,28 @@ export function SecurityTab({
   };
   const handleConsentStrategyChange = (value: string) => {
     if (value !== "strict") {
-      const warning = `平衡模式仍要求像素回执与明确同意，但允许"部分可信"的回执（trust=partial）。\n\n在 GDPR 等严格隐私法规地区，推荐使用严格模式。\n\n确定要切换吗？`;
-      if (!confirm(warning)) {
-        return;
-      }
+      setPendingConsentStrategy(value);
+      setShowConsentModal(true);
+      return;
     }
     const formData = new FormData();
     formData.append("_action", "updatePrivacySettings");
     formData.append("consentStrategy", value);
     formData.append("dataRetentionDays", String(shop?.dataRetentionDays || 90));
     submit(formData, { method: "post" });
+  };
+  const confirmConsentStrategyChange = () => {
+    if (!pendingConsentStrategy) {
+      setShowConsentModal(false);
+      return;
+    }
+    const formData = new FormData();
+    formData.append("_action", "updatePrivacySettings");
+    formData.append("consentStrategy", pendingConsentStrategy);
+    formData.append("dataRetentionDays", String(shop?.dataRetentionDays || 90));
+    submit(formData, { method: "post" });
+    setShowConsentModal(false);
+    setPendingConsentStrategy(null);
   };
   return (
     <Layout>
@@ -144,7 +161,7 @@ export function SecurityTab({
                   </BlockStack>
                   <Button
                     variant="secondary"
-                    onClick={onRotateSecret}
+                    onClick={() => setShowRotateModal(true)}
                     loading={isSubmitting}
                   >
                     {shop?.hasIngestionSecret ? "更换令牌" : "生成令牌"}
@@ -218,7 +235,7 @@ export function SecurityTab({
                             <Button
                               variant="plain"
                               size="slim"
-                              onClick={onRotateSecret}
+                              onClick={() => setShowRotateModal(true)}
                               loading={isSubmitting}
                             >
                               立即轮换
@@ -684,6 +701,67 @@ export function SecurityTab({
           </BlockStack>
         </Card>
       </Layout.Section>
+      <Modal
+        open={showConsentModal}
+        onClose={() => {
+          setShowConsentModal(false);
+          setPendingConsentStrategy(null);
+        }}
+        title="确认切换隐私策略"
+        primaryAction={{
+          content: "确认切换",
+          onAction: confirmConsentStrategyChange,
+          loading: isSubmitting,
+        }}
+        secondaryActions={[
+          {
+            content: "取消",
+            onAction: () => {
+              setShowConsentModal(false);
+              setPendingConsentStrategy(null);
+            },
+          },
+        ]}
+      >
+        <Modal.Section>
+          <BlockStack gap="200">
+            <Text as="p">
+              平衡模式仍要求像素回执与明确同意，但允许"部分可信"的回执（trust=partial）。
+            </Text>
+            <Text as="p" tone="subdued">
+              在 GDPR 等严格隐私法规地区，推荐使用严格模式。确定要切换吗？
+            </Text>
+          </BlockStack>
+        </Modal.Section>
+      </Modal>
+      <Modal
+        open={showRotateModal}
+        onClose={() => setShowRotateModal(false)}
+        title={shop?.hasIngestionSecret ? "确认更换关联令牌" : "确认生成关联令牌"}
+        primaryAction={{
+          content: shop?.hasIngestionSecret ? "确认更换" : "确认生成",
+          destructive: true,
+          onAction: () => {
+            setShowRotateModal(false);
+            onRotateSecret();
+          },
+          loading: isSubmitting,
+        }}
+        secondaryActions={[
+          {
+            content: "取消",
+            onAction: () => setShowRotateModal(false),
+          },
+        ]}
+      >
+        <Modal.Section>
+          <Text as="p">
+            {shop?.hasIngestionSecret
+              ? "更换后 Web Pixel 将自动更新，请确保已通知相关成员。"
+              : "生成后将自动配置至 Web Pixel。"}
+          </Text>
+        </Modal.Section>
+      </Modal>
     </Layout>
   );
 }

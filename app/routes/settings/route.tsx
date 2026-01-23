@@ -232,15 +232,10 @@ export default function SettingsPage() {
     submit(formData, { method: "post" });
   }, [alertChannel, alertEmail, slackWebhook, telegramToken, telegramChatId, submit]);
   const handleRotateSecret = useCallback(() => {
-    const message = shop?.hasIngestionSecret
-      ? "确定要更换关联令牌吗？更换后 Web Pixel 将自动更新。"
-      : "确定要生成关联令牌吗？";
-    if (confirm(message)) {
-      const formData = new FormData();
-      formData.append("_action", "rotateIngestionSecret");
-      submit(formData, { method: "post" });
-    }
-  }, [shop?.hasIngestionSecret, submit]);
+    const formData = new FormData();
+    formData.append("_action", "rotateIngestionSecret");
+    submit(formData, { method: "post" });
+  }, [submit]);
   const handleSaveBarSave = useCallback(() => {
     if (selectedTab === 0) {
       handleSaveAlert();
