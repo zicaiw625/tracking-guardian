@@ -2,12 +2,6 @@ import { vitePlugin as remix } from "@remix-run/dev";
 import { defineConfig, type UserConfig, type Plugin } from "vite";
 import tsconfigPaths from "vite-tsconfig-paths";
 
-declare module "@remix-run/node" {
-  interface Future {
-    v3_singleFetch: true;
-  }
-}
-
 if (
   process.env.HOST &&
   (!process.env.SHOPIFY_APP_URL ||
@@ -99,7 +93,6 @@ export default defineConfig({
         v3_relativeSplatPath: true,
         v3_throwAbortReason: true,
         v3_lazyRouteDiscovery: true,
-        v3_singleFetch: true,
       },
     }),
     tsconfigPaths(),
