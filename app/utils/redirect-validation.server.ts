@@ -32,6 +32,12 @@ export function assertSafeRedirect(
 ): RedirectValidationResult {
   try {
     const urlObj = new URL(url);
+    if (urlObj.protocol !== "https:") {
+      return {
+        valid: false,
+        error: `Invalid protocol: ${urlObj.protocol}`,
+      };
+    }
     const hostname = urlObj.hostname.toLowerCase();
     
     const isAllowed = allowedDomains.some(domain => {

@@ -138,9 +138,9 @@ export const action = async ({ request }: ActionFunctionArgs) => {
             }
             if (result.success && result.confirmationUrl) {
                 const allowedDomains = [
-                    "admin.shopify.com",
-                    "partners.shopify.com",
                     "shopify.com",
+                    "myshopify.com",
+                    shopDomain,
                 ];
                 const validation = assertSafeRedirect(result.confirmationUrl, allowedDomains);
                 if (!validation.valid) {
@@ -153,7 +153,10 @@ export const action = async ({ request }: ActionFunctionArgs) => {
                         error: validation.error || "Invalid confirmation URL",
                     });
                 }
-                return redirect(result.confirmationUrl);
+                return json({
+                    success: true,
+                    confirmationUrl: result.confirmationUrl,
+                });
             }
             return json({
                 success: false,
@@ -181,8 +184,12 @@ export default function BillingPage() {
     const { showSuccess, showError } = useToastContext();
     useEffect(() => {
         if (actionData) {
-            const data = actionData as { success?: boolean; error?: string; actionType?: string };
+            const data = actionData as { success?: boolean; error?: string; actionType?: string; confirmationUrl?: string };
             if (data.success) {
+                if (data.confirmationUrl) {
+                    window.location.href = data.confirmationUrl;
+                    return;
+                }
                 if (data.actionType === "cancel") {
                     showSuccess("订阅已取消");
                 } else {
@@ -234,14 +241,15 @@ export default function BillingPage() {
         formData.append("subscriptionId", subscription.subscriptionId);
         submit(formData, { method: "post" });
     };
-    const hasError = actionData && !actionData.success && actionData.error;
+    const actionDataTyped = actionData as { success?: boolean; error?: string; confirmationUrl?: string } | undefined;
+    const hasError = actionDataTyped && !actionDataTyped.success && actionDataTyped.error;
     return (<Page title="订阅与计费">
       <BlockStack gap="500">
         {showSuccessBanner && (<Banner title="订阅成功！" tone="success" onDismiss={() => { }}>
             <p>您的订阅已激活，现在可以享受所有功能了。</p>
           </Banner>)}
         {hasError && (<Banner title="订阅失败" tone="critical" onDismiss={() => { }}>
-            <p>{actionData.error}</p>
+            <p>{actionDataTyped.error}</p>
           </Banner>)}
         {subscription.isTrialing && (<Banner title="试用期" tone="info">
             <p>

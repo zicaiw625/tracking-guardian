@@ -303,9 +303,9 @@ export async function createSubscription(
     }
     if (result?.confirmationUrl) {
       const allowedDomains = [
-        "admin.shopify.com",
-        "partners.shopify.com",
         "shopify.com",
+        "myshopify.com",
+        shopDomain,
       ];
       const validation = assertSafeRedirect(result.confirmationUrl, allowedDomains);
       if (!validation.valid) {
@@ -541,9 +541,9 @@ export async function createOneTimePurchase(
     }
     if (result?.confirmationUrl) {
       const allowedDomains = [
-        "admin.shopify.com",
-        "partners.shopify.com",
         "shopify.com",
+        "myshopify.com",
+        shopDomain,
       ];
       const validation = assertSafeRedirect(result.confirmationUrl, allowedDomains);
       if (!validation.valid) {
