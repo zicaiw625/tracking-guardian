@@ -140,9 +140,7 @@ export function withShopCors(
       "Access-Control-Max-Age": "3600",
       "Vary": "Origin",
     };
-    if (origin === "null" || origin === null || !origin) {
-      corsHeaders["Access-Control-Allow-Origin"] = "*";
-    } else {
+    if (origin && origin !== "null") {
       const originHost = origin ? new URL(origin).hostname : null;
       if (originHost) {
         const isAllowed = allowedDomains.some(domain => {

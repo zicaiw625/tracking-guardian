@@ -1,5 +1,6 @@
 import { API_CONFIG } from "./config.server";
 import { logger } from "./logger.server";
+import { readTextWithLimit } from "./body-reader";
 
 export async function readJsonWithSizeLimit<T = unknown>(
   request: Request,
@@ -22,20 +23,7 @@ export async function readJsonWithSizeLimit<T = unknown>(
       );
     }
   }
-  const bodyText = await request.text();
-  if (bodyText.length > maxSize) {
-    logger.warn(`Request body too large: ${bodyText.length} bytes (max ${maxSize})`);
-    throw new Response(
-      JSON.stringify({
-        error: "Payload too large",
-        maxSize,
-      }),
-      {
-        status: 413,
-        headers: { "Content-Type": "application/json" },
-      }
-    );
-  }
+  const bodyText = await readTextWithLimit(request, maxSize);
   try {
     return JSON.parse(bodyText) as T;
   } catch (error) {

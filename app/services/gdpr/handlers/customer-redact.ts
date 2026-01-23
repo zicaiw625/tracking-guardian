@@ -26,7 +26,10 @@ export async function processCustomerRedact(
     prisma.pixelEventReceipt.deleteMany({
       where: {
         shopId: shop.id,
-        orderKey: { in: allOrderIdPatterns },
+        OR: [
+          { orderKey: { in: allOrderIdPatterns } },
+          { altOrderKey: { in: allOrderIdPatterns } },
+        ],
       },
     }),
     prisma.surveyResponse.deleteMany({

@@ -144,6 +144,9 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     logger.info("Survey response received", { shopDomain });
     return wrapCors(json({ success: true, message: "Survey response recorded", id: created.id }));
   } catch (error) {
+    if (error instanceof Response) {
+      return wrapCors(error);
+    }
     logger.error("Failed to process survey submission", {
       error: error instanceof Error ? error.message : String(error),
     });

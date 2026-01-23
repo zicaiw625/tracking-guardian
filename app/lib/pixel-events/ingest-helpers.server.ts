@@ -11,6 +11,7 @@ import { hashValueSync } from "~/utils/crypto.server";
 import { logger, metrics } from "~/utils/logger.server";
 import { trackAnomaly } from "~/utils/rate-limiter";
 import prisma from "~/db.server";
+import { readTextWithLimit } from "~/utils/body-reader";
 
 const TIMESTAMP_WINDOW_MS = API_CONFIG.TIMESTAMP_WINDOW_MS;
 
@@ -26,11 +27,16 @@ export interface ParseRequestResult {
 }
 
 export async function parseAndValidateRequest(request: Request): Promise<ParseRequestResult | Response> {
-  const bodyText = await request.text();
-  if (bodyText.length > API_CONFIG.MAX_BODY_SIZE) {
+  let bodyText: string;
+  try {
+    bodyText = await readTextWithLimit(request, API_CONFIG.MAX_BODY_SIZE);
+  } catch (error) {
+    if (error instanceof Response) {
+      return error;
+    }
     return new Response(
-      JSON.stringify({ error: "Payload too large", maxSize: API_CONFIG.MAX_BODY_SIZE }),
-      { status: 413, headers: { "Content-Type": "application/json" } }
+      JSON.stringify({ error: "Failed to read request body" }),
+      { status: 400, headers: { "Content-Type": "application/json" } }
     );
   }
   let bodyData: unknown;

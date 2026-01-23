@@ -32,6 +32,9 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     });
     return jsonApi({ success: true });
   } catch (error) {
+    if (error instanceof Response) {
+      return error;
+    }
     logger.error("Analytics track error", {
       error: error instanceof Error ? error.message : String(error),
       shopDomain,

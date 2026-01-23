@@ -86,6 +86,12 @@ export const action = async (args: ActionFunctionArgs) => {
         { request: req }
       );
     } catch (error) {
+      if (error instanceof Response) {
+        return jsonWithCors(
+          { error: error.status === 413 ? "Payload too large" : "Invalid request body" },
+          { status: error.status, request: req }
+        );
+      }
       logger.error("Failed to process performance metric", {
         error: error instanceof Error ? error.message : String(error),
       });

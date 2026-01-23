@@ -126,16 +126,6 @@ export function getDynamicCorsHeaders(request: Request, customHeaders?: string[]
         ...(customHeaders || []),
     ].join(", ");
     const baseSecurityHeaders = { ...SECURITY_HEADERS };
-    if (origin === "null") {
-        return {
-            ...baseSecurityHeaders,
-            "Access-Control-Allow-Origin": "*",
-            "Access-Control-Allow-Methods": "POST, OPTIONS",
-            "Access-Control-Allow-Headers": allowedHeaders,
-            "Access-Control-Max-Age": "86400",
-            "Vary": "Origin",
-        };
-    }
     if (!origin) {
         return {
             ...baseSecurityHeaders,

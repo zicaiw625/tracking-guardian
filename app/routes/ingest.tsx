@@ -14,6 +14,7 @@ import { validateRequest } from "~/lib/pixel-events/validation";
 import { validatePixelEventHMAC } from "~/lib/pixel-events/hmac-validation";
 import { verifyWithGraceWindowAsync } from "~/utils/shop-access";
 import { validateEvents, normalizeEvents, deduplicateEvents, distributeEvents } from "~/lib/pixel-events/ingest-pipeline.server";
+import { readTextWithLimit } from "~/utils/body-reader";
 
 const MAX_BATCH_SIZE = 100;
 const TIMESTAMP_WINDOW_MS = API_CONFIG.TIMESTAMP_WINDOW_MS;
@@ -155,16 +156,21 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   let bodyText: string;
   let bodyData: unknown;
   try {
-    bodyText = await request.text();
-    if (bodyText.length > API_CONFIG.MAX_BODY_SIZE) {
-      logger.warn(`Request body too large: ${bodyText.length} bytes (max ${API_CONFIG.MAX_BODY_SIZE})`);
-      return jsonWithCors(
-        { error: "Payload too large", maxSize: API_CONFIG.MAX_BODY_SIZE },
-        { status: 413, request }
-      );
-    }
+    bodyText = await readTextWithLimit(request, API_CONFIG.MAX_BODY_SIZE);
     bodyData = JSON.parse(bodyText);
   } catch (error) {
+    if (error instanceof Response) {
+      if (error.status === 413) {
+        return jsonWithCors(
+          { error: "Payload too large", maxSize: API_CONFIG.MAX_BODY_SIZE },
+          { status: 413, request }
+        );
+      }
+      return jsonWithCors(
+        { error: "Failed to read request body" },
+        { status: 400, request }
+      );
+    }
     if (error instanceof SyntaxError) {
       return jsonWithCors(
         { error: "Invalid JSON body" },

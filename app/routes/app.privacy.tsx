@@ -34,15 +34,34 @@ import prisma from "../db.server";
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   const { session } = await authenticate.admin(request);
   const shopDomain = session.shop;
+  const url = new URL(request.url);
+  const tab = url.searchParams.get("tab") || "";
   const shop = await prisma.shop.findUnique({
     where: { shopDomain },
     select: {
       consentStrategy: true,
     },
   });
+  const gdprJobs = tab === "gdpr"
+    ? await prisma.gDPRJob.findMany({
+        where: { shopDomain },
+        orderBy: { createdAt: "desc" },
+        take: 50,
+        select: {
+          id: true,
+          jobType: true,
+          status: true,
+          createdAt: true,
+          completedAt: true,
+          errorMessage: true,
+        },
+      })
+    : [];
   return json({
     shop: shop || { consentStrategy: "strict" },
-    appDomain: process.env.APP_URL || "https://app.tracking-guardian.com"
+    appDomain: process.env.APP_URL || "https://app.tracking-guardian.com",
+    tab,
+    gdprJobs,
   });
 };
 
@@ -123,7 +142,8 @@ function CollapsibleSection({
 
 export default function PrivacyPage() {
   const { showError } = useToastContext();
-  const { shop, appDomain } = useLoaderData<typeof loader>();
+  const { shop, appDomain, tab, gdprJobs } = useLoaderData<typeof loader>();
+  const isGdprTab = tab === "gdpr";
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   return (
     <Page
@@ -131,6 +151,68 @@ export default function PrivacyPage() {
       subtitle="了解本应用如何收集、使用和保护您店铺的数据"
     >
       <BlockStack gap="500">
+        {isGdprTab ? (
+          <Card>
+            <BlockStack gap="300">
+              <InlineStack align="space-between" blockAlign="center">
+                <Text as="h2" variant="headingMd">
+                  GDPR 请求历史
+                </Text>
+                <Button url="/app/privacy" variant="secondary">
+                  返回
+                </Button>
+              </InlineStack>
+              {gdprJobs.length === 0 ? (
+                <Text as="p" variant="bodySm" tone="subdued">
+                  暂无记录
+                </Text>
+              ) : (
+                <BlockStack gap="300">
+                  {gdprJobs.map((job) => {
+                    const tone =
+                      job.status === "completed"
+                        ? "success"
+                        : job.status === "failed"
+                        ? "critical"
+                        : "info";
+                    const createdAt = new Date(job.createdAt).toLocaleString();
+                    const completedAt = job.completedAt ? new Date(job.completedAt).toLocaleString() : null;
+                    return (
+                      <Card key={job.id}>
+                        <BlockStack gap="200">
+                          <InlineStack align="space-between" blockAlign="center">
+                            <Text as="span" variant="headingSm">
+                              {job.jobType}
+                            </Text>
+                            <Badge tone={tone as any}>{job.status}</Badge>
+                          </InlineStack>
+                          <Text as="p" variant="bodySm" tone="subdued">
+                            创建时间：{createdAt}
+                          </Text>
+                          {completedAt ? (
+                            <Text as="p" variant="bodySm" tone="subdued">
+                              完成时间：{completedAt}
+                            </Text>
+                          ) : null}
+                          {job.errorMessage ? (
+                            <Text as="p" variant="bodySm" tone="critical">
+                              {job.errorMessage}
+                            </Text>
+                          ) : null}
+                          <InlineStack gap="200">
+                            <Button url={`/app/gdpr/export/${job.id}`} variant="primary">
+                              下载 JSON
+                            </Button>
+                          </InlineStack>
+                        </BlockStack>
+                      </Card>
+                    );
+                  })}
+                </BlockStack>
+              )}
+            </BlockStack>
+          </Card>
+        ) : null}
         <Banner title="数据处理概览" tone="info">
           <BlockStack gap="200">
             <p>

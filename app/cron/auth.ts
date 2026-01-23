@@ -1,5 +1,6 @@
 import { timingSafeEqual , createHmac, createHash } from "crypto";
 import { logger } from "../utils/logger.server";
+import { readTextWithLimit } from "../utils/body-reader";
 
 const REPLAY_WINDOW_SECONDS = 300;
 const MIN_SECRET_LENGTH = 32;
@@ -118,7 +119,7 @@ export async function verifyReplayProtection(
 
   let bodyHash = "";
   try {
-    const bodyText = await request.clone().text();
+    const bodyText = await readTextWithLimit(request.clone(), 64 * 1024);
     if (bodyText) {
       bodyHash = createHash("sha256").update(bodyText).digest("hex");
     }

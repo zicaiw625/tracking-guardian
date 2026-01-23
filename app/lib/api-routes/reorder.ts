@@ -199,6 +199,12 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       });
       return await loaderImpl(newRequest);
   } catch (error) {
+    if (error instanceof Response) {
+      if (authResult) {
+        return addSecurityHeaders(authResult.cors(error));
+      }
+      return addSecurityHeaders(error);
+    }
     logger.error("Reorder action failed", {
       error: error instanceof Error ? error.message : String(error),
     });

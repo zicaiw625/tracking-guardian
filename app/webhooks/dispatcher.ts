@@ -90,15 +90,17 @@ export async function dispatchWebhook(
         : WebhookStatus.FAILED;
       await updateWebhookStatus(shop, webhookId, topic, status, result.orderId);
     }
-    if (isGDPR && !result.success) {
-      logger.error(`GDPR webhook ${topic} processing failed for ${shop}, returning 500 to allow Shopify retry`, {
-        message: result.message,
-        status: result.status,
-        webhookId,
-      });
-      return new Response(result.message || "GDPR webhook processing failed", { status: 500 });
+    if (isGDPR) {
+      if (!result.success) {
+        logger.error(`GDPR webhook ${topic} processing failed for ${shop}, acknowledging 200`, {
+          message: result.message,
+          status: result.status,
+          webhookId,
+        });
+      }
+      return new Response("OK", { status: 200 });
     }
-    if (!result.success && !isGDPR) {
+    if (!result.success) {
       logger.error(`Webhook ${topic} processing failed for ${shop}`, {
         message: result.message,
         status: result.status,
@@ -111,7 +113,7 @@ export async function dispatchWebhook(
     const errorMessage = error instanceof Error ? error.message : "Unknown error";
     const isGDPR = GDPR_TOPICS.has(normalizedTopic);
     if (isGDPR) {
-      logger.error(`GDPR webhook ${topic} handler threw error for ${shop}, returning 500 to allow Shopify retry:`, {
+      logger.error(`GDPR webhook ${topic} handler threw error for ${shop}, acknowledging 200`, {
         message: errorMessage,
         stack: error instanceof Error ? error.stack : undefined,
         webhookId,
@@ -119,7 +121,7 @@ export async function dispatchWebhook(
       if (webhookId) {
         await updateWebhookStatus(shop, webhookId, topic, WebhookStatus.FAILED);
       }
-      return new Response("GDPR webhook processing failed", { status: 500 });
+      return new Response("OK", { status: 200 });
     }
     logger.error(`Webhook ${topic} handler error for ${shop}:`, {
       message: errorMessage,
