@@ -21,12 +21,17 @@ export function withPlanGate(config: PlanGateConfig): Middleware {
       const shopDomain = session.shop;
       const shop = await prisma.shop.findUnique({
         where: { shopDomain },
-        select: { id: true, plan: true },
+        select: { id: true, plan: true, entitledUntil: true },
       });
       if (!shop) {
         return { continue: false, response: json({ error: "Shop not found" }, { status: 404 }) };
       }
-      const planId = normalizePlanId(shop.plan || "free") as PlanId;
+      const now = new Date();
+      let effectivePlan = shop.plan || "free";
+      if (shop.entitledUntil && shop.entitledUntil <= now) {
+        effectivePlan = "free";
+      }
+      const planId = normalizePlanId(effectivePlan) as PlanId;
       const gateResult = checkFeatureAccess(planId, config.feature);
       if (!gateResult.allowed) {
         if (config.redirectTo) {
@@ -78,12 +83,17 @@ export async function checkPlanGate(
 ): Promise<{ allowed: boolean; reason?: string; currentPlan?: PlanId }> {
   const shop = await prisma.shop.findUnique({
     where: { id: shopId },
-    select: { plan: true },
+    select: { plan: true, entitledUntil: true },
   });
   if (!shop) {
     return { allowed: false, reason: "Shop not found" };
   }
-  const planId = normalizePlanId(shop.plan || "free") as PlanId;
+  const now = new Date();
+  let effectivePlan = shop.plan || "free";
+  if (shop.entitledUntil && shop.entitledUntil <= now) {
+    effectivePlan = "free";
+  }
+  const planId = normalizePlanId(effectivePlan) as PlanId;
   const gateResult = checkFeatureAccess(planId, feature);
   return {
     allowed: gateResult.allowed,

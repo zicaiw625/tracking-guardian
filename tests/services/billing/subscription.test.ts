@@ -50,6 +50,17 @@ describe("Subscription Service", () => {
   });
   describe("createSubscription", () => {
     it("should create subscription for starter plan", async () => {
+      const mockGetSubscriptionStatus = {
+        json: vi.fn().mockResolvedValue({
+          data: {
+            appInstallation: {
+              allSubscriptions: {
+                edges: [],
+              },
+            },
+          },
+        }),
+      };
       const mockAppSubscriptionCreate = {
         json: vi.fn().mockResolvedValue({
           data: {
@@ -66,6 +77,7 @@ describe("Subscription Service", () => {
         }),
       };
       (mockAdmin.graphql as ReturnType<typeof vi.fn>)
+        .mockResolvedValueOnce(mockGetSubscriptionStatus)
         .mockResolvedValueOnce(mockAppSubscriptionCreate);
       vi.mocked(prisma.shop.findUnique).mockResolvedValue({ id: "shop-1" } as any);
       const result = await createSubscription(
@@ -90,6 +102,17 @@ describe("Subscription Service", () => {
       expect(mockAdmin.graphql).not.toHaveBeenCalled();
     });
     it("should handle Shopify API errors", async () => {
+      const mockGetSubscriptionStatus = {
+        json: vi.fn().mockResolvedValue({
+          data: {
+            appInstallation: {
+              allSubscriptions: {
+                edges: [],
+              },
+            },
+          },
+        }),
+      };
       const mockAppSubscriptionCreate = {
         json: vi.fn().mockResolvedValue({
           data: {
@@ -104,6 +127,7 @@ describe("Subscription Service", () => {
         }),
       };
       (mockAdmin.graphql as ReturnType<typeof vi.fn>)
+        .mockResolvedValueOnce(mockGetSubscriptionStatus)
         .mockResolvedValueOnce(mockAppSubscriptionCreate);
       const result = await createSubscription(
         mockAdmin,
@@ -128,6 +152,17 @@ describe("Subscription Service", () => {
       expect(result.error).toBe("Network error");
     });
     it("should use correct plan pricing", async () => {
+      const mockGetSubscriptionStatus = {
+        json: vi.fn().mockResolvedValue({
+          data: {
+            appInstallation: {
+              allSubscriptions: {
+                edges: [],
+              },
+            },
+          },
+        }),
+      };
       const mockAppSubscriptionCreate = {
         json: vi.fn().mockResolvedValue({
           data: {
@@ -140,6 +175,7 @@ describe("Subscription Service", () => {
         }),
       };
       (mockAdmin.graphql as ReturnType<typeof vi.fn>)
+        .mockResolvedValueOnce(mockGetSubscriptionStatus)
         .mockResolvedValueOnce(mockAppSubscriptionCreate);
       vi.mocked(prisma.shop.findUnique).mockResolvedValue({ id: "shop-1" } as any);
       await createSubscription(
@@ -173,29 +209,34 @@ describe("Subscription Service", () => {
         json: vi.fn().mockResolvedValue({
           data: {
             appInstallation: {
-              activeSubscriptions: [
-                {
-                  id: "gid://shopify/AppSubscription/987654",
-                  name: "Tracking Guardian - Growth",
-                  status: "ACTIVE",
-                  trialDays: 0,
-                  currentPeriodEnd: "2025-01-27T00:00:00Z",
-                  lineItems: [
-                    {
-                      id: "li-1",
-                      plan: {
-                        pricingDetails: {
-                          price: {
-                            amount: "79.00",
-                            currencyCode: "USD",
+              allSubscriptions: {
+                edges: [
+                  {
+                    node: {
+                      id: "gid://shopify/AppSubscription/987654",
+                      name: "Tracking Guardian - Growth",
+                      status: "ACTIVE",
+                      trialDays: 0,
+                      createdAt: "2025-01-01T00:00:00Z",
+                      currentPeriodEnd: "2025-01-27T00:00:00Z",
+                      lineItems: [
+                        {
+                          id: "li-1",
+                          plan: {
+                            pricingDetails: {
+                              price: {
+                                amount: "79.00",
+                                currencyCode: "USD",
+                              },
+                              interval: "EVERY_30_DAYS",
+                            },
                           },
-                          interval: "EVERY_30_DAYS",
                         },
-                      },
+                      ],
                     },
-                  ],
-                },
-              ],
+                  },
+                ],
+              },
             },
           },
         }),
@@ -211,13 +252,15 @@ describe("Subscription Service", () => {
         json: vi.fn().mockResolvedValue({
           data: {
             appInstallation: {
-              activeSubscriptions: [],
+              allSubscriptions: {
+                edges: [],
+              },
             },
           },
         }),
       };
       (mockAdmin.graphql as ReturnType<typeof vi.fn>).mockResolvedValue(mockResponse);
-      vi.mocked(prisma.shop.findUnique).mockResolvedValue({ plan: "free" } as any);
+      vi.mocked(prisma.shop.findUnique).mockResolvedValue({ plan: "free", entitledUntil: null } as any);
       const status = await getSubscriptionStatus(mockAdmin, "test-store.myshopify.com");
       expect(status.hasActiveSubscription).toBe(false);
       expect(status.plan).toBe("free");
@@ -231,24 +274,29 @@ describe("Subscription Service", () => {
         json: vi.fn().mockResolvedValue({
           data: {
             appInstallation: {
-              activeSubscriptions: [
-                {
-                  id: "sub-1",
-                  status: "ACTIVE",
-                  trialDays: 7,
-                  createdAt: createdAt.toISOString(),
-                  currentPeriodEnd: futureDate.toISOString(),
-                  lineItems: [
-                    {
-                      plan: {
-                        pricingDetails: {
-                          price: { amount: "29.00" },
+              allSubscriptions: {
+                edges: [
+                  {
+                    node: {
+                      id: "sub-1",
+                      name: "Tracking Guardian - Starter",
+                      status: "ACTIVE",
+                      trialDays: 7,
+                      createdAt: createdAt.toISOString(),
+                      currentPeriodEnd: futureDate.toISOString(),
+                      lineItems: [
+                        {
+                          plan: {
+                            pricingDetails: {
+                              price: { amount: "29.00" },
+                            },
+                          },
                         },
-                      },
+                      ],
                     },
-                  ],
-                },
-              ],
+                  },
+                ],
+              },
             },
           },
         }),
@@ -332,23 +380,29 @@ describe("Subscription Service", () => {
         json: vi.fn().mockResolvedValue({
           data: {
             appInstallation: {
-              activeSubscriptions: [
-                {
-                  id: "sub-1",
-                  status: "ACTIVE",
-                  trialDays: 0,
-                  currentPeriodEnd: "2025-02-27",
-                  lineItems: [
-                    {
-                      plan: {
-                        pricingDetails: {
-                          price: { amount: "79.00" },
+              allSubscriptions: {
+                edges: [
+                  {
+                    node: {
+                      id: "sub-1",
+                      name: "Tracking Guardian - Growth",
+                      status: "ACTIVE",
+                      trialDays: 0,
+                      createdAt: "2025-01-01T00:00:00Z",
+                      currentPeriodEnd: "2025-02-27",
+                      lineItems: [
+                        {
+                          plan: {
+                            pricingDetails: {
+                              price: { amount: "79.00" },
+                            },
+                          },
                         },
-                      },
+                      ],
                     },
-                  ],
-                },
-              ],
+                  },
+                ],
+              },
             },
           },
         }),
@@ -371,13 +425,15 @@ describe("Subscription Service", () => {
         json: vi.fn().mockResolvedValue({
           data: {
             appInstallation: {
-              activeSubscriptions: [],
+              allSubscriptions: {
+                edges: [],
+              },
             },
           },
         }),
       };
       (mockAdmin.graphql as ReturnType<typeof vi.fn>).mockResolvedValue(mockResponse);
-      vi.mocked(prisma.shop.findUnique).mockResolvedValue({ plan: "free" } as any);
+      vi.mocked(prisma.shop.findUnique).mockResolvedValue({ plan: "free", entitledUntil: null } as any);
       vi.mocked(prisma.shop.update).mockResolvedValue({} as any);
       await syncSubscriptionStatus(mockAdmin, "test-store.myshopify.com");
       expect(prisma.shop.update).toHaveBeenCalledWith(
@@ -396,23 +452,29 @@ describe("Subscription Service", () => {
         json: vi.fn().mockResolvedValue({
           data: {
             appInstallation: {
-              activeSubscriptions: [
-                {
-                  id: "sub-1",
-                  status: "ACTIVE",
-                  trialDays: 0,
-                  currentPeriodEnd: "2025-02-27",
-                  lineItems: [
-                    {
-                      plan: {
-                        pricingDetails: {
-                          price: { amount: "29.00" },
+              allSubscriptions: {
+                edges: [
+                  {
+                    node: {
+                      id: "charge-123",
+                      name: "Tracking Guardian - Starter",
+                      status: "ACTIVE",
+                      trialDays: 0,
+                      createdAt: "2025-01-01T00:00:00Z",
+                      currentPeriodEnd: "2025-02-27",
+                      lineItems: [
+                        {
+                          plan: {
+                            pricingDetails: {
+                              price: { amount: "29.00" },
+                            },
+                          },
                         },
-                      },
+                      ],
                     },
-                  ],
-                },
-              ],
+                  },
+                ],
+              },
             },
           },
         }),
@@ -433,7 +495,9 @@ describe("Subscription Service", () => {
         json: vi.fn().mockResolvedValue({
           data: {
             appInstallation: {
-              activeSubscriptions: [],
+              allSubscriptions: {
+                edges: [],
+              },
             },
           },
         }),
@@ -446,38 +510,44 @@ describe("Subscription Service", () => {
         "charge-123"
       );
       expect(result.success).toBe(false);
-      expect(result.error).toBe("Subscription not active");
+      expect(result.error).toBe("Subscription not found for charge_id");
     });
   });
   describe("Plan Detection", () => {
     it("should detect correct plan from price", async () => {
       const testCases = [
-        { price: "29.00", expectedPlan: "starter" },
-        { price: "79.00", expectedPlan: "growth" },
-        { price: "199.00", expectedPlan: "agency" },
+        { price: "29.00", expectedPlan: "starter", name: "Tracking Guardian - Starter" },
+        { price: "79.00", expectedPlan: "growth", name: "Tracking Guardian - Growth" },
+        { price: "199.00", expectedPlan: "agency", name: "Tracking Guardian - Agency" },
       ];
-      for (const { price, expectedPlan } of testCases) {
+      for (const { price, expectedPlan, name } of testCases) {
         const mockResponse = {
           json: vi.fn().mockResolvedValue({
             data: {
               appInstallation: {
-                activeSubscriptions: [
-                  {
-                    id: "sub-1",
-                    status: "ACTIVE",
-                    trialDays: 0,
-                    currentPeriodEnd: "2025-02-27",
-                    lineItems: [
-                      {
-                        plan: {
-                          pricingDetails: {
-                            price: { amount: price },
+                allSubscriptions: {
+                  edges: [
+                    {
+                      node: {
+                        id: "sub-1",
+                        name,
+                        status: "ACTIVE",
+                        trialDays: 0,
+                        createdAt: "2025-01-01T00:00:00Z",
+                        currentPeriodEnd: "2025-02-27",
+                        lineItems: [
+                          {
+                            plan: {
+                              pricingDetails: {
+                                price: { amount: price },
+                              },
+                            },
                           },
-                        },
+                        ],
                       },
-                    ],
-                  },
-                ],
+                    },
+                  ],
+                },
               },
             },
           }),

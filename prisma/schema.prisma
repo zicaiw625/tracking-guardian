@@ -36,6 +36,7 @@ model Shop {
   name                    String?
   plan                    String                 @default("free")
   monthlyOrderLimit       Int                    @default(100)
+  entitledUntil           DateTime?
   installedAt             DateTime               @default(now())
   uninstalledAt           DateTime?
   isActive                Boolean                @default(true)

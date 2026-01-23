@@ -33,10 +33,17 @@ export interface EntitlementCheckResult {
 async function getShopPlan(shopId: string): Promise<PlanId> {
   const shop = await prisma.shop.findUnique({
     where: { id: shopId },
-    select: { plan: true },
+    select: { plan: true, entitledUntil: true },
   });
   if (!shop) {
     throw new Error(`Shop not found: ${shopId}`);
+  }
+  const now = new Date();
+  if (shop.entitledUntil && shop.entitledUntil > now) {
+    return (shop.plan || "free") as PlanId;
+  }
+  if (shop.entitledUntil && shop.entitledUntil <= now) {
+    return "free";
   }
   return (shop.plan || "free") as PlanId;
 }

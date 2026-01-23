@@ -2,7 +2,24 @@ import prisma from "../../db.server";
 import { createAuditLog } from "../audit.server";
 import { logger } from "../../utils/logger.server";
 import { assertSafeRedirect } from "../../utils/redirect-validation.server";
-import { BILLING_PLANS, type PlanId, detectPlanFromPrice } from "./plans";
+import { BILLING_PLANS, type PlanId, detectPlanFromPrice, isHigherTier } from "./plans";
+
+function detectPlanFromName(name: string): PlanId | null {
+  const nameLower = name.toLowerCase();
+  if (nameLower.includes("agency") || nameLower.includes("agency版")) {
+    return "agency";
+  }
+  if (nameLower.includes("growth") || nameLower.includes("成长版")) {
+    return "growth";
+  }
+  if (nameLower.includes("starter") || nameLower.includes("入门版")) {
+    return "starter";
+  }
+  if (nameLower.includes("free") || nameLower.includes("免费版")) {
+    return "free";
+  }
+  return null;
+}
 
 export interface AdminGraphQL {
   graphql: (
@@ -73,6 +90,7 @@ const CREATE_SUBSCRIPTION_MUTATION = `
     $returnUrl: URL!
     $trialDays: Int
     $test: Boolean
+    $replacementBehavior: AppSubscriptionReplacementBehavior
   ) {
     appSubscriptionCreate(
       name: $name
@@ -80,6 +98,7 @@ const CREATE_SUBSCRIPTION_MUTATION = `
       returnUrl: $returnUrl
       trialDays: $trialDays
       test: $test
+      replacementBehavior: $replacementBehavior
     ) {
       appSubscription {
         id
@@ -98,23 +117,27 @@ const CREATE_SUBSCRIPTION_MUTATION = `
 const GET_SUBSCRIPTION_QUERY = `
   query GetSubscription {
     appInstallation {
-      activeSubscriptions {
-        id
-        name
-        status
-        trialDays
-        createdAt
-        currentPeriodEnd
-        lineItems {
-          id
-          plan {
-            pricingDetails {
-              ... on AppRecurringPricing {
-                price {
-                  amount
-                  currencyCode
+      allSubscriptions(first: 250) {
+        edges {
+          node {
+            id
+            name
+            status
+            trialDays
+            createdAt
+            currentPeriodEnd
+            lineItems {
+              id
+              plan {
+                pricingDetails {
+                  ... on AppRecurringPricing {
+                    price {
+                      amount
+                      currencyCode
+                    }
+                    interval
+                  }
                 }
-                interval
               }
             }
           }
@@ -196,7 +219,8 @@ export async function getBillingHistory(
     ]);
     const subscriptionData = await subscriptionResponse.json();
     const purchaseData = await purchaseResponse.json();
-    const subscriptions = subscriptionData.data?.appInstallation?.activeSubscriptions || [];
+    const subscriptionsConnection = subscriptionData.data?.appInstallation?.allSubscriptions;
+    const subscriptions = subscriptionsConnection?.edges?.map((edge: { node: unknown }) => edge.node) || [];
     const purchasesConnection = purchaseData.data?.appInstallation?.oneTimePurchases;
     const purchases = purchasesConnection?.edges?.map((edge: { node: unknown }) => edge.node) || [];
     const subscriptionItems = subscriptions.flatMap(
@@ -267,6 +291,11 @@ export async function createSubscription(
     return { success: false, error: "Invalid plan selected" };
   }
   try {
+    const currentStatus = await getSubscriptionStatus(admin, shopDomain);
+    const currentPlan = currentStatus.plan;
+    const isUpgrade = isHigherTier(planId, currentPlan);
+    const replacementBehavior = isUpgrade ? "APPLY_IMMEDIATELY" : "APPLY_ON_NEXT_BILLING_CYCLE";
+    
     const currencyCode = "USD";
     const response = await admin.graphql(CREATE_SUBSCRIPTION_MUTATION, {
       variables: {
@@ -284,6 +313,7 @@ export async function createSubscription(
         returnUrl,
         trialDays: ("trialDays" in plan ? plan.trialDays : 0) || 0,
         test: isTest || process.env.NODE_ENV !== "production",
+        replacementBehavior,
       },
     });
     const data = await response.json();
@@ -358,20 +388,71 @@ export async function getSubscriptionStatus(
   try {
     const response = await admin.graphql(GET_SUBSCRIPTION_QUERY);
     const data = await response.json();
-    const subscriptions = data.data?.appInstallation?.activeSubscriptions || [];
+    const subscriptionsConnection = data.data?.appInstallation?.allSubscriptions;
+    const subscriptions = subscriptionsConnection?.edges?.map((edge: { node: unknown }) => edge.node) || [];
+    
     if (subscriptions.length === 0) {
       const shop = await prisma.shop.findUnique({
         where: { shopDomain },
-        select: { plan: true },
+        select: { plan: true, entitledUntil: true },
       });
+      const now = new Date();
+      let effectivePlan: PlanId = (shop?.plan as PlanId) || "free";
+      if (shop?.entitledUntil && shop.entitledUntil > now) {
+        effectivePlan = (shop.plan as PlanId) || "free";
+      } else if (shop?.entitledUntil && shop.entitledUntil <= now) {
+        effectivePlan = "free";
+      }
       return {
         hasActiveSubscription: false,
-        plan: (shop?.plan as PlanId) || "free",
+        plan: effectivePlan,
       };
     }
-    const subscription = subscriptions[0];
+    
+    const now = new Date();
+    const validSubscriptions = subscriptions.filter((sub: {
+      status: string;
+      currentPeriodEnd?: string;
+    }) => {
+      if (sub.status === "ACTIVE") {
+        return true;
+      }
+      if (sub.currentPeriodEnd) {
+        const periodEnd = new Date(sub.currentPeriodEnd);
+        return periodEnd > now;
+      }
+      return false;
+    });
+    
+    if (validSubscriptions.length === 0) {
+      const shop = await prisma.shop.findUnique({
+        where: { shopDomain },
+        select: { plan: true, entitledUntil: true },
+      });
+      const now = new Date();
+      let effectivePlan: PlanId = (shop?.plan as PlanId) || "free";
+      if (shop?.entitledUntil && shop.entitledUntil > now) {
+        effectivePlan = (shop.plan as PlanId) || "free";
+      } else if (shop?.entitledUntil && shop.entitledUntil <= now) {
+        effectivePlan = "free";
+      }
+      return {
+        hasActiveSubscription: false,
+        plan: effectivePlan,
+      };
+    }
+    
+    validSubscriptions.sort((a: { createdAt?: string; currentPeriodEnd?: string }, b: { createdAt?: string; currentPeriodEnd?: string }) => {
+      const aEnd = a.currentPeriodEnd ? new Date(a.currentPeriodEnd).getTime() : 0;
+      const bEnd = b.currentPeriodEnd ? new Date(b.currentPeriodEnd).getTime() : 0;
+      return bEnd - aEnd;
+    });
+    
+    const subscription = validSubscriptions[0];
+    const planFromName = subscription.name ? detectPlanFromName(subscription.name) : null;
     const price = subscription.lineItems?.[0]?.plan?.pricingDetails?.price?.amount;
-    const detectedPlan = price ? detectPlanFromPrice(parseFloat(price)) : "free";
+    const planFromPrice = price ? detectPlanFromPrice(parseFloat(price)) : "free";
+    const detectedPlan = planFromName || planFromPrice;
     
     let isTrialing = false;
     let trialDaysRemaining = 0;
@@ -379,7 +460,6 @@ export async function getSubscriptionStatus(
     if (subscription.status === "ACTIVE" && subscription.trialDays > 0 && subscription.createdAt) {
       const createdAt = new Date(subscription.createdAt);
       const trialEnd = new Date(createdAt.getTime() + subscription.trialDays * 24 * 60 * 60 * 1000);
-      const now = new Date();
       
       isTrialing = now < trialEnd;
       if (isTrialing) {
@@ -387,8 +467,10 @@ export async function getSubscriptionStatus(
       }
     }
     
+    const isEntitled = subscription.status === "ACTIVE" || (subscription.currentPeriodEnd && new Date(subscription.currentPeriodEnd) > now);
+    
     return {
-      hasActiveSubscription: subscription.status === "ACTIVE",
+      hasActiveSubscription: isEntitled,
       plan: detectedPlan,
       subscriptionId: subscription.id,
       status: subscription.status,
@@ -412,6 +494,9 @@ export async function cancelSubscription(
   subscriptionId: string
 ): Promise<CancelResult> {
   try {
+    const status = await getSubscriptionStatus(admin, shopDomain);
+    const currentPeriodEnd = status.currentPeriodEnd;
+    
     const response = await admin.graphql(CANCEL_SUBSCRIPTION_MUTATION, {
       variables: { id: subscriptionId },
     });
@@ -423,18 +508,37 @@ export async function cancelSubscription(
         .join(", ");
       return { success: false, error: errorMessage };
     }
-    await prisma.shop.update({
-      where: { shopDomain },
-      data: {
-        plan: "free",
-        monthlyOrderLimit: BILLING_PLANS.free.monthlyOrderLimit,
-      },
-    });
+    
     const shop = await prisma.shop.findUnique({
       where: { shopDomain },
-      select: { id: true },
+      select: { id: true, plan: true },
     });
-    if (shop) {
+    
+    if (shop && currentPeriodEnd) {
+      const entitledUntil = new Date(currentPeriodEnd);
+      await prisma.shop.update({
+        where: { shopDomain },
+        data: {
+          entitledUntil,
+        },
+      });
+      await createAuditLog({
+        shopId: shop.id,
+        actorType: "user",
+        actorId: shopDomain,
+        action: "subscription_cancelled",
+        resourceType: "billing",
+        resourceId: subscriptionId,
+        metadata: { entitledUntil: currentPeriodEnd },
+      });
+    } else if (shop) {
+      await prisma.shop.update({
+        where: { shopDomain },
+        data: {
+          plan: "free",
+          monthlyOrderLimit: BILLING_PLANS.free.monthlyOrderLimit,
+        },
+      });
       await createAuditLog({
         shopId: shop.id,
         actorType: "user",
@@ -477,34 +581,55 @@ export async function handleSubscriptionConfirmation(
   chargeId: string
 ): Promise<ConfirmationResult> {
   try {
-    const status = await getSubscriptionStatus(admin, shopDomain);
-    if (status.hasActiveSubscription) {
-      const planConfig = BILLING_PLANS[status.plan];
-      await prisma.shop.update({
-        where: { shopDomain },
-        data: {
-          plan: status.plan,
-          monthlyOrderLimit: planConfig.monthlyOrderLimit,
-        },
-      });
-      const shop = await prisma.shop.findUnique({
-        where: { shopDomain },
-        select: { id: true },
-      });
-      if (shop) {
-        await createAuditLog({
-          shopId: shop.id,
-          actorType: "system",
-          actorId: "billing",
-          action: "subscription_activated",
-          resourceType: "billing",
-          resourceId: chargeId,
-          metadata: { plan: status.plan, isTrialing: status.isTrialing },
-        });
-      }
-      return { success: true, plan: status.plan };
+    const response = await admin.graphql(GET_SUBSCRIPTION_QUERY);
+    const data = await response.json();
+    const subscriptionsConnection = data.data?.appInstallation?.allSubscriptions;
+    const subscriptions = subscriptionsConnection?.edges?.map((edge: { node: unknown }) => edge.node) || [];
+    
+    const matchingSubscription = subscriptions.find((sub: { id: string }) => sub.id === chargeId);
+    
+    if (!matchingSubscription) {
+      return { success: false, error: "Subscription not found for charge_id" };
     }
-    return { success: false, error: "Subscription not active" };
+    
+    const planFromName = matchingSubscription.name ? detectPlanFromName(matchingSubscription.name) : null;
+    const price = matchingSubscription.lineItems?.[0]?.plan?.pricingDetails?.price?.amount;
+    const planFromPrice = price ? detectPlanFromPrice(parseFloat(price)) : "free";
+    const detectedPlan = planFromName || planFromPrice;
+    
+    const isActive = matchingSubscription.status === "ACTIVE";
+    const now = new Date();
+    const isEntitled = isActive || (matchingSubscription.currentPeriodEnd && new Date(matchingSubscription.currentPeriodEnd) > now);
+    
+    if (!isEntitled) {
+      return { success: false, error: "Subscription not active or expired" };
+    }
+    
+    const planConfig = BILLING_PLANS[detectedPlan];
+    await prisma.shop.update({
+      where: { shopDomain },
+      data: {
+        plan: detectedPlan,
+        monthlyOrderLimit: planConfig.monthlyOrderLimit,
+        entitledUntil: null,
+      },
+    });
+    const shop = await prisma.shop.findUnique({
+      where: { shopDomain },
+      select: { id: true },
+    });
+    if (shop) {
+      await createAuditLog({
+        shopId: shop.id,
+        actorType: "system",
+        actorId: "billing",
+        action: "subscription_activated",
+        resourceType: "billing",
+        resourceId: chargeId,
+        metadata: { plan: detectedPlan, subscriptionId: matchingSubscription.id },
+      });
+    }
+    return { success: true, plan: detectedPlan };
   } catch (error) {
     logger.error("Subscription confirmation error", error);
     return {

@@ -45,7 +45,10 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
         }
         const url = new URL(request.url);
         url.searchParams.delete("charge_id");
-        url.searchParams.set("success", "true");
+        url.searchParams.set("success", confirmation.success ? "true" : "false");
+        if (!confirmation.success && confirmation.error) {
+            url.searchParams.set("error", confirmation.error);
+        }
         return redirect(`${url.pathname}?${url.searchParams.toString()}`);
     }
     const shop = await prisma.shop.findUnique({
@@ -210,6 +213,8 @@ export default function BillingPage() {
     const [searchParams] = useSearchParams();
     const isSubmitting = navigation.state === "submitting";
     const showSuccessBanner = searchParams.get("success") === "true";
+    const showErrorBanner = searchParams.get("success") === "false";
+    const errorMessage = searchParams.get("error");
     const currentPlan = plans[subscription.plan as PlanId];
     const usagePercent = Math.min((usage.current / usage.limit) * 100, 100);
     const dateFormatter = new Intl.DateTimeFormat("zh-CN", {
@@ -254,6 +259,9 @@ export default function BillingPage() {
       <BlockStack gap="500">
         {showSuccessBanner && (<Banner title="订阅成功！" tone="success" onDismiss={() => { }}>
             <p>您的订阅已激活，现在可以享受所有功能了。</p>
+          </Banner>)}
+        {(showErrorBanner && errorMessage) && (<Banner title="订阅失败" tone="critical" onDismiss={() => { }}>
+            <p>{errorMessage}</p>
           </Banner>)}
         {hasError && (<Banner title="订阅失败" tone="critical" onDismiss={() => { }}>
             <p>{actionDataTyped.error}</p>
