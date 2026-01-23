@@ -121,7 +121,14 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         case "subscribe": {
             const planId = formData.get("planId") as PlanId;
             const appUrl = process.env.SHOPIFY_APP_URL || "";
-            const returnUrl = `${appUrl}/app/billing`;
+            const current = new URL(request.url);
+            const host = current.searchParams.get("host");
+
+            const returnUrlObj = new URL("/app/billing", appUrl);
+            if (host) returnUrlObj.searchParams.set("host", host);
+            returnUrlObj.searchParams.set("shop", shopDomain);
+
+            const returnUrl = returnUrlObj.toString();
             if (shop) {
                 safeFireAndForget(
                     trackEvent({

@@ -557,6 +557,13 @@ export async function cancelSubscription(
     const status = await getSubscriptionStatus(admin, shopDomain);
     const currentPeriodEnd = status.currentPeriodEnd;
     
+    if (status.subscriptionId === subscriptionId && status.status && status.status !== "ACTIVE") {
+      return {
+        success: false,
+        error: `无法取消订阅：当前状态为 ${status.status}，只有激活状态的订阅可以取消`,
+      };
+    }
+    
     const response = await admin.graphql(CANCEL_SUBSCRIPTION_MUTATION, {
       variables: { id: subscriptionId },
     });
@@ -668,10 +675,23 @@ export async function handleSubscriptionConfirmation(
     const subscriptionsConnection = data.data?.appInstallation?.allSubscriptions;
     const subscriptions = subscriptionsConnection?.edges?.map((edge: { node: unknown }) => edge.node) || [];
     
-    const matchingSubscription = subscriptions.find((sub: { id: string }) => sub.id === chargeId);
+    const candidates = chargeId.startsWith("gid://")
+      ? [chargeId]
+      : [chargeId, `gid://shopify/AppSubscription/${chargeId}`];
+
+    const matchingSubscription = subscriptions.find((sub: { id: string }) =>
+      candidates.includes(sub.id) || (!chargeId.startsWith("gid://") && sub.id.endsWith(`/${chargeId}`))
+    );
     
     if (!matchingSubscription) {
       return { success: false, error: "Subscription not found for charge_id" };
+    }
+    
+    if (matchingSubscription.status !== "ACTIVE") {
+      return {
+        success: false,
+        error: `订阅状态为 ${matchingSubscription.status}，请返回 Shopify 账单页确认是否完成，或稍后刷新页面`,
+      };
     }
     
     await syncSubscriptionStatus(admin, shopDomain);
