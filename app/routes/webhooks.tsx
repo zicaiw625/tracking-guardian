@@ -86,12 +86,44 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     }
     shopRecord = await prisma.shop.findUnique({
       where: { shopDomain: context.shop },
-      include: {
+      select: {
+        id: true,
+        shopDomain: true,
+        isActive: true,
+        plan: true,
+        consentStrategy: true,
+        primaryDomain: true,
+        storefrontDomains: true,
+        ingestionSecret: true,
+        previousIngestionSecret: true,
+        previousSecretExpiry: true,
         pixelConfigs: {
           where: { isActive: true, serverSideEnabled: true },
+          select: {
+            id: true,
+            shopId: true,
+            platform: true,
+            platformId: true,
+            clientSideEnabled: true,
+            serverSideEnabled: true,
+            eventMappings: true,
+            migrationStatus: true,
+            migratedAt: true,
+            isActive: true,
+            createdAt: true,
+            updatedAt: true,
+            clientConfig: true,
+            credentialsEncrypted: true,
+            credentials_legacy: true,
+            configVersion: true,
+            environment: true,
+            rollbackAllowed: true,
+            displayName: true,
+            priority: true,
+          },
         },
       },
-    });
+    }) as ShopWithPixelConfigs | null;
   } catch (error) {
     logger.error(`[Webhook] Failed to fetch shop record for ${context.shop}:`, error);
   }
