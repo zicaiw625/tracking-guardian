@@ -61,6 +61,19 @@ describe("Subscription Service", () => {
           },
         }),
       };
+      const mockGetShopPlan = {
+        json: vi.fn().mockResolvedValue({
+          data: {
+            shop: {
+              plan: {
+                displayName: "Test Plan",
+                partnerDevelopment: false,
+                shopifyPlus: false,
+              },
+            },
+          },
+        }),
+      };
       const mockAppSubscriptionCreate = {
         json: vi.fn().mockResolvedValue({
           data: {
@@ -78,6 +91,7 @@ describe("Subscription Service", () => {
       };
       (mockAdmin.graphql as ReturnType<typeof vi.fn>)
         .mockResolvedValueOnce(mockGetSubscriptionStatus)
+        .mockResolvedValueOnce(mockGetShopPlan)
         .mockResolvedValueOnce(mockAppSubscriptionCreate);
       vi.mocked(prisma.shop.findUnique).mockResolvedValue({ id: "shop-1" } as any);
       const result = await createSubscription(
@@ -113,6 +127,19 @@ describe("Subscription Service", () => {
           },
         }),
       };
+      const mockGetShopPlan = {
+        json: vi.fn().mockResolvedValue({
+          data: {
+            shop: {
+              plan: {
+                displayName: "Test Plan",
+                partnerDevelopment: false,
+                shopifyPlus: false,
+              },
+            },
+          },
+        }),
+      };
       const mockAppSubscriptionCreate = {
         json: vi.fn().mockResolvedValue({
           data: {
@@ -128,6 +155,7 @@ describe("Subscription Service", () => {
       };
       (mockAdmin.graphql as ReturnType<typeof vi.fn>)
         .mockResolvedValueOnce(mockGetSubscriptionStatus)
+        .mockResolvedValueOnce(mockGetShopPlan)
         .mockResolvedValueOnce(mockAppSubscriptionCreate);
       const result = await createSubscription(
         mockAdmin,
@@ -163,6 +191,19 @@ describe("Subscription Service", () => {
           },
         }),
       };
+      const mockGetShopPlan = {
+        json: vi.fn().mockResolvedValue({
+          data: {
+            shop: {
+              plan: {
+                displayName: "Test Plan",
+                partnerDevelopment: false,
+                shopifyPlus: false,
+              },
+            },
+          },
+        }),
+      };
       const mockAppSubscriptionCreate = {
         json: vi.fn().mockResolvedValue({
           data: {
@@ -176,6 +217,7 @@ describe("Subscription Service", () => {
       };
       (mockAdmin.graphql as ReturnType<typeof vi.fn>)
         .mockResolvedValueOnce(mockGetSubscriptionStatus)
+        .mockResolvedValueOnce(mockGetShopPlan)
         .mockResolvedValueOnce(mockAppSubscriptionCreate);
       vi.mocked(prisma.shop.findUnique).mockResolvedValue({ id: "shop-1" } as any);
       await createSubscription(
