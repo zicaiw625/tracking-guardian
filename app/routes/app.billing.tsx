@@ -190,7 +190,7 @@ export default function BillingPage() {
             const data = actionData as { success?: boolean; error?: string; actionType?: string; confirmationUrl?: string };
             if (data.success) {
                 if (data.confirmationUrl) {
-                    const redirect = Redirect.create(app);
+                    const redirect = Redirect.create(app as any);
                     redirect.dispatch(Redirect.Action.REMOTE, data.confirmationUrl);
                     return;
                 }
