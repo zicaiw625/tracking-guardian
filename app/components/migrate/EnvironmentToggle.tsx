@@ -36,6 +36,7 @@ export function EnvironmentToggle({
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [pendingEnvironment, setPendingEnvironment] = useState<PixelEnvironment | null>(null);
   const [isSwitching, setIsSwitching] = useState(false);
+  const [showRollbackModal, setShowRollbackModal] = useState(false);
   const handleEnvironmentChange = useCallback(
     async (newEnvironment: PixelEnvironment) => {
       if (newEnvironment === currentEnvironment) {
@@ -68,17 +69,19 @@ export function EnvironmentToggle({
   }, [pendingEnvironment, onSwitch]);
   const handleRollback = useCallback(async () => {
     if (!onRollback) return;
-    if (
-      confirm(
-        "确定要回滚到上一个配置版本吗？当前配置将被上一个版本替换。"
-      )
-    ) {
-      setIsSwitching(true);
-      try {
-        await onRollback();
-      } finally {
-        setIsSwitching(false);
-      }
+    setShowRollbackModal(true);
+  }, [onRollback]);
+  const confirmRollback = useCallback(async () => {
+    if (!onRollback) {
+      setShowRollbackModal(false);
+      return;
+    }
+    setShowRollbackModal(false);
+    setIsSwitching(true);
+    try {
+      await onRollback();
+    } finally {
+      setIsSwitching(false);
     }
   }, [onRollback]);
   const platformNames: Record<string, string> = {
@@ -264,6 +267,36 @@ export function EnvironmentToggle({
             <Text as="p" variant="bodySm" tone="subdued">
               确定要继续吗？
             </Text>
+          </BlockStack>
+        </Modal.Section>
+      </Modal>
+      <Modal
+        open={showRollbackModal}
+        onClose={() => setShowRollbackModal(false)}
+        title="确认回滚配置版本"
+        primaryAction={{
+          content: "确认回滚",
+          destructive: true,
+          onAction: confirmRollback,
+          loading: isSwitching,
+        }}
+        secondaryActions={[
+          {
+            content: "取消",
+            onAction: () => setShowRollbackModal(false),
+          },
+        ]}
+      >
+        <Modal.Section>
+          <BlockStack gap="200">
+            <Text as="p" variant="bodyMd">
+              确定要回滚到上一个配置版本吗？当前配置将被上一个版本替换。
+            </Text>
+            <Banner tone="warning">
+              <Text as="p" variant="bodySm">
+                回滚操作会生成新的版本记录，建议在回滚前导出当前配置作为备份。
+              </Text>
+            </Banner>
           </BlockStack>
         </Modal.Section>
       </Modal>

@@ -221,6 +221,7 @@ export default function TemplatesPage() {
   const [templateDescription, setTemplateDescription] = useState("");
   const [templateIsPublic, setTemplateIsPublic] = useState(false);
   const [deletingTemplateId, setDeletingTemplateId] = useState<string | null>(null);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [previewingTemplate, setPreviewingTemplate] = useState<typeof templates[0] | null>(null);
   const [sharingTemplate, setSharingTemplate] = useState<typeof templates[0] | null>(null);
   const [shareLink, setShareLink] = useState<string | null>(null);
@@ -256,14 +257,22 @@ export default function TemplatesPage() {
     setTemplateIsPublic(template.isPublic);
   }, []);
   const handleDeleteTemplate = useCallback((templateId: string) => {
-    if (confirm("确定要删除此模板吗？此操作不可撤销。")) {
-      setDeletingTemplateId(templateId);
-      const formData = new FormData();
-      formData.append("_action", "deleteTemplate");
-      formData.append("templateId", templateId);
-      submit(formData, { method: "post" });
+    setDeletingTemplateId(templateId);
+    setShowDeleteModal(true);
+  }, []);
+  const confirmDeleteTemplate = useCallback(() => {
+    if (!deletingTemplateId) {
+      setShowDeleteModal(false);
+      setDeletingTemplateId(null);
+      return;
     }
-  }, [submit]);
+    const formData = new FormData();
+    formData.append("_action", "deleteTemplate");
+    formData.append("templateId", deletingTemplateId);
+    submit(formData, { method: "post" });
+    setShowDeleteModal(false);
+    setDeletingTemplateId(null);
+  }, [deletingTemplateId, submit]);
   const handlePreviewTemplate = useCallback((template: typeof templates[0]) => {
     if (!template) return;
     setPreviewingTemplate(template);
@@ -492,6 +501,32 @@ export default function TemplatesPage() {
             )}
           </BlockStack>
         </Card>
+        <Modal
+          open={showDeleteModal}
+          onClose={() => {
+            setShowDeleteModal(false);
+            setDeletingTemplateId(null);
+          }}
+          title="确认删除模板"
+          primaryAction={{
+            content: "确认删除",
+            destructive: true,
+            onAction: confirmDeleteTemplate,
+            loading: navigation.state === "submitting",
+          }}
+          secondaryActions={[
+            {
+              content: "取消",
+              onAction: () => setShowDeleteModal(false),
+            },
+          ]}
+        >
+          <Modal.Section>
+            <Text as="p">
+              确定要删除此模板吗？此操作不可撤销。
+            </Text>
+          </Modal.Section>
+        </Modal>
         {publicTemplates.length > 0 && (
           <Card>
             <BlockStack gap="400">

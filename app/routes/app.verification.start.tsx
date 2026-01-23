@@ -16,6 +16,7 @@ import {
 } from "@shopify/polaris";
 import { ClipboardIcon } from "~/components/icons";
 import { PageIntroCard } from "~/components/layout/PageIntroCard";
+import { useToastContext } from "~/components/ui";
 import { authenticate } from "../shopify.server";
 import prisma from "../db.server";
 import {
@@ -53,6 +54,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 
 export default function VerificationStartPage() {
   const { shop, testChecklist } = useLoaderData<typeof loader>();
+  const { showSuccess, showError } = useToastContext();
   if (!shop || !testChecklist) {
     return (
       <Page title="验收测试清单">
@@ -65,8 +67,14 @@ export default function VerificationStartPage() {
   const handleCopyChecklist = async () => {
     const markdown = generateChecklistMarkdown(testChecklist);
     if (navigator.clipboard && navigator.clipboard.writeText) {
-      await navigator.clipboard.writeText(markdown);
-      alert("测试清单已复制到剪贴板");
+      try {
+        await navigator.clipboard.writeText(markdown);
+        showSuccess("测试清单已复制到剪贴板");
+      } catch {
+        showError("复制失败，请手动复制");
+      }
+    } else {
+      showError("当前浏览器不支持自动复制");
     }
   };
   const handleDownloadCSV = () => {
