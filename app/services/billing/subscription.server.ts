@@ -652,15 +652,6 @@ export async function syncSubscriptionStatus(
     });
   } catch (error) {
     logger.error("Sync subscription status error", error);
-    const planConfig = BILLING_PLANS.free;
-    await prisma.shop.update({
-      where: { shopDomain },
-      data: {
-        plan: "free",
-        monthlyOrderLimit: planConfig.monthlyOrderLimit,
-        entitledUntil: null,
-      },
-    });
   }
 }
 

@@ -34,11 +34,8 @@ export function SubscriptionTab({ currentPlan, subscriptionStatus }: Subscriptio
   const [upgradingPlan, setUpgradingPlan] = useState<PlanId | null>(null);
   const handleUpgrade = useCallback((planId: PlanId) => {
     setUpgradingPlan(planId);
-    const formData = new FormData();
-    formData.append("_action", "upgrade_subscription");
-    formData.append("planId", planId);
-    submit(formData, { method: "post" });
-  }, [submit]);
+    window.location.href = `/app/billing?upgrade=${planId}`;
+  }, []);
   const currentPlanConfig = BILLING_PLANS[currentPlan];
   const upgradeOptions = getUpgradeOptions(currentPlan);
   return (
@@ -58,9 +55,6 @@ export function SubscriptionTab({ currentPlan, subscriptionStatus }: Subscriptio
               <Banner tone="info">
                 <Text as="p" variant="bodySm">
                   试用期剩余 {subscriptionStatus.trialDaysRemaining ?? subscriptionStatus.trialDays ?? 0} 天
-                  {subscriptionStatus.currentPeriodEnd && (
-                    <>，将于 {new Date(subscriptionStatus.currentPeriodEnd).toLocaleDateString()} 结束</>
-                  )}
                 </Text>
               </Banner>
             )}
@@ -144,8 +138,7 @@ export function SubscriptionTab({ currentPlan, subscriptionStatus }: Subscriptio
                           <Button
                             variant="primary"
                             onClick={() => handleUpgrade(planId)}
-                            loading={upgradingPlan === planId && navigation.state === "submitting"}
-                            disabled={navigation.state === "submitting"}
+                            loading={upgradingPlan === planId}
                           >
                             升级到 {planConfig.name}
                           </Button>

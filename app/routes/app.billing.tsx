@@ -60,6 +60,9 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
                 hasActiveSubscription: false,
                 plan: "free" as PlanId,
                 subscriptionId: undefined as string | undefined,
+                status: undefined as string | undefined,
+                trialDays: undefined as number | undefined,
+                trialDaysRemaining: undefined as number | undefined,
                 isTrialing: false,
                 currentPeriodEnd: undefined as string | undefined,
             },
@@ -227,6 +230,16 @@ export default function BillingPage() {
     const showSuccessBanner = searchParams.get("success") === "true";
     const showErrorBanner = searchParams.get("success") === "false";
     const errorMessage = searchParams.get("error");
+    const upgradePlanId = searchParams.get("upgrade");
+    
+    useEffect(() => {
+        if (upgradePlanId && !isSubmitting && !showSuccessBanner && !showErrorBanner) {
+            const formData = new FormData();
+            formData.append("_action", "subscribe");
+            formData.append("planId", upgradePlanId);
+            submit(formData, { method: "post" });
+        }
+    }, [upgradePlanId, isSubmitting, showSuccessBanner, showErrorBanner, submit]);
     const currentPlan = plans[subscription.plan as PlanId];
     const usagePercent = Math.min((usage.current / usage.limit) * 100, 100);
     const dateFormatter = new Intl.DateTimeFormat("zh-CN", {
@@ -281,7 +294,7 @@ export default function BillingPage() {
         {subscription.isTrialing && (<Banner title="试用期" tone="info">
             <p>
               您正在使用 {currentPlan.name} 的免费试用。
-              试用期将于 {subscription.currentPeriodEnd ? new Date(subscription.currentPeriodEnd).toLocaleDateString("zh-CN") : "即将"} 结束。
+              试用期剩余 {(subscription as typeof subscription & { trialDaysRemaining?: number; trialDays?: number }).trialDaysRemaining ?? (subscription as typeof subscription & { trialDaysRemaining?: number; trialDays?: number }).trialDays ?? 0} 天。
             </p>
           </Banner>)}
         {usage.exceeded && (<Banner title="已达到订单限额" tone="critical">
@@ -341,9 +354,16 @@ export default function BillingPage() {
                           </Text>
                         </InlineStack>)}
                     </BlockStack>
-                    <Button variant="plain" tone="critical" onClick={handleCancel} loading={isSubmitting}>
-                      取消订阅
-                    </Button>
+                    {(subscription as typeof subscription & { status?: string }).status === "ACTIVE" && (
+                      <Button variant="plain" tone="critical" onClick={handleCancel} loading={isSubmitting}>
+                        取消订阅
+                      </Button>
+                    )}
+                    {(subscription as typeof subscription & { status?: string }).status === "CANCELLED" && subscription.currentPeriodEnd && (
+                      <Banner tone="info" title="订阅已取消">
+                        <p>您仍可使用至 {new Date(subscription.currentPeriodEnd).toLocaleDateString("zh-CN")}。</p>
+                      </Banner>
+                    )}
                   </>)}
               </BlockStack>
             </Card>
