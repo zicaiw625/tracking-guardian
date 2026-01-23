@@ -144,8 +144,10 @@ export const action = async ({ request }: ActionFunctionArgs) => {
             }
             if (result.success && result.confirmationUrl) {
                 const allowedDomains = [
-                    "shopify.com",
+                    "admin.shopify.com",
                     "myshopify.com",
+                    "partners.shopify.com",
+                    "shopify.com",
                     shopDomain,
                 ];
                 const validation = assertSafeRedirect(result.confirmationUrl, allowedDomains);

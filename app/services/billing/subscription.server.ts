@@ -21,6 +21,112 @@ function detectPlanFromName(name: string): PlanId | null {
   return null;
 }
 
+interface SubscriptionNode {
+  id: string;
+  name?: string;
+  status: string;
+  currentPeriodEnd?: string;
+  createdAt?: string;
+  trialDays?: number;
+  lineItems?: Array<{
+    plan?: {
+      pricingDetails?: {
+        price?: { amount?: string; currencyCode?: string };
+      };
+    };
+  }>;
+}
+
+interface DerivedPlanResult {
+  effectiveSubscription: SubscriptionNode | null;
+  plan: PlanId;
+  entitledUntil: Date | null;
+  hasActiveSubscription: boolean;
+}
+
+function deriveEffectivePlan(
+  subscriptions: SubscriptionNode[],
+  now: Date
+): DerivedPlanResult {
+  const validSubscriptions = subscriptions.filter((sub) => {
+    if (sub.status === "ACTIVE") {
+      return true;
+    }
+    if (sub.status === "CANCELLED" && sub.currentPeriodEnd) {
+      const periodEnd = new Date(sub.currentPeriodEnd);
+      return periodEnd > now;
+    }
+    return false;
+  });
+
+  if (validSubscriptions.length === 0) {
+    return {
+      effectiveSubscription: null,
+      plan: "free",
+      entitledUntil: null,
+      hasActiveSubscription: false,
+    };
+  }
+
+  const activeSubscriptions = validSubscriptions.filter(
+    (sub) => sub.status === "ACTIVE"
+  );
+  const cancelledSubscriptions = validSubscriptions.filter(
+    (sub) => sub.status === "CANCELLED"
+  );
+
+  let effectiveSubscription: SubscriptionNode | null = null;
+  if (activeSubscriptions.length > 0) {
+    activeSubscriptions.sort((a, b) => {
+      const aEnd = a.currentPeriodEnd ? new Date(a.currentPeriodEnd).getTime() : 0;
+      const bEnd = b.currentPeriodEnd ? new Date(b.currentPeriodEnd).getTime() : 0;
+      return bEnd - aEnd;
+    });
+    effectiveSubscription = activeSubscriptions[0];
+  } else if (cancelledSubscriptions.length > 0) {
+    cancelledSubscriptions.sort((a, b) => {
+      const aEnd = a.currentPeriodEnd ? new Date(a.currentPeriodEnd).getTime() : 0;
+      const bEnd = b.currentPeriodEnd ? new Date(b.currentPeriodEnd).getTime() : 0;
+      return bEnd - aEnd;
+    });
+    effectiveSubscription = cancelledSubscriptions[0];
+  }
+
+  if (!effectiveSubscription) {
+    return {
+      effectiveSubscription: null,
+      plan: "free",
+      entitledUntil: null,
+      hasActiveSubscription: false,
+    };
+  }
+
+  const planFromName = effectiveSubscription.name
+    ? detectPlanFromName(effectiveSubscription.name)
+    : null;
+  const price =
+    effectiveSubscription.lineItems?.[0]?.plan?.pricingDetails?.price?.amount;
+  const planFromPrice = price ? detectPlanFromPrice(parseFloat(price)) : "free";
+  const detectedPlan = planFromName || planFromPrice;
+
+  let entitledUntil: Date | null = null;
+  if (effectiveSubscription.status === "ACTIVE") {
+    entitledUntil = null;
+  } else if (
+    effectiveSubscription.status === "CANCELLED" &&
+    effectiveSubscription.currentPeriodEnd
+  ) {
+    entitledUntil = new Date(effectiveSubscription.currentPeriodEnd);
+  }
+
+  return {
+    effectiveSubscription,
+    plan: detectedPlan,
+    entitledUntil,
+    hasActiveSubscription: true,
+  };
+}
+
 export interface AdminGraphQL {
   graphql: (
     query: string,
@@ -391,73 +497,29 @@ export async function getSubscriptionStatus(
     const subscriptionsConnection = data.data?.appInstallation?.allSubscriptions;
     const subscriptions = subscriptionsConnection?.edges?.map((edge: { node: unknown }) => edge.node) || [];
     
-    if (subscriptions.length === 0) {
-      const shop = await prisma.shop.findUnique({
-        where: { shopDomain },
-        select: { plan: true, entitledUntil: true },
-      });
-      const now = new Date();
-      let effectivePlan: PlanId = (shop?.plan as PlanId) || "free";
-      if (shop?.entitledUntil && shop.entitledUntil > now) {
-        effectivePlan = (shop.plan as PlanId) || "free";
-      } else if (shop?.entitledUntil && shop.entitledUntil <= now) {
-        effectivePlan = "free";
-      }
-      return {
-        hasActiveSubscription: false,
-        plan: effectivePlan,
-      };
-    }
-    
     const now = new Date();
-    const validSubscriptions = subscriptions.filter((sub: {
-      status: string;
-      currentPeriodEnd?: string;
-    }) => {
-      if (sub.status === "ACTIVE") {
-        return true;
-      }
-      if (sub.currentPeriodEnd) {
-        const periodEnd = new Date(sub.currentPeriodEnd);
-        return periodEnd > now;
-      }
-      return false;
-    });
+    const derived = deriveEffectivePlan(subscriptions as SubscriptionNode[], now);
     
-    if (validSubscriptions.length === 0) {
+    if (!derived.effectiveSubscription) {
       const shop = await prisma.shop.findUnique({
         where: { shopDomain },
         select: { plan: true, entitledUntil: true },
       });
-      const now = new Date();
-      let effectivePlan: PlanId = (shop?.plan as PlanId) || "free";
-      if (shop?.entitledUntil && shop.entitledUntil > now) {
-        effectivePlan = (shop.plan as PlanId) || "free";
-      } else if (shop?.entitledUntil && shop.entitledUntil <= now) {
-        effectivePlan = "free";
-      }
+      const effectivePlan: PlanId =
+        shop?.entitledUntil && shop.entitledUntil > now
+          ? ((shop.plan as PlanId) || "free")
+          : "free";
       return {
         hasActiveSubscription: false,
         plan: effectivePlan,
       };
     }
     
-    validSubscriptions.sort((a: { createdAt?: string; currentPeriodEnd?: string }, b: { createdAt?: string; currentPeriodEnd?: string }) => {
-      const aEnd = a.currentPeriodEnd ? new Date(a.currentPeriodEnd).getTime() : 0;
-      const bEnd = b.currentPeriodEnd ? new Date(b.currentPeriodEnd).getTime() : 0;
-      return bEnd - aEnd;
-    });
-    
-    const subscription = validSubscriptions[0];
-    const planFromName = subscription.name ? detectPlanFromName(subscription.name) : null;
-    const price = subscription.lineItems?.[0]?.plan?.pricingDetails?.price?.amount;
-    const planFromPrice = price ? detectPlanFromPrice(parseFloat(price)) : "free";
-    const detectedPlan = planFromName || planFromPrice;
-    
+    const subscription = derived.effectiveSubscription;
     let isTrialing = false;
     let trialDaysRemaining = 0;
     
-    if (subscription.status === "ACTIVE" && subscription.trialDays > 0 && subscription.createdAt) {
+    if (subscription.status === "ACTIVE" && subscription.trialDays && subscription.trialDays > 0 && subscription.createdAt) {
       const createdAt = new Date(subscription.createdAt);
       const trialEnd = new Date(createdAt.getTime() + subscription.trialDays * 24 * 60 * 60 * 1000);
       
@@ -467,11 +529,9 @@ export async function getSubscriptionStatus(
       }
     }
     
-    const isEntitled = subscription.status === "ACTIVE" || (subscription.currentPeriodEnd && new Date(subscription.currentPeriodEnd) > now);
-    
     return {
-      hasActiveSubscription: isEntitled,
-      plan: detectedPlan,
+      hasActiveSubscription: derived.hasActiveSubscription,
+      plan: derived.plan,
       subscriptionId: subscription.id,
       status: subscription.status,
       trialDays: subscription.trialDays,
@@ -563,16 +623,38 @@ export async function syncSubscriptionStatus(
   admin: AdminGraphQL,
   shopDomain: string
 ): Promise<void> {
-  const status = await getSubscriptionStatus(admin, shopDomain);
-  const plan = status.hasActiveSubscription ? status.plan : "free";
-  const planConfig = BILLING_PLANS[plan];
-  await prisma.shop.update({
-    where: { shopDomain },
-    data: {
-      plan,
-      monthlyOrderLimit: planConfig.monthlyOrderLimit,
-    },
-  });
+  try {
+    const response = await admin.graphql(GET_SUBSCRIPTION_QUERY);
+    const data = await response.json();
+    const subscriptionsConnection = data.data?.appInstallation?.allSubscriptions;
+    const subscriptions = subscriptionsConnection?.edges?.map((edge: { node: unknown }) => edge.node) || [];
+    
+    const now = new Date();
+    const derived = deriveEffectivePlan(subscriptions as SubscriptionNode[], now);
+    
+    const plan = derived.plan;
+    const planConfig = BILLING_PLANS[plan];
+    
+    await prisma.shop.update({
+      where: { shopDomain },
+      data: {
+        plan,
+        monthlyOrderLimit: planConfig.monthlyOrderLimit,
+        entitledUntil: derived.entitledUntil,
+      },
+    });
+  } catch (error) {
+    logger.error("Sync subscription status error", error);
+    const planConfig = BILLING_PLANS.free;
+    await prisma.shop.update({
+      where: { shopDomain },
+      data: {
+        plan: "free",
+        monthlyOrderLimit: planConfig.monthlyOrderLimit,
+        entitledUntil: null,
+      },
+    });
+  }
 }
 
 export async function handleSubscriptionConfirmation(
@@ -592,28 +674,9 @@ export async function handleSubscriptionConfirmation(
       return { success: false, error: "Subscription not found for charge_id" };
     }
     
-    const planFromName = matchingSubscription.name ? detectPlanFromName(matchingSubscription.name) : null;
-    const price = matchingSubscription.lineItems?.[0]?.plan?.pricingDetails?.price?.amount;
-    const planFromPrice = price ? detectPlanFromPrice(parseFloat(price)) : "free";
-    const detectedPlan = planFromName || planFromPrice;
+    await syncSubscriptionStatus(admin, shopDomain);
     
-    const isActive = matchingSubscription.status === "ACTIVE";
-    const now = new Date();
-    const isEntitled = isActive || (matchingSubscription.currentPeriodEnd && new Date(matchingSubscription.currentPeriodEnd) > now);
-    
-    if (!isEntitled) {
-      return { success: false, error: "Subscription not active or expired" };
-    }
-    
-    const planConfig = BILLING_PLANS[detectedPlan];
-    await prisma.shop.update({
-      where: { shopDomain },
-      data: {
-        plan: detectedPlan,
-        monthlyOrderLimit: planConfig.monthlyOrderLimit,
-        entitledUntil: null,
-      },
-    });
+    const status = await getSubscriptionStatus(admin, shopDomain);
     const shop = await prisma.shop.findUnique({
       where: { shopDomain },
       select: { id: true },
@@ -626,10 +689,10 @@ export async function handleSubscriptionConfirmation(
         action: "subscription_activated",
         resourceType: "billing",
         resourceId: chargeId,
-        metadata: { plan: detectedPlan, subscriptionId: matchingSubscription.id },
+        metadata: { plan: status.plan, subscriptionId: matchingSubscription.id },
       });
     }
-    return { success: true, plan: detectedPlan };
+    return { success: true, plan: status.plan };
   } catch (error) {
     logger.error("Subscription confirmation error", error);
     return {
