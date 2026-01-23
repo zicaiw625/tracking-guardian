@@ -259,7 +259,7 @@ export default function TemplatesPage() {
   const handleDeleteTemplate = useCallback((templateId: string) => {
     setDeletingTemplateId(templateId);
     setShowDeleteModal(true);
-  }, [submit]);
+  }, []);
   const confirmDeleteTemplate = useCallback(() => {
     if (!deletingTemplateId) {
       setShowDeleteModal(false);

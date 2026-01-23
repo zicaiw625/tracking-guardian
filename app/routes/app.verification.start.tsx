@@ -70,7 +70,7 @@ export default function VerificationStartPage() {
       try {
         await navigator.clipboard.writeText(markdown);
         showSuccess("测试清单已复制到剪贴板");
-      } catch (error) {
+      } catch {
         showError("复制失败，请手动复制");
       }
     } else {

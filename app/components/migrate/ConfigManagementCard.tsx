@@ -9,6 +9,7 @@ import {
   Box,
   Divider,
   Tabs,
+  Banner,
   Modal,
   Select,
 } from "@shopify/polaris";
@@ -136,7 +137,7 @@ export function ConfigManagementCard({
       } else {
         showError(data.error || "回滚失败");
       }
-    } catch (error) {
+    } catch {
       showError("回滚失败");
     } finally {
       setEnvironmentChanging(null);
