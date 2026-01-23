@@ -24,6 +24,7 @@ export interface SubscriptionStatus {
   subscriptionId?: string;
   status?: string;
   trialDays?: number;
+  trialDaysRemaining?: number;
   currentPeriodEnd?: string;
   isTrialing?: boolean;
 }
@@ -102,6 +103,7 @@ const GET_SUBSCRIPTION_QUERY = `
         name
         status
         trialDays
+        createdAt
         currentPeriodEnd
         lineItems {
           id
@@ -303,8 +305,10 @@ export async function createSubscription(
     }
     if (result?.confirmationUrl) {
       const allowedDomains = [
-        "shopify.com",
+        "admin.shopify.com",
         "myshopify.com",
+        "partners.shopify.com",
+        "shopify.com",
         shopDomain,
       ];
       const validation = assertSafeRedirect(result.confirmationUrl, allowedDomains);
@@ -368,16 +372,28 @@ export async function getSubscriptionStatus(
     const subscription = subscriptions[0];
     const price = subscription.lineItems?.[0]?.plan?.pricingDetails?.price?.amount;
     const detectedPlan = price ? detectPlanFromPrice(parseFloat(price)) : "free";
-    const isTrialing =
-      subscription.status === "ACTIVE" &&
-      subscription.trialDays > 0 &&
-      new Date(subscription.currentPeriodEnd) > new Date();
+    
+    let isTrialing = false;
+    let trialDaysRemaining = 0;
+    
+    if (subscription.status === "ACTIVE" && subscription.trialDays > 0 && subscription.createdAt) {
+      const createdAt = new Date(subscription.createdAt);
+      const trialEnd = new Date(createdAt.getTime() + subscription.trialDays * 24 * 60 * 60 * 1000);
+      const now = new Date();
+      
+      isTrialing = now < trialEnd;
+      if (isTrialing) {
+        trialDaysRemaining = Math.ceil((trialEnd.getTime() - now.getTime()) / (24 * 60 * 60 * 1000));
+      }
+    }
+    
     return {
       hasActiveSubscription: subscription.status === "ACTIVE",
       plan: detectedPlan,
       subscriptionId: subscription.id,
       status: subscription.status,
       trialDays: subscription.trialDays,
+      trialDaysRemaining,
       currentPeriodEnd: subscription.currentPeriodEnd,
       isTrialing,
     };
@@ -541,8 +557,10 @@ export async function createOneTimePurchase(
     }
     if (result?.confirmationUrl) {
       const allowedDomains = [
-        "shopify.com",
+        "admin.shopify.com",
         "myshopify.com",
+        "partners.shopify.com",
+        "shopify.com",
         shopDomain,
       ];
       const validation = assertSafeRedirect(result.confirmationUrl, allowedDomains);

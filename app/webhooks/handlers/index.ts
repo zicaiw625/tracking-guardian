@@ -12,3 +12,4 @@ export {
   handleOrdersEdited,
 } from "./orders.handler";
 export { handleRefundsCreate } from "./refunds.handler";
+export { handleAppSubscriptionsUpdate } from "./subscription.handler";

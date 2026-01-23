@@ -22,6 +22,7 @@ interface SubscriptionTabProps {
     hasActiveSubscription: boolean;
     isTrialing?: boolean;
     trialDays?: number;
+    trialDaysRemaining?: number;
     currentPeriodEnd?: string;
   };
 }
@@ -56,7 +57,7 @@ export function SubscriptionTab({ currentPlan, subscriptionStatus }: Subscriptio
             {subscriptionStatus?.isTrialing && (
               <Banner tone="info">
                 <Text as="p" variant="bodySm">
-                  试用期剩余 {subscriptionStatus.trialDays} 天
+                  试用期剩余 {subscriptionStatus.trialDaysRemaining ?? subscriptionStatus.trialDays ?? 0} 天
                   {subscriptionStatus.currentPeriodEnd && (
                     <>，将于 {new Date(subscriptionStatus.currentPeriodEnd).toLocaleDateString()} 结束</>
                   )}

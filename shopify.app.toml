@@ -32,6 +32,10 @@ uri = "/webhooks"
 topics = ["refunds/create"]
 uri = "/webhooks"
 
+[[webhooks.subscriptions]]
+topics = ["app_subscriptions/update"]
+uri = "/webhooks"
+
 [pos]
 embedded = false
 

@@ -223,6 +223,8 @@ describe("Subscription Service", () => {
       expect(status.plan).toBe("free");
     });
     it("should detect trial status", async () => {
+      const now = new Date();
+      const createdAt = new Date(now.getTime() - 2 * 24 * 60 * 60 * 1000);
       const futureDate = new Date();
       futureDate.setDate(futureDate.getDate() + 7);
       const mockResponse = {
@@ -234,6 +236,7 @@ describe("Subscription Service", () => {
                   id: "sub-1",
                   status: "ACTIVE",
                   trialDays: 7,
+                  createdAt: createdAt.toISOString(),
                   currentPeriodEnd: futureDate.toISOString(),
                   lineItems: [
                     {
@@ -255,6 +258,8 @@ describe("Subscription Service", () => {
       expect(status.hasActiveSubscription).toBe(true);
       expect(status.isTrialing).toBe(true);
       expect(status.trialDays).toBe(7);
+      expect(status.trialDaysRemaining).toBeGreaterThan(0);
+      expect(status.trialDaysRemaining).toBeLessThanOrEqual(7);
     });
     it("should handle API errors gracefully", async () => {
       (mockAdmin.graphql as ReturnType<typeof vi.fn>).mockRejectedValue(

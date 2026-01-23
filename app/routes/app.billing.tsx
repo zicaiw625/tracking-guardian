@@ -43,7 +43,10 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
                 })
             );
         }
-        return redirect("/app/billing?success=true");
+        const url = new URL(request.url);
+        url.searchParams.delete("charge_id");
+        url.searchParams.set("success", "true");
+        return redirect(`${url.pathname}?${url.searchParams.toString()}`);
     }
     const shop = await prisma.shop.findUnique({
         where: { shopDomain },
