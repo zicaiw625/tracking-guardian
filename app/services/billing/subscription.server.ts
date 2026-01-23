@@ -3,6 +3,8 @@ import { createAuditLog } from "../audit.server";
 import { logger } from "../../utils/logger.server";
 import { assertSafeRedirect } from "../../utils/redirect-validation.server";
 import { BILLING_PLANS, type PlanId, detectPlanFromPrice, isHigherTier } from "./plans";
+import { getShopPlan } from "../shop-tier.server";
+import type { AdminApiContext } from "@shopify/shopify-app-remix/server";
 
 function detectPlanFromName(name: string): PlanId | null {
   const nameLower = name.toLowerCase();
@@ -428,6 +430,11 @@ export async function createSubscription(
     if (currentPlan === planId && currentStatus.hasActiveSubscription) {
       return { success: false, error: "当前已是该套餐，无需重复订阅" };
     }
+    const planInfo = await getShopPlan(admin as AdminApiContext);
+    const testMode =
+      isTest ||
+      process.env.NODE_ENV !== "production" ||
+      planInfo?.partnerDevelopment === true;
     const isUpgrade = isHigherTier(planId, currentPlan);
     const replacementBehavior = isUpgrade ? "APPLY_IMMEDIATELY" : "APPLY_ON_NEXT_BILLING_CYCLE";
     
@@ -447,7 +454,7 @@ export async function createSubscription(
         ],
         returnUrl,
         trialDays: ("trialDays" in plan ? plan.trialDays : 0) || 0,
-        test: isTest || process.env.NODE_ENV !== "production",
+        test: testMode,
         replacementBehavior,
       },
     });
@@ -774,6 +781,11 @@ export async function createOneTimePurchase(
     return { success: false, error: "此套餐不支持一次性收费（v1.0 中所有计划均为月付，符合 PRD 11.1 要求）" };
   }
   try {
+    const planInfo = await getShopPlan(admin as AdminApiContext);
+    const testMode =
+      isTest ||
+      process.env.NODE_ENV !== "production" ||
+      planInfo?.partnerDevelopment === true;
     const currencyCode = "USD";
     const response = await admin.graphql(CREATE_ONE_TIME_PURCHASE_MUTATION, {
       variables: {
@@ -783,7 +795,7 @@ export async function createOneTimePurchase(
           currencyCode,
         },
         returnUrl,
-        test: isTest || process.env.NODE_ENV !== "production",
+        test: testMode,
       },
     });
     const data = await response.json();
