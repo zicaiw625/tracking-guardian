@@ -18,6 +18,7 @@ import type { PixelConfigSnapshot } from "~/services/pixel-rollback.server";
 import { ConfigVersionManager } from "./ConfigVersionManager";
 import { useFetcher } from "@remix-run/react";
 import type { Platform } from "~/services/migration.server";
+import { useToastContext } from "~/components/ui";
 
 type ConfigComparisonData = {
   current: PixelConfigSnapshot & { version: number; updatedAt: Date };
@@ -60,9 +61,12 @@ export function ConfigManagementCard({
   const [environmentChanging, setEnvironmentChanging] = useState<string | null>(null);
   const [showEnvConfirmModal, setShowEnvConfirmModal] = useState(false);
   const [pendingEnvChange, setPendingEnvChange] = useState<{ platform: string; newEnv: string } | null>(null);
+  const [showRollbackModal, setShowRollbackModal] = useState(false);
+  const [pendingRollbackPlatform, setPendingRollbackPlatform] = useState<string | null>(null);
   const comparisonFetcher = useFetcher();
   const historyFetcher = useFetcher();
   const envFetcher = useFetcher();
+  const { showError, showSuccess } = useToastContext();
   const handleViewConfig = useCallback(
     (platform: string) => {
       setSelectedPlatform(platform);
@@ -107,18 +111,54 @@ export function ConfigManagementCard({
     setShowEnvConfirmModal(false);
     setPendingEnvChange(null);
   }, []);
+  const handleRollback = useCallback((platform: string) => {
+    setPendingRollbackPlatform(platform);
+    setShowRollbackModal(true);
+  }, []);
+  const confirmRollback = useCallback(async () => {
+    if (!pendingRollbackPlatform) {
+      setShowRollbackModal(false);
+      return;
+    }
+    setEnvironmentChanging(pendingRollbackPlatform);
+    try {
+      const formData = new FormData();
+      formData.append("_action", "rollback");
+      formData.append("platform", pendingRollbackPlatform);
+      const response = await fetch("/app/actions/pixel-config", {
+        method: "POST",
+        body: formData,
+      });
+      const data = await response.json();
+      if (data.success) {
+        showSuccess("回滚成功，正在刷新页面");
+        window.location.reload();
+      } else {
+        showError(data.error || "回滚失败");
+      }
+    } catch (error) {
+      showError("回滚失败");
+    } finally {
+      setEnvironmentChanging(null);
+      setShowRollbackModal(false);
+      setPendingRollbackPlatform(null);
+    }
+  }, [pendingRollbackPlatform, showError, showSuccess]);
   useEffect(() => {
     if (envFetcher.data && envFetcher.state === "idle") {
       const result = envFetcher.data as { success: boolean; message?: string; error?: string };
       if (result.success) {
         setEnvironmentChanging(null);
+        if (result.message) {
+          showSuccess(result.message);
+        }
         window.location.reload();
       } else {
         setEnvironmentChanging(null);
-        alert(result.error || result.message || "环境切换失败");
+        showError(result.error || result.message || "环境切换失败");
       }
     }
-  }, [envFetcher.data, envFetcher.state]);
+  }, [envFetcher.data, envFetcher.state, showError, showSuccess]);
   if (pixelConfigs.length === 0) {
     return null;
   }
@@ -189,23 +229,8 @@ export function ConfigManagementCard({
                         <Button
                           size="slim"
                           variant="primary"
-                          onClick={async () => {
-                            if (confirm(`确定要回滚 ${PLATFORM_LABELS[config.platform] || config.platform} 的配置到上一个版本吗？`)) {
-                              const formData = new FormData();
-                              formData.append("_action", "rollback");
-                              formData.append("platform", config.platform);
-                              const response = await fetch("/app/actions/pixel-config", {
-                                method: "POST",
-                                body: formData,
-                              });
-                              const data = await response.json();
-                              if (data.success) {
-                                window.location.reload();
-                              } else {
-                                alert(data.error || "回滚失败");
-                              }
-                            }
-                          }}
+                          onClick={() => handleRollback(config.platform)}
+                          loading={environmentChanging === config.platform}
                         >
                           ⏪ 快速回滚
                         </Button>
@@ -356,6 +381,48 @@ export function ConfigManagementCard({
                 </Box>
               </>
             )}
+          </BlockStack>
+        </Modal.Section>
+      </Modal>
+      <Modal
+        open={showRollbackModal}
+        onClose={() => {
+          setShowRollbackModal(false);
+          setPendingRollbackPlatform(null);
+        }}
+        title="确认回滚配置"
+        primaryAction={{
+          content: "确认回滚",
+          destructive: true,
+          onAction: confirmRollback,
+          loading: environmentChanging !== null,
+        }}
+        secondaryActions={[
+          {
+            content: "取消",
+            onAction: () => {
+              setShowRollbackModal(false);
+              setPendingRollbackPlatform(null);
+            },
+          },
+        ]}
+      >
+        <Modal.Section>
+          <BlockStack gap="200">
+            <Text as="p">
+              确定要回滚{" "}
+              <strong>
+                {pendingRollbackPlatform
+                  ? PLATFORM_LABELS[pendingRollbackPlatform] || pendingRollbackPlatform
+                  : "该平台"}
+              </strong>{" "}
+              的配置到上一个版本吗？当前配置将被上一个版本替换。
+            </Text>
+            <Banner tone="warning">
+              <Text as="p" variant="bodySm">
+                回滚后会创建新的版本记录，建议回滚前确认当前配置已保存。
+              </Text>
+            </Banner>
           </BlockStack>
         </Modal.Section>
       </Modal>

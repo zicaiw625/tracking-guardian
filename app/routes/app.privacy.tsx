@@ -16,7 +16,8 @@ import {
   Icon,
   Collapsible,
   Button,
- Modal } from "@shopify/polaris";
+  Modal,
+} from "@shopify/polaris";
 import {
   LockFilledIcon,
   ClockIcon,
@@ -25,6 +26,7 @@ import {
   CheckCircleIcon,
 } from "~/components/icons";
 import { useState } from "react";
+import { useToastContext } from "~/components/ui";
 
 import { authenticate } from "../shopify.server";
 import prisma from "../db.server";
@@ -120,6 +122,7 @@ function CollapsibleSection({
 }
 
 export default function PrivacyPage() {
+  const { showError } = useToastContext();
   const { shop, appDomain } = useLoaderData<typeof loader>();
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   return (
@@ -609,7 +612,7 @@ export default function PrivacyPage() {
                     destructive: true,
                     onAction: () => {
                       setShowDeleteModal(false);
-                      alert("删除功能需要后端支持，请联系管理员或通过 GDPR webhook 处理");
+                      showError("删除功能需要后端支持，请联系管理员或通过 GDPR webhook 处理");
                     },
                   }}
                   secondaryActions={[
