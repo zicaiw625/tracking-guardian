@@ -108,15 +108,16 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     });
 };
 export const action = async ({ request }: ActionFunctionArgs) => {
-    const { session, admin, redirect: shopifyRedirect } = await authenticate.admin(request);
-    const shopDomain = session.shop;
-    const formData = await request.formData();
-    const action = formData.get("_action");
-    const shop = await prisma.shop.findUnique({
-        where: { shopDomain },
-        select: { id: true, shopDomain: true },
-    });
-    switch (action) {
+    try {
+        const { session, admin, redirect: shopifyRedirect } = await authenticate.admin(request);
+        const shopDomain = session.shop;
+        const formData = await request.formData();
+        const action = formData.get("_action");
+        const shop = await prisma.shop.findUnique({
+            where: { shopDomain },
+            select: { id: true, shopDomain: true },
+        });
+        switch (action) {
         case "subscribe": {
             const planId = formData.get("planId") as PlanId;
             const appUrl = process.env.SHOPIFY_APP_URL || "";
@@ -178,6 +179,19 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         }
         default:
             return json({ success: false, error: "未知操作" });
+        }
+    } catch (error) {
+        if (error instanceof Response) {
+            return error;
+        }
+        logger.error("Billing action error", {
+            error: error instanceof Error ? error.message : String(error),
+            stack: error instanceof Error ? error.stack : undefined,
+        });
+        return json(
+            { success: false, error: "认证失败，请刷新页面后重试" },
+            { status: 401 }
+        );
     }
 };
 export default function BillingPage() {
