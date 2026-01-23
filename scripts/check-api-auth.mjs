@@ -39,12 +39,40 @@ function getAllRouteFiles(dir, fileList = []) {
   return fileList;
 }
 
-function checkRouteAuth(filePath) {
+function getAllApiRouteFiles(dir, fileList = []) {
+  try {
+    const files = readdirSync(dir);
+    for (const file of files) {
+      const filePath = join(dir, file);
+      const stat = statSync(filePath);
+      if (stat.isDirectory()) {
+        getAllApiRouteFiles(filePath, fileList);
+      } else if (file.endsWith(".tsx") || file.endsWith(".ts")) {
+        fileList.push(filePath);
+      }
+    }
+  } catch (error) {
+    if (error.code !== "ENOENT") {
+      throw error;
+    }
+  }
+  return fileList;
+}
+
+function extractForwardedRoute(content) {
+  const importMatch = content.match(/import\(["']\.\.\/lib\/api-routes\/([^"']+)["']\)/);
+  if (importMatch) {
+    return importMatch[1];
+  }
+  return null;
+}
+
+function checkRouteAuth(filePath, isApiRouteFile = false) {
   const content = readFileSync(filePath, "utf-8");
   const fileName = filePath.split("/").pop() || "";
   const routeName = fileName.replace(/\.(tsx|ts)$/, "");
   
-  if (WHITELIST.some(w => routeName.includes(w))) {
+  if (!isApiRouteFile && WHITELIST.some(w => routeName.includes(w))) {
     checks.push({
       name: `API Route: ${routeName}`,
       status: "pass",
@@ -53,10 +81,30 @@ function checkRouteAuth(filePath) {
     return;
   }
   
+  const forwardedRoute = !isApiRouteFile ? extractForwardedRoute(content) : null;
+  if (forwardedRoute) {
+    const apiRoutePath = join(process.cwd(), "app/lib/api-routes", forwardedRoute);
+    try {
+      if (statSync(apiRoutePath).isFile()) {
+        checkRouteAuth(apiRoutePath, true);
+        checks.push({
+          name: `API Route: ${routeName}`,
+          status: "pass",
+          message: `Forwards to app/lib/api-routes/${forwardedRoute} (auth checked in forwarded file)`,
+        });
+        return;
+      }
+    } catch (error) {
+      if (error.code !== "ENOENT") {
+        throw error;
+      }
+    }
+  }
+  
   const hasLoader = content.includes("export const loader") || content.includes("export const action");
   if (!hasLoader) {
     checks.push({
-      name: `API Route: ${routeName}`,
+      name: `API Route: ${routeName}${isApiRouteFile ? " (in app/lib/api-routes)" : ""}`,
       status: "warn",
       message: "Route has no loader/action exports",
     });
@@ -85,7 +133,7 @@ function checkRouteAuth(filePath) {
     
     if (hasLoaderExport || hasActionExport) {
       checks.push({
-        name: `API Route: ${routeName}`,
+        name: `API Route: ${routeName}${isApiRouteFile ? " (in app/lib/api-routes)" : ""}`,
         status: "fail",
         message: `Missing authentication in ${hasLoaderExport && hasActionExport ? "loader and action" : hasLoaderExport ? "loader" : "action"}. Must use one of: ${AUTH_PATTERNS.join(", ")}`,
       });
@@ -96,7 +144,7 @@ function checkRouteAuth(filePath) {
     if (hasAuthInLoader) authMethods.push("loader");
     if (hasAuthInAction) authMethods.push("action");
     checks.push({
-      name: `API Route: ${routeName}`,
+      name: `API Route: ${routeName}${isApiRouteFile ? " (in app/lib/api-routes)" : ""}`,
       status: "pass",
       message: `Authentication found in ${authMethods.join(" and ")}`,
     });
@@ -107,7 +155,10 @@ function checkApiRoutes() {
   const routesDir = join(process.cwd(), "app/routes");
   const routeFiles = getAllRouteFiles(routesDir);
   
-  if (routeFiles.length === 0) {
+  const apiRoutesDir = join(process.cwd(), "app/lib/api-routes");
+  const apiRouteFiles = getAllApiRouteFiles(apiRoutesDir);
+  
+  if (routeFiles.length === 0 && apiRouteFiles.length === 0) {
     checks.push({
       name: "API Routes Check",
       status: "warn",
@@ -116,8 +167,18 @@ function checkApiRoutes() {
     return;
   }
   
+  const checkedApiRouteFiles = new Set();
+  
   for (const file of routeFiles) {
     try {
+      const content = readFileSync(file, "utf-8");
+      const forwardedRoute = extractForwardedRoute(content);
+      if (forwardedRoute) {
+        const apiRoutePath = join(apiRoutesDir, forwardedRoute);
+        if (statSync(apiRoutePath).isFile()) {
+          checkedApiRouteFiles.add(apiRoutePath);
+        }
+      }
       checkRouteAuth(file);
     } catch (error) {
       checks.push({
@@ -126,6 +187,21 @@ function checkApiRoutes() {
         message: `Failed to check route: ${error.message}`,
       });
       hasErrors = true;
+    }
+  }
+  
+  for (const file of apiRouteFiles) {
+    if (!checkedApiRouteFiles.has(file)) {
+      try {
+        checkRouteAuth(file, true);
+      } catch (error) {
+        checks.push({
+          name: `API Route: ${file.split("/").pop()} (in app/lib/api-routes)`,
+          status: "fail",
+          message: `Failed to check route: ${error.message}`,
+        });
+        hasErrors = true;
+      }
     }
   }
 }

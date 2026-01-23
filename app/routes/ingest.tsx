@@ -315,18 +315,28 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       };
       logger.debug(`HMAC signature verified for ${shopDomain}${graceResult.usedPreviousSecret ? " (using previous secret)" : ""}`);
     } else {
-      const hmacResult = await verifyWithSecret(shop.ingestionSecret!);
-      keyValidation = {
-        matched: false,
-        reason: "hmac_invalid",
-        trustLevel: hmacResult.trustLevel || "untrusted",
-      };
-      if (isStrictSecurityMode()) {
-        logger.warn(`HMAC verification failed for ${shopDomain}: signature did not match current or previous secret`);
+      const secretToCheck = shop.ingestionSecret ?? shop.previousIngestionSecret;
+      if (!secretToCheck) {
+        keyValidation = {
+          matched: false,
+          reason: "secret_missing",
+          trustLevel: "untrusted",
+        };
+        logger.warn(`HMAC verification failed for ${shopDomain}: no ingestion secret available`);
       } else {
-        logger.warn(`HMAC verification failed for ${shopDomain}: signature did not match (non-strict mode, marking as untrusted)`, {
-          trustLevel: keyValidation.trustLevel,
-        });
+        const hmacResult = await verifyWithSecret(secretToCheck);
+        keyValidation = {
+          matched: false,
+          reason: "hmac_invalid",
+          trustLevel: hmacResult.trustLevel || "untrusted",
+        };
+        if (isStrictSecurityMode()) {
+          logger.warn(`HMAC verification failed for ${shopDomain}: signature did not match current or previous secret`);
+        } else {
+          logger.warn(`HMAC verification failed for ${shopDomain}: signature did not match (non-strict mode, marking as untrusted)`, {
+            trustLevel: keyValidation.trustLevel,
+          });
+        }
       }
     }
   } else if (signature && !hasAnySecret) {
@@ -355,7 +365,13 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       trustLevel: "untrusted",
     };
   }
-  const hasValidOrigin = shopOriginValidation.valid || (!shopOriginValidation.shouldReject && hasSignatureHeader && !strictOrigin && !isProduction);
+  const originIsNullish = origin === null || origin === "null" || !originHeaderPresent;
+  let hasValidOrigin: boolean;
+  if (originIsNullish) {
+    hasValidOrigin = keyValidation.matched;
+  } else {
+    hasValidOrigin = shopOriginValidation.valid || (!shopOriginValidation.shouldReject && hasSignatureHeader && !strictOrigin && !isProduction);
+  }
   const hasValidTimestamp = timestampHeader && Math.abs(Date.now() - timestamp) <= TIMESTAMP_WINDOW_MS;
   const hasCriticalEvent = events.some((event: unknown) => {
     const eventValidation = validateRequest(event);

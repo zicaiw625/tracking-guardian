@@ -13,6 +13,7 @@ import type {
 } from "./interface";
 import { fetchWithTimeout, measureDuration } from "./interface";
 import { logger } from "../../utils/logger.server";
+import net from "net";
 
 const DEFAULT_TIMEOUT_MS = 30000;
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -245,15 +246,17 @@ function validateEndpointUrl(url: string): { valid: boolean; error?: string } {
       }
     }
     
-    if (/^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(hostname)) {
+    const ipType = net.isIP(hostname);
+    if (ipType === 4) {
       if (isPrivateIPv4(hostname)) {
         return { valid: false, error: 'IP addresses are not allowed; use domain names instead' };
       }
       return { valid: false, error: 'IP addresses are not allowed; use domain names instead' };
     }
     
-    if (hostname.startsWith('[') && hostname.endsWith(']')) {
-      if (isPrivateIPv6(hostname)) {
+    if (ipType === 6) {
+      const ipv6Formatted = hostname.startsWith('[') && hostname.endsWith(']') ? hostname : `[${hostname}]`;
+      if (isPrivateIPv6(ipv6Formatted)) {
         return { valid: false, error: 'Private IPv6 addresses are not allowed' };
       }
       return { valid: false, error: 'IPv6 addresses are not allowed; use domain names instead' };
@@ -277,7 +280,8 @@ async function validateEndpointUrlWithDNS(url: string): Promise<{ valid: boolean
   try {
     const parsed = new URL(url);
     const hostname = parsed.hostname;
-    if (/^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(hostname) || (hostname.startsWith('[') && hostname.endsWith(']'))) {
+    const ipType = net.isIP(hostname);
+    if (ipType === 4 || ipType === 6) {
       return { valid: true };
     }
     const cacheKey = hostname.toLowerCase();
@@ -333,7 +337,8 @@ async function revalidateDnsBeforeFetch(url: string): Promise<{ valid: boolean; 
   try {
     const parsed = new URL(url);
     const hostname = parsed.hostname;
-    if (/^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(hostname) || (hostname.startsWith('[') && hostname.endsWith(']'))) {
+    const ipType = net.isIP(hostname);
+    if (ipType === 4 || ipType === 6) {
       return { valid: true };
     }
     try {
