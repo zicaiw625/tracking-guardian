@@ -77,12 +77,21 @@ function deriveEffectivePlan(
 
   let effectiveSubscription: SubscriptionNode | null = null;
   if (activeSubscriptions.length > 0) {
-    activeSubscriptions.sort((a, b) => {
-      const aEnd = a.currentPeriodEnd ? new Date(a.currentPeriodEnd).getTime() : 0;
-      const bEnd = b.currentPeriodEnd ? new Date(b.currentPeriodEnd).getTime() : 0;
-      return bEnd - aEnd;
-    });
-    effectiveSubscription = activeSubscriptions[0];
+    const rankedActive = activeSubscriptions
+      .map((sub) => ({
+        sub,
+        plan: detectPlanFromSubscription(sub),
+        periodEnd: sub.currentPeriodEnd
+          ? new Date(sub.currentPeriodEnd).getTime()
+          : Number.POSITIVE_INFINITY,
+      }))
+      .sort((a, b) => {
+        if (a.plan === b.plan) {
+          return b.periodEnd - a.periodEnd;
+        }
+        return isHigherTier(a.plan, b.plan) ? -1 : 1;
+      });
+    effectiveSubscription = rankedActive[0]?.sub ?? null;
   } else if (cancelledSubscriptions.length > 0) {
     cancelledSubscriptions.sort((a, b) => {
       const aEnd = a.currentPeriodEnd ? new Date(a.currentPeriodEnd).getTime() : 0;
@@ -101,13 +110,7 @@ function deriveEffectivePlan(
     };
   }
 
-  const planFromName = effectiveSubscription.name
-    ? detectPlanFromName(effectiveSubscription.name)
-    : null;
-  const price =
-    effectiveSubscription.lineItems?.[0]?.plan?.pricingDetails?.price?.amount;
-  const planFromPrice = price ? detectPlanFromPrice(parseFloat(price)) : "free";
-  const detectedPlan = planFromName || planFromPrice;
+  const detectedPlan = detectPlanFromSubscription(effectiveSubscription);
 
   let entitledUntil: Date | null = null;
   if (effectiveSubscription.status === "ACTIVE") {
@@ -125,6 +128,29 @@ function deriveEffectivePlan(
     entitledUntil,
     hasActiveSubscription: true,
   };
+}
+
+function detectPlanFromSubscription(subscription: SubscriptionNode): PlanId {
+  const planFromName = subscription.name
+    ? detectPlanFromName(subscription.name)
+    : null;
+  if (planFromName) {
+    return planFromName;
+  }
+
+  const prices = (subscription.lineItems ?? [])
+    .map((lineItem) => {
+      const amount = lineItem.plan?.pricingDetails?.price?.amount;
+      return amount ? parseFloat(amount) : null;
+    })
+    .filter((price): price is number => price !== null && !Number.isNaN(price));
+
+  if (prices.length === 0) {
+    return "free";
+  }
+
+  const maxPrice = Math.max(...prices);
+  return detectPlanFromPrice(maxPrice);
 }
 
 export interface AdminGraphQL {
@@ -399,6 +425,9 @@ export async function createSubscription(
   try {
     const currentStatus = await getSubscriptionStatus(admin, shopDomain);
     const currentPlan = currentStatus.plan;
+    if (currentPlan === planId && currentStatus.hasActiveSubscription) {
+      return { success: false, error: "当前已是该套餐，无需重复订阅" };
+    }
     const isUpgrade = isHigherTier(planId, currentPlan);
     const replacementBehavior = isUpgrade ? "APPLY_IMMEDIATELY" : "APPLY_ON_NEXT_BILLING_CYCLE";
     
@@ -530,7 +559,7 @@ export async function getSubscriptionStatus(
     }
     
     return {
-      hasActiveSubscription: derived.hasActiveSubscription,
+      hasActiveSubscription: derived.hasActiveSubscription && subscription.status === "ACTIVE",
       plan: derived.plan,
       subscriptionId: subscription.id,
       status: subscription.status,
@@ -638,10 +667,30 @@ export async function syncSubscriptionStatus(
     
     const now = new Date();
     const derived = deriveEffectivePlan(subscriptions as SubscriptionNode[], now);
-    
+
+    if (!derived.effectiveSubscription) {
+      const shop = await prisma.shop.findUnique({
+        where: { shopDomain },
+        select: { plan: true, entitledUntil: true },
+      });
+      if (shop?.entitledUntil && shop.entitledUntil > now) {
+        return;
+      }
+      const planConfig = BILLING_PLANS.free;
+      await prisma.shop.update({
+        where: { shopDomain },
+        data: {
+          plan: "free",
+          monthlyOrderLimit: planConfig.monthlyOrderLimit,
+          entitledUntil: null,
+        },
+      });
+      return;
+    }
+
     const plan = derived.plan;
     const planConfig = BILLING_PLANS[plan];
-    
+
     await prisma.shop.update({
       where: { shopDomain },
       data: {
