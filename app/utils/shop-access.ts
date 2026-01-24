@@ -1,6 +1,6 @@
 import { timingSafeEqual, createHash } from "crypto";
 import prisma from "../db.server";
-import { decryptAccessToken, decryptIngestionSecret, TokenDecryptionError, encryptAccessToken, isTokenEncrypted, encryptIngestionSecret } from "./token-encryption";
+import { decryptAccessToken, decryptIngestionSecret, TokenDecryptionError, encryptAccessToken, isTokenEncrypted, encryptIngestionSecret } from "./token-encryption.server";
 import { logger } from "./logger.server";
 import type { Shop } from "@prisma/client";
 

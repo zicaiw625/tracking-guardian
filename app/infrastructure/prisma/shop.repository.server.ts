@@ -17,7 +17,7 @@ import type {
   ConsentStrategy,
 } from "../../domain/shop/shop.entity";
 import { generateSimpleId } from "../../utils/helpers";
-import { ensureTokenEncrypted } from "../../utils/token-encryption";
+import { ensureTokenEncrypted } from "../../utils/token-encryption.server";
 
 function mapToDomainShop(prismaShop: {
   id: string;

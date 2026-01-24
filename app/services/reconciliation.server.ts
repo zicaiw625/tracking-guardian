@@ -1,6 +1,6 @@
 import prisma from "../db.server";
 import { logger } from "../utils/logger.server";
-import { getShopByIdWithDecryptedFields } from "../utils/shop-access";
+import { getShopByIdWithDecryptedFields } from "../utils/shop-access.server";
 import { apiVersion } from "../shopify.server";
 import { SecureShopDomainSchema } from "../utils/security";
 import { fetchWithTimeout } from "../utils/http";

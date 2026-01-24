@@ -8,7 +8,7 @@ import {
     needsSettingsUpgrade,
     upgradeWebPixelSettings
 } from "../services/migration.server";
-import { decryptIngestionSecret } from "../utils/token-encryption";
+import { decryptIngestionSecret } from "../utils/token-encryption.server";
 import { logger } from "../utils/logger.server";
 
 export const action = async ({ request }: ActionFunctionArgs) => {

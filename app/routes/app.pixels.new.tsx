@@ -37,7 +37,7 @@ import { safeFireAndForget } from "~/utils/helpers.server";
 import { isPlanAtLeast } from "~/utils/plans";
 import { normalizePlanId } from "~/services/billing/plans";
 import { createWebPixel, getExistingWebPixels, isOurWebPixel, updateWebPixel } from "~/services/migration.server";
-import { decryptIngestionSecret, encryptIngestionSecret, isTokenEncrypted } from "~/utils/token-encryption";
+import { decryptIngestionSecret, encryptIngestionSecret, isTokenEncrypted } from "~/utils/token-encryption.server";
 import { randomBytes } from "crypto";
 import { logger } from "~/utils/logger.server";
 import type { WizardTemplate } from "~/components/migrate/PixelMigrationWizard";

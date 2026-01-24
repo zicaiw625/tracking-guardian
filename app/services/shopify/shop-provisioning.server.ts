@@ -3,7 +3,7 @@ import prisma from "../../db.server";
 import {
   encryptAccessToken,
   generateEncryptedIngestionSecret,
-} from "../../utils/token-encryption";
+} from "../../utils/token-encryption.server";
 import { logger } from "../../utils/logger.server";
 import { safeFireAndForget } from "../../utils/helpers.server";
 import type { ShopQueryResponse, ShopTierValue } from "../../types/shopify";

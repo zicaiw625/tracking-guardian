@@ -21,7 +21,7 @@ export {
   generateEncryptedIngestionSecret,
   validateTokenEncryptionConfig,
   TokenDecryptionError,
-} from "./token-encryption";
+} from "./token-encryption.server";
 
 export {
   withSecurityHeaders,
@@ -153,7 +153,7 @@ export {
   type DecryptedShop,
   type ShopVerificationData,
   type ShopWithDecryptedSecret,
-} from "./shop-access";
+} from "./shop-access.server";
 
 export {
   parseGDPRDataRequestPayload,
@@ -444,7 +444,7 @@ export {
   type VerifyReceiptOptions,
   type TrustLevel,
   type UntrustedReason,
-} from "./receipt-trust";
+} from "./receipt-trust.server";
 
 export {
   checkSecurityViolations,
@@ -453,4 +453,4 @@ export {
   enforceSecurityChecks,
   getRequiredSecret,
   getOptionalSecret,
-} from "./secrets";
+} from "./secrets.server";

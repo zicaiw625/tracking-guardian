@@ -364,9 +364,21 @@ export function isShopifyDomain(domain: string): boolean {
 }
 
 export function generateSimpleId(prefix: string = ""): string {
-  const uuid =
-    (typeof globalThis !== "undefined" ? globalThis.crypto?.randomUUID?.() : undefined) ??
-    `${Date.now().toString(16)}-${Math.random().toString(16).slice(2)}`;
+  const cryptoObj = typeof globalThis !== "undefined" ? globalThis.crypto : undefined;
+  const uuid = (() => {
+    if (cryptoObj?.randomUUID) {
+      return cryptoObj.randomUUID();
+    }
+    if (cryptoObj?.getRandomValues) {
+      const bytes = new Uint8Array(16);
+      cryptoObj.getRandomValues(bytes);
+      bytes[6] = (bytes[6] & 0x0f) | 0x40;
+      bytes[8] = (bytes[8] & 0x3f) | 0x80;
+      const hex = Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join("");
+      return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
+    }
+    throw new Error("Crypto is not available to generate IDs");
+  })();
   return prefix ? `${prefix}_${uuid}` : uuid;
 }
 

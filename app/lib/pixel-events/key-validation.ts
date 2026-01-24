@@ -4,7 +4,7 @@ import {
   decryptShopWithPixelConfigs,
   type ShopVerificationData,
   type ShopWithPixelConfigs,
-} from "../../utils/shop-access";
+} from "../../utils/shop-access.server";
 import {
   getCachedShopWithConfigs,
   cacheShopWithConfigsEncrypted,

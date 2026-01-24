@@ -40,7 +40,7 @@ import { safeFireAndForget } from "../utils/helpers.server";
 import { normalizePlanId } from "../services/billing/plans";
 import { isPlanAtLeast } from "../utils/plans";
 import { createWebPixel, getExistingWebPixels, isOurWebPixel, updateWebPixel } from "../services/migration.server";
-import { decryptIngestionSecret, encryptIngestionSecret, isTokenEncrypted } from "../utils/token-encryption";
+import { decryptIngestionSecret, encryptIngestionSecret, isTokenEncrypted } from "../utils/token-encryption.server";
 import { randomBytes } from "crypto";
 
 function estimateMigrationTime(

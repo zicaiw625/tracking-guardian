@@ -4,7 +4,7 @@ import { RemixServer } from "@remix-run/react";
 import { createReadableStreamFromReadable, type EntryContext, } from "@remix-run/node";
 import { isbot } from "isbot";
 import { addDocumentResponseHeaders } from "./shopify.server";
-import { ensureSecretsValid, enforceSecurityChecks } from "./utils/secrets";
+import { ensureSecretsValid, enforceSecurityChecks } from "./utils/secrets.server";
 import { validateConfig, logConfigStatus, API_CONFIG } from "./utils/config.server";
 import { logger } from "./utils/logger.server";
 import { EMBEDDED_APP_HEADERS, addSecurityHeadersToHeaders, validateSecurityHeaders, } from "./utils/security-headers";

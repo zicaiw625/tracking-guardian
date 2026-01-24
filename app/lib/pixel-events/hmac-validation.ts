@@ -29,7 +29,7 @@ export function verifyHMACSignature(
   timestamp: number,
   shopDomain: string,
   bodyHash: string,
-  timestampWindowMs: number = 5 * 60 * 1000
+  timestampWindowMs: number
 ): HMACValidationResult {
   if (!signature) {
     return {
@@ -106,7 +106,7 @@ export async function validatePixelEventHMAC(
   secret: string,
   shopDomain: string,
   payloadTimestamp: number,
-  timestampWindowMs: number = 5 * 60 * 1000
+  timestampWindowMs: number
 ): Promise<HMACValidationResult> {
   const signature = extractHMACSignature(request);
   if (!signature) {

@@ -25,7 +25,7 @@ export {
   encryptIngestionSecret,
   decryptIngestionSecret,
   isTokenEncrypted,
-} from "../../utils/token-encryption";
+} from "../../utils/token-encryption.server";
 
 export {
   checkSecurityViolations,
@@ -35,4 +35,4 @@ export {
   ensureSecretsValid,
   getRequiredSecret,
   getOptionalSecret,
-} from "../../utils/secrets";
+} from "../../utils/secrets.server";

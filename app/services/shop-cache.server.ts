@@ -1,7 +1,7 @@
 import { RedisCache, SimpleCache, TTL } from "../utils/cache";
 import { logger } from "../utils/logger.server";
-import type { ShopVerificationData, ShopVerificationDataEncrypted, ShopWithPixelConfigs, ShopWithPixelConfigsEncrypted } from "../utils/shop-access";
-import { decryptShopWithPixelConfigs, decryptShopVerificationData } from "../utils/shop-access";
+import type { ShopVerificationData, ShopVerificationDataEncrypted, ShopWithPixelConfigs, ShopWithPixelConfigsEncrypted } from "../utils/shop-access.server";
+import { decryptShopWithPixelConfigs, decryptShopVerificationData } from "../utils/shop-access.server";
 
 interface ShopWithPixelConfigsWithoutSecrets {
   id: string;

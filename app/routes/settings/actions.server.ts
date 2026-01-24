@@ -10,7 +10,7 @@ import {
   updateWebPixel,
   isOurWebPixel,
 } from "../../services/migration.server";
-import { generateEncryptedIngestionSecret } from "../../utils/token-encryption";
+import { generateEncryptedIngestionSecret } from "../../utils/token-encryption.server";
 import type {
   MetaCredentials,
   GoogleCredentials,
@@ -542,7 +542,7 @@ export async function settingsAction({ request }: ActionFunctionArgs) {
             select: { webPixelId: true, ingestionSecret: true, shopDomain: true },
           });
           if (shopData?.webPixelId) {
-            const { decryptIngestionSecret } = await import("../../utils/token-encryption");
+            const { decryptIngestionSecret } = await import("../../utils/token-encryption.server");
             const ingestionKey = shopData.ingestionSecret
               ? decryptIngestionSecret(shopData.ingestionSecret)
               : undefined;

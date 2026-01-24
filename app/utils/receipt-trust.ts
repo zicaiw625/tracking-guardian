@@ -23,6 +23,8 @@ export interface ReceiptTrustResult {
 export interface VerifyReceiptOptions {
     receiptCheckoutToken: string | null | undefined;
     webhookCheckoutToken: string | null | undefined;
+    receiptCheckoutTokenHash?: string | null | undefined;
+    webhookCheckoutTokenHash?: string | null | undefined;
     receiptOriginHost?: string | null;
     allowedDomains?: string[];
     clientCreatedAt?: Date | null;
@@ -40,7 +42,7 @@ export interface VerifyReceiptOptions {
 const DEFAULT_MAX_RECEIPT_AGE_MS = 60 * 60 * 1000;
 const DEFAULT_MAX_TIME_SKEW_MS = 15 * 60 * 1000;
 export function verifyReceiptTrust(options: VerifyReceiptOptions): ReceiptTrustResult {
-    const { receiptCheckoutToken, webhookCheckoutToken, receiptOriginHost, allowedDomains, clientCreatedAt, serverCreatedAt, ingestionKeyMatched, receiptExists, options: validationOptions, } = options;
+    const { receiptCheckoutToken, webhookCheckoutToken, receiptCheckoutTokenHash, webhookCheckoutTokenHash, receiptOriginHost, allowedDomains, clientCreatedAt, serverCreatedAt, ingestionKeyMatched, receiptExists, options: validationOptions, } = options;
     const strictOriginValidation = validationOptions?.strictOriginValidation ?? false;
     const allowNullOrigin = validationOptions?.allowNullOrigin ?? true;
     const maxReceiptAgeMs = validationOptions?.maxReceiptAgeMs ?? DEFAULT_MAX_RECEIPT_AGE_MS;
@@ -69,7 +71,10 @@ export function verifyReceiptTrust(options: VerifyReceiptOptions): ReceiptTrustR
             reason: "ingestion_key_invalid",
         };
     }
-    if (!receiptCheckoutToken) {
+    const hasReceiptTokenSignal =
+        (typeof receiptCheckoutToken === "string" && receiptCheckoutToken.length > 0) ||
+            (typeof receiptCheckoutTokenHash === "string" && receiptCheckoutTokenHash.length > 0);
+    if (!hasReceiptTokenSignal) {
         return {
             trusted: false,
             level: "partial",
@@ -77,7 +82,10 @@ export function verifyReceiptTrust(options: VerifyReceiptOptions): ReceiptTrustR
             details: "Receipt has no checkoutToken for verification",
         };
     }
-    if (!webhookCheckoutToken) {
+    const hasWebhookTokenSignal =
+        (typeof webhookCheckoutToken === "string" && webhookCheckoutToken.length > 0) ||
+            (typeof webhookCheckoutTokenHash === "string" && webhookCheckoutTokenHash.length > 0);
+    if (!hasWebhookTokenSignal) {
         return {
             trusted: false,
             level: "partial",
@@ -85,10 +93,40 @@ export function verifyReceiptTrust(options: VerifyReceiptOptions): ReceiptTrustR
             details: "Webhook order has no checkout_token for verification",
         };
     }
-    if (receiptCheckoutToken !== webhookCheckoutToken) {
+    const tokensMatch = (() => {
+        if (typeof receiptCheckoutToken === "string" &&
+            receiptCheckoutToken.length > 0 &&
+            typeof webhookCheckoutToken === "string" &&
+            webhookCheckoutToken.length > 0) {
+            return receiptCheckoutToken === webhookCheckoutToken;
+        }
+        const receiptFp = typeof receiptCheckoutTokenHash === "string" && receiptCheckoutTokenHash.length > 0
+            ? receiptCheckoutTokenHash
+            : typeof receiptCheckoutToken === "string" && receiptCheckoutToken.length > 0
+                ? hashValueSync(receiptCheckoutToken)
+                : null;
+        const webhookFp = typeof webhookCheckoutTokenHash === "string" && webhookCheckoutTokenHash.length > 0
+            ? webhookCheckoutTokenHash
+            : typeof webhookCheckoutToken === "string" && webhookCheckoutToken.length > 0
+                ? hashValueSync(webhookCheckoutToken)
+                : null;
+        if (!receiptFp || !webhookFp) {
+            return false;
+        }
+        return receiptFp === webhookFp;
+    })();
+    if (!tokensMatch) {
         logger.warn("Checkout token mismatch detected", {
-            receiptTokenFp: hashValueSync(receiptCheckoutToken).slice(0, 12),
-            webhookTokenFp: hashValueSync(webhookCheckoutToken).slice(0, 12),
+            receiptTokenFp: (typeof receiptCheckoutTokenHash === "string" && receiptCheckoutTokenHash.length > 0
+                ? receiptCheckoutTokenHash
+                : typeof receiptCheckoutToken === "string" && receiptCheckoutToken.length > 0
+                    ? hashValueSync(receiptCheckoutToken)
+                    : "missing").slice(0, 12),
+            webhookTokenFp: (typeof webhookCheckoutTokenHash === "string" && webhookCheckoutTokenHash.length > 0
+                ? webhookCheckoutTokenHash
+                : typeof webhookCheckoutToken === "string" && webhookCheckoutToken.length > 0
+                    ? hashValueSync(webhookCheckoutToken)
+                    : "missing").slice(0, 12),
         });
         return {
             trusted: false,

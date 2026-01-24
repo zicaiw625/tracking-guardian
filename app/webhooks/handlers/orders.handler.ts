@@ -143,6 +143,7 @@ export async function handleOrdersCreate(
             value: snapshot.totalValue,
             currency: snapshot.currency,
             eventType: "purchase",
+            checkoutToken: orderPayload.checkout_token ?? null,
           },
         });
       }

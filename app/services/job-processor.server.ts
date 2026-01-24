@@ -7,6 +7,8 @@ import prisma from "../db.server";
 import { normalizeOrderId } from "../utils/crypto.server";
 import { evaluateTrust, checkPlatformEligibility, buildConsentEvidence } from "./trust-evaluator.server";
 import type { ReceiptFields } from "./receipt-matcher.server";
+import { executeGraphQL } from "./shopify/admin-client.server";
+import { buildTrustMetadata, type ReceiptTrustResult } from "../utils/receipt-trust.server";
 
 export interface ProcessConversionJobsResult {
   processed: number;
@@ -134,6 +136,7 @@ interface JobWithShop extends JobForProcessing {
 interface CapiInput {
   value?: number;
   currency?: string;
+  checkoutToken?: string | null;
   lineItems?: Array<{
     id: string;
     quantity: number;
@@ -167,6 +170,97 @@ interface PlatformSendResult {
   platform: string;
   success: boolean;
   error?: string;
+}
+
+type ServerOrderVerification =
+  | { status: "verified"; checkedAt: string; orderId: string; expected: { value: number; currency: string }; actual: { value: number; currency: string } }
+  | { status: "not_found"; checkedAt: string; orderId: string; expected: { value: number; currency: string } }
+  | { status: "mismatch"; checkedAt: string; orderId: string; expected: { value: number; currency: string }; actual: { value: number; currency: string }; diff: { valueDelta: number; currencyMatch: boolean } }
+  | { status: "unavailable"; checkedAt: string; orderId: string; expected: { value: number; currency: string }; error: string };
+
+async function verifyOrderWithAdminApi(
+  shopDomain: string,
+  orderId: string,
+  expected: { value: number; currency: string }
+): Promise<ServerOrderVerification> {
+  const checkedAt = new Date().toISOString();
+  const orderGid = `gid://shopify/Order/${orderId}`;
+  const query = `
+    query VerifyOrderForConversion($id: ID!) {
+      order(id: $id) {
+        id
+        totalPriceSet {
+          shopMoney {
+            amount
+            currencyCode
+          }
+        }
+      }
+    }
+  `;
+  try {
+    const result = await executeGraphQL<{
+      order: null | {
+        id: string;
+        totalPriceSet: { shopMoney: { amount: string; currencyCode: string } };
+      };
+    }>(shopDomain, query, {
+      variables: { id: orderGid },
+      operationName: "VerifyOrderForConversion",
+    });
+    if (!result || result.errors) {
+      const errorMsg = result?.errors?.[0]?.message
+        ? String(result.errors[0].message)
+        : "admin_api_unavailable";
+      return {
+        status: "unavailable",
+        checkedAt,
+        orderId,
+        expected,
+        error: errorMsg,
+      };
+    }
+    const order = result.data?.order ?? null;
+    if (!order) {
+      return {
+        status: "not_found",
+        checkedAt,
+        orderId,
+        expected,
+      };
+    }
+    const actualValue = parseFloat(order.totalPriceSet.shopMoney.amount);
+    const actualCurrency = order.totalPriceSet.shopMoney.currencyCode;
+    const valueDelta = actualValue - expected.value;
+    const currencyMatch = actualCurrency === expected.currency;
+    const valueMatch = Math.abs(valueDelta) <= 0.01;
+    if (!currencyMatch || !valueMatch) {
+      return {
+        status: "mismatch",
+        checkedAt,
+        orderId,
+        expected,
+        actual: { value: actualValue, currency: actualCurrency },
+        diff: { valueDelta, currencyMatch },
+      };
+    }
+    return {
+      status: "verified",
+      checkedAt,
+      orderId,
+      expected,
+      actual: { value: actualValue, currency: actualCurrency },
+    };
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    return {
+      status: "unavailable",
+      checkedAt,
+      orderId,
+      expected,
+      error: errorMessage,
+    };
+  }
 }
 
 async function sendToPlatform(
@@ -281,10 +375,14 @@ async function processSingleJob(job: JobWithShop): Promise<void> {
     : typeof job.shop.storefrontDomains === 'string'
     ? [job.shop.storefrontDomains]
     : [];
+  const webhookCheckoutToken =
+    typeof capiInput.checkoutToken === "string" && capiInput.checkoutToken.length > 0
+      ? capiInput.checkoutToken
+      : undefined;
   
   const trustEvaluation = evaluateTrust(
     receiptFields,
-    undefined,
+    webhookCheckoutToken,
     {
       shopDomain: job.shop.shopDomain,
       primaryDomain: job.shop.primaryDomain,
@@ -292,11 +390,38 @@ async function processSingleJob(job: JobWithShop): Promise<void> {
       consentStrategy: job.shop.consentStrategy,
     }
   );
-  
+  const expectedForVerification = {
+    value: conversionData.value,
+    currency: conversionData.currency,
+  };
+  const serverVerification = await verifyOrderWithAdminApi(
+    job.shop.shopDomain,
+    job.orderId,
+    expectedForVerification
+  );
+  const finalTrustResult: ReceiptTrustResult =
+    serverVerification.status === "mismatch" || serverVerification.status === "not_found"
+      ? {
+          trusted: false,
+          level: "untrusted",
+          reason: "order_not_found",
+          details: serverVerification.status === "not_found"
+            ? "Order not found via Admin API"
+            : "Order verification mismatch via Admin API",
+        }
+      : trustEvaluation.trustResult;
+  const finalTrustMetadata =
+    finalTrustResult === trustEvaluation.trustResult
+      ? { ...trustEvaluation.trustMetadata, serverVerification }
+      : buildTrustMetadata(finalTrustResult, {
+          hasReceipt: !!receiptFields,
+          webhookHasCheckoutToken: typeof webhookCheckoutToken === "string" && webhookCheckoutToken.length > 0,
+          serverVerification,
+        });
   const consentEvidence = buildConsentEvidence(
     job.shop.consentStrategy,
     !!receiptFields,
-    trustEvaluation.trustResult,
+    finalTrustResult,
     trustEvaluation.consentState
   );
   
@@ -311,7 +436,7 @@ async function processSingleJob(job: JobWithShop): Promise<void> {
     
     const eligibility = checkPlatformEligibility(
       config.platform,
-      trustEvaluation.trustResult,
+      finalTrustResult,
       trustEvaluation.consentState,
       job.shop.consentStrategy,
       treatAsMarketing
@@ -328,7 +453,7 @@ async function processSingleJob(job: JobWithShop): Promise<void> {
         reason: eligibility.skipReason,
         strategy: job.shop.consentStrategy,
         hasReceipt: !!receiptFields,
-        trustLevel: trustEvaluation.trustResult.level,
+        trustLevel: finalTrustResult.level,
       });
     }
   }
@@ -343,7 +468,7 @@ async function processSingleJob(job: JobWithShop): Promise<void> {
       status: JobStatus.COMPLETED,
       completedAt: new Date(),
       consentEvidence,
-      trustMetadata: trustEvaluation.trustMetadata,
+      trustMetadata: finalTrustMetadata,
     });
     return;
   }
@@ -376,7 +501,7 @@ async function processSingleJob(job: JobWithShop): Promise<void> {
     status: JobStatus.COMPLETED,
     completedAt: new Date(),
     consentEvidence,
-    trustMetadata: trustEvaluation.trustMetadata,
+    trustMetadata: finalTrustMetadata,
     platformResults: {
       sent: platformResults.filter(r => r.success).map(r => r.platform),
       skipped: skippedPlatforms,

@@ -1,7 +1,7 @@
 import type { PixelEventPayload, KeyValidationResult } from "~/lib/pixel-events/types";
 import { validateRequest, isPrimaryEvent } from "~/lib/pixel-events/validation";
 import { validatePixelEventHMAC } from "~/lib/pixel-events/hmac-validation";
-import { verifyWithGraceWindowAsync } from "~/utils/shop-access";
+import { verifyWithGraceWindowAsync } from "~/utils/shop-access.server";
 import { getShopForPixelVerificationWithConfigs } from "~/lib/pixel-events/key-validation";
 import { validatePixelOriginPreBody, validatePixelOriginForShop, buildShopAllowedDomains } from "~/utils/origin-validation";
 import { generateEventIdForType, generateOrderMatchKey, isClientEventRecorded, createEventNonce, upsertPixelEventReceipt } from "~/lib/pixel-events/receipt-handler";

@@ -20,4 +20,4 @@ export {
   type UntrustedReason,
   type ReceiptTrustResult,
   type VerifyReceiptOptions,
-} from "../../utils/receipt-trust";
+} from "../../utils/receipt-trust.server";

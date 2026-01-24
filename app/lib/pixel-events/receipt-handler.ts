@@ -1,12 +1,12 @@
 import { createHash, randomBytes } from "crypto";
 import { Prisma } from "@prisma/client";
 import prisma from "../../db.server";
-import { generateEventId, generateMatchKey, makeOrderKey } from "../../utils/crypto.server";
+import { generateEventId, generateMatchKey, makeOrderKey, hashValueSync } from "../../utils/crypto.server";
 import { extractOriginHost } from "../../utils/origin-validation";
 import { logger } from "../../utils/logger.server";
 import { RETENTION_CONFIG } from "../../utils/config.server";
 import { generateSimpleId } from "../../utils/helpers";
-import type { TrustLevel } from "../../utils/receipt-trust";
+import type { TrustLevel } from "../../utils/receipt-trust.server";
 import type { PixelEventPayload, KeyValidationResult } from "./types";
 import { generateCanonicalEventId } from "../../services/event-normalizer.server";
 import { getRedisClient } from "../../utils/redis-client";
@@ -22,6 +22,11 @@ function buildMinimalPayloadForReceipt(
       id: String(i?.id ?? ""),
       quantity: typeof i?.quantity === "number" ? i.quantity : 1,
     }));
+  const checkoutToken = payload.data?.checkoutToken;
+  const checkoutTokenHash =
+    typeof checkoutToken === "string" && checkoutToken.trim() !== ""
+      ? hashValueSync(checkoutToken)
+      : null;
   return {
     consent: payload.consent,
     data: {
@@ -32,6 +37,7 @@ function buildMinimalPayloadForReceipt(
     eventName: payload.eventName,
     trustLevel: trustLevel ?? "untrusted",
     hmacMatched: hmacMatched ?? false,
+    ...(checkoutTokenHash ? { checkoutTokenHash } : {}),
   };
 }
 

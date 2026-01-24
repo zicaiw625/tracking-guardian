@@ -12,7 +12,7 @@ import { getShopForPixelVerificationWithConfigs } from "~/lib/pixel-events/key-v
 import type { KeyValidationResult, PixelEventPayload } from "~/lib/pixel-events/types";
 import { validateRequest } from "~/lib/pixel-events/validation";
 import { validatePixelEventHMAC } from "~/lib/pixel-events/hmac-validation";
-import { verifyWithGraceWindowAsync } from "~/utils/shop-access";
+import { verifyWithGraceWindowAsync } from "~/utils/shop-access.server";
 import { validateEvents, normalizeEvents, deduplicateEvents, distributeEvents } from "~/lib/pixel-events/ingest-pipeline.server";
 import { readTextWithLimit } from "~/utils/body-reader";
 
@@ -405,6 +405,17 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       });
       return jsonWithCors({ error: "Invalid signature" }, { status: 401, request });
     }
+    if (hasSignatureHeader && hasAnySecret && !keyValidation.matched) {
+      metrics.pixelRejection({
+        shopDomain,
+        reason: "invalid_key",
+      });
+      logger.warn(`Rejected ingest request: invalid HMAC signature for ${shopDomain} in strict mode`, {
+        reason: keyValidation.reason,
+        trustSignals: combinedTrustSignals,
+      });
+      return jsonWithCors({ error: "Invalid signature" }, { status: 401, request });
+    }
     if (!hasValidOrigin && !keyValidation.matched) {
       metrics.pixelRejection({
         shopDomain,
@@ -428,13 +439,6 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         reason: keyValidation.reason,
       });
       return jsonWithCors({ error: "Invalid request" }, { status: 403, request });
-    }
-    if (!keyValidation.matched) {
-      logger.warn(`HMAC validation failed in strict mode but allowing due to other trust signals for ${shopDomain}`, {
-        reason: keyValidation.reason,
-        trustLevel: keyValidation.trustLevel,
-        trustSignals: combinedTrustSignals,
-      });
     }
   } else {
     if (!keyValidation.matched) {

@@ -8,7 +8,7 @@ import {
 import { PrismaSessionStorage } from "@shopify/shopify-app-session-storage-prisma";
 import prisma from "../../db.server";
 import { createEncryptedSessionStorage } from "../../utils/encrypted-session-storage";
-import { validateTokenEncryptionConfig } from "../../utils/token-encryption";
+import { validateTokenEncryptionConfig } from "../../utils/token-encryption.server";
 import { logger } from "../../utils/logger.server";
 import { handleAfterAuth } from "./shop-provisioning.server";
 

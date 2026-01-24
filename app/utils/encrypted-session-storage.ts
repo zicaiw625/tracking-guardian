@@ -7,7 +7,7 @@ interface SessionStorage {
   deleteSessions(ids: string[]): Promise<boolean>;
   findSessionsByShop(shop: string): Promise<Session[]>;
 }
-import { encryptAccessToken, decryptAccessToken, isTokenEncrypted, TokenDecryptionError } from "./token-encryption";
+import { encryptAccessToken, decryptAccessToken, isTokenEncrypted, TokenDecryptionError } from "./token-encryption.server";
 import { logger } from "./logger.server";
 export function createEncryptedSessionStorage(baseStorage: SessionStorage): SessionStorage {
     return {

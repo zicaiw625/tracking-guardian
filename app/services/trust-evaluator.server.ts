@@ -4,7 +4,7 @@ import {
   buildTrustMetadata,
   buildShopAllowedDomains,
   type ReceiptTrustResult,
-} from '../utils/receipt-trust';
+} from '../utils/receipt-trust.server';
 import {
   evaluatePlatformConsentWithStrategy,
   getEffectiveConsentCategory,
@@ -14,6 +14,7 @@ import {
 import type { TrustVerificationOptions } from '../types/consent';
 import type { ReceiptFields } from './receipt-matcher.server';
 import { logger } from '../utils/logger.server';
+import { hashValueSync } from '../utils/crypto.server';
 
 export interface ShopTrustContext {
   shopDomain: string;
@@ -66,11 +67,35 @@ export function evaluateTrust(
     shop.primaryDomain,
     shop.storefrontDomains
   );
-  const isHmacVerified = receipt?.originHost ? true : false;
+  const receiptPayload =
+    receipt?.payloadJson && typeof receipt.payloadJson === "object" && receipt.payloadJson !== null
+      ? (receipt.payloadJson as Record<string, unknown>)
+      : null;
+  const hmacMatched = (() => {
+    if (!receiptPayload) return false;
+    if (typeof receiptPayload.hmacMatched === "boolean") return receiptPayload.hmacMatched;
+    const data = receiptPayload.data;
+    if (data && typeof data === "object" && data !== null && "hmacMatched" in data) {
+      const v = (data as Record<string, unknown>).hmacMatched;
+      return typeof v === "boolean" ? v : false;
+    }
+    return false;
+  })();
+  const receiptCheckoutTokenHash =
+    receiptPayload && typeof receiptPayload.checkoutTokenHash === "string"
+      ? receiptPayload.checkoutTokenHash
+      : null;
+  const webhookCheckoutTokenHash =
+    typeof webhookCheckoutToken === "string" && webhookCheckoutToken.length > 0
+      ? hashValueSync(webhookCheckoutToken)
+      : null;
+  const isHmacVerified = hmacMatched === true;
   const strictMode = shop.consentStrategy === "strict";
   const trustResult = verifyReceiptTrust({
     receiptCheckoutToken: undefined,
-    webhookCheckoutToken,
+    webhookCheckoutToken: undefined,
+    receiptCheckoutTokenHash,
+    webhookCheckoutTokenHash,
     ingestionKeyMatched: isHmacVerified,
     receiptExists: !!receipt,
     receiptOriginHost: receipt?.originHost,
@@ -84,7 +109,7 @@ export function evaluateTrust(
   });
   const trustMetadata = buildTrustMetadata(trustResult, {
     hasReceipt: !!receipt,
-    webhookHasCheckoutToken: !!webhookCheckoutToken,
+    webhookHasCheckoutToken: typeof webhookCheckoutToken === "string" && webhookCheckoutToken.length > 0,
   });
   const consentFromPayload = receipt?.payloadJson && typeof receipt.payloadJson === 'object' && receipt.payloadJson !== null && 'consent' in receipt.payloadJson
     ? (receipt.payloadJson as Record<string, unknown>).consent

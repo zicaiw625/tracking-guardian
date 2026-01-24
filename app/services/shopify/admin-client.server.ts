@@ -1,6 +1,6 @@
 import { ApiVersion, type AdminApiContext } from "@shopify/shopify-app-remix/server";
 import prisma from "../../db.server";
-import { decryptAccessToken } from "../../utils/token-encryption";
+import { decryptAccessToken } from "../../utils/token-encryption.server";
 import { logger, createTimer } from "../../utils/logger.server";
 import { SecureShopDomainSchema } from "../../utils/security";
 

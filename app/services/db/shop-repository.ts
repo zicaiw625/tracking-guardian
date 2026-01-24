@@ -3,7 +3,7 @@ import { BaseRepository, type TransactionClient, type PrismaDelegate, type Query
 import { logger } from "../../utils/logger.server";
 import { ok, err, type AsyncResult } from "../../types/result";
 import { AppError, ErrorCode } from "../../utils/errors";
-import { ensureTokenEncrypted } from "../../utils/token-encryption";
+import { ensureTokenEncrypted } from "../../utils/token-encryption.server";
 
 export type ShopCreate = Prisma.ShopCreateInput;
 export type ShopUpdate = Prisma.ShopUpdateInput;
