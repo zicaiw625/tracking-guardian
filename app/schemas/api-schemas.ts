@@ -211,6 +211,7 @@ export const CronTaskSchema = z.enum([
   "delivery_health",
   "reconciliation",
   "process_jobs",
+  "process_event_delivery",
   "process_conversion",
   "process_gdpr",
   "cleanup",

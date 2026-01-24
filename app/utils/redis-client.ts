@@ -1,5 +1,6 @@
 import type { RedisClientType } from "redis";
 import { logger } from "./logger.server";
+import { EventEmitter } from "events";
 
 export interface RedisClientWrapper {
   get(key: string): Promise<string | null>;
@@ -15,6 +16,8 @@ export interface RedisClientWrapper {
   hIncrBy(key: string, field: string, increment: number): Promise<number>;
   keys(pattern: string): Promise<string[]>;
   scan(cursor: string, pattern: string, count?: number): Promise<{ cursor: string; keys: string[] }>;
+  publish(channel: string, message: string): Promise<number>;
+  subscribe(channel: string, onMessage: (message: string) => void): Promise<() => Promise<void>>;
   isConnected(): boolean;
   getConnectionInfo(): ConnectionInfo;
 }
@@ -38,6 +41,11 @@ interface MemoryHashEntry {
 }
 
 class InMemoryFallback implements RedisClientWrapper {
+  private static emitter = (() => {
+    const e = new EventEmitter();
+    e.setMaxListeners(0);
+    return e;
+  })();
   private stringStore = new Map<string, MemoryEntry>();
   private hashStore = new Map<string, MemoryHashEntry>();
   private maxSize: number;
@@ -221,6 +229,20 @@ class InMemoryFallback implements RedisClientWrapper {
     const nextOffset = offset + count;
     const nextCursor = nextOffset >= keys.length ? "0" : String(nextOffset);
     return { cursor: nextCursor, keys: batch };
+  }
+  async publish(channel: string, message: string): Promise<number> {
+    InMemoryFallback.emitter.emit(channel, message);
+    return 1;
+  }
+  async subscribe(
+    channel: string,
+    onMessage: (message: string) => void
+  ): Promise<() => Promise<void>> {
+    const listener = (message: string) => onMessage(message);
+    InMemoryFallback.emitter.on(channel, listener);
+    return async () => {
+      InMemoryFallback.emitter.off(channel, listener);
+    };
   }
   isConnected(): boolean {
     return true;
@@ -438,6 +460,38 @@ class RedisClientFactory {
           return { cursor: String(result.cursor), keys: result.keys };
         } catch {
           return this.fallback.scan(cursor, pattern, count);
+        }
+      },
+      publish: async (channel: string, message: string): Promise<number> => {
+        try {
+          return await client.publish(channel, message);
+        } catch {
+          return this.fallback.publish(channel, message);
+        }
+      },
+      subscribe: async (
+        channel: string,
+        onMessage: (message: string) => void
+      ): Promise<() => Promise<void>> => {
+        try {
+          const subscriber = client.duplicate();
+          await subscriber.connect();
+          await subscriber.subscribe(channel, (message: string) => {
+            try {
+              onMessage(message);
+            } catch {
+              void 0;
+            }
+          });
+          return async () => {
+            try {
+              await subscriber.unsubscribe(channel);
+            } finally {
+              await subscriber.quit().catch(() => void 0);
+            }
+          };
+        } catch {
+          return this.fallback.subscribe(channel, onMessage);
         }
       },
       isConnected: (): boolean => {

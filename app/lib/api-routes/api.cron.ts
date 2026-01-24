@@ -164,6 +164,13 @@ async function handleCron(request: Request): Promise<Response> {
         };
       }
 
+      if (task === "all" || task === "process_event_delivery") {
+        logger.info("[Cron] Running event delivery processing", { requestId });
+        const { processEventDelivery } = await import("../../cron/tasks/event-delivery");
+        const deliveryResult = await processEventDelivery();
+        results.process_event_delivery = deliveryResult;
+      }
+
       if (task === "all" || task === "cleanup") {
         logger.info("[Cron] Running cleanup tasks", { requestId });
         const cleanupResult = await cleanupExpiredData();

@@ -32,7 +32,8 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     const url = new URL(request.url);
     const platformsParam = url.searchParams.get("platforms");
     const platforms = platformsParam ? platformsParam.split(",") : [];
-    let pollInterval: ReturnType<typeof setInterval> | null = null;
+    let pollTimer: ReturnType<typeof setTimeout> | null = null;
+    let unsubscribe: (() => Promise<void>) | null = null;
     let isClosed = false;
     const MAX_CONCURRENT_CONNECTIONS = 5;
     const connectionId = randomBytes(16).toString("hex");
@@ -78,9 +79,17 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
           } catch (error) {
             logger.warn("Failed to cleanup SSE connection count", { error });
           }
-          if (pollInterval !== null) {
-            clearInterval(pollInterval);
-            pollInterval = null;
+          if (pollTimer !== null) {
+            clearTimeout(pollTimer);
+            pollTimer = null;
+          }
+          if (unsubscribe) {
+            try {
+              await unsubscribe();
+            } catch {
+              void 0;
+            }
+            unsubscribe = null;
           }
           if (!isClosed) {
             isClosed = true;
@@ -105,37 +114,45 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
           }
         };
         sendMessage({ type: "connected", timestamp: new Date().toISOString() });
-        let lastEventId: string | null = null;
-        pollInterval = setInterval(async () => {
+        try {
+          unsubscribe = await redisClient.subscribe(`sse:shop:${shop.id}`, (message) => {
+            try {
+              const parsed = JSON.parse(message) as { platform?: string | null };
+              const platform = parsed?.platform ?? null;
+              if (platforms.length > 0 && platform && !platforms.includes(platform)) {
+                return;
+              }
+              sendMessage(parsed);
+            } catch {
+              void 0;
+            }
+          });
+        } catch {
+          unsubscribe = null;
+        }
+
+        let lastCreatedAt: Date | null = null;
+        let lastId: string | null = null;
+        let backoffMs = 2000;
+        const pollOnce = async () => {
           try {
             const now = Date.now();
             const timeWindowStart = new Date(now - 60000);
-            let whereClause: Prisma.PixelEventReceiptWhereInput;
-            if (lastEventId) {
-              const lastEvent = await prisma.pixelEventReceipt.findUnique({
-                where: { id: lastEventId },
-                select: { createdAt: true },
-              });
-              if (lastEvent) {
-                whereClause = {
-                  shopId: shop.id,
-                  AND: [
-                    { createdAt: { gt: timeWindowStart } },
-                    {
-                      OR: [
-                        { createdAt: { gt: lastEvent.createdAt } },
-                        { createdAt: { equals: lastEvent.createdAt }, id: { gt: lastEventId } },
-                      ],
-                    },
+            const cursorWhere = lastCreatedAt && lastId
+              ? {
+                  OR: [
+                    { createdAt: { gt: lastCreatedAt } },
+                    { createdAt: { equals: lastCreatedAt }, id: { gt: lastId } },
                   ],
-                };
-              } else {
-                lastEventId = null;
-                whereClause = { shopId: shop.id, createdAt: { gt: timeWindowStart } };
-              }
-            } else {
-              whereClause = { shopId: shop.id, createdAt: { gt: timeWindowStart } };
-            }
+                }
+              : {};
+            const whereClause: Prisma.PixelEventReceiptWhereInput = {
+              shopId: shop.id,
+              AND: [
+                { createdAt: { gt: timeWindowStart } },
+                cursorWhere,
+              ],
+            };
             const recentReceipts = await prisma.pixelEventReceipt.findMany({
               where: whereClause,
               orderBy: { createdAt: "asc" },
@@ -186,7 +203,11 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
                 };
                 sendMessage(event);
               }
-              lastEventId = recentReceipts[recentReceipts.length - 1].id;
+              lastCreatedAt = recentReceipts[recentReceipts.length - 1].createdAt;
+              lastId = recentReceipts[recentReceipts.length - 1].id;
+              backoffMs = 2000;
+            } else {
+              backoffMs = Math.min(10000, Math.round(backoffMs * 1.5));
             }
           } catch (error) {
             logger.error("Error polling events for SSE", error);
@@ -194,19 +215,26 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
               type: "error",
               message: "Failed to fetch events",
             });
-            if (isClosed) {
-              cleanup();
-            }
+            backoffMs = Math.min(15000, Math.round(backoffMs * 1.5));
           }
-        }, 2000);
+          if (!isClosed && !unsubscribe) {
+            pollTimer = setTimeout(() => {
+              pollOnce();
+            }, backoffMs);
+          }
+        };
+
+        if (!unsubscribe) {
+          pollOnce();
+        }
         request.signal.addEventListener("abort", () => {
           cleanup();
         });
       },
       cancel() {
-        if (pollInterval !== null) {
-          clearInterval(pollInterval);
-          pollInterval = null;
+        if (pollTimer !== null) {
+          clearTimeout(pollTimer);
+          pollTimer = null;
         }
         if (!isClosed) {
           isClosed = true;

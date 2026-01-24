@@ -1,12 +1,39 @@
 import { createCipheriv, createDecipheriv, createHash, randomBytes, scryptSync } from "crypto";
 import { logger } from "./logger.server";
 
-const SCRYPT_PARAMS = {
-    N: 131072,
-    r: 8,
-    p: 1,
-    maxmem: 256 * 1024 * 1024,
-};
+function clampInt(value: number, min: number, max: number): number {
+    if (!Number.isFinite(value)) return min;
+    return Math.max(min, Math.min(max, Math.floor(value)));
+}
+
+function parseEnvInt(name: string): number | null {
+    const raw = process.env[name];
+    if (!raw) return null;
+    const n = Number.parseInt(raw, 10);
+    return Number.isFinite(n) ? n : null;
+}
+
+function readScryptParams(): { N: number; r: number; p: number; maxmem: number } {
+    const defaultN = 131072;
+    const defaultR = 8;
+    const defaultP = 1;
+    const defaultMaxmem = 256 * 1024 * 1024;
+
+    const N = clampInt(parseEnvInt("ENCRYPTION_SCRYPT_N") ?? defaultN, 16384, 1048576);
+    const r = clampInt(parseEnvInt("ENCRYPTION_SCRYPT_R") ?? defaultR, 1, 32);
+    const p = clampInt(parseEnvInt("ENCRYPTION_SCRYPT_P") ?? defaultP, 1, 16);
+
+    const maxmemMb = parseEnvInt("ENCRYPTION_SCRYPT_MAXMEM_MB");
+    const maxmemBytesEnv = parseEnvInt("ENCRYPTION_SCRYPT_MAXMEM_BYTES");
+    const computedMaxmem = maxmemBytesEnv != null
+        ? maxmemBytesEnv
+        : maxmemMb != null
+        ? maxmemMb * 1024 * 1024
+        : defaultMaxmem;
+    const maxmem = clampInt(computedMaxmem, 32 * 1024 * 1024, 2 * 1024 * 1024 * 1024);
+
+    return { N, r, p, maxmem };
+}
 
 const DEFAULT_ENCRYPTION_SALT = "tracking-guardian-credentials-salt";
 const DEV_ENCRYPTION_SALT = "dev-salt-not-for-production";
@@ -18,6 +45,7 @@ let cachedKeySecret: string | null = null;
 let cachedKeySalt: string | null = null;
 
 let hasWarnedAboutFallback = false;
+let hasLoggedScryptParams = false;
 
 export function getEncryptionKey(): Buffer {
     const secret = process.env.ENCRYPTION_SECRET;
@@ -78,7 +106,17 @@ export function getEncryptionKey(): Buffer {
     if (cachedKey && cachedKeySecret === effectiveSecret && cachedKeySalt === effectiveSalt) {
         return cachedKey;
     }
-    cachedKey = scryptSync(effectiveSecret, effectiveSalt, 32, SCRYPT_PARAMS);
+    const scryptParams = readScryptParams();
+    if (!hasLoggedScryptParams) {
+        logger.info("[STARTUP] Encryption scrypt params", {
+            N: scryptParams.N,
+            r: scryptParams.r,
+            p: scryptParams.p,
+            maxmem: scryptParams.maxmem,
+        });
+        hasLoggedScryptParams = true;
+    }
+    cachedKey = scryptSync(effectiveSecret, effectiveSalt, 32, scryptParams);
     cachedKeySecret = effectiveSecret;
     cachedKeySalt = effectiveSalt;
     return cachedKey;

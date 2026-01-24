@@ -8,6 +8,26 @@ import { authenticatePublic, normalizeDestToShopDomain, handlePublicPreflight, a
 import { sanitizeUrl, validateEmailForMailto, isPublicUrl } from "../../utils/security";
 import { createReorderNonce } from "../../lib/pixel-events/receipt-handler";
 
+function normalizeHostname(value: string): string {
+  const v = value.trim().toLowerCase();
+  return v.endsWith(".") ? v.slice(0, -1) : v;
+}
+
+function hostAllowed(host: string, rule: string): boolean {
+  const h = normalizeHostname(host);
+  const r = normalizeHostname(rule);
+  if (!h || !r) return false;
+  if (r.startsWith("*.")) {
+    const base = r.slice(2);
+    if (!base) return false;
+    return h === base || h.endsWith(`.${base}`);
+  }
+  if (r.includes("*")) {
+    return false;
+  }
+  return h === r || h.endsWith(`.${r}`);
+}
+
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   if (request.method === "OPTIONS") {
     return handlePublicPreflight(request);
@@ -121,14 +141,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
             }
           }
           
-          const isAllowed = allowedHostnames.some(allowed => {
-            if (allowed.includes("*")) {
-              const pattern = allowed.replace(/\*/g, ".*");
-              const regex = new RegExp(`^${pattern}$`);
-              return regex.test(urlHostname);
-            }
-            return urlHostname === allowed || urlHostname.endsWith(`.${allowed}`);
-          });
+          const isAllowed = allowedHostnames.some((allowed) => hostAllowed(urlHostname, allowed));
           
           if (!isAllowed || !isPublicUrl(sanitized)) {
             logger.warn(`FAQ URL hostname not allowed for shop ${shopDomain}: ${urlHostname}`);
@@ -179,14 +192,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
             }
           }
           
-          const isAllowed = allowedHostnames.some(allowed => {
-            if (allowed.includes("*")) {
-              const pattern = allowed.replace(/\*/g, ".*");
-              const regex = new RegExp(`^${pattern}$`);
-              return regex.test(urlHostname);
-            }
-            return urlHostname === allowed || urlHostname.endsWith(`.${allowed}`);
-          });
+          const isAllowed = allowedHostnames.some((allowed) => hostAllowed(urlHostname, allowed));
           
           if (!isAllowed || !isPublicUrl(sanitized)) {
             logger.warn(`Contact URL hostname not allowed for shop ${shopDomain}: ${urlHostname}`);

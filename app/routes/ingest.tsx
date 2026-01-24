@@ -529,6 +529,24 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       { request }
     );
   }
+  const persistResults = await processBatchEvents(shop.id, validatedEventsForPipeline, environment, { persistOnly: true });
+  const persistedCount = persistResults.filter((r) => r.success).length;
+  if (persistedCount < validatedEventsForPipeline.length) {
+    logger.error("Failed to persist some ingest events", undefined, {
+      shopDomain,
+      shopId: shop.id,
+      total: validatedEventsForPipeline.length,
+      persisted: persistedCount,
+    });
+    return jsonWithCors(
+      {
+        error: "Failed to persist events",
+        accepted_count: persistedCount,
+        errors: ["persist_failed"],
+      },
+      { status: 500, request }
+    );
+  }
   const PROCESSING_TIMEOUT_MS = 10000;
   const processingPromise = processBatchEvents(shop.id, validatedEventsForPipeline, environment).then((results) => {
     const successCount = results.filter(r => r.success).length;
@@ -554,10 +572,10 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   });
   return jsonWithCors(
     {
-      accepted_count: validatedEventsForPipeline.length,
+      accepted_count: persistedCount,
       errors: [],
     },
-    { request }
+    { status: 202, request }
   );
 };
 

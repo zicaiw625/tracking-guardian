@@ -138,7 +138,7 @@ export async function upsertPixelEventReceipt(
         payloadToStore = buildMinimalPayloadForReceipt(payload, trustLevel, hmacMatched);
       }
     }
-    await prisma.pixelEventReceipt.upsert({
+    const receipt = await prisma.pixelEventReceipt.upsert({
       where: {
         shopId_eventId_eventType: {
           shopId,
@@ -166,7 +166,47 @@ export async function upsertPixelEventReceipt(
         orderKey: extractedOrderKey || null,
         altOrderKey: altOrderKey ?? null,
       },
+      select: {
+        id: true,
+        orderKey: true,
+        eventType: true,
+        pixelTimestamp: true,
+        createdAt: true,
+        payloadJson: true,
+      },
     });
+    try {
+      const redis = await getRedisClient();
+      const payloadStored = receipt.payloadJson as Record<string, unknown> | null;
+      const data = payloadStored?.data as Record<string, unknown> | undefined;
+      const value = typeof data?.value === "number" ? data.value : 0;
+      const currency = (data?.currency as string) || "USD";
+      const items = data?.items as Array<unknown> | undefined;
+      const itemsCount = Array.isArray(items) ? items.length : 0;
+      const trust = {
+        trustLevel: (payloadStored?.trustLevel as string) || "untrusted",
+        hmacMatched: typeof payloadStored?.hmacMatched === "boolean" ? (payloadStored.hmacMatched as boolean) : false,
+      };
+      const status = value > 0 && !!currency ? "success" : "pending";
+      const message = JSON.stringify({
+        id: receipt.id,
+        eventType: receipt.eventType,
+        orderId: receipt.orderKey || "",
+        platform: platform || "pixel",
+        timestamp: (receipt.pixelTimestamp || receipt.createdAt).toISOString(),
+        status,
+        params: {
+          value,
+          currency,
+          itemsCount,
+          hasEventId: true,
+        },
+        trust,
+      });
+      await redis.publish(`sse:shop:${shopId}`, message);
+    } catch {
+      void 0;
+    }
     return { success: true, eventId };
   } catch (error) {
     logger.warn(`Failed to write PixelEventReceipt for event ${eventType}`, {

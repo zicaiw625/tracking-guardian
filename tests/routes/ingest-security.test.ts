@@ -76,7 +76,9 @@ vi.mock("../../app/lib/pixel-events/ingest-pipeline.server", () => ({
 }));
 
 vi.mock("../../app/services/events/pipeline.server", () => ({
-  processBatchEvents: vi.fn().mockResolvedValue([]),
+  processBatchEvents: vi.fn().mockImplementation(async (_shopId: string, events: any[]) => {
+    return events.map(() => ({ success: true }));
+  }),
 }));
 
 import { action } from "../../app/routes/ingest";
@@ -154,7 +156,7 @@ describe("/ingest Security Policy Tests", () => {
       });
 
       const response = await action({ request, params: {}, context: {} });
-      expect(response.status).toBe(200);
+      expect(response.status).toBe(202);
       const data = await response.json();
       expect(data.accepted_count).toBeDefined();
     });
@@ -285,7 +287,7 @@ describe("/ingest Security Policy Tests", () => {
       });
 
       const response = await action({ request, params: {}, context: {} });
-      expect(response.status).toBe(200);
+      expect(response.status).toBe(202);
       const data = await response.json();
       expect(data.accepted_count).toBeDefined();
     });

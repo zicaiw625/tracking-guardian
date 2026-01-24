@@ -257,6 +257,12 @@ export function createEventSender(config: EventSenderConfig) {
           body,
           signal: controller.signal,
         })
+          .then((response) => {
+            if (!response.ok && isDevMode) {
+              log(`Batch send non-2xx (${eventsToSend.length} events): ${response.status}`);
+            }
+            return response;
+          })
           .finally(() => clearTimeout(timeoutId))
           .catch((error) => {
             if (isDevMode) {
