@@ -295,6 +295,17 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     trustLevel: "untrusted",
   };
   const hasAnySecret = Boolean(shop.ingestionSecret || shop.previousIngestionSecret);
+  if (isProduction && hasAnySecret && !signature) {
+    metrics.pixelRejection({
+      shopDomain,
+      reason: "invalid_key",
+    });
+    logger.warn(`Rejected ingest request without signature for ${shopDomain} (secret configured)`, {
+      origin: origin?.substring(0, 100) || "null",
+      hasSecret: true,
+    });
+    return jsonWithCors({ error: "Invalid signature" }, { status: 401, request });
+  }
   if (signature && hasAnySecret) {
     const verifyWithSecret = async (secret: string) => {
       const result = await validatePixelEventHMAC(

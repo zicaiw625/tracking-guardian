@@ -54,13 +54,17 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     if (error instanceof Response) {
       const errorStatus = error.status;
       const topic = request.headers.get("X-Shopify-Topic") || "unknown";
+      const shopHeader = request.headers.get("X-Shopify-Shop-Domain") || "unknown";
+      const webhookIdHeader = request.headers.get("X-Shopify-Webhook-Id") || request.headers.get("X-Shopify-Event-Id") || "unknown";
       if (errorStatus === 401) {
         return error;
       }
       logger.warn("[Webhook] HMAC validation failed - returning 401", {
         topic,
-        shop: request.headers.get("X-Shopify-Shop-Domain") || "unknown",
+        shop: shopHeader,
         originalStatus: errorStatus,
+        webhookId: webhookIdHeader,
+        hint: "If this spikes unexpectedly, ensure no middleware/adapter reads or parses the request body before authenticate.webhook(request). Shopify webhook HMAC verification requires the raw body.",
       });
       return new Response("Unauthorized: Invalid HMAC", { status: 401 });
     }

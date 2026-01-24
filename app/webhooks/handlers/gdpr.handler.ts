@@ -11,6 +11,7 @@ import { processShopRedact } from "../../services/gdpr/handlers/shop-redact";
 import prisma from "../../db.server";
 import { GDPRJobStatus } from "../../types/enums";
 import { generateSimpleId } from "../../utils/helpers";
+import type { GDPRJobResult } from "../../services/gdpr/types";
 
 function sanitizeTopicForId(topic: string): string {
   return topic.replace(/[^a-zA-Z0-9_-]+/g, "_").slice(0, 50);
@@ -21,6 +22,80 @@ function buildGdprJobId(webhookId: string | null, topic: string): string {
     return `gdpr_${webhookId}_${sanitizeTopicForId(topic)}`;
   }
   return generateSimpleId("gdpr");
+}
+
+function summarizeGdprResult(jobType: string, result: GDPRJobResult | unknown): Record<string, unknown> | undefined {
+  if (!result || typeof result !== "object") return undefined;
+  const r = result as Record<string, unknown>;
+  if (jobType === "data_request") {
+    const dataLocated = (r.dataLocated && typeof r.dataLocated === "object") ? (r.dataLocated as Record<string, unknown>) : undefined;
+    const summarizeLocated = (v: unknown) => {
+      if (!v || typeof v !== "object") return { count: 0 };
+      const o = v as Record<string, unknown>;
+      const count = typeof o.count === "number" ? o.count : 0;
+      return { count };
+    };
+    return {
+      ordersIncludedCount: Array.isArray(r.ordersIncluded) ? r.ordersIncluded.length : 0,
+      dataLocated: dataLocated
+        ? {
+            conversionLogs: summarizeLocated(dataLocated.conversionLogs),
+            surveyResponses: summarizeLocated(dataLocated.surveyResponses),
+            pixelEventReceipts: summarizeLocated(dataLocated.pixelEventReceipts),
+          }
+        : undefined,
+      exportedAt: typeof r.exportedAt === "string" ? r.exportedAt : undefined,
+      exportFormat: r.exportFormat === "json" ? "json" : undefined,
+      exportVersion: typeof r.exportVersion === "string" ? r.exportVersion : undefined,
+    };
+  }
+  if (jobType === "customer_redact") {
+    const deletedCounts = (r.deletedCounts && typeof r.deletedCounts === "object") ? (r.deletedCounts as Record<string, unknown>) : undefined;
+    return {
+      ordersRedactedCount: Array.isArray(r.ordersRedacted) ? r.ordersRedacted.length : 0,
+      deletedCounts,
+    };
+  }
+  if (jobType === "shop_redact") {
+    const deletedCounts = (r.deletedCounts && typeof r.deletedCounts === "object") ? (r.deletedCounts as Record<string, unknown>) : undefined;
+    return {
+      deletedCounts,
+    };
+  }
+  return undefined;
+}
+
+function buildJobMeta(options: {
+  topic: string;
+  shop: string;
+  webhookId: string | null;
+  requestId: string | null;
+  jobType: string;
+  parsedPayload?: unknown;
+}): Record<string, unknown> {
+  const base: Record<string, unknown> = {
+    topic: options.topic,
+    shopDomain: options.shop,
+    webhookId: options.webhookId,
+    requestId: options.requestId,
+    jobType: options.jobType,
+  };
+  if (options.parsedPayload && typeof options.parsedPayload === "object") {
+    const p = options.parsedPayload as Record<string, unknown>;
+    if (options.jobType === "data_request") {
+      const orders = p.orders_requested;
+      if (Array.isArray(orders)) {
+        base.ordersRequestedCount = orders.length;
+      }
+    }
+    if (options.jobType === "customer_redact") {
+      const orders = p.orders_to_redact;
+      if (Array.isArray(orders)) {
+        base.ordersToRedactCount = orders.length;
+      }
+    }
+  }
+  return base;
 }
 
 async function upsertGdprJob(options: {
@@ -83,7 +158,13 @@ export async function handleCustomersDataRequest(
         id: jobId,
         shopDomain: shop,
         jobType: "data_request",
-        payload: { shop_domain: shop },
+        payload: buildJobMeta({
+          topic: "customers/data_request",
+          shop,
+          webhookId,
+          requestId,
+          jobType: "data_request",
+        }),
         status: GDPRJobStatus.FAILED,
         errorMessage: "Invalid payload",
       });
@@ -97,7 +178,14 @@ export async function handleCustomersDataRequest(
       id: jobId,
       shopDomain: shop,
       jobType: "data_request",
-      payload: dataRequestPayload,
+      payload: buildJobMeta({
+        topic: "customers/data_request",
+        shop,
+        webhookId,
+        requestId,
+        jobType: "data_request",
+        parsedPayload: dataRequestPayload,
+      }),
       status: GDPRJobStatus.PROCESSING,
     });
     const result = await processDataRequest(shop, dataRequestPayload);
@@ -105,9 +193,16 @@ export async function handleCustomersDataRequest(
       id: jobId,
       shopDomain: shop,
       jobType: "data_request",
-      payload: dataRequestPayload,
+      payload: buildJobMeta({
+        topic: "customers/data_request",
+        shop,
+        webhookId,
+        requestId,
+        jobType: "data_request",
+        parsedPayload: dataRequestPayload,
+      }),
       status: GDPRJobStatus.COMPLETED,
-      result,
+      result: summarizeGdprResult("data_request", result),
     });
     return {
       success: true,
@@ -127,7 +222,13 @@ export async function handleCustomersDataRequest(
         id: jobId,
         shopDomain: shop,
         jobType: "data_request",
-        payload: typeof payload === "object" && payload !== null ? payload : { shop_domain: shop },
+        payload: buildJobMeta({
+          topic: "customers/data_request",
+          shop,
+          webhookId,
+          requestId,
+          jobType: "data_request",
+        }),
         status: GDPRJobStatus.FAILED,
         errorMessage,
       });
@@ -166,7 +267,13 @@ export async function handleCustomersRedact(
         id: jobId,
         shopDomain: shop,
         jobType: "customer_redact",
-        payload: { shop_domain: shop },
+        payload: buildJobMeta({
+          topic: "customers/redact",
+          shop,
+          webhookId,
+          requestId,
+          jobType: "customer_redact",
+        }),
         status: GDPRJobStatus.FAILED,
         errorMessage: "Invalid payload",
       });
@@ -180,7 +287,14 @@ export async function handleCustomersRedact(
       id: jobId,
       shopDomain: shop,
       jobType: "customer_redact",
-      payload: customerRedactPayload,
+      payload: buildJobMeta({
+        topic: "customers/redact",
+        shop,
+        webhookId,
+        requestId,
+        jobType: "customer_redact",
+        parsedPayload: customerRedactPayload,
+      }),
       status: GDPRJobStatus.PROCESSING,
     });
     const result = await processCustomerRedact(shop, customerRedactPayload);
@@ -188,9 +302,16 @@ export async function handleCustomersRedact(
       id: jobId,
       shopDomain: shop,
       jobType: "customer_redact",
-      payload: customerRedactPayload,
+      payload: buildJobMeta({
+        topic: "customers/redact",
+        shop,
+        webhookId,
+        requestId,
+        jobType: "customer_redact",
+        parsedPayload: customerRedactPayload,
+      }),
       status: GDPRJobStatus.COMPLETED,
-      result,
+      result: summarizeGdprResult("customer_redact", result),
     });
     return {
       success: true,
@@ -210,7 +331,13 @@ export async function handleCustomersRedact(
         id: jobId,
         shopDomain: shop,
         jobType: "customer_redact",
-        payload: typeof payload === "object" && payload !== null ? payload : { shop_domain: shop },
+        payload: buildJobMeta({
+          topic: "customers/redact",
+          shop,
+          webhookId,
+          requestId,
+          jobType: "customer_redact",
+        }),
         status: GDPRJobStatus.FAILED,
         errorMessage,
       });
@@ -249,7 +376,13 @@ export async function handleShopRedact(
         id: jobId,
         shopDomain: shop,
         jobType: "shop_redact",
-        payload: { shop_domain: shop },
+        payload: buildJobMeta({
+          topic: "shop/redact",
+          shop,
+          webhookId,
+          requestId,
+          jobType: "shop_redact",
+        }),
         status: GDPRJobStatus.FAILED,
         errorMessage: "Invalid payload",
       });
@@ -263,7 +396,14 @@ export async function handleShopRedact(
       id: jobId,
       shopDomain: shop,
       jobType: "shop_redact",
-      payload: shopRedactPayload,
+      payload: buildJobMeta({
+        topic: "shop/redact",
+        shop,
+        webhookId,
+        requestId,
+        jobType: "shop_redact",
+        parsedPayload: shopRedactPayload,
+      }),
       status: GDPRJobStatus.PROCESSING,
     });
     const result = await processShopRedact(shop, shopRedactPayload);
@@ -271,9 +411,16 @@ export async function handleShopRedact(
       id: jobId,
       shopDomain: shop,
       jobType: "shop_redact",
-      payload: shopRedactPayload,
+      payload: buildJobMeta({
+        topic: "shop/redact",
+        shop,
+        webhookId,
+        requestId,
+        jobType: "shop_redact",
+        parsedPayload: shopRedactPayload,
+      }),
       status: GDPRJobStatus.COMPLETED,
-      result,
+      result: summarizeGdprResult("shop_redact", result),
     });
     return {
       success: true,
@@ -293,7 +440,13 @@ export async function handleShopRedact(
         id: jobId,
         shopDomain: shop,
         jobType: "shop_redact",
-        payload: typeof payload === "object" && payload !== null ? payload : { shop_domain: shop },
+        payload: buildJobMeta({
+          topic: "shop/redact",
+          shop,
+          webhookId,
+          requestId,
+          jobType: "shop_redact",
+        }),
         status: GDPRJobStatus.FAILED,
         errorMessage,
       });

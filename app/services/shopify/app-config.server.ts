@@ -89,7 +89,7 @@ try {
     apiKey: finalApiKey,
     apiSecretKey: finalApiSecretKey,
     apiVersion: ApiVersion.July25,
-    scopes: process.env.SCOPES?.split(",").filter(Boolean),
+    scopes: process.env.SCOPES?.split(",").map((s) => s.trim()).filter(Boolean),
     appUrl: finalAppUrl,
     authPathPrefix: "/auth",
     sessionStorage: encryptedSessionStorage,

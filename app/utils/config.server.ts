@@ -191,7 +191,7 @@ export function validateConfig(): ConfigValidationResult {
   if (isProduction) {
     const pixelAllowNullOrigin = process.env.PIXEL_ALLOW_NULL_ORIGIN_WITH_SIGNATURE_ONLY;
     if (pixelAllowNullOrigin === undefined || pixelAllowNullOrigin === "") {
-      warnings.push(`PIXEL_ALLOW_NULL_ORIGIN_WITH_SIGNATURE_ONLY not set in production. ${PIXEL_INGESTION_ENABLED_CHECK.reason}`);
+      errors.push(`PIXEL_ALLOW_NULL_ORIGIN_WITH_SIGNATURE_ONLY not set in production. ${PIXEL_INGESTION_ENABLED_CHECK.reason}`);
     }
   }
   if (process.env.ENCRYPTION_SECRET && process.env.ENCRYPTION_SECRET.length < 32) {

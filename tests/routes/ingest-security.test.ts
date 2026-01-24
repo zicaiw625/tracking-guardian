@@ -101,6 +101,18 @@ function createValidEventPayload(shopDomain: string, timestamp?: number) {
   };
 }
 
+function createNonCriticalEventPayload(shopDomain: string, timestamp?: number) {
+  return {
+    eventName: "page_viewed",
+    timestamp: timestamp || Date.now(),
+    shopDomain,
+    data: {
+      url: "https://test-shop.myshopify.com/products/example",
+      title: "Example",
+    },
+  };
+}
+
 function createRequest(body: any, headers: Record<string, string> = {}) {
   return new Request("https://example.com/ingest", {
     method: "POST",
@@ -267,6 +279,22 @@ describe("/ingest Security Policy Tests", () => {
       const request = createRequest(payload, {
         Origin: "https://test-shop.myshopify.com",
         "X-Tracking-Guardian-Signature": "invalid-signature",
+        "X-Tracking-Guardian-Timestamp": String(payload.timestamp),
+      });
+
+      const response = await action({ request, params: {}, context: {} });
+      expect(response.status).toBe(401);
+      const data = await response.json();
+      expect(data.error).toContain("Invalid signature");
+    });
+  });
+
+  describe("Production: non-critical event without signature (secret configured) → 401", () => {
+    it("should reject non-critical event without signature when shop has ingestion secret", async () => {
+      process.env.NODE_ENV = "production";
+      const payload = createNonCriticalEventPayload("test-shop.myshopify.com");
+      const request = createRequest(payload, {
+        Origin: "https://test-shop.myshopify.com",
         "X-Tracking-Guardian-Timestamp": String(payload.timestamp),
       });
 
