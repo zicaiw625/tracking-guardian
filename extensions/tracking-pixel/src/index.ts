@@ -2,13 +2,13 @@ import { register } from "@shopify/web-pixels-extension";
 import { BACKEND_URL, isAllowedBackendUrl } from "../../shared/config";
 import { createConsentManager, subscribeToConsentChanges } from "./consent";
 import { createEventSender, subscribeToAnalyticsEvents } from "./events";
-import type { PixelSettings, PixelInit, CustomerPrivacyState } from "./types";
+import type { PixelSettings, PixelInit, CustomerPrivacyState, VisitorConsentCollectedEvent } from "./types";
 
 register(({ analytics, settings, init, customerPrivacy }: {
   analytics: { subscribe: (event: string, handler: (event: unknown) => void) => void };
   settings: PixelSettings;
   init: PixelInit;
-  customerPrivacy?: { subscribe?: (event: string, handler: (e: unknown) => void) => void };
+  customerPrivacy?: { subscribe?: (event: string, handler: (e: VisitorConsentCollectedEvent) => void) => void };
 }) => {
   const ingestionKey = settings.ingestion_key;
   const shopDomain = settings.shop_domain || init.data?.shop?.myshopifyDomain || "";

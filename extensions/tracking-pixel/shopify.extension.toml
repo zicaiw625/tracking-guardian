@@ -16,7 +16,7 @@ type = "object"
 
 [settings.fields.ingestion_key]
 name = "Ingestion Key"
-description = "Store-scoped signing secret for HMAC event signature verification. Auto-generated during app installation. Keep confidential and do not expose publicly."
+description = "Store-scoped signing key for HMAC event integrity verification. This value is delivered to the pixel runtime and is not a strong secret. Rotate periodically if needed."
 type = "single_line_text_field"
 
 [settings.fields.shop_domain]

@@ -146,7 +146,10 @@ interface QueuedEvent {
 
 let cryptoUnavailableWarningLogged = false;
 
-function generateNonce(): { timestamp: number; nonce: string; cryptoAvailable: boolean } {
+function generateNonce(
+  isDevMode: boolean,
+  log: (...args: unknown[]) => void
+): { timestamp: number; nonce: string; cryptoAvailable: boolean } {
   const timestamp = Date.now();
   let randomHex = "";
   let cryptoAvailable = false;
@@ -160,14 +163,18 @@ function generateNonce(): { timestamp: number; nonce: string; cryptoAvailable: b
       cryptoAvailable = true;
     } catch (error) {
       if (!cryptoUnavailableWarningLogged) {
-        console.warn("Crypto.getRandomValues() failed, falling back to Math.random(). Replay protection may be disabled.", error);
+        if (isDevMode) {
+          log("Crypto.getRandomValues() failed, falling back to Math.random(). Replay protection may be disabled.", error);
+        }
         cryptoUnavailableWarningLogged = true;
       }
     }
   }
   if (!randomHex) {
     if (!cryptoUnavailableWarningLogged) {
-      console.warn("Crypto API not available, using Math.random(). Replay protection disabled.");
+      if (isDevMode) {
+        log("Crypto API not available, using Math.random(). Replay protection disabled.");
+      }
       cryptoUnavailableWarningLogged = true;
     }
     randomHex = Array.from({ length: 3 }, () => Math.floor(Math.random() * 0xffffffff)
@@ -317,7 +324,7 @@ export function createEventSender(config: EventSenderConfig) {
         if (eventQueue.length > 0) {
           await flushQueue(true);
         }
-        const { timestamp, nonce, cryptoAvailable } = generateNonce();
+        const { timestamp, nonce, cryptoAvailable } = generateNonce(isDevMode, log);
         if (!cryptoAvailable && isDevMode) {
           log("Warning: Nonce generated without crypto API. Replay protection may be disabled.");
         }
@@ -330,7 +337,7 @@ export function createEventSender(config: EventSenderConfig) {
         await flushQueue(true);
         return;
       }
-      const { timestamp, nonce, cryptoAvailable: cryptoAvailable2 } = generateNonce();
+      const { timestamp, nonce, cryptoAvailable: cryptoAvailable2 } = generateNonce(isDevMode, log);
       if (!cryptoAvailable2 && isDevMode) {
         log("Warning: Nonce generated without crypto API. Replay protection may be disabled.");
       }
