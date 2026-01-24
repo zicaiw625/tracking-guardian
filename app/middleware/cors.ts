@@ -1,6 +1,6 @@
 import type { Middleware, MiddlewareContext, CorsOptions } from "./types";
 import { getPixelEventsCorsHeaders, SECURITY_HEADERS } from "../utils/cors";
-import { isValidShopifyOrigin, isValidDevOrigin, isDevMode } from "../utils/origin-validation";
+import { isValidShopifyOrigin, isValidDevOrigin, isDevMode, extractOriginHost } from "../utils/origin-validation";
 
 
 const DEFAULT_CORS_OPTIONS: Required<CorsOptions> = {
@@ -141,7 +141,7 @@ export function withShopCors(
       "Vary": "Origin",
     };
     if (origin && origin !== "null") {
-      const originHost = origin ? new URL(origin).hostname : null;
+      const originHost = extractOriginHost(origin);
       if (originHost) {
         const isAllowed = allowedDomains.some(domain => {
           const normalizedDomain = domain.toLowerCase();

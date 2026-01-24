@@ -108,6 +108,16 @@ export default async function handleRequest(request: Request, responseStatusCode
             }
         }
     }
+    const isEmbeddedDocumentRequest = (() => {
+      if (url.searchParams.get("embedded") === "1") return true;
+      if (url.searchParams.has("host")) return true;
+      if (request.headers.get("x-shopify-shop-domain")) return true;
+      return false;
+    })();
+    if (isEmbeddedDocumentRequest) {
+      responseHeaders.delete("X-Frame-Options");
+      responseHeaders.delete("Content-Security-Policy");
+    }
     addDocumentResponseHeaders(request, responseHeaders);
     addSecurityHeadersToHeaders(responseHeaders, EMBEDDED_APP_HEADERS);
     const userAgent = request.headers.get("user-agent");

@@ -1,5 +1,4 @@
 import { z } from "zod";
-import { buildCspHeader, CSP_DIRECTIVES, API_SECURITY_HEADERS } from "./security-headers";
 
 export function sanitizeString(input: unknown): string {
   if (typeof input !== "string") {
@@ -191,11 +190,6 @@ export function validateOrigin(
 }
 
 export { API_SECURITY_HEADERS, addSecurityHeaders as applySecurityHeaders } from "./security-headers";
-
-export const HTML_SECURITY_HEADERS: Record<string, string> = {
-  ...API_SECURITY_HEADERS,
-  "Content-Security-Policy": buildCspHeader(CSP_DIRECTIVES),
-};
 
 export function containsSqlInjectionPattern(input: string): boolean {
   const patterns = [
