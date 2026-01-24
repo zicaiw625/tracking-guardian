@@ -204,17 +204,55 @@ const EXCLUDED_FIELDS = [
   "script_body",
 ];
 
+function safeHash(value: unknown, length: number = 12): string {
+  if (typeof value !== "string") return "[REDACTED]";
+  const v = value.trim();
+  if (v.length === 0) return "[REDACTED]";
+  return hashValueSync(v).slice(0, length);
+}
+
+function safeUrlForLogging(value: unknown, maxLen: number = 200): string {
+  if (typeof value !== "string") return "[REDACTED]";
+  const raw = value.trim();
+  if (raw.length === 0) return "[REDACTED]";
+  try {
+    const u = new URL(raw);
+    u.search = "";
+    u.hash = "";
+    return u.toString().slice(0, maxLen);
+  } catch {
+    const cut = raw.split("#")[0]?.split("?")[0] ?? raw;
+    return cut.slice(0, maxLen);
+  }
+}
+
 function sanitizeContext(context: LogContext, depth: number = 0): LogContext {
   if (depth > 5) return { _truncated: true };
   const sanitized: LogContext = {};
   for (const [key, value] of Object.entries(context)) {
     const lowerKey = key.toLowerCase();
+    if (lowerKey === "orderid" || lowerKey === "order_id") {
+      sanitized[key] = safeHash(value, 12);
+      continue;
+    }
+    if (lowerKey === "customerid" || lowerKey === "customer_id") {
+      sanitized[key] = safeHash(value, 12);
+      continue;
+    }
+    if (lowerKey === "origin" || lowerKey === "referer" || lowerKey === "referrer" || lowerKey === "url") {
+      sanitized[key] = safeUrlForLogging(value, 200);
+      continue;
+    }
     if (EXCLUDED_FIELDS.some((f) => lowerKey.includes(f))) {
       sanitized[key] = "[EXCLUDED]";
       continue;
     }
     if (SENSITIVE_FIELD_PATTERNS.some((f) => lowerKey.includes(f))) {
-      if ((lowerKey.includes("trackingnumber") || lowerKey.includes("checkouttoken")) && typeof value === "string" && value.length > 0) {
+      if (
+        (lowerKey.includes("trackingnumber") || lowerKey.includes("checkouttoken") || lowerKey.includes("sharetoken")) &&
+        typeof value === "string" &&
+        value.length > 0
+      ) {
         sanitized[key] = hashValueSync(value).slice(0, 12);
       } else {
         sanitized[key] = "[REDACTED]";
@@ -257,7 +295,7 @@ function buildLogEntry(
   if (correlationContext) {
     entry.correlationId = correlationContext.correlationId;
     if (correlationContext.shopDomain) entry.shopDomain = correlationContext.shopDomain;
-    if (correlationContext.orderId) entry.orderId = correlationContext.orderId;
+    if (correlationContext.orderId) entry.orderId = safeHash(correlationContext.orderId, 12);
     if (correlationContext.jobId) entry.jobId = correlationContext.jobId;
     if (correlationContext.platform) entry.platform = correlationContext.platform;
   }
