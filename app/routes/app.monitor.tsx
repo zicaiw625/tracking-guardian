@@ -25,6 +25,7 @@ import { getDeliveryHealthSummary } from "../services/delivery-health.server";
 import { getEventMonitoringStats, getMissingParamsStats, getEventVolumeStats } from "../services/monitoring.server";
 import { getEventLossStats } from "../services/pixel-event-loss.server";
 import { logger } from "../utils/logger.server";
+import { getPixelEventIngestionUrl } from "../utils/config.server";
 
 interface LoaderData {
   alerts: Array<{
@@ -83,6 +84,11 @@ interface LoaderData {
       lossRate: number;
     }>;
   };
+  pixelIngest: {
+    last60mCount: number;
+    lastSeenAt: string | null;
+  };
+  pixelEndpoint: ReturnType<typeof getPixelEventIngestionUrl>;
 }
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
@@ -101,8 +107,11 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       volume: { current: 0, previous: 0, changePercent: 0 },
       extensionErrors: { last24h: 0, byExtension: [], byEndpoint: [] },
       eventLoss: { totalAttempted: 0, totalReceived: 0, totalLost: 0, lossRate: 0, byFailureReason: {}, byPlatform: {} },
+      pixelIngest: { last60mCount: 0, lastSeenAt: null },
+      pixelEndpoint: getPixelEventIngestionUrl(),
     });
   }
+  const pixelEndpoint = getPixelEventIngestionUrl();
   let alerts: LoaderData["alerts"] = [];
   try {
     const alertResults = await runAlertChecks(shop.id);
@@ -224,6 +233,27 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   } catch (error) {
     logger.error("Failed to get event loss stats", { shopId: shop.id, error });
   }
+
+  let pixelIngest: LoaderData["pixelIngest"] = { last60mCount: 0, lastSeenAt: null };
+  try {
+    const since = new Date(Date.now() - 60 * 60 * 1000);
+    const [last60mCount, lastReceipt] = await Promise.all([
+      prisma.pixelEventReceipt.count({
+        where: { shopId: shop.id, pixelTimestamp: { gte: since } },
+      }),
+      prisma.pixelEventReceipt.findFirst({
+        where: { shopId: shop.id },
+        orderBy: { pixelTimestamp: "desc" },
+        select: { pixelTimestamp: true },
+      }),
+    ]);
+    pixelIngest = {
+      last60mCount,
+      lastSeenAt: lastReceipt?.pixelTimestamp ? lastReceipt.pixelTimestamp.toISOString() : null,
+    };
+  } catch (error) {
+    logger.error("Failed to get pixel ingest stats", { shopId: shop.id, error });
+  }
   return json<LoaderData>({
     alerts,
     reconciliation,
@@ -232,6 +262,8 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     volume,
     extensionErrors,
     eventLoss,
+    pixelIngest,
+    pixelEndpoint,
   });
 };
 
@@ -253,6 +285,19 @@ export default function MonitorPage() {
         return <Badge tone="info">低</Badge>;
     }
   };
+  const pixelEndpoint = data.pixelEndpoint;
+  const pixelConfiguredOk =
+    pixelEndpoint.isConfigured &&
+    !pixelEndpoint.placeholderDetected &&
+    !pixelEndpoint.isLocalhost;
+  const pixelIngestOk = data.pixelIngest.last60mCount > 0;
+  const pixelBannerTone = pixelEndpoint.placeholderDetected
+    ? "critical"
+    : !pixelConfiguredOk
+      ? "warning"
+      : pixelIngestOk
+        ? "success"
+        : "warning";
   return (
     <Page
       title="监控中心"
@@ -265,6 +310,62 @@ export default function MonitorPage() {
       }}
     >
       <Layout>
+        <Layout.Section>
+          <Card>
+            <BlockStack gap="400">
+              <Text as="h2" variant="headingMd">
+                Web Pixel 采集自检
+              </Text>
+              <Divider />
+              <Banner tone={pixelBannerTone}>
+                <BlockStack gap="200">
+                  <Text as="p" variant="bodySm" fontWeight="semibold">
+                    {pixelEndpoint.placeholderDetected
+                      ? "检测到像素后端 URL 占位符：像素可能无法发送事件"
+                      : !pixelConfiguredOk
+                        ? "像素后端 URL 配置可能不正确：请检查部署配置"
+                        : pixelIngestOk
+                          ? "像素采集正常：最近 60 分钟内有事件到达"
+                          : "像素心跳异常：最近 60 分钟内没有事件到达"}
+                  </Text>
+                  {pixelEndpoint.warning && (
+                    <Text as="p" variant="bodySm">
+                      {pixelEndpoint.warning}
+                    </Text>
+                  )}
+                  <InlineStack gap="400" wrap>
+                    <Box>
+                      <Text as="p" variant="bodySm" tone="subdued">
+                        Ingest URL
+                      </Text>
+                      <Text as="p" variant="bodySm">
+                        {`${pixelEndpoint.url}/ingest`}
+                      </Text>
+                    </Box>
+                    <Box>
+                      <Text as="p" variant="bodySm" tone="subdued">
+                        最近 60 分钟事件数
+                      </Text>
+                      <Text as="p" variant="headingMd">
+                        {data.pixelIngest.last60mCount}
+                      </Text>
+                    </Box>
+                    <Box>
+                      <Text as="p" variant="bodySm" tone="subdued">
+                        最后一次事件时间
+                      </Text>
+                      <Text as="p" variant="bodySm">
+                        {data.pixelIngest.lastSeenAt
+                          ? new Date(data.pixelIngest.lastSeenAt).toLocaleString("zh-CN")
+                          : "-"}
+                      </Text>
+                    </Box>
+                  </InlineStack>
+                </BlockStack>
+              </Banner>
+            </BlockStack>
+          </Card>
+        </Layout.Section>
         <Layout.Section>
           <Card>
             <BlockStack gap="400">

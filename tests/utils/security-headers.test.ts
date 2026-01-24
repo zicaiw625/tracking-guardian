@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import {
   EMBEDDED_APP_HEADERS,
   API_SECURITY_HEADERS,
+  PUBLIC_PAGE_HEADERS,
   validateSecurityHeaders,
 } from "../../app/utils/security-headers";
 
@@ -36,5 +37,20 @@ describe("API_SECURITY_HEADERS", () => {
   });
   it("should include nosniff header", () => {
     expect(API_SECURITY_HEADERS["X-Content-Type-Options"]).toBe("nosniff");
+  });
+});
+
+describe("PUBLIC_PAGE_HEADERS", () => {
+  it("should include Content-Security-Policy", () => {
+    expect(PUBLIC_PAGE_HEADERS["Content-Security-Policy"]).toBeDefined();
+  });
+  it("should set X-Frame-Options to DENY", () => {
+    expect(PUBLIC_PAGE_HEADERS["X-Frame-Options"]).toBe("DENY");
+  });
+  it("should set X-Robots-Tag to noindex", () => {
+    expect(PUBLIC_PAGE_HEADERS["X-Robots-Tag"]).toBe("noindex");
+  });
+  it("should set Referrer-Policy to no-referrer", () => {
+    expect(PUBLIC_PAGE_HEADERS["Referrer-Policy"]).toBe("no-referrer");
   });
 });

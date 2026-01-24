@@ -168,6 +168,15 @@ export function validateSecurityHeaders(): {
   if (!WEBHOOK_SECURITY_HEADERS["Content-Security-Policy"]) {
     issues.push("Webhook headers should include Content-Security-Policy");
   }
+  if (!PUBLIC_PAGE_HEADERS["Content-Security-Policy"]) {
+    issues.push("PUBLIC_PAGE_HEADERS should include Content-Security-Policy");
+  }
+  if (PUBLIC_PAGE_HEADERS["X-Frame-Options"] !== "DENY") {
+    issues.push("PUBLIC_PAGE_HEADERS should set X-Frame-Options: DENY");
+  }
+  if (PUBLIC_PAGE_HEADERS["X-Robots-Tag"] !== "noindex") {
+    issues.push("PUBLIC_PAGE_HEADERS should set X-Robots-Tag: noindex");
+  }
   const frameAncestors = CSP_DIRECTIVES["frame-ancestors"];
   if (!frameAncestors || !Array.isArray(frameAncestors)) {
     issues.push("CSP_DIRECTIVES.frame-ancestors must be an array");

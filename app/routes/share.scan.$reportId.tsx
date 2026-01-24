@@ -181,7 +181,7 @@ export default function SharedScanReport() {
             此报告由 {report.shopDomain} 分享
             {report.expiresAt
               ? `，链接将于 ${new Date(report.expiresAt).toLocaleDateString("zh-CN")} 过期`
-              : "，链接将过期。"}
+              : "，链接永不过期"}
           </Text>
         </Banner>
 

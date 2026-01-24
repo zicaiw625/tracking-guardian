@@ -260,7 +260,7 @@ export async function createEventNonce(
     const redis = await getRedisClient();
     const ok = await redis.setNX(key, "1", ttlMs);
     return { isReplay: !ok };
-  } catch {
+  } catch (redisError) {
     try {
       await prisma.eventNonce.create({
         data: {
@@ -272,8 +272,25 @@ export async function createEventNonce(
         },
       });
       return { isReplay: false };
-    } catch {
-      return { isReplay: true };
+    } catch (dbError) {
+      const code =
+        dbError instanceof Prisma.PrismaClientKnownRequestError
+          ? dbError.code
+          : typeof dbError === "object" && dbError !== null && "code" in dbError
+            ? String((dbError as { code?: unknown }).code)
+            : null;
+      if (code === "P2002") {
+        return { isReplay: true };
+      }
+      logger.error("Failed to create event nonce (DB fallback)", {
+        shopId,
+        eventType,
+        orderIdHash: hashValueSync(orderId).slice(0, 12),
+        timestamp,
+        redisError: redisError instanceof Error ? redisError.message : String(redisError),
+        dbError: dbError instanceof Error ? dbError.message : String(dbError),
+      });
+      return { isReplay: false };
     }
   }
 }
