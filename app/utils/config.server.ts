@@ -146,7 +146,7 @@ const PIXEL_INGESTION_ENABLED_CHECK = {
 
 const RECOMMENDED = [
   { key: "RESEND_API_KEY", reason: "for email notifications" },
-  { key: "REDIS_URL", reason: "for shared rate limiting in multi-instance deployments" },
+  { key: "REDIS_URL", reason: "for shared rate limiting/locks in multi-instance deployments" },
 ] as const;
 
 export const CRON_SECRET_CONFIG = {
@@ -179,6 +179,9 @@ export function validateConfig(): ConfigValidationResult {
       warnings.push(`${key} not set - ${reason}`);
     }
   }
+  if (isProduction && !process.env.REDIS_URL && process.env.ALLOW_MEMORY_REDIS_IN_PROD !== "true") {
+    errors.push("REDIS_URL is required in production (rate-limit/nonce/idempotency need shared storage). To explicitly allow memory fallback, set ALLOW_MEMORY_REDIS_IN_PROD=true");
+  }
   if (isProduction && process.env.TRUST_PROXY !== "true") {
     errors.push("TRUST_PROXY must be true in production (required for correct IP rate limiting to prevent self-DoS)");
   }
@@ -189,9 +192,12 @@ export function validateConfig(): ConfigValidationResult {
     errors.push("SECURITY_ENFORCEMENT cannot be 'relaxed' in production");
   }
   if (isProduction) {
-    const pixelAllowNullOrigin = process.env.PIXEL_ALLOW_NULL_ORIGIN_WITH_SIGNATURE_ONLY;
-    if (pixelAllowNullOrigin === undefined || pixelAllowNullOrigin === "") {
-      errors.push(`PIXEL_ALLOW_NULL_ORIGIN_WITH_SIGNATURE_ONLY not set in production. ${PIXEL_INGESTION_ENABLED_CHECK.reason}`);
+    const pixelAllowNullOrigin = process.env.PIXEL_ALLOW_NULL_ORIGIN_WITH_SIGNATURE_ONLY?.toLowerCase().trim();
+    const enabled = pixelAllowNullOrigin === "true" || pixelAllowNullOrigin === "1" || pixelAllowNullOrigin === "yes";
+    if (!enabled) {
+      errors.push(
+        `PIXEL_ALLOW_NULL_ORIGIN_WITH_SIGNATURE_ONLY must be true in production (current: ${process.env.PIXEL_ALLOW_NULL_ORIGIN_WITH_SIGNATURE_ONLY || "unset"}). ${PIXEL_INGESTION_ENABLED_CHECK.reason}`
+      );
     }
   }
   if (process.env.ENCRYPTION_SECRET && process.env.ENCRYPTION_SECRET.length < 32) {

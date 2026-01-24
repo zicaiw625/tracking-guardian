@@ -18,6 +18,11 @@ export function getPixelEventsCorsHeaders(request: Request, options?: {
     };
 }): HeadersInit {
     const origin = request.headers.get("Origin");
+    const hasSignatureHeader = !!request.headers.get("X-Tracking-Guardian-Signature");
+    const accessControlRequestHeaders = request.headers.get("Access-Control-Request-Headers") || "";
+    const preflightDeclaresSignatureHeader = accessControlRequestHeaders
+        .toLowerCase()
+        .includes("x-tracking-guardian-signature");
     const allowedHeaders = [
         "Content-Type",
         "X-Tracking-Guardian-Timestamp",
@@ -32,12 +37,22 @@ export function getPixelEventsCorsHeaders(request: Request, options?: {
         "Vary": "Origin",
     };
     if (origin === "null" || origin === null || !origin) {
-        if (!isDevMode() && !shouldAllowNullOrigin()) {
+        if (isDevMode()) {
+            return {
+                ...baseHeaders,
+                "Access-Control-Allow-Origin": "*",
+            };
+        }
+        if (!shouldAllowNullOrigin()) {
+            return baseHeaders;
+        }
+        const allowedBySignature = hasSignatureHeader || preflightDeclaresSignatureHeader;
+        if (!allowedBySignature) {
             return baseHeaders;
         }
         return {
             ...baseHeaders,
-            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Origin": "null",
         };
     }
     if (options?.originValidation) {
@@ -67,6 +82,11 @@ export function getPixelEventsCorsHeaders(request: Request, options?: {
 }
 export function getPixelEventsCorsHeadersForShop(request: Request, shopAllowedDomains: string[], customHeaders?: string[]): HeadersInit {
     const origin = request.headers.get("Origin");
+    const hasSignatureHeader = !!request.headers.get("X-Tracking-Guardian-Signature");
+    const accessControlRequestHeaders = request.headers.get("Access-Control-Request-Headers") || "";
+    const preflightDeclaresSignatureHeader = accessControlRequestHeaders
+        .toLowerCase()
+        .includes("x-tracking-guardian-signature");
     const allowedHeaders = [
         "Content-Type",
         "X-Tracking-Guardian-Timestamp",
@@ -81,12 +101,22 @@ export function getPixelEventsCorsHeadersForShop(request: Request, shopAllowedDo
         "Vary": "Origin",
     };
     if (origin === "null" || origin === null || !origin) {
-        if (!isDevMode() && !shouldAllowNullOrigin()) {
+        if (isDevMode()) {
+            return {
+                ...baseHeaders,
+                "Access-Control-Allow-Origin": "*",
+            };
+        }
+        if (!shouldAllowNullOrigin()) {
+            return baseHeaders;
+        }
+        const allowedBySignature = hasSignatureHeader || preflightDeclaresSignatureHeader;
+        if (!allowedBySignature) {
             return baseHeaders;
         }
         return {
             ...baseHeaders,
-            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Origin": "null",
         };
     }
     const originHost = extractOriginHost(origin);

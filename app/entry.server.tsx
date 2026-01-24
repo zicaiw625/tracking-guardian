@@ -7,7 +7,7 @@ import { addDocumentResponseHeaders } from "./shopify.server";
 import { ensureSecretsValid, enforceSecurityChecks } from "./utils/secrets.server";
 import { validateConfig, logConfigStatus, API_CONFIG } from "./utils/config.server";
 import { logger } from "./utils/logger.server";
-import { EMBEDDED_APP_HEADERS, addSecurityHeadersToHeaders, validateSecurityHeaders, } from "./utils/security-headers";
+import { EMBEDDED_APP_HEADERS, addSecurityHeadersToHeaders, getProductionSecurityHeaders, validateSecurityHeaders, } from "./utils/security-headers";
 import { RedisClientFactory } from "./utils/redis-client";
 import prisma from "./db.server";
 import { getCorsHeadersPreBody } from "./lib/pixel-events/cors";
@@ -119,7 +119,11 @@ export default async function handleRequest(request: Request, responseStatusCode
       responseHeaders.delete("Content-Security-Policy");
     }
     addDocumentResponseHeaders(request, responseHeaders);
-    addSecurityHeadersToHeaders(responseHeaders, EMBEDDED_APP_HEADERS);
+    const documentSecurityHeaders =
+      process.env.NODE_ENV === "production"
+        ? getProductionSecurityHeaders(EMBEDDED_APP_HEADERS)
+        : EMBEDDED_APP_HEADERS;
+    addSecurityHeadersToHeaders(responseHeaders, documentSecurityHeaders);
     const userAgent = request.headers.get("user-agent");
     const callbackName = isbot(userAgent ?? "") ? "onAllReady" : "onShellReady";
     return new Promise((resolve, reject) => {

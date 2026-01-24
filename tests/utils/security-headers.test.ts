@@ -3,6 +3,7 @@ import {
   EMBEDDED_APP_HEADERS,
   API_SECURITY_HEADERS,
   PUBLIC_PAGE_HEADERS,
+  getProductionSecurityHeaders,
   validateSecurityHeaders,
 } from "../../app/utils/security-headers";
 
@@ -52,5 +53,12 @@ describe("PUBLIC_PAGE_HEADERS", () => {
   });
   it("should set Referrer-Policy to no-referrer", () => {
     expect(PUBLIC_PAGE_HEADERS["Referrer-Policy"]).toBe("no-referrer");
+  });
+});
+
+describe("HSTS", () => {
+  it("should be included in production security headers", () => {
+    const headers = getProductionSecurityHeaders(EMBEDDED_APP_HEADERS);
+    expect(headers["Strict-Transport-Security"]).toBeDefined();
   });
 });

@@ -1,5 +1,6 @@
 import { PrismaClient } from "@prisma/client";
 import { logger } from "./utils/logger.server";
+import { sanitizePrismaWriteArgs } from "./utils/persistence-sanitize.server";
 
 /* eslint-disable no-var -- declare global requires var for mutable global in TS */
 declare global {
@@ -65,6 +66,22 @@ function createPrismaClient(): PrismaClient {
 }
 
 const prisma: PrismaClient = global.prisma || createPrismaClient();
+
+prisma.$use(async (params, next) => {
+  if (params && typeof params === "object") {
+    const action = (params as { action?: string }).action;
+    if (
+      action === "create" ||
+      action === "update" ||
+      action === "upsert" ||
+      action === "createMany" ||
+      action === "updateMany"
+    ) {
+      sanitizePrismaWriteArgs(action, (params as { args?: unknown }).args);
+    }
+  }
+  return next(params);
+});
 
 if (process.env.NODE_ENV !== "production") {
   global.prisma = prisma;
