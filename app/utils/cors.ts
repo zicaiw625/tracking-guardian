@@ -156,6 +156,16 @@ export function getDynamicCorsHeaders(request: Request, customHeaders?: string[]
         ...(customHeaders || []),
     ].join(", ");
     const baseSecurityHeaders = { ...SECURITY_HEADERS };
+    const methods = new Set<string>(["OPTIONS"]);
+    const requestMethod = request.method?.toUpperCase();
+    if (requestMethod && requestMethod !== "OPTIONS") {
+        methods.add(requestMethod);
+    }
+    const preflightMethod = request.headers.get("Access-Control-Request-Method")?.toUpperCase();
+    if (preflightMethod) {
+        methods.add(preflightMethod);
+    }
+    const allowedMethods = Array.from(methods).join(", ");
     if (!origin) {
         return {
             ...baseSecurityHeaders,
@@ -166,7 +176,7 @@ export function getDynamicCorsHeaders(request: Request, customHeaders?: string[]
         return {
             ...baseSecurityHeaders,
             "Access-Control-Allow-Origin": origin,
-            "Access-Control-Allow-Methods": "POST, OPTIONS",
+            "Access-Control-Allow-Methods": allowedMethods,
             "Access-Control-Allow-Headers": allowedHeaders,
             "Access-Control-Max-Age": "86400",
             "Vary": "Origin",
@@ -176,7 +186,7 @@ export function getDynamicCorsHeaders(request: Request, customHeaders?: string[]
         return {
             ...baseSecurityHeaders,
             "Access-Control-Allow-Origin": origin,
-            "Access-Control-Allow-Methods": "POST, OPTIONS",
+            "Access-Control-Allow-Methods": allowedMethods,
             "Access-Control-Allow-Headers": allowedHeaders,
             "Access-Control-Max-Age": "86400",
             "Vary": "Origin",

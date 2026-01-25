@@ -6,6 +6,7 @@ import { getUiModuleConfigs, canUseModule, getDefaultSettings } from "../../serv
 import { PCD_CONFIG } from "../../utils/config.server";
 import { authenticatePublic, normalizeDestToShopDomain, handlePublicPreflight, addSecurityHeaders } from "../../utils/public-auth";
 import { sanitizeUrl, validateEmailForMailto, isPublicUrl } from "../../utils/security";
+import { checkRateLimitAsync } from "../../middleware/rate-limit";
 import { createReorderNonce } from "../../lib/pixel-events/receipt-handler";
 
 function normalizeHostname(value: string): string {
@@ -269,6 +270,24 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
           buttonText: reorderConfig?.buttonText || defaultReorderSettings.buttonText,
         };
         if (orderId) {
+          const subject = typeof authResult.sessionToken.sub === "string" && authResult.sessionToken.sub.trim().length > 0
+            ? authResult.sessionToken.sub
+            : "anon";
+          const rateLimitKey = `reorder-nonce:${shopDomain}:${subject}:${authResult.surface}:${normalizedTarget}`;
+          const rateLimitResult = await checkRateLimitAsync(rateLimitKey, 30, 60 * 1000);
+          if (!rateLimitResult.allowed) {
+            const headers = new Headers();
+            headers.set("X-RateLimit-Limit", "30");
+            headers.set("X-RateLimit-Remaining", "0");
+            headers.set("X-RateLimit-Reset", String(Math.ceil(rateLimitResult.resetAt / 1000)));
+            if (rateLimitResult.retryAfter) {
+              headers.set("Retry-After", String(rateLimitResult.retryAfter));
+            }
+            return addSecurityHeaders(authResult.cors(json(
+              { error: "Too many reorder nonce requests", retryAfter: rateLimitResult.retryAfter },
+              { status: 429, headers }
+            )));
+          }
           const nonceResult = await createReorderNonce(shop.id, orderId, normalizedTarget);
           if (nonceResult.success && nonceResult.nonce) {
             state.reorderConfig.nonce = nonceResult.nonce;
