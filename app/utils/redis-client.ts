@@ -285,6 +285,7 @@ class RedisClientFactory {
     reconnectAttempts: 0,
   };
   private fallback: InMemoryFallback;
+  private lastReconnectLogAt = 0;
   private constructor() {
     const maxKeys = parseInt(process.env.RATE_LIMIT_MAX_KEYS || "10000", 10);
     this.fallback = new InMemoryFallback(maxKeys);
@@ -325,17 +326,49 @@ class RedisClientFactory {
     }
     try {
       const { createClient } = await import("redis");
-      const client = createClient({ url: redisUrl });
+      const maxDelayMs = Math.max(1000, parseInt(process.env.REDIS_RECONNECT_MAX_DELAY_MS || "30000", 10) || 30000);
+      const baseDelayMs = Math.max(100, parseInt(process.env.REDIS_RECONNECT_BASE_DELAY_MS || "500", 10) || 500);
+      const connectTimeoutMs = Math.max(1000, parseInt(process.env.REDIS_CONNECT_TIMEOUT_MS || "5000", 10) || 5000);
+
+      const client = createClient({
+        url: redisUrl,
+        socket: {
+          connectTimeout: connectTimeoutMs,
+          reconnectStrategy: (retries: number) => {
+            const attempt = retries + 1;
+            this.connectionInfo.reconnectAttempts = attempt;
+            const exp = Math.min(maxDelayMs, Math.round(baseDelayMs * Math.pow(1.7, retries)));
+            const jitter = Math.floor(exp * (0.2 * Math.random()));
+            const delayMs = Math.min(maxDelayMs, exp + jitter);
+            const now = Date.now();
+            const shouldLog =
+              attempt === 1 ||
+              attempt % 10 === 0 ||
+              now - this.lastReconnectLogAt > 60_000;
+            if (shouldLog) {
+              this.lastReconnectLogAt = now;
+              logger.info(`[REDIS] Reconnecting (attempt ${attempt})...`, {
+                delayMs,
+                maxDelayMs,
+              });
+            }
+            return delayMs;
+          },
+        },
+      });
       client.on("error", (err) => {
-        logger.error("[REDIS] Client error", { error: err.message });
-        this.connectionInfo.lastError = err.message;
+        const errMsg =
+          err instanceof Error
+            ? err.message
+            : typeof err === "object" && err && "message" in err
+              ? String((err as { message?: unknown }).message)
+              : String(err);
+        logger.error("[REDIS] Client error", err);
+        this.connectionInfo.lastError = errMsg;
         this.connectionInfo.connected = false;
       });
       client.on("reconnecting", () => {
-        this.connectionInfo.reconnectAttempts++;
-        logger.info(
-          `[REDIS] Reconnecting (attempt ${this.connectionInfo.reconnectAttempts})...`
-        );
+        this.connectionInfo.connected = false;
       });
       client.on("connect", () => {
         this.connectionInfo.connected = true;
@@ -355,7 +388,7 @@ class RedisClientFactory {
       return this.client;
     } catch (error) {
       const errorMsg = error instanceof Error ? error.message : String(error);
-      logger.error("[REDIS] Failed to connect", { error: errorMsg });
+      logger.error("[REDIS] Failed to connect", error, { error: errorMsg });
       if (process.env.NODE_ENV === "production") {
         throw new Error("Failed to connect to Redis in production");
       }
@@ -521,8 +554,7 @@ class RedisClientFactory {
         try {
           return await client.eval(script, { keys, arguments: args });
         } catch (error) {
-          const errorMsg = error instanceof Error ? error.message : String(error);
-          logger.error("[REDIS] EVAL failed", { error: errorMsg });
+          logger.error("[REDIS] EVAL failed", error);
           throw error;
         }
       },
@@ -543,7 +575,7 @@ class RedisClientFactory {
         await this.rawClient.quit();
         logger.info("[REDIS] Connection closed");
       } catch (error) {
-        logger.error("[REDIS] Error closing connection", { error });
+        logger.error("[REDIS] Error closing connection", error);
       }
       this.rawClient = null;
       this.client = null;
@@ -555,7 +587,7 @@ class RedisClientFactory {
       const instance = RedisClientFactory.instance;
       RedisClientFactory.instance = null;
       instance.close().catch((error) => {
-        logger.error("[REDIS] Error closing connection during reset", { error });
+        logger.error("[REDIS] Error closing connection during reset", error);
       });
     }
   }
@@ -566,7 +598,7 @@ class RedisClientFactory {
       try {
         await instance.close();
       } catch (error) {
-        logger.error("[REDIS] Error closing connection during resetAsync", { error });
+        logger.error("[REDIS] Error closing connection during resetAsync", error);
         throw error;
       }
     }
