@@ -142,7 +142,7 @@ const REQUIRED_IN_PRODUCTION = [
 const PIXEL_INGESTION_ENABLED_CHECK = {
   key: "PIXEL_ALLOW_NULL_ORIGIN_WITH_SIGNATURE_ONLY",
   reason:
-    "Production recommendation: PIXEL_ALLOW_NULL_ORIGIN_WITH_SIGNATURE_ONLY=true (null/missing origin allowed only when request has signature). When false: null requests fail CORS and events are lost. If your deployment receives pixel events, set =true explicitly.",
+    "Production recommendation: PIXEL_ALLOW_NULL_ORIGIN_WITH_SIGNATURE_ONLY=true (null/missing Origin allowed only when request has signature). When false: null/missing Origin requests are rejected (even if signed) and events are lost. If your deployment receives pixel events from Web Pixel sandbox, set =true explicitly.",
 } as const;
 
 const RECOMMENDED = [

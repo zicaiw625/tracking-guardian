@@ -107,6 +107,14 @@ export function validatePixelOriginPreBody(origin: string | null, hasSignatureHe
     const allowNullOrigin = shouldAllowNullOrigin();
 
     if (origin === "null") {
+        if (!allowNullOrigin) {
+            return {
+                valid: false,
+                reason: "null_origin_blocked",
+                shouldLog: true,
+                shouldReject: true,
+            };
+        }
         if (hasSignatureHeaderOrHMAC) {
             return {
                 valid: true,
@@ -115,29 +123,12 @@ export function validatePixelOriginPreBody(origin: string | null, hasSignatureHe
                 shouldReject: false,
             };
         }
-        const v = process.env.PIXEL_ALLOW_NULL_ORIGIN_WITH_SIGNATURE_ONLY?.toLowerCase().trim();
-        if (v === "false" || v === "0") {
-            return {
-                valid: false,
-                reason: "null_origin_blocked",
-                shouldLog: true,
-                shouldReject: true,
-            };
-        }
         if (devMode) {
             return {
                 valid: true,
                 reason: "null_origin_allowed",
                 shouldLog: false,
                 shouldReject: false,
-            };
-        }
-        if (allowNullOrigin && !hasSignatureHeaderOrHMAC) {
-            return {
-                valid: false,
-                reason: "null_origin_blocked",
-                shouldLog: true,
-                shouldReject: true,
             };
         }
         return {
@@ -158,7 +149,7 @@ export function validatePixelOriginPreBody(origin: string | null, hasSignatureHe
                     shouldReject: false,
                 };
             }
-            if (allowNullOrigin && !hasSignatureHeaderOrHMAC) {
+            if (!allowNullOrigin) {
                 return {
                     valid: false,
                     reason: "missing_origin",
@@ -189,7 +180,7 @@ export function validatePixelOriginPreBody(origin: string | null, hasSignatureHe
                 shouldReject: false,
             };
         }
-        if (allowNullOrigin && !hasSignatureHeaderOrHMAC) {
+        if (!allowNullOrigin) {
             return {
                 valid: false,
                 reason: "null_origin_blocked",
@@ -305,7 +296,7 @@ export function validatePixelOriginForShop(
                 shouldReject: false,
             };
         }
-        if (allowNullOrigin && !hasSignatureHeaderOrHMAC) {
+        if (!allowNullOrigin) {
             return {
                 valid: false,
                 reason: "null_origin_blocked",

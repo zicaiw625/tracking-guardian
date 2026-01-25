@@ -192,6 +192,7 @@ describe("/ingest Security Policy Tests", () => {
 
     it("should allow request with missing Origin but valid Referer in production", async () => {
       process.env.NODE_ENV = "production";
+      process.env.PIXEL_ALLOW_NULL_ORIGIN_WITH_SIGNATURE_ONLY = "true";
       const payload = createValidEventPayload("test-shop.myshopify.com");
       const request = createRequest(payload, {
         Referer: "https://test-shop.myshopify.com/checkout",
