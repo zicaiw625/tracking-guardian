@@ -1,7 +1,7 @@
 import { randomUUID } from "crypto";
 import prisma from "../../db.server";
 import { createConversionJob } from "../../services/db/conversion-repository.server";
-import { makeOrderKey, normalizeOrderId } from "../../utils/crypto.server";
+import { hashValueSync, makeOrderKey, normalizeOrderId } from "../../utils/crypto.server";
 import { logger } from "../../utils/logger.server";
 import type { WebhookContext, WebhookHandlerResult } from "../types";
 
@@ -106,6 +106,10 @@ export async function handleOrdersCreate(
         orderPayload.checkout_token != null && orderPayload.checkout_token !== ""
           ? makeOrderKey({ checkoutToken: orderPayload.checkout_token })
           : null;
+      const checkoutTokenHash =
+        orderPayload.checkout_token != null && orderPayload.checkout_token !== ""
+          ? hashValueSync(orderPayload.checkout_token)
+          : null;
       const orConditions: Array<{ orderKey?: string; altOrderKey?: string }> = [
         { orderKey: orderKeyNorm },
         { altOrderKey: orderKeyNorm },
@@ -143,7 +147,7 @@ export async function handleOrdersCreate(
           value: snapshot.totalValue,
           currency: snapshot.currency,
           eventType: "purchase",
-          checkoutToken: orderPayload.checkout_token ?? null,
+          checkoutTokenHash,
         },
       });
     }

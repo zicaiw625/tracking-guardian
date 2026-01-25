@@ -22,13 +22,14 @@ export interface QueryPendingJobsOptions {
   limit?: number;
   maxAgeMs?: number;
   includeRetries?: boolean;
+  shopId?: string;
 }
 
 export interface JobStatusUpdate {
   status: string;
   attempts?: number;
   lastAttemptAt?: Date;
-  nextRetryAt?: Date;
+  nextRetryAt?: Date | null;
   processedAt?: Date;
   completedAt?: Date;
   errorMessage?: string | null;
@@ -68,10 +69,15 @@ export async function getPendingJobs(
   options: QueryPendingJobsOptions = {}
 ): Promise<Array<JobForProcessing & { shop: JobShopData }>> {
   const limit = options.limit || 10;
+  const now = new Date();
+  const includeRetries = options.includeRetries ?? true;
   const where: Prisma.ConversionJobWhereInput = {
-    status: {
-      in: [JobStatus.QUEUED, JobStatus.PROCESSING],
-    },
+    status: JobStatus.QUEUED,
+    Shop: { isActive: true },
+    ...(options.shopId ? { shopId: options.shopId } : {}),
+    ...(includeRetries
+      ? { OR: [{ nextRetryAt: null }, { nextRetryAt: { lte: now } }] }
+      : { nextRetryAt: null }),
   };
   if (options.maxAgeMs) {
     const maxAge = new Date(Date.now() - options.maxAgeMs);
@@ -80,7 +86,7 @@ export async function getPendingJobs(
   const jobs = await prisma.conversionJob.findMany({
     where,
     take: limit,
-    orderBy: { createdAt: "asc" },
+    orderBy: [{ nextRetryAt: "asc" }, { createdAt: "asc" }],
     include: {
       Shop: {
         select: {
@@ -140,9 +146,11 @@ export async function getPendingJobs(
 
 export async function claimJobsForProcessing(
   jobIds: string[],
+  claimedAt?: Date,
   _processedBy?: string
 ): Promise<number> {
   if (jobIds.length === 0) return 0;
+  const processedAt = claimedAt ?? new Date();
   const result = await prisma.conversionJob.updateMany({
     where: {
       id: { in: jobIds },
@@ -150,7 +158,150 @@ export async function claimJobsForProcessing(
     },
     data: {
       status: JobStatus.PROCESSING,
-      processedAt: new Date(),
+      processedAt,
+    },
+  });
+  return result.count;
+}
+
+function mapJobForProcessing(job: Prisma.ConversionJobGetPayload<{
+  include: {
+    Shop: {
+      select: {
+        id: true;
+        shopDomain: true;
+        plan: true;
+        consentStrategy: true;
+        isActive: true;
+        primaryDomain: true;
+        storefrontDomains: true;
+        pixelConfigs: {
+          select: {
+            id: true;
+            platform: true;
+            platformId: true;
+            credentials_legacy: true;
+            credentialsEncrypted: true;
+            clientConfig: true;
+            isActive: true;
+            clientSideEnabled: true;
+            serverSideEnabled: true;
+            eventMappings: true;
+            migrationStatus: true;
+            migratedAt: true;
+            shopId: true;
+            createdAt: true;
+            updatedAt: true;
+          };
+        };
+      };
+    };
+  };
+}>): JobForProcessing & { shop: JobShopData } {
+  return {
+    id: job.id,
+    shopId: job.shopId,
+    orderId: job.orderId,
+    orderNumber: job.orderNumber,
+    orderValue: job.orderValue,
+    currency: job.currency,
+    capiInput: job.capiInput,
+    attempts: job.attempts,
+    maxAttempts: job.maxAttempts,
+    createdAt: job.createdAt,
+    shop: {
+      id: job.Shop.id,
+      shopDomain: job.Shop.shopDomain,
+      plan: job.Shop.plan,
+      consentStrategy: job.Shop.consentStrategy,
+      isActive: job.Shop.isActive,
+      primaryDomain: job.Shop.primaryDomain,
+      storefrontDomains: job.Shop.storefrontDomains,
+      pixelConfigs: job.Shop.pixelConfigs,
+    },
+  };
+}
+
+export async function getClaimedJobsForProcessing(
+  jobIds: string[],
+  claimedAt: Date
+): Promise<Array<JobForProcessing & { shop: JobShopData }>> {
+  if (jobIds.length === 0) return [];
+  const jobs = await prisma.conversionJob.findMany({
+    where: {
+      id: { in: jobIds },
+      status: JobStatus.PROCESSING,
+      processedAt: claimedAt,
+      Shop: { isActive: true },
+    },
+    orderBy: { createdAt: "asc" },
+    include: {
+      Shop: {
+        select: {
+          id: true,
+          shopDomain: true,
+          plan: true,
+          consentStrategy: true,
+          isActive: true,
+          primaryDomain: true,
+          storefrontDomains: true,
+          pixelConfigs: {
+            select: {
+              id: true,
+              platform: true,
+              platformId: true,
+              credentials_legacy: true,
+              credentialsEncrypted: true,
+              clientConfig: true,
+              isActive: true,
+              clientSideEnabled: true,
+              serverSideEnabled: true,
+              eventMappings: true,
+              migrationStatus: true,
+              migratedAt: true,
+              shopId: true,
+              createdAt: true,
+              updatedAt: true,
+            },
+          },
+        },
+      },
+    },
+  });
+  return jobs.map(mapJobForProcessing);
+}
+
+export async function requeueStaleProcessingJobs(options?: {
+  staleMs?: number;
+  limit?: number;
+  shopId?: string;
+}): Promise<number> {
+  const staleMs = options?.staleMs ?? 15 * 60 * 1000;
+  const limit = options?.limit ?? 100;
+  const cutoff = new Date(Date.now() - staleMs);
+  const stale = await prisma.conversionJob.findMany({
+    where: {
+      status: JobStatus.PROCESSING,
+      completedAt: null,
+      processedAt: { lt: cutoff },
+      ...(options?.shopId ? { shopId: options.shopId } : {}),
+    },
+    select: { id: true },
+    orderBy: { processedAt: "asc" },
+    take: limit,
+  });
+  if (stale.length === 0) return 0;
+  const result = await prisma.conversionJob.updateMany({
+    where: {
+      id: { in: stale.map(j => j.id) },
+      status: JobStatus.PROCESSING,
+      completedAt: null,
+      processedAt: { lt: cutoff },
+    },
+    data: {
+      status: JobStatus.QUEUED,
+      processedAt: null,
+      nextRetryAt: null,
     },
   });
   return result.count;

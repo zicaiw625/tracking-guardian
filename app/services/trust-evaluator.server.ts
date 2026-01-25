@@ -59,7 +59,7 @@ function normalizeConsentState(consent: unknown): ConsentState | null {
 
 export function evaluateTrust(
   receipt: ReceiptFields | null,
-  webhookCheckoutToken: string | undefined,
+  webhook: { checkoutToken?: string | undefined; checkoutTokenHash?: string | null } | undefined,
   shop: ShopTrustContext
 ): TrustEvaluationResult {
   const shopAllowedDomains = buildShopAllowedDomains(
@@ -85,10 +85,16 @@ export function evaluateTrust(
     receiptPayload && typeof receiptPayload.checkoutTokenHash === "string"
       ? receiptPayload.checkoutTokenHash
       : null;
+  const webhookCheckoutToken =
+    typeof webhook?.checkoutToken === "string" && webhook.checkoutToken.length > 0
+      ? webhook.checkoutToken
+      : undefined;
   const webhookCheckoutTokenHash =
-    typeof webhookCheckoutToken === "string" && webhookCheckoutToken.length > 0
-      ? hashValueSync(webhookCheckoutToken)
-      : null;
+    typeof webhook?.checkoutTokenHash === "string" && webhook.checkoutTokenHash.length > 0
+      ? webhook.checkoutTokenHash
+      : typeof webhookCheckoutToken === "string" && webhookCheckoutToken.length > 0
+        ? hashValueSync(webhookCheckoutToken)
+        : null;
   const isHmacVerified = hmacMatched === true;
   const strictMode = shop.consentStrategy === "strict";
   const trustResult = verifyReceiptTrust({
@@ -109,7 +115,7 @@ export function evaluateTrust(
   });
   const trustMetadata = buildTrustMetadata(trustResult, {
     hasReceipt: !!receipt,
-    webhookHasCheckoutToken: typeof webhookCheckoutToken === "string" && webhookCheckoutToken.length > 0,
+    webhookHasCheckoutToken: typeof webhookCheckoutTokenHash === "string" && webhookCheckoutTokenHash.length > 0,
   });
   const consentFromPayload = receipt?.payloadJson && typeof receipt.payloadJson === 'object' && receipt.payloadJson !== null && 'consent' in receipt.payloadJson
     ? (receipt.payloadJson as Record<string, unknown>).consent

@@ -6,7 +6,7 @@ Tracking Guardian 是一个 Shopify 应用，作为**数据处理者**（Data Pr
 
 **最后更新**: 2025-01-15  
 **应用版本**: 1.0.0  
-**Shopify API 版本**: 2025-07
+**Shopify API 版本**: 2026-01
 
 ---
 

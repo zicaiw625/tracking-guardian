@@ -10,6 +10,9 @@ interface SessionStorage {
 import { encryptAccessToken, decryptAccessToken, isTokenEncrypted, TokenDecryptionError } from "./token-encryption.server";
 import { logger } from "./logger.server";
 export function createEncryptedSessionStorage(baseStorage: SessionStorage): SessionStorage {
+    function cloneSession<T extends Session>(session: T, override?: Partial<T>): T {
+        return Object.assign(Object.create(Object.getPrototypeOf(session)), session, override);
+    }
     return {
         async storeSession(session: Session): Promise<boolean> {
             const originalToken = session.accessToken;
@@ -30,7 +33,8 @@ export function createEncryptedSessionStorage(baseStorage: SessionStorage): Sess
             }
             if (session.accessToken) {
                 try {
-                    session.accessToken = decryptAccessToken(session.accessToken);
+                    const decryptedAccessToken = decryptAccessToken(session.accessToken);
+                    return cloneSession(session, { accessToken: decryptedAccessToken });
                 }
                 catch (error) {
                     if (error instanceof TokenDecryptionError) {
@@ -42,7 +46,7 @@ export function createEncryptedSessionStorage(baseStorage: SessionStorage): Sess
                     throw error;
                 }
             }
-            return session;
+            return cloneSession(session);
         },
         async deleteSession(id: string): Promise<boolean> {
             return baseStorage.deleteSession(id);
@@ -56,8 +60,8 @@ export function createEncryptedSessionStorage(baseStorage: SessionStorage): Sess
             for (const session of sessions) {
                 if (session.accessToken) {
                     try {
-                        session.accessToken = decryptAccessToken(session.accessToken);
-                        decryptedSessions.push(session);
+                        const decryptedAccessToken = decryptAccessToken(session.accessToken);
+                        decryptedSessions.push(cloneSession(session, { accessToken: decryptedAccessToken }));
                     }
                     catch (error) {
                         if (error instanceof TokenDecryptionError) {
@@ -72,7 +76,7 @@ export function createEncryptedSessionStorage(baseStorage: SessionStorage): Sess
                     }
                 }
                 else {
-                    decryptedSessions.push(session);
+                    decryptedSessions.push(cloneSession(session));
                 }
             }
             return decryptedSessions;

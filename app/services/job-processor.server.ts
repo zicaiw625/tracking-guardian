@@ -1,14 +1,23 @@
 import { logger } from "../utils/logger.server";
 import type { Prisma } from "@prisma/client";
-import { getPendingJobs, updateJobStatus, claimJobsForProcessing, type JobForProcessing } from "./db/conversion-repository.server";
+import {
+  getPendingJobs,
+  updateJobStatus,
+  claimJobsForProcessing,
+  getClaimedJobsForProcessing,
+  requeueStaleProcessingJobs,
+  type JobForProcessing,
+} from "./db/conversion-repository.server";
 import { JobStatus, type JobStatusType } from "../types";
 import { normalizeDecimalValue } from "../utils/common";
 import prisma from "../db.server";
-import { normalizeOrderId } from "../utils/crypto.server";
+import { hashValueSync, normalizeOrderId } from "../utils/crypto.server";
 import { evaluateTrust, checkPlatformEligibility, buildConsentEvidence } from "./trust-evaluator.server";
 import type { ReceiptFields } from "./receipt-matcher.server";
 import { executeGraphQL } from "./shopify/admin-client.server";
 import { buildTrustMetadata, type ReceiptTrustResult } from "../utils/receipt-trust.server";
+import { CRON_CONFIG } from "../utils/config.server";
+import { calculateNextRetryTime } from "../domain/conversion/conversion.entity";
 
 export interface ProcessConversionJobsResult {
   processed: number;
@@ -43,7 +52,25 @@ export async function processConversionJobs(
   shopId?: string,
   limit: number = BATCH_SIZE
 ): Promise<ProcessConversionJobsResult> {
-  const jobs = await getPendingJobs({ limit });
+  await requeueStaleProcessingJobs({
+    staleMs: CRON_CONFIG.STALE_LOCK_THRESHOLD_MS,
+    limit: Math.max(100, limit * 5),
+    shopId,
+  });
+
+  const candidates = await getPendingJobs({ limit, shopId, includeRetries: true });
+  if (candidates.length === 0) {
+    return {
+      processed: 0,
+      succeeded: 0,
+      failed: 0,
+      errors: [],
+    };
+  }
+  const jobIds = candidates.map(j => j.id);
+  const claimedAt = new Date();
+  await claimJobsForProcessing(jobIds, claimedAt);
+  const jobs = await getClaimedJobsForProcessing(jobIds, claimedAt);
   if (jobs.length === 0) {
     return {
       processed: 0,
@@ -52,11 +79,16 @@ export async function processConversionJobs(
       errors: [],
     };
   }
-  const jobIds = jobs.map(j => j.id);
-  await claimJobsForProcessing(jobIds);
   const errors: Array<{ jobId: string; error: string }> = [];
   const completedJobs: Array<{ id: string; completedAt: Date }> = [];
-  const failedJobs: Array<{ id: string; status: JobStatusType; attempts: number; errorMessage: string; lastAttemptAt: Date }> = [];
+  const failedJobs: Array<{
+    id: string;
+    status: JobStatusType;
+    attempts: number;
+    errorMessage: string;
+    lastAttemptAt: Date;
+    nextRetryAt: Date | null;
+  }> = [];
   let succeeded = 0;
   let failed = 0;
   const now = new Date();
@@ -70,12 +102,14 @@ export async function processConversionJobs(
       const attempts = job.attempts + 1;
       const isRetryable = isRetryableError(error) && attempts < job.maxAttempts;
       const status = isRetryable ? JobStatus.QUEUED : JobStatus.FAILED;
+      const nextRetryAt = isRetryable ? calculateNextRetryTime(attempts) : null;
       failedJobs.push({
         id: job.id,
         status,
         attempts,
         errorMessage,
         lastAttemptAt: now,
+        nextRetryAt,
       });
       failed++;
       errors.push({ jobId: job.id, error: errorMessage });
@@ -99,6 +133,7 @@ export async function processConversionJobs(
           status: job.status,
           attempts: job.attempts,
           lastAttemptAt: job.lastAttemptAt,
+          nextRetryAt: job.nextRetryAt,
           errorMessage: job.errorMessage,
         })
       )
@@ -137,6 +172,7 @@ interface CapiInput {
   value?: number;
   currency?: string;
   checkoutToken?: string | null;
+  checkoutTokenHash?: string | null;
   lineItems?: Array<{
     id: string;
     quantity: number;
@@ -375,14 +411,16 @@ async function processSingleJob(job: JobWithShop): Promise<void> {
     : typeof job.shop.storefrontDomains === 'string'
     ? [job.shop.storefrontDomains]
     : [];
-  const webhookCheckoutToken =
-    typeof capiInput.checkoutToken === "string" && capiInput.checkoutToken.length > 0
-      ? capiInput.checkoutToken
-      : undefined;
+  const webhookCheckoutTokenHash =
+    typeof capiInput.checkoutTokenHash === "string" && capiInput.checkoutTokenHash.length > 0
+      ? capiInput.checkoutTokenHash
+      : typeof capiInput.checkoutToken === "string" && capiInput.checkoutToken.length > 0
+        ? hashValueSync(capiInput.checkoutToken)
+        : null;
   
   const trustEvaluation = evaluateTrust(
     receiptFields,
-    webhookCheckoutToken,
+    { checkoutTokenHash: webhookCheckoutTokenHash },
     {
       shopDomain: job.shop.shopDomain,
       primaryDomain: job.shop.primaryDomain,
@@ -415,7 +453,7 @@ async function processSingleJob(job: JobWithShop): Promise<void> {
       ? { ...trustEvaluation.trustMetadata, serverVerification }
       : buildTrustMetadata(finalTrustResult, {
           hasReceipt: !!receiptFields,
-          webhookHasCheckoutToken: typeof webhookCheckoutToken === "string" && webhookCheckoutToken.length > 0,
+          webhookHasCheckoutToken: typeof webhookCheckoutTokenHash === "string" && webhookCheckoutTokenHash.length > 0,
           serverVerification,
         });
   const consentEvidence = buildConsentEvidence(
