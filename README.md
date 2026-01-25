@@ -242,9 +242,9 @@ SCOPES=read_script_tags,read_pixels,write_pixels,read_orders
 - 对账差异检查无法执行
 - 订单金额一致性验证失败
 
-# P0-2: Web Pixel Origin null 兼容配置（生产环境必须设置）
+# P0-2: Web Pixel Origin null 兼容配置（生产环境必须显式设置）
 # Shopify web pixel / customer events 在沙箱里经常出现 Origin: null
-# 生产环境必须设置此变量为 true，否则会拦截掉真实事件
+# 生产环境必须显式设置此变量（true/false）；若需要接收 Origin: null 的真实事件，建议设置为 true
 PIXEL_ALLOW_NULL_ORIGIN_WITH_SIGNATURE_ONLY=true
 
 # PIXEL_ALLOW_NULL_ORIGIN_WITH_SIGNATURE_ONLY 语义说明：
@@ -630,10 +630,10 @@ Customer Account / Thank you block 与 Web Pixel 的配合、以及 PCD 的说�
 2. **Origin: null 场景测试（上线前必须执行）**
    - **测试目标**：验证 Web Pixel 在沙箱环境中发送事件时 Origin 为 null 的情况
    - **验证内容**：
-     - 验证 `PIXEL_ALLOW_NULL_ORIGIN_WITH_SIGNATURE_ONLY=true` 环境变量已正确设置（生产环境必须设置）
+     - 验证 `PIXEL_ALLOW_NULL_ORIGIN_WITH_SIGNATURE_ONLY` 环境变量已显式设置（生产环境必须设置）
      - 确认事件仍能正常接收和处理（不因 Origin 校验失败而丢失）
      - 检查日志中 Origin: null 的请求是否被正确标记和允许
-   - **重点验证**：某些 Shopify 场景（如 Web Worker 沙箱环境）可能出现 `Origin: null`。建议显式设置 `PIXEL_ALLOW_NULL_ORIGIN_WITH_SIGNATURE_ONLY=true` 以正常接收 null/missing origin 的 pixel 事件（仅带签名请求放行）；=false 时 null 请求将无法通过 CORS，导致事件丢失。
+   - **重点验证**：某些 Shopify 场景（如 Web Worker 沙箱环境）可能出现 `Origin: null`。若需要正常接收 null/missing origin 的 pixel 事件，建议显式设置 `PIXEL_ALLOW_NULL_ORIGIN_WITH_SIGNATURE_ONLY=true`（仅带签名请求放行）；=false 时 null 请求将无法通过 CORS，导致事件丢失。
    - **实战建议**：使用压测脚本的 `--null-origin-only` 参数专门测试 Origin: null 场景，确保生产环境配置正确。
    - **执行命令**：
      ```bash

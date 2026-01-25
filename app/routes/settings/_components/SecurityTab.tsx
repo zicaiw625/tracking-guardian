@@ -434,10 +434,10 @@ export function SecurityTab({
                     ⚠️ P0 安全提示：PIXEL_ALLOW_NULL_ORIGIN_WITH_SIGNATURE_ONLY 配置与 ingestionKey 管理
                   </Text>
                   <Text as="p" variant="bodySm">
-                    <strong>生产环境必须设置：</strong>
-                    <br />• <code>PIXEL_ALLOW_NULL_ORIGIN_WITH_SIGNATURE_ONLY=true</code> 环境变量（某些 Shopify Web Worker 沙箱环境可能出现 Origin: null）
-                    <br />• 如果未设置此环境变量，Origin: null 的请求将被拒绝，可能导致事件丢失
-                    <br />• 部署前必须确认环境变量已正确配置，否则生产环境将拒绝 null origin 请求
+                    <strong>生产环境必须显式设置：</strong>
+                    <br />• <code>PIXEL_ALLOW_NULL_ORIGIN_WITH_SIGNATURE_ONLY</code> 环境变量（允许：<code>true</code>/<code>false</code> 或 <code>1</code>/<code>0</code>）
+                    <br />• 某些 Shopify Web Worker 沙箱环境可能出现 <code>Origin: null</code>；若需要接收此类事件，建议设置为 <code>true</code>
+                    <br />• 若设置为 <code>false</code>，<code>Origin: null</code> 的请求将被拒绝，可能导致事件丢失
                   </Text>
                   <Text as="p" variant="bodySm">
                     <strong>ingestionKey 可见性风险：</strong>
@@ -451,7 +451,7 @@ export function SecurityTab({
                     <br />• <strong>监控异常事件接收模式</strong>（在 Dashboard 中查看事件统计，特别关注 null origin 请求）
                     <br />• null origin 请求量异常飙升时会在日志中记录 <code>[SECURITY] Null origin request spike</code>，请关注监控与日志
                     <br />• <strong>如果怀疑滥用，立即更换令牌</strong>并检查事件日志，审查访问记录
-                    <br />• <strong>确保生产环境已正确设置</strong> <code>PIXEL_ALLOW_NULL_ORIGIN_WITH_SIGNATURE_ONLY=true</code>（部署时检查环境变量）
+                    <br />• <strong>确保生产环境已显式设置</strong> <code>PIXEL_ALLOW_NULL_ORIGIN_WITH_SIGNATURE_ONLY</code>（部署时检查环境变量）
                     <br />• <strong>使用令牌轮换机制</strong>（更换后旧令牌有 30 分钟过渡期，确保平滑过渡）
                     <br />• <strong>记录并审计令牌轮换操作</strong>，建立运维手册和操作流程
                     <br />• <strong>建立令牌过期机制</strong>（系统已支持 previousIngestionSecret 和 previousSecretExpiry，建议定期轮换）

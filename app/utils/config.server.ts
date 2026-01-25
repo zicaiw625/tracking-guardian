@@ -196,12 +196,22 @@ export function validateConfig(): ConfigValidationResult {
     errors.push("SECURITY_ENFORCEMENT cannot be 'relaxed' in production");
   }
   if (isProduction) {
-    const pixelAllowNullOrigin = process.env.PIXEL_ALLOW_NULL_ORIGIN_WITH_SIGNATURE_ONLY?.toLowerCase().trim();
-    const enabled = pixelAllowNullOrigin === "true" || pixelAllowNullOrigin === "1" || pixelAllowNullOrigin === "yes";
-    if (!enabled) {
+    const raw = process.env.PIXEL_ALLOW_NULL_ORIGIN_WITH_SIGNATURE_ONLY?.toLowerCase().trim();
+    if (!raw) {
       errors.push(
-        `PIXEL_ALLOW_NULL_ORIGIN_WITH_SIGNATURE_ONLY must be true in production (current: ${process.env.PIXEL_ALLOW_NULL_ORIGIN_WITH_SIGNATURE_ONLY || "unset"}). ${PIXEL_INGESTION_ENABLED_CHECK.reason}`
+        `PIXEL_ALLOW_NULL_ORIGIN_WITH_SIGNATURE_ONLY must be explicitly set in production (allowed: true/false/1/0). ${PIXEL_INGESTION_ENABLED_CHECK.reason}`
       );
+    } else if (!["true", "1", "false", "0"].includes(raw)) {
+      errors.push(
+        `PIXEL_ALLOW_NULL_ORIGIN_WITH_SIGNATURE_ONLY has invalid value in production (allowed: true/false/1/0). Current: ${process.env.PIXEL_ALLOW_NULL_ORIGIN_WITH_SIGNATURE_ONLY}`
+      );
+    } else {
+      const enabled = raw === "true" || raw === "1";
+      if (!enabled) {
+        warnings.push(
+          `PIXEL_ALLOW_NULL_ORIGIN_WITH_SIGNATURE_ONLY=false in production: null/missing Origin pixel requests will be rejected (events may be lost). ${PIXEL_INGESTION_ENABLED_CHECK.reason}`
+        );
+      }
     }
   }
   if (process.env.ENCRYPTION_SECRET && process.env.ENCRYPTION_SECRET.length < 32) {
