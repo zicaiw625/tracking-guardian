@@ -36,6 +36,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     let pollTimer: ReturnType<typeof setTimeout> | null = null;
     let unsubscribe: (() => Promise<void>) | null = null;
     let isClosed = false;
+    let cleanupStarted = false;
     const MAX_CONCURRENT_CONNECTIONS = 5;
     const TTL_SECONDS = 3600;
     const connectionId = randomBytes(16).toString("hex");
@@ -54,10 +55,13 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       });
     }
     await redisClient.set(sseKey, "1", { EX: TTL_SECONDS });
+    let cleanup: (() => Promise<void>) | null = null;
     const stream = new ReadableStream({
       async start(controller) {
         const encoder = new TextEncoder();
-        const cleanup = async () => {
+        cleanup = async () => {
+          if (cleanupStarted) return;
+          cleanupStarted = true;
           try {
             await redisClient.del(sseKey);
             await releaseSseSlot(redisClient, countKey, TTL_SECONDS);
@@ -95,7 +99,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
               error: error instanceof Error ? error.message : String(error),
               errorName: error instanceof Error ? error.name : "Unknown",
             });
-            cleanup();
+            void cleanup?.();
           }
         };
         sendMessage({ type: "connected", timestamp: new Date().toISOString() });
@@ -213,17 +217,11 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
           pollOnce();
         }
         request.signal.addEventListener("abort", () => {
-          cleanup();
+          void cleanup?.();
         });
       },
       cancel() {
-        if (pollTimer !== null) {
-          clearTimeout(pollTimer);
-          pollTimer = null;
-        }
-        if (!isClosed) {
-          isClosed = true;
-        }
+        void cleanup?.();
       },
     });
     const headers = new Headers({

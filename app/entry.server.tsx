@@ -126,6 +126,7 @@ export default async function handleRequest(request: Request, responseStatusCode
     const userAgent = request.headers.get("user-agent");
     const callbackName = isbot(userAgent ?? "") ? "onAllReady" : "onShellReady";
     return new Promise((resolve, reject) => {
+        let abortTimeoutId: NodeJS.Timeout | null = null;
         const { pipe, abort } = renderToPipeableStream(<RemixServer context={remixContext} url={request.url} abortDelay={ABORT_DELAY}/>, {
             [callbackName]: () => {
                 const body = new PassThrough();
@@ -153,7 +154,7 @@ export default async function handleRequest(request: Request, responseStatusCode
                 logger.error("React render error", error);
             },
         });
-        let abortTimeoutId: NodeJS.Timeout | null = setTimeout(() => {
+        abortTimeoutId = setTimeout(() => {
             abortTimeoutId = null;
             abort();
         }, ABORT_DELAY);

@@ -79,13 +79,35 @@ function checkMemory(): HealthCheck {
 
 function validateDetailedHealthAuth(request: Request): boolean {
     const healthSecret = process.env.HEALTH_SECRET || process.env.CRON_SECRET;
-    if (!healthSecret && !isStrictSecurityMode()) {
-        return true;
+  if (!healthSecret) {
+    const isProd = process.env.NODE_ENV === "production";
+    if (isProd) {
+      logger.warn("HEALTH_SECRET and CRON_SECRET not configured - detailed health check disabled");
+      return false;
     }
-    if (!healthSecret) {
-        logger.warn("HEALTH_SECRET and CRON_SECRET not configured - detailed health check disabled");
-        return false;
+    const url = new URL(request.url);
+    const forwardedFor = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "";
+    const realIp = request.headers.get("x-real-ip")?.trim() || "";
+    const ipCandidate = forwardedFor || realIp;
+    const normalizedIp = (() => {
+      if (!ipCandidate) return "";
+      const s = ipCandidate.trim();
+      const bracketStripped = s.startsWith("[") && s.endsWith("]") ? s.slice(1, -1) : s;
+      if (/^\d{1,3}(\.\d{1,3}){3}:\d+$/.test(bracketStripped)) {
+        return bracketStripped.split(":")[0];
+      }
+      return bracketStripped;
+    })();
+    const isLocalIp = normalizedIp === "127.0.0.1" || normalizedIp === "::1";
+    const isLocalHost = url.hostname === "localhost" || url.hostname === "127.0.0.1" || url.hostname === "::1";
+    if (isLocalIp || isLocalHost) {
+      return true;
     }
+    if (!isStrictSecurityMode()) {
+      logger.warn("HEALTH_SECRET and CRON_SECRET not configured - detailed health check disabled");
+    }
+    return false;
+  }
     const authHeader = request.headers.get("Authorization");
     if (!authHeader) {
         return false;
