@@ -52,6 +52,7 @@ echo "[Cron] Timeout: ${TIMEOUT}s"
 
 HEADERS=(-H "Authorization: Bearer ${CRON_SECRET}")
 HEADERS+=(-H "User-Agent: RenderCronJob/1.0")
+HEADERS+=(-H "Prefer: respond-async")
 
 
 if [ "${REPLAY_PROTECTION}" = "true" ]; then
@@ -96,7 +97,7 @@ fi
 
 CRON_DEBUG="${CRON_DEBUG:-false}"
 
-if [ "${HTTP_CODE}" = "200" ]; then
+if [ "${HTTP_CODE}" = "200" ] || [ "${HTTP_CODE}" = "202" ]; then
     echo -e "${GREEN}[Cron] ✓ Cron job executed successfully${NC}"
     if [ "${CRON_DEBUG}" = "true" ]; then
         echo "[Cron] Response: ${BODY}"

@@ -1,8 +1,8 @@
 import type { ActionFunctionArgs, LoaderFunctionArgs } from "@remix-run/node";
 import { randomUUID } from "crypto";
 import { validateCronAuth, verifyReplayProtection } from "../../cron/auth";
-import { withCronLock } from "../../utils/cron-lock";
-import { cronSuccessResponse, cronSkippedResponse, cronErrorResponse } from "../../utils/responses";
+import { acquireCronLock, releaseCronLock, withCronLock } from "../../utils/cron-lock";
+import { acceptedResponse, cronSuccessResponse, cronSkippedResponse, cronErrorResponse } from "../../utils/responses";
 import { logger } from "../../utils/logger.server";
 import { runAllShopAlertChecks } from "../../services/alert-dispatcher.server";
 import { cleanupExpiredData } from "../../cron/tasks/cleanup";
@@ -11,6 +11,92 @@ import { processConversionJobs } from "../../services/conversion-job.server";
 import { runAllShopsDeliveryHealthCheck } from "../../services/delivery-health.server";
 import { runAllShopsReconciliation } from "../../services/reconciliation.server";
 import { readTextWithLimit } from "../../utils/body-reader";
+
+function shouldRunAsync(request: Request): boolean {
+  const url = new URL(request.url);
+  const asyncParam = url.searchParams.get("async");
+  if (asyncParam === "1" || asyncParam === "true") return true;
+  const prefer = request.headers.get("Prefer") || "";
+  return prefer.toLowerCase().includes("respond-async");
+}
+
+async function runCronTasks(task: string, requestId: string): Promise<Record<string, unknown>> {
+  const results: Record<string, unknown> = {
+    requestId,
+    task,
+    timestamp: new Date().toISOString(),
+  };
+
+  if (task === "all" || task === "delivery_health") {
+    logger.info("[Cron] Running delivery health checks", { requestId });
+    const healthResults = await runAllShopsDeliveryHealthCheck();
+    results.delivery_health = {
+      status: "completed",
+      shopsProcessed: healthResults.length,
+      successful: healthResults.filter((r) => r.success).length,
+      failed: healthResults.filter((r) => !r.success).length,
+    };
+  }
+
+  if (task === "all" || task === "reconciliation") {
+    logger.info("[Cron] Running reconciliation tasks", { requestId });
+    const reconciliationResult = await runAllShopsReconciliation();
+    results.reconciliation = {
+      status: "completed",
+      processed: reconciliationResult.processed,
+      succeeded: reconciliationResult.succeeded,
+      failed: reconciliationResult.failed,
+      reportsGenerated: reconciliationResult.results.length,
+    };
+  }
+
+  if (task === "all" || task === "process_gdpr") {
+    logger.info("[Cron] Processing GDPR jobs", { requestId });
+    results.process_gdpr = {
+      status: "skipped",
+      message: "GDPR requests are processed synchronously via webhook handlers",
+    };
+  }
+
+  if (task === "all" || task === "process_conversion") {
+    logger.info("[Cron] Running process conversion jobs", { requestId });
+    const conversionResult = await processConversionJobs();
+    if (conversionResult.errors.length > 0) {
+      logger.warn("[Cron] Process conversion errors", {
+        requestId,
+        errorCount: conversionResult.errors.length,
+        errors: conversionResult.errors,
+      });
+    }
+    results.process_conversion = {
+      processed: conversionResult.processed,
+      succeeded: conversionResult.succeeded,
+      failed: conversionResult.failed,
+      errorCount: conversionResult.errors.length,
+    };
+  }
+
+  if (task === "all" || task === "process_event_delivery") {
+    logger.info("[Cron] Running event delivery processing", { requestId });
+    const { processEventDelivery } = await import("../../cron/tasks/event-delivery");
+    const deliveryResult = await processEventDelivery();
+    results.process_event_delivery = deliveryResult;
+  }
+
+  if (task === "all" || task === "cleanup") {
+    logger.info("[Cron] Running cleanup tasks", { requestId });
+    const cleanupResult = await cleanupExpiredData();
+    results.cleanup = cleanupResult;
+  }
+
+  if (task === "all" || task === "alerts") {
+    logger.info("[Cron] Running all shop alert checks", { requestId });
+    await runAllShopAlertChecks();
+    results.alerts = { status: "completed" };
+  }
+
+  return results;
+}
 
 async function handleCron(request: Request): Promise<Response> {
   const requestId = randomUUID();
@@ -107,83 +193,52 @@ async function handleCron(request: Request): Promise<Response> {
   const task = cronRequest.task || "all";
   const instanceId = `${process.env.HOSTNAME || "unknown"}-${requestId}`;
 
-  const lockResult = await withCronLock(`cron:${task}`, instanceId, async () => {
-    const results: Record<string, unknown> = {
+  if (shouldRunAsync(request)) {
+    const lockType = `cron:${task}`;
+    const lock = await acquireCronLock(lockType, instanceId);
+    const durationMs = Date.now() - startTime;
+
+    if (!lock.acquired || !lock.lockId) {
+      logger.info("Cron task skipped - lock held by another instance", {
+        requestId,
+        task,
+        reason: lock.reason,
+      });
+      return cronSkippedResponse(requestId, durationMs, lock.reason);
+    }
+
+    const lockId = lock.lockId;
+    logger.info("Cron task accepted for async execution", { requestId, task });
+
+    void (async () => {
+      const jobStart = Date.now();
+      try {
+        const result = await runCronTasks(task, requestId);
+        logger.info("Cron async task completed successfully", {
+          requestId,
+          task,
+          durationMs: Date.now() - jobStart,
+        });
+        void result;
+      } catch (error) {
+        logger.error("Cron async task execution failed", { requestId, task, error });
+      } finally {
+        await releaseCronLock(lockType, lockId);
+      }
+    })();
+
+    return acceptedResponse({
+      success: true,
+      accepted: true,
       requestId,
       task,
-      timestamp: new Date().toISOString(),
-    };
+      durationMs,
+    });
+  }
 
+  const lockResult = await withCronLock(`cron:${task}`, instanceId, async () => {
     try {
-      if (task === "all" || task === "delivery_health") {
-        logger.info("[Cron] Running delivery health checks", { requestId });
-        const healthResults = await runAllShopsDeliveryHealthCheck();
-        results.delivery_health = {
-          status: "completed",
-          shopsProcessed: healthResults.length,
-          successful: healthResults.filter((r) => r.success).length,
-          failed: healthResults.filter((r) => !r.success).length,
-        };
-      }
-
-      if (task === "all" || task === "reconciliation") {
-        logger.info("[Cron] Running reconciliation tasks", { requestId });
-        const reconciliationResult = await runAllShopsReconciliation();
-        results.reconciliation = {
-          status: "completed",
-          processed: reconciliationResult.processed,
-          succeeded: reconciliationResult.succeeded,
-          failed: reconciliationResult.failed,
-          reportsGenerated: reconciliationResult.results.length,
-        };
-      }
-
-      if (task === "all" || task === "process_gdpr") {
-        logger.info("[Cron] Processing GDPR jobs", { requestId });
-        results.process_gdpr = {
-          status: "skipped",
-          message: "GDPR requests are processed synchronously via webhook handlers",
-        };
-      }
-
-      if (task === "all" || task === "process_conversion") {
-        logger.info("[Cron] Running process conversion jobs", { requestId });
-        const conversionResult = await processConversionJobs();
-        if (conversionResult.errors.length > 0) {
-          logger.warn("[Cron] Process conversion errors", {
-            requestId,
-            errorCount: conversionResult.errors.length,
-            errors: conversionResult.errors,
-          });
-        }
-        results.process_conversion = {
-          processed: conversionResult.processed,
-          succeeded: conversionResult.succeeded,
-          failed: conversionResult.failed,
-          errorCount: conversionResult.errors.length,
-        };
-      }
-
-      if (task === "all" || task === "process_event_delivery") {
-        logger.info("[Cron] Running event delivery processing", { requestId });
-        const { processEventDelivery } = await import("../../cron/tasks/event-delivery");
-        const deliveryResult = await processEventDelivery();
-        results.process_event_delivery = deliveryResult;
-      }
-
-      if (task === "all" || task === "cleanup") {
-        logger.info("[Cron] Running cleanup tasks", { requestId });
-        const cleanupResult = await cleanupExpiredData();
-        results.cleanup = cleanupResult;
-      }
-
-      if (task === "all" || task === "alerts") {
-        logger.info("[Cron] Running all shop alert checks", { requestId });
-        await runAllShopAlertChecks();
-        results.alerts = { status: "completed" };
-      }
-
-      return results;
+      return await runCronTasks(task, requestId);
     } catch (error) {
       logger.error("Cron task execution failed", { requestId, task, error });
       throw error;
