@@ -363,7 +363,13 @@ class RedisClientFactory {
             : typeof err === "object" && err && "message" in err
               ? String((err as { message?: unknown }).message)
               : String(err);
-        logger.error("[REDIS] Client error", err);
+        const normalizedError =
+          err instanceof Error
+            ? err
+            : Object.assign(new Error(errMsg), { cause: err as unknown });
+        logger.error("[REDIS] Client error", normalizedError, {
+          redisErrorType: typeof err,
+        });
         this.connectionInfo.lastError = errMsg;
         this.connectionInfo.connected = false;
       });
