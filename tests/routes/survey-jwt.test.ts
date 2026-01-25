@@ -33,18 +33,33 @@ vi.mock("../../app/middleware/rate-limit", () => ({
   pathShopKeyExtractor: () => "key",
 }));
 
-vi.mock("../../app/utils/public-auth", () => ({
-  authenticatePublic: vi.fn(),
-  normalizeDestToShopDomain: (d: string) => {
+vi.mock("../../app/utils/public-auth", () => {
+  const authenticatePublic = vi.fn();
+  const normalizeDestToShopDomain = (d: string) => {
     try {
       return new URL(d).hostname;
     } catch {
       return d.replace(/^https?:\/\//, "").split("/")[0];
     }
-  },
-  handlePublicPreflight: vi.fn().mockResolvedValue(new Response(null, { status: 204 })),
-  addSecurityHeaders: (r: Response) => r,
-}));
+  };
+  const tryAuthenticatePublicWithShop = async (request: Request) => {
+    try {
+      const authResult = await authenticatePublic(request);
+      const shopDomain = normalizeDestToShopDomain(authResult.sessionToken.dest);
+      if (!shopDomain) return null;
+      return { authResult, shopDomain };
+    } catch {
+      return null;
+    }
+  };
+  return {
+    authenticatePublic,
+    normalizeDestToShopDomain,
+    tryAuthenticatePublicWithShop,
+    handlePublicPreflight: vi.fn().mockResolvedValue(new Response(null, { status: 204 })),
+    addSecurityHeaders: (r: Response) => r,
+  };
+});
 
 vi.mock("../../app/services/ui-extension.server", () => ({
   canUseModule: vi.fn().mockResolvedValue({ allowed: true }),

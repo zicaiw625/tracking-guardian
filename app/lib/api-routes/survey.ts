@@ -5,7 +5,7 @@ import { withRateLimit, pathShopKeyExtractor, type RateLimitedHandler, checkRate
 import prisma from "../../db.server";
 import { randomUUID } from "crypto";
 import { canUseModule, getUiModuleConfigs } from "../../services/ui-extension.server";
-import { authenticatePublic, normalizeDestToShopDomain, handlePublicPreflight, addSecurityHeaders } from "../../utils/public-auth";
+import { tryAuthenticatePublicWithShop, handlePublicPreflight, addSecurityHeaders } from "../../utils/public-auth";
 import { makeOrderKey, hashValueSync } from "../../utils/crypto.server";
 import { readJsonWithSizeLimit } from "../../utils/body-size-guard";
 import { containsSensitiveInfo, sanitizeSensitiveInfo } from "../../utils/security";
@@ -28,13 +28,11 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   if (!/^application\/json($|;)/.test(ct)) {
     return wrap(json({ error: "Content-Type must be application/json" }, { status: 415 }));
   }
-  let authResult;
-  try {
-    authResult = await authenticatePublic(request);
-  } catch {
+  const auth = await tryAuthenticatePublicWithShop(request);
+  if (!auth) {
     return wrap(json({ error: "Unauthorized: Invalid authentication" }, { status: 401 }));
   }
-  const shopDomain = normalizeDestToShopDomain(authResult.sessionToken.dest);
+  const { authResult, shopDomain } = auth;
   const postWrap = (r: Response) => {
     const c = getDynamicCorsHeaders(request, ["Authorization"]);
     const h = new Headers(r.headers);

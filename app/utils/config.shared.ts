@@ -62,7 +62,7 @@ export const ENCRYPTION_CONFIG = {
 } as const;
 
 export const SHOPIFY_API_CONFIG = {
-  VERSION: "2025-07",
+  VERSION: "2026-01",
   getGraphQLEndpoint: (shopDomain: string): string => {
     const validationResult = SecureShopDomainSchema.safeParse(shopDomain);
     if (!validationResult.success) {

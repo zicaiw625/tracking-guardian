@@ -65,26 +65,29 @@ function createPrismaClient(): PrismaClient {
   return client;
 }
 
-const prisma: PrismaClient = global.prisma || createPrismaClient();
+const basePrisma: PrismaClient = global.prisma || createPrismaClient();
 
-prisma.$use(async (params, next) => {
-  if (params && typeof params === "object") {
-    const action = (params as { action?: string }).action;
-    if (
-      action === "create" ||
-      action === "update" ||
-      action === "upsert" ||
-      action === "createMany" ||
-      action === "updateMany"
-    ) {
-      sanitizePrismaWriteArgs(action, (params as { args?: unknown }).args);
-    }
-  }
-  return next(params);
-});
+const prisma: PrismaClient = basePrisma.$extends({
+  query: {
+    $allModels: {
+      $allOperations({ operation, args, query }) {
+        if (
+          operation === "create" ||
+          operation === "update" ||
+          operation === "upsert" ||
+          operation === "createMany" ||
+          operation === "updateMany"
+        ) {
+          sanitizePrismaWriteArgs(operation, args);
+        }
+        return query(args);
+      },
+    },
+  },
+}) as unknown as PrismaClient;
 
 if (process.env.NODE_ENV !== "production") {
-  global.prisma = prisma;
+  global.prisma = basePrisma;
 }
 
 export default prisma;

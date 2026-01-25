@@ -186,7 +186,7 @@ describe("/ingest Security Policy Tests", () => {
       const response = await action({ request, params: {}, context: {} });
       expect(response.status).toBe(403);
       const data = await response.json();
-      expect(data.error).toContain("Invalid origin");
+      expect(data.error).toBe("Invalid request");
     });
 
     it("should allow request with missing Origin but valid Referer in production", async () => {
@@ -217,7 +217,7 @@ describe("/ingest Security Policy Tests", () => {
       const response = await action({ request, params: {}, context: {} });
       expect(response.status).toBe(403);
       const data = await response.json();
-      expect(data.error).toBe("Invalid origin");
+      expect(data.error).toBe("Invalid request");
     });
   });
 
@@ -260,7 +260,7 @@ describe("/ingest Security Policy Tests", () => {
       const response = await action({ request, params: {}, context: {} });
       expect(response.status).toBe(401);
       const data = await response.json();
-      expect(data.error).toContain("Invalid signature");
+      expect(data.error).toBe("Invalid request");
     });
 
     it("should reject request with invalid signature in strict mode", async () => {
@@ -285,7 +285,7 @@ describe("/ingest Security Policy Tests", () => {
       const response = await action({ request, params: {}, context: {} });
       expect(response.status).toBe(401);
       const data = await response.json();
-      expect(data.error).toContain("Invalid signature");
+      expect(data.error).toBe("Invalid request");
     });
   });
 
@@ -301,7 +301,7 @@ describe("/ingest Security Policy Tests", () => {
       const response = await action({ request, params: {}, context: {} });
       expect(response.status).toBe(401);
       const data = await response.json();
-      expect(data.error).toContain("Invalid signature");
+      expect(data.error).toBe("Invalid request");
     });
   });
 

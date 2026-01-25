@@ -29,12 +29,18 @@ export function isTelegramAlertSettings(
   if (!isObject(value)) {
     return false;
   }
-  return (
+  if (
     "botToken" in value &&
     "chatId" in value &&
     typeof value.botToken === "string" &&
     typeof value.chatId === "string"
-  );
+  ) {
+    const token = value.botToken.trim();
+    const chatId = value.chatId.trim();
+    if (!chatId) return false;
+    return /^\d+:[A-Za-z0-9_-]+$/.test(token);
+  }
+  return false;
 }
 
 export function asEmailAlertSettings(

@@ -4,7 +4,7 @@ import { logger } from "../../utils/logger.server";
 import prisma from "../../db.server";
 import { getUiModuleConfigs, canUseModule, getDefaultSettings } from "../../services/ui-extension.server";
 import { PCD_CONFIG } from "../../utils/config.server";
-import { authenticatePublic, normalizeDestToShopDomain, handlePublicPreflight, addSecurityHeaders } from "../../utils/public-auth";
+import { tryAuthenticatePublicWithShop, handlePublicPreflight, addSecurityHeaders } from "../../utils/public-auth";
 import { sanitizeUrl, validateEmailForMailto, isPublicUrl } from "../../utils/security";
 import { checkRateLimitAsync } from "../../middleware/rate-limit";
 import { createReorderNonce } from "../../lib/pixel-events/receipt-handler";
@@ -36,16 +36,11 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   if (request.method !== "GET") {
     return json({ error: "Method not allowed" }, { status: 405 });
   }
-  let authResult;
-  try {
-    authResult = await authenticatePublic(request);
-  } catch {
-      return addSecurityHeaders(json(
-        { error: "Unauthorized: Invalid authentication" },
-        { status: 401 }
-      ));
+  const auth = await tryAuthenticatePublicWithShop(request);
+  if (!auth) {
+    return addSecurityHeaders(json({ error: "Unauthorized: Invalid authentication" }, { status: 401 }));
   }
-  const shopDomain = normalizeDestToShopDomain(authResult.sessionToken.dest);
+  const { authResult, shopDomain } = auth;
   const shop = await prisma.shop.findUnique({
     where: { shopDomain },
     select: { id: true, primaryDomain: true, storefrontDomains: true },

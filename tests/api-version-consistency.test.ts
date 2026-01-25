@@ -39,6 +39,7 @@ describe("API Version Consistency", () => {
       "April25": "2025-04",
       "July25": "2025-07",
       "October25": "2025-10",
+      "January26": "2026-01",
     };
     return enumToVersion[match[1]] || null;
   }

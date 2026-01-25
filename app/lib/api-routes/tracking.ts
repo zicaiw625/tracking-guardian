@@ -14,7 +14,7 @@ import { checkRateLimitAsync } from "../../middleware/rate-limit";
 import { defaultLoaderCache } from "../../lib/with-cache";
 import { TTL } from "../../utils/cache";
 import { getUiModuleConfig } from "../../services/ui-extension.server";
-import { authenticatePublic, normalizeDestToShopDomain, handlePublicPreflight, addSecurityHeaders } from "../../utils/public-auth";
+import { authenticatePublic, tryAuthenticatePublicWithShop, handlePublicPreflight, addSecurityHeaders } from "../../utils/public-auth";
 import { hashValueSync } from "../../utils/crypto.server";
 import { z } from "zod";
 import { FEATURE_FLAGS } from "../../utils/config.server";
@@ -88,17 +88,14 @@ async function loaderImpl(request: Request) {
       }
       return addSecurityHeaders(json({ error: "Invalid query parameters" }, { status: 400 }));
     }
-    try {
-      authResult = await authenticatePublic(request);
-    } catch {
-      return addSecurityHeaders(json(
-        { error: "Unauthorized: Invalid authentication" },
-        { status: 401 }
-      ));
+    const auth = await tryAuthenticatePublicWithShop(request);
+    if (!auth) {
+      return addSecurityHeaders(json({ error: "Unauthorized: Invalid authentication" }, { status: 401 }));
     }
+    authResult = auth.authResult;
     const { orderId, trackingNumber, checkoutToken } = queryParse.data;
     const gidOrderId = /^\d+$/.test(orderId) ? `gid://shopify/Order/${orderId}` : orderId;
-    const shopDomain = normalizeDestToShopDomain(authResult.sessionToken.dest);
+    const shopDomain = auth.shopDomain;
     const customerId = authResult.sessionToken.sub || "";
     const surface = authResult.surface;
     if (surface === "checkout" && !checkoutToken) {

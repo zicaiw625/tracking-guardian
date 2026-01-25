@@ -276,6 +276,12 @@ async function sendSlackAlert(settings: SlackAlertSettings, data: AlertData): Pr
     }
 }
 async function sendTelegramAlert(settings: TelegramAlertSettings, data: AlertData): Promise<boolean> {
+    const botToken = settings.botToken.trim();
+    const chatId = settings.chatId.trim();
+    if (!/^\d+:[A-Za-z0-9_-]+$/.test(botToken) || chatId.length === 0) {
+        logger.warn("Invalid Telegram settings", { reason: "invalid_format" });
+        return false;
+    }
     const discrepancyPercent = (data.orderDiscrepancy * 100).toFixed(1);
     const dateStr = data.reportDate.toLocaleDateString("zh-CN");
     
@@ -295,11 +301,11 @@ ${alertTitle}
 请及时检查配置！
   `.trim();
     try {
-        const response = await fetchWithTimeout(`https://api.telegram.org/bot${settings.botToken}/sendMessage`, {
+        const response = await fetchWithTimeout(`https://api.telegram.org/bot${botToken}/sendMessage`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
-                chat_id: settings.chatId,
+                chat_id: chatId,
                 text: message,
                 parse_mode: "Markdown",
             }),

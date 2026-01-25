@@ -4,7 +4,7 @@ import { logger } from "../../utils/logger.server";
 import { json } from "@remix-run/node";
 import { checkRateLimitAsync } from "../../middleware/rate-limit";
 import prisma from "../../db.server";
-import { authenticatePublic, normalizeDestToShopDomain, handlePublicPreflight, addSecurityHeaders } from "../../utils/public-auth";
+import { tryAuthenticatePublicWithShop, handlePublicPreflight, addSecurityHeaders } from "../../utils/public-auth";
 import { sanitizeSensitiveInfo } from "../../utils/security";
 import { readJsonWithSizeLimit } from "../../utils/body-size-guard";
 import { hashValueSync } from "../../utils/crypto.server";
@@ -16,16 +16,11 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   if (request.method !== "POST") {
     return addSecurityHeaders(json({ error: "Method not allowed" }, { status: 405 }));
   }
-  let authResult;
-  try {
-    authResult = await authenticatePublic(request);
-  } catch {
-      return addSecurityHeaders(json(
-        { error: "Unauthorized: Invalid authentication" },
-        { status: 401 }
-      ));
+  const auth = await tryAuthenticatePublicWithShop(request);
+  if (!auth) {
+    return addSecurityHeaders(json({ error: "Unauthorized: Invalid authentication" }, { status: 401 }));
   }
-  const shopDomain = normalizeDestToShopDomain(authResult.sessionToken.dest);
+  const { authResult, shopDomain } = auth;
   const shop = await prisma.shop.findUnique({
     where: { shopDomain },
     select: { id: true },

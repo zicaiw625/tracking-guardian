@@ -121,7 +121,7 @@ function sleep(ms: number): Promise<void> {
 function createEnhancedGraphQLClient(
   shopDomain: string,
   accessToken: string,
-  apiVersion: ApiVersion = ApiVersion.July25
+  apiVersion: ApiVersion = ApiVersion.January26
 ): GraphQLClient {
   const apiUrl = `https://${shopDomain}/admin/api/${apiVersion}/graphql.json`;
   return {

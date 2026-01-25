@@ -3,6 +3,7 @@ import { logger } from "./logger.server";
 import { API_SECURITY_HEADERS, addSecurityHeadersToHeaders } from "./security-headers";
 import { getDynamicCorsHeaders } from "./cors";
 import { isValidShopifyOrigin } from "./origin-validation";
+import { SecureShopDomainSchema } from "./security";
 
 export interface PublicAuthResult {
   sessionToken: {
@@ -12,6 +13,21 @@ export interface PublicAuthResult {
   };
   cors: (response: Response) => Response;
   surface: "checkout" | "customer_account";
+}
+
+export async function tryAuthenticatePublicWithShop(
+  request: Request
+): Promise<{ authResult: PublicAuthResult; shopDomain: string } | null> {
+  try {
+    const authResult = await authenticatePublic(request);
+    const shopDomain = normalizeDestToShopDomain(authResult.sessionToken.dest);
+    if (!shopDomain) {
+      return null;
+    }
+    return { authResult, shopDomain };
+  } catch {
+    return null;
+  }
 }
 
 export async function authenticatePublic(request: Request): Promise<PublicAuthResult> {
@@ -102,13 +118,19 @@ export async function handlePublicPreflight(request: Request): Promise<Response>
   });
 }
 
-export function normalizeDestToShopDomain(dest: string): string {
+export function normalizeDestToShopDomain(dest: string): string | null {
+  let host: string;
   try {
     const url = new URL(dest);
-    return url.hostname;
+    host = url.hostname;
   } catch {
-    return dest.replace(/^https?:\/\//, "").split("/")[0];
+    host = dest.replace(/^https?:\/\//, "").split("/")[0] || "";
   }
+  const parsed = SecureShopDomainSchema.safeParse(host);
+  if (!parsed.success) {
+    return null;
+  }
+  return parsed.data;
 }
 
 export function addSecurityHeaders(response: Response): Response {

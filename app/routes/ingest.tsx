@@ -20,6 +20,8 @@ const MAX_BATCH_SIZE = 100;
 const TIMESTAMP_WINDOW_MS = API_CONFIG.TIMESTAMP_WINDOW_MS;
 const INGEST_RATE_LIMIT = RATE_LIMIT_CONFIG.PIXEL_EVENTS;
 
+const INVALID_REQUEST_RESPONSE = { error: "Invalid request" } as const;
+
 function isAcceptableContentType(contentType: string | null): boolean {
   if (!contentType) return false;
   const lower = contentType.toLowerCase();
@@ -63,6 +65,8 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   const origin = originHeaderPresent ? request.headers.get("Origin") : null;
   const isNullOrigin = origin === "null" || origin === null;
   const isProduction = !isDevMode();
+  const rejectProd = (status: number) =>
+    jsonWithCors(INVALID_REQUEST_RESPONSE, { status, request });
   const allowUnsignedEvents = isProduction ? false : process.env.ALLOW_UNSIGNED_PIXEL_EVENTS === "true";
   const signature = request.headers.get("X-Tracking-Guardian-Signature");
   const strictOrigin = (() => {
@@ -90,7 +94,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         reason: "invalid_origin",
         originType: "missing_origin",
       });
-      return jsonWithCors({ error: "Invalid origin" }, { status: 403, request });
+      return rejectProd(403);
     }
   }
   
@@ -113,7 +117,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         reason: preBodyValidation.reason as "invalid_origin" | "invalid_origin_protocol",
         originType: preBodyValidation.reason,
       });
-      return jsonWithCors({ error: "Invalid origin" }, { status: 403, request });
+      return rejectProd(403);
     }
   }
   if (isNullOrigin) {
@@ -305,6 +309,9 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         reason: "origin_not_allowlisted",
         originType: shopOriginValidation.reason,
       });
+      if (isProduction) {
+        return rejectProd(403);
+      }
       return jsonWithCors({ error: "Origin not allowlisted" }, { status: 403, request, shopAllowedDomains });
     }
   }
@@ -323,7 +330,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       logger.warn(`Rejected ingest request: ingestion secret missing in production`, {
         shopDomain,
       });
-      return jsonWithCors({ error: "Ingestion key not configured" }, { status: 401, request });
+      return rejectProd(401);
     }
     if (!signature) {
       metrics.pixelRejection({
@@ -333,7 +340,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       logger.warn(`Rejected ingest request without signature in production`, {
         shopDomain,
       });
-      return jsonWithCors({ error: "Invalid signature" }, { status: 401, request });
+      return rejectProd(401);
     }
     if (!timestampHeader) {
       metrics.pixelRejection({
@@ -343,7 +350,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       logger.warn(`Rejected ingest request without timestamp in production`, {
         shopDomain,
       });
-      return jsonWithCors({ error: "Invalid timestamp" }, { status: 401, request });
+      return rejectProd(401);
     }
   }
   if (signature && hasAnySecret) {
@@ -432,7 +439,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       reason: keyValidation.reason,
       trustLevel: keyValidation.trustLevel,
     });
-    return jsonWithCors({ error: "Invalid signature" }, { status: 401, request });
+    return rejectProd(401);
   }
   const originIsNullish = origin === null || origin === "null" || !originHeaderPresent;
   let hasValidOrigin: boolean;
@@ -466,7 +473,9 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         reason: keyValidation.reason,
         trustSignals: combinedTrustSignals,
       });
-      return jsonWithCors({ error: "Invalid signature" }, { status: 401, request });
+      return isProduction
+        ? rejectProd(401)
+        : jsonWithCors({ error: "Invalid signature" }, { status: 401, request });
     }
     if (hasSignatureHeader && hasAnySecret && !keyValidation.matched) {
       metrics.pixelRejection({
@@ -477,7 +486,9 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         reason: keyValidation.reason,
         trustSignals: combinedTrustSignals,
       });
-      return jsonWithCors({ error: "Invalid signature" }, { status: 401, request });
+      return isProduction
+        ? rejectProd(401)
+        : jsonWithCors({ error: "Invalid signature" }, { status: 401, request });
     }
     if (!hasValidOrigin && !keyValidation.matched) {
       metrics.pixelRejection({
@@ -489,7 +500,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         hmacMatched: keyValidation.matched,
         reason: keyValidation.reason,
       });
-      return jsonWithCors({ error: "Invalid request" }, { status: 403, request });
+      return rejectProd(403);
     }
     if (!hasValidTimestamp && !keyValidation.matched) {
       metrics.pixelRejection({
@@ -501,7 +512,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         hmacMatched: keyValidation.matched,
         reason: keyValidation.reason,
       });
-      return jsonWithCors({ error: "Invalid request" }, { status: 403, request });
+      return rejectProd(403);
     }
   } else {
     if (!keyValidation.matched) {

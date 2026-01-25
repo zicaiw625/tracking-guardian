@@ -195,8 +195,11 @@ export const SlackAlertSettingsSchema = z.object({
 
 export const TelegramAlertSettingsSchema = z.object({
   type: z.literal("telegram"),
-  botToken: z.string().min(1),
-  chatId: z.string().min(1),
+  botToken: z
+    .string()
+    .trim()
+    .regex(/^\d+:[A-Za-z0-9_-]+$/, "Invalid Telegram bot token format"),
+  chatId: z.string().trim().min(1),
 });
 
 export const AlertSettingsSchema = z.discriminatedUnion("type", [
