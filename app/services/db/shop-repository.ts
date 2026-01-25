@@ -27,9 +27,9 @@ export class ShopRepository extends BaseRepository<Shop, ShopCreate, ShopUpdate>
   }
   async create(data: ShopCreate, options?: QueryOptions): AsyncResult<Shop, AppError> {
     const processed = { ...data } as ShopCreate;
-    const at = (data as { accessToken?: string }).accessToken;
+    const at = (data as { accessTokenEncrypted?: string }).accessTokenEncrypted;
     if (typeof at === "string" && at.length > 0) {
-      (processed as { accessToken?: string }).accessToken = ensureTokenEncrypted(at);
+      (processed as { accessTokenEncrypted?: string }).accessTokenEncrypted = ensureTokenEncrypted(at);
     }
     try {
       const result = await this.getDelegate().create({ data: processed, ...options } as { data: unknown });
@@ -41,9 +41,9 @@ export class ShopRepository extends BaseRepository<Shop, ShopCreate, ShopUpdate>
   }
   async update(id: string, data: ShopUpdate, options?: QueryOptions): AsyncResult<Shop, AppError> {
     let processed: ShopUpdate = data;
-    const at = (data as { accessToken?: string }).accessToken;
+    const at = (data as { accessTokenEncrypted?: string }).accessTokenEncrypted;
     if (typeof at === "string" && at.length > 0) {
-      processed = { ...data, accessToken: ensureTokenEncrypted(at) } as ShopUpdate;
+      processed = { ...data, accessTokenEncrypted: ensureTokenEncrypted(at) } as ShopUpdate;
     }
     try {
       const result = await this.getDelegate().update({ where: { id }, data: processed, ...options } as { where: { id: string }; data: unknown });
@@ -118,13 +118,13 @@ export class ShopRepository extends BaseRepository<Shop, ShopCreate, ShopUpdate>
   ): AsyncResult<Shop, AppError> {
     try {
       const create: Prisma.ShopCreateInput = { shopDomain, ...createData };
-      if (typeof createData.accessToken === "string" && createData.accessToken.length > 0) {
-        create.accessToken = ensureTokenEncrypted(createData.accessToken);
+      if (typeof (createData as { accessTokenEncrypted?: string }).accessTokenEncrypted === "string" && (createData as { accessTokenEncrypted?: string }).accessTokenEncrypted!.length > 0) {
+        create.accessTokenEncrypted = ensureTokenEncrypted((createData as { accessTokenEncrypted?: string }).accessTokenEncrypted!);
       }
       let update: ShopUpdate = updateData;
-      const ua = (updateData as { accessToken?: string }).accessToken;
+      const ua = (updateData as { accessTokenEncrypted?: string }).accessTokenEncrypted;
       if (typeof ua === "string" && ua.length > 0) {
-        update = { ...updateData, accessToken: ensureTokenEncrypted(ua) };
+        update = { ...updateData, accessTokenEncrypted: ensureTokenEncrypted(ua) };
       }
       const result = await this.db.shop.upsert({
         where: { shopDomain },

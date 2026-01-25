@@ -331,11 +331,11 @@ async function getAccessTokenFromShop(
 ): Promise<string | null> {
   const shopRecord = await prisma.shop.findUnique({
     where: { shopDomain },
-    select: { accessToken: true },
+    select: { accessTokenEncrypted: true },
   });
-  if (shopRecord?.accessToken) {
+  if (shopRecord?.accessTokenEncrypted) {
     try {
-      return decryptAccessToken(shopRecord.accessToken);
+      return decryptAccessToken(shopRecord.accessTokenEncrypted);
     } catch {
       logger.warn(
         `[Admin] Failed to decrypt shop-level token for ${shopDomain}`

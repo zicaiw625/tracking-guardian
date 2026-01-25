@@ -117,7 +117,7 @@ export class PrismaShopRepository implements IShopRepository {
         data: {
           id: generateSimpleId("shop"),
           shopDomain: data.shopDomain,
-          accessToken,
+          accessTokenEncrypted: accessToken,
           email: data.email ?? null,
           name: data.name ?? null,
           plan: data.plan ?? "free",
@@ -173,7 +173,7 @@ export class PrismaShopRepository implements IShopRepository {
         create: {
           id: generateSimpleId("shop"),
           shopDomain: createData.shopDomain,
-          accessToken: createAccessToken,
+          accessTokenEncrypted: createAccessToken,
           email: createData.email ?? null,
           name: createData.name ?? null,
           plan: createData.plan ?? "free",

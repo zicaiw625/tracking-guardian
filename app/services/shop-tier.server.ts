@@ -107,11 +107,11 @@ export async function refreshShopTier(shopId: string): Promise<RefreshTierResult
             where: { id: shopId },
             select: {
                 shopDomain: true,
-                accessToken: true,
+                accessTokenEncrypted: true,
                 shopTier: true,
             },
         });
-        if (!shop || !shop.accessToken) {
+        if (!shop || !shop.accessTokenEncrypted) {
             return {
                 tier: shop?.shopTier as ShopTier || "unknown",
                 updated: false,

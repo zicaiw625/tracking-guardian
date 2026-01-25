@@ -9,7 +9,7 @@ export function timingSafeEquals(a: string, b: string): boolean {
     const hashB = createHash("sha256").update(b).digest();
     return timingSafeEqual(hashA, hashB);
 }
-export interface DecryptedShop extends Omit<Shop, "accessToken" | "ingestionSecret"> {
+export interface DecryptedShop extends Omit<Shop, "accessTokenEncrypted" | "ingestionSecret"> {
     accessToken: string | null;
     ingestionSecret: string;
 }
@@ -37,9 +37,9 @@ export async function getShopByIdWithDecryptedFields(shopId: string): Promise<De
 function decryptShopFields(shop: Shop): DecryptedShop {
     let decryptedAccessToken: string | null = null;
     let decryptedIngestionSecret = "";
-    if (shop.accessToken) {
+    if (shop.accessTokenEncrypted) {
         try {
-            decryptedAccessToken = decryptAccessToken(shop.accessToken);
+            decryptedAccessToken = decryptAccessToken(shop.accessTokenEncrypted);
         }
         catch (error) {
             if (error instanceof TokenDecryptionError) {
@@ -392,18 +392,18 @@ export async function migrateShopTokensToEncrypted(): Promise<{
         select: {
             id: true,
             shopDomain: true,
-            accessToken: true,
+            accessTokenEncrypted: true,
             ingestionSecret: true,
         },
     });
     for (const shop of shops) {
         try {
             const updates: {
-                accessToken?: string;
+                accessTokenEncrypted?: string;
                 ingestionSecret?: string;
             } = {};
-            if (shop.accessToken && !isTokenEncrypted(shop.accessToken)) {
-                updates.accessToken = encryptAccessToken(shop.accessToken);
+            if (shop.accessTokenEncrypted && !isTokenEncrypted(shop.accessTokenEncrypted)) {
+                updates.accessTokenEncrypted = encryptAccessToken(shop.accessTokenEncrypted);
                 accessTokensMigrated++;
             }
             if (shop.ingestionSecret && !isTokenEncrypted(shop.ingestionSecret)) {

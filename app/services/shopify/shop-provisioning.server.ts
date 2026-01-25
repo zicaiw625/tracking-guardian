@@ -91,7 +91,7 @@ async function upsertShopRecord(
   await prisma.shop.upsert({
     where: { shopDomain },
     update: {
-      accessToken: encryptedAccessToken,
+      accessTokenEncrypted: encryptedAccessToken,
       isActive: true,
       uninstalledAt: null,
       ...(shopInfo.primaryDomain && { primaryDomain: shopInfo.primaryDomain }),
@@ -100,7 +100,7 @@ async function upsertShopRecord(
     create: {
       id: shopDomain,
       shopDomain,
-      accessToken: encryptedAccessToken,
+      accessTokenEncrypted: encryptedAccessToken,
       ingestionSecret: newIngestionSecret.encrypted,
       primaryDomain: shopInfo.primaryDomain,
       storefrontDomains: [],

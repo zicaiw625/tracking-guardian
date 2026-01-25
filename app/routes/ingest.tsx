@@ -226,6 +226,25 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   const firstPayload = firstEventValidation.payload;
   const shopDomain = firstPayload.shopDomain;
   const timestamp = batchTimestamp ?? firstPayload.timestamp;
+  if (shopDomainHeader !== "unknown" && shopDomainHeader !== shopDomain) {
+    if (isProduction) {
+      metrics.pixelRejection({
+        shopDomain,
+        reason: "invalid_payload",
+        originType: "shop_domain_mismatch",
+      });
+      logger.warn(`Rejected ingest request: header shop domain does not match payload shop domain`, {
+        shopDomain,
+        shopDomainHeader,
+      });
+      return jsonWithCors({ error: "Invalid request" }, { status: 403, request });
+    } else {
+      logger.warn(`Ingest request: header shop domain does not match payload shop domain`, {
+        shopDomain,
+        shopDomainHeader,
+      });
+    }
+  }
   const nowForWindow = Date.now();
   if (Math.abs(nowForWindow - timestamp) > TIMESTAMP_WINDOW_MS) {
     logger.debug(
@@ -295,16 +314,37 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     trustLevel: "untrusted",
   };
   const hasAnySecret = Boolean(shop.ingestionSecret || shop.previousIngestionSecret);
-  if (isProduction && hasAnySecret && !signature) {
-    metrics.pixelRejection({
-      shopDomain,
-      reason: "invalid_key",
-    });
-    logger.warn(`Rejected ingest request without signature for ${shopDomain} (secret configured)`, {
-      origin: origin?.substring(0, 100) || "null",
-      hasSecret: true,
-    });
-    return jsonWithCors({ error: "Invalid signature" }, { status: 401, request });
+  if (isProduction) {
+    if (!hasAnySecret) {
+      metrics.pixelRejection({
+        shopDomain,
+        reason: "no_ingestion_key",
+      });
+      logger.warn(`Rejected ingest request: ingestion secret missing in production`, {
+        shopDomain,
+      });
+      return jsonWithCors({ error: "Ingestion key not configured" }, { status: 401, request });
+    }
+    if (!signature) {
+      metrics.pixelRejection({
+        shopDomain,
+        reason: "invalid_key",
+      });
+      logger.warn(`Rejected ingest request without signature in production`, {
+        shopDomain,
+      });
+      return jsonWithCors({ error: "Invalid signature" }, { status: 401, request });
+    }
+    if (!timestampHeader) {
+      metrics.pixelRejection({
+        shopDomain,
+        reason: "invalid_timestamp",
+      });
+      logger.warn(`Rejected ingest request without timestamp in production`, {
+        shopDomain,
+      });
+      return jsonWithCors({ error: "Invalid timestamp" }, { status: 401, request });
+    }
   }
   if (signature && hasAnySecret) {
     const verifyWithSecret = async (secret: string) => {
@@ -381,6 +421,18 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       reason: "signature_missing",
       trustLevel: "untrusted",
     };
+  }
+  if (isProduction && !keyValidation.matched) {
+    metrics.pixelRejection({
+      shopDomain,
+      reason: keyValidation.reason === "secret_missing" ? "no_ingestion_key" : "invalid_key",
+    });
+    logger.warn(`Rejected ingest request without valid HMAC in production`, {
+      shopDomain,
+      reason: keyValidation.reason,
+      trustLevel: keyValidation.trustLevel,
+    });
+    return jsonWithCors({ error: "Invalid signature" }, { status: 401, request });
   }
   const originIsNullish = origin === null || origin === "null" || !originHeaderPresent;
   let hasValidOrigin: boolean;

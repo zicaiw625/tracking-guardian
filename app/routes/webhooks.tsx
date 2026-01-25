@@ -50,6 +50,28 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       admin: authResult.admin as WebhookContext["admin"],
       session: authResult.session,
     };
+    const shopTopicKey = `webhook:${context.shop}:${context.topic}`;
+    const shopTopicRateLimit = await checkRateLimitAsync(
+      shopTopicKey,
+      RATE_LIMIT_CONFIG.WEBHOOKS.maxRequests,
+      RATE_LIMIT_CONFIG.WEBHOOKS.windowMs
+    );
+    if (!shopTopicRateLimit.allowed) {
+      logger.warn("[Webhook] Rate limit exceeded (shop+topic)", {
+        shop: context.shop,
+        topic: context.topic,
+        retryAfter: shopTopicRateLimit.retryAfter,
+      });
+      return new Response("Too Many Requests", {
+        status: 429,
+        headers: {
+          "Retry-After": String(shopTopicRateLimit.retryAfter || 60),
+          "X-RateLimit-Limit": String(RATE_LIMIT_CONFIG.WEBHOOKS.maxRequests),
+          "X-RateLimit-Remaining": String(shopTopicRateLimit.remaining || 0),
+          "X-RateLimit-Reset": String(Math.ceil((shopTopicRateLimit.resetAt || Date.now()) / 1000)),
+        },
+      });
+    }
   } catch (error) {
     if (error instanceof Response) {
       const errorStatus = error.status;
