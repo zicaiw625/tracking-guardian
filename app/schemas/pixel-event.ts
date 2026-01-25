@@ -23,7 +23,7 @@ export type ConsentInput = z.infer<typeof ConsentSchema>;
 
 export const LineItemSchema = z.object({
   id: z.string().min(1),
-  name: z.string().optional(),
+  name: z.string().max(500).optional(),
   price: z.number().nonnegative(),
   quantity: z.number().int().positive(),
   sku: z.string().optional(),
@@ -51,8 +51,8 @@ export const CheckoutCompletedDataSchema = z.object({
   checkoutToken: z.union([z.string(), z.null()]).optional(),
   items: z.array(LineItemSchema).optional(),
   itemCount: z.number().int().nonnegative().optional(),
-  url: z.string().url().optional(),
-  title: z.string().optional(),
+  url: z.string().url().max(2000).optional(),
+  title: z.string().max(500).optional(),
 }).refine(
   (data) => data.orderId || data.checkoutToken,
   { message: 'Either orderId or checkoutToken is required for checkout_completed' }
@@ -61,10 +61,10 @@ export const CheckoutCompletedDataSchema = z.object({
 export type CheckoutCompletedDataInput = z.infer<typeof CheckoutCompletedDataSchema>;
 
 export const PageViewDataSchema = z.object({
-  url: z.string().url().optional(),
-  title: z.string().optional(),
+  url: z.string().url().max(2000).optional(),
+  title: z.string().max(500).optional(),
   productId: z.string().optional(),
-  productTitle: z.string().optional(),
+  productTitle: z.string().max(500).optional(),
   price: z.number().nonnegative().optional(),
 });
 
@@ -72,7 +72,7 @@ export type PageViewDataInput = z.infer<typeof PageViewDataSchema>;
 
 export const AddToCartDataSchema = z.object({
   productId: z.string().optional(),
-  productTitle: z.string().optional(),
+  productTitle: z.string().max(500).optional(),
   variantId: z.string().optional(),
   price: z.number().nonnegative().optional(),
   quantity: z.number().int().positive().optional(),

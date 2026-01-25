@@ -1,4 +1,4 @@
-import { createHash } from "crypto";
+import { createHash, randomBytes } from "crypto";
 import { generateEventId as generateCryptoEventId } from "~/utils/crypto.server";
 import type { PixelEventPayload } from "~/lib/pixel-events/types";
 
@@ -26,7 +26,7 @@ export function generateEventId(
       .substring(0, 32);
   }
   const timestamp = Date.now();
-  const random = Math.random().toString(36).substring(2, 15);
+  const random = randomBytes(16).toString("hex");
   const hashInput = `${shopDomain}:${timestamp}:${random}:${eventName}`;
   return createHash("sha256")
     .update(hashInput, "utf8")

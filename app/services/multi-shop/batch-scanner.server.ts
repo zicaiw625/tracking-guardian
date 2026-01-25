@@ -35,7 +35,7 @@ export async function createBatchScanJob(
   workspaceId?: string
 ): Promise<BatchScanJob> {
   const job: BatchScanJob = {
-    id: `batch-scan-${Date.now()}-${Math.random().toString(36).slice(2, 11)}`,
+    id: `batch-scan-${randomUUID()}`,
     workspaceId,
     shopIds,
     status: "pending",

@@ -177,6 +177,11 @@ function sanitizeEventData(
   if (!eventData || typeof eventData !== "object") {
     return {};
   }
+  const truncate = (value: unknown, max: number): string | undefined => {
+    if (value === null || value === undefined) return undefined;
+    const s = String(value);
+    return s.length > max ? s.slice(0, max) : s;
+  };
   const allowedKeys = new Set([
     "orderId",
     "orderNumber",
@@ -204,7 +209,7 @@ function sanitizeEventData(
             const itemObj = item as Record<string, unknown>;
             return {
               id: String(itemObj.id || ""),
-              name: String(itemObj.name || ""),
+              name: truncate(itemObj.name, 500) || "",
               price: typeof itemObj.price === "number" ? itemObj.price : 0,
               quantity: typeof itemObj.quantity === "number" ? itemObj.quantity : 1,
             };
@@ -214,7 +219,15 @@ function sanitizeEventData(
       } else if (key === "orderId" || key === "checkoutToken") {
         sanitized[key] = value === null || value === undefined ? null : String(value);
       } else if (key === "orderNumber" || key === "url" || key === "title" || key === "productId" || key === "productTitle") {
-        sanitized[key] = value === null || value === undefined ? undefined : String(value);
+        if (key === "url") {
+          sanitized.url = truncate(value, 2000);
+        } else if (key === "title") {
+          sanitized.title = truncate(value, 500);
+        } else if (key === "productTitle") {
+          sanitized.productTitle = truncate(value, 500);
+        } else {
+          (sanitized as Record<string, unknown>)[key] = value === null || value === undefined ? undefined : String(value);
+        }
       } else if (key === "environment") {
         const envStr = value === null || value === undefined ? undefined : String(value);
         if (envStr === "test" || envStr === "live") {

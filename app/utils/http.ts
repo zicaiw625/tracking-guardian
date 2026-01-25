@@ -1,4 +1,5 @@
 import { logger } from "./logger.server";
+import { randomBytes } from "crypto";
 
 export const DEFAULT_TIMEOUT_MS = 10000;
 export const DEFAULT_RETRY_ATTEMPTS = 3;
@@ -220,7 +221,7 @@ export async function getJson<T = unknown>(
 }
 
 export function generateRequestId(): string {
-  return `req_${Date.now().toString(36)}_${Math.random().toString(36).substring(2, 9)}`;
+  return `req_${Date.now().toString(36)}_${randomBytes(4).toString("hex")}`;
 }
 
 export function buildUrl(base: string, params: Record<string, string | number | boolean | undefined>): string {

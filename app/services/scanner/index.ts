@@ -21,6 +21,7 @@ import { refreshTypOspStatus } from "../checkout-profile.server";
 import { logger } from "../../utils/logger.server";
 import type { Prisma } from "@prisma/client";
 import { SCANNER_CONFIG } from "../../utils/config.server";
+import { randomUUID } from "crypto";
 import {
     batchCreateAuditAssets,
     type AuditAssetInput
@@ -691,7 +692,7 @@ export async function scanShopTracking(
     try {
         const savedReport = await prisma.scanReport.create({
             data: {
-                id: `${shopId}-${Date.now()}`,
+                id: randomUUID(),
                 shopId,
                 scriptTags: (safeJsonClone(result.scriptTags) as unknown) as Prisma.InputJsonValue,
                 checkoutConfig: result.checkoutConfig ? ((safeJsonClone(result.checkoutConfig) as unknown) as Prisma.InputJsonValue) : undefined,

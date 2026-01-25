@@ -3,6 +3,7 @@ import { logger } from "../utils/logger.server";
 import { parallelLimit } from "../utils/helpers";
 import type { PixelTemplateConfig } from "../utils/type-guards";
 import type { Prisma } from "@prisma/client";
+import { randomUUID } from "crypto";
 
 export interface PixelTemplate {
   id: string;
@@ -27,7 +28,7 @@ export async function createPixelTemplate(data: {
   isPublic?: boolean;
 }): Promise<PixelTemplate> {
   const template: PixelTemplate = {
-    id: `template-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+    id: `template-${randomUUID()}`,
     name: data.name,
     description: data.description,
     platforms: data.platforms,
@@ -128,7 +129,7 @@ async function applyTemplateToShop(
             updatedAt: new Date(),
           },
           create: {
-            id: `config-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+            id: `config-${randomUUID()}`,
             shopId,
             platform: platformConfig.platform,
             eventMappings: (platformConfig.eventMappings ?? {}) as Prisma.InputJsonValue,

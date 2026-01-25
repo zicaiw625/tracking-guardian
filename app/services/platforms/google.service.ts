@@ -19,6 +19,7 @@ import {
 import {
   classifyJsError,
 } from "./base-platform.service";
+import { randomBytes } from "crypto";
 
 const GA4_MEASUREMENT_PROTOCOL_URL = process.env.GA4_USE_EU_ENDPOINT === "true"
   ? "https://region1.google-analytics.com/mp/collect"
@@ -155,7 +156,7 @@ export class GooglePlatformService implements IPlatformService {
       clientId = providedClientId;
     } else {
       const timestamp = Date.now();
-      const random = Math.floor(Math.random() * 1000000000);
+      const random = randomBytes(4).readUInt32BE(0) % 1000000000;
       clientId = `${timestamp}.${random}`;
     }
     const payload = {

@@ -8,6 +8,7 @@ import { safeFireAndForget } from "../utils/helpers.server";
 import { normalizePlanId } from "../services/billing/plans";
 import { isPlanAtLeast } from "../utils/plans";
 import { extractPlatformFromPayload } from "../utils/common";
+import { randomUUID } from "crypto";
 
 export interface VerificationTestItem {
   id: string;
@@ -160,7 +161,7 @@ export async function createVerificationRun(
   }
   const run = await prisma.verificationRun.create({
     data: {
-      id: `${shopId}-${Date.now()}-${Math.random().toString(36).substring(7)}`,
+      id: randomUUID(),
       shopId,
       runName,
       runType,

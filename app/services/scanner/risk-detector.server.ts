@@ -1,5 +1,6 @@
 import type { RiskItem } from "../../types";
 import { analyzeScriptContent } from "./content-analysis";
+import { randomBytes } from "crypto";
 
 export interface RiskDetectionResult {
   risks: RiskItem[];
@@ -97,7 +98,7 @@ export function detectRisksInScripts(scripts: Array<{ content: string; id?: stri
   const byScript = new Map<string, RiskDetectionResult>();
   const allRisks: RiskItem[] = [];
   for (const script of scripts) {
-    const scriptId = script.id || `script_${Math.random().toString(36).slice(2, 11)}`;
+    const scriptId = script.id || `script_${randomBytes(6).toString("hex")}`;
     const result = detectRisksInContent(script.content);
     byScript.set(scriptId, result);
     allRisks.push(...result.risks);

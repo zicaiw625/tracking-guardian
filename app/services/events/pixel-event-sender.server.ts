@@ -6,6 +6,7 @@ import type { PlatformCredentials } from "~/types";
 import { fetchWithTimeout, DEFAULT_API_TIMEOUT_MS } from "../platforms/interface";
 import { CAPI_CONFIG } from "~/utils/config.server";
 import { ErrorCode } from "~/utils/errors/app-error";
+import { randomBytes } from "crypto";
 
 const GA4_MEASUREMENT_PROTOCOL_URL = "https://www.google-analytics.com/mp/collect";
 const META_API_BASE_URL = "https://graph.facebook.com";
@@ -173,7 +174,7 @@ const platformConfigs: Record<string, PlatformSendConfig> = {
         clientId = providedClientId;
       } else {
         const timestamp = Date.now();
-        const random = Math.floor(Math.random() * 1000000000);
+        const random = randomBytes(4).readUInt32BE(0) % 1000000000;
         clientId = `${timestamp}.${random}`;
       }
       return {
