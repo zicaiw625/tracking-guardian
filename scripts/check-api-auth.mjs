@@ -18,10 +18,45 @@ const WHITELIST = [
   "api.health",
   "api.cron",
   "api.performance",
+  "api.ready",
   "api.extension-errors",
   "api.tracking",
   "ingest",
 ];
+
+function escapeRegex(input) {
+  return input.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function resolveForwardedRoutePath(apiRoutesDir, forwardedRoute) {
+  const base = join(apiRoutesDir, forwardedRoute);
+  const candidates = [
+    `${base}.ts`,
+    `${base}.tsx`,
+    join(base, "index.ts"),
+    join(base, "index.tsx"),
+    base,
+  ];
+  for (const candidate of candidates) {
+    try {
+      if (statSync(candidate).isFile()) {
+        return candidate;
+      }
+    } catch (error) {
+      if (error?.code !== "ENOENT") {
+        throw error;
+      }
+    }
+  }
+  return null;
+}
+
+function hasAuthSomewhere(content) {
+  return AUTH_PATTERNS.some((pattern) => {
+    const re = new RegExp(`${escapeRegex(pattern)}\\s*\\(`, "m");
+    return re.test(content);
+  });
+}
 
 function getAllRouteFiles(dir, fileList = []) {
   const files = readdirSync(dir);
@@ -83,26 +118,24 @@ function checkRouteAuth(filePath, isApiRouteFile = false) {
   
   const forwardedRoute = !isApiRouteFile ? extractForwardedRoute(content) : null;
   if (forwardedRoute) {
-    const apiRoutePath = join(process.cwd(), "app/lib/api-routes", forwardedRoute);
-    try {
-      if (statSync(apiRoutePath).isFile()) {
-        checkRouteAuth(apiRoutePath, true);
-        checks.push({
-          name: `API Route: ${routeName}`,
-          status: "pass",
-          message: `Forwards to app/lib/api-routes/${forwardedRoute} (auth checked in forwarded file)`,
-        });
-        return;
-      }
-    } catch (error) {
-      if (error.code !== "ENOENT") {
-        throw error;
-      }
+    const apiRoutesDir = join(process.cwd(), "app/lib/api-routes");
+    const resolved = resolveForwardedRoutePath(apiRoutesDir, forwardedRoute);
+    if (resolved) {
+      checkRouteAuth(resolved, true);
+      const relative = resolved.replace(`${process.cwd()}/`, "");
+      checks.push({
+        name: `API Route: ${routeName}`,
+        status: "pass",
+        message: `Forwards to ${relative} (auth checked in forwarded file)`,
+      });
+      return;
     }
   }
   
-  const hasLoader = content.includes("export const loader") || content.includes("export const action");
-  if (!hasLoader) {
+  const hasLoaderExport = content.includes("export const loader") || content.includes("export async function loader");
+  const hasActionExport = content.includes("export const action") || content.includes("export async function action");
+  const hasAnyHandler = hasLoaderExport || hasActionExport;
+  if (!hasAnyHandler) {
     checks.push({
       name: `API Route: ${routeName}${isApiRouteFile ? " (in app/lib/api-routes)" : ""}`,
       status: "warn",
@@ -111,44 +144,21 @@ function checkRouteAuth(filePath, isApiRouteFile = false) {
     return;
   }
   
-  const loaderMatch = content.match(/export\s+(const|async\s+function)\s+loader[^{]*\{[^}]*\}/s);
-  const actionMatch = content.match(/export\s+(const|async\s+function)\s+action[^{]*\{[^}]*\}/s);
-  
-  let hasAuthInLoader = false;
-  let hasAuthInAction = false;
-  
-  if (loaderMatch) {
-    const loaderContent = loaderMatch[0];
-    hasAuthInLoader = AUTH_PATTERNS.some(pattern => loaderContent.includes(pattern));
-  }
-  
-  if (actionMatch) {
-    const actionContent = actionMatch[0];
-    hasAuthInAction = AUTH_PATTERNS.some(pattern => actionContent.includes(pattern));
-  }
-  
-  if (!hasAuthInLoader && !hasAuthInAction) {
-    const hasLoaderExport = content.includes("export const loader") || content.includes("export async function loader");
-    const hasActionExport = content.includes("export const action") || content.includes("export async function action");
-    
-    if (hasLoaderExport || hasActionExport) {
-      checks.push({
-        name: `API Route: ${routeName}${isApiRouteFile ? " (in app/lib/api-routes)" : ""}`,
-        status: "fail",
-        message: `Missing authentication in ${hasLoaderExport && hasActionExport ? "loader and action" : hasLoaderExport ? "loader" : "action"}. Must use one of: ${AUTH_PATTERNS.join(", ")}`,
-      });
-      hasErrors = true;
-    }
-  } else {
-    const authMethods = [];
-    if (hasAuthInLoader) authMethods.push("loader");
-    if (hasAuthInAction) authMethods.push("action");
+  const hasAuth = hasAuthSomewhere(content);
+  if (!hasAuth) {
     checks.push({
       name: `API Route: ${routeName}${isApiRouteFile ? " (in app/lib/api-routes)" : ""}`,
-      status: "pass",
-      message: `Authentication found in ${authMethods.join(" and ")}`,
+      status: "fail",
+      message: `Missing authentication in ${hasLoaderExport && hasActionExport ? "loader and action" : hasLoaderExport ? "loader" : "action"}. Must use one of: ${AUTH_PATTERNS.join(", ")}`,
     });
+    hasErrors = true;
+    return;
   }
+  checks.push({
+    name: `API Route: ${routeName}${isApiRouteFile ? " (in app/lib/api-routes)" : ""}`,
+    status: "pass",
+    message: `Authentication found`,
+  });
 }
 
 function checkApiRoutes() {
@@ -174,9 +184,9 @@ function checkApiRoutes() {
       const content = readFileSync(file, "utf-8");
       const forwardedRoute = extractForwardedRoute(content);
       if (forwardedRoute) {
-        const apiRoutePath = join(apiRoutesDir, forwardedRoute);
-        if (statSync(apiRoutePath).isFile()) {
-          checkedApiRouteFiles.add(apiRoutePath);
+        const resolved = resolveForwardedRoutePath(apiRoutesDir, forwardedRoute);
+        if (resolved) {
+          checkedApiRouteFiles.add(resolved);
         }
       }
       checkRouteAuth(file);

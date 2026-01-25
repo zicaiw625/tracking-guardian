@@ -14,7 +14,11 @@ register(({ analytics, settings, init, customerPrivacy }: {
   const shopDomain = settings.shop_domain || init.data?.shop?.myshopifyDomain || "";
   const placeholderDetected = BACKEND_URL && (BACKEND_URL.includes("__BACKEND_URL_PLACEHOLDER__") || BACKEND_URL.includes("PLACEHOLDER"));
   const backendUrl = !placeholderDetected && BACKEND_URL && isAllowedBackendUrl(BACKEND_URL, { shopDomain }) ? BACKEND_URL : null;
+  const environment = (settings.environment as "test" | "live" | undefined) || "live";
   const isDevMode = (() => {
+    if (environment === "test") {
+      return true;
+    }
     if (shopDomain.includes(".myshopify.dev") || /-(dev|staging|test)\./i.test(shopDomain)) {
       return true;
     }
@@ -63,7 +67,6 @@ register(({ analytics, settings, init, customerPrivacy }: {
   if (customerPrivacy) {
     subscribeToConsentChanges(customerPrivacy, consentManager, log);
   }
-  const environment = (settings.environment as "test" | "live" | undefined) || "live";
   const sendToBackend = createEventSender({
     backendUrl,
     shopDomain,

@@ -224,7 +224,7 @@ Tracking Guardian 是一个 Shopify 应用，作为**数据处理者**（Data Pr
 - 日志保留周期：90 天（生产环境）
 
 ### 防重放攻击
-- 像素事件使用 HMAC 完整性校验
+- 像素事件使用 HMAC 完整性校验（密钥通过 Web Pixel settings 下发到客户端，仅作完整性与抗滥用信号，不作为强鉴权）
 - 时间窗验证（10 分钟）
 - Nonce 防重放机制（Redis 存储，1 小时过期）
 - 订单真实性以 Shopify webhook/后台订单对账为准，像素事件仅用于接收、关联与噪声过滤
