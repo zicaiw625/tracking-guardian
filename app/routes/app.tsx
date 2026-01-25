@@ -14,6 +14,7 @@ import { getPolarisTranslations } from "../utils/polaris-i18n";
 import { getShopPlan, refreshShopTierWithAdmin } from "../services/shop-tier.server";
 import { TopBar } from "../components/layout/TopBar";
 import { normalizePlanId, type PlanId } from "../services/billing/plans";
+import { logger } from "../utils/logger.server";
 
 const i18n = getPolarisTranslations(translations);
 
@@ -43,8 +44,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
             try {
                 await refreshShopTierWithAdmin(admin, shop.id);
             } catch (error) {
-                // Log error but don't block page load
-                console.error("Failed to refresh shop tier:", error);
+                logger.error("Failed to refresh shop tier", error, { shopId: shop.id });
             }
         }
     }

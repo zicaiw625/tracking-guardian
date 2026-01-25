@@ -97,10 +97,10 @@ services:
       - key: REDIS_URL
         sync: false
       - key: ALLOW_MEMORY_REDIS_IN_PROD
-        value: "true"  # 未配置 REDIS_URL 时允许启动；配置 REDIS_URL 后可移除或保留
+        value: "false"
       # SECURITY_ENFORCEMENT: optional. Set "strict" or "relaxed" explicitly in production for audit.
       - key: SECURITY_ENFORCEMENT
-        sync: false
+        value: "strict"
 
   # P0-1: Cron Job 服务 - 定时任务（Monitoring/清理/GDPR）
   # 注意：Render Blueprint 的 cron job 需要手动设置部分环境变量

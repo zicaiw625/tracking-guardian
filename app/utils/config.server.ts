@@ -19,17 +19,18 @@ import {
   CONSENT_CONFIG,
   CRON_CONFIG,
 } from "./config.shared";
+import { logger } from "./logger.server";
 
 function logWarn(message: string) {
-  console.warn(message);
+  logger.warn(message);
 }
 
 function logInfo(message: string) {
-  console.info(message);
+  logger.info(message);
 }
 
 function logError(message: string) {
-  console.error(message);
+  logger.error(message);
 }
 
 type RetentionConfig = {
@@ -179,8 +180,11 @@ export function validateConfig(): ConfigValidationResult {
       warnings.push(`${key} not set - ${reason}`);
     }
   }
-  if (isProduction && !process.env.REDIS_URL && process.env.ALLOW_MEMORY_REDIS_IN_PROD !== "true") {
-    errors.push("REDIS_URL is required in production (rate-limit/nonce/idempotency need shared storage). To explicitly allow memory fallback, set ALLOW_MEMORY_REDIS_IN_PROD=true");
+  if (isProduction && process.env.ALLOW_MEMORY_REDIS_IN_PROD === "true") {
+    errors.push("ALLOW_MEMORY_REDIS_IN_PROD cannot be true in production");
+  }
+  if (isProduction && !process.env.REDIS_URL) {
+    errors.push("REDIS_URL is required in production (rate-limit/nonce/idempotency need shared storage)");
   }
   if (isProduction && process.env.TRUST_PROXY !== "true") {
     errors.push("TRUST_PROXY must be true in production (required for correct IP rate limiting to prevent self-DoS)");

@@ -8,6 +8,94 @@ import { SSE_SECURITY_HEADERS, addSecurityHeadersToHeaders } from "../../utils/s
 import { getRedisClient } from "../../utils/redis-client";
 import { randomBytes } from "crypto";
 
+const SSE_ACQUIRE_SCRIPT = `
+local key = KEYS[1]
+local limit = tonumber(ARGV[1])
+local ttl = tonumber(ARGV[2])
+local current = redis.call('INCR', key)
+if current == 1 then
+  redis.call('EXPIRE', key, ttl)
+end
+if current > limit then
+  local rolled = redis.call('DECR', key)
+  if rolled <= 0 then
+    redis.call('DEL', key)
+  end
+  return {0, rolled}
+end
+return {1, current}
+`;
+
+const SSE_RELEASE_SCRIPT = `
+local key = KEYS[1]
+local ttl = tonumber(ARGV[1])
+local currentValue = redis.call('GET', key)
+if not currentValue then
+  return 0
+end
+local current = redis.call('DECR', key)
+if current <= 0 then
+  redis.call('DEL', key)
+  return 0
+end
+redis.call('EXPIRE', key, ttl)
+return current
+`;
+
+async function acquireSseSlot(
+  redisClient: Awaited<ReturnType<typeof getRedisClient>>,
+  countKey: string,
+  limit: number,
+  ttlSeconds: number
+): Promise<{ allowed: boolean; count: number }> {
+  const info = redisClient.getConnectionInfo();
+  if (info.mode === "redis") {
+    const result = await redisClient.eval(SSE_ACQUIRE_SCRIPT, [countKey], [
+      String(limit),
+      String(ttlSeconds),
+    ]);
+    const arr = Array.isArray(result) ? result : [];
+    const allowed = Number(arr[0]) === 1;
+    const count = Number(arr[1]) || 0;
+    return { allowed, count };
+  }
+  const currentCount = await redisClient.incr(countKey);
+  if (currentCount === 1) {
+    await redisClient.expire(countKey, ttlSeconds);
+  }
+  if (currentCount > limit) {
+    const newCount = await redisClient.decr(countKey);
+    if (newCount <= 0) {
+      await redisClient.del(countKey);
+    } else {
+      await redisClient.expire(countKey, ttlSeconds);
+    }
+    return { allowed: false, count: Math.max(0, newCount) };
+  }
+  return { allowed: true, count: currentCount };
+}
+
+async function releaseSseSlot(
+  redisClient: Awaited<ReturnType<typeof getRedisClient>>,
+  countKey: string,
+  ttlSeconds: number
+): Promise<number> {
+  const info = redisClient.getConnectionInfo();
+  if (info.mode === "redis") {
+    const result = await redisClient.eval(SSE_RELEASE_SCRIPT, [countKey], [String(ttlSeconds)]);
+    return Number(result) || 0;
+  }
+  const count = await redisClient.get(countKey);
+  if (!count) return 0;
+  const newCount = parseInt(count, 10) - 1;
+  if (Number.isNaN(newCount) || newCount <= 0) {
+    await redisClient.del(countKey);
+    return 0;
+  }
+  await redisClient.set(countKey, String(newCount), { EX: ttlSeconds });
+  return newCount;
+}
+
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   const { session } = await authenticate.admin(request);
   const shopDomain = session.shop;
@@ -23,21 +111,13 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   const eventTypes = url.searchParams.get("eventTypes")?.split(",") || [];
   const runId = url.searchParams.get("runId") || null;
   const MAX_CONCURRENT_CONNECTIONS = 5;
+  const TTL_SECONDS = 3600;
   const connectionId = randomBytes(16).toString("hex");
   const sseKey = `sse:${shop.id}:${connectionId}`;
   const countKey = `sse:${shop.id}:count`;
   const redisClient = await getRedisClient();
-  const currentCount = await redisClient.incr(countKey);
-  if (currentCount === 1) {
-    await redisClient.expire(countKey, 3600);
-  }
-  if (currentCount > MAX_CONCURRENT_CONNECTIONS) {
-    const decremented = currentCount - 1;
-    if (decremented <= 0) {
-      await redisClient.del(countKey);
-    } else {
-      await redisClient.set(countKey, String(decremented), { EX: 3600 });
-    }
+  const acquire = await acquireSseSlot(redisClient, countKey, MAX_CONCURRENT_CONNECTIONS, TTL_SECONDS);
+  if (!acquire.allowed) {
     return new Response("Too Many Requests", {
       status: 429,
       headers: {
@@ -47,7 +127,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       },
     });
   }
-  await redisClient.set(sseKey, "1", { EX: 3600 });
+  await redisClient.set(sseKey, "1", { EX: TTL_SECONDS });
   let intervalId: ReturnType<typeof setInterval> | null = null;
   let isClosed = false;
   const stream = new ReadableStream({
@@ -56,15 +136,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       const cleanup = async () => {
         try {
           await redisClient.del(sseKey);
-          const count = await redisClient.get(countKey);
-          if (count) {
-            const newCount = parseInt(count, 10) - 1;
-            if (newCount <= 0) {
-              await redisClient.del(countKey);
-            } else {
-              await redisClient.set(countKey, String(newCount), { EX: 3600 });
-            }
-          }
+          await releaseSseSlot(redisClient, countKey, TTL_SECONDS);
         } catch (error) {
           logger.warn("Failed to cleanup SSE connection count", { error });
         }

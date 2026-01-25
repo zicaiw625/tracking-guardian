@@ -108,7 +108,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       const expiresAt = new Date();
       expiresAt.setDate(expiresAt.getDate() + getShareTokenExpiryDays());
       const baseUrl = process.env.SHOPIFY_APP_URL || process.env.PUBLIC_APP_URL || "https://app.tracking-guardian.com";
-      const shareUrl = `${baseUrl}/share/scan/${reportId}?token=${shareToken}`;
+      const shareUrl = `${baseUrl}/share/scan/${reportId}/${shareToken}`;
       const tokenHash = createHash("sha256")
         .update(`${reportId}-${shop.id}-${shareToken}`)
         .digest("hex");
@@ -156,7 +156,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       const expiresAt = new Date();
       expiresAt.setDate(expiresAt.getDate() + getShareTokenExpiryDays());
       const baseUrl = process.env.SHOPIFY_APP_URL || process.env.PUBLIC_APP_URL || "https://app.tracking-guardian.com";
-      const shareUrl = `${baseUrl}/share/verification/${publicId}?token=${shareToken}`;
+      const shareUrl = `${baseUrl}/share/verification/${publicId}/${shareToken}`;
       const tokenHash = createHash("sha256")
         .update(`${reportId}-${shop.id}-${shareToken}`)
         .digest("hex");

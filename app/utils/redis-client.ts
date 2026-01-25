@@ -8,6 +8,7 @@ export interface RedisClientWrapper {
   setNX(key: string, value: string, ttlMs: number): Promise<boolean>;
   del(key: string): Promise<number>;
   incr(key: string): Promise<number>;
+  decr(key: string): Promise<number>;
   expire(key: string, seconds: number): Promise<boolean>;
   ttl(key: string): Promise<number>;
   hGetAll(key: string): Promise<Record<string, string>>;
@@ -18,6 +19,7 @@ export interface RedisClientWrapper {
   scan(cursor: string, pattern: string, count?: number): Promise<{ cursor: string; keys: string[] }>;
   publish(channel: string, message: string): Promise<number>;
   subscribe(channel: string, onMessage: (message: string) => void): Promise<() => Promise<void>>;
+  eval(script: string, keys: string[], args: string[]): Promise<unknown>;
   isConnected(): boolean;
   getConnectionInfo(): ConnectionInfo;
 }
@@ -135,6 +137,19 @@ class InMemoryFallback implements RedisClientWrapper {
     });
     return value;
   }
+  async decr(key: string): Promise<number> {
+    const entry = this.stringStore.get(key);
+    let value = 0;
+    if (entry && !this.isExpired(entry.expiresAt)) {
+      value = parseInt(entry.value, 10) || 0;
+    }
+    value--;
+    this.stringStore.set(key, {
+      value: String(value),
+      expiresAt: entry?.expiresAt,
+    });
+    return value;
+  }
   async expire(key: string, seconds: number): Promise<boolean> {
     const stringEntry = this.stringStore.get(key);
     if (stringEntry) {
@@ -244,6 +259,9 @@ class InMemoryFallback implements RedisClientWrapper {
       InMemoryFallback.emitter.off(channel, listener);
     };
   }
+  async eval(_script: string, _keys: string[], _args: string[]): Promise<unknown> {
+    throw new Error("Redis eval is not supported in memory mode");
+  }
   isConnected(): boolean {
     return true;
   }
@@ -293,15 +311,10 @@ class RedisClientFactory {
   private async initialize(): Promise<RedisClientWrapper> {
     const redisUrl = process.env.REDIS_URL;
     if (!redisUrl) {
-      if (process.env.NODE_ENV === "production" && process.env.ALLOW_MEMORY_REDIS_IN_PROD !== "true") {
+      if (process.env.NODE_ENV === "production") {
         throw new Error("REDIS_URL is required in production (rate-limit/locks need shared storage)");
       }
       logger.info("[REDIS] No REDIS_URL configured, using in-memory store");
-      if (process.env.NODE_ENV === "production") {
-        logger.warn(
-          "[REDIS] ⚠️ In-memory store in production - rate limiting will not be shared across instances"
-        );
-      }
       this.client = this.fallback;
       this.connectionInfo = {
         connected: true,
@@ -343,6 +356,9 @@ class RedisClientFactory {
     } catch (error) {
       const errorMsg = error instanceof Error ? error.message : String(error);
       logger.error("[REDIS] Failed to connect", { error: errorMsg });
+      if (process.env.NODE_ENV === "production") {
+        throw new Error("Failed to connect to Redis in production");
+      }
       logger.warn("[REDIS] ⚠️ Falling back to in-memory store");
       this.connectionInfo = {
         connected: true,
@@ -398,6 +414,13 @@ class RedisClientFactory {
           return await client.incr(key);
         } catch {
           return this.fallback.incr(key);
+        }
+      },
+      decr: async (key: string): Promise<number> => {
+        try {
+          return await client.decr(key);
+        } catch {
+          return this.fallback.decr(key);
         }
       },
       expire: async (key: string, seconds: number): Promise<boolean> => {
@@ -492,6 +515,15 @@ class RedisClientFactory {
           };
         } catch {
           return this.fallback.subscribe(channel, onMessage);
+        }
+      },
+      eval: async (script: string, keys: string[], args: string[]): Promise<unknown> => {
+        try {
+          return await client.eval(script, { keys, arguments: args });
+        } catch (error) {
+          const errorMsg = error instanceof Error ? error.message : String(error);
+          logger.error("[REDIS] EVAL failed", { error: errorMsg });
+          throw error;
         }
       },
       isConnected: (): boolean => {

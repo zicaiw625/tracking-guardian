@@ -1,5 +1,5 @@
 import type { LoaderFunctionArgs } from "@remix-run/node";
-import { json, redirect } from "@remix-run/node";
+import { json } from "@remix-run/node";
 import { useLoaderData } from "@remix-run/react";
 import { createHash } from "crypto";
 import prisma from "../db.server";
@@ -55,16 +55,7 @@ export const loader = async ({ request, params }: LoaderFunctionArgs) => {
       return publicJson({ error: "Missing publicId", report: null }, { status: 400 });
     }
 
-    const url = new URL(request.url);
-    const token = url.searchParams.get("token");
-
-    if (token) {
-      const targetPath = `/share/verification/${encodeURIComponent(publicId)}/${encodeURIComponent(token)}`;
-      const headers = new Headers({ Location: targetPath });
-      addSecurityHeadersToHeaders(headers, PUBLIC_PAGE_HEADERS);
-      return redirect(targetPath, { headers });
-    }
-
+    const token = params.token;
     if (!token) {
       return publicJson({ error: "Missing share token", report: null }, { status: 403 });
     }
@@ -79,20 +70,20 @@ export const loader = async ({ request, params }: LoaderFunctionArgs) => {
         shareTokenExpiresAt: true,
       },
     });
-    
+
     if (!run) {
       return publicJson({ error: "Report not found", report: null }, { status: 404 });
     }
-    
+
     if (!run.publicTokenHash) {
       return publicJson({ error: "Share link not available", report: null }, { status: 403 });
     }
-    
+
     const shop = await prisma.shop.findUnique({
       where: { id: run.shopId },
       select: { shopDomain: true },
     });
-    
+
     if (!shop) {
       return publicJson({ error: "Shop not found", report: null }, { status: 404 });
     }
@@ -560,3 +551,4 @@ export default function SharedVerificationReport() {
     </Page>
   );
 }
+

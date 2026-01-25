@@ -191,16 +191,19 @@ export function checkSecurityViolations(): SecurityViolation[] {
             });
         }
         if (!process.env.REDIS_URL) {
-            const allowMemory = process.env.ALLOW_MEMORY_REDIS_IN_PROD === "true";
             violations.push({
-                type: allowMemory ? "warning" : "fatal",
+                type: "fatal",
                 code: "REDIS_URL_REQUIRED_IN_PRODUCTION",
-                message: allowMemory
-                    ? "[SECURITY] REDIS_URL is not set; using in-memory store (ALLOW_MEMORY_REDIS_IN_PROD=true). " +
-                      "Rate limiting is not shared across instances. Add REDIS_URL when you scale to multiple instances."
-                    : "[SECURITY] REDIS_URL is required in production for distributed rate limiting. " +
-                      "Multi-instance deployments without Redis allow attackers to bypass rate limits by rotating across instances. " +
-                      "Configure REDIS_URL to proceed. For single-instance only, you may set ALLOW_MEMORY_REDIS_IN_PROD=true to use in-memory (not recommended for multi-instance).",
+                message: "[SECURITY] REDIS_URL is required in production for distributed rate limiting. " +
+                    "Multi-instance deployments without Redis allow attackers to bypass rate limits by rotating across instances. " +
+                    "Configure REDIS_URL to proceed.",
+            });
+        }
+        if (process.env.ALLOW_MEMORY_REDIS_IN_PROD === "true") {
+            violations.push({
+                type: "fatal",
+                code: "ALLOW_MEMORY_REDIS_IN_PROD_FORBIDDEN_IN_PRODUCTION",
+                message: "[SECURITY] ALLOW_MEMORY_REDIS_IN_PROD=true is set in production. Remove it to proceed.",
             });
         }
         if (process.env.LOCAL_DEV === "true" || process.env.LOCAL_DEV === "1") {

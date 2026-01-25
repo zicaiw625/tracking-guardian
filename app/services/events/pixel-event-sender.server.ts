@@ -12,6 +12,14 @@ const META_API_BASE_URL = "https://graph.facebook.com";
 const META_API_VERSION = "v21.0";
 const TIKTOK_API_URL = CAPI_CONFIG.TIKTOK.trackEndpoint;
 
+function isNonEmptyString(value: unknown): value is string {
+  return typeof value === "string" && value.trim().length > 0;
+}
+
+function hasNoWhitespace(value: string): boolean {
+  return !/\s/.test(value);
+}
+
 interface PixelEventSendResult {
   success: boolean;
   ok: boolean;
@@ -182,8 +190,16 @@ const platformConfigs: Record<string, PlatformSendConfig> = {
     },
     validateCredentials: (credentials) => {
       const creds = credentials as { measurementId?: string; apiSecret?: string };
-      if (!creds.measurementId || !creds.apiSecret) {
+      if (!isNonEmptyString(creds.measurementId) || !isNonEmptyString(creds.apiSecret)) {
         return { valid: false, error: "Missing measurementId or apiSecret" };
+      }
+      const measurementId = creds.measurementId.trim();
+      const apiSecret = creds.apiSecret.trim();
+      if (!/^G-[A-Z0-9]+$/i.test(measurementId)) {
+        return { valid: false, error: "Invalid measurementId format" };
+      }
+      if (!hasNoWhitespace(apiSecret) || !/^[A-Za-z0-9_-]{8,}$/.test(apiSecret)) {
+        return { valid: false, error: "Invalid apiSecret format" };
       }
       return { valid: true };
     },
@@ -248,8 +264,16 @@ const platformConfigs: Record<string, PlatformSendConfig> = {
     },
     validateCredentials: (credentials) => {
       const creds = credentials as { pixelId?: string; accessToken?: string };
-      if (!creds.pixelId || !creds.accessToken) {
+      if (!isNonEmptyString(creds.pixelId) || !isNonEmptyString(creds.accessToken)) {
         return { valid: false, error: "Missing pixelId or accessToken" };
+      }
+      const pixelId = creds.pixelId.trim();
+      const accessToken = creds.accessToken.trim();
+      if (!/^\d{5,20}$/.test(pixelId)) {
+        return { valid: false, error: "Invalid pixelId format" };
+      }
+      if (!hasNoWhitespace(accessToken) || accessToken.length < 20) {
+        return { valid: false, error: "Invalid accessToken format" };
       }
       return { valid: true };
     },
@@ -311,8 +335,16 @@ const platformConfigs: Record<string, PlatformSendConfig> = {
     },
     validateCredentials: (credentials) => {
       const creds = credentials as { pixelId?: string; accessToken?: string };
-      if (!creds.pixelId || !creds.accessToken) {
+      if (!isNonEmptyString(creds.pixelId) || !isNonEmptyString(creds.accessToken)) {
         return { valid: false, error: "Missing pixelId or accessToken" };
+      }
+      const pixelId = creds.pixelId.trim();
+      const accessToken = creds.accessToken.trim();
+      if (!hasNoWhitespace(pixelId) || pixelId.length < 8 || pixelId.length > 64) {
+        return { valid: false, error: "Invalid pixelId format" };
+      }
+      if (!hasNoWhitespace(accessToken) || accessToken.length < 10) {
+        return { valid: false, error: "Invalid accessToken format" };
       }
       return { valid: true };
     },
