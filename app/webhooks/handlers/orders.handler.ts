@@ -133,7 +133,14 @@ export async function handleOrdersCreate(
         ) {
           await prisma.pixelEventReceipt.update({
             where: { id: existingReceipt.id },
-            data: { orderKey: orderKeyNorm, altOrderKey: checkoutKey },
+            data: {
+              orderKey: orderKeyNorm,
+              altOrderKey: checkoutKey,
+              checkoutFingerprint:
+                typeof checkoutTokenHash === "string" && checkoutTokenHash.length > 0
+                  ? checkoutTokenHash
+                  : undefined,
+            },
           });
         }
       }
@@ -143,11 +150,11 @@ export async function handleOrdersCreate(
         orderNumber: snapshot.orderNumber,
         orderValue: snapshot.totalValue,
         currency: snapshot.currency,
+        webhookCheckoutFingerprint: checkoutTokenHash,
         capiInput: {
           value: snapshot.totalValue,
           currency: snapshot.currency,
           eventType: "purchase",
-          checkoutTokenHash,
         },
       });
     }

@@ -3,6 +3,7 @@ import { logger } from '../utils/logger.server';
 
 export interface ReceiptFields {
   orderKey: string | null;
+  altOrderKey?: string | null;
   originHost: string | null;
   pixelTimestamp: Date;
   createdAt: Date;
@@ -10,6 +11,7 @@ export interface ReceiptFields {
   shopId: string;
   eventType: string;
   payloadJson?: unknown;
+  checkoutFingerprint?: string | null;
 }
 
 export interface JobForReceiptMatch {
@@ -23,11 +25,13 @@ const RECEIPT_SELECT_FIELDS = {
   id: true,
   shopId: true,
   orderKey: true,
+  altOrderKey: true,
   originHost: true,
   pixelTimestamp: true,
   createdAt: true,
   eventType: true,
   payloadJson: true,
+  checkoutFingerprint: true,
 };
 
 const FUZZY_MATCH_WINDOW_MS = 60 * 60 * 1000;

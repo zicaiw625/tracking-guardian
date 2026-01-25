@@ -188,6 +188,10 @@ function isCapiInput(value: unknown): value is CapiInput {
   return value !== null && typeof value === "object" && !Array.isArray(value);
 }
 
+function isUsableFingerprint(value: unknown): value is string {
+  return typeof value === "string" && value.length > 0 && value !== "***REDACTED***";
+}
+
 function extractConversionData(job: JobWithShop, capiInput: CapiInput) {
   return {
     orderId: job.orderId,
@@ -386,11 +390,13 @@ async function processSingleJob(job: JobWithShop): Promise<void> {
       id: true,
       shopId: true,
       orderKey: true,
+      altOrderKey: true,
       originHost: true,
       pixelTimestamp: true,
       createdAt: true,
       eventType: true,
       payloadJson: true,
+      checkoutFingerprint: true,
     },
     orderBy: { createdAt: "desc" },
   });
@@ -399,11 +405,13 @@ async function processSingleJob(job: JobWithShop): Promise<void> {
     id: receipt.id,
     shopId: receipt.shopId,
     orderKey: receipt.orderKey,
+    altOrderKey: receipt.altOrderKey,
     originHost: receipt.originHost,
     pixelTimestamp: receipt.pixelTimestamp,
     createdAt: receipt.createdAt,
     eventType: receipt.eventType,
     payloadJson: receipt.payloadJson,
+    checkoutFingerprint: receipt.checkoutFingerprint,
   } : null;
   
   const storefrontDomains = Array.isArray(job.shop.storefrontDomains) 
@@ -412,11 +420,13 @@ async function processSingleJob(job: JobWithShop): Promise<void> {
     ? [job.shop.storefrontDomains]
     : [];
   const webhookCheckoutTokenHash =
-    typeof capiInput.checkoutTokenHash === "string" && capiInput.checkoutTokenHash.length > 0
-      ? capiInput.checkoutTokenHash
-      : typeof capiInput.checkoutToken === "string" && capiInput.checkoutToken.length > 0
-        ? hashValueSync(capiInput.checkoutToken)
-        : null;
+    isUsableFingerprint(job.webhookCheckoutFingerprint)
+      ? job.webhookCheckoutFingerprint
+      : isUsableFingerprint(capiInput.checkoutTokenHash)
+        ? capiInput.checkoutTokenHash
+        : typeof capiInput.checkoutToken === "string" && capiInput.checkoutToken.length > 0
+          ? hashValueSync(capiInput.checkoutToken)
+          : null;
   
   const trustEvaluation = evaluateTrust(
     receiptFields,

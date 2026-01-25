@@ -42,6 +42,16 @@ export const DEFAULT_TRUST_OPTIONS: TrustVerificationOptions = {
   maxTimeSkewMs: 15 * 60 * 1000,
 };
 
+function isUsableFingerprint(value: unknown): value is string {
+  return typeof value === "string" && value.length > 0 && value !== "***REDACTED***";
+}
+
+function extractFingerprintFromAltOrderKey(altOrderKey: unknown): string | null {
+  if (typeof altOrderKey !== "string" || altOrderKey.length === 0) return null;
+  const m = altOrderKey.match(/^checkout_([a-f0-9]{64})$/);
+  return m ? m[1] : null;
+}
+
 function normalizeConsentState(consent: unknown): ConsentState | null {
   if (!consent || typeof consent !== 'object') {
     return null;
@@ -81,16 +91,23 @@ export function evaluateTrust(
     }
     return false;
   })();
-  const receiptCheckoutTokenHash =
-    receiptPayload && typeof receiptPayload.checkoutTokenHash === "string"
-      ? receiptPayload.checkoutTokenHash
-      : null;
+  const receiptCheckoutTokenHash = (() => {
+    if (isUsableFingerprint(receipt?.checkoutFingerprint)) {
+      return receipt.checkoutFingerprint;
+    }
+    const fromPayload =
+      receiptPayload && isUsableFingerprint(receiptPayload.checkoutTokenHash)
+        ? String(receiptPayload.checkoutTokenHash)
+        : null;
+    if (fromPayload) return fromPayload;
+    return extractFingerprintFromAltOrderKey(receipt?.altOrderKey);
+  })();
   const webhookCheckoutToken =
     typeof webhook?.checkoutToken === "string" && webhook.checkoutToken.length > 0
       ? webhook.checkoutToken
       : undefined;
   const webhookCheckoutTokenHash =
-    typeof webhook?.checkoutTokenHash === "string" && webhook.checkoutTokenHash.length > 0
+    isUsableFingerprint(webhook?.checkoutTokenHash)
       ? webhook.checkoutTokenHash
       : typeof webhookCheckoutToken === "string" && webhookCheckoutToken.length > 0
         ? hashValueSync(webhookCheckoutToken)

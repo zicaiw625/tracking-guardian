@@ -22,11 +22,6 @@ function buildMinimalPayloadForReceipt(
       id: String(i?.id ?? ""),
       quantity: typeof i?.quantity === "number" ? i.quantity : 1,
     }));
-  const checkoutToken = payload.data?.checkoutToken;
-  const checkoutTokenHash =
-    typeof checkoutToken === "string" && checkoutToken.trim() !== ""
-      ? hashValueSync(checkoutToken)
-      : null;
   return {
     consent: payload.consent,
     data: {
@@ -37,7 +32,6 @@ function buildMinimalPayloadForReceipt(
     eventName: payload.eventName,
     trustLevel: trustLevel ?? "untrusted",
     hmacMatched: hmacMatched ?? false,
-    ...(checkoutTokenHash ? { checkoutTokenHash } : {}),
   };
 }
 
@@ -126,6 +120,11 @@ export async function upsertPixelEventReceipt(
   hmacMatched?: boolean
 ): Promise<ReceiptCreateResult> {
   const originHost = extractOriginHost(origin);
+  const checkoutToken = payload.data?.checkoutToken;
+  const checkoutFingerprint =
+    typeof checkoutToken === "string" && checkoutToken.trim() !== ""
+      ? hashValueSync(checkoutToken)
+      : null;
   const payloadData = payload?.data as Record<string, unknown> | undefined;
   const extractedOrderKey = orderKey || (payloadData?.orderId as string | undefined);
   try {
@@ -155,6 +154,7 @@ export async function upsertPixelEventReceipt(
         originHost: originHost || null,
         verificationRunId: verificationRunId || null,
         payloadJson: payloadToStore === null ? Prisma.JsonNull : (payloadToStore as Prisma.InputJsonValue),
+        checkoutFingerprint,
         orderKey: extractedOrderKey || null,
         altOrderKey: altOrderKey ?? null,
       },
@@ -163,6 +163,7 @@ export async function upsertPixelEventReceipt(
         originHost: originHost || null,
         verificationRunId: verificationRunId || null,
         payloadJson: payloadToStore === null ? Prisma.JsonNull : (payloadToStore as Prisma.InputJsonValue),
+        checkoutFingerprint,
         orderKey: extractedOrderKey || null,
         altOrderKey: altOrderKey ?? null,
       },

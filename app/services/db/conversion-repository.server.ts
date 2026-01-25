@@ -13,6 +13,7 @@ export interface JobForProcessing {
   orderValue: Prisma.Decimal;
   currency: string;
   capiInput: Prisma.JsonValue;
+  webhookCheckoutFingerprint: string | null;
   attempts: number;
   maxAttempts: number;
   createdAt: Date;
@@ -128,6 +129,7 @@ export async function getPendingJobs(
     orderValue: job.orderValue,
     currency: job.currency,
     capiInput: job.capiInput,
+    webhookCheckoutFingerprint: job.webhookCheckoutFingerprint,
     attempts: job.attempts,
     maxAttempts: job.maxAttempts,
     createdAt: job.createdAt,
@@ -206,6 +208,7 @@ function mapJobForProcessing(job: Prisma.ConversionJobGetPayload<{
     orderValue: job.orderValue,
     currency: job.currency,
     capiInput: job.capiInput,
+    webhookCheckoutFingerprint: job.webhookCheckoutFingerprint,
     attempts: job.attempts,
     maxAttempts: job.maxAttempts,
     createdAt: job.createdAt,
@@ -359,6 +362,7 @@ export async function createConversionJob(data: {
   orderValue: number;
   currency: string;
   capiInput?: Prisma.JsonValue;
+  webhookCheckoutFingerprint?: string | null;
 }): Promise<ConversionJob> {
   return await prisma.conversionJob.upsert({
     where: {
@@ -375,12 +379,14 @@ export async function createConversionJob(data: {
       orderValue: data.orderValue,
       currency: data.currency,
       capiInput: toInputJsonValue(data.capiInput),
+      webhookCheckoutFingerprint: data.webhookCheckoutFingerprint ?? null,
       status: JobStatus.QUEUED,
     },
     update: {
       orderValue: data.orderValue,
       currency: data.currency,
       capiInput: data.capiInput ? toInputJsonValue(data.capiInput) : undefined,
+      webhookCheckoutFingerprint: data.webhookCheckoutFingerprint ?? undefined,
     },
   });
 }

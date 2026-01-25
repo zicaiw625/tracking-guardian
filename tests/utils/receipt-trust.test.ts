@@ -53,6 +53,20 @@ describe("verifyReceiptTrust", () => {
       expect(result.level).toBe("partial");
       expect(result.reason).toBe("missing_checkout_token");
     });
+
+    it("should treat redacted fingerprints as missing signals", () => {
+      const result = verifyReceiptTrust({
+        receiptCheckoutToken: null,
+        webhookCheckoutToken: null,
+        receiptCheckoutTokenHash: "***REDACTED***",
+        webhookCheckoutTokenHash: "***REDACTED***",
+        ingestionKeyMatched: true,
+        receiptExists: true,
+      });
+      expect(result.trusted).toBe(false);
+      expect(result.level).toBe("partial");
+      expect(result.reason).toBe("missing_checkout_token");
+    });
   });
   describe("Receipt existence", () => {
     it("should return untrusted when receipt does not exist", () => {

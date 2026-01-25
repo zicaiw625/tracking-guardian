@@ -175,6 +175,7 @@ model PixelEventReceipt {
   verificationRunId String?
   originHost        String?
   payloadJson       Json?
+  checkoutFingerprint String?
   orderKey          String?
   altOrderKey       String?
   createdAt         DateTime         @default(now())
@@ -401,6 +402,7 @@ model ConversionJob {
   orderValue      Decimal   @db.Decimal(10, 2)
   currency        String    @default("USD")
   capiInput       Json?
+  webhookCheckoutFingerprint String?
   consentEvidence Json?
   trustMetadata   Json?
   status          String    @default("queued")

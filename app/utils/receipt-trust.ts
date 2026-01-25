@@ -41,6 +41,11 @@ export interface VerifyReceiptOptions {
 }
 const DEFAULT_MAX_RECEIPT_AGE_MS = 60 * 60 * 1000;
 const DEFAULT_MAX_TIME_SKEW_MS = 15 * 60 * 1000;
+
+function isUsableTokenSignal(value: unknown): value is string {
+    return typeof value === "string" && value.length > 0 && value !== "***REDACTED***";
+}
+
 export function verifyReceiptTrust(options: VerifyReceiptOptions): ReceiptTrustResult {
     const { receiptCheckoutToken, webhookCheckoutToken, receiptCheckoutTokenHash, webhookCheckoutTokenHash, receiptOriginHost, allowedDomains, clientCreatedAt, serverCreatedAt, ingestionKeyMatched, receiptExists, options: validationOptions, } = options;
     const strictOriginValidation = validationOptions?.strictOriginValidation ?? false;
@@ -72,8 +77,8 @@ export function verifyReceiptTrust(options: VerifyReceiptOptions): ReceiptTrustR
         };
     }
     const hasReceiptTokenSignal =
-        (typeof receiptCheckoutToken === "string" && receiptCheckoutToken.length > 0) ||
-            (typeof receiptCheckoutTokenHash === "string" && receiptCheckoutTokenHash.length > 0);
+        isUsableTokenSignal(receiptCheckoutToken) ||
+            isUsableTokenSignal(receiptCheckoutTokenHash);
     if (!hasReceiptTokenSignal) {
         return {
             trusted: false,
@@ -83,8 +88,8 @@ export function verifyReceiptTrust(options: VerifyReceiptOptions): ReceiptTrustR
         };
     }
     const hasWebhookTokenSignal =
-        (typeof webhookCheckoutToken === "string" && webhookCheckoutToken.length > 0) ||
-            (typeof webhookCheckoutTokenHash === "string" && webhookCheckoutTokenHash.length > 0);
+        isUsableTokenSignal(webhookCheckoutToken) ||
+            isUsableTokenSignal(webhookCheckoutTokenHash);
     if (!hasWebhookTokenSignal) {
         return {
             trusted: false,
@@ -94,20 +99,17 @@ export function verifyReceiptTrust(options: VerifyReceiptOptions): ReceiptTrustR
         };
     }
     const tokensMatch = (() => {
-        if (typeof receiptCheckoutToken === "string" &&
-            receiptCheckoutToken.length > 0 &&
-            typeof webhookCheckoutToken === "string" &&
-            webhookCheckoutToken.length > 0) {
+        if (isUsableTokenSignal(receiptCheckoutToken) && isUsableTokenSignal(webhookCheckoutToken)) {
             return receiptCheckoutToken === webhookCheckoutToken;
         }
-        const receiptFp = typeof receiptCheckoutTokenHash === "string" && receiptCheckoutTokenHash.length > 0
+        const receiptFp = isUsableTokenSignal(receiptCheckoutTokenHash)
             ? receiptCheckoutTokenHash
-            : typeof receiptCheckoutToken === "string" && receiptCheckoutToken.length > 0
+            : isUsableTokenSignal(receiptCheckoutToken)
                 ? hashValueSync(receiptCheckoutToken)
                 : null;
-        const webhookFp = typeof webhookCheckoutTokenHash === "string" && webhookCheckoutTokenHash.length > 0
+        const webhookFp = isUsableTokenSignal(webhookCheckoutTokenHash)
             ? webhookCheckoutTokenHash
-            : typeof webhookCheckoutToken === "string" && webhookCheckoutToken.length > 0
+            : isUsableTokenSignal(webhookCheckoutToken)
                 ? hashValueSync(webhookCheckoutToken)
                 : null;
         if (!receiptFp || !webhookFp) {
@@ -117,14 +119,14 @@ export function verifyReceiptTrust(options: VerifyReceiptOptions): ReceiptTrustR
     })();
     if (!tokensMatch) {
         logger.warn("Checkout token mismatch detected", {
-            receiptTokenFp: (typeof receiptCheckoutTokenHash === "string" && receiptCheckoutTokenHash.length > 0
+            receiptTokenFp: (isUsableTokenSignal(receiptCheckoutTokenHash)
                 ? receiptCheckoutTokenHash
-                : typeof receiptCheckoutToken === "string" && receiptCheckoutToken.length > 0
+                : isUsableTokenSignal(receiptCheckoutToken)
                     ? hashValueSync(receiptCheckoutToken)
                     : "missing").slice(0, 12),
-            webhookTokenFp: (typeof webhookCheckoutTokenHash === "string" && webhookCheckoutTokenHash.length > 0
+            webhookTokenFp: (isUsableTokenSignal(webhookCheckoutTokenHash)
                 ? webhookCheckoutTokenHash
-                : typeof webhookCheckoutToken === "string" && webhookCheckoutToken.length > 0
+                : isUsableTokenSignal(webhookCheckoutToken)
                     ? hashValueSync(webhookCheckoutToken)
                     : "missing").slice(0, 12),
         });
