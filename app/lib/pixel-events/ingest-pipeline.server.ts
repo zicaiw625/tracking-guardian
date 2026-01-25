@@ -1,6 +1,6 @@
 import type { PixelEventPayload, KeyValidationResult } from "./types";
 import { validateRequest, isPrimaryEvent } from "./validation";
-import { generateEventIdForType, generateOrderMatchKey, isClientEventRecorded, createEventNonce, upsertPixelEventReceipt } from "./receipt-handler";
+import { generateEventIdForType, generateOrderMatchKey, createEventNonce, upsertPixelEventReceipt } from "./receipt-handler";
 import { checkInitialConsent, filterPlatformsByConsent, logConsentFilterMetrics } from "./consent-filter";
 import { hashValueSync } from "~/utils/crypto.server";
 import { logger } from "~/utils/logger.server";
@@ -182,6 +182,46 @@ export async function deduplicateEvents(
   shopDomain: string
 ): Promise<DeduplicatedEvent[]> {
   const deduplicated: DeduplicatedEvent[] = [];
+  const purchaseKeys = new Set<string>();
+  for (const event of normalizedEvents) {
+    const eventType = event.payload.eventName === "checkout_completed" ? "purchase" : event.payload.eventName;
+    if (eventType !== "purchase") continue;
+    if (!event.orderId) continue;
+    purchaseKeys.add(event.orderId);
+    if (event.altOrderKey != null && event.altOrderKey !== "") {
+      purchaseKeys.add(event.altOrderKey);
+    }
+  }
+  const purchaseKeyList = Array.from(purchaseKeys);
+  const existingPurchaseKeys = new Set<string>();
+  if (purchaseKeyList.length > 0) {
+    try {
+      const existing = await prisma.pixelEventReceipt.findMany({
+        where: {
+          shopId,
+          eventType: "purchase",
+          OR: [
+            { orderKey: { in: purchaseKeyList } },
+            { altOrderKey: { in: purchaseKeyList } },
+          ],
+        },
+        select: {
+          orderKey: true,
+          altOrderKey: true,
+        },
+      });
+      for (const r of existing) {
+        if (typeof r.orderKey === "string" && r.orderKey) existingPurchaseKeys.add(r.orderKey);
+        if (typeof r.altOrderKey === "string" && r.altOrderKey) existingPurchaseKeys.add(r.altOrderKey);
+      }
+    } catch (error) {
+      logger.warn(`Failed to prefetch purchase receipts for deduplication`, {
+        shopDomain,
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
+  }
+  const seenPurchaseKeys = new Set<string>();
   
   for (const event of normalizedEvents) {
     const eventType = event.payload.eventName === "checkout_completed" ? "purchase" : event.payload.eventName;
@@ -192,13 +232,13 @@ export async function deduplicateEvents(
     
     if (isPurchaseEvent && event.orderId) {
       try {
-        const alreadyRecorded = await isClientEventRecorded(
-          shopId,
-          event.orderId,
-          eventType,
-          event.altOrderKey != null ? { altOrderKey: event.altOrderKey } : undefined
-        );
-        
+        const keysForEvent = [event.orderId];
+        if (event.altOrderKey != null && event.altOrderKey !== "" && event.altOrderKey !== event.orderId) {
+          keysForEvent.push(event.altOrderKey);
+        }
+        const alreadyRecorded =
+          keysForEvent.some((k) => existingPurchaseKeys.has(k)) ||
+          keysForEvent.some((k) => seenPurchaseKeys.has(k));
         if (alreadyRecorded) {
           const orderIdHash = hashValueSync(event.orderId).slice(0, 12);
           logger.debug(`Purchase event already recorded for order ${orderIdHash}, skipping`, {
@@ -225,6 +265,10 @@ export async function deduplicateEvents(
               eventType,
             });
             isReplay = true;
+          } else {
+            for (const k of keysForEvent) {
+              seenPurchaseKeys.add(k);
+            }
           }
         }
       } catch (error) {

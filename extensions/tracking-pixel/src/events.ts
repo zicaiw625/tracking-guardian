@@ -134,6 +134,7 @@ async function sendCheckoutCompletedWithRetry(
 const BATCH_CONFIG = {
   MAX_BATCH_SIZE: 10,
   MAX_BATCH_DELAY_MS: 1000,
+  MAX_BATCH_BYTES: 60 * 1024,
   FLUSH_IMMEDIATE_EVENTS: ["checkout_completed"],
 } as const;
 
@@ -200,6 +201,111 @@ export function createEventSender(config: EventSenderConfig) {
     ): Promise<void> {
     };
   }
+  const normalizedIngestionKey =
+    typeof ingestionKey === "string" ? ingestionKey.trim() : "";
+  if (!normalizedIngestionKey && !isDevMode) {
+    return async function sendToBackendDisabled(
+      _eventName: string,
+      _data: Record<string, unknown>
+    ): Promise<void> {
+    };
+  }
+  const encoder = typeof TextEncoder !== "undefined" ? new TextEncoder() : null;
+  const utf8Length = (s: string): number => {
+    if (encoder) return encoder.encode(s).length;
+    return utf8ToBytes(s).length;
+  };
+  const buildEventPayload = (event: QueuedEvent): Record<string, unknown> => ({
+    eventName: event.eventName,
+    timestamp: event.timestamp,
+    nonce: event.nonce,
+    shopDomain,
+    consent: {
+      marketing: consentManager.marketingAllowed,
+      analytics: consentManager.analyticsAllowed,
+      saleOfDataAllowed: consentManager.saleOfDataAllowed,
+    },
+    data: {
+      ...event.data,
+      environment,
+    },
+  });
+  const buildBatchBody = (events: QueuedEvent[], batchTimestamp: number): string => {
+    const batchPayload = {
+      events: events.map(buildEventPayload),
+      timestamp: batchTimestamp,
+    };
+    return JSON.stringify(batchPayload);
+  };
+  const fitSingleEventToBytes = (event: QueuedEvent, maxBytes: number): QueuedEvent => {
+    const baseTimestamp = Date.now();
+    const initialBody = buildBatchBody([event], baseTimestamp);
+    if (utf8Length(initialBody) <= maxBytes) {
+      return event;
+    }
+    const data = event.data as Record<string, unknown>;
+    const items = data.items;
+    if (!Array.isArray(items) || items.length === 0) {
+      return event;
+    }
+    let low = 0;
+    let high = items.length;
+    let best = 0;
+    while (low <= high) {
+      const mid = Math.floor((low + high) / 2);
+      const candidate: QueuedEvent = {
+        ...event,
+        data: {
+          ...data,
+          items: items.slice(0, mid),
+        },
+      };
+      const body = buildBatchBody([candidate], baseTimestamp);
+      if (utf8Length(body) <= maxBytes) {
+        best = mid;
+        low = mid + 1;
+      } else {
+        high = mid - 1;
+      }
+    }
+    if (best === items.length) {
+      return event;
+    }
+    return {
+      ...event,
+      data: {
+        ...data,
+        items: items.slice(0, best),
+      },
+    };
+  };
+  const splitIntoBatches = (events: QueuedEvent[], batchTimestamp: number): QueuedEvent[][] => {
+    const batches: QueuedEvent[][] = [];
+    let current: QueuedEvent[] = [];
+    for (const e of events) {
+      const candidate = [...current, e];
+      const body = buildBatchBody(candidate, batchTimestamp);
+      if (utf8Length(body) <= BATCH_CONFIG.MAX_BATCH_BYTES) {
+        current = candidate;
+        continue;
+      }
+      if (current.length > 0) {
+        batches.push(current);
+        current = [];
+      }
+      const fitted = fitSingleEventToBytes(e, BATCH_CONFIG.MAX_BATCH_BYTES);
+      current = [fitted];
+      const singleBody = buildBatchBody(current, batchTimestamp);
+      if (utf8Length(singleBody) > BATCH_CONFIG.MAX_BATCH_BYTES) {
+        batches.push(current);
+        current = [];
+      }
+    }
+    if (current.length > 0) {
+      batches.push(current);
+    }
+    return batches;
+  };
   const eventQueue: QueuedEvent[] = [];
   let flushTimer: ReturnType<typeof setTimeout> | null = null;
   const flushQueue = async (_immediate = false) => {
@@ -213,72 +319,57 @@ export function createEventSender(config: EventSenderConfig) {
     if (eventsToSend.length === 0) return;
     try {
       const timestamp = Date.now();
-      const batchPayload = {
-        events: eventsToSend.map(event => ({
-          eventName: event.eventName,
-          timestamp: event.timestamp,
-          nonce: event.nonce,
-          shopDomain,
-          consent: {
-            marketing: consentManager.marketingAllowed,
-            analytics: consentManager.analyticsAllowed,
-            saleOfDataAllowed: consentManager.saleOfDataAllowed,
-          },
-          data: {
-            ...event.data,
-            environment,
-          },
-        })),
-        timestamp,
-      };
-      const body = JSON.stringify(batchPayload);
       const url = `${backendUrl}/ingest`;
-      const headers: Record<string, string> = {
-        "Content-Type": "application/json",
-        "X-Tracking-Guardian-Timestamp": String(timestamp),
-      };
-      if (ingestionKey) {
-        try {
-          const bodyHash = sha256Hex(body);
-          const signature = generateHMACSignature(ingestionKey, timestamp, shopDomain, bodyHash);
-          headers["X-Tracking-Guardian-Signature"] = signature;
-          if (isDevMode) {
-            log(`Batch HMAC signature generated for ${eventsToSend.length} events`);
-          }
-        } catch (hmacError) {
-          if (isDevMode) {
-            log(`❌ Batch HMAC signature generation failed:`, hmacError);
+      const batches = splitIntoBatches(eventsToSend, timestamp);
+      for (const batchEvents of batches) {
+        const body = buildBatchBody(batchEvents, timestamp);
+        const headers: Record<string, string> = {
+          "Content-Type": "application/json",
+          "X-Tracking-Guardian-Timestamp": String(timestamp),
+        };
+        if (normalizedIngestionKey) {
+          try {
+            const bodyHash = sha256Hex(body);
+            const signature = generateHMACSignature(normalizedIngestionKey, timestamp, shopDomain, bodyHash);
+            headers["X-Tracking-Guardian-Signature"] = signature;
+            if (isDevMode) {
+              log(`Batch HMAC signature generated for ${batchEvents.length} events`);
+            }
+          } catch (hmacError) {
+            if (isDevMode) {
+              log(`❌ Batch HMAC signature generation failed:`, hmacError);
+            }
           }
         }
-      }
-      const hasCheckoutCompleted = eventsToSend.some(e => e.eventName === "checkout_completed");
-      if (hasCheckoutCompleted) {
-        await sendCheckoutCompletedWithRetry(url, body, isDevMode, log, headers, Date.now());
-      } else {
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
-        fetch(url, {
-          method: "POST",
-          headers,
-          keepalive: true,
-          body,
-          signal: controller.signal,
-        })
-          .then((response) => {
-            if (!response.ok && isDevMode) {
-              log(`Batch send non-2xx (${eventsToSend.length} events): ${response.status}`);
-            }
-            return response;
+        const hasCheckoutCompleted = batchEvents.some(e => e.eventName === "checkout_completed");
+        if (hasCheckoutCompleted) {
+          await sendCheckoutCompletedWithRetry(url, body, isDevMode, log, headers, Date.now());
+        } else {
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+          fetch(url, {
+            method: "POST",
+            headers,
+            keepalive: true,
+            body,
+            signal: controller.signal,
           })
-          .finally(() => clearTimeout(timeoutId))
-          .catch((error) => {
-            if (isDevMode) {
-              log(`Batch send failed (${eventsToSend.length} events):`, error);
-            }
-          });
-      }
-      if (isDevMode) {
-        log(`Batch sent: ${eventsToSend.length} events to /ingest`);
+            .then((response) => {
+              if (!response.ok && isDevMode) {
+                log(`Batch send non-2xx (${batchEvents.length} events): ${response.status}`);
+              }
+              return response;
+            })
+            .finally(() => clearTimeout(timeoutId))
+            .catch((error) => {
+              if (isDevMode) {
+                log(`Batch send failed (${batchEvents.length} events):`, error);
+              }
+            });
+        }
+        if (isDevMode) {
+          log(`Batch sent: ${batchEvents.length} events to /ingest (bytes=${utf8Length(body)})`);
+        }
       }
     } catch (error) {
       if (isDevMode) {

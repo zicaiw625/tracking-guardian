@@ -8,6 +8,10 @@ export const API_CONFIG = {
 } as const;
 
 export const RATE_LIMIT_CONFIG = {
+  PIXEL_EVENTS_PREBODY: {
+    maxRequests: 200,
+    windowMs: 60 * 1000,
+  },
   PIXEL_EVENTS: {
     maxRequests: 50,
     windowMs: 60 * 1000,

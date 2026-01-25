@@ -18,6 +18,7 @@ import { readTextWithLimit } from "~/utils/body-reader";
 const MAX_BATCH_SIZE = 100;
 const TIMESTAMP_WINDOW_MS = API_CONFIG.TIMESTAMP_WINDOW_MS;
 const INGEST_RATE_LIMIT = RATE_LIMIT_CONFIG.PIXEL_EVENTS;
+const PREBODY_RATE_LIMIT = RATE_LIMIT_CONFIG.PIXEL_EVENTS_PREBODY;
 
 const INVALID_REQUEST_RESPONSE = { error: "Invalid request" } as const;
 
@@ -35,7 +36,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     return jsonWithCors({ error: "Method not allowed" }, { status: 405, request });
   }
   const ipKey = ipKeyExtractor(request);
-  const ipRateLimit = await checkRateLimitAsync(ipKey, 200, 60 * 1000);
+  const ipRateLimit = await checkRateLimitAsync(ipKey, PREBODY_RATE_LIMIT.maxRequests, PREBODY_RATE_LIMIT.windowMs);
   if (!ipRateLimit.allowed) {
     const ipHash = ipKey === "untrusted" || ipKey === "unknown" ? ipKey : hashValueSync(ipKey).slice(0, 12);
     logger.warn(`IP rate limit exceeded for ingest`, {
@@ -53,7 +54,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         request,
         headers: {
           "Retry-After": String(ipRateLimit.retryAfter || 60),
-          "X-RateLimit-Limit": "200",
+          "X-RateLimit-Limit": String(PREBODY_RATE_LIMIT.maxRequests),
           "X-RateLimit-Remaining": String(ipRateLimit.remaining || 0),
           "X-RateLimit-Reset": String(Math.ceil((ipRateLimit.resetAt || Date.now()) / 1000)),
         },
