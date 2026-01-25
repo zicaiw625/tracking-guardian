@@ -329,9 +329,16 @@ class RedisClientFactory {
       const maxDelayMs = Math.max(1000, parseInt(process.env.REDIS_RECONNECT_MAX_DELAY_MS || "30000", 10) || 30000);
       const baseDelayMs = Math.max(100, parseInt(process.env.REDIS_RECONNECT_BASE_DELAY_MS || "500", 10) || 500);
       const connectTimeoutMs = Math.max(1000, parseInt(process.env.REDIS_CONNECT_TIMEOUT_MS || "5000", 10) || 5000);
+      const initTimeoutMs = Math.max(
+        1000,
+        parseInt(process.env.REDIS_INIT_TIMEOUT_MS || String(connectTimeoutMs + 3000), 10) || (connectTimeoutMs + 3000)
+      );
 
       const client = createClient({
         url: redisUrl,
+        // 关键：禁用离线队列，避免 Redis 未连上时命令无限等待，导致 HTTP 请求卡死。
+        // 连接未建立/已断开时，命令会快速 reject，调用方可及时返回错误/降级。
+        disableOfflineQueue: true,
         socket: {
           connectTimeout: connectTimeoutMs,
           reconnectStrategy: (retries: number) => {
@@ -381,16 +388,24 @@ class RedisClientFactory {
         this.connectionInfo.lastError = undefined;
         logger.info("[REDIS] Connected");
       });
-      await client.connect();
-      this.rawClient = client as RedisClientType;
-      this.client = this.createWrapper(client as RedisClientType);
       this.connectionInfo = {
-        connected: true,
+        connected: false,
         mode: "redis",
         url: redisUrl.replace(/\/\/[^:]+:[^@]+@/, "//***:***@"),
         reconnectAttempts: 0,
       };
-      logger.info("[REDIS] ✅ Redis client connected and ready");
+      logger.info("[REDIS] Connecting...", { url: this.connectionInfo.url });
+      // 关键：初始化阶段必须有“明确超时”，否则在网络/Redis 异常时 connect() 可能因重连策略而长时间不 resolve，
+      // 进而让依赖 Redis 的请求（比如 cron 锁）在 await 命令时卡住直到上游超时。
+      await Promise.race([
+        client.connect(),
+        new Promise<never>((_, reject) =>
+          setTimeout(() => reject(new Error(`Redis init timeout after ${initTimeoutMs}ms`)), initTimeoutMs)
+        ),
+      ]);
+
+      this.rawClient = client as RedisClientType;
+      this.client = this.createWrapper(client as RedisClientType);
       return this.client;
     } catch (error) {
       const errorMsg = error instanceof Error ? error.message : String(error);

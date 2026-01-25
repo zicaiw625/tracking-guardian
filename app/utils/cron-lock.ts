@@ -9,6 +9,7 @@ interface CronLockResult {
     lockId?: string;
     reason?: string;
     existingLockAge?: number;
+    lockError?: boolean;
 }
 
 export async function acquireCronLock(lockType: string, instanceId: string, timeoutMs: number = LOCK_TIMEOUT_MS): Promise<CronLockResult> {
@@ -46,6 +47,7 @@ export async function acquireCronLock(lockType: string, instanceId: string, time
         return {
             acquired: false,
             reason: `Error acquiring lock: ${error instanceof Error ? error.message : "unknown"}`,
+            lockError: true,
         };
     }
 }
@@ -79,6 +81,7 @@ export async function withCronLock<T>(lockType: string, instanceId: string, job:
     result?: T;
     lockSkipped?: boolean;
     reason?: string;
+    lockError?: boolean;
 }> {
     const lockResult = await acquireCronLock(lockType, instanceId);
     if (!lockResult.acquired) {
@@ -86,6 +89,7 @@ export async function withCronLock<T>(lockType: string, instanceId: string, job:
             executed: false,
             lockSkipped: true,
             reason: lockResult.reason,
+            lockError: lockResult.lockError,
         };
     }
     try {

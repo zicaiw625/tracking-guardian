@@ -199,6 +199,19 @@ async function handleCron(request: Request): Promise<Response> {
     const durationMs = Date.now() - startTime;
 
     if (!lock.acquired || !lock.lockId) {
+      if (lock.lockError) {
+        logger.error("Cron task failed - unable to acquire lock due to error", {
+          requestId,
+          task,
+          reason: lock.reason,
+        });
+        return cronErrorResponse(
+          requestId,
+          durationMs,
+          lock.reason || "Unable to acquire cron lock",
+          503
+        );
+      }
       logger.info("Cron task skipped - lock held by another instance", {
         requestId,
         task,
@@ -248,6 +261,19 @@ async function handleCron(request: Request): Promise<Response> {
   const durationMs = Date.now() - startTime;
 
   if (!lockResult.executed) {
+    if (lockResult.lockError) {
+      logger.error("Cron task failed - unable to acquire lock due to error", {
+        requestId,
+        task,
+        reason: lockResult.reason,
+      });
+      return cronErrorResponse(
+        requestId,
+        durationMs,
+        lockResult.reason || "Unable to acquire cron lock",
+        503
+      );
+    }
     logger.info("Cron task skipped - lock held by another instance", {
       requestId,
       task,
