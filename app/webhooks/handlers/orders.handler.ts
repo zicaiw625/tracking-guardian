@@ -132,21 +132,20 @@ export async function handleOrdersCreate(
             data: { orderKey: orderKeyNorm, altOrderKey: checkoutKey },
           });
         }
-      } else {
-        await createConversionJob({
-          shopId: shopRecord.id,
-          orderId: snapshot.orderId,
-          orderNumber: snapshot.orderNumber,
-          orderValue: snapshot.totalValue,
-          currency: snapshot.currency,
-          capiInput: {
-            value: snapshot.totalValue,
-            currency: snapshot.currency,
-            eventType: "purchase",
-            checkoutToken: orderPayload.checkout_token ?? null,
-          },
-        });
       }
+      await createConversionJob({
+        shopId: shopRecord.id,
+        orderId: snapshot.orderId,
+        orderNumber: snapshot.orderNumber,
+        orderValue: snapshot.totalValue,
+        currency: snapshot.currency,
+        capiInput: {
+          value: snapshot.totalValue,
+          currency: snapshot.currency,
+          eventType: "purchase",
+          checkoutToken: orderPayload.checkout_token ?? null,
+        },
+      });
     }
     return {
       success: true,

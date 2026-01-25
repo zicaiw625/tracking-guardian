@@ -5,7 +5,6 @@ import { logger, metrics } from "~/utils/logger.server";
 import { API_CONFIG, RATE_LIMIT_CONFIG, isStrictSecurityMode } from "~/utils/config.server";
 import { isDevMode, trackNullOriginRequest, validatePixelOriginPreBody, validatePixelOriginForShop, buildShopAllowedDomains } from "~/utils/origin-validation";
 import { checkRateLimitAsync, shopDomainIpKeyExtractor, ipKeyExtractor } from "~/middleware/rate-limit";
-import { safeFireAndForget } from "~/utils/helpers.server";
 import { hashValueSync } from "~/utils/crypto.server";
 import { trackAnomaly } from "~/utils/rate-limiter";
 import { getShopForPixelVerificationWithConfigs } from "~/lib/pixel-events/key-validation";
@@ -621,29 +620,6 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       { status: 500, request }
     );
   }
-  const PROCESSING_TIMEOUT_MS = 10000;
-  const processingPromise = processBatchEvents(shop.id, validatedEventsForPipeline, environment).then((results) => {
-    const successCount = results.filter(r => r.success).length;
-    const errorCount = results.filter(r => !r.success).length;
-    logger.info(`Batch ingest processed`, {
-      shopDomain,
-      total: validatedEventsForPipeline.length,
-      accepted: successCount,
-      errors: errorCount,
-    });
-    return results;
-  });
-  const timeoutId = setTimeout(() => {
-    logger.warn(`Batch ingest processing taking longer than ${PROCESSING_TIMEOUT_MS}ms`, {
-      shopDomain,
-      shopId: shop.id,
-      total: validatedEventsForPipeline.length,
-    });
-  }, PROCESSING_TIMEOUT_MS);
-  safeFireAndForget(processingPromise.finally(() => clearTimeout(timeoutId)), {
-    operation: "Batch ingest processing",
-    metadata: { shopDomain, shopId: shop.id, total: validatedEventsForPipeline.length },
-  });
   return jsonWithCors(
     {
       accepted_count: persistedCount,

@@ -6,6 +6,7 @@ import { checkInitialConsent, filterPlatformsByConsent } from "../../lib/pixel-e
 import { getShopPixelConfigs } from "../../services/db/pixel-config-repository.server";
 import { processEventPipeline } from "../../services/events/pipeline.server";
 import type { Prisma } from "@prisma/client";
+import { getEffectiveConsentCategory } from "../../utils/platform-consent";
 
 export async function processEventDelivery(): Promise<{
   processed: number;
@@ -79,14 +80,14 @@ export async function processEventDelivery(): Promise<{
         if (!payload || typeof payload !== "object") {
           skipped++;
           processed++;
-          return;
+          return true;
         }
 
         const consentResult = checkInitialConsent(payload.consent);
         if (!consentResult.hasAnyConsent) {
           skipped++;
           processed++;
-          return;
+          return true;
         }
 
         const env = (payload.data as { environment?: "test" | "live" } | undefined)?.environment || "live";
@@ -94,7 +95,7 @@ export async function processEventDelivery(): Promise<{
         if (configs.length === 0) {
           skipped++;
           processed++;
-          return;
+          return true;
         }
 
         const mappedConfigs = configs.map((config) => ({
@@ -111,16 +112,40 @@ export async function processEventDelivery(): Promise<{
         if (destinations.length === 0) {
           skipped++;
           processed++;
-          return;
+          return true;
         }
 
-        const r = await processEventPipeline(log.shopId, payload, log.eventId, destinations, env);
+        const finalDestinations = (() => {
+          if (payload.eventName !== "checkout_completed") {
+            return destinations;
+          }
+          const treatAsMarketingByPlatform = new Map<string, boolean>();
+          for (const c of mappedConfigs) {
+            if (c.clientConfig?.treatAsMarketing === true) {
+              treatAsMarketingByPlatform.set(c.platform, true);
+            } else if (!treatAsMarketingByPlatform.has(c.platform)) {
+              treatAsMarketingByPlatform.set(c.platform, false);
+            }
+          }
+          return destinations.filter((platform) => {
+            const treatAsMarketing = treatAsMarketingByPlatform.get(platform) === true;
+            return getEffectiveConsentCategory(platform, treatAsMarketing) === "analytics";
+          });
+        })();
+        if (finalDestinations.length === 0) {
+          skipped++;
+          processed++;
+          return true;
+        }
+
+        const r = await processEventPipeline(log.shopId, payload, log.eventId, finalDestinations, env);
         processed++;
         if (r.success) {
           succeeded++;
         } else {
           failed++;
         }
+        return true;
       } catch (error) {
         processed++;
         failed++;
@@ -131,6 +156,7 @@ export async function processEventDelivery(): Promise<{
           eventName: log.eventName,
           error: error instanceof Error ? error.message : String(error),
         });
+        return true;
       }
     });
   }

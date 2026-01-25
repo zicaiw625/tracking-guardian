@@ -85,6 +85,7 @@ import { action } from "../../app/routes/ingest";
 import { getShopForPixelVerificationWithConfigs } from "../../app/lib/pixel-events/key-validation";
 import { validatePixelEventHMAC } from "../../app/lib/pixel-events/hmac-validation";
 import { verifyWithGraceWindowAsync } from "../../app/utils/shop-access";
+import { processBatchEvents } from "../../app/services/events/pipeline.server";
 
 const originalEnv = process.env;
 
@@ -318,6 +319,8 @@ describe("/ingest Security Policy Tests", () => {
       expect(response.status).toBe(202);
       const data = await response.json();
       expect(data.accepted_count).toBeDefined();
+      expect(vi.mocked(processBatchEvents)).toHaveBeenCalledTimes(1);
+      expect(vi.mocked(processBatchEvents).mock.calls[0]?.[3]).toEqual({ persistOnly: true });
     });
   });
 });
