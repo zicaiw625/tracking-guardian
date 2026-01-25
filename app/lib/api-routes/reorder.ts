@@ -188,6 +188,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       const orderId = orderIdParse.data;
       const newUrl = new URL(request.url);
       newUrl.searchParams.set("orderId", orderId);
+      newUrl.searchParams.set("nonce", String(nonce));
       const newRequest = new Request(newUrl.toString(), {
         method: "GET",
         headers: request.headers,
