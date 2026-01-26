@@ -39,6 +39,14 @@ export function verifyHMACSignature(
       trustLevel: "untrusted",
     };
   }
+  if (signature.length > 256 || !/^[0-9a-f]+$/i.test(signature)) {
+    return {
+      valid: false,
+      reason: "Invalid signature format",
+      errorCode: "invalid_signature",
+      trustLevel: "untrusted",
+    };
+  }
   const now = Date.now();
   const timeDiff = Math.abs(now - timestamp);
   if (timeDiff > timestampWindowMs) {

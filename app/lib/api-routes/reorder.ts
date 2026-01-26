@@ -1,5 +1,6 @@
 import type { ActionFunctionArgs, LoaderFunctionArgs } from "@remix-run/node";
 import { json } from "@remix-run/node";
+import net from "net";
 import { createAdminClientForShop } from "../../shopify.server";
 import { logger } from "../../utils/logger.server";
 import { checkRateLimitAsync } from "../../middleware/rate-limit.server";
@@ -70,13 +71,11 @@ function validateUrlForShop(url: string, allowedDomains: string[]): { valid: boo
         }
       }
     }
-    if (/^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(hostname)) {
-      if (isPrivateIPv4(hostname)) {
-        return { valid: false, error: "IP addresses are not allowed; use domain names instead" };
-      }
+    const ipType = net.isIP(hostname);
+    if (ipType === 4) {
       return { valid: false, error: "IP addresses are not allowed; use domain names instead" };
     }
-    if (hostname.startsWith("[") && hostname.endsWith("]")) {
+    if (ipType === 6) {
       return { valid: false, error: "IPv6 addresses are not allowed; use domain names instead" };
     }
     const isAllowed = allowedDomains.some(domain => {
