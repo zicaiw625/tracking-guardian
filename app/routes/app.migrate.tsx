@@ -66,6 +66,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   const latestScan = await prisma.scanReport.findFirst({
     where: { shopId: shop.id },
     orderBy: { createdAt: "desc" },
+    select: { id: true },
   });
 
   const hasPixels = shop.pixelConfigs.length > 0;

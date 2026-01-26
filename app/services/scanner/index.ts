@@ -523,6 +523,14 @@ export async function getCachedScanResult(
     const cached = await prisma.scanReport.findFirst({
         where: { shopId },
         orderBy: { createdAt: "desc" },
+        select: {
+            scriptTags: true,
+            checkoutConfig: true,
+            identifiedPlatforms: true,
+            riskItems: true,
+            riskScore: true,
+            completedAt: true,
+        },
     });
     if (!cached || !cached.completedAt) {
         return null;

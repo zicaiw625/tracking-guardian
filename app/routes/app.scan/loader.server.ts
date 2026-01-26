@@ -75,6 +75,18 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     const latestScanRaw = await prisma.scanReport.findFirst({
         where: { shopId: shop.id },
         orderBy: { createdAt: "desc" },
+        select: {
+            id: true,
+            scriptTags: true,
+            checkoutConfig: true,
+            riskItems: true,
+            riskScore: true,
+            identifiedPlatforms: true,
+            status: true,
+            errorMessage: true,
+            createdAt: true,
+            completedAt: true,
+        },
     });
     if (latestScanRaw?.status === "completed") {
         const planId = normalizePlan(shop.plan ?? "free");

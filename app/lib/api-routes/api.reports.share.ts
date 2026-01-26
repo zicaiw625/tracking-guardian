@@ -5,6 +5,7 @@ import { logger } from "../../utils/logger.server";
 import { authenticate } from "../../shopify.server";
 import { readJsonWithSizeLimit } from "../../utils/body-size-guard";
 import { jsonApi } from "../../utils/security-headers";
+import { isMissingColumnError } from "../../utils/prisma-errors.server";
 
 const DEFAULT_SHARE_TOKEN_EXPIRY_DAYS = 3;
 
@@ -69,10 +70,17 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         if (!scanReport) {
           return jsonApi({ error: "Scan report not found" }, { status: 404 });
         }
-        await prisma.scanReport.update({
-          where: { id: reportId },
-          data: { shareTokenHash: null, shareTokenExpiresAt: null },
-        });
+        try {
+          await prisma.scanReport.update({
+            where: { id: reportId },
+            data: { shareTokenHash: null, shareTokenExpiresAt: null },
+          });
+        } catch (error) {
+          if (isMissingColumnError(error, "ScanReport", "shareTokenHash")) {
+            return jsonApi({ error: "Database migration pending" }, { status: 503 });
+          }
+          throw error;
+        }
         logger.info("Share link revoked for scan report", { shopId: shop.id, reportId });
         return jsonApi({ success: true, revoked: true });
       }
@@ -112,13 +120,20 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       const tokenHash = createHash("sha256")
         .update(`${reportId}-${shop.id}-${shareToken}`)
         .digest("hex");
-      await prisma.scanReport.update({
-        where: { id: reportId },
-        data: {
-          shareTokenHash: tokenHash,
-          shareTokenExpiresAt: expiresAt,
-        },
-      });
+      try {
+        await prisma.scanReport.update({
+          where: { id: reportId },
+          data: {
+            shareTokenHash: tokenHash,
+            shareTokenExpiresAt: expiresAt,
+          },
+        });
+      } catch (error) {
+        if (isMissingColumnError(error, "ScanReport", "shareTokenHash")) {
+          return jsonApi({ error: "Database migration pending" }, { status: 503 });
+        }
+        throw error;
+      }
       logger.info("Share link generated for scan report", {
         shopId: shop.id,
         reportId,

@@ -21,6 +21,7 @@ import { validateRiskItemsArray, validateStringArray } from "../utils/scan-data-
 import { PUBLIC_PAGE_HEADERS, addSecurityHeadersToHeaders } from "../utils/security-headers";
 import { checkRateLimitAsync, ipKeyExtractor } from "../middleware/rate-limit.server";
 import { timingSafeEqualHex } from "../utils/timing-safe.server";
+import { isMissingColumnError } from "../utils/prisma-errors.server";
 
 const publicJson = (data: unknown, init: ResponseInit = {}) => {
   const headers = new Headers(init.headers);
@@ -123,6 +124,9 @@ export const loader = async ({ request, params }: LoaderFunctionArgs) => {
       },
     });
   } catch (error) {
+    if (isMissingColumnError(error, "ScanReport", "shareTokenHash")) {
+      return publicJson({ error: "Share link not available", report: null }, { status: 404 });
+    }
     logger.error("Failed to load shared scan report", {
       error,
       reportId: params.reportId,

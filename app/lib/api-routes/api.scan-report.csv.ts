@@ -10,6 +10,7 @@ import { escapeCSV } from "../../utils/csv.server";
 import { sanitizeFilename } from "../../utils/responses";
 import { timingSafeEqualHex } from "../../utils/timing-safe.server";
 import { withSecurityHeaders } from "../../utils/security-headers";
+import { isMissingColumnError } from "../../utils/prisma-errors.server";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   try {
@@ -37,21 +38,28 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     let shop: { id: string; shopDomain: string; plan: string | null } | null = null;
 
     if (token) {
-      scanReport = await prisma.scanReport.findUnique({
-        where: { id: reportId },
-        select: {
-          id: true,
-          shopId: true,
-          riskScore: true,
-          riskItems: true,
-          identifiedPlatforms: true,
-          status: true,
-          createdAt: true,
-          completedAt: true,
-          shareTokenHash: true,
-          shareTokenExpiresAt: true,
-        },
-      });
+      try {
+        scanReport = await prisma.scanReport.findUnique({
+          where: { id: reportId },
+          select: {
+            id: true,
+            shopId: true,
+            riskScore: true,
+            riskItems: true,
+            identifiedPlatforms: true,
+            status: true,
+            createdAt: true,
+            completedAt: true,
+            shareTokenHash: true,
+            shareTokenExpiresAt: true,
+          },
+        });
+      } catch (error) {
+        if (isMissingColumnError(error, "ScanReport", "shareTokenHash")) {
+          return new Response("Share link not available", { status: 404 });
+        }
+        throw error;
+      }
 
       if (!scanReport) {
         return new Response("Report not found", { status: 404 });
@@ -105,24 +113,31 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
         return new Response(gateResult.reason || "需要 Growth 及以上套餐才能导出报告", { status: 402 });
       }
 
-      scanReport = await prisma.scanReport.findFirst({
-        where: {
-          id: reportId,
-          shopId: shop.id,
-        },
-        select: {
-          id: true,
-          shopId: true,
-          riskScore: true,
-          riskItems: true,
-          identifiedPlatforms: true,
-          status: true,
-          createdAt: true,
-          completedAt: true,
-          shareTokenHash: true,
-          shareTokenExpiresAt: true,
-        },
-      });
+      try {
+        scanReport = await prisma.scanReport.findFirst({
+          where: {
+            id: reportId,
+            shopId: shop.id,
+          },
+          select: {
+            id: true,
+            shopId: true,
+            riskScore: true,
+            riskItems: true,
+            identifiedPlatforms: true,
+            status: true,
+            createdAt: true,
+            completedAt: true,
+            shareTokenHash: true,
+            shareTokenExpiresAt: true,
+          },
+        });
+      } catch (error) {
+        if (isMissingColumnError(error, "ScanReport", "shareTokenHash")) {
+          return new Response("Share link not available", { status: 404 });
+        }
+        throw error;
+      }
 
       if (!scanReport) {
         return new Response("Report not found", { status: 404 });

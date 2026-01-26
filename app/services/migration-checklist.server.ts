@@ -424,6 +424,7 @@ export async function getMigrationChecklist(
     orderBy: {
       createdAt: "desc",
     },
+    select: { id: true },
   });
   if (recentScan) {
     return generateMigrationChecklist(shopId);
