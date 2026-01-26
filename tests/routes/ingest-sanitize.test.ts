@@ -20,6 +20,7 @@ vi.mock("../../app/db.server", () => ({
 
 vi.mock("../../app/utils/redis-client", () => ({
   getRedisClient: vi.fn(),
+  getRedisClientStrict: vi.fn(),
 }));
 
 vi.mock("../../app/utils/logger", () => ({
@@ -40,7 +41,7 @@ vi.mock("../../app/utils/logger", () => ({
 import prisma from "../../app/db.server";
 import { generateOrderMatchKey , createEventNonce } from "../../app/lib/pixel-events/receipt-handler";
 import { validateRequest } from "../../app/lib/pixel-events/validation";
-import { getRedisClient } from "../../app/utils/redis-client";
+import { getRedisClientStrict } from "../../app/utils/redis-client";
 
 describe("P0 Fix: checkoutToken and nonce preservation after sanitizePII removal", () => {
   beforeEach(() => {
@@ -164,7 +165,7 @@ describe("P0 Fix: checkoutToken and nonce preservation after sanitizePII removal
       const mockRedis = {
         setNX: vi.fn(),
       };
-      vi.mocked(getRedisClient).mockResolvedValue(mockRedis as any);
+      vi.mocked(getRedisClientStrict).mockResolvedValue(mockRedis as any);
 
       mockRedis.setNX.mockResolvedValueOnce(true);
       mockRedis.setNX.mockResolvedValueOnce(false);
@@ -190,7 +191,7 @@ describe("P0 Fix: checkoutToken and nonce preservation after sanitizePII removal
       const mockRedis = {
         setNX: vi.fn().mockRejectedValue(new Error("Redis unavailable")),
       };
-      vi.mocked(getRedisClient).mockResolvedValue(mockRedis as any);
+      vi.mocked(getRedisClientStrict).mockResolvedValue(mockRedis as any);
 
       vi.mocked(prisma.eventNonce.create).mockResolvedValueOnce({
         id: "nonce-1",
@@ -223,7 +224,7 @@ describe("P0 Fix: checkoutToken and nonce preservation after sanitizePII removal
       const mockRedis = {
         setNX: vi.fn().mockResolvedValue(true),
       };
-      vi.mocked(getRedisClient).mockResolvedValue(mockRedis as any);
+      vi.mocked(getRedisClientStrict).mockResolvedValue(mockRedis as any);
 
       const firstResult = await createEventNonce(shopId, orderId, timestamp, "nonce-1", eventType);
       expect(firstResult.isReplay).toBe(false);

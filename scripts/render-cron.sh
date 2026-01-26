@@ -34,7 +34,8 @@ if [[ ! "${APP_URL}" =~ ^https?:// ]]; then
     exit 1
 fi
 
-CRON_ENDPOINT="${APP_URL}/api/cron?async=1"
+CRON_TASK="${CRON_TASK:-all}"
+CRON_ENDPOINT="${APP_URL}/api/cron?sync=1&task=${CRON_TASK}"
 CRON_SECRET="${CRON_SECRET:?Error: CRON_SECRET environment variable is required}"
 TIMEOUT="${TIMEOUT:-300}"
 REPLAY_PROTECTION="${REPLAY_PROTECTION:-false}"
@@ -52,13 +53,13 @@ echo "[Cron] Timeout: ${TIMEOUT}s"
 
 HEADERS=(-H "Authorization: Bearer ${CRON_SECRET}")
 HEADERS+=(-H "User-Agent: RenderCronJob/1.0")
-HEADERS+=(-H "Prefer: respond-async")
 
 
 if [ "${REPLAY_PROTECTION}" = "true" ]; then
     TIMESTAMP=$(date +%s)
 
-    SIGNATURE=$(echo -n "${TIMESTAMP}" | openssl dgst -sha256 -hmac "${CRON_SECRET}" | sed 's/^.* //')
+    SIGNATURE_CONTENT="POST:/api/cron:${TIMESTAMP}:"
+    SIGNATURE=$(echo -n "${SIGNATURE_CONTENT}" | openssl dgst -sha256 -hmac "${CRON_SECRET}" | sed 's/^.* //')
     HEADERS+=(-H "X-Cron-Timestamp: ${TIMESTAMP}")
     HEADERS+=(-H "X-Cron-Signature: ${SIGNATURE}")
     echo "[Cron] Replay protection enabled (timestamp: ${TIMESTAMP})"

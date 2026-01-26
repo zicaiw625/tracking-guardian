@@ -1,6 +1,6 @@
 import { randomUUID } from "crypto";
 import { logger } from "./logger.server";
-import { getRedisClient } from "./redis-client";
+import { getRedisClientStrict } from "./redis-client";
 
 const LOCK_TIMEOUT_MS = 10 * 60 * 1000;
 
@@ -16,7 +16,7 @@ export async function acquireCronLock(lockType: string, instanceId: string, time
     const lockKey = `cron_lock:${lockType}`;
     const lockValue = `${instanceId}:${randomUUID()}`;
     try {
-        const redis = await getRedisClient();
+        const redis = await getRedisClientStrict();
         const acquired = await redis.setNX(lockKey, lockValue, timeoutMs);
         if (acquired) {
             logger.info(`[P1-03] Acquired cron lock for ${lockType}`, {
@@ -55,7 +55,7 @@ export async function acquireCronLock(lockType: string, instanceId: string, time
 export async function releaseCronLock(lockType: string, lockId: string): Promise<boolean> {
     const lockKey = `cron_lock:${lockType}`;
     try {
-        const redis = await getRedisClient();
+        const redis = await getRedisClientStrict();
         const existingValue = await redis.get(lockKey);
         if (existingValue === lockId) {
             await redis.del(lockKey);

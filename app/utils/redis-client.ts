@@ -277,6 +277,7 @@ class InMemoryFallback implements RedisClientWrapper {
 class RedisClientFactory {
   private static instance: RedisClientFactory | null = null;
   private client: RedisClientWrapper | null = null;
+  private strictClient: RedisClientWrapper | null = null;
   private rawClient: RedisClientType | null = null;
   private initPromise: Promise<RedisClientWrapper> | null = null;
   private connectionInfo: ConnectionInfo = {
@@ -306,6 +307,13 @@ class RedisClientFactory {
     this.initPromise = this.initialize();
     return this.initPromise;
   }
+  async getStrictClient(): Promise<RedisClientWrapper> {
+    await this.getClient();
+    if (this.connectionInfo.mode !== "redis" || !this.connectionInfo.connected || !this.strictClient) {
+      throw new Error("Redis strict client unavailable");
+    }
+    return this.strictClient;
+  }
   getClientSync(): RedisClientWrapper {
     return this.client || this.fallback;
   }
@@ -317,6 +325,7 @@ class RedisClientFactory {
       }
       logger.info("[REDIS] No REDIS_URL configured, using in-memory store");
       this.client = this.fallback;
+      this.strictClient = null;
       this.connectionInfo = {
         connected: true,
         mode: "memory",
@@ -406,6 +415,7 @@ class RedisClientFactory {
 
       this.rawClient = client as RedisClientType;
       this.client = this.createWrapper(client as RedisClientType);
+      this.strictClient = this.createStrictWrapper(client as RedisClientType);
       return this.client;
     } catch (error) {
       const errorMsg = error instanceof Error ? error.message : String(error);
@@ -421,6 +431,7 @@ class RedisClientFactory {
         reconnectAttempts: 0,
       };
       this.client = this.fallback;
+      this.strictClient = null;
       return this.client;
     }
   }
@@ -587,6 +598,63 @@ class RedisClientFactory {
       },
     };
   }
+  private createStrictWrapper(client: RedisClientType): RedisClientWrapper {
+    return {
+      get: async (key: string): Promise<string | null> => client.get(key),
+      set: async (key: string, value: string, options?: { EX?: number }): Promise<void> => {
+        if (options?.EX) {
+          await client.set(key, value, { EX: options.EX });
+        } else {
+          await client.set(key, value);
+        }
+      },
+      setNX: async (key: string, value: string, ttlMs: number): Promise<boolean> => {
+        const result = await client.set(key, value, { NX: true, PX: ttlMs });
+        return result !== null;
+      },
+      del: async (key: string): Promise<number> => client.del(key),
+      incr: async (key: string): Promise<number> => client.incr(key),
+      decr: async (key: string): Promise<number> => client.decr(key),
+      expire: async (key: string, seconds: number): Promise<boolean> => client.expire(key, seconds),
+      ttl: async (key: string): Promise<number> => client.ttl(key),
+      hGetAll: async (key: string): Promise<Record<string, string>> => client.hGetAll(key),
+      hSet: async (key: string, field: string, value: string): Promise<number> => client.hSet(key, field, value),
+      hMSet: async (key: string, fields: Record<string, string>): Promise<void> => {
+        await client.hSet(key, fields);
+      },
+      hIncrBy: async (key: string, field: string, increment: number): Promise<number> => client.hIncrBy(key, field, increment),
+      keys: async (pattern: string): Promise<string[]> => client.keys(pattern),
+      scan: async (
+        cursor: string,
+        pattern: string,
+        count: number = 100
+      ): Promise<{ cursor: string; keys: string[] }> => {
+        const cursorNum = parseInt(cursor, 10);
+        const result = await client.scan(isNaN(cursorNum) ? 0 : cursorNum, { MATCH: pattern, COUNT: count });
+        return { cursor: String(result.cursor), keys: result.keys };
+      },
+      publish: async (channel: string, message: string): Promise<number> => client.publish(channel, message),
+      subscribe: async (channel: string, onMessage: (message: string) => void): Promise<() => Promise<void>> => {
+        const subscriber = client.duplicate();
+        await subscriber.connect();
+        await subscriber.subscribe(channel, (message: string) => {
+          onMessage(message);
+        });
+        return async () => {
+          try {
+            await subscriber.unsubscribe(channel);
+          } finally {
+            await subscriber.quit().catch(() => void 0);
+          }
+        };
+      },
+      eval: async (script: string, keys: string[], args: string[]): Promise<unknown> => {
+        return client.eval(script, { keys, arguments: args });
+      },
+      isConnected: (): boolean => this.connectionInfo.connected,
+      getConnectionInfo: (): ConnectionInfo => ({ ...this.connectionInfo }),
+    };
+  }
   getConnectionInfo(): ConnectionInfo {
     return { ...this.connectionInfo };
   }
@@ -600,6 +668,7 @@ class RedisClientFactory {
       }
       this.rawClient = null;
       this.client = null;
+      this.strictClient = null;
     }
     this.initPromise = null;
   }
@@ -628,6 +697,10 @@ class RedisClientFactory {
 
 export async function getRedisClient(): Promise<RedisClientWrapper> {
   return RedisClientFactory.getInstance().getClient();
+}
+
+export async function getRedisClientStrict(): Promise<RedisClientWrapper> {
+  return RedisClientFactory.getInstance().getStrictClient();
 }
 
 export function getRedisClientSync(): RedisClientWrapper {

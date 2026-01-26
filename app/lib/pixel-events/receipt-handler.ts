@@ -9,7 +9,7 @@ import { generateSimpleId } from "../../utils/helpers";
 import type { TrustLevel } from "../../utils/receipt-trust.server";
 import type { PixelEventPayload, KeyValidationResult } from "./types";
 import { generateCanonicalEventId } from "../../services/event-normalizer.server";
-import { getRedisClient } from "../../utils/redis-client";
+import { getRedisClient, getRedisClientStrict } from "../../utils/redis-client";
 
 function buildMinimalPayloadForReceipt(
   payload: PixelEventPayload,
@@ -298,7 +298,7 @@ export async function createEventNonce(
   const ttlMs = RETENTION_CONFIG.NONCE_EXPIRY_MS;
   const key = `tg:nonce:${shopId}:${eventType}:${nonce}`;
   try {
-    const redis = await getRedisClient();
+    const redis = await getRedisClientStrict();
     const ok = await redis.setNX(key, "1", ttlMs);
     return { isReplay: !ok };
   } catch (redisError) {
@@ -376,7 +376,7 @@ export async function createReorderNonce(
   const key = `tg:reorder:nonce:${shopId}:${orderId}:${surface}`;
   const value = JSON.stringify({ nonce, orderId, surface, createdAt: timestamp });
   try {
-    const redis = await getRedisClient();
+    const redis = await getRedisClientStrict();
     const ttlSeconds = Math.ceil(ttlMs / 1000);
     await redis.set(key, value, { EX: ttlSeconds });
     logger.debug(`Reorder nonce created for shop ${shopId}, order ${orderId.slice(0, 20)}...`);
@@ -414,7 +414,7 @@ export async function validateReorderNonce(
   }
   const key = `tg:reorder:nonce:${shopId}:${orderId}:${surface}`;
   try {
-    const redis = await getRedisClient();
+    const redis = await getRedisClientStrict();
     const stored = await redis.get(key);
     if (!stored) {
       return { valid: false, error: "Nonce not found or expired" };
@@ -466,7 +466,7 @@ export async function createSurveyNonce(
   const key = `tg:survey:nonce:${shopId}:${orderKey}:${surface}`;
   const value = JSON.stringify({ nonce, orderKey, surface, createdAt: timestamp });
   try {
-    const redis = await getRedisClient();
+    const redis = await getRedisClientStrict();
     const ttlSeconds = Math.ceil(ttlMs / 1000);
     await redis.set(key, value, { EX: ttlSeconds });
     logger.debug(`Survey nonce created for shop ${shopId}, order ${orderKey.slice(0, 20)}...`);
@@ -505,7 +505,7 @@ export async function validateSurveyNonce(
   }
   const key = `tg:survey:nonce:${shopId}:${orderKey}:${surface}`;
   try {
-    const redis = await getRedisClient();
+    const redis = await getRedisClientStrict();
     const stored = await redis.get(key);
     if (!stored) {
       return { valid: false, error: "Nonce not found or expired" };

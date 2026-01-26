@@ -1,8 +1,8 @@
 import type { ActionFunctionArgs, LoaderFunctionArgs } from "@remix-run/node";
 import { randomUUID } from "crypto";
 import { validateCronAuth, verifyReplayProtection } from "../../cron/auth";
-import { acquireCronLock, releaseCronLock, withCronLock } from "../../utils/cron-lock";
-import { acceptedResponse, cronSuccessResponse, cronSkippedResponse, cronErrorResponse } from "../../utils/responses";
+import { withCronLock } from "../../utils/cron-lock";
+import { cronSuccessResponse, cronSkippedResponse, cronErrorResponse } from "../../utils/responses";
 import { logger } from "../../utils/logger.server";
 import { runAllShopAlertChecks } from "../../services/alert-dispatcher.server";
 import { cleanupExpiredData } from "../../cron/tasks/cleanup";
@@ -11,17 +11,6 @@ import { processConversionJobs } from "../../services/conversion-job.server";
 import { runAllShopsDeliveryHealthCheck } from "../../services/delivery-health.server";
 import { runAllShopsReconciliation } from "../../services/reconciliation.server";
 import { readTextWithLimit } from "../../utils/body-reader";
-
-function shouldRunAsync(request: Request): boolean {
-  const url = new URL(request.url);
-  const syncParam = url.searchParams.get("sync");
-  if (syncParam === "1" || syncParam === "true") return false;
-  const asyncParam = url.searchParams.get("async");
-  if (asyncParam === "0" || asyncParam === "false") return false;
-  if (asyncParam === "1" || asyncParam === "true") return true;
-  const prefer = request.headers.get("Prefer") || "";
-  return prefer.toLowerCase().includes("respond-async");
-}
 
 async function runCronTasks(task: string, requestId: string): Promise<Record<string, unknown>> {
   const results: Record<string, unknown> = {
@@ -200,69 +189,6 @@ async function handleCron(request: Request): Promise<Response> {
 
   const task = cronRequest.task || "all";
   const instanceId = `${process.env.HOSTNAME || "unknown"}-${requestId}`;
-
-  // 关键：为了避免 Render/代理层剥离 Prefer 头导致 cron 同步执行超时，
-  // 我们默认让 POST 走异步（除非显式 ?sync=1/true）。
-  const url = new URL(request.url);
-  const syncParam = url.searchParams.get("sync");
-  const syncForced = syncParam === "1" || syncParam === "true";
-  const asyncRequested = !syncForced && (shouldRunAsync(request) || method === "POST");
-
-  if (asyncRequested) {
-    const lockType = `cron:${task}`;
-    const durationMs = Date.now() - startTime;
-
-    logger.info("Cron task accepted for async execution (lock deferred)", {
-      requestId,
-      task,
-      syncForced,
-    });
-
-    // 重要：先响应 202，后台再尝试获取锁并执行任务，避免请求被上游超时/断开。
-    void (async () => {
-      const jobStart = Date.now();
-      const lock = await acquireCronLock(lockType, instanceId);
-      if (!lock.acquired || !lock.lockId) {
-        if (lock.lockError) {
-          logger.error("Cron async task aborted - unable to acquire lock due to error", {
-            requestId,
-            task,
-            reason: lock.reason,
-          });
-          return;
-        }
-        logger.info("Cron async task skipped - lock held by another instance", {
-          requestId,
-          task,
-          reason: lock.reason,
-        });
-        return;
-      }
-
-      const lockId = lock.lockId;
-      try {
-        const result = await runCronTasks(task, requestId);
-        logger.info("Cron async task completed successfully", {
-          requestId,
-          task,
-          durationMs: Date.now() - jobStart,
-        });
-        void result;
-      } catch (error) {
-        logger.error("Cron async task execution failed", { requestId, task, error });
-      } finally {
-        await releaseCronLock(lockType, lockId);
-      }
-    })();
-
-    return acceptedResponse({
-      success: true,
-      accepted: true,
-      requestId,
-      task,
-      durationMs,
-    });
-  }
 
   const lockResult = await withCronLock(`cron:${task}`, instanceId, async () => {
     try {

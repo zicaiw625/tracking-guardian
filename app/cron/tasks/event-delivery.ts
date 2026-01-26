@@ -8,6 +8,8 @@ import { processEventPipeline } from "../../services/events/pipeline.server";
 import type { Prisma } from "@prisma/client";
 import { getEffectiveConsentCategory } from "../../utils/platform-consent";
 
+type ShopPixelConfigs = Awaited<ReturnType<typeof getShopPixelConfigs>>;
+
 export async function processEventDelivery(): Promise<{
   processed: number;
   succeeded: number;
@@ -74,6 +76,8 @@ export async function processEventDelivery(): Promise<{
     lastCreatedAt = logs[logs.length - 1].createdAt;
     lastId = logs[logs.length - 1].id;
 
+    const configPromises = new Map<string, Promise<ShopPixelConfigs>>();
+
     await parallelLimit(logs, concurrency, async (log) => {
       try {
         const payload = log.normalizedEventJson as unknown as PixelEventPayload | null;
@@ -91,7 +95,16 @@ export async function processEventDelivery(): Promise<{
         }
 
         const env = (payload.data as { environment?: "test" | "live" } | undefined)?.environment || "live";
-        const configs = await getShopPixelConfigs(log.shopId, { serverSideOnly: true, environment: env });
+        const configKey = `${log.shopId}:${env}`;
+        let configsPromise = configPromises.get(configKey);
+        if (!configsPromise) {
+          configsPromise = getShopPixelConfigs(log.shopId, { serverSideOnly: true, environment: env }).catch((error) => {
+            configPromises.delete(configKey);
+            throw error;
+          });
+          configPromises.set(configKey, configsPromise);
+        }
+        const configs = await configsPromise;
         if (configs.length === 0) {
           skipped++;
           processed++;
