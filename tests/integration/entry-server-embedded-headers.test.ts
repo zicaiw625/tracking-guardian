@@ -25,6 +25,15 @@ vi.mock("../../app/utils/logger.server", () => ({
 
 vi.mock("../../app/utils/security-headers", () => ({
   EMBEDDED_APP_HEADERS: {},
+  API_SECURITY_HEADERS: {
+    "X-Content-Type-Options": "nosniff",
+    "X-Frame-Options": "DENY",
+    "Referrer-Policy": "strict-origin-when-cross-origin",
+    "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate",
+    "Pragma": "no-cache",
+    "Expires": "0",
+    "Content-Security-Policy": "default-src 'none'; frame-ancestors 'none'",
+  },
   getProductionSecurityHeaders: (base: Record<string, string>) => base,
   validateSecurityHeaders: vi.fn(() => ({ valid: true, issues: [] })),
   addSecurityHeadersToHeaders: (headers: Headers, securityHeaders: Record<string, string>) => {

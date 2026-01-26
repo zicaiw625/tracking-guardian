@@ -1,5 +1,6 @@
 import type { Middleware, MiddlewareContext, CorsOptions } from "./types";
-import { getPixelEventsCorsHeaders, SECURITY_HEADERS } from "../utils/cors";
+import { getPixelEventsCorsHeaders } from "../utils/cors";
+import { API_SECURITY_HEADERS } from "../utils/security-headers";
 import { isValidShopifyOrigin, isValidDevOrigin, isDevMode, extractOriginHost } from "../utils/origin-validation.server";
 
 
@@ -69,7 +70,7 @@ export function buildCorsHeaders(
   if (opts.maxAge > 0) {
     headers["Access-Control-Max-Age"] = String(opts.maxAge);
   }
-  Object.assign(headers, SECURITY_HEADERS);
+  Object.assign(headers, API_SECURITY_HEADERS);
   return headers;
 }
 
@@ -134,7 +135,7 @@ export function withShopCors(
     const { request } = context;
     const origin = request.headers.get("Origin");
     const corsHeaders: Record<string, string> = {
-      ...SECURITY_HEADERS,
+      ...API_SECURITY_HEADERS,
       "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
       "Access-Control-Allow-Headers": ["Content-Type", "X-Shopify-Shop-Domain", ...customHeaders].join(", "),
       "Access-Control-Max-Age": "3600",

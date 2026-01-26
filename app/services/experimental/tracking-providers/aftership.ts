@@ -1,4 +1,4 @@
-import { createHmac } from "crypto";
+import { createHmac, timingSafeEqual } from "crypto";
 import { logger } from "../../../utils/logger.server";
 import { fetchWithTimeout } from "../../platforms/interface";
 import type {
@@ -225,15 +225,24 @@ export class AfterShipProvider implements ITrackingProvider {
     }
   }
   verifyWebhookSignature(payload: string, signature: string): boolean {
+    const isProduction = process.env.NODE_ENV === "production";
     if (!this.webhookSecret) {
       logger.warn("AfterShip webhook secret not configured");
+      if (isProduction) {
+        return false;
+      }
       return true;
     }
     try {
       const expectedSignature = createHmac("sha256", this.webhookSecret)
         .update(payload)
         .digest("hex");
-      return expectedSignature === signature;
+      if (expectedSignature.length !== signature.length) {
+        return false;
+      }
+      const expectedBuffer = Buffer.from(expectedSignature, "hex");
+      const signatureBuffer = Buffer.from(signature, "hex");
+      return timingSafeEqual(expectedBuffer, signatureBuffer);
     } catch (error) {
       logger.error("AfterShip signature verification failed:", error);
       return false;

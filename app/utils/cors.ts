@@ -1,14 +1,8 @@
 import { json } from "@remix-run/node";
 import { isValidShopifyOrigin, isValidDevOrigin, isDevMode, extractOriginHost, SHOPIFY_PLATFORM_HOSTS, shouldAllowNullOrigin, } from "./origin-validation.server";
+import { API_SECURITY_HEADERS } from "./security-headers";
 
-export const SECURITY_HEADERS = {
-    "X-Content-Type-Options": "nosniff",
-    "X-Frame-Options": "DENY",
-    "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate",
-    "Pragma": "no-cache",
-    "Expires": "0",
-    "Referrer-Policy": "strict-origin-when-cross-origin",
-} as const;
+export const SECURITY_HEADERS = API_SECURITY_HEADERS;
 
 export function getPixelEventsCorsHeaders(request: Request, options?: {
     customHeaders?: string[];

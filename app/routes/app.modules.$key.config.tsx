@@ -439,6 +439,43 @@ export default function UiModuleConfigPage() {
                 </BlockStack>
               </Banner>
             )}
+            {moduleKey === "helpdesk" && (
+              <Banner tone="info">
+                <BlockStack gap="300">
+                  <Text as="p" variant="bodySm" fontWeight="semibold">
+                    <strong>📋 FAQ/Contact URL 配置说明</strong>
+                  </Text>
+                  <Text as="p" variant="bodySm">
+                    在 Shopify Checkout Editor 中配置 FAQ URL 或 Contact URL 时，请注意以下验证规则：
+                  </Text>
+                  <List type="bullet">
+                    <List.Item>
+                      <Text as="span" variant="bodySm">
+                        <strong>必须使用 HTTPS：</strong>URL 必须以 <code>https://</code> 开头
+                      </Text>
+                    </List.Item>
+                    <List.Item>
+                      <Text as="span" variant="bodySm">
+                        <strong>域名限制：</strong>URL 必须属于店铺域名（如 <code>*.myshopify.com</code>）或已配置的白名单域名
+                      </Text>
+                    </List.Item>
+                    <List.Item>
+                      <Text as="span" variant="bodySm">
+                        <strong>公共 URL 验证：</strong>URL 必须指向公共可访问的地址，不能是内网或私有地址
+                      </Text>
+                    </List.Item>
+                    <List.Item>
+                      <Text as="span" variant="bodySm">
+                        <strong>自动过滤：</strong>不符合规则的 URL 会被自动置空，不会在页面上显示
+                      </Text>
+                    </List.Item>
+                  </List>
+                  <Text as="p" variant="bodySm" tone="subdued">
+                    💡 <strong>提示：</strong>如果配置后 URL 不显示，请检查是否符合上述规则。可以在模块设置中配置额外的允许域名（allowedDomains）来扩展白名单。
+                  </Text>
+                </BlockStack>
+              </Banner>
+            )}
             <Banner tone="warning">
               <BlockStack gap="300">
                 <Text as="p" variant="bodySm" fontWeight="semibold">

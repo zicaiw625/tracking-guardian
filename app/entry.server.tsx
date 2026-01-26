@@ -111,6 +111,10 @@ export default async function handleRequest(request: Request, responseStatusCode
     const isEmbeddedDocumentRequest = (() => {
       if (url.searchParams.get("embedded") === "1") return true;
       if (url.searchParams.has("host")) return true;
+      const secFetchDest = request.headers.get("Sec-Fetch-Dest");
+      if (secFetchDest === "iframe") return true;
+      const shopDomainHeader = request.headers.get("X-Shopify-Shop-Domain");
+      if (shopDomainHeader) return true;
       return false;
     })();
     if (isEmbeddedDocumentRequest) {
