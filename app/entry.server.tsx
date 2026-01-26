@@ -7,7 +7,7 @@ import { addDocumentResponseHeaders } from "./shopify.server";
 import { ensureSecretsValid, enforceSecurityChecks } from "./utils/secrets.server";
 import { validateConfig, logConfigStatus, API_CONFIG } from "./utils/config.server";
 import { logger } from "./utils/logger.server";
-import { EMBEDDED_APP_HEADERS, addSecurityHeadersToHeaders, getProductionSecurityHeaders, validateSecurityHeaders, } from "./utils/security-headers";
+import { EMBEDDED_APP_HEADERS, addSecurityHeadersToHeaders, getProductionSecurityHeaders, validateSecurityHeaders, buildCspHeader, NON_EMBEDDED_PAGE_CSP_DIRECTIVES } from "./utils/security-headers";
 import { RedisClientFactory } from "./utils/redis-client.server";
 import prisma from "./db.server";
 import { getCorsHeadersPreBody } from "./lib/pixel-events/cors";
@@ -113,8 +113,6 @@ export default async function handleRequest(request: Request, responseStatusCode
       if (url.searchParams.has("host")) return true;
       const secFetchDest = request.headers.get("Sec-Fetch-Dest");
       if (secFetchDest === "iframe") return true;
-      const shopDomainHeader = request.headers.get("X-Shopify-Shop-Domain");
-      if (shopDomainHeader) return true;
       return false;
     })();
     if (isEmbeddedDocumentRequest) {
@@ -122,6 +120,13 @@ export default async function handleRequest(request: Request, responseStatusCode
       responseHeaders.delete("Content-Security-Policy");
     }
     addDocumentResponseHeaders(request, responseHeaders);
+    if (isEmbeddedDocumentRequest && !responseHeaders.has("Content-Security-Policy")) {
+      const fallbackCsp = buildCspHeader({
+        ...NON_EMBEDDED_PAGE_CSP_DIRECTIVES,
+        "frame-ancestors": ["https://admin.shopify.com"],
+      });
+      responseHeaders.set("Content-Security-Policy", fallbackCsp);
+    }
     const documentSecurityHeaders =
       process.env.NODE_ENV === "production"
         ? getProductionSecurityHeaders(EMBEDDED_APP_HEADERS)

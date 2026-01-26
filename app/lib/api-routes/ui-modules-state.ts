@@ -34,7 +34,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     return handlePublicPreflight(request);
   }
   if (request.method !== "GET") {
-    return json({ error: "Method not allowed" }, { status: 405 });
+    return addSecurityHeaders(json({ error: "Method not allowed" }, { status: 405 }));
   }
   const auth = await tryAuthenticatePublicWithShop(request);
   if (!auth) {

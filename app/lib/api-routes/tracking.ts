@@ -229,7 +229,7 @@ async function loaderImpl(request: Request) {
               carrierFromShopify = firstFulfillment.trackingInfo.company || null;
               trackingUrlFromShopify = firstFulfillment.trackingInfo.url || null;
               logger.info(`Found tracking info from Shopify for orderId: ${orderIdHash}`, {
-                trackingNumber: trackingNumberFromShopify,
+                trackingNumber: trackingNumberFromShopify ? hashValueSync(trackingNumberFromShopify).slice(0, 12) : null,
                 carrier: carrierFromShopify,
               });
             }
