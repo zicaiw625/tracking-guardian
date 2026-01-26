@@ -40,7 +40,24 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     return jsonWithCors({ error: "Method not allowed" }, { status: 405, request });
   }
   const ipKey = ipKeyExtractor(request);
-  const ipRateLimit = await checkRateLimitAsync(ipKey, PREBODY_RATE_LIMIT.maxRequests, PREBODY_RATE_LIMIT.windowMs);
+  const isProduction = !isDevMode();
+  const ipRateLimit = await checkRateLimitAsync(ipKey, PREBODY_RATE_LIMIT.maxRequests, PREBODY_RATE_LIMIT.windowMs, isProduction);
+  if (isProduction && ipRateLimit.usingFallback) {
+    logger.error("Redis unavailable for rate limiting in production, rejecting request");
+    return jsonWithCors(
+      {
+        error: "Service Unavailable",
+        message: "Rate limiting service unavailable. Please try again later.",
+      },
+      {
+        status: 503,
+        request,
+        headers: {
+          "Retry-After": "60",
+        },
+      }
+    );
+  }
   if (!ipRateLimit.allowed) {
     const ipHash = ipKey === "untrusted" || ipKey === "unknown" ? ipKey : hashValueSync(ipKey).slice(0, 12);
     logger.warn(`IP rate limit exceeded for ingest`, {
@@ -68,7 +85,6 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   const originHeaderPresent = request.headers.has("Origin");
   const origin = originHeaderPresent ? request.headers.get("Origin") : null;
   const isNullOrigin = origin === "null" || origin === null;
-  const isProduction = !isDevMode();
   const rejectProd = (status: number) =>
     jsonWithCors(INVALID_REQUEST_RESPONSE, { status, request });
   const allowUnsignedEvents = isProduction ? false : process.env.ALLOW_UNSIGNED_PIXEL_EVENTS === "true";
@@ -624,8 +640,27 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   const rateLimit = await checkRateLimitAsync(
     rateLimitKey,
     INGEST_RATE_LIMIT.maxRequests,
-    INGEST_RATE_LIMIT.windowMs
+    INGEST_RATE_LIMIT.windowMs,
+    isProduction
   );
+  if (isProduction && rateLimit.usingFallback) {
+    logger.error("Redis unavailable for rate limiting in production, rejecting request", {
+      shopDomain,
+    });
+    return jsonWithCors(
+      {
+        error: "Service Unavailable",
+        message: "Rate limiting service unavailable. Please try again later.",
+      },
+      {
+        status: 503,
+        request,
+        headers: {
+          "Retry-After": "60",
+        },
+      }
+    );
+  }
   if (!rateLimit.allowed) {
     logger.warn(`Rate limit exceeded for ingest`, {
       shopDomain,

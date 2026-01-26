@@ -13,12 +13,16 @@ function isPlainObject(value: unknown): value is Record<string, unknown> {
 }
 
 function sanitizeUrl(value: unknown): unknown {
-  if (typeof value !== "string") return "***REDACTED***";
+  if (typeof value !== "string") return value;
+  const trimmed = value.trim();
+  if (trimmed.startsWith("/")) {
+    return trimmed;
+  }
   try {
-    const u = new URL(value);
+    const u = new URL(trimmed);
     return `${u.origin}${u.pathname}`;
   } catch {
-    return "***REDACTED***";
+    return trimmed;
   }
 }
 
@@ -149,6 +153,66 @@ export function sanitizeForPersistence(value: unknown): Jsonish | unknown {
   return sanitizeJsonish(value, 0) as Jsonish | unknown;
 }
 
+const MERCHANT_CONFIG_ALLOWED_FIELDS = new Set([
+  "contactemail",
+  "contact_email",
+  "faqurl",
+  "faq_url",
+  "contacturl",
+  "contact_url",
+  "continueshoppingurl",
+  "continue_shopping_url",
+  "whatsappnumber",
+  "whatsapp_number",
+  "messengerurl",
+  "messenger_url",
+]);
+
+function shouldDropKeyForSettings(keyLower: string): boolean {
+  if (MERCHANT_CONFIG_ALLOWED_FIELDS.has(keyLower)) return false;
+  return shouldDropKey(keyLower);
+}
+
+function sanitizeSettingsJsonish(value: unknown, depth: number): unknown {
+  if (depth > 20) return null;
+  if (value === null) return null;
+  const t = typeof value;
+  if (t === "string" || t === "number" || t === "boolean") return value;
+  if (Array.isArray(value)) {
+    const out: unknown[] = [];
+    for (const v of value) {
+      const s = sanitizeSettingsJsonish(v, depth + 1);
+      if (s !== undefined) out.push(s);
+    }
+    return out;
+  }
+  if (!isPlainObject(value)) {
+    return value;
+  }
+  const obj = value as Record<string, unknown>;
+  const result: Record<string, unknown> = {};
+  for (const key of Object.keys(obj)) {
+    const lower = key.toLowerCase();
+    if (shouldDropKeyForSettings(lower)) continue;
+    if (lower === "url" || lower.endsWith("_url") || lower.endsWith("url")) {
+      result[key] = sanitizeUrl(obj[key]);
+      continue;
+    }
+    if (shouldRedactKey(lower)) {
+      result[key] = "***REDACTED***";
+      continue;
+    }
+    const s = sanitizeSettingsJsonish(obj[key], depth + 1);
+    if (s === undefined) continue;
+    result[key] = s;
+  }
+  return result;
+}
+
+function sanitizeSettingsForPersistence(value: unknown): Jsonish | unknown {
+  return sanitizeSettingsJsonish(value, 0) as Jsonish | unknown;
+}
+
 export const PRISMA_JSON_FIELD_NAMES = new Set([
   "settings",
   "details",
@@ -187,7 +251,11 @@ function sanitizeDataObject(data: unknown): void {
   const obj = data as Record<string, unknown>;
   for (const key of Object.keys(obj)) {
     if (!PRISMA_JSON_FIELD_NAMES.has(key)) continue;
-    obj[key] = sanitizeForPersistence(obj[key]);
+    if (key === "settings") {
+      obj[key] = sanitizeSettingsForPersistence(obj[key]);
+    } else {
+      obj[key] = sanitizeForPersistence(obj[key]);
+    }
   }
 }
 

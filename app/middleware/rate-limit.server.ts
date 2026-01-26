@@ -21,6 +21,7 @@ export interface RateLimitResult {
   remaining: number;
   resetAt: number;
   retryAfter?: number;
+  usingFallback?: boolean;
 }
 
 export type RateLimitedHandler<T> = (
@@ -157,13 +158,24 @@ class DistributedRateLimitStore {
   async checkAsync(
     key: string,
     maxRequests: number,
-    windowMs: number
+    windowMs: number,
+    failClosed = false
   ): Promise<RateLimitResult> {
     const now = Date.now();
     const fullKey = `${RATE_LIMIT_PREFIX}${key}`;
     const windowSeconds = Math.ceil(windowMs / 1000);
     if (!this.shouldRetryRedis()) {
-      return memoryRateLimitStore.check(key, maxRequests, windowMs);
+      const memoryResult = memoryRateLimitStore.check(key, maxRequests, windowMs);
+      if (failClosed) {
+        return {
+          allowed: false,
+          remaining: 0,
+          resetAt: memoryResult.resetAt,
+          retryAfter: Math.ceil((memoryResult.resetAt - now) / 1000),
+          usingFallback: true,
+        };
+      }
+      return { ...memoryResult, usingFallback: true };
     }
     try {
       const client = await this.getClient();
@@ -181,17 +193,29 @@ class DistributedRateLimitStore {
           remaining: 0,
           resetAt,
           retryAfter,
+          usingFallback: false,
         };
       }
       return {
         allowed: true,
         remaining: maxRequests - count,
         resetAt,
+        usingFallback: false,
       };
     } catch (error) {
       this.markRedisUnhealthy();
       logger.error("[Rate Limit] Redis error, using memory fallback", error);
-      return memoryRateLimitStore.check(key, maxRequests, windowMs);
+      const memoryResult = memoryRateLimitStore.check(key, maxRequests, windowMs);
+      if (failClosed) {
+        return {
+          allowed: false,
+          remaining: 0,
+          resetAt: memoryResult.resetAt,
+          retryAfter: Math.ceil((memoryResult.resetAt - now) / 1000),
+          usingFallback: true,
+        };
+      }
+      return { ...memoryResult, usingFallback: true };
     }
   }
   check(key: string, maxRequests: number, windowMs: number): RateLimitResult {
@@ -494,10 +518,11 @@ export const webhookRateLimit: RateLimitConfig = {
 export async function checkRateLimitAsync(
   key: string,
   maxRequests: number,
-  windowMs: number
+  windowMs: number,
+  failClosed = false
 ): Promise<RateLimitResult> {
   enforceTrustedProxy();
-  return rateLimitStore.checkAsync(key, maxRequests, windowMs);
+  return rateLimitStore.checkAsync(key, maxRequests, windowMs, failClosed);
 }
 
 export function checkRateLimitSync(

@@ -16,12 +16,23 @@ function getWebhookId(authResult: Awaited<ReturnType<typeof authenticate.webhook
 }
 
 export const action = async ({ request }: ActionFunctionArgs) => {
+  const isProduction = process.env.NODE_ENV === "production";
   const ipKey = ipKeyExtractor(request);
   const rateLimit = await checkRateLimitAsync(
     ipKey,
     RATE_LIMIT_CONFIG.WEBHOOKS.maxRequests,
-    RATE_LIMIT_CONFIG.WEBHOOKS.windowMs
+    RATE_LIMIT_CONFIG.WEBHOOKS.windowMs,
+    isProduction
   );
+  if (isProduction && rateLimit.usingFallback) {
+    logger.error("[Webhook] Redis unavailable for rate limiting in production, rejecting request");
+    return new Response("Service Unavailable", {
+      status: 503,
+      headers: {
+        "Retry-After": "60",
+      },
+    });
+  }
   if (!rateLimit.allowed) {
     const ipHash = ipKey === "untrusted" || ipKey === "unknown" ? ipKey : hashValueSync(ipKey).slice(0, 12);
     logger.warn("[Webhook] Rate limit exceeded", {
@@ -54,8 +65,21 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     const shopTopicRateLimit = await checkRateLimitAsync(
       shopTopicKey,
       RATE_LIMIT_CONFIG.WEBHOOKS.maxRequests,
-      RATE_LIMIT_CONFIG.WEBHOOKS.windowMs
+      RATE_LIMIT_CONFIG.WEBHOOKS.windowMs,
+      isProduction
     );
+    if (isProduction && shopTopicRateLimit.usingFallback) {
+      logger.error("[Webhook] Redis unavailable for rate limiting in production, rejecting request", {
+        shop: context.shop,
+        topic: context.topic,
+      });
+      return new Response("Service Unavailable", {
+        status: 503,
+        headers: {
+          "Retry-After": "60",
+        },
+      });
+    }
     if (!shopTopicRateLimit.allowed) {
       logger.warn("[Webhook] Rate limit exceeded (shop+topic)", {
         shop: context.shop,
