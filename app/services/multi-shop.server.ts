@@ -5,6 +5,24 @@ import { extractPlatformFromPayload } from "../utils/common";
 import { getMaxShops } from "./billing/plans";
 import type { PlanId } from "./billing/plans";
 
+function checkShopGroupModel() {
+  const model = (prisma as any).shopGroup;
+  if (!model || typeof model.findMany !== "function") {
+    logger.warn("shopGroup model not available (migration not applied)");
+    return null;
+  }
+  return model;
+}
+
+function checkShopGroupMemberModel() {
+  const model = (prisma as any).shopGroupMember;
+  if (!model || typeof model.findMany !== "function") {
+    logger.warn("shopGroupMember model not available (migration not applied)");
+    return null;
+  }
+  return model;
+}
+
 export interface ShopGroupInfo {
   id: string;
   name: string;
@@ -58,12 +76,16 @@ export async function createShopGroup(
   ownerId: string,
   name: string
 ): Promise<ShopGroupInfo | null> {
+  const shopGroupModel = checkShopGroupModel();
+  if (!shopGroupModel) return null;
+  const shopGroupMemberModel = checkShopGroupMemberModel();
+  if (!shopGroupMemberModel) return null;
   const canManage = await canManageMultipleShops(ownerId);
   if (!canManage) {
     logger.warn(`Shop ${ownerId} cannot manage multiple shops (plan limitation)`);
     return null;
   }
-  const existingCount = await (prisma as any).shopGroup.count({
+  const existingCount = await shopGroupModel.count({
     where: { ownerId },
   });
   const maxShops = await getMaxShopsForShop(ownerId);
@@ -71,7 +93,7 @@ export async function createShopGroup(
     logger.warn(`Shop ${ownerId} has reached maximum groups limit`);
     return null;
   }
-  const group = await (prisma as any).shopGroup.create({
+  const group = await shopGroupModel.create({
     data: {
       id: randomUUID(),
       name,
@@ -103,7 +125,9 @@ export async function createShopGroup(
 }
 
 export async function getShopGroups(ownerId: string): Promise<ShopGroupInfo[]> {
-  const groups = await (prisma as any).shopGroup.findMany({
+  const model = checkShopGroupModel();
+  if (!model) return [];
+  const groups = await model.findMany({
     where: { ownerId },
     include: {
       _count: { select: { ShopGroupMember: true } },
@@ -120,7 +144,9 @@ export async function getShopGroups(ownerId: string): Promise<ShopGroupInfo[]> {
 }
 
 export async function getGroupMemberships(shopId: string): Promise<ShopGroupInfo[]> {
-  const memberships = await (prisma as any).shopGroupMember.findMany({
+  const model = checkShopGroupMemberModel();
+  if (!model) return [];
+  const memberships = await model.findMany({
     where: { shopId },
     include: {
       ShopGroup: {
@@ -143,7 +169,9 @@ export async function getShopGroupDetails(
   groupId: string,
   requesterId: string
 ): Promise<ShopGroupDetails | null> {
-  const group = await (prisma as any).shopGroup.findUnique({
+  const model = checkShopGroupModel();
+  if (!model) return null;
+  const group = await model.findUnique({
     where: { id: groupId },
     include: {
       _count: { select: { ShopGroupMember: true } },
@@ -195,7 +223,11 @@ export async function addShopToGroup(
     canManageBilling?: boolean;
   } = {}
 ): Promise<boolean> {
-  const group = await (prisma as any).shopGroup.findUnique({
+  const shopGroupModel = checkShopGroupModel();
+  if (!shopGroupModel) return false;
+  const shopGroupMemberModel = checkShopGroupMemberModel();
+  if (!shopGroupMemberModel) return false;
+  const group = await shopGroupModel.findUnique({
     where: { id: groupId },
     include: {
       ShopGroupMember: true,
@@ -220,7 +252,7 @@ export async function addShopToGroup(
     logger.info(`Shop ${shopId} is already in group ${groupId}`);
     return true;
   }
-  await (prisma as any).shopGroupMember.create({
+  await shopGroupMemberModel.create({
     data: {
       id: randomUUID(),
       groupId,
@@ -240,7 +272,11 @@ export async function removeShopFromGroup(
   shopId: string,
   removedBy: string
 ): Promise<boolean> {
-  const group = await (prisma as any).shopGroup.findUnique({
+  const shopGroupModel = checkShopGroupModel();
+  if (!shopGroupModel) return false;
+  const shopGroupMemberModel = checkShopGroupMemberModel();
+  if (!shopGroupMemberModel) return false;
+  const group = await shopGroupModel.findUnique({
     where: { id: groupId },
     include: { ShopGroupMember: true },
   });
@@ -257,7 +293,7 @@ export async function removeShopFromGroup(
     logger.warn(`Cannot remove owner from group ${groupId}`);
     return false;
   }
-  await (prisma as any).shopGroupMember.deleteMany({
+  await shopGroupMemberModel.deleteMany({
     where: { groupId, shopId },
   });
   logger.info(`Shop ${shopId} removed from group ${groupId} by ${removedBy}`);
@@ -275,7 +311,11 @@ export async function updateMemberPermissions(
     canManageBilling?: boolean;
   }
 ): Promise<boolean> {
-  const group = await (prisma as any).shopGroup.findUnique({
+  const shopGroupModel = checkShopGroupModel();
+  if (!shopGroupModel) return false;
+  const shopGroupMemberModel = checkShopGroupMemberModel();
+  if (!shopGroupMemberModel) return false;
+  const group = await shopGroupModel.findUnique({
     where: { id: groupId },
     include: { ShopGroupMember: true },
   });
@@ -284,7 +324,7 @@ export async function updateMemberPermissions(
     logger.warn(`Shop ${updatedBy} cannot update permissions in group ${groupId}`);
     return false;
   }
-  await (prisma as any).shopGroupMember.update({
+  await shopGroupMemberModel.update({
     where: { id: memberId },
     data: {
       role: permissions.role,
@@ -300,13 +340,15 @@ export async function deleteShopGroup(
   groupId: string,
   deletedBy: string
 ): Promise<boolean> {
-  const group = await (prisma as any).shopGroup.findUnique({
+  const model = checkShopGroupModel();
+  if (!model) return false;
+  const group = await model.findUnique({
     where: { id: groupId },
   });
   if (!group || group.ownerId !== deletedBy) {
     return false;
   }
-  await (prisma as any).shopGroup.delete({
+  await model.delete({
     where: { id: groupId },
   });
   logger.info(`Shop group ${groupId} deleted by ${deletedBy}`);
@@ -318,7 +360,9 @@ export async function getGroupAggregatedStats(
   requesterId: string,
   days: number = 7
 ): Promise<AggregatedStats | null> {
-  const group = await (prisma as any).shopGroup.findUnique({
+  const model = checkShopGroupModel();
+  if (!model) return null;
+  const group = await model.findUnique({
     where: { id: groupId },
     include: { ShopGroupMember: true },
   });
@@ -390,7 +434,9 @@ export async function getGroupShopBreakdown(
   revenue: number;
   matchRate: number;
 }> | null> {
-  const group = await (prisma as any).shopGroup.findUnique({
+  const model = checkShopGroupModel();
+  if (!model) return null;
+  const group = await model.findUnique({
     where: { id: groupId },
     include: { ShopGroupMember: true },
   });

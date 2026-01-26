@@ -85,11 +85,15 @@ if (!finalApiKey || !finalApiSecretKey || !finalAppUrl) {
 
 let shopify: ReturnType<typeof shopifyApp>;
 try {
+  const scopes = process.env.SCOPES?.split(",").map((s) => s.trim()).filter(Boolean) || [];
+  if (process.env.NODE_ENV === "production" && scopes.length === 0) {
+    throw new Error("SCOPES must be set and contain at least one scope in production");
+  }
   const config = {
     apiKey: finalApiKey,
     apiSecretKey: finalApiSecretKey,
     apiVersion: ApiVersion.January26,
-    scopes: process.env.SCOPES?.split(",").map((s) => s.trim()).filter(Boolean),
+    scopes,
     appUrl: finalAppUrl,
     authPathPrefix: "/auth",
     sessionStorage: encryptedSessionStorage,

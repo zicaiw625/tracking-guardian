@@ -22,6 +22,10 @@ const PREBODY_RATE_LIMIT = RATE_LIMIT_CONFIG.PIXEL_EVENTS_PREBODY;
 
 const INVALID_REQUEST_RESPONSE = { error: "Invalid request" } as const;
 
+function safeHost(u: string | null): string | null {
+  try { return u ? new URL(u).hostname : null; } catch { return null; }
+}
+
 function isAcceptableContentType(contentType: string | null): boolean {
   if (!contentType) return false;
   const lower = contentType.toLowerCase();
@@ -86,9 +90,11 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     const referer = request.headers.get("Referer");
     if (!referer) {
       const shopDomainHeader = request.headers.get("x-shopify-shop-domain") || "unknown";
-      logger.warn(
-        `Origin header completely missing in production (no Origin, no Referer) for ${shopDomainHeader}`
-      );
+      logger.warn("Origin header completely missing in production (no Origin, no Referer)", {
+        shopDomain: shopDomainHeader,
+        originHost: null,
+        refererHost: null,
+      });
       metrics.pixelRejection({
         shopDomain: shopDomainHeader,
         reason: "invalid_origin",
@@ -106,10 +112,10 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       logger.warn(`Anomaly threshold reached for ${shopDomainHeader}: ${anomalyCheck.reason}`);
     }
     if (preBodyValidation.shouldLog) {
-      logger.warn(
-        `Origin validation warning at Stage 1 in /ingest: ${origin?.substring(0, 100) || "null"}, ` +
-          `reason: ${preBodyValidation.reason}`
-      );
+      logger.warn("Origin validation warning at Stage 1 in /ingest", {
+        originHost: safeHost(origin),
+        reason: preBodyValidation.reason,
+      });
     }
     if (preBodyValidation.shouldReject && (isProduction || !hasSignatureHeader || strictOrigin)) {
       metrics.pixelRejection({
@@ -293,13 +299,16 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     if (anomalyCheck.shouldBlock) {
       logger.warn(`Anomaly threshold reached for ${shop.shopDomain}: ${anomalyCheck.reason}`);
     }
-    logger.warn(
-      `Origin validation warning at Stage 2 in /ingest for ${shop.shopDomain}: ` +
-        `origin=${origin?.substring(0, 100) || "null"}, referer=${referer?.substring(0, 100) || "null"}, reason=${shopOriginValidation.reason}`
-    );
+    logger.warn("Origin validation warning at Stage 2 in /ingest", {
+      shopDomain: shop.shopDomain,
+      originHost: safeHost(origin),
+      refererHost: safeHost(referer),
+      reason: shopOriginValidation.reason,
+    });
     if (hasSignatureHeader && !strictOrigin && !isProduction) {
-      logger.warn(`Signed ingest request allowed despite origin rejection for ${shop.shopDomain}`, {
-        origin: origin?.substring(0, 100) || "null",
+      logger.warn("Signed ingest request allowed despite origin rejection", {
+        shopDomain: shop.shopDomain,
+        originHost: safeHost(origin),
         reason: shopOriginValidation.reason,
       });
     }

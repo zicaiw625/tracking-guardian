@@ -11,6 +11,15 @@ import type {
 import { logger } from "../../utils/logger.server";
 import type { Prisma } from "@prisma/client";
 
+function checkAppliedRecipeModel() {
+  const model = (prisma as any).appliedRecipe;
+  if (!model || typeof model.findMany !== "function") {
+    logger.warn("appliedRecipe model not available (migration not applied)");
+    return null;
+  }
+  return model;
+}
+
 function mapToAppliedRecipe(
   prismaRecipe: {
     id: string;
@@ -72,12 +81,14 @@ export async function startRecipe(
   config: Record<string, unknown> = {},
   sourceIdentifier?: string
 ): Promise<AppliedRecipe | null> {
+  const model = checkAppliedRecipeModel();
+  if (!model) return null;
   const recipe = getRecipeById(recipeId);
   if (!recipe) {
     logger.warn(`Recipe not found: ${recipeId}`);
     return null;
   }
-  const existing = await (prisma as any).appliedRecipe.findFirst({
+  const existing = await model.findFirst({
     where: {
       shopId,
       recipeId,
@@ -88,7 +99,7 @@ export async function startRecipe(
     logger.info(`Recipe ${recipeId} already in progress for shop ${shopId}`);
     return mapToAppliedRecipe(existing);
   }
-  const applied = await (prisma as any).appliedRecipe.create({
+  const applied = await model.create({
     data: {
       id: `${shopId}-${recipeId}-${Date.now()}`,
       shopId,
@@ -111,7 +122,9 @@ export async function updateRecipeConfig(
   appliedRecipeId: string,
   config: Record<string, unknown>
 ): Promise<AppliedRecipe | null> {
-  const applied = await (prisma as any).appliedRecipe.update({
+  const model = checkAppliedRecipeModel();
+  if (!model) return null;
+  const applied = await model.update({
     where: { id: appliedRecipeId },
     data: {
       config: config as object,
@@ -150,7 +163,11 @@ export async function executeRecipeStep(
   appliedRecipeId: string,
   stepOrder: number
 ): Promise<RecipeStepResult> {
-  const applied = await (prisma as any).appliedRecipe.findUnique({
+  const model = checkAppliedRecipeModel();
+  if (!model) {
+    return { success: false, message: "AppliedRecipe model not available" };
+  }
+  const applied = await model.findUnique({
     where: { id: appliedRecipeId },
     include: { Shop: true },
   });
@@ -165,7 +182,7 @@ export async function executeRecipeStep(
   if (!step) {
     return { success: false, message: `Step ${stepOrder} not found` };
   }
-  await (prisma as any).appliedRecipe.update({
+  await model.update({
     where: { id: appliedRecipeId },
     data: { status: "in_progress" },
   });
@@ -190,13 +207,13 @@ export async function executeRecipeStep(
       const completedSteps = (applied.completedSteps as number[]) || [];
       if (!completedSteps.includes(stepOrder)) {
         completedSteps.push(stepOrder);
-        await (prisma as any).appliedRecipe.update({
+        await model.update({
           where: { id: appliedRecipeId },
           data: { completedSteps },
         });
       }
       if (completedSteps.length >= recipe.steps.length) {
-        await (prisma as any).appliedRecipe.update({
+        await model.update({
           where: { id: appliedRecipeId },
           data: { status: "validating" },
         });
@@ -210,7 +227,7 @@ export async function executeRecipeStep(
       stepOrder,
       error: message,
     });
-    await (prisma as any).appliedRecipe.update({
+    await model.update({
       where: { id: appliedRecipeId },
       data: {
         status: "failed",
@@ -248,7 +265,9 @@ export async function completeRecipeStep(
   appliedRecipeId: string,
   stepOrder: number
 ): Promise<AppliedRecipe | null> {
-  const applied = await (prisma as any).appliedRecipe.findUnique({
+  const model = checkAppliedRecipeModel();
+  if (!model) return null;
+  const applied = await model.findUnique({
     where: { id: appliedRecipeId },
   });
   if (!applied) return null;
@@ -260,7 +279,7 @@ export async function completeRecipeStep(
   }
   const allCompleted = completedSteps.length >= recipe.steps.length;
   const newStatus: AppliedRecipeStatus = allCompleted ? "validating" : "in_progress";
-  const updated = await (prisma as any).appliedRecipe.update({
+  const updated = await model.update({
     where: { id: appliedRecipeId },
     data: {
       completedSteps,
@@ -274,7 +293,11 @@ export async function completeRecipeStep(
 export async function runRecipeValidation(
   appliedRecipeId: string
 ): Promise<RecipeValidationResult[]> {
-  const applied = await (prisma as any).appliedRecipe.findUnique({
+  const model = checkAppliedRecipeModel();
+  if (!model) {
+    return [{ testName: "validation", passed: false, message: "AppliedRecipe model not available" }];
+  }
+  const applied = await model.findUnique({
     where: { id: appliedRecipeId },
     include: { Shop: true },
   });
@@ -322,7 +345,7 @@ export async function runRecipeValidation(
   const existingResults = Array.isArray(applied.validationResults)
     ? (applied.validationResults as unknown as RecipeValidationResult[])
     : [];
-  await (prisma as any).appliedRecipe.update({
+  await model.update({
     where: { id: appliedRecipeId },
     data: {
       validationResults: [
@@ -336,7 +359,7 @@ export async function runRecipeValidation(
   });
   const allPassed = results.every(r => r.passed);
   if (allPassed) {
-    await (prisma as any).appliedRecipe.update({
+    await model.update({
       where: { id: appliedRecipeId },
       data: {
         status: "completed",
@@ -426,7 +449,9 @@ async function validateEventParameters(
 }
 
 export async function getAppliedRecipes(shopId: string): Promise<AppliedRecipe[]> {
-  const applied = await (prisma as any).appliedRecipe.findMany({
+  const model = checkAppliedRecipeModel();
+  if (!model) return [];
+  const applied = await model.findMany({
     where: { shopId },
     orderBy: { createdAt: "desc" },
   });
@@ -436,7 +461,9 @@ export async function getAppliedRecipes(shopId: string): Promise<AppliedRecipe[]
 export async function getAppliedRecipe(
   appliedRecipeId: string
 ): Promise<AppliedRecipe | null> {
-  const applied = await (prisma as any).appliedRecipe.findUnique({
+  const model = checkAppliedRecipeModel();
+  if (!model) return null;
+  const applied = await model.findUnique({
     where: { id: appliedRecipeId },
   });
   return applied ? mapToAppliedRecipe(applied) : null;
@@ -445,7 +472,9 @@ export async function getAppliedRecipe(
 export async function rollbackRecipe(
   appliedRecipeId: string
 ): Promise<AppliedRecipe | null> {
-  const updated = await (prisma as any).appliedRecipe.update({
+  const model = checkAppliedRecipeModel();
+  if (!model) return null;
+  const updated = await model.update({
     where: { id: appliedRecipeId },
     data: {
       status: "rolled_back",

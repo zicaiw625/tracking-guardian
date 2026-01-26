@@ -137,6 +137,7 @@ const REQUIRED_IN_PRODUCTION = [
   "ENCRYPTION_SECRET",
   "ENCRYPTION_SALT",
   "CRON_SECRET",
+  "SCOPES",
 ] as const;
 
 const PIXEL_INGESTION_ENABLED_CHECK = {
@@ -211,6 +212,23 @@ export function validateConfig(): ConfigValidationResult {
         warnings.push(
           `PIXEL_ALLOW_NULL_ORIGIN_WITH_SIGNATURE_ONLY=false in production: null/missing Origin pixel requests will be rejected (events may be lost). ${PIXEL_INGESTION_ENABLED_CHECK.reason}`
         );
+      }
+    }
+  }
+  if (isProduction) {
+    const scopesEnv = process.env.SCOPES;
+    if (!scopesEnv || scopesEnv.trim() === "") {
+      errors.push("SCOPES must be set in production");
+    } else {
+      const scopes = scopesEnv.split(",").map(s => s.trim()).filter(Boolean);
+      if (scopes.length === 0) {
+        errors.push("SCOPES must contain at least one scope in production");
+      } else {
+        const requiredScopes = ["read_script_tags", "read_pixels", "write_pixels", "read_orders"];
+        const missingScopes = requiredScopes.filter(required => !scopes.includes(required));
+        if (missingScopes.length > 0) {
+          errors.push(`SCOPES must include all required scopes in production. Missing: ${missingScopes.join(", ")}`);
+        }
       }
     }
   }
