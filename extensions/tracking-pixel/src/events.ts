@@ -48,13 +48,13 @@ export interface EventSenderConfig {
 }
 
 function generateHMACSignature(
-  secret: string,
+  token: string,
   timestamp: number,
   shopDomain: string,
   bodyHash: string
 ): string {
   const message = `${timestamp}:${shopDomain}:${bodyHash}`;
-  return bytesToHex(hmac(sha256, utf8ToBytes(secret), utf8ToBytes(message)));
+  return bytesToHex(hmac(sha256, utf8ToBytes(token), utf8ToBytes(message)));
 }
 
 function sha256Hex(input: string): string {

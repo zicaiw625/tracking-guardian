@@ -24,7 +24,6 @@ export function createConsentManager(logger?: (...args: unknown[]) => void): Con
       marketingAllowed = false;
       analyticsAllowed = false;
       saleOfDataAllowed = undefined;
-      log(`${source} customerPrivacy not available, using conservative default (deny all) for compliance`);
       return;
     }
     customerPrivacyStatus = status;
@@ -33,16 +32,6 @@ export function createConsentManager(logger?: (...args: unknown[]) => void): Con
     saleOfDataAllowed = "saleOfDataAllowed" in customerPrivacyStatus
       ? customerPrivacyStatus.saleOfDataAllowed === true
       : undefined;
-    log(`Consent state updated from ${source}.customerPrivacy (P0-04 strict):`, {
-      marketingAllowed,
-      analyticsAllowed,
-      saleOfDataAllowed,
-      rawValues: {
-        marketingAllowed: customerPrivacyStatus.marketingAllowed,
-        analyticsProcessingAllowed: customerPrivacyStatus.analyticsProcessingAllowed,
-        saleOfDataAllowed: customerPrivacyStatus.saleOfDataAllowed,
-      },
-    });
   }
   function hasAnalyticsConsent(): boolean {
     return analyticsAllowed === true;
@@ -75,11 +64,8 @@ export function subscribeToConsentChanges(
       customerPrivacy.subscribe("visitorConsentCollected", (event: VisitorConsentCollectedEvent) => {
         consentManager.updateFromStatus(event.customerPrivacy, "event");
       });
-      log("Subscribed to visitorConsentCollected");
     } catch (err) {
       log("Could not subscribe to consent changes:", err);
     }
-  } else {
-    log("customerPrivacy.subscribe not available, using initial state only");
   }
 }

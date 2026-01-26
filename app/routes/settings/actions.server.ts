@@ -447,7 +447,7 @@ export async function handleRotateIngestionSecret(
       };
     }
   } catch (pixelError) {
-    logger.error("Failed to sync ingestion secret to Web Pixel", pixelError);
+    logger.error("Failed to sync ingestion token to Web Pixel", pixelError);
     pixelSyncResult = {
       success: false,
       message: "Web Pixel 同步失败，请手动重新配置",

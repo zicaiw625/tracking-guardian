@@ -1,5 +1,6 @@
 import { createHmac, timingSafeEqual } from "crypto";
 import { logger } from "../../utils/logger.server";
+
 const HMAC_ALGORITHM = "sha256";
 const HMAC_HEADER = "X-Tracking-Guardian-Signature";
 const TIMESTAMP_HEADER = "X-Tracking-Guardian-Timestamp";
@@ -12,20 +13,20 @@ export interface HMACValidationResult {
 }
 
 export function generateHMACSignature(
-  secret: string,
+  token: string,
   timestamp: number,
   shopDomain: string,
   bodyHash: string
 ): string {
   const message = `${timestamp}:${shopDomain}:${bodyHash}`;
-  const hmac = createHmac(HMAC_ALGORITHM, secret);
+  const hmac = createHmac(HMAC_ALGORITHM, token);
   hmac.update(message);
   return hmac.digest("hex");
 }
 
 export function verifyHMACSignature(
   signature: string | null,
-  secret: string,
+  token: string,
   timestamp: number,
   shopDomain: string,
   bodyHash: string,
@@ -57,7 +58,7 @@ export function verifyHMACSignature(
       trustLevel: "untrusted",
     };
   }
-  const expectedSignature = generateHMACSignature(secret, timestamp, shopDomain, bodyHash);
+  const expectedSignature = generateHMACSignature(token, timestamp, shopDomain, bodyHash);
   try {
     const signatureBuffer = Buffer.from(signature, "hex");
     const expectedBuffer = Buffer.from(expectedSignature, "hex");
@@ -111,7 +112,7 @@ export function extractTimestampHeader(request: Request): number | null {
 export async function validatePixelEventHMAC(
   request: Request,
   bodyText: string,
-  secret: string,
+  token: string,
   shopDomain: string,
   payloadTimestamp: number,
   timestampWindowMs: number
@@ -144,5 +145,5 @@ export async function validatePixelEventHMAC(
   }
   const crypto = await import("crypto");
   const bodyHash = crypto.createHash("sha256").update(bodyText).digest("hex");
-  return verifyHMACSignature(signature, secret, headerTimestamp, shopDomain, bodyHash, timestampWindowMs);
+  return verifyHMACSignature(signature, token, headerTimestamp, shopDomain, bodyHash, timestampWindowMs);
 }

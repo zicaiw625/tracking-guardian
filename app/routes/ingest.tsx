@@ -352,7 +352,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         shopDomain,
         reason: "no_ingestion_key",
       });
-      logger.warn(`Rejected ingest request: ingestion secret missing in production`, {
+      logger.warn(`Rejected ingest request: ingestion token missing in production`, {
         shopDomain,
       });
       return rejectProd(401);
@@ -379,30 +379,30 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     }
   }
   if (signature && hasAnySecret) {
-    const verifyWithSecret = async (secret: string) => {
+    const verifyWithToken = async (token: string) => {
       const result = await validatePixelEventHMAC(
         request,
         bodyText,
-        secret,
+        token,
         shopDomain,
         timestamp,
         TIMESTAMP_WINDOW_MS
       );
       return result;
     };
-    const graceResult = await verifyWithGraceWindowAsync(shop, async (secret: string) => {
-      const result = await verifyWithSecret(secret);
+    const graceResult = await verifyWithGraceWindowAsync(shop, async (token: string) => {
+      const result = await verifyWithToken(token);
       return result.valid;
     });
     if (graceResult.matched) {
-      const hmacResult = await verifyWithSecret(graceResult.usedPreviousSecret ? shop.previousIngestionSecret! : shop.ingestionSecret!);
+      const hmacResult = await verifyWithToken(graceResult.usedPreviousSecret ? shop.previousIngestionSecret! : shop.ingestionSecret!);
       keyValidation = {
         matched: true,
         reason: "hmac_verified",
         usedPreviousSecret: graceResult.usedPreviousSecret,
         trustLevel: hmacResult.trustLevel || "trusted",
       };
-      logger.debug(`HMAC signature verified for ${shopDomain}${graceResult.usedPreviousSecret ? " (using previous secret)" : ""}`);
+      logger.debug(`HMAC signature verified for ${shopDomain}${graceResult.usedPreviousSecret ? " (using previous token)" : ""}`);
       
       const totalEvents = events.length;
       if (totalEvents >= 3) {
@@ -475,23 +475,23 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         }
       }
     } else {
-      const secretToCheck = shop.ingestionSecret ?? shop.previousIngestionSecret;
-      if (!secretToCheck) {
+      const tokenToCheck = shop.ingestionSecret ?? shop.previousIngestionSecret;
+      if (!tokenToCheck) {
         keyValidation = {
           matched: false,
           reason: "secret_missing",
           trustLevel: "untrusted",
         };
-        logger.warn(`HMAC verification failed for ${shopDomain}: no ingestion secret available`);
+        logger.warn(`HMAC verification failed for ${shopDomain}: no ingestion token available`);
       } else {
-        const hmacResult = await verifyWithSecret(secretToCheck);
+        const hmacResult = await verifyWithToken(tokenToCheck);
         keyValidation = {
           matched: false,
           reason: "hmac_invalid",
           trustLevel: hmacResult.trustLevel || "untrusted",
         };
         if (isStrictSecurityMode()) {
-          logger.warn(`HMAC verification failed for ${shopDomain}: signature did not match current or previous secret`);
+          logger.warn(`HMAC verification failed for ${shopDomain}: signature did not match current or previous token`);
         } else {
           logger.warn(`HMAC verification failed for ${shopDomain}: signature did not match (non-strict mode, marking as untrusted)`, {
             trustLevel: keyValidation.trustLevel,
@@ -505,7 +505,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       reason: "secret_missing",
       trustLevel: "untrusted",
     };
-    logger.warn(`HMAC signature received for ${shopDomain} but ingestion secret is missing`);
+    logger.warn(`HMAC signature received for ${shopDomain} but ingestion token is missing`);
   } else if (!signature && allowUnsignedEvents) {
     keyValidation = {
       matched: true,

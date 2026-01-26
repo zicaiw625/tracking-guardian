@@ -16,9 +16,6 @@ register(({ analytics, settings, init, customerPrivacy }: {
   const backendUrl = !placeholderDetected && BACKEND_URL && isAllowedBackendUrl(BACKEND_URL, { shopDomain }) ? BACKEND_URL : null;
   const environment = (settings.environment as "test" | "live" | undefined) || "live";
   const isDevMode = (() => {
-    if (environment === "test") {
-      return true;
-    }
     if (shopDomain.includes(".myshopify.dev") || /-(dev|staging|test)\./i.test(shopDomain)) {
       return true;
     }
