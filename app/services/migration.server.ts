@@ -530,6 +530,16 @@ export async function getExistingWebPixels(admin: AdminApiContext): Promise<Arra
         }
     }
     catch (error) {
+        if (error instanceof Response) {
+            const status = error.status;
+            const statusText = error.statusText;
+            if (status === 401 || status === 403) {
+                logger.info("WebPixels API call failed (unauthorized/uninstalled)", { status, statusText });
+                return pixels;
+            }
+            logger.warn("WebPixels API call failed (HTTP response)", { status, statusText });
+            return pixels;
+        }
         const errorMessage = error instanceof Error ? error.message : String(error);
         if (errorMessage.includes("doesn't exist") || errorMessage.includes("access")) {
             logger.warn("WebPixels API call failed (scope issue, app may need reinstall):", { error: errorMessage });

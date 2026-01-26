@@ -46,11 +46,18 @@ async function tryCleanupWebPixel(
       }
     }
   } catch (cleanupError) {
+    if (cleanupError instanceof Response) {
+      const status = cleanupError.status;
+      const statusText = cleanupError.statusText;
+      if (status === 401 || status === 403) {
+        logger.info(`WebPixel cleanup skipped (unauthorized/uninstalled) for ${shop}`, { status, statusText });
+      } else {
+        logger.warn(`WebPixel cleanup attempt failed (HTTP response) for ${shop}`, { status, statusText });
+      }
+      return;
+    }
     logger.warn(`WebPixel cleanup attempt failed for ${shop}`, {
-      error:
-        cleanupError instanceof Error
-          ? cleanupError.message
-          : String(cleanupError),
+      error: cleanupError instanceof Error ? cleanupError.message : String(cleanupError),
     });
   }
 }
