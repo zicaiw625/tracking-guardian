@@ -14,7 +14,10 @@ import { readTextWithLimit } from "../../utils/body-reader";
 
 function shouldRunAsync(request: Request): boolean {
   const url = new URL(request.url);
+  const syncParam = url.searchParams.get("sync");
+  if (syncParam === "1" || syncParam === "true") return false;
   const asyncParam = url.searchParams.get("async");
+  if (asyncParam === "0" || asyncParam === "false") return false;
   if (asyncParam === "1" || asyncParam === "true") return true;
   const prefer = request.headers.get("Prefer") || "";
   return prefer.toLowerCase().includes("respond-async");
@@ -127,7 +130,8 @@ async function handleCron(request: Request): Promise<Response> {
     );
   }
 
-  let requestBody: unknown = null;
+  // 默认使用空对象，避免 application/json 但空 body 时被 schema 判为 null
+  let requestBody: unknown = {};
   const contentType = request.headers.get("Content-Type");
   const contentLength = request.headers.get("Content-Length");
   const maxBodySize = 64 * 1024;
@@ -138,6 +142,10 @@ async function handleCron(request: Request): Promise<Response> {
       const trimmedBody = bodyText.trim();
       if (trimmedBody) {
         requestBody = JSON.parse(trimmedBody);
+        // 允许 body 为字面量 null：将其视为“未提供参数”
+        if (requestBody === null) {
+          requestBody = {};
+        }
       } else {
         logger.debug("Cron request has empty JSON body, using defaults", { requestId });
       }
@@ -193,38 +201,45 @@ async function handleCron(request: Request): Promise<Response> {
   const task = cronRequest.task || "all";
   const instanceId = `${process.env.HOSTNAME || "unknown"}-${requestId}`;
 
-  if (shouldRunAsync(request)) {
+  // 关键：为了避免 Render/代理层剥离 Prefer 头导致 cron 同步执行超时，
+  // 我们默认让 POST 走异步（除非显式 ?sync=1/true）。
+  const url = new URL(request.url);
+  const syncParam = url.searchParams.get("sync");
+  const syncForced = syncParam === "1" || syncParam === "true";
+  const asyncRequested = !syncForced && (shouldRunAsync(request) || method === "POST");
+
+  if (asyncRequested) {
     const lockType = `cron:${task}`;
-    const lock = await acquireCronLock(lockType, instanceId);
     const durationMs = Date.now() - startTime;
 
-    if (!lock.acquired || !lock.lockId) {
-      if (lock.lockError) {
-        logger.error("Cron task failed - unable to acquire lock due to error", {
+    logger.info("Cron task accepted for async execution (lock deferred)", {
+      requestId,
+      task,
+      syncForced,
+    });
+
+    // 重要：先响应 202，后台再尝试获取锁并执行任务，避免请求被上游超时/断开。
+    void (async () => {
+      const jobStart = Date.now();
+      const lock = await acquireCronLock(lockType, instanceId);
+      if (!lock.acquired || !lock.lockId) {
+        if (lock.lockError) {
+          logger.error("Cron async task aborted - unable to acquire lock due to error", {
+            requestId,
+            task,
+            reason: lock.reason,
+          });
+          return;
+        }
+        logger.info("Cron async task skipped - lock held by another instance", {
           requestId,
           task,
           reason: lock.reason,
         });
-        return cronErrorResponse(
-          requestId,
-          durationMs,
-          lock.reason || "Unable to acquire cron lock",
-          503
-        );
+        return;
       }
-      logger.info("Cron task skipped - lock held by another instance", {
-        requestId,
-        task,
-        reason: lock.reason,
-      });
-      return cronSkippedResponse(requestId, durationMs, lock.reason);
-    }
 
-    const lockId = lock.lockId;
-    logger.info("Cron task accepted for async execution", { requestId, task });
-
-    void (async () => {
-      const jobStart = Date.now();
+      const lockId = lock.lockId;
       try {
         const result = await runCronTasks(task, requestId);
         logger.info("Cron async task completed successfully", {

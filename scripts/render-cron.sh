@@ -34,7 +34,7 @@ if [[ ! "${APP_URL}" =~ ^https?:// ]]; then
     exit 1
 fi
 
-CRON_ENDPOINT="${APP_URL}/api/cron"
+CRON_ENDPOINT="${APP_URL}/api/cron?async=1"
 CRON_SECRET="${CRON_SECRET:?Error: CRON_SECRET environment variable is required}"
 TIMEOUT="${TIMEOUT:-300}"
 REPLAY_PROTECTION="${REPLAY_PROTECTION:-false}"
