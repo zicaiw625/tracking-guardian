@@ -324,9 +324,49 @@ pnpm install --frozen-lockfile && pnpm generate && pnpm db:deploy && pnpm ext:in
 3. 验证扩展构建产物中不再包含 `__BACKEND_URL_PLACEHOLDER__` 占位符
 4. 确保该 URL 已在 Web Pixel Extension 的 allowlist 中配置（Partner Dashboard → App → API access → UI extensions network access）
 
+#### Customer Account / Checkout UI Extension 网络访问配置
+
+**扩展配置**：`extensions/thank-you-blocks/shopify.extension.toml` 中已设置 `network_access = true`，允许 UI extension 访问后端 API。
+
+**Partner Dashboard 配置要求**：
+- 必须在 Partner Dashboard 中申请并启用 UI extensions network access 权限
+- 路径：Partner Dashboard → App → API access → UI extensions network access
+- 必须将后端 URL 添加到允许列表（allowlist）
+- 如果未在 Partner Dashboard 中配置，扩展虽然可以安装，但所有网络请求都会失败
+
+**CORS 配置**：
+- 后端 `app/utils/cors.ts` 中已实现动态 CORS 配置
+- 支持 Shopify 平台域名的 CORS 请求
+- 支持开发环境的本地域名（localhost）
+- 自动处理 preflight 请求
+
+**验证步骤**：
+1. 确认 `extensions/thank-you-blocks/shopify.extension.toml` 中 `network_access = true` 已设置
+2. 在 Partner Dashboard 中检查 UI extensions network access 权限是否已启用
+3. 确认后端 URL 已添加到 allowlist
+4. 测试 UI extension 的网络请求是否正常工作（如 Order Status 模块的状态获取）
+
+**常见问题**：
+- 如果 UI extension 的网络请求失败，首先检查 Partner Dashboard 中的 network access 配置
+- 确保后端 URL 与 Partner Dashboard 中配置的 URL 完全一致（包括协议、域名、端口）
+- 检查浏览器控制台是否有 CORS 错误
+
 #### Webhook 路径与 raw body（HMAC 校验）
 
-对 `/webhooks`（及实际挂载的 webhook 路径）**禁止**添加会提前 `json()`/`text()`/`bodyParser` 消费 `Request` body 的中间件或全局逻辑；否则 `authenticate.webhook` 无法读取 raw body，HMAC 验证会失败。若使用自定义 Express/Connect 适配，需在配置中排除 webhook 路径的 body 解析。
+**工程规范约束**：对 `/webhooks`（及实际挂载的 webhook 路径）**禁止**添加会提前 `json()`/`text()`/`bodyParser` 消费 `Request` body 的中间件或全局逻辑；否则 `authenticate.webhook` 无法读取 raw body，HMAC 验证会失败。
+
+**Shopify 审核要求**：Shopify 官方明确要求验证 HMAC 必须使用 raw body。一旦引入某些 body parser 中间件且顺序不对，很容易导致审核失败。
+
+**实施要求**：
+- Webhook 路由必须使用"先验签，再解析"的模式
+- 禁止在 webhook 路由上使用任何会提前消费 body 的中间件
+- 若使用自定义 Express/Connect 适配，需在配置中排除 webhook 路径的 body 解析
+- 代码中已实现：`app/routes/webhooks.tsx` 直接调用 `authenticate.webhook(request)`，确保使用 raw body 进行 HMAC 验证
+
+**维护注意事项**：
+- 后续添加中间件时，必须确保不会影响 webhook 路由的 raw body 访问
+- 建议在代码审查时检查 webhook 路由的中间件配置
+- 如发现 HMAC 验证失败率异常升高，优先检查是否有中间件提前消费了 body
 
 #### Render 部署（推荐 - 免费数据库）
 

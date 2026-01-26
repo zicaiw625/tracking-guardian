@@ -1,5 +1,8 @@
 import { useState, useCallback, useEffect, useRef } from "react";
 import { useNavigate } from "@remix-run/react";
+import { useAppBridge } from "@shopify/app-bridge-react";
+import { getSessionToken } from "@shopify/app-bridge/utilities";
+import type { ClientApplication } from "@shopify/app-bridge";
 
 export interface ApiState<T> {
   data: T | null;
@@ -34,6 +37,7 @@ export function useApiRequest<T = unknown>(options: UseApiRequestOptions = {}) {
     error: null,
   });
   const navigate = useNavigate();
+  const app = useAppBridge();
   const execute = useCallback(
     async (
       url: string,
@@ -41,11 +45,21 @@ export function useApiRequest<T = unknown>(options: UseApiRequestOptions = {}) {
     ): Promise<T | null> => {
       setState((prev) => ({ ...prev, loading: true, error: null }));
       try {
+        let sessionToken: string | undefined;
+        try {
+          sessionToken = await getSessionToken(app as unknown as ClientApplication);
+        } catch (tokenError) {
+          console.warn("[useApiRequest] Failed to get session token:", tokenError);
+        }
+        const headers: Record<string, string> = {
+          "Content-Type": "application/json",
+          ...(init?.headers as Record<string, string>),
+        };
+        if (sessionToken) {
+          headers["Authorization"] = `Bearer ${sessionToken}`;
+        }
         const response = await fetch(url, {
-          headers: {
-            "Content-Type": "application/json",
-            ...init?.headers,
-          },
+          headers,
           ...init,
         });
         if (response.status === 401 && options.redirectOnUnauthorized !== false) {
@@ -77,7 +91,7 @@ export function useApiRequest<T = unknown>(options: UseApiRequestOptions = {}) {
         return null;
       }
     },
-    [navigate, options]
+    [navigate, options, app]
   );
   const reset = useCallback(() => {
     setState({ data: null, loading: false, error: null });
@@ -107,17 +121,28 @@ export function useMutation<TInput = unknown, TOutput = unknown>(
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<ApiError | null>(null);
   const navigate = useNavigate();
+  const app = useAppBridge();
   const mutate = useCallback(
     async (input: TInput): Promise<TOutput | null> => {
       setLoading(true);
       setError(null);
       try {
+        let sessionToken: string | undefined;
+        try {
+          sessionToken = await getSessionToken(app as unknown as ClientApplication);
+        } catch (tokenError) {
+          console.warn("[useMutation] Failed to get session token:", tokenError);
+        }
         const body = options.transformInput
           ? options.transformInput(input)
           : input;
+        const headers: Record<string, string> = { "Content-Type": "application/json" };
+        if (sessionToken) {
+          headers["Authorization"] = `Bearer ${sessionToken}`;
+        }
         const response = await fetch(options.url, {
           method: options.method || "POST",
-          headers: { "Content-Type": "application/json" },
+          headers,
           body: JSON.stringify(body),
         });
         if (response.status === 401) {
@@ -150,7 +175,7 @@ export function useMutation<TInput = unknown, TOutput = unknown>(
         setLoading(false);
       }
     },
-    [options, navigate]
+    [options, navigate, app]
   );
   return {
     mutate,
@@ -178,6 +203,7 @@ export function useQuery<T>(
     error: null,
   });
   const navigate = useNavigate();
+  const app = useAppBridge();
   const onSuccessRef = useRef(onSuccess);
   const onErrorRef = useRef(onError);
   useEffect(() => {
@@ -188,8 +214,18 @@ export function useQuery<T>(
   }, [onError]);
   const fetch_ = useCallback(async () => {
     setState((prev) => ({ ...prev, loading: true, error: null }));
-    try {
-      const response = await fetch(url);
+      try {
+      let sessionToken: string | undefined;
+      try {
+        sessionToken = await getSessionToken(app as unknown as ClientApplication);
+      } catch (tokenError) {
+        console.warn("[useQuery] Failed to get session token:", tokenError);
+      }
+      const headers: Record<string, string> = {};
+      if (sessionToken) {
+        headers["Authorization"] = `Bearer ${sessionToken}`;
+      }
+      const response = await fetch(url, { headers });
       if (response.status === 401) {
         navigate("/auth/login");
         return;
@@ -215,7 +251,7 @@ export function useQuery<T>(
       setState({ data: null, loading: false, error });
       onErrorRef.current?.(error);
     }
-  }, [url, navigate]);
+  }, [url, navigate, app]);
   useEffect(() => {
     if (enabled) {
       fetch_();

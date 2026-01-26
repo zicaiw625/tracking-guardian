@@ -279,6 +279,9 @@ export function SecurityTab({
                                 <Text as="p" variant="bodySm" tone="subdued">
                                   💡 密钥轮换后，系统会自动同步新密钥到 Web Pixel 配置，旧密钥将在30分钟内失效，确保平滑过渡。
                                 </Text>
+                                <Text as="p" variant="bodySm" tone="critical">
+                                  ⚠️ <strong>重要提示：</strong>ingestion_key 是弱秘密，会下发到客户端运行环境，存在被提取的风险。轮换后请对比事件接收情况，如发现丢单风险，请检查 Web Pixel 配置是否已自动更新。如怀疑密钥泄露，应立即轮换并检查事件日志。
+                                </Text>
                               </BlockStack>
                             </Banner>
                           )}
@@ -293,6 +296,9 @@ export function SecurityTab({
                                     </Text>
                                     <Text as="p" variant="bodySm">
                                       上次轮换时间：{new Date(hmacSecurityStats.lastRotationAt).toLocaleString("zh-CN")}（{daysSinceRotation} 天前）。建议定期轮换密钥以降低安全风险。点击"立即轮换"按钮开始轮换。
+                                    </Text>
+                                    <Text as="p" variant="bodySm" tone="critical">
+                                      ⚠️ <strong>重要提示：</strong>ingestion_key 是弱秘密，会下发到客户端运行环境，存在被提取的风险。轮换后请对比事件接收情况，如发现丢单风险，请检查 Web Pixel 配置是否已自动更新。如怀疑密钥泄露，应立即轮换并检查事件日志。
                                     </Text>
                                   </BlockStack>
                                 </Banner>
@@ -755,11 +761,29 @@ export function SecurityTab({
         ]}
       >
         <Modal.Section>
-          <Text as="p">
-            {shop?.hasIngestionSecret
-              ? "更换后 Web Pixel 将自动更新，请确保已通知相关成员。"
-              : "生成后将自动配置至 Web Pixel。"}
-          </Text>
+          <BlockStack gap="300">
+            <Text as="p">
+              {shop?.hasIngestionSecret
+                ? "更换后 Web Pixel 将自动更新，请确保已通知相关成员。"
+                : "生成后将自动配置至 Web Pixel。"}
+            </Text>
+            {shop?.hasIngestionSecret && (
+              <Banner tone="warning">
+                <BlockStack gap="200">
+                  <Text as="p" variant="bodySm" fontWeight="semibold">
+                    ⚠️ 轮换后风险提示
+                  </Text>
+                  <Text as="p" variant="bodySm">
+                    ingestion_key 是弱秘密，会下发到客户端运行环境。轮换后请：
+                    <br />• 对比事件接收情况，检查是否有丢单风险
+                    <br />• 确认 Web Pixel 配置已自动更新
+                    <br />• 如怀疑密钥泄露，应立即轮换并检查事件日志
+                    <br />• 旧密钥将在30分钟内失效，确保平滑过渡
+                  </Text>
+                </BlockStack>
+              </Banner>
+            )}
+          </BlockStack>
         </Modal.Section>
       </Modal>
     </Layout>

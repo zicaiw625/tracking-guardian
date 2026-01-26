@@ -254,6 +254,28 @@ Tracking Guardian 是一个 Shopify 应用，作为**数据处理者**（Data Pr
   - HMAC 失败率、nonce 重放率、null/missing Origin 峰值、异常流量模式
   - 关键事件二次校验失败率与投递失败率
 
+### ingestion_key 弱秘密处理与泄露处置
+
+**重要说明**：`ingestion_key` 是**弱秘密**，会随 Web Pixel settings 下发到客户端运行环境，任何下发到客户端的密钥都有被提取的风险。这是客户端安全模型的固有限制。
+
+**定期轮换建议**：
+- 建议每 90 天轮换一次 `ingestion_key`
+- 系统支持密钥轮换机制，轮换后旧密钥有 30 分钟过渡期（grace window），确保平滑过渡
+- 轮换后系统会自动同步新密钥到 Web Pixel 配置
+
+**泄露处置流程**（一旦发现异常流量或怀疑密钥泄露）：
+1. **立即轮换密钥**：在设置页面使用"更换令牌"功能立即生成新密钥
+2. **收紧 allowlist**：检查并更新 Origin 允许列表，移除可疑域名
+3. **拉高限流**：临时提高速率限制阈值，防止滥用
+4. **检查事件日志**：审查访问记录，识别异常请求模式
+5. **监控后续流量**：轮换后持续监控事件接收情况，确认新密钥正常工作
+
+**运维 Runbook 要点**：
+- 将"key 可能泄露"的风险写进运维手册
+- 建立密钥轮换操作流程和审计记录
+- 定期检查 HMAC 失败率和异常流量模式
+- 在监控面板中设置告警阈值，及时发现可疑活动
+
 ### 速率限制
 - 像素事件：50 请求/分钟
 - Survey：10 请求/分钟
@@ -349,6 +371,39 @@ Shopify 平台在需要 consent 的地区会自动：
 - **2025-01-15**: 初始版本
 
 ---
+
+## API 鉴权方式矩阵表
+
+本应用使用多种鉴权方式，根据不同的 API 端点和访问场景选择合适的鉴权机制：
+
+| API 端点类型 | 鉴权方式 | 实现位置 | 需要 Header | 错误码约定 | 说明 |
+|------------|---------|---------|------------|-----------|------|
+| **Admin app API** | `authenticate.admin(request)` | `app/lib/route-handler.ts` | `Authorization: Bearer <session_token>` (前端自动添加) | `401: AUTH_INVALID_TOKEN` | 依赖请求上下文，使用 Shopify session token 验证。前端通过 `useApiRequest` hook 自动添加 session token。 |
+| **Public extension API** | `authenticate.public.checkout()` 或 `authenticate.public.customerAccount()` | `app/utils/public-auth.ts` | `Authorization: Bearer <session_token>` | `401: Unauthorized` | 使用 Shopify session token，适用于 Checkout 和 Customer Account UI extensions。 |
+| **Ingest API** (`/ingest`) | HMAC + timestamp + origin + nonce | `app/routes/ingest.tsx` | `X-Tracking-Guardian-Signature`, `X-Tracking-Guardian-Timestamp` | `401: Invalid request` | 使用 `ingestion_key` 进行 HMAC 完整性校验，配合时间窗、origin 校验和 nonce 防重放。 |
+| **Webhook** (`/webhooks`) | HMAC 签名验证 (raw body) | `app/routes/webhooks.tsx` | `X-Shopify-Hmac-Sha256` | `401: Unauthorized: Invalid HMAC` | Shopify 官方 HMAC 验证，必须使用 raw body，禁止提前消费 body 的中间件。 |
+
+### 鉴权方式说明
+
+**Admin app API**：
+- 所有 `/app/*` 路由和 `/api/*` 路由（除已明确 public 的）都使用 `authenticate.admin(request)`
+- 前端通过 `app/hooks/useApiRequest.ts` 中的 hook 自动获取并添加 session token
+- 服务端通过 `createActionHandler` 或 `createLoaderHandler` 统一处理鉴权
+
+**Public extension API**：
+- 适用于 Checkout UI Extension 和 Customer Account UI Extension
+- 使用 `authenticate.public.checkout()` 或 `authenticate.public.customerAccount()` 验证 session token
+- 前端通过 `api.sessionToken.get()` 获取 token 并添加到请求头
+
+**Ingest API**：
+- 使用 `ingestion_key` 进行 HMAC 完整性校验
+- 支持时间窗验证（10 分钟）、origin 校验、nonce 防重放
+- `ingestion_key` 是弱秘密，会下发到客户端，主要用于完整性校验和抗滥用信号
+
+**Webhook**：
+- 使用 Shopify 官方 HMAC 验证机制
+- 必须使用 raw body 进行验证，禁止任何会提前消费 body 的中间件
+- 支持 idempotency lock 防止重复处理
 
 ## 附录
 
