@@ -375,6 +375,10 @@ export function generateVerificationReportCSV(data: VerificationReportData): str
   return lines.join("\n");
 }
 
+const MAX_PDF_SIZE_BYTES = 50 * 1024 * 1024;
+const MAX_PDF_PAGES = 1000;
+const MAX_EVENTS_IN_PDF = 100;
+
 export async function generateVerificationReportPDF(
   data: VerificationReportData
 ): Promise<Buffer> {
@@ -382,7 +386,26 @@ export async function generateVerificationReportPDF(
     try {
       const doc = new PDFDocument();
       const chunks: Buffer[] = [];
-      doc.on("data", (chunk) => chunks.push(chunk));
+      let totalSize = 0;
+      let pageCount = 0;
+      
+      doc.on("data", (chunk) => {
+        chunks.push(chunk);
+        totalSize += chunk.length;
+        if (totalSize > MAX_PDF_SIZE_BYTES) {
+          doc.removeAllListeners();
+          reject(new Error(`PDF size exceeds maximum limit of ${MAX_PDF_SIZE_BYTES / 1024 / 1024}MB`));
+        }
+      });
+      
+      doc.on("pageAdded", () => {
+        pageCount++;
+        if (pageCount > MAX_PDF_PAGES) {
+          doc.removeAllListeners();
+          reject(new Error(`PDF page count exceeds maximum limit of ${MAX_PDF_PAGES} pages`));
+        }
+      });
+      
       doc.on("end", () => resolve(Buffer.concat(chunks)));
       doc.on("error", reject);
       doc.fontSize(20).text("Verification Report", { align: "center" });
@@ -418,7 +441,8 @@ export async function generateVerificationReportPDF(
       if (data.events.length > 0) {
         doc.fontSize(16).text("Event Details", { underline: true });
         doc.fontSize(10);
-        for (let i = 0; i < Math.min(data.events.length, 50); i++) {
+        const eventsToInclude = Math.min(data.events.length, MAX_EVENTS_IN_PDF);
+        for (let i = 0; i < eventsToInclude; i++) {
           const event = data.events[i];
           doc.text(`${i + 1}. ${event.eventType} (${event.platform}) - ${event.status}`);
           if (event.orderId) {
@@ -438,8 +462,8 @@ export async function generateVerificationReportPDF(
           }
           doc.moveDown(0.5);
         }
-        if (data.events.length > 50) {
-          doc.text(`... and ${data.events.length - 50} more events`);
+        if (data.events.length > MAX_EVENTS_IN_PDF) {
+          doc.text(`... and ${data.events.length - MAX_EVENTS_IN_PDF} more events`);
         }
       }
       if (data.sandboxLimitations) {

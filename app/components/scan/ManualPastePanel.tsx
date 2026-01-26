@@ -558,10 +558,10 @@ export function ManualPastePanel({ shopId: _shopId, onAssetsCreated, scriptCodeE
                 <Banner tone="info">
                   <BlockStack gap="200">
                     <Text as="p" variant="bodySm" fontWeight="semibold">
-                      💡 脱敏示例:
+                      💡 脱敏示例（仅用于演示，非真实凭证）:
                     </Text>
                     <Text as="p" variant="bodySm" tone="subdued">
-                      原代码: <code>fbq('init', '123456789012345', &#123;access_token: 'EAABsbCS1iHg...'&#125;)</code>
+                      原代码（示例）: <code>fbq('init', 'EXAMPLE_PIXEL_ID_12345', &#123;access_token: 'EXAMPLE_TOKEN_EAABsbCS1iHg...'&#125;)</code>
                     </Text>
                     <Text as="p" variant="bodySm" tone="subdued">
                       脱敏后: <code>fbq('init', '[PIXEL_ID_REDACTED]', &#123;access_token: '[TOKEN_REDACTED]'&#125;)</code>

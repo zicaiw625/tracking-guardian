@@ -8,6 +8,7 @@ import {
   asSlackAlertSettings,
   asTelegramAlertSettings,
 } from "../utils/type-guards";
+import { escapeHtml } from "../utils/security";
 const resend = CONFIG.getEnv("RESEND_API_KEY")
     ? new Resend(CONFIG.getEnv("RESEND_API_KEY"))
     : null;
@@ -90,9 +91,11 @@ async function sendEmailAlert(settings: EmailAlertSettings, data: AlertData): Pr
     
     const isEventDeliveryAlert = data.platform.includes("失败率") || data.platform.includes("缺失参数") || data.platform.includes("事件量下降");
     const alertTitle = isEventDeliveryAlert ? "事件发送异常警报" : "追踪异常警报";
+    const escapedShopDomain = escapeHtml(data.shopDomain);
+    const escapedPlatform = escapeHtml(data.platform);
     const alertDescription = isEventDeliveryAlert 
-        ? `您的店铺 <strong>${data.shopDomain}</strong> 的事件发送出现异常：`
-        : `您的店铺 <strong>${data.shopDomain}</strong> 的追踪数据出现异常：`;
+        ? `您的店铺 <strong>${escapedShopDomain}</strong> 的事件发送出现异常：`
+        : `您的店铺 <strong>${escapedShopDomain}</strong> 的追踪数据出现异常：`;
     
     const metricLabel1 = isEventDeliveryAlert ? "总事件数" : "Shopify 订单数";
     const metricLabel2 = isEventDeliveryAlert ? "成功发送数" : "像素事件捕获数";
@@ -131,17 +134,17 @@ async function sendEmailAlert(settings: EmailAlertSettings, data: AlertData): Pr
     const { error } = await resend.emails.send({
         from: getEmailSender(),
         to: settings.email,
-        subject: `⚠️ ${alertTitle} - ${data.platform} (${data.shopDomain})`,
+        subject: `⚠️ ${alertTitle} - ${escapedPlatform} (${escapedShopDomain})`,
         html: `
       <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 600px; margin: 0 auto;">
-        <h2 style="color: #d72c0d;">⚠️ ${alertTitle}</h2>
+        <h2 style="color: #d72c0d;">⚠️ ${escapeHtml(alertTitle)}</h2>
         <p>${alertDescription}</p>
         <div style="background: #f6f6f7; padding: 16px; border-radius: 8px; margin: 16px 0;">
-          <p style="margin: 8px 0;"><strong>日期：</strong>${dateStr}</p>
-          <p style="margin: 8px 0;"><strong>${metricLabel1}：</strong>${data.shopifyOrders}</p>
-          <p style="margin: 8px 0;"><strong>${metricLabel2}：</strong>${data.platformConversions}</p>
-          <p style="margin: 8px 0; color: #d72c0d;"><strong>异常率：</strong>${discrepancyPercent}%</p>
-          <p style="margin: 8px 0; color: #6d7175; font-size: 12px;">${metricDescription}</p>
+          <p style="margin: 8px 0;"><strong>日期：</strong>${escapeHtml(dateStr)}</p>
+          <p style="margin: 8px 0;"><strong>${escapeHtml(metricLabel1)}：</strong>${escapeHtml(String(data.shopifyOrders))}</p>
+          <p style="margin: 8px 0;"><strong>${escapeHtml(metricLabel2)}：</strong>${escapeHtml(String(data.platformConversions))}</p>
+          <p style="margin: 8px 0; color: #d72c0d;"><strong>异常率：</strong>${escapeHtml(discrepancyPercent)}%</p>
+          <p style="margin: 8px 0; color: #6d7175; font-size: 12px;">${escapeHtml(metricDescription)}</p>
         </div>
         <p>可能的原因：</p>
         <ul>
@@ -152,7 +155,7 @@ async function sendEmailAlert(settings: EmailAlertSettings, data: AlertData): Pr
           ${suggestedActions.join("\n          ")}
         </ol>
         <p style="margin-top: 24px;">
-          <a href="${appUrl}/app/monitor"
+          <a href="${escapeHtml(appUrl)}/app/monitor"
              style="background: #008060; color: white; padding: 12px 24px; text-decoration: none; border-radius: 4px;">
             查看详细报告
           </a>

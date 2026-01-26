@@ -10,8 +10,20 @@ export function validateCronAuth(request: Request): Response | null {
   const cronSecretPrevious = process.env.CRON_SECRET_PREVIOUS || "";
 
   if (!cronSecret) {
-    if (process.env.LOCAL_DEV === "true" && process.env.NODE_ENV !== "production") {
-      logger.warn("CRON_SECRET not configured (LOCAL_DEV=true) - allowing unauthenticated access");
+    const isDevelopment = process.env.NODE_ENV === "development";
+    const isLocalhost = (() => {
+      const host = process.env.HOST || process.env.APP_URL || "";
+      if (!host) return true;
+      try {
+        const url = new URL(host);
+        return url.hostname === "localhost" || url.hostname === "127.0.0.1" || url.hostname === "::1";
+      } catch {
+        return true;
+      }
+    })();
+    
+    if (isDevelopment && isLocalhost && process.env.LOCAL_DEV === "true") {
+      logger.warn("CRON_SECRET not configured (development + localhost + LOCAL_DEV=true) - allowing unauthenticated access");
       return null;
     }
     logger.error("CRON_SECRET not configured - rejecting request");

@@ -1,6 +1,9 @@
 import PDFDocument from "pdfkit";
 import type { MigrationChecklist } from "./migration-checklist.server";
 
+const MAX_PDF_SIZE_BYTES = 50 * 1024 * 1024;
+const MAX_PDF_PAGES = 1000;
+
 export async function generateChecklistPDF(
   checklist: MigrationChecklist,
   shopDomain: string,
@@ -10,7 +13,26 @@ export async function generateChecklistPDF(
     try {
       const doc = new PDFDocument({ margin: 50, size: "A4" });
       const chunks: Buffer[] = [];
-      doc.on("data", (chunk) => chunks.push(chunk));
+      let totalSize = 0;
+      let pageCount = 0;
+      
+      doc.on("data", (chunk) => {
+        chunks.push(chunk);
+        totalSize += chunk.length;
+        if (totalSize > MAX_PDF_SIZE_BYTES) {
+          doc.removeAllListeners();
+          reject(new Error(`PDF size exceeds maximum limit of ${MAX_PDF_SIZE_BYTES / 1024 / 1024}MB`));
+        }
+      });
+      
+      doc.on("pageAdded", () => {
+        pageCount++;
+        if (pageCount > MAX_PDF_PAGES) {
+          doc.removeAllListeners();
+          reject(new Error(`PDF page count exceeds maximum limit of ${MAX_PDF_PAGES} pages`));
+        }
+      });
+      
       doc.on("end", () => resolve(Buffer.concat(chunks)));
       doc.on("error", reject);
       

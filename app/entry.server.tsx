@@ -11,6 +11,7 @@ import { EMBEDDED_APP_HEADERS, addSecurityHeadersToHeaders, getProductionSecurit
 import { RedisClientFactory } from "./utils/redis-client.server";
 import prisma from "./db.server";
 import { getCorsHeadersPreBody } from "./lib/pixel-events/cors";
+import { SecureShopDomainSchema } from "./utils/security";
 const ABORT_DELAY = 5000;
 
 if (typeof process !== "undefined") {
@@ -121,9 +122,33 @@ export default async function handleRequest(request: Request, responseStatusCode
     }
     addDocumentResponseHeaders(request, responseHeaders);
     if (isEmbeddedDocumentRequest && !responseHeaders.has("Content-Security-Policy")) {
+      const shopDomain = (() => {
+        const url = new URL(request.url);
+        const shopParam = url.searchParams.get("shop");
+        if (shopParam) {
+          const validation = SecureShopDomainSchema.safeParse(shopParam);
+          if (validation.success) {
+            return validation.data;
+          }
+        }
+        const shopHeader = request.headers.get("x-shopify-shop-domain");
+        if (shopHeader) {
+          const validation = SecureShopDomainSchema.safeParse(shopHeader);
+          if (validation.success) {
+            return validation.data;
+          }
+        }
+        return null;
+      })();
+      
+      const frameAncestors = ["https://admin.shopify.com"];
+      if (shopDomain) {
+        frameAncestors.push(`https://${shopDomain}`);
+      }
+      
       const fallbackCsp = buildCspHeader({
         ...NON_EMBEDDED_PAGE_CSP_DIRECTIVES,
-        "frame-ancestors": ["https://admin.shopify.com"],
+        "frame-ancestors": frameAncestors,
       });
       responseHeaders.set("Content-Security-Policy", fallbackCsp);
     }
