@@ -1,4 +1,3 @@
-import { json } from "@remix-run/node";
 import { authenticate } from "../shopify.server";
 import { logger } from "./logger.server";
 import { API_SECURITY_HEADERS, addSecurityHeadersToHeaders } from "./security-headers";

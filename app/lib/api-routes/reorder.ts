@@ -29,16 +29,6 @@ const FORBIDDEN_PATTERNS_PRODUCTION = [
   /^ftp:/i,
 ];
 
-function isPrivateIPv4(ip: string): boolean {
-  if (/^10\./.test(ip)) return true;
-  if (/^172\.(1[6-9]|2[0-9]|3[0-1])\./.test(ip)) return true;
-  if (/^192\.168\./.test(ip)) return true;
-  if (/^127\./.test(ip)) return true;
-  if (/^169\.254\./.test(ip)) return true;
-  if (/^0\./.test(ip)) return true;
-  return false;
-}
-
 function validateUrlForShop(url: string, allowedDomains: string[]): { valid: boolean; error?: string } {
   const isProduction = process.env.NODE_ENV === "production";
   try {

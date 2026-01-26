@@ -13,6 +13,7 @@ import type {
 } from "./interface";
 import { fetchWithTimeout, measureDuration } from "./interface";
 import { logger } from "../../utils/logger.server";
+import { WEBHOOK_CONFIG } from "../../utils/config.shared";
 import net from "net";
 
 const DEFAULT_TIMEOUT_MS = 30000;
@@ -163,6 +164,40 @@ function validateCustomHeadersNoCrLf(customHeaders: Record<string, string>): { v
   return { valid: true };
 }
 
+async function readResponseTextWithLimit(
+  response: Response,
+  maxSize: number
+): Promise<string> {
+  if (!response.body) return "";
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let total = 0;
+  const parts: string[] = [];
+  for (;;) {
+    const { value, done } = await reader.read();
+    if (done) break;
+    if (value) {
+      total += value.byteLength;
+      if (total > maxSize) {
+        try {
+          await reader.cancel();
+        } catch {
+          // Ignore cancel errors
+        }
+        const preview = parts.join("").substring(0, 200);
+        logger.warn(`Webhook response body too large: ${total} bytes (max ${maxSize}), truncated`, {
+          preview,
+          status: response.status,
+        });
+        return parts.join("") + "...[truncated]";
+      }
+      parts.push(decoder.decode(value, { stream: true }));
+    }
+  }
+  parts.push(decoder.decode());
+  return parts.join("");
+}
+
 function applyTemplate(template: string, data: Record<string, unknown>): string {
   return template.replace(/\{\{([^}]+)\}\}/g, (match, key) => {
     const keys = key.trim().split('.');
@@ -182,6 +217,18 @@ function applyTemplate(template: string, data: Record<string, unknown>): string 
     }
     return String(value);
   });
+}
+
+function validateJsonPayload(payload: string): { valid: boolean; error?: string } {
+  try {
+    JSON.parse(payload);
+    return { valid: true };
+  } catch (error) {
+    return {
+      valid: false,
+      error: error instanceof Error ? error.message : "Invalid JSON format",
+    };
+  }
 }
 function buildDefaultPayload(data: ConversionData, eventId: string): Record<string, unknown> {
   return {
@@ -321,10 +368,21 @@ async function validateEndpointUrlWithDNS(url: string): Promise<{ valid: boolean
       dnsValidationCache.set(cacheKey, { valid: true, checkedAt: now });
       return { valid: true };
     } catch (dnsError) {
+      const errorMsg = dnsError instanceof Error ? dnsError.message : String(dnsError);
       logger.warn(`DNS lookup failed for ${hostname}, rejecting URL due to DNS resolution failure (security risk)`, {
-        error: dnsError instanceof Error ? dnsError.message : String(dnsError),
+        error: errorMsg,
       });
-      const result = { valid: false as const, error: 'DNS resolution failed - cannot verify endpoint safety' };
+      const isTimeout = errorMsg.includes('timeout') || errorMsg.includes('ETIMEDOUT');
+      const isNotFound = errorMsg.includes('ENOTFOUND') || errorMsg.includes('not found');
+      let userMessage = 'DNS resolution failed - cannot verify endpoint safety. ';
+      if (isTimeout) {
+        userMessage += 'DNS lookup timed out. This may be due to network issues or DNS server problems. Please check your network connection and try again later.';
+      } else if (isNotFound) {
+        userMessage += 'Domain name not found. Please ensure the endpoint uses a valid, publicly resolvable domain name.';
+      } else {
+        userMessage += 'This may be due to DNS temporary failure, private/internal domain, or network issues. Please ensure the endpoint uses a publicly resolvable domain name.';
+      }
+      const result = { valid: false as const, error: userMessage };
       dnsValidationCache.set(cacheKey, { ...result, checkedAt: now });
       return result;
     }
@@ -364,8 +422,19 @@ async function revalidateDnsBeforeFetch(url: string): Promise<{ valid: boolean; 
         }
       }
       return { valid: true };
-    } catch {
-      return { valid: false, error: 'DNS resolution failed - cannot verify endpoint safety (revalidate)' };
+    } catch (dnsError) {
+      const errorMsg = dnsError instanceof Error ? dnsError.message : String(dnsError);
+      const isTimeout = errorMsg.includes('timeout') || errorMsg.includes('ETIMEDOUT');
+      const isNotFound = errorMsg.includes('ENOTFOUND') || errorMsg.includes('not found');
+      let userMessage = 'DNS resolution failed - cannot verify endpoint safety (revalidate). ';
+      if (isTimeout) {
+        userMessage += 'DNS lookup timed out. This may be due to network issues or DNS server problems. Please check your network connection and try again later.';
+      } else if (isNotFound) {
+        userMessage += 'Domain name not found. Please ensure the endpoint uses a valid, publicly resolvable domain name.';
+      } else {
+        userMessage += 'This may be due to DNS temporary failure, private/internal domain, or network issues.';
+      }
+      return { valid: false, error: userMessage };
     }
   } catch {
     return { valid: false, error: 'Invalid URL format' };
@@ -411,6 +480,17 @@ export class WebhookPlatformService implements IPlatformService {
         lineItems: data.lineItems || [],
       };
       payload = applyTemplate(credentials.payloadTemplate, templateData);
+      const jsonValidation = validateJsonPayload(payload);
+      if (!jsonValidation.valid) {
+        return {
+          success: false,
+          error: {
+            type: "invalid_config",
+            message: `Payload template generated invalid JSON: ${jsonValidation.error}`,
+            isRetryable: false,
+          },
+        };
+      }
     } else {
       payload = JSON.stringify(buildDefaultPayload(data, eventId));
     }
@@ -489,7 +569,7 @@ export class WebhookPlatformService implements IPlatformService {
           timeoutMs
         );
       });
-      const responseText = await response.text();
+      const responseText = await readResponseTextWithLimit(response, WEBHOOK_CONFIG.MAX_RESPONSE_SIZE);
       let responseData: unknown;
       try {
         responseData = JSON.parse(responseText);

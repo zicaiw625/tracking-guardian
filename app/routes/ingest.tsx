@@ -378,6 +378,77 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         trustLevel: hmacResult.trustLevel || "trusted",
       };
       logger.debug(`HMAC signature verified for ${shopDomain}${graceResult.usedPreviousSecret ? " (using previous secret)" : ""}`);
+      
+      const totalEvents = events.length;
+      if (totalEvents >= 3) {
+        const eventTypes = new Map<string, number>();
+        const orderKeys = new Set<string>();
+        let invalidOrderKeys = 0;
+        for (const event of events) {
+          const eventValidation = validateRequest(event);
+          if (eventValidation.valid) {
+            const eventName = eventValidation.payload.eventName;
+            eventTypes.set(eventName, (eventTypes.get(eventName) || 0) + 1);
+            const payloadData = eventValidation.payload.data as Record<string, unknown> | undefined;
+            if (payloadData) {
+              const orderId = typeof payloadData.orderId === "string" ? payloadData.orderId : null;
+              if (orderId) {
+                const isShopifyGid = /^gid:\/\/shopify\/\w+\/\d+$/.test(orderId);
+                const isValidFormat = orderId.length <= 256 && (isShopifyGid || /^[a-zA-Z0-9_\-.:/]+$/.test(orderId));
+                if (!isValidFormat) {
+                  invalidOrderKeys++;
+                } else {
+                  orderKeys.add(orderId);
+                }
+              }
+            }
+          }
+        }
+        
+        const uniqueOrderKeys = orderKeys.size;
+        const duplicateOrderKeyRate = totalEvents > 0 && uniqueOrderKeys > 0 ? 1 - (uniqueOrderKeys / totalEvents) : 0;
+        const invalidOrderKeyRate = totalEvents > 0 ? invalidOrderKeys / totalEvents : 0;
+        const nonStandardEventCount = Array.from(eventTypes.entries()).filter(([name]) => 
+          !["page_viewed", "product_viewed", "collection_viewed", "search_submitted", "cart_viewed", "checkout_started", "checkout_completed", "purchase"].includes(name)
+        ).reduce((sum, [, count]) => sum + count, 0);
+        const nonStandardEventRate = totalEvents > 0 ? nonStandardEventCount / totalEvents : 0;
+        
+        const abuseDetected = 
+          duplicateOrderKeyRate > 0.8 ||
+          invalidOrderKeyRate > 0.3 ||
+          nonStandardEventRate > 0.5;
+        
+        if (abuseDetected) {
+          const abuseReasons: string[] = [];
+          if (duplicateOrderKeyRate > 0.8) {
+            abuseReasons.push(`high_duplicate_order_keys:${duplicateOrderKeyRate.toFixed(2)}`);
+          }
+          if (invalidOrderKeyRate > 0.3) {
+            abuseReasons.push(`high_invalid_order_keys:${invalidOrderKeyRate.toFixed(2)}`);
+          }
+          if (nonStandardEventRate > 0.5) {
+            abuseReasons.push(`high_non_standard_events:${nonStandardEventRate.toFixed(2)}`);
+          }
+          const abuseReason = abuseReasons.join(",");
+          logger.warn(`Abuse detected for ${shopDomain} despite valid HMAC`, {
+            shopDomain,
+            duplicateOrderKeyRate,
+            invalidOrderKeyRate,
+            nonStandardEventRate,
+            totalEvents,
+            uniqueOrderKeys,
+            abuseReason,
+          });
+          trackAnomaly(shopDomain, "invalid_key");
+          if (isProduction && isStrictSecurityMode()) {
+            metrics.pixelRejection({
+              shopDomain,
+              reason: "invalid_key",
+            });
+            return rejectProd(403);
+          }
+        }
+      }
     } else {
       const secretToCheck = shop.ingestionSecret ?? shop.previousIngestionSecret;
       if (!secretToCheck) {
@@ -447,6 +518,23 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     hasValidOrigin = keyValidation.matched;
   } else {
     hasValidOrigin = shopOriginValidation.valid || (!shopOriginValidation.shouldReject && hasSignatureHeader && !strictOrigin && !isProduction);
+  }
+  
+  if (keyValidation.matched && !hasValidOrigin) {
+    logger.warn(`HMAC verified but origin not in allowlist for ${shopDomain}`, {
+      shopDomain,
+      origin: origin?.substring(0, 100) || "null",
+      reason: shopOriginValidation.reason,
+      trustLevel: keyValidation.trustLevel,
+    });
+    trackAnomaly(shopDomain, "invalid_origin");
+    if (isProduction || isStrictSecurityMode()) {
+      metrics.pixelRejection({
+        shopDomain,
+        reason: "origin_not_allowlisted",
+      });
+      return rejectProd(403);
+    }
   }
   const hasValidTimestamp = timestampHeader && Math.abs(Date.now() - timestamp) <= TIMESTAMP_WINDOW_MS;
   const hasCriticalEvent = events.some((event: unknown) => {

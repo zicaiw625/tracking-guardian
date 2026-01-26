@@ -116,6 +116,7 @@ export const WEBHOOK_CONFIG = {
   PROCESSING_TIMEOUT_MS: 25 * 1000,
   BATCH_SIZE: 50,
   BATCH_DELAY_MS: 100,
+  MAX_RESPONSE_SIZE: 256 * 1024,
 } as const;
 
 export const SCANNER_CONFIG = {
