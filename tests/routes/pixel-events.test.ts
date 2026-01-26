@@ -32,7 +32,7 @@ describe("Pixel Events API - Origin Validation", () => {
   describe("isValidShopifyOrigin", () => {
     let isValidShopifyOrigin: (origin: string | null) => boolean;
     beforeEach(async () => {
-      const module = await import("../../app/utils/origin-validation");
+      const module = await import("../../app/utils/origin-validation.server");
       isValidShopifyOrigin = module.isValidShopifyOrigin;
     });
     it("accepts 'null' string (Web Pixel sandbox)", () => {
@@ -65,7 +65,7 @@ describe("Pixel Events API - Origin Validation", () => {
   describe("Dev origin validation", () => {
     let isValidDevOrigin: (origin: string | null) => boolean;
     beforeEach(async () => {
-      const module = await import("../../app/utils/origin-validation");
+      const module = await import("../../app/utils/origin-validation.server");
       isValidDevOrigin = module.isValidDevOrigin;
     });
     it("accepts localhost origins", () => {

@@ -5,7 +5,7 @@ import { logger } from "../../utils/logger.server";
 import { extractPlatformFromPayload } from "../../utils/common";
 import type { Prisma } from "@prisma/client";
 import { SSE_SECURITY_HEADERS, addSecurityHeadersToHeaders } from "../../utils/security-headers";
-import { getRedisClient } from "../../utils/redis-client";
+import { getRedisClient } from "../../utils/redis-client.server";
 import { acquireSseSlot, releaseSseSlot } from "../../utils/sse-concurrency.server";
 import { randomBytes } from "crypto";
 

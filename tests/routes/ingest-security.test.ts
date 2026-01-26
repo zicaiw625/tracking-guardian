@@ -21,7 +21,7 @@ vi.mock("../../app/db.server", () => ({
   },
 }));
 
-vi.mock("../../app/utils/redis-client", () => ({
+vi.mock("../../app/utils/redis-client.server", () => ({
   getRedisClient: vi.fn(),
 }));
 
@@ -39,7 +39,7 @@ vi.mock("../../app/utils/logger", () => ({
   },
 }));
 
-vi.mock("../../app/middleware/rate-limit", () => ({
+vi.mock("../../app/middleware/rate-limit.server", () => ({
   checkRateLimitAsync: vi.fn().mockResolvedValue({
     allowed: true,
     remaining: 100,
@@ -252,7 +252,7 @@ describe("/ingest Security Policy Tests", () => {
   describe("Signature missing (strict mode) → 401", () => {
     it("should reject request without signature in strict mode", async () => {
       process.env.NODE_ENV = "production";
-      process.env.STRICT_SECURITY_MODE = "true";
+      process.env.SECURITY_ENFORCEMENT = "strict";
       const payload = createValidEventPayload("test-shop.myshopify.com");
       const request = createRequest(payload, {
         Origin: "https://test-shop.myshopify.com",
@@ -267,7 +267,7 @@ describe("/ingest Security Policy Tests", () => {
 
     it("should reject request with invalid signature in strict mode", async () => {
       process.env.NODE_ENV = "production";
-      process.env.STRICT_SECURITY_MODE = "true";
+      process.env.SECURITY_ENFORCEMENT = "strict";
       vi.mocked(verifyWithGraceWindowAsync).mockResolvedValue({
         matched: false,
         usedPreviousSecret: false,

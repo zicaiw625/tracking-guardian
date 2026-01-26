@@ -6,7 +6,7 @@ export {
   RedisClientFactory,
   type RedisClientWrapper,
   type ConnectionInfo,
-} from "../../utils/redis-client";
+} from "../../utils/redis-client.server";
 
 export {
   SimpleCache,
@@ -57,7 +57,7 @@ export {
   type RateLimitConfig,
   type RateLimitResult,
   type RateLimitedHandler,
-} from "../../middleware/rate-limit";
+} from "../../middleware/rate-limit.server";
 
 export {
   checkCircuitBreaker,

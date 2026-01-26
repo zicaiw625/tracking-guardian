@@ -6,7 +6,7 @@ import { getUiModuleConfigs, canUseModule, getDefaultSettings } from "../../serv
 import { PCD_CONFIG } from "../../utils/config.server";
 import { tryAuthenticatePublicWithShop, handlePublicPreflight, addSecurityHeaders } from "../../utils/public-auth";
 import { sanitizeUrl, validateEmailForMailto, isPublicUrl } from "../../utils/security";
-import { checkRateLimitAsync } from "../../middleware/rate-limit";
+import { checkRateLimitAsync } from "../../middleware/rate-limit.server";
 import { createReorderNonce } from "../../lib/pixel-events/receipt-handler";
 
 function normalizeHostname(value: string): string {

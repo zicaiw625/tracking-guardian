@@ -36,7 +36,7 @@ import {
   validatePixelOriginPreBody,
   validatePixelOriginForShop,
   buildShopAllowedDomains
-} from "../../app/utils/origin-validation";
+} from "../../app/utils/origin-validation.server";
 
 describe("Web Pixel E2E Flow", () => {
   beforeEach(() => {

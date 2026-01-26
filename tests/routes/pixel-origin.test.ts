@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { isValidPixelOrigin } from "../../app/utils/origin-validation";
+import { isValidPixelOrigin } from "../../app/utils/origin-validation.server";
 
 describe("isValidPixelOrigin", () => {
   describe("should accept valid HTTPS origins", () => {

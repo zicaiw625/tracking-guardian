@@ -3,7 +3,7 @@ import {
   validatePixelOriginPreBody,
   validatePixelOriginForShop,
   buildShopAllowedDomains,
-} from "../../app/utils/origin-validation";
+} from "../../app/utils/origin-validation.server";
 
 describe("validatePixelOriginPreBody", () => {
   const originalEnv = process.env;

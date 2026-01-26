@@ -30,7 +30,7 @@ export {
   buildShopAllowedDomains,
   isValidShopifyOrigin,
   isOriginInAllowlist,
-} from "../../utils/origin-validation";
+} from "../../utils/origin-validation.server";
 
 export {
   evaluatePlatformConsent,

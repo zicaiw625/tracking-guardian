@@ -2,7 +2,7 @@ import { authenticate } from "../shopify.server";
 import { logger } from "./logger.server";
 import { API_SECURITY_HEADERS, addSecurityHeadersToHeaders } from "./security-headers";
 import { getDynamicCorsHeaders } from "./cors";
-import { isValidShopifyOrigin } from "./origin-validation";
+import { isValidShopifyOrigin } from "./origin-validation.server";
 import { SecureShopDomainSchema } from "./security";
 
 export interface PublicAuthResult {

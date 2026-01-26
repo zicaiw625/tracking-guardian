@@ -19,7 +19,7 @@ import {
 import type { RiskItem } from "../types";
 import { validateRiskItemsArray, validateStringArray } from "../utils/scan-data-validation";
 import { PUBLIC_PAGE_HEADERS, addSecurityHeadersToHeaders } from "../utils/security-headers";
-import { checkRateLimitAsync, ipKeyExtractor } from "../middleware/rate-limit";
+import { checkRateLimitAsync, ipKeyExtractor } from "../middleware/rate-limit.server";
 import { timingSafeEqualHex } from "../utils/timing-safe.server";
 
 const publicJson = (data: unknown, init: ResponseInit = {}) => {

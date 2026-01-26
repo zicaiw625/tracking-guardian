@@ -1,6 +1,6 @@
 import type { Middleware, MiddlewareContext, CorsOptions } from "./types";
 import { getPixelEventsCorsHeaders, SECURITY_HEADERS } from "../utils/cors";
-import { isValidShopifyOrigin, isValidDevOrigin, isDevMode, extractOriginHost } from "../utils/origin-validation";
+import { isValidShopifyOrigin, isValidDevOrigin, isDevMode, extractOriginHost } from "../utils/origin-validation.server";
 
 
 const DEFAULT_CORS_OPTIONS: Required<CorsOptions> = {

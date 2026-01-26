@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 
-vi.mock("../../app/utils/redis-client", () => {
+vi.mock("../../app/utils/redis-client.server", () => {
   let mockConnected = true;
   let mockShouldFail = false;
   return {
@@ -69,15 +69,15 @@ vi.mock("../../app/utils/config.server", () => ({
 }));
 
 describe("Rate Limit Memory Fallback", () => {
-  let rateLimitModule: typeof import("../../app/middleware/rate-limit");
-  let redisClientModule: typeof import("../../app/utils/redis-client") & {
+  let rateLimitModule: typeof import("../../app/middleware/rate-limit.server");
+  let redisClientModule: typeof import("../../app/utils/redis-client.server") & {
     __setMockConnected: (connected: boolean) => void;
     __setMockShouldFail: (shouldFail: boolean) => void;
   };
   beforeEach(async () => {
     vi.resetModules();
-    redisClientModule = await import("../../app/utils/redis-client") as typeof redisClientModule;
-    rateLimitModule = await import("../../app/middleware/rate-limit");
+    redisClientModule = await import("../../app/utils/redis-client.server") as typeof redisClientModule;
+    rateLimitModule = await import("../../app/middleware/rate-limit.server");
     redisClientModule.__setMockConnected(true);
     redisClientModule.__setMockShouldFail(false);
   });

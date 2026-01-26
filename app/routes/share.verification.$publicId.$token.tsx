@@ -20,7 +20,7 @@ import {
 } from "@shopify/polaris";
 import { generateVerificationReportData } from "../services/verification-report.server";
 import { PUBLIC_PAGE_HEADERS, addSecurityHeadersToHeaders } from "../utils/security-headers";
-import { checkRateLimitAsync, ipKeyExtractor } from "../middleware/rate-limit";
+import { checkRateLimitAsync, ipKeyExtractor } from "../middleware/rate-limit.server";
 import { timingSafeEqualHex } from "../utils/timing-safe.server";
 
 const publicJson = (data: unknown, init: ResponseInit = {}) => {

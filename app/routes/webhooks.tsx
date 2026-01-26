@@ -3,7 +3,7 @@ import { authenticate } from "../shopify.server";
 import prisma from "../db.server";
 import { logger } from "../utils/logger.server";
 import { RATE_LIMIT_CONFIG } from "../utils/config.server";
-import { checkRateLimitAsync, ipKeyExtractor } from "../middleware/rate-limit";
+import { checkRateLimitAsync, ipKeyExtractor } from "../middleware/rate-limit.server";
 import { hashValueSync } from "../utils/crypto.server";
 import { dispatchWebhook, type WebhookContext, type ShopWithPixelConfigs } from "../webhooks";
 import { tryAcquireWebhookLock } from "../webhooks/middleware/idempotency";

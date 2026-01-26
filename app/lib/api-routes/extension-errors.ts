@@ -2,7 +2,7 @@ import type { ActionFunctionArgs } from "@remix-run/node";
 import { randomUUID } from "crypto";
 import { logger } from "../../utils/logger.server";
 import { json } from "@remix-run/node";
-import { checkRateLimitAsync } from "../../middleware/rate-limit";
+import { checkRateLimitAsync } from "../../middleware/rate-limit.server";
 import prisma from "../../db.server";
 import { tryAuthenticatePublicWithShop, handlePublicPreflight, addSecurityHeaders } from "../../utils/public-auth";
 import { sanitizeSensitiveInfo } from "../../utils/security";

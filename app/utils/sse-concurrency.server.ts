@@ -1,4 +1,4 @@
-import { getRedisClient } from "./redis-client";
+import { getRedisClient } from "./redis-client.server";
 
 const SSE_ACQUIRE_SCRIPT = `
 local key = KEYS[1]

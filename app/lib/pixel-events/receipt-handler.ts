@@ -2,14 +2,14 @@ import { createHash, randomBytes } from "crypto";
 import { Prisma } from "@prisma/client";
 import prisma from "../../db.server";
 import { generateEventId, generateMatchKey, makeOrderKey, hashValueSync } from "../../utils/crypto.server";
-import { extractOriginHost } from "../../utils/origin-validation";
+import { extractOriginHost } from "../../utils/origin-validation.server";
 import { logger } from "../../utils/logger.server";
 import { RETENTION_CONFIG } from "../../utils/config.server";
 import { generateSimpleId } from "../../utils/helpers";
 import type { TrustLevel } from "../../utils/receipt-trust.server";
 import type { PixelEventPayload, KeyValidationResult } from "./types";
 import { generateCanonicalEventId } from "../../services/event-normalizer.server";
-import { getRedisClient, getRedisClientStrict } from "../../utils/redis-client";
+import { getRedisClient, getRedisClientStrict } from "../../utils/redis-client.server";
 
 function buildMinimalPayloadForReceipt(
   payload: PixelEventPayload,

@@ -1,4 +1,4 @@
-import { getRedisClient } from "./redis-client";
+import { getRedisClient } from "./redis-client.server";
 import { logger } from "./logger.server";
 import { API_SECURITY_HEADERS } from "./security-headers";
 

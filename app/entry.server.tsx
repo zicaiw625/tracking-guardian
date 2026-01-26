@@ -8,7 +8,7 @@ import { ensureSecretsValid, enforceSecurityChecks } from "./utils/secrets.serve
 import { validateConfig, logConfigStatus, API_CONFIG } from "./utils/config.server";
 import { logger } from "./utils/logger.server";
 import { EMBEDDED_APP_HEADERS, addSecurityHeadersToHeaders, getProductionSecurityHeaders, validateSecurityHeaders, } from "./utils/security-headers";
-import { RedisClientFactory } from "./utils/redis-client";
+import { RedisClientFactory } from "./utils/redis-client.server";
 import prisma from "./db.server";
 import { getCorsHeadersPreBody } from "./lib/pixel-events/cors";
 const ABORT_DELAY = 5000;

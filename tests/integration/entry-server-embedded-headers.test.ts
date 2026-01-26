@@ -34,7 +34,7 @@ vi.mock("../../app/utils/security-headers", () => ({
   },
 }));
 
-vi.mock("../../app/utils/redis-client", () => ({
+vi.mock("../../app/utils/redis-client.server", () => ({
   RedisClientFactory: {
     resetAsync: vi.fn().mockResolvedValue(undefined),
   },

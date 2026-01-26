@@ -23,7 +23,7 @@ vi.mock("../../app/db.server", () => ({
   },
 }));
 
-vi.mock("../../app/middleware/rate-limit", () => ({
+vi.mock("../../app/middleware/rate-limit.server", () => ({
   checkRateLimitAsync: vi.fn().mockResolvedValue({
     allowed: true,
     resetAt: Date.now() + 60000,

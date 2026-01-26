@@ -10,7 +10,7 @@ import type { OrderTrackingSettings } from "../../types/ui-extension";
 
 import { createAdminClientForShop } from "../../shopify.server";
 import { json } from "@remix-run/node";
-import { checkRateLimitAsync } from "../../middleware/rate-limit";
+import { checkRateLimitAsync } from "../../middleware/rate-limit.server";
 import { defaultLoaderCache } from "../../lib/with-cache";
 import { TTL } from "../../utils/cache";
 import { getUiModuleConfig } from "../../services/ui-extension.server";

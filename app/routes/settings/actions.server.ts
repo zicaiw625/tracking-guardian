@@ -25,7 +25,7 @@ import type { AlertSettings } from "./types";
 import {
   checkRateLimitAsync,
   pathShopKeyExtractor,
-} from "../../middleware/rate-limit";
+} from "../../middleware/rate-limit.server";
 import {
   SecureEmailSchema,
   SecureUrlSchema,

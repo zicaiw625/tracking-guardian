@@ -140,7 +140,7 @@ export {
   extractOriginHost,
   getAllowedPatterns,
   SHOPIFY_PLATFORM_HOSTS,
-} from "./origin-validation";
+} from "./origin-validation.server";
 
 export {
   timingSafeEquals,
@@ -222,7 +222,7 @@ export {
   getRedisConnectionInfo,
   type RedisClientWrapper,
   type ConnectionInfo,
-} from "./redis-client";
+} from "./redis-client.server";
 
 export {
   acquireCronLock,

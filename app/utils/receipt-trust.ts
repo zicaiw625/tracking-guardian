@@ -1,6 +1,6 @@
 import { logger } from "./logger.server";
 import { hashValueSync } from "./crypto.server";
-import { SHOPIFY_PLATFORM_HOSTS, extractOriginHost as extractOriginHostFromValidation, buildShopAllowedDomains as buildShopAllowedDomainsFromValidation } from "./origin-validation";
+import { SHOPIFY_PLATFORM_HOSTS, extractOriginHost as extractOriginHostFromValidation, buildShopAllowedDomains as buildShopAllowedDomainsFromValidation } from "./origin-validation.server";
 
 export { extractOriginHostFromValidation as extractOriginHost };
 

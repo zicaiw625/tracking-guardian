@@ -3,7 +3,7 @@ import { timingSafeEqual } from "crypto";
 import { logger } from "../../utils/logger.server";
 import { optionsResponse, jsonWithCors } from "../../utils/cors";
 import { readJsonWithSizeLimit } from "../../utils/body-size-guard";
-import { withRateLimit, ipKeyExtractor, type RateLimitedHandler } from "../../middleware/rate-limit";
+import { withRateLimit, ipKeyExtractor, type RateLimitedHandler } from "../../middleware/rate-limit.server";
 
 const performanceRateLimit = withRateLimit({
   maxRequests: 100,

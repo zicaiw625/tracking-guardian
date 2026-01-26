@@ -1,4 +1,4 @@
-import { getRedisClient, type RedisClientWrapper } from "./redis-client";
+import { getRedisClient, type RedisClientWrapper } from "./redis-client.server";
 import { logger } from "./logger.server";
 
 export interface CircuitBreakerState {

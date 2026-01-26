@@ -3,8 +3,8 @@ import { jsonWithCors, emptyResponseWithCors, optionsResponse } from "~/lib/pixe
 import { processBatchEvents } from "~/services/events/pipeline.server";
 import { logger, metrics } from "~/utils/logger.server";
 import { API_CONFIG, RATE_LIMIT_CONFIG, isStrictSecurityMode } from "~/utils/config.server";
-import { isDevMode, trackNullOriginRequest, validatePixelOriginPreBody, validatePixelOriginForShop, buildShopAllowedDomains } from "~/utils/origin-validation";
-import { checkRateLimitAsync, shopDomainIpKeyExtractor, ipKeyExtractor } from "~/middleware/rate-limit";
+import { isDevMode, trackNullOriginRequest, validatePixelOriginPreBody, validatePixelOriginForShop, buildShopAllowedDomains } from "~/utils/origin-validation.server";
+import { checkRateLimitAsync, shopDomainIpKeyExtractor, ipKeyExtractor } from "~/middleware/rate-limit.server";
 import { hashValueSync } from "~/utils/crypto.server";
 import { trackAnomaly } from "~/utils/rate-limiter";
 import { getShopForPixelVerificationWithConfigs } from "~/lib/pixel-events/key-validation";

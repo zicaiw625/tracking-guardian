@@ -18,7 +18,7 @@ vi.mock("../../app/db.server", () => ({
   },
 }));
 
-vi.mock("../../app/utils/redis-client", () => ({
+vi.mock("../../app/utils/redis-client.server", () => ({
   getRedisClient: vi.fn(),
   getRedisClientStrict: vi.fn(),
 }));
@@ -41,7 +41,7 @@ vi.mock("../../app/utils/logger", () => ({
 import prisma from "../../app/db.server";
 import { generateOrderMatchKey , createEventNonce } from "../../app/lib/pixel-events/receipt-handler";
 import { validateRequest } from "../../app/lib/pixel-events/validation";
-import { getRedisClientStrict } from "../../app/utils/redis-client";
+import { getRedisClientStrict } from "../../app/utils/redis-client.server";
 
 describe("P0 Fix: checkoutToken and nonce preservation after sanitizePII removal", () => {
   beforeEach(() => {

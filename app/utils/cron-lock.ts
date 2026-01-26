@@ -1,6 +1,6 @@
 import { randomUUID } from "crypto";
 import { logger } from "./logger.server";
-import { getRedisClientStrict } from "./redis-client";
+import { getRedisClientStrict } from "./redis-client.server";
 
 const LOCK_TIMEOUT_MS = 10 * 60 * 1000;
 

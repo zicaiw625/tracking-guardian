@@ -17,7 +17,7 @@ vi.mock("../../../app/utils/logger.server", () => ({
   },
 }));
 
-vi.mock("../../../app/utils/redis-client", () => ({
+vi.mock("../../../app/utils/redis-client.server", () => ({
   getRedisClient: vi.fn(),
   getRedisClientStrict: vi.fn(async () => {
     throw new Error("redis down");
@@ -26,7 +26,7 @@ vi.mock("../../../app/utils/redis-client", () => ({
 
 import prisma from "../../../app/db.server";
 import { createEventNonce } from "../../../app/lib/pixel-events/receipt-handler";
-import { getRedisClientStrict } from "../../../app/utils/redis-client";
+import { getRedisClientStrict } from "../../../app/utils/redis-client.server";
 
 describe("createEventNonce Redis down", () => {
   beforeEach(() => {

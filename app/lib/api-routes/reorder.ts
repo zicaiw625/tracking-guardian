@@ -2,7 +2,7 @@ import type { ActionFunctionArgs, LoaderFunctionArgs } from "@remix-run/node";
 import { json } from "@remix-run/node";
 import { createAdminClientForShop } from "../../shopify.server";
 import { logger } from "../../utils/logger.server";
-import { checkRateLimitAsync } from "../../middleware/rate-limit";
+import { checkRateLimitAsync } from "../../middleware/rate-limit.server";
 import { defaultLoaderCache } from "../../lib/with-cache";
 import { TTL } from "../../utils/cache";
 import prisma from "../../db.server";

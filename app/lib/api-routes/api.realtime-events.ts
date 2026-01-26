@@ -4,7 +4,7 @@ import { authenticate } from "../../shopify.server";
 import prisma from "../../db.server";
 import { logger } from "../../utils/logger.server";
 import { SSE_SECURITY_HEADERS, addSecurityHeadersToHeaders } from "../../utils/security-headers";
-import { getRedisClient } from "../../utils/redis-client";
+import { getRedisClient } from "../../utils/redis-client.server";
 import { acquireSseSlot, releaseSseSlot } from "../../utils/sse-concurrency.server";
 import { randomBytes } from "crypto";
 

@@ -9,7 +9,7 @@ import { logger } from "../utils/logger.server";
 import { ensureAppError } from "../utils/errors";
 
 export { withCors, withPixelCors } from "./cors";
-export { withRateLimit, standardRateLimit, strictRateLimit, webhookRateLimit } from "./rate-limit";
+export { withRateLimit, standardRateLimit, strictRateLimit, webhookRateLimit } from "./rate-limit.server";
 export { withValidation } from "./validation";
 export { createContext } from "./types";
 
