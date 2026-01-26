@@ -126,7 +126,7 @@ export function createPublicActionHandler<TInput = unknown, TOutput = unknown>(
         const body = await parseRequestBody(request);
         const validationResult = config.validate(body);
         if (!validationResult.ok) {
-          return handlePublicError(validationResult.error, config.onError);
+          return addSecurityHeaders(handlePublicError(validationResult.error, config.onError));
         }
         input = validationResult.value;
       } else {
@@ -134,12 +134,12 @@ export function createPublicActionHandler<TInput = unknown, TOutput = unknown>(
       }
       const result = await config.execute(input, request);
       if (!result.ok) {
-        return handlePublicError(result.error, config.onError);
+        return addSecurityHeaders(handlePublicError(result.error, config.onError));
       }
-      return json({ success: true, data: result.value });
+      return addSecurityHeaders(json({ success: true, data: result.value }));
     } catch (error) {
       const appError = ensureAppError(error);
-      return handlePublicError(appError, config.onError);
+      return addSecurityHeaders(handlePublicError(appError, config.onError));
     }
   };
 }

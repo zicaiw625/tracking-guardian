@@ -247,4 +247,49 @@ describe("validatePixelOriginForShop", () => {
       expect(r.shouldReject).toBe(true);
     });
   });
+
+  describe("referer fallback", () => {
+    it("should use referer when origin is null and referer is provided", () => {
+      const r = validatePixelOriginForShop("null", allowed, {
+        referer: "https://test.myshopify.com/page",
+        hasSignatureHeaderOrHMAC: false,
+      });
+      expect(r.valid).toBe(true);
+      expect(r.reason).toBe("exact_match");
+      expect(r.matched).toBe("test.myshopify.com");
+      expect(r.shouldReject).toBe(false);
+    });
+
+    it("should use referer when origin is missing and referer is provided", () => {
+      const r = validatePixelOriginForShop(null, allowed, {
+        referer: "https://shop.example.com/product",
+        hasSignatureHeaderOrHMAC: false,
+      });
+      expect(r.valid).toBe(true);
+      expect(r.reason).toBe("exact_match");
+      expect(r.matched).toBe("shop.example.com");
+      expect(r.shouldReject).toBe(false);
+    });
+
+    it("should reject when referer origin is not in allowlist", () => {
+      const r = validatePixelOriginForShop("null", allowed, {
+        referer: "https://evil.com/page",
+        hasSignatureHeaderOrHMAC: false,
+      });
+      expect(r.valid).toBe(false);
+      expect(r.reason).toMatch(/^origin_not_allowlisted:/);
+      expect(r.shouldReject).toBe(true);
+    });
+
+    it("should prefer origin header over referer when both are present", () => {
+      const r = validatePixelOriginForShop("https://test.myshopify.com", allowed, {
+        referer: "https://evil.com/page",
+        hasSignatureHeaderOrHMAC: false,
+      });
+      expect(r.valid).toBe(true);
+      expect(r.reason).toBe("exact_match");
+      expect(r.matched).toBe("test.myshopify.com");
+      expect(r.shouldReject).toBe(false);
+    });
+  });
 });

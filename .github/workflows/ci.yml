@@ -85,6 +85,8 @@ jobs:
         env:
           SHOPIFY_APP_URL: ${{ secrets.SHOPIFY_APP_URL || 'https://app.tracking-guardian.com' }}
         continue-on-error: false
+      - run: pnpm typecheck
+      - run: pnpm build
 
   validate-extensions:
     runs-on: ubuntu-latest

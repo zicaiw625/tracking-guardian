@@ -15,26 +15,29 @@ export function createEncryptedSessionStorage(baseStorage: SessionStorage): Sess
     }
     return {
         async storeSession(session: Session): Promise<boolean> {
-            const originalToken = session.accessToken;
-            if (session.accessToken) {
-                session.accessToken = encryptAccessToken(session.accessToken);
+            const sessionWithRefreshToken = session as Session & { refreshToken?: string };
+            const cloned = cloneSession(session);
+            const clonedWithRefreshToken = cloned as Session & { refreshToken?: string };
+            if (cloned.accessToken) {
+                clonedWithRefreshToken.accessToken = encryptAccessToken(cloned.accessToken);
             }
-            try {
-                return await baseStorage.storeSession(session);
+            if (sessionWithRefreshToken.refreshToken) {
+                clonedWithRefreshToken.refreshToken = encryptAccessToken(sessionWithRefreshToken.refreshToken);
             }
-            finally {
-                session.accessToken = originalToken;
-            }
+            return await baseStorage.storeSession(cloned);
         },
         async loadSession(id: string): Promise<Session | undefined> {
             const session = await baseStorage.loadSession(id);
             if (!session) {
                 return undefined;
             }
+            const sessionWithRefreshToken = session as Session & { refreshToken?: string };
+            const override: Partial<Session & { refreshToken?: string }> = {};
+            let hasToken = false;
             if (session.accessToken) {
+                hasToken = true;
                 try {
-                    const decryptedAccessToken = decryptAccessToken(session.accessToken);
-                    return cloneSession(session, { accessToken: decryptedAccessToken });
+                    override.accessToken = decryptAccessToken(session.accessToken);
                 }
                 catch (error) {
                     if (error instanceof TokenDecryptionError) {
@@ -45,6 +48,24 @@ export function createEncryptedSessionStorage(baseStorage: SessionStorage): Sess
                     }
                     throw error;
                 }
+            }
+            if (sessionWithRefreshToken.refreshToken) {
+                hasToken = true;
+                try {
+                    override.refreshToken = decryptAccessToken(sessionWithRefreshToken.refreshToken);
+                }
+                catch (error) {
+                    if (error instanceof TokenDecryptionError) {
+                        logger.error(`[EncryptedSessionStorage] Failed to decrypt refreshToken for session ${id}. ` +
+                            "Clearing session to force re-authentication.");
+                        await baseStorage.deleteSession(id);
+                        return undefined;
+                    }
+                    throw error;
+                }
+            }
+            if (hasToken) {
+                return cloneSession(session, override);
             }
             return cloneSession(session);
         },
@@ -58,24 +79,52 @@ export function createEncryptedSessionStorage(baseStorage: SessionStorage): Sess
             const sessions = await baseStorage.findSessionsByShop(shop);
             const decryptedSessions: Session[] = [];
             for (const session of sessions) {
+                const sessionWithRefreshToken = session as Session & { refreshToken?: string };
+                const override: Partial<Session & { refreshToken?: string }> = {};
+                let hasToken = false;
+                let shouldSkip = false;
                 if (session.accessToken) {
+                    hasToken = true;
                     try {
-                        const decryptedAccessToken = decryptAccessToken(session.accessToken);
-                        decryptedSessions.push(cloneSession(session, { accessToken: decryptedAccessToken }));
+                        override.accessToken = decryptAccessToken(session.accessToken);
                     }
                     catch (error) {
                         if (error instanceof TokenDecryptionError) {
-                            logger.warn(`[EncryptedSessionStorage] Skipping session with undecryptable token for shop ${shop}`);
+                            logger.warn(`[EncryptedSessionStorage] Skipping session with undecryptable accessToken for shop ${shop}`);
                             const sid = (session as { id?: string }).id;
                             if (typeof sid === "string") {
                                 await baseStorage.deleteSession(sid);
                             }
-                            continue;
+                            shouldSkip = true;
+                        } else {
+                            throw error;
                         }
-                        throw error;
                     }
                 }
-                else {
+                if (!shouldSkip && sessionWithRefreshToken.refreshToken) {
+                    hasToken = true;
+                    try {
+                        override.refreshToken = decryptAccessToken(sessionWithRefreshToken.refreshToken);
+                    }
+                    catch (error) {
+                        if (error instanceof TokenDecryptionError) {
+                            logger.warn(`[EncryptedSessionStorage] Skipping session with undecryptable refreshToken for shop ${shop}`);
+                            const sid = (session as { id?: string }).id;
+                            if (typeof sid === "string") {
+                                await baseStorage.deleteSession(sid);
+                            }
+                            shouldSkip = true;
+                        } else {
+                            throw error;
+                        }
+                    }
+                }
+                if (shouldSkip) {
+                    continue;
+                }
+                if (hasToken) {
+                    decryptedSessions.push(cloneSession(session, override));
+                } else {
                     decryptedSessions.push(cloneSession(session));
                 }
             }
@@ -85,8 +134,8 @@ export function createEncryptedSessionStorage(baseStorage: SessionStorage): Sess
 }
 export async function migrateSessionTokensToEncrypted(prisma: {
     session: {
-        findMany: (args?: { select?: { id?: boolean; accessToken?: boolean } }) => Promise<Array<{ id: string; accessToken: string | null }>>;
-        update: (args: { where: { id: string }; data: { accessToken: string } }) => Promise<unknown>;
+        findMany: (args?: { select?: { id?: boolean; accessToken?: boolean; refreshToken?: boolean } }) => Promise<Array<{ id: string; accessToken: string | null; refreshToken: string | null }>>;
+        update: (args: { where: { id: string }; data: { accessToken?: string; refreshToken?: string } }) => Promise<unknown>;
     };
 }): Promise<{
     migrated: number;
@@ -97,22 +146,26 @@ export async function migrateSessionTokensToEncrypted(prisma: {
     let skipped = 0;
     let errors = 0;
     const sessions = await prisma.session.findMany({
-        select: { id: true, accessToken: true },
+        select: { id: true, accessToken: true, refreshToken: true },
     });
     for (const session of sessions) {
-        if (!session.accessToken) {
-            skipped++;
-            continue;
-        }
-        if (isTokenEncrypted(session.accessToken)) {
+        const needsAccessTokenMigration = session.accessToken && !isTokenEncrypted(session.accessToken);
+        const needsRefreshTokenMigration = session.refreshToken && !isTokenEncrypted(session.refreshToken);
+        if (!needsAccessTokenMigration && !needsRefreshTokenMigration) {
             skipped++;
             continue;
         }
         try {
-            const encryptedToken = encryptAccessToken(session.accessToken);
+            const updateData: { accessToken?: string; refreshToken?: string } = {};
+            if (needsAccessTokenMigration) {
+                updateData.accessToken = encryptAccessToken(session.accessToken!);
+            }
+            if (needsRefreshTokenMigration) {
+                updateData.refreshToken = encryptAccessToken(session.refreshToken!);
+            }
             await prisma.session.update({
                 where: { id: session.id },
-                data: { accessToken: encryptedToken },
+                data: updateData,
             });
             migrated++;
         }

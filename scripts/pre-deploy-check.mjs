@@ -414,6 +414,52 @@ function checkAllowlistConfiguration() {
     }
 }
 
+function checkPixelNullOriginConfig() {
+    const renderYamlPath = path.join(__dirname, "..", "render.yaml");
+    if (!fs.existsSync(renderYamlPath)) {
+        return {
+            name: "PIXEL_ALLOW_NULL_ORIGIN 配置检查",
+            passed: false,
+            message: "render.yaml 文件不存在，无法验证 PIXEL_ALLOW_NULL_ORIGIN_WITH_SIGNATURE_ONLY 配置",
+            isHardError: false,
+        };
+    }
+    try {
+        const content = fs.readFileSync(renderYamlPath, "utf-8");
+        const keyIdx = content.search(/key:\s*PIXEL_ALLOW_NULL_ORIGIN_WITH_SIGNATURE_ONLY\b/);
+        if (keyIdx === -1) {
+            return {
+                name: "PIXEL_ALLOW_NULL_ORIGIN 配置检查",
+                passed: false,
+                message: "render.yaml 中未找到 PIXEL_ALLOW_NULL_ORIGIN_WITH_SIGNATURE_ONLY 配置。生产环境必须显式设置此变量（true/false）。某些 Shopify Web Worker 沙箱环境可能出现 Origin: null；若需要接收此类事件，建议设置为 true",
+                isHardError: false,
+            };
+        }
+        const afterKey = content.slice(keyIdx);
+        const hasTrue = /value:\s*("true"|'true'|true)(?:\s|$|#)/m.test(afterKey);
+        if (hasTrue) {
+            return {
+                name: "PIXEL_ALLOW_NULL_ORIGIN 配置检查",
+                passed: true,
+                message: "render.yaml 中 web service 已配置 PIXEL_ALLOW_NULL_ORIGIN_WITH_SIGNATURE_ONLY=true",
+            };
+        }
+        return {
+            name: "PIXEL_ALLOW_NULL_ORIGIN 配置检查",
+            passed: false,
+            message: "render.yaml 中 PIXEL_ALLOW_NULL_ORIGIN_WITH_SIGNATURE_ONLY 未设置为 true。生产环境若需接收 Origin: null 事件，应设置为 true",
+            isHardError: false,
+        };
+    } catch (error) {
+        return {
+            name: "PIXEL_ALLOW_NULL_ORIGIN 配置检查",
+            passed: false,
+            message: `读取 render.yaml 失败: ${error instanceof Error ? error.message : String(error)}`,
+            isHardError: false,
+        };
+    }
+}
+
 loadEnv();
 
 if (!process.env.SHOPIFY_APP_URL) process.env.SHOPIFY_APP_URL = 'https://app.tracking-guardian.com';
@@ -425,6 +471,7 @@ results.push(checkBackendUrlInjection());
 results.push(checkNetworkAccessPermission());
 results.push(checkExtensionUrlInjected());
 results.push(checkAllowlistConfiguration());
+results.push(checkPixelNullOriginConfig());
 
 console.log("\n🔍 部署前检查结果\n");
 console.log("=".repeat(60));
