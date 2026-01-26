@@ -13,7 +13,7 @@ export const WEBHOOK_CSP_DIRECTIVES: Record<string, string[]> = {
   "frame-ancestors": ["'none'"],
 };
 
-export const CSP_DIRECTIVES: Record<string, string[]> = {
+export const NON_EMBEDDED_PAGE_CSP_DIRECTIVES: Record<string, string[]> = {
   "default-src": ["'self'"],
   "script-src": ["'self'", "https://cdn.shopify.com"],
   "style-src": ["'self'", "'unsafe-inline'", "https://cdn.shopify.com"],
@@ -32,7 +32,7 @@ export const CSP_DIRECTIVES: Record<string, string[]> = {
 };
 
 export function buildCspHeader(
-  directives: Record<string, string[]> = CSP_DIRECTIVES
+  directives: Record<string, string[]> = NON_EMBEDDED_PAGE_CSP_DIRECTIVES
 ): string {
   return Object.entries(directives)
     .map(([directive, sources]) => {
@@ -177,13 +177,13 @@ export function validateSecurityHeaders(): {
   if (PUBLIC_PAGE_HEADERS["X-Robots-Tag"] !== "noindex") {
     issues.push("PUBLIC_PAGE_HEADERS should set X-Robots-Tag: noindex");
   }
-  const frameAncestors = CSP_DIRECTIVES["frame-ancestors"];
+  const frameAncestors = NON_EMBEDDED_PAGE_CSP_DIRECTIVES["frame-ancestors"];
   if (!frameAncestors || !Array.isArray(frameAncestors)) {
-    issues.push("CSP_DIRECTIVES.frame-ancestors must be an array");
+    issues.push("NON_EMBEDDED_PAGE_CSP_DIRECTIVES.frame-ancestors must be an array");
   } else {
     const hasAdminShopify = frameAncestors.includes("https://admin.shopify.com");
     if (!hasAdminShopify) {
-      issues.push("CSP_DIRECTIVES.frame-ancestors must include https://admin.shopify.com for embedded app compatibility");
+      issues.push("NON_EMBEDDED_PAGE_CSP_DIRECTIVES.frame-ancestors must include https://admin.shopify.com for embedded app compatibility");
     }
   }
   return {

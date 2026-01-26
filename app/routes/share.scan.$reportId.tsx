@@ -1,8 +1,6 @@
 import type { LoaderFunctionArgs } from "@remix-run/node";
 import { json, redirect } from "@remix-run/node";
 import { useLoaderData } from "@remix-run/react";
-import { createHash } from "crypto";
-import prisma from "../db.server";
 import { logger } from "../utils/logger.server";
 import {
   Page,
@@ -17,11 +15,8 @@ import {
   Layout,
 } from "@shopify/polaris";
 import type { RiskItem } from "../types";
-import { validateRiskItemsArray, validateStringArray } from "../utils/scan-data-validation";
 import { PUBLIC_PAGE_HEADERS, addSecurityHeadersToHeaders } from "../utils/security-headers";
 import { checkRateLimitAsync, ipKeyExtractor } from "../middleware/rate-limit.server";
-import { timingSafeEqualHex } from "../utils/timing-safe.server";
-import { isMissingColumnError } from "../utils/prisma-errors.server";
 
 const publicJson = (data: unknown, init: ResponseInit = {}) => {
   const headers = new Headers(init.headers);
@@ -68,80 +63,13 @@ export const loader = async ({ request, params }: LoaderFunctionArgs) => {
     if (!token) {
       return publicJson({ error: "Missing share token", report: null }, { status: 403 });
     }
-
-    const scanReport = await prisma.scanReport.findUnique({
-      where: { id: reportId },
-      select: {
-        id: true,
-        shopId: true,
-        shareTokenHash: true,
-        shareTokenExpiresAt: true,
-        riskScore: true,
-        riskItems: true,
-        identifiedPlatforms: true,
-        scriptTags: true,
-        checkoutConfig: true,
-        status: true,
-        createdAt: true,
-        completedAt: true,
-      },
-    });
-
-    if (!scanReport) {
-      return publicJson({ error: "Report not found", report: null }, { status: 404 });
-    }
-
-    if (!scanReport.shareTokenHash) {
-      return publicJson({ error: "Share link not available", report: null }, { status: 403 });
-    }
-
-    const shop = await prisma.shop.findUnique({
-      where: { id: scanReport.shopId },
-      select: { shopDomain: true },
-    });
-
-    if (!shop) {
-      return publicJson({ error: "Shop not found", report: null }, { status: 404 });
-    }
-
-    const expectedTokenHash = createHash("sha256")
-      .update(`${scanReport.id}-${scanReport.shopId}-${token}`)
-      .digest("hex");
-
-    if (!timingSafeEqualHex(expectedTokenHash, scanReport.shareTokenHash)) {
-      return publicJson({ error: "Invalid share token", report: null }, { status: 403 });
-    }
-
-    if (scanReport.shareTokenExpiresAt && new Date() > scanReport.shareTokenExpiresAt) {
-      return publicJson({ error: "Share link has expired", report: null }, { status: 403 });
-    }
-
-    const riskItems = validateRiskItemsArray(scanReport.riskItems);
-    const identifiedPlatforms = validateStringArray(scanReport.identifiedPlatforms);
-
-    return publicJson({
-      report: {
-        id: scanReport.id,
-        shopDomain: shop.shopDomain,
-        riskScore: scanReport.riskScore || 0,
-        riskItems,
-        identifiedPlatforms,
-        status: scanReport.status,
-        createdAt: scanReport.createdAt.toISOString(),
-        completedAt: scanReport.completedAt?.toISOString() || null,
-        expiresAt: scanReport.shareTokenExpiresAt?.toISOString() ?? null,
-      },
-    });
   } catch (error) {
-    if (isMissingColumnError(error, "ScanReport", "shareTokenHash")) {
-      return publicJson({ error: "Share link not available", report: null }, { status: 404 });
-    }
-    logger.error("Failed to load shared scan report", {
+    logger.error("Failed to process share scan redirect", {
       error,
       reportId: params.reportId,
     });
     return publicJson(
-      { error: error instanceof Error ? error.message : "Failed to load report", report: null },
+      { error: error instanceof Error ? error.message : "Failed to process request", report: null },
       { status: 500 }
     );
   }

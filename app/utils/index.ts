@@ -29,7 +29,7 @@ export {
   addSecurityHeadersToHeaders,
   getProductionSecurityHeaders,
   validateSecurityHeaders,
-  CSP_DIRECTIVES,
+  NON_EMBEDDED_PAGE_CSP_DIRECTIVES,
   EMBEDDED_APP_HEADERS,
   API_SECURITY_HEADERS,
   WEBHOOK_SECURITY_HEADERS,

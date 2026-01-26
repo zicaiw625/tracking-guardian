@@ -1,3 +1,4 @@
+import { json } from "@remix-run/node";
 import { authenticate } from "../shopify.server";
 import { logger } from "./logger.server";
 import { API_SECURITY_HEADERS, addSecurityHeadersToHeaders } from "./security-headers";
@@ -140,5 +141,35 @@ export function addSecurityHeaders(response: Response): Response {
     status: response.status,
     statusText: response.statusText,
     headers,
+  });
+}
+
+export function publicJsonWithAuthCors<T>(
+  request: Request,
+  authResult: PublicAuthResult,
+  data: T,
+  init?: ResponseInit & { customCorsHeaders?: string[] }
+): Response {
+  const corsHeaders = init?.customCorsHeaders || ["Authorization"];
+  const corsResponse = authResult.cors(new Response(JSON.stringify(data), {
+    status: init?.status || 200,
+    statusText: init?.statusText,
+    headers: {
+      "Content-Type": "application/json",
+      ...init?.headers,
+    },
+  }));
+  const mergedHeaders = new Headers(corsResponse.headers);
+  const dynamicCors = getDynamicCorsHeaders(request, corsHeaders);
+  Object.entries(dynamicCors).forEach(([key, value]) => {
+    if (value && !mergedHeaders.has(key)) {
+      mergedHeaders.set(key, value);
+    }
+  });
+  addSecurityHeadersToHeaders(mergedHeaders, API_SECURITY_HEADERS);
+  return new Response(corsResponse.body, {
+    status: corsResponse.status,
+    statusText: corsResponse.statusText,
+    headers: mergedHeaders,
   });
 }

@@ -1,8 +1,6 @@
 import type { LoaderFunctionArgs } from "@remix-run/node";
 import { json, redirect } from "@remix-run/node";
 import { useLoaderData } from "@remix-run/react";
-import { createHash } from "crypto";
-import prisma from "../db.server";
 import { logger } from "../utils/logger.server";
 import {
   Page,
@@ -18,10 +16,8 @@ import {
   ProgressBar,
   List,
 } from "@shopify/polaris";
-import { generateVerificationReportData } from "../services/verification-report.server";
 import { PUBLIC_PAGE_HEADERS, addSecurityHeadersToHeaders } from "../utils/security-headers";
 import { checkRateLimitAsync, ipKeyExtractor } from "../middleware/rate-limit.server";
-import { timingSafeEqualHex } from "../utils/timing-safe.server";
 
 const publicJson = (data: unknown, init: ResponseInit = {}) => {
   const headers = new Headers(init.headers);
@@ -68,94 +64,13 @@ export const loader = async ({ request, params }: LoaderFunctionArgs) => {
     if (!token) {
       return publicJson({ error: "Missing share token", report: null }, { status: 403 });
     }
-
-    const run = await prisma.verificationRun.findUnique({
-      where: { publicId },
-      select: {
-        id: true,
-        shopId: true,
-        publicId: true,
-        publicTokenHash: true,
-        shareTokenExpiresAt: true,
-      },
-    });
-    
-    if (!run) {
-      return publicJson({ error: "Report not found", report: null }, { status: 404 });
-    }
-    
-    if (!run.publicTokenHash) {
-      return publicJson({ error: "Share link not available", report: null }, { status: 403 });
-    }
-    
-    const shop = await prisma.shop.findUnique({
-      where: { id: run.shopId },
-      select: { shopDomain: true },
-    });
-    
-    if (!shop) {
-      return publicJson({ error: "Shop not found", report: null }, { status: 404 });
-    }
-
-    const expectedTokenHash = createHash("sha256")
-      .update(`${run.id}-${run.shopId}-${token}`)
-      .digest("hex");
-
-    if (!timingSafeEqualHex(expectedTokenHash, run.publicTokenHash)) {
-      return publicJson({ error: "Invalid share token", report: null }, { status: 403 });
-    }
-
-    if (run.shareTokenExpiresAt && new Date() > run.shareTokenExpiresAt) {
-      return publicJson({ error: "Share link has expired", report: null }, { status: 403 });
-    }
-
-    const reportData = await generateVerificationReportData(run.shopId, run.id);
-    if (!reportData) {
-      return publicJson({ error: "Failed to load report data", report: null }, { status: 500 });
-    }
-
-    const publicEvents = reportData.events.map((event) => ({
-      testItemId: event.testItemId,
-      eventType: event.eventType,
-      platform: event.platform,
-      status: event.status,
-      params: event.params ? {
-        value: event.params.value,
-        currency: event.params.currency,
-      } : undefined,
-      sandboxLimitations: event.sandboxLimitations,
-    }));
-
-    return publicJson({
-      report: {
-        runId: reportData.runId,
-        runName: reportData.runName,
-        shopDomain: reportData.shopDomain,
-        runType: reportData.runType,
-        status: reportData.status,
-        platforms: reportData.platforms,
-        totalTests: reportData.summary.totalTests,
-        passedTests: reportData.summary.passedTests,
-        failedTests: reportData.summary.failedTests,
-        missingParamTests: reportData.summary.missingParamTests,
-        parameterCompleteness: reportData.summary.parameterCompleteness,
-        valueAccuracy: reportData.summary.valueAccuracy,
-        platformResults: reportData.platformResults || {},
-        startedAt: reportData.startedAt?.toISOString() || null,
-        completedAt: reportData.completedAt?.toISOString() || null,
-        createdAt: reportData.createdAt.toISOString(),
-        events: publicEvents,
-        sandboxLimitations: reportData.sandboxLimitations,
-        expiresAt: run.shareTokenExpiresAt?.toISOString() ?? null,
-      },
-    });
   } catch (error) {
-    logger.error("Failed to load shared verification report", {
+    logger.error("Failed to process share verification redirect", {
       error,
       publicId: params.publicId,
     });
     return publicJson(
-      { error: error instanceof Error ? error.message : "Failed to load report", report: null },
+      { error: error instanceof Error ? error.message : "Failed to process request", report: null },
       { status: 500 }
     );
   }

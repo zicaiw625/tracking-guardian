@@ -52,12 +52,23 @@ vi.mock("../../app/utils/public-auth", () => {
       return null;
     }
   };
+  const publicJsonWithAuthCors = vi.fn((_request: Request, _authResult: unknown, data: unknown, init?: ResponseInit) => {
+    return new Response(JSON.stringify(data), {
+      status: init?.status || 200,
+      statusText: init?.statusText,
+      headers: {
+        "Content-Type": "application/json",
+        ...init?.headers,
+      },
+    });
+  });
   return {
     authenticatePublic,
     normalizeDestToShopDomain,
     tryAuthenticatePublicWithShop,
     handlePublicPreflight: vi.fn().mockResolvedValue(new Response(null, { status: 204 })),
     addSecurityHeaders: (r: Response) => r,
+    publicJsonWithAuthCors,
   };
 });
 
