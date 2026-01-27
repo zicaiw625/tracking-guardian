@@ -57,25 +57,11 @@ export async function checkUiModulesLimit(
   shopId: string,
   shopPlan: PlanId
 ): Promise<PlanLimitResult> {
-  const limit = getUiModulesLimit(shopPlan);
-  if (limit === -1) {
-    return { allowed: true, unlimited: true };
-  }
-  const { getEnabledModulesCount } = await import("../ui-extension.server");
-  const currentCount = await getEnabledModulesCount(shopId);
-  if (currentCount >= limit) {
-    return {
-      allowed: false,
-      reason: `当前套餐最多支持 ${limit} 个 UI 模块，您已启用 ${currentCount} 个。请升级套餐或停用部分模块。`,
-      current: currentCount,
-      limit,
-      unlimited: false,
-    };
-  }
   return {
-    allowed: true,
-    current: currentCount,
-    limit,
+    allowed: false,
+    reason: "UI 模块功能已移除",
+    current: 0,
+    limit: 0,
     unlimited: false,
   };
 }

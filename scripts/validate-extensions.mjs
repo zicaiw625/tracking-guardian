@@ -69,7 +69,6 @@ function isAllowed(line) {
 
 function checkForbiddenAPIs() {
     const violations = [];
-    const extensionsSrcDir = path.join(EXTENSIONS_DIR, "thank-you-blocks", "src");
     const pixelSrcDir = path.join(EXTENSIONS_DIR, "tracking-pixel", "src");
     function scanDirectory(dir) {
         if (!fs.existsSync(dir)) {
@@ -112,7 +111,6 @@ function checkForbiddenAPIs() {
             }
         }
     }
-    scanDirectory(extensionsSrcDir);
     scanDirectory(pixelSrcDir);
     return {
         name: "禁止使用的浏览器 API",
@@ -127,7 +125,6 @@ function checkForbiddenAPIs() {
 function checkExtensionConfigs() {
     const violations = [];
     const configFiles = [
-        path.join(EXTENSIONS_DIR, "thank-you-blocks", "shopify.extension.toml"),
         path.join(EXTENSIONS_DIR, "tracking-pixel", "shopify.extension.toml"),
     ];
     for (const configFile of configFiles) {
@@ -180,7 +177,6 @@ function checkExtensionConfigs() {
 function checkSourceStructure() {
     const violations = [];
     const expectedDirs = [
-        path.join(EXTENSIONS_DIR, "thank-you-blocks", "src"),
         path.join(EXTENSIONS_DIR, "tracking-pixel", "src"),
     ];
     for (const dir of expectedDirs) {
@@ -206,7 +202,6 @@ function checkSourceStructure() {
 function checkBackendUrlInjection() {
     const configFiles = [
         { path: "extensions/shared/config.ts", label: "Shared config", requireBuildTimeUrl: true },
-        { path: "extensions/thank-you-blocks/src/config.ts", label: "Thank-you blocks config", requireBuildTimeUrl: false },
     ];
     const violations = [];
     const placeholderPattern = /__BACKEND_URL_PLACEHOLDER__/;
@@ -282,7 +277,6 @@ function checkBuildArtifactsForPlaceholder() {
     const placeholderPattern = /__BACKEND_URL_PLACEHOLDER__/;
     const artifactDirs = [
         { path: path.join(EXTENSIONS_DIR, "tracking-pixel", "dist"), label: "tracking-pixel" },
-        { path: path.join(EXTENSIONS_DIR, "thank-you-blocks", "dist"), label: "thank-you-blocks" },
     ];
     const violations = [];
     const existingDirs = artifactDirs.filter(dir => fs.existsSync(dir.path));

@@ -76,78 +76,89 @@ function checkBuildExtensionsSyntax() {
 }
 
 function checkExtensionUids() {
-    const filePath = path.join(__dirname, "../extensions/thank-you-blocks/shopify.extension.toml");
-    try {
-        const content = fs.readFileSync(filePath, "utf-8");
-        const uidLines = content.match(/uid\s*=\s*"([^"]+)"/g) || [];
-        const placeholderPattern = /^0{8,}|^[a-f0-9]{8}-0{4}-0{4}-0{4}-0{12,}$/i;
-        const invalidUids = [];
-        for (const line of uidLines) {
-            const match = line.match(/uid\s*=\s*"([^"]+)"/);
-            if (match && match[1]) {
-                const uid = match[1];
-                if (placeholderPattern.test(uid) || uid.includes("PLACEHOLDER") || uid.includes("placeholder")) {
-                    invalidUids.push(uid);
-                }
-            }
+    const extensionsDir = path.join(__dirname, "../extensions");
+    if (!fs.existsSync(extensionsDir)) {
+        return {
+            name: "扩展 UID 检查",
+            passed: true,
+            message: "extensions 目录不存在，跳过 UID 检查",
+        };
+    }
+    
+    const extensionDirs = fs.readdirSync(extensionsDir, { withFileTypes: true })
+        .filter(dirent => dirent.isDirectory())
+        .map(dirent => dirent.name);
+    
+    if (extensionDirs.length === 0) {
+        return {
+            name: "扩展 UID 检查",
+            passed: true,
+            message: "未找到扩展目录，跳过 UID 检查",
+        };
+    }
+    
+    const allIssues = [];
+    for (const extDir of extensionDirs) {
+        const filePath = path.join(extensionsDir, extDir, "shopify.extension.toml");
+        if (!fs.existsSync(filePath)) {
+            continue;
         }
-        const lines = content.split("\n");
-        const activeInvalidUids = [];
-        for (let i = 0; i < lines.length; i++) {
-            const line = lines[i];
-            if (line.includes("uid =") && !line.trim().startsWith("#")) {
-                let isCommented = false;
-                for (let j = i - 1; j >= 0 && j >= i - 30; j--) {
-                    const prevLine = lines[j].trim();
-                    if (prevLine.startsWith("# [[extensions]]") || prevLine.startsWith("#[extensions]")) {
-                        isCommented = true;
-                        break;
+        try {
+            const content = fs.readFileSync(filePath, "utf-8");
+            const uidLines = content.match(/uid\s*=\s*"([^"]+)"/g) || [];
+            const placeholderPattern = /^0{8,}|^[a-f0-9]{8}-0{4}-0{4}-0{4}-0{12,}$/i;
+            const lines = content.split("\n");
+            const activeInvalidUids = [];
+            for (let i = 0; i < lines.length; i++) {
+                const line = lines[i];
+                if (line.includes("uid =") && !line.trim().startsWith("#")) {
+                    let isCommented = false;
+                    for (let j = i - 1; j >= 0 && j >= i - 30; j--) {
+                        const prevLine = lines[j].trim();
+                        if (prevLine.startsWith("# [[extensions]]") || prevLine.startsWith("#[extensions]")) {
+                            isCommented = true;
+                            break;
+                        }
+                        if (prevLine === "[[extensions]]" || prevLine.startsWith("[[extensions]]")) {
+                            break;
+                        }
+                        if (prevLine.startsWith("#") && prevLine.includes("uid")) {
+                            isCommented = true;
+                            break;
+                        }
                     }
-                    if (prevLine === "[[extensions]]" || prevLine.startsWith("[[extensions]]")) {
-                        break;
-                    }
-                    if (prevLine.startsWith("#") && prevLine.includes("uid")) {
-                        isCommented = true;
-                        break;
-                    }
-                }
-                if (!isCommented) {
-                    const match = line.match(/uid\s*=\s*"([^"]+)"/);
-                    if (match && match[1]) {
-                        const uid = match[1];
-                        if (placeholderPattern.test(uid) || uid.includes("PLACEHOLDER") || uid.includes("placeholder")) {
-                            activeInvalidUids.push(uid);
+                    if (!isCommented) {
+                        const match = line.match(/uid\s*=\s*"([^"]+)"/);
+                        if (match && match[1]) {
+                            const uid = match[1];
+                            if (placeholderPattern.test(uid) || uid.includes("PLACEHOLDER") || uid.includes("placeholder")) {
+                                activeInvalidUids.push(`${extDir}: ${uid}`);
+                            }
                         }
                     }
                 }
             }
+            if (activeInvalidUids.length > 0) {
+                allIssues.push(...activeInvalidUids);
+            }
+        } catch (error) {
+            allIssues.push(`${extDir}: 读取文件失败 - ${error instanceof Error ? error.message : String(error)}`);
         }
-        if (activeInvalidUids.length > 0) {
-            return {
-                name: "扩展 UID 检查",
-                passed: false,
-                message: `发现 ${activeInvalidUids.length} 个未注释的占位符 UID: ${activeInvalidUids.slice(0, 3).join(", ")}`,
-            };
-        }
-        if (invalidUids.length > 0 && activeInvalidUids.length === 0) {
-            return {
-                name: "扩展 UID 检查",
-                passed: true,
-                message: `所有启用的扩展都有有效的 UID（发现 ${invalidUids.length} 个已注释的占位符，不影响部署）`,
-            };
-        }
-        return {
-            name: "扩展 UID 检查",
-            passed: true,
-            message: `所有启用的扩展都有有效的 UID（共 ${uidLines.length} 个）`,
-        };
-    } catch (error) {
+    }
+    
+    if (allIssues.length > 0) {
         return {
             name: "扩展 UID 检查",
             passed: false,
-            message: `读取文件失败: ${error instanceof Error ? error.message : String(error)}`,
+            message: `发现 ${allIssues.length} 个未注释的占位符 UID: ${allIssues.slice(0, 3).join(", ")}`,
         };
     }
+    
+    return {
+        name: "扩展 UID 检查",
+        passed: true,
+        message: `所有启用的扩展都有有效的 UID（检查了 ${extensionDirs.length} 个扩展目录）`,
+    };
 }
 
 function checkDuplicateImports() {
@@ -204,11 +215,9 @@ function checkDuplicateImports() {
 function checkBackendUrlInjection() {
     const configFiles = [
         { path: "extensions/shared/config.ts", requirePlaceholder: true },
-        { path: "extensions/thank-you-blocks/src/config.ts", requirePlaceholder: false },
     ];
     const missingFiles = [];
     const missingPlaceholder = [];
-    const sharedConfigImportPattern = /import\s+.*\bBACKEND_URL\b.*from\s+["']\.\.\/\.\.\/shared\/config["']/;
     for (const configFile of configFiles) {
         const filePath = path.join(__dirname, "..", configFile.path);
         if (!fs.existsSync(filePath)) {
@@ -220,10 +229,6 @@ function checkBackendUrlInjection() {
             if (!content.includes("__BACKEND_URL_PLACEHOLDER__")) {
                 missingPlaceholder.push(configFile.path);
             }
-        } else {
-            if (!sharedConfigImportPattern.test(content)) {
-                missingPlaceholder.push(`${configFile.path}: 未找到从 shared/config 导入 BACKEND_URL 的语句`);
-            }
         }
     }
     const buildScriptPath = path.join(__dirname, "build-extensions.mjs");
@@ -234,9 +239,6 @@ function checkBackendUrlInjection() {
     }
     if (missingPlaceholder.length > 0) {
         issues.push(`配置文件问题: ${missingPlaceholder.join(", ")}`);
-    }
-    if (!buildScriptContent.includes("THANK_YOU_CONFIG_FILE")) {
-        issues.push("build-extensions.mjs 未处理 thank-you-blocks 配置文件");
     }
     if (!buildScriptContent.includes("SHARED_CONFIG_FILE")) {
         issues.push("build-extensions.mjs 未处理 shared 配置文件");
@@ -256,62 +258,68 @@ function checkBackendUrlInjection() {
 }
 
 function checkNetworkAccessPermission() {
-    const extensionConfigPath = path.join(__dirname, "..", "extensions/thank-you-blocks/shopify.extension.toml");
-    try {
-        if (!fs.existsSync(extensionConfigPath)) {
-            return {
-                name: "Network Access 权限检查",
-                passed: false,
-                message: "扩展配置文件不存在",
-                isHardError: true,
-            };
-        }
-        const content = fs.readFileSync(extensionConfigPath, "utf-8");
-        const hasNetworkAccess = content.includes("network_access = true") || 
-                                 content.includes("network_access=true") ||
-                                 /network_access\s*=\s*true/.test(content);
-        const hasCapabilitiesSection = content.includes("[extensions.capabilities]") ||
-                                      content.includes("[[extensions.capabilities]]");
-        if (!hasNetworkAccess) {
-            return {
-                name: "Network Access 权限检查",
-                passed: false,
-                message: "扩展配置中缺少 network_access = true，前台 block 无法调用后端 API。请在 shopify.extension.toml 中添加 [extensions.capabilities] 和 network_access = true，并在 Partner Dashboard 中批准该权限",
-                isHardError: true,
-            };
-        }
-        if (!hasCapabilitiesSection) {
-            return {
-                name: "Network Access 权限检查",
-                passed: true,
-                message: "network_access 已配置，但建议添加 [extensions.capabilities] 部分以便 Shopify 识别。⚠️ 重要：必须在 Partner Dashboard → App → API access → UI extensions network access 中批准该权限，否则部署会失败或模块无法正常工作。请确认权限状态为 'Approved' 或 '已批准'，如果显示为 'Pending' 或 '未批准'，请等待审核完成后再部署。这是发布前必须验证的关键配置。",
-            };
-        }
+    const extensionsDir = path.join(__dirname, "..", "extensions");
+    if (!fs.existsSync(extensionsDir)) {
         return {
             name: "Network Access 权限检查",
             passed: true,
-            message: "network_access = true 已正确配置。⚠️ 重要：必须在 Partner Dashboard → App → API access → UI extensions network access 中批准该权限，否则部署会失败或模块无法正常工作。请确认权限状态为 'Approved' 或 '已批准'，如果显示为 'Pending' 或 '未批准'，请等待审核完成后再部署。这是发布前必须验证的关键配置。请务必在发布前完成此检查，否则部署会失败。⚠️ 发布前必须检查：前往 Partner Dashboard → 您的应用 → API access → UI extensions network access，确认权限状态为 'Approved' 或 '已批准'。如果未批准，请点击 'Request' 或 '请求' 按钮申请权限，等待 Shopify 审核批准（通常需要 1-3 个工作日）。发布前必须确认权限已批准，否则部署会失败。",
-            isHardError: false,
-        };
-    } catch (error) {
-        return {
-            name: "Network Access 权限检查",
-            passed: false,
-            message: `读取扩展配置文件失败: ${error instanceof Error ? error.message : String(error)}`,
-            isHardError: true,
+            message: "extensions 目录不存在，跳过 Network Access 检查",
         };
     }
+    
+    const extensionDirs = fs.readdirSync(extensionsDir, { withFileTypes: true })
+        .filter(dirent => dirent.isDirectory())
+        .map(dirent => dirent.name);
+    
+    if (extensionDirs.length === 0) {
+        return {
+            name: "Network Access 权限检查",
+            passed: true,
+            message: "未找到扩展目录，跳过 Network Access 检查",
+        };
+    }
+    
+    const extensionsWithNetworkAccess = [];
+    for (const extDir of extensionDirs) {
+        const extensionConfigPath = path.join(extensionsDir, extDir, "shopify.extension.toml");
+        if (!fs.existsSync(extensionConfigPath)) {
+            continue;
+        }
+        try {
+            const content = fs.readFileSync(extensionConfigPath, "utf-8");
+            const hasNetworkAccess = content.includes("network_access = true") || 
+                                     content.includes("network_access=true") ||
+                                     /network_access\s*=\s*true/.test(content);
+            if (hasNetworkAccess) {
+                extensionsWithNetworkAccess.push(extDir);
+            }
+        } catch (error) {
+            continue;
+        }
+    }
+    
+    if (extensionsWithNetworkAccess.length === 0) {
+        return {
+            name: "Network Access 权限检查",
+            passed: true,
+            message: "未发现需要 network_access 的扩展",
+        };
+    }
+    
+    return {
+        name: "Network Access 权限检查",
+        passed: true,
+        message: `发现 ${extensionsWithNetworkAccess.length} 个扩展配置了 network_access: ${extensionsWithNetworkAccess.join(", ")}。⚠️ 重要：必须在 Partner Dashboard → App → API access → UI extensions network access 中批准该权限，否则部署会失败或模块无法正常工作。`,
+    };
 }
 
 function checkExtensionUrlInjected() {
     const configFiles = [
         { path: "extensions/shared/config.ts", label: "Shared config", requireBuildTimeUrl: true },
-        { path: "extensions/thank-you-blocks/src/config.ts", label: "Thank-you blocks config", requireBuildTimeUrl: false },
     ];
     const issues = [];
     const placeholderPattern = /__BACKEND_URL_PLACEHOLDER__/;
     const buildTimeUrlPattern = /const\s+BUILD_TIME_URL\s*=\s*(["'])([^"']+)\1;/;
-    const sharedConfigImportPattern = /import\s+.*\bBACKEND_URL\b.*from\s+["']\.\.\/\.\.\/shared\/config["']/;
     const isCI = process.env.CI === "true" || process.env.GITHUB_ACTIONS === "true" || process.env.RENDER === "true";
     
     for (const configFile of configFiles) {
@@ -340,10 +348,6 @@ function checkExtensionUrlInjected() {
                 } else {
                     issues.push(`${configFile.label}: URL 指向 localhost，生产环境将无法工作`);
                 }
-            }
-        } else {
-            if (!sharedConfigImportPattern.test(content)) {
-                issues.push(`${configFile.label}: 未找到从 shared/config 导入 BACKEND_URL 的语句`);
             }
         }
     }

@@ -31,10 +31,6 @@ function validateBuildExtensionsScript() {
             result.passed = false;
             result.errors.push(`build-extensions.mjs 中括号不匹配: 开括号 ${openParens}, 闭括号 ${closeParens}`);
         }
-        if (!content.includes("THANK_YOU_CONFIG_FILE")) {
-            result.passed = false;
-            result.errors.push("build-extensions.mjs 中缺少对 thank-you-blocks 配置文件的处理");
-        }
         if (!content.includes("SHARED_CONFIG_FILE")) {
             result.passed = false;
             result.errors.push("build-extensions.mjs 中缺少对 shared 配置文件的处理");
@@ -48,7 +44,7 @@ function validateBuildExtensionsScript() {
 
 function validateExtensionToml() {
     const result = { passed: true, errors: [], warnings: [] };
-    const tomlPath = path.join(ROOT_DIR, "extensions/thank-you-blocks/shopify.extension.toml");
+    const tomlPath = path.join(ROOT_DIR, "extensions/tracking-pixel/shopify.extension.toml");
     try {
         if (!fs.existsSync(tomlPath)) {
             result.passed = false;
@@ -149,7 +145,6 @@ function validateBackendUrlInjection() {
     const result = { passed: true, errors: [], warnings: [] };
     const configFiles = [
         "extensions/shared/config.ts",
-        "extensions/thank-you-blocks/src/config.ts",
     ];
 
     for (const configFile of configFiles) {
@@ -177,33 +172,53 @@ function validateBackendUrlInjection() {
 
 function validateNetworkAccessPermission() {
     const result = { passed: true, errors: [], warnings: [] };
-    const extensionConfigPath = path.join(ROOT_DIR, "extensions/thank-you-blocks/shopify.extension.toml");
+    const extensionsDir = path.join(ROOT_DIR, "extensions");
     try {
-        if (!fs.existsSync(extensionConfigPath)) {
-            result.passed = false;
-            result.errors.push("扩展配置文件不存在");
+        if (!fs.existsSync(extensionsDir)) {
+            result.passed = true;
+            result.warnings.push("extensions 目录不存在，跳过 Network Access 检查");
             return result;
         }
-        const content = fs.readFileSync(extensionConfigPath, "utf-8");
-        const hasNetworkAccess = content.includes("network_access = true") || 
-                                 content.includes("network_access=true") ||
-                                 /network_access\s*=\s*true/.test(content);
-        const hasCapabilitiesSection = content.includes("[extensions.capabilities]") ||
-                                      content.includes("[[extensions.capabilities]]");
-        if (!hasNetworkAccess) {
-            result.passed = false;
-            result.errors.push("扩展配置中缺少 network_access = true，前台 block 无法调用后端 API。请在 shopify.extension.toml 中添加 [extensions.capabilities] 和 network_access = true，并在 Partner Dashboard 中批准该权限");
+        const extensionDirs = fs.readdirSync(extensionsDir, { withFileTypes: true })
+            .filter(dirent => dirent.isDirectory())
+            .map(dirent => dirent.name);
+        
+        if (extensionDirs.length === 0) {
+            result.passed = true;
+            result.warnings.push("未找到扩展目录，跳过 Network Access 检查");
+            return result;
         }
-        if (!hasCapabilitiesSection) {
-            result.warnings.push("network_access 已配置，但建议添加 [extensions.capabilities] 部分以便 Shopify 识别。⚠️ 重要：必须在 Partner Dashboard → App → API access → UI extensions network access 中批准该权限，否则部署会失败或模块无法正常工作。请确认权限状态为 'Approved' 或 '已批准'，如果显示为 'Pending' 或 '未批准'，请等待审核完成后再部署。这是发布前必须验证的关键配置。");
+        
+        const extensionsWithNetworkAccess = [];
+        for (const extDir of extensionDirs) {
+            const extensionConfigPath = path.join(extensionsDir, extDir, "shopify.extension.toml");
+            if (!fs.existsSync(extensionConfigPath)) {
+                continue;
+            }
+            try {
+                const content = fs.readFileSync(extensionConfigPath, "utf-8");
+                const hasNetworkAccess = content.includes("network_access = true") || 
+                                         content.includes("network_access=true") ||
+                                         /network_access\s*=\s*true/.test(content);
+                if (hasNetworkAccess) {
+                    extensionsWithNetworkAccess.push(extDir);
+                }
+            } catch (error) {
+                continue;
+            }
         }
-        if (hasNetworkAccess && hasCapabilitiesSection) {
-            result.warnings.push("network_access = true 已正确配置。⚠️ 重要：必须在 Partner Dashboard → App → API access → UI extensions network access 中批准该权限，否则部署会失败或模块无法正常工作。请确认权限状态为 'Approved' 或 '已批准'，如果显示为 'Pending' 或 '未批准'，请等待审核完成后再部署。这是发布前必须验证的关键配置。请务必在发布前完成此检查，否则部署会失败。");
-            result.warnings.push("⚠️ 发布前必须检查：前往 Partner Dashboard → 您的应用 → API access → UI extensions network access，确认权限状态为 'Approved' 或 '已批准'。如果未批准，请点击 'Request' 或 '请求' 按钮申请权限，等待 Shopify 审核批准（通常需要 1-3 个工作日）。发布前必须确认权限已批准，否则部署会失败。");
+        
+        if (extensionsWithNetworkAccess.length === 0) {
+            result.passed = true;
+            result.warnings.push("未发现需要 network_access 的扩展");
+            return result;
         }
+        
+        result.passed = true;
+        result.warnings.push(`发现 ${extensionsWithNetworkAccess.length} 个扩展配置了 network_access: ${extensionsWithNetworkAccess.join(", ")}。⚠️ 重要：必须在 Partner Dashboard → App → API access → UI extensions network access 中批准该权限，否则部署会失败或模块无法正常工作。`);
     } catch (error) {
-        result.passed = false;
-        result.errors.push(`读取扩展配置文件失败: ${error instanceof Error ? error.message : String(error)}`);
+        result.passed = true;
+        result.warnings.push(`检查扩展配置时出错: ${error instanceof Error ? error.message : String(error)}`);
     }
     return result;
 }

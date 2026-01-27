@@ -21,10 +21,6 @@ import { UpgradePrompt } from "~/components/ui/UpgradePrompt";
 import { PageIntroCard } from "~/components/layout/PageIntroCard";
 import { authenticate } from "../shopify.server";
 import prisma from "../db.server";
-import {
-  getReconciliationDashboardData,
-  type ReconciliationDashboardData,
-} from "../services/reconciliation.server";
 import { normalizePlanId } from "../services/billing/plans";
 import { isPlanAtLeast } from "../utils/plans";
 import { checkFeatureAccess } from "../services/billing/feature-gates.server";
@@ -53,10 +49,9 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   const url = new URL(request.url);
   const days = parseInt(url.searchParams.get("days") || "7", 10);
   const validDays = [7, 14, 30].includes(days) ? days : 7;
-  const dashboardData = await getReconciliationDashboardData(shop.id, validDays);
   return json({
     shop: { id: shop.id },
-    dashboardData,
+    dashboardData: null,
     selectedDays: validDays,
     canAccessOrderLayer,
     gateResult: canAccessOrderLayer ? undefined : gateResult,
@@ -67,106 +62,9 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 function OverviewCard({
   overview,
 }: {
-  overview: ReconciliationDashboardData["overview"];
+  overview: null;
 }) {
-  const isHealthy = overview.gapPercentage < 10;
-  const isWarning = overview.gapPercentage >= 10 && overview.gapPercentage < 20;
-  return (
-    <Card>
-      <BlockStack gap="400">
-        <InlineStack align="space-between" blockAlign="center">
-          <Text as="h2" variant="headingMd">
-            订单层送达概览
-          </Text>
-          <Badge
-            tone={isHealthy ? "success" : isWarning ? "warning" : "critical"}
-          >
-            {isHealthy ? "健康" : isWarning ? "需关注" : "需干预"}
-          </Badge>
-        </InlineStack>
-        <InlineStack gap="400" align="space-between" wrap>
-          <Box
-            background="bg-surface-secondary"
-            padding="400"
-            borderRadius="200"
-            minWidth="140px"
-          >
-            <BlockStack gap="100" align="center">
-              <Text as="p" variant="bodySm" tone="subdued">
-                Webhook 订单
-              </Text>
-              <Text as="p" variant="headingXl" fontWeight="bold">
-                {overview.totalWebhookOrders}
-              </Text>
-            </BlockStack>
-          </Box>
-          <Text as="p" variant="headingLg" tone="subdued">
-            vs
-          </Text>
-          <Box
-            background="bg-surface-secondary"
-            padding="400"
-            borderRadius="200"
-            minWidth="140px"
-          >
-            <BlockStack gap="100" align="center">
-              <Text as="p" variant="bodySm" tone="subdued">
-                Pixel 收据
-              </Text>
-              <Text as="p" variant="headingXl" fontWeight="bold">
-                {overview.totalPixelReceipts}
-              </Text>
-            </BlockStack>
-          </Box>
-          <Text as="p" variant="headingLg" tone="subdued">
-            =
-          </Text>
-          <Box
-            background={isHealthy ? "bg-fill-success" : isWarning ? "bg-fill-warning" : "bg-fill-critical"}
-            padding="400"
-            borderRadius="200"
-            minWidth="140px"
-          >
-            <BlockStack gap="100" align="center">
-              <Text as="p" variant="bodySm">
-                缺口
-              </Text>
-              <Text as="p" variant="headingXl" fontWeight="bold">
-                {overview.totalGap}
-              </Text>
-              <Text as="p" variant="bodySm">
-                ({overview.gapPercentage.toFixed(1)}%)
-              </Text>
-            </BlockStack>
-          </Box>
-        </InlineStack>
-        <Divider />
-        <InlineStack gap="400" align="space-between">
-          <BlockStack gap="100">
-            <Text as="p" variant="bodySm" tone="subdued">
-              成功发送到平台
-            </Text>
-            <Text as="p" variant="headingMd" fontWeight="semibold">
-              {overview.totalSentToPlatforms} 个订单
-            </Text>
-          </BlockStack>
-          <BlockStack gap="100">
-            <Text as="p" variant="bodySm" tone="subdued">
-              整体匹配率
-            </Text>
-            <Text
-              as="p"
-              variant="headingMd"
-              fontWeight="semibold"
-              tone={overview.matchRate > 90 ? "success" : undefined}
-            >
-              {overview.matchRate.toFixed(1)}%
-            </Text>
-          </BlockStack>
-        </InlineStack>
-      </BlockStack>
-    </Card>
-  );
+  return null;
 }
 
 export default function VerificationOrdersPage() {
@@ -260,69 +158,10 @@ export default function VerificationOrdersPage() {
             </Text>
           </BlockStack>
         </Banner>
-        {dashboardData ? (
-          <Layout>
-            <Layout.Section>
-              <OverviewCard overview={dashboardData.overview} />
-            </Layout.Section>
-            {}
-            <Layout.Section>
-              <Card>
-                <BlockStack gap="400">
-                  <Text as="h2" variant="headingMd">
-                    Webhook 事件对账详情
-                  </Text>
-                  <Text as="p" variant="bodySm" tone="subdued">
-                    PRD 2.5要求：订单层验收包括 orders/create、refunds/create、orders/cancelled 等 webhook 事件的对账（v1.1+ 功能）
-                  </Text>
-                  <Banner tone="info">
-                    <BlockStack gap="200">
-                      <Text as="p" variant="bodySm" fontWeight="semibold">
-                        <strong>当前对账数据来源（v1.1+）：</strong>
-                      </Text>
-                      <List type="bullet">
-                        <List.Item>
-                          <Text as="span" variant="bodySm">
-                            <strong>orders/create：</strong>通过 webhook 接收订单创建事件，存储在 ShopifyOrderSnapshot 表中
-                          </Text>
-                        </List.Item>
-                        <List.Item>
-                          <Text as="span" variant="bodySm">
-                            <strong>refunds/create：</strong>通过 webhook 接收退款事件，存储在 RefundSnapshot 表中
-                          </Text>
-                        </List.Item>
-                        <List.Item>
-                          <Text as="span" variant="bodySm">
-                            <strong>orders/cancelled：</strong>通过 webhook 接收取消事件，更新 ShopifyOrderSnapshot 表的 cancelledAt 字段
-                          </Text>
-                        </List.Item>
-                      </List>
-                      <Text as="p" variant="bodySm" tone="subdued">
-                        <strong>v1.0 说明：</strong>订单和退款相关 webhooks 将在 v1.1+ 版本中启用。代码中已实现相关处理器，但 v1.0 暂未订阅这些 webhooks。
-                      </Text>
-                      <Text as="p" variant="bodySm" tone="subdued">
-                        对账逻辑：将 webhook 订单与 Pixel 收据进行匹配，计算缺口和匹配率
-                      </Text>
-                    </BlockStack>
-                  </Banner>
-                  <Button url="/app/reconciliation" variant="primary">
-                    查看完整对账详情
-                  </Button>
-                </BlockStack>
-              </Card>
-            </Layout.Section>
-          </Layout>
-        ) : (
-          <Card>
-            <BlockStack gap="200">
-              <Text as="p" variant="bodySm">
-                暂无订单层验收数据，请稍后再试。
-              </Text>
-              <Button url="/app/reconciliation" variant="primary">
-                前往完整对账
-              </Button>
-            </BlockStack>
-          </Card>
+        {!dashboardData && (
+          <Banner tone="info">
+            <Text as="p">订单层对账功能已移除</Text>
+          </Banner>
         )}
       </BlockStack>
     </Page>

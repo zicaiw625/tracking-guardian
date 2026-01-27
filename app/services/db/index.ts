@@ -32,21 +32,6 @@ export {
   type PixelConfigInput,
 } from "./pixel-config-repository.server";
 
-export {
-  getPendingJobs,
-  claimJobsForProcessing,
-  updateJobStatus,
-  batchUpdateJobStatus,
-  createConversionJob,
-  jobExistsForOrder,
-  getJobCountsByStatus,
-  getDeadLetterJobs,
-  requeueDeadLetterJobs,
-  cleanupOldJobs,
-  type JobForProcessing,
-  type QueryPendingJobsOptions,
-  type JobStatusUpdate,
-} from "./conversion-repository.server";
 
 export {
   batchCompleteJobs,

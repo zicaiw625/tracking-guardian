@@ -224,7 +224,7 @@ export function validateConfig(): ConfigValidationResult {
       if (scopes.length === 0) {
         errors.push("SCOPES must contain at least one scope in production");
       } else {
-        const requiredScopes = ["read_script_tags", "read_pixels", "write_pixels", "read_orders"];
+        const requiredScopes = ["read_script_tags", "read_pixels", "write_pixels"];
         const missingScopes = requiredScopes.filter(required => !scopes.includes(required));
         if (missingScopes.length > 0) {
           errors.push(`SCOPES must include all required scopes in production. Missing: ${missingScopes.join(", ")}`);
@@ -327,7 +327,6 @@ export const FEATURE_FLAGS = {
   EXTENDED_PAYLOAD: getBoolEnv("FEATURE_EXTENDED_PAYLOAD", false),
   TRACKING_API: getBoolEnv("FEATURE_TRACKING_API", false),
   CHECKOUT_BLOCKS: getBoolEnv("FEATURE_CHECKOUT_BLOCKS", false),
-  REORDER_ENABLED: getBoolEnv("FEATURE_REORDER_ENABLED", false) && PCD_CONFIG.APPROVED,
 } as const;
 
 export function getFeatureFlagsSummary(): Record<string, { enabled: boolean; source: "default" | "env" }> {
@@ -351,10 +350,6 @@ export function getFeatureFlagsSummary(): Record<string, { enabled: boolean; sou
     checkoutBlocks: {
       enabled: FEATURE_FLAGS.CHECKOUT_BLOCKS,
       source: process.env.FEATURE_CHECKOUT_BLOCKS ? "env" : "default",
-    },
-    reorderEnabled: {
-      enabled: FEATURE_FLAGS.REORDER_ENABLED,
-      source: process.env.FEATURE_REORDER_ENABLED ? "env" : "default",
     },
   };
 }

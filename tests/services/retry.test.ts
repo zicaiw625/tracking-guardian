@@ -13,7 +13,7 @@ import {
   shouldRetryFromPlatformError,
   getRetryDelay,
 } from "../../app/services/retry.server";
-import type { PlatformError } from "../../app/services/platforms/base.server";
+import type { PlatformError } from "../../app/types";
 
 describe("Retry Service", () => {
   describe("platformErrorToFailureReason", () => {
@@ -198,6 +198,7 @@ describe("Retry Service", () => {
       const error: PlatformError = {
         type: "server_error",
         message: "Server error",
+        statusCode: 500,
         isRetryable: true,
       };
       expect(shouldRetryFromPlatformError(error, 1, 5)).toBe(true);

@@ -19,9 +19,6 @@ import { RefreshIcon } from "~/components/icons";
 import { EnhancedEmptyState, useToastContext } from "~/components/ui";
 import { authenticate } from "../shopify.server";
 import prisma from "../db.server";
-import { runAlertChecks } from "../services/alert-dispatcher.server";
-import { getReconciliationDashboardData } from "../services/reconciliation.server";
-import { getDeliveryHealthSummary } from "../services/delivery-health.server";
 import { getEventMonitoringStats, getMissingParamsStats, getEventVolumeStats } from "../services/monitoring.server";
 import { getEventLossStats } from "../services/pixel-event-loss.server";
 import { logger } from "../utils/logger.server";
@@ -112,48 +109,12 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     });
   }
   const pixelEndpoint = getPixelEventIngestionUrl();
-  let alerts: LoaderData["alerts"] = [];
-  try {
-    const alertResults = await runAlertChecks(shop.id);
-    alerts = alertResults.filter(r => r.triggered).map(r => ({
-      triggered: r.triggered,
-      severity: r.severity,
-      message: r.message,
-      details: r.details,
-    }));
-  } catch (error) {
-    logger.error("Failed to get alerts", { shopId: shop.id, error });
-  }
-  let reconciliation: LoaderData["reconciliation"] = {
+  const alerts: LoaderData["alerts"] = [];
+  const reconciliation: LoaderData["reconciliation"] = {
     last7Days: [],
     summary: { totalOrders: 0, totalConversions: 0, avgDiscrepancy: 0 },
   };
-  try {
-    const reconData = await getReconciliationDashboardData(shop.id, 7);
-    const ov = reconData.overview;
-    reconciliation = {
-      last7Days: reconData.platformBreakdown.map((p) => ({
-        platform: p.platform,
-        shopifyOrders: p.webhookOrders,
-        platformConversions: p.pixelReceipts,
-        orderDiscrepancy: p.gapPercentage,
-        revenueDiscrepancy: p.gapPercentage,
-      })),
-      summary: {
-        totalOrders: ov.totalWebhookOrders || ov.totalPixelReceipts,
-        totalConversions: ov.totalSentToPlatforms,
-        avgDiscrepancy: ov.gapPercentage,
-      },
-    };
-  } catch (error) {
-    logger.error("Failed to get reconciliation data", { shopId: shop.id, error });
-  }
-  let health: LoaderData["health"] = {};
-  try {
-    health = await getDeliveryHealthSummary(shop.id);
-  } catch (error) {
-    logger.error("Failed to get delivery health", { shopId: shop.id, error });
-  }
+  const health: LoaderData["health"] = {};
   let monitoring: LoaderData["monitoring"] = {
     successRate: 0,
     failureRate: 0,

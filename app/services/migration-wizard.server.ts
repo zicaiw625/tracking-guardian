@@ -8,8 +8,6 @@ import type { Platform } from "./migration.server";
 import type { PlanId } from "./billing/plans";
 import { canCreatePixelConfig } from "./billing/feature-gates.server";
 import { getValidCredentials } from "./credentials.server";
-import { sendConversion } from "./platforms/registry";
-import { generateDedupeEventId } from "./platforms/interface";
 import type { PlatformCredentials } from "../domain/platform";
 
 export interface WizardConfig {
@@ -406,53 +404,12 @@ export async function validateTestEnvironment(
         details.verificationInstructions = `测试事件已发送，请在 GA4 DebugView 中查看：${details.debugViewUrl}`;
       }
     }
-    const testEventId = generateDedupeEventId(`test-${Date.now()}`);
-    const testData = {
-      orderId: `test-order-${Date.now()}`,
-      orderNumber: "TEST-001",
-      value: 1.0,
-      currency: "USD",
-      lineItems: [
-        {
-          id: "test-product-1",
-          productId: "test-product-1",
-          name: "Test Product",
-          price: 1.0,
-          quantity: 1,
-        },
-      ],
+    details.eventSent = false;
+    return {
+      valid: false,
+      message: "测试事件发送功能已移除",
+      details,
     };
-    const startTime = Date.now();
-    const sendResult = await sendConversion(
-      platform as Platform,
-      credentialsResult.value.credentials as PlatformCredentials,
-      testData,
-      testEventId
-    );
-    const responseTime = Date.now() - startTime;
-    details.responseTime = responseTime;
-    if (sendResult.ok && sendResult.value.success) {
-      details.eventSent = true;
-      return {
-        valid: true,
-        message: "测试事件发送成功，配置验证通过",
-        details,
-      };
-    } else {
-      const errorMessage =
-        sendResult.ok && sendResult.value.error
-          ? sendResult.value.error.message
-          : sendResult.ok
-            ? "未知错误"
-            : sendResult.error.message;
-      details.eventSent = false;
-      details.error = errorMessage;
-      return {
-        valid: false,
-        message: `测试事件发送失败: ${errorMessage}`,
-        details,
-      };
-    }
   } catch (error) {
     logger.error("Test environment validation error", {
       shopId,

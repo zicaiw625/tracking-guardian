@@ -4,12 +4,4 @@ export {
   handleCustomersRedact,
   handleShopRedact,
 } from "./gdpr.handler";
-
-export {
-  handleOrdersCreate,
-  handleOrdersUpdated,
-  handleOrdersCancelled,
-  handleOrdersEdited,
-} from "./orders.handler";
-export { handleRefundsCreate } from "./refunds.handler";
 export { handleAppSubscriptionsUpdate } from "./subscription.handler";

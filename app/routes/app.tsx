@@ -66,7 +66,6 @@ export default function App() {
         <a href="/app" rel="home">Dashboard</a>
         <a href="/app/audit/scan">Audit</a>
         <a href="/app/migrate">Migrate</a>
-        <a href="/app/modules">Modules</a>
         <a href="/app/pixels">Pixels</a>
         <a href="/app/diagnostics">Diagnostics</a>
         <a href="/app/verification">Verification</a>

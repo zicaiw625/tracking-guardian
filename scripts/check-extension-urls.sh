@@ -22,7 +22,6 @@ echo "======================================"
 
 TOML_FILES=(
   "extensions/tracking-pixel/shopify.extension.toml"
-  "extensions/thank-you-blocks/shopify.extension.toml"
 )
 
 for file in "${TOML_FILES[@]}"; do
@@ -70,8 +69,6 @@ echo "======================================"
 
 EXTENSION_FILES=(
   "extensions/tracking-pixel/src/index.ts"
-  "extensions/thank-you-blocks/src/Survey.tsx"
-  "extensions/thank-you-blocks/src/Survey.orderStatus.tsx"
 )
 
 for file in "${EXTENSION_FILES[@]}"; do

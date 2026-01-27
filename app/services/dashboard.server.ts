@@ -6,7 +6,6 @@ import { analyzeDependencies } from "./dependency-analysis.server";
 import { getAuditAssetSummary } from "./audit-asset.server";
 import { getEventMonitoringStats, getEventVolumeStats } from "./monitoring.server";
 import { getMissingParamsRate } from "./event-validation.server";
-import { runAlertChecks } from "./alert-dispatcher.server";
 import { logger } from "../utils/logger.server";
 import { calculateMigrationProgress } from "../utils/migration-progress.server";
 import { getTierDisplayInfo } from "./shop-tier.server";
@@ -416,20 +415,7 @@ export async function getDashboardData(shopDomain: string): Promise<DashboardDat
   } catch (error) {
     logger.warn("Failed to get 24h health metrics", { shopId: shop.id, error });
   }
-    try {
-    const alertCheckResults = await runAlertChecks(shop.id);
-    activeAlerts = alertCheckResults
-      .filter((r) => r.triggered)
-      .map((r, index) => ({
-        id: `alert-${Date.now()}-${index}`,
-        type: "unknown",
-        severity: (r.severity === "high" ? "critical" : r.severity === "medium" ? "warning" : "info") as "info" | "warning" | "critical",
-        message: r.message || "告警触发",
-        triggeredAt: new Date(),
-      }));
-  } catch (error) {
-    logger.warn("Failed to get active alerts", { shopId: shop.id, error });
-  }
+  activeAlerts = [];
   return {
     shopDomain,
     healthScore: score,

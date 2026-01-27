@@ -60,7 +60,6 @@ export interface IFeatureFlags {
   trackingApi: boolean;
   piiHashing?: boolean;
   checkoutBlocks: boolean;
-  reorderEnabled: boolean;
 }
 
 export interface IAppConfig {

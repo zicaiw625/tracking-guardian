@@ -1,5 +1,5 @@
 import { logger } from "../../utils/logger.server";
-import { fetchWithTimeout } from "../platforms/interface";
+import { fetchWithTimeout } from "../../utils/http";
 import { isCircuitBreakerTripped, tripCircuitBreaker } from "../../utils/circuit-breaker";
 import { CIRCUIT_BREAKER_CONFIG } from "../../utils/config.shared";
 

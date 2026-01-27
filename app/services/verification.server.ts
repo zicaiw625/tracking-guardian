@@ -1,6 +1,5 @@
 import prisma from "../db.server";
 import { logger } from "../utils/logger.server";
-import { reconcilePixelVsCapi, performBulkLocalConsistencyCheck, performChannelReconciliation } from "./enhanced-reconciliation.server";
 import type { AdminApiContext } from "@shopify/shopify-app-remix/server";
 import type { Prisma } from "@prisma/client";
 import { trackEvent } from "./analytics.server";
@@ -487,125 +486,7 @@ export async function analyzeRecentEvents(
       }
     }
   }
-  let reconciliation: VerificationSummary["reconciliation"] | undefined;
-  try {
-    const endDate = new Date();
-    const pixelVsCapi = await reconcilePixelVsCapi(shopId, since, endDate);
-    const consistencyIssues: Array<{
-      orderId: string;
-      issue: string;
-      type: "duplicate" | "missing" | "value_mismatch" | "currency_mismatch";
-    }> = [];
-    const orderPlatformMap = new Map<string, Map<string, number>>();
-    for (const receipt of receipts) {
-      const payload = receipt.payloadJson as Record<string, unknown> | null;
-      const receiptPlatform = extractPlatformFromPayload(payload);
-      if (!receiptPlatform || (targetPlatforms.length > 0 && !targetPlatforms.includes(receiptPlatform))) {
-        continue;
-      }
-      const data = payload?.data as Record<string, unknown> | undefined;
-      const orderId = receipt.orderKey || (data?.orderId as string | undefined);
-      if (!orderId) continue;
-      const count = orderPlatformMap.get(orderId)?.get(receiptPlatform) || 0;
-      if (!orderPlatformMap.has(orderId)) {
-        orderPlatformMap.set(orderId, new Map());
-      }
-      orderPlatformMap.get(orderId)!.set(receiptPlatform, count + 1);
-    }
-    for (const [orderId, platformMap] of orderPlatformMap) {
-      for (const [platform, count] of platformMap) {
-        if (count > 1) {
-          consistencyIssues.push({
-            orderId,
-            issue: `${platform} 平台重复发送 ${count} 次`,
-            type: "duplicate",
-          });
-        }
-      }
-    }
-    const localConsistencyChecks: Array<{
-      orderId: string;
-      status: "consistent" | "partial" | "inconsistent";
-      issues: string[];
-    }> = [];
-    try {
-      const maxCheckOrders = Math.min(orderIds.size, 50);
-      const sampleOrderIds = Array.from(orderIds).slice(0, maxCheckOrders);
-      const bulkCheckResult = await performBulkLocalConsistencyCheck(
-        shopId,
-        since,
-        new Date(),
-        admin,
-        {
-          maxOrders: maxCheckOrders,
-          maxConcurrent: 5,
-          sampleRate: sampleOrderIds.length > 20 ? 0.8 : 1.0,
-        }
-      );
-      localConsistencyChecks.push(...bulkCheckResult.issues);
-    } catch (error) {
-      logger.warn("Failed to perform bulk local consistency check, falling back to individual checks", { error });
-      const orderIdsArray = Array.from(orderIds);
-      const sampleOrderIds = orderIdsArray.slice(0, 10);
-      for (const orderId of sampleOrderIds) {
-        try {
-          const checks = await performChannelReconciliation(shopId, [orderId], admin);
-          if (checks.length > 0) {
-            const check = checks[0];
-            if (check.consistencyStatus !== "consistent" || check.issues.length > 0) {
-              localConsistencyChecks.push({
-                orderId: check.orderId,
-                status: check.consistencyStatus,
-                issues: check.issues,
-              });
-            }
-          }
-        } catch (err) {
-          logger.warn("Failed to perform local consistency check", { orderId, error: err });
-        }
-      }
-    }
-    localConsistencyChecks.forEach((check) => {
-      let issueType: "duplicate" | "missing" | "value_mismatch" | "currency_mismatch" = "missing";
-      if (check.status === "inconsistent") {
-        const issuesStr = check.issues.join("; ").toLowerCase();
-        if (issuesStr.includes("currency") || issuesStr.includes("币种")) {
-          issueType = "currency_mismatch";
-        } else if (issuesStr.includes("value") || issuesStr.includes("金额") || issuesStr.includes("value")) {
-          issueType = "value_mismatch";
-        } else {
-          issueType = "value_mismatch";
-        }
-      } else if (check.status === "partial") {
-        issueType = "missing";
-      }
-      consistencyIssues.push({
-        orderId: check.orderId,
-        issue: check.issues.join("; "),
-        type: issueType,
-      });
-    });
-    const orderIdsArray = Array.from(orderIds);
-    const totalChecked = Math.min(orderIdsArray.length, 50);
-    const consistent = totalChecked - localConsistencyChecks.length;
-    const partial = localConsistencyChecks.filter((c) => c.status === "partial").length;
-    const inconsistent = localConsistencyChecks.filter((c) => c.status === "inconsistent").length;
-    reconciliation = {
-      pixelVsCapi,
-      consistencyIssues: consistencyIssues.length > 0 ? consistencyIssues : undefined,
-      localConsistency: totalChecked > 0
-        ? {
-            totalChecked,
-            consistent,
-            partial,
-            inconsistent,
-            issues: localConsistencyChecks,
-          }
-        : undefined,
-    };
-  } catch (error) {
-    logger.error("Failed to perform reconciliation during verification", { error, shopId, runId });
-  }
+  const reconciliation: VerificationSummary["reconciliation"] | undefined = undefined;
   await prisma.verificationRun.update({
     where: { id: runId },
     data: {

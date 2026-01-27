@@ -769,7 +769,7 @@ export async function checkAppScopes(admin: AdminApiContext): Promise<boolean> {
         `);
         const result = await response.json();
         const scopes = result.data?.app?.installation?.accessScopes?.map((s: { handle: string }) => s.handle) || [];
-        return scopes.includes("read_orders") && scopes.includes("write_pixels");
+        return scopes.includes("read_pixels") && scopes.includes("write_pixels");
     } catch (error) {
         logger.error("Failed to check app scopes:", error);
         return true;

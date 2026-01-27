@@ -173,7 +173,7 @@ async function sendEmailAlert(settings: EmailAlertSettings, data: AlertData): Pr
     }
     return true;
 }
-import { fetchWithTimeout } from "./platforms/interface";
+import { fetchWithTimeout } from "../utils/http";
 
 function validateSlackWebhookUrl(raw: string): { ok: boolean; reason?: string } {
     try {

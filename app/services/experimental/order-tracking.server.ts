@@ -1,7 +1,6 @@
 import { logger } from "../../utils/logger.server";
 import prisma from "../../db.server";
-import { getUiModuleConfig } from "../ui-extension.server";
-import { fetchWithTimeout } from "../platforms/interface";
+import { fetchWithTimeout } from "../../utils/http";
 
 export interface TrackingProvider {
   name: "aftership" | "17track" | "native";
@@ -181,26 +180,6 @@ export async function getOrderTracking(
   trackingNumber?: string
 ): Promise<TrackingInfo | null> {
   try {
-    const config = await getUiModuleConfig(shopId, "order_tracking");
-    if (!config.isEnabled) {
-      return null;
-    }
-    const settings = config.settings as {
-      provider?: "aftership" | "17track" | "native";
-      apiKey?: string;
-    } | null;
-    const provider = settings?.provider || "native";
-    const { canUseThirdPartyTracking } = await import("../../utils/version-gate");
-    if (provider !== "native") {
-      const gateResult = canUseThirdPartyTracking(provider);
-      if (!gateResult.allowed) {
-        logger.warn(`Third-party tracking provider ${provider} not available in v1.0`, {
-          shopId,
-          orderId,
-          reason: gateResult.reason,
-        });
-      }
-    }
     if (!trackingNumber) {
       const tracking = await getTrackingFromShopify(shopId, orderId);
       if (tracking?.trackingNumber) {
@@ -210,22 +189,7 @@ export async function getOrderTracking(
     if (!trackingNumber) {
       return null;
     }
-    switch (provider) {
-      case "aftership":
-        if (settings?.apiKey) {
-          return await fetchTrackingFromAfterShip(trackingNumber, settings.apiKey);
-        }
-        break;
-      case "17track":
-        if (settings?.apiKey) {
-          return await fetchTrackingFrom17Track(trackingNumber, settings.apiKey);
-        }
-        break;
-      case "native":
-      default:
-        return await getTrackingFromShopify(shopId, orderId);
-    }
-    return null;
+    return await getTrackingFromShopify(shopId, orderId);
   } catch (error) {
     logger.error("Failed to get order tracking", {
       shopId,

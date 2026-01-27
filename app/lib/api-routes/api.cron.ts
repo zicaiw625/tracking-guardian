@@ -4,12 +4,8 @@ import { validateCronAuth, verifyReplayProtection } from "../../cron/auth";
 import { withCronLock } from "../../utils/cron-lock";
 import { cronSuccessResponse, cronSkippedResponse, cronErrorResponse } from "../../utils/responses";
 import { logger } from "../../utils/logger.server";
-import { runAllShopAlertChecks } from "../../services/alert-dispatcher.server";
 import { cleanupExpiredData } from "../../cron/tasks/cleanup";
 import { validateInput , CronRequestSchema } from "../../schemas/api-schemas";
-import { processConversionJobs } from "../../services/conversion-job.server";
-import { runAllShopsDeliveryHealthCheck } from "../../services/delivery-health.server";
-import { runAllShopsReconciliation } from "../../services/reconciliation.server";
 import { readTextWithLimit } from "../../utils/body-reader";
 
 async function runCronTasks(task: string, requestId: string): Promise<Record<string, unknown>> {
@@ -19,29 +15,6 @@ async function runCronTasks(task: string, requestId: string): Promise<Record<str
     timestamp: new Date().toISOString(),
   };
 
-  if (task === "all" || task === "delivery_health") {
-    logger.info("[Cron] Running delivery health checks", { requestId });
-    const healthResults = await runAllShopsDeliveryHealthCheck();
-    results.delivery_health = {
-      status: "completed",
-      shopsProcessed: healthResults.length,
-      successful: healthResults.filter((r) => r.success).length,
-      failed: healthResults.filter((r) => !r.success).length,
-    };
-  }
-
-  if (task === "all" || task === "reconciliation") {
-    logger.info("[Cron] Running reconciliation tasks", { requestId });
-    const reconciliationResult = await runAllShopsReconciliation();
-    results.reconciliation = {
-      status: "completed",
-      processed: reconciliationResult.processed,
-      succeeded: reconciliationResult.succeeded,
-      failed: reconciliationResult.failed,
-      reportsGenerated: reconciliationResult.results.length,
-    };
-  }
-
   if (task === "all" || task === "process_gdpr") {
     logger.info("[Cron] Processing GDPR jobs", { requestId });
     results.process_gdpr = {
@@ -50,41 +23,10 @@ async function runCronTasks(task: string, requestId: string): Promise<Record<str
     };
   }
 
-  if (task === "all" || task === "process_conversion") {
-    logger.info("[Cron] Running process conversion jobs", { requestId });
-    const conversionResult = await processConversionJobs();
-    if (conversionResult.errors.length > 0) {
-      logger.warn("[Cron] Process conversion errors", {
-        requestId,
-        errorCount: conversionResult.errors.length,
-        errors: conversionResult.errors,
-      });
-    }
-    results.process_conversion = {
-      processed: conversionResult.processed,
-      succeeded: conversionResult.succeeded,
-      failed: conversionResult.failed,
-      errorCount: conversionResult.errors.length,
-    };
-  }
-
-  if (task === "all" || task === "process_event_delivery") {
-    logger.info("[Cron] Running event delivery processing", { requestId });
-    const { processEventDelivery } = await import("../../cron/tasks/event-delivery");
-    const deliveryResult = await processEventDelivery();
-    results.process_event_delivery = deliveryResult;
-  }
-
   if (task === "all" || task === "cleanup") {
     logger.info("[Cron] Running cleanup tasks", { requestId });
     const cleanupResult = await cleanupExpiredData();
     results.cleanup = cleanupResult;
-  }
-
-  if (task === "all" || task === "alerts") {
-    logger.info("[Cron] Running all shop alert checks", { requestId });
-    await runAllShopAlertChecks();
-    results.alerts = { status: "completed" };
   }
 
   return results;

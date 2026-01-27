@@ -42,24 +42,11 @@ export async function checkUiModulesLimit(
   shopId: string,
   shopPlan: PlanId
 ): Promise<FeatureGateResult> {
-  const limit = getUiModulesLimit(shopPlan);
-  if (limit === -1) {
-    return { allowed: true };
-  }
-  const { getEnabledModulesCount } = await import("../ui-extension.server");
-  const currentCount = await getEnabledModulesCount(shopId);
-  if (currentCount >= limit) {
-    return {
-      allowed: false,
-      reason: `当前套餐最多支持 ${limit} 个 UI 模块，您已启用 ${currentCount} 个。请升级套餐或停用部分模块。`,
-      current: currentCount,
-      limit,
-    };
-  }
   return {
-    allowed: true,
-    current: currentCount,
-    limit,
+    allowed: false,
+    reason: "UI 模块功能已移除",
+    current: 0,
+    limit: 0,
   };
 }
 
@@ -163,18 +150,10 @@ export async function canCreateUiModule(
   shopId: string,
   shopPlan: PlanId
 ): Promise<FeatureGateResult> {
-  const uiLimitCheck = await checkUiModulesLimit(shopId, shopPlan);
-  if (!uiLimitCheck.allowed) {
-    return uiLimitCheck;
-  }
-  const planConfig = getPlanOrDefault(shopPlan);
-  if (planConfig.uiModules === 0) {
-    return {
-      allowed: false,
-      reason: `UI 模块功能需要 Starter 及以上套餐。当前套餐：${planConfig.name}`,
-    };
-  }
-  return { allowed: true };
+  return {
+    allowed: false,
+    reason: "UI 模块功能已移除",
+  };
 }
 
 export async function getFeatureLimitsSummary(

@@ -5,11 +5,6 @@ import {
   handleCustomersDataRequest,
   handleCustomersRedact,
   handleShopRedact,
-  handleOrdersCreate,
-  handleOrdersUpdated,
-  handleOrdersCancelled,
-  handleOrdersEdited,
-  handleRefundsCreate,
   handleAppSubscriptionsUpdate,
 } from "./handlers";
 import { tryAcquireWebhookLock, updateWebhookStatus } from "./middleware";
@@ -33,11 +28,6 @@ const WEBHOOK_HANDLERS: Record<
   CUSTOMERS_DATA_REQUEST: (ctx) => handleCustomersDataRequest(ctx),
   CUSTOMERS_REDACT: (ctx) => handleCustomersRedact(ctx),
   SHOP_REDACT: (ctx) => handleShopRedact(ctx),
-  ORDERS_CREATE: (ctx) => handleOrdersCreate(ctx),
-  ORDERS_UPDATED: (ctx) => handleOrdersUpdated(ctx),
-  ORDERS_CANCELLED: (ctx) => handleOrdersCancelled(ctx),
-  ORDERS_EDITED: (ctx) => handleOrdersEdited(ctx),
-  REFUNDS_CREATE: (ctx) => handleRefundsCreate(ctx),
   APP_SUBSCRIPTIONS_UPDATE: (ctx) => handleAppSubscriptionsUpdate(ctx),
 };
 
