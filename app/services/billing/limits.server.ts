@@ -1,6 +1,5 @@
 import prisma from "~/db.server";
-import { type PlanId, getPixelDestinationsLimit, getUiModulesLimit } from "./plans";
-import { logger } from "~/utils/logger.server";
+import { type PlanId, getPixelDestinationsLimit } from "./plans";
 
 
 export interface PlanLimitResult {
@@ -44,8 +43,8 @@ export async function checkPixelDestinationsLimit(
 }
 
 export async function checkUiModulesLimit(
-  shopId: string,
-  shopPlan: PlanId
+  _shopId: string,
+  _shopPlan: PlanId
 ): Promise<PlanLimitResult> {
   return {
     allowed: false,
@@ -57,8 +56,8 @@ export async function checkUiModulesLimit(
 }
 
 export async function checkMultiShopLimit(
-  shopId: string,
-  shopPlan: PlanId
+  _shopId: string,
+  _shopPlan: PlanId
 ): Promise<PlanLimitResult> {
   return {
     allowed: false,

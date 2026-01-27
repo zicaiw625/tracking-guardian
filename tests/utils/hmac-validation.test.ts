@@ -1,5 +1,5 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
-import { createHmac, createHash } from "crypto";
+import { describe, it, expect, vi } from "vitest";
+import { createHash } from "crypto";
 import {
   validatePixelEventHMAC,
   verifyHMACSignature,

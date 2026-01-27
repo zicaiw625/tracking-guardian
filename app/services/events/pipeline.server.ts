@@ -261,20 +261,22 @@ export async function processEventPipeline(
 ): Promise<EventPipelineResult> {
   const validation = validateEventPayload(payload);
   if (!validation.valid) {
-      await logEvent(
-        shopId,
-        payload.eventName,
-        eventId,
-        payload,
-        null,
-        "fail",
-        "validation_failed",
-        validation.errors.join("; "),
-        null,
-        null,
-        null,
-        null
-      );
+      if (!pipelineOptions?.skipDelivery) {
+        await logEvent(
+          shopId,
+          payload.eventName,
+          eventId,
+          payload,
+          null,
+          "fail",
+          "validation_failed",
+          validation.errors.join("; "),
+          null,
+          null,
+          null,
+          null
+        );
+      }
         const shop = await prisma.shop.findUnique({
       where: { id: shopId },
       select: { shopDomain: true },
@@ -448,6 +450,13 @@ export async function processEventPipeline(
       checkoutToken: normalizedPayload.data?.checkoutToken || null,
     });
   }
+  if (pipelineOptions?.skipDelivery) {
+    return {
+      success: true,
+      eventId: finalEventId || undefined,
+      destinations: destinationConfigs.map(d => d.platform),
+    };
+  }
   const { sanitizePII } = await import("../event-log.server");
   const canonicalPayload: PixelEventPayload = {
     eventName: normalizedPayload.eventName,
@@ -486,24 +495,17 @@ export async function processEventPipeline(
   if (!eventLog) {
     const eventLogId = generateSimpleId("eventlog");
     eventLog = await prisma.eventLog.create({
-        data: {
-          id: eventLogId,
-          shopId,
-          eventId: finalEventId,
-          eventName: normalizedPayload.eventName,
-          source: "web_pixel",
-          occurredAt: new Date(normalizedPayload.timestamp),
-          normalizedEventJson: sanitizedPayload as unknown as Prisma.InputJsonValue,
-          shopifyContextJson: Prisma.JsonNull,
-        },
-      });
-  }
-  if (pipelineOptions?.skipDelivery) {
-    return {
-      success: true,
-      eventId: finalEventId || undefined,
-      destinations: destinationConfigs.map(d => d.platform),
-    };
+      data: {
+        id: eventLogId,
+        shopId,
+        eventId: finalEventId,
+        eventName: normalizedPayload.eventName,
+        source: "web_pixel",
+        occurredAt: new Date(normalizedPayload.timestamp),
+        normalizedEventJson: sanitizedPayload as unknown as Prisma.InputJsonValue,
+        shopifyContextJson: Prisma.JsonNull,
+      },
+    });
   }
   const destinationNames = destinationConfigs.map(d => d.platform);
   logger.info(`Routing ${normalizedPayload.eventName} event to ${destinationConfigs.length} destination(s)`, {
@@ -596,28 +598,6 @@ export async function processEventPipeline(
           "v2",
           payload.nonce || null
         );
-      }
-      if (normalizedPayload.eventName === "checkout_completed" && normalizedPayload.data?.orderId) {
-        const orderSnapshot = await prisma.shopifyOrderSnapshot.findUnique({
-          where: {
-            shopId_orderId: {
-              shopId,
-              orderId: normalizedPayload.data.orderId,
-            },
-          },
-          select: {
-            id: true,
-          },
-        });
-        if (!orderSnapshot) {
-          logger.warn("checkout_completed event without order snapshot", {
-            shopId,
-            orderId: normalizedPayload.data.orderId,
-            eventId: finalEventId,
-            destination,
-            configId: destConfig.configId,
-          });
-        }
       }
       const sendStartTime = Date.now();
       const sendResult = await sendPixelEventToPlatform(

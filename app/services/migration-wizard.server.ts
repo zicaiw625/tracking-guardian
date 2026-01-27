@@ -8,7 +8,6 @@ import type { Platform } from "./migration.server";
 import type { PlanId } from "./billing/plans";
 import { canCreatePixelConfig } from "./billing/feature-gates.server";
 import { getValidCredentials } from "./credentials.server";
-import type { PlatformCredentials } from "../domain/platform";
 
 export interface WizardConfig {
   platform: Platform | "pinterest";

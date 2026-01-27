@@ -1,5 +1,5 @@
 import prisma from "~/db.server";
-import { type PlanId, getPixelDestinationsLimit, getUiModulesLimit, getPlanOrDefault, planSupportsFeature } from "./plans";
+import { type PlanId, getPixelDestinationsLimit, getPlanOrDefault, planSupportsFeature } from "./plans";
 
 export interface FeatureGateResult {
   allowed: boolean;
@@ -39,8 +39,8 @@ export async function checkPixelDestinationsLimit(
 }
 
 export async function checkUiModulesLimit(
-  shopId: string,
-  shopPlan: PlanId
+  _shopId: string,
+  _shopPlan: PlanId
 ): Promise<FeatureGateResult> {
   return {
     allowed: false,
@@ -147,8 +147,8 @@ export async function canCreatePixelConfig(
 }
 
 export async function canCreateUiModule(
-  shopId: string,
-  shopPlan: PlanId
+  _shopId: string,
+  _shopPlan: PlanId
 ): Promise<FeatureGateResult> {
   return {
     allowed: false,

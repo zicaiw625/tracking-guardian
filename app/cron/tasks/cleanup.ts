@@ -1,7 +1,7 @@
 import prisma from "../../db.server";
 import { logger } from "../../utils/logger.server";
 import { cleanupExpiredDrafts } from "../../services/migration-draft.server";
-import { WebhookStatus, GDPRJobStatus, JobStatus } from "../../types/enums";
+import { WebhookStatus, GDPRJobStatus } from "../../types/enums";
 import { processShopRedact } from "../../services/gdpr/handlers/shop-redact";
 import { RETENTION_CONFIG } from "../../utils/config.server";
 
@@ -16,13 +16,10 @@ export interface CleanupResult {
   migrationDraftsDeleted: number;
   gdprJobsDeleted: number;
   shopsProcessed: number;
-  conversionLogsDeleted: number;
   surveyResponsesDeleted: number;
   auditLogsDeleted: number;
-  conversionJobsDeleted: number;
   pixelEventReceiptsDeleted: number;
   webhookLogsDeleted: number;
-  reconciliationReportsDeleted: number;
   scanReportsDeleted: number;
   eventLogsDeleted: number;
   deliveryAttemptsDeleted: number;
@@ -57,13 +54,10 @@ export async function cleanupExpiredData(): Promise<CleanupResult> {
     migrationDraftsDeleted: 0,
     gdprJobsDeleted: 0,
     shopsProcessed: 0,
-    conversionLogsDeleted: 0,
     surveyResponsesDeleted: 0,
     auditLogsDeleted: 0,
-    conversionJobsDeleted: 0,
     pixelEventReceiptsDeleted: 0,
     webhookLogsDeleted: 0,
-    reconciliationReportsDeleted: 0,
     scanReportsDeleted: 0,
     eventLogsDeleted: 0,
     deliveryAttemptsDeleted: 0,
@@ -134,40 +128,6 @@ export async function cleanupExpiredData(): Promise<CleanupResult> {
     for (const shop of shops) {
       const retentionDays = shop.dataRetentionDays || 90;
       const cutoffDate = new Date(Date.now() - retentionDays * 24 * 60 * 60 * 1000);
-
-      try {
-        result.conversionLogsDeleted += await deleteInBatches(
-          (cursor) =>
-            prisma.conversionLog.findMany({
-              where: {
-                shopId: shop.id,
-                createdAt: {
-                  lt: cutoffDate,
-                },
-              },
-              select: {
-                id: true,
-              },
-              orderBy: {
-                id: "asc",
-              },
-              take: CLEANUP_BATCH_SIZE,
-              ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
-            }),
-          async (ids) => {
-            const deleteResult = await prisma.conversionLog.deleteMany({
-              where: {
-                id: {
-                  in: ids,
-                },
-              },
-            });
-            return deleteResult.count;
-          }
-        );
-      } catch (error) {
-        logger.error("Failed to cleanup conversion logs", { shopId: shop.id, error });
-      }
 
       try {
         result.surveyResponsesDeleted += await deleteInBatches(
@@ -241,43 +201,6 @@ export async function cleanupExpiredData(): Promise<CleanupResult> {
       }
 
       try {
-        result.conversionJobsDeleted += await deleteInBatches(
-          (cursor) =>
-            prisma.conversionJob.findMany({
-              where: {
-                shopId: shop.id,
-                createdAt: {
-                  lt: cutoffDate,
-                },
-                status: {
-                  in: [JobStatus.COMPLETED, JobStatus.FAILED],
-                },
-              },
-              select: {
-                id: true,
-              },
-              orderBy: {
-                id: "asc",
-              },
-              take: CLEANUP_BATCH_SIZE,
-              ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
-            }),
-          async (ids) => {
-            const deleteResult = await prisma.conversionJob.deleteMany({
-              where: {
-                id: {
-                  in: ids,
-                },
-              },
-            });
-            return deleteResult.count;
-          }
-        );
-      } catch (error) {
-        logger.error("Failed to cleanup conversion jobs", { shopId: shop.id, error });
-      }
-
-      try {
         result.pixelEventReceiptsDeleted += await deleteInBatches(
           (cursor) =>
             prisma.pixelEventReceipt.findMany({
@@ -346,40 +269,6 @@ export async function cleanupExpiredData(): Promise<CleanupResult> {
         );
       } catch (error) {
         logger.error("Failed to cleanup webhook logs", { shopId: shop.id, error });
-      }
-
-      try {
-        result.reconciliationReportsDeleted += await deleteInBatches(
-          (cursor) =>
-            prisma.reconciliationReport.findMany({
-              where: {
-                shopId: shop.id,
-                createdAt: {
-                  lt: cutoffDate,
-                },
-              },
-              select: {
-                id: true,
-              },
-              orderBy: {
-                id: "asc",
-              },
-              take: CLEANUP_BATCH_SIZE,
-              ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
-            }),
-          async (ids) => {
-            const deleteResult = await prisma.reconciliationReport.deleteMany({
-              where: {
-                id: {
-                  in: ids,
-                },
-              },
-            });
-            return deleteResult.count;
-          }
-        );
-      } catch (error) {
-        logger.error("Failed to cleanup reconciliation reports", { shopId: shop.id, error });
       }
 
       try {

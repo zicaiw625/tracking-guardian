@@ -1,5 +1,4 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import type { ActionFunctionArgs, LoaderFunctionArgs } from "@remix-run/node";
 
 vi.mock("../../app/db.server", () => ({
   default: {
@@ -56,7 +55,6 @@ vi.mock("../../app/middleware/rate-limit.server", () => ({
 }));
 
 import { addDocumentResponseHeaders } from "../../app/services/shopify/app-config.server";
-import { tryAuthenticatePublicWithShop } from "../../app/utils/public-auth";
 import { action as ingestAction } from "../../app/routes/ingest";
 
 vi.mock("../../app/lib/pixel-events/key-validation", () => ({

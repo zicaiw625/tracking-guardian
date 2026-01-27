@@ -1,12 +1,7 @@
 import type { PixelEventPayload } from "~/lib/pixel-events/types";
 import { logger } from "~/utils/logger.server";
-import { getShopPixelConfigs } from "../db/pixel-config-repository.server";
-import { decryptCredentials } from "../credentials.server";
+import { CAPI_CONFIG } from "~/utils/config.server";
 import type { PlatformCredentials } from "~/types";
-import { fetchWithTimeout } from "../../utils/http";
-const DEFAULT_API_TIMEOUT_MS = 30000;
-import { CAPI_CONFIG, CONFIG } from "~/utils/config.server";
-import { ErrorCode } from "~/utils/errors/app-error";
 import { randomBytes } from "crypto";
 
 const GA4_MEASUREMENT_PROTOCOL_URL = "https://www.google-analytics.com/mp/collect";
@@ -146,7 +141,7 @@ function buildItemContents(
   });
 }
 
-const platformConfigs: Record<string, PlatformSendConfig> = {
+const _platformConfigs: Record<string, PlatformSendConfig> = {
   google: {
     buildUrl: (credentials) => {
       const creds = credentials as { measurementId?: string; apiSecret?: string };
@@ -367,152 +362,54 @@ function validatePlatformCredentials(
   return { valid: true };
 }
 
-async function sendToPlatform(
-  platform: string,
-  credentials: PlatformCredentials,
-  eventName: string,
-  payload: PixelEventPayload,
-  eventId: string,
-  customMappings?: Record<string, string> | null
+async function _unused_sendToPlatform(
+  _platform: string,
+  _credentials: PlatformCredentials,
+  _eventName: string,
+  _payload: PixelEventPayload,
+  _eventId: string,
+  _customMappings?: Record<string, string> | null
 ): Promise<PixelEventSendResult> {
-  const config = platformConfigs[platform.toLowerCase()];
-  if (!config) {
-    return createErrorResult(
-      platform,
-      `Unsupported platform: ${platform}`,
-      ErrorCode.PLATFORM_INVALID_CONFIG
-    );
-  }
-  const validation = config.validateCredentials(credentials);
-  if (!validation.valid) {
-    return createErrorResult(
-      platform,
-      validation.error || "Invalid credentials",
-      ErrorCode.PLATFORM_AUTH_ERROR
-    );
-  }
-  try {
-    const url = config.buildUrl(credentials);
-    const headers = config.buildHeaders(credentials);
-    const requestBody = config.buildPayload(credentials, eventName, payload, eventId, customMappings);
-    const sanitizedUrl = config.sanitizeUrlForLogging(url);
-    const sanitizedHeaders: Record<string, string> = {};
-    for (const [key, value] of Object.entries(headers)) {
-      const lowerKey = key.toLowerCase();
-      if (lowerKey === "authorization" || lowerKey === "access-token" || lowerKey.includes("token") || lowerKey.includes("secret") || lowerKey.includes("key")) {
-        sanitizedHeaders[key] = "***REDACTED***";
-      } else {
-        sanitizedHeaders[key] = value;
-      }
-    }
-    const sendStartTime = Date.now();
-    const response = await fetchWithTimeout(url, {
-      method: "POST",
-      headers,
-      body: JSON.stringify(requestBody),
-    }, DEFAULT_API_TIMEOUT_MS);
-    const latencyMs = Date.now() - sendStartTime;
-    const { success, body: responseBody } = await config.parseResponse(response);
-    const isProduction = process.env.NODE_ENV === "production";
-    const requestPayload = isProduction
-      ? {
-          url: sanitizedUrl,
-          method: "POST" as const,
-          headers: sanitizedHeaders,
-          platform,
-          status: success ? ("ok" as const) : ("fail" as const),
-          latencyMs,
-          httpStatus: response.status,
-          ...(success ? {} : { errorCode: `http_${response.status}` }),
-        }
-      : {
-          url: sanitizedUrl,
-          method: "POST" as const,
-          headers: sanitizedHeaders,
-          body: requestBody,
-        };
-    if (success) {
-      return {
-        success: true,
-        ok: true,
-        platform,
-        requestPayload,
-        httpStatus: response.status,
-        responseBody,
-        latencyMs,
-      };
-    }
-    const errorMessage = platform === "google"
-      ? `GA4 error: ${response.status} ${responseBody}`
-      : platform === "meta"
-      ? `Meta error: ${response.status} ${JSON.parse(responseBody || "{}")?.error?.message || "Unknown error"}`
-      : `TikTok error: ${response.status} ${JSON.parse(responseBody || "{}")?.message || "Unknown error"}`;
-    return {
-      success: false,
-      ok: false,
-      platform,
-      error: errorMessage,
-      errorCode: `http_${response.status}`,
-      requestPayload,
-      httpStatus: response.status,
-      responseBody,
-      latencyMs,
-    };
-  } catch (error) {
-    return {
-      success: false,
-      ok: false,
-      platform,
-      error: error instanceof Error ? error.message : String(error),
-      errorCode: "send_error",
-    };
-  }
-}
-
-function findPixelConfig(
-  pixelConfigs: Awaited<ReturnType<typeof getShopPixelConfigs>>,
-  platform: string,
-  configId?: string,
-  platformId?: string
-) {
-  if (configId) {
-    return pixelConfigs.find((c) => c.id === configId && c.platform === platform);
-  }
-  if (platformId) {
-    return pixelConfigs.find((c) => c.platformId === platformId && c.platform === platform);
-  }
-  return pixelConfigs.find((c) => c.platform === platform);
-}
-
-function isEventMappings(value: unknown): value is Record<string, string> {
-  return value !== null && typeof value === 'object' && !Array.isArray(value);
-}
-
-function extractEventMappings(eventMappings: unknown): Record<string, string> | null {
-  return isEventMappings(eventMappings) ? eventMappings : null;
-}
-
-function createErrorResult(platform: string, error: string, errorCode: string): PixelEventSendResult {
   return {
     success: false,
     ok: false,
-    platform,
-    error,
-    errorCode,
+    platform: _platform,
+    error: "Server-side conversions disabled in v1",
+    errorCode: "FEATURE_DISABLED",
   };
 }
 
-function normalizeErrorMessage(error: string): { message: string; code: string } {
-  const lowerError = error.toLowerCase();
-  if (lowerError.includes("timeout") || lowerError.includes("aborted")) {
-    return {
-      message: `Request timeout after ${DEFAULT_API_TIMEOUT_MS}ms`,
-      code: ErrorCode.PLATFORM_TIMEOUT,
-    };
-  }
+function _unused_findPixelConfig(
+  _pixelConfigs: unknown,
+  _platform: string,
+  _configId?: string,
+  _platformId?: string
+) {
+  return undefined;
+}
+
+function _unused_isEventMappings(_value: unknown): _value is Record<string, string> {
+  return false;
+}
+
+function _unused_extractEventMappings(_eventMappings: unknown): Record<string, string> | null {
+  return null;
+}
+
+function _unused_createErrorResult(_platform: string, _error: string, _errorCode: string): PixelEventSendResult {
   return {
-    message: error,
-    code: ErrorCode.PLATFORM_UNKNOWN_ERROR,
+    success: false,
+    ok: false,
+    platform: _platform,
+    error: _error,
+    errorCode: _errorCode,
+  };
+}
+
+function _unused_normalizeErrorMessage(_error: string): { message: string; code: string } {
+  return {
+    message: "",
+    code: "",
   };
 }
 
@@ -523,116 +420,18 @@ export async function sendPixelEventToPlatform(
   eventId: string,
   configId?: string,
   platformId?: string,
-  environment: "test" | "live" = "live"
+  _environment: "test" | "live" = "live"
 ): Promise<PixelEventSendResult> {
-  const SERVER_SIDE_CONVERSIONS_ENABLED = CONFIG.getEnv("SERVER_SIDE_CONVERSIONS_ENABLED", "false") === "true";
-  if (!SERVER_SIDE_CONVERSIONS_ENABLED) {
-    logger.info("Server-side conversions disabled via feature flag, skipping event send", {
-      shopId,
-      platform,
-      eventName: payload.eventName,
-    });
-    return {
-      success: false,
-      ok: false,
-      platform,
-      error: "Server-side conversions disabled",
-      errorCode: "FEATURE_DISABLED",
-    };
-  }
-  logger.debug(`Sending ${payload.eventName} to ${platform}`, {
+  logger.info("Server-side conversions disabled in v1, skipping event send", {
     shopId,
-    eventId,
-    eventName: payload.eventName,
     platform,
-    configId,
-    platformId,
-    environment,
+    eventName: payload.eventName,
   });
-  try {
-    const pixelConfigs = await getShopPixelConfigs(shopId, {
-      serverSideOnly: true,
-      environment: environment || "live"
-    });
-    let config = findPixelConfig(pixelConfigs, platform, configId, platformId);
-    if (!config && (configId || platformId)) {
-      const matchingPlatformConfigs = pixelConfigs.filter((c) => c.platform === platform);
-      if (matchingPlatformConfigs.length > 1) {
-        logger.warn(`Multiple configs found for platform ${platform}, but specified config not found`, {
-          shopId,
-          platform,
-          configId,
-          platformId,
-          availableConfigs: matchingPlatformConfigs.map(c => ({ id: c.id, platformId: c.platformId })),
-        });
-      }
-      config = matchingPlatformConfigs[0];
-    }
-    if (!config) {
-      logger.warn(`Pixel config not found for platform ${platform}`, {
-        shopId,
-        platform,
-        eventName: payload.eventName,
-        configId,
-        platformId,
-      });
-      return createErrorResult(platform, "Pixel config not found", ErrorCode.NOT_FOUND_PIXEL_CONFIG);
-    }
-    const credResult = decryptCredentials(config, platform);
-    if (!credResult.ok) {
-      logger.warn(`Failed to decrypt credentials for platform ${platform}`, {
-        shopId,
-        platform,
-        eventName: payload.eventName,
-        error: credResult.error.message,
-      });
-      return createErrorResult(platform, credResult.error.message, ErrorCode.DECRYPTION_FAILED);
-    }
-    const credentials = credResult.value.credentials;
-    const normalizedPlatform = platform.toLowerCase();
-    const eventMappings = extractEventMappings(config.eventMappings);
-    const startTime = Date.now();
-    try {
-      const sendResult = await sendToPlatform(
-        normalizedPlatform,
-        credentials,
-        payload.eventName,
-        payload,
-        eventId,
-        eventMappings
-      );
-      const finalLatencyMs = Date.now() - startTime;
-      if (sendResult.success && !sendResult.latencyMs) {
-        sendResult.latencyMs = finalLatencyMs;
-      }
-      if (!sendResult.ok) {
-        sendResult.ok = sendResult.success;
-      }
-      return sendResult;
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      logger.error(`Failed to send event to ${platform}`, {
-        shopId,
-        platform,
-        eventName: payload.eventName,
-        eventId,
-        error: errorMessage,
-      });
-      const { message, code } = normalizeErrorMessage(errorMessage);
-      return {
-        ...createErrorResult(platform, message, code),
-        latencyMs: Date.now() - startTime,
-      };
-    }
-  } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : String(error);
-      logger.error(`Failed to send pixel event to ${platform}`, {
-        shopId,
-        platform,
-        eventName: payload.eventName,
-        eventId,
-        error: errorMessage,
-      });
-      return createErrorResult(platform, errorMessage, ErrorCode.PLATFORM_UNKNOWN_ERROR);
-    }
-  }
+  return {
+    success: false,
+    ok: false,
+    platform,
+    error: "Server-side conversions disabled in v1",
+    errorCode: "FEATURE_DISABLED",
+  };
+}

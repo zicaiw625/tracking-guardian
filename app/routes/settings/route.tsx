@@ -17,7 +17,7 @@ export const loader = settingsLoader;
 export const action = settingsAction;
 
 export default function SettingsPage() {
-  const { shop, currentMonitoringData, hmacSecurityStats, pixelStrictOrigin } =
+  const { shop, currentMonitoringData: _currentMonitoringData, hmacSecurityStats, pixelStrictOrigin } =
     useLoaderData<typeof settingsLoader>();
   const actionData = useActionData<SettingsActionResponse>();
   const submit = useSubmit();
@@ -58,9 +58,6 @@ export default function SettingsPage() {
   }, [setSearchParams]);
   const [alertChannel, setAlertChannel] = useState(() => existingAlertConfig?.channel || "email");
   const [alertEmail, setAlertEmail] = useState("");
-  const [slackWebhook, setSlackWebhook] = useState("");
-  const [telegramToken, setTelegramToken] = useState("");
-  const [telegramChatId, setTelegramChatId] = useState("");
   const [alertThreshold, setAlertThreshold] = useState(() =>
     existingAlertConfig ? String(Math.round(existingAlertConfig.discrepancyThreshold * 100)) : "10"
   );
@@ -82,9 +79,6 @@ export default function SettingsPage() {
   const initialAlertValues = useRef({
     channel: existingAlertConfig?.channel || "email",
     email: "",
-    slackWebhook: "",
-    telegramToken: "",
-    telegramChatId: "",
     threshold: existingAlertConfig ? String(Math.round(existingAlertConfig.discrepancyThreshold * 100)) : "10",
     enabled: existingAlertConfig?.isEnabled ?? true,
     failureRateThreshold: settings?.thresholds?.failureRate ? String(Math.round(settings.thresholds.failureRate * 100)) : "2",
@@ -98,9 +92,6 @@ export default function SettingsPage() {
     const isDirty =
       alertChannel !== initial.channel ||
       alertEmail !== initial.email ||
-      slackWebhook !== initial.slackWebhook ||
-      telegramToken !== initial.telegramToken ||
-      telegramChatId !== initial.telegramChatId ||
       alertThreshold !== initial.threshold ||
       alertEnabled !== initial.enabled ||
       failureRateThreshold !== (initial.failureRateThreshold || "2") ||
@@ -111,9 +102,6 @@ export default function SettingsPage() {
   }, [
     alertChannel,
     alertEmail,
-    slackWebhook,
-    telegramToken,
-    telegramChatId,
     alertThreshold,
     alertEnabled,
     failureRateThreshold,
@@ -136,9 +124,6 @@ export default function SettingsPage() {
           initialAlertValues.current = {
             channel: alertChannel,
             email: alertEmail,
-            slackWebhook: slackWebhook,
-            telegramToken: telegramToken,
-            telegramChatId: telegramChatId,
             threshold: alertThreshold,
             enabled: alertEnabled,
             failureRateThreshold: failureRateThreshold,
@@ -156,9 +141,6 @@ export default function SettingsPage() {
     selectedTab,
     alertChannel,
     alertEmail,
-    slackWebhook,
-    telegramToken,
-    telegramChatId,
     alertThreshold,
     alertEnabled,
     alertFrequency,
@@ -171,9 +153,6 @@ export default function SettingsPage() {
       const initial = initialAlertValues.current;
       setAlertChannel(initial.channel);
       setAlertEmail(initial.email);
-      setSlackWebhook(initial.slackWebhook);
-      setTelegramToken(initial.telegramToken);
-      setTelegramChatId(initial.telegramChatId);
       setAlertThreshold(initial.threshold);
       setAlertEnabled(initial.enabled);
       setFailureRateThreshold(initial.failureRateThreshold || "2");
@@ -195,19 +174,11 @@ export default function SettingsPage() {
     formData.append("frequency", alertFrequency);
     if (alertChannel === "email") {
       formData.append("email", alertEmail);
-    } else if (alertChannel === "slack") {
-      formData.append("webhookUrl", slackWebhook);
-    } else if (alertChannel === "telegram") {
-      formData.append("botToken", telegramToken);
-      formData.append("chatId", telegramChatId);
     }
     submit(formData, { method: "post" });
   }, [
     alertChannel,
     alertEmail,
-    slackWebhook,
-    telegramToken,
-    telegramChatId,
     alertThreshold,
     alertEnabled,
     failureRateThreshold,
@@ -216,20 +187,6 @@ export default function SettingsPage() {
     alertFrequency,
     submit,
   ]);
-  const handleTestAlert = useCallback(() => {
-    const formData = new FormData();
-    formData.append("_action", "testAlert");
-    formData.append("channel", alertChannel);
-    if (alertChannel === "email") {
-      formData.append("email", alertEmail);
-    } else if (alertChannel === "slack") {
-      formData.append("webhookUrl", slackWebhook);
-    } else if (alertChannel === "telegram") {
-      formData.append("botToken", telegramToken);
-      formData.append("chatId", telegramChatId);
-    }
-    submit(formData, { method: "post" });
-  }, [alertChannel, alertEmail, slackWebhook, telegramToken, telegramChatId, submit]);
   const handleRotateSecret = useCallback(() => {
     const formData = new FormData();
     formData.append("_action", "rotateIngestionSecret");

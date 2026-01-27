@@ -1,7 +1,6 @@
 import type {
   PlatformError,
 } from "../types";
-import { logger } from "../utils/logger.server";
 
 export { decryptCredentials } from "./credentials.server";
 
@@ -133,7 +132,7 @@ export async function checkTokenExpirationIssues(_shopId: string): Promise<{
   };
 }
 
-export async function getRetryStats(shopId: string): Promise<{
+export async function getRetryStats(_shopId: string): Promise<{
   pending: number;
   retrying: number;
   deadLetter: number;

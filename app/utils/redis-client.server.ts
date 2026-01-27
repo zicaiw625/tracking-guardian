@@ -4,6 +4,7 @@ import { EventEmitter } from "events";
 
 export interface RedisClientWrapper {
   get(key: string): Promise<string | null>;
+  mGet(keys: string[]): Promise<(string | null)[]>;
   set(key: string, value: string, options?: { EX?: number }): Promise<void>;
   setNX(key: string, value: string, ttlMs: number): Promise<boolean>;
   del(key: string): Promise<number>;
@@ -88,6 +89,9 @@ class InMemoryFallback implements RedisClientWrapper {
       return null;
     }
     return entry.value;
+  }
+  async mGet(keys: string[]): Promise<(string | null)[]> {
+    return Promise.all(keys.map(key => this.get(key)));
   }
   async set(key: string, value: string, options?: { EX?: number }): Promise<void> {
     if (this.stringStore.size >= this.maxSize) {
@@ -423,6 +427,13 @@ class RedisClientFactory {
           return this.fallback.get(key);
         }
       },
+      mGet: async (keys: string[]): Promise<(string | null)[]> => {
+        try {
+          return await client.mGet(keys);
+        } catch {
+          return this.fallback.mGet(keys);
+        }
+      },
       set: async (key: string, value: string, options?: { EX?: number }): Promise<void> => {
         try {
           if (options?.EX) {
@@ -573,6 +584,7 @@ class RedisClientFactory {
   private createStrictWrapper(client: RedisClientType): RedisClientWrapper {
     return {
       get: async (key: string): Promise<string | null> => client.get(key),
+      mGet: async (keys: string[]): Promise<(string | null)[]> => client.mGet(keys),
       set: async (key: string, value: string, options?: { EX?: number }): Promise<void> => {
         if (options?.EX) {
           await client.set(key, value, { EX: options.EX });

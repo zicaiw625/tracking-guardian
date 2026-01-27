@@ -22,7 +22,7 @@ export async function processCustomerRedact(
   }
   const orderIdStrings = ordersToRedact.map((id: number | string) => String(id));
   const allOrderIdPatterns = orderIdStrings;
-  const [pixelReceiptResult, surveyResponseResult, conversionJobResult, conversionLogResult] = await Promise.all([
+  const [pixelReceiptResult, surveyResponseResult] = await Promise.all([
     prisma.pixelEventReceipt.deleteMany({
       where: {
         shopId: shop.id,
@@ -38,25 +38,13 @@ export async function processCustomerRedact(
         orderId: { in: allOrderIdPatterns },
       },
     }),
-    prisma.conversionJob.deleteMany({
-      where: {
-        shopId: shop.id,
-        orderId: { in: allOrderIdPatterns },
-      },
-    }),
-    prisma.conversionLog.deleteMany({
-      where: {
-        shopId: shop.id,
-        orderId: { in: allOrderIdPatterns },
-      },
-    }),
   ]);
   const result: CustomerRedactResult = {
     customerId,
     ordersRedacted: ordersToRedact,
     deletedCounts: {
-      conversionLogs: conversionLogResult.count,
-      conversionJobs: conversionJobResult.count,
+      conversionLogs: 0,
+      conversionJobs: 0,
       pixelEventReceipts: pixelReceiptResult.count,
       surveyResponses: surveyResponseResult.count,
     },

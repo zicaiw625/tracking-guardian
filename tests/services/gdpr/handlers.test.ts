@@ -10,8 +10,6 @@ vi.mock("../../../app/db.server", () => {
     session: { deleteMany: vi.fn() },
     webhookLog: { deleteMany: vi.fn() },
     gDPRJob: { deleteMany: vi.fn() },
-    conversionLog: { findMany: vi.fn(), deleteMany: vi.fn() },
-    conversionJob: { deleteMany: vi.fn() },
     pixelEventReceipt: { findMany: vi.fn(), deleteMany: vi.fn(), count: vi.fn() },
     surveyResponse: { findMany: vi.fn(), deleteMany: vi.fn() },
     auditLog: { deleteMany: vi.fn(), create: vi.fn() },
@@ -63,22 +61,6 @@ describe("GDPR Handlers", () => {
     };
     it("should export customer data for specified orders", async () => {
       vi.mocked(prisma.shop.findUnique).mockResolvedValue(mockShop as never);
-      vi.mocked(prisma.conversionLog.findMany).mockResolvedValue([
-        {
-          id: "log-1",
-          orderId: "1001",
-          orderNumber: "1001",
-          orderValue: 100,
-          currency: "USD",
-          platform: "meta",
-          eventType: "purchase",
-          status: "sent",
-          clientSideSent: true,
-          serverSideSent: true,
-          createdAt: new Date("2024-01-01"),
-          sentAt: new Date("2024-01-01"),
-        },
-      ] as never);
       vi.mocked(prisma.surveyResponse.findMany).mockResolvedValue([]);
       vi.mocked(prisma.pixelEventReceipt.findMany).mockResolvedValue([]);
       const result = await processDataRequest("test-shop.myshopify.com", {
@@ -89,8 +71,8 @@ describe("GDPR Handlers", () => {
       expect(result.dataRequestId).toBe(456);
       expect(result.customerId).toBe(123);
       expect(result.ordersIncluded).toEqual([1001]);
-      expect(result.dataLocated.conversionLogs.count).toBe(1);
-      expect(result.exportedData.conversionLogs).toHaveLength(1);
+      expect(result.dataLocated.conversionLogs.count).toBe(0);
+      expect(result.exportedData.conversionLogs).toHaveLength(0);
       expect(result.exportFormat).toBe("json");
       expect(result.exportVersion).toBe("1.0");
     });
@@ -106,7 +88,6 @@ describe("GDPR Handlers", () => {
     });
     it("should handle empty orders_requested", async () => {
       vi.mocked(prisma.shop.findUnique).mockResolvedValue(mockShop as never);
-      vi.mocked(prisma.conversionLog.findMany).mockResolvedValue([]);
       vi.mocked(prisma.surveyResponse.findMany).mockResolvedValue([]);
       vi.mocked(prisma.pixelEventReceipt.findMany).mockResolvedValue([]);
       const result = await processDataRequest("test-shop.myshopify.com", {
@@ -122,8 +103,6 @@ describe("GDPR Handlers", () => {
     };
     it("should delete customer data for specified orders", async () => {
       vi.mocked(prisma.shop.findUnique).mockResolvedValue(mockShop as never);
-      vi.mocked(prisma.conversionLog.deleteMany).mockResolvedValue({ count: 2 });
-      vi.mocked(prisma.conversionJob.deleteMany).mockResolvedValue({ count: 1 });
       vi.mocked(prisma.pixelEventReceipt.deleteMany).mockResolvedValue({ count: 2 });
       vi.mocked(prisma.pixelEventReceipt.findMany).mockResolvedValue([]);
       vi.mocked(prisma.surveyResponse.deleteMany).mockResolvedValue({ count: 1 });
@@ -133,8 +112,8 @@ describe("GDPR Handlers", () => {
       });
       expect(result.customerId).toBe(123);
       expect(result.ordersRedacted).toEqual([1001, 1002]);
-      expect(result.deletedCounts.conversionLogs).toBe(2);
-      expect(result.deletedCounts.conversionJobs).toBe(1);
+      expect(result.deletedCounts.conversionLogs).toBe(0);
+      expect(result.deletedCounts.conversionJobs).toBe(0);
     });
     it("should return zero counts when shop not found", async () => {
       vi.mocked(prisma.shop.findUnique).mockResolvedValue(null);
@@ -147,8 +126,6 @@ describe("GDPR Handlers", () => {
     });
     it("should handle linked checkout tokens", async () => {
       vi.mocked(prisma.shop.findUnique).mockResolvedValue(mockShop as never);
-      vi.mocked(prisma.conversionLog.deleteMany).mockResolvedValue({ count: 1 });
-      vi.mocked(prisma.conversionJob.deleteMany).mockResolvedValue({ count: 0 });
       vi.mocked(prisma.pixelEventReceipt.deleteMany).mockResolvedValue({ count: 1 });
       vi.mocked(prisma.surveyResponse.deleteMany).mockResolvedValue({ count: 0 });
       vi.mocked(prisma.pixelEventReceipt.findMany).mockResolvedValue([

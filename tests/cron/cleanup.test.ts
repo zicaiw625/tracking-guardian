@@ -14,19 +14,11 @@ vi.mock("../../app/db.server", () => ({
     shop: {
       findMany: vi.fn(),
     },
-    conversionLog: {
-      findMany: vi.fn(),
-      deleteMany: vi.fn(),
-    },
     surveyResponse: {
       findMany: vi.fn(),
       deleteMany: vi.fn(),
     },
     auditLog: {
-      findMany: vi.fn(),
-      deleteMany: vi.fn(),
-    },
-    conversionJob: {
       findMany: vi.fn(),
       deleteMany: vi.fn(),
     },
@@ -39,10 +31,6 @@ vi.mock("../../app/db.server", () => ({
       deleteMany: vi.fn(),
     },
     scanReport: {
-      findMany: vi.fn(),
-      deleteMany: vi.fn(),
-    },
-    reconciliationReport: {
       findMany: vi.fn(),
       deleteMany: vi.fn(),
     },
@@ -109,7 +97,6 @@ describe("Cleanup Task", () => {
     it("should return zero counts when no data to clean", async () => {
       const result = await cleanupExpiredData();
       expect(result.shopsProcessed).toBe(0);
-      expect(result.conversionLogsDeleted).toBe(0);
       expect(result.surveyResponsesDeleted).toBe(0);
       expect(result.auditLogsDeleted).toBe(0);
     });
@@ -119,13 +106,10 @@ describe("Cleanup Task", () => {
         { id: "shop2", shopDomain: "shop2.myshopify.com", dataRetentionDays: 30 },
       ];
       (prisma.shop.findMany as ReturnType<typeof vi.fn>).mockResolvedValue(mockShops);
-      (prisma.conversionLog.findMany as ReturnType<typeof vi.fn>).mockResolvedValue([]);
       (prisma.surveyResponse.findMany as ReturnType<typeof vi.fn>).mockResolvedValue([]);
       (prisma.auditLog.findMany as ReturnType<typeof vi.fn>).mockResolvedValue([]);
-      (prisma.conversionJob.findMany as ReturnType<typeof vi.fn>).mockResolvedValue([]);
       (prisma.pixelEventReceipt.findMany as ReturnType<typeof vi.fn>).mockResolvedValue([]);
       (prisma.webhookLog.findMany as ReturnType<typeof vi.fn>).mockResolvedValue([]);
-      (prisma.reconciliationReport.findMany as ReturnType<typeof vi.fn>).mockResolvedValue([]);
       (prisma.scanReport.findMany as ReturnType<typeof vi.fn>).mockResolvedValue([]);
       (prisma.deliveryAttempt.findMany as ReturnType<typeof vi.fn>).mockResolvedValue([]);
       (prisma.eventLog.findMany as ReturnType<typeof vi.fn>).mockResolvedValue([]);
@@ -143,39 +127,13 @@ describe("Cleanup Task", () => {
         },
       });
     });
-    it("should batch delete conversion logs", async () => {
-      const mockShops = [{ id: "shop1", shopDomain: "shop1.myshopify.com", dataRetentionDays: 90 }];
-      const mockLogs = [{ id: "log1" }, { id: "log2" }];
-      (prisma.shop.findMany as ReturnType<typeof vi.fn>).mockResolvedValue(mockShops);
-      (prisma.conversionLog.findMany as ReturnType<typeof vi.fn>)
-        .mockResolvedValueOnce(mockLogs)
-        .mockResolvedValue([]);
-      (prisma.conversionLog.deleteMany as ReturnType<typeof vi.fn>).mockResolvedValue({ count: 2 });
-      (prisma.surveyResponse.findMany as ReturnType<typeof vi.fn>).mockResolvedValue([]);
-      (prisma.auditLog.findMany as ReturnType<typeof vi.fn>).mockResolvedValue([]);
-      (prisma.conversionJob.findMany as ReturnType<typeof vi.fn>).mockResolvedValue([]);
-      (prisma.pixelEventReceipt.findMany as ReturnType<typeof vi.fn>).mockResolvedValue([]);
-      (prisma.webhookLog.findMany as ReturnType<typeof vi.fn>).mockResolvedValue([]);
-      (prisma.reconciliationReport.findMany as ReturnType<typeof vi.fn>).mockResolvedValue([]);
-      (prisma.scanReport.findMany as ReturnType<typeof vi.fn>).mockResolvedValue([]);
-      (prisma.deliveryAttempt.findMany as ReturnType<typeof vi.fn>).mockResolvedValue([]);
-      (prisma.eventLog.findMany as ReturnType<typeof vi.fn>).mockResolvedValue([]);
-      const result = await cleanupExpiredData();
-      expect(result.conversionLogsDeleted).toBe(2);
-      expect(prisma.conversionLog.deleteMany).toHaveBeenCalledWith({
-        where: { id: { in: ["log1", "log2"] } },
-      });
-    });
     it("should enforce minimum 180 day retention for audit logs", async () => {
       const mockShops = [{ id: "shop1", shopDomain: "shop1.myshopify.com", dataRetentionDays: 30 }];
       (prisma.shop.findMany as ReturnType<typeof vi.fn>).mockResolvedValue(mockShops);
-      (prisma.conversionLog.findMany as ReturnType<typeof vi.fn>).mockResolvedValue([]);
       (prisma.surveyResponse.findMany as ReturnType<typeof vi.fn>).mockResolvedValue([]);
       (prisma.auditLog.findMany as ReturnType<typeof vi.fn>).mockResolvedValue([]);
-      (prisma.conversionJob.findMany as ReturnType<typeof vi.fn>).mockResolvedValue([]);
       (prisma.pixelEventReceipt.findMany as ReturnType<typeof vi.fn>).mockResolvedValue([]);
       (prisma.webhookLog.findMany as ReturnType<typeof vi.fn>).mockResolvedValue([]);
-      (prisma.reconciliationReport.findMany as ReturnType<typeof vi.fn>).mockResolvedValue([]);
       (prisma.scanReport.findMany as ReturnType<typeof vi.fn>).mockResolvedValue([]);
       (prisma.deliveryAttempt.findMany as ReturnType<typeof vi.fn>).mockResolvedValue([]);
       (prisma.eventLog.findMany as ReturnType<typeof vi.fn>).mockResolvedValue([]);
@@ -191,13 +149,10 @@ describe("Cleanup Task", () => {
       const mockShops = [{ id: "shop1", shopDomain: "shop1.myshopify.com", dataRetentionDays: 90 }];
       const oldScanReports = [{ id: "scan6" }, { id: "scan7" }];
       (prisma.shop.findMany as ReturnType<typeof vi.fn>).mockResolvedValue(mockShops);
-      (prisma.conversionLog.findMany as ReturnType<typeof vi.fn>).mockResolvedValue([]);
       (prisma.surveyResponse.findMany as ReturnType<typeof vi.fn>).mockResolvedValue([]);
       (prisma.auditLog.findMany as ReturnType<typeof vi.fn>).mockResolvedValue([]);
-      (prisma.conversionJob.findMany as ReturnType<typeof vi.fn>).mockResolvedValue([]);
       (prisma.pixelEventReceipt.findMany as ReturnType<typeof vi.fn>).mockResolvedValue([]);
       (prisma.webhookLog.findMany as ReturnType<typeof vi.fn>).mockResolvedValue([]);
-      (prisma.reconciliationReport.findMany as ReturnType<typeof vi.fn>).mockResolvedValue([]);
       (prisma.scanReport.findMany as ReturnType<typeof vi.fn>).mockResolvedValue(oldScanReports);
       (prisma.scanReport.deleteMany as ReturnType<typeof vi.fn>).mockResolvedValue({ count: 2 });
       (prisma.deliveryAttempt.findMany as ReturnType<typeof vi.fn>).mockResolvedValue([]);
@@ -215,13 +170,10 @@ describe("Cleanup Task", () => {
       const oldDeliveryAttempts = [{ id: "da1" }, { id: "da2" }];
       const oldEventLogs = [{ id: "el1" }, { id: "el2" }];
       (prisma.shop.findMany as ReturnType<typeof vi.fn>).mockResolvedValue(mockShops);
-      (prisma.conversionLog.findMany as ReturnType<typeof vi.fn>).mockResolvedValue([]);
       (prisma.surveyResponse.findMany as ReturnType<typeof vi.fn>).mockResolvedValue([]);
       (prisma.auditLog.findMany as ReturnType<typeof vi.fn>).mockResolvedValue([]);
-      (prisma.conversionJob.findMany as ReturnType<typeof vi.fn>).mockResolvedValue([]);
       (prisma.pixelEventReceipt.findMany as ReturnType<typeof vi.fn>).mockResolvedValue([]);
       (prisma.webhookLog.findMany as ReturnType<typeof vi.fn>).mockResolvedValue([]);
-      (prisma.reconciliationReport.findMany as ReturnType<typeof vi.fn>).mockResolvedValue([]);
       (prisma.scanReport.findMany as ReturnType<typeof vi.fn>).mockResolvedValue([]);
       (prisma.deliveryAttempt.findMany as ReturnType<typeof vi.fn>)
         .mockResolvedValueOnce(oldDeliveryAttempts)

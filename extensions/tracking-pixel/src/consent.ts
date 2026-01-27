@@ -10,15 +10,14 @@ export interface ConsentManager {
   updateFromStatus(status: CustomerPrivacyState | null | undefined, source: "init" | "event"): void;
 }
 
-export function createConsentManager(logger?: (...args: unknown[]) => void): ConsentManager {
-  const log = logger || (() => {});
+export function createConsentManager(_logger?: (...args: unknown[]) => void): ConsentManager {
   let customerPrivacyStatus: CustomerPrivacyState | null = null;
   let marketingAllowed = false;
   let analyticsAllowed = false;
   let saleOfDataAllowed: boolean | undefined;
   function updateFromStatus(
     status: CustomerPrivacyState | null | undefined,
-    source: "init" | "event"
+    _source: "init" | "event"
   ): void {
     if (!status || typeof status !== "object") {
       marketingAllowed = false;

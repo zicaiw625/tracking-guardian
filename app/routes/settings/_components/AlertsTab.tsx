@@ -5,7 +5,6 @@ import {
   BlockStack,
   InlineStack,
   Button,
-  TextField,
   Select,
   Checkbox,
   Divider,
@@ -25,12 +24,6 @@ interface AlertsTabProps {
   setAlertChannel: (value: string) => void;
   alertEmail: string;
   setAlertEmail: (value: string) => void;
-  slackWebhook: string;
-  setSlackWebhook: (value: string) => void;
-  telegramToken: string;
-  setTelegramToken: (value: string) => void;
-  telegramChatId: string;
-  setTelegramChatId: (value: string) => void;
   alertThreshold: string;
   setAlertThreshold: (value: string) => void;
   alertEnabled: boolean;
@@ -56,16 +49,10 @@ interface AlertsTabProps {
 
 export function AlertsTab({
   shop,
-  alertChannel,
-  setAlertChannel,
-  alertEmail,
-  setAlertEmail,
-  slackWebhook,
-  setSlackWebhook,
-  telegramToken,
-  setTelegramToken,
-  telegramChatId,
-  setTelegramChatId,
+  alertChannel: _alertChannel,
+  setAlertChannel: _setAlertChannel,
+  alertEmail: _alertEmail,
+  setAlertEmail: _setAlertEmail,
   alertThreshold: _alertThreshold,
   setAlertThreshold: _setAlertThreshold,
   alertEnabled,
@@ -93,59 +80,8 @@ export function AlertsTab({
               警报通知设置
             </Text>
             <Text as="p" tone="subdued">
-              当追踪数据出现异常时，我们会通过您配置的渠道发送警报。
+              当追踪数据出现异常时，会在应用内显示警报通知。v1 版本仅支持应用内告警，外部通知渠道（邮件/Slack/Telegram）将在后续版本中提供。
             </Text>
-            <Divider />
-            <Select
-              label="通知渠道"
-              options={[
-                { label: "邮件", value: "email" },
-                { label: "Slack", value: "slack" },
-                { label: "Telegram", value: "telegram" },
-              ]}
-              value={alertChannel}
-              onChange={setAlertChannel}
-            />
-            {alertChannel === "email" && (
-              <TextField
-                label="邮箱地址"
-                type="email"
-                value={alertEmail}
-                onChange={setAlertEmail}
-                autoComplete="email"
-                placeholder="your@email.com"
-              />
-            )}
-            {alertChannel === "slack" && (
-              <TextField
-                label="Slack Webhook URL"
-                value={slackWebhook}
-                onChange={setSlackWebhook}
-                autoComplete="off"
-                placeholder="https://hooks.slack.com/services/YOUR/WEBHOOK/URL"
-                helpText="在 Slack 中创建 Incoming Webhook 获取此 URL"
-              />
-            )}
-            {alertChannel === "telegram" && (
-              <>
-                <TextField
-                  label="Bot Token"
-                  value={telegramToken}
-                  onChange={setTelegramToken}
-                  autoComplete="off"
-                  placeholder="123456:ABC-DEF1234ghIkl..."
-                  helpText="通过 @BotFather 创建 Bot 获取"
-                />
-                <TextField
-                  label="Chat ID"
-                  value={telegramChatId}
-                  onChange={setTelegramChatId}
-                  autoComplete="off"
-                  placeholder="-1001234567890"
-                  helpText="群组或频道的 Chat ID"
-                />
-              </>
-            )}
             <Divider />
             <Text as="h3" variant="headingSm">
               告警规则配置
@@ -317,11 +253,7 @@ export function AlertsTab({
                   <InlineStack align="space-between">
                     <BlockStack gap="100">
                       <Text as="span" fontWeight="semibold">
-                        {config.channel === "email"
-                          ? "邮件"
-                          : config.channel === "slack"
-                            ? "Slack"
-                            : "Telegram"}
+                        应用内告警
                       </Text>
                       <Text as="span" variant="bodySm" tone="subdued">
                         阈值: {(config.discrepancyThreshold * 100).toFixed(0)}%
@@ -337,8 +269,8 @@ export function AlertsTab({
               <EnhancedEmptyState
                 icon="🔔"
                 title="尚未配置警报"
-                description="配置警报通知后，当追踪数据出现异常时会收到通知。"
-                helpText="在上方表单中填写通知渠道信息并保存即可配置。"
+                description="配置警报通知后，当追踪数据出现异常时会在应用内显示通知。"
+                helpText="在上方表单中配置告警规则并启用即可。"
               />
             )}
           </BlockStack>

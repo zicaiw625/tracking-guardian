@@ -5,7 +5,7 @@ import { checkInitialConsent, filterPlatformsByConsent, logConsentFilterMetrics 
 import { hashValueSync } from "~/utils/crypto.server";
 import { logger } from "~/utils/logger.server";
 import prisma from "~/db.server";
-import { API_CONFIG, CONFIG } from "~/utils/config.server";
+import { API_CONFIG } from "~/utils/config.server";
 import { getRedisClient } from "~/utils/redis-client.server";
 
 const TIMESTAMP_WINDOW_MS = API_CONFIG.TIMESTAMP_WINDOW_MS;
@@ -201,9 +201,7 @@ export async function deduplicateEvents(
     try {
       const redis = await getRedisClient();
       const redisKeys = purchaseKeyList.map(key => `dedup:purchase:${shopId}:${key}`);
-      const redisResults = await Promise.all(
-        redisKeys.map(key => redis.get(key).catch(() => null))
-      );
+      const redisResults = await redis.mGet(redisKeys).catch(() => redisKeys.map(() => null));
       const redisHits = new Set<string>();
       for (let i = 0; i < purchaseKeyList.length; i++) {
         if (redisResults[i] !== null) {
@@ -365,10 +363,7 @@ export async function distributeEvents(
   origin: string | null,
   activeVerificationRunId: string | null | undefined
 ): Promise<ProcessedEvent[]> {
-  const SERVER_SIDE_CONVERSIONS_ENABLED = CONFIG.getEnv("SERVER_SIDE_CONVERSIONS_ENABLED", "false") === "true";
-  const filteredServerSideConfigs = SERVER_SIDE_CONVERSIONS_ENABLED
-    ? serverSideConfigs
-    : serverSideConfigs.filter((config) => !config.serverSideEnabled);
+  const filteredServerSideConfigs = serverSideConfigs.filter((config) => !config.serverSideEnabled);
   const processed: ProcessedEvent[] = [];
   
   for (const event of deduplicatedEvents) {

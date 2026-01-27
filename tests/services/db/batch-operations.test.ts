@@ -31,44 +31,15 @@ describe("Batch Operations", () => {
     vi.clearAllMocks();
   });
   describe("batchCompleteJobs", () => {
-    it("should handle partial failures correctly", async () => {
+    it("should return empty result when conversionJob table is removed", async () => {
       const completions = [
         { jobId: "job1", shopId: "shop1", orderId: "order1", status: "completed" as const },
         { jobId: "job2", shopId: "shop2", orderId: "order2", status: "completed" as const },
-        { jobId: "job3", shopId: "shop3", orderId: "order3", status: "completed" as const },
       ];
-      mockDb.$transaction.mockImplementation(async (callback) => {
-        const tx = {
-          conversionJob: {
-            update: vi.fn()
-              .mockResolvedValueOnce({ id: "job1" })
-              .mockRejectedValueOnce(new Error("Update failed"))
-              .mockResolvedValueOnce({ id: "job3" }),
-          },
-        };
-        return callback(tx);
-      });
       const result = await batchCompleteJobs(completions);
       expect(result.success).toBe(true);
-      expect(result.processed).toBe(2); 
-      expect(result.failed).toBe(1); 
-      expect(result.errors).toHaveLength(1);
-      expect(result.errors[0].id).toBe("job2");
-    });
-    it("should handle array index safety correctly", async () => {
-      const completions = [
-        { jobId: "job1", shopId: "shop1", orderId: "order1", status: "completed" as const },
-      ];
-      mockDb.$transaction.mockImplementation(async (callback) => {
-        const tx = {
-          conversionJob: {
-            update: vi.fn().mockResolvedValue({ id: "job1" }),
-          },
-        };
-        return callback(tx);
-      });
-      const result = await batchCompleteJobs(completions);
-      expect(result.processed).toBe(1);
+      expect(result.processed).toBe(0);
+      expect(result.failed).toBe(0);
       expect(result.errors).toHaveLength(0);
     });
     it("should handle empty array", async () => {

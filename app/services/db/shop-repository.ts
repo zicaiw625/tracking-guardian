@@ -231,24 +231,15 @@ export class ShopRepository extends BaseRepository<Shop, ShopCreate, ShopUpdate>
           new AppError(ErrorCode.NOT_FOUND_SHOP, `Shop ${shopDomain} not found`)
         );
       }
-      const [totalConversions, activePixelConfigs, recentJobsCount] = await Promise.all([
-        this.db.conversionLog.count({
-          where: { shopId: shop.id, status: "sent" },
-        }),
+      const [activePixelConfigs] = await Promise.all([
         this.db.pixelConfig.count({
           where: { shopId: shop.id, isActive: true },
         }),
-        this.db.conversionJob.count({
-          where: {
-            shopId: shop.id,
-            createdAt: { gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) },
-          },
-        }),
       ]);
       return ok({
-        totalConversions,
+        totalConversions: 0,
         activePixelConfigs,
-        recentJobsCount,
+        recentJobsCount: 0,
       });
     } catch (error) {
       return err(this.handleError(error, "getStatistics"));

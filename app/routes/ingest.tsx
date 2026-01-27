@@ -12,7 +12,7 @@ import type { KeyValidationResult, PixelEventPayload } from "~/lib/pixel-events/
 import { validateRequest } from "~/lib/pixel-events/validation";
 import { validatePixelEventHMAC } from "~/lib/pixel-events/hmac-validation";
 import { verifyWithGraceWindowAsync } from "~/utils/shop-access.server";
-import { validateEvents, normalizeEvents, deduplicateEvents, distributeEvents } from "~/lib/pixel-events/ingest-pipeline.server";
+import { normalizeEvents, deduplicateEvents, distributeEvents } from "~/lib/pixel-events/ingest-pipeline.server";
 import { readTextWithLimit } from "~/utils/body-reader";
 import { rejectionTracker } from "~/lib/pixel-events/rejection-tracker.server";
 
@@ -350,37 +350,16 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     bodyData !== null &&
     "events" in bodyData &&
     Array.isArray((bodyData as { events?: unknown }).events);
-  let events: unknown[];
+  let rawEvents: unknown[];
   let batchTimestamp: number | undefined;
   if (isBatchFormat) {
     const batchData = bodyData as { events: unknown[]; timestamp?: number };
-    events = batchData.events || [];
+    rawEvents = batchData.events || [];
     batchTimestamp = batchData.timestamp;
   } else {
-    const singleEventValidation = validateRequest(bodyData);
-    if (!singleEventValidation.valid) {
-      const shopDomainHeader = request.headers.get("x-shopify-shop-domain") || "unknown";
-      rejectionTracker.record({
-        requestId,
-        shopDomain: shopDomainHeader,
-        reason: "invalid_payload",
-        timestamp: Date.now(),
-      });
-      logger.warn("Pixel payload validation failed", {
-        requestId,
-        shopDomain: shopDomainHeader,
-        code: singleEventValidation.code,
-        error: singleEventValidation.error,
-      });
-      if (isProduction) {
-        return rejectProd(400, "invalid_payload");
-      }
-      return jsonWithCors({ error: "Invalid request" }, { status: 400, request, requestId });
-    }
-    events = [bodyData];
-    batchTimestamp = singleEventValidation.payload.timestamp;
+    rawEvents = [bodyData];
   }
-  if (events.length === 0) {
+  if (rawEvents.length === 0) {
     const shopDomainHeader = request.headers.get("x-shopify-shop-domain") || "unknown";
     rejectionTracker.record({
       requestId,
@@ -400,7 +379,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       { status: 400, request, requestId }
     );
   }
-  if (events.length > MAX_BATCH_SIZE) {
+  if (rawEvents.length > MAX_BATCH_SIZE) {
     const shopDomainHeader = request.headers.get("x-shopify-shop-domain") || "unknown";
     rejectionTracker.record({
       requestId,
@@ -411,7 +390,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     logger.warn("Events array exceeds maximum size", {
       requestId,
       shopDomain: shopDomainHeader,
-      count: events.length,
+      count: rawEvents.length,
       maxSize: MAX_BATCH_SIZE,
     });
     if (isProduction) {
@@ -422,8 +401,47 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       { status: 400, request, requestId }
     );
   }
-  const firstEventValidation = validateRequest(events[0]);
-  if (!firstEventValidation.valid) {
+  const validatedEvents: Array<{ payload: PixelEventPayload; index: number }> = [];
+  for (let i = 0; i < rawEvents.length; i++) {
+    const eventValidation = validateRequest(rawEvents[i]);
+    if (!eventValidation.valid) {
+      const shopDomainHeader = request.headers.get("x-shopify-shop-domain") || "unknown";
+      if (i === 0) {
+        rejectionTracker.record({
+          requestId,
+          shopDomain: shopDomainHeader,
+          reason: "invalid_payload",
+          timestamp: Date.now(),
+        });
+        logger.warn("Invalid event in batch", {
+          requestId,
+          shopDomain: shopDomainHeader,
+          error: eventValidation.error,
+        });
+        if (isProduction) {
+          return rejectProd(400, "invalid_payload");
+        }
+        return jsonWithCors(
+          { error: "Invalid event in batch", details: eventValidation.error },
+          { status: 400, request, requestId }
+        );
+      }
+      logger.warn(`Invalid event at index ${i} in batch, skipping`, {
+        requestId,
+        shopDomain: shopDomainHeader,
+        error: eventValidation.error,
+      });
+      continue;
+    }
+    validatedEvents.push({
+      payload: eventValidation.payload,
+      index: i,
+    });
+    if (i === 0 && !batchTimestamp) {
+      batchTimestamp = eventValidation.payload.timestamp;
+    }
+  }
+  if (validatedEvents.length === 0) {
     const shopDomainHeader = request.headers.get("x-shopify-shop-domain") || "unknown";
     rejectionTracker.record({
       requestId,
@@ -431,20 +449,12 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       reason: "invalid_payload",
       timestamp: Date.now(),
     });
-    logger.warn("Invalid event in batch", {
-      requestId,
-      shopDomain: shopDomainHeader,
-      error: firstEventValidation.error,
-    });
     if (isProduction) {
       return rejectProd(400, "invalid_payload");
     }
-    return jsonWithCors(
-      { error: "Invalid event in batch", details: firstEventValidation.error },
-      { status: 400, request, requestId }
-    );
+    return jsonWithCors({ error: "No valid events in batch" }, { status: 400, request, requestId });
   }
-  const firstPayload = firstEventValidation.payload;
+  const firstPayload = validatedEvents[0].payload;
   const shopDomain = firstPayload.shopDomain;
   const timestamp = batchTimestamp ?? firstPayload.timestamp;
   if (shopDomainHeader !== "unknown" && shopDomainHeader !== shopDomain) {
@@ -650,27 +660,24 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       };
       logger.debug(`HMAC signature verified for ${shopDomain}${graceResult.usedPreviousSecret ? " (using previous token)" : ""}`);
       
-      const totalEvents = events.length;
+      const totalEvents = validatedEvents.length;
       if (totalEvents >= 3) {
         const eventTypes = new Map<string, number>();
         const orderKeys = new Set<string>();
         let invalidOrderKeys = 0;
-        for (const event of events) {
-          const eventValidation = validateRequest(event);
-          if (eventValidation.valid) {
-            const eventName = eventValidation.payload.eventName;
-            eventTypes.set(eventName, (eventTypes.get(eventName) || 0) + 1);
-            const payloadData = eventValidation.payload.data as Record<string, unknown> | undefined;
-            if (payloadData) {
-              const orderId = typeof payloadData.orderId === "string" ? payloadData.orderId : null;
-              if (orderId) {
-                const isShopifyGid = /^gid:\/\/shopify\/\w+\/\d+$/.test(orderId);
-                const isValidFormat = orderId.length <= 256 && (isShopifyGid || /^[a-zA-Z0-9_\-.:/]+$/.test(orderId));
-                if (!isValidFormat) {
-                  invalidOrderKeys++;
-                } else {
-                  orderKeys.add(orderId);
-                }
+        for (const validatedEvent of validatedEvents) {
+          const eventName = validatedEvent.payload.eventName;
+          eventTypes.set(eventName, (eventTypes.get(eventName) || 0) + 1);
+          const payloadData = validatedEvent.payload.data as Record<string, unknown> | undefined;
+          if (payloadData) {
+            const orderId = typeof payloadData.orderId === "string" ? payloadData.orderId : null;
+            if (orderId) {
+              const isShopifyGid = /^gid:\/\/shopify\/\w+\/\d+$/.test(orderId);
+              const isValidFormat = orderId.length <= 256 && (isShopifyGid || /^[a-zA-Z0-9_\-.:/]+$/.test(orderId));
+              if (!isValidFormat) {
+                invalidOrderKeys++;
+              } else {
+                orderKeys.add(orderId);
               }
             }
           }
@@ -831,9 +838,8 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     }
   }
   const hasValidTimestamp = timestampHeader && Math.abs(Date.now() - timestamp) <= TIMESTAMP_WINDOW_MS;
-  const hasCriticalEvent = events.some((event: unknown) => {
-    const eventValidation = validateRequest(event);
-    return eventValidation.valid && eventValidation.payload.eventName === "checkout_completed";
+  const hasCriticalEvent = validatedEvents.some((validatedEvent) => {
+    return validatedEvent.payload.eventName === "checkout_completed";
   });
   const combinedTrustSignals = {
     originValid: hasValidOrigin,
@@ -1021,8 +1027,28 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   }
   const serverSideConfigs = pixelConfigs.filter((config: { serverSideEnabled?: boolean | null }) => config.serverSideEnabled === true);
   
-  const validatedEvents = validateEvents(events, shopDomain, timestamp);
-  const normalizedEvents = normalizeEvents(validatedEvents, shopDomain, mode);
+  const filteredValidatedEvents = validatedEvents.filter(ve => {
+    if (ve.payload.shopDomain !== shopDomain) {
+      logger.warn(`Event at index ${ve.index} has different shopDomain`, {
+        expected: shopDomain,
+        actual: ve.payload.shopDomain,
+      });
+      return false;
+    }
+    const now = Date.now();
+    const eventTimeDiff = Math.abs(now - ve.payload.timestamp);
+    if (eventTimeDiff > TIMESTAMP_WINDOW_MS) {
+      logger.debug(`Event at index ${ve.index} timestamp outside window: diff=${eventTimeDiff}ms, skipping`, {
+        shopDomain,
+        eventTimestamp: ve.payload.timestamp,
+        currentTime: now,
+        windowMs: TIMESTAMP_WINDOW_MS,
+      });
+      return false;
+    }
+    return true;
+  });
+  const normalizedEvents = normalizeEvents(filteredValidatedEvents, shopDomain, mode);
   const deduplicatedEvents = await deduplicateEvents(normalizedEvents, shop.id, shopDomain);
   const processedEvents = await distributeEvents(
     deduplicatedEvents,
