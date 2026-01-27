@@ -3,6 +3,7 @@ import type {
   PixelEventName,
   ValidationResult,
 } from "./types";
+import { PRIMARY_EVENTS, FUNNEL_EVENTS } from "./constants";
 
 import {
   CHECKOUT_TOKEN_PATTERN,
@@ -362,19 +363,10 @@ export function validateRequest(body: unknown): ValidationResult {
 
 export function isPrimaryEvent(eventName: string, mode: "purchase_only" | "full_funnel" = "purchase_only"): boolean {
   if (mode === "full_funnel") {
-    const fullFunnelEvents = [
-      "checkout_completed",
-      "checkout_started",
-      "checkout_contact_info_submitted",
-      "checkout_shipping_info_submitted",
-      "payment_info_submitted",
-      "page_viewed",
-      "product_added_to_cart",
-      "product_viewed",
-    ];
-    return fullFunnelEvents.includes(eventName);
+    const allEvents = [...PRIMARY_EVENTS, ...FUNNEL_EVENTS] as readonly PixelEventName[];
+    return allEvents.includes(eventName as PixelEventName);
   }
-  return eventName === "checkout_completed";
+  return (PRIMARY_EVENTS as readonly PixelEventName[]).includes(eventName as PixelEventName);
 }
 
 export interface PixelConfig {

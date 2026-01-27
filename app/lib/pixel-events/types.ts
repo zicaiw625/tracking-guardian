@@ -1,24 +1,8 @@
-export type PixelEventName =
-  | "checkout_completed"
-  | "checkout_started"
-  | "checkout_contact_info_submitted"
-  | "checkout_shipping_info_submitted"
-  | "payment_info_submitted"
-  | "page_viewed"
-  | "product_viewed"
-  | "product_added_to_cart";
+import type { PixelEventName } from "./constants";
+import { PRIMARY_EVENTS, FUNNEL_EVENTS } from "./constants";
 
-export const PRIMARY_EVENTS = ["checkout_completed"] as const;
-
-export const FUNNEL_EVENTS = [
-  "checkout_started",
-  "checkout_contact_info_submitted",
-  "checkout_shipping_info_submitted",
-  "payment_info_submitted",
-  "page_viewed",
-  "product_viewed",
-  "product_added_to_cart",
-] as const;
+export type { PixelEventName };
+export { PRIMARY_EVENTS, FUNNEL_EVENTS };
 
 export interface ConsentState {
   marketing?: boolean;

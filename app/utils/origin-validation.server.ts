@@ -275,12 +275,21 @@ export function validatePixelOriginForShop(
     let originSource = "origin_header";
     if ((origin === "null" || !origin) && options) {
         if (options.referer) {
-            try {
-                const refererUrl = new URL(options.referer);
-                effectiveOrigin = refererUrl.origin;
-                originSource = "referer_header";
-            } catch {
-                effectiveOrigin = origin;
+            if (devMode || hasSignatureHeaderOrHMAC) {
+                try {
+                    const refererUrl = new URL(options.referer);
+                    effectiveOrigin = refererUrl.origin;
+                    originSource = "referer_header";
+                } catch {
+                    effectiveOrigin = origin;
+                }
+            } else {
+                logger.warn(`[Origin Fallback] Referer fallback blocked in production without HMAC signature`, {
+                    originalOrigin: origin,
+                    referer: options.referer,
+                    shopDomain: options.shopDomain,
+                    securityNote: "In production, Referer fallback is only allowed when HMAC signature is present and verified.",
+                });
             }
         }
         if ((!effectiveOrigin || effectiveOrigin === "null") && options.shopDomain && devMode) {
@@ -342,12 +351,16 @@ export function validatePixelOriginForShop(
                     refererHost: safeRefererHost,
                 });
             } else {
+                const securityNote = originSource === "referer_header" && hasSignatureHeaderOrHMAC
+                    ? "Origin header missing - using Referer fallback with HMAC signature verified. This is allowed in production when HMAC is present."
+                    : "Origin header missing - using fallback. This may indicate a configuration issue or security concern.";
                 logger.warn(`[Origin Fallback] Using ${originSource} for origin validation`, {
                     originalOrigin: origin,
                     effectiveOrigin,
                     shopDomain: options?.shopDomain,
                     refererHost: safeRefererHost,
-                    securityNote: "Origin header missing - using fallback. This may indicate a configuration issue or security concern.",
+                    hasSignatureHeaderOrHMAC,
+                    securityNote,
                     alertLevel: "warning",
                     timestamp: new Date().toISOString(),
                 });

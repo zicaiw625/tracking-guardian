@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { PIXEL_EVENT_NAMES } from '~/lib/pixel-events/constants';
 
 export const MIN_REASONABLE_TIMESTAMP = 1577836800000;
 export const MAX_FUTURE_TIMESTAMP_OFFSET_MS = 86400000;
@@ -81,15 +82,7 @@ export const AddToCartDataSchema = z.object({
 
 export type AddToCartDataInput = z.infer<typeof AddToCartDataSchema>;
 
-export const PixelEventNameSchema = z.enum([
-  'checkout_completed',
-  'checkout_started',
-  'checkout_contact_info_submitted',
-  'checkout_shipping_info_submitted',
-  'payment_info_submitted',
-  'page_viewed',
-  'product_added_to_cart',
-]);
+export const PixelEventNameSchema = z.enum([...PIXEL_EVENT_NAMES] as [string, ...string[]]);
 
 export type PixelEventName = z.infer<typeof PixelEventNameSchema>;
 
@@ -142,6 +135,10 @@ export const PixelEventSchema = z.discriminatedUnion('eventName', [
   BasePixelEventSchema.extend({
     eventName: z.literal('page_viewed'),
     data: PageViewDataSchema.optional(),
+  }),
+  BasePixelEventSchema.extend({
+    eventName: z.literal('product_viewed'),
+    data: AddToCartDataSchema.optional(),
   }),
   BasePixelEventSchema.extend({
     eventName: z.literal('product_added_to_cart'),

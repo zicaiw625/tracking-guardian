@@ -17,6 +17,7 @@ describe("PixelEventNameSchema", () => {
       "checkout_shipping_info_submitted",
       "payment_info_submitted",
       "page_viewed",
+      "product_viewed",
       "product_added_to_cart",
     ];
     for (const name of validNames) {
@@ -155,6 +156,22 @@ describe("PixelEventSchema", () => {
         productTitle: "Test Product",
         price: 29.99,
         quantity: 1,
+      },
+    };
+    const result = PixelEventSchema.safeParse(payload);
+    expect(result.success).toBe(true);
+  });
+  it("should accept product_viewed", () => {
+    const payload = {
+      eventName: "product_viewed",
+      timestamp: Date.now(),
+      shopDomain: "test-shop.myshopify.com",
+      data: {
+        productId: "12345",
+        productTitle: "Test Product",
+        variantId: "67890",
+        price: 29.99,
+        currency: "USD",
       },
     };
     const result = PixelEventSchema.safeParse(payload);
