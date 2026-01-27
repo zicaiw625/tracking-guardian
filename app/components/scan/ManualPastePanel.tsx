@@ -4,7 +4,6 @@ import {
   BlockStack,
   InlineStack,
   Text,
-  Button,
   TextField,
   Banner,
   Badge,
@@ -13,7 +12,6 @@ import {
   List,
   Spinner,
 } from "@shopify/polaris";
-import { useFetcher } from "@remix-run/react";
 import type { ScriptAnalysisResult } from "~/services/scanner/types";
 import type { ScriptCodeEditorProps } from "~/components/scan/ScriptCodeEditor";
 
@@ -40,17 +38,16 @@ interface AnalysisResult {
   };
 }
 
-export function ManualPastePanel({ shopId: _shopId, onAssetsCreated, scriptCodeEditor }: ManualPastePanelProps) {
+export function ManualPastePanel({ shopId: _shopId, onAssetsCreated: _onAssetsCreated, scriptCodeEditor }: ManualPastePanelProps) {
   const Editor = scriptCodeEditor;
   const [scriptContent, setScriptContent] = useState("");
   const [analysisResult, setAnalysisResult] = useState<AnalysisResult | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
-  const [isProcessing, setIsProcessing] = useState(false);
+  const [isProcessing] = useState(false);
   const [realtimeAnalysisResult, setRealtimeAnalysisResult] = useState<ScriptAnalysisResult | null>(null);
   const [validationErrors, setValidationErrors] = useState<string[]>([]);
   const [piiWarnings, setPiiWarnings] = useState<string[]>([]);
   const [detectedSnippets, setDetectedSnippets] = useState<Array<{ platform: string; content: string; startIndex: number; endIndex: number }>>([]);
-  const fetcher = useFetcher();
   const detectPII = useCallback((content: string): string[] => {
     const warnings: string[] = [];
     if (!content.trim()) {
@@ -240,6 +237,56 @@ export function ManualPastePanel({ shopId: _shopId, onAssetsCreated, scriptCodeE
       setDetectedSnippets([]);
     }
   }, [scriptContent, validateScript, detectPII, detectScriptSnippets]);
+  const performLocalAnalysis = useCallback((content: string): AnalysisResult | null => {
+    if (!content.trim()) {
+      return null;
+    }
+    const snippets = detectScriptSnippets(content);
+    const assets: AnalysisResult["assets"] = [];
+    const identifiedCategories: Record<string, number> = {
+      pixel: 0,
+      affiliate: 0,
+      survey: 0,
+      support: 0,
+      analytics: 0,
+      other: 0,
+    };
+    const identifiedPlatforms = new Set<string>();
+    for (const snippet of snippets) {
+      const platform = snippet.platform;
+      if (platform && platform !== "未知脚本") {
+        identifiedPlatforms.add(platform);
+      }
+      let category: string = "other";
+      if (platform.includes("Pixel") || platform.includes("Analytics") || platform.includes("Tag")) {
+        category = "pixel";
+        identifiedCategories.pixel++;
+      } else if (platform.includes("Survey") || platform.includes("问卷")) {
+        category = "survey";
+        identifiedCategories.survey++;
+      } else {
+        identifiedCategories.other++;
+      }
+      assets.push({
+        category,
+        platform: platform !== "未知脚本" ? platform : undefined,
+        displayName: platform,
+        riskLevel: "medium" as const,
+        suggestedMigration: category === "pixel" ? "web_pixel" : "none",
+        confidence: "medium" as const,
+      });
+    }
+    const overallRiskLevel = assets.length > 0 ? "medium" as const : "low" as const;
+    return {
+      assets,
+      summary: {
+        totalSnippets: snippets.length,
+        identifiedCategories,
+        identifiedPlatforms: Array.from(identifiedPlatforms),
+        overallRiskLevel,
+      },
+    };
+  }, [detectScriptSnippets]);
   const handleAnalyze = useCallback(() => {
     if (!scriptContent.trim()) {
       return;
@@ -249,63 +296,30 @@ export function ManualPastePanel({ shopId: _shopId, onAssetsCreated, scriptCodeE
       setValidationErrors(errors);
     }
     setIsAnalyzing(true);
-    fetcher.submit(
-      {
-        _action: "analyze_manual_paste",
-        content: scriptContent,
-      },
-      { method: "post" }
-    );
-  }, [scriptContent, fetcher, validateScript]);
+    const result = performLocalAnalysis(scriptContent);
+    if (result) {
+      setAnalysisResult(result);
+    }
+    setIsAnalyzing(false);
+  }, [scriptContent, validateScript, performLocalAnalysis]);
   const handleRealtimeAnalysis = useCallback((content: string) => {
     if (!content.trim()) return;
-    fetcher.submit(
-      {
-        _action: "realtime_analyze_manual_paste",
-        content,
-      },
-      { method: "post" }
-    );
-  }, [fetcher]);
-  const handleProcess = useCallback(() => {
-    if (!analysisResult) {
-      return;
+    const result = performLocalAnalysis(content);
+    if (result) {
+      setRealtimeAnalysisResult({
+        identifiedPlatforms: result.summary.identifiedPlatforms,
+        platformDetails: result.assets.map(a => ({
+          platform: a.platform || "unknown",
+          type: a.category,
+          confidence: a.confidence,
+          matchedPattern: a.displayName,
+        })),
+        risks: [],
+        riskScore: result.summary.overallRiskLevel === "high" ? 70 : result.summary.overallRiskLevel === "medium" ? 40 : 20,
+        recommendations: [],
+      });
     }
-    setIsProcessing(true);
-    fetcher.submit(
-      {
-        _action: "process_manual_paste",
-        content: scriptContent,
-      },
-      { method: "post" }
-    );
-  }, [scriptContent, analysisResult, fetcher]);
-  useEffect(() => {
-    if (fetcher.data && typeof fetcher.data === "object" && fetcher.data !== null) {
-      const data = fetcher.data as { analysis?: AnalysisResult; realtimeAnalysis?: ScriptAnalysisResult };
-      if (data.analysis) {
-        setAnalysisResult(data.analysis);
-        setIsAnalyzing(false);
-      }
-      if (data.realtimeAnalysis) {
-        setRealtimeAnalysisResult(data.realtimeAnalysis);
-      }
-    }
-  }, [fetcher.data]);
-  useEffect(() => {
-    if (fetcher.data && typeof fetcher.data === "object" && fetcher.data !== null && "processed" in fetcher.data) {
-      const data = fetcher.data as { processed: { created: number; updated: number; duplicates: number } };
-      const result = data.processed;
-      const totalCreated = result.created + result.updated;
-      setIsProcessing(false);
-      setScriptContent("");
-      setAnalysisResult(null);
-      if (onAssetsCreated) {
-        onAssetsCreated(totalCreated);
-      }
-    }
-  }, [fetcher.data, onAssetsCreated]);
-  const canProcess = analysisResult && !isProcessing && !isAnalyzing;
+  }, [performLocalAnalysis]);
   const riskLevelBadge = analysisResult
     ? {
         high: { tone: "critical" as const, label: "高风险" },
@@ -619,6 +633,16 @@ export function ManualPastePanel({ shopId: _shopId, onAssetsCreated, scriptCodeE
                 </Text>
               </BlockStack>
             </Banner>
+            <Banner tone="info">
+              <BlockStack gap="200">
+                <Text as="p" variant="bodySm" fontWeight="semibold">
+                  🔒 隐私说明
+                </Text>
+                <Text as="p" variant="bodySm">
+                  本工具仅在浏览器本地分析脚本内容，不会上传脚本正文到服务器。分析结果仅用于帮助您识别追踪平台和风险等级，不会保存到数据库。
+                </Text>
+              </BlockStack>
+            </Banner>
           </BlockStack>
         </Banner>
         {piiWarnings.length > 0 && (
@@ -706,16 +730,11 @@ export function ManualPastePanel({ shopId: _shopId, onAssetsCreated, scriptCodeE
           />
         </Suspense>
         {analysisResult && (
-          <InlineStack gap="200">
-            <Button
-              onClick={handleProcess}
-              disabled={!canProcess}
-              loading={isProcessing}
-              variant="primary"
-            >
-              {isProcessing ? "处理中..." : "创建迁移资产"}
-            </Button>
-          </InlineStack>
+          <Banner tone="info">
+            <Text as="p" variant="bodySm">
+              分析完成。本工具仅提供本地分析结果，不会将脚本内容保存到服务器。如需保存分析结果，请手动记录识别到的平台和风险等级。
+            </Text>
+          </Banner>
         )}
         {isProcessing && (
           <Box padding="400">
@@ -819,31 +838,6 @@ export function ManualPastePanel({ shopId: _shopId, onAssetsCreated, scriptCodeE
                       })}
                     </BlockStack>
                   </BlockStack>
-                );
-              }
-              return null;
-            })()}
-            {(() => {
-              if (fetcher.data && typeof fetcher.data === "object" && fetcher.data !== null && "processed" in fetcher.data) {
-                return (
-                  <Banner tone="success">
-                    <Text as="p" variant="bodySm">
-                      成功创建 {String((fetcher.data as { processed: { created: number } }).processed.created)} 个新资产，
-                      更新 {String((fetcher.data as { processed: { updated: number } }).processed.updated)} 个现有资产
-                      {(fetcher.data as { processed: { duplicates: number } }).processed.duplicates > 0 &&
-                        `，跳过 ${String((fetcher.data as { processed: { duplicates: number } }).processed.duplicates)} 个重复项`}
-                    </Text>
-                  </Banner>
-                );
-              }
-              return null;
-            })()}
-            {(() => {
-              if (fetcher.data && typeof fetcher.data === "object" && fetcher.data !== null && "error" in fetcher.data) {
-                return (
-                  <Banner tone="critical">
-                    <Text as="p" variant="bodySm">{(fetcher.data as { error: string }).error}</Text>
-                  </Banner>
                 );
               }
               return null;

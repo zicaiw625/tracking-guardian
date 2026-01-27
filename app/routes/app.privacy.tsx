@@ -251,13 +251,13 @@ export default function PrivacyPage() {
                 </InlineStack>
               </Text>
               <DataTypeCard
-                title="订单数据"
-                description="用于转化追踪和归因"
+                title="像素事件数据"
+                description="来自 Web Pixel 事件收据，用于诊断和统计"
                 items={[
-                  "订单 ID 和订单号",
-                  "订单金额和货币",
-                  "商品信息（名称、数量、价格）",
-                  "结账令牌（用于匹配像素事件）",
+                  "事件 ID 和事件类型",
+                  "事件时间戳",
+                  "事件参数（如订单金额、货币、商品信息等）",
+                  "结账令牌（用于匹配像素事件，已哈希）",
                 ]}
                 tone="info"
               />
@@ -287,8 +287,7 @@ export default function PrivacyPage() {
                     转化追踪
                   </Text>
                   <Text as="p" variant="bodySm">
-                    将购买事件发送到您配置的广告平台（Meta、TikTok、GA4），
-                    帮助您准确衡量广告投资回报。
+                    v1 默认仅基于 Web Pixel 客户事件和像素收据（PixelEventReceipt），不通过 Admin API 读取订单。服务端追踪为默认关闭的高级功能，启用前需要商家更新自身隐私政策。
                   </Text>
                   <Banner tone="critical">
                     <BlockStack gap="200">
@@ -375,7 +374,7 @@ export default function PrivacyPage() {
                       </List>
                       <Text as="p" variant="bodySm" tone="subdued">
                         服务端追踪通过 Shopify Webhooks 直接发送数据到第三方平台 API，不受浏览器隐私设置影响。
-                        这是 v1.1+ 的高级功能，需要额外的数据披露和合规审查。
+                        当前版本（v1.0）中，该功能默认关闭且 UI 入口隐藏，仅在将来版本或通过环境变量显式启用后才会生效。
                       </Text>
                       <Text as="p" variant="bodySm" fontWeight="semibold" tone="critical">
                         ⚠️ 默认状态：所有新创建的像素配置中，服务端追踪默认关闭（serverSideEnabled: false）。
@@ -391,7 +390,7 @@ export default function PrivacyPage() {
                     对账与诊断
                   </Text>
                   <Text as="p" variant="bodySm">
-                    比对 Webhook 订单与像素事件，帮助您发现追踪缺口并优化配置。
+                    v1 默认仅基于 Web Pixel 客户事件和像素收据（PixelEventReceipt），不通过 Admin API 读取订单。我们通过比对像素事件收据与内部日志，帮助您发现追踪缺口并优化配置。
                   </Text>
                 </BlockStack>
               </Card>
@@ -403,6 +402,33 @@ export default function PrivacyPage() {
                   <Text as="p" variant="bodySm">
                     根据客户的同意状态，自动决定是否向特定平台发送数据，确保符合 GDPR/CCPA。
                   </Text>
+                </BlockStack>
+              </Card>
+              <Card>
+                <BlockStack gap="300">
+                  <Text as="h3" variant="headingSm">
+                    通知与第三方服务
+                  </Text>
+                  <Text as="p" variant="bodySm">
+                    当前版本中，告警通知功能已禁用。以下服务仅在将来版本或商家显式启用告警功能时使用：
+                  </Text>
+                  <List type="bullet">
+                    <List.Item>
+                      <Text as="span" variant="bodySm">
+                        <strong>Resend（邮件服务）</strong>：发送店铺域名、告警类型、聚合指标（订单数、平台转化数、差异率）、应用内报告链接。不包含客户 PII。
+                      </Text>
+                    </List.Item>
+                    <List.Item>
+                      <Text as="span" variant="bodySm">
+                        <strong>Slack Webhook</strong>：发送 JSON 格式的告警数据（店铺域名、告警类型、聚合指标、报告链接）。仅商家级运营数据，不包含订单明细或终端客户信息。
+                      </Text>
+                    </List.Item>
+                    <List.Item>
+                      <Text as="span" variant="bodySm">
+                        <strong>Telegram Bot API</strong>：发送店铺维度告警摘要与指标。不包含订单明细与终端客户信息。
+                      </Text>
+                    </List.Item>
+                  </List>
                 </BlockStack>
               </Card>
             </BlockStack>

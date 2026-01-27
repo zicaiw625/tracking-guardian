@@ -39,6 +39,11 @@ function getDecryptedSettings(config: AlertConfigWithEncryption): Record<string,
     return null;
 }
 export async function sendAlert(config: AlertConfigWithEncryption, data: AlertData): Promise<boolean> {
+    const NOTIFICATIONS_ENABLED = CONFIG.getEnv("NOTIFICATIONS_ENABLED", "false") === "true";
+    if (!NOTIFICATIONS_ENABLED) {
+        logger.info("Notifications disabled via feature flag, skipping alert", { alertType: config.channel });
+        return false;
+    }
     try {
         const settings = getDecryptedSettings(config);
         if (!settings) {
@@ -325,6 +330,13 @@ export async function testNotification(channel: string, settings: EmailAlertSett
     success: boolean;
     message: string;
 }> {
+    const NOTIFICATIONS_ENABLED = CONFIG.getEnv("NOTIFICATIONS_ENABLED", "false") === "true";
+    if (!NOTIFICATIONS_ENABLED) {
+        return {
+            success: false,
+            message: "通知功能在当前版本中已禁用",
+        };
+    }
     const testData: AlertData = {
         platform: "测试平台",
         reportDate: new Date(),

@@ -16,7 +16,7 @@ Tracking Guardian 是一个 Shopify 应用，作为**数据处理者**（Data Pr
 
 ### `read_script_tags`
 - **用途**: 扫描店铺中已安装的第三方追踪脚本，帮助商家识别和审计追踪代码
-- **数据处理**: 仅读取脚本标签的 URL，不存储完整的脚本内容。**注意**：商家手动粘贴的 Additional Scripts 内容会加密存储在 `rawSnippetEncrypted` 字段中，用于复盘和交付验证；ScriptTag 本身不抓取完整内容（仅 URL），但手动粘贴的内容会加密保存。
+- **数据处理**: 仅读取脚本标签的 URL，不存储完整的脚本内容。对于商家手动粘贴的 Additional Scripts，我们仅在浏览器本地进行分析，不会将脚本正文上传到服务器或保存到数据库。我们仅保存分析结果（指纹、平台类型、风险评分和脱敏摘要，如平台 ID 的后 4 位）。
 - **保留周期**: 扫描结果按店铺 dataRetentionDays（默认 90 天）
 
 ### `read_pixels` / `write_pixels`
@@ -26,15 +26,10 @@ Tracking Guardian 是一个 Shopify 应用，作为**数据处理者**（Data Pr
 - **数据处理**: 仅存储像素配置元数据（ID、名称、状态），不存储像素代码内容
 - **保留周期**: 配置元数据保留至应用卸载
 
-### `read_orders`
-- **用途**: 
-  - 读取订单数据用于转化追踪（订单 ID、金额、商品信息）
-  - 支持 Reorder 功能（需要 PCD 批准）
-  - 对账和诊断
-- **数据处理**: 
-  - **不收集**: 客户姓名、邮箱、电话、地址、支付信息
-  - **仅收集**: 订单 ID、订单号、金额、货币、商品信息（名称、数量、价格、SKU）、结账令牌（已哈希）
-- **保留周期**: 按店铺 dataRetentionDays（默认 90 天）
+### `read_customer_events`
+- **用途**: 读取 Shopify Customer Events 中的像素事件，用于验证像素事件是否成功进入 Shopify 系统
+- **数据处理**: 仅用于验证和诊断目的，不存储客户个人信息
+- **保留周期**: 不适用（仅用于实时验证）
 
 ---
 
@@ -42,11 +37,13 @@ Tracking Guardian 是一个 Shopify 应用，作为**数据处理者**（Data Pr
 
 ### 收集的数据
 
-#### 订单数据
-- 订单 ID 和订单号
-- 订单金额和货币
-- 商品信息（名称、数量、价格、SKU）
+#### 像素事件数据
+- 事件 ID 和事件类型
+- 事件时间戳
+- 事件参数（如订单金额、货币、商品信息等，来自 Web Pixel 事件 payload）
 - 结账令牌（用于匹配像素事件，已哈希处理）
+
+**注意**：当前版本（v1.0）不通过 Shopify Admin API 读取订单数据。我们仅基于 Web Pixel 上报的事件收据（PixelEventReceipt）进行诊断和统计。
 
 #### 客户同意状态
 - `marketing`: 是否同意营销追踪
@@ -59,10 +56,11 @@ Tracking Guardian 是一个 Shopify 应用，作为**数据处理者**（Data Pr
 - 店铺设置和偏好
 
 #### 诊断和审计数据
-- 像素事件收据（用于对账）
-- 转化任务执行日志
-- Webhook 处理日志
-- 手动粘贴的 Additional Scripts 内容：商家手动粘贴的脚本内容会加密存储在 `rawSnippetEncrypted` 字段中，用于复盘和交付验证。ScriptTag 本身不抓取完整内容（仅 URL），但手动粘贴的内容会加密保存。
+- 像素事件收据（用于对账和诊断）
+- 扫描结果元数据（平台类型、风险评分、指纹等，不包含脚本正文）
+- Webhook 处理日志（仅应用生命周期和 GDPR 合规 webhooks）
+
+**重要**：我们不会在数据库内保存任何脚本正文或片段（包括手动粘贴的内容）。对于手动粘贴的脚本，我们仅在浏览器本地进行分析，仅保存分析结果（指纹、平台类型、风险评分和脱敏摘要）。
 
 #### Session（OAuth/会话存储）
 - **可能字段**：`firstName`、`lastName`、`email`（来自 Shopify 在线 Session，仅店铺管理员/员工，非终端客户）
@@ -83,13 +81,16 @@ Tracking Guardian 是一个 Shopify 应用，作为**数据处理者**（Data Pr
 
 ### Protected Customer Data (PCD) 处理
 
-我们不收集终端客户 PII；订单读取仅用于对账验收且字段最小化；再购、订单状态等需 PCD 审批的功能有硬门禁。订单及客户相关信息属于 Shopify 的 Protected Customer Data (PCD)，需通过 Shopify 审核后才能访问；未获批时订单相关信息可能不可用，此为平台合规行为。
+**当前版本（v1.0）不访问 Protected Customer Data (PCD)**。我们不会通过 Shopify Admin API 读取订单数据、客户信息或其他受保护数据。
 
-本应用包含需要 Shopify PCD 批准的功能（如 Reorder 模块）。这些功能通过 `PCD_APPROVED` 环境变量控制：
+- **当前 scopes**：`read_script_tags`、`read_pixels`、`write_pixels`、`read_customer_events`（用于验证像素事件）
+- **不请求的权限**：`read_orders`、`read_customers` 等订单/客户相关权限
+- **数据来源**：仅基于 Web Pixel 上报的事件收据（PixelEventReceipt）进行诊断和统计
 
-- **默认状态**: `PCD_APPROVED=false`，所有 PCD 相关功能被硬性禁用
-- **启用条件**: 仅在获得 Shopify PCD 批准后，通过设置 `PCD_APPROVED=true` 启用
-- **门禁机制**: 代码层面实现了硬门禁，未批准时相关 API 端点直接返回 403 错误
+未来版本如需要访问订单数据（如订单层验收、退款对账等），将：
+- 在获得 Shopify PCD 批准后才会启用
+- 通过 `PCD_APPROVED` 环境变量控制
+- 继续遵循"字段最小化"与"用途限定"的原则
 
 ---
 
@@ -178,7 +179,7 @@ Tracking Guardian 是一个 Shopify 应用，作为**数据处理者**（Data Pr
 
 ### 默认行为
 
-**重要**: 所有新创建的像素配置中，服务端转化追踪（Server-side CAPI/MP）**默认关闭**（`serverSideEnabled: false`）。
+**重要**: 当前公开上架版本（v1.0）中，服务端转化追踪（Server-side CAPI/MP）**默认关闭且 UI 入口隐藏**。该功能通过 `SERVER_SIDE_CONVERSIONS_ENABLED` 环境变量控制，默认值为 `false`。
 
 只有在设置页面中显式启用后，才会开始发送服务端事件。
 
@@ -186,6 +187,31 @@ Tracking Guardian 是一个 Shopify 应用，作为**数据处理者**（Data Pr
 1. 在隐私政策中明确说明向第三方平台发送的数据类型和用途
 2. 已获得必要的用户同意（如 GDPR/CCPA 要求）
 3. 已准备好应对 Shopify App Review 关于数据使用的询问
+
+### 通知与告警服务（当前版本已禁用）
+
+**当前版本（v1.0）中，告警通知功能已禁用**。以下子处理器仅在将来版本或商家显式启用告警功能时使用：
+
+#### Resend（邮件服务）
+- **用途**: 发送告警邮件通知
+- **发送的数据字段**: 店铺域名、告警类型（如"追踪异常警报"）、聚合指标（订单数、平台转化数、差异率）、应用内报告链接
+- **不发送**: 客户个人信息（PII）、订单明细、终端客户数据
+- **数据处理位置**: 美国
+- **保留周期**: 不适用（邮件服务提供商不存储邮件内容）
+
+#### Slack Webhook
+- **用途**: 发送告警通知到 Slack 频道
+- **发送的数据字段**: 店铺域名、告警类型、聚合指标（订单数、平台转化数、差异率）、应用内报告链接（JSON 格式）
+- **不发送**: 客户个人信息（PII）、订单明细、终端客户数据
+- **数据处理位置**: 由商家配置的 Slack Workspace 位置决定
+- **URL 验证**: 仅允许 `hooks.slack.com` 域名，路径必须为 `/services/` 或 `/triggers/` 开头
+
+#### Telegram Bot API
+- **用途**: 发送告警通知到 Telegram 聊天
+- **发送的数据字段**: 店铺域名、告警类型、聚合指标（订单数、平台转化数、差异率）
+- **不发送**: 客户个人信息（PII）、订单明细、终端客户数据
+- **数据处理位置**: 由 Telegram 服务位置决定
+- **认证**: 使用商家配置的 Bot Token 和 Chat ID
 
 ### 子处理器
 
@@ -196,6 +222,9 @@ Tracking Guardian 是一个 Shopify 应用，作为**数据处理者**（Data Pr
 | Render.com | 应用托管和基础设施 | 美国/新加坡 | 标准服务协议 |
 | PostgreSQL (Render) | 数据存储 | 美国/新加坡 | 数据库即服务协议 |
 | Redis (Render) | 缓存和速率限制 | 美国/新加坡 | 缓存服务协议 |
+| Resend | 邮件服务（告警通知，当前版本已禁用） | 美国 | 标准服务协议 |
+| Slack | Webhook 通知（告警通知，当前版本已禁用） | 由商家配置的 Workspace 位置决定 | Webhook 服务协议 |
+| Telegram | Bot API 通知（告警通知，当前版本已禁用） | 由 Telegram 服务位置决定 | Bot API 协议 |
 
 所有子处理器均符合 GDPR 要求，并签署了数据处理协议（DPA）。
 

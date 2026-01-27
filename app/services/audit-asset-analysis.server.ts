@@ -660,14 +660,26 @@ function generateContentFingerprint(
     .replace(/['"]/g, "")
     .trim();
   const ids: string[] = [];
-  const ga4Match = normalizedContent.match(/g-[a-z0-9]{10,}/i);
-  if (ga4Match) ids.push(ga4Match[0]);
-  const metaMatch = normalizedContent.match(/\d{15,16}/);
-  if (metaMatch) ids.push(`meta-${metaMatch[0]}`);
+  const ga4Match = normalizedContent.match(/g-([a-z0-9]{10,})/i);
+  if (ga4Match && ga4Match[1]) {
+    const id = ga4Match[1];
+    ids.push(`ga4-${id.slice(-4)}`);
+  }
+  const metaMatch = normalizedContent.match(/(\d{15,16})/);
+  if (metaMatch && metaMatch[1]) {
+    const id = metaMatch[1];
+    ids.push(`meta-${id.slice(-4)}`);
+  }
   const tiktokMatch = normalizedContent.match(/ttq[^)]*['"]?([a-z0-9]+)['"]?/i);
-  if (tiktokMatch && tiktokMatch[1]) ids.push(`tiktok-${tiktokMatch[1]}`);
+  if (tiktokMatch && tiktokMatch[1]) {
+    const id = tiktokMatch[1];
+    ids.push(`tiktok-${id.slice(-4)}`);
+  }
   const pinterestMatch = normalizedContent.match(/pintrk[^)]*['"]?([a-z0-9]+)['"]?/i);
-  if (pinterestMatch && pinterestMatch[1]) ids.push(`pinterest-${pinterestMatch[1]}`);
+  if (pinterestMatch && pinterestMatch[1]) {
+    const id = pinterestMatch[1];
+    ids.push(`pinterest-${id.slice(-4)}`);
+  }
   const fingerprintContent = JSON.stringify({
     category,
     platform: platform || "",
@@ -720,7 +732,6 @@ export async function processManualPasteAssets(
           riskLevel: asset.riskLevel,
           suggestedMigration: asset.suggestedMigration,
           details: {
-            content: asset.content,
             matchedPatterns: asset.matchedPatterns,
             confidence: asset.confidence,
             enhancedRiskScore,

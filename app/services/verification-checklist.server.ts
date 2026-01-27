@@ -74,15 +74,7 @@ export function generateTestChecklist(
       verificationPoints: i.expectedResults,
       expectedParams: [],
     }));
-  const orderLayer: OrderLayerItem[] = selectedItems
-    .filter((i) => i.category === "refund" || i.category === "order_edit")
-    .map((i) => ({
-      eventType: i.eventType,
-      description: i.description,
-      required: i.required,
-      verificationPoints: i.expectedResults,
-      expectedFields: [],
-    }));
+  const orderLayer: OrderLayerItem[] = [];
   return {
     shopId,
     generatedAt: new Date(),
@@ -250,69 +242,6 @@ function getAllTestItems(): TestChecklistItem[] {
       category: "purchase",
     },
     {
-      id: "refund",
-      name: "退款",
-      description: "对已完成订单进行退款，验证退款事件（通过 webhook）",
-      eventType: "refund",
-      required: false,
-      platforms: ["google", "meta"],
-      steps: [
-        "1. 完成一个订单（记录 orderId）",
-        "2. 在 Shopify Admin 中对订单进行退款",
-        "3. 在验收页面查看订单侧事件（refunds/create webhook）",
-        "4. 验证退款金额与 Shopify 订单一致",
-      ],
-      expectedResults: [
-        "退款事件已通过 webhook 记录（RefundSnapshot）",
-        "退款金额与 Shopify 订单一致",
-        "订单快照已更新（ShopifyOrderSnapshot）",
-      ],
-      estimatedTime: 10,
-      category: "refund",
-    },
-    {
-      id: "order_cancel",
-      name: "订单取消",
-      description: "取消一个待处理的订单（通过 webhook）",
-      eventType: "cancel",
-      required: false,
-      platforms: ["google", "meta"],
-      steps: [
-        "1. 完成一个订单（记录 orderId）",
-        "2. 在 Shopify Admin 中取消订单",
-        "3. 在验收页面查看订单侧事件（orders/cancelled webhook）",
-        "4. 验证订单状态已更新为 cancelled",
-      ],
-      expectedResults: [
-        "订单取消事件已通过 webhook 记录",
-        "订单快照已更新（cancelledAt 字段）",
-        "订单 financialStatus 已更新",
-      ],
-      estimatedTime: 5,
-      category: "order_edit",
-    },
-    {
-      id: "order_edit",
-      name: "订单编辑",
-      description: "编辑已完成的订单（修改商品、地址等，通过 webhook）",
-      eventType: "order_edit",
-      required: false,
-      platforms: ["google"],
-      steps: [
-        "1. 完成一个订单（记录 orderId）",
-        "2. 在 Shopify Admin 中编辑订单（修改商品数量或地址）",
-        "3. 在验收页面查看订单侧事件（orders/edited webhook）",
-        "4. 验证订单金额已更新（如果修改了商品）",
-      ],
-      expectedResults: [
-        "订单编辑事件已通过 webhook 记录（orders/edited）",
-        "订单快照已更新（totalValue, updatedAt）",
-        "订单金额与 Shopify 订单一致",
-      ],
-      estimatedTime: 10,
-      category: "order_edit",
-    },
-    {
       id: "add_to_cart",
       name: "添加到购物车",
       description: "将商品添加到购物车",
@@ -350,48 +279,6 @@ function getAllTestItems(): TestChecklistItem[] {
       ],
       estimatedTime: 2,
       category: "cart",
-    },
-    {
-      id: "order_partial_refund",
-      name: "部分退款",
-      description: "对订单进行部分退款，验证退款金额正确（通过 webhook）",
-      eventType: "refund",
-      required: false,
-      platforms: ["google", "meta"],
-      steps: [
-        "1. 完成一个订单（记录 orderId 和 totalValue）",
-        "2. 在 Shopify Admin 中对订单进行部分退款（如退款 50%）",
-        "3. 在验收页面查看退款事件（refunds/create webhook）",
-        "4. 验证退款金额与 Shopify 订单一致",
-      ],
-      expectedResults: [
-        "部分退款事件已通过 webhook 记录（RefundSnapshot）",
-        "退款金额与 Shopify 订单一致",
-        "订单快照已更新",
-      ],
-      estimatedTime: 8,
-      category: "refund",
-    },
-    {
-      id: "order_full_refund",
-      name: "全额退款",
-      description: "对订单进行全额退款（通过 webhook）",
-      eventType: "refund",
-      required: false,
-      platforms: ["google", "meta"],
-      steps: [
-        "1. 完成一个订单（记录 orderId 和 totalValue）",
-        "2. 在 Shopify Admin 中对订单进行全额退款",
-        "3. 在验收页面查看退款事件（refunds/create webhook）",
-        "4. 验证退款金额与订单总金额一致",
-      ],
-      expectedResults: [
-        "全额退款事件已通过 webhook 记录（RefundSnapshot）",
-        "退款金额与订单总金额一致",
-        "订单快照已更新",
-      ],
-      estimatedTime: 5,
-      category: "refund",
     },
     {
       id: "purchase_zero_value",

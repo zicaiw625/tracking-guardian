@@ -5,7 +5,7 @@ import { decryptCredentials } from "../credentials.server";
 import type { PlatformCredentials } from "~/types";
 import { fetchWithTimeout } from "../../utils/http";
 const DEFAULT_API_TIMEOUT_MS = 30000;
-import { CAPI_CONFIG } from "~/utils/config.server";
+import { CAPI_CONFIG, CONFIG } from "~/utils/config.server";
 import { ErrorCode } from "~/utils/errors/app-error";
 import { randomBytes } from "crypto";
 
@@ -525,6 +525,21 @@ export async function sendPixelEventToPlatform(
   platformId?: string,
   environment: "test" | "live" = "live"
 ): Promise<PixelEventSendResult> {
+  const SERVER_SIDE_CONVERSIONS_ENABLED = CONFIG.getEnv("SERVER_SIDE_CONVERSIONS_ENABLED", "false") === "true";
+  if (!SERVER_SIDE_CONVERSIONS_ENABLED) {
+    logger.info("Server-side conversions disabled via feature flag, skipping event send", {
+      shopId,
+      platform,
+      eventName: payload.eventName,
+    });
+    return {
+      success: false,
+      ok: false,
+      platform,
+      error: "Server-side conversions disabled",
+      errorCode: "FEATURE_DISABLED",
+    };
+  }
   logger.debug(`Sending ${payload.eventName} to ${platform}`, {
     shopId,
     eventId,

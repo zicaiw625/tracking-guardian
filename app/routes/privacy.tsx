@@ -184,6 +184,9 @@ export default function PrivacyPage() {
               帮助您诊断像素是否正常工作、识别潜在的丢单风险，并在应用内部展示统计和报告。
               我们<strong>不会</strong>从 Shopify 读取订单明细，也<strong>不会</strong>访问受保护客户数据（Protected Customer Data, PCD）。
             </p>
+            <p>
+              <strong>Web Pixel 行为说明</strong>：我们的 Web Pixel 代码不会读取 checkout DOM 中的客户个人信息，只依赖 Shopify 提供的标准事件 payload。我们不会尝试通过 Web Pixel 还原客户身份（如邮箱/电话）。
+            </p>
 
             <div className="warning">
               <p><strong>重要：服务端追踪默认关闭</strong></p>
@@ -244,18 +247,28 @@ export default function PrivacyPage() {
 
           <div className="section">
             <h2>第三方共享</h2>
+            <h3>服务端转化平台（默认关闭）</h3>
             <p>
-              当您启用服务端追踪时，数据可能被发送到以下平台：
+              当前版本中，服务端转化追踪功能默认关闭且 UI 入口隐藏。仅在商家显式启用且完成隐私披露后，数据才会被发送到以下平台：
             </p>
             <ul>
-              <li><strong>Meta (Facebook) Conversions API</strong></li>
-              <li><strong>TikTok Events API</strong></li>
-              <li><strong>Google Analytics 4 (GA4) Measurement Protocol</strong></li>
-              <li><strong>通用 HTTP Webhook</strong>（由您配置）</li>
+              <li><strong>Meta (Facebook) Conversions API</strong>：订单 ID、订单号、金额、货币、商品信息（名称、数量、价格、SKU）、事件时间戳</li>
+              <li><strong>TikTok Events API</strong>：订单 ID、订单号、金额、货币、商品信息、事件时间戳</li>
+              <li><strong>Google Analytics 4 (GA4) Measurement Protocol</strong>：订单 ID、订单号、金额、货币、商品信息、事件时间戳</li>
+              <li><strong>通用 HTTP Webhook</strong>（由您配置）：可配置的数据字段</li>
             </ul>
             <p>
               即使启用了服务端追踪，我们<strong>不会发送</strong>客户个人信息（姓名、邮箱、电话、地址）或支付信息。
             </p>
+            <h3>通知与告警服务（当前版本已禁用）</h3>
+            <p>
+              当前版本中，告警通知功能已禁用。以下服务仅在将来版本或商家显式启用告警功能时使用：
+            </p>
+            <ul>
+              <li><strong>Resend（邮件服务）</strong>：仅在启用邮件告警时使用，发送店铺域名、告警类型、聚合指标（订单数、平台转化数、差异率）、应用内报告链接。不包含客户 PII。</li>
+              <li><strong>Slack Webhook</strong>：仅在启用 Slack 告警时使用，发送 JSON 格式的告警数据（店铺域名、告警类型、聚合指标、报告链接）。仅商家级运营数据，不包含订单明细或终端客户信息。</li>
+              <li><strong>Telegram Bot API</strong>：仅在启用 Telegram 告警时使用，发送店铺维度告警摘要与指标。不包含订单明细与终端客户信息。</li>
+            </ul>
           </div>
 
           <div className="section">

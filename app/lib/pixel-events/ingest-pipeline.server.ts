@@ -5,7 +5,7 @@ import { checkInitialConsent, filterPlatformsByConsent, logConsentFilterMetrics 
 import { hashValueSync } from "~/utils/crypto.server";
 import { logger } from "~/utils/logger.server";
 import prisma from "~/db.server";
-import { API_CONFIG } from "~/utils/config.server";
+import { API_CONFIG, CONFIG } from "~/utils/config.server";
 
 const TIMESTAMP_WINDOW_MS = API_CONFIG.TIMESTAMP_WINDOW_MS;
 
@@ -310,12 +310,16 @@ export async function distributeEvents(
   origin: string | null,
   activeVerificationRunId: string | null | undefined
 ): Promise<ProcessedEvent[]> {
+  const SERVER_SIDE_CONVERSIONS_ENABLED = CONFIG.getEnv("SERVER_SIDE_CONVERSIONS_ENABLED", "false") === "true";
+  const filteredServerSideConfigs = SERVER_SIDE_CONVERSIONS_ENABLED
+    ? serverSideConfigs
+    : serverSideConfigs.filter((config) => !config.serverSideEnabled);
   const processed: ProcessedEvent[] = [];
   
   for (const event of deduplicatedEvents) {
     const consentResult = checkInitialConsent(event.payload.consent);
     
-    const mappedConfigs = serverSideConfigs.map((config) => ({
+    const mappedConfigs = filteredServerSideConfigs.map((config) => ({
       platform: config.platform,
       id: config.id,
       platformId: config.platformId ?? undefined,

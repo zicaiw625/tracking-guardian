@@ -101,7 +101,6 @@ model AuditAsset {
   priority             Int?
   estimatedTimeMinutes Int?
   dependencies         Json?
-  rawSnippetEncrypted  String?
   Shop                 Shop      @relation(fields: [shopId], references: [id], onDelete: Cascade)
 
   @@unique([shopId, fingerprint])

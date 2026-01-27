@@ -8,7 +8,6 @@ import { settingsLoader } from "./loader.server";
 import { settingsAction } from "./actions.server";
 import type { SettingsActionResponse } from "./types";
 import {
-  AlertsTab,
   SecurityTab,
   SubscriptionTab,
 } from "./_components";
@@ -242,7 +241,6 @@ export default function SettingsPage() {
     }
   }, [selectedTab, handleSaveAlert]);
   const tabs = [
-    { id: "alerts", content: "警报通知" },
     { id: "security", content: "安全与隐私" },
     { id: "subscription", content: "订阅计划" },
   ];
@@ -315,36 +313,11 @@ export default function SettingsPage() {
         </Banner>
         <Tabs tabs={tabs} selected={selectedTab} onSelect={handleTabChange}>
           {selectedTab === 0 && (
-            <AlertsTab
-              shop={shop}
-              alertChannel={alertChannel}
-              setAlertChannel={setAlertChannel}
-              alertEmail={alertEmail}
-              setAlertEmail={setAlertEmail}
-              slackWebhook={slackWebhook}
-              setSlackWebhook={setSlackWebhook}
-              telegramToken={telegramToken}
-              setTelegramToken={setTelegramToken}
-              telegramChatId={telegramChatId}
-              setTelegramChatId={setTelegramChatId}
-              alertThreshold={alertThreshold}
-              setAlertThreshold={setAlertThreshold}
-              alertEnabled={alertEnabled}
-              setAlertEnabled={setAlertEnabled}
-              alertFormDirty={alertFormDirty}
-              isSubmitting={isSubmitting}
-              onSaveAlert={handleSaveAlert}
-              onTestAlert={handleTestAlert}
-              failureRateThreshold={failureRateThreshold}
-              setFailureRateThreshold={setFailureRateThreshold}
-              missingParamsThreshold={missingParamsThreshold}
-              setMissingParamsThreshold={setMissingParamsThreshold}
-              volumeDropThreshold={volumeDropThreshold}
-              setVolumeDropThreshold={setVolumeDropThreshold}
-              alertFrequency={alertFrequency}
-              setAlertFrequency={setAlertFrequency}
-              currentMonitoringData={currentMonitoringData}
-            />
+            <Banner tone="info">
+              <Text as="p" variant="bodySm">
+                告警通知功能将在后续版本中提供。当前版本专注于像素事件验收和诊断。
+              </Text>
+            </Banner>
           )}
           {selectedTab === 1 && (
             <SecurityTab

@@ -6,7 +6,6 @@ import {
   getAuditAssetSummary,
   updateMigrationStatus,
   deleteAuditAsset,
-  getAuditAssetWithRawSnippet,
   type AssetCategory,
   type MigrationStatus,
 } from "../../services/audit-asset.server";
@@ -265,11 +264,12 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     const url = new URL(request.url);
     const assetId = url.searchParams.get("assetId");
     if (assetId) {
-      const result = await getAuditAssetWithRawSnippet(assetId, shopId);
-      if (!result) {
+      const assets = await getAuditAssets(shopId, {});
+      const asset = assets.find(a => a.id === assetId);
+      if (!asset) {
         throw AppError.notFound("Asset", assetId);
       }
-      return successResponse({ asset: result.asset, rawSnippet: result.rawSnippet });
+      return successResponse({ asset });
     }
     const category = url.searchParams.get("category") as AssetCategory | null;
     const migrationStatus = url.searchParams.get("migrationStatus") as MigrationStatus | null;

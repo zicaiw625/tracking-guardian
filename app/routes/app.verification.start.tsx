@@ -179,18 +179,21 @@ export default function VerificationStartPage() {
               </List>
             </BlockStack>
             <Divider />
-            <BlockStack gap="300">
-              <Text as="h3" variant="headingSm">
-                订单层验收（Webhook/Admin API 对账）
-              </Text>
-              <Banner tone="info">
-                <Text as="p" variant="bodySm">
-                  <strong>PRD 2.5说明：</strong>标准事件覆盖的是"店内行为+checkout链路"，
-                  它并不天然覆盖退款/取消等订单后事件，所以订单层验收是第二层验证。
+            {testChecklist.orderLayer.length > 0 && (
+              <BlockStack gap="300">
+                <Text as="h3" variant="headingSm">
+                  订单层验收（将在后续版本中提供）
                 </Text>
-              </Banner>
+                <Banner tone="info">
+                  <Text as="p" variant="bodySm">
+                    订单层验收功能正在开发中，将在未来版本中推出。
+                  </Text>
+                </Banner>
+              </BlockStack>
+            )}
+            {false && testChecklist?.orderLayer && (testChecklist?.orderLayer?.length ?? 0) > 0 && (
               <List type="number">
-                {testChecklist.orderLayer.map((item: OrderLayerItem, index: number) => (
+                {testChecklist?.orderLayer?.map((item: OrderLayerItem, index: number) => (
                   <List.Item key={index}>
                     <BlockStack gap="100">
                       <InlineStack gap="200" blockAlign="center">
@@ -232,7 +235,7 @@ export default function VerificationStartPage() {
                   </List.Item>
                 ))}
               </List>
-            </BlockStack>
+            )}
             <Divider />
             <BlockStack gap="300">
               <Text as="h3" variant="headingSm">
