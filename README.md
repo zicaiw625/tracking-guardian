@@ -193,14 +193,14 @@ pnpm install
 ```env
 SHOPIFY_API_KEY=your_api_key
 SHOPIFY_API_SECRET=your_api_secret
-SCOPES=read_script_tags,read_pixels,write_pixels,read_orders
+SCOPES=read_script_tags,read_pixels,write_pixels,read_customer_events
 SHOPIFY_APP_URL=https://your-app-url.com
 DATABASE_URL=postgresql://user:password@localhost:5432/tracking_guardian
 ```
 
 **重要：SCOPES 配置说明（必须完全一致）**
 
-所有列出的权限均为核心功能所必需，**必须全部包含**，不能省略。请确保以下三个位置的 SCOPES 配置**完全一致**：
+所有列出的权限均为当前版本核心功能所必需，**必须全部包含**，不能省略。请确保以下三个位置的 SCOPES 配置**完全一致**：
 
 1. `shopify.app.toml` 中的 `[access_scopes]` 部分（第7行）
 2. 生产环境 `SCOPES` 环境变量（如 `render.yaml` 第60-61行或部署平台配置）
@@ -208,12 +208,11 @@ DATABASE_URL=postgresql://user:password@localhost:5432/tracking_guardian
 
 **标准配置（所有环境必须完全一致，包括顺序和拼写）**：
 ```
-SCOPES=read_script_tags,read_pixels,write_pixels,read_orders
+SCOPES=read_script_tags,read_pixels,write_pixels,read_customer_events
 ```
 
 **⚠️ 关键要求**：
 - 所有三个位置的配置必须**完全一致**（包括权限顺序和拼写）
-- `read_orders` 权限是**必需的**，不能省略
 - 如果配置不一致，会导致安装后需要反复 re-auth、某些页面/功能偶发 403 错误
 
 **权限说明**：
@@ -221,26 +220,7 @@ SCOPES=read_script_tags,read_pixels,write_pixels,read_orders
 - `read_script_tags`：扫描旧版 ScriptTags 用于迁移建议
 - `read_pixels`：查询已安装的 Web Pixel 状态
 - `write_pixels`：创建/更新 App Pixel Extension
-- `read_orders`：**必需** - 用于验收验证、对账差异检查、订单金额一致性验证
-
-**⚠️ 特别注意**：`read_orders` 权限是验收和监控功能的核心依赖。如果省略此权限，以下功能将无法正常工作：
-- 验收向导中的订单金额/币种一致性验证
-- 监控面板中的对账差异检查
-- 订单相关的验收报告生成
-
-**配置一致性检查清单**：
-
-- [ ] `shopify.app.toml` 第7行的 scopes 包含所有 4 个权限（包括 `read_orders`）
-- [ ] 生产环境 `SCOPES` 环境变量（如 `render.yaml` 第60-61行）包含所有 4 个权限（包括 `read_orders`）
-- [ ] 本地开发 `.env` 文件中的 `SCOPES` 包含所有 4 个权限（包括 `read_orders`）
-- [ ] 三个位置的权限顺序和拼写**完全一致**（必须完全相同）
-
-**如果配置不一致，会导致**：
-- 安装后需要反复 re-auth
-- 某些页面/功能偶发 403 错误（尤其是验收/对账需要订单读取时）
-- 验收验证功能无法正常工作
-- 对账差异检查无法执行
-- 订单金额一致性验证失败
+- `read_customer_events`：读取 Web Pixel 产生的客户事件，用于验证事件完整性与诊断
 
 # P0-2: Web Pixel Origin null 兼容配置（生产环境必须显式设置）
 # ⚠️ 生产环境部署必配项：此变量在生产环境必须显式设置，否则应用启动会失败
@@ -450,23 +430,9 @@ railway up
 | `read_script_tags` | 扫描旧版 ScriptTags 用于迁移建议 | `scanner.server.ts` | ✅ 是 |
 | `read_pixels` | 查询已安装的 Web Pixel 状态 | `migration.server.ts` | ✅ 是 |
 | `write_pixels` | 创建/更新 App Pixel Extension | `migration.server.ts` | ✅ 是 |
-| `read_orders` | 验收验证/对账差异检查/订单金额一致性验证 | `app.verification.tsx` / `reconciliation.server.ts` | ✅ 是 |
+| `read_customer_events` | 读取 Web Pixel 产生的客户事件，用于验证事件完整性与诊断 | `pixel-events` 相关服务层 | ✅ 是 |
 
-**权限说明**：所有权限均为核心功能所必需，**必须全部包含在 SCOPES 环境变量中**。
-
-**⚠️ 重要：`read_orders` 权限是必需的**
-
-`read_orders` 权限用于以下核心功能，**不能省略**：
-- 验收向导中的订单金额/币种一致性验证
-- 监控面板中的对账差异检查
-- 订单相关的验收报告生成
-
-如果省略 `read_orders` 权限，以下功能将无法正常工作：
-- 验收验证功能会返回 403 错误
-- 对账差异检查无法执行
-- 订单金额一致性验证失败
-
-我们不对终端客户收集 PII；read_orders 仅用于对账、验收且字段最小化；再购等需 PCD 审批，有硬门禁。
+**权限说明**：所有权限均为当前版本的核心功能所必需，**必须全部包含在 SCOPES 环境变量中**。
 
 **配置一致性要求**：
 
@@ -477,19 +443,15 @@ railway up
 
 **标准配置**（所有环境必须完全一致）：
 ```
-SCOPES=read_script_tags,read_pixels,write_pixels,read_orders
+SCOPES=read_script_tags,read_pixels,write_pixels,read_customer_events
 ```
 
 **⚠️ 关键要求**：
-- `read_orders` 权限是**必需的**，不能省略
 - 所有三个位置的配置必须**完全相同**（包括顺序和拼写）
 
 如果配置不一致，可能导致：
 - 安装后需要反复 re-auth
-- 某些页面/功能偶发 403 错误（尤其是验收/对账需要订单读取时）
-- 验收验证功能无法正常工作
-- 对账差异检查无法执行
-- 订单金额一致性验证失败
+- 某些页面/功能偶发 403 错误
 
 ### API 端点说明
 
@@ -563,7 +525,7 @@ ScriptTag 清理需要商家手动操作：
 
 1. **Distribution**：Partner Dashboard → Distribution = **Public (App Store)**（否则 Billing API 不可用）。
 2. **联系方式**：`support@tracking-guardian.app`、`help.tracking-guardian.app`、`status.tracking-guardian.app` 可访问；若为占位符，已在 `app/routes/support.tsx`、`app/routes/app.support.tsx`、`app/services/ui-extension.server.ts` 中改为真实邮箱/域名。
-3. **PCD**：若保留 `read_orders` 并走强攻路线，已在 Partner 完成 PCD 申请配置，并准备好 [COMPLIANCE.md](COMPLIANCE.md) 中的「PCD 申请材料要点」作为支撑。
+3. **PCD**：若未来版本引入基于订单的数据处理能力，将在 Partner 完成 PCD 申请配置，并准备好 [COMPLIANCE.md](COMPLIANCE.md) 中的「PCD 申请材料要点」作为支撑。
 
 ## Shopify App Store 审核 - Reviewer 快速验收路径
 
@@ -575,7 +537,7 @@ ScriptTag 清理需要商家手动操作：
 4. 进入 **Verification**：跑一次 quick run，看到事件收据与参数完整率
 5. （Growth+）下载 PDF 报告（如果 reviewer 用的是免费计划，就说明该入口会提示升级）
 
-Customer Account / Thank you block 与 Web Pixel 的配合、以及 PCD 的说明：我们不收集终端客户 PII；read_orders 仅用于对账验收且字段最小化；再购、订单状态等需 PCD 审批且有硬门禁。2025-12-10 后 Web Pixel 中 PII 字段需获批 PCD 才会出现。可参考 [COMPLIANCE.md](COMPLIANCE.md) 与应用内文案。
+Customer Account / Thank you block 与 Web Pixel 的配合、以及 PCD 的说明：我们不收集终端客户 PII；当前公开版本不从 Shopify Admin API 读取订单数据；再购、订单状态等需 PCD 审批的能力属于后续版本规划。2025-12-10 后 Web Pixel 中 PII 字段需获批 PCD 才会出现。可参考 [COMPLIANCE.md](COMPLIANCE.md) 与应用内文案。
 
 ## Built for Shopify (BFS) 特性
 
