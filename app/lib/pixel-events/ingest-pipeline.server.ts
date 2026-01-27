@@ -419,6 +419,7 @@ export async function distributeEvents(
       try {
         const primaryPlatform = platformsToRecord.length > 0 ? platformsToRecord[0].platform : null;
         const eventType = "purchase";
+        const shouldStorePayload = activeVerificationRunId !== null || destinations.length > 0;
         await upsertPixelEventReceipt(
           shopId,
           event.eventId!,
@@ -429,7 +430,7 @@ export async function distributeEvents(
           primaryPlatform || null,
           event.orderId || null,
           event.altOrderKey,
-          destinations.length > 0,
+          shouldStorePayload,
           keyValidation.trustLevel,
           keyValidation.matched
         );

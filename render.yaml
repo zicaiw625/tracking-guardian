@@ -76,8 +76,6 @@ services:
       # - key: PCD_STATUS_MESSAGE
       #   value: "PCD 审核中"
       # 可选：通知服务
-      - key: RESEND_API_KEY
-        sync: false
       - key: EMAIL_SENDER
         sync: false
       - key: SLACK_WEBHOOK_URL

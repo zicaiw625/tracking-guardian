@@ -7,7 +7,6 @@ import { analyzeScriptContent } from "../../services/scanner/content-analysis";
 import { createAuditAsset, batchCreateAuditAssets, type AuditAssetInput } from "../../services/audit-asset.server";
 import { processManualPasteAssets, analyzeManualPaste } from "../../services/audit-asset-analysis.server";
 import { generateMigrationChecklist } from "../../services/migration-checklist.server";
-import { applyRecipeFromScan } from "../../services/recipes/scan-integration.server";
 import { SAVE_ANALYSIS_LIMITS, PLATFORM_NAME_REGEX } from "../../utils/scan-constants";
 import { checkSensitiveInfoInData } from "../../utils/scan-validation";
 import { containsSensitiveInfo, sanitizeSensitiveInfo } from "../../utils/security";
@@ -525,32 +524,6 @@ export const action = async ({ request }: ActionFunctionArgs) => {
                 error: error instanceof Error ? error.message : String(error),
             });
             return json({ error: "导出失败，请稍后重试" }, { status: 500 });
-        }
-    }
-    if (actionType === "apply_recipe") {
-        const recipeId = formData.get("recipeId") as string;
-        const sourceIdentifier = formData.get("sourceIdentifier") as string | undefined;
-        if (!recipeId) {
-            return json({ error: "缺少 recipeId" }, { status: 400 });
-        }
-        try {
-            const result = await applyRecipeFromScan(shop.id, recipeId, sourceIdentifier);
-            if (result.success) {
-                return json({
-                    success: true,
-                    actionType: "apply_recipe",
-                    appliedRecipeId: result.appliedRecipeId,
-                });
-            } else {
-                return json({ error: result.error || "应用失败" }, { status: 400 });
-            }
-        } catch (error) {
-            logger.error("Apply recipe error", {
-                shopId: shop.id,
-                recipeId,
-                error: error instanceof Error ? error.message : String(error),
-            });
-            return json({ error: "应用失败，请稍后重试" }, { status: 500 });
         }
     }
     if (actionType && actionType !== "scan") {

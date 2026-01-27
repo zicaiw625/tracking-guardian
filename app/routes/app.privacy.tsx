@@ -415,11 +415,6 @@ export default function PrivacyPage() {
                   <List type="bullet">
                     <List.Item>
                       <Text as="span" variant="bodySm">
-                        <strong>Resend（邮件服务）</strong>：发送店铺域名、告警类型、聚合指标（订单数、平台转化数、差异率）、应用内报告链接。不包含客户 PII。
-                      </Text>
-                    </List.Item>
-                    <List.Item>
-                      <Text as="span" variant="bodySm">
                         <strong>Slack Webhook</strong>：发送 JSON 格式的告警数据（店铺域名、告警类型、聚合指标、报告链接）。仅商家级运营数据，不包含订单明细或终端客户信息。
                       </Text>
                     </List.Item>

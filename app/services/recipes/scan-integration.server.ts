@@ -1,7 +1,5 @@
 import { matchScriptTagsToRecipes, matchAdditionalScriptsToRecipes } from "./matcher";
-import { startRecipe } from "./executor";
 import type { ScriptTag } from "../../types";
-import { logger } from "../../utils/logger.server";
 
 export interface ScanRecipeMatch {
   recipeId: string;
@@ -10,7 +8,6 @@ export interface ScanRecipeMatch {
   sourceType: "script_tag" | "additional_script";
   sourceIdentifier?: string;
   sourceContent?: string;
-  canApply: boolean;
 }
 
 export async function matchScanResultsToRecipes(
@@ -29,7 +26,6 @@ export async function matchScanResultsToRecipes(
         sourceType: "script_tag",
         sourceIdentifier: match.sourceIdentifier,
         sourceContent: match.sourceContent,
-        canApply: match.recipe.status === "stable",
       });
     }
   }
@@ -56,7 +52,6 @@ export async function matchScanResultsToRecipes(
             sourceType: "additional_script",
             sourceIdentifier: match.sourceIdentifier,
             sourceContent: match.sourceContent,
-            canApply: match.recipe.status === "stable",
           });
         }
       }
@@ -64,29 +59,4 @@ export async function matchScanResultsToRecipes(
   }
   
   return matches.sort((a, b) => b.confidence - a.confidence);
-}
-
-export async function applyRecipeFromScan(
-  shopId: string,
-  recipeId: string,
-  sourceIdentifier?: string,
-  initialConfig?: Record<string, unknown>
-): Promise<{ success: boolean; appliedRecipeId?: string; error?: string }> {
-  try {
-    const applied = await startRecipe(shopId, recipeId, initialConfig || {}, sourceIdentifier);
-    if (!applied) {
-      return { success: false, error: "Recipe not found or already in progress" };
-    }
-    return { success: true, appliedRecipeId: applied.id };
-  } catch (error) {
-    logger.error("Failed to apply recipe from scan", {
-      shopId,
-      recipeId,
-      error: error instanceof Error ? error.message : String(error),
-    });
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : "Unknown error",
-    };
-  }
 }

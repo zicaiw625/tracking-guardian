@@ -35,7 +35,7 @@ export const BILLING_PLANS = {
     includesReportExport: false,
     tagline: "升级不丢功能/不丢数据（在 Shopify 允许范围内）",
     features: [
-      "Audit 风险报告（可分享链接，但不导出）",
+      "Audit 风险报告（但不导出）",
       "迁移清单 + 风险分级 + 替代路径",
       "明确提示 checkout.liquid/additional scripts 弃用限制",
       `升级倒计时（参考 Shopify Help Center：Plus 商家关键节点 ${formatDeadlineDate(DEPRECATION_DATES.plusScriptTagExecutionOff)}（升级/限制开始），${formatDeadlineDate(DEPRECATION_DATES.plusAutoUpgradeStart, "month")} 起开始自动升级（Shopify 会提前通知）；非 Plus 商家截止 ${formatDeadlineDate(DEPRECATION_DATES.nonPlusScriptTagExecutionOff)}。详情请参考 ${SHOPIFY_HELP_LINKS.UPGRADE_GUIDE}）`,
@@ -85,7 +85,7 @@ export const BILLING_PLANS = {
     includesReportExport: true,
     tagline: "项目交付包（Agency 直接报给客户的交付包）",
     features: [
-      "像素迁移 + 模块发布 + 验收报告导出 (PDF/CSV)",
+      "像素迁移 + 模块发布 + 验收报告导出 (CSV)",
       "可交付的验收报告（给老板/客户看的证据）",
       "测试清单 + 事件触发记录 + 参数完整率",
       "订单金额/币种一致性验证",
@@ -135,14 +135,8 @@ export const BILLING_PLANS = {
     includesReconciliation: true,
     includesAgency: true,
     includesReportExport: true,
-    tagline: "多店/白标/团队即将推出 (v1.1)，其余能力可用",
+    tagline: "企业级功能，其余能力可用",
     features: [
-      "多店铺 Workspace 管理（最多 50 店）*Coming soon (v1.1)",
-      "批量 Audit 扫描 *Coming soon (v1.1)",
-      "批量应用像素模板 *Coming soon (v1.1)",
-      "批量导出迁移验收报告 (PDF/CSV) *Coming soon (v1.1)",
-      "白标报告支持（Agency 品牌）*Coming soon (v1.1)",
-      "团队协作 (Owner/Admin/Viewer) *Coming soon (v1.1)",
       "无限像素目的地",
       "全部 Thank you 页面模块",
       "每月 100,000 笔订单追踪",

@@ -1,16 +1,12 @@
-import { useState } from "react";
 import {
   Card,
   BlockStack,
   InlineStack,
   Text,
-  Button,
   Badge,
   Box,
   Banner,
 } from "@shopify/polaris";
-import { useFetcher } from "@remix-run/react";
-import { useToastContext } from "~/components/ui";
 import type { ScanRecipeMatch } from "~/services/recipes/scan-integration.server";
 
 export interface RecipeMatchesCardProps {
@@ -19,36 +15,8 @@ export interface RecipeMatchesCardProps {
 }
 
 export function RecipeMatchesCard({ matches, shopId: _shopId }: RecipeMatchesCardProps) {
-  const fetcher = useFetcher();
-  const { showSuccess, showError } = useToastContext();
-  const [applyingRecipeId, setApplyingRecipeId] = useState<string | null>(null);
-
   if (matches.length === 0) {
     return null;
-  }
-
-  const handleApplyRecipe = (match: ScanRecipeMatch) => {
-    if (!match.canApply) {
-      showError("该迁移方案当前不可用");
-      return;
-    }
-    setApplyingRecipeId(match.recipeId);
-    const formData = new FormData();
-    formData.append("_action", "apply_recipe");
-    formData.append("recipeId", match.recipeId);
-    if (match.sourceIdentifier) {
-      formData.append("sourceIdentifier", match.sourceIdentifier);
-    }
-    fetcher.submit(formData, { method: "post" });
-  };
-
-  const fetcherData = fetcher.data as { success?: boolean; error?: string } | undefined;
-  if (fetcherData?.success && applyingRecipeId) {
-    showSuccess("迁移方案已创建，请前往迁移页面配置");
-    setApplyingRecipeId(null);
-  } else if (fetcherData?.error && applyingRecipeId) {
-    showError(fetcherData.error);
-    setApplyingRecipeId(null);
   }
 
   const getConfidenceBadgeTone = (confidence: number) => {
@@ -73,7 +41,7 @@ export function RecipeMatchesCard({ matches, shopId: _shopId }: RecipeMatchesCar
           <Badge tone="info">{`${matches.length} 个方案`}</Badge>
         </InlineStack>
         <Banner tone="info">
-          检测到您的店铺中有可自动迁移的追踪脚本。点击"应用方案"可快速创建迁移配置草稿。
+          检测到您的店铺中有可迁移的追踪脚本。以下是推荐的迁移模板，您可以在迁移页面手动配置。
         </Banner>
         <BlockStack gap="300">
           {matches.map((match) => (
@@ -106,17 +74,6 @@ export function RecipeMatchesCard({ matches, shopId: _shopId }: RecipeMatchesCar
                       </Text>
                     )}
                   </BlockStack>
-                  <Button
-                    variant="primary"
-                    onClick={() => handleApplyRecipe(match)}
-                    loading={
-                      applyingRecipeId === match.recipeId &&
-                      fetcher.state === "submitting"
-                    }
-                    disabled={!match.canApply}
-                  >
-                    应用方案
-                  </Button>
                 </InlineStack>
               </BlockStack>
             </Box>

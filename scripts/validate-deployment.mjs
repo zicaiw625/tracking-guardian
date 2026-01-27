@@ -98,7 +98,6 @@ function validateImports() {
     const result = { passed: true, errors: [], warnings: [] };
     const filesToCheck = [
         "app/routes/app.verification.tsx",
-        "app/routes/app.workspace.tsx",
     ];
     for (const file of filesToCheck) {
         const filePath = path.join(ROOT_DIR, file);

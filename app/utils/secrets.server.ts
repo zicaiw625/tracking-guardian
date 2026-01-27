@@ -72,12 +72,6 @@ const RECOMMENDED_SECRETS: SecretConfig[] = [
     pattern: /^redis(s)?:\/\/.+/,
     description: "Redis connection for distributed rate limiting",
   },
-  {
-    name: "Resend API Key",
-    envVar: "RESEND_API_KEY",
-    required: false,
-    description: "API key for email notifications via Resend",
-  },
 ];
 
 export interface SecurityViolation {

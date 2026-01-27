@@ -18,7 +18,7 @@ import {
   List,
   Box,
 } from "@shopify/polaris";
-import { ExportIcon, FileIcon } from "~/components/icons";
+import { FileIcon } from "~/components/icons";
 import { useToastContext, EnhancedEmptyState } from "~/components/ui";
 import { PageIntroCard } from "~/components/layout/PageIntroCard";
 import { authenticate } from "../shopify.server";
@@ -131,28 +131,6 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
   }
   const planId = normalizePlanId(shop.plan || "free") as PlanId;
   const canExportReports = planSupportsReportExport(planId);
-  if (actionType === "export_pdf") {
-    if (!canExportReports) {
-      return json({ success: false, error: "需要 Growth 或 Agency 套餐才能导出报告" }, { status: 403 });
-    }
-    const reportData = await generateVerificationReportData(shop.id, runId);
-    if (!reportData) {
-      return json({ success: false, error: "报告数据未找到" }, { status: 404 });
-    }
-    const { generateVerificationReportPDF } = await import("../services/verification-report.server");
-    const pdfBuffer = await generateVerificationReportPDF(reportData);
-    if (!pdfBuffer) {
-      return json({ success: false, error: "PDF生成失败" }, { status: 500 });
-    }
-    const timestamp = new Date().toISOString().split("T")[0];
-    const filename = `verification-report-${shopDomain.replace(/\./g, "_")}-${timestamp}.pdf`;
-    return new Response(pdfBuffer as unknown as BodyInit, {
-      headers: {
-        "Content-Type": "application/pdf",
-        "Content-Disposition": `attachment; filename="${sanitizeFilename(filename)}"`,
-      },
-    });
-  }
   if (actionType === "export_csv") {
     if (!canExportReports) {
       return json({ success: false, error: "需要 Growth 或 Agency 套餐才能导出报告" }, { status: 403 });
@@ -201,13 +179,6 @@ export default function VerificationReportPage() {
       </Page>
     );
   }
-  const handleExportPDF = () => {
-    setIsExporting(true);
-    const formData = new FormData();
-    formData.append("_action", "export_pdf");
-    submit(formData, { method: "post" });
-    setTimeout(() => setIsExporting(false), 2000);
-  };
   const handleExportCSV = () => {
     setIsExporting(true);
     const formData = new FormData();
@@ -234,37 +205,26 @@ export default function VerificationReportPage() {
   return (
     <Page
       title={`验收报告 - ${reportData.runName}`}
-      subtitle="PRD 2.5: 导出验收报告（PDF/CSV）"
+      subtitle="PRD 2.5: 导出验收报告（CSV）"
       backAction={{ content: "返回验收页面", url: "/app/verification" }}
       primaryAction={
         canExportReports
           ? {
-              content: "导出 PDF",
-              icon: ExportIcon,
-              onAction: handleExportPDF,
+              content: "导出 CSV",
+              icon: FileIcon,
+              onAction: handleExportCSV,
               loading: isExporting,
             }
           : undefined
       }
-      secondaryActions={
-        canExportReports
-          ? [
-              {
-                content: "导出 CSV",
-                icon: FileIcon,
-                onAction: handleExportCSV,
-                loading: isExporting,
-              },
-            ]
-          : []
-      }
+      secondaryActions={[]}
     >
       <BlockStack gap="500">
         <PageIntroCard
           title="验收报告说明"
           description="报告用于交付验收结果，包含事件触发、参数完整率与一致性检查。"
           items={[
-            "支持 PDF/CSV 导出",
+            "支持 CSV 导出",
             "可用于客户/管理层验收签收",
           ]}
           primaryAction={{ content: "返回验收", url: "/app/verification" }}
@@ -668,7 +628,7 @@ export default function VerificationReportPage() {
           <Banner tone="warning">
             <BlockStack gap="200">
               <Text as="p" variant="bodySm">
-                <strong>导出报告需要升级：</strong>验收报告导出（PDF/CSV）是核心付费点，需要 Growth ($79/月) 或 Agency ($199/月) 套餐。
+                <strong>导出报告需要升级：</strong>验收报告导出（CSV）是核心付费点，需要 Growth ($79/月) 或 Agency ($199/月) 套餐。
               </Text>
               <Button url="/app/billing?upgrade=growth" variant="primary">
                 升级解锁

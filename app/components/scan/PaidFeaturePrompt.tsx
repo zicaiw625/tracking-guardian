@@ -32,7 +32,7 @@ const FEATURE_INFO: Record<
   },
   export_report: {
     name: "报告导出",
-    description: "导出 PDF/CSV 格式的迁移报告",
+    description: "导出 CSV 格式的迁移报告",
     requiredPlan: "growth",
     cta: "升级到 Growth 或 Agency 解锁导出功能",
   },

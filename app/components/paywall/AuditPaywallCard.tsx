@@ -27,7 +27,7 @@ export function AuditPaywallCard({ planId }: AuditPaywallCardProps) {
       return [
         {
           label: "免费功能：",
-          text: "可查看风险与清单、分享链接",
+          text: "可查看风险与清单",
         },
         {
           label: "付费解锁：",

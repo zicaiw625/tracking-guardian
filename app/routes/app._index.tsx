@@ -1490,7 +1490,7 @@ export default function Index() {
                   ✅ <strong>升级不丢功能/不丢数据</strong>（在 Shopify 允许范围内）
                 </List.Item>
                 <List.Item>
-                  ✅ <strong>可交付的验收报告</strong>（PDF/CSV，给老板/客户看的证据）
+                  ✅ <strong>可交付的验收报告</strong>（CSV，给老板/客户看的证据）
                 </List.Item>
                 <List.Item>
                   ✅ <strong>上线后有断档告警</strong>（事件量骤降、失败率监控）
@@ -1592,7 +1592,7 @@ export default function Index() {
                 </Text>
                 <Text as="p" variant="bodySm" tone="subdued">
                   {data.latestScan
-                    ? "✅ 迁移清单 + 风险分级 + 替代路径（Web Pixel / Checkout UI Extension / 不可迁移）• 明确提示 checkout.liquid / additional scripts / script tags 在 Thank you/Order status 的弃用与限制 • 可分享链接并导出 PDF/CSV"
+                    ? "✅ 迁移清单 + 风险分级 + 替代路径（Web Pixel / Checkout UI Extension / 不可迁移）• 明确提示 checkout.liquid / additional scripts / script tags 在 Thank you/Order status 的弃用与限制 • 可导出 CSV"
                     : "免费开始：自动扫描 ScriptTags/Web Pixels，手动粘贴识别 Additional Scripts，生成完整的迁移清单、风险分级和替代路径。报告会明确提示 checkout.liquid / additional scripts / script tags 在 Thank you/Order status 的弃用与限制"}
                 </Text>
               </BlockStack>
@@ -1680,7 +1680,7 @@ export default function Index() {
                   <InlineStack align="space-between" blockAlign="start">
                     <BlockStack gap="200">
                       <Text as="h3" variant="headingSm">
-                        📄 生成验收报告（PDF/CSV）
+                        📄 生成验收报告（CSV）
                       </Text>
                       <Text as="p" variant="bodySm" tone="subdued">
                         测试清单 + 事件参数完整率 + 订单金额/币种一致性 + 隐私合规检查（consent/customerPrivacy）• 给老板/客户看的证据

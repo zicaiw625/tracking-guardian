@@ -29,7 +29,6 @@ import {
   ExportIcon,
   RefreshIcon,
   PlayIcon,
-  FileIcon,
 } from "~/components/icons";
 import { CardSkeleton, useToastContext, EnhancedEmptyState } from "~/components/ui";
 import { CheckoutExtensibilityWarning } from "~/components/verification/CheckoutExtensibilityWarning";
@@ -334,31 +333,6 @@ export default function VerificationPage() {
     const fullText = `# 验收测试指引\n\n预计时间: ${testGuide.estimatedTime}\n\n## 测试步骤\n\n${guideText}\n\n## 提示\n\n${tipsText}`;
     navigator.clipboard.writeText(fullText);
   }, [testGuide]);
-  const handleExportPdf = useCallback(() => {
-    if (!latestRun) return;
-    if (canExportReports) {
-      window.location.href = `/api/reports/pdf?type=verification&runId=${latestRun.runId}&format=pdf`;
-      return;
-    }
-    /* eslint-disable @typescript-eslint/no-require-imports -- dynamic .server import to avoid client bundle */
-    const { trackEvent } = require("../services/analytics.server");
-    const { safeFireAndForget } = require("../utils/helpers.server");
-    /* eslint-enable @typescript-eslint/no-require-imports */
-    safeFireAndForget(
-      trackEvent({
-        shopId: shop?.id || "",
-        shopDomain: shopDomain,
-        event: "app_paywall_viewed",
-        metadata: {
-          triggerPage: "verification_report",
-          plan: currentPlan || "free",
-          reportType: "pdf",
-          runId: latestRun.runId,
-        },
-      })
-    );
-    window.location.href = "/app/billing?upgrade=growth";
-  }, [latestRun, canExportReports, shop, shopDomain, currentPlan]);
   const handleExportCsv = useCallback(() => {
     if (!latestRun) return;
     if (canExportReports) {
@@ -426,7 +400,7 @@ export default function VerificationPage() {
   return (
     <Page
       title="验收（Verification）+ 断档监控（Monitoring）"
-      subtitle="测试清单 + 事件触发记录 + 参数完整率 + 订单金额/币种一致性 • 隐私合规检查（consent/customerPrivacy）• 验收报告导出（PDF/CSV）是核心付费点（给老板/客户看的证据）• Growth 套餐 $79/月 或 Agency 套餐 $199/月"
+      subtitle="测试清单 + 事件触发记录 + 参数完整率 + 订单金额/币种一致性 • 隐私合规检查（consent/customerPrivacy）• 验收报告导出（CSV）是核心付费点（给老板/客户看的证据）• Growth 套餐 $79/月 或 Agency 套餐 $199/月"
       primaryAction={{
         content: isRunning ? "运行中..." : "运行验收",
         onAction: handleRunVerification,
@@ -441,11 +415,6 @@ export default function VerificationPage() {
         },
         ...(latestRun && canExportReports ? [
           {
-            content: "导出 PDF",
-            onAction: handleExportPdf,
-            icon: FileIcon,
-          },
-          {
             content: "导出 CSV",
             onAction: handleExportCsv,
             icon: ExportIcon,
@@ -459,7 +428,7 @@ export default function VerificationPage() {
           description="通过测试清单验证事件触发与参数完整率，输出可交付的验收报告。"
           items={[
             "像素层验收覆盖标准事件",
-            "报告支持 PDF/CSV 导出",
+            "报告支持 CSV 导出",
           ]}
           primaryAction={{ content: "查看验收报告", url: "/app/reports" }}
         />
@@ -594,7 +563,7 @@ export default function VerificationPage() {
         )}
         {latestRun && !canExportReports && (
           <Banner
-            title="📄 生成验收报告（PDF/CSV）- 核心付费点"
+            title="📄 生成验收报告（CSV）- 核心付费点"
             tone="warning"
             action={{
               content: "升级到 Growth 套餐（$79/月）",

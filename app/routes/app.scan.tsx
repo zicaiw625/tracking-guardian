@@ -15,7 +15,6 @@ import { ManualInputWizard, type ManualInputData } from "~/components/scan/Manua
 import { MigrationChecklistEnhanced } from "~/components/scan/MigrationChecklistEnhanced";
 import { ManualPastePanel } from "~/components/scan/ManualPastePanel";
 import { GuidedSupplement } from "~/components/scan/GuidedSupplement";
-import { RecipeMatchesCard } from "~/components/scan/RecipeMatchesCard";
 import { PageIntroCard } from "~/components/layout/PageIntroCard";
 import { AuditPaywallCard } from "~/components/paywall/AuditPaywallCard";
 
@@ -23,7 +22,6 @@ const ScriptCodeEditor = lazy(() => import("~/components/scan/ScriptCodeEditor")
 import { type ScriptAnalysisResult } from "../services/scanner.server";
 import { analyzeScriptContent } from "../services/scanner/content-analysis";
 import { calculateRiskScore } from "../services/scanner/risk-assessment";
-import type { ScanRecipeMatch } from "../services/recipes/scan-integration.server";
 import { getDateDisplayLabel, DEPRECATION_DATES } from "../utils/deprecation-dates";
 import { isPlanAtLeast } from "../utils/plans";
 import {
@@ -31,7 +29,6 @@ import {
     validateRiskItemsArray,
     validateStringArray,
     validateRiskScore,
-    safeParseDate,
     safeFormatDate,
 } from "../utils/scan-data-validation";
 import { containsSensitiveInfo } from "../utils/security";
@@ -80,10 +77,10 @@ export function ScanPage({
     initialTab = 0,
     showTabs = true,
     pageTitle = "Audit 风险报告（免费获客）",
-    pageSubtitle = "迁移清单 + 风险分级 + 替代路径（Web Pixel / Checkout UI Extension / 不可迁移）• 明确提示 checkout.liquid / additional scripts / script tags 在 Thank you/Order status 的弃用与限制 • 可分享链接并导出 PDF/CSV",
+    pageSubtitle = "迁移清单 + 风险分级 + 替代路径（Web Pixel / Checkout UI Extension / 不可迁移）• 明确提示 checkout.liquid / additional scripts / script tags 在 Thank you/Order status 的弃用与限制 • 可导出 CSV",
     showMigrationButtons = false,
 }: ScanPageProps) {
-    const { shop, latestScan, scanHistory, deprecationStatus, upgradeStatus, migrationActions, planId, planLabel, planTagline, migrationTimeline, migrationProgress, dependencyGraph, auditAssets, migrationChecklist, recipeMatches, scriptAnalysisMaxContentLength, scriptAnalysisChunkSize, scannerMaxScriptTags, scannerMaxWebPixels } = useLoaderData<typeof loader>();
+    const { shop, latestScan, scanHistory, deprecationStatus, upgradeStatus, migrationActions, planId, planLabel, planTagline, migrationTimeline, migrationProgress, dependencyGraph, auditAssets, migrationChecklist, scriptAnalysisMaxContentLength, scriptAnalysisChunkSize, scannerMaxScriptTags, scannerMaxWebPixels } = useLoaderData<typeof loader>();
     const actionData = useActionData<typeof action>();
     const submit = useSubmit();
     const navigation = useNavigation();
@@ -139,7 +136,7 @@ export function ScanPage({
                 title: "Audit 迁移清单",
                 description: "查看风险分级、推荐迁移路径与预估工时，作为迁移交付清单。",
                 items: [
-                    "清单支持 PDF/CSV 导出",
+                    "清单支持 CSV 导出",
                     "标注 Web Pixel / UI Extension / Server-side 路径",
                     "优先处理高风险资产",
                 ],
@@ -914,7 +911,7 @@ export function ScanPage({
               <List type="bullet">
                 <List.Item><strong>启用像素迁移（Test 环境）</strong> → 进入付费试用/订阅（Starter $29/月）</List.Item>
                 <List.Item>像素迁移功能包括：标准事件映射 + 参数完整率检查 + 可下载 payload 证据（GA4/Meta/TikTok v1 支持）</List.Item>
-                <List.Item><strong>生成验收报告（PDF/CSV）</strong> → 付费（Growth $79/月 或 Agency $199/月）</List.Item>
+                <List.Item><strong>生成验收报告（CSV）</strong> → 付费（Growth $79/月 或 Agency $199/月）</List.Item>
                 <List.Item>这是"升级项目交付"的核心能力：让商家"敢点发布/敢切 Live"</List.Item>
               </List>
             )}
@@ -988,108 +985,6 @@ export function ScanPage({
                         }}
                       >
                         导出扫描报告 CSV
-                      </Button>
-                      <Button
-                        icon={ShareIcon}
-                        onClick={async () => {
-                          try {
-                            const response = await fetch("/api/reports/share", {
-                              method: "POST",
-                              headers: { "Content-Type": "application/json" },
-                              body: JSON.stringify({
-                                reportType: "scan",
-                                reportId: latestScan.id,
-                              }),
-                            });
-                            if (response.ok) {
-                              const data = await response.json().catch((error) => {
-                                showError("解析响应失败");
-                                throw error;
-                              });
-                              const shareUrl = data.shareUrl;
-                              const validatedRiskScore = validateRiskScore(latestScan.riskScore);
-                              const scanDate = safeParseDate(latestScan.createdAt);
-                              const shareText = `店铺追踪扫描报告\n风险评分: ${validatedRiskScore}/100\n检测平台: ${identifiedPlatforms.join(", ") || "无"}\n扫描时间: ${scanDate.toLocaleString("zh-CN")}\n\n查看完整报告: ${shareUrl}`;
-                              if (navigator.share) {
-                                try {
-                                  await navigator.share({
-                                    title: "追踪脚本扫描报告",
-                                    text: shareText,
-                                    url: shareUrl,
-                                  });
-                                  showSuccess("报告链接已分享");
-                                  return;
-                                } catch (error) {
-                                  if (error instanceof Error && error.name !== "AbortError") {
-                                    showError("分享失败：" + error.message);
-                                  }
-                                }
-                              }
-                              if (navigator.clipboard && navigator.clipboard.writeText) {
-                                await navigator.clipboard.writeText(shareUrl);
-                                showSuccess("报告链接已复制到剪贴板（3天内有效）");
-                              } else {
-                                showError("浏览器不支持分享或复制功能");
-                              }
-                            } else {
-                              const validatedRiskScore = validateRiskScore(latestScan.riskScore);
-                              const scanDate = safeParseDate(latestScan.createdAt);
-                              const shareData = {
-                                title: "追踪脚本扫描报告",
-                                text: `店铺追踪扫描报告\n风险评分: ${validatedRiskScore}/100\n检测平台: ${identifiedPlatforms.join(", ") || "无"}\n扫描时间: ${scanDate.toLocaleString("zh-CN")}`,
-                              };
-                              if (navigator.share) {
-                                try {
-                                  await navigator.share(shareData);
-                                  showSuccess("报告摘要已分享");
-                                  return;
-                                } catch (error) {
-                                  if (error instanceof Error && error.name !== "AbortError") {
-                                    showError("分享失败：" + error.message);
-                                  }
-                                }
-                              }
-                              if (navigator.clipboard && navigator.clipboard.writeText) {
-                                await navigator.clipboard.writeText(shareData.text);
-                                showSuccess("报告摘要已复制到剪贴板");
-                              } else {
-                                showError("浏览器不支持分享或复制功能");
-                              }
-                            }
-                          } catch (error) {
-                            showError("生成分享链接失败：" + (error instanceof Error ? error.message : "未知错误"));
-                          }
-                        }}
-                      >
-                        分享报告链接（免费）
-                      </Button>
-                      <Button
-                        variant="secondary"
-                        onClick={async () => {
-                          try {
-                            const response = await fetch("/api/reports/share", {
-                              method: "POST",
-                              headers: { "Content-Type": "application/json" },
-                              body: JSON.stringify({
-                                reportType: "scan",
-                                reportId: latestScan.id,
-                                action: "revoke",
-                              }),
-                            });
-                            if (!response.ok) {
-                              const data = await response.json().catch(() => ({}));
-                              throw new Error(data.error || "失效失败");
-                            }
-                            const data = await response.json().catch(() => ({}));
-                            if (data.revoked) {
-                              showSuccess("旧链接已失效");
-                            }
-                          } catch (error) {
-                            showError("失效旧链接失败：" + (error instanceof Error ? error.message : "未知错误"));
-                          }
-                        }}
-                      >
-                        失效旧链接
                       </Button>
                     </InlineStack>
                   )}
@@ -1688,9 +1583,6 @@ export function ScanPage({
               })()}
             </BlockStack>
           </Card>)}
-        {recipeMatches && Array.isArray(recipeMatches) && recipeMatches.length > 0 && shop && (
-          <RecipeMatchesCard matches={recipeMatches.filter((m): m is ScanRecipeMatch => m !== null && typeof m === "object" && "recipeId" in m)} shopId={shop.id} />
-        )}
         {latestScan && migrationActions && migrationActions.length > 0 && !isScanning && (<Card>
             <BlockStack gap="400">
               <InlineStack align="space-between" blockAlign="center">
@@ -2122,39 +2014,6 @@ export function ScanPage({
                         }}
                       >
                         导出文本
-                      </Button>
-                      <Button
-                        icon={ExportIcon}
-                        loading={isExporting}
-                        onClick={async () => {
-                          if (isExporting) return;
-                          setIsExporting(true);
-                          try {
-                            const response = await fetch("/api/checklist-pdf");
-                            if (!response.ok) {
-                              const errorData = await response.json().catch(() => ({ error: "导出失败" }));
-                              throw new Error(errorData.error || "导出失败");
-                            }
-                            const blob = await response.blob();
-                            const url = URL.createObjectURL(blob);
-                            const a = document.createElement("a");
-                            a.href = url;
-                            a.download = `migration-checklist-${new Date().toISOString().split("T")[0]}.pdf`;
-                            document.body.appendChild(a);
-                            a.click();
-                            document.body.removeChild(a);
-                            URL.revokeObjectURL(url);
-                            showSuccess("PDF 清单导出成功");
-                          } catch (error) {
-                            const { debugError } = await import("../utils/debug-log.client");
-                            debugError("PDF 导出失败:", error);
-                            showError(error instanceof Error ? error.message : "PDF 导出失败，请重试");
-                          } finally {
-                            setIsExporting(false);
-                          }
-                        }}
-                      >
-                        导出 PDF
                       </Button>
                     </InlineStack>
                   </BlockStack>

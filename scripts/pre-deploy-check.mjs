@@ -164,7 +164,6 @@ function checkExtensionUids() {
 function checkDuplicateImports() {
     const filesToCheck = [
         "app/routes/app.verification.tsx",
-        "app/routes/app.workspace.tsx",
     ];
     const issues = [];
     for (const file of filesToCheck) {

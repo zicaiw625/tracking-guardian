@@ -21,7 +21,6 @@ import { CheckCircleIcon, ClockIcon, SearchIcon, AlertCircleIcon, ExportIcon } f
 import { useSubmit } from "@remix-run/react";
 import type { MigrationChecklistItem } from "~/services/migration-checklist.server";
 import type { DependencyGraph } from "~/services/dependency-analysis.server";
-import { useToastContext } from "~/components/ui";
 
 export interface MigrationChecklistEnhancedProps {
   items: MigrationChecklistItem[];
@@ -46,37 +45,10 @@ export function MigrationChecklistEnhanced({
   const [searchQuery, setSearchQuery] = useState("");
   const [expandedItems, setExpandedItems] = useState<Set<string>>(new Set());
   const submit = useSubmit();
-  const { showSuccess, showError } = useToastContext();
-  const [isExportingPdf, setIsExportingPdf] = useState(false);
   const handleExportCSV = () => {
     const formData = new FormData();
     formData.append("_action", "export_checklist_csv");
     submit(formData, { method: "post" });
-  };
-  const handleExportPdf = async () => {
-    if (isExportingPdf) return;
-    setIsExportingPdf(true);
-    try {
-      const response = await fetch("/api/checklist-pdf");
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ error: "导出失败" }));
-        throw new Error(errorData.error || "导出失败");
-      }
-      const blob = await response.blob();
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement("a");
-      link.href = url;
-      link.download = `migration-checklist-${new Date().toISOString().split("T")[0]}.pdf`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      URL.revokeObjectURL(url);
-      showSuccess("PDF 清单导出成功");
-    } catch (error) {
-      showError(error instanceof Error ? error.message : "PDF 导出失败，请重试");
-    } finally {
-      setIsExportingPdf(false);
-    }
   };
   const categories = useMemo(() => {
     const cats = new Set(items.map((item) => item.category));
@@ -233,14 +205,6 @@ export function MigrationChecklistEnhanced({
               onClick={handleExportCSV}
             >
               导出 CSV
-            </Button>
-            <Button
-              size="slim"
-              icon={ExportIcon}
-              loading={isExportingPdf}
-              onClick={handleExportPdf}
-            >
-              导出 PDF
             </Button>
             <Badge tone="info">{`${filteredAndSortedItems.length} / ${stats.total} 项`}</Badge>
           </InlineStack>

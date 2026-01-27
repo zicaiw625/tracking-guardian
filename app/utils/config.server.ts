@@ -147,7 +147,6 @@ const PIXEL_INGESTION_ENABLED_CHECK = {
 } as const;
 
 const RECOMMENDED = [
-  { key: "RESEND_API_KEY", reason: "for email notifications" },
   { key: "REDIS_URL", reason: "for shared rate limiting/locks in multi-instance deployments" },
 ] as const;
 

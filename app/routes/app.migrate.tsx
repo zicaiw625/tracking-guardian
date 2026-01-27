@@ -398,7 +398,7 @@ export default function MigratePage() {
                     验收与监控
                   </Text>
                   <Text as="p" variant="bodySm" tone="subdued">
-                    运行验收测试验证事件触发和参数完整性，生成可交付的验收报告（PDF/CSV），
+                    运行验收测试验证事件触发和参数完整性，生成可交付的验收报告（CSV），
                     设置断档告警。报告导出需要 Growth ($79/月) 或 Agency ($199/月) 套餐。
                   </Text>
                 </BlockStack>

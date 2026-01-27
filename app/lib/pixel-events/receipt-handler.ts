@@ -105,6 +105,8 @@ export async function isClientEventRecorded(
   return !!existing;
 }
 
+const SAMPLING_RATE_NON_VERIFICATION = 0.1;
+
 export async function upsertPixelEventReceipt(
   shopId: string,
   eventId: string,
@@ -134,7 +136,10 @@ export async function upsertPixelEventReceipt(
         const { sanitizePII } = await import("../../services/event-log.server");
         payloadToStore = sanitizePII(payload) as unknown as Record<string, unknown>;
       } else {
-        payloadToStore = buildMinimalPayloadForReceipt(payload, trustLevel, hmacMatched);
+        const shouldSample = Math.random() < SAMPLING_RATE_NON_VERIFICATION;
+        if (shouldSample) {
+          payloadToStore = buildMinimalPayloadForReceipt(payload, trustLevel, hmacMatched);
+        }
       }
     }
     const receipt = await prisma.pixelEventReceipt.upsert({
