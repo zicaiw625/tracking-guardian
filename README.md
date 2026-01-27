@@ -243,14 +243,23 @@ SCOPES=read_script_tags,read_pixels,write_pixels,read_orders
 - 订单金额一致性验证失败
 
 # P0-2: Web Pixel Origin null 兼容配置（生产环境必须显式设置）
-# Shopify web pixel / customer events 在沙箱里经常出现 Origin: null
+# ⚠️ 生产环境部署必配项：此变量在生产环境必须显式设置，否则应用启动会失败
+# Shopify web pixel / customer events 在沙箱环境（iframe/Web Worker）中经常出现 Origin: null
 # 生产环境必须显式设置此变量（true/false）；若需要接收 Origin: null 的真实事件，建议设置为 true
 PIXEL_ALLOW_NULL_ORIGIN_WITH_SIGNATURE_ONLY=true
 
 # PIXEL_ALLOW_NULL_ORIGIN_WITH_SIGNATURE_ONLY 语义说明：
 # - true: 允许 null/missing Origin 仅当请求带签名，并为之设置 CORS（推荐：生产且接收 pixel 事件时显式设置）
+#   * 当 Shopify 像素在沙箱环境中运行时，Origin 可能为 null，设置 true 可确保事件不丢失
+#   * 仅带有效 HMAC 签名的 null Origin 请求会被接受，未签名请求仍会被拒绝
 # - false: 不支持 null（CORS 不配合，null 请求将失败，导致事件丢失）
+#   * 如果设置为 false，所有 Origin: null 的请求将被拒绝，可能导致事件丢失
 # - 生产未设置时会阻止启动，必须明确设置 true 或 false
+# 
+# ⚠️ 重要提示：
+# - 此配置直接影响事件接收能力，必须在生产环境部署前验证
+# - 建议在 Diagnostics 页面检查配置状态，确保正确设置
+# - 如果遇到"为什么收不到事件"的问题，首先检查此配置是否正确
 
 # 可选：安全相关环境变量
 CRON_SECRET=your_cron_secret_min_32_chars  # 用于 cron job 鉴权
@@ -378,7 +387,13 @@ pnpm install --frozen-lockfile && pnpm generate && pnpm db:deploy && pnpm ext:in
 4. 设置 Shopify API 环境变量
 
 **重要配置说明**：
-- `PIXEL_ALLOW_NULL_ORIGIN_WITH_SIGNATURE_ONLY` 已在 `render.yaml` 中自动设置为 `true`，确保 Web Pixel 事件能正常接收
+- **PIXEL_ALLOW_NULL_ORIGIN_WITH_SIGNATURE_ONLY（生产环境必配项）**：
+  - 已在 `render.yaml` 中自动设置为 `true`，确保 Web Pixel 事件能正常接收
+  - ⚠️ **必须显式设置**：生产环境必须明确设置此变量（true/false），未设置会导致应用启动失败
+  - **作用**：Shopify 像素在沙箱环境（iframe/Web Worker）中可能出现 `Origin: null`，此配置决定是否接受此类请求
+  - **推荐值**：`true`（仅带有效 HMAC 签名的 null Origin 请求会被接受）
+  - **如果设置为 false**：所有 Origin: null 的请求将被拒绝，可能导致事件丢失
+  - **验证方法**：在 Diagnostics 页面检查配置状态，或使用压测脚本 `--null-origin-only` 参数测试
 - Cron Job 服务已自动配置，请确保在 Render Dashboard 中为 cron job 设置以下环境变量（从 web service 复制）：
   - `CRON_SECRET`（必须与 web service 相同）
   - `SHOPIFY_APP_URL`（web service 的完整 URL）

@@ -5,7 +5,7 @@ import prisma from "../../db.server";
 import { getUiModuleConfigs, canUseModule, getDefaultSettings } from "../../services/ui-extension.server";
 import { PCD_CONFIG } from "../../utils/config.server";
 import { tryAuthenticatePublicWithShop, handlePublicPreflight, addSecurityHeaders } from "../../utils/public-auth";
-import { sanitizeUrl, validateEmailForMailto, isPublicUrl } from "../../utils/security";
+import { sanitizeUrl, validateEmailForMailto, isPublicUrlWithDNS } from "../../utils/security";
 import { checkRateLimitAsync } from "../../middleware/rate-limit.server";
 import { createReorderNonce } from "../../lib/pixel-events/receipt-handler";
 
@@ -139,7 +139,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
           
           const isAllowed = allowedHostnames.some((allowed) => hostAllowed(urlHostname, allowed));
           
-          if (!isAllowed || !isPublicUrl(sanitized)) {
+          if (!isAllowed || !(await isPublicUrlWithDNS(sanitized))) {
             logger.warn(`FAQ URL hostname not allowed for shop ${shopDomain}: ${urlHostname}`);
             helpFaqUrl = undefined;
           } else {
@@ -190,7 +190,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
           
           const isAllowed = allowedHostnames.some((allowed) => hostAllowed(urlHostname, allowed));
           
-          if (!isAllowed || !isPublicUrl(sanitized)) {
+          if (!isAllowed || !(await isPublicUrlWithDNS(sanitized))) {
             logger.warn(`Contact URL hostname not allowed for shop ${shopDomain}: ${urlHostname}`);
             helpContactUrl = undefined;
           } else {

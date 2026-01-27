@@ -95,6 +95,13 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   })();
   const contentType = request.headers.get("Content-Type");
   if (!isAcceptableContentType(contentType)) {
+    if (isProduction) {
+      logger.warn("Invalid Content-Type in /ingest", {
+        contentType,
+        shopDomain: request.headers.get("x-shopify-shop-domain") || "unknown",
+      });
+      return rejectProd(400);
+    }
     return jsonWithCors(
       { error: "Content-Type must be text/plain or application/json" },
       { status: 415, request }
@@ -172,7 +179,12 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   if (contentLength) {
     const size = parseInt(contentLength, 10);
     if (!isNaN(size) && size > API_CONFIG.MAX_BODY_SIZE) {
-      logger.warn(`Request body too large: ${size} bytes (max ${API_CONFIG.MAX_BODY_SIZE})`);
+      logger.warn(`Request body too large: ${size} bytes (max ${API_CONFIG.MAX_BODY_SIZE})`, {
+        shopDomain: request.headers.get("x-shopify-shop-domain") || "unknown",
+      });
+      if (isProduction) {
+        return rejectProd(400);
+      }
       return jsonWithCors(
         { error: "Payload too large", maxSize: API_CONFIG.MAX_BODY_SIZE },
         { status: 413, request }
@@ -185,12 +197,27 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     bodyText = await readTextWithLimit(request, API_CONFIG.MAX_BODY_SIZE);
     bodyData = JSON.parse(bodyText);
   } catch (error) {
+    const shopDomainHeader = request.headers.get("x-shopify-shop-domain") || "unknown";
     if (error instanceof Response) {
       if (error.status === 413) {
+        logger.warn("Request body too large", {
+          shopDomain: shopDomainHeader,
+          maxSize: API_CONFIG.MAX_BODY_SIZE,
+        });
+        if (isProduction) {
+          return rejectProd(400);
+        }
         return jsonWithCors(
           { error: "Payload too large", maxSize: API_CONFIG.MAX_BODY_SIZE },
           { status: 413, request }
         );
+      }
+      logger.warn("Failed to read request body", {
+        shopDomain: shopDomainHeader,
+        error: error instanceof Error ? error.message : String(error),
+      });
+      if (isProduction) {
+        return rejectProd(400);
       }
       return jsonWithCors(
         { error: "Failed to read request body" },
@@ -198,10 +225,24 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       );
     }
     if (error instanceof SyntaxError) {
+      logger.warn("Invalid JSON body in /ingest", {
+        shopDomain: shopDomainHeader,
+        error: error.message,
+      });
+      if (isProduction) {
+        return rejectProd(400);
+      }
       return jsonWithCors(
         { error: "Invalid JSON body" },
         { status: 400, request }
       );
+    }
+    logger.warn("Failed to read request body", {
+      shopDomain: shopDomainHeader,
+      error: error instanceof Error ? error.message : String(error),
+    });
+    if (isProduction) {
+      return rejectProd(400);
     }
     return jsonWithCors(
       { error: "Failed to read request body" },
@@ -222,21 +263,43 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   } else {
     const singleEventValidation = validateRequest(bodyData);
     if (!singleEventValidation.valid) {
-      logger.debug(
-        `Pixel payload validation failed: code=${singleEventValidation.code}, error=${singleEventValidation.error}`
-      );
+      const shopDomainHeader = request.headers.get("x-shopify-shop-domain") || "unknown";
+      logger.warn("Pixel payload validation failed", {
+        shopDomain: shopDomainHeader,
+        code: singleEventValidation.code,
+        error: singleEventValidation.error,
+      });
+      if (isProduction) {
+        return rejectProd(400);
+      }
       return jsonWithCors({ error: "Invalid request" }, { status: 400, request });
     }
     events = [bodyData];
     batchTimestamp = singleEventValidation.payload.timestamp;
   }
   if (events.length === 0) {
+    const shopDomainHeader = request.headers.get("x-shopify-shop-domain") || "unknown";
+    logger.warn("Empty events array in /ingest", {
+      shopDomain: shopDomainHeader,
+    });
+    if (isProduction) {
+      return rejectProd(400);
+    }
     return jsonWithCors(
       { error: "events array cannot be empty" },
       { status: 400, request }
     );
   }
   if (events.length > MAX_BATCH_SIZE) {
+    const shopDomainHeader = request.headers.get("x-shopify-shop-domain") || "unknown";
+    logger.warn("Events array exceeds maximum size", {
+      shopDomain: shopDomainHeader,
+      count: events.length,
+      maxSize: MAX_BATCH_SIZE,
+    });
+    if (isProduction) {
+      return rejectProd(400);
+    }
     return jsonWithCors(
       { error: `events array exceeds maximum size of ${MAX_BATCH_SIZE}` },
       { status: 400, request }
@@ -244,6 +307,14 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   }
   const firstEventValidation = validateRequest(events[0]);
   if (!firstEventValidation.valid) {
+    const shopDomainHeader = request.headers.get("x-shopify-shop-domain") || "unknown";
+    logger.warn("Invalid event in batch", {
+      shopDomain: shopDomainHeader,
+      error: firstEventValidation.error,
+    });
+    if (isProduction) {
+      return rejectProd(400);
+    }
     return jsonWithCors(
       { error: "Invalid event in batch", details: firstEventValidation.error },
       { status: 400, request }
@@ -263,7 +334,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         shopDomain,
         shopDomainHeader,
       });
-      return jsonWithCors({ error: "Invalid request" }, { status: 403, request });
+      return rejectProd(403);
     } else {
       logger.warn(`Ingest request: header shop domain does not match payload shop domain`, {
         shopDomain,
@@ -289,10 +360,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         exists: !!shop,
         isActive: shop?.isActive,
       });
-      return jsonWithCors(
-        { error: "Invalid request" },
-        { status: 401, request }
-      );
+      return rejectProd(401);
     }
     return jsonWithCors(
       { error: "Shop not found or inactive" },

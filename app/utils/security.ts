@@ -1,4 +1,5 @@
 import { z } from "zod";
+import net from "net";
 
 export function sanitizeString(input: unknown): string {
   if (typeof input !== "string") {
@@ -269,6 +270,52 @@ export const SecureUrlSchema = z
   .refine((url) => isPublicUrl(url), {
     message: "Internal or private URLs are not allowed",
   });
+function isPrivateIPv4(ip: string): boolean {
+  if (/^10\./.test(ip)) return true;
+  if (/^172\.(1[6-9]|2[0-9]|3[0-1])\./.test(ip)) return true;
+  if (/^192\.168\./.test(ip)) return true;
+  if (/^127\./.test(ip)) return true;
+  if (/^169\.254\./.test(ip)) return true;
+  if (/^0\./.test(ip)) return true;
+  return false;
+}
+
+function isPrivateIPv6(ip: string): boolean {
+  if (!ip.startsWith('[') || !ip.endsWith(']')) {
+    return false;
+  }
+  const ipv6 = ip.slice(1, -1).toLowerCase();
+  if (ipv6 === '::1' || ipv6 === '::') {
+    return true;
+  }
+  if (ipv6.startsWith('fc00:') || ipv6.startsWith('fc01:') || ipv6.startsWith('fd00:')) {
+    return true;
+  }
+  if (ipv6.startsWith('fe80:') || ipv6.startsWith('fe90:') || ipv6.startsWith('fea0:') || ipv6.startsWith('feb0:')) {
+    return true;
+  }
+  if (ipv6.startsWith('ff00:') || ipv6.startsWith('ff01:') || ipv6.startsWith('ff02:') || ipv6.startsWith('ff03:') || 
+      ipv6.startsWith('ff04:') || ipv6.startsWith('ff05:') || ipv6.startsWith('ff08:') || ipv6.startsWith('ff0e:')) {
+    return true;
+  }
+  if (ipv6.startsWith('2001:db8:')) {
+    return true;
+  }
+  if (ipv6.startsWith('::ffff:')) {
+    const ipv4 = ipv6.substring(7);
+    if (/^10\./.test(ipv4) || /^172\.(1[6-9]|2[0-9]|3[0-1])\./.test(ipv4) || /^192\.168\./.test(ipv4) || /^127\./.test(ipv4) || /^169\.254\./.test(ipv4) || /^0\./.test(ipv4)) {
+      return true;
+    }
+  }
+  if (ipv6.startsWith('2001:10:') || ipv6.startsWith('2001:20:')) {
+    return true;
+  }
+  return false;
+}
+
+const DNS_VALIDATION_CACHE_TTL_MS = 15 * 60 * 1000;
+const dnsValidationCache = new Map<string, { valid: boolean; checkedAt: number }>();
+
 export function isPublicUrl(urlStr: string): boolean {
   try {
     const url = new URL(urlStr);
@@ -323,6 +370,59 @@ export function isPublicUrl(urlStr: string): boolean {
     }
     
     return true;
+  } catch {
+    return false;
+  }
+}
+
+export async function isPublicUrlWithDNS(urlStr: string): Promise<boolean> {
+  if (!isPublicUrl(urlStr)) {
+    return false;
+  }
+  try {
+    const url = new URL(urlStr);
+    const hostname = url.hostname;
+    const ipType = net.isIP(hostname);
+    if (ipType === 4 || ipType === 6) {
+      return true;
+    }
+    const cacheKey = hostname.toLowerCase();
+    const now = Date.now();
+    const cached = dnsValidationCache.get(cacheKey);
+    if (cached && (now - cached.checkedAt) < DNS_VALIDATION_CACHE_TTL_MS) {
+      return cached.valid;
+    }
+    try {
+      const dns = await import('dns');
+      const { promisify } = await import('util');
+      const lookup = promisify(dns.lookup);
+      const resolved = await lookup(hostname, { family: 0, all: true });
+      const records = Array.isArray(resolved) ? resolved : [resolved];
+      for (const record of records) {
+        const resolvedIp = record.address;
+        if (/^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(resolvedIp)) {
+          if (isPrivateIPv4(resolvedIp)) {
+            dnsValidationCache.set(cacheKey, { valid: false, checkedAt: now });
+            return false;
+          }
+        } else if (resolvedIp.includes(':')) {
+          const ipv6Formatted = resolvedIp.startsWith('[') && resolvedIp.endsWith(']') ? resolvedIp : `[${resolvedIp}]`;
+          if (isPrivateIPv6(ipv6Formatted)) {
+            dnsValidationCache.set(cacheKey, { valid: false, checkedAt: now });
+            return false;
+          }
+        }
+        if (resolvedIp === '127.0.0.1' || resolvedIp === '::1' || resolvedIp === 'localhost') {
+          dnsValidationCache.set(cacheKey, { valid: false, checkedAt: now });
+          return false;
+        }
+      }
+      dnsValidationCache.set(cacheKey, { valid: true, checkedAt: now });
+      return true;
+    } catch {
+      dnsValidationCache.set(cacheKey, { valid: false, checkedAt: now });
+      return false;
+    }
   } catch {
     return false;
   }
