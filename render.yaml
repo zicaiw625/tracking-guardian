@@ -6,20 +6,14 @@
 # ============================================================================
 # Render Blueprint 支持声明 Cron Job 服务，以下是自动配置的 cron job。
 # 
-# 任务执行内容（参见 app/cron/tasks/index.ts）：
-# - GDPR 合规处理（优先级最高）
-# - Consent 对账
-# - Conversion 重试
-# - 交付健康度检查
-# - 监控告警检查（app/cron/tasks/alert-checks.ts）- 必须运行才能触发告警
+# 任务执行内容（参见 app/lib/api-routes/api.cron.ts）：
+# - GDPR 合规处理（通过 webhook handlers 异步处理，cron 任务仅用于记录）
 # - 数据清理（过期数据删除）
-# - 店铺状态刷新
 #
 # ⚠️ 上架前验证清单：
 # [ ] 确认 Cron Job 服务已自动创建并运行
 # [ ] 查看 Render Dashboard 的 Cron Job 执行日志
-# [ ] 检查应用日志中是否有 "Processing GDPR jobs..." 等 cron 任务日志
-# [ ] 确认监控告警功能能正常触发（检查是否有告警记录）
+# [ ] 检查应用日志中是否有 "Running cleanup tasks" 等 cron 任务日志
 # ============================================================================
 
 services:

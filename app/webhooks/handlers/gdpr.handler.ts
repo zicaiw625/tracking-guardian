@@ -188,26 +188,61 @@ export async function handleCustomersDataRequest(
       }),
       status: GDPRJobStatus.PROCESSING,
     });
-    const result = await processDataRequest(shop, dataRequestPayload);
-    await upsertGdprJob({
-      id: jobId,
-      shopDomain: shop,
-      jobType: "data_request",
-      payload: buildJobMeta({
-        topic: "customers/data_request",
-        shop,
-        webhookId,
-        requestId,
-        jobType: "data_request",
-        parsedPayload: dataRequestPayload,
-      }),
-      status: GDPRJobStatus.COMPLETED,
-      result: summarizeGdprResult("data_request", result),
-    });
+    processDataRequest(shop, dataRequestPayload)
+      .then((result) => {
+        return upsertGdprJob({
+          id: jobId,
+          shopDomain: shop,
+          jobType: "data_request",
+          payload: buildJobMeta({
+            topic: "customers/data_request",
+            shop,
+            webhookId,
+            requestId,
+            jobType: "data_request",
+            parsedPayload: dataRequestPayload,
+          }),
+          status: GDPRJobStatus.COMPLETED,
+          result: summarizeGdprResult("data_request", result),
+        });
+      })
+      .catch((error) => {
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        logger.error("Failed to process GDPR data request asynchronously", {
+          shop,
+          requestId,
+          webhookId,
+          error: errorMessage,
+        });
+        return upsertGdprJob({
+          id: jobId,
+          shopDomain: shop,
+          jobType: "data_request",
+          payload: buildJobMeta({
+            topic: "customers/data_request",
+            shop,
+            webhookId,
+            requestId,
+            jobType: "data_request",
+            parsedPayload: dataRequestPayload,
+          }),
+          status: GDPRJobStatus.FAILED,
+          errorMessage,
+        });
+      })
+      .catch((error) => {
+        logger.error("Failed to update GDPR job status", {
+          shop,
+          requestId,
+          webhookId,
+          jobId,
+          error: error instanceof Error ? error.message : String(error),
+        });
+      });
     return {
       success: true,
       status: 200,
-      message: "GDPR data request processed",
+      message: "GDPR data request queued for processing",
     };
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
@@ -297,26 +332,61 @@ export async function handleCustomersRedact(
       }),
       status: GDPRJobStatus.PROCESSING,
     });
-    const result = await processCustomerRedact(shop, customerRedactPayload);
-    await upsertGdprJob({
-      id: jobId,
-      shopDomain: shop,
-      jobType: "customer_redact",
-      payload: buildJobMeta({
-        topic: "customers/redact",
-        shop,
-        webhookId,
-        requestId,
-        jobType: "customer_redact",
-        parsedPayload: customerRedactPayload,
-      }),
-      status: GDPRJobStatus.COMPLETED,
-      result: summarizeGdprResult("customer_redact", result),
-    });
+    processCustomerRedact(shop, customerRedactPayload)
+      .then((result) => {
+        return upsertGdprJob({
+          id: jobId,
+          shopDomain: shop,
+          jobType: "customer_redact",
+          payload: buildJobMeta({
+            topic: "customers/redact",
+            shop,
+            webhookId,
+            requestId,
+            jobType: "customer_redact",
+            parsedPayload: customerRedactPayload,
+          }),
+          status: GDPRJobStatus.COMPLETED,
+          result: summarizeGdprResult("customer_redact", result),
+        });
+      })
+      .catch((error) => {
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        logger.error("Failed to process GDPR customer redact asynchronously", {
+          shop,
+          requestId,
+          webhookId,
+          error: errorMessage,
+        });
+        return upsertGdprJob({
+          id: jobId,
+          shopDomain: shop,
+          jobType: "customer_redact",
+          payload: buildJobMeta({
+            topic: "customers/redact",
+            shop,
+            webhookId,
+            requestId,
+            jobType: "customer_redact",
+            parsedPayload: customerRedactPayload,
+          }),
+          status: GDPRJobStatus.FAILED,
+          errorMessage,
+        });
+      })
+      .catch((error) => {
+        logger.error("Failed to update GDPR job status", {
+          shop,
+          requestId,
+          webhookId,
+          jobId,
+          error: error instanceof Error ? error.message : String(error),
+        });
+      });
     return {
       success: true,
       status: 200,
-      message: "GDPR customer redact processed",
+      message: "GDPR customer redact queued for processing",
     };
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
@@ -406,26 +476,61 @@ export async function handleShopRedact(
       }),
       status: GDPRJobStatus.PROCESSING,
     });
-    const result = await processShopRedact(shop, shopRedactPayload);
-    await upsertGdprJob({
-      id: jobId,
-      shopDomain: shop,
-      jobType: "shop_redact",
-      payload: buildJobMeta({
-        topic: "shop/redact",
-        shop,
-        webhookId,
-        requestId,
-        jobType: "shop_redact",
-        parsedPayload: shopRedactPayload,
-      }),
-      status: GDPRJobStatus.COMPLETED,
-      result: summarizeGdprResult("shop_redact", result),
-    });
+    processShopRedact(shop, shopRedactPayload)
+      .then((result) => {
+        return upsertGdprJob({
+          id: jobId,
+          shopDomain: shop,
+          jobType: "shop_redact",
+          payload: buildJobMeta({
+            topic: "shop/redact",
+            shop,
+            webhookId,
+            requestId,
+            jobType: "shop_redact",
+            parsedPayload: shopRedactPayload,
+          }),
+          status: GDPRJobStatus.COMPLETED,
+          result: summarizeGdprResult("shop_redact", result),
+        });
+      })
+      .catch((error) => {
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        logger.error("Failed to process GDPR shop redact asynchronously", {
+          shop,
+          requestId,
+          webhookId,
+          error: errorMessage,
+        });
+        return upsertGdprJob({
+          id: jobId,
+          shopDomain: shop,
+          jobType: "shop_redact",
+          payload: buildJobMeta({
+            topic: "shop/redact",
+            shop,
+            webhookId,
+            requestId,
+            jobType: "shop_redact",
+            parsedPayload: shopRedactPayload,
+          }),
+          status: GDPRJobStatus.FAILED,
+          errorMessage,
+        });
+      })
+      .catch((error) => {
+        logger.error("Failed to update GDPR job status", {
+          shop,
+          requestId,
+          webhookId,
+          jobId,
+          error: error instanceof Error ? error.message : String(error),
+        });
+      });
     return {
       success: true,
       status: 200,
-      message: "GDPR shop redact processed",
+      message: "GDPR shop redact queued for processing",
     };
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
