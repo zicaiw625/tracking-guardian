@@ -132,9 +132,6 @@ export default defineConfig({
             if (id.includes("react") || id.includes("react-dom")) {
               return "vendor-react";
             }
-            if (id.includes("chart.js") || id.includes("react-chartjs-2")) {
-              return "vendor-charts";
-            }
             return "vendor";
           }
         },
@@ -151,8 +148,6 @@ export default defineConfig({
       "@shopify/polaris",
       "@shopify/shopify-app-remix",
       "@shopify/app-bridge-react",
-      "react-chartjs-2",
-      "chart.js",
     ],
     external: ["html-pdf-node", "undici"],
   },

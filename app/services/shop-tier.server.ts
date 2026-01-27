@@ -73,10 +73,14 @@ export async function refreshShopTierWithAdmin(admin: AdminApiContext, shopId: s
         });
         const oldTier = shop?.shopTier || "unknown";
         const newTier = planInfo.tier;
+        const now = new Date();
         if (oldTier !== newTier) {
             await prisma.shop.update({
                 where: { id: shopId },
-                data: { shopTier: newTier },
+                data: { 
+                    shopTier: newTier,
+                    shopTierLastCheckedAt: now,
+                },
             });
             logger.info(`Updated shopTier from ${oldTier} to ${newTier} for shop ${shopId}`);
             return {
@@ -85,6 +89,10 @@ export async function refreshShopTierWithAdmin(admin: AdminApiContext, shopId: s
                 planInfo,
             };
         }
+        await prisma.shop.update({
+            where: { id: shopId },
+            data: { shopTierLastCheckedAt: now },
+        });
         return {
             tier: newTier,
             updated: false,

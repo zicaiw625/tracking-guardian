@@ -205,6 +205,15 @@ export async function upsertPixelEventReceipt(
         trust,
       });
       await redis.publish(`sse:shop:${shopId}`, message);
+      if (eventType === "purchase" && receipt.orderKey) {
+        const ttlSeconds = 7 * 24 * 60 * 60;
+        const dedupKey = `dedup:purchase:${shopId}:${receipt.orderKey}`;
+        await redis.set(dedupKey, "1", { EX: ttlSeconds }).catch(() => {});
+        if (altOrderKey && altOrderKey !== receipt.orderKey) {
+          const altDedupKey = `dedup:purchase:${shopId}:${altOrderKey}`;
+          await redis.set(altDedupKey, "1", { EX: ttlSeconds }).catch(() => {});
+        }
+      }
     } catch {
       void 0;
     }

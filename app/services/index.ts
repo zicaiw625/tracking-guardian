@@ -39,16 +39,6 @@ export {
 
 
 
-export {
-  createPixelTemplate,
-  getPixelTemplates,
-  getPixelTemplate,
-  updatePixelTemplate,
-  deletePixelTemplate,
-  batchApplyPixelTemplate,
-  applyPresetTemplate,
-  PRESET_TEMPLATES,
-} from "./batch-pixel-apply.server";
 
 export {
   generateEventId,

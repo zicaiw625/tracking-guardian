@@ -17,7 +17,6 @@ const AUTH_PATTERNS = [
 const WHITELIST = [
   "api.health",
   "api.cron",
-  "api.performance",
   "api.ready",
   "api.extension-errors",
   "api.tracking",

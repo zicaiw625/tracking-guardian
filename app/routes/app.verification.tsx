@@ -64,7 +64,6 @@ import { UpgradePrompt } from "~/components/ui/UpgradePrompt";
 const RealtimeEventMonitor = lazy(() => import("~/components/verification/RealtimeEventMonitor").then(module => ({ default: module.RealtimeEventMonitor })));
 const TestOrderGuide = lazy(() => import("~/components/verification/TestOrderGuide").then(module => ({ default: module.TestOrderGuide })));
 const ReportComparison = lazy(() => import("~/components/verification/ReportComparison").then(module => ({ default: module.ReportComparison })));
-const ChannelReconciliationChart = lazy(() => import("~/components/verification/ChannelReconciliationChart").then(module => ({ default: module.ChannelReconciliationChart })));
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   const { session } = await authenticate.admin(request);
@@ -1031,13 +1030,22 @@ export default function VerificationPage() {
                               <Text as="h3" variant="headingSm">
                                 📊 渠道对账
                               </Text>
-                              <Suspense fallback={<CardSkeleton lines={3} />}>
-                                <ChannelReconciliationChart
-                                  pixelVsCapi={latestRun.reconciliation.pixelVsCapi}
-                                  consistencyIssues={latestRun.reconciliation.consistencyIssues}
-                                  localConsistency={latestRun.reconciliation.localConsistency}
-                                />
-                              </Suspense>
+                              <Card>
+                                <BlockStack gap="300">
+                                  {latestRun.reconciliation.pixelVsCapi && (
+                                    <DataTable
+                                      columnContentTypes={["text", "numeric", "numeric"]}
+                                      headings={["指标", "Pixel", "CAPI"]}
+                                      rows={[
+                                        ["仅 Pixel", String(latestRun.reconciliation.pixelVsCapi.pixelOnly || 0), "0"],
+                                        ["仅 CAPI", "0", String(latestRun.reconciliation.pixelVsCapi.capiOnly || 0)],
+                                        ["两者都有", String(latestRun.reconciliation.pixelVsCapi.both || 0), String(latestRun.reconciliation.pixelVsCapi.both || 0)],
+                                        ["被 Consent 阻止", String(latestRun.reconciliation.pixelVsCapi.consentBlocked || 0), String(latestRun.reconciliation.pixelVsCapi.consentBlocked || 0)],
+                                      ]}
+                                    />
+                                  )}
+                                </BlockStack>
+                              </Card>
                               <Layout>
                                 <Layout.Section variant="oneThird">
                                   <Box background="bg-surface-secondary" padding="300" borderRadius="200">

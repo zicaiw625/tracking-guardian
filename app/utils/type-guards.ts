@@ -61,66 +61,6 @@ export function asTelegramAlertSettings(
   return isTelegramAlertSettings(value) ? value : null;
 }
 
-export interface PixelTemplateConfig {
-  platform: string;
-  eventMappings?: Record<string, string>;
-  clientSideEnabled?: boolean;
-  serverSideEnabled?: boolean;
-}
-
-export function isPixelTemplateConfig(
-  value: unknown
-): value is PixelTemplateConfig {
-  if (!isObject(value)) {
-    return false;
-  }
-  if (typeof value.platform !== "string") {
-    return false;
-  }
-  if (
-    "eventMappings" in value &&
-    value.eventMappings !== undefined &&
-    (typeof value.eventMappings !== "object" ||
-      value.eventMappings === null ||
-      Array.isArray(value.eventMappings))
-  ) {
-    return false;
-  }
-  if (
-    "clientSideEnabled" in value &&
-    value.clientSideEnabled !== undefined &&
-    typeof value.clientSideEnabled !== "boolean"
-  ) {
-    return false;
-  }
-  if (
-    "serverSideEnabled" in value &&
-    value.serverSideEnabled !== undefined &&
-    typeof value.serverSideEnabled !== "boolean"
-  ) {
-    return false;
-  }
-  return true;
-}
-
-export function isPixelTemplateConfigArray(
-  value: unknown
-): value is PixelTemplateConfig[] {
-  return (
-    Array.isArray(value) &&
-    value.every((item) => isPixelTemplateConfig(item))
-  );
-}
-
-export function asPixelTemplateConfigArray(
-  value: unknown
-): PixelTemplateConfig[] {
-  if (isPixelTemplateConfigArray(value)) {
-    return value;
-  }
-  return [];
-}
-
 export interface PrismaError {
   code?: string;
   meta?: {

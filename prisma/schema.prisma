@@ -54,6 +54,7 @@ model Shop {
   storefrontDomains       String[]
   primaryDomain           String?
   shopTier                String?
+  shopTierLastCheckedAt   DateTime?
   typOspPagesEnabled      Boolean?
   typOspUpdatedAt         DateTime?
   typOspLastCheckedAt     DateTime?

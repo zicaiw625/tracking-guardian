@@ -30,7 +30,6 @@ import { EventMappingEditor } from "~/components/migrate/EventMappingEditor";
 import { PageIntroCard } from "~/components/layout/PageIntroCard";
 import { authenticate } from "~/shopify.server";
 import prisma from "~/db.server";
-import { getWizardTemplates } from "~/services/pixel-template.server";
 import { encryptJson } from "~/utils/crypto.server";
 import { generateSimpleId } from "~/utils/helpers";
 import { safeFireAndForget } from "~/utils/helpers.server";
@@ -246,7 +245,6 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       backendUrlInfo: getPixelEventIngestionUrl(),
     });
   }
-  const templates = await getWizardTemplates(shop.id);
   const isStarterOrAbove = isPlanAtLeast(shop.plan, "starter");
   const backendUrlInfo = getPixelEventIngestionUrl();
   return json({
@@ -257,7 +255,10 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       hasIngestionSecret: !!shop.ingestionSecret,
       lastRotatedAt: shop.updatedAt ? shop.updatedAt.toISOString() : null,
     },
-    templates,
+    templates: {
+      presets: PRESET_TEMPLATES,
+      custom: [],
+    },
     isStarterOrAbove,
     backendUrlInfo,
   });

@@ -6,6 +6,7 @@ import { hashValueSync } from "~/utils/crypto.server";
 import { logger } from "~/utils/logger.server";
 import prisma from "~/db.server";
 import { API_CONFIG, CONFIG } from "~/utils/config.server";
+import { getRedisClient } from "~/utils/redis-client.server";
 
 const TIMESTAMP_WINDOW_MS = API_CONFIG.TIMESTAMP_WINDOW_MS;
 
@@ -198,29 +199,83 @@ export async function deduplicateEvents(
   const existingPurchaseKeys = new Set<string>();
   if (purchaseKeyList.length > 0) {
     try {
-      const existing = await prisma.pixelEventReceipt.findMany({
-        where: {
-          shopId,
-          eventType: "purchase",
-          OR: [
-            { orderKey: { in: purchaseKeyList } },
-            { altOrderKey: { in: purchaseKeyList } },
-          ],
-        },
-        select: {
-          orderKey: true,
-          altOrderKey: true,
-        },
-      });
-      for (const r of existing) {
-        if (typeof r.orderKey === "string" && r.orderKey) existingPurchaseKeys.add(r.orderKey);
-        if (typeof r.altOrderKey === "string" && r.altOrderKey) existingPurchaseKeys.add(r.altOrderKey);
+      const redis = await getRedisClient();
+      const redisKeys = purchaseKeyList.map(key => `dedup:purchase:${shopId}:${key}`);
+      const redisResults = await Promise.all(
+        redisKeys.map(key => redis.get(key).catch(() => null))
+      );
+      const redisHits = new Set<string>();
+      for (let i = 0; i < purchaseKeyList.length; i++) {
+        if (redisResults[i] !== null) {
+          const key = purchaseKeyList[i];
+          redisHits.add(key);
+          existingPurchaseKeys.add(key);
+        }
+      }
+      const keysToCheckInDb = purchaseKeyList.filter(key => !redisHits.has(key));
+      if (keysToCheckInDb.length > 0) {
+        const existing = await prisma.pixelEventReceipt.findMany({
+          where: {
+            shopId,
+            eventType: "purchase",
+            OR: [
+              { orderKey: { in: keysToCheckInDb } },
+              { altOrderKey: { in: keysToCheckInDb } },
+            ],
+          },
+          select: {
+            orderKey: true,
+            altOrderKey: true,
+          },
+        });
+        const dbHits = new Set<string>();
+        for (const r of existing) {
+          if (typeof r.orderKey === "string" && r.orderKey) {
+            existingPurchaseKeys.add(r.orderKey);
+            dbHits.add(r.orderKey);
+          }
+          if (typeof r.altOrderKey === "string" && r.altOrderKey) {
+            existingPurchaseKeys.add(r.altOrderKey);
+            dbHits.add(r.altOrderKey);
+          }
+        }
+        const ttlSeconds = 7 * 24 * 60 * 60;
+        await Promise.all(
+          Array.from(dbHits).map(key => 
+            redis.set(`dedup:purchase:${shopId}:${key}`, "1", { EX: ttlSeconds }).catch(() => {})
+          )
+        );
       }
     } catch (error) {
       logger.warn(`Failed to prefetch purchase receipts for deduplication`, {
         shopDomain,
         error: error instanceof Error ? error.message : String(error),
       });
+      try {
+        const existing = await prisma.pixelEventReceipt.findMany({
+          where: {
+            shopId,
+            eventType: "purchase",
+            OR: [
+              { orderKey: { in: purchaseKeyList } },
+              { altOrderKey: { in: purchaseKeyList } },
+            ],
+          },
+          select: {
+            orderKey: true,
+            altOrderKey: true,
+          },
+        });
+        for (const r of existing) {
+          if (typeof r.orderKey === "string" && r.orderKey) existingPurchaseKeys.add(r.orderKey);
+          if (typeof r.altOrderKey === "string" && r.altOrderKey) existingPurchaseKeys.add(r.altOrderKey);
+        }
+      } catch (dbError) {
+        logger.warn(`Failed to fallback to DB for deduplication`, {
+          shopDomain,
+          error: dbError instanceof Error ? dbError.message : String(dbError),
+        });
+      }
     }
   }
   const seenPurchaseKeys = new Set<string>();

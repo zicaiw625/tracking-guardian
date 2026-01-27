@@ -18,13 +18,13 @@ import {
   Link,
   ProgressBar,
   List,
+  DataTable,
 } from "@shopify/polaris";
 import { CheckCircleIcon, ArrowRightIcon, ClockIcon, LockIcon } from "~/components/icons";
 import { EnhancedEmptyState, CardSkeleton } from "~/components/ui";
 import { UpgradeHealthCheck } from "~/components/onboarding/UpgradeHealthCheck";
 import { PostInstallScanProgress } from "~/components/onboarding/PostInstallScanProgress";
 import { DataConnectionBanner } from "~/components/dashboard/DataConnectionBanner";
-const RiskDistributionChart = lazy(() => import("~/components/dashboard/RiskDistributionChart").then(module => ({ default: module.RiskDistributionChart })));
 const DependencyGraphPreview = lazy(() => import("~/components/dashboard/DependencyGraphPreview").then(module => ({ default: module.DependencyGraphPreview })));
 import { HealthMetrics24hCard } from "~/components/dashboard/HealthMetrics24hCard";
 import { AlertsTodoCard } from "~/components/dashboard/AlertsTodoCard";
@@ -1757,9 +1757,19 @@ export default function Index() {
             )}
             {data.riskDistribution && (
               <Layout.Section variant="oneHalf">
-                <Suspense fallback={<CardSkeleton />}>
-                  <RiskDistributionChart distribution={data.riskDistribution} />
-                </Suspense>
+                <Card>
+                  <BlockStack gap="300">
+                    <Text as="h3" variant="headingMd">风险分布</Text>
+                    <DataTable
+                      columnContentTypes={["text", "numeric"]}
+                      headings={["风险等级", "数量"]}
+                      rows={Object.entries(data.riskDistribution).map(([level, count]) => [
+                        level,
+                        String(count),
+                      ])}
+                    />
+                  </BlockStack>
+                </Card>
               </Layout.Section>
             )}
           </Layout>

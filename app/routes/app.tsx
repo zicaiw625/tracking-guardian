@@ -30,15 +30,14 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
             id: true,
             plan: true,
             shopTier: true,
-            updatedAt: true,
+            shopTierLastCheckedAt: true,
         },
     });
     
-    // Refresh shop tier if needed (with 24h cache)
     if (shop && admin) {
         const shouldRefresh = !shop.shopTier || 
-            !shop.updatedAt || 
-            (Date.now() - shop.updatedAt.getTime()) > SHOP_TIER_CACHE_TTL_MS;
+            !shop.shopTierLastCheckedAt || 
+            (Date.now() - shop.shopTierLastCheckedAt.getTime()) > SHOP_TIER_CACHE_TTL_MS;
         
         if (shouldRefresh) {
             try {
