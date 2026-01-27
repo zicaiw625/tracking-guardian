@@ -86,10 +86,12 @@ export default function PublicSupportPage() {
                       <Text as="span" fontWeight="bold">
                         Do you require PII/PCD?
                       </Text>{" "}
-                      We do not collect end-customer PII. Order read (read_orders)
-                      is used only for reconciliation and verification with minimal
-                      fields. Features like Reorder or enhanced matching require
-                      Shopify PCD approval and are gated.
+                      We do not collect end-customer PII, and the public App Store
+                      version does not request Shopify order scopes or access
+                      Protected Customer Data (PCD). Any future features that
+                      rely on order-level reconciliation or Reorder flows will
+                      ship only after explicit PCD approval and with updated
+                      privacy documentation.
                     </List.Item>
                     <List.Item>
                       <Text as="span" fontWeight="bold">

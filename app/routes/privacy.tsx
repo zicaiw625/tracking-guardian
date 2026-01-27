@@ -178,33 +178,47 @@ export default function PrivacyPage() {
 
           <div className="section">
             <h2>数据用途</h2>
-            <h3>转化追踪</h3>
-            <p>将购买事件发送到您配置的广告平台（Meta、TikTok、GA4），帮助您准确衡量广告投资回报。</p>
+            <h3>转化追踪（当前版本）</h3>
+            <p>
+              当前版本中，{appName} 仅基于 Shopify Web Pixel 上报的事件收据（PixelEventReceipt）和本地最小化日志，
+              帮助您诊断像素是否正常工作、识别潜在的丢单风险，并在应用内部展示统计和报告。
+              我们<strong>不会</strong>从 Shopify 读取订单明细，也<strong>不会</strong>访问受保护客户数据（Protected Customer Data, PCD）。
+            </p>
 
             <div className="warning">
               <p><strong>重要：服务端追踪默认关闭</strong></p>
               <p>
                 所有新创建的像素配置中，服务端转化追踪（Server-side CAPI/MP）默认关闭（<code>serverSideEnabled: false</code>）。
-                只有在设置页面中显式启用后，才会开始发送服务端事件。
+                只有在设置页面中显式启用并完成相应隐私配置后，才会开始向第三方平台发送服务端事件。
               </p>
-              <p>
-                启用服务端追踪前，您必须：
-              </p>
+              <p>启用服务端追踪前，您必须：</p>
               <ul>
-                <li>在隐私政策中明确说明向第三方平台发送的数据类型和用途</li>
+                <li>在店铺自己的隐私政策中明确说明向第三方平台发送的数据类型和用途</li>
                 <li>已获得必要的用户同意（如 GDPR/CCPA 要求）</li>
-                <li>已准备好应对 Shopify App Review 关于数据使用的询问</li>
+                <li>确保应用配置与 Shopify App Store 上的隐私声明保持一致</li>
               </ul>
             </div>
 
-            <h3>对账与诊断</h3>
-            <p>比对 Webhook 订单与像素事件，帮助您发现追踪缺口并优化配置。当用户未给予相应同意导致事件不向任何平台发送时，我们仍可能为去重与诊断目的保存<strong>最小元数据</strong>（如订单键、事件类型、时间戳），<strong>不保存</strong>事件负载中的商品、金额等明细。</p>
+            <h3>对账与诊断（当前版本）</h3>
+            <p>
+              我们通过比对像素事件收据与内部日志，帮助您发现追踪缺口并优化配置。当用户未给予相应同意导致事件不向任何平台发送时，
+              我们仍可能为去重与诊断目的保存<strong>最小元数据</strong>（如事件键、事件类型、时间戳），但<strong>不会</strong>保存商品明细、金额等敏感内容。
+              当前版本<strong>不会</strong>从 Shopify Admin API 读取订单数据进行对账。
+            </p>
 
             <h3>合规执行</h3>
-            <p>根据客户的同意状态，自动决定是否向特定平台发送数据，确保符合 GDPR/CCPA。</p>
+            <p>根据客户的同意状态（Shopify <code>customerPrivacy</code>），自动决定是否向特定平台发送事件，确保符合 GDPR/CCPA 等隐私法规。</p>
 
-            <h3>部分功能与 PCD</h3>
-            <p>订单读取（read_orders）仅用于对账、验收且字段最小化（不取姓名、邮箱、地址）；再购等需 PCD 审批的功能有硬门禁。部分功能（如订单状态、再购）需访问 Shopify Protected Customer Data (PCD)；仅在应用通过 Shopify PCD 审核后可用，且遵循平台对订单/客户数据的访问与展示限制。</p>
+            <h3>与 PCD（受保护客户数据）的关系</h3>
+            <p>
+              当前公开上架版本<strong>不访问</strong> Shopify Protected Customer Data (PCD)，也<strong>不请求</strong> <code>read_orders</code> 等订单类权限。
+              未来如引入基于订单的验收/对账或再购等功能，这些能力将作为后续版本规划，届时会在：
+            </p>
+            <ul>
+              <li>更新本隐私政策并在应用内明确标注相关功能</li>
+              <li>仅在获得 Shopify PCD 审批后才会启用相应能力</li>
+              <li>继续遵循“字段最小化”与“用途限定”的原则</li>
+            </ul>
           </div>
 
           <div className="section">

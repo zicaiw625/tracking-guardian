@@ -547,7 +547,12 @@ export function SecurityTab({
                   </Text>
                   <Text as="p" variant="bodySm">
                     <strong>关于 PII（邮箱/电话等）：</strong>
-                    <br />我们不存储客户PII（姓名/邮箱/电话/地址），仅在必要时存不可逆hash做匹配。订单读取（read_orders）仅用于对账验收，字段最小化；再购等需 PCD 审批，有硬门禁。
+                    <br />
+                    我们不存储客户 PII（姓名/邮箱/电话/地址），仅在必要时存不可逆
+                    hash 作为像素事件去重或诊断信号；当前公开上架版本不会从
+                    Shopify 读取订单明细，也不会访问 Protected Customer Data (PCD)。
+                    未来如引入基于订单的验收/对账或再购等功能，将在获得 PCD 审批
+                    后单独启用，并更新隐私与合规文档。
                   </Text>
                 </BlockStack>
               </Banner>

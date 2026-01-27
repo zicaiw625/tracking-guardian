@@ -212,7 +212,7 @@ export async function settingsLoader({ request }: LoaderFunctionArgs) {
         : null,
       tokenIssues,
       pcdApproved: false,
-      pcdStatusMessage: "我们不收集终端客户 PII；read_orders 仅用于对账验收且字段最小化；再购等需 PCD 审批后启用。",
+      pcdStatusMessage: "我们不收集终端客户 PII，当前公开上架版本不会从 Shopify 读取订单明细或访问 PCD。未来如引入基于订单的验收/对账或再购等功能，将在获得 PCD 审批后单独启用并更新隐私文档。",
       pixelStrictOrigin,
       currentMonitoringData,
       hmacSecurityStats,

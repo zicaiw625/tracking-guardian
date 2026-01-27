@@ -106,12 +106,6 @@ export default function VerificationOrdersPage() {
         icon: RefreshIcon,
         url: `/app/verification/orders?days=${selectedDays}`,
       }}
-      secondaryActions={[
-        {
-          content: "打开完整对账",
-          url: "/app/reconciliation",
-        },
-      ]}
     >
       <BlockStack gap="400">
         <PageIntroCard
