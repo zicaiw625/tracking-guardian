@@ -22,6 +22,7 @@ const MAX_RETRIES = 3;
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 const RETRY_DELAY_MS = 1000;
 const DNS_VALIDATION_CACHE_TTL_MS = 15 * 60 * 1000;
+const DNS_CACHE_MAX_SIZE = 5000;
 const dnsValidationCache = new Map<string, { valid: boolean; error?: string; checkedAt: number }>();
 
 const FORBIDDEN_PATTERNS_PRODUCTION = [
@@ -319,6 +320,23 @@ function validateEndpointUrl(url: string): { valid: boolean; error?: string } {
   }
 }
 
+function cleanupDnsCacheIfNeeded(): void {
+  const now = Date.now();
+  if (dnsValidationCache.size >= DNS_CACHE_MAX_SIZE) {
+    for (const [key, value] of dnsValidationCache.entries()) {
+      if ((now - value.checkedAt) >= DNS_VALIDATION_CACHE_TTL_MS) {
+        dnsValidationCache.delete(key);
+      }
+    }
+    if (dnsValidationCache.size >= DNS_CACHE_MAX_SIZE) {
+      const firstKey = dnsValidationCache.keys().next().value;
+      if (firstKey) {
+        dnsValidationCache.delete(firstKey);
+      }
+    }
+  }
+}
+
 async function validateEndpointUrlWithDNS(url: string): Promise<{ valid: boolean; error?: string }> {
   const basicValidation = validateEndpointUrl(url);
   if (!basicValidation.valid) {
@@ -347,6 +365,7 @@ async function validateEndpointUrlWithDNS(url: string): Promise<{ valid: boolean
         const resolvedIp = record.address;
         if (/^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(resolvedIp)) {
           if (isPrivateIPv4(resolvedIp)) {
+            cleanupDnsCacheIfNeeded();
             const result = { valid: false as const, error: 'DNS resolution points to private IP address (DNS rebinding protection)' };
             dnsValidationCache.set(cacheKey, { ...result, checkedAt: now });
             return result;
@@ -354,17 +373,20 @@ async function validateEndpointUrlWithDNS(url: string): Promise<{ valid: boolean
         } else if (resolvedIp.includes(':')) {
           const ipv6Formatted = resolvedIp.startsWith('[') && resolvedIp.endsWith(']') ? resolvedIp : `[${resolvedIp}]`;
           if (isPrivateIPv6(ipv6Formatted)) {
+            cleanupDnsCacheIfNeeded();
             const result = { valid: false as const, error: 'DNS resolution points to private IPv6 address (DNS rebinding protection)' };
             dnsValidationCache.set(cacheKey, { ...result, checkedAt: now });
             return result;
           }
         }
         if (resolvedIp === '127.0.0.1' || resolvedIp === '::1' || resolvedIp === 'localhost') {
+          cleanupDnsCacheIfNeeded();
           const result = { valid: false as const, error: 'DNS resolution points to localhost (DNS rebinding protection)' };
           dnsValidationCache.set(cacheKey, { ...result, checkedAt: now });
           return result;
         }
       }
+      cleanupDnsCacheIfNeeded();
       dnsValidationCache.set(cacheKey, { valid: true, checkedAt: now });
       return { valid: true };
     } catch (dnsError) {
@@ -382,6 +404,7 @@ async function validateEndpointUrlWithDNS(url: string): Promise<{ valid: boolean
       } else {
         userMessage += 'This may be due to DNS temporary failure, private/internal domain, or network issues. Please ensure the endpoint uses a publicly resolvable domain name.';
       }
+      cleanupDnsCacheIfNeeded();
       const result = { valid: false as const, error: userMessage };
       dnsValidationCache.set(cacheKey, { ...result, checkedAt: now });
       return result;

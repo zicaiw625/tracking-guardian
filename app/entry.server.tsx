@@ -54,7 +54,7 @@ if (typeof process !== "undefined") {
   process.on("SIGINT", () => cleanup("SIGINT"));
 }
 
-(async () => {
+const startupGate = (async () => {
   try {
     await enforceSecurityChecks();
     ensureSecretsValid();
@@ -77,6 +77,7 @@ if (typeof process !== "undefined") {
       logger.warn("Security headers configuration issues:", { issues: headersValidation.issues });
     }
     logger.info("Startup security checks completed successfully");
+    return true;
   } catch (error) {
     logger.error("Startup security checks failed", error);
     if (process.env.NODE_ENV === "production") {
@@ -87,6 +88,7 @@ if (typeof process !== "undefined") {
 })();
 
 export default async function handleRequest(request: Request, responseStatusCode: number, responseHeaders: Headers, remixContext: EntryContext) {
+    await startupGate;
     const url = new URL(request.url);
     if (url.pathname === "/ingest" && request.method === "POST") {
         const contentLength = request.headers.get("Content-Length");

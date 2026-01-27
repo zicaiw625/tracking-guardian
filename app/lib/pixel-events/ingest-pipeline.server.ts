@@ -127,7 +127,7 @@ export function normalizeEvents(
     
     if (isPurchaseEvent) {
       try {
-        let orderId = payload.data.orderId ?? null;
+        orderId = payload.data.orderId ?? null;
         const checkoutToken = payload.data.checkoutToken ?? null;
         const matchKeyResult = generateOrderMatchKey(
           orderId,
