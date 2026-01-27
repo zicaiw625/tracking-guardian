@@ -307,9 +307,8 @@ export default function TemplatesPage() {
       }
     } catch (error) {
       showError("生成分享链接失败");
-      if (process.env.NODE_ENV === "development") {
-        console.error("Share link generation error", error);
-      }
+      const { debugError } = await import("../utils/debug-log.client");
+      debugError("Share link generation error", error);
     } finally {
       setIsGeneratingShareLink(false);
     }
@@ -321,9 +320,8 @@ export default function TemplatesPage() {
       showSuccess("分享链接已复制到剪贴板");
     } catch (error) {
       showError("复制失败，请手动复制");
-      if (process.env.NODE_ENV === "development") {
-        console.error("Copy error", error);
-      }
+      const { debugError } = await import("../utils/debug-log.client");
+      debugError("Copy error", error);
     }
   }, [shareLink, showSuccess, showError]);
   const handleSaveTemplate = useCallback(() => {

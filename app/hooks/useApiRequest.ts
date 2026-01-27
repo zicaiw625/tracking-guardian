@@ -49,7 +49,8 @@ export function useApiRequest<T = unknown>(options: UseApiRequestOptions = {}) {
         try {
           sessionToken = await getSessionToken(app as unknown as ClientApplication);
         } catch (tokenError) {
-          console.warn("[useApiRequest] Failed to get session token:", tokenError);
+          const { debugWarn } = await import("../utils/debug-log.client");
+          debugWarn("[useApiRequest] Failed to get session token:", tokenError);
         }
         const headers: Record<string, string> = {
           "Content-Type": "application/json",
@@ -131,7 +132,8 @@ export function useMutation<TInput = unknown, TOutput = unknown>(
         try {
           sessionToken = await getSessionToken(app as unknown as ClientApplication);
         } catch (tokenError) {
-          console.warn("[useMutation] Failed to get session token:", tokenError);
+          const { debugWarn } = await import("../utils/debug-log.client");
+          debugWarn("[useMutation] Failed to get session token:", tokenError);
         }
         const body = options.transformInput
           ? options.transformInput(input)
@@ -219,7 +221,8 @@ export function useQuery<T>(
       try {
         sessionToken = await getSessionToken(app as unknown as ClientApplication);
       } catch (tokenError) {
-        console.warn("[useQuery] Failed to get session token:", tokenError);
+        const { debugWarn } = await import("../utils/debug-log.client");
+        debugWarn("[useQuery] Failed to get session token:", tokenError);
       }
       const headers: Record<string, string> = {};
       if (sessionToken) {

@@ -251,7 +251,9 @@ function sanitizeEventData(
 function validateCheckoutCompletedFields(
   eventData: Record<string, unknown> | undefined
 ): ValidationResult | null {
-  if (!eventData?.orderId && !eventData?.checkoutToken) {
+  const hasOrderId = eventData?.orderId !== undefined && eventData?.orderId !== null;
+  const hasCheckoutToken = eventData?.checkoutToken !== undefined && eventData?.checkoutToken !== null;
+  if (!hasOrderId && !hasCheckoutToken) {
     return {
       valid: false,
       error: "Missing orderId and checkoutToken for checkout_completed event",

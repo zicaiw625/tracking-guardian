@@ -231,7 +231,7 @@ Tracking Guardian 是一个 Shopify 应用，作为**数据处理者**（Data Pr
 
 ### Web Pixel ingestion_key/HMAC 威胁模型
 
-- **设计定位**：`ingestion_key` 用于事件完整性校验、抗滥用信号与店铺关联，不作为强鉴权凭证；密钥会随 Web Pixel settings 下发到客户端运行环境。
+- **设计定位**：`ingestion_key` 是完整性校验密钥，用于事件完整性校验、抗滥用信号与店铺关联，不作为强鉴权凭证；密钥会随 Web Pixel settings 下发到客户端运行环境。真正的安全由 webhook/订单对账与整体架构设计提供。
 - **可以防护/缓解的风险**：
   - 随机伪造请求、无密钥脚本刷量
   - 请求内容被篡改（HMAC 完整性）

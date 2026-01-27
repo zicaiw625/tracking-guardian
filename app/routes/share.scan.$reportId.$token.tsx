@@ -17,11 +17,12 @@ import {
   Layout,
 } from "@shopify/polaris";
 import type { RiskItem } from "../types";
-import { validateRiskItemsArray, validateStringArray } from "../utils/scan-data-validation";
+import { validateRiskItemsArray, validateStringArray, validateScriptTagsArray } from "../utils/scan-data-validation";
 import { PUBLIC_PAGE_HEADERS, addSecurityHeadersToHeaders } from "../utils/security-headers";
 import { checkRateLimitAsync, ipKeyExtractor } from "../middleware/rate-limit.server";
 import { timingSafeEqualHex } from "../utils/timing-safe.server";
 import { isMissingColumnError } from "../utils/prisma-errors.server";
+import { sanitizeScriptTags } from "../utils/url-sanitize.server";
 
 const publicJson = (data: unknown, init: ResponseInit = {}) => {
   const headers = new Headers(init.headers);
@@ -107,21 +108,45 @@ export const loader = async ({ request, params }: LoaderFunctionArgs) => {
       return publicJson({ error: "Share link has expired", report: null }, { status: 403 });
     }
 
+    const url = new URL(request.url);
+    const mode = url.searchParams.get("mode");
+    const isTechnicalMode = mode === "technical";
+
     const riskItems = validateRiskItemsArray(scanReport.riskItems);
     const identifiedPlatforms = validateStringArray(scanReport.identifiedPlatforms);
 
+    const reportData: ShareScanReport = {
+      id: scanReport.id,
+      shopDomain: shop.shopDomain,
+      riskScore: scanReport.riskScore || 0,
+      riskItems,
+      identifiedPlatforms,
+      status: scanReport.status,
+      createdAt: scanReport.createdAt.toISOString(),
+      completedAt: scanReport.completedAt?.toISOString() || null,
+      expiresAt: scanReport.shareTokenExpiresAt?.toISOString() ?? null,
+    };
+
+    if (isTechnicalMode) {
+      const rawScriptTags = validateScriptTagsArray(scanReport.scriptTags);
+      const sanitizedScriptTags = sanitizeScriptTags(rawScriptTags);
+      reportData.scriptTags = sanitizedScriptTags as unknown as Array<{ src: string; [key: string]: unknown }>;
+      
+      if (scanReport.checkoutConfig) {
+        const checkoutConfig = scanReport.checkoutConfig as Record<string, unknown>;
+        const sanitizedConfig: Record<string, unknown> = {};
+        if (checkoutConfig.checkoutApiSupported !== undefined) {
+          sanitizedConfig.checkoutApiSupported = checkoutConfig.checkoutApiSupported;
+        }
+        if (checkoutConfig.features) {
+          sanitizedConfig.features = checkoutConfig.features;
+        }
+        reportData.checkoutConfig = sanitizedConfig;
+      }
+    }
+
     return publicJson({
-      report: {
-        id: scanReport.id,
-        shopDomain: shop.shopDomain,
-        riskScore: scanReport.riskScore || 0,
-        riskItems,
-        identifiedPlatforms,
-        status: scanReport.status,
-        createdAt: scanReport.createdAt.toISOString(),
-        completedAt: scanReport.completedAt?.toISOString() || null,
-        expiresAt: scanReport.shareTokenExpiresAt?.toISOString() ?? null,
-      },
+      report: reportData,
     });
   } catch (error) {
     if (isMissingColumnError(error, "ScanReport", "shareTokenHash")) {
@@ -150,6 +175,8 @@ type ShareScanReport = {
   createdAt: string;
   completedAt: string | null;
   expiresAt: string | null;
+  scriptTags?: Array<{ src: string; [key: string]: unknown }>;
+  checkoutConfig?: Record<string, unknown>;
 };
 type ShareScanLoaderData = { report: ShareScanReport } | { report: null; error: string };
 

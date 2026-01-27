@@ -481,9 +481,9 @@ const allTemplates: WizardTemplate[] = [
       const DRAFT_STORAGE_KEY = shopId ? `pixel-wizard-draft-${shopId}` : "pixel-wizard-draft";
       localStorage.setItem(DRAFT_STORAGE_KEY, JSON.stringify(draftForLocal));
     } catch (error) {
-      if (process.env.NODE_ENV === "development") {
-        console.warn("[PixelMigrationWizard] Failed to save draft to localStorage:", error);
-      }
+      import("../../utils/debug-log.client").then(({ debugWarn }) => {
+        debugWarn("[PixelMigrationWizard] Failed to save draft to localStorage:", error);
+      });
     }
     if (shopId) {
       try {
@@ -495,14 +495,12 @@ const allTemplates: WizardTemplate[] = [
           body: formData,
         });
         if (!response.ok) {
-          if (process.env.NODE_ENV === "development") {
-            console.warn("[PixelMigrationWizard] Failed to save draft to database");
-          }
+          const { debugWarn } = await import("../../utils/debug-log.client");
+          debugWarn("[PixelMigrationWizard] Failed to save draft to database");
         }
       } catch (error) {
-          if (process.env.NODE_ENV === "development") {
-            console.warn("[PixelMigrationWizard] Failed to save draft to database:", error);
-          }
+          const { debugWarn } = await import("../../utils/debug-log.client");
+          debugWarn("[PixelMigrationWizard] Failed to save draft to database:", error);
       }
     }
   }, [currentStep, selectedPlatforms, platformConfigs, selectedTemplate, shopId]);
@@ -511,9 +509,9 @@ const allTemplates: WizardTemplate[] = [
       const DRAFT_STORAGE_KEY = shopId ? `pixel-wizard-draft-${shopId}` : "pixel-wizard-draft";
       localStorage.removeItem(DRAFT_STORAGE_KEY);
     } catch (error) {
-        if (process.env.NODE_ENV === "development") {
-          console.warn("[PixelMigrationWizard] Failed to clear draft from localStorage:", error);
-        }
+        import("../../utils/debug-log.client").then(({ debugWarn }) => {
+          debugWarn("[PixelMigrationWizard] Failed to clear draft from localStorage:", error);
+        });
     }
     if (shopId) {
       try {
@@ -524,9 +522,9 @@ const allTemplates: WizardTemplate[] = [
           body: formData,
         });
       } catch (error) {
-          if (process.env.NODE_ENV === "development") {
-            console.warn("[PixelMigrationWizard] Failed to clear draft from database:", error);
-          }
+          import("../../utils/debug-log.client").then(({ debugWarn }) => {
+            debugWarn("[PixelMigrationWizard] Failed to clear draft from database:", error);
+          });
       }
     }
   }, [shopId]);
@@ -590,9 +588,9 @@ const allTemplates: WizardTemplate[] = [
         };
         localStorage.setItem(DRAFT_STORAGE_KEY, JSON.stringify(draftForLocal));
       } catch (error) {
-          if (process.env.NODE_ENV === "development") {
-            console.warn("[PixelMigrationWizard] Failed to sync draft to localStorage:", error);
-          }
+          import("../../utils/debug-log.client").then(({ debugWarn }) => {
+            debugWarn("[PixelMigrationWizard] Failed to sync draft to localStorage:", error);
+          });
       }
       showSuccess(`检测到未完成的配置（停留在第 ${steps.findIndex(s => s.id === wizardDraft.step) + 1} 步），已自动恢复。您可以继续完成配置。`);
     } else if (initialPlatforms.length > 0 && !wizardDraft) {
@@ -652,9 +650,9 @@ const allTemplates: WizardTemplate[] = [
           };
           localStorage.setItem(DRAFT_STORAGE_KEY, JSON.stringify(draftForLocal));
         } catch (error) {
-            if (process.env.NODE_ENV === "development") {
-              console.warn("[PixelMigrationWizard] Failed to save draft before unload:", error);
-            }
+            import("../../utils/debug-log.client").then(({ debugWarn }) => {
+              debugWarn("[PixelMigrationWizard] Failed to save draft before unload:", error);
+            });
         }
       }
     };
@@ -1501,9 +1499,8 @@ function ReviewStep({
       showSuccess("模板已保存！");
     } catch (error) {
       showError("保存模板失败");
-      if (process.env.NODE_ENV === "development") {
-        console.error("[PixelMigrationWizard] Save template error:", error);
-      }
+      const { debugError } = await import("../../utils/debug-log.client");
+      debugError("[PixelMigrationWizard] Save template error:", error);
     } finally {
       setIsSavingTemplate(false);
     }
@@ -1724,9 +1721,9 @@ function TestingStep({
           body: formData,
         });
         const data = await response.json().catch((error) => {
-          if (process.env.NODE_ENV === "development") {
-            console.error(`[PixelMigrationWizard] Failed to parse JSON for ${platform}:`, error);
-          }
+          import("../../utils/debug-log.client").then(({ debugError }) => {
+            debugError(`[PixelMigrationWizard] Failed to parse JSON for ${platform}:`, error);
+          });
           return { valid: false, message: "解析响应失败", details: {} };
         });
         return { platform, result: data };
@@ -1752,9 +1749,8 @@ function TestingStep({
       }
     } catch (error) {
       showError("验证过程中发生错误");
-      if (process.env.NODE_ENV === "development") {
-        console.error("[PixelMigrationWizard] Test environment validation error:", error);
-      }
+      const { debugError } = await import("../../utils/debug-log.client");
+      debugError("[PixelMigrationWizard] Test environment validation error:", error);
     } finally {
       setIsValidating(false);
     }
@@ -1774,9 +1770,9 @@ function TestingStep({
             body: formData,
           });
           const data = await response.json().catch((error) => {
-            if (process.env.NODE_ENV === "development") {
-              console.error(`[PixelMigrationWizard] Failed to parse JSON when switching ${platform} to live:`, error);
-            }
+            import("../../utils/debug-log.client").then(({ debugError }) => {
+              debugError(`[PixelMigrationWizard] Failed to parse JSON when switching ${platform} to live:`, error);
+            });
             return { success: false, error: "解析响应失败" };
           });
           if (data.success) {
@@ -1785,9 +1781,8 @@ function TestingStep({
           return { platform, success: data.success, error: data.error };
         } catch (error) {
           const errorMessage = error instanceof Error ? error.message : "Unknown error";
-          if (process.env.NODE_ENV === "development") {
-            console.error(`[PixelMigrationWizard] Failed to switch platform ${platform}:`, error);
-          }
+          const { debugError } = await import("../../utils/debug-log.client");
+          debugError(`[PixelMigrationWizard] Failed to switch platform ${platform}:`, error);
           return { platform, success: false, error: errorMessage };
         }
       });
@@ -1808,9 +1803,8 @@ function TestingStep({
       }
     } catch (error) {
       showError("切换环境时发生错误");
-      if (process.env.NODE_ENV === "development") {
-        console.error("[PixelMigrationWizard] Switch to live error:", error);
-      }
+      const { debugError } = await import("../../utils/debug-log.client");
+      debugError("[PixelMigrationWizard] Switch to live error:", error);
     } finally {
       setIsSwitchingToLive(false);
     }

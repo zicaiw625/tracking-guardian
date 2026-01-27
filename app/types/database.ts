@@ -394,7 +394,9 @@ export function createJsonParser<T>(
       return mapper(data);
     } catch (error) {
       if (options?.logErrors) {
-        console.error('JSON parsing error', { error, context: 'createJsonParser' });
+        import("../utils/debug-log.client").then(({ debugError }) => {
+          debugError('JSON parsing error', { error, context: 'createJsonParser' });
+        });
       }
       return options?.fallback ?? null;
     }

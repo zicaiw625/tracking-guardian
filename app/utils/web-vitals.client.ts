@@ -38,8 +38,9 @@ function sendToAnalytics(metric: WebVitalsMetric) {
       headers: {
         "Content-Type": "application/json",
       },
-    }).catch((err) => {
-      console.error("Failed to send performance metric:", err);
+    }).catch(async (err) => {
+      const { debugError } = await import("./debug-log.client");
+      debugError("Failed to send performance metric:", err);
     });
   }
 }

@@ -69,14 +69,13 @@ export function ManualAnalysis({ deprecationStatus, scriptAnalysisMaxContentLeng
       const errorMessage = error instanceof Error ? error.message : "分析失败，请稍后重试";
       setAnalysisError(errorMessage);
       setAnalysisResult(null);
-      if (process.env.NODE_ENV === "development") {
-        const errorDetails = error instanceof Error ? error.stack : String(error);
-        console.error("Script analysis error:", {
-          message: errorMessage,
-          details: errorDetails,
-          contentLength: trimmedContent.length,
-        });
-      }
+      const { debugError } = await import("../../utils/debug-log.client");
+      const errorDetails = error instanceof Error ? error.stack : String(error);
+      debugError("Script analysis error:", {
+        message: errorMessage,
+        details: errorDetails,
+        contentLength: trimmedContent.length,
+      });
     } finally {
       if (isMountedRef.current) {
         setIsAnalyzing(false);

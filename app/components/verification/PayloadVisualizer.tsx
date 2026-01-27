@@ -53,9 +53,9 @@ export function PayloadVisualizer({
     try {
       platformMappings[platform] = mapToPlatformClient(canonical, platform);
     } catch (error) {
-      if (process.env.NODE_ENV === "development") {
-        console.error(`Failed to map to ${platform}:`, error);
-      }
+      import("../../utils/debug-log.client").then(({ debugError }) => {
+        debugError(`Failed to map to ${platform}:`, error);
+      });
     }
   }
   const tabs = [

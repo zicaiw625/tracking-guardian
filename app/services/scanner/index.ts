@@ -26,6 +26,7 @@ import {
     batchCreateAuditAssets,
     type AuditAssetInput
 } from "../audit-asset.server";
+import { sanitizeScriptTags } from "../../utils/url-sanitize.server";
 
 export type {
     WebPixelInfo,
@@ -698,11 +699,12 @@ export async function scanShopTracking(
     logger.info(`Generated ${result.migrationActions.length} migration actions`);
     let scanReportId: string | undefined;
     try {
+        const sanitizedScriptTags = sanitizeScriptTags(result.scriptTags);
         const savedReport = await prisma.scanReport.create({
             data: {
                 id: randomUUID(),
                 shopId,
-                scriptTags: (safeJsonClone(result.scriptTags) as unknown) as Prisma.InputJsonValue,
+                scriptTags: (safeJsonClone(sanitizedScriptTags) as unknown) as Prisma.InputJsonValue,
                 checkoutConfig: result.checkoutConfig ? ((safeJsonClone(result.checkoutConfig) as unknown) as Prisma.InputJsonValue) : undefined,
                 identifiedPlatforms: result.identifiedPlatforms,
                 riskItems: (safeJsonClone(result.riskItems) as unknown) as Prisma.InputJsonValue,

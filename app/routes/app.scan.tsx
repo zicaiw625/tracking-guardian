@@ -247,11 +247,13 @@ export function ScanPage({
             analysisSavedRef.current = false;
         }
         if (process.env.NODE_ENV === "development") {
-            console.error("Script analysis error", {
+            import("../utils/debug-log.client").then(({ debugError }) => {
+              debugError("Script analysis error", {
                 error: errorMessage,
                 errorType: error instanceof Error ? error.constructor.name : "Unknown",
                 contentLength,
                 hasContent: contentLength > 0,
+              });
             });
         }
     }, []);
@@ -376,9 +378,9 @@ export function ScanPage({
                                 try {
                                     chunkResult = analyzeScriptContent(chunk);
                                 } catch (syncError) {
-                                    if (process.env.NODE_ENV === "development") {
-                                        console.warn(`Chunk ${i} synchronous analysis failed:`, syncError);
-                                    }
+                                    import("../utils/debug-log.client").then(({ debugWarn }) => {
+                                      debugWarn(`Chunk ${i} synchronous analysis failed:`, syncError);
+                                    });
                                     resolve();
                                     return;
                                 }
@@ -401,9 +403,9 @@ export function ScanPage({
                                 }
                                 resolve();
                             } catch (error) {
-                                if (process.env.NODE_ENV === "development") {
-                                    console.warn(`Chunk ${i} analysis failed:`, error);
-                                }
+                                import("../utils/debug-log.client").then(({ debugWarn }) => {
+                                  debugWarn(`Chunk ${i} analysis failed:`, error);
+                                });
                                 resolve();
                             }
                         };
@@ -564,7 +566,8 @@ export function ScanPage({
                 showError("请至少选择一个平台或功能");
             }
         } catch (error) {
-            console.error("Failed to process manual input", error);
+            const { debugError } = await import("../utils/debug-log.client");
+            debugError("Failed to process manual input", error);
             showError("处理失败，请稍后重试");
         }
     }, [shop, showSuccess, showError, submit]);
@@ -1575,6 +1578,11 @@ export function ScanPage({
                 </Text>
                 <Badge tone="info">{`${riskItems.length} 项`}</Badge>
               </InlineStack>
+              <Banner tone="info">
+                <Text as="p" variant="bodySm">
+                  风险识别基于脚本 URL 和已知平台指纹推断，并非实际脚本内容分析。如需更精确的检测，请在「脚本内容分析」中粘贴实际脚本代码。
+                </Text>
+              </Banner>
               {(() => {
                 const isFreePlan = planId === "free";
                 const FREE_AUDIT_LIMIT = 3;
@@ -2039,9 +2047,8 @@ export function ScanPage({
                               showError("浏览器不支持复制功能");
                             }
                           } catch (error) {
-                            if (process.env.NODE_ENV === "development") {
-                                console.error("复制失败:", error);
-                            }
+                            const { debugError } = await import("../utils/debug-log.client");
+                            debugError("复制失败:", error);
                             showError("复制失败，请手动复制");
                           } finally {
                             setIsCopying(false);
@@ -2077,9 +2084,9 @@ export function ScanPage({
                                     document.body.removeChild(a);
                                   }
                                 } catch (removeError) {
-                                  if (process.env.NODE_ENV === "development") {
-                                      console.warn("Failed to remove download link:", removeError);
-                                  }
+                                  import("../utils/debug-log.client").then(({ debugWarn }) => {
+                                    debugWarn("Failed to remove download link:", removeError);
+                                  });
                                 }
                                 if (exportBlobUrlRef.current) {
                                   URL.revokeObjectURL(exportBlobUrlRef.current);
@@ -2088,9 +2095,9 @@ export function ScanPage({
                                 exportTimeoutRef.current = null;
                               }, TIMEOUTS.EXPORT_CLEANUP);
                             } catch (domError) {
-                              if (process.env.NODE_ENV === "development") {
-                                  console.error("Failed to trigger download:", domError);
-                              }
+                              import("../utils/debug-log.client").then(({ debugError }) => {
+                                debugError("Failed to trigger download:", domError);
+                              });
                               if (exportBlobUrlRef.current) {
                                 URL.revokeObjectURL(exportBlobUrlRef.current);
                                 exportBlobUrlRef.current = null;
@@ -2102,9 +2109,9 @@ export function ScanPage({
                             showSuccess("清单导出成功");
                             setIsExporting(false);
                           } catch (error) {
-                            if (process.env.NODE_ENV === "development") {
-                                console.error("导出失败:", error);
-                            }
+                            import("../utils/debug-log.client").then(({ debugError }) => {
+                              debugError("导出失败:", error);
+                            });
                             if (exportBlobUrlRef.current) {
                               URL.revokeObjectURL(exportBlobUrlRef.current);
                               exportBlobUrlRef.current = null;
@@ -2139,9 +2146,8 @@ export function ScanPage({
                             URL.revokeObjectURL(url);
                             showSuccess("PDF 清单导出成功");
                           } catch (error) {
-                            if (process.env.NODE_ENV === "development") {
-                                console.error("PDF 导出失败:", error);
-                            }
+                            const { debugError } = await import("../utils/debug-log.client");
+                            debugError("PDF 导出失败:", error);
                             showError(error instanceof Error ? error.message : "PDF 导出失败，请重试");
                           } finally {
                             setIsExporting(false);

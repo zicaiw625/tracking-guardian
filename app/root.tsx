@@ -54,8 +54,10 @@ export function ErrorBoundary() {
   } else if (error instanceof Error) {
     message = error.message || "发生了一个错误。";
     code = error.name || "Error";
-    if (error.stack && process.env.NODE_ENV === "development") {
-      console.error("Error stack:", error.stack);
+    if (error.stack) {
+      import("./utils/debug-log.client").then(({ debugError }) => {
+        debugError("Error stack:", error.stack);
+      });
     }
   } else if (typeof error === "object" && error !== null) {
     const errObj = error as Record<string, unknown>;
@@ -69,15 +71,15 @@ export function ErrorBoundary() {
       : typeof errObj.name === "string"
         ? errObj.name
         : "UNKNOWN";
-    if (process.env.NODE_ENV === "development") {
-      console.error("Non-standard error caught in root ErrorBoundary:", error);
-    }
+    import("./utils/debug-log.client").then(({ debugError }) => {
+      debugError("Non-standard error caught in root ErrorBoundary:", error);
+    });
   } else {
     message = "发生未知错误。";
     code = "UNKNOWN";
-    if (process.env.NODE_ENV === "development") {
-      console.error("Unknown error type caught in root ErrorBoundary:", error);
-    }
+    import("./utils/debug-log.client").then(({ debugError }) => {
+      debugError("Unknown error type caught in root ErrorBoundary:", error);
+    });
   }
   if (isProduction && status >= 500) {
     message = "系统遇到了一个意外问题。请稍后再试。";

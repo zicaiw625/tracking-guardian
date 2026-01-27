@@ -58,9 +58,8 @@ export function TestOrderGuide({
       setCopiedItem(itemId);
       setTimeout(() => setCopiedItem(null), 2000);
     } catch (error) {
-      if (process.env.NODE_ENV === "development") {
-        console.error("Failed to copy:", error);
-      }
+      const { debugError } = await import("../../utils/debug-log.client");
+      debugError("Failed to copy:", error);
     }
   }, []);
   const toggleExpanded = useCallback((itemId: string) => {

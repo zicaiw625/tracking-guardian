@@ -224,15 +224,15 @@ export function RealtimeEventMonitor({
               });
             }
           } catch (err) {
-            if (process.env.NODE_ENV === "development") {
-              console.error("Failed to parse event data:", err);
-            }
+            import("../../utils/debug-log.client").then(({ debugError }) => {
+              debugError("Failed to parse event data:", err);
+            });
           }
         };
         eventSource.onerror = (err) => {
-          if (process.env.NODE_ENV === "development") {
-            console.error("SSE error:", err);
-          }
+          import("../../utils/debug-log.client").then(({ debugError }) => {
+            debugError("SSE error:", err);
+          });
           setIsConnected(false);
           if (eventSource.readyState === EventSource.CLOSED && !isReconnectingRef.current) {
             isReconnectingRef.current = true;
@@ -256,9 +256,9 @@ export function RealtimeEventMonitor({
       } catch (err) {
         setError("无法建立连接");
         showErrorRef.current("无法建立实时监控连接");
-        if (process.env.NODE_ENV === "development") {
-          console.error("SSE connection error:", err);
-        }
+        import("../../utils/debug-log.client").then(({ debugError }) => {
+          debugError("SSE connection error:", err);
+        });
         reconnectAttemptsRef.current += 1;
         const delay = getReconnectDelay(reconnectAttemptsRef.current);
         isReconnectingRef.current = true;
@@ -277,9 +277,9 @@ export function RealtimeEventMonitor({
         try {
           eventSourceRef.current.close();
         } catch (error) {
-          if (process.env.NODE_ENV === "development") {
-            console.warn("Error closing EventSource:", error);
-          }
+          import("../../utils/debug-log.client").then(({ debugWarn }) => {
+            debugWarn("Error closing EventSource:", error);
+          });
         }
         eventSourceRef.current = null;
       }

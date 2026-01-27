@@ -120,7 +120,7 @@ export function SecurityTab({
               <Text as="p" variant="bodySm" tone="subdued">
                 • <strong>TLS 加密</strong>：所有数据传输均通过 HTTPS 加密
                 <br />• <strong>Origin 验证</strong>：仅接受来自 Shopify checkout 页面的请求（含 Referer/ShopDomain fallback，生产环境会记录 fallback 使用情况）
-                <br />• <strong>HMAC 签名</strong>：用于完整性校验与基础抗滥用，不承诺强鉴权（密钥在客户端可见，最终真实性依赖 webhook/订单对账）
+                <br />• <strong>完整性校验密钥（HMAC）</strong>：用于完整性校验与基础抗滥用，不承诺强鉴权（密钥在客户端可见，最终真实性依赖 webhook/订单对账）
                 <br />• <strong>速率限制</strong>：防止滥用和异常流量
                 <br />• <strong>数据最小化</strong>：我们不收集、不处理、不发送终端客户 PII（包括哈希值）
               </Text>
@@ -128,8 +128,8 @@ export function SecurityTab({
                 <strong>安全边界说明：</strong>此令牌主要用于事件关联和诊断，配合上述多层防护机制共同保障安全。
                 不要将此令牌视为强安全凭证，真正的安全由 webhook/订单对账与整体架构设计提供。
                 <br />
-                <strong>关于 HMAC 签名密钥：</strong>由于 ingestion_key 通过 Web Pixel settings 下发到客户端，无法做到真正保密。
-                此 HMAC 签名机制主要用于完整性校验与基础抗滥用，不承诺"强防伪造"。
+                <strong>关于完整性校验密钥：</strong>ingestion_key 是完整性校验密钥，不是安全密钥。由于它通过 Web Pixel settings 下发到客户端，无法做到真正保密。
+                此机制主要用于完整性校验与基础抗滥用，不承诺"强防伪造"。真正的安全由 webhook/订单对账与整体架构设计提供。
               </Text>
               <Box
                 background="bg-surface-secondary"
@@ -219,7 +219,7 @@ export function SecurityTab({
                 <Card>
                   <BlockStack gap="400">
                     <Text as="h3" variant="headingMd">
-                      HMAC 完整性监控（过去24小时）
+                      完整性校验监控（过去24小时）
                     </Text>
                     <Text as="p" variant="bodySm" tone="subdued">
                       实时监控密钥轮换状态和可疑注入活动，确保系统安全。建议定期检查此面板，及时发现潜在安全风险。

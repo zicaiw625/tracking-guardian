@@ -65,9 +65,8 @@ export function ConfigVersionManager({
         setVersionHistory(data.history);
       }
     } catch (error) {
-      if (process.env.NODE_ENV === "development") {
-        console.error("Failed to load version history", error);
-      }
+      const { debugError } = await import("../../utils/debug-log.client");
+      debugError("Failed to load version history", error);
     } finally {
       setIsLoading(false);
     }

@@ -204,9 +204,8 @@ export function ScriptCodeEditor({
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch (err) {
-      if (process.env.NODE_ENV === "development") {
-        console.error("Failed to copy:", err);
-      }
+      const { debugError } = await import("../../utils/debug-log.client");
+      debugError("Failed to copy:", err);
     }
   };
   return (

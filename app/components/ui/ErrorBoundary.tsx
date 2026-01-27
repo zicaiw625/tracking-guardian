@@ -48,8 +48,10 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
     if (this.props.onError) {
       this.props.onError(error, errorInfo);
     }
-    if (typeof window !== "undefined" && window.console) {
-      console.error("ErrorBoundary caught an error:", error, errorInfo);
+    if (typeof window !== "undefined") {
+      import("../../utils/debug-log.client").then(({ debugError }) => {
+        debugError("ErrorBoundary caught an error:", error, errorInfo);
+      });
     }
   }
   handleReset = () => {
