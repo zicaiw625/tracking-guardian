@@ -8,6 +8,7 @@ import prisma from "../db.server";
 import { getExistingWebPixels, isOurWebPixel, needsSettingsUpgrade } from "../services/migration.server";
 import { DEPRECATION_DATES, formatDeadlineDate } from "../utils/migration-deadlines";
 import { getShopifyAdminUrl } from "../utils/helpers";
+import { rejectionTracker } from "~/lib/pixel-events/rejection-tracker.server";
 interface DiagnosticCheck {
     name: string;
     status: "pass" | "fail" | "warning" | "pending";
@@ -22,6 +23,7 @@ interface EventFunnel {
     sentToPlatforms: number;
     period: string;
 }
+
 export const loader = async ({ request }: LoaderFunctionArgs) => {
     const { session, admin } = await authenticate.admin(request);
     const shopDomain = session.shop;
@@ -68,6 +70,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
                 deadLetterJobs: 0,
             },
             recentEvents: [],
+            rejectionStats: [],
             lastUpdated: new Date().toISOString(),
         });
     }
@@ -245,6 +248,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
         sentToPlatforms: sentToPlatformsCount,
         period: "24h",
     };
+    const rejectionStats = rejectionTracker.getRejectionStats(shopDomain, 24);
     const totalWebhooks24h = 0;
     const failedWebhooks24h = 0;
     const queuedJobs = 0;
@@ -286,6 +290,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
             deadLetterJobs,
         },
         recentEvents,
+        rejectionStats,
         lastUpdated: new Date().toISOString(),
     });
 };
@@ -508,6 +513,33 @@ export default function DiagnosticsPage() {
             </BlockStack>
           </Card>
         </Layout.Section>
+        {data.rejectionStats && data.rejectionStats.length > 0 && (
+          <Layout.Section>
+            <Card>
+              <BlockStack gap="400">
+                <InlineStack align="space-between" blockAlign="center">
+                  <Text as="h2" variant="headingMd">
+                    最近拒绝原因 (过去 24 小时)
+                  </Text>
+                  <Badge tone="warning">诊断</Badge>
+                </InlineStack>
+                <Text as="p" variant="bodySm" tone="subdued">
+                  显示按原因分组的拒绝统计
+                </Text>
+                <Divider />
+                <DataTable
+                  columnContentTypes={["text", "numeric", "numeric"]}
+                  headings={["拒绝原因", "次数", "占比"]}
+                  rows={data.rejectionStats.map((stat) => [
+                    stat.reason,
+                    String(stat.count),
+                    `${stat.percentage.toFixed(1)}%`,
+                  ])}
+                />
+              </BlockStack>
+            </Card>
+          </Layout.Section>
+        )}
         <Layout.Section>
           <Card>
             <BlockStack gap="400">

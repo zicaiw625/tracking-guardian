@@ -149,7 +149,7 @@ const platformConfigs: Record<string, PlatformSendConfig> = {
   google: {
     buildUrl: (credentials) => {
       const creds = credentials as { measurementId?: string; apiSecret?: string };
-      return `${GA4_MEASUREMENT_PROTOCOL_URL}?measurement_id=${creds.measurementId}&api_secret=${creds.apiSecret}`;
+      return `${GA4_MEASUREMENT_PROTOCOL_URL}?measurement_id=${encodeURIComponent(creds.measurementId ?? "")}&api_secret=${encodeURIComponent(creds.apiSecret ?? "")}`;
     },
     buildHeaders: () => ({ "Content-Type": "application/json" }),
     buildPayload: (credentials, eventName, payload, eventId, customMappings) => {

@@ -49,6 +49,15 @@ export interface PixelEventData {
   price?: number;
   quantity?: number;
   environment?: string;
+  email?: string | null;
+  phone?: string | null;
+  firstName?: string | null;
+  lastName?: string | null;
+  address?: string | null;
+  city?: string | null;
+  province?: string | null;
+  country?: string | null;
+  zip?: string | null;
   [key: string]: unknown;
 }
 

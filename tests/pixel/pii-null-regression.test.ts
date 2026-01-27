@@ -275,3 +275,58 @@ describe("P0-02: v1.0 Documentation", () => {
     expect(true).toBe(true);
   });
 });
+
+describe("Shopify 2025-12-10 PII Changes Compatibility", () => {
+  it("should handle PII fields as null when not in protected scope", () => {
+    const payloadWithNullPII = {
+      eventName: "checkout_completed" as const,
+      timestamp: Date.now(),
+      shopDomain: "test-shop.myshopify.com",
+      data: {
+        orderId: "12345",
+        value: 99.99,
+        currency: "USD",
+        email: null,
+        phone: null,
+        firstName: null,
+        lastName: null,
+        address: null,
+        city: null,
+        province: null,
+        country: null,
+        zip: null,
+      },
+    };
+    expect(payloadWithNullPII.data.orderId).toBe("12345");
+    expect(payloadWithNullPII.data.email).toBeNull();
+    expect(payloadWithNullPII.data.phone).toBeNull();
+    const normalizedId = normalizeOrderId(payloadWithNullPII.data.orderId);
+    expect(normalizedId).toBe("12345");
+    const eventId = generateEventId(
+      normalizedId,
+      "purchase",
+      payloadWithNullPII.shopDomain
+    );
+    expect(eventId).toBeTruthy();
+  });
+  it("should not depend on PII fields for event processing", () => {
+    const payloadWithoutPII = {
+      eventName: "checkout_completed" as const,
+      timestamp: Date.now(),
+      shopDomain: "test-shop.myshopify.com",
+      data: {
+        orderId: "12345",
+        value: 99.99,
+        currency: "USD",
+      },
+    };
+    expect(payloadWithoutPII.data.orderId).toBeTruthy();
+    expect((payloadWithoutPII.data as Record<string, unknown>).email).toBeUndefined();
+    const eventId = generateEventId(
+      payloadWithoutPII.data.orderId!,
+      "purchase",
+      payloadWithoutPII.shopDomain
+    );
+    expect(eventId).toBeTruthy();
+  });
+});

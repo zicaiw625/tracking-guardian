@@ -180,7 +180,7 @@ export class GooglePlatformService implements IPlatformService {
         },
       ],
     };
-    const url = `${GA4_MEASUREMENT_PROTOCOL_URL}?measurement_id=${credentials.measurementId}&api_secret=${credentials.apiSecret}`;
+    const url = `${GA4_MEASUREMENT_PROTOCOL_URL}?measurement_id=${encodeURIComponent(credentials.measurementId ?? "")}&api_secret=${encodeURIComponent(credentials.apiSecret ?? "")}`;
     const response = await fetchWithTimeout(
       url,
       {

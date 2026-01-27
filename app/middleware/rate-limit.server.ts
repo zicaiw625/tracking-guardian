@@ -132,6 +132,8 @@ class DistributedRateLimitStore {
   private redisHealthy = true;
   private lastRedisError: number = 0;
   private readonly redisRetryIntervalMs = 30000;
+  private fallbackStartTime: number | null = null;
+  private readonly fallbackMaxDurationMs = 5 * 60 * 1000;
   private async getClient(): Promise<RedisClientWrapper> {
     if (!this.pendingInit) {
       this.pendingInit = getRedisClient();
@@ -145,28 +147,41 @@ class DistributedRateLimitStore {
   private markRedisUnhealthy(): void {
     if (this.redisHealthy) {
       logger.warn("[Rate Limit] Redis unavailable, falling back to in-memory store");
+      this.fallbackStartTime = Date.now();
     }
     this.redisHealthy = false;
     this.lastRedisError = Date.now();
   }
   private markRedisHealthy(): void {
     if (!this.redisHealthy) {
-      logger.info("[Rate Limit] Redis connection restored");
+      const fallbackDuration = this.fallbackStartTime ? Date.now() - this.fallbackStartTime : 0;
+      logger.info("[Rate Limit] Redis connection restored", {
+        fallbackDurationMs: fallbackDuration,
+      });
+      this.fallbackStartTime = null;
     }
     this.redisHealthy = true;
+  }
+  isFallbackExpired(): boolean {
+    if (!this.fallbackStartTime) return false;
+    return Date.now() - this.fallbackStartTime > this.fallbackMaxDurationMs;
   }
   async checkAsync(
     key: string,
     maxRequests: number,
     windowMs: number,
-    failClosed = false
+    failClosed = false,
+    allowFallback = false
   ): Promise<RateLimitResult> {
     const now = Date.now();
     const fullKey = `${RATE_LIMIT_PREFIX}${key}`;
     const windowSeconds = Math.ceil(windowMs / 1000);
     if (!this.shouldRetryRedis()) {
-      const memoryResult = memoryRateLimitStore.check(key, maxRequests, windowMs);
-      if (failClosed) {
+      if (this.isFallbackExpired()) {
+        logger.error("[Rate Limit] Fallback period expired, forcing fail-closed", {
+          fallbackDurationMs: this.fallbackStartTime ? now - this.fallbackStartTime : 0,
+        });
+        const memoryResult = memoryRateLimitStore.check(key, maxRequests, windowMs);
         return {
           allowed: false,
           remaining: 0,
@@ -174,6 +189,27 @@ class DistributedRateLimitStore {
           retryAfter: Math.ceil((memoryResult.resetAt - now) / 1000),
           usingFallback: true,
         };
+      }
+      const strictMaxRequests = allowFallback ? Math.floor(maxRequests * 0.5) : maxRequests;
+      const memoryResult = memoryRateLimitStore.check(key, strictMaxRequests, windowMs);
+      if (failClosed && !allowFallback) {
+        return {
+          allowed: false,
+          remaining: 0,
+          resetAt: memoryResult.resetAt,
+          retryAfter: Math.ceil((memoryResult.resetAt - now) / 1000),
+          usingFallback: true,
+        };
+      }
+      if (allowFallback && this.fallbackStartTime) {
+        const fallbackDuration = now - this.fallbackStartTime;
+        if (fallbackDuration % 60000 < 1000) {
+          logger.warn("[Rate Limit] Using memory fallback with strict limits", {
+            fallbackDurationMs: fallbackDuration,
+            originalLimit: maxRequests,
+            strictLimit: strictMaxRequests,
+          });
+        }
       }
       return { ...memoryResult, usingFallback: true };
     }
@@ -205,8 +241,11 @@ class DistributedRateLimitStore {
     } catch (error) {
       this.markRedisUnhealthy();
       logger.error("[Rate Limit] Redis error, using memory fallback", error);
-      const memoryResult = memoryRateLimitStore.check(key, maxRequests, windowMs);
-      if (failClosed) {
+      if (this.isFallbackExpired()) {
+        logger.error("[Rate Limit] Fallback period expired, forcing fail-closed", {
+          fallbackDurationMs: this.fallbackStartTime ? now - this.fallbackStartTime : 0,
+        });
+        const memoryResult = memoryRateLimitStore.check(key, maxRequests, windowMs);
         return {
           allowed: false,
           remaining: 0,
@@ -214,6 +253,24 @@ class DistributedRateLimitStore {
           retryAfter: Math.ceil((memoryResult.resetAt - now) / 1000),
           usingFallback: true,
         };
+      }
+      const strictMaxRequests = allowFallback ? Math.floor(maxRequests * 0.5) : maxRequests;
+      const memoryResult = memoryRateLimitStore.check(key, strictMaxRequests, windowMs);
+      if (failClosed && !allowFallback) {
+        return {
+          allowed: false,
+          remaining: 0,
+          resetAt: memoryResult.resetAt,
+          retryAfter: Math.ceil((memoryResult.resetAt - now) / 1000),
+          usingFallback: true,
+        };
+      }
+      if (allowFallback && this.fallbackStartTime) {
+        logger.warn("[Rate Limit] Using memory fallback with strict limits", {
+          fallbackDurationMs: this.fallbackStartTime ? now - this.fallbackStartTime : 0,
+          originalLimit: maxRequests,
+          strictLimit: strictMaxRequests,
+        });
       }
       return { ...memoryResult, usingFallback: true };
     }
@@ -519,10 +576,11 @@ export async function checkRateLimitAsync(
   key: string,
   maxRequests: number,
   windowMs: number,
-  failClosed = false
+  failClosed = false,
+  allowFallback = false
 ): Promise<RateLimitResult> {
   enforceTrustedProxy();
-  return rateLimitStore.checkAsync(key, maxRequests, windowMs, failClosed);
+  return rateLimitStore.checkAsync(key, maxRequests, windowMs, failClosed, allowFallback);
 }
 
 export function checkRateLimitSync(
