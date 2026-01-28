@@ -112,6 +112,11 @@ export interface DashboardData {
     message: string;
     triggeredAt: Date;
   }>;
+  dataConnection?: {
+    hasIngestionSecret: boolean;
+    hasWebPixel: boolean;
+    webPixelHasIngestionKey: boolean;
+  };
 }
 
 export interface SetupStep {

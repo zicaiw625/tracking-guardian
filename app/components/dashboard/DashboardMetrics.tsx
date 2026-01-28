@@ -1,0 +1,88 @@
+import { memo, useMemo } from "react";
+import { Card, BlockStack, InlineStack, Text, Box, Badge, Layout, DataTable } from "@shopify/polaris";
+import { CheckCircleIcon, ClockIcon } from "~/components/icons";
+import { CardSkeleton } from "~/components/ui";
+import { LatestScanCard } from "./LatestScanCard";
+import { HealthScoreCard } from "./HealthScoreCard";
+import { QuickStatsCard } from "./QuickStatsCard";
+import { MigrationChecklistPreviewCard } from "./MigrationChecklistPreviewCard";
+import { Suspense, lazy } from "react";
+import type { DashboardData } from "~/types/dashboard";
+
+const DependencyGraphPreview = lazy(() => import("./DependencyGraphPreview").then(module => ({ default: module.DependencyGraphPreview })));
+
+interface DashboardMetricsProps {
+  data: DashboardData;
+  latestScan: {
+    status: string;
+    riskScore: number;
+    createdAt: Date | string;
+    identifiedPlatforms: string[];
+  } | null;
+}
+
+export const DashboardMetrics = memo(function DashboardMetrics({
+  data,
+  latestScan,
+}: DashboardMetricsProps) {
+  return (
+    <>
+      <Layout>
+        <Layout.Section variant="oneThird">
+          <HealthScoreCard score={data.healthScore} status={data.healthStatus} />
+        </Layout.Section>
+        <Layout.Section variant="oneThird">
+          <QuickStatsCard
+            configuredPlatforms={data.configuredPlatforms}
+            weeklyConversions={data.weeklyConversions}
+            plan={data.plan}
+            planLabel={data.planLabel}
+            planTagline={data.planTagline}
+            planFeatures={data.planFeatures}
+          />
+        </Layout.Section>
+        <Layout.Section variant="oneThird">
+          <LatestScanCard latestScan={latestScan} />
+        </Layout.Section>
+      </Layout>
+      {data.migrationChecklist && (
+        <Layout>
+          <Layout.Section>
+            <MigrationChecklistPreviewCard
+              checklist={data.migrationChecklist}
+              estimatedTimeMinutes={data.estimatedMigrationTimeMinutes}
+            />
+          </Layout.Section>
+        </Layout>
+      )}
+      {(data.dependencyGraph || data.riskDistribution) && (
+        <Layout>
+          {data.dependencyGraph && (
+            <Layout.Section variant="oneHalf">
+              <Suspense fallback={<CardSkeleton />}>
+                <DependencyGraphPreview dependencyGraph={data.dependencyGraph} />
+              </Suspense>
+            </Layout.Section>
+          )}
+          {data.riskDistribution && (
+            <Layout.Section variant="oneHalf">
+              <Card>
+                <BlockStack gap="300">
+                  <Text as="h3" variant="headingMd">风险分布</Text>
+                  <DataTable
+                    columnContentTypes={["text", "numeric"]}
+                    headings={["风险等级", "数量"]}
+                    rows={Object.entries(data.riskDistribution).map(([level, count]) => [
+                      level,
+                      String(count),
+                    ])}
+                  />
+                </BlockStack>
+              </Card>
+            </Layout.Section>
+          )}
+        </Layout>
+      )}
+    </>
+  );
+});
