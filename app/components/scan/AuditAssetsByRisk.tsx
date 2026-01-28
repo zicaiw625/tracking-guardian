@@ -57,7 +57,7 @@ const MIGRATION_LABELS: Record<string, { label: string; description: string; url
   ui_extension: {
     label: "UI Extension Block",
     description: "使用 Customer Accounts UI Extensions 替代页面脚本",
-    url: "/app/modules",
+    url: "/app/migrate",
   },
   server_side: {
     label: "Server-side CAPI",
@@ -146,7 +146,7 @@ export function AuditAssetsByRisk({
     } else if (asset.suggestedMigration === "web_pixel" && asset.platform) {
       window.location.href = `/app/migrate?platform=${asset.platform}&assetId=${asset.id}`;
     } else if (asset.suggestedMigration === "ui_extension") {
-      window.location.href = `/app/modules?assetId=${asset.id}`;
+      window.location.href = `/app/migrate?assetId=${asset.id}`;
     } else if (asset.suggestedMigration === "server_side") {
       window.location.href = `/app/migrate?assetId=${asset.id}`;
     }

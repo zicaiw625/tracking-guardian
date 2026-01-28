@@ -36,7 +36,6 @@ export function MigrationWizard({ migrationActions, shopDomain }: MigrationWizar
       "",
       "## 快速链接",
       shopDomain ? `- Pixels 管理: ${getShopifyAdminUrl(shopDomain, "/settings/notifications")}` : "- Pixels 管理: (需要店铺域名)",
-      shopDomain ? `- Checkout Editor: ${getShopifyAdminUrl(shopDomain, "/themes/current/editor")}` : "- Checkout Editor: (需要店铺域名)",
       "- 应用迁移工具: /app/migrate",
     ].join("\n");
     navigator.clipboard.writeText(checklist);
@@ -94,32 +93,6 @@ export function MigrationWizard({ migrationActions, shopDomain }: MigrationWizar
             </Button>
             <Button url="/app/migrate" icon={ArrowRightIcon}>
               在应用内配置 Pixel
-            </Button>
-          </InlineStack>
-        </BlockStack>
-        <Divider />
-        <BlockStack gap="300">
-          <Text as="h3" variant="headingSm">
-            🛒 Checkout Editor（Plus 专属）
-          </Text>
-          <Text as="p" variant="bodySm" tone="subdued">
-            如果您是 Shopify Plus 商家，可以使用 Customer Accounts UI Extensions 替代 Additional Scripts。
-          </Text>
-          <InlineStack gap="300" wrap>
-            <Button
-              url={shopDomain ? getShopifyAdminUrl(shopDomain, "/themes/current/editor?template=checkout") : "#"}
-              external
-              disabled={!shopDomain}
-              icon={ShareIcon}
-            >
-              打开 Checkout Editor
-            </Button>
-            <Button
-              url="https://help.shopify.com/en/manual/checkout-settings"
-              external
-              icon={InfoIcon}
-            >
-              查看官方文档
             </Button>
           </InlineStack>
         </BlockStack>

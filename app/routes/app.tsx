@@ -11,18 +11,14 @@ import { authenticate } from "../shopify.server";
 import prisma from "../db.server";
 import { ToastProvider } from "../components/ui/ToastProvider";
 import { getPolarisTranslations } from "../utils/polaris-i18n";
-import { getShopPlan, refreshShopTierWithAdmin } from "../services/shop-tier.server";
 import { TopBar } from "../components/layout/TopBar";
 import { normalizePlanId, type PlanId } from "../services/billing/plans";
-import { logger } from "../utils/logger.server";
 
 const i18n = getPolarisTranslations(translations);
 
-const SHOP_TIER_CACHE_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
-
 export const links = () => [{ rel: "stylesheet", href: polarisStyles }];
 export const loader = async ({ request }: LoaderFunctionArgs) => {
-    const { session, admin } = await authenticate.admin(request);
+    const { session } = await authenticate.admin(request);
     const shopDomain = session.shop;
     const shop = await prisma.shop.findUnique({
         where: { shopDomain },
@@ -34,25 +30,18 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
         },
     });
     
-    if (shop && admin) {
-        const shouldRefresh = !shop.shopTier || 
-            !shop.shopTierLastCheckedAt || 
-            (Date.now() - shop.shopTierLastCheckedAt.getTime()) > SHOP_TIER_CACHE_TTL_MS;
-        
-        if (shouldRefresh) {
-            try {
-                await refreshShopTierWithAdmin(admin, shop.id);
-            } catch (error) {
-                logger.error("Failed to refresh shop tier", error, { shopId: shop.id });
-            }
-        }
-    }
-    
-    const planInfo = admin ? await getShopPlan(admin) : null;
     const planIdNormalized = normalizePlanId(shop?.plan || "free") as PlanId;
+    const planDisplayNameMap: Record<string, string> = {
+        free: "Free",
+        starter: "Starter",
+        pro: "Pro",
+        enterprise: "Enterprise",
+    };
+    const planDisplayName = planDisplayNameMap[planIdNormalized] || "Unknown";
+    
     return json({
         apiKey: process.env.SHOPIFY_API_KEY || "",
-        planDisplayName: planInfo?.displayName ?? "Unknown",
+        planDisplayName,
         shopDomain,
         planId: planIdNormalized,
         currentShopId: shop?.id,
@@ -64,14 +53,10 @@ export default function App() {
       <NavMenu>
         <a href="/app" rel="home">Dashboard</a>
         <a href="/app/audit/scan">Audit</a>
-        <a href="/app/migrate">Migrate</a>
         <a href="/app/pixels">Pixels</a>
-        <a href="/app/diagnostics">Diagnostics</a>
         <a href="/app/verification">Verification</a>
-        <a href="/app/monitor">Monitor</a>
         <a href="/app/settings">Settings</a>
         <a href="/app/billing">Billing</a>
-        <a href="/app/privacy">Privacy</a>
       </NavMenu>
       <TopBar
         shopDomain={shopDomain}

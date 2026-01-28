@@ -45,7 +45,6 @@ import type { FeatureGateResult } from "../services/billing/feature-gates.server
 import type { PlanId } from "../services/billing/plans";
 import { UpgradePrompt } from "~/components/ui/UpgradePrompt";
 
-const RealtimeEventMonitor = lazy(() => import("~/components/verification/RealtimeEventMonitor").then(module => ({ default: module.RealtimeEventMonitor })));
 const TestOrderGuide = lazy(() => import("~/components/verification/TestOrderGuide").then(module => ({ default: module.TestOrderGuide })));
 const ReportComparison = lazy(() => import("~/components/verification/ReportComparison").then(module => ({ default: module.ReportComparison })));
 
@@ -184,7 +183,6 @@ export default function VerificationPage() {
     { id: "overview", content: "验收概览" },
     { id: "pixel-layer", content: "像素层验收（Web Pixels 标准事件）" },
     { id: "results", content: "详细结果" },
-    { id: "realtime", content: "实时监控" },
     { id: "test-guide", content: "测试订单指引" },
     { id: "history", content: "历史记录" },
   ];
@@ -1237,20 +1235,6 @@ export default function VerificationPage() {
           )}
           {selectedTab === 3 && (
             <Box padding="400">
-              <Suspense fallback={<CardSkeleton lines={3} />}>
-                <RealtimeEventMonitor
-                  shopId={shop.id}
-                  platforms={configuredPlatforms}
-                  runId={latestRun?.runId}
-                  eventTypes={["purchase"]}
-                  useVerificationEndpoint={true}
-                  autoStart={false}
-                />
-              </Suspense>
-            </Box>
-          )}
-          {selectedTab === 4 && (
-            <Box padding="400">
               <Suspense fallback={<CardSkeleton lines={5} />}>
                 <TestOrderGuide
                   shopDomain={shopDomain}
@@ -1275,7 +1259,7 @@ export default function VerificationPage() {
               </Suspense>
             </Box>
           )}
-          {selectedTab === 8 && (
+          {selectedTab === 4 && (
             <Box padding="400">
               <BlockStack gap="500">
                 <Card>
@@ -1450,10 +1434,8 @@ export default function VerificationPage() {
               🔗 相关页面
             </Text>
             <InlineStack gap="300" wrap>
-              <Button url="/app/diagnostics">诊断页面</Button>
               <Button url="/app/settings">配置凭证</Button>
               <Button url="/app/migrate">安装 Pixel</Button>
-              <Button url="/app/monitor">监控数据</Button>
             </InlineStack>
           </BlockStack>
         </Card>

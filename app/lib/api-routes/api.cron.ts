@@ -29,6 +29,13 @@ async function runCronTasks(task: string, requestId: string): Promise<Record<str
     results.cleanup = cleanupResult;
   }
 
+  if (task === "all" || task === "ingest_worker") {
+    logger.info("[Cron] Running ingest worker", { requestId });
+    const { processIngestQueue } = await import("../../lib/pixel-events/ingest-queue.server");
+    const ingestResult = await processIngestQueue();
+    results.ingest_worker = ingestResult;
+  }
+
   return results;
 }
 

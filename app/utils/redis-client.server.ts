@@ -21,6 +21,8 @@ export interface RedisClientWrapper {
   publish(channel: string, message: string): Promise<number>;
   subscribe(channel: string, onMessage: (message: string) => void): Promise<() => Promise<void>>;
   eval(script: string, keys: string[], args: string[]): Promise<unknown>;
+  lPush(key: string, ...values: string[]): Promise<number>;
+  rPop(key: string): Promise<string | null>;
   isConnected(): boolean;
   getConnectionInfo(): ConnectionInfo;
 }
@@ -51,6 +53,7 @@ class InMemoryFallback implements RedisClientWrapper {
   })();
   private stringStore = new Map<string, MemoryEntry>();
   private hashStore = new Map<string, MemoryHashEntry>();
+  private listStore = new Map<string, string[]>();
   private maxSize: number;
   constructor(maxSize = 10000) {
     this.maxSize = maxSize;
@@ -254,6 +257,24 @@ class InMemoryFallback implements RedisClientWrapper {
   }
   async eval(_script: string, _keys: string[], _args: string[]): Promise<unknown> {
     throw new Error("Redis eval is not supported in memory mode");
+  }
+  async lPush(key: string, ...values: string[]): Promise<number> {
+    let list = this.listStore.get(key);
+    if (!list) {
+      list = [];
+      this.listStore.set(key, list);
+    }
+    for (let i = values.length - 1; i >= 0; i--) {
+      list.unshift(values[i]);
+    }
+    return list.length;
+  }
+  async rPop(key: string): Promise<string | null> {
+    const list = this.listStore.get(key);
+    if (!list || list.length === 0) return null;
+    const value = list.pop()!;
+    if (list.length === 0) this.listStore.delete(key);
+    return value;
   }
   isConnected(): boolean {
     return true;
@@ -573,6 +594,20 @@ class RedisClientFactory {
           throw error;
         }
       },
+      lPush: async (key: string, ...values: string[]): Promise<number> => {
+        try {
+          return await client.lPush(key, values);
+        } catch {
+          return this.fallback.lPush(key, ...values);
+        }
+      },
+      rPop: async (key: string): Promise<string | null> => {
+        try {
+          return await client.rPop(key);
+        } catch {
+          return this.fallback.rPop(key);
+        }
+      },
       isConnected: (): boolean => {
         return this.connectionInfo.connected;
       },
@@ -635,6 +670,8 @@ class RedisClientFactory {
       eval: async (script: string, keys: string[], args: string[]): Promise<unknown> => {
         return client.eval(script, { keys, arguments: args });
       },
+      lPush: async (key: string, ...values: string[]): Promise<number> => client.lPush(key, values),
+      rPop: async (key: string): Promise<string | null> => client.rPop(key),
       isConnected: (): boolean => this.connectionInfo.connected,
       getConnectionInfo: (): ConnectionInfo => ({ ...this.connectionInfo }),
     };

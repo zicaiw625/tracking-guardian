@@ -199,14 +199,14 @@ export function DashboardOverview({
                       📦 发布 Thank you/Order status 模块
                     </Text>
                     <Text as="p" variant="bodySm" tone="subdued">
-                      可替代 legacy thank-you/order-status 自定义脚本的模块库：Survey 问卷、Helpdesk 帮助中心、Reorder 再购按钮等
+                      迁移 tracking 到 Web Pixel，验收报告验证送达。v1 不包含 Thank you/Order status 页面模块。
                     </Text>
                     <Badge tone="info">Migration $49/月</Badge>
                   </BlockStack>
                   <Icon source={LockIcon} />
                 </InlineStack>
                 <Button
-                  url={isPlanAtLeast(data.planId || "free", "starter") ? "/app/modules" : "/app/billing"}
+                  url={isPlanAtLeast(data.planId || "free", "starter") ? "/app/migrate" : "/app/billing"}
                   variant={isPlanAtLeast(data.planId || "free", "starter") ? "primary" : "secondary"}
                   fullWidth
                 >

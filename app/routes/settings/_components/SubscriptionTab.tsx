@@ -163,7 +163,7 @@ export function SubscriptionTab({ currentPlan, subscriptionStatus }: Subscriptio
             </Text>
             <Banner tone="info">
               <Text as="p" variant="bodySm">
-                需要帮助选择套餐？<a href="/app/support">联系我们的销售团队</a>获取个性化建议。
+                需要帮助选择套餐？请联系我们的销售团队获取个性化建议。
               </Text>
             </Banner>
           </BlockStack>

@@ -13,6 +13,7 @@ import { shopLoadingMiddleware } from "~/lib/pixel-events/middleware/shop-loadin
 import { originValidationPostShopMiddleware } from "~/lib/pixel-events/middleware/origin-validation.middleware";
 import { hmacValidationMiddleware } from "~/lib/pixel-events/middleware/hmac-validation.middleware";
 import { rateLimitPostShopMiddleware } from "~/lib/pixel-events/middleware/rate-limit-post-shop.middleware";
+import { enqueueMiddleware } from "~/lib/pixel-events/middleware/enqueue.middleware";
 import { processingMiddleware } from "~/lib/pixel-events/middleware/processing.middleware";
 import type { IngestContext } from "~/lib/pixel-events/middleware/types";
 import type { KeyValidationResult } from "~/lib/pixel-events/types";
@@ -80,6 +81,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     originValidationPostShopMiddleware,
     hmacValidationMiddleware,
     rateLimitPostShopMiddleware,
+    enqueueMiddleware,
     processingMiddleware,
   ];
 

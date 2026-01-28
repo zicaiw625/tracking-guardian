@@ -423,48 +423,6 @@ export async function analyzeRecentEvents(
     totalTests > 0 ? Math.round(((passedTests + missingParamTests) / totalTests) * 100) : 0;
   const valueAccuracy = valueChecks > 0 ? Math.round(totalValueAccuracy / valueChecks) : 100;
   const platformResults: Record<string, { sent: number; failed: number }> = {};
-  const receiptEventIds = receipts
-    .map(r => r.orderKey || (r.payloadJson as Record<string, unknown> | null)?.eventId as string | undefined)
-    .filter((id): id is string => !!id);
-  if (receiptEventIds.length > 0) {
-    const eventLogs = await prisma.eventLog.findMany({
-      where: {
-        shopId,
-        eventId: { in: receiptEventIds },
-      },
-      select: {
-        id: true,
-        eventId: true,
-        eventName: true,
-        DeliveryAttempt: {
-          select: {
-            platform: true,
-            ok: true,
-            httpStatus: true,
-            errorCode: true,
-            latencyMs: true,
-            createdAt: true,
-          },
-        },
-      },
-    });
-    for (const eventLog of eventLogs) {
-      for (const attempt of eventLog.DeliveryAttempt) {
-        if (!attempt.platform) continue;
-        if (targetPlatforms.length > 0 && !targetPlatforms.includes(attempt.platform)) {
-          continue;
-        }
-        if (!platformResults[attempt.platform]) {
-          platformResults[attempt.platform] = { sent: 0, failed: 0 };
-        }
-        if (attempt.ok) {
-          platformResults[attempt.platform].sent++;
-        } else {
-          platformResults[attempt.platform].failed++;
-        }
-      }
-    }
-  }
   for (const receipt of receipts) {
     const payload = receipt.payloadJson as Record<string, unknown> | null;
     const receiptPlatform = extractPlatformFromPayload(payload);

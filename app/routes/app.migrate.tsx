@@ -144,16 +144,8 @@ export default function MigratePage() {
       requiresPlan: "starter" as PlanId,
     },
     {
-      id: "modules" as MigrationStep,
-      title: "3. 发布 UI 模块",
-      description: "配置并发布 Thank you / Order status 页面模块",
-      url: "/app/modules",
-      icon: CheckCircleIcon,
-      requiresPlan: "starter" as PlanId,
-    },
-    {
       id: "verification" as MigrationStep,
-      title: "4. 验收与监控",
+      title: "3. 验收与监控",
       description: "运行验收测试，生成报告，设置断档告警",
       url: "/app/verification",
       icon: CheckCircleIcon,
@@ -182,7 +174,6 @@ export default function MigratePage() {
           items={[
             "扫描现有追踪脚本并评估风险",
             "配置 Web Pixel 和事件映射",
-            "发布 UI 模块替代功能",
             "验收测试并生成报告",
           ]}
           primaryAction={{ content: "开始迁移", url: "/app/audit" }}
@@ -341,9 +332,6 @@ export default function MigratePage() {
                 <Button url="/app/verification" variant="primary">
                   运行验收测试
                 </Button>
-                <Button url="/app/diagnostics" variant="secondary">
-                  查看诊断
-                </Button>
               </InlineStack>
             </BlockStack>
           </Banner>
@@ -375,20 +363,6 @@ export default function MigratePage() {
                   <Text as="p" variant="bodySm" tone="subdued">
                     创建 Web Pixel Extension，配置事件映射（Shopify 标准事件 → 平台事件），
                     设置平台凭证（GA4/Meta/TikTok）。需要 Starter ($29/月) 及以上套餐。
-                  </Text>
-                </BlockStack>
-              </List.Item>
-              <List.Item>
-                <BlockStack gap="200">
-                  <Text as="span" fontWeight="semibold">
-                    发布 UI 模块
-                  </Text>
-                  <Text as="p" variant="bodySm" tone="subdued">
-                    配置并发布 Thank you / Order status 页面的 UI 模块（Survey、Help 等，Reorder 仅在 Order status 可用），
-                    替代原有的 Additional Scripts 功能。需要 Starter ($29/月) 及以上套餐。
-                  </Text>
-                  <Text as="p" variant="bodySm" tone="subdued">
-                    <strong>重要提示：</strong>Order status 模块仅支持 Customer Accounts 体系下的订单状态页，不支持旧版订单状态页。如果您的店铺使用旧版订单状态页（非 Customer Accounts），Order status 模块将不会显示。请确认您的店铺已启用 Customer Accounts 功能（可在 Shopify Admin → 设置 → 客户账户中检查），否则模块不会在订单状态页显示。这是 Shopify 平台的设计限制，Order status 模块只能在 Customer Accounts 体系下工作。请参考 <a href="https://shopify.dev/docs/apps/customer-accounts/ui-extensions" target="_blank" rel="noopener noreferrer">Customer Accounts UI Extensions 官方文档</a>（注意：不要参考 checkout-ui-extensions 文档，该文档可能显示此 target 为"Not supported"，这是文档版本差异导致的误导。正确的文档入口是 Customer Accounts UI Extensions，不是 Checkout UI Extensions）。
                   </Text>
                 </BlockStack>
               </List.Item>

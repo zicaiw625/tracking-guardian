@@ -866,7 +866,7 @@ export default function OnboardingPage() {
                       ⚠️ 重要提示：Order Status 模块需要 Customer Accounts
                     </Text>
                     <Text as="p" variant="bodySm">
-                      Order status 仅支持 Customer Accounts，不支持旧版订单状态页。如果您计划使用 Order Status 页面模块（如 Reorder、Survey 等），需要确保您的店铺已启用 Customer Accounts 功能。Order Status 模块仅支持 Customer Accounts 体系下的订单状态页（customer-account.order-status.block.render target），不支持旧版订单状态页。这是 Shopify 平台的设计限制。
+                      v1 不提供 Order Status 页面模块（如 Reorder、Survey 等）。Order status 模块仅支持 Customer Accounts 体系下的订单状态页，不支持旧版订单状态页。这是 Shopify 平台的设计限制。
                     </Text>
                     <Text as="p" variant="bodySm" fontWeight="semibold">
                       如何检查并启用 Customer Accounts：

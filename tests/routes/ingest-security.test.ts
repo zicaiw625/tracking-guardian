@@ -131,6 +131,7 @@ describe("/ingest Security Policy Tests", () => {
     vi.clearAllMocks();
     process.env = { ...originalEnv };
     process.env.NODE_ENV = "test";
+    process.env.INGEST_ASYNC = "false";
     
     vi.mocked(getShopForPixelVerificationWithConfigs).mockResolvedValue({
       id: "shop-123",

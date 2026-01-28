@@ -413,9 +413,6 @@ export function TestingStep({
         >
           运行验收测试
         </Button>
-        <Button url="/app/monitor">
-          前往监控页面
-        </Button>
         {!allInTestMode && (
           <Button
             variant="primary"

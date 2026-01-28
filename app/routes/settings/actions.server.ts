@@ -1,189 +1,21 @@
 import type { ActionFunctionArgs } from "@remix-run/node";
 import { json } from "@remix-run/node";
-import { Prisma } from "@prisma/client";
 import { authenticate } from "../../shopify.server";
 import prisma from "../../db.server";
-import { testNotification } from "../../services/notification.server";
 import {
   getExistingWebPixels,
   updateWebPixel,
   isOurWebPixel,
 } from "../../services/migration.server";
 import { generateEncryptedIngestionSecret } from "../../utils/token-encryption.server";
-import { encryptAlertSettings } from "../../services/alert-settings.server";
 import { logger } from "../../utils/logger.server";
 import { invalidateAllShopCaches } from "../../services/shop-cache.server";
-import type { AlertSettings } from "./types";
-
-import {
-  checkRateLimitAsync,
-  pathShopKeyExtractor,
-} from "../../middleware/rate-limit.server";
-import {
-  SecureEmailSchema,
-} from "../../utils/security";
 
 import {
   switchEnvironment,
   rollbackConfig,
   type PixelEnvironment,
 } from "../../services/pixel-rollback.server";
-
-export async function handleSaveAlert(
-  formData: FormData,
-  shopId: string,
-  sessionShop: string
-) {
-  const { requireEntitlementOrThrow } = await import("../../services/billing/entitlement.server");
-  await requireEntitlementOrThrow(shopId, "alerts");
-  const channel = formData.get("channel") as string;
-  const threshold = parseFloat(formData.get("threshold") as string) / 100;
-  const enabled = formData.get("enabled") === "true";
-  const failureRateThreshold = formData.get("failureRateThreshold")
-    ? parseFloat(formData.get("failureRateThreshold") as string) / 100
-    : threshold;
-  const missingParamsThreshold = formData.get("missingParamsThreshold")
-    ? parseFloat(formData.get("missingParamsThreshold") as string) / 100
-    : threshold * 2.5;
-  const volumeDropThreshold = formData.get("volumeDropThreshold")
-    ? parseFloat(formData.get("volumeDropThreshold") as string) / 100
-    : 0.5;
-  const frequency = (formData.get("frequency") as "instant" | "daily" | "weekly") || "daily";
-  const rawSettings: Record<string, unknown> = {};
-  if (channel === "email") {
-    rawSettings.email = formData.get("email");
-  }
-  const encryptedSettings = await encryptAlertSettings(rawSettings as unknown as AlertSettings);
-  let shop;
-  try {
-    shop = await prisma.shop.findUnique({
-      where: { id: shopId },
-      select: { id: true, settings: true },
-    });
-  } catch (error) {
-    if (error instanceof Error && (error.message.includes("settings") && (error.message.includes("does not exist") || error.message.includes("P2022")))) {
-      logger.error("Shop.settings column does not exist. Database migration required. Please run: ALTER TABLE \"Shop\" ADD COLUMN IF NOT EXISTS \"settings\" JSONB;", { shopId, error: error.message });
-      shop = await prisma.shop.findUnique({
-        where: { id: shopId },
-        select: { id: true },
-      });
-      if (shop) {
-        (shop as { settings?: unknown }).settings = null;
-      }
-    } else {
-      throw error;
-    }
-  }
-  if (!shop) {
-    return json({ success: false, error: "Shop not found" }, { status: 404 });
-  }
-  const currentSettings = (((shop as { settings?: unknown }).settings as Record<string, unknown>) || {}) as Record<string, unknown>;
-  const alertConfigs = (currentSettings.alertConfigs as Array<Record<string, unknown>>) || [];
-  const existingIndex = alertConfigs.findIndex((cfg) => cfg.channel === channel);
-  const alertConfig: Record<string, unknown> = {
-    channel,
-    enabled,
-    frequency,
-    thresholds: {
-      failureRate: failureRateThreshold,
-      missingParams: missingParamsThreshold,
-      volumeDrop: volumeDropThreshold,
-    },
-    settingsEncrypted: encryptedSettings,
-    ...(channel === "email" && rawSettings.email
-      ? {
-          emailMasked: String(rawSettings.email).replace(
-            /(.{2}).*(@.*)/,
-            "$1***$2"
-          ),
-        }
-      : {}),
-    updatedAt: new Date().toISOString(),
-  };
-  if (existingIndex >= 0) {
-    alertConfigs[existingIndex] = alertConfig;
-  } else {
-    alertConfig.id = `alert_${Date.now()}`;
-    alertConfigs.push(alertConfig);
-  }
-  try {
-    await prisma.shop.update({
-      where: { id: shopId },
-      data: {
-        settings: {
-          ...currentSettings,
-          alertConfigs: alertConfigs as unknown as Prisma.InputJsonValue,
-        } as Prisma.InputJsonValue,
-      },
-    });
-  } catch (error) {
-    if (error instanceof Error && (error.message.includes("settings") && error.message.includes("does not exist") || error.message.includes("P2022"))) {
-      logger.error("Shop.settings column does not exist. Database migration required.", { shopId, error: error.message });
-      return json({ success: false, error: "Database migration required. Please run: ALTER TABLE \"Shop\" ADD COLUMN IF NOT EXISTS \"settings\" JSONB;" }, { status: 500 });
-    } else {
-      throw error;
-    }
-  }
-  await invalidateAllShopCaches(sessionShop, shopId);
-  logger.info("Alert config saved to Shop.settings", {
-    shopId,
-    channel,
-    enabled,
-    threshold,
-  });
-  return json({ success: true, message: "警报配置已保存" });
-}
-
-export async function handleTestAlert(request: Request, formData: FormData) {
-  const rateLimitKey = `alert-test:${pathShopKeyExtractor(request)}`;
-  const rateLimit = await checkRateLimitAsync(rateLimitKey, 5, 60 * 1000);
-  if (!rateLimit.allowed) {
-    return json(
-      {
-        success: false,
-        error: {
-          code: "RATE_LIMITED",
-          message: "Too many requests. Please try again later.",
-          retryAfter: rateLimit.retryAfter,
-        },
-      },
-      {
-        status: 429,
-        headers: {
-          "Retry-After": String(rateLimit.retryAfter || 60),
-          "X-RateLimit-Limit": "5",
-          "X-RateLimit-Remaining": String(rateLimit.remaining || 0),
-          "X-RateLimit-Reset": String(Math.ceil((rateLimit.resetAt || Date.now()) / 1000)),
-        },
-      }
-    );
-  }
-  const channel = formData.get("channel") as string;
-  let settings: AlertSettings;
-  try {
-    if (channel === "email") {
-      const email = formData.get("email") as string;
-      const result = SecureEmailSchema.safeParse(email);
-      if (!result.success) {
-        return json({ success: false, error: "无效的邮箱格式" });
-      }
-      settings = { email: result.data };
-    } else {
-      return json({ success: false, error: "Invalid channel" });
-    }
-    const result = await testNotification(channel, settings);
-    return json(result);
-  } catch (error) {
-    logger.error("Test alert failed", error);
-    return json({ success: false, error: "测试失败: 输入验证错误" });
-  }
-}
-
-export async function handleDeleteAlert(formData: FormData) {
-  const configId = formData.get("configId") as string;
-  logger.debug("handleDeleteAlert called but alertConfig table no longer exists", { configId });
-  return json({ success: true, message: "警报配置已删除" });
-}
 
 export async function handleRotateIngestionSecret(
   shopId: string,
@@ -293,12 +125,6 @@ export async function settingsAction({ request }: ActionFunctionArgs) {
   const formData = await request.formData();
   const action = formData.get("_action");
   switch (action) {
-    case "saveAlert":
-      return handleSaveAlert(formData, shop.id, session.shop);
-    case "testAlert":
-      return handleTestAlert(request, formData);
-    case "deleteAlert":
-      return handleDeleteAlert(formData);
     case "rotateIngestionSecret":
       return handleRotateIngestionSecret(shop.id, session.shop, admin);
     case "updatePrivacySettings":

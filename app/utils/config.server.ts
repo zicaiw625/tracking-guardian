@@ -9,7 +9,6 @@ import {
   INGESTION_KEY_CONFIG,
   SHOPIFY_API_CONFIG,
   PLATFORM_ENDPOINTS,
-  CAPI_CONFIG,
   WEBHOOK_CONFIG,
   SCANNER_CONFIG,
   MONITORING_CONFIG,
@@ -393,7 +392,6 @@ export const CONFIG = {
   ingestionKey: INGESTION_KEY_CONFIG,
   shopify: SHOPIFY_API_CONFIG,
   platforms: PLATFORM_ENDPOINTS,
-  capi: CAPI_CONFIG,
   webhook: WEBHOOK_CONFIG,
   scanner: SCANNER_CONFIG,
   monitoring: MONITORING_CONFIG,
@@ -410,16 +408,7 @@ export const CONFIG = {
 } as const;
 
 export function getApiTimeout(service: "google" | "meta" | "tiktok" | "default"): number {
-  switch (service) {
-    case "google":
-      return CAPI_CONFIG.GOOGLE.timeout;
-    case "meta":
-      return CAPI_CONFIG.META.timeout;
-    case "tiktok":
-      return CAPI_CONFIG.TIKTOK.timeout;
-    default:
-      return API_CONFIG.DEFAULT_TIMEOUT_MS;
-  }
+  return API_CONFIG.DEFAULT_TIMEOUT_MS;
 }
 
 export function getRateLimitForEndpoint(endpoint: string): { maxRequests: number; windowMs: number } {

@@ -1,7 +1,7 @@
 import type { ActionFunctionArgs, LoaderFunctionArgs } from "@remix-run/node";
 import { json } from "@remix-run/node";
 import { useActionData, useLoaderData, useNavigation, useSubmit } from "@remix-run/react";
-import { Suspense, lazy, useEffect } from "react";
+import { useEffect } from "react";
 import {
   Page,
   Layout,
@@ -24,9 +24,6 @@ import { validateTestEnvironment } from "~/services/migration-wizard.server";
 import { normalizePlanId, planSupportsFeature } from "~/services/billing/plans";
 import { getPixelEventIngestionUrl } from "~/utils/config.server";
 
-const RealtimeEventMonitor = lazy(() => import("~/components/verification/RealtimeEventMonitor").then(module => ({
-  default: module.RealtimeEventMonitor,
-})));
 
 const PLATFORM_LABELS: Record<string, string> = {
   google: "Google Analytics 4",
@@ -172,7 +169,7 @@ export default function PixelTestPage() {
   return (
     <Page
       title="Pixel 测试"
-      subtitle="实时事件流 / Payload 预览"
+      subtitle="Pixel 测试与 Payload 预览"
       backAction={{ content: "返回 Pixels", url: "/app/pixels" }}
     >
       <PageIntroCard
@@ -505,39 +502,6 @@ export default function PixelTestPage() {
               )}
             </BlockStack>
           </Card>
-          <Card>
-            <BlockStack gap="300">
-              <Text as="h2" variant="headingMd">实时事件流</Text>
-              <Text as="p" tone="subdued">
-                监听实时事件并查看 payload 详情，确保事件成功发送。
-              </Text>
-              {!hasVerificationAccess ? (
-                <>
-                  <Banner tone="warning" title="PRD 3 转化节点2：Verification 实时事件流需付费">
-                    <BlockStack gap="200">
-                      <Text as="p" variant="bodySm">
-                        <strong>Pixels配置完成后（Test阶段）</strong>：付费解锁"Verification实时事件流 + 报告导出"
-                      </Text>
-                      <Text as="p" variant="bodySm">
-                        需要 <strong>Starter ($29/月)</strong> 或更高套餐才能使用实时事件流验证功能。
-                      </Text>
-                      <Button url="/app/billing" variant="primary" size="slim">
-                        升级解锁
-                      </Button>
-                    </BlockStack>
-                  </Banner>
-                </>
-              ) : (
-                <Suspense fallback={<Text as="p">加载实时监控...</Text>}>
-                  <RealtimeEventMonitor
-                    shopId={shop.id}
-                    platforms={[pixelConfig.platform]}
-                    autoStart
-                  />
-                </Suspense>
-              )}
-            </BlockStack>
-          </Card>
         </Layout.Section>
         <Layout.Section variant="oneThird">
           <Card>
@@ -573,7 +537,7 @@ export default function PixelTestPage() {
                         <strong>操作：</strong>进入店铺的 checkout 页面（每次进入都会触发 checkout_started 事件）
                       </Text>
                       <Text as="p" variant="bodySm" tone="subdued">
-                        <strong>验证：</strong>在实时事件流中查看事件是否到达，确认 payload 中包含正确的参数
+                        <strong>验证：</strong>运行验收后查看结果，确认 payload 中包含正确的参数
                       </Text>
                       <Text as="p" variant="bodySm" tone="subdued">
                         <strong>注意：</strong>checkout_started 在 extensible 店铺每次进入 checkout 都会触发，可能多次触发
@@ -589,7 +553,7 @@ export default function PixelTestPage() {
                         <strong>操作：</strong>在 checkout 页面填写 shipping 信息并提交
                       </Text>
                       <Text as="p" variant="bodySm" tone="subdued">
-                        <strong>验证：</strong>在实时事件流中查看 checkout_shipping_info_submitted 事件是否到达
+                        <strong>验证：</strong>运行验收后查看 checkout_shipping_info_submitted 事件是否到达
                       </Text>
                     </BlockStack>
                   </List.Item>
@@ -602,7 +566,7 @@ export default function PixelTestPage() {
                         <strong>操作：</strong>完成测试订单，在 Thank you 页面应触发 checkout_completed 事件
                       </Text>
                       <Text as="p" variant="bodySm" tone="subdued">
-                        <strong>验证：</strong>在实时事件流中查看 checkout_completed 事件是否到达，确认这是最重要的转化事件
+                        <strong>验证：</strong>运行验收后查看 checkout_completed 事件是否到达，确认这是最重要的转化事件
                       </Text>
                       <Text as="p" variant="bodySm" tone="subdued">
                         <strong>注意：</strong>checkout_completed 不一定在 Thank you 页触发，当存在 upsell/post-purchase 时可能在第一个 upsell 页触发
@@ -615,7 +579,7 @@ export default function PixelTestPage() {
                         验证 payload 参数
                       </Text>
                       <Text as="p" variant="bodySm" tone="subdued">
-                        <strong>操作：</strong>在实时事件流中展开 payload 预览
+                        <strong>操作：</strong>在验收报告中查看 payload 详情
                       </Text>
                       <Text as="p" variant="bodySm" tone="subdued">
                         <strong>验证：</strong>确认 value、currency、items 等关键参数完整

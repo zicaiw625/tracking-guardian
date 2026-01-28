@@ -246,7 +246,7 @@ export function GuidedSupplement({
                     • <strong>像素平台</strong>：v1 仅支持 GA4、Meta、TikTok（其他平台将在 v1.1+ 支持）
                   </Text>
                   <Text as="p" variant="bodySm">
-                    • <strong>UI 模块</strong>：v1 仅支持购后问卷（Survey）和帮助中心（Helpdesk）（其他模块将在 v1.1+ 支持）
+                    • <strong>UI 模块</strong>：v1 不提供 Survey/Helpdesk 等页面模块
                   </Text>
                   <Text as="p" variant="bodySm" tone="subdued">
                     请选择所有您使用的功能，系统将在报告中标注 v1 可迁移的项目。
@@ -256,8 +256,7 @@ export function GuidedSupplement({
               <BlockStack gap="300">
                 {UPGRADE_WIZARD_CHECKLIST.map((item) => {
                   const isV1Supported =
-                    (item.id === "ga4" || item.id === "meta" || item.id === "tiktok") ||
-                    (item.id === "survey" || item.id === "support");
+                    item.id === "ga4" || item.id === "meta" || item.id === "tiktok";
                   return (
                     <Box
                       key={item.id}

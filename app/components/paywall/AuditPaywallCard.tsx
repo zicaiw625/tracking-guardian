@@ -104,7 +104,7 @@ export function AuditPaywallCard({ planId }: AuditPaywallCardProps) {
           </Button>
           <Button
             variant={isStarter ? "primary" : "secondary"}
-            url={isStarter ? "/app/modules" : "/app/billing?upgrade=starter"}
+            url={isStarter ? "/app/migrate" : "/app/billing?upgrade=starter"}
             size="large"
           >
             {moduleLabel}

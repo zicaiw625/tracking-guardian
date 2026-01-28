@@ -71,7 +71,6 @@ export function DataConnectionBanner({
           <Button variant="primary" url={getActionUrl()}>
             {getActionLabel()}
           </Button>
-          <Button url="/app/diagnostics">查看诊断详情</Button>
         </InlineStack>
       </BlockStack>
     </Banner>

@@ -882,8 +882,8 @@ export default function DiagnosticsPage() {
                       Q: Checkout UI Blocks 如何添加到页面？
                     </Text>
                     <Text as="p" variant="bodySm" tone="subdued">
-                      A: 前往 Shopify 后台 → 设置 → 结账 → 自定义 → 在 Thank You 或 Order Status 区域点击「添加区块」，
-                      选择 Tracking Guardian 的 Survey/Shipping Tracker/Upsell Offer 等区块。
+                      A: 前往 Shopify 后台 → 设置 → 结账 → 自定义 → 在 Thank You 或 Order Status 区域点击「添加区块」。
+                      v1 不提供 Survey/Shipping Tracker/Upsell 等区块。
                     </Text>
                     <Text as="p" variant="bodySm" tone="subdued">
                       <strong>重要提示：</strong>Order Status 模块仅支持 Customer Accounts 体系下的订单状态页，不支持旧版订单状态页。如果您的店铺使用旧版订单状态页（非 Customer Accounts），Order Status 模块将不会显示。请确认您的店铺已启用 Customer Accounts 功能（可在 Shopify Admin → 设置 → 客户账户中检查），否则模块不会在订单状态页显示。这是 Shopify 平台的设计限制，Order status 模块只能在 Customer Accounts 体系下工作。请参考 <a href="https://shopify.dev/docs/apps/customer-accounts/ui-extensions" target="_blank" rel="noopener noreferrer">Customer Accounts UI Extensions 官方文档</a>（注意：不要参考 checkout-ui-extensions 文档，该文档可能显示此 target 为"Not supported"，这是文档版本差异导致的误导。正确的文档入口是 Customer Accounts UI Extensions，不是 Checkout UI Extensions）。

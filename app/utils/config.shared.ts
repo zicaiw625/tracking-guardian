@@ -94,23 +94,6 @@ export const PLATFORM_ENDPOINTS = {
     `https://api.telegram.org/bot${botToken}/sendMessage`,
 } as const;
 
-export const CAPI_CONFIG = {
-  META: {
-    apiVersion: "v21.0",
-    baseUrl: "https://graph.facebook.com",
-    timeout: 30000,
-  },
-  GOOGLE: {
-    baseUrl: "https://www.google-analytics.com",
-    timeout: 30000,
-  },
-  TIKTOK: {
-    baseUrl: "https://business-api.tiktok.com",
-    trackEndpoint: "https://business-api.tiktok.com/open_api/v1.3/event/track/",
-    version: "v1.3",
-    timeout: 30000,
-  },
-} as const;
 
 export const WEBHOOK_CONFIG = {
   PROCESSING_TIMEOUT_MS: 25 * 1000,

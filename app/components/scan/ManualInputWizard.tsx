@@ -178,15 +178,12 @@ export function ManualInputWizard({ open, onClose, onComplete }: ManualInputWiza
               </Text>
               <Banner tone="warning">
                 <Text as="p" variant="bodySm">
-                  <strong>v1 支持范围</strong>：购后问卷（Survey）、帮助中心（Helpdesk）和再购功能（Reorder）（其他功能将在 v1.1+ 支持）。请选择所有您使用的功能，系统将在报告中标注 v1 可迁移的项目。
+                  <strong>v1 支持范围</strong>：Web Pixel 迁移与验收。请选择页面上使用的功能，系统将在报告中标注。
                 </Text>
               </Banner>
               <BlockStack gap="300">
                 {AVAILABLE_FEATURES.map((feature) => {
-                  const isV1Supported =
-                    feature.value === "survey" ||
-                    feature.value === "support" ||
-                    feature.value === "reorder";
+                  const isV1Supported = false;
                   return (
                     <InlineStack key={feature.value} gap="200" blockAlign="center">
                       <Checkbox

@@ -59,7 +59,6 @@ export const BILLING_PLANS = {
     tagline: "像素最小可用迁移（标准事件映射 + 参数完整率）",
     features: [
       "1 个像素目的地 (GA4/Meta/TikTok 三选一)",
-      "Survey 或 Helpdesk 模块二选一",
       "标准事件映射 + 参数完整率检查",
       "可下载 payload 证据（验证和存档用）",
       "验收向导（不含报告导出）",

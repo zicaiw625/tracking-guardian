@@ -266,7 +266,6 @@ export function ROIEstimator({
           </Banner>
         </BlockStack>
         <InlineStack align="end" gap="200">
-          <Button url="/app/diagnostics">查看追踪诊断</Button>
           <Button url="/app/migrate" variant="primary">
             立即开始迁移
           </Button>

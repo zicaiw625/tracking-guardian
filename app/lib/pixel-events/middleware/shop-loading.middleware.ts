@@ -74,7 +74,7 @@ export const shopLoadingMiddleware: IngestMiddleware = async (
       }
     }
   }
-  const serverSideConfigs = pixelConfigs.filter((config: { serverSideEnabled?: boolean | null }) => config.serverSideEnabled === true);
+  const enabledConfigs = pixelConfigs.filter((config: { clientSideEnabled?: boolean | null }) => config.clientSideEnabled === true);
 
   return {
     continue: true,
@@ -84,7 +84,7 @@ export const shopLoadingMiddleware: IngestMiddleware = async (
       shopAllowedDomains,
       environment,
       mode,
-      serverSideConfigs,
+      serverSideConfigs: enabledConfigs,
     },
   };
 };

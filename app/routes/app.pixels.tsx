@@ -338,9 +338,6 @@ export default function PixelsListPage() {
                 <Button url="/app/pixels/new" variant="primary">
                   新建配置
                 </Button>
-                <Button url="/app/monitor" variant="plain">
-                  查看实时监控
-                </Button>
                 <Button url="/app/verification" variant="plain">
                   前往验收
                 </Button>

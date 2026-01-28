@@ -105,8 +105,6 @@ export async function isClientEventRecorded(
   return !!existing;
 }
 
-const SAMPLING_RATE_NON_VERIFICATION = 0.1;
-
 export async function upsertPixelEventReceipt(
   shopId: string,
   eventId: string,
@@ -136,10 +134,7 @@ export async function upsertPixelEventReceipt(
         const { sanitizePII } = await import("../../services/event-log.server");
         payloadToStore = sanitizePII(payload) as unknown as Record<string, unknown>;
       } else {
-        const shouldSample = Math.random() < SAMPLING_RATE_NON_VERIFICATION;
-        if (shouldSample) {
-          payloadToStore = buildMinimalPayloadForReceipt(payload, trustLevel, hmacMatched);
-        }
+        payloadToStore = buildMinimalPayloadForReceipt(payload, trustLevel, hmacMatched);
       }
     }
     const receipt = await prisma.pixelEventReceipt.upsert({
@@ -183,33 +178,6 @@ export async function upsertPixelEventReceipt(
     });
     try {
       const redis = await getRedisClient();
-      const payloadStored = receipt.payloadJson as Record<string, unknown> | null;
-      const data = payloadStored?.data as Record<string, unknown> | undefined;
-      const value = typeof data?.value === "number" ? data.value : 0;
-      const currency = (data?.currency as string) || "USD";
-      const items = data?.items as Array<unknown> | undefined;
-      const itemsCount = Array.isArray(items) ? items.length : 0;
-      const trust = {
-        trustLevel: (payloadStored?.trustLevel as string) || "untrusted",
-        hmacMatched: typeof payloadStored?.hmacMatched === "boolean" ? (payloadStored.hmacMatched as boolean) : false,
-      };
-      const status = value > 0 && !!currency ? "success" : "pending";
-      const message = JSON.stringify({
-        id: receipt.id,
-        eventType: receipt.eventType,
-        orderId: receipt.orderKey || "",
-        platform: platform || "pixel",
-        timestamp: (receipt.pixelTimestamp || receipt.createdAt).toISOString(),
-        status,
-        params: {
-          value,
-          currency,
-          itemsCount,
-          hasEventId: true,
-        },
-        trust,
-      });
-      await redis.publish(`sse:shop:${shopId}`, message);
       if (eventType === "purchase" && receipt.orderKey) {
         const ttlSeconds = 7 * 24 * 60 * 60;
         const dedupKey = `dedup:purchase:${shopId}:${receipt.orderKey}`;

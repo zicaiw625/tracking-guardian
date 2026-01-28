@@ -5,9 +5,8 @@ import prisma from "../../db.server";
 import { checkTokenExpirationIssues } from "../../services/retry.server";
 
 import { getEventMonitoringStats, getMissingParamsStats, getEventVolumeStats } from "../../services/monitoring.server";
-import { getHMACSecurityStats } from "../../services/security-monitoring.server";
 import { logger } from "../../utils/logger.server";
-import type { SettingsLoaderData, AlertConfigDisplay, PixelConfigDisplay } from "./types";
+import type { SettingsLoaderData, PixelConfigDisplay } from "./types";
 
 export async function settingsLoader({ request }: LoaderFunctionArgs) {
   try {
@@ -115,25 +114,6 @@ export async function settingsLoader({ request }: LoaderFunctionArgs) {
         logger.error("Failed to cleanup expired previous ingestion secret", { shopId: shop.id, error });
       }
     }
-    const alertConfigs: AlertConfigDisplay[] = [];
-    if (hasSettingsColumn && (shop as { settings?: unknown })?.settings) {
-      try {
-        const settings = (shop as { settings?: unknown }).settings as Record<string, unknown>;
-        const configs = (settings.alertConfigs as Array<Record<string, unknown>>) || [];
-        for (const config of configs) {
-          alertConfigs.push({
-            id: (config.id as string) || `alert_${Date.now()}`,
-            channel: (config.channel as "email" | "slack" | "telegram") || "email",
-            isEnabled: (config.enabled as boolean) || false,
-            discrepancyThreshold: ((config.thresholds as Record<string, number>)?.failureRate || 0.1) * 100,
-            frequency: (config.frequency as "instant" | "daily" | "weekly") || "daily",
-            settings: config as Record<string, unknown>,
-          });
-        }
-      } catch (error) {
-        logger.warn("Failed to parse alert configs from settings", { shopDomain, error });
-      }
-    }
     const pixelConfigs: PixelConfigDisplay[] = shop?.pixelConfigs?.map((config: {
       id: string;
       platform: string;
@@ -180,14 +160,6 @@ export async function settingsLoader({ request }: LoaderFunctionArgs) {
         logger.error("Failed to fetch monitoring data for preview", { error });
       }
     }
-    let hmacSecurityStats = null;
-    if (shop) {
-      try {
-        hmacSecurityStats = await getHMACSecurityStats(shop.id, 24);
-      } catch (error) {
-        logger.error("Failed to get HMAC security stats", { error });
-      }
-    }
     const pixelStrictOrigin = ["true", "1", "yes"].includes(
       (process.env.PIXEL_STRICT_ORIGIN ?? "").toLowerCase().trim()
     );
@@ -197,7 +169,7 @@ export async function settingsLoader({ request }: LoaderFunctionArgs) {
             id: shop.id,
             domain: shopDomain,
             plan: shop.plan,
-            alertConfigs,
+            alertConfigs: [],
             pixelConfigs,
             hasIngestionSecret:
               !!shop.ingestionSecret && shop.ingestionSecret.length > 0,
@@ -215,7 +187,7 @@ export async function settingsLoader({ request }: LoaderFunctionArgs) {
       pcdStatusMessage: "我们不收集终端客户 PII，当前公开上架版本不会从 Shopify 读取订单明细或访问 PCD。未来如引入基于订单的验收/对账或再购等功能，将在获得 PCD 审批后单独启用并更新隐私文档。",
       pixelStrictOrigin,
       currentMonitoringData,
-      hmacSecurityStats,
+      hmacSecurityStats: null,
     };
     return json(data);
   } catch (error) {

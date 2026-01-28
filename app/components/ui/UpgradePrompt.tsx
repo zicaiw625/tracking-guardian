@@ -47,11 +47,9 @@ const FEATURE_INFO: Record<
   },
   ui_modules: {
     name: "UI 模块",
-    description: "Thank you / Order status 页面模块（v1 仅支持 Survey/Helpdesk）",
+    description: "Thank you / Order status 页面模块（v1 不提供）",
     requiredPlan: "starter",
     featureList: [
-      "Post-purchase Survey（购后问卷）",
-      "Help & Support 模块（帮助中心/联系客服）",
       "基于 Customer Accounts UI Extensions 的合规实现",
     ],
   },

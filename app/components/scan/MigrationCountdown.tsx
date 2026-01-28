@@ -368,9 +368,6 @@ export function MigrationCountdown({
         </BlockStack>
         <Divider />
         <InlineStack align="end" gap="200">
-          <Button url="/app/diagnostics" variant="tertiary">
-            查看诊断
-          </Button>
           <Button url="/app/migrate" variant="primary">
             {daysRemaining <= 30 ? "🚀 立即迁移" : "开始迁移"}
           </Button>

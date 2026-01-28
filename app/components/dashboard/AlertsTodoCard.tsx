@@ -80,9 +80,6 @@ export function AlertsTodoCard({ alerts }: AlertsTodoCardProps) {
             还有 {alerts.length - 3} 个告警未显示
           </Text>
         )}
-        <Button url="/app/monitor" variant="primary" fullWidth>
-          查看全部告警
-        </Button>
       </BlockStack>
     </Card>
   );

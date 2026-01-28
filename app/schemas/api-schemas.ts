@@ -213,6 +213,7 @@ export type AlertSettings = z.infer<typeof AlertSettingsSchema>;
 export const CronTaskSchema = z.enum([
   "process_gdpr",
   "cleanup",
+  "ingest_worker",
   "all",
 ]);
 

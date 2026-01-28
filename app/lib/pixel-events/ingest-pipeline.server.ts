@@ -363,13 +363,12 @@ export async function distributeEvents(
   origin: string | null,
   activeVerificationRunId: string | null | undefined
 ): Promise<ProcessedEvent[]> {
-  const filteredServerSideConfigs = serverSideConfigs.filter((config) => !config.serverSideEnabled);
   const processed: ProcessedEvent[] = [];
   
   for (const event of deduplicatedEvents) {
     const consentResult = checkInitialConsent(event.payload.consent);
     
-    const mappedConfigs = filteredServerSideConfigs.map((config) => ({
+    const mappedConfigs = serverSideConfigs.map((config) => ({
       platform: config.platform,
       id: config.id,
       platformId: config.platformId ?? undefined,

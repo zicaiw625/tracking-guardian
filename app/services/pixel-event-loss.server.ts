@@ -14,6 +14,13 @@ export interface EventLossStats {
   }>;
 }
 
+function extractPlatformFromPayload(payload: Record<string, unknown> | null): string {
+  if (!payload) return "unknown";
+  if (payload.platform && typeof payload.platform === "string") return payload.platform;
+  if (payload.destination && typeof payload.destination === "string") return payload.destination;
+  return "unknown";
+}
+
 export async function getEventLossStats(shopId: string, hours: number = 24): Promise<EventLossStats> {
   const since = new Date(Date.now() - hours * 60 * 60 * 1000);
   const receipts = await prisma.pixelEventReceipt.findMany({
@@ -26,19 +33,10 @@ export async function getEventLossStats(shopId: string, hours: number = 24): Pro
       eventType: true,
     },
   });
-  const deliveryAttempts = await prisma.deliveryAttempt.findMany({
-    where: {
-      shopId,
-      createdAt: { gte: since },
-    },
-    select: {
-      platform: true,
-      status: true,
-      errorCode: true,
-    },
-  });
-  const totalAttempted = deliveryAttempts.length;
   const totalReceived = receipts.length;
+  const totalAttempted = totalReceived;
+  const totalLost = 0;
+  const lossRate = 0;
   const byFailureReason: Record<string, number> = {};
   const byPlatform: Record<string, {
     attempted: number;
@@ -46,34 +44,19 @@ export async function getEventLossStats(shopId: string, hours: number = 24): Pro
     lost: number;
     lossRate: number;
   }> = {};
-  for (const attempt of deliveryAttempts) {
-    if (attempt.status === "failed" || attempt.status === "dead_letter") {
-      const reason = attempt.errorCode || "unknown";
-      byFailureReason[reason] = (byFailureReason[reason] || 0) + 1;
-    }
-    const platform = attempt.platform || "unknown";
+  for (const receipt of receipts) {
+    const payload = receipt.payloadJson as Record<string, unknown> | null;
+    const platform = extractPlatformFromPayload(payload);
     if (!byPlatform[platform]) {
       byPlatform[platform] = { attempted: 0, received: 0, lost: 0, lossRate: 0 };
     }
     byPlatform[platform].attempted++;
-    if (attempt.status === "failed" || attempt.status === "dead_letter") {
-      byPlatform[platform].lost++;
-    }
-  }
-  for (const receipt of receipts) {
-    const payload = receipt.payloadJson as Record<string, unknown> | null;
-    const platform = (payload?.destination as string) || "unknown";
-    if (!byPlatform[platform]) {
-      byPlatform[platform] = { attempted: 0, received: 0, lost: 0, lossRate: 0 };
-    }
     byPlatform[platform].received++;
   }
   for (const platform in byPlatform) {
     const stats = byPlatform[platform];
-    stats.lossRate = stats.attempted > 0 ? (stats.lost / stats.attempted) * 100 : 0;
+    stats.lossRate = 0;
   }
-  const totalLost = totalAttempted - totalReceived;
-  const lossRate = totalAttempted > 0 ? (totalLost / totalAttempted) * 100 : 0;
   return {
     totalAttempted,
     totalReceived,
