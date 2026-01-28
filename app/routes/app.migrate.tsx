@@ -132,7 +132,7 @@ export default function MigratePage() {
       id: "audit" as MigrationStep,
       title: "1. 扫描与评估",
       description: "自动扫描店铺中的追踪脚本，生成迁移清单和风险报告",
-      url: "/app/audit",
+      url: "/app/scan",
       icon: CheckCircleIcon,
     },
     {
@@ -176,7 +176,7 @@ export default function MigratePage() {
             "配置 Web Pixel 和事件映射",
             "验收测试并生成报告",
           ]}
-          primaryAction={{ content: "开始迁移", url: "/app/audit" }}
+          primaryAction={{ content: "开始迁移", url: "/app/scan" }}
         />
         <Banner tone="critical">
           <BlockStack gap="200">

@@ -5,6 +5,7 @@ import { trackAnomaly } from "~/utils/rate-limiter";
 import { isStrictSecurityMode } from "~/utils/config.server";
 import { logger, metrics } from "~/utils/logger.server";
 import { rejectionTracker } from "../rejection-tracker.server";
+import { shouldRecordRejection } from "../stats-sampling";
 import type { KeyValidationResult } from "../types";
 import type { IngestContext, IngestMiddleware, MiddlewareResult } from "./types";
 import { API_CONFIG } from "~/utils/config.server";
@@ -28,12 +29,14 @@ export const hmacValidationMiddleware: IngestMiddleware = async (
 
   if (context.isProduction) {
     if (!hasAnySecret) {
-      rejectionTracker.record({
-        requestId: context.requestId,
-        shopDomain: context.shopDomain!,
-        reason: "no_ingestion_key",
-        timestamp: Date.now(),
-      });
+      if (shouldRecordRejection(context.isProduction, false)) {
+        rejectionTracker.record({
+          requestId: context.requestId,
+          shopDomain: context.shopDomain!,
+          reason: "no_ingestion_key",
+          timestamp: Date.now(),
+        });
+      }
       metrics.pixelRejection({
         requestId: context.requestId,
         shopDomain: context.shopDomain!,
@@ -52,12 +55,14 @@ export const hmacValidationMiddleware: IngestMiddleware = async (
       };
     }
     if (!context.signature) {
-      rejectionTracker.record({
-        requestId: context.requestId,
-        shopDomain: context.shopDomain!,
-        reason: "invalid_key",
-        timestamp: Date.now(),
-      });
+      if (shouldRecordRejection(context.isProduction, false)) {
+        rejectionTracker.record({
+          requestId: context.requestId,
+          shopDomain: context.shopDomain!,
+          reason: "invalid_key",
+          timestamp: Date.now(),
+        });
+      }
       metrics.pixelRejection({
         requestId: context.requestId,
         shopDomain: context.shopDomain!,
@@ -76,12 +81,14 @@ export const hmacValidationMiddleware: IngestMiddleware = async (
       };
     }
     if (!context.timestampHeader) {
-      rejectionTracker.record({
-        requestId: context.requestId,
-        shopDomain: context.shopDomain!,
-        reason: "invalid_timestamp",
-        timestamp: Date.now(),
-      });
+      if (shouldRecordRejection(context.isProduction, false)) {
+        rejectionTracker.record({
+          requestId: context.requestId,
+          shopDomain: context.shopDomain!,
+          reason: "invalid_timestamp",
+          timestamp: Date.now(),
+        });
+      }
       metrics.pixelRejection({
         requestId: context.requestId,
         shopDomain: context.shopDomain!,
@@ -188,12 +195,14 @@ export const hmacValidationMiddleware: IngestMiddleware = async (
           });
           trackAnomaly(context.shopDomain!, "invalid_key");
           if (context.isProduction && isStrictSecurityMode()) {
-            rejectionTracker.record({
-              requestId: context.requestId,
-              shopDomain: context.shopDomain!,
-              reason: "invalid_key",
-              timestamp: Date.now(),
-            });
+            if (shouldRecordRejection(context.isProduction, true)) {
+              rejectionTracker.record({
+                requestId: context.requestId,
+                shopDomain: context.shopDomain!,
+                reason: "invalid_key",
+                timestamp: Date.now(),
+              });
+            }
             metrics.pixelRejection({
               requestId: context.requestId,
               shopDomain: context.shopDomain!,
@@ -263,12 +272,14 @@ export const hmacValidationMiddleware: IngestMiddleware = async (
 
   if (context.isProduction && !keyValidation.matched) {
     const rejectionReason = keyValidation.reason === "secret_missing" ? "no_ingestion_key" : "invalid_key";
-    rejectionTracker.record({
-      requestId: context.requestId,
-      shopDomain: context.shopDomain!,
-      reason: rejectionReason as any,
-      timestamp: Date.now(),
-    });
+    if (shouldRecordRejection(context.isProduction, false)) {
+      rejectionTracker.record({
+        requestId: context.requestId,
+        shopDomain: context.shopDomain!,
+        reason: rejectionReason as any,
+        timestamp: Date.now(),
+      });
+    }
     metrics.pixelRejection({
       requestId: context.requestId,
       shopDomain: context.shopDomain!,
@@ -305,12 +316,14 @@ export const hmacValidationMiddleware: IngestMiddleware = async (
     });
     trackAnomaly(context.shopDomain!, "invalid_origin");
     if (context.isProduction || isStrictSecurityMode()) {
-      rejectionTracker.record({
-        requestId: context.requestId,
-        shopDomain: context.shopDomain!,
-        reason: "origin_not_allowlisted",
-        timestamp: Date.now(),
-      });
+      if (shouldRecordRejection(context.isProduction, false)) {
+        rejectionTracker.record({
+          requestId: context.requestId,
+          shopDomain: context.shopDomain!,
+          reason: "origin_not_allowlisted",
+          timestamp: Date.now(),
+        });
+      }
       metrics.pixelRejection({
         requestId: context.requestId,
         shopDomain: context.shopDomain!,
@@ -343,12 +356,14 @@ export const hmacValidationMiddleware: IngestMiddleware = async (
       const rejectionReason = keyValidation.reason === "secret_missing"
         ? "no_ingestion_key"
         : "invalid_key";
-      rejectionTracker.record({
-        requestId: context.requestId,
-        shopDomain: context.shopDomain!,
-        reason: rejectionReason as any,
-        timestamp: Date.now(),
-      });
+      if (shouldRecordRejection(context.isProduction, true)) {
+        rejectionTracker.record({
+          requestId: context.requestId,
+          shopDomain: context.shopDomain!,
+          reason: rejectionReason as any,
+          timestamp: Date.now(),
+        });
+      }
       metrics.pixelRejection({
         requestId: context.requestId,
         shopDomain: context.shopDomain!,
@@ -370,12 +385,14 @@ export const hmacValidationMiddleware: IngestMiddleware = async (
       };
     }
     if (context.hasSignatureHeader && hasAnySecret && !keyValidation.matched) {
-      rejectionTracker.record({
-        requestId: context.requestId,
-        shopDomain: context.shopDomain!,
-        reason: "invalid_key",
-        timestamp: Date.now(),
-      });
+      if (shouldRecordRejection(context.isProduction, true)) {
+        rejectionTracker.record({
+          requestId: context.requestId,
+          shopDomain: context.shopDomain!,
+          reason: "invalid_key",
+          timestamp: Date.now(),
+        });
+      }
       metrics.pixelRejection({
         requestId: context.requestId,
         shopDomain: context.shopDomain!,
@@ -397,12 +414,14 @@ export const hmacValidationMiddleware: IngestMiddleware = async (
       };
     }
     if (!hasValidOrigin && !keyValidation.matched) {
-      rejectionTracker.record({
-        requestId: context.requestId,
-        shopDomain: context.shopDomain!,
-        reason: "origin_not_allowlisted",
-        timestamp: Date.now(),
-      });
+      if (shouldRecordRejection(context.isProduction, false)) {
+        rejectionTracker.record({
+          requestId: context.requestId,
+          shopDomain: context.shopDomain!,
+          reason: "origin_not_allowlisted",
+          timestamp: Date.now(),
+        });
+      }
       metrics.pixelRejection({
         requestId: context.requestId,
         shopDomain: context.shopDomain!,
@@ -423,12 +442,14 @@ export const hmacValidationMiddleware: IngestMiddleware = async (
       };
     }
     if (!hasValidTimestamp && !keyValidation.matched) {
-      rejectionTracker.record({
-        requestId: context.requestId,
-        shopDomain: context.shopDomain!,
-        reason: "invalid_timestamp",
-        timestamp: Date.now(),
-      });
+      if (shouldRecordRejection(context.isProduction, false)) {
+        rejectionTracker.record({
+          requestId: context.requestId,
+          shopDomain: context.shopDomain!,
+          reason: "invalid_timestamp",
+          timestamp: Date.now(),
+        });
+      }
       metrics.pixelRejection({
         requestId: context.requestId,
         shopDomain: context.shopDomain!,

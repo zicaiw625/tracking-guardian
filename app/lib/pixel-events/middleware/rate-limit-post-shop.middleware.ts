@@ -3,6 +3,7 @@ import { checkRateLimitAsync, shopDomainIpKeyExtractor } from "~/middleware/rate
 import { logger } from "~/utils/logger.server";
 import { RATE_LIMIT_CONFIG } from "~/utils/config.server";
 import { rejectionTracker } from "../rejection-tracker.server";
+import { shouldRecordRejection } from "../stats-sampling";
 import type { IngestContext, IngestMiddleware, MiddlewareResult } from "./types";
 
 const INGEST_RATE_LIMIT = RATE_LIMIT_CONFIG.PIXEL_EVENTS;
@@ -24,12 +25,14 @@ export const rateLimitPostShopMiddleware: IngestMiddleware = async (
   );
 
   if (context.isProduction && rateLimit.usingFallback && !context.allowFallback) {
-    rejectionTracker.record({
-      requestId: context.requestId,
-      shopDomain: context.shopDomain!,
-      reason: "rate_limit_exceeded",
-      timestamp: Date.now(),
-    });
+    if (shouldRecordRejection(context.isProduction, true)) {
+      rejectionTracker.record({
+        requestId: context.requestId,
+        shopDomain: context.shopDomain!,
+        reason: "rate_limit_exceeded",
+        timestamp: Date.now(),
+      });
+    }
     logger.error("Redis unavailable for rate limiting in production, rejecting request", {
       requestId: context.requestId,
       shopDomain: context.shopDomain!,
@@ -54,12 +57,14 @@ export const rateLimitPostShopMiddleware: IngestMiddleware = async (
   }
 
   if (!rateLimit.allowed) {
-    rejectionTracker.record({
-      requestId: context.requestId,
-      shopDomain: context.shopDomain!,
-      reason: "rate_limit_exceeded",
-      timestamp: Date.now(),
-    });
+    if (shouldRecordRejection(context.isProduction, true)) {
+      rejectionTracker.record({
+        requestId: context.requestId,
+        shopDomain: context.shopDomain!,
+        reason: "rate_limit_exceeded",
+        timestamp: Date.now(),
+      });
+    }
     logger.warn(`Rate limit exceeded for ingest`, {
       requestId: context.requestId,
       shopDomain: context.shopDomain!,

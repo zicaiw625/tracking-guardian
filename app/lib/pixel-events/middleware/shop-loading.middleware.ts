@@ -3,6 +3,7 @@ import { getShopForPixelVerificationWithConfigs } from "../key-validation";
 import { buildShopAllowedDomains } from "~/utils/origin-validation.server";
 import { logger } from "~/utils/logger.server";
 import { rejectionTracker } from "../rejection-tracker.server";
+import { shouldRecordRejection } from "../stats-sampling";
 import type { IngestContext, IngestMiddleware, MiddlewareResult } from "./types";
 
 export const shopLoadingMiddleware: IngestMiddleware = async (
@@ -23,12 +24,14 @@ export const shopLoadingMiddleware: IngestMiddleware = async (
   const shop = await getShopForPixelVerificationWithConfigs(context.shopDomain, environment);
 
   if (!shop || !shop.isActive) {
-    rejectionTracker.record({
-      requestId: context.requestId,
-      shopDomain: context.shopDomain,
-      reason: "shop_not_found",
-      timestamp: Date.now(),
-    });
+    if (shouldRecordRejection(context.isProduction, false)) {
+      rejectionTracker.record({
+        requestId: context.requestId,
+        shopDomain: context.shopDomain,
+        reason: "shop_not_found",
+        timestamp: Date.now(),
+      });
+    }
     if (context.isProduction) {
       logger.warn(`Shop not found or inactive for ingest`, {
         requestId: context.requestId,

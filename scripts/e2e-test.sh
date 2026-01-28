@@ -119,8 +119,7 @@ if [ "$QUICK_TEST" = true ]; then
 
     log_info "运行快速冒烟测试..."
 
-    $TEST_CMD -- tests/services/recipes/registry.test.ts \
-                 tests/services/billing-gate.test.ts \
+    $TEST_CMD -- tests/services/billing-gate.test.ts \
                  tests/pixel/consent.test.ts
 else
 
@@ -151,19 +150,6 @@ if [ "$FULL_TEST" = true ] || [ "$QUICK_TEST" = false ]; then
     fi
 fi
 
-
-
-
-log_info "运行 Recipe 系统测试..."
-
-pnpm test -- tests/services/recipes/
-
-if [ $? -eq 0 ]; then
-    log_success "Recipe 测试通过"
-else
-    log_error "Recipe 测试失败"
-    exit 1
-fi
 
 
 

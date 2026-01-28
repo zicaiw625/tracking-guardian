@@ -399,7 +399,7 @@ Shopify 平台在需要 consent 的地区会自动：
 
 | API 端点类型 | 鉴权方式 | 实现位置 | 需要 Header | 错误码约定 | 说明 |
 |------------|---------|---------|------------|-----------|------|
-| **Admin app API** | `authenticate.admin(request)` | `app/lib/route-handler.ts` | `Authorization: Bearer <session_token>` (前端自动添加) | `401: AUTH_INVALID_TOKEN` | 依赖请求上下文，使用 Shopify session token 验证。前端通过 `useApiRequest` hook 自动添加 session token。 |
+| **Admin app API** | `authenticate.admin(request)` | `app/lib/route-handler.ts` | `Authorization: Bearer <session_token>` (前端自动添加) | `401: AUTH_INVALID_TOKEN` | 依赖请求上下文，使用 Shopify session token 验证。前端通过 Remix/App Bridge 等自动添加 session token。 |
 | **Public extension API** | `authenticate.public.checkout()` 或 `authenticate.public.customerAccount()` | `app/utils/public-auth.ts` | `Authorization: Bearer <session_token>` | `401: Unauthorized` | 使用 Shopify session token，适用于 Checkout 和 Customer Account UI extensions。 |
 | **Ingest API** (`/ingest`) | HMAC + timestamp + origin + nonce | `app/routes/ingest.tsx` | `X-Tracking-Guardian-Signature`, `X-Tracking-Guardian-Timestamp` | `401: Invalid request` | 使用 `ingestion_key` 进行 HMAC 完整性校验，配合时间窗、origin 校验和 nonce 防重放。 |
 | **Webhook** (`/webhooks`) | HMAC 签名验证 (raw body) | `app/routes/webhooks.tsx` | `X-Shopify-Hmac-Sha256` | `401: Unauthorized: Invalid HMAC` | Shopify 官方 HMAC 验证，必须使用 raw body，禁止提前消费 body 的中间件。 |
@@ -408,7 +408,7 @@ Shopify 平台在需要 consent 的地区会自动：
 
 **Admin app API**：
 - 所有 `/app/*` 路由和 `/api/*` 路由（除已明确 public 的）都使用 `authenticate.admin(request)`
-- 前端通过 `app/hooks/useApiRequest.ts` 中的 hook 自动获取并添加 session token
+- 前端通过 Remix/App Bridge 等自动获取并添加 session token
 - 服务端通过 `createActionHandler` 或 `createLoaderHandler` 统一处理鉴权
 
 **Public extension API**：

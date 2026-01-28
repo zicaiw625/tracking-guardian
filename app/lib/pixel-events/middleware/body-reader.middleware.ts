@@ -3,6 +3,7 @@ import { readTextWithLimit } from "~/utils/body-reader";
 import { API_CONFIG } from "~/utils/config.server";
 import { logger } from "~/utils/logger.server";
 import { rejectionTracker } from "../rejection-tracker.server";
+import { shouldRecordRejection } from "../stats-sampling";
 import type { IngestContext, IngestMiddleware, MiddlewareResult } from "./types";
 
 function isAcceptableContentType(contentType: string | null): boolean {
@@ -16,12 +17,14 @@ export const bodyReaderMiddleware: IngestMiddleware = async (
 ): Promise<MiddlewareResult> => {
   const contentType = context.request.headers.get("Content-Type");
   if (!isAcceptableContentType(contentType)) {
-    rejectionTracker.record({
-      requestId: context.requestId,
-      shopDomain: context.shopDomainHeader,
-      reason: "content_type_invalid",
-      timestamp: Date.now(),
-    });
+    if (shouldRecordRejection(context.isProduction, false)) {
+      rejectionTracker.record({
+        requestId: context.requestId,
+        shopDomain: context.shopDomainHeader,
+        reason: "content_type_invalid",
+        timestamp: Date.now(),
+      });
+    }
     if (context.isProduction) {
       logger.warn("Invalid Content-Type in /ingest", {
         requestId: context.requestId,
@@ -49,12 +52,14 @@ export const bodyReaderMiddleware: IngestMiddleware = async (
   if (contentLength) {
     const size = parseInt(contentLength, 10);
     if (!isNaN(size) && size > API_CONFIG.MAX_BODY_SIZE) {
-      rejectionTracker.record({
-        requestId: context.requestId,
-        shopDomain: context.shopDomainHeader,
-        reason: "body_too_large",
-        timestamp: Date.now(),
-      });
+      if (shouldRecordRejection(context.isProduction, false)) {
+        rejectionTracker.record({
+          requestId: context.requestId,
+          shopDomain: context.shopDomainHeader,
+          reason: "body_too_large",
+          timestamp: Date.now(),
+        });
+      }
       logger.warn(`Request body too large: ${size} bytes (max ${API_CONFIG.MAX_BODY_SIZE})`, {
         requestId: context.requestId,
         shopDomain: context.shopDomainHeader,
@@ -86,12 +91,14 @@ export const bodyReaderMiddleware: IngestMiddleware = async (
   } catch (error) {
     if (error instanceof Response) {
       if (error.status === 413) {
-        rejectionTracker.record({
-          requestId: context.requestId,
-          shopDomain: context.shopDomainHeader,
-          reason: "body_too_large",
-          timestamp: Date.now(),
-        });
+        if (shouldRecordRejection(context.isProduction, false)) {
+          rejectionTracker.record({
+            requestId: context.requestId,
+            shopDomain: context.shopDomainHeader,
+            reason: "body_too_large",
+            timestamp: Date.now(),
+          });
+        }
         logger.warn("Request body too large", {
           requestId: context.requestId,
           shopDomain: context.shopDomainHeader,
@@ -114,12 +121,14 @@ export const bodyReaderMiddleware: IngestMiddleware = async (
           ),
         };
       }
-      rejectionTracker.record({
-        requestId: context.requestId,
-        shopDomain: context.shopDomainHeader,
-        reason: "invalid_payload",
-        timestamp: Date.now(),
-      });
+      if (shouldRecordRejection(context.isProduction, false)) {
+        rejectionTracker.record({
+          requestId: context.requestId,
+          shopDomain: context.shopDomainHeader,
+          reason: "invalid_payload",
+          timestamp: Date.now(),
+        });
+      }
       logger.warn("Failed to read request body", {
         requestId: context.requestId,
         shopDomain: context.shopDomainHeader,
@@ -143,12 +152,14 @@ export const bodyReaderMiddleware: IngestMiddleware = async (
       };
     }
     if (error instanceof SyntaxError) {
-      rejectionTracker.record({
-        requestId: context.requestId,
-        shopDomain: context.shopDomainHeader,
-        reason: "invalid_json",
-        timestamp: Date.now(),
-      });
+      if (shouldRecordRejection(context.isProduction, false)) {
+        rejectionTracker.record({
+          requestId: context.requestId,
+          shopDomain: context.shopDomainHeader,
+          reason: "invalid_json",
+          timestamp: Date.now(),
+        });
+      }
       logger.warn("Invalid JSON body in /ingest", {
         requestId: context.requestId,
         shopDomain: context.shopDomainHeader,
@@ -171,12 +182,14 @@ export const bodyReaderMiddleware: IngestMiddleware = async (
         ),
       };
     }
-    rejectionTracker.record({
-      requestId: context.requestId,
-      shopDomain: context.shopDomainHeader,
-      reason: "invalid_payload",
-      timestamp: Date.now(),
-    });
+    if (shouldRecordRejection(context.isProduction, false)) {
+      rejectionTracker.record({
+        requestId: context.requestId,
+        shopDomain: context.shopDomainHeader,
+        reason: "invalid_payload",
+        timestamp: Date.now(),
+      });
+    }
     logger.warn("Failed to read request body", {
       requestId: context.requestId,
       shopDomain: context.shopDomainHeader,

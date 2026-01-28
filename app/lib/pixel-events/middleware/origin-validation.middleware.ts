@@ -3,6 +3,7 @@ import { validatePixelOriginPreBody, validatePixelOriginForShop, buildShopAllowe
 import { trackAnomaly } from "~/utils/rate-limiter";
 import { logger, metrics } from "~/utils/logger.server";
 import { rejectionTracker } from "../rejection-tracker.server";
+import { shouldRecordRejection } from "../stats-sampling";
 import type { IngestContext, IngestMiddleware, MiddlewareResult } from "./types";
 
 function safeHost(u: string | null): string | null {
@@ -53,13 +54,15 @@ export const originValidationPreBodyMiddleware: IngestMiddleware = async (
       });
     }
     if (preBodyValidation.shouldReject && (context.isProduction || !context.hasSignatureHeader || context.strictOrigin)) {
-      rejectionTracker.record({
-        requestId: context.requestId,
-        shopDomain: context.shopDomainHeader,
-        reason: "origin_not_allowlisted",
-        originType: preBodyValidation.reason,
-        timestamp: Date.now(),
-      });
+      if (shouldRecordRejection(context.isProduction, anomalyCheck.shouldBlock)) {
+        rejectionTracker.record({
+          requestId: context.requestId,
+          shopDomain: context.shopDomainHeader,
+          reason: "origin_not_allowlisted",
+          originType: preBodyValidation.reason,
+          timestamp: Date.now(),
+        });
+      }
       metrics.pixelRejection({
         requestId: context.requestId,
         shopDomain: context.shopDomainHeader,
@@ -120,13 +123,15 @@ export const originValidationPostShopMiddleware: IngestMiddleware = async (
       });
     }
     if (!context.hasSignatureHeader || context.strictOrigin || context.isProduction) {
-      rejectionTracker.record({
-        requestId: context.requestId,
-        shopDomain: context.shop.shopDomain,
-        reason: "origin_not_allowlisted",
-        originType: shopOriginValidation.reason,
-        timestamp: Date.now(),
-      });
+      if (shouldRecordRejection(context.isProduction, anomalyCheck.shouldBlock)) {
+        rejectionTracker.record({
+          requestId: context.requestId,
+          shopDomain: context.shop.shopDomain,
+          reason: "origin_not_allowlisted",
+          originType: shopOriginValidation.reason,
+          timestamp: Date.now(),
+        });
+      }
       metrics.pixelRejection({
         requestId: context.requestId,
         shopDomain: context.shop.shopDomain,

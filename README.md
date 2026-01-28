@@ -72,6 +72,15 @@
   > - ✅ **支持的事件类型**：checkout_started、checkout_completed、checkout_contact_info_submitted、checkout_shipping_info_submitted、payment_info_submitted、product_added_to_cart、product_viewed、page_viewed 等 Web Pixels 标准 checkout 漏斗事件
   > - ❌ **不支持的事件类型**：退款（refund）、订单取消（cancel）、订单编辑（order_edit）、订阅订单（subscription）等事件在 v1.0 中不可验收
   > - **原因**：Web Pixel Extension 运行在 strict sandbox 环境，只能订阅 Shopify 标准 checkout 漏斗事件。退款、取消、编辑订单、订阅等事件需要订单 webhooks 或后台定时对账才能获取，将在 v1.1+ 版本中通过订单 webhooks 实现（严格做 PII 最小化）
+  > 
+  > **⚠️ checkout_completed 事件触发行为说明（重要）**：
+  > - **触发位置**：`checkout_completed` 不一定在 Thank you 页触发。当存在 upsell 或 post-purchase offer 时，事件会在第一层 upsell 页触发，且不会在 Thank you 页再次触发。这是 Shopify 的预期行为，不是故障。
+  > - **触发次数**：`checkout_completed` 通常只触发一次。如果页面加载失败或用户快速离开，事件可能不会触发。
+  > - **验收建议**：验收流程应覆盖以下情形：
+  >   - 正常流程（无 upsell）：事件应在 Thank you 页触发
+  >   - 有 upsell 的流程：事件应在第一层 upsell 页触发，不会在 Thank you 页再次触发
+  >   - 页面加载失败/用户快速离开：事件可能不触发，这是正常行为
+  > - **报告解读**：验收报告会标注事件触发位置和可能缺失的原因，帮助区分"正常缺失"和"实际故障"。详细说明请查看 Verification 页面中的"checkout_completed 事件行为说明"。
 - **监控功能**：
   - 事件量骤降检测：监控事件量的异常下降
   - 失败率阈值告警：当失败率超过阈值时告警
@@ -351,9 +360,15 @@ railway up
 ├── app/
 │   ├── routes/
 │   │   ├── app._index.tsx      # 仪表盘首页
-│   │   ├── app.scan.tsx        # 扫描报告
+│   │   ├── app.scan.tsx        # 扫描报告（路由入口，负责数据注入与tab状态）
+│   │   │   ├── loader.server.ts    # 数据加载逻辑
+│   │   │   ├── action.server.ts    # 表单提交处理
+│   │   │   └── _components/        # Scan页UI组件
+│   │   │       ├── ScanSummaryCards.tsx      # 风险评分/平台/ScriptTags摘要卡片
+│   │   │       ├── ScanHistoryTable.tsx      # 扫描历史表格
+│   │   │       ├── MigrationImpactAnalysis.tsx # 迁移影响分析
+│   │   │       └── MigrationChecklistTab.tsx # 迁移清单tab
 │   │   ├── app.migrate.tsx     # 迁移工具
-│   │   ├── app.monitor.tsx     # 监控面板
 │   │   ├── app.settings.tsx    # 设置
 │   │   └── webhooks.tsx        # Webhook 处理
 │   ├── services/
@@ -363,6 +378,11 @@ railway up
 │   │   ├── notification.server.ts  # 通知服务
 │   │   ├── retry.server.ts         # 重试队列服务
 │   │   └── platforms/              # 广告平台集成
+│   ├── utils/
+│   │   ├── scan-format.ts      # Scan页格式化工具（历史记录、ROI估算、清单生成等）
+│   │   ├── scan-validation.ts  # Scan页数据验证工具
+│   │   ├── scan-data-validation.ts # Scan页数据类型验证
+│   │   └── scan-constants.ts   # Scan页常量定义
 │   └── db.server.ts            # Prisma 客户端
 ├── extensions/
 │   ├── tracking-pixel/         # Web Pixel Extension
@@ -682,6 +702,52 @@ pnpm test tests/services/scanner.test.ts
 # 运行测试并生成覆盖率报告
 pnpm test:coverage
 ```
+
+## 脚本说明
+
+### 推荐使用的脚本（与部署/合规相关）
+
+以下脚本在 CI/CD 流程或日常开发中使用，**建议保留**：
+
+- **部署相关**：
+  - `build-extensions.mjs` - 构建和注入扩展配置（BACKEND_URL 注入）
+  - `validate-extensions.mjs` - 验证扩展配置（强制验证步骤）
+  - `pre-deploy-check.mjs` - 部署前检查
+  - `validate-deployment.mjs` - 验证部署配置
+
+- **合规/安全检查**：
+  - `check-api-version.mjs` - 检查 API 版本一致性
+  - `check-webhook-body.mjs` - 检查 webhook body 处理
+  - `check-graphql-only.mjs` - 检查是否仅使用 GraphQL
+  - `check-licenses.mjs` - 检查依赖许可证
+  - `security-audit.mjs` - 安全审计
+  - `check-frame-ancestors.mjs` - 检查 Frame Ancestors 配置
+  - `check-extension-urls.mjs` - 检查扩展 URL 配置
+
+- **数据库迁移**：
+  - `run-migration.sh` - 运行数据库迁移
+  - `check-before-migration.sh` - 迁移前检查
+  - `pre-migration-check.sql` - 迁移前 SQL 检查
+
+- **测试/压测**：
+  - `e2e-test.sh` - 端到端测试
+  - `load-test-pixel-ingestion.mjs` - 像素事件接收压测
+
+- **工具脚本**：
+  - `enforce-pnpm.mjs` - 强制使用 pnpm（preinstall hook）
+  - `check-api-auth.mjs` - 检查 API 认证配置
+
+### 一次性脚本（已执行完成，可归档）
+
+以下脚本为一次性迁移或清理脚本，**建议归档到 `scripts/archive/` 目录**：
+
+- `cleanup-blank-lines.mjs` - 代码格式化清理（一次性）
+- `migrate-alert-settings.ts` - Alert 设置加密迁移（一次性，如已执行可归档）
+- `add-shop-settings-column.sql` - 数据库列添加（如已迁移可归档）
+- `fix-pixel-config-constraints.sql` - 数据库约束修复（如已修复可归档）
+- `verify-pixel-config-constraints.sql` - 数据库约束验证（如已验证可归档）
+
+**注意**：归档前请确认这些脚本已执行完成，且相关变更已通过 Prisma migrations 正式纳入版本控制。
 
 ## 贡献指南
 

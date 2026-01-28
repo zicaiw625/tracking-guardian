@@ -25,14 +25,15 @@ export function CheckoutCompletedBehaviorHint({
   const content = (
     <BlockStack gap="200">
       <Text as="p" variant="bodySm">
-        <strong>checkout_completed</strong> 事件可能因以下 Shopify 平台行为而缺失或减少：
+        <strong>checkout_completed</strong> 不一定在 Thank you 页触发，且通常只触发一次。
+        页面加载失败或异常流程可能导致未触发；验收流程需覆盖这些情形。可能因以下 Shopify 平台行为而缺失或减少：
       </Text>
       <List type="bullet">
         <List.Item>
           <Text as="span" variant="bodySm">
             <strong>Upsell/Post-purchase 导致触发位置改变：</strong>
-            当存在 upsell 或 post-purchase offer 时，事件会在第一个 upsell 页面触发，
-            且不会在 Thank you 页面再次触发。这是 Shopify 的预期行为。
+            当存在 upsell 或 post-purchase offer 时，事件会在第一层 upsell 页触发，
+            且不会在 Thank you 页再次触发。这是 Shopify 的预期行为。
           </Text>
         </List.Item>
         <List.Item>
@@ -58,6 +59,13 @@ export function CheckoutCompletedBehaviorHint({
           <Text as="span" variant="bodySm">
             <strong>Protected Customer Data (PCD) 权限：</strong>
             自 2025-12-10 起，未获批 PCD 权限的应用，buyer.email / phone / address 等 PII 字段可能全为 null。
+          </Text>
+        </List.Item>
+        <List.Item>
+          <Text as="span" variant="bodySm">
+            <strong>Full-funnel 事件与 surface：</strong>
+            page_viewed、product_viewed 等事件在不同页面（店铺、产品、结账等）可用性不同；
+            验收报告会标明各事件在哪些 surface 出现，避免误判漏报。
           </Text>
         </List.Item>
       </List>

@@ -2,6 +2,7 @@ import { jsonWithCors, emptyResponseWithCors } from "../cors";
 import { validateRequest } from "../validation";
 import { logger } from "~/utils/logger.server";
 import { rejectionTracker } from "../rejection-tracker.server";
+import { shouldRecordRejection } from "../stats-sampling";
 import type { PixelEventPayload } from "../types";
 import type { IngestContext, IngestMiddleware, MiddlewareResult } from "./types";
 
@@ -11,12 +12,14 @@ export const eventValidationMiddleware: IngestMiddleware = async (
   context: IngestContext
 ): Promise<MiddlewareResult> => {
   if (context.rawEvents.length === 0) {
-    rejectionTracker.record({
-      requestId: context.requestId,
-      shopDomain: context.shopDomainHeader,
-      reason: "empty_events",
-      timestamp: Date.now(),
-    });
+    if (shouldRecordRejection(context.isProduction, false)) {
+      rejectionTracker.record({
+        requestId: context.requestId,
+        shopDomain: context.shopDomainHeader,
+        reason: "empty_events",
+        timestamp: Date.now(),
+      });
+    }
     logger.warn("Empty events array in /ingest", {
       requestId: context.requestId,
       shopDomain: context.shopDomainHeader,
@@ -40,12 +43,14 @@ export const eventValidationMiddleware: IngestMiddleware = async (
   }
 
   if (context.rawEvents.length > MAX_BATCH_SIZE) {
-    rejectionTracker.record({
-      requestId: context.requestId,
-      shopDomain: context.shopDomainHeader,
-      reason: "invalid_payload",
-      timestamp: Date.now(),
-    });
+    if (shouldRecordRejection(context.isProduction, false)) {
+      rejectionTracker.record({
+        requestId: context.requestId,
+        shopDomain: context.shopDomainHeader,
+        reason: "invalid_payload",
+        timestamp: Date.now(),
+      });
+    }
     logger.warn("Events array exceeds maximum size", {
       requestId: context.requestId,
       shopDomain: context.shopDomainHeader,
@@ -75,12 +80,14 @@ export const eventValidationMiddleware: IngestMiddleware = async (
     const eventValidation = validateRequest(context.rawEvents[i]);
     if (!eventValidation.valid) {
       if (i === 0) {
-        rejectionTracker.record({
-          requestId: context.requestId,
-          shopDomain: context.shopDomainHeader,
-          reason: "invalid_payload",
-          timestamp: Date.now(),
-        });
+        if (shouldRecordRejection(context.isProduction, false)) {
+          rejectionTracker.record({
+            requestId: context.requestId,
+            shopDomain: context.shopDomainHeader,
+            reason: "invalid_payload",
+            timestamp: Date.now(),
+          });
+        }
         logger.warn("Invalid event in batch", {
           requestId: context.requestId,
           shopDomain: context.shopDomainHeader,
@@ -120,12 +127,14 @@ export const eventValidationMiddleware: IngestMiddleware = async (
   }
 
   if (validatedEvents.length === 0) {
-    rejectionTracker.record({
-      requestId: context.requestId,
-      shopDomain: context.shopDomainHeader,
-      reason: "invalid_payload",
-      timestamp: Date.now(),
-    });
+    if (shouldRecordRejection(context.isProduction, false)) {
+      rejectionTracker.record({
+        requestId: context.requestId,
+        shopDomain: context.shopDomainHeader,
+        reason: "invalid_payload",
+        timestamp: Date.now(),
+      });
+    }
     if (context.isProduction) {
       return {
         continue: false,
@@ -150,12 +159,14 @@ export const eventValidationMiddleware: IngestMiddleware = async (
 
   if (context.shopDomainHeader !== "unknown" && context.shopDomainHeader !== shopDomain) {
     if (context.isProduction) {
-      rejectionTracker.record({
-        requestId: context.requestId,
-        shopDomain,
-        reason: "shop_domain_mismatch",
-        timestamp: Date.now(),
-      });
+      if (shouldRecordRejection(context.isProduction, false)) {
+        rejectionTracker.record({
+          requestId: context.requestId,
+          shopDomain,
+          reason: "shop_domain_mismatch",
+          timestamp: Date.now(),
+        });
+      }
       logger.warn(`Rejected ingest request: header shop domain does not match payload shop domain`, {
         requestId: context.requestId,
         shopDomain,
@@ -180,12 +191,14 @@ export const eventValidationMiddleware: IngestMiddleware = async (
   const nowForWindow = Date.now();
   const TIMESTAMP_WINDOW_MS = 10 * 60 * 1000; // 10 minutes
   if (Math.abs(nowForWindow - timestamp) > TIMESTAMP_WINDOW_MS) {
-    rejectionTracker.record({
-      requestId: context.requestId,
-      shopDomain,
-      reason: "invalid_timestamp",
-      timestamp: Date.now(),
-    });
+    if (shouldRecordRejection(context.isProduction, false)) {
+      rejectionTracker.record({
+        requestId: context.requestId,
+        shopDomain,
+        reason: "invalid_timestamp",
+        timestamp: Date.now(),
+      });
+    }
     logger.debug(
       `Payload timestamp outside window: diff=${Math.abs(nowForWindow - timestamp)}ms, dropping request`,
       { requestId: context.requestId, shopDomain }

@@ -23,7 +23,7 @@ export const LatestScanCard = memo(function LatestScanCard({ latestScan }: { lat
             description="完成上方第 1 步开始扫描。预计耗时约 10 秒，不会修改任何设置。"
             primaryAction={{
               content: "开始扫描",
-              url: "/app/audit/start",
+              url: "/app/scan",
             }}
           />
         </BlockStack>
@@ -88,7 +88,7 @@ export const LatestScanCard = memo(function LatestScanCard({ latestScan }: { lat
             </Text>
           )}
         </BlockStack>
-        <Button url="/app/audit/report" fullWidth>
+        <Button url="/app/scan?tab=2" fullWidth>
           查看完整报告
         </Button>
       </BlockStack>

@@ -23,7 +23,7 @@ export function MigrationChecklistPreviewCard({
             description="完成扫描后，我们将为您生成迁移清单和优先级建议。"
             primaryAction={{
               content: "开始扫描",
-              url: "/app/audit/start",
+              url: "/app/scan",
             }}
           />
         </BlockStack>
@@ -193,7 +193,7 @@ export function MigrationChecklistPreviewCard({
             )}
           </BlockStack>
         )}
-        <Button url="/app/audit/report" fullWidth icon={ArrowRightIcon}>
+        <Button url="/app/scan?tab=2" fullWidth icon={ArrowRightIcon}>
           查看完整清单
         </Button>
       </BlockStack>

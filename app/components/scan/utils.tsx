@@ -34,3 +34,15 @@ export function getUpgradeBannerTone(urgency: string): "critical" | "warning" | 
     default: return "info";
   }
 }
+
+export function getStatusText(status: string | null | undefined): string {
+  if (!status) return "未知";
+  switch (status) {
+    case "completed": return "完成";
+    case "completed_with_errors": return "完成（有错误）";
+    case "failed": return "失败";
+    case "scanning": return "扫描中";
+    case "pending": return "等待中";
+    default: return status;
+  }
+}

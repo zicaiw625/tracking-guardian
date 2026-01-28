@@ -14,7 +14,7 @@ export { PriorityBadge } from "./PriorityBadge";
 export { TimeEstimate } from "./TimeEstimate";
 export { FreeFeatureBadge } from "./FreeFeatureBadge";
 export { PaidFeaturePrompt } from "./PaidFeaturePrompt";
-export { getPlatformName, getSeverityBadge } from "./utils";
+export { getPlatformName, getSeverityBadge, getStatusText, getUpgradeBannerTone } from "./utils";
 
 export type { MigrationCountdownProps, CountdownMilestone, ShopTier as CountdownShopTier } from "./MigrationCountdown";
 export type { DeadlineTimelineProps, TimelineEvent, TimelineTier } from "./DeadlineTimeline";

@@ -13,7 +13,7 @@ export function ScriptTagMigrationBanner({
       title={`检测到 ${scriptTagsCount} 个 ScriptTag 需要迁移`}
       tone="critical"
       action={{ content: "查看迁移方案", url: "/app/migrate" }}
-      secondaryAction={{ content: "查看扫描详情", url: "/app/audit/report" }}
+      secondaryAction={{ content: "查看扫描详情", url: "/app/scan?tab=2" }}
     >
       <BlockStack gap="300">
         {hasOrderStatusScripts && (

@@ -103,7 +103,7 @@ const UpgradeStatusCard = memo(function UpgradeStatusCard({
           )}
           {}
           <Button
-            url="/app/audit/start"
+            url="/app/scan"
             variant="primary"
             size="large"
             fullWidth
@@ -360,7 +360,7 @@ const MigrationProgressCard = memo(function MigrationProgressCard({
             description="开始迁移后，进度将在这里显示。"
             primaryAction={{
               content: "开始体检",
-              url: "/app/audit/start",
+              url: "/app/scan",
             }}
           />
         </BlockStack>
@@ -456,7 +456,7 @@ const MigrationProgressCard = memo(function MigrationProgressCard({
           })}
         </BlockStack>
         {migrationProgress.progressPercentage < 100 && (
-          <Button url="/app/audit/start" variant="primary">
+          <Button url="/app/scan" variant="primary">
             {migrationProgress.currentStage === "audit" ? "开始体检" : "继续迁移"}
           </Button>
         )}
@@ -594,7 +594,7 @@ export default function Index() {
   const nextStep = getNextSetupStep(setupSteps);
   const progress = getSetupProgress(setupSteps);
   const handleStartAudit = () => {
-    navigate("/app/audit/start");
+    navigate("/app/scan");
   };
   const handleViewDashboard = () => {
   };

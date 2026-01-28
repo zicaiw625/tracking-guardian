@@ -38,8 +38,8 @@ export function DashboardOverview({
       "上线后有断档告警",
     ],
     primaryAction: data.migrationProgress?.currentStage === "audit" || !data.migrationProgress || !data.latestScan
-      ? { content: "开始免费体检", url: "/app/audit/start" }
-      : { content: "查看完整报告", url: "/app/audit/report" },
+      ? { content: "开始免费体检", url: "/app/scan" }
+      : { content: "查看完整报告", url: "/app/scan?tab=2" },
     secondaryAction: { content: "查看报告中心", url: "/app/reports" },
   };
 
@@ -119,7 +119,7 @@ export function DashboardOverview({
           estimatedMigrationTimeMinutes={data.estimatedMigrationTimeMinutes || 0}
           scriptTagsCount={data.scriptTagsCount || 0}
           identifiedPlatforms={data.latestScan.identifiedPlatforms || []}
-          onStartAudit={() => window.location.href = "/app/audit/start"}
+          onStartAudit={() => window.location.href = "/app/scan"}
           onViewDashboard={() => window.location.href = "/app"}
         />
       )}
@@ -145,8 +145,8 @@ export function DashboardOverview({
               <Button
                 url={
                   data.migrationProgress?.currentStage === "audit" || !data.migrationProgress || !data.latestScan
-                    ? "/app/audit/start"
-                    : "/app/audit/report"
+                    ? "/app/scan"
+                    : "/app/scan?tab=2"
                 }
                 variant="primary"
                 size="large"

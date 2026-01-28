@@ -37,6 +37,19 @@ function truncateItems(items: Array<{
     .filter(item => item.id);
 }
 
+function mapCheckoutLineItems(checkout: CheckoutData): Array<{ id: string; quantity: number; price: number }> {
+  const allItems = checkout.lineItems?.map(item => ({
+    id: item.id || item.variant?.id || "",
+    name: item.title || "",
+    price: toNumber(item.variant?.price?.amount),
+    quantity: item.quantity || 1,
+    variantId: item.variant?.id || null,
+    productId: item.variant?.product?.id || null,
+    productTitle: item.variant?.product?.title || null,
+  })) ?? [];
+  return truncateItems(allItems);
+}
+
 export interface EventSenderConfig {
   backendUrl: string | null;
   shopDomain: string;
@@ -479,21 +492,12 @@ export function subscribeToCheckoutCompleted(
       log("checkout_completed: No orderId or checkoutToken, skipping");
       return;
     }
-    const allItems = checkout.lineItems?.map(item => ({
-      id: item.id || item.variant?.id || "",
-      name: item.title || "",
-      price: toNumber(item.variant?.price?.amount),
-      quantity: item.quantity || 1,
-      variantId: item.variant?.id || null,
-      productId: item.variant?.product?.id || null,
-      productTitle: item.variant?.product?.title || null,
-    })) || [];
     sendToBackend("checkout_completed", {
       orderId: orderId || null,
       checkoutToken: checkoutToken || null,
       value: toNumber(checkout.totalPrice?.amount),
       currency: checkout.currencyCode || null,
-      items: truncateItems(allItems),
+      items: mapCheckoutLineItems(checkout),
     });
   });
   log("Tracking Guardian pixel initialized - checkout_completed subscribed");
@@ -511,20 +515,11 @@ function subscribeToCheckoutStarted(
     const typedEvent = event as { data?: { checkout?: CheckoutData } };
     const checkout = typedEvent.data?.checkout;
     if (!checkout) return;
-    const allItems = checkout.lineItems?.map(item => ({
-      id: item.id || item.variant?.id || "",
-      name: item.title || "",
-      price: toNumber(item.variant?.price?.amount),
-      quantity: item.quantity || 1,
-      variantId: item.variant?.id || null,
-      productId: item.variant?.product?.id || null,
-      productTitle: item.variant?.product?.title || null,
-    })) || [];
     sendToBackend("checkout_started", {
       checkoutToken: checkout.token || null,
       value: toNumber(checkout.totalPrice?.amount),
       currency: checkout.currencyCode || null,
-      items: truncateItems(allItems),
+      items: mapCheckoutLineItems(checkout),
     });
   });
   log("checkout_started event subscribed");
@@ -649,20 +644,11 @@ function subscribeToCheckoutContactInfoSubmitted(
     const typedEvent = event as { data?: { checkout?: CheckoutData } };
     const checkout = typedEvent.data?.checkout;
     if (!checkout) return;
-    const allItems = checkout.lineItems?.map(item => ({
-      id: item.id || item.variant?.id || "",
-      name: item.title || "",
-      price: toNumber(item.variant?.price?.amount),
-      quantity: item.quantity || 1,
-      variantId: item.variant?.id || null,
-      productId: item.variant?.product?.id || null,
-      productTitle: item.variant?.product?.title || null,
-    })) || [];
     sendToBackend("checkout_contact_info_submitted", {
       checkoutToken: checkout.token || null,
       value: toNumber(checkout.totalPrice?.amount),
       currency: checkout.currencyCode || null,
-      items: truncateItems(allItems),
+      items: mapCheckoutLineItems(checkout),
     });
   });
   log("checkout_contact_info_submitted event subscribed");
@@ -680,20 +666,11 @@ function subscribeToCheckoutShippingInfoSubmitted(
     const typedEvent = event as { data?: { checkout?: CheckoutData } };
     const checkout = typedEvent.data?.checkout;
     if (!checkout) return;
-    const allItems = checkout.lineItems?.map(item => ({
-      id: item.id || item.variant?.id || "",
-      name: item.title || "",
-      price: toNumber(item.variant?.price?.amount),
-      quantity: item.quantity || 1,
-      variantId: item.variant?.id || null,
-      productId: item.variant?.product?.id || null,
-      productTitle: item.variant?.product?.title || null,
-    })) || [];
     sendToBackend("checkout_shipping_info_submitted", {
       checkoutToken: checkout.token || null,
       value: toNumber(checkout.totalPrice?.amount),
       currency: checkout.currencyCode || null,
-      items: truncateItems(allItems),
+      items: mapCheckoutLineItems(checkout),
     });
   });
   log("checkout_shipping_info_submitted event subscribed");
@@ -711,20 +688,11 @@ function subscribeToPaymentInfoSubmitted(
     const typedEvent = event as { data?: { checkout?: CheckoutData } };
     const checkout = typedEvent.data?.checkout;
     if (!checkout) return;
-    const allItems = checkout.lineItems?.map(item => ({
-      id: item.id || item.variant?.id || "",
-      name: item.title || "",
-      price: toNumber(item.variant?.price?.amount),
-      quantity: item.quantity || 1,
-      variantId: item.variant?.id || null,
-      productId: item.variant?.product?.id || null,
-      productTitle: item.variant?.product?.title || null,
-    })) || [];
     sendToBackend("payment_info_submitted", {
       checkoutToken: checkout.token || null,
       value: toNumber(checkout.totalPrice?.amount),
       currency: checkout.currencyCode || null,
-      items: truncateItems(allItems),
+      items: mapCheckoutLineItems(checkout),
     });
   });
   log("payment_info_submitted event subscribed");

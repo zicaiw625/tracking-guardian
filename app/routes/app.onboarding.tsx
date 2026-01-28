@@ -348,7 +348,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         logger.error(`[Onboarding] Failed to auto-setup WebPixel for ${shopDomain}`, error);
       }
     }
-    return redirect("/app/audit/start");
+    return redirect("/app/scan");
   }
   return json({ error: "未知操作" }, { status: 400 });
 };
@@ -809,7 +809,7 @@ export default function OnboardingPage() {
                           了解每个风险项的详情和迁移建议
                         </Text>
                       </BlockStack>
-                      <Button url="/app/audit/report" icon={ArrowRightIcon}>
+                      <Button url="/app/scan?tab=2" icon={ArrowRightIcon}>
                         查看报告
                       </Button>
                     </InlineStack>

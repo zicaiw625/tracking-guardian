@@ -390,6 +390,12 @@ export default function VerificationReportPage() {
                   <Text as="p" variant="bodySm">
                     💡 <strong>注意：</strong>以下事件包含发往平台的请求 payload 证据链。如果某些字段（如姓名、邮箱、电话、地址）为 null，可能是由于 PCD (Protected Customer Data) 需要额外 scope 审批（2025-12-10 起生效）或用户未同意 consent。这是 Shopify 平台的合规行为，不是故障。
                   </Text>
+                  <Text as="p" variant="bodySm" fontWeight="semibold">
+                    ⚠️ <strong>checkout_completed 事件触发行为说明（重要）：</strong>
+                  </Text>
+                  <Text as="p" variant="bodySm">
+                    <strong>checkout_completed</strong> 不一定在 Thank you 页触发，且通常只触发一次。当存在 upsell 或 post-purchase offer 时，事件会在第一层 upsell 页触发，且不会在 Thank you 页再次触发。这是 Shopify 的预期行为，不是故障。如果页面加载失败或用户快速离开，事件可能不会触发。验收报告会标注事件触发位置和可能缺失的原因，帮助区分"正常缺失"和"实际故障"。
+                  </Text>
                   <Text as="p" variant="bodySm">
                     ⚠️ <strong>Strict Sandbox 限制（已自动标注）：</strong>Web Pixel 运行在 strict sandbox (Web Worker) 环境中，无法访问 DOM、localStorage、第三方 cookie 等，部分字段可能不可用。报告中已自动标注所有因 strict sandbox 限制而无法获取的字段和事件。如果某些字段为 null 或缺失，可能是由于 strict sandbox 限制，这是平台限制，不是故障。哪些事件/哪些字段拿不到已在报告中自动标注，减少纠纷。详细说明请查看下方的"Strict Sandbox 限制说明"部分。
                   </Text>
