@@ -392,13 +392,13 @@ export function createEventSender(config: EventSenderConfig) {
   };
   const getRequiredConsentForEvent = (eventName: string): "analytics" | "marketing" | "either" => {
     if (eventName === "checkout_completed") {
-      return "marketing";
+      return "analytics";
     }
     if (eventName === "page_viewed" || eventName === "product_viewed" || eventName === "product_added_to_cart") {
       return "analytics";
     }
     if (eventName === "checkout_started" || eventName === "checkout_contact_info_submitted" || eventName === "checkout_shipping_info_submitted" || eventName === "payment_info_submitted") {
-      return "marketing";
+      return "analytics";
     }
     return "either";
   };

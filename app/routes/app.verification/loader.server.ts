@@ -25,7 +25,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       id: true,
       plan: true,
       pixelConfigs: {
-        where: { isActive: true, serverSideEnabled: true },
+        where: { isActive: true },
         select: { platform: true },
       },
     },

@@ -23,14 +23,6 @@ export interface IngestQueueEntry {
     serverSideEnabled?: boolean | null;
     clientConfig?: unknown;
   }>;
-  serverSideConfigs?: Array<{
-    platform: string;
-    id: string;
-    platformId?: string | null;
-    clientSideEnabled?: boolean | null;
-    serverSideEnabled?: boolean | null;
-    clientConfig?: unknown;
-  }>;
 }
 
 export async function enqueueIngestBatch(entry: IngestQueueEntry): Promise<boolean> {
@@ -111,7 +103,7 @@ export async function processIngestQueue(
         entry.shopId,
         entry.shopDomain
       );
-      const rawConfigs = entry.enabledPixelConfigs ?? entry.serverSideConfigs ?? [];
+      const rawConfigs = entry.enabledPixelConfigs ?? [];
       const configs = rawConfigs.map((c) => ({
         ...c,
         platform: c.platform ?? "",

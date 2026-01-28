@@ -153,7 +153,7 @@ export async function createVerificationRun(
   let targetPlatforms = platforms;
   if (targetPlatforms.length === 0) {
     const configs = await prisma.pixelConfig.findMany({
-      where: { shopId, isActive: true, serverSideEnabled: true },
+      where: { shopId, isActive: true },
       select: { platform: true },
     });
     targetPlatforms = configs.map((c: { platform: string }) => c.platform);

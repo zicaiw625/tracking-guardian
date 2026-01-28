@@ -15,12 +15,3 @@ export {
   type PlatformCredentialsFormProps,
 } from "./PlatformCredentialsForm";
 
-export {
-  AlertConfigForm,
-  getDefaultAlertConfig,
-  isAlertConfigValid,
-  getChannelSettings,
-  type AlertChannel,
-  type AlertConfig,
-  type AlertConfigFormProps,
-} from "./AlertConfigForm";

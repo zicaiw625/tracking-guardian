@@ -148,7 +148,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         previousIngestionSecret: true,
         previousSecretExpiry: true,
         pixelConfigs: {
-          where: { isActive: true, serverSideEnabled: true },
+          where: { isActive: true },
           select: {
             id: true,
             shopId: true,

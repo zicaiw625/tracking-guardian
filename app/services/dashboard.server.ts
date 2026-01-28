@@ -202,8 +202,7 @@ export async function getDashboardData(shopDomain: string): Promise<DashboardDat
       error: error instanceof Error ? error.message : String(error),
     });
   }
-  const enabledPixelConfigsCount =
-    shop.pixelConfigs?.filter((config) => config.serverSideEnabled === true).length || 0;
+  const enabledPixelConfigsCount = shop.pixelConfigs?.length || 0;
   const hasEnabledPixelConfig = enabledPixelConfigsCount > 0;
   const settings = (shop as { settings?: unknown }).settings && typeof (shop as { settings?: unknown }).settings === 'object' ? (shop as { settings?: unknown }).settings as Record<string, unknown> : null;
   const alertConfigs = settings?.alertConfigs && Array.isArray(settings.alertConfigs) ? settings.alertConfigs : [];

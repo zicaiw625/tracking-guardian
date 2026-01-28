@@ -137,45 +137,87 @@ export async function upsertPixelEventReceipt(
         payloadToStore = buildMinimalPayloadForReceipt(payload, trustLevel, hmacMatched);
       }
     }
-    const receipt = await prisma.pixelEventReceipt.upsert({
-      where: {
-        shopId_eventId_eventType: {
+    let receipt;
+    try {
+      receipt = await prisma.pixelEventReceipt.create({
+        data: {
+          id: generateSimpleId("receipt"),
           shopId,
           eventId,
           eventType,
+          pixelTimestamp: new Date(payload.timestamp),
+          originHost: originHost || null,
+          verificationRunId: verificationRunId || null,
+          payloadJson: payloadToStore === null ? Prisma.JsonNull : (payloadToStore as Prisma.InputJsonValue),
+          checkoutFingerprint,
+          orderKey: extractedOrderKey || null,
+          altOrderKey: altOrderKey ?? null,
         },
-      },
-      create: {
-        id: generateSimpleId("receipt"),
-        shopId,
-        eventId,
-        eventType,
-        pixelTimestamp: new Date(payload.timestamp),
-        originHost: originHost || null,
-        verificationRunId: verificationRunId || null,
-        payloadJson: payloadToStore === null ? Prisma.JsonNull : (payloadToStore as Prisma.InputJsonValue),
-        checkoutFingerprint,
-        orderKey: extractedOrderKey || null,
-        altOrderKey: altOrderKey ?? null,
-      },
-      update: {
-        pixelTimestamp: new Date(payload.timestamp),
-        originHost: originHost || null,
-        verificationRunId: verificationRunId || null,
-        payloadJson: payloadToStore === null ? Prisma.JsonNull : (payloadToStore as Prisma.InputJsonValue),
-        checkoutFingerprint,
-        orderKey: extractedOrderKey || null,
-        altOrderKey: altOrderKey ?? null,
-      },
-      select: {
-        id: true,
-        orderKey: true,
-        eventType: true,
-        pixelTimestamp: true,
-        createdAt: true,
-        payloadJson: true,
-      },
-    });
+        select: {
+          id: true,
+          orderKey: true,
+          eventType: true,
+          pixelTimestamp: true,
+          createdAt: true,
+          payloadJson: true,
+        },
+      });
+    } catch (createError) {
+      if (createError instanceof Prisma.PrismaClientKnownRequestError && createError.code === "P2002") {
+        if (verificationRunId) {
+          receipt = await prisma.pixelEventReceipt.update({
+            where: {
+              shopId_eventId_eventType: {
+                shopId,
+                eventId,
+                eventType,
+              },
+            },
+            data: {
+              pixelTimestamp: new Date(payload.timestamp),
+              originHost: originHost || null,
+              verificationRunId: verificationRunId || null,
+              payloadJson: payloadToStore === null ? Prisma.JsonNull : (payloadToStore as Prisma.InputJsonValue),
+              checkoutFingerprint,
+              orderKey: extractedOrderKey || null,
+              altOrderKey: altOrderKey ?? null,
+            },
+            select: {
+              id: true,
+              orderKey: true,
+              eventType: true,
+              pixelTimestamp: true,
+              createdAt: true,
+              payloadJson: true,
+            },
+          });
+        } else {
+          const existing = await prisma.pixelEventReceipt.findUnique({
+            where: {
+              shopId_eventId_eventType: {
+                shopId,
+                eventId,
+                eventType,
+              },
+            },
+            select: {
+              id: true,
+              orderKey: true,
+              eventType: true,
+              pixelTimestamp: true,
+              createdAt: true,
+              payloadJson: true,
+            },
+          });
+          if (!existing) {
+            throw createError;
+          }
+          receipt = existing;
+        }
+      } else {
+        throw createError;
+      }
+    }
     try {
       const redis = await getRedisClient();
       if (eventType === "purchase" && receipt.orderKey) {
@@ -206,7 +248,6 @@ export async function getActivePixelConfigs(
     where: {
       shopId,
       isActive: true,
-      serverSideEnabled: true,
     },
     select: {
       platform: true,

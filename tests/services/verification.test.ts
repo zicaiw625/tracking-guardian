@@ -121,7 +121,7 @@ describe("Verification Service", () => {
       vi.mocked(prisma.verificationRun.create).mockResolvedValue(mockRun as any);
       await createVerificationRun("shop-1", {});
       expect(prisma.pixelConfig.findMany).toHaveBeenCalledWith({
-        where: { shopId: "shop-1", isActive: true, serverSideEnabled: true },
+        where: { shopId: "shop-1", isActive: true },
         select: { platform: true },
       });
       const createCall = vi.mocked(prisma.verificationRun.create).mock.calls[0][0];

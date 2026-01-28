@@ -130,65 +130,6 @@ export function validateContentType(
   return { valid: true };
 }
 
-export function validateOrigin(
-  origin: string | null,
-  allowedOrigins: string[]
-): { valid: boolean; error?: string } {
-  if (!origin) {
-    if (allowedOrigins.some((allowed) => allowed.trim() === "*")) {
-      return { valid: true };
-    }
-    return { valid: false, error: "Missing origin header" };
-  }
-  let parsedOrigin: URL;
-  try {
-    parsedOrigin = new URL(origin);
-  } catch {
-    return { valid: false, error: `Origin ${origin} not allowed` };
-  }
-  const originHost = parsedOrigin.hostname.toLowerCase();
-  const originValue = parsedOrigin.origin.toLowerCase();
-  for (const allowed of allowedOrigins) {
-    const normalizedAllowed = allowed.toLowerCase();
-    if (normalizedAllowed === "*") {
-      return { valid: true };
-    }
-    if (normalizedAllowed.includes("://") && normalizedAllowed.includes("*.")) {
-      const [, hostPart] = normalizedAllowed.split("://");
-      const wildcardHost = hostPart.split("/")[0];
-      if (wildcardHost.startsWith("*.")) {
-        const domain = wildcardHost.slice(2);
-        if (originHost === domain || originHost.endsWith(`.${domain}`)) {
-          return { valid: true };
-        }
-      }
-      continue;
-    }
-    if (normalizedAllowed.startsWith("*.")) {
-      const domain = normalizedAllowed.slice(2);
-      if (originHost === domain || originHost.endsWith(`.${domain}`)) {
-        return { valid: true };
-      }
-      continue;
-    }
-    if (normalizedAllowed.includes("://")) {
-      try {
-        const allowedUrl = new URL(normalizedAllowed);
-        if (allowedUrl.origin.toLowerCase() === originValue) {
-          return { valid: true };
-        }
-      } catch {
-        continue;
-      }
-    } else if (originHost === normalizedAllowed) {
-      return { valid: true };
-    }
-  }
-  return {
-    valid: false,
-    error: `Origin ${origin} not allowed`,
-  };
-}
 
 export { API_SECURITY_HEADERS, addSecurityHeaders as applySecurityHeaders } from "./security-headers";
 

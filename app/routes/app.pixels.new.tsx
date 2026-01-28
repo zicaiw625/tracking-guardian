@@ -133,13 +133,6 @@ const PLATFORM_INFO: Record<SupportedPlatform, {
         type: "text",
         helpText: "在 GA4 管理后台的「数据流」中查找",
       },
-      {
-        key: "apiSecret",
-        label: "API Secret",
-        placeholder: "输入 API Secret",
-        type: "password",
-        helpText: "用于事件映射配置",
-      },
     ],
   },
   meta: {
@@ -153,20 +146,6 @@ const PLATFORM_INFO: Record<SupportedPlatform, {
         placeholder: "123456789012345",
         type: "text",
         helpText: "在 Meta Events Manager 中查找",
-      },
-      {
-        key: "accessToken",
-        label: "Access Token",
-        placeholder: "输入 Access Token",
-        type: "password",
-        helpText: "用于事件映射配置",
-      },
-      {
-        key: "testEventCode",
-        label: "Test Event Code (可选)",
-        placeholder: "TEST12345",
-        type: "text",
-        helpText: "用于测试模式，可在 Events Manager 中获取",
       },
     ],
   },
@@ -182,13 +161,6 @@ const PLATFORM_INFO: Record<SupportedPlatform, {
         type: "text",
         helpText: "在 TikTok Events Manager 中查找",
       },
-      {
-        key: "accessToken",
-        label: "Access Token",
-        placeholder: "输入 Access Token",
-        type: "password",
-        helpText: "在 TikTok Events Manager → Settings → Web Events 中生成",
-      },
     ],
   },
 };
@@ -202,11 +174,11 @@ interface PlatformConfig {
   environment: "test" | "live";
 }
 
-type SetupStep = "select" | "credentials" | "mappings" | "review";
+type SetupStep = "select" | "mappings" | "review";
 
 export default function PixelsNewPage() {
   const loaderData = useLoaderData<typeof loader>();
-  const { shop, templates, isStarterOrAbove, backendUrlInfo, trackingApiEnabled } = loaderData;
+  const { shop, templates, isStarterOrAbove, backendUrlInfo } = loaderData;
   const actionData = useActionData<typeof action>();
   const navigation = useNavigation();
   const submit = useSubmit();
@@ -250,11 +222,10 @@ export default function PixelsNewPage() {
   const steps = useMemo(() => {
     return [
       { id: "select", label: "选择平台" },
-      ...(trackingApiEnabled ? [{ id: "credentials", label: "填写凭证" } as const] : []),
       { id: "mappings", label: "事件映射" },
       { id: "review", label: "检查配置" },
     ];
-  }, [trackingApiEnabled]);
+  }, []);
   useEffect(() => {
     if (actionData && "success" in actionData && actionData.success) {
       const configIds = ("configIds" in actionData ? actionData.configIds : []) || [];
@@ -318,26 +289,6 @@ export default function PixelsNewPage() {
     setShowTemplateModal(false);
     showSuccess(`已应用模板「${template.name}」`);
   }, [platformConfigs, showSuccess]);
-  const handleCredentialUpdate = useCallback((platform: SupportedPlatform, field: string, value: string) => {
-    setPlatformConfigs((prev) => {
-      const currentConfig = prev[platform];
-      if (!currentConfig) return prev;
-      return {
-        ...prev,
-        [platform]: {
-          ...currentConfig,
-          credentials: {
-            ...currentConfig.credentials,
-            [field]: value,
-          },
-          platformId:
-            field === "measurementId" || field === "pixelId"
-              ? value
-              : currentConfig.platformId,
-        },
-      };
-    });
-  }, []);
   const handleEventMappingUpdate = useCallback((platform: SupportedPlatform, shopifyEvent: string, platformEvent: string) => {
     setPlatformConfigs((prev) => {
       const currentConfig = prev[platform];
@@ -368,19 +319,6 @@ export default function PixelsNewPage() {
     if (step === "select" && selectedPlatforms.size === 0) {
       errors.push("请至少选择一个平台");
     }
-    if (step === "credentials" && trackingApiEnabled) {
-      Array.from(selectedPlatforms).forEach((platform) => {
-        const config = platformConfigs[platform];
-        const info = PLATFORM_INFO[platform];
-        if (!config || !info) return;
-        info.credentialFields.forEach((field) => {
-          if (field.key === "testEventCode") return;
-          if (!config.credentials[field.key as keyof typeof config.credentials]) {
-            errors.push(`${info.name}: 缺少 ${field.label}`);
-          }
-        });
-      });
-    }
     if (step === "mappings") {
       Array.from(selectedPlatforms).forEach((platform) => {
         const config = platformConfigs[platform];
@@ -390,7 +328,7 @@ export default function PixelsNewPage() {
       });
     }
     return errors;
-  }, [platformConfigs, selectedPlatforms, trackingApiEnabled]);
+  }, [platformConfigs, selectedPlatforms]);
   const handleNext = useCallback(() => {
     const errors = validateStep(currentStep);
     if (errors.length > 0) {
@@ -403,7 +341,7 @@ export default function PixelsNewPage() {
     }
   }, [currentStep, steps, validateStep, showError]);
   const handleSave = useCallback(() => {
-    const errors = (trackingApiEnabled ? validateStep("credentials") : []).concat(validateStep("mappings"));
+    const errors = validateStep("mappings");
     if (errors.length > 0) {
       showError(`配置错误：${errors.join("; ")}`);
       return;
@@ -414,7 +352,7 @@ export default function PixelsNewPage() {
       return {
         platform,
         platformId: config.platformId,
-        credentials: trackingApiEnabled ? config.credentials : {},
+        credentials: {},
         eventMappings: config.eventMappings,
         environment: config.environment,
       };
@@ -423,7 +361,7 @@ export default function PixelsNewPage() {
     formData.append("_action", "savePixelConfigs");
     formData.append("configs", JSON.stringify(configs));
     submit(formData, { method: "post" });
-  }, [platformConfigs, selectedPlatforms, submit, validateStep, showError, trackingApiEnabled]);
+  }, [platformConfigs, selectedPlatforms, submit, validateStep, showError]);
   const currentIndex = steps.findIndex((step) => step.id === currentStep);
   const isSubmitting = navigation.state === "submitting";
   const availableTemplates = useMemo(() => {
@@ -697,87 +635,6 @@ export default function PixelsNewPage() {
                   );
                 })}
               </BlockStack>
-            </BlockStack>
-          </Card>
-        )}
-        {trackingApiEnabled && currentStep === "credentials" && (
-          <Card>
-            <BlockStack gap="400">
-              <Text as="h3" variant="headingMd">填写平台凭证</Text>
-              <Text as="p" tone="subdued">
-                为每个选中的平台填写 API 凭证，并设置环境。
-              </Text>
-              {Array.from(selectedPlatforms).some(p => p === "meta" || p === "tiktok") && (
-                <Banner tone="warning">
-                  <BlockStack gap="200">
-                    <Text as="p" variant="bodySm" fontWeight="semibold">
-                      <strong>⚠️ 营销平台 Consent 要求：</strong>
-                    </Text>
-                    <Text as="p" variant="bodySm">
-                      您选择了营销平台（Meta 或 TikTok）。这些平台需要客户授予 <strong>marketing consent</strong>，且在客户明确拒绝 <strong>sale of data consent</strong> 时不发送事件。
-                      <br />
-                      <br />
-                      • <strong>Pixel 加载：</strong>只需要 analytics consent（Pixel 即可加载）
-                      <br />
-                      • <strong>事件发送：</strong>需要 marketing consent，且在 sale of data consent 明确拒绝时不发送到营销平台
-                      <br />
-                      • <strong>服务端投递：</strong>当前版本默认关闭（规划中）
-                    </Text>
-                    <Text as="p" variant="bodySm" tone="subdued">
-                      请确保您的店铺已正确配置 Customer Privacy API。在客户未授予 marketing consent 时，事件将被跳过，不会发送到营销平台。
-                    </Text>
-                  </BlockStack>
-                </Banner>
-              )}
-              {Array.from(selectedPlatforms).map((platform) => {
-                const config = platformConfigs[platform];
-                const info = PLATFORM_INFO[platform];
-                if (!config || !info) return null;
-                return (
-                  <Card key={platform}>
-                    <BlockStack gap="400">
-                      <InlineStack align="space-between" blockAlign="center">
-                        <InlineStack gap="200" blockAlign="center">
-                          <Text as="span" variant="headingLg">{info.icon}</Text>
-                          <Text as="span" fontWeight="semibold">{info.name}</Text>
-                        </InlineStack>
-                        <Badge tone={config.environment === "live" ? "critical" : "warning"}>
-                          {config.environment === "live" ? "🔴 生产模式" : "🟡 测试模式"}
-                        </Badge>
-                      </InlineStack>
-                      <Select
-                        label="切换环境"
-                        options={[
-                          { label: "🟡 测试环境 (Test) - 用于验证配置", value: "test" },
-                          { label: "🔴 生产环境 (Live) - 正式发送事件", value: "live" },
-                        ]}
-                        value={config.environment}
-                        onChange={(value) => handleEnvironmentToggle(platform, value as "test" | "live")}
-                        helpText={
-                          config.environment === "test"
-                            ? "测试模式：事件发送到测试端点，不会影响实际广告数据"
-                            : "生产模式：事件发送到正式端点，将影响广告归因和优化"
-                        }
-                      />
-                      <Divider />
-                      <BlockStack gap="300">
-                        {info.credentialFields.map((field) => (
-                          <TextField
-                            key={field.key}
-                            label={field.label}
-                            type={field.type}
-                            value={config.credentials[field.key] || ""}
-                            onChange={(value) => handleCredentialUpdate(platform, field.key, value)}
-                            placeholder={field.placeholder}
-                            helpText={field.helpText}
-                            autoComplete="off"
-                          />
-                        ))}
-                      </BlockStack>
-                    </BlockStack>
-                  </Card>
-                );
-              })}
             </BlockStack>
           </Card>
         )}
