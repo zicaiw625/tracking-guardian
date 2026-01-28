@@ -25,11 +25,11 @@ describe("validatePixelOriginPreBody", () => {
       expect(r.shouldReject).toBe(false);
     });
 
-    it("in dev with hasSignature: valid, null_origin_allowed_with_signature (signature branch takes precedence)", () => {
+    it("in dev with hasSignature: valid, null_origin_allowed, shouldReject false", () => {
       process.env.NODE_ENV = "test";
       const r = validatePixelOriginPreBody("null", true, true);
       expect(r.valid).toBe(true);
-      expect(r.reason).toBe("null_origin_allowed_with_signature");
+      expect(r.reason).toBe("null_origin_allowed");
       expect(r.shouldReject).toBe(false);
     });
 
@@ -42,13 +42,13 @@ describe("validatePixelOriginPreBody", () => {
       expect(r.shouldReject).toBe(true);
     });
 
-    it("in production, PIXEL_ALLOW_NULL_ORIGIN_WITH_SIGNATURE_ONLY=true, no signature: invalid (allowNull+!sig blocks), shouldReject true", () => {
+    it("in production, PIXEL_ALLOW_NULL_ORIGIN_WITH_SIGNATURE_ONLY=true, no signature: valid (allowNull, HMAC optional), shouldReject false", () => {
       process.env.NODE_ENV = "production";
       process.env.PIXEL_ALLOW_NULL_ORIGIN_WITH_SIGNATURE_ONLY = "true";
       const r = validatePixelOriginPreBody("null", false, true);
-      expect(r.valid).toBe(false);
-      expect(r.reason).toBe("null_origin_blocked");
-      expect(r.shouldReject).toBe(true);
+      expect(r.valid).toBe(true);
+      expect(r.reason).toBe("null_origin_allowed");
+      expect(r.shouldReject).toBe(false);
     });
 
     it("in production, PIXEL_ALLOW_NULL_ORIGIN_WITH_SIGNATURE_ONLY=false, hasSignature: invalid, null_origin_blocked, shouldReject true", () => {
@@ -60,12 +60,12 @@ describe("validatePixelOriginPreBody", () => {
       expect(r.shouldReject).toBe(true);
     });
 
-    it("in production, PIXEL_ALLOW_NULL_ORIGIN_WITH_SIGNATURE_ONLY=true, hasSignature: valid, null_origin_allowed_with_signature, shouldReject false", () => {
+    it("in production, PIXEL_ALLOW_NULL_ORIGIN_WITH_SIGNATURE_ONLY=true, hasSignature: valid, null_origin_allowed, shouldReject false", () => {
       process.env.NODE_ENV = "production";
       process.env.PIXEL_ALLOW_NULL_ORIGIN_WITH_SIGNATURE_ONLY = "true";
       const r = validatePixelOriginPreBody("null", true, true);
       expect(r.valid).toBe(true);
-      expect(r.reason).toBe("null_origin_allowed_with_signature");
+      expect(r.reason).toBe("null_origin_allowed");
       expect(r.shouldReject).toBe(false);
     });
   });
@@ -97,12 +97,12 @@ describe("validatePixelOriginPreBody", () => {
       expect(r.shouldReject).toBe(true);
     });
 
-    it("in production, PIXEL_ALLOW_NULL_ORIGIN_WITH_SIGNATURE_ONLY=true, originHeaderPresent false, hasSignature: valid, missing_origin_allowed_with_signature", () => {
+    it("in production, PIXEL_ALLOW_NULL_ORIGIN_WITH_SIGNATURE_ONLY=true, originHeaderPresent false, hasSignature: valid, missing_origin_allowed", () => {
       process.env.NODE_ENV = "production";
       process.env.PIXEL_ALLOW_NULL_ORIGIN_WITH_SIGNATURE_ONLY = "true";
       const r = validatePixelOriginPreBody(null, true, false);
       expect(r.valid).toBe(true);
-      expect(r.reason).toBe("missing_origin_allowed_with_signature");
+      expect(r.reason).toBe("missing_origin_allowed");
       expect(r.shouldReject).toBe(false);
     });
   });
@@ -206,12 +206,12 @@ describe("validatePixelOriginForShop", () => {
       expect(r.shouldReject).toBe(true);
     });
 
-    it("in production, PIXEL_ALLOW_NULL_ORIGIN_WITH_SIGNATURE_ONLY=true, hasSignature: valid, null_origin_allowed_with_signature", () => {
+    it("in production, PIXEL_ALLOW_NULL_ORIGIN_WITH_SIGNATURE_ONLY=true, hasSignature: valid, null_origin_allowed", () => {
       process.env.NODE_ENV = "production";
       process.env.PIXEL_ALLOW_NULL_ORIGIN_WITH_SIGNATURE_ONLY = "true";
       const r = validatePixelOriginForShop("null", allowed, { hasSignatureHeaderOrHMAC: true });
       expect(r.valid).toBe(true);
-      expect(r.reason).toBe("null_origin_allowed_with_signature");
+      expect(r.reason).toBe("null_origin_allowed");
       expect(r.shouldReject).toBe(false);
     });
   });

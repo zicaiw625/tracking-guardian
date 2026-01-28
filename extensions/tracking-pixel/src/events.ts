@@ -87,17 +87,23 @@ async function sendCheckoutCompletedWithRetry(
   headers: Record<string, string>,
   startTime: number
 ): Promise<void> {
+  const canAbort = typeof AbortController !== "undefined";
   for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+    let timeoutId: ReturnType<typeof setTimeout> | null = null;
+    let controller: InstanceType<typeof AbortController> | null = null;
+    if (canAbort) {
+      controller = new AbortController();
+      timeoutId = setTimeout(() => controller!.abort(), REQUEST_TIMEOUT_MS);
+    }
     try {
-      const response = await fetch(url, {
+      const fetchOpts: RequestInit = {
         method: "POST",
         headers: { "Content-Type": "application/json", ...headers },
         keepalive: true,
         body,
-        signal: controller.signal,
-      });
+        ...(controller ? { signal: controller.signal } : {}),
+      };
+      const response = await fetch(url, fetchOpts);
       if (isDevMode) {
         log(`checkout_completed sent, status: ${response.status}, attempt: ${attempt + 1}/${MAX_RETRIES}`);
       }
@@ -139,7 +145,9 @@ async function sendCheckoutCompletedWithRetry(
       }
       return;
     } finally {
-      clearTimeout(timeoutId);
+      if (canAbort && timeoutId !== null) {
+        clearTimeout(timeoutId);
+      }
     }
   }
 }
@@ -358,27 +366,48 @@ export function createEventSender(config: EventSenderConfig) {
         if (hasCheckoutCompleted) {
           await sendCheckoutCompletedWithRetry(url, body, isDevMode, log, headers, Date.now());
         } else {
-          const controller = new AbortController();
-          const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
-          fetch(url, {
-            method: "POST",
-            headers,
-            keepalive: true,
-            body,
-            signal: controller.signal,
-          })
-            .then((response) => {
-              if (!response.ok && isDevMode) {
-                log(`Batch send non-2xx (${batchEvents.length} events): ${response.status}`);
-              }
-              return response;
+          const canAbort = typeof AbortController !== "undefined";
+          if (canAbort) {
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+            fetch(url, {
+              method: "POST",
+              headers,
+              keepalive: true,
+              body,
+              signal: controller.signal,
             })
-            .finally(() => clearTimeout(timeoutId))
-            .catch((error) => {
-              if (isDevMode) {
-                log(`Batch send failed (${batchEvents.length} events):`, error);
-              }
-            });
+              .then((response) => {
+                if (!response.ok && isDevMode) {
+                  log(`Batch send non-2xx (${batchEvents.length} events): ${response.status}`);
+                }
+                return response;
+              })
+              .finally(() => clearTimeout(timeoutId))
+              .catch((error) => {
+                if (isDevMode) {
+                  log(`Batch send failed (${batchEvents.length} events):`, error);
+                }
+              });
+          } else {
+            fetch(url, {
+              method: "POST",
+              headers,
+              keepalive: true,
+              body,
+            })
+              .then((response) => {
+                if (!response.ok && isDevMode) {
+                  log(`Batch send non-2xx (${batchEvents.length} events): ${response.status}`);
+                }
+                return response;
+              })
+              .catch((error) => {
+                if (isDevMode) {
+                  log(`Batch send failed (${batchEvents.length} events):`, error);
+                }
+              });
+          }
         }
         if (isDevMode) {
           log(`Batch sent: ${batchEvents.length} events to /ingest (bytes=${utf8Length(body)})`);

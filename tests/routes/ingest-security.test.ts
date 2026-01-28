@@ -257,8 +257,8 @@ describe("/ingest Security Policy Tests", () => {
     });
   });
 
-  describe("Signature missing (strict mode) → 401", () => {
-    it("should reject request without signature in strict mode", async () => {
+  describe("Signature missing or invalid (HMAC optional) → 202", () => {
+    it("should accept request without signature (mark untrusted)", async () => {
       process.env.NODE_ENV = "production";
       process.env.SECURITY_ENFORCEMENT = "strict";
       const payload = createValidEventPayload("test-shop.myshopify.com");
@@ -268,12 +268,12 @@ describe("/ingest Security Policy Tests", () => {
       });
 
       const response = await action({ request, params: {}, context: {} });
-      expect(response.status).toBe(401);
+      expect(response.status).toBe(202);
       const data = await response.json();
-      expect(data.error).toBe("Invalid request");
+      expect(data.accepted_count).toBeDefined();
     });
 
-    it("should reject request with invalid signature in strict mode", async () => {
+    it("should accept request with invalid signature (mark untrusted)", async () => {
       process.env.NODE_ENV = "production";
       process.env.SECURITY_ENFORCEMENT = "strict";
       vi.mocked(verifyWithGraceWindowAsync).mockResolvedValue({
@@ -293,14 +293,14 @@ describe("/ingest Security Policy Tests", () => {
       });
 
       const response = await action({ request, params: {}, context: {} });
-      expect(response.status).toBe(401);
+      expect(response.status).toBe(202);
       const data = await response.json();
-      expect(data.error).toBe("Invalid request");
+      expect(data.accepted_count).toBeDefined();
     });
   });
 
-  describe("Production: non-critical event without signature (secret configured) → 401", () => {
-    it("should reject non-critical event without signature when shop has ingestion secret", async () => {
+  describe("Production: non-critical event without signature (secret configured) → 202", () => {
+    it("should accept non-critical event without signature when shop has ingestion secret (mark untrusted)", async () => {
       process.env.NODE_ENV = "production";
       const payload = createNonCriticalEventPayload("test-shop.myshopify.com");
       const request = createRequest(payload, {
@@ -309,9 +309,9 @@ describe("/ingest Security Policy Tests", () => {
       });
 
       const response = await action({ request, params: {}, context: {} });
-      expect(response.status).toBe(401);
+      expect(response.status).toBe(202);
       const data = await response.json();
-      expect(data.error).toBe("Invalid request");
+      expect(data.accepted_count).toBeDefined();
     });
   });
 

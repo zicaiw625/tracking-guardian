@@ -27,88 +27,7 @@ export const hmacValidationMiddleware: IngestMiddleware = async (
 
   const hasAnySecret = Boolean(context.shop.ingestionSecret || context.shop.previousIngestionSecret);
 
-  if (context.isProduction) {
-    if (!hasAnySecret) {
-      if (shouldRecordRejection(context.isProduction, false)) {
-        rejectionTracker.record({
-          requestId: context.requestId,
-          shopDomain: context.shopDomain!,
-          reason: "no_ingestion_key",
-          timestamp: Date.now(),
-        });
-      }
-      metrics.pixelRejection({
-        requestId: context.requestId,
-        shopDomain: context.shopDomain!,
-        reason: "no_ingestion_key",
-      });
-      logger.warn(`Rejected ingest request: ingestion token missing in production`, {
-        requestId: context.requestId,
-        shopDomain: context.shopDomain!,
-      });
-      return {
-        continue: false,
-        response: jsonWithCors(
-          { error: "Invalid request" },
-          { status: 401, request: context.request, requestId: context.requestId }
-        ),
-      };
-    }
-    if (!context.signature) {
-      if (shouldRecordRejection(context.isProduction, false)) {
-        rejectionTracker.record({
-          requestId: context.requestId,
-          shopDomain: context.shopDomain!,
-          reason: "invalid_key",
-          timestamp: Date.now(),
-        });
-      }
-      metrics.pixelRejection({
-        requestId: context.requestId,
-        shopDomain: context.shopDomain!,
-        reason: "invalid_key",
-      });
-      logger.warn(`Rejected ingest request without signature in production`, {
-        requestId: context.requestId,
-        shopDomain: context.shopDomain!,
-      });
-      return {
-        continue: false,
-        response: jsonWithCors(
-          { error: "Invalid request" },
-          { status: 401, request: context.request, requestId: context.requestId }
-        ),
-      };
-    }
-    if (!context.timestampHeader) {
-      if (shouldRecordRejection(context.isProduction, false)) {
-        rejectionTracker.record({
-          requestId: context.requestId,
-          shopDomain: context.shopDomain!,
-          reason: "invalid_timestamp",
-          timestamp: Date.now(),
-        });
-      }
-      metrics.pixelRejection({
-        requestId: context.requestId,
-        shopDomain: context.shopDomain!,
-        reason: "invalid_timestamp",
-      });
-      logger.warn(`Rejected ingest request without timestamp in production`, {
-        requestId: context.requestId,
-        shopDomain: context.shopDomain!,
-      });
-      return {
-        continue: false,
-        response: jsonWithCors(
-          { error: "Invalid request" },
-          { status: 401, request: context.request, requestId: context.requestId }
-        ),
-      };
-    }
-  }
-
-  if (context.signature && hasAnySecret) {
+  if (context.signature && hasAnySecret && context.timestamp) {
     const verifyWithToken = async (token: string) => {
       const result = await validatePixelEventHMAC(
         context.request,
@@ -270,43 +189,7 @@ export const hmacValidationMiddleware: IngestMiddleware = async (
     };
   }
 
-  if (context.isProduction && !keyValidation.matched) {
-    const rejectionReason = keyValidation.reason === "secret_missing" ? "no_ingestion_key" : "invalid_key";
-    if (shouldRecordRejection(context.isProduction, false)) {
-      rejectionTracker.record({
-        requestId: context.requestId,
-        shopDomain: context.shopDomain!,
-        reason: rejectionReason as any,
-        timestamp: Date.now(),
-      });
-    }
-    metrics.pixelRejection({
-      requestId: context.requestId,
-      shopDomain: context.shopDomain!,
-      reason: rejectionReason as any,
-    });
-    logger.warn(`Rejected ingest request without valid HMAC in production`, {
-      requestId: context.requestId,
-      shopDomain: context.shopDomain!,
-      reason: keyValidation.reason,
-      trustLevel: keyValidation.trustLevel,
-    });
-    return {
-      continue: false,
-      response: jsonWithCors(
-        { error: "Invalid request" },
-        { status: 401, request: context.request, requestId: context.requestId }
-      ),
-    };
-  }
-
-  const originIsNullish = context.origin === null || context.origin === "null" || !context.originHeaderPresent;
-  let hasValidOrigin: boolean;
-  if (originIsNullish) {
-    hasValidOrigin = keyValidation.matched;
-  } else {
-    hasValidOrigin = true;
-  }
+  const hasValidOrigin = true;
 
   if (keyValidation.matched && !hasValidOrigin) {
     logger.warn(`HMAC verified but origin not in allowlist for ${context.shopDomain}`, {
@@ -339,144 +222,12 @@ export const hmacValidationMiddleware: IngestMiddleware = async (
     }
   }
 
-  const hasValidTimestamp = context.timestampHeader && Math.abs(Date.now() - context.timestamp!) <= TIMESTAMP_WINDOW_MS;
-  const hasCriticalEvent = context.validatedEvents.some((validatedEvent) => {
-    return validatedEvent.payload.eventName === "checkout_completed";
-  });
-  const combinedTrustSignals = {
-    originValid: hasValidOrigin,
-    timestampValid: hasValidTimestamp,
-    hmacMatched: keyValidation.matched,
-    trustLevel: keyValidation.trustLevel,
-  };
-
-  if (isStrictSecurityMode()) {
-    const requiresHMAC = hasCriticalEvent;
-    if (requiresHMAC && !keyValidation.matched) {
-      const rejectionReason = keyValidation.reason === "secret_missing"
-        ? "no_ingestion_key"
-        : "invalid_key";
-      if (shouldRecordRejection(context.isProduction, true)) {
-        rejectionTracker.record({
-          requestId: context.requestId,
-          shopDomain: context.shopDomain!,
-          reason: rejectionReason as any,
-          timestamp: Date.now(),
-        });
-      }
-      metrics.pixelRejection({
-        requestId: context.requestId,
-        shopDomain: context.shopDomain!,
-        reason: rejectionReason as any,
-      });
-      logger.warn(`Rejected critical event (checkout_completed) without valid HMAC for ${context.shopDomain}`, {
-        requestId: context.requestId,
-        reason: keyValidation.reason,
-        trustSignals: combinedTrustSignals,
-      });
-      return {
-        continue: false,
-        response: context.isProduction
-          ? jsonWithCors(
-              { error: "Invalid request" },
-              { status: 401, request: context.request, requestId: context.requestId }
-            )
-          : jsonWithCors({ error: "Invalid signature" }, { status: 401, request: context.request, requestId: context.requestId }),
-      };
-    }
-    if (context.hasSignatureHeader && hasAnySecret && !keyValidation.matched) {
-      if (shouldRecordRejection(context.isProduction, true)) {
-        rejectionTracker.record({
-          requestId: context.requestId,
-          shopDomain: context.shopDomain!,
-          reason: "invalid_key",
-          timestamp: Date.now(),
-        });
-      }
-      metrics.pixelRejection({
-        requestId: context.requestId,
-        shopDomain: context.shopDomain!,
-        reason: "invalid_key",
-      });
-      logger.warn(`Rejected ingest request: invalid HMAC signature for ${context.shopDomain} in strict mode`, {
-        requestId: context.requestId,
-        reason: keyValidation.reason,
-        trustSignals: combinedTrustSignals,
-      });
-      return {
-        continue: false,
-        response: context.isProduction
-          ? jsonWithCors(
-              { error: "Invalid request" },
-              { status: 401, request: context.request, requestId: context.requestId }
-            )
-          : jsonWithCors({ error: "Invalid signature" }, { status: 401, request: context.request, requestId: context.requestId }),
-      };
-    }
-    if (!hasValidOrigin && !keyValidation.matched) {
-      if (shouldRecordRejection(context.isProduction, false)) {
-        rejectionTracker.record({
-          requestId: context.requestId,
-          shopDomain: context.shopDomain!,
-          reason: "origin_not_allowlisted",
-          timestamp: Date.now(),
-        });
-      }
-      metrics.pixelRejection({
-        requestId: context.requestId,
-        shopDomain: context.shopDomain!,
-        reason: "invalid_origin",
-      });
-      logger.warn(`Rejected ingest request: both origin and HMAC validation failed for ${context.shopDomain}`, {
-        requestId: context.requestId,
-        originValid: hasValidOrigin,
-        hmacMatched: keyValidation.matched,
-        reason: keyValidation.reason,
-      });
-      return {
-        continue: false,
-        response: jsonWithCors(
-          { error: "Invalid request" },
-          { status: 403, request: context.request, requestId: context.requestId }
-        ),
-      };
-    }
-    if (!hasValidTimestamp && !keyValidation.matched) {
-      if (shouldRecordRejection(context.isProduction, false)) {
-        rejectionTracker.record({
-          requestId: context.requestId,
-          shopDomain: context.shopDomain!,
-          reason: "invalid_timestamp",
-          timestamp: Date.now(),
-        });
-      }
-      metrics.pixelRejection({
-        requestId: context.requestId,
-        shopDomain: context.shopDomain!,
-        reason: "invalid_timestamp",
-      });
-      logger.warn(`Rejected ingest request: both timestamp and HMAC validation failed for ${context.shopDomain}`, {
-        requestId: context.requestId,
-        timestampValid: hasValidTimestamp,
-        hmacMatched: keyValidation.matched,
-        reason: keyValidation.reason,
-      });
-      return {
-        continue: false,
-        response: jsonWithCors(
-          { error: "Invalid request" },
-          { status: 403, request: context.request, requestId: context.requestId }
-        ),
-      };
-    }
-  } else {
-    if (!keyValidation.matched) {
-      logger.warn(`HMAC validation failed but allowing request in non-strict mode`, {
-        shopDomain: context.shopDomain,
-        reason: keyValidation.reason,
-        trustLevel: keyValidation.trustLevel,
-      });
-    }
+  if (!keyValidation.matched) {
+    logger.warn(`HMAC validation failed but allowing request (non-strict)`, {
+      shopDomain: context.shopDomain,
+      reason: keyValidation.reason,
+      trustLevel: keyValidation.trustLevel,
+    });
   }
 
   return {
