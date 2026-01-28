@@ -860,39 +860,13 @@ export default function OnboardingPage() {
                     </InlineStack>
                   </Box>
                 </BlockStack>
-                <Banner tone="critical">
+                <Banner tone="info">
                   <BlockStack gap="200">
                     <Text as="p" variant="bodySm" fontWeight="semibold">
-                      ⚠️ 重要提示：Order Status 模块需要 Customer Accounts
+                      重要提示：页面侧自定义需要单独迁移
                     </Text>
                     <Text as="p" variant="bodySm">
-                      v1 不提供 Order Status 页面模块（如 Reorder、Survey 等）。Order status 模块仅支持 Customer Accounts 体系下的订单状态页，不支持旧版订单状态页。这是 Shopify 平台的设计限制。
-                    </Text>
-                    <Text as="p" variant="bodySm" fontWeight="semibold">
-                      如何检查并启用 Customer Accounts：
-                    </Text>
-                    <List type="number">
-                      <List.Item>
-                        前往 Shopify Admin → 设置 → 客户账户（Settings → Customer accounts）
-                      </List.Item>
-                      <List.Item>
-                        确认 Customer Accounts 功能已启用：如果设置页面显示"客户账户"或"Customer Accounts"选项，说明已启用。如果页面显示"客户账户"相关设置选项（如登录方式、注册方式等），说明 Customer Accounts 已启用
-                      </List.Item>
-                      <List.Item>
-                        如何确认店铺是否支持 Customer Accounts：如果 Shopify Admin → 设置中没有"客户账户"或"Customer Accounts"选项，说明您的店铺当前不支持 Customer Accounts 功能。某些地区、店铺类型或 Shopify 计划可能暂时不支持 Customer Accounts。请以 Shopify Admin 中的实际选项为准
-                      </List.Item>
-                      <List.Item>
-                        如果支持但未启用：请按照 Shopify 官方指引启用 Customer Accounts 功能。启用后，订单状态页将自动切换到 Customer Accounts 体系，旧版订单状态页将不再使用
-                      </List.Item>
-                      <List.Item>
-                        如果店铺不支持 Customer Accounts：Order Status 模块将无法使用。这是 Shopify 平台的设计限制，Order Status 模块只能在 Customer Accounts 体系下工作
-                      </List.Item>
-                    </List>
-                    <Text as="p" variant="bodySm" fontWeight="semibold">
-                      文档引用说明（避免误导）：
-                    </Text>
-                    <Text as="p" variant="bodySm">
-                      请参考 <strong>Customer Accounts UI Extensions</strong> 官方文档（<Link url="https://shopify.dev/docs/apps/customer-accounts/ui-extensions" external>https://shopify.dev/docs/apps/customer-accounts/ui-extensions</Link>）。<strong>重要：不要参考 checkout-ui-extensions 文档</strong>，该文档可能显示此 target 为"Not supported"，这是文档版本差异导致的误导。正确的文档入口是 Customer Accounts UI Extensions，不是 Checkout UI Extensions。请务必使用 Customer Accounts UI Extensions 文档作为参考。
+                      本应用不提供 Thank you / Order status 页面模块库。若您的 Additional Scripts/页面逻辑依赖旧体验，请按 Shopify 官方能力与审核要求进行迁移与验证。
                     </Text>
                   </BlockStack>
                 </Banner>

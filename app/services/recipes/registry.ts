@@ -1,10 +1,11 @@
 import type { MigrationRecipe } from "./types";
+import { FEATURE_FLAGS } from "~/utils/config.server";
 
 export const GA4_BASIC_RECIPE: MigrationRecipe = {
   id: "ga4-basic",
   version: "1.0.0",
   name: "Google Analytics 4 (GA4) 基础追踪",
-  description: "将 GA4 追踪从 ScriptTag/gtag.js 迁移到 Web Pixel + Measurement Protocol",
+  description: "将 GA4 追踪从 ScriptTag/gtag.js 迁移到 Web Pixel（服务端投递为规划项）",
   category: "analytics",
   difficulty: "easy",
   status: "stable",
@@ -21,7 +22,7 @@ export const GA4_BASIC_RECIPE: MigrationRecipe = {
   },
   target: {
     type: "server_capi",
-    fullSupport: true,
+    fullSupport: false,
   },
   configFields: [
     {
@@ -60,7 +61,7 @@ export const GA4_BASIC_RECIPE: MigrationRecipe = {
     {
       order: 3,
       title: "验证追踪",
-      description: "完成测试订单，检查 GA4 实时报告中是否收到 purchase 事件",
+      description: "完成测试订单，运行验收并确认事件收据与参数完整率",
       actionType: "manual",
       estimatedMinutes: 5,
       helpUrl: "https://support.google.com/analytics/answer/9304153",
@@ -98,7 +99,7 @@ export const META_CAPI_RECIPE: MigrationRecipe = {
   id: "meta-capi",
   version: "1.0.0",
   name: "Meta (Facebook) Conversions API",
-  description: "将 Meta Pixel 从 fbq() 迁移到 Conversions API 服务端追踪",
+  description: "将 Meta Pixel 从 fbq() 迁移到 Web Pixel（服务端投递为规划项）",
   category: "advertising",
   difficulty: "easy",
   status: "stable",
@@ -115,7 +116,7 @@ export const META_CAPI_RECIPE: MigrationRecipe = {
   },
   target: {
     type: "server_capi",
-    fullSupport: true,
+    fullSupport: false,
   },
   configFields: [
     {
@@ -153,7 +154,7 @@ export const META_CAPI_RECIPE: MigrationRecipe = {
     },
     {
       order: 2,
-      title: "配置 Meta CAPI 凭证",
+      title: "配置平台凭证（规划项）",
       description: "输入您的 Pixel ID 和 Access Token",
       actionType: "config",
       estimatedMinutes: 2,
@@ -168,7 +169,7 @@ export const META_CAPI_RECIPE: MigrationRecipe = {
     {
       order: 4,
       title: "验证追踪",
-      description: "完成测试订单，检查 Events Manager 中是否收到 Purchase 事件",
+      description: "完成测试订单，运行验收并确认事件收据与参数完整率",
       actionType: "manual",
       estimatedMinutes: 5,
       helpUrl: "https://support.google.com/analytics/answer/9304153",
@@ -176,7 +177,7 @@ export const META_CAPI_RECIPE: MigrationRecipe = {
     {
       order: 5,
       title: "清理旧 Pixel 代码",
-      description: "确认 CAPI 正常后，删除旧的 fbq() 代码",
+      description: "确认 Web Pixel 验收通过后，删除旧的 fbq() 代码",
       actionType: "manual",
       estimatedMinutes: 2,
     },
@@ -205,8 +206,8 @@ export const META_CAPI_RECIPE: MigrationRecipe = {
 export const TIKTOK_EVENTS_RECIPE: MigrationRecipe = {
   id: "tiktok-events",
   version: "1.0.0",
-  name: "TikTok Events API",
-  description: "将 TikTok Pixel 从 ttq.track() 迁移到 Events API 服务端追踪",
+  name: "TikTok（规划项）",
+  description: "将 TikTok Pixel 从 ttq.track() 迁移到 Web Pixel（服务端投递为规划项）",
   category: "advertising",
   difficulty: "easy",
   status: "stable",
@@ -223,7 +224,7 @@ export const TIKTOK_EVENTS_RECIPE: MigrationRecipe = {
   },
   target: {
     type: "server_capi",
-    fullSupport: true,
+    fullSupport: false,
   },
   configFields: [
     {
@@ -259,7 +260,7 @@ export const TIKTOK_EVENTS_RECIPE: MigrationRecipe = {
     },
     {
       order: 2,
-      title: "配置 TikTok Events API 凭证",
+      title: "配置平台凭证（规划项）",
       description: "输入您的 Pixel ID 和 Access Token",
       actionType: "config",
       estimatedMinutes: 2,
@@ -267,14 +268,14 @@ export const TIKTOK_EVENTS_RECIPE: MigrationRecipe = {
     {
       order: 3,
       title: "验证追踪",
-      description: "完成测试订单，检查 TikTok Events Manager 中是否收到事件",
+      description: "完成测试订单，运行验收并确认事件收据与参数完整率",
       actionType: "manual",
       estimatedMinutes: 5,
     },
     {
       order: 4,
       title: "清理旧 Pixel 代码",
-      description: "确认 Events API 正常后，删除旧的 ttq 代码",
+      description: "确认 Web Pixel 验收通过后，删除旧的 ttq 代码",
       actionType: "manual",
       estimatedMinutes: 2,
     },
@@ -294,108 +295,7 @@ export const TIKTOK_EVENTS_RECIPE: MigrationRecipe = {
   icon: "🎵",
   docsUrl: "https://developers.google.com/analytics/devguides/collection/protocol/ga4",
 };
-export const SURVEY_MIGRATION_RECIPE: MigrationRecipe = {
-  id: "survey-migration",
-  version: "1.0.0",
-  name: "购后问卷迁移",
-  description: "将购后问卷从 Additional Scripts 迁移到 Checkout UI Extension",
-  category: "survey",
-  difficulty: "easy",
-  status: "stable",
-  source: {
-    type: "additional_scripts",
-    platform: "survey",
-    detectionPatterns: [
-      {
-        patterns: [/fairing/i, /enquirelabs/i, /knocommerce/i, /zigpoll/i],
-        keywords: ["survey", "post-purchase-survey"],
-        confidence: 0.8,
-      },
-    ],
-  },
-  target: {
-    type: "checkout_ui",
-    fullSupport: true,
-  },
-  configFields: [
-    {
-      key: "surveyTitle",
-      label: "问卷标题",
-      type: "text",
-      description: "显示在问卷顶部的标题",
-      required: true,
-      defaultValue: "帮助我们改进",
-    },
-    {
-      key: "surveyQuestion",
-      label: "问卷问题",
-      type: "text",
-      description: "要问客户的问题",
-      required: true,
-      defaultValue: "您是如何了解我们的？",
-    },
-    {
-      key: "webhookUrl",
-      label: "数据 Webhook URL (可选)",
-      type: "text",
-      description: "问卷回复发送到的 webhook 端点",
-      required: false,
-    },
-  ],
-  steps: [
-    {
-      order: 1,
-      title: "启用问卷 UI Extension",
-      description: "在 Shopify 后台启用 Tracking Guardian 的问卷组件",
-      actionType: "manual",
-      estimatedMinutes: 2,
-    },
-    {
-      order: 2,
-      title: "配置问卷内容",
-      description: "设置问卷标题、问题和选项",
-      actionType: "config",
-      estimatedMinutes: 3,
-    },
-    {
-      order: 3,
-      title: "配置数据接收",
-      description: "（可选）设置 webhook 接收问卷回复",
-      actionType: "config",
-      estimatedMinutes: 2,
-    },
-    {
-      order: 4,
-      title: "测试问卷",
-      description: "完成测试订单，验证问卷显示和数据收集",
-      actionType: "manual",
-      estimatedMinutes: 5,
-    },
-    {
-      order: 5,
-      title: "禁用旧问卷代码",
-      description: "删除 Additional Scripts 中的旧问卷代码",
-      actionType: "manual",
-      estimatedMinutes: 2,
-    },
-  ],
-  validationTests: [
-    {
-      name: "survey_displayed",
-      description: "验证问卷在 Thank You 页面显示",
-      type: "manual",
-    },
-    {
-      name: "submission_works",
-      description: "验证问卷可以提交",
-      type: "manual",
-    },
-  ],
-  trackedEvents: ["survey_submitted"],
-  estimatedTimeMinutes: 14,
-  tags: ["survey", "checkout-ui", "post-purchase"],
-  icon: "📋",
-};
+ 
 export const CUSTOM_WEBHOOK_RECIPE: MigrationRecipe = {
   id: "custom-webhook",
   version: "1.0.0",
@@ -502,13 +402,20 @@ export const CUSTOM_WEBHOOK_RECIPE: MigrationRecipe = {
   tags: ["webhook", "custom", "integration"],
   icon: "🔗",
 };
-export const RECIPE_REGISTRY: MigrationRecipe[] = [
+
+const BASE_RECIPES: MigrationRecipe[] = [
+  CUSTOM_WEBHOOK_RECIPE,
+];
+
+const TRACKING_API_RECIPES: MigrationRecipe[] = [
   GA4_BASIC_RECIPE,
   META_CAPI_RECIPE,
   TIKTOK_EVENTS_RECIPE,
-  SURVEY_MIGRATION_RECIPE,
-  CUSTOM_WEBHOOK_RECIPE,
 ];
+
+export const RECIPE_REGISTRY: MigrationRecipe[] = FEATURE_FLAGS.TRACKING_API
+  ? [...TRACKING_API_RECIPES, ...BASE_RECIPES]
+  : [...BASE_RECIPES];
 export function getRecipeById(id: string): MigrationRecipe | undefined {
   return RECIPE_REGISTRY.find(recipe => recipe.id === id);
 }

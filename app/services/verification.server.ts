@@ -653,7 +653,7 @@ export function generateTestOrderGuide(runType: "quick" | "full" | "custom"): {
     estimatedTime: runType === "full" ? "15-20 分钟" : "5-10 分钟",
     tips: [
       "使用开发商店或测试模式，避免产生真实费用",
-      "确保 Web Pixel 已安装且 CAPI 凭证已配置",
+      "确保 Web Pixel 已安装并完成测试订单验收",
       "在 Shopify 后台启用 Bogus Gateway 或 Shopify Payments 测试模式",
       "如果使用隐身模式，确保接受 cookie 和追踪同意",
     ],

@@ -1,7 +1,7 @@
 export type Platform = "google" | "meta" | "tiktok";
 
 export const PLATFORM_DISPLAY_NAMES: Record<Platform, string> = {
-  google: "GA4 (Measurement Protocol)",
+  google: "GA4",
   meta: "Meta (Facebook)",
   tiktok: "TikTok",
 };

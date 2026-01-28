@@ -35,10 +35,6 @@ vi.mock("../../app/db.server", () => ({
       deleteMany: vi.fn().mockResolvedValue({ count: 0 }),
       count: vi.fn().mockResolvedValue(0),
     },
-    surveyResponse: {
-      findMany: vi.fn().mockResolvedValue([]),
-      deleteMany: vi.fn().mockResolvedValue({ count: 0 }),
-    },
     verificationRun: { count: vi.fn().mockResolvedValue(0) },
     scanReport: { count: vi.fn().mockResolvedValue(0) },
     auditAsset: { count: vi.fn().mockResolvedValue(0) },

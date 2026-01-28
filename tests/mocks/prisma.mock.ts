@@ -14,7 +14,6 @@ export interface MockPrismaClient {
   monthlyUsage: MockModel;
   webhookLog: MockModel;
   session: MockModel;
-  surveyResponse: MockModel;
   gDPRJob: MockModel;
   auditAsset: MockModel;
   verificationRun: MockModel;
@@ -74,7 +73,6 @@ export function createMockPrismaClient(): MockPrismaClient {
     monthlyUsage: createMockModel(),
     webhookLog: createMockModel(),
     session: createMockModel(),
-    surveyResponse: createMockModel(),
     gDPRJob: createMockModel(),
     auditAsset: createMockModel(),
     verificationRun: createMockModel(),

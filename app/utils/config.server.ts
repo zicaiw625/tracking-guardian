@@ -196,21 +196,14 @@ export function validateConfig(): ConfigValidationResult {
   }
   if (isProduction) {
     const raw = process.env.PIXEL_ALLOW_NULL_ORIGIN_WITH_SIGNATURE_ONLY?.toLowerCase().trim();
-    if (!raw) {
-      errors.push(
-        `PIXEL_ALLOW_NULL_ORIGIN_WITH_SIGNATURE_ONLY must be explicitly set in production (allowed: true/false/1/0). ${PIXEL_INGESTION_ENABLED_CHECK.reason}`
-      );
-    } else if (!["true", "1", "false", "0"].includes(raw)) {
+    if (raw && !["true", "1", "false", "0"].includes(raw)) {
       errors.push(
         `PIXEL_ALLOW_NULL_ORIGIN_WITH_SIGNATURE_ONLY has invalid value in production (allowed: true/false/1/0). Current: ${process.env.PIXEL_ALLOW_NULL_ORIGIN_WITH_SIGNATURE_ONLY}`
       );
-    } else {
-      const enabled = raw === "true" || raw === "1";
-      if (!enabled) {
-        warnings.push(
-          `PIXEL_ALLOW_NULL_ORIGIN_WITH_SIGNATURE_ONLY=false in production: null/missing Origin pixel requests will be rejected (events may be lost). ${PIXEL_INGESTION_ENABLED_CHECK.reason}`
-        );
-      }
+    } else if (raw === "false" || raw === "0") {
+      warnings.push(
+        `PIXEL_ALLOW_NULL_ORIGIN_WITH_SIGNATURE_ONLY=false in production: null/missing Origin pixel requests will be rejected (events may be lost). ${PIXEL_INGESTION_ENABLED_CHECK.reason}`
+      );
     }
   }
   if (isProduction) {
@@ -415,8 +408,6 @@ export function getRateLimitForEndpoint(endpoint: string): { maxRequests: number
   switch (endpoint) {
     case "pixel-events":
       return RATE_LIMIT_CONFIG.PIXEL_EVENTS;
-    case "survey":
-      return RATE_LIMIT_CONFIG.SURVEY;
     case "tracking":
       return RATE_LIMIT_CONFIG.TRACKING;
     default:
@@ -521,7 +512,6 @@ export function getConfigSummary(): Record<string, unknown> {
     },
     rateLimit: {
       pixelEvents: CONFIG.rateLimit.PIXEL_EVENTS,
-      survey: CONFIG.rateLimit.SURVEY,
       maxKeys: CONFIG.rateLimit.MAX_KEYS,
     },
     circuitBreaker: {

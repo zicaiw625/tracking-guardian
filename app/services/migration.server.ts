@@ -30,19 +30,18 @@ export function generatePixelCode(config: MigrationConfig): MigrationResult {
         if (!supportedPlatforms.includes(config.platform)) {
             throw new Error(`Unsupported platform: ${config.platform}. Tracking Guardian supports Google, Meta, and TikTok.`);
         }
-        const serverSideInstructions = [
+        const instructions = [
             "1. 前往 Tracking Guardian「迁移」页面，点击「一键启用 App Pixel」",
-            "2. 前往「设置」页面，在「服务端追踪」部分配置平台凭证",
-            "3. 创建测试订单，在「监控」页面验证转化事件已发送",
-            "4. 手动删除旧的 ScriptTag 或 Additional Scripts（参考「扫描」页面的清理指南）",
+            "2. 创建测试订单，在「验收」页面查看事件收据与参数完整率",
+            "3. 手动删除旧的 ScriptTag 或 Additional Scripts（参考「扫描」页面的清理指南）",
             "",
-            "💡 Tracking Guardian 使用服务端 Conversions API，无需粘贴任何客户端代码。",
+            "💡 当前版本以 Web Pixel → /ingest → 去重/落库/验收 为主，服务端投递能力为规划项。",
         ];
         return {
             success: true,
             platform: config.platform,
             pixelCode: "",
-            instructions: serverSideInstructions,
+            instructions,
         };
     }
     catch (error) {
@@ -573,7 +572,7 @@ export function getScriptTagDeletionGuidance(scriptTagId: number, shopDomain?: s
             "5. 联系 Shopify 支持获取帮助，提供 ScriptTag ID: " + scriptTagId,
             "",
             "💡 提示：安装 Tracking Guardian 的 Web Pixel 后，旧的 ScriptTag 可以安全删除，",
-            "   因为服务端 CAPI 将接管所有转化追踪功能。",
+            "   因为当前版本以 Web Pixel → /ingest → 落库/验收 为主，可用验收结果确认迁移是否成功。",
         ],
         adminUrl,
         platform,
@@ -587,10 +586,9 @@ export function getScriptTagMigrationGuidance(platform: string, _scriptTagId: nu
     warning?: string;
 } {
     const baseSteps = [
-        "1. 在 Tracking Guardian「设置」页面配置该平台的 CAPI 凭证",
-        "2. 在「迁移」页面安装 Web Pixel（如尚未安装）",
-        "3. 验证新的追踪配置正常工作（查看「监控」页面）",
-        "4. 删除旧的 ScriptTag（可使用上方删除按钮或手动操作）",
+        "1. 在「迁移」页面启用 App Pixel（如尚未启用）",
+        "2. 创建测试订单并运行验收（查看事件收据与参数完整率）",
+        "3. 删除旧的 ScriptTag（可使用上方删除按钮或手动操作）",
     ];
     const platformGuidance: Record<string, {
         title: string;
@@ -600,23 +598,20 @@ export function getScriptTagMigrationGuidance(platform: string, _scriptTagId: nu
         google: {
             title: "Google Analytics / Google Ads 迁移",
             extraSteps: [
-                "• GA4: 配置 Measurement ID (G-XXXXXX) 和 API Secret",
-                "• Google Ads: 在 GA4 中设置「从 GA4 导入转化」",
+                "• GA4: 启用 Web Pixel 后跑一次验收，确认 purchase 事件与金额/币种参数完整",
+                "• Google Ads: 建议使用 Shopify 官方 Google 应用（按官方路径配置 Enhanced Conversions）",
             ],
         },
         meta: {
             title: "Meta (Facebook) Pixel 迁移",
             extraSteps: [
-                "• 在 Meta Events Manager 生成 Conversions API Access Token",
-                "• 配置 Pixel ID 和 Access Token",
-                "• 可选: 使用 Test Event Code 进行测试",
+                "• 启用 Web Pixel 后跑一次验收，确认 Purchase 事件与关键参数完整",
             ],
         },
         tiktok: {
             title: "TikTok Pixel 迁移",
             extraSteps: [
-                "• 在 TikTok Events Manager 生成 Access Token",
-                "• 配置 Pixel ID 和 Access Token",
+                "• 启用 Web Pixel 后跑一次验收，确认 CompletePayment 事件与关键参数完整",
             ],
         },
     };

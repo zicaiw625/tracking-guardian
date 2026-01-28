@@ -22,7 +22,7 @@ export async function processCustomerRedact(
   }
   const orderIdStrings = ordersToRedact.map((id: number | string) => String(id));
   const allOrderIdPatterns = orderIdStrings;
-  const [pixelReceiptResult, surveyResponseResult] = await Promise.all([
+  const [pixelReceiptResult] = await Promise.all([
     prisma.pixelEventReceipt.deleteMany({
       where: {
         shopId: shop.id,
@@ -30,12 +30,6 @@ export async function processCustomerRedact(
           { orderKey: { in: allOrderIdPatterns } },
           { altOrderKey: { in: allOrderIdPatterns } },
         ],
-      },
-    }),
-    prisma.surveyResponse.deleteMany({
-      where: {
-        shopId: shop.id,
-        orderId: { in: allOrderIdPatterns },
       },
     }),
   ]);
@@ -46,7 +40,6 @@ export async function processCustomerRedact(
       conversionLogs: 0,
       conversionJobs: 0,
       pixelEventReceipts: pixelReceiptResult.count,
-      surveyResponses: surveyResponseResult.count,
     },
   };
   logger.info(`[GDPR] Customer redact completed for ${shopDomain}`, {

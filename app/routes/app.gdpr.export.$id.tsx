@@ -32,7 +32,6 @@ function sanitizeResult(result: unknown): Record<string, unknown> | null {
     "conversionLogs",
     "conversionJobs",
     "pixelEventReceipts",
-    "surveyResponses",
     "sessions",
     "webhookLogs",
     "gdprJobs",
@@ -42,7 +41,7 @@ function sanitizeResult(result: unknown): Record<string, unknown> | null {
     "pixelConfigs",
     "shop",
   ]);
-  const dataLocated = pickObject(r.dataLocated, ["conversionLogs", "surveyResponses", "pixelEventReceipts"]);
+  const dataLocated = pickObject(r.dataLocated, ["conversionLogs", "pixelEventReceipts"]);
   const summarizeLocated = (v: unknown) => pickObject(v, ["count"]);
   return {
     ordersIncludedCount: typeof r.ordersIncludedCount === "number" ? r.ordersIncludedCount : undefined,
@@ -50,7 +49,6 @@ function sanitizeResult(result: unknown): Record<string, unknown> | null {
     dataLocated: dataLocated
       ? {
           conversionLogs: summarizeLocated((dataLocated as Record<string, unknown>).conversionLogs),
-          surveyResponses: summarizeLocated((dataLocated as Record<string, unknown>).surveyResponses),
           pixelEventReceipts: summarizeLocated((dataLocated as Record<string, unknown>).pixelEventReceipts),
         }
       : undefined,

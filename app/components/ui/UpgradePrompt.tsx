@@ -47,10 +47,10 @@ const FEATURE_INFO: Record<
   },
   ui_modules: {
     name: "UI 模块",
-    description: "Thank you / Order status 页面模块（v1 不提供）",
+    description: "Thank you / Order status 页面侧自定义（以 Shopify 官方能力为准）",
     requiredPlan: "starter",
     featureList: [
-      "基于 Customer Accounts UI Extensions 的合规实现",
+      "当前版本不提供页面模块库",
     ],
   },
   verification: {

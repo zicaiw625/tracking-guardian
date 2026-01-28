@@ -49,7 +49,7 @@ export interface DashboardData {
   configuredPlatforms: number;
   weeklyConversions: number;
   hasAlertConfig: boolean;
-  hasServerSideConfig: boolean;
+  hasEnabledPixelConfig: boolean;
   plan: string;
   planId?: import("../utils/plans").PlanId;
   planLabel?: string;
@@ -141,10 +141,10 @@ export function getSetupSteps(data: DashboardData): SetupStep[] {
     {
       id: "migrate",
       label: "迁移设置",
-      description: "配置服务端转化追踪",
+      description: "配置像素映射并完成验收",
       cta: "配置迁移",
       url: "/app/pixels",
-      done: data.hasServerSideConfig,
+      done: data.hasEnabledPixelConfig,
     },
     {
       id: "alerts",

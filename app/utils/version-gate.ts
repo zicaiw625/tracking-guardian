@@ -13,7 +13,8 @@ export function checkV1FeatureBoundary(
   switch (feature) {
     case "server_side":
       return {
-        allowed: true,
+        allowed: false,
+        reason: "服务端投递能力在当前版本默认关闭（规划中）",
       };
     case "upsell":
       return {
@@ -33,7 +34,7 @@ export function checkV1FeatureBoundary(
 }
 
 export function isModuleAvailableInV1(moduleKey: string): boolean {
-  const v1AvailableModules = ["survey", "helpdesk", "reorder"];
+  const v1AvailableModules: string[] = [];
   return v1AvailableModules.includes(moduleKey);
 }
 

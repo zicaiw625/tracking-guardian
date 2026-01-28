@@ -151,7 +151,6 @@ export type {
 
 export type {
   ApiResponse,
-  SurveyResponseData,
   ShopData,
   RiskSeverity,
   RiskItem,

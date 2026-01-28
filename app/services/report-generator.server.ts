@@ -42,12 +42,12 @@ export function extractRequiredInfo(params: RequiredInfoParams): string {
       info.push("需要配置事件映射");
     }
   } else if (suggestedMigration === "ui_extension") {
-    info.push("需要创建 Checkout UI Extension");
+    info.push("需要按 Shopify 官方能力手动迁移页面逻辑");
     if (category === "survey" || category === "helpdesk" || category === "reorder") {
       info.push(`模块类型: ${category}`);
     }
   } else if (suggestedMigration === "server_side") {
-    info.push("需要配置服务器端 API");
+    info.push("当前版本不提供服务端投递");
     if (platform) {
       info.push(`平台: ${platform}`);
     }

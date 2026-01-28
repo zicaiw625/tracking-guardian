@@ -10,26 +10,36 @@ import {
   GA4_BASIC_RECIPE,
   META_CAPI_RECIPE,
   TIKTOK_EVENTS_RECIPE,
-  SURVEY_MIGRATION_RECIPE,
   CUSTOM_WEBHOOK_RECIPE,
 } from "../../../app/services/recipes/registry";
 import type { ScriptTag } from "../../../app/types";
 
 describe("Recipe Matcher", () => {
+  const trackingApiEnabled =
+    process.env.FEATURE_TRACKING_API === "true" || process.env.FEATURE_TRACKING_API === "1";
   describe("matchScriptToRecipes", () => {
     describe("Google Analytics Detection", () => {
       it("should match gtag function calls to GA4 recipe", () => {
         const content = "gtag('config', 'G-XXXXXXXX');";
         const matches = matchScriptToRecipes(content);
         expect(matches.length).toBeGreaterThan(0);
-        expect(matches[0].recipe.id).toBe("ga4-basic");
+        const ga4Match = matches.find(m => m.recipe.id === "ga4-basic");
+        if (trackingApiEnabled) {
+          expect(ga4Match).toBeDefined();
+        } else {
+          expect(ga4Match).toBeUndefined();
+        }
       });
       it("should match GA4 measurement ID", () => {
         const content = "var measurementId = 'G-ABCDEF1234';";
         const matches = matchScriptToRecipes(content);
         expect(matches.length).toBeGreaterThan(0);
         const ga4Match = matches.find(m => m.recipe.id === "ga4-basic");
-        expect(ga4Match).toBeDefined();
+        if (trackingApiEnabled) {
+          expect(ga4Match).toBeDefined();
+        } else {
+          expect(ga4Match).toBeUndefined();
+        }
       });
       it("should have high confidence for gtag with keywords", () => {
         const content = `
@@ -37,7 +47,11 @@ describe("Recipe Matcher", () => {
         `;
         const matches = matchScriptToRecipes(content);
         expect(matches.length).toBeGreaterThan(0);
-        expect(matches[0].confidence).toBeGreaterThanOrEqual(0.4);
+        if (trackingApiEnabled) {
+          expect(matches[0].confidence).toBeGreaterThanOrEqual(0.4);
+        } else {
+          expect(matches[0].confidence).toBeGreaterThan(0);
+        }
       });
     });
     describe("Meta/Facebook Detection", () => {
@@ -46,21 +60,33 @@ describe("Recipe Matcher", () => {
         const matches = matchScriptToRecipes(content);
         expect(matches.length).toBeGreaterThan(0);
         const metaMatch = matches.find(m => m.recipe.id === "meta-capi");
-        expect(metaMatch).toBeDefined();
+        if (trackingApiEnabled) {
+          expect(metaMatch).toBeDefined();
+        } else {
+          expect(metaMatch).toBeUndefined();
+        }
       });
       it("should match Facebook SDK URL with keywords", () => {
         const content = "https://connect.facebook.net/en_US/fbevents.js fbq facebook-pixel";
         const matches = matchScriptToRecipes(content);
         expect(matches.length).toBeGreaterThan(0);
         const metaMatch = matches.find(m => m.recipe.id === "meta-capi");
-        expect(metaMatch).toBeDefined();
+        if (trackingApiEnabled) {
+          expect(metaMatch).toBeDefined();
+        } else {
+          expect(metaMatch).toBeUndefined();
+        }
       });
       it("should match fbq with pixel ID in configuration", () => {
         const content = 'fbq("init", "1234567890123456"); facebook-pixel';
         const matches = matchScriptToRecipes(content);
         expect(matches.length).toBeGreaterThan(0);
         const metaMatch = matches.find(m => m.recipe.id === "meta-capi");
-        expect(metaMatch).toBeDefined();
+        if (trackingApiEnabled) {
+          expect(metaMatch).toBeDefined();
+        } else {
+          expect(metaMatch).toBeUndefined();
+        }
       });
     });
     describe("TikTok Detection", () => {
@@ -68,37 +94,22 @@ describe("Recipe Matcher", () => {
         const content = "ttq.track('CompletePayment');";
         const matches = matchScriptToRecipes(content);
         expect(matches.length).toBeGreaterThan(0);
-        expect(matches[0].recipe.id).toBe("tiktok-events");
+        if (trackingApiEnabled) {
+          expect(matches[0].recipe.id).toBe("tiktok-events");
+        } else {
+          expect(matches[0].recipe.id).toBe("custom-webhook");
+        }
       });
       it("should match TikTok analytics domain", () => {
         const content = "https://analytics.tiktok.com/i18n/pixel/events.js";
         const matches = matchScriptToRecipes(content);
         expect(matches.length).toBeGreaterThan(0);
         const tiktokMatch = matches.find(m => m.recipe.id === "tiktok-events");
-        expect(tiktokMatch).toBeDefined();
-      });
-    });
-    describe("Survey Detection", () => {
-      it("should match Fairing survey provider with keyword", () => {
-        const content = "fairing.init({surveyId: 'abc123'}); post-purchase-survey";
-        const matches = matchScriptToRecipes(content);
-        expect(matches.length).toBeGreaterThan(0);
-        const surveyMatch = matches.find(m => m.recipe.id === "survey-migration");
-        expect(surveyMatch).toBeDefined();
-      });
-      it("should match KnoCommerce provider with keyword", () => {
-        const content = "knocommerce.showSurvey(); survey post-purchase-survey";
-        const matches = matchScriptToRecipes(content);
-        expect(matches.length).toBeGreaterThan(0);
-        const surveyMatch = matches.find(m => m.recipe.id === "survey-migration");
-        expect(surveyMatch).toBeDefined();
-      });
-      it("should match Zigpoll provider with keyword", () => {
-        const content = "zigpoll.widget.render(); survey post-purchase-survey";
-        const matches = matchScriptToRecipes(content);
-        expect(matches.length).toBeGreaterThan(0);
-        const surveyMatch = matches.find(m => m.recipe.id === "survey-migration");
-        expect(surveyMatch).toBeDefined();
+        if (trackingApiEnabled) {
+          expect(tiktokMatch).toBeDefined();
+        } else {
+          expect(tiktokMatch).toBeUndefined();
+        }
       });
     });
     describe("Multiple Matches", () => {
@@ -108,10 +119,12 @@ describe("Recipe Matcher", () => {
           fbq('track', 'PageView');
         `;
         const matches = matchScriptToRecipes(content);
-        expect(matches.length).toBeGreaterThanOrEqual(2);
+        expect(matches.length).toBeGreaterThanOrEqual(trackingApiEnabled ? 2 : 1);
         const recipeIds = matches.map(m => m.recipe.id);
-        expect(recipeIds).toContain("ga4-basic");
-        expect(recipeIds).toContain("meta-capi");
+        if (trackingApiEnabled) {
+          expect(recipeIds).toContain("ga4-basic");
+          expect(recipeIds).toContain("meta-capi");
+        }
       });
       it("should sort matches by confidence", () => {
         const content = `
@@ -131,7 +144,7 @@ describe("Recipe Matcher", () => {
         `;
         const matches = matchScriptToRecipes(content);
         const ga4Matches = matches.filter(m => m.recipe.id === "ga4-basic");
-        expect(ga4Matches.length).toBe(1);
+        expect(ga4Matches.length).toBe(trackingApiEnabled ? 1 : 0);
       });
     });
     describe("Confidence Threshold", () => {
@@ -253,10 +266,12 @@ describe("Recipe Matcher", () => {
         </script>
       `;
       const result = matchAdditionalScriptsToRecipes(content);
-      expect(result.matches.length).toBeGreaterThanOrEqual(2);
+      expect(result.matches.length).toBeGreaterThanOrEqual(trackingApiEnabled ? 2 : 1);
       const recipeIds = result.matches.map(m => m.recipe.id);
-      expect(recipeIds).toContain("ga4-basic");
-      expect(recipeIds).toContain("meta-capi");
+      if (trackingApiEnabled) {
+        expect(recipeIds).toContain("ga4-basic");
+        expect(recipeIds).toContain("meta-capi");
+      }
     });
     it("should handle content without script tags", () => {
       const content = "gtag('config', 'G-XXXXXXXX');";
@@ -299,36 +314,58 @@ describe("Recipe Matcher", () => {
         </script>
       `;
       const result = matchAdditionalScriptsToRecipes(content);
-      expect(result.matches.length).toBeGreaterThanOrEqual(3);
+      expect(result.matches.length).toBeGreaterThanOrEqual(trackingApiEnabled ? 3 : 1);
     });
   });
   describe("getSuggestedRecipesForPlatforms", () => {
     it("should return GA4 recipe for google platform", () => {
       const recipes = getSuggestedRecipesForPlatforms(["google"]);
-      expect(recipes).toContain(GA4_BASIC_RECIPE);
+      if (trackingApiEnabled) {
+        expect(recipes).toContain(GA4_BASIC_RECIPE);
+      } else {
+        expect(recipes).not.toContain(GA4_BASIC_RECIPE);
+      }
     });
     it("should return Meta recipe for meta platform", () => {
       const recipes = getSuggestedRecipesForPlatforms(["meta"]);
-      expect(recipes).toContain(META_CAPI_RECIPE);
+      if (trackingApiEnabled) {
+        expect(recipes).toContain(META_CAPI_RECIPE);
+      } else {
+        expect(recipes).not.toContain(META_CAPI_RECIPE);
+      }
     });
     it("should return TikTok recipe for tiktok platform", () => {
       const recipes = getSuggestedRecipesForPlatforms(["tiktok"]);
-      expect(recipes).toContain(TIKTOK_EVENTS_RECIPE);
+      if (trackingApiEnabled) {
+        expect(recipes).toContain(TIKTOK_EVENTS_RECIPE);
+      } else {
+        expect(recipes).not.toContain(TIKTOK_EVENTS_RECIPE);
+      }
     });
     it("should return multiple recipes for multiple platforms", () => {
       const recipes = getSuggestedRecipesForPlatforms(["google", "meta", "tiktok"]);
-      expect(recipes).toContain(GA4_BASIC_RECIPE);
-      expect(recipes).toContain(META_CAPI_RECIPE);
-      expect(recipes).toContain(TIKTOK_EVENTS_RECIPE);
+      if (trackingApiEnabled) {
+        expect(recipes).toContain(GA4_BASIC_RECIPE);
+        expect(recipes).toContain(META_CAPI_RECIPE);
+        expect(recipes).toContain(TIKTOK_EVENTS_RECIPE);
+      } else {
+        expect(recipes).not.toContain(GA4_BASIC_RECIPE);
+        expect(recipes).not.toContain(META_CAPI_RECIPE);
+        expect(recipes).not.toContain(TIKTOK_EVENTS_RECIPE);
+      }
     });
     it("should not duplicate recipes", () => {
       const recipes = getSuggestedRecipesForPlatforms(["google", "google"]);
       const ga4Count = recipes.filter(r => r.id === "ga4-basic").length;
-      expect(ga4Count).toBe(1);
+      expect(ga4Count).toBe(trackingApiEnabled ? 1 : 0);
     });
     it("should match by tags as well as platform", () => {
       const recipes = getSuggestedRecipesForPlatforms(["facebook"]);
-      expect(recipes).toContain(META_CAPI_RECIPE);
+      if (trackingApiEnabled) {
+        expect(recipes).toContain(META_CAPI_RECIPE);
+      } else {
+        expect(recipes).not.toContain(META_CAPI_RECIPE);
+      }
     });
     it("should return empty array for unknown platforms", () => {
       const recipes = getSuggestedRecipesForPlatforms(["unknown-platform"]);
@@ -342,18 +379,20 @@ describe("Recipe Matcher", () => {
   describe("getRecipesByCategory", () => {
     it("should group recipes by category", () => {
       const byCategory = getRecipesByCategory();
-      expect(byCategory["analytics"]).toContain(GA4_BASIC_RECIPE);
-      expect(byCategory["advertising"]).toContain(META_CAPI_RECIPE);
-      expect(byCategory["advertising"]).toContain(TIKTOK_EVENTS_RECIPE);
-      expect(byCategory["survey"]).toContain(SURVEY_MIGRATION_RECIPE);
       expect(byCategory["custom"]).toContain(CUSTOM_WEBHOOK_RECIPE);
+      if (trackingApiEnabled) {
+        expect(byCategory["analytics"]).toContain(GA4_BASIC_RECIPE);
+        expect(byCategory["advertising"]).toContain(META_CAPI_RECIPE);
+        expect(byCategory["advertising"]).toContain(TIKTOK_EVENTS_RECIPE);
+      }
     });
     it("should include all defined categories", () => {
       const byCategory = getRecipesByCategory();
-      expect(Object.keys(byCategory)).toContain("analytics");
-      expect(Object.keys(byCategory)).toContain("advertising");
-      expect(Object.keys(byCategory)).toContain("survey");
       expect(Object.keys(byCategory)).toContain("custom");
+      if (trackingApiEnabled) {
+        expect(Object.keys(byCategory)).toContain("analytics");
+        expect(Object.keys(byCategory)).toContain("advertising");
+      }
     });
     it("should not have empty categories", () => {
       const byCategory = getRecipesByCategory();

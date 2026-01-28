@@ -31,7 +31,7 @@ export const PLATFORM_CONSENT_CONFIG: Record<string, PlatformConsentConfig> = {
     },
     bing: {
         category: "marketing",
-        name: "Microsoft Ads (Bing) - 不支持 CAPI",
+        name: "Microsoft Ads (Bing) - v1 不包含投递",
         dualUse: false,
         consentReason: "用于转化追踪和广告优化",
         requiresSaleOfData: true,

@@ -60,7 +60,6 @@ vi.mock("../../app/utils/logger.server", () => ({
 vi.mock("../../app/utils/config.server", () => ({
   RATE_LIMIT_CONFIG: {
     PIXEL_EVENTS: { maxRequests: 50, windowMs: 60000 },
-    SURVEY: { maxRequests: 10, windowMs: 60000 },
     TRACKING: { maxRequests: 30, windowMs: 60000 },
     WEBHOOKS: { maxRequests: 100, windowMs: 60000 },
     MAX_KEYS: 1000,

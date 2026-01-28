@@ -8,7 +8,6 @@ vi.mock("../../app/db.server", () => ({
     conversionLog: { findMany: vi.fn(), deleteMany: vi.fn() },
     conversionJob: { deleteMany: vi.fn() },
     pixelEventReceipt: { findMany: vi.fn(), deleteMany: vi.fn() },
-    surveyResponse: { findMany: vi.fn(), deleteMany: vi.fn() },
     auditLog: { deleteMany: vi.fn(), create: vi.fn() },
     webhookLog: { deleteMany: vi.fn() },
     scanReport: { deleteMany: vi.fn() },

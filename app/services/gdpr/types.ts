@@ -48,15 +48,6 @@ export interface ExportedConversionLog {
   sentAt: string | null;
 }
 
-export interface ExportedSurveyResponse {
-  orderId: string;
-  orderNumber: string | null;
-  rating: number | null;
-  source: string | null;
-  feedback: string | null;
-  createdAt: string;
-}
-
 export interface ExportedPixelEventReceipt {
   orderId: string;
   eventType: string;
@@ -75,10 +66,6 @@ export interface DataLocatedSummary {
     count: number;
     recordIds: string[];
   };
-  surveyResponses: {
-    count: number;
-    recordIds: string[];
-  };
   pixelEventReceipts: {
     count: number;
     recordIds: string[];
@@ -92,7 +79,6 @@ export interface DataRequestResult {
   dataLocated: DataLocatedSummary;
   exportedData: {
     conversionLogs: ExportedConversionLog[];
-    surveyResponses: ExportedSurveyResponse[];
     pixelEventReceipts: ExportedPixelEventReceipt[];
   };
   exportedAt: string;
@@ -104,7 +90,6 @@ export interface CustomerRedactDeletionCounts {
   conversionLogs: number;
   conversionJobs: number;
   pixelEventReceipts: number;
-  surveyResponses: number;
 }
 
 export interface CustomerRedactResult {
@@ -220,12 +205,10 @@ export function createEmptyDataRequestResult(
     ordersIncluded: [],
     dataLocated: {
       conversionLogs: { count: 0, recordIds: [] },
-      surveyResponses: { count: 0, recordIds: [] },
       pixelEventReceipts: { count: 0, recordIds: [] },
     },
     exportedData: {
       conversionLogs: [],
-      surveyResponses: [],
       pixelEventReceipts: [],
     },
     exportedAt: new Date().toISOString(),
@@ -242,7 +225,6 @@ export function createEmptyCustomerRedactResult(customerId?: number): CustomerRe
       conversionLogs: 0,
       conversionJobs: 0,
       pixelEventReceipts: 0,
-      surveyResponses: 0,
     },
   };
 }

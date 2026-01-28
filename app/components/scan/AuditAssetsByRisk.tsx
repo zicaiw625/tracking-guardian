@@ -55,13 +55,13 @@ const MIGRATION_LABELS: Record<string, { label: string; description: string; url
     url: "/app/migrate",
   },
   ui_extension: {
-    label: "UI Extension Block",
-    description: "使用 Customer Accounts UI Extensions 替代页面脚本",
+    label: "手动迁移",
+    description: "页面侧脚本需按 Shopify 官方能力自行迁移",
     url: "/app/migrate",
   },
   server_side: {
-    label: "Server-side CAPI",
-    description: "使用服务端 Conversions API 提高追踪可靠性",
+    label: "不提供",
+    description: "当前版本不提供服务端投递能力",
     url: "/app/migrate",
   },
   none: {
@@ -146,8 +146,6 @@ export function AuditAssetsByRisk({
     } else if (asset.suggestedMigration === "web_pixel" && asset.platform) {
       window.location.href = `/app/migrate?platform=${asset.platform}&assetId=${asset.id}`;
     } else if (asset.suggestedMigration === "ui_extension") {
-      window.location.href = `/app/migrate?assetId=${asset.id}`;
-    } else if (asset.suggestedMigration === "server_side") {
       window.location.href = `/app/migrate?assetId=${asset.id}`;
     }
   };

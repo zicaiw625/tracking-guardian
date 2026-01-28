@@ -5,7 +5,7 @@ import { OrderIdSchema } from "../schemas/pixel-event";
 export type { PlatformType as Platform };
 
 export const PLATFORM_NAMES: Record<PlatformType, string> = {
-  [Platform.GOOGLE]: "GA4 (Measurement Protocol)",
+  [Platform.GOOGLE]: "GA4",
   [Platform.META]: "Meta (Facebook)",
   [Platform.TIKTOK]: "TikTok",
   [Platform.PINTEREST]: "Pinterest",
@@ -132,7 +132,7 @@ export const PinterestCredentialsSchema = z.object({
 
 export const SnapchatCredentialsSchema = z.object({
   pixelId: z.string().min(1, "Snap Pixel ID is required"),
-  accessToken: z.string().min(1, "Conversions API Token is required"),
+  accessToken: z.string().min(1, "Access Token is required"),
   testMode: z.boolean().optional(),
 });
 

@@ -178,7 +178,7 @@ export async function getDashboardData(shopDomain: string): Promise<DashboardDat
       configuredPlatforms: 0,
       weeklyConversions: 0,
       hasAlertConfig: false,
-      hasServerSideConfig: false,
+      hasEnabledPixelConfig: false,
       plan: "free",
       planId: "free",
       planLabel: getPlanDefinition("free").name,
@@ -202,20 +202,16 @@ export async function getDashboardData(shopDomain: string): Promise<DashboardDat
       error: error instanceof Error ? error.message : String(error),
     });
   }
-  const serverSideConfigsCount = shop.pixelConfigs?.filter(
-    (config: { serverSideEnabled: boolean; credentialsEncrypted: string | null }) =>
-      config.serverSideEnabled &&
-      config.credentialsEncrypted &&
-      config.credentialsEncrypted.trim().length > 0
-  ).length || 0;
-  const hasServerSideConfig = serverSideConfigsCount > 0;
+  const enabledPixelConfigsCount =
+    shop.pixelConfigs?.filter((config) => config.serverSideEnabled === true).length || 0;
+  const hasEnabledPixelConfig = enabledPixelConfigsCount > 0;
   const settings = (shop as { settings?: unknown }).settings && typeof (shop as { settings?: unknown }).settings === 'object' ? (shop as { settings?: unknown }).settings as Record<string, unknown> : null;
   const alertConfigs = settings?.alertConfigs && Array.isArray(settings.alertConfigs) ? settings.alertConfigs : [];
   const hasAlertConfig = alertConfigs.length > 0;
   const { score, status, factors } = await calculateHealthScore(
     shop.id,
     [],
-    serverSideConfigsCount
+    enabledPixelConfigsCount
   );
   const planId = normalizePlan(shop.plan);
   const planDef = getPlanDefinition(planId);
@@ -432,7 +428,7 @@ export async function getDashboardData(shopDomain: string): Promise<DashboardDat
     configuredPlatforms,
     weeklyConversions,
     hasAlertConfig,
-    hasServerSideConfig,
+    hasEnabledPixelConfig,
     plan: shop.plan || "free",
     planId,
     planLabel: planDef.name,

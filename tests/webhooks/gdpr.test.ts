@@ -21,10 +21,6 @@ vi.mock("../../app/db.server", () => ({
       findMany: vi.fn(),
       deleteMany: vi.fn(),
     },
-    surveyResponse: {
-      findMany: vi.fn(),
-      deleteMany: vi.fn(),
-    },
     auditLog: {
       deleteMany: vi.fn(),
     },
@@ -112,7 +108,6 @@ describe("GDPR Compliance Webhooks", () => {
           createdAt: new Date(),
         },
       ] as any);
-      vi.mocked(prisma.surveyResponse.findMany).mockResolvedValue([]);
       expect(prisma.shop.findUnique).toBeDefined();
       expect(prisma.conversionLog.findMany).toBeDefined();
     });
@@ -166,9 +161,7 @@ describe("GDPR Compliance Webhooks", () => {
         shopDomain: "test-shop.myshopify.com",
       } as any);
       vi.mocked(prisma.conversionLog.deleteMany).mockResolvedValue({ count: 2 });
-      vi.mocked(prisma.surveyResponse.deleteMany).mockResolvedValue({ count: 1 });
       expect(prisma.conversionLog.deleteMany).toBeDefined();
-      expect(prisma.surveyResponse.deleteMany).toBeDefined();
     });
     it("should handle redact request when shop not found", async () => {
       const mockPayload = {
@@ -210,7 +203,6 @@ describe("GDPR Compliance Webhooks", () => {
         shopDomain: "test-shop.myshopify.com",
       } as any);
       vi.mocked(prisma.conversionLog.deleteMany).mockResolvedValue({ count: 2 });
-      vi.mocked(prisma.surveyResponse.deleteMany).mockResolvedValue({ count: 0 });
       expect(true).toBe(true);
     });
   });
@@ -236,7 +228,6 @@ describe("GDPR Compliance Webhooks", () => {
           conversionLogs: 100,
           scanReports: 5,
           reconciliationReports: 30,
-          surveyResponses: 10,
           auditLogs: 50,
         },
       } as any);
@@ -274,7 +265,6 @@ describe("GDPR Compliance Webhooks", () => {
           conversionLogs: 1000,
           scanReports: 10,
           reconciliationReports: 90,
-          surveyResponses: 50,
           auditLogs: 200,
         },
       };
@@ -395,7 +385,6 @@ describe("GDPR Compliance Webhooks", () => {
         "conversionLog",
         "conversionJob",
         "pixelEventReceipt",
-        "surveyResponse",
         "auditLog",
         "scanReport",
         "reconciliationReport",
@@ -409,7 +398,6 @@ describe("GDPR Compliance Webhooks", () => {
       expect(prisma.conversionLog.deleteMany).toBeDefined();
       expect(prisma.conversionJob.deleteMany).toBeDefined();
       expect(prisma.pixelEventReceipt.deleteMany).toBeDefined();
-      expect(prisma.surveyResponse.deleteMany).toBeDefined();
       expect(prisma.auditLog.deleteMany).toBeDefined();
       expect(prisma.scanReport.deleteMany).toBeDefined();
       expect(prisma.reconciliationReport.deleteMany).toBeDefined();
@@ -417,7 +405,7 @@ describe("GDPR Compliance Webhooks", () => {
       expect(prisma.pixelConfig.deleteMany).toBeDefined();
       expect(prisma.monthlyUsage.deleteMany).toBeDefined();
       expect(prisma.shop.delete).toBeDefined();
-      expect(tablesToDelete.length).toBe(13);
+      expect(tablesToDelete.length).toBe(12);
     });
   });
 });

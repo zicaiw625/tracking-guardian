@@ -110,13 +110,6 @@ export function pixelEventSuccessResponse(data: {
   });
 }
 
-export function surveySuccessResponse(message: string = "Survey submitted successfully"): Response {
-  return createJsonResponse({
-    success: true,
-    message,
-  });
-}
-
 export function sanitizeFilename(filename: string): string {
   return filename.replace(/[^a-zA-Z0-9._-]/g, "_");
 }

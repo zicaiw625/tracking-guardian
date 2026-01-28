@@ -196,10 +196,10 @@ export function DashboardOverview({
                 <InlineStack align="space-between" blockAlign="start">
                   <BlockStack gap="200">
                     <Text as="h3" variant="headingSm">
-                      📦 发布 Thank you/Order status 模块
+                      📦 Thank you/Order status 页面自检
                     </Text>
                     <Text as="p" variant="bodySm" tone="subdued">
-                      迁移 tracking 到 Web Pixel，验收报告验证送达。v1 不包含 Thank you/Order status 页面模块。
+                      迁移 tracking 到 Web Pixel，使用验收报告做交付验证。本应用不提供 Thank you/Order status 页面模块库。
                     </Text>
                     <Badge tone="info">Migration $49/月</Badge>
                   </BlockStack>

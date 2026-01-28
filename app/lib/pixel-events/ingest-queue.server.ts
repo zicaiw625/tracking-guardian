@@ -15,7 +15,15 @@ export interface IngestQueueEntry {
   validatedEvents: Array<{ payload: PixelEventPayload; index: number }>;
   keyValidation: KeyValidationResult;
   origin: string | null;
-  serverSideConfigs: Array<{
+  enabledPixelConfigs?: Array<{
+    platform: string;
+    id: string;
+    platformId?: string | null;
+    clientSideEnabled?: boolean | null;
+    serverSideEnabled?: boolean | null;
+    clientConfig?: unknown;
+  }>;
+  serverSideConfigs?: Array<{
     platform: string;
     id: string;
     platformId?: string | null;
@@ -103,7 +111,8 @@ export async function processIngestQueue(
         entry.shopId,
         entry.shopDomain
       );
-      const configs = entry.serverSideConfigs.map((c) => ({
+      const rawConfigs = entry.enabledPixelConfigs ?? entry.serverSideConfigs ?? [];
+      const configs = rawConfigs.map((c) => ({
         ...c,
         platform: c.platform ?? "",
         id: c.id ?? "",

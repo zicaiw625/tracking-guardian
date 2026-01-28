@@ -20,8 +20,8 @@ export function AuditPaywallCard({ planId }: AuditPaywallCardProps) {
     ? "迁移像素"
     : `迁移像素（${starterPlan.name} ${priceLabel(starterPlan.price)}）`;
   const moduleLabel = isStarter
-    ? "安装页面模块"
-    : `安装页面模块（${starterPlan.name} ${priceLabel(starterPlan.price)}）`;
+    ? "页面侧自定义指引"
+    : `页面侧自定义指引（${starterPlan.name} ${priceLabel(starterPlan.price)}）`;
   const bannerLines = (() => {
     if (!isStarter) {
       return [
@@ -55,14 +55,14 @@ export function AuditPaywallCard({ planId }: AuditPaywallCardProps) {
         },
         {
           label: "升级解锁：",
-          text: `多店/白标/批量即将在 v1.1 推出；${agencyPlan.name} 当前已含无限像素、全部模块、验收报告导出与 SLA`,
+          text: `多店/白标/批量即将在 v1.1 推出；${agencyPlan.name} 当前已含无限像素、验收报告导出与 SLA`,
         },
       ];
     }
     return [
       {
         label: "已解锁：",
-        text: `多店/白标/批量即将在 v1.1 推出；当前已含无限像素、全部模块、验收报告导出与 SLA`,
+        text: `多店/白标/批量即将在 v1.1 推出；当前已含无限像素、验收报告导出与 SLA`,
       },
       {
         label: "需要协助：",

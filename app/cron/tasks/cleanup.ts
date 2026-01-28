@@ -16,7 +16,6 @@ export interface CleanupResult {
   migrationDraftsDeleted: number;
   gdprJobsDeleted: number;
   shopsProcessed: number;
-  surveyResponsesDeleted: number;
   auditLogsDeleted: number;
   pixelEventReceiptsDeleted: number;
   webhookLogsDeleted: number;
@@ -52,7 +51,6 @@ export async function cleanupExpiredData(): Promise<CleanupResult> {
     migrationDraftsDeleted: 0,
     gdprJobsDeleted: 0,
     shopsProcessed: 0,
-    surveyResponsesDeleted: 0,
     auditLogsDeleted: 0,
     pixelEventReceiptsDeleted: 0,
     webhookLogsDeleted: 0,
@@ -124,40 +122,6 @@ export async function cleanupExpiredData(): Promise<CleanupResult> {
     for (const shop of shops) {
       const retentionDays = shop.dataRetentionDays || 90;
       const cutoffDate = new Date(Date.now() - retentionDays * 24 * 60 * 60 * 1000);
-
-      try {
-        result.surveyResponsesDeleted += await deleteInBatches(
-          (cursor) =>
-            prisma.surveyResponse.findMany({
-              where: {
-                shopId: shop.id,
-                createdAt: {
-                  lt: cutoffDate,
-                },
-              },
-              select: {
-                id: true,
-              },
-              orderBy: {
-                id: "asc",
-              },
-              take: CLEANUP_BATCH_SIZE,
-              ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
-            }),
-          async (ids) => {
-            const deleteResult = await prisma.surveyResponse.deleteMany({
-              where: {
-                id: {
-                  in: ids,
-                },
-              },
-            });
-            return deleteResult.count;
-          }
-        );
-      } catch (error) {
-        logger.error("Failed to cleanup survey responses", { shopId: shop.id, error });
-      }
 
       try {
         const auditLogCutoff = new Date(

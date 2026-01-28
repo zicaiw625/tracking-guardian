@@ -22,7 +22,7 @@ export {
   deactivatePixelConfig,
   deletePixelConfig,
   batchGetPixelConfigs,
-  hasServerSideConfigs,
+  hasEnabledPixelConfigs,
   getConfiguredPlatforms,
   invalidatePixelConfigCache,
   clearPixelConfigCache,

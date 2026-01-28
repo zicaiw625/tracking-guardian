@@ -40,7 +40,7 @@ export interface IngestContext {
   shopAllowedDomains: string[];
   keyValidation: KeyValidationResult;
   mode: "purchase_only" | "full_funnel";
-  serverSideConfigs: Array<{ serverSideEnabled?: boolean | null }>;
+  enabledPixelConfigs: Array<{ serverSideEnabled?: boolean | null; clientSideEnabled?: boolean | null }>;
 }
 
 export type MiddlewareResult = 

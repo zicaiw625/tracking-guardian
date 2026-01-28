@@ -143,8 +143,8 @@ export function MigrationActionsCard({
                     </Button>
                   )}
                   {action.type === "enable_capi" && (
-                    <Button size="slim" url="/app/settings" icon={ArrowRightIcon}>
-                      配置 CAPI
+                    <Button size="slim" url="/app/migrate" icon={ArrowRightIcon}>
+                      启用 App Pixel
                     </Button>
                   )}
                 </InlineStack>

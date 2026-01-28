@@ -3,7 +3,7 @@ import { json } from "@remix-run/node";
 import { authenticate } from "../../shopify.server";
 import prisma from "../../db.server";
 import { isPlanAtLeast } from "../../utils/plans";
-import { getPixelEventIngestionUrl } from "../../utils/config.server";
+import { FEATURE_FLAGS, getPixelEventIngestionUrl } from "../../utils/config.server";
 
 const PRESET_TEMPLATES = [
   {
@@ -74,6 +74,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
         custom: [],
       },
       isStarterOrAbove: false,
+      trackingApiEnabled: FEATURE_FLAGS.TRACKING_API,
       backendUrlInfo: getPixelEventIngestionUrl(),
     });
   }
@@ -92,6 +93,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       custom: [],
     },
     isStarterOrAbove,
+    trackingApiEnabled: FEATURE_FLAGS.TRACKING_API,
     backendUrlInfo,
   });
 };

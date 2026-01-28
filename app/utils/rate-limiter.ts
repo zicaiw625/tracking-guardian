@@ -25,10 +25,6 @@ const DEFAULT_CONFIGS: Record<string, RateLimitConfig> = {
     maxRequests: 5,
     windowMs: 60 * 60 * 1000,
   },
-  survey: {
-    maxRequests: 10,
-    windowMs: 60 * 1000,
-  },
   webhook: {
     maxRequests: 1000,
     windowMs: 60 * 1000,

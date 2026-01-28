@@ -189,17 +189,10 @@ export default function PrivacyPage() {
             </p>
 
             <div className="warning">
-              <p><strong>重要：服务端追踪默认关闭</strong></p>
+              <p><strong>重要：当前版本不提供服务端投递</strong></p>
               <p>
-                所有新创建的像素配置中，服务端转化追踪（Server-side CAPI/MP）默认关闭（<code>serverSideEnabled: false</code>）。
-                只有在设置页面中显式启用并完成相应隐私配置后，才会开始向第三方平台发送服务端事件。
+                当前版本仅接收并校验 Web Pixel 事件，用于应用内诊断与验收，不向第三方平台发送服务端事件。
               </p>
-              <p>启用服务端追踪前，您必须：</p>
-              <ul>
-                <li>在店铺自己的隐私政策中明确说明向第三方平台发送的数据类型和用途</li>
-                <li>已获得必要的用户同意（如 GDPR/CCPA 要求）</li>
-                <li>确保应用配置与 Shopify App Store 上的隐私声明保持一致</li>
-              </ul>
             </div>
 
             <h3>对账与诊断（当前版本）</h3>
@@ -247,18 +240,9 @@ export default function PrivacyPage() {
 
           <div className="section">
             <h2>第三方共享</h2>
-            <h3>服务端转化平台（默认关闭）</h3>
+            <h3>第三方共享</h3>
             <p>
-              当前版本中，服务端转化追踪功能默认关闭且 UI 入口隐藏。仅在商家显式启用且完成隐私披露后，数据才会被发送到以下平台：
-            </p>
-            <ul>
-              <li><strong>Meta (Facebook) Conversions API</strong>：订单 ID、订单号、金额、货币、商品信息（名称、数量、价格、SKU）、事件时间戳</li>
-              <li><strong>TikTok Events API</strong>：订单 ID、订单号、金额、货币、商品信息、事件时间戳</li>
-              <li><strong>Google Analytics 4 (GA4) Measurement Protocol</strong>：订单 ID、订单号、金额、货币、商品信息、事件时间戳</li>
-              <li><strong>通用 HTTP Webhook</strong>（由您配置）：可配置的数据字段</li>
-            </ul>
-            <p>
-              即使启用了服务端追踪，我们<strong>不会发送</strong>客户个人信息（姓名、邮箱、电话、地址）或支付信息。
+              当前版本不向第三方平台发送服务端转化事件。告警通知功能也处于禁用状态。
             </p>
             <h3>通知与告警服务（当前版本已禁用）</h3>
             <p>

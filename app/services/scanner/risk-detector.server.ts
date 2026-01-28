@@ -41,11 +41,11 @@ function enhanceRiskDescription(risk: RiskItem, _content: string): RiskItem {
       return {
         ...risk,
         description: `${risk.description}\n\n💡 迁移建议：\n` +
-          `1. 如果需要在服务端发送 PII，使用 Shopify Webhooks + Conversions API\n` +
-          `2. 确保符合 GDPR/CCPA 要求，获得客户同意\n` +
-          `3. 使用哈希后的 PII（如 SHA256）而非明文\n` +
-          `4. 考虑使用 Shopify Customer Events API 获取客户数据`,
-        recommendation: "迁移到服务端 CAPI 或使用 Shopify Customer Events API",
+          `1. 避免在结账页脚本中读取/上传客户敏感信息\n` +
+          `2. 如确需处理敏感字段，请按 Shopify 官方路径（PCD/权限）与合规要求实施\n` +
+          `3. 使用哈希后的数据而非明文\n` +
+          `4. 优先使用 Shopify 官方事件与 API 能力`,
+        recommendation: "优先迁移到 Web Pixel，并按 Shopify 官方能力与合规要求处理敏感字段",
       };
     case "window_document_access":
       return {
@@ -55,9 +55,9 @@ function enhanceRiskDescription(risk: RiskItem, _content: string): RiskItem {
           `   - analytics.subscribe() 替代 window 事件监听\n` +
           `   - settings 对象替代 document 配置读取\n` +
           `   - 使用 checkout 事件数据而非 DOM 查询\n` +
-          `2. 如需 DOM 操作，考虑迁移到 Checkout UI Extension\n` +
+          `2. 如需 DOM 操作，请按 Shopify 官方能力手动迁移页面逻辑\n` +
           `3. 检查是否有第三方库依赖 window/document，需要替换`,
-        recommendation: "使用 Shopify Web Pixel API 或迁移到 Checkout UI Extension",
+        recommendation: "使用 Shopify Web Pixel API 或按 Shopify 官方能力手动迁移页面逻辑",
       };
     case "blocking_load":
       return {
@@ -66,8 +66,8 @@ function enhanceRiskDescription(risk: RiskItem, _content: string): RiskItem {
           `1. 移除 document.write() 和同步脚本\n` +
           `2. 使用异步加载的 Web Pixel\n` +
           `3. 避免在关键渲染路径上执行阻塞操作\n` +
-          `4. 考虑使用服务端追踪减少客户端负担`,
-        recommendation: "迁移到异步 Web Pixel 或服务端追踪",
+          `4. 优先将追踪逻辑收敛到 Web Pixel 事件订阅`,
+        recommendation: "迁移到异步 Web Pixel 并减少阻塞逻辑",
       };
     case "duplicate_triggers":
       return {

@@ -203,7 +203,7 @@ export function analyzeScriptContent(content: string): ScriptAnalysisResult {
         result.risks.push({
             id: "pii_access",
             name: "检测到 PII（个人身份信息）访问",
-            description: `脚本可能读取客户${piiTypes.join("、")}等敏感信息，需要确保符合隐私法规（GDPR、CCPA）。Web Pixel 沙箱环境无法直接访问这些信息，需要迁移到服务端 CAPI 或使用 Shopify Customer Events API。`,
+            description: `脚本可能读取客户${piiTypes.join("、")}等敏感信息，需要确保符合隐私法规（GDPR、CCPA）。Web Pixel 沙箱环境无法直接访问这些信息；如确需处理，请按 Shopify 官方能力与审核要求实施（PCD/权限），并最小化数据处理。`,
             severity: "high" as RiskSeverity,
             points: 35,
             details: `检测到 ${piiMatches.length} 处 PII 访问: ${piiTypes.join("、")}`,
@@ -378,9 +378,9 @@ export function analyzeScriptContent(content: string): ScriptAnalysisResult {
             case "google":
                 result.recommendations.push(
                     "🎯 **Google Analytics (GA4)**\n" +
-                    "  → 迁移到: Tracking Guardian Web Pixel + 服务端 Measurement Protocol\n" +
-                    "  → 操作: 在「设置」页面配置 GA4 Measurement ID 和 API Secret\n" +
-                    "  → 效果: 客户端 + 服务端双通路，通常更稳定；实际归因以平台数据为准"
+                    "  → 迁移到: Tracking Guardian Web Pixel（事件接收/落库/验收）\n" +
+                    "  → 操作: 启用 App Pixel 后完成测试订单并运行验收\n" +
+                    "  → 说明: 服务端投递能力为规划项；v1 以 Web Pixel → /ingest → 验收为主"
                 );
                 break;
             case "google_ads":
@@ -397,24 +397,24 @@ export function analyzeScriptContent(content: string): ScriptAnalysisResult {
                     "  → 迁移方案取决于 GTM 内的具体标签:\n" +
                     "    • GA4 事件 → Tracking Guardian Web Pixel\n" +
                     "    • Google Ads → Shopify 官方 Google 应用\n" +
-                    "    • Meta Pixel → Tracking Guardian CAPI\n" +
+                    "    • Meta Pixel → Tracking Guardian Web Pixel\n" +
                     "  → 建议: 审查 GTM 容器内的标签，分别迁移到对应方案"
                 );
                 break;
             case "meta":
                 result.recommendations.push(
                     "🎯 **Meta Pixel (Facebook/Instagram)**\n" +
-                    "  → 迁移到: Tracking Guardian Web Pixel + 服务端 Conversions API\n" +
-                    "  → 操作: 在「设置」页面配置 Pixel ID 和 Access Token\n" +
-                    "  → 效果: 有助于提升事件匹配度；最终归因以 Meta 平台回传为准，仍可能受设备/隐私限制影响"
+                    "  → 迁移到: Tracking Guardian Web Pixel（事件接收/落库/验收）\n" +
+                    "  → 操作: 启用 App Pixel 后完成测试订单并运行验收\n" +
+                    "  → 说明: 服务端投递能力为规划项；v1 不承诺向广告平台投递"
                 );
                 break;
             case "tiktok":
                 result.recommendations.push(
                     "🎯 **TikTok Pixel**\n" +
-                    "  → 迁移到: Tracking Guardian Web Pixel + 服务端 Events API\n" +
-                    "  → 操作: 在「设置」页面配置 Pixel Code 和 Access Token\n" +
-                    "  → 效果: 服务端追踪有助于提升事件匹配质量；以 TikTok 归因结果为准"
+                    "  → 迁移到: Tracking Guardian Web Pixel（事件接收/落库/验收）\n" +
+                    "  → 操作: 启用 App Pixel 后完成测试订单并运行验收\n" +
+                    "  → 说明: 服务端投递能力为规划项；v1 不承诺向广告平台投递"
                 );
                 break;
             case "bing":
@@ -475,7 +475,7 @@ export function analyzeScriptContent(content: string): ScriptAnalysisResult {
             case "zigpoll":
                 result.recommendations.push(
                     "📋 **Zigpoll (Survey)**\n" +
-                    "  → 迁移到: Zigpoll 官方应用（支持 Checkout UI Extension）\n" +
+                    "  → 迁移到: Zigpoll 官方应用\n" +
                     "  → 链接: https://apps.shopify.com/microsoft-channel",
                 );
                 break;
@@ -598,7 +598,7 @@ export function analyzeScriptContent(content: string): ScriptAnalysisResult {
             "ℹ️ **未检测到已知追踪平台**\n" +
             "  → 可能是自定义脚本、Survey 工具、Post-purchase upsell 等\n" +
             "  → 迁移方案:\n" +
-            "    • Survey/表单 → Checkout UI Extension\n" +
+            "    • Survey/表单 → 按 Shopify 官方能力手动迁移\n" +
             "    • Post-purchase upsell → Shopify 官方 post-purchase 扩展\n" +
             "    • 自定义追踪 → Custom Pixel 或 Web Pixel\n" +
             "  → 建议: 确认脚本用途后选择对应迁移方案"
@@ -608,7 +608,7 @@ export function analyzeScriptContent(content: string): ScriptAnalysisResult {
         result.recommendations.push(
             "\n📋 **迁移清单建议**:\n" +
             "  1. 优先迁移广告平台（Meta、TikTok）以避免归因数据丢失\n" +
-            "  2. 配置服务端 CAPI 以提高追踪可靠性\n" +
+                    "  2. 启用 Web Pixel 并完成测试订单验收\n" +
             "  3. 验证迁移后数据正常，再删除旧脚本\n" +
             "  4. 非支持平台（Bing、Pinterest 等）使用官方应用"
         );

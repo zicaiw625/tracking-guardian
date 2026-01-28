@@ -90,8 +90,7 @@ function GoogleForm({ values, onChange, errors, disabled }: GoogleFormProps) {
     <BlockStack gap="300">
       <Banner tone="info">
         <p>
-          <strong>GA4 Measurement Protocol</strong> 是推荐的服务端追踪方式。
-          Google Ads 可以从 GA4 导入转化数据进行归因优化。
+          <strong>凭证配置（规划项）</strong>：当前版本默认不进行服务端投递，本表单用于后续能力规划。
         </p>
       </Banner>
       <TextField
@@ -110,13 +109,12 @@ function GoogleForm({ values, onChange, errors, disabled }: GoogleFormProps) {
         value={values.apiSecret}
         onChange={(v) => onChange({ ...values, apiSecret: v })}
         autoComplete="off"
-        helpText="在 GA4 > 数据流 > Measurement Protocol API 密钥中创建"
+        helpText="（规划项）在 GA4 > 数据流 > Measurement Protocol API secrets 中创建"
         error={errors?.apiSecret}
         disabled={disabled}
       />
       <Text as="p" variant="bodySm" tone="subdued">
-        💡 提示：如需在 Google Ads 中使用转化数据，请在 Google Ads
-        中设置「从 GA4 导入转化」。
+        💡 提示：v1 以 Web Pixel → /ingest → 落库/验收 为主。
       </Text>
     </BlockStack>
   );

@@ -51,8 +51,7 @@ export default function PublicSupportPage() {
                     Contact & Support
                   </Text>
                   <Text as="p">
-                    Need help with checkout/Thank you migration, Web Pixel, or CAPI
-                    events? Reach out anytime:
+                    Need help with checkout/Thank you migration or Web Pixel events? Reach out anytime:
                   </Text>
                   <List type="bullet">
                     <List.Item>
@@ -109,8 +108,7 @@ export default function PublicSupportPage() {
                         How is consent handled?
                       </Text>{" "}
                       Client-side consent follows Shopify{" "}
-                      <code>customerPrivacy</code>; server-side CAPI only fires
-                      when consent is granted.
+                      <code>customerPrivacy</code>.
                     </List.Item>
                     <List.Item>
                       <Text as="span" fontWeight="bold">

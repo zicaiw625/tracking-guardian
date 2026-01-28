@@ -40,7 +40,6 @@ function summarizeGdprResult(jobType: string, result: GDPRJobResult | unknown): 
       dataLocated: dataLocated
         ? {
             conversionLogs: summarizeLocated(dataLocated.conversionLogs),
-            surveyResponses: summarizeLocated(dataLocated.surveyResponses),
             pixelEventReceipts: summarizeLocated(dataLocated.pixelEventReceipts),
           }
         : undefined,

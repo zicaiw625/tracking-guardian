@@ -3,7 +3,6 @@ import { logger } from "../../../utils/logger.server";
 import type {
   DataRequestPayload,
   DataRequestResult,
-  ExportedSurveyResponse,
   ExportedPixelEventReceipt,
 } from "../types";
 import { createEmptyDataRequestResult } from "../types";
@@ -20,37 +19,6 @@ function batchArray<T>(array: T[], size: number): T[][] {
   return batches;
 }
 
-
-async function fetchSurveyResponsesBatch(
-  shopId: string,
-  orderIds: string[]
-): Promise<Array<{
-  id: string;
-  orderId: string;
-  orderNumber: string | null;
-  rating: number | null;
-  source: string | null;
-  feedback: string | null;
-  createdAt: Date;
-}>> {
-  const responses = await prisma.surveyResponse.findMany({
-    where: {
-      shopId,
-      orderId: { in: orderIds },
-    },
-    select: {
-      id: true,
-      orderId: true,
-      orderNumber: true,
-      rating: true,
-      source: true,
-      feedback: true,
-      createdAt: true,
-    },
-    take: MAX_RECORDS_PER_TABLE,
-  });
-  return responses;
-}
 
 async function fetchPixelReceiptsBatch(
   shopId: string,
@@ -119,38 +87,24 @@ export async function processDataRequest(
     totalOrders: orderIdStrings.length,
     batchSize: BATCH_SIZE,
   });
-  const allSurveyResponses: Awaited<ReturnType<typeof fetchSurveyResponsesBatch>> = [];
   const allPixelReceipts: Awaited<ReturnType<typeof fetchPixelReceiptsBatch>> = [];
   for (const batch of orderBatches) {
-    const [surveyResponses, pixelReceipts] = await Promise.all([
-      fetchSurveyResponsesBatch(shop.id, batch),
+    const [pixelReceipts] = await Promise.all([
       fetchPixelReceiptsBatch(shop.id, batch),
     ]);
-    allSurveyResponses.push(...surveyResponses);
     allPixelReceipts.push(...pixelReceipts);
     if (
-      allSurveyResponses.length >= MAX_RECORDS_PER_TABLE ||
       allPixelReceipts.length >= MAX_RECORDS_PER_TABLE
     ) {
       logger.warn(`[GDPR] Reached max records limit for data export`, {
         shopDomain,
-        surveyResponses: allSurveyResponses.length,
         pixelReceipts: allPixelReceipts.length,
         maxLimit: MAX_RECORDS_PER_TABLE,
       });
       break;
     }
   }
-  const surveyResponses = allSurveyResponses.slice(0, MAX_RECORDS_PER_TABLE);
   const pixelReceipts = allPixelReceipts.slice(0, MAX_RECORDS_PER_TABLE);
-  const exportedSurveyResponses: ExportedSurveyResponse[] = surveyResponses.map((survey) => ({
-    orderId: survey.orderId,
-    orderNumber: survey.orderNumber,
-    rating: survey.rating,
-    source: survey.source,
-    feedback: survey.feedback,
-    createdAt: survey.createdAt.toISOString(),
-  }));
   const exportedPixelReceipts: ExportedPixelEventReceipt[] = pixelReceipts.map((receipt) => ({
     orderId: receipt.orderId,
     eventType: receipt.eventType,
@@ -169,10 +123,6 @@ export async function processDataRequest(
         count: 0,
         recordIds: [],
       },
-      surveyResponses: {
-        count: surveyResponses.length,
-        recordIds: surveyResponses.map((survey) => survey.id),
-      },
       pixelEventReceipts: {
         count: pixelReceipts.length,
         recordIds: pixelReceipts.map((receipt) => receipt.id),
@@ -180,7 +130,6 @@ export async function processDataRequest(
     },
     exportedData: {
       conversionLogs: [],
-      surveyResponses: exportedSurveyResponses,
       pixelEventReceipts: exportedPixelReceipts,
     },
     exportedAt: new Date().toISOString(),
@@ -190,7 +139,6 @@ export async function processDataRequest(
   logger.info(`[GDPR] Data request completed for ${shopDomain}`, {
     dataRequestId,
     conversionLogs: result.dataLocated.conversionLogs.count,
-    surveyResponses: result.dataLocated.surveyResponses.count,
     pixelEventReceipts: result.dataLocated.pixelEventReceipts.count,
     exportFormat: result.exportFormat,
     exportVersion: result.exportVersion,

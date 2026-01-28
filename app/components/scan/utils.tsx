@@ -2,7 +2,7 @@ import { Badge } from "@shopify/polaris";
 
 export function getPlatformName(platform: string): string {
   const names: Record<string, string> = {
-    google: "GA4 (Measurement Protocol)",
+    google: "GA4",
     meta: "Meta (Facebook) Pixel",
     tiktok: "TikTok Pixel",
     bing: "Microsoft Ads (Bing) ⚠️",

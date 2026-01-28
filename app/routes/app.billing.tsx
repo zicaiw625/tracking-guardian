@@ -476,7 +476,7 @@ export default function BillingPage() {
               <BlockStack gap="100">
                 <Text as="span" fontWeight="semibold">Agency 版有哪些额外功能？</Text>
                 <Text as="p" tone="subdued">
-                  多店管理、批量配置、团队协作、白标报告支持均即将在 v1.1 推出；当前已包含验收报告导出（CSV）、无限像素、全部模块、专属客户成功经理与 SLA。
+                  多店管理、批量配置、团队协作、白标报告支持均即将在 v1.1 推出；当前已包含验收报告导出（CSV）、无限像素、专属客户成功经理与 SLA。
                 </Text>
               </BlockStack>
             </BlockStack>

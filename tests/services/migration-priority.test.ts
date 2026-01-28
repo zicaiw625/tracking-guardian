@@ -30,7 +30,6 @@ const mockPrisma = vi.hoisted(() => {
     monthlyUsage: createMockModel(),
     webhookLog: createMockModel(),
     session: createMockModel(),
-    surveyResponse: createMockModel(),
     gDPRJob: createMockModel(),
     auditAsset: createMockModel(),
     verificationRun: createMockModel(),

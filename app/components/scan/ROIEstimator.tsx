@@ -169,13 +169,13 @@ export function ROIEstimator({
               <Box background="bg-surface" padding="300" borderRadius="100" minWidth="150px">
                 <BlockStack gap="100">
                   <Text as="p" variant="bodySm" tone="subdued">
-                    服务端追踪
+                    验收与监控
                   </Text>
                   <Text as="p" variant="headingLg" fontWeight="bold" tone="success">
                     更可靠
                   </Text>
                   <Text as="p" variant="bodySm" tone="success">
-                    CAPI 双重保障
+                    可验证可交付
                   </Text>
                 </BlockStack>
               </Box>
@@ -223,7 +223,7 @@ export function ROIEstimator({
                   功能恢复
                 </Text>
                 <Text as="p" variant="bodySm" tone="success">
-                  Web Pixel + CAPI 双保险
+                  Web Pixel + 验收闭环
                 </Text>
               </BlockStack>
             </Box>
@@ -249,18 +249,16 @@ export function ROIEstimator({
               </BlockStack>
             </Box>
           </InlineStack>
-          <Banner tone="info" title="服务端 CAPI 的技术优势">
+          <Banner tone="info" title="验收与监控带来的确定性">
             <Text as="p" variant="bodySm">
-              ✅ 不受 iOS 14.5+ App Tracking Transparency 限制
+              ✅ 升级后可快速确认事件是否持续触发
               <br />
-              ✅ 不受浏览器广告拦截器影响
+              ✅ 通过事件收据与参数完整率定位问题
               <br />
-              ✅ 不受第三方 Cookie 弃用影响
-              <br />
-              ✅ Shopify Webhook 直接传递订单数据
+              ✅ 断档监控与告警降低上线后维护成本
               <br />
               <Text as="span" tone="subdued">
-                注：实际归因效果因广告账户设置、流量来源等因素而异
+                注：广告平台侧归因效果以平台数据为准
               </Text>
             </Text>
           </Banner>

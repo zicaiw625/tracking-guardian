@@ -77,7 +77,7 @@ export function ScanPage({
     initialTab = 0,
     showTabs = true,
     pageTitle = "Audit 风险报告（免费获客）",
-    pageSubtitle = "迁移清单 + 风险分级 + 替代路径（Web Pixel / Checkout UI Extension / 不可迁移）• 明确提示 checkout.liquid / additional scripts / script tags 在 Thank you/Order status 的弃用与限制 • 可导出 CSV",
+    pageSubtitle = "迁移清单 + 风险分级 + 替代路径（Web Pixel / 不可迁移）• 明确提示 checkout.liquid / additional scripts / script tags 在 Thank you/Order status 的弃用与限制 • 可导出 CSV",
     showMigrationButtons = false,
 }: ScanPageProps) {
     const { shop, latestScan, scanHistory, deprecationStatus, upgradeStatus, migrationActions, planId, planLabel, planTagline, migrationTimeline, migrationProgress, dependencyGraph, auditAssets, migrationChecklist, scriptAnalysisMaxContentLength, scriptAnalysisChunkSize, scannerMaxScriptTags, scannerMaxWebPixels } = useLoaderData<typeof loader>();
@@ -137,7 +137,7 @@ export function ScanPage({
                 description: "查看风险分级、推荐迁移路径与预估工时，作为迁移交付清单。",
                 items: [
                     "清单支持 CSV 导出",
-                    "标注 Web Pixel / UI Extension / Server-side 路径",
+                    "标注 Web Pixel / 不可迁移 路径",
                     "优先处理高风险资产",
                 ],
                 primaryAction: { content: "查看完整报告", url: "/app/audit/report" },
@@ -751,7 +751,7 @@ export function ScanPage({
     };
     const getPlatformName = useCallback((platform: string) => {
         const names: Record<string, string> = {
-            google: "GA4 (Measurement Protocol)",
+            google: "GA4",
             meta: "Meta (Facebook) Pixel",
             tiktok: "TikTok Pixel",
             bing: "Microsoft Ads (Bing) ⚠️",
@@ -917,19 +917,19 @@ export function ScanPage({
             )}
             {isGrowthOrAbove && !isProOrAbove && (
               <List type="bullet">
-                <List.Item>当前可用：Web Pixel 标准事件映射（v1 最小可用迁移），v1.0 已支持服务端 CAPI（需在设置中配置凭证，默认关闭）</List.Item>
-                <List.Item>升级到 Pro 以解锁事件对账、告警与高级 TY/OS 模块</List.Item>
+                <List.Item>当前可用：Web Pixel 标准事件映射（v1 最小可用迁移）</List.Item>
+                <List.Item>升级到 Pro 以解锁事件对账与高级告警能力</List.Item>
               </List>
             )}
             {isProOrAbove && !isAgency && (
               <List type="bullet">
-                <List.Item>已解锁多渠道像素 + 事件对账 + TY/OS 高级组件</List.Item>
+                <List.Item>已解锁多渠道像素 + 事件对账</List.Item>
                 <List.Item>多店铺、白标、团队协作即将在 v1.1 推出，可升级至 Agency 以在发布后使用</List.Item>
               </List>
             )}
             {isAgency && (
               <List type="bullet">
-                <List.Item>多店铺、白标、团队协作即将在 v1.1 推出；当前已解锁无限像素、全部模块、验收报告导出与 SLA</List.Item>
+                <List.Item>多店铺、白标、团队协作即将在 v1.1 推出；当前已解锁无限像素、验收报告导出与 SLA</List.Item>
                 <List.Item>如需迁移托管，可在支持渠道提交工单</List.Item>
               </List>
             )}
@@ -1387,7 +1387,7 @@ export function ScanPage({
                     <Text as="p" variant="bodySm">
                       <strong>✅ 迁移的核心价值：</strong>
                       迁移是一次性工作，完成后可确保转化追踪在 ScriptTag 废弃后继续正常工作。
-                      v1 提供 Web Pixel 标准事件映射（GA4/Meta/TikTok），v1.0 已支持服务端 CAPI（需在设置中配置凭证，不受浏览器隐私设置和广告拦截器影响）。
+                      v1 提供 Web Pixel 标准事件映射（GA4/Meta/TikTok）。
                       实际追踪效果因店铺情况而异。
                     </Text>
                   </Banner>
@@ -1446,8 +1446,6 @@ export function ScanPage({
                     ✅ 标准事件映射 + 参数完整率检查 + 可下载 payload 证据
                     <br />
                     ✅ 验收向导 + 事件参数完整率 + 订单金额/币种一致性验证
-                    <br />
-                    <Text as="span" fontWeight="semibold">v1.0 已支持：</Text> 服务端 CAPI（需配置凭证，不受浏览器隐私设置和广告拦截器影响）
                     <br />
                     <Text as="span" tone="subdued">
                       注：实际归因效果因广告账户设置、流量来源等因素而异
@@ -1659,15 +1657,6 @@ export function ScanPage({
                             配置 Pixel
                           </Button>
                         )}
-                        {action.type === "enable_capi" && false && (
-                          <Button
-                            size="slim"
-                            url="/app/settings"
-                            icon={ArrowRightIcon}
-                          >
-                            配置 CAPI
-                          </Button>
-                        )}
                       </InlineStack>
                     </BlockStack>
                   </Box>
@@ -1870,10 +1859,10 @@ export function ScanPage({
               <Divider />
               <BlockStack gap="300">
                 <Text as="h3" variant="headingSm">
-                  🛒 Checkout Editor（Plus 专属）
+                  🛒 Checkout Editor（参考）
                 </Text>
                 <Text as="p" variant="bodySm" tone="subdued">
-                  如果您是 Shopify Plus 商家，可以使用 Customer Accounts UI Extensions 替代 Additional Scripts。
+                  如果您已启用新的 Thank you / Order status 体验，请使用 Shopify 官方编辑器完成页面侧自定义（本应用不提供页面模块库）。
                 </Text>
                 <InlineStack gap="300" wrap>
                   <Button
@@ -2038,22 +2027,19 @@ export function ScanPage({
                           <Badge tone="info">Web Pixel 替代</Badge>
                           <Text as="p" variant="bodySm">
                             • ScriptTag → Web Pixel
-                            <br />• checkout.liquid → Pixel + Extension
+                            <br />• checkout.liquid → Web Pixel
                           </Text>
                         </BlockStack>
                       </Box>
                       <Box minWidth="200px">
                         <BlockStack gap="100">
-                          <Badge tone="warning">UI Extension 替代</Badge>
+                          <Badge tone="warning">页面侧自定义</Badge>
                           <Text as="p" variant="bodySm">
-                            • Additional Scripts → Customer Accounts UI Extensions
-                            <br />• Thank you/Order status 自定义脚本 → UI Extension Blocks。v1 不提供 Survey/Help/Reorder 等页面模块。
+                            • Additional Scripts：需人工梳理并在新体验下重做
+                            <br />• Thank you/Order status 自定义逻辑：以 Shopify 官方能力为准
                           </Text>
                           <Text as="p" variant="bodySm" tone="subdued">
-                            <strong>迁移价值：</strong>基于 Customer Accounts UI Extensions，符合 Shopify 官方推荐。v1 聚焦 Web Pixel 迁移与验收。
-                          </Text>
-                          <Text as="p" variant="bodySm" tone="subdued">
-                            <strong>重要提示：</strong>Order status 模块仅支持 Customer Accounts 体系下的订单状态页，不支持旧版订单状态页。如果您的店铺使用旧版订单状态页（非 Customer Accounts），Order status 模块将不会显示。请确认您的店铺已启用 Customer Accounts 功能（可在 Shopify Admin → 设置 → 客户账户中检查），否则模块不会在订单状态页显示。这是 Shopify 平台的设计限制，Order status 模块只能在 Customer Accounts 体系下工作。请参考 <a href="https://shopify.dev/docs/apps/customer-accounts/ui-extensions" target="_blank" rel="noopener noreferrer">Customer Accounts UI Extensions 官方文档</a>（注意：不要参考 checkout-ui-extensions 文档，该文档可能显示此 target 为"Not supported"，这是文档版本差异导致的误导。正确的文档入口是 Customer Accounts UI Extensions，不是 Checkout UI Extensions）。
+                            <strong>说明：</strong>当前版本不提供 Survey/Help/Reorder 等页面模块库，页面侧功能请按 Shopify 官方能力与审核要求实施。
                           </Text>
                         </BlockStack>
                       </Box>

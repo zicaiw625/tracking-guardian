@@ -42,7 +42,7 @@ export const PLATFORM_INFO: Partial<Record<PlatformType, {
   google: {
     name: "Google Analytics 4",
     icon: "🔵",
-    description: "使用 Measurement Protocol 发送转化数据",
+    description: "用于事件映射与验收（服务端投递为规划项）",
     credentialFields: [
       {
         key: "measurementId",
@@ -63,7 +63,7 @@ export const PLATFORM_INFO: Partial<Record<PlatformType, {
   meta: {
     name: "Meta (Facebook) Pixel",
     icon: "📘",
-    description: "使用 Conversions API 发送转化数据",
+    description: "用于事件映射与验收（服务端投递为规划项）",
     credentialFields: [
       {
         key: "pixelId",
@@ -91,7 +91,7 @@ export const PLATFORM_INFO: Partial<Record<PlatformType, {
   tiktok: {
     name: "TikTok Pixel",
     icon: "🎵",
-    description: "使用 Events API 发送转化数据",
+    description: "用于事件映射与验收（服务端投递为规划项）",
     credentialFields: [
       {
         key: "pixelId",

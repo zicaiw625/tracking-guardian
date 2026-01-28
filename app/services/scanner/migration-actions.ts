@@ -112,7 +112,7 @@ export function generateMigrationActions(result: EnhancedScanResult, shopTier: s
             priority,
             platform,
             title: `迁移 ScriptTag: ${platform}`,
-            description: `${deadlineNote}\n\n推荐步骤：1) 启用 App Pixel  2) 配置 CAPI 凭证  3) 测试追踪  4) 手动清理此 ScriptTag（查看指南）`,
+            description: `${deadlineNote}\n\n推荐步骤：1) 启用 App Pixel  2) 完成测试订单并运行验收  3) 手动清理此 ScriptTag（查看指南）`,
             scriptTagId: tag.id,
             deadline,
         });
@@ -121,7 +121,7 @@ export function generateMigrationActions(result: EnhancedScanResult, shopTier: s
             priority,
             platform,
             title: `迁移 ScriptTag: ${platform}`,
-            description: `${deadlineNote}\n\n推荐步骤：1) 启用 App Pixel  2) 配置 CAPI 凭证  3) 测试追踪  4) 手动清理此 ScriptTag（查看指南）`,
+            description: `${deadlineNote}\n\n推荐步骤：1) 启用 App Pixel  2) 完成测试订单并运行验收  3) 手动清理此 ScriptTag（查看指南）`,
             scriptTagId: tag.id,
             deadline,
             estimatedTimeMinutes: estimatedTime,
@@ -218,14 +218,14 @@ export function generateMigrationActions(result: EnhancedScanResult, shopTier: s
         actions.push(upgradeAction);
     }
     if (!hasAppPixelConfigured && result.identifiedPlatforms.length > 0) {
-        const capiAction: MigrationAction = {
-            type: "enable_capi",
+        const enableAction: MigrationAction = {
+            type: "configure_pixel",
             priority: "low",
-            title: "启用服务端转化追踪 (CAPI)",
-            description: "启用 Conversions API 可降低广告拦截器影响，提高追踪数据的一致性和完整性。",
+            title: "启用 App Pixel",
+            description: "启用 Web Pixel 以开始接收事件、落库并运行验收。",
         };
-        capiAction.estimatedTimeMinutes = estimateMigrationTime(capiAction);
-        actions.push(capiAction);
+        enableAction.estimatedTimeMinutes = estimateMigrationTime(enableAction);
+        actions.push(enableAction);
     }
     const now = new Date();
     const autoUpgradeStart = DEPRECATION_DATES.plusAutoUpgradeStart;

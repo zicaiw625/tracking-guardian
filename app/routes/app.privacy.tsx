@@ -287,98 +287,15 @@ export default function PrivacyPage() {
                     转化追踪
                   </Text>
                   <Text as="p" variant="bodySm">
-                    v1 默认仅基于 Web Pixel 客户事件和像素收据（PixelEventReceipt），不通过 Admin API 读取订单。服务端追踪为默认关闭的高级功能，启用前需要商家更新自身隐私政策。
+                    v1 默认仅基于 Web Pixel 客户事件和像素收据（PixelEventReceipt），不通过 Admin API 读取订单，也不向第三方平台发送服务端事件。
                   </Text>
-                  <Banner tone="critical">
+                  <Banner tone="warning">
                     <BlockStack gap="200">
                       <Text as="p" variant="bodySm" fontWeight="semibold">
-                        重要：服务端追踪（Server-side CAPI/MP）默认关闭
+                        重要：当前版本不提供服务端投递
                       </Text>
                       <Text as="p" variant="bodySm">
-                        <strong>所有新创建的像素配置中，服务端转化追踪（Server-side CAPI/MP）默认关闭（serverSideEnabled: false）。</strong>这意味着：
-                      </Text>
-                      <List type="bullet">
-                        <List.Item>
-                          <Text as="span" variant="bodySm">
-                            所有新创建的像素配置默认仅使用客户端 Web Pixel 追踪
-                          </Text>
-                        </List.Item>
-                        <List.Item>
-                          <Text as="span" variant="bodySm">
-                            不会向第三方平台 API（Meta Conversions API、GA4 Measurement Protocol、TikTok Events API）发送任何数据
-                          </Text>
-                        </List.Item>
-                        <List.Item>
-                          <Text as="span" variant="bodySm">
-                            只有在设置页面中显式启用服务端追踪后，才会开始发送服务端事件
-                          </Text>
-                        </List.Item>
-                      </List>
-                      <Text as="p" variant="bodySm">
-                        服务端追踪是高级功能，需要在设置页面中显式启用。启用前必须完成合规要求。
-                      </Text>
-                      <Text as="p" variant="bodySm" fontWeight="semibold">
-                        如果您在设置中启用了服务端追踪，以下数据将被发送到第三方平台：
-                      </Text>
-                      <List type="bullet">
-                        <List.Item>
-                          <Text as="span" variant="bodySm">
-                            订单数据：订单 ID、订单号、订单金额、货币、商品信息（名称、数量、价格、SKU）
-                          </Text>
-                        </List.Item>
-                        <List.Item>
-                          <Text as="span" variant="bodySm">
-                            时间戳：订单创建时间、事件触发时间
-                          </Text>
-                        </List.Item>
-                        <List.Item>
-                          <Text as="span" variant="bodySm">
-                            事件类型：购买、加购、查看商品等转化事件
-                          </Text>
-                        </List.Item>
-                      </List>
-                      <Text as="p" variant="bodySm" fontWeight="semibold">
-                        我们不会发送以下数据（PII）：
-                      </Text>
-                      <List type="bullet">
-                        <List.Item>
-                          <Text as="span" variant="bodySm">
-                            客户个人信息：姓名、邮箱、电话、地址
-                          </Text>
-                        </List.Item>
-                        <List.Item>
-                          <Text as="span" variant="bodySm">
-                            支付信息：信用卡号、支付方式详情
-                          </Text>
-                        </List.Item>
-                      </List>
-                      <Text as="p" variant="bodySm" fontWeight="semibold">
-                        合规要求（启用前必须完成）：
-                      </Text>
-                      <List type="bullet">
-                        <List.Item>
-                          <Text as="span" variant="bodySm">
-                            在隐私政策中明确说明向第三方平台（Meta、Google、TikTok）发送的数据类型和用途
-                          </Text>
-                        </List.Item>
-                        <List.Item>
-                          <Text as="span" variant="bodySm">
-                            已获得必要的用户同意（如 GDPR/CCPA 要求）
-                          </Text>
-                        </List.Item>
-                        <List.Item>
-                          <Text as="span" variant="bodySm">
-                            已准备好应对 Shopify App Review 关于数据使用的询问
-                          </Text>
-                        </List.Item>
-                      </List>
-                      <Text as="p" variant="bodySm" tone="subdued">
-                        服务端追踪通过 Shopify Webhooks 直接发送数据到第三方平台 API，不受浏览器隐私设置影响。
-                        当前版本（v1.0）中，该功能默认关闭且 UI 入口隐藏，仅在将来版本或通过环境变量显式启用后才会生效。
-                      </Text>
-                      <Text as="p" variant="bodySm" fontWeight="semibold" tone="critical">
-                        ⚠️ 默认状态：所有新创建的像素配置中，服务端追踪默认关闭（serverSideEnabled: false）。
-                        只有在设置页面中显式启用后，才会开始发送服务端事件。
+                        当前版本仅接收与校验 Web Pixel 事件，用于应用内诊断与验收。
                       </Text>
                     </BlockStack>
                   </Banner>

@@ -351,7 +351,7 @@ export async function distributeEvents(
   deduplicatedEvents: DeduplicatedEvent[],
   shopId: string,
   shopDomain: string,
-  serverSideConfigs: Array<{
+  enabledPixelConfigs: Array<{
     platform: string;
     id: string;
     platformId?: string | null;
@@ -368,7 +368,7 @@ export async function distributeEvents(
   for (const event of deduplicatedEvents) {
     const consentResult = checkInitialConsent(event.payload.consent);
     
-    const mappedConfigs = serverSideConfigs.map((config) => ({
+    const mappedConfigs = enabledPixelConfigs.map((config) => ({
       platform: config.platform,
       id: config.id,
       platformId: config.platformId ?? undefined,

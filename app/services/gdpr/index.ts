@@ -10,7 +10,6 @@ export type {
   ShopRedactResult,
   GDPRJobResult,
   ExportedConversionLog,
-  ExportedSurveyResponse,
   ExportedPixelEventReceipt,
   DataLocatedSummary,
   CustomerRedactDeletionCounts,

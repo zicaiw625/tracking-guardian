@@ -61,19 +61,6 @@ export const ExportRequestSchema = z.object({
 
 export type ExportRequest = z.infer<typeof ExportRequestSchema>;
 
-export const SurveyResponseSchema = z.object({
-  questionId: z.string().min(1).max(100),
-  response: z.union([
-    z.string().max(1000),
-    z.number(),
-    z.boolean(),
-    z.array(z.string().max(100)),
-  ]),
-  metadata: z.record(z.string(), z.unknown()).optional(),
-});
-
-export type SurveyResponse = z.infer<typeof SurveyResponseSchema>;
-
 export const HealthCheckResponseSchema = z.object({
   status: z.enum(["healthy", "degraded", "unhealthy"]),
   version: z.string().optional(),

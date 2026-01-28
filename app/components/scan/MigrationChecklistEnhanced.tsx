@@ -152,9 +152,9 @@ export function MigrationChecklistEnhanced({
       case "web_pixel":
         return <Badge tone="info">Web Pixel</Badge>;
       case "ui_extension":
-        return <Badge tone="success">UI Extension Block</Badge>;
+        return <Badge tone="warning">手动迁移</Badge>;
       case "server_side":
-        return <Badge>Server-side</Badge>;
+        return <Badge tone="warning">不提供</Badge>;
       case "none":
         return <Badge>无需迁移</Badge>;
       default:
@@ -327,7 +327,7 @@ export function MigrationChecklistEnhanced({
             <List type="bullet">
               <List.Item>资产名称/指纹（hash）</List.Item>
               <List.Item>风险等级（High/Med/Low）+ 原因</List.Item>
-              <List.Item>推荐迁移路径（Web Pixel / UI Extension / Server-side / None）</List.Item>
+              <List.Item>推荐迁移路径（Web Pixel / 手动迁移 / 不可迁移）</List.Item>
               <List.Item>预估工时 + 需要的信息（Pixel ID、Token、问卷题目等）</List.Item>
             </List>
           </BlockStack>
@@ -355,9 +355,9 @@ export function MigrationChecklistEnhanced({
                 const migrationPathLabel = item.suggestedMigration === "web_pixel"
                   ? "Web Pixel"
                   : item.suggestedMigration === "ui_extension"
-                    ? "UI Extension Block"
+                    ? "手动迁移"
                     : item.suggestedMigration === "server_side"
-                      ? "Server-side CAPI"
+                      ? "不提供"
                       : "External redirect / not supported";
                 const needsInfo: string[] = [];
                 if (item.platform) needsInfo.push(`平台: ${item.platform}`);

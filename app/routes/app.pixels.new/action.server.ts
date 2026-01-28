@@ -12,6 +12,7 @@ import { createWebPixel, getExistingWebPixels, isOurWebPixel, updateWebPixel } f
 import { decryptIngestionSecret, encryptIngestionSecret, isTokenEncrypted } from "../../utils/token-encryption.server";
 import { randomBytes } from "crypto";
 import { trackEvent } from "../../services/analytics.server";
+import { FEATURE_FLAGS } from "../../utils/config.server";
 
 const SUPPORTED_PLATFORMS = ["google", "meta", "tiktok"] as const;
 type SupportedPlatform = (typeof SUPPORTED_PLATFORMS)[number];
@@ -67,21 +68,24 @@ export const action = async ({ request }: ActionFunctionArgs) => {
             error: `平台 ${config.platform} 尚未在 v1 支持，请仅选择 GA4、Meta 或 TikTok。`,
           }, { status: 400 });
         }
+        const trackingApiEnabled = FEATURE_FLAGS.TRACKING_API;
         let credentials: Record<string, string> = {};
-        if (platform === "google") {
-          credentials = {
-            measurementId: config.credentials.measurementId || "",
-            apiSecret: config.credentials.apiSecret || "",
-          };
-        } else {
-          credentials = {
-            pixelId: config.credentials.pixelId || "",
-            accessToken: config.credentials.accessToken || "",
-            ...(config.credentials.testEventCode && { testEventCode: config.credentials.testEventCode }),
-          };
+        if (trackingApiEnabled) {
+          if (platform === "google") {
+            credentials = {
+              measurementId: config.credentials.measurementId || "",
+              apiSecret: config.credentials.apiSecret || "",
+            };
+          } else {
+            credentials = {
+              pixelId: config.credentials.pixelId || "",
+              accessToken: config.credentials.accessToken || "",
+              ...(config.credentials.testEventCode && { testEventCode: config.credentials.testEventCode }),
+            };
+          }
         }
-        const encryptedCredentials = encryptJson(credentials);
-        const platformIdValue = config.platformId?.trim() || null;
+        const encryptedCredentials = trackingApiEnabled ? encryptJson(credentials) : null;
+        const platformIdValue = trackingApiEnabled ? (config.platformId?.trim() || null) : null;
         const existingConfig = await prisma.pixelConfig.findFirst({
           where: {
             shopId: shop.id,
@@ -127,7 +131,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
             id: generateSimpleId("pixel-config"),
             shopId: shop.id,
             platform,
-            platformId: (config.platformId && config.platformId.trim()) ? config.platformId : null,
+            platformId: platformIdValue,
             credentialsEncrypted: encryptedCredentials,
             serverSideEnabled: false,
             eventMappings: config.eventMappings as object,

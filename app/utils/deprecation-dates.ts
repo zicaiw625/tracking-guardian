@@ -221,7 +221,7 @@ export function getAdditionalScriptsDeprecationStatus(tier: ShopTier, now: Date 
             isWarning: false,
             daysRemaining: 0,
             deadline,
-            message: `${tierLabel}的 Additional Scripts 已于 ${dateLabel} 变为只读。请使用 Web Pixel 或 Checkout UI Extension 进行追踪。`,
+            message: `${tierLabel}的 Additional Scripts 已于 ${dateLabel} 变为只读。请使用 Web Pixel 进行追踪。`,
             messageBrief: `已只读（${dateLabel}）`,
             tone: "critical",
         };
@@ -265,7 +265,7 @@ export function getMigrationUrgencyStatus(tier: ShopTier, hasScriptTags: boolean
     if (additionalScriptsStatus.isExpired) {
         urgency = "critical";
         primaryMessage = additionalScriptsStatus.message;
-        actions.push("使用 Web Pixel Extension 或 Checkout UI Extension 替代 Additional Scripts");
+        actions.push("使用 Web Pixel 替代 Additional Scripts");
     }
     if (!additionalScriptsStatus.isExpired && additionalScriptsStatus.isWarning) {
         if (urgency !== "critical") {
@@ -280,7 +280,7 @@ export function getMigrationUrgencyStatus(tier: ShopTier, hasScriptTags: boolean
         actions.push("将 ScriptTag 追踪迁移到 Web Pixel");
     }
     if (urgency === "low") {
-        primaryMessage = "建议启用服务端转化追踪 (CAPI) 以提高追踪准确率。";
+        primaryMessage = "建议完成 Web Pixel 迁移并运行验收，确保升级后不丢数据。";
     }
     return { urgency, primaryMessage, actions };
 }
@@ -417,7 +417,7 @@ export function getUpgradeStatusMessage(upgradeStatus: ShopUpgradeStatus, hasScr
                 "Shopify 可能随时将您的页面迁移到新版本。" + autoUpgradeNote,
             actions: [
                 "立即配置 Web Pixel 以确保追踪不中断",
-                "检查 Web Pixel 和 CAPI 配置是否正确",
+                "检查 Web Pixel 配置是否正确",
                 "考虑主动升级到新版页面以获得更好的控制",
             ],
             autoUpgradeInfo: {

@@ -14,10 +14,6 @@ vi.mock("../../app/db.server", () => ({
     shop: {
       findMany: vi.fn(),
     },
-    surveyResponse: {
-      findMany: vi.fn(),
-      deleteMany: vi.fn(),
-    },
     auditLog: {
       findMany: vi.fn(),
       deleteMany: vi.fn(),
@@ -97,7 +93,6 @@ describe("Cleanup Task", () => {
     it("should return zero counts when no data to clean", async () => {
       const result = await cleanupExpiredData();
       expect(result.shopsProcessed).toBe(0);
-      expect(result.surveyResponsesDeleted).toBe(0);
       expect(result.auditLogsDeleted).toBe(0);
     });
     it("should process shops with data retention configured", async () => {
@@ -106,7 +101,6 @@ describe("Cleanup Task", () => {
         { id: "shop2", shopDomain: "shop2.myshopify.com", dataRetentionDays: 30 },
       ];
       (prisma.shop.findMany as ReturnType<typeof vi.fn>).mockResolvedValue(mockShops);
-      (prisma.surveyResponse.findMany as ReturnType<typeof vi.fn>).mockResolvedValue([]);
       (prisma.auditLog.findMany as ReturnType<typeof vi.fn>).mockResolvedValue([]);
       (prisma.pixelEventReceipt.findMany as ReturnType<typeof vi.fn>).mockResolvedValue([]);
       (prisma.webhookLog.findMany as ReturnType<typeof vi.fn>).mockResolvedValue([]);
@@ -130,7 +124,6 @@ describe("Cleanup Task", () => {
     it("should enforce minimum 180 day retention for audit logs", async () => {
       const mockShops = [{ id: "shop1", shopDomain: "shop1.myshopify.com", dataRetentionDays: 30 }];
       (prisma.shop.findMany as ReturnType<typeof vi.fn>).mockResolvedValue(mockShops);
-      (prisma.surveyResponse.findMany as ReturnType<typeof vi.fn>).mockResolvedValue([]);
       (prisma.auditLog.findMany as ReturnType<typeof vi.fn>).mockResolvedValue([]);
       (prisma.pixelEventReceipt.findMany as ReturnType<typeof vi.fn>).mockResolvedValue([]);
       (prisma.webhookLog.findMany as ReturnType<typeof vi.fn>).mockResolvedValue([]);
@@ -149,7 +142,6 @@ describe("Cleanup Task", () => {
       const mockShops = [{ id: "shop1", shopDomain: "shop1.myshopify.com", dataRetentionDays: 90 }];
       const oldScanReports = [{ id: "scan6" }, { id: "scan7" }];
       (prisma.shop.findMany as ReturnType<typeof vi.fn>).mockResolvedValue(mockShops);
-      (prisma.surveyResponse.findMany as ReturnType<typeof vi.fn>).mockResolvedValue([]);
       (prisma.auditLog.findMany as ReturnType<typeof vi.fn>).mockResolvedValue([]);
       (prisma.pixelEventReceipt.findMany as ReturnType<typeof vi.fn>).mockResolvedValue([]);
       (prisma.webhookLog.findMany as ReturnType<typeof vi.fn>).mockResolvedValue([]);

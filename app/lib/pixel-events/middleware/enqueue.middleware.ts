@@ -25,7 +25,15 @@ export const enqueueMiddleware: IngestMiddleware = async (
     validatedEvents: context.validatedEvents,
     keyValidation: context.keyValidation,
     origin: context.origin,
-    serverSideConfigs: context.serverSideConfigs.map((c) => ({
+    enabledPixelConfigs: context.enabledPixelConfigs.map((c) => ({
+      platform: (c as { platform?: string }).platform ?? "",
+      id: (c as { id?: string }).id ?? "",
+      platformId: (c as { platformId?: string | null }).platformId ?? null,
+      clientSideEnabled: (c as { clientSideEnabled?: boolean | null }).clientSideEnabled ?? null,
+      serverSideEnabled: (c as { serverSideEnabled?: boolean | null }).serverSideEnabled ?? null,
+      clientConfig: (c as { clientConfig?: unknown }).clientConfig ?? null,
+    })),
+    serverSideConfigs: context.enabledPixelConfigs.map((c) => ({
       platform: (c as { platform?: string }).platform ?? "",
       id: (c as { id?: string }).id ?? "",
       platformId: (c as { platformId?: string | null }).platformId ?? null,

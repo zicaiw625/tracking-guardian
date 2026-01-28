@@ -54,6 +54,10 @@ import {
   getAppliedRecipes,
 } from "../../app/services/recipes/executor";
 
+const trackingApiEnabled =
+  process.env.FEATURE_TRACKING_API === "true" || process.env.FEATURE_TRACKING_API === "1";
+
+if (trackingApiEnabled) {
 describe("Recipe Migration Flow Integration", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -200,11 +204,10 @@ describe("Recipe Migration Flow Integration", () => {
       const mockRecipes = [
         { id: "ar-1", recipeId: "ga4-basic", status: "completed", createdAt: new Date() },
         { id: "ar-2", recipeId: "meta-capi", status: "in_progress", createdAt: new Date() },
-        { id: "ar-3", recipeId: "survey-migration", status: "configuring", createdAt: new Date() },
       ];
       vi.mocked(prisma.appliedRecipe.findMany).mockResolvedValue(mockRecipes as any);
       const recipes = await getAppliedRecipes(shopId);
-      expect(recipes).toHaveLength(3);
+      expect(recipes).toHaveLength(2);
       expect(prisma.appliedRecipe.findMany).toHaveBeenCalledWith(
         expect.objectContaining({
           where: { shopId },
@@ -249,10 +252,6 @@ describe("Recipe Migration Flow Integration", () => {
         "tiktok-events": {
           pixelId: "test-pixel-id",
           accessToken: "tiktok-access-token",
-        },
-        "survey-migration": {
-          surveyTitle: "Test Survey",
-          surveyQuestion: "How did you hear about us?",
         },
         "custom-webhook": {
           endpointUrl: "https://example.com/webhook",
@@ -323,8 +322,6 @@ describe("Recipe Migration Flow Integration", () => {
     it("should identify recipes with correct source types", () => {
       const ga4Recipe = getRecipeById("ga4-basic")!;
       expect(ga4Recipe.source.type).toBe("script_tag");
-      const surveyRecipe = getRecipeById("survey-migration")!;
-      expect(surveyRecipe.source.type).toBe("additional_scripts");
       const metaRecipe = getRecipeById("meta-capi")!;
       expect(metaRecipe.source.type).toBe("script_tag");
     });
@@ -362,3 +359,12 @@ describe("Recipe Migration Flow Integration", () => {
     });
   });
 });
+} else {
+  describe("Recipe Migration Flow Integration", () => {
+    it("should not expose tracking-api recipes when feature flag is off", () => {
+      expect(getRecipeById("ga4-basic")).toBeUndefined();
+      expect(getRecipeById("meta-capi")).toBeUndefined();
+      expect(getRecipeById("tiktok-events")).toBeUndefined();
+    });
+  });
+}

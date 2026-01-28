@@ -118,6 +118,10 @@ function ScoreCard({
 
 export default function VerificationPage() {
   const loaderData = useLoaderData<typeof loader>();
+  const trackingApiEnabled =
+    loaderData && typeof loaderData === "object" && "trackingApiEnabled" in loaderData
+      ? Boolean((loaderData as { trackingApiEnabled?: boolean }).trackingApiEnabled)
+      : false;
   const { shop, configuredPlatforms, history, latestRun, testGuide, testItems, testChecklist, canAccessVerification, canExportReports, currentPlan, pixelStrictOrigin } = loaderData;
   const gateResult = ("gateResult" in loaderData && loaderData.gateResult) as FeatureGateResult | undefined;
   const shopDomain = shop?.domain || "";
@@ -347,15 +351,15 @@ export default function VerificationPage() {
             </Text>
           </BlockStack>
         </Banner>
-        <Banner tone="info" title="重要说明：事件发送与平台归因">
+        <Banner tone="info" title="重要说明：验收范围与平台归因">
           <BlockStack gap="200">
             <Text as="p" variant="bodySm">
-              <strong>本应用仅保证事件生成与发送成功，不保证平台侧归因一致。</strong>
+              <strong>本应用验收侧重于事件触发与数据质量，不保证平台侧归因一致。</strong>
             </Text>
             <List type="bullet">
               <List.Item>
                 <Text as="span" variant="bodySm">
-                  <strong>我们保证：</strong>事件已成功生成并发送到目标平台 API（GA4 Measurement Protocol、Meta Conversions API、TikTok Events API 等）
+                  <strong>我们提供：</strong>像素事件触发记录、参数完整率、订单金额/币种一致性等验收证据。
                 </Text>
               </List.Item>
               <List.Item>
@@ -365,22 +369,14 @@ export default function VerificationPage() {
               </List.Item>
               <List.Item>
                 <Text as="span" variant="bodySm">
-                  <strong>验收报告说明：</strong>本验收报告仅验证事件是否成功发送到平台 API，以及事件参数是否完整。平台侧报表中的归因数据可能因平台算法、数据处理延迟等因素与 Shopify 订单数据存在差异，这是正常现象。
+                  <strong>验收报告说明：</strong>如果验收显示“通过”，表示像素事件在本应用的接收与校验链路中表现正常；平台侧归因可能仍存在差异，这是正常现象。
                 </Text>
               </List.Item>
             </List>
           </BlockStack>
         </Banner>
         <CheckoutExtensibilityWarning />
-        {configuredPlatforms.length === 0 && (
-          <Banner
-            title="未配置服务端追踪（可选增强）"
-            tone="info"
-            action={{ content: "前往配置", url: "/app/settings" }}
-          >
-            <p>服务端追踪（CAPI/MP）是可选的增强功能。Web Pixel 采集和验收是核心功能，无需服务端配置即可使用。如需启用服务端投递以提升追踪准确性，请在设置页面配置平台凭证。</p>
-          </Banner>
-        )}
+        {false && configuredPlatforms.length === 0 && null}
         {latestRun && !canExportReports && (
           <Banner
             title="📄 生成验收报告（CSV）- 核心付费点"
@@ -635,15 +631,15 @@ export default function VerificationPage() {
             </BlockStack>
           </Card>
         )}
-        <Banner tone="info" title="重要说明：事件发送与平台归因">
+        <Banner tone="info" title="重要说明：验收范围与平台归因">
           <BlockStack gap="200">
             <Text as="p" variant="bodySm">
-              <strong>本应用仅保证事件生成与发送成功，不保证平台侧归因一致。</strong>
+              <strong>本应用验收侧重于事件触发与数据质量，不保证平台侧归因一致。</strong>
             </Text>
             <List type="bullet">
               <List.Item>
                 <Text as="span" variant="bodySm">
-                  <strong>我们保证：</strong>事件已成功生成并发送到目标平台 API（GA4 Measurement Protocol、Meta Conversions API、TikTok Events API 等）
+                  <strong>我们提供：</strong>像素事件触发记录、参数完整率、订单金额/币种一致性等验收证据。
                 </Text>
               </List.Item>
               <List.Item>
@@ -653,7 +649,7 @@ export default function VerificationPage() {
               </List.Item>
               <List.Item>
                 <Text as="span" variant="bodySm">
-                  <strong>验证方法：</strong>您可以通过本应用的验收报告查看事件发送状态和请求/响应详情，或使用平台提供的测试工具（如 Meta Events Manager、GA4 DebugView）验证事件接收情况。
+                  <strong>验证方法：</strong>您可以通过本应用的验收报告查看事件触发与数据质量，或使用平台提供的工具验证事件接收情况。
                 </Text>
               </List.Item>
             </List>
@@ -790,9 +786,9 @@ export default function VerificationPage() {
                                 请检查以下可能的原因：
                               </Text>
                               <List type="bullet">
-                                <List.Item>平台 CAPI 凭证是否正确配置</List.Item>
-                                <List.Item>凭证是否已过期</List.Item>
-                                <List.Item>平台端是否有 IP 限制或其他安全设置</List.Item>
+                                <List.Item>Web Pixel 是否已正确安装并启用</List.Item>
+                                <List.Item>事件是否在结账漏斗中实际触发</List.Item>
+                                <List.Item>是否有广告拦截器或浏览器策略影响请求发送</List.Item>
                               </List>
                             </BlockStack>
                           </Banner>
@@ -812,7 +808,7 @@ export default function VerificationPage() {
                             </Text>
                           </Banner>
                         )}
-                        {latestRun.reconciliation && (
+                        {trackingApiEnabled && latestRun.reconciliation && (
                           <Box padding="400">
                             <Divider />
                             <BlockStack gap="400">
@@ -824,10 +820,10 @@ export default function VerificationPage() {
                                   {latestRun.reconciliation.pixelVsCapi && (
                                     <DataTable
                                       columnContentTypes={["text", "numeric", "numeric"]}
-                                      headings={["指标", "Pixel", "CAPI"]}
+                                      headings={["指标", "Pixel", "服务端(规划)"]}
                                       rows={[
                                         ["仅 Pixel", String(latestRun.reconciliation.pixelVsCapi.pixelOnly || 0), "0"],
-                                        ["仅 CAPI", "0", String(latestRun.reconciliation.pixelVsCapi.capiOnly || 0)],
+                                        ["仅 服务端(规划)", "0", String(latestRun.reconciliation.pixelVsCapi.capiOnly || 0)],
                                         ["两者都有", String(latestRun.reconciliation.pixelVsCapi.both || 0), String(latestRun.reconciliation.pixelVsCapi.both || 0)],
                                         ["被 Consent 阻止", String(latestRun.reconciliation.pixelVsCapi.consentBlocked || 0), String(latestRun.reconciliation.pixelVsCapi.consentBlocked || 0)],
                                       ]}
@@ -867,7 +863,7 @@ export default function VerificationPage() {
                                         {latestRun.reconciliation.pixelVsCapi.capiOnly}
                                       </Text>
                                       <Text as="p" variant="bodySm" tone="subdued">
-                                        仅 CAPI
+                                        仅 服务端(规划)
                                       </Text>
                                     </BlockStack>
                                   </Box>
@@ -901,7 +897,7 @@ export default function VerificationPage() {
                                       🔍 本地一致性检查
                                     </Text>
                                     <Text as="p" variant="bodySm" tone="subdued">
-                                      对订单数据进行深度一致性验证，确保 Pixel 和 CAPI 事件的关键参数匹配
+                                      对订单数据进行深度一致性验证，确保 Pixel 与对账结果一致
                                     </Text>
                                     <Layout>
                                       <Layout.Section variant="oneThird">
@@ -1045,15 +1041,15 @@ export default function VerificationPage() {
                     </Card>
                   </>
                 )}
-                <Banner tone="info" title="重要说明：事件发送与平台归因">
+                <Banner tone="info" title="重要说明：验收范围与平台归因">
                   <BlockStack gap="200">
                     <Text as="p" variant="bodySm">
-                      <strong>本应用仅保证事件生成与发送成功，不保证平台侧归因一致。</strong>
+                      <strong>本应用验收侧重于事件触发与数据质量，不保证平台侧归因一致。</strong>
                     </Text>
                     <List type="bullet">
                       <List.Item>
                         <Text as="span" variant="bodySm">
-                          <strong>我们保证：</strong>事件已成功生成并发送到目标平台 API（GA4 Measurement Protocol、Meta Conversions API、TikTok Events API 等）。验收报告显示的是我们系统记录的事件发送状态。
+                          <strong>我们提供：</strong>像素事件触发记录、参数完整率、订单金额/币种一致性等验收证据。
                         </Text>
                       </List.Item>
                       <List.Item>
@@ -1063,7 +1059,7 @@ export default function VerificationPage() {
                       </List.Item>
                       <List.Item>
                         <Text as="span" variant="bodySm">
-                          <strong>验收报告说明：</strong>本验收功能仅验证事件是否成功发送到平台 API，以及事件数据是否完整。如果验收显示"通过"，表示事件已成功发送；但平台侧报表中的归因数据可能因平台算法等因素与 Shopify 订单数据存在差异，这是正常现象。
+                          <strong>验收报告说明：</strong>如果验收显示“通过”，表示像素事件在本应用的接收与校验链路中表现正常；平台侧归因可能仍存在差异，这是正常现象。
                         </Text>
                       </List.Item>
                     </List>
@@ -1434,7 +1430,7 @@ export default function VerificationPage() {
               🔗 相关页面
             </Text>
             <InlineStack gap="300" wrap>
-              <Button url="/app/settings">配置凭证</Button>
+              <Button url="/app/settings">查看设置</Button>
               <Button url="/app/migrate">安装 Pixel</Button>
             </InlineStack>
           </BlockStack>

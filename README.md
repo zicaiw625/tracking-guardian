@@ -24,7 +24,7 @@
 
 **产品卖点话术**：
 - "替换 Additional Scripts，减少结账页脚本风险"
-- "基于 Web Pixels + Customer Accounts UI Extensions 的合规迁移"
+- "基于 Web Pixels 的合规迁移"
 - "验收报告 + 断档告警（给老板/客户看的证据）"
 
 ## v1 MVP 核心功能（付费理由非常硬）
@@ -35,7 +35,7 @@
   - ⚠️ **注意**：Shopify API 无法自动读取 checkout.liquid 中的 Additional Scripts，需要商家手动复制粘贴
 - **迁移清单**：生成完整的迁移清单，包含每个待迁移项
 - **风险分级**：基于风险等级、影响范围、迁移难度进行分级（高/中/低）
-- **替代路径**：明确标注每个迁移项的替代路径（Web Pixel / Checkout UI Extension / 不可迁移）
+- **替代路径**：明确标注每个迁移项的替代路径（Web Pixel / 不可迁移）
 - **截止日期提醒**：根据店铺类型（Plus/非Plus）显示 Shopify 官方截止日期
   - Plus 店铺：2026-01 开始自动升级
   - 非 Plus 店铺：最晚 2026-08-26
@@ -54,26 +54,9 @@
 
 > **技术说明**：Web Pixel 运行在严格沙箱（Web Worker）环境中，很多能力受限。我们会明确告知限制，并提供可行的替代方案。
 
-### (C) 付费：Thank you / Order status 模块库（v1 包含 3 个核心模块）
-- **Post-purchase Survey（购后问卷）**：收集客户反馈，了解获客渠道（官方示例场景，有强差异化）
-- **Help & Support 模块（帮助中心/联系客服）**：迁移替代件、配置简单，包含 FAQ、联系客服、继续购物等功能
-- **Reorder（再购按钮）**：一键重新购买相同商品，仅在 Customer Accounts 的 Order status 页面可用（需要客户账户认证，不支持旧版订单状态页）。**注意**：Reorder 属于 v1.0 代码预埋，默认关闭，需 PCD 审批后开放。
+### (C) 页面侧自定义
 
-> **⚠️ 重要提示：Order Status 模块仅支持 Customer Accounts 体系**
-> 
-> Order Status 模块使用 `customer-account.order-status.block.render` target，仅适用于 Customer Accounts 体系下的订单状态页。如果您的店铺使用旧版订单状态页（非 Customer Accounts），Order Status 模块将不会显示。这是 Shopify 平台的设计限制，Order status 模块只能在 Customer Accounts 体系下工作。
-> 
-> 请确认您的店铺已启用 Customer Accounts 功能（可在 Shopify Admin → 设置 → 客户账户中检查），否则模块不会在订单状态页显示。如果未启用，请先在 Shopify Admin → 设置 → 客户账户中启用 Customer Accounts 功能，然后才能使用 Order status 模块。
-> 
-> **文档引用说明（避免误导）**：
-> 
-> 请参考 [Customer Accounts UI Extensions](https://shopify.dev/docs/apps/customer-accounts/ui-extensions) 官方文档。注意：不要参考 checkout-ui-extensions 文档，该文档可能显示此 target 为"Not supported"，这是文档版本差异导致的误导。正确的文档入口是 Customer Accounts UI Extensions，不是 Checkout UI Extensions。
-
-> **v1.1 以后规划**：以下模块在 v1 中**不可用**（代码中已标记为 disabled），将在后续版本发布：
-> - Order Tracking（物流追踪）- 需深集成，API/适配会膨胀
-> - Upsell Offer（追加销售）- 边界条件复杂
-> 
-> **注意**：Reorder 模块需要 Protected Customer Data (PCD) 访问权限。PCD 功能需要 Shopify 审核批准，默认禁用。获得批准后可在设置中启用。
+当前仓库不包含 Thank you / Order status 页面模块库工程，v1 不以页面模块作为交付范围。
 
 ### (D) 付费：验收（Verification）+ 断档监控（Monitoring）
 这是产品的"交付件"，也是 Agency 愿意付钱的关键。
@@ -95,20 +78,9 @@
   - Purchase 缺参率监控：监控 purchase 事件关键参数的缺失率
   - 多渠道告警：支持邮件/Slack/Telegram 告警
 
-## 服务器端转化追踪（Server-side CAPI/MP）
+## 服务端投递
 
-v1.0 版本**已包含**服务器端转化追踪能力，支持以下平台：
-- Meta Conversions API (CAPI)
-- GA4 Measurement Protocol
-- TikTok Events API
-
-**功能说明**：
-- 支持客户端/服务端混合去重（hybrid mode）
-- 事件通过服务端 API 直接发送到广告平台，提高数据可靠性
-- 支持 Test/Live 环境切换
-- 完整的发送状态记录和错误处理
-
-**配置方式**：在「设置」页面的「服务端追踪」标签页中配置平台凭证。
+当前版本不提供服务端投递能力，功能范围以 Web Pixel → `/ingest` → 去重/落库/验收 为主。
 
 ## 未来版本规划（v1 暂不包含）
 
@@ -151,7 +123,7 @@ v1.0 版本**已包含**服务器端转化追踪能力，支持以下平台：
 > 
 > **付费触发点**（3个强 CTA，直接对应商家的"升级项目交付"）：
 > 1. **启用像素迁移（Test 环境）** → 进入付费试用/订阅（Starter $29/月）
-> 2. **发布 Thank you/Order status 模块** → 进入付费（Starter $29/月）
+> 2. **完成 Thank you/Order status 页面升级与自检** → 进入付费（Starter $29/月）
 > 3. **生成验收报告（CSV）** → 付费（Growth $79/月）
 >
 > 权限/功能 gating 已在前端页面展示：升级 CTA 位于仪表盘与迁移页；默认 plan 为 Free。
@@ -161,7 +133,7 @@ v1.0 版本**已包含**服务器端转化追踪能力，支持以下平台：
 - **框架**: Remix + Shopify App Remix
 - **UI**: Shopify Polaris
 - **数据库**: PostgreSQL + Prisma ORM
-- **扩展**: Web Pixel Extension + Checkout UI Extension
+- **扩展**: Web Pixel Extension
 - **环境切换与回滚**：仅通过 `app/services/pixel-rollback.server.ts` 实现，勿使用其它遗留实现。
 
 ## 快速开始
@@ -313,32 +285,9 @@ pnpm install --frozen-lockfile && pnpm generate && pnpm db:deploy && pnpm ext:in
 3. 验证扩展构建产物中不再包含 `__BACKEND_URL_PLACEHOLDER__` 占位符
 4. 确保该 URL 已在 Web Pixel Extension 的 allowlist 中配置（Partner Dashboard → App → API access → UI extensions network access）
 
-#### Customer Account / Checkout UI Extension 网络访问配置
+#### UI extensions network access
 
-**扩展配置**：`extensions/thank-you-blocks/shopify.extension.toml` 中已设置 `network_access = true`，允许 UI extension 访问后端 API。
-
-**Partner Dashboard 配置要求**：
-- 必须在 Partner Dashboard 中申请并启用 UI extensions network access 权限
-- 路径：Partner Dashboard → App → API access → UI extensions network access
-- 必须将后端 URL 添加到允许列表（allowlist）
-- 如果未在 Partner Dashboard 中配置，扩展虽然可以安装，但所有网络请求都会失败
-
-**CORS 配置**：
-- 后端 `app/utils/cors.ts` 中已实现动态 CORS 配置
-- 支持 Shopify 平台域名的 CORS 请求
-- 支持开发环境的本地域名（localhost）
-- 自动处理 preflight 请求
-
-**验证步骤**：
-1. 确认 `extensions/thank-you-blocks/shopify.extension.toml` 中 `network_access = true` 已设置
-2. 在 Partner Dashboard 中检查 UI extensions network access 权限是否已启用
-3. 确认后端 URL 已添加到 allowlist
-4. 测试 UI extension 的网络请求是否正常工作（如 Order Status 模块的状态获取）
-
-**常见问题**：
-- 如果 UI extension 的网络请求失败，首先检查 Partner Dashboard 中的 network access 配置
-- 确保后端 URL 与 Partner Dashboard 中配置的 URL 完全一致（包括协议、域名、端口）
-- 检查浏览器控制台是否有 CORS 错误
+当前版本不包含 UI extension 工程。
 
 #### Webhook 路径与 raw body（HMAC 校验）
 
@@ -417,7 +366,6 @@ railway up
 │   └── db.server.ts            # Prisma 客户端
 ├── extensions/
 │   ├── tracking-pixel/         # Web Pixel Extension
-│   └── thank-you-blocks/       # Checkout UI Extension
 ├── prisma/
 │   └── schema.prisma           # 数据库模型
 └── package.json
@@ -493,7 +441,7 @@ ScriptTag 清理需要商家手动操作：
 - ❌ 直接删除 ScriptTag（需商家手动操作）
 - ❌ 在 TYP/OSP 页面注入任何客户端脚本
 
-所有追踪功能通过 **Web Pixel Extension**（服务端）和 **Webhooks**（CAPI）实现。
+当前公开版本的追踪与对账均依赖 **Web Pixel Extension** 与 **订单/退款 Webhooks**，**不会代表商家向 Meta/GA4/TikTok 等平台发起服务端 CAPI/MP 请求**。
 
 ### P0-3: 最小权限说明
 
@@ -543,7 +491,7 @@ Customer Account / Thank you block 与 Web Pixel 的配合、以及 PCD 的说�
 
 ### 上架与 BFS 策略
 
-* **替换 Additional Scripts，减少结账页脚本风险** - 基于 Web Pixels + Customer Accounts UI Extensions 的合规迁移
+* **替换 Additional Scripts，减少结账页脚本风险** - 基于 Web Pixels 的合规迁移
 * **验收报告 + 断档告警** - 给老板/客户看的证据
 * **性能优化** - 符合 BFS LCP/CLS/INP 指标要求（LCP ≤2.5s、CLS ≤0.1、INP ≤200ms）
 
@@ -609,11 +557,11 @@ Customer Account / Thank you block 与 Web Pixel 的配合、以及 PCD 的说�
    - 监控 nonce 重放率（检测重放攻击）
    - 监控异常 IP 和请求模式
 
-4. **最佳实践**：
+4. **最佳实践**（当前版本行为说明）：
    - 定期轮换 `ingestion_key`（虽然客户端仍可提取新密钥，但可限制旧密钥的有效期）
    - 监控异常请求模式，及时响应安全事件
    - 在生产环境启用所有安全校验（Origin、nonce、timestamp 等，HMAC 作为完整性信号）
-   - 使用服务端追踪（CAPI）作为主要追踪方式，客户端追踪作为补充
+   - 当前公开版本以 **Web Pixel → /ingest → 落库/验收** 为主，不启用服务端 CAPI/MP 投递；如需使用 CAPI/MP，应在未来版本中单独启用并更新隐私政策
 
 **结论**：`ingestion_key` 是完整性校验密钥，用于完整性校验和反滥用，不是强认证凭证。其设计目标是"提高攻击门槛"而非"完全防止攻击"。通过多层防护机制，可以有效防止大部分自动化攻击和误用，但对于有能力的攻击者，客户端密钥的提取是不可避免的。这是客户端安全模型的权衡，需要在安全性和可用性之间取得平衡。真正的安全由 webhook/订单对账与整体架构设计提供。
 

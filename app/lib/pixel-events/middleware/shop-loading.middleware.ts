@@ -84,7 +84,7 @@ export const shopLoadingMiddleware: IngestMiddleware = async (
       shopAllowedDomains,
       environment,
       mode,
-      serverSideConfigs: enabledConfigs,
+      enabledPixelConfigs: enabledConfigs,
     },
   };
 };

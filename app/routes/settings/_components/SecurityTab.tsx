@@ -457,7 +457,7 @@ export function SecurityTab({
                     <br />• <strong>监控异常事件接收模式</strong>（在 Dashboard 中查看事件统计，特别关注 null origin 请求）
                     <br />• null origin 请求量异常飙升时会在日志中记录 <code>[SECURITY] Null origin request spike</code>，请关注监控与日志
                     <br />• <strong>如果怀疑滥用，立即更换令牌</strong>并检查事件日志，审查访问记录
-                    <br />• <strong>确保生产环境已显式设置</strong> <code>PIXEL_ALLOW_NULL_ORIGIN_WITH_SIGNATURE_ONLY</code>（部署时检查环境变量）
+                    <br />• <code>PIXEL_ALLOW_NULL_ORIGIN_WITH_SIGNATURE_ONLY</code> 为可选开关：默认允许带签名的 Origin:null/missing 请求；设置为 <code>false</code> 时将拒绝该类请求
                     <br />• <strong>使用令牌轮换机制</strong>（更换后旧令牌有 30 分钟过渡期，确保平滑过渡）
                     <br />• <strong>记录并审计令牌轮换操作</strong>，建立运维手册和操作流程
                     <br />• <strong>建立令牌过期机制</strong>（系统已支持 previousIngestionSecret 和 previousSecretExpiry，建议定期轮换）
@@ -643,7 +643,7 @@ export function SecurityTab({
                 Consent 策略
               </Text>
               <Text as="p" variant="bodySm" tone="subdued">
-                控制何时发送转化数据到广告平台。不同策略适用于不同地区的合规要求。
+                控制事件在验收与内部处理链路中的过滤策略。不同策略适用于不同地区的合规要求。
               </Text>
               <Select
                 label="策略选择"
@@ -676,9 +676,7 @@ export function SecurityTab({
                       ✅ 严格模式（推荐）
                     </Text>
                     <Text as="p" variant="bodySm">
-                      仅当像素事件明确表明用户同意营销追踪时才发送 CAPI。
-                      如果像素未触发或用户拒绝同意，转化数据将不会发送。
-                      这是最安全的设置，符合 GDPR/CCPA 等严格隐私法规要求。
+                      当前版本仅接收与校验 Web Pixel 事件，不提供服务端投递能力。
                     </Text>
                   </BlockStack>
                 )}

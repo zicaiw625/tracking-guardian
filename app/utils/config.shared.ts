@@ -16,10 +16,6 @@ export const RATE_LIMIT_CONFIG = {
     maxRequests: 50,
     windowMs: 60 * 1000,
   },
-  SURVEY: {
-    maxRequests: 10,
-    windowMs: 60 * 1000,
-  },
   TRACKING: {
     maxRequests: 30,
     windowMs: 60 * 1000,

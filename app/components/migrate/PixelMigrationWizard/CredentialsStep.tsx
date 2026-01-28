@@ -22,7 +22,7 @@ export function CredentialsStep({
         填写平台凭证
       </Text>
       <Text as="p" tone="subdued">
-        为每个选中的平台填写 API 凭证。这些凭证将加密存储，仅用于发送转化数据。
+        为每个选中的平台填写 API 凭证。这些凭证将加密存储，用于后续能力规划；当前版本默认不进行服务端投递。
       </Text>
       {Array.from(selectedPlatforms).map((platform) => {
         const config = platformConfigs[platform];
@@ -54,7 +54,7 @@ export function CredentialsStep({
                     label="切换环境"
                     options={[
                       { label: "🟡 测试环境 (Test) - 用于验证配置", value: "test" },
-                      { label: "🔴 生产环境 (Live) - 正式发送事件", value: "live" },
+                      { label: "🔴 生产环境 (Live)", value: "live" },
                     ]}
                     value={config.environment}
                     onChange={(value) =>
@@ -62,8 +62,8 @@ export function CredentialsStep({
                     }
                     helpText={
                       config.environment === "test"
-                        ? "测试模式：事件发送到测试端点，不会影响实际广告数据"
-                        : "生产模式：事件发送到正式端点，将影响广告归因和优化"
+                        ? "测试模式：用于验证映射与验收"
+                        : "生产模式：用于生产环境验收与监控"
                     }
                   />
                 </BlockStack>

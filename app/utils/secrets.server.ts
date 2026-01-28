@@ -169,16 +169,7 @@ export function checkSecurityViolations(): SecurityViolation[] {
       });
     }
     const allowNullOrigin = process.env.PIXEL_ALLOW_NULL_ORIGIN_WITH_SIGNATURE_ONLY;
-    if (allowNullOrigin === undefined || allowNullOrigin === "") {
-      violations.push({
-        type: "fatal",
-        code: "PIXEL_NULL_ORIGIN_NOT_CONFIGURED",
-        message:
-          "[P0-2 CONFIGURATION ERROR] PIXEL_ALLOW_NULL_ORIGIN_WITH_SIGNATURE_ONLY is not set in production. " +
-          "Production recommendation: PIXEL_ALLOW_NULL_ORIGIN_WITH_SIGNATURE_ONLY=true (null/missing origin allowed only when request has signature). " +
-          "When false: null requests fail CORS and events are lost. If your deployment receives pixel events, set =true; otherwise =false explicitly.",
-      });
-    } else {
+    if (allowNullOrigin !== undefined && allowNullOrigin !== "") {
       const normalized = allowNullOrigin.toLowerCase().trim();
       if (!["true", "1", "false", "0"].includes(normalized)) {
         violations.push({

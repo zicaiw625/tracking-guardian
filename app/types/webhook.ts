@@ -5,16 +5,6 @@ export interface ApiResponse<T = unknown> {
   message?: string;
 }
 
-export interface SurveyResponseData {
-  orderId?: string;
-  orderNumber?: string;
-  checkoutToken?: string;
-  rating?: number;
-  feedback?: string;
-  source?: string;
-  customAnswers?: Record<string, unknown>;
-}
-
 export interface ShopData {
   id: string;
   shopDomain: string;

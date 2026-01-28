@@ -14,6 +14,7 @@ import {
   checkFeatureAccess,
 } from "../../services/billing/feature-gates.server";
 import { normalizePlanId, type PlanId, planSupportsReportExport } from "../../services/billing/plans";
+import { FEATURE_FLAGS } from "../../utils/config.server";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   const { session } = await authenticate.admin(request);
@@ -46,6 +47,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       gateResult: undefined,
       currentPlan: "free" as PlanId,
       pixelStrictOrigin,
+      trackingApiEnabled: FEATURE_FLAGS.TRACKING_API,
     });
   }
   const planId = normalizePlanId(shop.plan || "free") as PlanId;
@@ -72,5 +74,6 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     gateResult: gateResult.allowed ? undefined : gateResult,
     currentPlan: planId,
     pixelStrictOrigin,
+    trackingApiEnabled: FEATURE_FLAGS.TRACKING_API,
   });
 };

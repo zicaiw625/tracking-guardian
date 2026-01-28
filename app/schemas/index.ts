@@ -9,8 +9,6 @@ export {
   type TrackingRequest,
   ExportRequestSchema,
   type ExportRequest,
-  SurveyResponseSchema,
-  type SurveyResponse,
   HealthCheckResponseSchema,
   type HealthCheckResponse,
   ShopifyDomainSchema,

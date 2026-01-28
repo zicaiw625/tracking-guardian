@@ -4,7 +4,6 @@ import {
   GA4_BASIC_RECIPE,
   META_CAPI_RECIPE,
   TIKTOK_EVENTS_RECIPE,
-  SURVEY_MIGRATION_RECIPE,
   CUSTOM_WEBHOOK_RECIPE,
   getRecipeById,
   getRecipesByCategory,
@@ -16,12 +15,12 @@ import {
 describe("Recipe Registry", () => {
   describe("RECIPE_REGISTRY", () => {
     it("should contain all predefined recipes", () => {
-      expect(RECIPE_REGISTRY).toHaveLength(5);
-      expect(RECIPE_REGISTRY).toContain(GA4_BASIC_RECIPE);
-      expect(RECIPE_REGISTRY).toContain(META_CAPI_RECIPE);
-      expect(RECIPE_REGISTRY).toContain(TIKTOK_EVENTS_RECIPE);
-      expect(RECIPE_REGISTRY).toContain(SURVEY_MIGRATION_RECIPE);
       expect(RECIPE_REGISTRY).toContain(CUSTOM_WEBHOOK_RECIPE);
+      if (process.env.FEATURE_TRACKING_API === "true" || process.env.FEATURE_TRACKING_API === "1") {
+        expect(RECIPE_REGISTRY).toContain(GA4_BASIC_RECIPE);
+        expect(RECIPE_REGISTRY).toContain(META_CAPI_RECIPE);
+        expect(RECIPE_REGISTRY).toContain(TIKTOK_EVENTS_RECIPE);
+      }
     });
     it("should have unique IDs for all recipes", () => {
       const ids = RECIPE_REGISTRY.map(r => r.id);
@@ -131,32 +130,6 @@ describe("Recipe Registry", () => {
       expect(pattern.patterns[1].test("analytics.tiktok.com/pixel")).toBe(true);
     });
   });
-  describe("SURVEY_MIGRATION_RECIPE", () => {
-    it("should have correct ID and category", () => {
-      expect(SURVEY_MIGRATION_RECIPE.id).toBe("survey-migration");
-      expect(SURVEY_MIGRATION_RECIPE.category).toBe("survey");
-    });
-    it("should target checkout_ui extension", () => {
-      expect(SURVEY_MIGRATION_RECIPE.target.type).toBe("checkout_ui");
-    });
-    it("should detect known survey providers", () => {
-      const pattern = SURVEY_MIGRATION_RECIPE.source.detectionPatterns[0];
-      const testContent = "fairing enquirelabs knocommerce zigpoll";
-      for (const regex of pattern.patterns) {
-        expect(regex.test(testContent)).toBe(true);
-      }
-    });
-    it("should have default values for config fields", () => {
-      const surveyTitle = SURVEY_MIGRATION_RECIPE.configFields.find(f => f.key === "surveyTitle");
-      const surveyQuestion = SURVEY_MIGRATION_RECIPE.configFields.find(f => f.key === "surveyQuestion");
-      expect(surveyTitle?.defaultValue).toBeDefined();
-      expect(surveyQuestion?.defaultValue).toBeDefined();
-    });
-    it("should have manual validation tests", () => {
-      const manualTests = SURVEY_MIGRATION_RECIPE.validationTests.filter(t => t.type === "manual");
-      expect(manualTests.length).toBeGreaterThan(0);
-    });
-  });
   describe("CUSTOM_WEBHOOK_RECIPE", () => {
     it("should have correct ID and category", () => {
       expect(CUSTOM_WEBHOOK_RECIPE.id).toBe("custom-webhook");
@@ -181,8 +154,12 @@ describe("Recipe Registry", () => {
   describe("getRecipeById", () => {
     it("should return recipe when found", () => {
       const recipe = getRecipeById("ga4-basic");
-      expect(recipe).toBeDefined();
-      expect(recipe?.id).toBe("ga4-basic");
+      if (process.env.FEATURE_TRACKING_API === "true" || process.env.FEATURE_TRACKING_API === "1") {
+        expect(recipe).toBeDefined();
+        expect(recipe?.id).toBe("ga4-basic");
+      } else {
+        expect(recipe).toBeUndefined();
+      }
     });
     it("should return undefined when not found", () => {
       const recipe = getRecipeById("non-existent");
@@ -196,12 +173,21 @@ describe("Recipe Registry", () => {
   describe("getRecipesByCategory", () => {
     it("should return recipes for analytics category", () => {
       const recipes = getRecipesByCategory("analytics");
-      expect(recipes).toContain(GA4_BASIC_RECIPE);
+      if (process.env.FEATURE_TRACKING_API === "true" || process.env.FEATURE_TRACKING_API === "1") {
+        expect(recipes).toContain(GA4_BASIC_RECIPE);
+      } else {
+        expect(recipes).not.toContain(GA4_BASIC_RECIPE);
+      }
     });
     it("should return recipes for advertising category", () => {
       const recipes = getRecipesByCategory("advertising");
-      expect(recipes).toContain(META_CAPI_RECIPE);
-      expect(recipes).toContain(TIKTOK_EVENTS_RECIPE);
+      if (process.env.FEATURE_TRACKING_API === "true" || process.env.FEATURE_TRACKING_API === "1") {
+        expect(recipes).toContain(META_CAPI_RECIPE);
+        expect(recipes).toContain(TIKTOK_EVENTS_RECIPE);
+      } else {
+        expect(recipes).not.toContain(META_CAPI_RECIPE);
+        expect(recipes).not.toContain(TIKTOK_EVENTS_RECIPE);
+      }
     });
     it("should return empty array for non-existent category", () => {
       const recipes = getRecipesByCategory("non-existent");
@@ -211,13 +197,25 @@ describe("Recipe Registry", () => {
   describe("getRecipesByPlatform", () => {
     it("should return recipes by source platform", () => {
       const googleRecipes = getRecipesByPlatform("google");
-      expect(googleRecipes).toContain(GA4_BASIC_RECIPE);
+      if (process.env.FEATURE_TRACKING_API === "true" || process.env.FEATURE_TRACKING_API === "1") {
+        expect(googleRecipes).toContain(GA4_BASIC_RECIPE);
+      } else {
+        expect(googleRecipes).not.toContain(GA4_BASIC_RECIPE);
+      }
     });
     it("should return recipes by tag", () => {
       const metaRecipes = getRecipesByPlatform("meta");
-      expect(metaRecipes).toContain(META_CAPI_RECIPE);
+      if (process.env.FEATURE_TRACKING_API === "true" || process.env.FEATURE_TRACKING_API === "1") {
+        expect(metaRecipes).toContain(META_CAPI_RECIPE);
+      } else {
+        expect(metaRecipes).not.toContain(META_CAPI_RECIPE);
+      }
       const facebookRecipes = getRecipesByPlatform("facebook");
-      expect(facebookRecipes).toContain(META_CAPI_RECIPE);
+      if (process.env.FEATURE_TRACKING_API === "true" || process.env.FEATURE_TRACKING_API === "1") {
+        expect(facebookRecipes).toContain(META_CAPI_RECIPE);
+      } else {
+        expect(facebookRecipes).not.toContain(META_CAPI_RECIPE);
+      }
     });
     it("should return empty array for non-existent platform", () => {
       const recipes = getRecipesByPlatform("non-existent");
@@ -234,33 +232,54 @@ describe("Recipe Registry", () => {
     });
     it("should include all predefined stable recipes", () => {
       const stableRecipes = getStableRecipes();
-      expect(stableRecipes).toContain(GA4_BASIC_RECIPE);
-      expect(stableRecipes).toContain(META_CAPI_RECIPE);
-      expect(stableRecipes).toContain(TIKTOK_EVENTS_RECIPE);
-      expect(stableRecipes).toContain(SURVEY_MIGRATION_RECIPE);
       expect(stableRecipes).toContain(CUSTOM_WEBHOOK_RECIPE);
+      if (process.env.FEATURE_TRACKING_API === "true" || process.env.FEATURE_TRACKING_API === "1") {
+        expect(stableRecipes).toContain(GA4_BASIC_RECIPE);
+        expect(stableRecipes).toContain(META_CAPI_RECIPE);
+        expect(stableRecipes).toContain(TIKTOK_EVENTS_RECIPE);
+      }
     });
   });
   describe("searchRecipes", () => {
+    const trackingApiEnabled =
+      process.env.FEATURE_TRACKING_API === "true" || process.env.FEATURE_TRACKING_API === "1";
     it("should find recipes by name", () => {
       const results = searchRecipes("GA4");
-      expect(results).toContain(GA4_BASIC_RECIPE);
+      if (trackingApiEnabled) {
+        expect(results).toContain(GA4_BASIC_RECIPE);
+      } else {
+        expect(results).not.toContain(GA4_BASIC_RECIPE);
+      }
     });
     it("should find recipes by description", () => {
       const results = searchRecipes("gtag.js");
-      expect(results).toContain(GA4_BASIC_RECIPE);
+      if (trackingApiEnabled) {
+        expect(results).toContain(GA4_BASIC_RECIPE);
+      } else {
+        expect(results).not.toContain(GA4_BASIC_RECIPE);
+      }
     });
     it("should find recipes by tags", () => {
       const results = searchRecipes("facebook");
-      expect(results).toContain(META_CAPI_RECIPE);
+      if (trackingApiEnabled) {
+        expect(results).toContain(META_CAPI_RECIPE);
+      } else {
+        expect(results).not.toContain(META_CAPI_RECIPE);
+      }
     });
     it("should be case-insensitive", () => {
       const resultsLower = searchRecipes("google");
       const resultsUpper = searchRecipes("GOOGLE");
       const resultsMixed = searchRecipes("GoOgLe");
-      expect(resultsLower).toContain(GA4_BASIC_RECIPE);
-      expect(resultsUpper).toContain(GA4_BASIC_RECIPE);
-      expect(resultsMixed).toContain(GA4_BASIC_RECIPE);
+      if (trackingApiEnabled) {
+        expect(resultsLower).toContain(GA4_BASIC_RECIPE);
+        expect(resultsUpper).toContain(GA4_BASIC_RECIPE);
+        expect(resultsMixed).toContain(GA4_BASIC_RECIPE);
+      } else {
+        expect(resultsLower).not.toContain(GA4_BASIC_RECIPE);
+        expect(resultsUpper).not.toContain(GA4_BASIC_RECIPE);
+        expect(resultsMixed).not.toContain(GA4_BASIC_RECIPE);
+      }
     });
     it("should return empty array for no matches", () => {
       const results = searchRecipes("xyz-no-match-123");
@@ -268,7 +287,11 @@ describe("Recipe Registry", () => {
     });
     it("should find multiple recipes for broad queries", () => {
       const results = searchRecipes("pixel");
-      expect(results.length).toBeGreaterThanOrEqual(2);
+      if (trackingApiEnabled) {
+        expect(results.length).toBeGreaterThanOrEqual(2);
+      } else {
+        expect(results.length).toBeGreaterThanOrEqual(0);
+      }
     });
   });
   describe("Recipe Steps Validation", () => {

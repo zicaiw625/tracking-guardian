@@ -666,13 +666,13 @@ export default function PixelTestPage() {
                       2. Origin: null 场景测试（必须执行）
                     </Text>
                     <Text as="p" variant="bodySm">
-                      某些 Shopify 场景（如 Web Worker 沙箱环境）可能出现 <code>Origin: null</code>。生产环境必须显式设置 <code>PIXEL_ALLOW_NULL_ORIGIN_WITH_SIGNATURE_ONLY</code>（允许：<code>true</code>/<code>false</code> 或 <code>1</code>/<code>0</code>）。若需要正常接收 Origin: null 事件，应设置为 <code>true</code>；设置为 <code>false</code> 时该类请求会被拒绝，可能导致事件丢失。这是上线前必须验证的关键配置，避免在生产环境出现事件丢失。
+                      某些 Shopify 场景（如 Web Worker 沙箱环境）可能出现 <code>Origin: null</code>。当前默认策略为：只要请求带签名并通过校验，即允许 Origin: null/missing。若您希望更严格，可以设置 <code>PIXEL_ALLOW_NULL_ORIGIN_WITH_SIGNATURE_ONLY=false</code> 强制拒绝该类请求（可能导致事件丢失）。
                     </Text>
                     <Text as="p" variant="bodySm" tone="subdued">
-                      <strong>执行方法：</strong>使用压测脚本的 <code>--null-origin-only</code> 参数专门测试 Origin: null 场景，确保生产环境配置正确。运行命令：<code>node scripts/load-test-pixel-ingestion.mjs --null-origin-only</code>。如果测试失败，请检查环境变量 <code>PIXEL_ALLOW_NULL_ORIGIN_WITH_SIGNATURE_ONLY</code> 是否已设置为 <code>true</code>。这是上线前必须验证的关键测试，避免在生产环境出现事件丢失。
+                      <strong>执行方法：</strong>使用压测脚本的 <code>--null-origin-only</code> 参数专门测试 Origin: null 场景，确保生产环境签名与校验链路可用。运行命令：<code>node scripts/load-test-pixel-ingestion.mjs --null-origin-only</code>。如果测试失败，请检查签名密钥注入与后端校验逻辑。
                     </Text>
                     <Text as="p" variant="bodySm" tone="subdued">
-                      <strong>环境变量配置：</strong>在生产环境部署时，确保在环境变量中显式设置 <code>PIXEL_ALLOW_NULL_ORIGIN_WITH_SIGNATURE_ONLY</code>。若需要通过 Origin: null 场景测试，应设置为 <code>true</code>；=false 时该类请求将被拒绝，导致事件丢失。这是上线前必须验证的关键配置，必须在生产环境部署前完成验证。
+                      <strong>环境变量配置：</strong><code>PIXEL_ALLOW_NULL_ORIGIN_WITH_SIGNATURE_ONLY</code> 为可选开关。默认允许带签名的 Origin:null/missing；设置为 <code>false</code> 时该类请求将被拒绝，可能导致事件丢失。
                     </Text>
                     <Text as="p" variant="bodySm" fontWeight="semibold">
                       验收标准：

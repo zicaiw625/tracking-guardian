@@ -51,9 +51,9 @@ const getMigrationTypeLabel = (type: MigrationItem["suggestedMigration"]) => {
     case "web_pixel":
       return "Web Pixel";
     case "ui_extension":
-      return "UI Extension Block";
+      return "手动迁移";
     case "server_side":
-      return "Server-side CAPI";
+      return "不提供";
     case "none":
       return "External redirect / not supported";
     default:

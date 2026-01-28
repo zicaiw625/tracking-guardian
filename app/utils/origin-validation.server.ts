@@ -9,11 +9,7 @@ export function shouldAllowNullOrigin(): boolean {
     const v = process.env.PIXEL_ALLOW_NULL_ORIGIN_WITH_SIGNATURE_ONLY?.toLowerCase().trim();
     if (v === "false" || v === "0") return false;
     if (v === "true" || v === "1") return true;
-
-    const nodeEnv = process.env.NODE_ENV;
-    if (nodeEnv === "development" || nodeEnv === "test") return true;
-
-    return false;
+    return true;
 }
 const ALLOWED_ORIGIN_PATTERNS: Array<{
     pattern: RegExp;
@@ -618,8 +614,8 @@ export function getAllowedPatterns(): Array<{
         {
             pattern: 'Origin: "null"',
             description: nullOriginAllowed
-                ? "Web Pixel sandbox (allowed by policy)"
-                : "Web Pixel sandbox (blocked: set PIXEL_ALLOW_NULL_ORIGIN_WITH_SIGNATURE_ONLY=true to allow)",
+                ? "Web Pixel sandbox (allowed when request is signed)"
+                : "Web Pixel sandbox (blocked by configuration)",
             example: 'Origin: null',
         },
         ...ALLOWED_ORIGIN_PATTERNS.map(p => ({

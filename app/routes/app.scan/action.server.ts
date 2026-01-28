@@ -480,8 +480,8 @@ export const action = async ({ request }: ActionFunctionArgs) => {
             };
             const migrationTypeLabels: Record<string, string> = {
                 web_pixel: "Web Pixel",
-                ui_extension: "UI Extension Block",
-                server_side: "Server-side CAPI",
+                ui_extension: "手动迁移",
+                server_side: "Not available",
                 none: "External redirect / not supported",
             };
             const csvLines: string[] = [];

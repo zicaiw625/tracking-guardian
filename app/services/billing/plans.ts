@@ -137,7 +137,7 @@ export const BILLING_PLANS = {
     tagline: "企业级功能，其余能力可用",
     features: [
       "无限像素目的地",
-      "全部 Thank you 页面模块",
+      "Thank you/Order status 升级自检与交付支持",
       "每月 100,000 笔订单追踪",
       "无限数据保留",
       "专属客户成功经理",

@@ -43,6 +43,9 @@ import {
   rollbackRecipe,
 } from "../../../app/services/recipes/executor";
 
+const trackingApiEnabled =
+  process.env.FEATURE_TRACKING_API === "true" || process.env.FEATURE_TRACKING_API === "1";
+
 describe("Recipe Executor", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -126,10 +129,15 @@ describe("Recipe Executor", () => {
       vi.mocked(prisma.appliedRecipe.findFirst).mockResolvedValue(null);
       vi.mocked(prisma.appliedRecipe.create).mockResolvedValue(mockApplied as any);
       const result = await startRecipe(mockShopId, mockRecipeId);
-      expect(result).toBeDefined();
-      expect(result?.recipeId).toBe(mockRecipeId);
-      expect(result?.status).toBe("configuring");
-      expect(prisma.appliedRecipe.create).toHaveBeenCalled();
+      if (trackingApiEnabled) {
+        expect(result).toBeDefined();
+        expect(result?.recipeId).toBe(mockRecipeId);
+        expect(result?.status).toBe("configuring");
+        expect(prisma.appliedRecipe.create).toHaveBeenCalled();
+      } else {
+        expect(result).toBeNull();
+        expect(prisma.appliedRecipe.create).not.toHaveBeenCalled();
+      }
     });
     it("should return existing recipe if already in progress", async () => {
       const existingApplied = {
@@ -142,9 +150,14 @@ describe("Recipe Executor", () => {
       };
       vi.mocked(prisma.appliedRecipe.findFirst).mockResolvedValue(existingApplied as any);
       const result = await startRecipe(mockShopId, mockRecipeId);
-      expect(result).toBeDefined();
-      expect(result?.id).toBe("applied-1");
-      expect(prisma.appliedRecipe.create).not.toHaveBeenCalled();
+      if (trackingApiEnabled) {
+        expect(result).toBeDefined();
+        expect(result?.id).toBe("applied-1");
+        expect(prisma.appliedRecipe.create).not.toHaveBeenCalled();
+      } else {
+        expect(result).toBeNull();
+        expect(prisma.appliedRecipe.create).not.toHaveBeenCalled();
+      }
     });
     it("should return null for non-existent recipe ID", async () => {
       const result = await startRecipe(mockShopId, "non-existent-recipe");
@@ -166,13 +179,17 @@ describe("Recipe Executor", () => {
       vi.mocked(prisma.appliedRecipe.findFirst).mockResolvedValue(null);
       vi.mocked(prisma.appliedRecipe.create).mockResolvedValue(mockApplied as any);
       await startRecipe(mockShopId, mockRecipeId, initialConfig);
-      expect(prisma.appliedRecipe.create).toHaveBeenCalledWith(
-        expect.objectContaining({
-          data: expect.objectContaining({
-            config: initialConfig,
-          }),
-        })
-      );
+      if (trackingApiEnabled) {
+        expect(prisma.appliedRecipe.create).toHaveBeenCalledWith(
+          expect.objectContaining({
+            data: expect.objectContaining({
+              config: initialConfig,
+            }),
+          })
+        );
+      } else {
+        expect(prisma.appliedRecipe.create).not.toHaveBeenCalled();
+      }
     });
     it("should save source identifier if provided", async () => {
       const sourceIdentifier = "script-tag-123";
@@ -190,13 +207,17 @@ describe("Recipe Executor", () => {
       vi.mocked(prisma.appliedRecipe.findFirst).mockResolvedValue(null);
       vi.mocked(prisma.appliedRecipe.create).mockResolvedValue(mockApplied as any);
       await startRecipe(mockShopId, mockRecipeId, {}, sourceIdentifier);
-      expect(prisma.appliedRecipe.create).toHaveBeenCalledWith(
-        expect.objectContaining({
-          data: expect.objectContaining({
-            sourceIdentifier,
-          }),
-        })
-      );
+      if (trackingApiEnabled) {
+        expect(prisma.appliedRecipe.create).toHaveBeenCalledWith(
+          expect.objectContaining({
+            data: expect.objectContaining({
+              sourceIdentifier,
+            }),
+          })
+        );
+      } else {
+        expect(prisma.appliedRecipe.create).not.toHaveBeenCalled();
+      }
     });
   });
   describe("updateRecipeConfig", () => {
@@ -237,8 +258,13 @@ describe("Recipe Executor", () => {
         completedSteps: [1],
       } as any);
       const result = await executeRecipeStep("applied-1", 1);
-      expect(result.success).toBe(true);
-      expect(prisma.appliedRecipe.update).toHaveBeenCalled();
+      if (trackingApiEnabled) {
+        expect(result.success).toBe(true);
+        expect(prisma.appliedRecipe.update).toHaveBeenCalled();
+      } else {
+        expect(result.success).toBe(false);
+        expect(prisma.appliedRecipe.update).not.toHaveBeenCalled();
+      }
     });
     it("should return error for non-existent applied recipe", async () => {
       vi.mocked(prisma.appliedRecipe.findUnique).mockResolvedValue(null);
@@ -260,13 +286,17 @@ describe("Recipe Executor", () => {
         completedSteps: [1],
       } as any);
       await executeRecipeStep("applied-1", 1);
-      expect(prisma.appliedRecipe.update).toHaveBeenCalledWith(
-        expect.objectContaining({
-          data: expect.objectContaining({
-            status: "in_progress",
-          }),
-        })
-      );
+      if (trackingApiEnabled) {
+        expect(prisma.appliedRecipe.update).toHaveBeenCalledWith(
+          expect.objectContaining({
+            data: expect.objectContaining({
+              status: "in_progress",
+            }),
+          })
+        );
+      } else {
+        expect(prisma.appliedRecipe.update).not.toHaveBeenCalled();
+      }
     });
   });
   describe("completeRecipeStep", () => {
@@ -285,8 +315,13 @@ describe("Recipe Executor", () => {
         completedSteps: [1, 2],
       } as any);
       const result = await completeRecipeStep("applied-1", 2);
-      expect(result).toBeDefined();
-      expect(prisma.appliedRecipe.update).toHaveBeenCalled();
+      if (trackingApiEnabled) {
+        expect(result).toBeDefined();
+        expect(prisma.appliedRecipe.update).toHaveBeenCalled();
+      } else {
+        expect(result).toBeNull();
+        expect(prisma.appliedRecipe.update).not.toHaveBeenCalled();
+      }
     });
     it("should not duplicate already completed steps", async () => {
       const recipeWithStep1 = {
@@ -296,10 +331,14 @@ describe("Recipe Executor", () => {
       vi.mocked(prisma.appliedRecipe.findUnique).mockResolvedValue(recipeWithStep1 as any);
       vi.mocked(prisma.appliedRecipe.update).mockResolvedValue(recipeWithStep1 as any);
       await completeRecipeStep("applied-1", 1);
-      const updateCall = vi.mocked(prisma.appliedRecipe.update).mock.calls[0][0] as any;
-      const completedSteps = updateCall.data.completedSteps;
-      const step1Count = completedSteps.filter((s: number) => s === 1).length;
-      expect(step1Count).toBe(1);
+      if (trackingApiEnabled) {
+        const updateCall = vi.mocked(prisma.appliedRecipe.update).mock.calls[0][0] as any;
+        const completedSteps = updateCall.data.completedSteps;
+        const step1Count = completedSteps.filter((s: number) => s === 1).length;
+        expect(step1Count).toBe(1);
+      } else {
+        expect(prisma.appliedRecipe.update).not.toHaveBeenCalled();
+      }
     });
     it("should change status to validating when all steps complete", async () => {
       const almostComplete = {
@@ -313,13 +352,17 @@ describe("Recipe Executor", () => {
         status: "validating",
       } as any);
       await completeRecipeStep("applied-1", 4);
-      expect(prisma.appliedRecipe.update).toHaveBeenCalledWith(
-        expect.objectContaining({
-          data: expect.objectContaining({
-            status: "validating",
-          }),
-        })
-      );
+      if (trackingApiEnabled) {
+        expect(prisma.appliedRecipe.update).toHaveBeenCalledWith(
+          expect.objectContaining({
+            data: expect.objectContaining({
+              status: "validating",
+            }),
+          })
+        );
+      } else {
+        expect(prisma.appliedRecipe.update).not.toHaveBeenCalled();
+      }
     });
     it("should return null for non-existent recipe", async () => {
       vi.mocked(prisma.appliedRecipe.findUnique).mockResolvedValue(null);
@@ -348,7 +391,11 @@ describe("Recipe Executor", () => {
       const results = await runRecipeValidation("applied-1");
       expect(results).toBeInstanceOf(Array);
       expect(results.length).toBeGreaterThan(0);
-      expect(prisma.appliedRecipe.update).toHaveBeenCalled();
+      if (trackingApiEnabled) {
+        expect(prisma.appliedRecipe.update).toHaveBeenCalled();
+      } else {
+        expect(prisma.appliedRecipe.update).not.toHaveBeenCalled();
+      }
     });
     it("should pass event_received test when event found", async () => {
       const mockEvent = {
@@ -366,7 +413,11 @@ describe("Recipe Executor", () => {
       } as any);
       const results = await runRecipeValidation("applied-1");
       const eventTest = results.find(r => r.testName === "purchase_event_received");
-      expect(eventTest?.passed).toBe(true);
+      if (trackingApiEnabled) {
+        expect(eventTest?.passed).toBe(true);
+      } else {
+        expect(eventTest).toBeUndefined();
+      }
     });
     it("should fail event_received test when no event found", async () => {
       vi.mocked(prisma.appliedRecipe.findUnique).mockResolvedValue(mockAppliedRecipe as any);
@@ -374,7 +425,11 @@ describe("Recipe Executor", () => {
       vi.mocked(prisma.appliedRecipe.update).mockResolvedValue(mockAppliedRecipe as any);
       const results = await runRecipeValidation("applied-1");
       const eventTest = results.find(r => r.testName === "purchase_event_received");
-      expect(eventTest?.passed).toBe(false);
+      if (trackingApiEnabled) {
+        expect(eventTest?.passed).toBe(false);
+      } else {
+        expect(eventTest).toBeUndefined();
+      }
     });
     it("should return error for non-existent applied recipe", async () => {
       vi.mocked(prisma.appliedRecipe.findUnique).mockResolvedValue(null);
@@ -388,13 +443,17 @@ describe("Recipe Executor", () => {
       vi.mocked(prisma.pixelEventReceipt.findFirst).mockResolvedValue(null);
       vi.mocked(prisma.appliedRecipe.update).mockResolvedValue(mockAppliedRecipe as any);
       await runRecipeValidation("applied-1");
-      expect(prisma.appliedRecipe.update).toHaveBeenCalledWith(
-        expect.objectContaining({
-          data: expect.objectContaining({
-            validationResults: expect.any(Array),
-          }),
-        })
-      );
+      if (trackingApiEnabled) {
+        expect(prisma.appliedRecipe.update).toHaveBeenCalledWith(
+          expect.objectContaining({
+            data: expect.objectContaining({
+              validationResults: expect.any(Array),
+            }),
+          })
+        );
+      } else {
+        expect(prisma.appliedRecipe.update).not.toHaveBeenCalled();
+      }
     });
   });
   describe("getAppliedRecipes", () => {
@@ -476,6 +535,10 @@ describe("Recipe Executor", () => {
       vi.mocked(prisma.appliedRecipe.findFirst).mockResolvedValue(null);
       vi.mocked(prisma.appliedRecipe.create).mockResolvedValue(mockStarted as any);
       const started = await startRecipe(shopId, recipeId, config);
+      if (!trackingApiEnabled) {
+        expect(started).toBeNull();
+        return;
+      }
       expect(started).toBeDefined();
       vi.mocked(prisma.appliedRecipe.update).mockResolvedValue({
         ...mockStarted,

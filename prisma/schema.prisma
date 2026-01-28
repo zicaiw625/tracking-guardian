@@ -67,7 +67,6 @@ model Shop {
   ScanReports             ScanReport[]
   VerificationRun         VerificationRun[]
   EventLog                EventLog[]
-  SurveyResponse          SurveyResponse[]
   MonthlyUsage            MonthlyUsage[]
   MigrationDraft          MigrationDraft?
   EventNonce              EventNonce[]
@@ -232,24 +231,6 @@ model EventLog {
   @@index([shopId, eventName, createdAt])
   @@index([eventId])
   @@index([occurredAt])
-}
-
-model SurveyResponse {
-  id            String   @id
-  shopId        String
-  orderId       String
-  orderNumber   String?
-  rating        Int?
-  feedback      String?
-  source        String?
-  customAnswers Json?
-  createdAt     DateTime @default(now())
-  Shop          Shop     @relation(fields: [shopId], references: [id], onDelete: Cascade)
-
-  @@index([shopId])
-  @@index([orderId])
-  @@index([shopId, orderId])
-  @@index([shopId, createdAt])
 }
 
 model WebhookLog {

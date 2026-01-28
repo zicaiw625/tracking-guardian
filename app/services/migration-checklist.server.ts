@@ -388,7 +388,7 @@ function getMigrationDescription(asset: AuditAsset): string {
   const migrationNames: Record<string, string> = {
     web_pixel: "迁移到 Web Pixel",
     ui_extension: "迁移到 UI Extension",
-    server_side: "迁移到服务端 CAPI",
+    server_side: "服务端投递（规划项）",
     none: "无需迁移",
   };
   const categoryName = categoryNames[asset.category] || "其他";

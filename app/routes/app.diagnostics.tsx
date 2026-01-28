@@ -152,23 +152,12 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
             details: "请手动检查 Web Pixel 配置",
         });
     }
-    const serverSideConfigs = shop.pixelConfigs.filter((c: { platform: string; serverSideEnabled: boolean }) => c.serverSideEnabled);
-    if (serverSideConfigs.length > 0) {
-        checks.push({
-            name: "服务端追踪 (CAPI)",
-            status: "pass",
-            message: `已配置 ${serverSideConfigs.length} 个平台`,
-            details: serverSideConfigs.map((c: { platform: string }) => c.platform).join(", "),
-        });
-    }
-    else {
-        checks.push({
-            name: "服务端追踪 (CAPI)",
-            status: "warning",
-            message: "未启用服务端追踪",
-            details: "启用 CAPI 可提高追踪准确性",
-        });
-    }
+    checks.push({
+        name: "服务端投递",
+        status: "pending",
+        message: "当前版本不提供服务端投递能力",
+        details: "仅支持 Web Pixel 事件接收、校验、去重与落库",
+    });
     const recentReceipt = await prisma.pixelEventReceipt.findFirst({
         where: { shopId: shop.id },
         orderBy: { createdAt: "desc" },
@@ -240,12 +229,11 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
         },
     });
     const trustedReceiptsCount = pixelReceiptsCount;
-    const sentToPlatformsCount = pixelReceiptsCount;
     const eventFunnel: EventFunnel = {
         pixelRequests: pixelReceiptsCount,
         passedOrigin: pixelReceiptsCount,
         passedKey: trustedReceiptsCount,
-        sentToPlatforms: sentToPlatformsCount,
+        sentToPlatforms: 0,
         period: "24h",
     };
     const rejectionStats = rejectionTracker.getRejectionStats(shopDomain, 24);
@@ -466,19 +454,16 @@ export default function DiagnosticsPage() {
                 <FunnelStage label="1. Pixel 请求" count={data.eventFunnel.pixelRequests} total={data.eventFunnel.pixelRequests} description="收到的 checkout_completed 事件"/>
                 <FunnelStage label="2. 通过 Origin 验证" count={data.eventFunnel.passedOrigin} total={data.eventFunnel.pixelRequests} description="来自 Shopify 域名/沙箱的请求"/>
                 <FunnelStage label="3. 通过 Key 验证" count={data.eventFunnel.passedKey} total={data.eventFunnel.pixelRequests} description="Ingestion Key 匹配的请求"/>
-                <FunnelStage label="4. 成功发送到平台" count={data.eventFunnel.sentToPlatforms} total={data.eventFunnel.pixelRequests} description="通过 CAPI 发送到广告平台"/>
+                <FunnelStage label="4. 已持久化入库" count={data.eventFunnel.passedKey} total={data.eventFunnel.pixelRequests} description="校验通过后写入事件收据"/>
               </BlockStack>
               {data.eventFunnel.pixelRequests === 0 && (<Banner tone="info">
                   <Text as="p" variant="bodySm">
                     尚无事件数据。完成测试订单后，此漏斗将显示事件处理情况。
                   </Text>
                 </Banner>)}
-              {data.eventFunnel.pixelRequests > 0 && data.eventFunnel.sentToPlatforms === 0 && (<Banner tone="warning">
+              {data.eventFunnel.pixelRequests > 0 && (<Banner tone="info">
                   <Text as="p" variant="bodySm">
-                    有像素事件但未成功发送到平台。可能原因：
-                    <br />• 未配置 CAPI 平台凭证
-                    <br />• 用户未授予 marketing 同意
-                    <br />• Webhook 尚未到达
+                    当前版本不提供服务端投递，本页展示的是像素事件接收与校验链路的健康度。
                   </Text>
                 </Banner>)}
               {data.eventFunnel.pixelRequests > 0 && (
@@ -496,13 +481,13 @@ export default function DiagnosticsPage() {
                         </Text>
                       </Box>
                       <Box>
-                        <Text as="span" variant="bodySm" tone="subdued">发送成功率: </Text>
+                        <Text as="span" variant="bodySm" tone="subdued">入库成功率: </Text>
                         <Text as="span" fontWeight="semibold" tone={
-                          data.eventFunnel.sentToPlatforms / data.eventFunnel.pixelRequests >= 0.9 ? "success" :
-                          data.eventFunnel.sentToPlatforms / data.eventFunnel.pixelRequests >= 0.5 ? "caution" : "critical"
+                          data.eventFunnel.passedKey / data.eventFunnel.pixelRequests >= 0.9 ? "success" :
+                          data.eventFunnel.passedKey / data.eventFunnel.pixelRequests >= 0.5 ? "caution" : "critical"
                         }>
                           {data.eventFunnel.pixelRequests > 0
-                            ? Math.round((data.eventFunnel.sentToPlatforms / data.eventFunnel.pixelRequests) * 100)
+                            ? Math.round((data.eventFunnel.passedKey / data.eventFunnel.pixelRequests) * 100)
                             : 0}%
                         </Text>
                       </Box>
@@ -554,26 +539,26 @@ export default function DiagnosticsPage() {
               </Text>
               <Divider />
               <BlockStack gap="300">
-                <Box background={data.eventFunnel.sentToPlatforms > 0 ? "bg-fill-success-secondary" : "bg-fill-warning-secondary"} padding="400" borderRadius="200">
+                <Box background={data.eventFunnel.passedKey > 0 ? "bg-fill-success-secondary" : "bg-fill-warning-secondary"} padding="400" borderRadius="200">
                   <BlockStack gap="200">
                     <InlineStack align="space-between" blockAlign="center">
                       <Text as="p" fontWeight="semibold">
                         🎯 转化事件捕获率
                       </Text>
-                      <Badge tone={data.eventFunnel.sentToPlatforms > 0 ? "success" : "warning"}>
+                      <Badge tone={data.eventFunnel.passedKey > 0 ? "success" : "warning"}>
                         {data.eventFunnel.pixelRequests > 0
-                          ? `${Math.round((data.eventFunnel.sentToPlatforms / data.eventFunnel.pixelRequests) * 100)}%`
+                          ? `${Math.round((data.eventFunnel.passedKey / data.eventFunnel.pixelRequests) * 100)}%`
                           : "待配置"}
                       </Badge>
                     </InlineStack>
                     <Text as="p" variant="bodySm">
-                      {data.eventFunnel.sentToPlatforms > 0
-                        ? `✅ 过去 24 小时：${data.eventFunnel.pixelRequests} 个订单 → ${data.eventFunnel.sentToPlatforms} 个转化事件发送成功`
-                        : "⚠️ 尚未发送转化事件，请完成以下配置"}
+                      {data.eventFunnel.passedKey > 0
+                        ? `✅ 过去 24 小时：收到 ${data.eventFunnel.pixelRequests} 个请求，成功入库 ${data.eventFunnel.passedKey} 条事件收据`
+                        : "⚠️ 尚未入库事件，请先完成测试订单并检查 Web Pixel 配置"}
                     </Text>
-                    {data.eventFunnel.sentToPlatforms === 0 && (
+                    {data.eventFunnel.passedKey === 0 && (
                       <Text as="p" variant="bodySm" tone="subdued">
-                        1. 确保 Web Pixel 已安装 → 2. 配置平台 CAPI 凭证 → 3. 完成测试订单
+                        1. 确保 Web Pixel 已安装 → 2. 完成测试订单 → 3. 刷新查看漏斗
                       </Text>
                     )}
                   </BlockStack>
@@ -607,11 +592,11 @@ export default function DiagnosticsPage() {
                   </Box>
                   <Box background="bg-fill-success-secondary" padding="400" borderRadius="200" minWidth="45%">
                     <BlockStack gap="200">
-                      <Text as="p" fontWeight="semibold" tone="success">✅ 客户端 + 服务端 CAPI</Text>
+                  <Text as="p" fontWeight="semibold" tone="success">✅ 客户端 Web Pixel</Text>
                       <Text as="p" variant="bodySm">
-                        • Shopify Webhook 直接传递订单数据
-                        <br />• 不受浏览器/拦截器影响
-                        <br />• 双重机制提高数据完整性
+                        • 事件来自 Shopify Web Pixel 标准事件
+                        <br />• 遵循 consent / customerPrivacy
+                        <br />• 通过签名与时间窗校验后入库
                       </Text>
                       <Divider />
                       <Text as="p" variant="bodySm" fontWeight="semibold" tone="success">
@@ -650,16 +635,12 @@ export default function DiagnosticsPage() {
                   <BlockStack gap="200">
                     <InlineStack align="space-between" blockAlign="center">
                       <Text as="p" fontWeight="semibold">
-                        服务端 CAPI
+                        服务端投递
                       </Text>
-                      <Badge tone={data.eventFunnel.sentToPlatforms > 0 ? "success" : "warning"}>
-                        {data.eventFunnel.sentToPlatforms > 0 ? "已启用" : "待配置"}
-                      </Badge>
+                      <Badge tone="info">不提供</Badge>
                     </InlineStack>
                     <Text as="p" variant="bodySm" tone="subdued">
-                      {data.eventFunnel.sentToPlatforms > 0
-                        ? `过去 24h 成功发送 ${data.eventFunnel.sentToPlatforms} 个转化到广告平台`
-                        : "服务端追踪是核心功能，通过 Webhook 直接获取订单数据"}
+                      当前版本不包含服务端投递与对账功能
                     </Text>
                   </BlockStack>
                 </Box>
@@ -684,7 +665,7 @@ export default function DiagnosticsPage() {
                       💡 如何验证追踪是否正常工作？
                     </Text>
                     <Text as="p" variant="bodySm">
-                      1. 确保 Web Pixel 和 CAPI 均已配置
+                      1. 确保 Web Pixel 已配置
                       <br />2. 在开发商店中下一个测试订单
                       <br />3. 等待 1-2 分钟，刷新此页面
                       <br />4. 检查上方漏斗图的各项指标
@@ -692,23 +673,8 @@ export default function DiagnosticsPage() {
                   </BlockStack>
                 </Banner>
               )}
-              {data.eventFunnel.pixelRequests > 0 && data.eventFunnel.sentToPlatforms === 0 && (
-                <Banner tone="warning">
-                  <BlockStack gap="200">
-                    <Text as="p" variant="bodySm" fontWeight="semibold">
-                      ⚠️ 有像素事件但未发送到平台
-                    </Text>
-                    <Text as="p" variant="bodySm">
-                      可能原因：
-                      <br />• 未配置 CAPI 平台凭证 → 前往「设置」配置
-                      <br />• 用户未授予 marketing 同意 → 正常现象，符合隐私法规
-                      <br />• Webhook 尚未到达 → 等待几分钟后刷新
-                    </Text>
-                  </BlockStack>
-                </Banner>
-              )}
               <InlineStack align="end" gap="200">
-                <Button url="/app/settings">配置 CAPI 凭证</Button>
+                <Button url="/app/settings">查看设置</Button>
                 <Button url="/app/migrate" variant="primary">安装/更新 Pixel</Button>
               </InlineStack>
             </BlockStack>
@@ -742,7 +708,7 @@ export default function DiagnosticsPage() {
                     "Order ID",
                     "Pixel 签名",
                     "后端处理",
-                    "CAPI 结果",
+                    "处理结果",
                   ]}
                   rows={(data.recentEvents as Array<{
                     id: string;
@@ -869,7 +835,7 @@ export default function DiagnosticsPage() {
                     </Text>
                     <Text as="p" variant="bodySm" tone="subdued">
                       A: Shopify Plus 商家：{formatDeadlineDate(DEPRECATION_DATES.plusScriptTagExecutionOff, "exact")} 停止执行；非 Plus 商家：{formatDeadlineDate(DEPRECATION_DATES.nonPlusScriptTagExecutionOff, "exact")} 停止执行。
-                      建议尽早迁移到 Web Pixel + 服务端 CAPI 方案。
+                      建议尽早迁移到 Web Pixel 方案。
                     </Text>
                     <Text as="p" variant="bodySm" tone="subdued">
                       <strong>提示：</strong>以上日期来自 Shopify 官方公告，仅供参考。实际截止日期请以 Shopify Admin 中的提示为准。
@@ -886,7 +852,7 @@ export default function DiagnosticsPage() {
                       v1 不提供 Survey/Shipping Tracker/Upsell 等区块。
                     </Text>
                     <Text as="p" variant="bodySm" tone="subdued">
-                      <strong>重要提示：</strong>Order Status 模块仅支持 Customer Accounts 体系下的订单状态页，不支持旧版订单状态页。如果您的店铺使用旧版订单状态页（非 Customer Accounts），Order Status 模块将不会显示。请确认您的店铺已启用 Customer Accounts 功能（可在 Shopify Admin → 设置 → 客户账户中检查），否则模块不会在订单状态页显示。这是 Shopify 平台的设计限制，Order status 模块只能在 Customer Accounts 体系下工作。请参考 <a href="https://shopify.dev/docs/apps/customer-accounts/ui-extensions" target="_blank" rel="noopener noreferrer">Customer Accounts UI Extensions 官方文档</a>（注意：不要参考 checkout-ui-extensions 文档，该文档可能显示此 target 为"Not supported"，这是文档版本差异导致的误导。正确的文档入口是 Customer Accounts UI Extensions，不是 Checkout UI Extensions）。
+                      <strong>重要提示：</strong>Thank you / Order status 页面自定义能力以 Shopify 官方能力与审核要求为准，本应用不提供页面模块库。
                     </Text>
                   </BlockStack>
                 </Box>
@@ -919,23 +885,7 @@ export default function DiagnosticsPage() {
                     </InlineStack>
                   </Box>
                 )}
-                {data.checks.some(c => c.name === "服务端追踪 (CAPI)" && c.status !== "pass") && (
-                  <Box background="bg-surface-warning" padding="400" borderRadius="200">
-                    <InlineStack align="space-between" blockAlign="center">
-                      <BlockStack gap="100">
-                        <Text as="p" fontWeight="semibold">
-                          未配置服务端追踪
-                        </Text>
-                        <Text as="p" variant="bodySm" tone="subdued">
-                          配置 CAPI 可大幅提高追踪准确性
-                        </Text>
-                      </BlockStack>
-                      <Button url="/app/settings">
-                        配置凭证
-                      </Button>
-                    </InlineStack>
-                  </Box>
-                )}
+                {false && data.checks.some(c => c.name === "服务端追踪(规划)" && c.status !== "pass") && null}
                 {data.checks.some(c => c.name === "最近事件" && c.status === "pending") && (
                   <Box background="bg-surface-secondary" padding="400" borderRadius="200">
                     <InlineStack align="space-between" blockAlign="center">

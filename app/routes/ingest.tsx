@@ -66,7 +66,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       trustLevel: "untrusted",
     } as KeyValidationResult,
     mode: "purchase_only",
-    serverSideConfigs: [],
+    enabledPixelConfigs: [],
   };
 
   const middlewares = [

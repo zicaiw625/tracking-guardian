@@ -393,21 +393,16 @@ export async function batchGetPixelConfigs(
   return result;
 }
 
-export async function hasServerSideConfigs(shopId: string): Promise<boolean> {
+export async function hasEnabledPixelConfigs(shopId: string): Promise<boolean> {
   const configs = await prisma.pixelConfig.findMany({
     where: {
       shopId,
       isActive: true,
-      serverSideEnabled: true,
-      credentialsEncrypted: { not: null },
+      clientSideEnabled: true,
     },
-    select: { credentialsEncrypted: true },
+    select: { id: true },
   });
-  return configs.some(
-    (config) =>
-      config.credentialsEncrypted &&
-      config.credentialsEncrypted.trim().length > 0
-  );
+  return configs.length > 0;
 }
 
 function isPlatformType(value: string): value is PlatformType {

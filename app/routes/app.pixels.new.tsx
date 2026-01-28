@@ -124,7 +124,7 @@ const PLATFORM_INFO: Record<SupportedPlatform, {
   google: {
     name: "Google Analytics 4",
     icon: "🔵",
-    description: "使用 Measurement Protocol 发送转化数据",
+    description: "用于 Web Pixel 标准事件映射",
     credentialFields: [
       {
         key: "measurementId",
@@ -138,14 +138,14 @@ const PLATFORM_INFO: Record<SupportedPlatform, {
         label: "API Secret",
         placeholder: "输入 API Secret",
         type: "password",
-        helpText: "在 GA4 管理后台的「数据流」→「Measurement Protocol API secrets」中创建",
+        helpText: "用于事件映射配置",
       },
     ],
   },
   meta: {
     name: "Meta (Facebook) Pixel",
     icon: "📘",
-    description: "使用 Conversions API 发送转化数据",
+    description: "用于 Web Pixel 标准事件映射",
     credentialFields: [
       {
         key: "pixelId",
@@ -159,7 +159,7 @@ const PLATFORM_INFO: Record<SupportedPlatform, {
         label: "Access Token",
         placeholder: "输入 Access Token",
         type: "password",
-        helpText: "在 Meta Events Manager → Settings → Conversions API 中生成",
+        helpText: "用于事件映射配置",
       },
       {
         key: "testEventCode",
@@ -173,7 +173,7 @@ const PLATFORM_INFO: Record<SupportedPlatform, {
   tiktok: {
     name: "TikTok Pixel",
     icon: "🎵",
-    description: "使用 Events API 发送转化数据",
+    description: "用于 Web Pixel 标准事件映射",
     credentialFields: [
       {
         key: "pixelId",
@@ -206,7 +206,7 @@ type SetupStep = "select" | "credentials" | "mappings" | "review";
 
 export default function PixelsNewPage() {
   const loaderData = useLoaderData<typeof loader>();
-  const { shop, templates, isStarterOrAbove, backendUrlInfo } = loaderData;
+  const { shop, templates, isStarterOrAbove, backendUrlInfo, trackingApiEnabled } = loaderData;
   const actionData = useActionData<typeof action>();
   const navigation = useNavigation();
   const submit = useSubmit();
@@ -247,12 +247,14 @@ export default function PixelsNewPage() {
     },
   }));
   const [showTemplateModal, setShowTemplateModal] = useState(false);
-  const steps = useMemo(() => ([
-    { id: "select", label: "选择平台" },
-    { id: "credentials", label: "填写凭证" },
-    { id: "mappings", label: "事件映射" },
-    { id: "review", label: "检查配置" },
-  ]), []);
+  const steps = useMemo(() => {
+    return [
+      { id: "select", label: "选择平台" },
+      ...(trackingApiEnabled ? [{ id: "credentials", label: "填写凭证" } as const] : []),
+      { id: "mappings", label: "事件映射" },
+      { id: "review", label: "检查配置" },
+    ];
+  }, [trackingApiEnabled]);
   useEffect(() => {
     if (actionData && "success" in actionData && actionData.success) {
       const configIds = ("configIds" in actionData ? actionData.configIds : []) || [];
@@ -366,7 +368,7 @@ export default function PixelsNewPage() {
     if (step === "select" && selectedPlatforms.size === 0) {
       errors.push("请至少选择一个平台");
     }
-    if (step === "credentials") {
+    if (step === "credentials" && trackingApiEnabled) {
       Array.from(selectedPlatforms).forEach((platform) => {
         const config = platformConfigs[platform];
         const info = PLATFORM_INFO[platform];
@@ -388,7 +390,7 @@ export default function PixelsNewPage() {
       });
     }
     return errors;
-  }, [platformConfigs, selectedPlatforms]);
+  }, [platformConfigs, selectedPlatforms, trackingApiEnabled]);
   const handleNext = useCallback(() => {
     const errors = validateStep(currentStep);
     if (errors.length > 0) {
@@ -401,7 +403,7 @@ export default function PixelsNewPage() {
     }
   }, [currentStep, steps, validateStep, showError]);
   const handleSave = useCallback(() => {
-    const errors = validateStep("credentials").concat(validateStep("mappings"));
+    const errors = (trackingApiEnabled ? validateStep("credentials") : []).concat(validateStep("mappings"));
     if (errors.length > 0) {
       showError(`配置错误：${errors.join("; ")}`);
       return;
@@ -412,7 +414,7 @@ export default function PixelsNewPage() {
       return {
         platform,
         platformId: config.platformId,
-        credentials: config.credentials,
+        credentials: trackingApiEnabled ? config.credentials : {},
         eventMappings: config.eventMappings,
         environment: config.environment,
       };
@@ -421,7 +423,7 @@ export default function PixelsNewPage() {
     formData.append("_action", "savePixelConfigs");
     formData.append("configs", JSON.stringify(configs));
     submit(formData, { method: "post" });
-  }, [platformConfigs, selectedPlatforms, submit, validateStep, showError]);
+  }, [platformConfigs, selectedPlatforms, submit, validateStep, showError, trackingApiEnabled]);
   const currentIndex = steps.findIndex((step) => step.id === currentStep);
   const isSubmitting = navigation.state === "submitting";
   const availableTemplates = useMemo(() => {
@@ -698,7 +700,7 @@ export default function PixelsNewPage() {
             </BlockStack>
           </Card>
         )}
-        {currentStep === "credentials" && (
+        {trackingApiEnabled && currentStep === "credentials" && (
           <Card>
             <BlockStack gap="400">
               <Text as="h3" variant="headingMd">填写平台凭证</Text>
@@ -719,7 +721,7 @@ export default function PixelsNewPage() {
                       <br />
                       • <strong>事件发送：</strong>需要 marketing consent，且在 sale of data consent 明确拒绝时不发送到营销平台
                       <br />
-                      • <strong>服务端追踪：</strong>v1.0 版本中，服务端转化追踪（Server-side CAPI/MP）默认关闭。默认情况下，我们仅使用客户端 Web Pixel 追踪。如需启用服务端追踪，请在设置页面配置。
+                      • <strong>服务端投递：</strong>当前版本默认关闭（规划中）
                     </Text>
                     <Text as="p" variant="bodySm" tone="subdued">
                       请确保您的店铺已正确配置 Customer Privacy API。在客户未授予 marketing consent 时，事件将被跳过，不会发送到营销平台。
