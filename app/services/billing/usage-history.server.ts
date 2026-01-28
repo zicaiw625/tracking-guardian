@@ -1,5 +1,5 @@
 import prisma from "../../db.server";
-import { extractPlatformFromPayload } from "../../utils/common";
+import { extractPlatformFromPayload, isReceiptHmacMatched } from "../../utils/common";
 
 export interface UsageHistoryPoint {
   date: string;
@@ -53,6 +53,7 @@ export async function getUsageHistory(
       payloadJson: true,
     },
   });
+  const matchedReceipts = pixelReceipts.filter((r) => isReceiptHmacMatched(r.payloadJson));
   const dailyData = new Map<string, {
     orderIds: Set<string>;
     eventCount: number;
@@ -66,7 +67,7 @@ export async function getUsageHistory(
       platformCounts: {},
     });
   }
-  pixelReceipts.forEach((receipt) => {
+  matchedReceipts.forEach((receipt) => {
     if (!receipt.orderKey) return;
     const dateStr = new Date(receipt.createdAt).toISOString().split("T")[0];
     const dayData = dailyData.get(dateStr);
@@ -87,9 +88,9 @@ export async function getUsageHistory(
     }))
     .sort((a, b) => a.date.localeCompare(b.date));
   const totalOrders = new Set(
-    pixelReceipts.map((receipt) => receipt.orderKey).filter(Boolean)
+    matchedReceipts.map((receipt) => receipt.orderKey).filter(Boolean)
   ).size;
-  const totalEvents = pixelReceipts.length;
+  const totalEvents = matchedReceipts.length;
   const averageDailyOrders = data.length > 0 ? totalOrders / data.length : 0;
   const averageDailyEvents = data.length > 0 ? totalEvents / data.length : 0;
   const peakDay = data.reduce(
@@ -97,7 +98,7 @@ export async function getUsageHistory(
     { date: data[0]?.date || "", orders: 0, events: 0, platforms: {} }
   );
   const platformTotals: Record<string, number> = {};
-  pixelReceipts.forEach((receipt) => {
+  matchedReceipts.forEach((receipt) => {
     const platform = extractPlatformFromPayload(receipt.payloadJson as Record<string, unknown> | null) || "unknown";
     platformTotals[platform] = (platformTotals[platform] || 0) + 1;
   });

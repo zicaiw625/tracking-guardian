@@ -3,6 +3,7 @@ import { logger } from "~/utils/logger.server";
 import type { PixelEventPayload } from "~/lib/pixel-events/types";
 import { generateCanonicalEventId } from "../event-normalizer.server";
 import { parallelLimit } from "~/utils/helpers";
+import { isReceiptHmacMatched } from "~/utils/common";
 
 function extractPlatformFromPayload(payload: Record<string, unknown> | null): string | null {
   if (!payload) return null;
@@ -321,14 +322,15 @@ export async function getEventStats(
       payloadJson: true,
     },
   });
+  const matchedReceipts = receipts.filter((r) => isReceiptHmacMatched(r.payloadJson));
   const stats = {
-    total: receipts.length,
+    total: matchedReceipts.length,
     success: 0,
     failed: 0,
     deduplicated: 0,
     byDestination: {} as Record<string, { total: number; success: number; failed: number }>,
   };
-  for (const receipt of receipts) {
+  for (const receipt of matchedReceipts) {
     const payload = receipt.payloadJson as Record<string, unknown> | null;
     const data = payload?.data as Record<string, unknown> | undefined;
     const hasValue = typeof data?.value === "number" && data.value > 0;

@@ -167,7 +167,7 @@ describe("Usage Tracking Service", () => {
   describe("isOrderAlreadyCounted", () => {
     it("should return true when pixelEventReceipt exists with value and currency", async () => {
       vi.mocked(prisma.pixelEventReceipt.findFirst).mockResolvedValue({
-        payloadJson: { data: { value: 10, currency: "USD" } },
+        payloadJson: { hmacMatched: true, data: { value: 10, currency: "USD" } },
       } as any);
       const result = await isOrderAlreadyCounted("shop-123", "order-456");
       expect(result).toBe(true);
@@ -214,7 +214,7 @@ describe("Usage Tracking Service", () => {
     });
     it("should return incremented=false for duplicate order", async () => {
       vi.mocked(prisma.pixelEventReceipt.findFirst).mockResolvedValue({
-        payloadJson: { data: { value: 1, currency: "USD" } },
+        payloadJson: { hmacMatched: true, data: { value: 1, currency: "USD" } },
       } as any);
       vi.mocked(prisma.monthlyUsage.findUnique).mockResolvedValue({ sentCount: 50 } as any);
       const result = await incrementMonthlyUsageIdempotent("shop-123", "order-789");
@@ -243,7 +243,7 @@ describe("Usage Tracking Service", () => {
     });
     it("should return reserved=false for duplicate order", async () => {
       vi.mocked(prisma.pixelEventReceipt.findFirst).mockResolvedValue({
-        payloadJson: { data: { value: 1, currency: "USD" } },
+        payloadJson: { hmacMatched: true, data: { value: 1, currency: "USD" } },
       } as any);
       vi.mocked(prisma.monthlyUsage.findUnique).mockResolvedValue({ sentCount: 500 } as any);
       const result = await tryReserveUsageSlot("shop-123", "order-100", 1000);
@@ -284,7 +284,7 @@ describe("Usage Tracking Service", () => {
     });
     it("should invalidate cache for duplicate orders in incrementMonthlyUsageIdempotent", async () => {
       vi.mocked(prisma.pixelEventReceipt.findFirst).mockResolvedValue({
-        payloadJson: { data: { value: 1, currency: "USD" } },
+        payloadJson: { hmacMatched: true, data: { value: 1, currency: "USD" } },
       } as any);
       vi.mocked(prisma.monthlyUsage.findUnique).mockResolvedValue({ sentCount: 100 } as any);
       await incrementMonthlyUsageIdempotent("shop-123", "order-existing");

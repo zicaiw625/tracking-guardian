@@ -2,6 +2,7 @@ import { randomUUID } from "crypto";
 import prisma from "~/db.server";
 import { logger } from "~/utils/logger.server";
 import { billingCache } from "~/utils/cache";
+import { isReceiptHmacMatched } from "~/utils/common";
 import type { PlanId } from "./plans";
 import { getPlanLimit } from "./plans";
 
@@ -67,7 +68,10 @@ export async function getMonthlyUsage(
       payloadJson: true,
     },
   });
-  currentMonthReceipts.forEach((receipt) => {
+  const matchedCurrentMonthReceipts = currentMonthReceipts.filter((r) =>
+    isReceiptHmacMatched(r.payloadJson)
+  );
+  matchedCurrentMonthReceipts.forEach((receipt) => {
     const payload = receipt.payloadJson as Record<string, unknown> | null;
     const platform = extractPlatformFromPayload(payload);
     if (!platform) return;
@@ -96,7 +100,7 @@ export async function getMonthlyUsage(
   return {
     currentMonth: {
       orders: currentMonthOrders,
-      events: currentMonthReceipts.length,
+      events: matchedCurrentMonthReceipts.length,
       platforms: platformCounts,
     },
     previousMonth: {
@@ -245,6 +249,9 @@ export async function isOrderAlreadyCounted(
     },
   });
   if (receipt) {
+    if (!isReceiptHmacMatched(receipt.payloadJson)) {
+      return false;
+    }
     const payload = receipt.payloadJson as Record<string, unknown> | null;
     const data = payload?.data as Record<string, unknown> | undefined;
     const hasValue = data?.value !== undefined && data?.value !== null;

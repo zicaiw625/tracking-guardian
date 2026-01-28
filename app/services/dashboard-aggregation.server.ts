@@ -1,6 +1,6 @@
 import prisma from "../db.server";
 import { logger } from "../utils/logger.server";
-import { parseReceiptPayload, extractPlatformFromPayload, isRecord } from "../utils/common";
+import { parseReceiptPayload, extractPlatformFromPayload, isRecord, isReceiptHmacMatched } from "../utils/common";
 
 export interface DailyAggregatedMetrics {
   shopId: string;
@@ -41,8 +41,9 @@ export async function aggregateDailyMetrics(
     },
     take: 10000,
   });
+  const matchedReceipts = receipts.filter((r) => isReceiptHmacMatched(r.payloadJson));
   const orders: Array<{ platform: string; status: string; value: number }> = [];
-  for (const receipt of receipts) {
+  for (const receipt of matchedReceipts) {
     const parsed = parseReceiptPayload(receipt.payloadJson);
     if (!parsed) {
       const payload = isRecord(receipt.payloadJson) ? receipt.payloadJson : null;
@@ -76,15 +77,7 @@ export async function aggregateDailyMetrics(
     platformBreakdown[order.platform].count++;
     platformBreakdown[order.platform].value += order.value;
   }
-  const eventVolume = await prisma.pixelEventReceipt.count({
-    where: {
-      shopId,
-      createdAt: {
-        gte: startOfDay,
-        lte: endOfDay,
-      },
-    },
-  });
+  const eventVolume = matchedReceipts.length;
   const ordersWithMissingParams = orders.filter((o) => o.status !== "ok").length;
   const missingParamsRate = totalOrders > 0 ? ordersWithMissingParams / totalOrders : 0;
   const metrics: DailyAggregatedMetrics = {

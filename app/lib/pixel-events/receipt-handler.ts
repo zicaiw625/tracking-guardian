@@ -132,7 +132,24 @@ export async function upsertPixelEventReceipt(
     if (storePayload && payload) {
       if (verificationRunId) {
         const { sanitizePII } = await import("../../services/event-log.server");
-        payloadToStore = sanitizePII(payload) as unknown as Record<string, unknown>;
+        const sanitized = sanitizePII(payload);
+        const base =
+          sanitized && typeof sanitized === "object" ? (sanitized as Record<string, unknown>) : {};
+        const baseData =
+          base.data && typeof base.data === "object" && base.data !== null
+            ? (base.data as Record<string, unknown>)
+            : null;
+        payloadToStore = {
+          ...base,
+          ...(baseData
+            ? { data: { ...baseData, hmacMatched: hmacMatched ?? false } }
+            : {}),
+          trustLevel:
+            typeof base.trustLevel === "string"
+              ? base.trustLevel
+              : trustLevel ?? "untrusted",
+          hmacMatched: hmacMatched ?? false,
+        };
       } else {
         payloadToStore = buildMinimalPayloadForReceipt(payload, trustLevel, hmacMatched);
       }

@@ -189,37 +189,30 @@ export const hmacValidationMiddleware: IngestMiddleware = async (
     };
   }
 
-  const hasValidOrigin = true;
-
-  if (keyValidation.matched && !hasValidOrigin) {
-    logger.warn(`HMAC verified but origin not in allowlist for ${context.shopDomain}`, {
-      shopDomain: context.shopDomain,
-      origin: context.origin?.substring(0, 100) || "null",
-      trustLevel: keyValidation.trustLevel,
-    });
-    trackAnomaly(context.shopDomain!, "invalid_origin");
-    if (context.isProduction || isStrictSecurityMode()) {
-      if (shouldRecordRejection(context.isProduction, false)) {
-        rejectionTracker.record({
-          requestId: context.requestId,
-          shopDomain: context.shopDomain!,
-          reason: "origin_not_allowlisted",
-          timestamp: Date.now(),
-        });
-      }
-      metrics.pixelRejection({
+  if (context.isProduction && !keyValidation.matched) {
+    const rejectionReason = keyValidation.reason === "secret_missing" ? "no_ingestion_key" : "invalid_key";
+    if (shouldRecordRejection(context.isProduction, false)) {
+      rejectionTracker.record({
         requestId: context.requestId,
         shopDomain: context.shopDomain!,
-        reason: "origin_not_allowlisted",
+        reason: rejectionReason,
+        timestamp: Date.now(),
       });
-      return {
-        continue: false,
-        response: jsonWithCors(
-          { error: "Invalid request" },
-          { status: 403, request: context.request, requestId: context.requestId }
-        ),
-      };
     }
+    metrics.pixelRejection({
+      requestId: context.requestId,
+      shopDomain: context.shopDomain!,
+      reason: rejectionReason,
+    });
+    const status = rejectionReason === "no_ingestion_key" ? 503 : 403;
+    const error = rejectionReason === "no_ingestion_key" ? "Service unavailable" : "Invalid request";
+    return {
+      continue: false,
+      response: jsonWithCors(
+        { error },
+        { status, request: context.request, requestId: context.requestId }
+      ),
+    };
   }
 
   if (!keyValidation.matched) {

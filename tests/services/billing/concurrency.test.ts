@@ -81,7 +81,7 @@ describe("Billing Concurrency", () => {
       const orderId = "order1";
       const limit = 10;
       vi.mocked(prisma.pixelEventReceipt.findFirst).mockResolvedValue({
-        payloadJson: { data: { value: 1, currency: "USD" } },
+        payloadJson: { hmacMatched: true, data: { value: 1, currency: "USD" } },
       } as any);
       vi.mocked(prisma.monthlyUsage.findUnique).mockResolvedValue({ sentCount: 5 } as any);
       const result = await tryReserveUsageSlot(shopId, orderId, limit);

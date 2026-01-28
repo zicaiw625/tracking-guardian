@@ -60,6 +60,14 @@ export function parseReceiptPayload(receiptPayload: unknown): ReceiptParsedData 
   };
 }
 
+export function isReceiptHmacMatched(receiptPayload: unknown): boolean {
+  if (!isRecord(receiptPayload)) return false;
+  if (receiptPayload.hmacMatched === true) return true;
+  const data = receiptPayload.data;
+  if (isRecord(data) && data.hmacMatched === true) return true;
+  return false;
+}
+
 function isString(value: unknown): value is string {
   return typeof value === "string";
 }
