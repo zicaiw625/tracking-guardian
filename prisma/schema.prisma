@@ -67,9 +67,7 @@ model Shop {
   ScanReports             ScanReport[]
   VerificationRun         VerificationRun[]
   EventLog                EventLog[]
-  DeliveryAttempt         DeliveryAttempt[]
   SurveyResponse          SurveyResponse[]
-  ExtensionError          ExtensionError[]
   MonthlyUsage            MonthlyUsage[]
   MigrationDraft          MigrationDraft?
   EventNonce              EventNonce[]
@@ -227,7 +225,6 @@ model EventLog {
   normalizedEventJson Json
   createdAt           DateTime          @default(now())
   Shop                Shop              @relation(fields: [shopId], references: [id], onDelete: Cascade)
-  DeliveryAttempt     DeliveryAttempt[]
 
   @@unique([shopId, eventId])
   @@index([shopId])
@@ -235,38 +232,6 @@ model EventLog {
   @@index([shopId, eventName, createdAt])
   @@index([eventId])
   @@index([occurredAt])
-}
-
-model DeliveryAttempt {
-  id                  String   @id
-  eventLogId          String
-  shopId              String
-  receiptId           String?
-  destinationType     String
-  environment         String   @default("live")
-  platform            String?
-  requestPayloadJson  Json
-  status              String   @default("pending")
-  httpStatus          Int?
-  ok                  Boolean  @default(false)
-  errorCode           String?
-  errorDetail         String?
-  responseBodySnippet String?
-  latencyMs           Int?
-  verificationRunId   String?
-  createdAt           DateTime @default(now())
-  Shop                Shop     @relation(fields: [shopId], references: [id], onDelete: Cascade)
-  EventLog            EventLog @relation(fields: [eventLogId], references: [id], onDelete: Cascade)
-
-  @@unique([shopId, eventLogId, destinationType, environment])
-  @@index([shopId])
-  @@index([shopId, createdAt])
-  @@index([shopId, destinationType, createdAt])
-  @@index([shopId, status, createdAt])
-  @@index([eventLogId])
-  @@index([receiptId])
-  @@index([platform])
-  @@index([verificationRunId])
 }
 
 model SurveyResponse {
@@ -285,26 +250,6 @@ model SurveyResponse {
   @@index([orderId])
   @@index([shopId, orderId])
   @@index([shopId, createdAt])
-}
-
-model ExtensionError {
-  id          String   @id
-  shopId      String
-  shopDomain  String
-  extension   String
-  endpoint    String
-  error       String
-  stack       String?
-  target      String?
-  orderIdHash String?
-  createdAt   DateTime @default(now())
-  Shop        Shop     @relation(fields: [shopId], references: [id], onDelete: Cascade)
-
-  @@index([shopId])
-  @@index([shopId, createdAt])
-  @@index([extension])
-  @@index([endpoint])
-  @@index([shopId, extension, createdAt])
 }
 
 model WebhookLog {

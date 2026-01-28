@@ -15,9 +15,6 @@ export const enqueueMiddleware: IngestMiddleware = async (
     };
   }
 
-  if (process.env.INGEST_ASYNC === "false") {
-    return { continue: true, context };
-  }
 
   const entry = {
     requestId: context.requestId,
@@ -43,7 +40,7 @@ export const enqueueMiddleware: IngestMiddleware = async (
     return {
       continue: false,
       response: jsonWithCors(
-        { error: "Failed to enqueue", accepted_count: 0, errors: ["enqueue_failed"] },
+        { error: "Failed to enqueue events", accepted_count: 0 },
         { status: 503, request: context.request, requestId: context.requestId }
       ),
     };

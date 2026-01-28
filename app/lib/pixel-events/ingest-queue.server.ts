@@ -28,14 +28,24 @@ export interface IngestQueueEntry {
 export async function enqueueIngestBatch(entry: IngestQueueEntry): Promise<boolean> {
   try {
     const redis = await getRedisClient();
+    const currentLen = await redis.lLen(QUEUE_KEY);
+    if (currentLen >= MAX_QUEUE_SIZE) {
+      logger.warn("Ingest queue at max size, trimming oldest entries before enqueue", {
+        queueKey: QUEUE_KEY,
+        length: currentLen,
+        maxSize: MAX_QUEUE_SIZE,
+      });
+      await redis.lTrim(QUEUE_KEY, 0, MAX_QUEUE_SIZE - 2);
+    }
     const serialized = JSON.stringify(entry);
     const len = await redis.lPush(QUEUE_KEY, serialized);
     if (len > MAX_QUEUE_SIZE) {
-      logger.warn("Ingest queue exceeds max size, consider scaling worker", {
+      logger.warn("Ingest queue exceeded max size after enqueue, trimming", {
         queueKey: QUEUE_KEY,
         length: len,
         maxSize: MAX_QUEUE_SIZE,
       });
+      await redis.lTrim(QUEUE_KEY, 0, MAX_QUEUE_SIZE - 1);
     }
     return true;
   } catch (e) {

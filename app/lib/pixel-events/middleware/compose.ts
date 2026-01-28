@@ -1,4 +1,4 @@
-import type { IngestContext, IngestMiddleware, MiddlewareResult } from "./types";
+import type { IngestContext, IngestMiddleware } from "./types";
 
 export async function composeIngestMiddleware(
   middlewares: IngestMiddleware[],

@@ -150,35 +150,12 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     byEndpoint: [],
   };
   try {
-    const since = new Date(Date.now() - 24 * 60 * 60 * 1000);
-    const errors = await prisma.extensionError.findMany({
-      where: {
-        shopId: shop.id,
-        createdAt: {
-          gte: since,
-        },
-      },
-      select: {
-        extension: true,
-        endpoint: true,
-      },
-    });
-    const byExtensionMap = new Map<string, number>();
-    const byEndpointMap = new Map<string, number>();
-    errors.forEach((error) => {
-      byExtensionMap.set(error.extension, (byExtensionMap.get(error.extension) || 0) + 1);
-      byEndpointMap.set(error.endpoint, (byEndpointMap.get(error.endpoint) || 0) + 1);
-    });
     extensionErrors = {
-      last24h: errors.length,
-      byExtension: Array.from(byExtensionMap.entries())
-        .map(([extension, count]) => ({ extension, count }))
-        .sort((a, b) => b.count - a.count),
-      byEndpoint: Array.from(byEndpointMap.entries())
-        .map(([endpoint, count]) => ({ endpoint, count }))
-        .sort((a, b) => b.count - a.count),
+      last24h: 0,
+      byExtension: [],
+      byEndpoint: [],
     };
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error("Failed to get extension errors", { shopId: shop.id, error });
   }
   let eventLoss = {

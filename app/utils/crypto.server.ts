@@ -249,7 +249,8 @@ export function normalizeOrderId(orderId: string | number): string {
     if (numericMatch) {
         return numericMatch[1];
     }
-    logger.warn(`[normalizeOrderId] Unable to extract numeric ID from: ${orderIdStr}`);
+    const orderIdHash = createHash("sha256").update(orderIdStr, "utf8").digest("hex").substring(0, 16);
+    logger.warn(`[normalizeOrderId] Unable to extract numeric ID from orderId (hash: ${orderIdHash})`);
     return orderIdStr;
 }
 export interface MatchKeyInput {

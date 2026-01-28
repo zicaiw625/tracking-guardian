@@ -119,23 +119,15 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       });
     }
     try {
-      const errorId = randomUUID();
-      await prisma.extensionError.create({
-        data: {
-          id: errorId,
-          shopId: shop.id,
-          shopDomain,
-          extension: body.extension,
-          endpoint: body.endpoint,
-          error: errorData.error,
-          stack: errorData.stack,
-          target: errorData.target,
-          orderIdHash: errorData.orderIdHash,
-          createdAt: errorData.timestamp,
-        },
+      logger.warn("Extension error reporting is disabled (ExtensionError model removed)", {
+        shopId: shop.id,
+        shopDomain,
+        extension: body.extension,
+        endpoint: body.endpoint,
+        orderIdHash: errorData.orderIdHash,
       });
     } catch (dbError) {
-      logger.error("Failed to save extension error to database", {
+      logger.error("Failed to log extension error", {
         shopId: shop.id,
         shopDomain,
         dbError: dbError instanceof Error ? dbError.message : String(dbError),

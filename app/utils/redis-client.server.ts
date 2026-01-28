@@ -23,6 +23,8 @@ export interface RedisClientWrapper {
   eval(script: string, keys: string[], args: string[]): Promise<unknown>;
   lPush(key: string, ...values: string[]): Promise<number>;
   rPop(key: string): Promise<string | null>;
+  lTrim(key: string, start: number, stop: number): Promise<void>;
+  lLen(key: string): Promise<number>;
   isConnected(): boolean;
   getConnectionInfo(): ConnectionInfo;
 }
@@ -275,6 +277,20 @@ class InMemoryFallback implements RedisClientWrapper {
     const value = list.pop()!;
     if (list.length === 0) this.listStore.delete(key);
     return value;
+  }
+  async lTrim(key: string, start: number, stop: number): Promise<void> {
+    const list = this.listStore.get(key);
+    if (!list) return;
+    const trimmed = list.slice(start, stop + 1);
+    if (trimmed.length === 0) {
+      this.listStore.delete(key);
+    } else {
+      this.listStore.set(key, trimmed);
+    }
+  }
+  async lLen(key: string): Promise<number> {
+    const list = this.listStore.get(key);
+    return list ? list.length : 0;
   }
   isConnected(): boolean {
     return true;
@@ -608,6 +624,20 @@ class RedisClientFactory {
           return this.fallback.rPop(key);
         }
       },
+      lTrim: async (key: string, start: number, stop: number): Promise<void> => {
+        try {
+          await client.lTrim(key, start, stop);
+        } catch {
+          await this.fallback.lTrim(key, start, stop);
+        }
+      },
+      lLen: async (key: string): Promise<number> => {
+        try {
+          return await client.lLen(key);
+        } catch {
+          return this.fallback.lLen(key);
+        }
+      },
       isConnected: (): boolean => {
         return this.connectionInfo.connected;
       },
@@ -672,6 +702,10 @@ class RedisClientFactory {
       },
       lPush: async (key: string, ...values: string[]): Promise<number> => client.lPush(key, values),
       rPop: async (key: string): Promise<string | null> => client.rPop(key),
+      lTrim: async (key: string, start: number, stop: number): Promise<void> => {
+        await client.lTrim(key, start, stop);
+      },
+      lLen: async (key: string): Promise<number> => client.lLen(key),
       isConnected: (): boolean => this.connectionInfo.connected,
       getConnectionInfo: (): ConnectionInfo => ({ ...this.connectionInfo }),
     };

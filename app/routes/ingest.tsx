@@ -1,5 +1,5 @@
 import type { ActionFunctionArgs, LoaderFunctionArgs } from "@remix-run/node";
-import { jsonWithCors, optionsResponse } from "~/lib/pixel-events/cors";
+import { jsonWithCors } from "~/lib/pixel-events/cors";
 import { generateRequestId } from "~/utils/logger.server";
 import { isDevMode } from "~/utils/origin-validation.server";
 import { composeIngestMiddleware } from "~/lib/pixel-events/middleware/compose";
@@ -14,7 +14,6 @@ import { originValidationPostShopMiddleware } from "~/lib/pixel-events/middlewar
 import { hmacValidationMiddleware } from "~/lib/pixel-events/middleware/hmac-validation.middleware";
 import { rateLimitPostShopMiddleware } from "~/lib/pixel-events/middleware/rate-limit-post-shop.middleware";
 import { enqueueMiddleware } from "~/lib/pixel-events/middleware/enqueue.middleware";
-import { processingMiddleware } from "~/lib/pixel-events/middleware/processing.middleware";
 import type { IngestContext } from "~/lib/pixel-events/middleware/types";
 import type { KeyValidationResult } from "~/lib/pixel-events/types";
 
@@ -82,7 +81,6 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     hmacValidationMiddleware,
     rateLimitPostShopMiddleware,
     enqueueMiddleware,
-    processingMiddleware,
   ];
 
   return composeIngestMiddleware(middlewares, initialContext);

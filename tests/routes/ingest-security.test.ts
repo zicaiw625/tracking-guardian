@@ -22,7 +22,11 @@ vi.mock("../../app/db.server", () => ({
 }));
 
 vi.mock("../../app/utils/redis-client.server", () => ({
-  getRedisClient: vi.fn(),
+  getRedisClient: vi.fn().mockResolvedValue({
+    lPush: vi.fn().mockResolvedValue(1),
+    lTrim: vi.fn().mockResolvedValue(true),
+    rPop: vi.fn().mockResolvedValue(null),
+  }),
 }));
 
 vi.mock("../../app/utils/logger", () => ({
@@ -75,6 +79,11 @@ vi.mock("../../app/lib/pixel-events/ingest-pipeline.server", () => ({
   distributeEvents: vi.fn((events) => events.map((e: any) => ({ ...e, destinations: [] }))),
 }));
 
+vi.mock("../../app/lib/pixel-events/ingest-queue.server", () => ({
+  enqueueIngestBatch: vi.fn().mockResolvedValue(true),
+  processIngestQueue: vi.fn(),
+}));
+
 vi.mock("../../app/services/events/pipeline.server", () => ({
   processBatchEvents: vi.fn().mockImplementation(async (_shopId: string, events: any[]) => {
     return events.map(() => ({ success: true }));
@@ -85,7 +94,6 @@ import { action } from "../../app/routes/ingest";
 import { getShopForPixelVerificationWithConfigs } from "../../app/lib/pixel-events/key-validation";
 import { validatePixelEventHMAC } from "../../app/lib/pixel-events/hmac-validation";
 import { verifyWithGraceWindowAsync } from "../../app/utils/shop-access";
-import { processBatchEvents } from "../../app/services/events/pipeline.server";
 
 const originalEnv = process.env;
 
@@ -131,7 +139,6 @@ describe("/ingest Security Policy Tests", () => {
     vi.clearAllMocks();
     process.env = { ...originalEnv };
     process.env.NODE_ENV = "test";
-    process.env.INGEST_ASYNC = "false";
     
     vi.mocked(getShopForPixelVerificationWithConfigs).mockResolvedValue({
       id: "shop-123",
@@ -321,8 +328,6 @@ describe("/ingest Security Policy Tests", () => {
       expect(response.status).toBe(202);
       const data = await response.json();
       expect(data.accepted_count).toBeDefined();
-      expect(vi.mocked(processBatchEvents)).toHaveBeenCalledTimes(1);
-      expect(vi.mocked(processBatchEvents).mock.calls[0]?.[3]).toEqual({ persistOnly: true });
     });
   });
 });

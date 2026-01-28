@@ -93,8 +93,8 @@ export async function processEventPipeline(
   payload: PixelEventPayload,
   eventId: string | null,
   destinations: string[] | Array<{ platform: string; configId?: string; platformId?: string }>,
-  environment?: "test" | "live",
-  pipelineOptions?: { skipDelivery?: boolean }
+  _environment?: "test" | "live",
+  _pipelineOptions?: { skipDelivery?: boolean }
 ): Promise<EventPipelineResult> {
   const validation = validateEventPayload(payload);
   if (!validation.valid) {
@@ -257,18 +257,16 @@ export async function processEventPipeline(
     logger.debug(`Generated canonical eventId for ${payload.eventName}`, {
       shopId,
       eventName: payload.eventName,
-      eventId: finalEventId,
       hasItems: normalizedItemsForEventId.length > 0,
-      orderId: normalizedPayload.data?.orderId || null,
-      checkoutToken: normalizedPayload.data?.checkoutToken || null,
+      hasOrderId: !!normalizedPayload.data?.orderId,
+      hasCheckoutToken: !!normalizedPayload.data?.checkoutToken,
     });
   } else {
     logger.debug(`Using provided eventId for ${payload.eventName}`, {
       shopId,
       eventName: payload.eventName,
-      eventId: finalEventId,
-      orderId: normalizedPayload.data?.orderId || null,
-      checkoutToken: normalizedPayload.data?.checkoutToken || null,
+      hasOrderId: !!normalizedPayload.data?.orderId,
+      hasCheckoutToken: !!normalizedPayload.data?.checkoutToken,
     });
   }
   return {
