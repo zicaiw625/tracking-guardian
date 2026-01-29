@@ -23,7 +23,7 @@ services:
     runtime: node
     region: singapore  # 亚洲区域，可改为 oregon/frankfurt 等
     plan: starter  # 可升级为 starter/standard
-    buildCommand: pnpm install --frozen-lockfile && pnpm generate && pnpm ext:inject && pnpm ext:validate && pnpm build
+    buildCommand: pnpm install --frozen-lockfile && rm -rf build && pnpm generate && pnpm ext:inject && pnpm ext:validate && pnpm build
     # ⚠️ 关键：ext:validate 是强制验证步骤，失败会返回 exit code 1，导致构建直接中断
     # 这是 BACKEND_URL 注入的生命线验证，必须在所有部署流程中执行
     # 验证失败会检查以下内容：
