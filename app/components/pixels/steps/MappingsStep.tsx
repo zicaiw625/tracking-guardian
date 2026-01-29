@@ -1,6 +1,6 @@
 import { Card, BlockStack, Text, Banner, List, Divider } from "@shopify/polaris";
 import { EventMappingEditor } from "~/components/migrate/EventMappingEditor";
-import { PLATFORM_INFO, type SupportedPlatform, type PlatformConfig } from "../constants";
+import type { SupportedPlatform, PlatformConfig } from "../constants";
 
 interface MappingsStepProps {
   selectedPlatforms: Set<SupportedPlatform>;

@@ -242,7 +242,7 @@ export async function analyzeRecentEvents(
     admin?: AdminApiContext;
   } = {}
 ): Promise<VerificationSummary> {
-  const { since = new Date(Date.now() - 24 * 60 * 60 * 1000), platforms, admin: _admin } = options;
+  const { since = new Date(Date.now() - 24 * 60 * 60 * 1000), platforms } = options;
   const run = await prisma.verificationRun.findUnique({
     where: { id: runId },
     select: {

@@ -18,7 +18,6 @@ import {
   Icon,
   List,
   Checkbox,
-  Link,
 } from "@shopify/polaris";
 import {
   CheckCircleIcon,

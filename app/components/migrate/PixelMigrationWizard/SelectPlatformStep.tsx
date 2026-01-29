@@ -1,4 +1,4 @@
-import { BlockStack, Text, Banner, Button, Card, Checkbox, InlineStack, Badge, Divider, Modal, List } from "@shopify/polaris";
+import { BlockStack, Text, Banner, Button, Card, Checkbox, InlineStack, Badge, Divider, Modal } from "@shopify/polaris";
 import { SettingsIcon } from "~/components/icons";
 import type { PlatformType } from "~/types/enums";
 import type { PlatformConfig } from "./useWizardState";

@@ -214,6 +214,8 @@ export const CronTaskSchema = z.enum([
   "process_gdpr",
   "cleanup",
   "ingest_worker",
+  "aggregate_daily",
+  "alerts",
   "all",
 ]);
 

@@ -55,6 +55,7 @@ export default function App() {
         <a href="/app/scan">Audit</a>
         <a href="/app/pixels">Pixels</a>
         <a href="/app/verification">Verification</a>
+        <a href="/app/monitoring">Monitoring</a>
         <a href="/app/settings">Settings</a>
         <a href="/app/billing">Billing</a>
       </NavMenu>

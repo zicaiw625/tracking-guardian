@@ -1,9 +1,8 @@
 import { Layout, Card, Text, BlockStack, InlineStack, Badge, Button, Box, Divider, Icon, Banner } from "@shopify/polaris";
 import { CheckCircleIcon } from "~/components/icons";
 import { getPlatformName } from "~/components/scan/utils";
-import { safeFormatDate } from "~/utils/scan-data-validation";
+import { safeFormatDate, validateRiskItemsArray } from "~/utils/scan-data-validation";
 import { calculateEstimatedTime, getRiskLevelBackground, getRiskLevelBadgeTone } from "~/utils/scan-format";
-import { validateRiskItemsArray } from "~/utils/scan-data-validation";
 import { isPlanAtLeast } from "~/utils/plans";
 
 interface ScanSummaryCardsProps {

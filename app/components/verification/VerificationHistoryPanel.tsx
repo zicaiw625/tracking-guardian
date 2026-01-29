@@ -1,8 +1,7 @@
 import { Suspense, lazy } from "react";
 import { Box, BlockStack, Card, DataTable, Text } from "@shopify/polaris";
 import { StatusBadge } from "./VerificationBadges";
-import { EnhancedEmptyState } from "~/components/ui";
-import { CardSkeleton } from "~/components/ui";
+import { EnhancedEmptyState, CardSkeleton } from "~/components/ui";
 
 const ReportComparison = lazy(() =>
   import("./ReportComparison").then((m) => ({ default: m.ReportComparison }))

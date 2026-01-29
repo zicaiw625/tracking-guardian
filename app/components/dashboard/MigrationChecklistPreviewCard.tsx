@@ -1,4 +1,4 @@
-import { Card, BlockStack, InlineStack, Text, Box, Badge, Divider, Button, List, Icon } from "@shopify/polaris";
+import { Card, BlockStack, InlineStack, Text, Box, Badge, Divider, Button, Icon } from "@shopify/polaris";
 import { CheckCircleIcon, ClockIcon, ArrowRightIcon } from "~/components/icons";
 import { EnhancedEmptyState } from "~/components/ui";
 import type { DashboardData } from "~/types/dashboard";

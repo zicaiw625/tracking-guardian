@@ -10,6 +10,7 @@ import type { SettingsActionResponse } from "./types";
 import {
   SecurityTab,
   SubscriptionTab,
+  AlertsTab,
 } from "./_components";
 import type { PlanId } from "~/services/billing/plans";
 
@@ -35,6 +36,7 @@ export default function SettingsPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const tabParam = searchParams.get("tab");
   const getTabIndex = (tab: string | null): number => {
+    if (tab === "alerts") return 2;
     if (tab === "billing" || tab === "subscription") return 1;
     if (tab === "security") return 0;
     return 0;
@@ -42,6 +44,7 @@ export default function SettingsPage() {
   const getTabId = (index: number): string => {
     if (index === 0) return "security";
     if (index === 1) return "subscription";
+    if (index === 2) return "alerts";
     return "security";
   };
   const [selectedTab, setSelectedTab] = useState(() => getTabIndex(tabParam));
@@ -62,6 +65,7 @@ export default function SettingsPage() {
   const tabs = [
     { id: "security", content: "安全与隐私" },
     { id: "subscription", content: "订阅计划" },
+    { id: "alerts", content: "告警" },
   ];
   return (
     <Page title="设置">
@@ -121,6 +125,12 @@ export default function SettingsPage() {
             />
           )}
           {selectedTab === 1 && <SubscriptionTab currentPlan={shop?.plan as PlanId || "free"} />}
+          {selectedTab === 2 && (
+            <AlertsTab
+              alertConfigs={shop?.alertConfigs ?? []}
+              isSubmitting={isSubmitting}
+            />
+          )}
         </Tabs>
       </BlockStack>
     </Page>

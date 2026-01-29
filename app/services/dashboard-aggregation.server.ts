@@ -1,3 +1,4 @@
+import { randomUUID } from "crypto";
 import prisma from "../db.server";
 import { logger } from "../utils/logger.server";
 import { parseReceiptPayload, extractPlatformFromPayload, isRecord, isReceiptHmacMatched } from "../utils/common";
@@ -23,22 +24,13 @@ export async function aggregateDailyMetrics(
   startOfDay.setUTCHours(0, 0, 0, 0);
   const endOfDay = new Date(date);
   endOfDay.setUTCHours(23, 59, 59, 999);
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const receipts = await prisma.pixelEventReceipt.findMany({
     where: {
       shopId,
-      createdAt: {
-        gte: startOfDay,
-        lte: endOfDay,
-      },
-      eventType: {
-        in: ["purchase", "checkout_completed"],
-      },
+      createdAt: { gte: startOfDay, lte: endOfDay },
+      eventType: { in: ["purchase", "checkout_completed"] },
     },
-    select: {
-      payloadJson: true,
-      createdAt: true,
-    },
+    select: { payloadJson: true, createdAt: true },
     take: 10000,
   });
   const matchedReceipts = receipts.filter((r) => isReceiptHmacMatched(r.payloadJson));
@@ -80,7 +72,32 @@ export async function aggregateDailyMetrics(
   const eventVolume = matchedReceipts.length;
   const ordersWithMissingParams = orders.filter((o) => o.status !== "ok").length;
   const missingParamsRate = totalOrders > 0 ? ordersWithMissingParams / totalOrders : 0;
-  const metrics: DailyAggregatedMetrics = {
+  const now = new Date();
+  await prisma.dailyAggregatedMetrics.upsert({
+    where: { shopId_date: { shopId, date: startOfDay } },
+    create: {
+      id: randomUUID(),
+      shopId,
+      date: startOfDay,
+      totalOrders,
+      totalValue,
+      successRate,
+      platformBreakdown: platformBreakdown as object,
+      eventVolume,
+      missingParamsRate,
+      updatedAt: now,
+    },
+    update: {
+      totalOrders,
+      totalValue,
+      successRate,
+      platformBreakdown: platformBreakdown as object,
+      eventVolume,
+      missingParamsRate,
+      updatedAt: now,
+    },
+  });
+  return {
     shopId,
     date: startOfDay,
     totalOrders,
@@ -89,10 +106,9 @@ export async function aggregateDailyMetrics(
     platformBreakdown,
     eventVolume,
     missingParamsRate,
-    createdAt: new Date(),
-    updatedAt: new Date(),
+    createdAt: now,
+    updatedAt: now,
   };
-  return metrics;
 }
 
 export async function getAggregatedMetrics(

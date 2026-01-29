@@ -380,7 +380,24 @@ export async function getDashboardData(shopDomain: string): Promise<DashboardDat
   } catch (error) {
     logger.warn("Failed to get 24h health metrics", { shopId: shop.id, error });
   }
-  activeAlerts = [];
+  try {
+    const sevenDaysAgo = new Date();
+    sevenDaysAgo.setUTCDate(sevenDaysAgo.getUTCDate() - 7);
+    const alertEvents = await prisma.alertEvent.findMany({
+      where: { shopId: shop.id, sentAt: { gte: sevenDaysAgo } },
+      orderBy: { sentAt: "desc" },
+      take: 20,
+    });
+    activeAlerts = alertEvents.map((e) => ({
+      id: e.id,
+      type: e.alertType,
+      severity: e.severity as "critical" | "warning" | "info",
+      message: e.message,
+      triggeredAt: e.sentAt,
+    }));
+  } catch (error) {
+    logger.warn("Failed to get active alerts", { shopId: shop.id, error });
+  }
   return {
     shopDomain,
     healthScore: score,

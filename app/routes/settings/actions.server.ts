@@ -10,6 +10,7 @@ import {
 import { generateEncryptedIngestionSecret } from "../../utils/token-encryption.server";
 import { logger } from "../../utils/logger.server";
 import { invalidateAllShopCaches } from "../../services/shop-cache.server";
+import { invalidateAlertConfigsCache } from "../../services/db/cached-queries.server";
 
 import {
   switchEnvironment,
@@ -113,6 +114,58 @@ export async function handleUpdatePrivacySettings(
   });
 }
 
+export async function handleSaveAlertConfigs(
+  formData: FormData,
+  shopId: string
+) {
+  const configsJson = formData.get("alertConfigs");
+  let alertConfigs: Array<{
+    id: string;
+    channel: string;
+    settings?: Record<string, unknown> | null;
+    frequency?: string;
+    discrepancyThreshold: number;
+    isEnabled: boolean;
+  }> = [];
+  if (typeof configsJson === "string" && configsJson.trim()) {
+    try {
+      const parsed = JSON.parse(configsJson) as unknown;
+      if (Array.isArray(parsed)) {
+        alertConfigs = parsed.map((c: unknown, i: number) => {
+          const item = c && typeof c === "object" ? c as Record<string, unknown> : {};
+          return {
+            id: typeof item.id === "string" ? item.id : `alert-${i}-${Date.now()}`,
+            channel: typeof item.channel === "string" ? item.channel : "email",
+            settings: item.settings && typeof item.settings === "object" ? item.settings as Record<string, unknown> : null,
+            frequency: typeof item.frequency === "string" ? item.frequency : undefined,
+            discrepancyThreshold: typeof item.discrepancyThreshold === "number" ? item.discrepancyThreshold : 10,
+            isEnabled: typeof item.isEnabled === "boolean" ? item.isEnabled : true,
+          };
+        });
+      }
+    } catch {
+      alertConfigs = [];
+    }
+  }
+  const shop = await prisma.shop.findUnique({
+    where: { id: shopId },
+    select: { settings: true },
+  });
+  const currentSettings = shop?.settings && typeof shop.settings === "object" ? shop.settings as Record<string, unknown> : {};
+  const newSettings = JSON.parse(JSON.stringify({ ...currentSettings, alertConfigs }));
+  await prisma.shop.update({
+    where: { id: shopId },
+    data: {
+      settings: newSettings,
+    },
+  });
+  invalidateAlertConfigsCache(shopId);
+  return json({
+    success: true,
+    message: "告警配置已保存",
+  });
+}
+
 export async function settingsAction({ request }: ActionFunctionArgs) {
   const { session, admin } = await authenticate.admin(request);
   const shopDomain = session.shop;
@@ -210,6 +263,8 @@ export async function settingsAction({ request }: ActionFunctionArgs) {
         currentVersion: result.currentVersion,
       });
     }
+    case "saveAlertConfigs":
+      return handleSaveAlertConfigs(formData, shop.id);
     default:
       return json({ error: "Unknown action" }, { status: 400 });
   }

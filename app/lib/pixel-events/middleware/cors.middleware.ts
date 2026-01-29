@@ -1,4 +1,3 @@
-import type { ActionFunctionArgs } from "@remix-run/node";
 import { optionsResponse, jsonWithCors } from "../cors";
 import type { IngestContext, IngestMiddleware, MiddlewareResult } from "./types";
 

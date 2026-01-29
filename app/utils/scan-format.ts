@@ -1,4 +1,4 @@
-import { validateRiskScore, validateStringArray, safeFormatDate, validateRiskItemsArray } from "./scan-data-validation";
+import { validateRiskScore, validateStringArray, safeFormatDate } from "./scan-data-validation";
 import { parseDateSafely } from "./scan-validation";
 import { getStatusText, getPlatformName } from "~/components/scan/utils";
 import { getShopifyAdminUrl } from "./helpers";

@@ -1,12 +1,10 @@
-import { memo, useMemo } from "react";
-import { Card, BlockStack, InlineStack, Text, Box, Badge, Layout, DataTable } from "@shopify/polaris";
-import { CheckCircleIcon, ClockIcon } from "~/components/icons";
+import { memo, Suspense, lazy } from "react";
+import { Card, BlockStack, Text, Layout, DataTable } from "@shopify/polaris";
 import { CardSkeleton } from "~/components/ui";
 import { LatestScanCard } from "./LatestScanCard";
 import { HealthScoreCard } from "./HealthScoreCard";
 import { QuickStatsCard } from "./QuickStatsCard";
 import { MigrationChecklistPreviewCard } from "./MigrationChecklistPreviewCard";
-import { Suspense, lazy } from "react";
 import type { DashboardData } from "~/types/dashboard";
 
 const DependencyGraphPreview = lazy(() => import("./DependencyGraphPreview").then(module => ({ default: module.DependencyGraphPreview })));

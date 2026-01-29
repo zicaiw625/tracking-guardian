@@ -132,7 +132,7 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
 
 type ActionResult = { success: true; valid?: boolean; message?: string; details?: unknown } | { success: false; error: string };
 export default function PixelTestPage() {
-  const { shop, pixelConfig, hasVerificationAccess, backendUrlInfo } = useLoaderData<typeof loader>();
+  const { shop, pixelConfig, backendUrlInfo } = useLoaderData<typeof loader>();
   const actionData = useActionData<typeof action>() as ActionResult | undefined;
   const submit = useSubmit();
   const navigation = useNavigation();

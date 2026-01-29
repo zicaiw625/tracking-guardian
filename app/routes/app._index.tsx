@@ -1,6 +1,6 @@
 import type { loader } from "./app._index/loader.server";
 export { loader } from "./app._index/loader.server";
-import { useLoaderData, useNavigate } from "@remix-run/react";
+import { useLoaderData } from "@remix-run/react";
 import { useState, useEffect } from "react";
 import { Page, BlockStack } from "@shopify/polaris";
 import { DashboardOverview } from "~/components/dashboard/DashboardOverview";
@@ -10,7 +10,6 @@ import {
   getNextSetupStep,
   getSetupProgress,
   type DashboardData,
-  type SetupStep,
 } from "../types/dashboard";
 import { DEPRECATION_DATES, formatDeadlineDate } from "../utils/migration-deadlines";
 import { ScriptTagMigrationBanner } from "~/components/dashboard/ScriptTagMigrationBanner";
@@ -20,7 +19,6 @@ const WELCOME_BANNER_DISMISSED_KEY = "tg-welcome-banner-dismissed";
 
 export default function Index() {
   const loaderData = useLoaderData<typeof loader>();
-  const navigate = useNavigate();
   const [showWelcomeBanner, setShowWelcomeBanner] = useState(true);
   const [showScanProgress, setShowScanProgress] = useState(false);
   const [scanStartedAt] = useState(() => new Date());
@@ -47,7 +45,6 @@ export default function Index() {
         }
       : undefined,
   } as DashboardData;
-  const customerAccountsEnabled = loaderData.customerAccountsEnabled ?? false;
   const shopDomain = loaderData.shopDomain ?? "";
   useEffect(() => {
     const dismissed = localStorage.getItem(WELCOME_BANNER_DISMISSED_KEY);
@@ -73,11 +70,6 @@ export default function Index() {
   const setupSteps = getSetupSteps(data);
   const nextStep = getNextSetupStep(setupSteps);
   const progress = getSetupProgress(setupSteps);
-  const handleStartAudit = () => {
-    navigate("/app/scan");
-  };
-  const handleViewDashboard = () => {
-  };
   return (
     <Page
       title="升级迁移交付平台"

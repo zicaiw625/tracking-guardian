@@ -402,7 +402,7 @@ export const CONFIG = {
   getNumEnv,
 } as const;
 
-export function getApiTimeout(service: "google" | "meta" | "tiktok" | "default"): number {
+export function getApiTimeout(_service: "google" | "meta" | "tiktok" | "default"): number {
   return API_CONFIG.DEFAULT_TIMEOUT_MS;
 }
 

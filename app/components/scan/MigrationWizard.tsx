@@ -9,7 +9,7 @@ import {
   Divider,
   List,
 } from "@shopify/polaris";
-import { ShareIcon, ArrowRightIcon, InfoIcon, ClipboardIcon, ExportIcon } from "~/components/icons";
+import { ShareIcon, ArrowRightIcon, ClipboardIcon, ExportIcon } from "~/components/icons";
 import type { MigrationAction } from "../../services/scanner/types";
 import { getPlatformName } from "./utils";
 import { getShopifyAdminUrl } from "../../utils/helpers";

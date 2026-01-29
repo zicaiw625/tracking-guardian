@@ -71,6 +71,47 @@ model Shop {
   MigrationDraft          MigrationDraft?
   EventNonce              EventNonce[]
   AuditLog                AuditLog[]
+  AlertEvent              AlertEvent[]
+  DailyAggregatedMetrics   DailyAggregatedMetrics[]
+}
+
+model AlertEvent {
+  id          String    @id
+  shopId      String
+  alertType   String
+  severity    String
+  fingerprint String
+  message     String
+  channel     String
+  payloadHash String
+  sentAt      DateTime  @default(now())
+  ackAt       DateTime?
+  createdAt   DateTime  @default(now())
+  Shop        Shop      @relation(fields: [shopId], references: [id], onDelete: Cascade)
+
+  @@unique([shopId, fingerprint, sentAt])
+  @@index([shopId, sentAt])
+  @@index([shopId, alertType, sentAt])
+  @@index([fingerprint])
+}
+
+model DailyAggregatedMetrics {
+  id                 String   @id
+  shopId             String
+  date               DateTime @db.Date
+  totalOrders        Int      @default(0)
+  totalValue         Decimal  @db.Decimal(12, 2)
+  successRate        Float
+  platformBreakdown  Json
+  eventVolume        Int      @default(0)
+  missingParamsRate  Float
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime
+  Shop               Shop     @relation(fields: [shopId], references: [id], onDelete: Cascade)
+
+  @@unique([shopId, date])
+  @@index([shopId, date])
+  @@index([date])
 }
 
 model AuditAsset {

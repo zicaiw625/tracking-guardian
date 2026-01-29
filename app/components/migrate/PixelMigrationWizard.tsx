@@ -393,7 +393,7 @@ export function PixelMigrationWizard({
     await clearDraft();
     showSuccess("配置已保存，正在验证...");
     setCurrentStep("testing");
-  }, [selectedPlatforms, platformConfigs, validateConfig, submit, showSuccess, showError, clearDraft]);
+  }, [selectedPlatforms, platformConfigs, validateConfig, submit, showSuccess, showError, clearDraft, setCurrentStep]);
   const handleNext = useCallback(() => {
     const validation = canProceedToNextStep();
     if (!validation.canProceed) {

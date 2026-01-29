@@ -6,11 +6,13 @@ import { corsMiddleware } from "~/lib/pixel-events/middleware/cors.middleware";
 import { rateLimitPreBodyMiddleware } from "~/lib/pixel-events/middleware/rate-limit.middleware";
 import { earlyRejectNoSignatureMiddleware } from "~/lib/pixel-events/middleware/early-reject-no-signature.middleware";
 import { bodyReaderMiddleware } from "~/lib/pixel-events/middleware/body-reader.middleware";
-import { originValidationPreBodyMiddleware } from "~/lib/pixel-events/middleware/origin-validation.middleware";
+import {
+  originValidationPreBodyMiddleware,
+  originValidationPostShopMiddleware,
+} from "~/lib/pixel-events/middleware/origin-validation.middleware";
 import { timestampValidationMiddleware } from "~/lib/pixel-events/middleware/timestamp-validation.middleware";
 import { eventValidationMiddleware } from "~/lib/pixel-events/middleware/event-validation.middleware";
 import { shopLoadingMiddleware } from "~/lib/pixel-events/middleware/shop-loading.middleware";
-import { originValidationPostShopMiddleware } from "~/lib/pixel-events/middleware/origin-validation.middleware";
 import { hmacValidationMiddleware } from "~/lib/pixel-events/middleware/hmac-validation.middleware";
 import { rateLimitPostShopMiddleware } from "~/lib/pixel-events/middleware/rate-limit-post-shop.middleware";
 import { enqueueMiddleware } from "~/lib/pixel-events/middleware/enqueue.middleware";

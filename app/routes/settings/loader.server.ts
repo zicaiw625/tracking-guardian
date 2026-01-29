@@ -6,14 +6,34 @@ import { checkTokenExpirationIssues } from "../../services/retry.server";
 
 import { getEventMonitoringStats, getEventVolumeStats } from "../../services/monitoring.server";
 import { logger } from "../../utils/logger.server";
-import type { SettingsLoaderData, PixelConfigDisplay } from "./types";
+import type { SettingsLoaderData, PixelConfigDisplay, AlertConfigDisplay } from "./types";
 
 export async function settingsLoader({ request }: LoaderFunctionArgs) {
   try {
     const { session } = await authenticate.admin(request);
     const shopDomain = session.shop;
-    let shop;
-    let hasSettingsColumn = true;
+    let shop: {
+      id: string;
+      plan: string | null;
+      ingestionSecret: string | null;
+      previousIngestionSecret: string | null;
+      previousSecretExpiry: Date | null;
+      consentStrategy: string | null;
+      dataRetentionDays: number;
+      settings?: unknown;
+      pixelConfigs: Array<{
+        id: string;
+        platform: string;
+        platformId: string | null;
+        serverSideEnabled: boolean;
+        clientSideEnabled: boolean;
+        isActive: boolean;
+        updatedAt: Date;
+        environment: string;
+        configVersion: number;
+        rollbackAllowed: boolean;
+      }>;
+    } | null;
     try {
       shop = await prisma.shop.findUnique({
         where: { shopDomain },
@@ -46,37 +66,36 @@ export async function settingsLoader({ request }: LoaderFunctionArgs) {
     } catch (error) {
       if (error instanceof Error && (error.message.includes("settings") && (error.message.includes("does not exist") || error.message.includes("P2022")))) {
         logger.error("Shop.settings column does not exist. Database migration required. Please run: ALTER TABLE \"Shop\" ADD COLUMN IF NOT EXISTS \"settings\" JSONB;", { shopDomain, error: error.message });
-        hasSettingsColumn = false;
-        shop = await prisma.shop.findUnique({
+        shop = (await prisma.shop.findUnique({
           where: { shopDomain },
           select: {
             id: true,
-              plan: true,
-              ingestionSecret: true,
-              previousIngestionSecret: true,
-              previousSecretExpiry: true,
-              consentStrategy: true,
-              dataRetentionDays: true,
-              pixelConfigs: {
-                where: { isActive: true },
-                select: {
-                  id: true,
-                  platform: true,
-                  platformId: true,
-                  serverSideEnabled: true,
-                  clientSideEnabled: true,
-                  isActive: true,
-                  updatedAt: true,
-                  environment: true,
-                  configVersion: true,
-                  rollbackAllowed: true,
-                },
+            plan: true,
+            ingestionSecret: true,
+            previousIngestionSecret: true,
+            previousSecretExpiry: true,
+            consentStrategy: true,
+            dataRetentionDays: true,
+            pixelConfigs: {
+              where: { isActive: true },
+              select: {
+                id: true,
+                platform: true,
+                platformId: true,
+                serverSideEnabled: true,
+                clientSideEnabled: true,
+                isActive: true,
+                updatedAt: true,
+                environment: true,
+                configVersion: true,
+                rollbackAllowed: true,
               },
             },
-          });
-          if (shop) {
-            (shop as { settings?: unknown }).settings = null;
-          }
+          },
+        })) as typeof shop;
+        if (shop) {
+          shop.settings = null;
+        }
       } else {
         throw error;
       }
@@ -159,13 +178,26 @@ export async function settingsLoader({ request }: LoaderFunctionArgs) {
     const pixelStrictOrigin = ["true", "1", "yes"].includes(
       (process.env.PIXEL_STRICT_ORIGIN ?? "").toLowerCase().trim()
     );
+    const rawSettings = (shop && "settings" in shop && shop.settings && typeof shop.settings === "object") ? shop.settings as Record<string, unknown> : null;
+    const rawAlertConfigs = rawSettings?.alertConfigs && Array.isArray(rawSettings.alertConfigs) ? rawSettings.alertConfigs : [];
+    const alertConfigs: AlertConfigDisplay[] = rawAlertConfigs.map((c: unknown, i: number) => {
+      const item = c && typeof c === "object" ? c as Record<string, unknown> : {};
+      return {
+        id: typeof item.id === "string" ? item.id : `alert-${i}`,
+        channel: typeof item.channel === "string" ? item.channel : "email",
+        settings: item.settings && typeof item.settings === "object" ? item.settings as Record<string, unknown> : null,
+        frequency: typeof item.frequency === "string" ? item.frequency : undefined,
+        discrepancyThreshold: typeof item.discrepancyThreshold === "number" ? item.discrepancyThreshold : 10,
+        isEnabled: typeof item.isEnabled === "boolean" ? item.isEnabled : true,
+      };
+    });
     const data: SettingsLoaderData = {
       shop: shop
         ? {
             id: shop.id,
             domain: shopDomain,
-            plan: shop.plan,
-            alertConfigs: [],
+            plan: shop.plan || "free",
+            alertConfigs,
             pixelConfigs,
             hasIngestionSecret:
               !!shop.ingestionSecret && shop.ingestionSecret.length > 0,

@@ -58,7 +58,7 @@ export function useWizardState({
   initialPlatforms = [],
   shopId,
   wizardDraft,
-  prefillAsset,
+  prefillAsset: _prefillAsset,
   defaultConfigs,
 }: UseWizardStateOptions): UseWizardStateReturn {
   const [currentStep, setCurrentStep] = useState<WizardStep>(wizardDraft?.step || initialStep);

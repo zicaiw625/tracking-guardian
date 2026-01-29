@@ -13,5 +13,61 @@ module = "./src/thank-you.tsx"
 target = "customer-account.order-status.customer-information.render-after"
 module = "./src/order-status.tsx"
 
+[extensions.settings]
+[[extensions.settings.fields]]
+key = "show_banner"
+type = "boolean"
+name = "Show banner"
+
+[[extensions.settings.fields]]
+key = "banner_title"
+type = "single_line_text_field"
+name = "Banner title"
+
+[[extensions.settings.fields]]
+key = "show_invoice_button"
+type = "boolean"
+name = "Show invoice button"
+
+[[extensions.settings.fields]]
+key = "invoice_button_text"
+type = "single_line_text_field"
+name = "Invoice button text"
+
+[[extensions.settings.fields]]
+key = "invoice_url"
+type = "single_line_text_field"
+name = "Invoice URL"
+
+[[extensions.settings.fields]]
+key = "show_survey_link"
+type = "boolean"
+name = "Show survey link"
+
+[[extensions.settings.fields]]
+key = "survey_button_text"
+type = "single_line_text_field"
+name = "Survey button text"
+
+[[extensions.settings.fields]]
+key = "survey_url"
+type = "single_line_text_field"
+name = "Survey URL"
+
+[[extensions.settings.fields]]
+key = "show_aftersales_link"
+type = "boolean"
+name = "Show aftersales link"
+
+[[extensions.settings.fields]]
+key = "aftersales_button_text"
+type = "single_line_text_field"
+name = "Aftersales button text"
+
+[[extensions.settings.fields]]
+key = "aftersales_url"
+type = "single_line_text_field"
+name = "Aftersales URL"
+
 [extensions.capabilities]
 network_access = true
