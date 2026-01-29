@@ -7,7 +7,6 @@ export { MigrationActionsCard } from "./MigrationActionsCard";
 export { MigrationWizard } from "./MigrationWizard";
 export { ManualAnalysis } from "./ManualAnalysis";
 export { MigrationCountdown } from "./MigrationCountdown";
-export { DeadlineTimeline, CompactDeadlineTimeline } from "./DeadlineTimeline";
 export { MigrationChecklist } from "./MigrationChecklist";
 export { AnalysisResultSummary } from "./AnalysisResultSummary";
 export { PriorityBadge } from "./PriorityBadge";
@@ -17,5 +16,4 @@ export { PaidFeaturePrompt } from "./PaidFeaturePrompt";
 export { getPlatformName, getSeverityBadge, getStatusText, getUpgradeBannerTone } from "./utils";
 
 export type { MigrationCountdownProps, CountdownMilestone, ShopTier as CountdownShopTier } from "./MigrationCountdown";
-export type { DeadlineTimelineProps, TimelineEvent, TimelineTier } from "./DeadlineTimeline";
 export type { MigrationItem, MigrationChecklistProps } from "./MigrationChecklist";

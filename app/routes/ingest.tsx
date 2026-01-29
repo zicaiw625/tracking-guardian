@@ -1,7 +1,6 @@
 import type { ActionFunctionArgs, LoaderFunctionArgs } from "@remix-run/node";
 import { jsonWithCors } from "~/lib/pixel-events/cors";
-import { generateRequestId } from "~/utils/logger.server";
-import { isDevMode } from "~/utils/origin-validation.server";
+import { buildInitialContext } from "~/lib/pixel-events/build-initial-context";
 import { composeIngestMiddleware } from "~/lib/pixel-events/middleware/compose";
 import { corsMiddleware } from "~/lib/pixel-events/middleware/cors.middleware";
 import { rateLimitPreBodyMiddleware } from "~/lib/pixel-events/middleware/rate-limit.middleware";
@@ -14,61 +13,9 @@ import { originValidationPostShopMiddleware } from "~/lib/pixel-events/middlewar
 import { hmacValidationMiddleware } from "~/lib/pixel-events/middleware/hmac-validation.middleware";
 import { rateLimitPostShopMiddleware } from "~/lib/pixel-events/middleware/rate-limit-post-shop.middleware";
 import { enqueueMiddleware } from "~/lib/pixel-events/middleware/enqueue.middleware";
-import type { IngestContext } from "~/lib/pixel-events/middleware/types";
-import type { KeyValidationResult } from "~/lib/pixel-events/types";
 
 export const action = async ({ request }: ActionFunctionArgs) => {
-  const requestId = generateRequestId();
-  const isProduction = !isDevMode();
-  const allowFallback = process.env.ALLOW_REDIS_FALLBACK_FOR_INGEST === "true";
-  const originHeaderPresent = request.headers.has("Origin");
-  const origin = originHeaderPresent ? request.headers.get("Origin") : null;
-  const isNullOrigin = origin === "null" || origin === null;
-  const signature = request.headers.get("X-Tracking-Guardian-Signature");
-  const hasSignatureHeader = !!signature;
-  const timestampHeader = request.headers.get("X-Tracking-Guardian-Timestamp");
-  const shopDomainHeader = request.headers.get("x-shopify-shop-domain") || "unknown";
-  const contentType = request.headers.get("Content-Type");
-  const strictOrigin = (() => {
-    const value = process.env.PIXEL_STRICT_ORIGIN?.toLowerCase().trim();
-    return value === "true" || value === "1" || value === "yes";
-  })();
-  const allowUnsignedEvents = isProduction ? false : process.env.ALLOW_UNSIGNED_PIXEL_EVENTS === "true";
-
-  const initialContext: IngestContext = {
-    request,
-    requestId,
-    isProduction,
-    allowFallback,
-    origin,
-    isNullOrigin,
-    originHeaderPresent,
-    signature,
-    hasSignatureHeader,
-    timestampHeader,
-    timestamp: timestampHeader ? parseInt(timestampHeader, 10) : null,
-    shopDomainHeader,
-    contentType,
-    strictOrigin,
-    allowUnsignedEvents,
-    bodyText: null,
-    bodyData: null,
-    rawEvents: [],
-    batchTimestamp: undefined,
-    validatedEvents: [],
-    shopDomain: null,
-    environment: "live",
-    shop: null,
-    shopAllowedDomains: [],
-    keyValidation: {
-      matched: false,
-      reason: signature ? "hmac_not_verified" : "signature_missing",
-      trustLevel: "untrusted",
-    } as KeyValidationResult,
-    mode: "purchase_only",
-    enabledPixelConfigs: [],
-  };
-
+  const initialContext = buildInitialContext(request);
   const middlewares = [
     corsMiddleware,
     rateLimitPreBodyMiddleware,
@@ -82,7 +29,6 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     rateLimitPostShopMiddleware,
     enqueueMiddleware,
   ];
-
   return composeIngestMiddleware(middlewares, initialContext);
 };
 

@@ -130,9 +130,9 @@ export async function upsertPixelEventReceipt(
   try {
     let payloadToStore: Record<string, unknown> | null = null;
     if (storePayload && payload) {
+      const { sanitizePII } = await import("../../services/event-log.server");
+      const sanitized = sanitizePII(payload);
       if (verificationRunId) {
-        const { sanitizePII } = await import("../../services/event-log.server");
-        const sanitized = sanitizePII(payload);
         const base =
           sanitized && typeof sanitized === "object" ? (sanitized as Record<string, unknown>) : {};
         const baseData =
@@ -151,7 +151,11 @@ export async function upsertPixelEventReceipt(
           hmacMatched: hmacMatched ?? false,
         };
       } else {
-        payloadToStore = buildMinimalPayloadForReceipt(payload, trustLevel, hmacMatched);
+        const sanitizedPayload =
+          sanitized && typeof sanitized === "object"
+            ? (sanitized as PixelEventPayload)
+            : payload;
+        payloadToStore = buildMinimalPayloadForReceipt(sanitizedPayload, trustLevel, hmacMatched);
       }
     }
     let receipt;

@@ -9,172 +9,11 @@ import {
   useSubmit,
   useNavigate,
 } from "@remix-run/react";
-import { useCallback, useEffect, useMemo, useState } from "react";
-import {
-  Page,
-  Card,
-  BlockStack,
-  InlineStack,
-  Text,
-  Badge,
-  Button,
-  Banner,
-  Divider,
-  Select,
-  TextField,
-  Modal,
-  Checkbox,
-  List,
-} from "@shopify/polaris";
-import { ArrowRightIcon, CheckCircleIcon, SettingsIcon } from "~/components/icons";
+import { useEffect } from "react";
+import { Page, BlockStack, Text, Banner, List } from "@shopify/polaris";
 import { useToastContext } from "~/components/ui";
-import { EventMappingEditor } from "~/components/migrate/EventMappingEditor";
 import { PageIntroCard } from "~/components/layout/PageIntroCard";
-import type { WizardTemplate } from "~/components/migrate/PixelMigrationWizard";
-
-const PRESET_TEMPLATES: WizardTemplate[] = [
-  {
-    id: "standard",
-    name: "标准配置（v1）",
-    description: "适用于大多数电商店铺的标准事件映射（GA4/Meta/TikTok）",
-    platforms: ["google", "meta", "tiktok"],
-    eventMappings: {
-      google: {
-        checkout_completed: "purchase",
-      },
-      meta: {
-        checkout_completed: "Purchase",
-      },
-      tiktok: {
-        checkout_completed: "CompletePayment",
-      },
-    },
-    isPublic: true,
-    usageCount: 0,
-  },
-  {
-    id: "advanced",
-    name: "高级配置（v1.1+）",
-    description: "包含更多事件类型的完整映射（v1.1+ 将支持 Pinterest/Snapchat）",
-    platforms: ["google", "meta", "tiktok"],
-    eventMappings: {
-      google: {
-        checkout_completed: "purchase",
-        checkout_started: "begin_checkout",
-        product_added_to_cart: "add_to_cart",
-      },
-      meta: {
-        checkout_completed: "Purchase",
-        checkout_started: "InitiateCheckout",
-        product_added_to_cart: "AddToCart",
-      },
-      tiktok: {
-        checkout_completed: "CompletePayment",
-        checkout_started: "InitiateCheckout",
-        product_added_to_cart: "AddToCart",
-      },
-    },
-    isPublic: true,
-    usageCount: 0,
-  },
-];
-
-const SUPPORTED_PLATFORMS = ["google", "meta", "tiktok"] as const;
-type SupportedPlatform = (typeof SUPPORTED_PLATFORMS)[number];
-
-const DEFAULT_EVENT_MAPPINGS: Record<SupportedPlatform, Record<string, string>> = {
-  google: {
-    checkout_completed: "purchase",
-    checkout_started: "begin_checkout",
-    product_added_to_cart: "add_to_cart",
-    product_viewed: "view_item",
-    page_viewed: "page_view",
-    search: "search",
-  },
-  meta: {
-    checkout_completed: "Purchase",
-    checkout_started: "InitiateCheckout",
-    product_added_to_cart: "AddToCart",
-    product_viewed: "ViewContent",
-    page_viewed: "PageView",
-    search: "Search",
-  },
-  tiktok: {
-    checkout_completed: "CompletePayment",
-    checkout_started: "InitiateCheckout",
-    product_added_to_cart: "AddToCart",
-    product_viewed: "ViewContent",
-    page_viewed: "PageView",
-    search: "Search",
-  },
-};
-
-const PLATFORM_INFO: Record<SupportedPlatform, {
-  name: string;
-  icon: string;
-  description: string;
-  credentialFields: Array<{
-    key: string;
-    label: string;
-    placeholder: string;
-    type: "text" | "password";
-    helpText?: string;
-  }>;
-}> = {
-  google: {
-    name: "Google Analytics 4",
-    icon: "🔵",
-    description: "用于 Web Pixel 标准事件映射",
-    credentialFields: [
-      {
-        key: "measurementId",
-        label: "Measurement ID",
-        placeholder: "G-XXXXXXXXXX",
-        type: "text",
-        helpText: "在 GA4 管理后台的「数据流」中查找",
-      },
-    ],
-  },
-  meta: {
-    name: "Meta (Facebook) Pixel",
-    icon: "📘",
-    description: "用于 Web Pixel 标准事件映射",
-    credentialFields: [
-      {
-        key: "pixelId",
-        label: "Pixel ID",
-        placeholder: "123456789012345",
-        type: "text",
-        helpText: "在 Meta Events Manager 中查找",
-      },
-    ],
-  },
-  tiktok: {
-    name: "TikTok Pixel",
-    icon: "🎵",
-    description: "用于 Web Pixel 标准事件映射",
-    credentialFields: [
-      {
-        key: "pixelId",
-        label: "Pixel ID",
-        placeholder: "C1234567890ABCDEF",
-        type: "text",
-        helpText: "在 TikTok Events Manager 中查找",
-      },
-    ],
-  },
-};
-
-interface PlatformConfig {
-  platform: SupportedPlatform;
-  enabled: boolean;
-  platformId: string;
-  credentials: Record<string, string>;
-  eventMappings: Record<string, string>;
-  environment: "test" | "live";
-}
-
-type SetupStep = "select" | "mappings" | "review";
+import { NewPixelWizard } from "~/components/pixels/NewPixelWizard";
 
 export default function PixelsNewPage() {
   const loaderData = useLoaderData<typeof loader>();
@@ -184,48 +23,13 @@ export default function PixelsNewPage() {
   const submit = useSubmit();
   const navigate = useNavigate();
   const { showSuccess, showError } = useToastContext();
-  
+
   useEffect(() => {
-    if (backendUrlInfo.placeholderDetected) {
+    if (backendUrlInfo?.placeholderDetected) {
       showError("检测到占位符：BACKEND_URL 未在构建时替换，像素扩展将无法工作");
     }
-  }, [backendUrlInfo.placeholderDetected, showError]);
-  const [currentStep, setCurrentStep] = useState<SetupStep>("select");
-  const [selectedPlatforms, setSelectedPlatforms] = useState<Set<SupportedPlatform>>(new Set());
-  const [platformConfigs, setPlatformConfigs] = useState<Partial<Record<SupportedPlatform, PlatformConfig>>>(() => ({
-    google: {
-      platform: "google",
-      enabled: false,
-      platformId: "",
-      credentials: {},
-      eventMappings: DEFAULT_EVENT_MAPPINGS.google || {},
-      environment: "test",
-    },
-    meta: {
-      platform: "meta",
-      enabled: false,
-      platformId: "",
-      credentials: {},
-      eventMappings: DEFAULT_EVENT_MAPPINGS.meta || {},
-      environment: "test",
-    },
-    tiktok: {
-      platform: "tiktok",
-      enabled: false,
-      platformId: "",
-      credentials: {},
-      eventMappings: DEFAULT_EVENT_MAPPINGS.tiktok || {},
-      environment: "test",
-    },
-  }));
-  const [showTemplateModal, setShowTemplateModal] = useState(false);
-  const steps = useMemo(() => {
-    return [
-      { id: "select", label: "选择平台" },
-      { id: "mappings", label: "事件映射" },
-      { id: "review", label: "检查配置" },
-    ];
-  }, []);
+  }, [backendUrlInfo?.placeholderDetected, showError]);
+
   useEffect(() => {
     if (actionData && "success" in actionData && actionData.success) {
       const configIds = ("configIds" in actionData ? actionData.configIds : []) || [];
@@ -239,140 +43,7 @@ export default function PixelsNewPage() {
       showError(actionData.error);
     }
   }, [actionData, navigate, showSuccess, showError]);
-  const handlePlatformToggle = useCallback((platform: SupportedPlatform, enabled: boolean) => {
-    setSelectedPlatforms((prev) => {
-      const next = new Set(prev);
-      if (enabled) {
-        next.add(platform);
-      } else {
-        next.delete(platform);
-      }
-      return next;
-    });
-    setPlatformConfigs((prev) => ({
-      ...prev,
-      [platform]: {
-        ...prev[platform],
-        enabled,
-      } as PlatformConfig,
-    }));
-  }, []);
-  const handleApplyTemplate = useCallback((template: WizardTemplate) => {
-    const configs = { ...platformConfigs };
-    const platforms = new Set<SupportedPlatform>();
-    template.platforms.forEach((platform) => {
-      if (!SUPPORTED_PLATFORMS.includes(platform as SupportedPlatform)) {
-        return;
-      }
-      const platformKey = platform as SupportedPlatform;
-      platforms.add(platformKey);
-      const existingConfig = configs[platformKey];
-      if (existingConfig) {
-        configs[platformKey] = {
-          ...existingConfig,
-          enabled: true,
-          eventMappings: template.eventMappings[platform] || existingConfig.eventMappings,
-        };
-      } else {
-        configs[platformKey] = {
-          platform: platformKey,
-          enabled: true,
-          platformId: "",
-          credentials: {},
-          eventMappings: template.eventMappings[platform] || {},
-          environment: "test",
-        };
-      }
-    });
-    setSelectedPlatforms(platforms);
-    setPlatformConfigs(configs);
-    setShowTemplateModal(false);
-    showSuccess(`已应用模板「${template.name}」`);
-  }, [platformConfigs, showSuccess]);
-  const handleEventMappingUpdate = useCallback((platform: SupportedPlatform, shopifyEvent: string, platformEvent: string) => {
-    setPlatformConfigs((prev) => {
-      const currentConfig = prev[platform];
-      if (!currentConfig) return prev;
-      return {
-        ...prev,
-        [platform]: {
-          ...currentConfig,
-          eventMappings: {
-            ...currentConfig.eventMappings,
-            [shopifyEvent]: platformEvent,
-          },
-        },
-      };
-    });
-  }, []);
-  const handleEnvironmentToggle = useCallback((platform: SupportedPlatform, environment: "test" | "live") => {
-    setPlatformConfigs((prev) => ({
-      ...prev,
-      [platform]: {
-        ...prev[platform],
-        environment,
-      } as PlatformConfig,
-    }));
-  }, []);
-  const validateStep = useCallback((step: SetupStep) => {
-    const errors: string[] = [];
-    if (step === "select" && selectedPlatforms.size === 0) {
-      errors.push("请至少选择一个平台");
-    }
-    if (step === "mappings") {
-      Array.from(selectedPlatforms).forEach((platform) => {
-        const config = platformConfigs[platform];
-        if (!config || Object.keys(config.eventMappings || {}).length === 0) {
-          errors.push(`${PLATFORM_INFO[platform]?.name || platform}: 至少需要配置一个事件映射`);
-        }
-      });
-    }
-    return errors;
-  }, [platformConfigs, selectedPlatforms]);
-  const handleNext = useCallback(() => {
-    const errors = validateStep(currentStep);
-    if (errors.length > 0) {
-      showError(`请先完成当前步骤：${errors.join("; ")}`);
-      return;
-    }
-    const currentIndex = steps.findIndex((step) => step.id === currentStep);
-    if (currentIndex < steps.length - 1) {
-      setCurrentStep(steps[currentIndex + 1].id as SetupStep);
-    }
-  }, [currentStep, steps, validateStep, showError]);
-  const handleSave = useCallback(() => {
-    const errors = validateStep("mappings");
-    if (errors.length > 0) {
-      showError(`配置错误：${errors.join("; ")}`);
-      return;
-    }
-    const enabledPlatforms = Array.from(selectedPlatforms);
-    const configs = enabledPlatforms.map((platform) => {
-      const config = platformConfigs[platform] as PlatformConfig;
-      return {
-        platform,
-        platformId: config.platformId,
-        credentials: {},
-        eventMappings: config.eventMappings,
-        environment: config.environment,
-      };
-    });
-    const formData = new FormData();
-    formData.append("_action", "savePixelConfigs");
-    formData.append("configs", JSON.stringify(configs));
-    submit(formData, { method: "post" });
-  }, [platformConfigs, selectedPlatforms, submit, validateStep, showError]);
-  const currentIndex = steps.findIndex((step) => step.id === currentStep);
-  const isSubmitting = navigation.state === "submitting";
-  const availableTemplates = useMemo(() => {
-    const presetTemplates = templates?.presets?.length ? templates.presets : PRESET_TEMPLATES;
-    const customTemplates = templates?.custom || [];
-    return [...presetTemplates, ...customTemplates].filter((template) =>
-      template && template.platforms && template.platforms.every((platform) =>
-        SUPPORTED_PLATFORMS.includes(platform as SupportedPlatform)
-      )
-    );
-  }, [templates]);
+
   if (!shop) {
     return (
       <Page title="新建 Pixel">
@@ -382,6 +53,7 @@ export default function PixelsNewPage() {
       </Page>
     );
   }
+
   return (
     <Page
       title="新建 Pixel 配置"
@@ -396,7 +68,9 @@ export default function PixelsNewPage() {
                 ⚠️ 严重错误：检测到占位符，URL 未在构建时替换
               </Text>
               <Text as="p" variant="bodySm">
-                <strong>像素扩展配置中仍包含 __BACKEND_URL_PLACEHOLDER__，这表明构建流程未正确替换占位符。</strong>如果占位符未被替换，像素扩展将无法发送事件到后端，导致事件丢失。这是一个严重的配置错误，必须在上线前修复。
+                <strong>
+                  像素扩展配置中仍包含 __BACKEND_URL_PLACEHOLDER__，这表明构建流程未正确替换占位符。</strong>
+                如果占位符未被替换，像素扩展将无法发送事件到后端，导致事件丢失。这是一个严重的配置错误，必须在上线前修复。
               </Text>
               <Text as="p" variant="bodySm" fontWeight="semibold">
                 修复步骤（必须在生产环境部署前完成）：
@@ -404,7 +78,8 @@ export default function PixelsNewPage() {
               <List type="number">
                 <List.Item>
                   <Text as="span" variant="bodySm">
-                    在 CI/CD 流程中，部署前必须运行 <code>pnpm ext:inject</code> 或 <code>pnpm deploy:ext</code>
+                    在 CI/CD 流程中，部署前必须运行 <code>pnpm ext:inject</code> 或{" "}
+                    <code>pnpm deploy:ext</code>
                   </Text>
                 </List.Item>
                 <List.Item>
@@ -424,7 +99,8 @@ export default function PixelsNewPage() {
                 </List.Item>
                 <List.Item>
                   <Text as="span" variant="bodySm">
-                    禁止直接使用 <code>shopify app deploy</code>，必须使用 <code>pnpm deploy:ext</code>
+                    禁止直接使用 <code>shopify app deploy</code>，必须使用{" "}
+                    <code>pnpm deploy:ext</code>
                   </Text>
                 </List.Item>
               </List>
@@ -441,13 +117,16 @@ export default function PixelsNewPage() {
                 ✅ BACKEND_URL 已正确配置
               </Text>
               <Text as="p" variant="bodySm">
-                扩展的 BACKEND_URL 已正确注入。生产环境部署时，请确保始终使用 <code>pnpm deploy:ext</code> 命令，该命令会自动执行 <code>pnpm ext:inject</code> 注入 BACKEND_URL。禁止直接使用 <code>shopify app deploy</code>。
+                扩展的 BACKEND_URL 已正确注入。生产环境部署时，请确保始终使用{" "}
+                <code>pnpm deploy:ext</code> 命令，该命令会自动执行 <code>pnpm ext:inject</code>{" "}
+                注入 BACKEND_URL。禁止直接使用 <code>shopify app deploy</code>。
               </Text>
               <Text as="p" variant="bodySm" fontWeight="semibold">
                 重要：扩展的 BACKEND_URL 注入是生命线
               </Text>
               <Text as="p" variant="bodySm">
-                如果占位符未被替换，像素扩展会静默禁用事件发送，不会显示错误。这是导致事件丢失的常见原因，必须在生产环境部署前修复。请在 CI/CD 流程中确保运行 <code>pnpm ext:inject</code> 或 <code>pnpm deploy:ext</code>。
+                如果占位符未被替换，像素扩展会静默禁用事件发送，不会显示错误。这是导致事件丢失的常见原因，必须在生产环境部署前修复。请在 CI/CD 流程中确保运行{" "}
+                <code>pnpm ext:inject</code> 或 <code>pnpm deploy:ext</code>。
               </Text>
             </BlockStack>
           </Banner>
@@ -458,7 +137,8 @@ export default function PixelsNewPage() {
               ⚠️ Strict Sandbox 能力边界说明（App Review 重要信息）
             </Text>
             <Text as="p" variant="bodySm">
-              Web Pixel Extension 运行在 strict sandbox (Web Worker) 环境中，这是 Shopify 平台的设计限制。以下能力受限：
+              Web Pixel Extension 运行在 strict sandbox (Web Worker) 环境中，这是 Shopify
+              平台的设计限制。以下能力受限：
             </Text>
             <List type="bullet">
               <List.Item>
@@ -468,7 +148,8 @@ export default function PixelsNewPage() {
               </List.Item>
               <List.Item>
                 <Text as="span" variant="bodySm">
-                  部分事件字段可能为 null 或 undefined（如 buyer.email、buyer.phone、deliveryAddress、shippingAddress、billingAddress 等），这是平台限制，不是故障
+                  部分事件字段可能为 null 或 undefined（如 buyer.email、buyer.phone、deliveryAddress、shippingAddress、billingAddress
+                  等），这是平台限制，不是故障
                 </Text>
               </List.Item>
               <List.Item>
@@ -515,7 +196,8 @@ export default function PixelsNewPage() {
                     这些事件将在 v1.1+ 版本中通过订单 webhooks 实现。
                   </Text>
                   <Text as="span" variant="bodySm">
-                    在 App Review 时，请向 Shopify 说明这些限制是平台设计（strict sandbox 运行在 Web Worker 环境中，无法访问订单生命周期事件），不是应用缺陷。
+                    在 App Review 时，请向 Shopify 说明这些限制是平台设计（strict sandbox
+                    运行在 Web Worker 环境中，无法访问订单生命周期事件），不是应用缺陷。
                   </Text>
                 </BlockStack>
               </List.Item>
@@ -524,22 +206,26 @@ export default function PixelsNewPage() {
               App Review 说明要点：
             </Text>
             <Text as="p" variant="bodySm">
-              这是 Shopify 平台的设计限制，不是应用故障。验收报告中会自动标注所有因 strict sandbox 限制而无法获取的字段和事件。在 App Review 时，请向 Shopify 说明：
+              这是 Shopify 平台的设计限制，不是应用故障。验收报告中会自动标注所有因 strict
+              sandbox 限制而无法获取的字段和事件。在 App Review 时，请向 Shopify 说明：
             </Text>
             <List type="bullet">
               <List.Item>
                 <Text as="span" variant="bodySm">
-                  Web Pixel Extension 运行在 strict sandbox (Web Worker) 环境中，这是 Shopify 平台的设计
+                  Web Pixel Extension 运行在 strict sandbox (Web Worker) 环境中，这是 Shopify
+                  平台的设计
                 </Text>
               </List.Item>
               <List.Item>
                 <Text as="span" variant="bodySm">
-                  退款、取消、编辑订单、订阅等事件需要订单 webhooks 才能获取，将在 v1.1+ 版本中实现
+                  退款、取消、编辑订单、订阅等事件需要订单 webhooks 才能获取，将在 v1.1+
+                  版本中实现
                 </Text>
               </List.Item>
               <List.Item>
                 <Text as="span" variant="bodySm">
-                  部分字段（如 buyer.email、buyer.phone、deliveryAddress 等）可能为 null，这是平台限制，不是故障
+                  部分字段（如 buyer.email、buyer.phone、deliveryAddress 等）可能为
+                  null，这是平台限制，不是故障
                 </Text>
               </List.Item>
             </List>
@@ -562,420 +248,16 @@ export default function PixelsNewPage() {
             </Text>
           </Banner>
         )}
-        <Card>
-          <BlockStack gap="400">
-            <InlineStack align="space-between" blockAlign="center">
-              <Text as="h2" variant="headingMd">配置进度</Text>
-              <Badge tone="info">{`步骤 ${currentIndex + 1} / ${steps.length}`}</Badge>
-            </InlineStack>
-            <InlineStack gap="300" wrap>
-              {steps.map((step, index) => (
-                <Badge
-                  key={step.id}
-                  tone={index === currentIndex ? "success" : index < currentIndex ? "info" : undefined}
-                >
-                  {step.label}
-                </Badge>
-              ))}
-            </InlineStack>
-          </BlockStack>
-        </Card>
-        {currentStep === "select" && (
-          <Card>
-            <BlockStack gap="400">
-              <InlineStack align="space-between" blockAlign="center">
-                <Text as="h3" variant="headingMd">选择要配置的平台</Text>
-                <Button size="slim" icon={SettingsIcon} onClick={() => setShowTemplateModal(true)}>
-                  查看模板
-                </Button>
-              </InlineStack>
-              <Text as="p" tone="subdued">
-                选择您要迁移的广告平台，可使用预设模板快速配置事件映射。
-              </Text>
-              <Banner tone="info">
-                <BlockStack gap="200">
-                  <Text as="p" variant="bodySm" fontWeight="semibold">
-                    v1 支持平台：
-                  </Text>
-                  <Text as="p" variant="bodySm">
-                    v1 版本仅支持 GA4、Meta、TikTok 三个平台。其他平台（Pinterest、Snapchat、Twitter 等）将在 v1.1+ 版本支持。
-                  </Text>
-                </BlockStack>
-              </Banner>
-              <BlockStack gap="300">
-                {SUPPORTED_PLATFORMS.map((platform) => {
-                  const info = PLATFORM_INFO[platform];
-                  const isSelected = selectedPlatforms.has(platform);
-                  return (
-                    <Card key={platform}>
-                      <BlockStack gap="300">
-                        <InlineStack align="space-between" blockAlign="center">
-                          <InlineStack gap="300" blockAlign="center">
-                            <Text as="span" variant="headingLg">{info.icon}</Text>
-                            <BlockStack gap="100">
-                              <InlineStack gap="200" blockAlign="center">
-                                <Text as="span" fontWeight="semibold">{info.name}</Text>
-                                <Badge tone="success" size="small">v1 支持</Badge>
-                              </InlineStack>
-                              <Text as="span" variant="bodySm" tone="subdued">
-                                {info.description}
-                              </Text>
-                            </BlockStack>
-                          </InlineStack>
-                          <Checkbox
-                            checked={isSelected}
-                            onChange={(checked) => {
-                              handlePlatformToggle(platform, checked);
-                            }}
-                            label=""
-                          />
-                        </InlineStack>
-                      </BlockStack>
-                    </Card>
-                  );
-                })}
-              </BlockStack>
-            </BlockStack>
-          </Card>
-        )}
-        {currentStep === "mappings" && (
-          <Card>
-            <BlockStack gap="400">
-              <Text as="h3" variant="headingMd">配置事件映射</Text>
-              <Text as="p" tone="subdued">
-                将 Shopify 事件映射到各平台事件。您可以基于推荐映射进行调整。
-              </Text>
-              <Banner tone="warning">
-                <BlockStack gap="300">
-                  <Text as="p" variant="bodySm" fontWeight="semibold">
-                    ⚠️ Strict Sandbox 能力边界说明（App Review 重要信息）
-                  </Text>
-                  <Text as="p" variant="bodySm">
-                    Web Pixel 运行在 strict sandbox (Web Worker) 环境中，以下能力受限：
-                  </Text>
-                  <List type="bullet">
-                    <List.Item>
-                      <Text as="span" variant="bodySm">
-                        无法访问 DOM 元素
-                      </Text>
-                    </List.Item>
-                    <List.Item>
-                      <Text as="span" variant="bodySm">
-                        无法使用 localStorage/sessionStorage
-                      </Text>
-                    </List.Item>
-                    <List.Item>
-                      <Text as="span" variant="bodySm">
-                        无法访问第三方 cookie
-                      </Text>
-                    </List.Item>
-                    <List.Item>
-                      <Text as="span" variant="bodySm">
-                        无法执行某些浏览器 API
-                      </Text>
-                    </List.Item>
-                  </List>
-                  <Divider />
-                  <Text as="p" variant="bodySm" fontWeight="semibold">
-                    v1.0 支持的事件类型：
-                  </Text>
-                  <List type="bullet">
-                    <List.Item>
-                      <Text as="span" variant="bodySm">
-                        ✅ checkout_started（开始结账）
-                      </Text>
-                    </List.Item>
-                    <List.Item>
-                      <Text as="span" variant="bodySm">
-                        ✅ checkout_completed（完成购买）
-                      </Text>
-                    </List.Item>
-                    <List.Item>
-                      <Text as="span" variant="bodySm">
-                        ✅ checkout_contact_info_submitted（提交联系信息）
-                      </Text>
-                    </List.Item>
-                    <List.Item>
-                      <Text as="span" variant="bodySm">
-                        ✅ checkout_shipping_info_submitted（提交配送信息）
-                      </Text>
-                    </List.Item>
-                    <List.Item>
-                      <Text as="span" variant="bodySm">
-                        ✅ payment_info_submitted（提交支付信息）
-                      </Text>
-                    </List.Item>
-                    <List.Item>
-                      <Text as="span" variant="bodySm">
-                        ✅ product_added_to_cart（加入购物车）
-                      </Text>
-                    </List.Item>
-                    <List.Item>
-                      <Text as="span" variant="bodySm">
-                        ✅ product_viewed（商品浏览）
-                      </Text>
-                    </List.Item>
-                    <List.Item>
-                      <Text as="span" variant="bodySm">
-                        ✅ page_viewed（页面浏览）
-                      </Text>
-                    </List.Item>
-                  </List>
-                  <Divider />
-                  <Text as="p" variant="bodySm" fontWeight="semibold" tone="critical">
-                    ❌ v1.0 不支持的事件类型（需要通过订单 webhooks 获取）：
-                  </Text>
-                  <List type="bullet">
-                    <List.Item>
-                      <Text as="span" variant="bodySm">
-                        refund（退款）
-                      </Text>
-                    </List.Item>
-                    <List.Item>
-                      <Text as="span" variant="bodySm">
-                        order_cancelled（订单取消）
-                      </Text>
-                    </List.Item>
-                    <List.Item>
-                      <Text as="span" variant="bodySm">
-                        order_edited（订单编辑）
-                      </Text>
-                    </List.Item>
-                    <List.Item>
-                      <Text as="span" variant="bodySm">
-                        subscription_updated（订阅更新）
-                      </Text>
-                    </List.Item>
-                    <List.Item>
-                      <Text as="span" variant="bodySm">
-                        subscription_cancelled（订阅取消）
-                      </Text>
-                    </List.Item>
-                  </List>
-                  <Text as="p" variant="bodySm" tone="subdued">
-                    💡 原因：Web Pixel Extension 运行在 strict sandbox 环境，只能订阅 Shopify 标准 checkout 漏斗事件。退款、取消、编辑订单、订阅等事件需要订单 webhooks 或后台定时对账才能获取，将在 v1.1+ 版本中通过订单 webhooks 实现（严格做 PII 最小化）。
-                  </Text>
-                </BlockStack>
-              </Banner>
-              {Array.from(selectedPlatforms).map((platform) => {
-                const config = platformConfigs[platform];
-                if (!config) return null;
-                return (
-                  <EventMappingEditor
-                    key={platform}
-                    platform={platform as "google" | "meta" | "tiktok"}
-                    mappings={config.eventMappings}
-                    onMappingChange={(shopifyEvent, platformEvent) =>
-                      handleEventMappingUpdate(platform, shopifyEvent, platformEvent)
-                    }
-                  />
-                );
-              })}
-            </BlockStack>
-          </Card>
-        )}
-        {currentStep === "review" && (
-          <Card>
-            <BlockStack gap="400">
-              <Text as="h3" variant="headingMd">检查配置</Text>
-              <Text as="p" tone="subdued">
-                确认平台、凭证与事件映射无误后保存配置。
-              </Text>
-              {backendUrlInfo?.placeholderDetected && (
-                <Banner tone="critical">
-                  <BlockStack gap="300">
-                    <Text as="p" variant="bodySm" fontWeight="semibold">
-                      ⚠️ 严重错误：检测到占位符，URL 未在构建时替换
-                    </Text>
-                    <Text as="p" variant="bodySm">
-                      <strong>像素扩展配置中仍包含 __BACKEND_URL_PLACEHOLDER__，这表明构建流程未正确替换占位符。</strong>如果占位符未被替换，像素扩展将无法发送事件到后端，导致事件丢失。这是一个严重的配置错误，必须在上线前修复。
-                    </Text>
-                    <Text as="p" variant="bodySm" fontWeight="semibold">
-                      修复步骤（必须在生产环境部署前完成）：
-                    </Text>
-                    <List type="number">
-                      <List.Item>
-                        <Text as="span" variant="bodySm">
-                          在 CI/CD 流程中，部署前必须运行 <code>pnpm ext:inject</code> 或 <code>pnpm deploy:ext</code>
-                        </Text>
-                      </List.Item>
-                      <List.Item>
-                        <Text as="span" variant="bodySm">
-                          确保环境变量 <code>SHOPIFY_APP_URL</code> 已正确设置
-                        </Text>
-                      </List.Item>
-                      <List.Item>
-                        <Text as="span" variant="bodySm">
-                          验证扩展构建产物中不再包含占位符
-                        </Text>
-                      </List.Item>
-                      <List.Item>
-                        <Text as="span" variant="bodySm">
-                          确保该 URL 已在 Web Pixel Extension 的 allowlist 中配置
-                        </Text>
-                      </List.Item>
-                    </List>
-                    <Text as="p" variant="bodySm" tone="subdued">
-                      💡 提示：如果占位符未被替换，像素扩展会静默禁用事件发送，不会显示错误。这是导致事件丢失的常见原因，必须在生产环境部署前修复。
-                    </Text>
-                  </BlockStack>
-                </Banner>
-              )}
-              {!backendUrlInfo?.placeholderDetected && backendUrlInfo?.isConfigured && (
-                <Banner tone="info">
-                  <BlockStack gap="200">
-                    <Text as="p" variant="bodySm" fontWeight="semibold">
-                      ✅ BACKEND_URL 已正确配置
-                    </Text>
-                    <Text as="p" variant="bodySm">
-                      扩展的 BACKEND_URL 已正确注入。生产环境部署时，请确保始终使用 <code>pnpm deploy:ext</code> 命令，该命令会自动执行 <code>pnpm ext:inject</code> 注入 BACKEND_URL。禁止直接使用 <code>shopify app deploy</code>。
-                    </Text>
-                    <Text as="p" variant="bodySm">
-                      <strong>重要：扩展的 BACKEND_URL 注入是生命线。</strong>如果占位符未被替换，像素扩展会静默禁用事件发送，不会显示错误。这是导致事件丢失的常见原因，必须在生产环境部署前修复。
-                    </Text>
-                  </BlockStack>
-                </Banner>
-              )}
-              <Banner tone="warning">
-                <BlockStack gap="200">
-                  <Text as="p" variant="bodySm" fontWeight="semibold">
-                    ⚠️ Strict Sandbox 能力边界说明（App Review 重要信息）
-                  </Text>
-                  <Text as="p" variant="bodySm">
-                    Web Pixel 运行在 strict sandbox (Web Worker) 环境中，以下能力受限：
-                  </Text>
-                  <List type="bullet">
-                    <List.Item>
-                      <Text as="span" variant="bodySm">
-                        无法访问 DOM 元素、localStorage、第三方 cookie 等
-                      </Text>
-                    </List.Item>
-                    <List.Item>
-                      <Text as="span" variant="bodySm">
-                        部分事件字段可能为 null 或 undefined（如 buyer.email、buyer.phone、deliveryAddress、shippingAddress、billingAddress 等），这是平台限制，不是故障
-                      </Text>
-                    </List.Item>
-                    <List.Item>
-                      <Text as="span" variant="bodySm">
-                        <strong>v1.0 不支持的事件类型：</strong>退款（refund）、订单取消（order_cancelled）、订单编辑（order_edited）、订阅订单（subscription_created、subscription_updated、subscription_cancelled）等事件在 strict sandbox 中不可用，需要通过订单 webhooks 获取。这些事件将在 v1.1+ 版本中通过订单 webhooks 实现
-                      </Text>
-                    </List.Item>
-                  </List>
-                  <Text as="p" variant="bodySm" tone="subdued">
-                    💡 提示：这是 Shopify 平台的设计限制，不是应用故障。验收报告中会自动标注所有因 strict sandbox 限制而无法获取的字段和事件。在 App Review 时，请向 Shopify 说明这些限制是平台设计，不是应用缺陷。
-                  </Text>
-                </BlockStack>
-              </Banner>
-              {Array.from(selectedPlatforms).map((platform) => {
-                const config = platformConfigs[platform];
-                const info = PLATFORM_INFO[platform];
-                if (!config || !info) return null;
-                return (
-                  <Card key={platform}>
-                    <BlockStack gap="200">
-                      <InlineStack align="space-between">
-                        <InlineStack gap="200" blockAlign="center">
-                          <Text as="span" variant="headingLg">{info.icon}</Text>
-                          <Text as="span" fontWeight="semibold">{info.name}</Text>
-                        </InlineStack>
-                        <Badge tone={config.environment === "live" ? "critical" : "warning"}>
-                          {config.environment === "live" ? "生产" : "测试"}
-                        </Badge>
-                      </InlineStack>
-                      <Divider />
-                      <InlineStack align="space-between">
-                        <Text as="span" tone="subdued">平台 ID</Text>
-                        <Text as="span" fontWeight="semibold">{config.platformId || "未填写"}</Text>
-                      </InlineStack>
-                      <InlineStack align="space-between">
-                        <Text as="span" tone="subdued">事件映射</Text>
-                        <Text as="span">{Object.keys(config.eventMappings || {}).length} 个事件</Text>
-                      </InlineStack>
-                    </BlockStack>
-                  </Card>
-                );
-              })}
-            </BlockStack>
-          </Card>
-        )}
-        <Card>
-          <InlineStack align="space-between" wrap>
-            <Button url="/app/pixels" disabled={isSubmitting}>
-              取消
-            </Button>
-            <InlineStack gap="200" wrap>
-              {currentIndex > 0 && (
-                <Button
-                  onClick={() => setCurrentStep(steps[currentIndex - 1].id as SetupStep)}
-                  disabled={isSubmitting}
-                >
-                  上一步
-                </Button>
-              )}
-              {currentStep !== "review" ? (
-                <Button
-                  variant="primary"
-                  onClick={handleNext}
-                  disabled={isSubmitting}
-                  icon={ArrowRightIcon}
-                >
-                  下一步
-                </Button>
-              ) : (
-                <Button
-                  variant="primary"
-                  onClick={handleSave}
-                  loading={isSubmitting}
-                  icon={CheckCircleIcon}
-                  disabled={!isStarterOrAbove}
-                >
-                  保存配置并测试
-                </Button>
-              )}
-            </InlineStack>
-          </InlineStack>
-        </Card>
+        <NewPixelWizard
+          templates={templates ? { presets: templates.presets ?? [], custom: Array.isArray(templates.custom) ? templates.custom.filter((t): t is NonNullable<typeof t> => t != null) : [] } : null}
+          isStarterOrAbove={isStarterOrAbove}
+          backendUrlInfo={backendUrlInfo}
+          submit={submit}
+          isSubmitting={navigation.state === "submitting"}
+          showSuccess={showSuccess}
+          showError={showError}
+        />
       </BlockStack>
-      <Modal
-        open={showTemplateModal}
-        onClose={() => setShowTemplateModal(false)}
-        title="选择预设模板"
-        primaryAction={{
-          content: "关闭",
-          onAction: () => setShowTemplateModal(false),
-        }}
-      >
-        <Modal.Section>
-          <BlockStack gap="400">
-            <Text as="p" tone="subdued">
-              选择一个预设模板快速配置多个平台的事件映射。
-            </Text>
-            {availableTemplates.map((template) => {
-              if (!template) return null;
-              return (
-                <Card key={template.id}>
-                  <BlockStack gap="300">
-                    <InlineStack align="space-between" blockAlign="center">
-                      <BlockStack gap="100">
-                        <InlineStack gap="200" blockAlign="center">
-                          <Text as="span" fontWeight="semibold">{template.name}</Text>
-                          {template.isPublic && <Badge tone="info">公开</Badge>}
-                        </InlineStack>
-                        <Text as="span" variant="bodySm" tone="subdued">
-                          {template.description}
-                        </Text>
-                      </BlockStack>
-                      <Button size="slim" onClick={() => handleApplyTemplate(template)}>
-                        应用
-                      </Button>
-                    </InlineStack>
-                  </BlockStack>
-                </Card>
-              );
-            })}
-          </BlockStack>
-        </Modal.Section>
-      </Modal>
     </Page>
   );
 }

@@ -97,12 +97,6 @@ export interface DashboardData {
     healthMetrics24h?: {
     successRate: number;
     failureRate: number;
-    missingParamsRate: number;
-    missingParamsByType: {
-      value: number;
-      currency: number;
-      items: number;
-    };
     totalEvents: number;
   } | null;
     activeAlerts?: Array<{

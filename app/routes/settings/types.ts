@@ -65,7 +65,6 @@ export interface SettingsLoaderData {
   pixelStrictOrigin?: boolean;
   currentMonitoringData?: {
     failureRate: number;
-    missingParamsRate: number;
     volumeDrop: number;
   } | null;
   hmacSecurityStats?: {

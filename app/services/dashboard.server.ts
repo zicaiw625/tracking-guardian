@@ -5,7 +5,6 @@ import { getMigrationChecklist } from "./migration-checklist.server";
 import { analyzeDependencies } from "./dependency-analysis.server";
 import { getAuditAssetSummary } from "./audit-asset.server";
 import { getEventMonitoringStats, getEventVolumeStats } from "./monitoring.server";
-import { getMissingParamsRate } from "./event-validation.server";
 import { logger } from "../utils/logger.server";
 import { calculateMigrationProgress } from "../utils/migration-progress.server";
 import { getTierDisplayInfo } from "./shop-tier.server";
@@ -44,22 +43,14 @@ async function calculateHealthScore(
       ? recentReports.reduce((sum, r) => sum + r.orderDiscrepancy, 0) / recentReports.length
       : 0;
   const discrepancyScore = Math.max(0, 100 - (avgDiscrepancy * 500));
-  factors.push({ label: "对账一致性", value: discrepancyScore, weight: 0.4 });
+  factors.push({ label: "对账一致性", value: discrepancyScore, weight: 0.45 });
   try {
     const stats = await getEventMonitoringStats(shopId, 24 * 7);
     const successRateScore = stats.successRate || 0;
-    factors.push({ label: "事件成功率", value: successRateScore, weight: 0.3 });
+    factors.push({ label: "事件成功率", value: successRateScore, weight: 0.35 });
   } catch (error) {
     logger.warn("Failed to get event monitoring stats for health score", { shopId, error });
-    factors.push({ label: "事件成功率", value: 100, weight: 0.3 });
-  }
-  try {
-    const missingParamsRate = await getMissingParamsRate(shopId, 24 * 7);
-    const completenessScore = 100 - (missingParamsRate?.rate || 0);
-    factors.push({ label: "参数完整性", value: Math.max(0, completenessScore), weight: 0.2 });
-  } catch (error) {
-    logger.warn("Failed to get missing params rate for health score", { shopId, error });
-    factors.push({ label: "参数完整性", value: 100, weight: 0.2 });
+    factors.push({ label: "事件成功率", value: 100, weight: 0.35 });
   }
   try {
     const volumeStats = await getEventVolumeStats(shopId);
@@ -70,10 +61,10 @@ async function calculateHealthScore(
     } else if (isDrop && Math.abs(volumeStats.changePercent || 0) > 30) {
       volumeScore = 75;
     }
-    factors.push({ label: "事件量稳定性", value: volumeScore, weight: 0.1 });
+    factors.push({ label: "事件量稳定性", value: volumeScore, weight: 0.2 });
   } catch (error) {
     logger.warn("Failed to get event volume stats for health score", { shopId, error });
-    factors.push({ label: "事件量稳定性", value: 100, weight: 0.1 });
+    factors.push({ label: "事件量稳定性", value: 100, weight: 0.2 });
   }
   const totalScore = factors.reduce((sum, factor) => sum + (factor.value * factor.weight), 0);
   const roundedScore = Math.round(totalScore);
@@ -381,30 +372,9 @@ export async function getDashboardData(shopDomain: string): Promise<DashboardDat
   }> = [];
   try {
     const monitoringStats = await getEventMonitoringStats(shop.id, 24);
-    const missingParamsData = await getMissingParamsRate(shop.id, 24);
-        const missingParamsByType = {
-      value: 0,
-      currency: 0,
-      items: 0,
-    };
-    if (missingParamsData.details) {
-      missingParamsData.details.forEach((detail) => {
-        if (detail.missingParams.includes("value")) {
-          missingParamsByType.value += detail.count;
-        }
-        if (detail.missingParams.includes("currency")) {
-          missingParamsByType.currency += detail.count;
-        }
-        if (detail.missingParams.includes("items")) {
-          missingParamsByType.items += detail.count;
-        }
-      });
-    }
     healthMetrics24h = {
       successRate: monitoringStats.successRate,
       failureRate: monitoringStats.failureRate,
-      missingParamsRate: missingParamsData.rate,
-      missingParamsByType,
       totalEvents: monitoringStats.totalEvents,
     };
   } catch (error) {

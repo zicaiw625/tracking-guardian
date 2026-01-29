@@ -4,7 +4,7 @@ import { authenticate } from "../../shopify.server";
 import prisma from "../../db.server";
 import { checkTokenExpirationIssues } from "../../services/retry.server";
 
-import { getEventMonitoringStats, getMissingParamsStats, getEventVolumeStats } from "../../services/monitoring.server";
+import { getEventMonitoringStats, getEventVolumeStats } from "../../services/monitoring.server";
 import { logger } from "../../utils/logger.server";
 import type { SettingsLoaderData, PixelConfigDisplay } from "./types";
 
@@ -139,21 +139,17 @@ export async function settingsLoader({ request }: LoaderFunctionArgs) {
     })) ?? [];
     let currentMonitoringData: {
       failureRate: number;
-      missingParamsRate: number;
       volumeDrop: number;
     } | null = null;
     if (shop) {
       try {
-        const [monitoringStats, missingParamsStats, volumeStats] = await Promise.all([
+        const [monitoringStats, volumeStats] = await Promise.all([
           getEventMonitoringStats(shop.id, 24),
-          getMissingParamsStats(shop.id, 24),
           getEventVolumeStats(shop.id),
         ]);
-        const missingParamsRate = missingParamsStats.missingParamsRate;
         const volumeDrop = volumeStats.changePercent < 0 ? Math.abs(volumeStats.changePercent) : 0;
         currentMonitoringData = {
           failureRate: monitoringStats.failureRate,
-          missingParamsRate,
           volumeDrop,
         };
       } catch (error) {
