@@ -34,6 +34,10 @@ vi.mock("../../app/utils/security-headers", () => ({
     "Expires": "0",
     "Content-Security-Policy": "default-src 'none'; frame-ancestors 'none'",
   },
+  buildCspHeader: (directives: Record<string, string[]>) =>
+    Object.entries(directives)
+      .map(([k, v]) => `${k} ${v.join(" ")}`)
+      .join("; "),
   getProductionSecurityHeaders: (base: Record<string, string>) => base,
   validateSecurityHeaders: vi.fn(() => ({ valid: true, issues: [] })),
   addSecurityHeadersToHeaders: (headers: Headers, securityHeaders: Record<string, string>) => {
@@ -86,12 +90,9 @@ describe("entry.server embedded headers", () => {
     process.env.NODE_ENV = "test";
   });
 
-  it("should remove X-Frame-Options and replace CSP for embedded requests", async () => {
+  it("should remove X-Frame-Options and set CSP with admin.shopify.com for all HTML requests", async () => {
     const request = new Request("https://example.com/app", {
-      headers: {
-        "user-agent": "Mozilla/5.0",
-        "Sec-Fetch-Dest": "iframe",
-      },
+      headers: { "user-agent": "Mozilla/5.0" },
     });
     const responseHeaders = new Headers({
       "X-Frame-Options": "DENY",
@@ -105,8 +106,8 @@ describe("entry.server embedded headers", () => {
     expect(vi.mocked(addDocumentResponseHeaders)).toHaveBeenCalledTimes(1);
   });
 
-  it("should keep X-Frame-Options for non-embedded requests", async () => {
-    const request = new Request("https://example.com/app", {
+  it("should set frame-ancestors to shop domain and admin.shopify.com when shop is in URL", async () => {
+    const request = new Request("https://example.com/app?shop=test-store.myshopify.com", {
       headers: { "user-agent": "Mozilla/5.0" },
     });
     const responseHeaders = new Headers({
@@ -116,7 +117,10 @@ describe("entry.server embedded headers", () => {
 
     const response = await handleRequest(request, 200, responseHeaders, {} as any);
 
-    expect(response.headers.get("X-Frame-Options")).toBe("DENY");
+    expect(response.headers.get("X-Frame-Options")).toBeNull();
+    const csp = response.headers.get("Content-Security-Policy") ?? "";
+    expect(csp).toContain("https://admin.shopify.com");
+    expect(csp).toContain("https://test-store.myshopify.com");
     expect(vi.mocked(addDocumentResponseHeaders)).toHaveBeenCalledTimes(1);
   });
 });

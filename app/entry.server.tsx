@@ -111,44 +111,26 @@ export default async function handleRequest(request: Request, responseStatusCode
             }
         }
     }
-    const isEmbeddedDocumentRequest = (() => {
-      const secFetchDest = request.headers.get("Sec-Fetch-Dest");
-      if (secFetchDest !== "iframe") {
-        return false;
-      }
-      const hostParam = url.searchParams.get("host");
-      if (hostParam) {
-        try {
-          const decoded = Buffer.from(hostParam, "base64").toString("utf-8");
-          const parsed = JSON.parse(decoded);
-          if (typeof parsed === "object" && parsed !== null) {
-            const hasShopifyContext = 
-              (typeof parsed.shop === "string" && parsed.shop.includes(".myshopify.com")) ||
-              (typeof parsed.hmac === "string") ||
-              (typeof parsed.timestamp === "string" || typeof parsed.timestamp === "number");
-            if (hasShopifyContext) {
-              return true;
-            }
-          }
-        } catch {
-          return false;
-        }
-      }
-      return true;
-    })();
-    if (isEmbeddedDocumentRequest) {
-      responseHeaders.delete("X-Frame-Options");
-      responseHeaders.delete("Content-Security-Policy");
-    }
     addDocumentResponseHeaders(request, responseHeaders);
-    if (isEmbeddedDocumentRequest && !responseHeaders.has("Content-Security-Policy")) {
-      const fallbackCsp = buildCspHeader({
-        "frame-ancestors": ["https://admin.shopify.com"],
+    const shopCandidate =
+      request.headers.get("x-shopify-shop-domain") ||
+      url.searchParams.get("shop") ||
+      null;
+    const shopDomain =
+      shopCandidate && SecureShopDomainSchema.safeParse(shopCandidate).success
+        ? shopCandidate
+        : null;
+    const frameAncestors = ["https://admin.shopify.com"];
+    if (shopDomain) frameAncestors.unshift(`https://${shopDomain}`);
+    responseHeaders.delete("X-Frame-Options");
+    responseHeaders.set(
+      "Content-Security-Policy",
+      buildCspHeader({
+        "frame-ancestors": frameAncestors,
         "base-uri": ["'self'"],
         "object-src": ["'none'"],
-      });
-      responseHeaders.set("Content-Security-Policy", fallbackCsp);
-    }
+      })
+    );
     const documentSecurityHeaders =
       process.env.NODE_ENV === "production"
         ? getProductionSecurityHeaders(EMBEDDED_APP_HEADERS)

@@ -196,7 +196,9 @@ export function validateConfig(): ConfigValidationResult {
   }
   if (isProduction) {
     const raw = process.env.PIXEL_ALLOW_NULL_ORIGIN_WITH_SIGNATURE_ONLY?.toLowerCase().trim();
-    if (raw && !["true", "1", "false", "0"].includes(raw)) {
+    if (raw == null || raw === "") {
+      errors.push("PIXEL_ALLOW_NULL_ORIGIN_WITH_SIGNATURE_ONLY must be explicitly set in production (true/false/1/0)");
+    } else if (!["true", "1", "false", "0"].includes(raw)) {
       errors.push(
         `PIXEL_ALLOW_NULL_ORIGIN_WITH_SIGNATURE_ONLY has invalid value in production (allowed: true/false/1/0). Current: ${process.env.PIXEL_ALLOW_NULL_ORIGIN_WITH_SIGNATURE_ONLY}`
       );

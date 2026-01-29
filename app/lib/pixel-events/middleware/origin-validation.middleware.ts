@@ -16,23 +16,9 @@ export const originValidationPreBodyMiddleware: IngestMiddleware = async (
   if (!context.originHeaderPresent && context.isProduction) {
     const referer = context.request.headers.get("Referer");
     if (!referer) {
-      logger.warn("Origin header completely missing in production (no Origin, no Referer)", {
+      logger.warn("Origin header missing in production (no Origin, no Referer) - continue to HMAC validation", {
         shopDomain: context.shopDomainHeader,
-        originHost: null,
-        refererHost: null,
       });
-      metrics.pixelRejection({
-        shopDomain: context.shopDomainHeader,
-        reason: "invalid_origin",
-        originType: "missing_origin",
-      });
-      return {
-        continue: false,
-        response: jsonWithCors(
-          { error: "Invalid request" },
-          { status: 403, request: context.request, requestId: context.requestId }
-        ),
-      };
     }
   }
 
