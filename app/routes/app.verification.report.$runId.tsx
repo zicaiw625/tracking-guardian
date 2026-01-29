@@ -37,6 +37,7 @@ import { UpgradePrompt } from "~/components/ui/UpgradePrompt";
 import { trackEvent } from "../services/analytics.server";
 import { safeFireAndForget } from "../utils/helpers.server";
 import { sanitizeFilename } from "../utils/responses";
+import { withSecurityHeaders } from "../utils/security-headers";
 
 export const loader = async ({ request, params }: LoaderFunctionArgs) => {
   const { session } = await authenticate.admin(request);
@@ -142,11 +143,11 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
     const csv = generateVerificationReportCSV(reportData);
     const timestamp = new Date().toISOString().split("T")[0];
     const filename = `verification-report-${shopDomain.replace(/\./g, "_")}-${timestamp}.csv`;
-    return new Response(csv, {
-      headers: {
+    return new Response("\uFEFF" + csv, {
+      headers: withSecurityHeaders({
         "Content-Type": "text/csv; charset=utf-8",
         "Content-Disposition": `attachment; filename="${sanitizeFilename(filename)}"`,
-      },
+      }),
     });
   }
   return json({ success: false, error: "Unknown action" }, { status: 400 });

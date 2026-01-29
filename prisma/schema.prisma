@@ -116,8 +116,6 @@ model ScanReport {
   identifiedPlatforms Json?
   status              String    @default("pending")
   errorMessage        String?
-  shareTokenHash      String?
-  shareTokenExpiresAt DateTime?
   createdAt           DateTime  @default(now())
   completedAt         DateTime?
   Shop                Shop      @relation(fields: [shopId], references: [id], onDelete: Cascade)
@@ -195,9 +193,6 @@ model VerificationRun {
   summaryJson         Json?
   eventsJson          Json?
   reportUrl           String?
-  publicId            String?             @unique
-  publicTokenHash     String?
-  shareTokenExpiresAt DateTime?
   startedAt           DateTime?
   completedAt         DateTime?
   createdAt           DateTime            @default(now())
@@ -210,7 +205,6 @@ model VerificationRun {
   @@index([shopId, status, createdAt])
   @@index([shopId, status])
   @@index([status])
-  @@index([publicId])
 }
 
 model EventLog {

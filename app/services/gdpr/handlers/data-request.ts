@@ -109,8 +109,8 @@ export async function processDataRequest(
     orderId: receipt.orderId,
     eventType: receipt.eventType,
     eventId: receipt.eventId || null,
-    consentState: receipt.consentState as { marketing?: boolean; analytics?: boolean } | null,
-    isTrusted: receipt.isTrusted || false,
+    consentState: null,
+    isTrusted: false,
     pixelTimestamp: receipt.pixelTimestamp ? receipt.pixelTimestamp.toISOString() : null,
     createdAt: receipt.createdAt.toISOString(),
   }));
