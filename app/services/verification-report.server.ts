@@ -353,13 +353,15 @@ export function generateVerificationReportCSV(data: VerificationReportData): str
       lines.push("");
       lines.push("缺失字段（由于 strict sandbox 限制，已自动标注）：");
       for (const item of data.sandboxLimitations.missingFields) {
-        lines.push(`事件类型: ${item.eventType}, 缺失字段: ${item.fields.join(", ")}, 原因: ${item.reason}`);
+        lines.push(
+          escapeCSV(`事件类型: ${item.eventType}, 缺失字段: ${item.fields.join(", ")}, 原因: ${item.reason}`)
+        );
       }
     }
     if (data.sandboxLimitations.unavailableEvents.length > 0) {
       lines.push("");
       lines.push("不可用的事件类型（已自动标注，需要通过订单 webhooks 获取）：");
-      lines.push(data.sandboxLimitations.unavailableEvents.join(", "));
+      lines.push(data.sandboxLimitations.unavailableEvents.map((e) => escapeCSV(e)).join(", "));
     }
     if (data.sandboxLimitations.notes.length > 0) {
       lines.push("");

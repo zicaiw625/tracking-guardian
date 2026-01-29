@@ -222,7 +222,7 @@ export function validatePixelOriginPreBody(origin: string | null, hasSignatureHe
         }
         if (url.protocol === "https:") {
             const hostname = url.hostname.toLowerCase();
-            const isShopifyDomain = SHOPIFY_PLATFORM_HOSTS.some(domain => 
+            const isShopifyDomain = SHOPIFY_PLATFORM_HOSTS.some(domain =>
                 hostname === domain || hostname.endsWith(`.${domain}`)
             );
             if (isShopifyDomain) {
@@ -234,7 +234,7 @@ export function validatePixelOriginPreBody(origin: string | null, hasSignatureHe
             if (devMode && (hostname === "localhost" || hostname === "127.0.0.1")) {
                 return { valid: true, reason: "dev_localhost_https", shouldLog: false, shouldReject: false };
             }
-            return { valid: false, reason: "https_non_shopify_origin", shouldLog: true, shouldReject: true };
+            return { valid: true, reason: "https_deferred_to_stage2", shouldLog: false, shouldReject: false };
         }
         return { valid: false, reason: "invalid_protocol", shouldLog: true, shouldReject: true };
     }

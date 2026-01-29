@@ -24,6 +24,10 @@ export const RATE_LIMIT_CONFIG = {
     maxRequests: 100,
     windowMs: 60 * 1000,
   },
+  WEBHOOKS_IP: {
+    maxRequests: 500,
+    windowMs: 60 * 1000,
+  },
   MAX_KEYS: 10000,
   CLEANUP_INTERVAL_MS: 5 * 60 * 1000,
 } as const;

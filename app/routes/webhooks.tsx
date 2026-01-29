@@ -18,13 +18,13 @@ function getWebhookId(authResult: Awaited<ReturnType<typeof authenticate.webhook
 export const action = async ({ request }: ActionFunctionArgs) => {
   const isProduction = process.env.NODE_ENV === "production";
   const ipKey = ipKeyExtractor(request);
-  const rateLimit = await checkRateLimitAsync(
+  const ipRateLimit = await checkRateLimitAsync(
     ipKey,
-    RATE_LIMIT_CONFIG.WEBHOOKS.maxRequests,
-    RATE_LIMIT_CONFIG.WEBHOOKS.windowMs,
+    RATE_LIMIT_CONFIG.WEBHOOKS_IP.maxRequests,
+    RATE_LIMIT_CONFIG.WEBHOOKS_IP.windowMs,
     isProduction
   );
-  if (isProduction && rateLimit.usingFallback) {
+  if (isProduction && ipRateLimit.usingFallback) {
     logger.error("[Webhook] Redis unavailable for rate limiting in production, rejecting request");
     return new Response("Service Unavailable", {
       status: 503,
@@ -33,19 +33,22 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       },
     });
   }
-  if (!rateLimit.allowed) {
+  if (!ipRateLimit.allowed) {
     const ipHash = ipKey === "untrusted" || ipKey === "unknown" ? ipKey : hashValueSync(ipKey).slice(0, 12);
-    logger.warn("[Webhook] Rate limit exceeded", {
+    logger.warn("[Webhook] Rate limit exceeded (IP)", {
       ipHash,
-      retryAfter: rateLimit.retryAfter,
+      retryAfter: ipRateLimit.retryAfter,
+      topic: request.headers.get("X-Shopify-Topic") ?? undefined,
+      shop: request.headers.get("X-Shopify-Shop-Domain") ?? undefined,
+      webhookId: request.headers.get("X-Shopify-Webhook-Id") ?? request.headers.get("X-Shopify-Event-Id") ?? undefined,
     });
     return new Response("Too Many Requests", {
       status: 429,
       headers: {
-        "Retry-After": String(rateLimit.retryAfter || 60),
-        "X-RateLimit-Limit": String(RATE_LIMIT_CONFIG.WEBHOOKS.maxRequests),
-        "X-RateLimit-Remaining": String(rateLimit.remaining || 0),
-        "X-RateLimit-Reset": String(Math.ceil((rateLimit.resetAt || Date.now()) / 1000)),
+        "Retry-After": String(ipRateLimit.retryAfter || 60),
+        "X-RateLimit-Limit": String(RATE_LIMIT_CONFIG.WEBHOOKS_IP.maxRequests),
+        "X-RateLimit-Remaining": String(ipRateLimit.remaining || 0),
+        "X-RateLimit-Reset": String(Math.ceil((ipRateLimit.resetAt || Date.now()) / 1000)),
       },
     });
   }
@@ -84,6 +87,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       logger.warn("[Webhook] Rate limit exceeded (shop+topic)", {
         shop: context.shop,
         topic: context.topic,
+        webhookId: context.webhookId ?? undefined,
         retryAfter: shopTopicRateLimit.retryAfter,
       });
       return new Response("Too Many Requests", {
