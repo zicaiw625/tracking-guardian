@@ -1,5 +1,6 @@
 import { jsonWithCors, emptyResponseWithCors } from "../cors";
 import { validateRequest } from "../validation";
+import { API_CONFIG } from "~/utils/config.server";
 import { logger } from "~/utils/logger.server";
 import { rejectionTracker } from "../rejection-tracker.server";
 import { shouldRecordRejection } from "../stats-sampling";
@@ -7,12 +8,13 @@ import type { PixelEventPayload } from "../types";
 import type { IngestContext, IngestMiddleware, MiddlewareResult } from "./types";
 
 const MAX_BATCH_SIZE = 100;
+const TIMESTAMP_WINDOW_MS = API_CONFIG.TIMESTAMP_WINDOW_MS;
 
 export const eventValidationMiddleware: IngestMiddleware = async (
   context: IngestContext
 ): Promise<MiddlewareResult> => {
   if (context.rawEvents.length === 0) {
-    if (shouldRecordRejection(context.isProduction, false)) {
+    if (shouldRecordRejection(context.isProduction, false, "empty_events")) {
       rejectionTracker.record({
         requestId: context.requestId,
         shopDomain: context.shopDomainHeader,
@@ -43,7 +45,7 @@ export const eventValidationMiddleware: IngestMiddleware = async (
   }
 
   if (context.rawEvents.length > MAX_BATCH_SIZE) {
-    if (shouldRecordRejection(context.isProduction, false)) {
+    if (shouldRecordRejection(context.isProduction, false, "invalid_payload")) {
       rejectionTracker.record({
         requestId: context.requestId,
         shopDomain: context.shopDomainHeader,
@@ -80,7 +82,7 @@ export const eventValidationMiddleware: IngestMiddleware = async (
     const eventValidation = validateRequest(context.rawEvents[i]);
     if (!eventValidation.valid) {
       if (i === 0) {
-        if (shouldRecordRejection(context.isProduction, false)) {
+        if (shouldRecordRejection(context.isProduction, false, "invalid_payload")) {
           rejectionTracker.record({
             requestId: context.requestId,
             shopDomain: context.shopDomainHeader,
@@ -127,7 +129,7 @@ export const eventValidationMiddleware: IngestMiddleware = async (
   }
 
   if (validatedEvents.length === 0) {
-    if (shouldRecordRejection(context.isProduction, false)) {
+    if (shouldRecordRejection(context.isProduction, false, "invalid_payload")) {
       rejectionTracker.record({
         requestId: context.requestId,
         shopDomain: context.shopDomainHeader,
@@ -159,7 +161,7 @@ export const eventValidationMiddleware: IngestMiddleware = async (
 
   if (context.shopDomainHeader !== "unknown" && context.shopDomainHeader !== shopDomain) {
     if (context.isProduction) {
-      if (shouldRecordRejection(context.isProduction, false)) {
+      if (shouldRecordRejection(context.isProduction, false, "shop_domain_mismatch")) {
         rejectionTracker.record({
           requestId: context.requestId,
           shopDomain,
@@ -189,9 +191,8 @@ export const eventValidationMiddleware: IngestMiddleware = async (
   }
 
   const nowForWindow = Date.now();
-  const TIMESTAMP_WINDOW_MS = 10 * 60 * 1000; // 10 minutes
   if (Math.abs(nowForWindow - timestamp) > TIMESTAMP_WINDOW_MS) {
-    if (shouldRecordRejection(context.isProduction, false)) {
+    if (shouldRecordRejection(context.isProduction, false, "invalid_timestamp")) {
       rejectionTracker.record({
         requestId: context.requestId,
         shopDomain,

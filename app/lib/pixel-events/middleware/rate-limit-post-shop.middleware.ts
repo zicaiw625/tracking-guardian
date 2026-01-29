@@ -25,7 +25,7 @@ export const rateLimitPostShopMiddleware: IngestMiddleware = async (
   );
 
   if (context.isProduction && rateLimit.usingFallback && !context.allowFallback) {
-    if (shouldRecordRejection(context.isProduction, true)) {
+    if (shouldRecordRejection(context.isProduction, true, "rate_limit_exceeded")) {
       rejectionTracker.record({
         requestId: context.requestId,
         shopDomain: context.shopDomain!,
@@ -57,7 +57,7 @@ export const rateLimitPostShopMiddleware: IngestMiddleware = async (
   }
 
   if (!rateLimit.allowed) {
-    if (shouldRecordRejection(context.isProduction, true)) {
+    if (shouldRecordRejection(context.isProduction, true, "rate_limit_exceeded")) {
       rejectionTracker.record({
         requestId: context.requestId,
         shopDomain: context.shopDomain!,

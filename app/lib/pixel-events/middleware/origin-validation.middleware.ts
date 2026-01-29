@@ -54,7 +54,7 @@ export const originValidationPreBodyMiddleware: IngestMiddleware = async (
       });
     }
     if (preBodyValidation.shouldReject && (context.isProduction || !context.hasSignatureHeader || context.strictOrigin)) {
-      if (shouldRecordRejection(context.isProduction, anomalyCheck.shouldBlock)) {
+      if (shouldRecordRejection(context.isProduction, anomalyCheck.shouldBlock, "origin_not_allowlisted")) {
         rejectionTracker.record({
           requestId: context.requestId,
           shopDomain: context.shopDomainHeader,
@@ -123,7 +123,7 @@ export const originValidationPostShopMiddleware: IngestMiddleware = async (
       });
     }
     if (!context.hasSignatureHeader || context.strictOrigin || context.isProduction) {
-      if (shouldRecordRejection(context.isProduction, anomalyCheck.shouldBlock)) {
+      if (shouldRecordRejection(context.isProduction, anomalyCheck.shouldBlock, "origin_not_allowlisted")) {
         rejectionTracker.record({
           requestId: context.requestId,
           shopDomain: context.shop.shopDomain,

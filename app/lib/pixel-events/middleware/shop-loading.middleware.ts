@@ -24,7 +24,7 @@ export const shopLoadingMiddleware: IngestMiddleware = async (
   const shop = await getShopForPixelVerificationWithConfigs(context.shopDomain, environment);
 
   if (!shop || !shop.isActive) {
-    if (shouldRecordRejection(context.isProduction, false)) {
+    if (shouldRecordRejection(context.isProduction, false, "shop_not_found")) {
       rejectionTracker.record({
         requestId: context.requestId,
         shopDomain: context.shopDomain,

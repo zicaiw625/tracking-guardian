@@ -114,7 +114,7 @@ export const hmacValidationMiddleware: IngestMiddleware = async (
           });
           trackAnomaly(context.shopDomain!, "invalid_key");
           if (context.isProduction && isStrictSecurityMode()) {
-            if (shouldRecordRejection(context.isProduction, true)) {
+            if (shouldRecordRejection(context.isProduction, true, "invalid_key")) {
               rejectionTracker.record({
                 requestId: context.requestId,
                 shopDomain: context.shopDomain!,
@@ -191,7 +191,7 @@ export const hmacValidationMiddleware: IngestMiddleware = async (
 
   if (context.isProduction && !keyValidation.matched) {
     const rejectionReason = keyValidation.reason === "secret_missing" ? "no_ingestion_key" : "invalid_key";
-    if (shouldRecordRejection(context.isProduction, false)) {
+    if (shouldRecordRejection(context.isProduction, false, rejectionReason)) {
       rejectionTracker.record({
         requestId: context.requestId,
         shopDomain: context.shopDomain!,

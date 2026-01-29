@@ -17,7 +17,7 @@ export const bodyReaderMiddleware: IngestMiddleware = async (
 ): Promise<MiddlewareResult> => {
   const contentType = context.request.headers.get("Content-Type");
   if (!isAcceptableContentType(contentType)) {
-    if (shouldRecordRejection(context.isProduction, false)) {
+    if (shouldRecordRejection(context.isProduction, false, "content_type_invalid")) {
       rejectionTracker.record({
         requestId: context.requestId,
         shopDomain: context.shopDomainHeader,
@@ -52,7 +52,7 @@ export const bodyReaderMiddleware: IngestMiddleware = async (
   if (contentLength) {
     const size = parseInt(contentLength, 10);
     if (!isNaN(size) && size > API_CONFIG.MAX_BODY_SIZE) {
-      if (shouldRecordRejection(context.isProduction, false)) {
+      if (shouldRecordRejection(context.isProduction, false, "body_too_large")) {
         rejectionTracker.record({
           requestId: context.requestId,
           shopDomain: context.shopDomainHeader,
@@ -91,7 +91,7 @@ export const bodyReaderMiddleware: IngestMiddleware = async (
   } catch (error) {
     if (error instanceof Response) {
       if (error.status === 413) {
-        if (shouldRecordRejection(context.isProduction, false)) {
+        if (shouldRecordRejection(context.isProduction, false, "body_too_large")) {
           rejectionTracker.record({
             requestId: context.requestId,
             shopDomain: context.shopDomainHeader,
@@ -121,7 +121,7 @@ export const bodyReaderMiddleware: IngestMiddleware = async (
           ),
         };
       }
-      if (shouldRecordRejection(context.isProduction, false)) {
+      if (shouldRecordRejection(context.isProduction, false, "invalid_payload")) {
         rejectionTracker.record({
           requestId: context.requestId,
           shopDomain: context.shopDomainHeader,
@@ -152,7 +152,7 @@ export const bodyReaderMiddleware: IngestMiddleware = async (
       };
     }
     if (error instanceof SyntaxError) {
-      if (shouldRecordRejection(context.isProduction, false)) {
+      if (shouldRecordRejection(context.isProduction, false, "invalid_json")) {
         rejectionTracker.record({
           requestId: context.requestId,
           shopDomain: context.shopDomainHeader,
@@ -182,7 +182,7 @@ export const bodyReaderMiddleware: IngestMiddleware = async (
         ),
       };
     }
-    if (shouldRecordRejection(context.isProduction, false)) {
+    if (shouldRecordRejection(context.isProduction, false, "invalid_payload")) {
       rejectionTracker.record({
         requestId: context.requestId,
         shopDomain: context.shopDomainHeader,

@@ -18,7 +18,7 @@ export const timestampValidationMiddleware: IngestMiddleware = async (
       if (anomalyCheck.shouldBlock) {
         logger.warn(`Anomaly threshold reached for ${context.shopDomainHeader}: ${anomalyCheck.reason}`);
       }
-      if (shouldRecordRejection(context.isProduction, anomalyCheck.shouldBlock)) {
+      if (shouldRecordRejection(context.isProduction, anomalyCheck.shouldBlock, "invalid_timestamp")) {
         rejectionTracker.record({
           requestId: context.requestId,
           shopDomain: context.shopDomainHeader,
@@ -39,7 +39,7 @@ export const timestampValidationMiddleware: IngestMiddleware = async (
       if (anomalyCheck.shouldBlock) {
         logger.warn(`Anomaly threshold reached for ${context.shopDomainHeader}: ${anomalyCheck.reason}`);
       }
-      if (shouldRecordRejection(context.isProduction, anomalyCheck.shouldBlock)) {
+      if (shouldRecordRejection(context.isProduction, anomalyCheck.shouldBlock, "invalid_timestamp")) {
         rejectionTracker.record({
           requestId: context.requestId,
           shopDomain: context.shopDomainHeader,
