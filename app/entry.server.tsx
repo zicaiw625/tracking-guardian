@@ -7,7 +7,7 @@ import { addDocumentResponseHeaders } from "./shopify.server";
 import { ensureSecretsValid, enforceSecurityChecks } from "./utils/secrets.server";
 import { validateConfig, logConfigStatus, API_CONFIG } from "./utils/config.server";
 import { logger } from "./utils/logger.server";
-import { EMBEDDED_APP_HEADERS, addSecurityHeadersToHeaders, getProductionSecurityHeaders, validateSecurityHeaders, buildCspHeader, NON_EMBEDDED_PAGE_CSP_DIRECTIVES } from "./utils/security-headers";
+import { EMBEDDED_APP_HEADERS, addSecurityHeadersToHeaders, getProductionSecurityHeaders, validateSecurityHeaders, buildCspHeader } from "./utils/security-headers";
 import { RedisClientFactory } from "./utils/redis-client.server";
 import prisma from "./db.server";
 import { getCorsHeadersPreBody } from "./lib/pixel-events/cors";
@@ -149,8 +149,9 @@ export default async function handleRequest(request: Request, responseStatusCode
       }
       
       const fallbackCsp = buildCspHeader({
-        ...NON_EMBEDDED_PAGE_CSP_DIRECTIVES,
         "frame-ancestors": frameAncestors,
+        "base-uri": ["'self'"],
+        "object-src": ["'none'"],
       });
       responseHeaders.set("Content-Security-Policy", fallbackCsp);
     }

@@ -46,9 +46,9 @@ describe("validatePixelOriginPreBody", () => {
       process.env.NODE_ENV = "production";
       process.env.PIXEL_ALLOW_NULL_ORIGIN_WITH_SIGNATURE_ONLY = "true";
       const r = validatePixelOriginPreBody("null", false, true);
-      expect(r.valid).toBe(true);
-      expect(r.reason).toBe("null_origin_allowed");
-      expect(r.shouldReject).toBe(false);
+      expect(r.valid).toBe(false);
+      expect(r.reason).toBe("null_origin_requires_signature");
+      expect(r.shouldReject).toBe(true);
     });
 
     it("in production, PIXEL_ALLOW_NULL_ORIGIN_WITH_SIGNATURE_ONLY=false, hasSignature: invalid, null_origin_blocked, shouldReject true", () => {
@@ -104,6 +104,15 @@ describe("validatePixelOriginPreBody", () => {
       expect(r.valid).toBe(true);
       expect(r.reason).toBe("missing_origin_allowed");
       expect(r.shouldReject).toBe(false);
+    });
+
+    it("in production, PIXEL_ALLOW_NULL_ORIGIN_WITH_SIGNATURE_ONLY=true, originHeaderPresent false, no signature: invalid, missing_origin_requires_signature, shouldReject true", () => {
+      process.env.NODE_ENV = "production";
+      process.env.PIXEL_ALLOW_NULL_ORIGIN_WITH_SIGNATURE_ONLY = "true";
+      const r = validatePixelOriginPreBody(null, false, false);
+      expect(r.valid).toBe(false);
+      expect(r.reason).toBe("missing_origin_requires_signature");
+      expect(r.shouldReject).toBe(true);
     });
   });
 
@@ -213,6 +222,15 @@ describe("validatePixelOriginForShop", () => {
       expect(r.valid).toBe(true);
       expect(r.reason).toBe("null_origin_allowed");
       expect(r.shouldReject).toBe(false);
+    });
+
+    it("in production, PIXEL_ALLOW_NULL_ORIGIN_WITH_SIGNATURE_ONLY=true, no sig: invalid, null_origin_requires_signature", () => {
+      process.env.NODE_ENV = "production";
+      process.env.PIXEL_ALLOW_NULL_ORIGIN_WITH_SIGNATURE_ONLY = "true";
+      const r = validatePixelOriginForShop("null", allowed, { hasSignatureHeaderOrHMAC: false });
+      expect(r.valid).toBe(false);
+      expect(r.reason).toBe("null_origin_requires_signature");
+      expect(r.shouldReject).toBe(true);
     });
   });
 

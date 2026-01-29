@@ -474,9 +474,23 @@ export async function getRateLimitStats(): Promise<{
 }> {
   try {
     const client = await getRedisClient();
-    const keys = await client.keys(`${RATE_LIMIT_PREFIX}*`);
+    const pattern = `${RATE_LIMIT_PREFIX}*`;
+    let cursor = "0";
+    let totalKeys = 0;
+    let iterations = 0;
+    const maxIterations = 200;
+    const count = 500;
+    do {
+      const result = await client.scan(cursor, pattern, count);
+      cursor = result.cursor;
+      totalKeys += result.keys.length;
+      iterations++;
+      if (iterations >= maxIterations) {
+        break;
+      }
+    } while (cursor !== "0");
     return {
-      totalKeys: keys.length,
+      totalKeys,
       blockedShops: blockedShops.size,
       anomalyTrackers: anomalyTrackers.size,
     };

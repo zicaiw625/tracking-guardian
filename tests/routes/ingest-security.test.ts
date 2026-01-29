@@ -183,6 +183,23 @@ describe("/ingest Security Policy Tests", () => {
     });
   });
 
+  describe("Origin = null + signature missing (production) → 403", () => {
+    it("should reject null origin without signature in production", async () => {
+      process.env.NODE_ENV = "production";
+      process.env.PIXEL_ALLOW_NULL_ORIGIN_WITH_SIGNATURE_ONLY = "true";
+      const payload = createValidEventPayload("test-shop.myshopify.com");
+      const request = createRequest(payload, {
+        Origin: "null",
+        "X-Tracking-Guardian-Timestamp": String(payload.timestamp),
+      });
+
+      const response = await action({ request, params: {}, context: {} });
+      expect(response.status).toBe(403);
+      const data = await response.json();
+      expect(data.error).toBeDefined();
+    });
+  });
+
   describe("Origin missing + Referer missing → 403 (P0 fix)", () => {
     it("should reject request with missing Origin and Referer in production", async () => {
       process.env.NODE_ENV = "production";
