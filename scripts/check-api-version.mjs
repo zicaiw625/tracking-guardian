@@ -112,6 +112,7 @@ function main() {
     extractTomlApiVersion("shopify.app.toml"),
     extractServerApiVersion("app/services/shopify/app-config.server.ts"),
     extractTomlApiVersion("extensions/tracking-pixel/shopify.extension.toml"),
+    extractTomlApiVersion("extensions/post-checkout-badge/shopify.extension.toml"),
   ];
   const hasReadErrors = sources.some((source) => source.version === null);
   if (hasReadErrors) {
@@ -148,6 +149,7 @@ function main() {
   console.error("   - shopify.app.toml [webhooks] api_version");
   console.error("   - app/services/shopify/app-config.server.ts apiVersion");
   console.error("   - extensions/tracking-pixel/shopify.extension.toml api_version");
+  console.error("   - extensions/post-checkout-badge/shopify.extension.toml api_version");
   console.error("");
   console.error("   Found different versions:");
   sources.forEach((source) => {

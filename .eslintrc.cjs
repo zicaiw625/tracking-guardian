@@ -61,5 +61,11 @@ module.exports = {
         node: true,
       },
     },
+    {
+      files: ["extensions/**/*.{ts,tsx}"],
+      rules: {
+        "import/no-unresolved": "off",
+      },
+    },
   ],
 };

@@ -1,0 +1,17 @@
+api_version = "2026-01"
+
+[[extensions]]
+type = "ui_extension"
+name = "Tracking Guardian Badge"
+handle = "tracking-guardian-badge"
+
+[[extensions.targeting]]
+target = "purchase.thank-you.customer-information.render-after"
+module = "./src/thank-you.tsx"
+
+[[extensions.targeting]]
+target = "customer-account.order-status.customer-information.render-after"
+module = "./src/order-status.tsx"
+
+[extensions.capabilities]
+network_access = true

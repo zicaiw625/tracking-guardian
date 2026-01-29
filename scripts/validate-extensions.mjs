@@ -69,7 +69,10 @@ function isAllowed(line) {
 
 function checkForbiddenAPIs() {
     const violations = [];
-    const pixelSrcDir = path.join(EXTENSIONS_DIR, "tracking-pixel", "src");
+    const srcDirs = [
+        path.join(EXTENSIONS_DIR, "tracking-pixel", "src"),
+        path.join(EXTENSIONS_DIR, "post-checkout-badge", "src"),
+    ];
     function scanDirectory(dir) {
         if (!fs.existsSync(dir)) {
             return;
@@ -111,7 +114,9 @@ function checkForbiddenAPIs() {
             }
         }
     }
-    scanDirectory(pixelSrcDir);
+    for (const srcDir of srcDirs) {
+        scanDirectory(srcDir);
+    }
     return {
         name: "禁止使用的浏览器 API",
         passed: violations.length === 0,
@@ -126,6 +131,7 @@ function checkExtensionConfigs() {
     const violations = [];
     const configFiles = [
         path.join(EXTENSIONS_DIR, "tracking-pixel", "shopify.extension.toml"),
+        path.join(EXTENSIONS_DIR, "post-checkout-badge", "shopify.extension.toml"),
     ];
     for (const configFile of configFiles) {
         if (!fs.existsSync(configFile)) {
@@ -178,6 +184,7 @@ function checkSourceStructure() {
     const violations = [];
     const expectedDirs = [
         path.join(EXTENSIONS_DIR, "tracking-pixel", "src"),
+        path.join(EXTENSIONS_DIR, "post-checkout-badge", "src"),
     ];
     for (const dir of expectedDirs) {
         if (!fs.existsSync(dir)) {
