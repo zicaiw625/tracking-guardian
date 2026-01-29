@@ -3,9 +3,7 @@ import { json } from "@remix-run/node";
 import { authenticate } from "../../shopify.server";
 import prisma from "../../db.server";
 import { scanShopTracking, type ScriptAnalysisResult } from "../../services/scanner.server";
-import { analyzeScriptContent } from "../../services/scanner/content-analysis";
 import { createAuditAsset, batchCreateAuditAssets, type AuditAssetInput } from "../../services/audit-asset.server";
-import { processManualPasteAssets, analyzeManualPaste } from "../../services/audit-asset-analysis.server";
 import { generateMigrationChecklist } from "../../services/migration-checklist.server";
 import { SAVE_ANALYSIS_LIMITS, PLATFORM_NAME_REGEX } from "../../utils/scan-constants";
 import { checkSensitiveInfoInData } from "../../utils/scan-validation";
@@ -305,97 +303,6 @@ export const action = async ({ request }: ActionFunctionArgs) => {
                 error: "保存失败，请稍后重试",
                 errorId
             }, { status: 500 });
-        }
-    }
-    if (actionType === "analyze_manual_paste" || actionType === "realtime_analyze_manual_paste") {
-        try {
-            const content = formData.get("content") as string;
-            if (!content || !content.trim()) {
-                return json({ error: "缺少脚本内容" }, { status: 400 });
-            }
-            const MAX_CONTENT_LENGTH = 1024 * 1024;
-            if (content.length > MAX_CONTENT_LENGTH) {
-                return json({
-                    error: `脚本内容过长（最大 ${MAX_CONTENT_LENGTH / 1024}KB）`
-                }, { status: 400 });
-            }
-            if (containsSensitiveInfo(content)) {
-                return json({
-                    error: "检测到可能包含敏感信息的内容（如 API keys、tokens、客户信息等）。请先脱敏后再分析。"
-                }, { status: 400 });
-            }
-            if (actionType === "realtime_analyze_manual_paste") {
-                const quickAnalysis = analyzeScriptContent(content);
-                return json({
-                    success: true,
-                    actionType: "realtime_analyze_manual_paste",
-                    realtimeAnalysis: {
-                        identifiedPlatforms: quickAnalysis.identifiedPlatforms,
-                        platformDetails: quickAnalysis.platformDetails,
-                        risks: quickAnalysis.risks.slice(0, 5),
-                        riskScore: quickAnalysis.riskScore,
-                        recommendations: [],
-                    },
-                });
-            }
-            const analysis = analyzeManualPaste(content, shop.id);
-            return json({
-                success: true,
-                actionType: "analyze_manual_paste",
-                analysis,
-            });
-        } catch (error) {
-            logger.error("Analyze manual paste error", {
-                shopId: shop.id,
-                error: error instanceof Error ? error.message : String(error),
-            });
-            return json({ error: "分析失败，请稍后重试" }, { status: 500 });
-        }
-    }
-    if (actionType === "process_manual_paste") {
-        try {
-            const content = formData.get("content") as string;
-            if (!content || !content.trim()) {
-                return json({ error: "缺少脚本内容" }, { status: 400 });
-            }
-            const MAX_CONTENT_LENGTH = 1024 * 1024;
-            if (content.length > MAX_CONTENT_LENGTH) {
-                return json({
-                    error: `脚本内容过长（最大 ${MAX_CONTENT_LENGTH / 1024}KB）`
-                }, { status: 400 });
-            }
-            if (containsSensitiveInfo(content)) {
-                return json({
-                    error: "检测到可能包含敏感信息的内容（如 API keys、tokens、客户信息等）。请先脱敏后再处理。"
-                }, { status: 400 });
-            }
-            const latestScan = await prisma.scanReport.findFirst({
-                where: { shopId: shop.id },
-                orderBy: { createdAt: "desc" },
-                select: { id: true },
-            });
-            const result = await processManualPasteAssets(
-                shop.id,
-                content,
-                latestScan?.id
-            );
-            return json({
-                success: true,
-                actionType: "process_manual_paste",
-                processed: {
-                    created: result.created,
-                    updated: result.updated,
-                    failed: result.failed,
-                    duplicates: result.duplicates || 0,
-                },
-                message: `已处理 ${result.created} 个资产${result.updated > 0 ? `，更新 ${result.updated} 个` : ''}${result.failed > 0 ? `，${result.failed} 个失败` : ''}`,
-            });
-        } catch (error) {
-            logger.error("Process manual paste error", {
-                shopId: shop.id,
-                error: error instanceof Error ? error.message : String(error),
-            });
-            return json({ error: "处理失败，请稍后重试" }, { status: 500 });
         }
     }
     if (actionType === "create_from_wizard") {

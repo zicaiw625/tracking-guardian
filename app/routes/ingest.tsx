@@ -4,6 +4,7 @@ import { buildInitialContext } from "~/lib/pixel-events/build-initial-context";
 import { composeIngestMiddleware } from "~/lib/pixel-events/middleware/compose";
 import { corsMiddleware } from "~/lib/pixel-events/middleware/cors.middleware";
 import { rateLimitPreBodyMiddleware } from "~/lib/pixel-events/middleware/rate-limit.middleware";
+import { earlyRejectNoSignatureMiddleware } from "~/lib/pixel-events/middleware/early-reject-no-signature.middleware";
 import { bodyReaderMiddleware } from "~/lib/pixel-events/middleware/body-reader.middleware";
 import { originValidationPreBodyMiddleware } from "~/lib/pixel-events/middleware/origin-validation.middleware";
 import { timestampValidationMiddleware } from "~/lib/pixel-events/middleware/timestamp-validation.middleware";
@@ -19,6 +20,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   const middlewares = [
     corsMiddleware,
     rateLimitPreBodyMiddleware,
+    earlyRejectNoSignatureMiddleware,
     bodyReaderMiddleware,
     originValidationPreBodyMiddleware,
     timestampValidationMiddleware,

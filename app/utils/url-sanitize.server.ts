@@ -6,7 +6,7 @@ export function sanitizeScriptTagUrl(url: string | null | undefined): string {
     const u = new URL(url);
     return `${u.origin}${u.pathname}`;
   } catch {
-    return url;
+    return "";
   }
 }
 

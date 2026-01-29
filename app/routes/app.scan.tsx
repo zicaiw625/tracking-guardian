@@ -57,7 +57,6 @@ export function ScanPage({
     const deleteFetcher = useFetcher();
     const upgradeFetcher = useFetcher();
     const saveAnalysisFetcher = useFetcher();
-    const processPasteFetcher = useFetcher();
     const { showSuccess, showError } = useToastContext();
     const [selectedTab, setSelectedTab] = useState(effectiveInitialTab);
     const [analysisSaved, setAnalysisSaved] = useState(false);
@@ -202,14 +201,6 @@ export function ScanPage({
     const wrappedHandleAnalyzeScript = useCallback(async () => {
         await handleAnalyzeScript();
     }, [handleAnalyzeScript]);
-    useEffect(() => {
-        if (analysisResult && (analysisResult.identifiedPlatforms.length > 0 || analysisResult.risks.length > 0)) {
-            const formData = new FormData();
-            formData.append("_action", "analyze_manual_script");
-            formData.append("scriptContent", scriptContent.trim());
-            submit(formData, { method: "post" });
-        }
-    }, [analysisResult, scriptContent, submit]);
     const isSavingAnalysis = saveAnalysisFetcher.state === "submitting";
     const analysisSavedRef = useRef(false);
     const handleSaveAnalysis = useCallback(() => {
@@ -225,14 +216,11 @@ export function ScanPage({
         saveAnalysisFetcher.submit(formData, { method: "post" });
     }, [analysisResult, saveAnalysisFetcher, isSavingAnalysis]);
     const handleProcessManualPaste = useCallback(() => {
-        if (!scriptContent.trim() || processPasteFetcher.state !== "idle") {
+        if (!analysisResult || saveAnalysisFetcher.state !== "idle") {
             return;
         }
-        const formData = new FormData();
-        formData.append("_action", "process_manual_paste");
-        formData.append("scriptContent", scriptContent);
-        processPasteFetcher.submit(formData, { method: "post" });
-    }, [scriptContent, processPasteFetcher]);
+        handleSaveAnalysis();
+    }, [analysisResult, saveAnalysisFetcher.state, handleSaveAnalysis]);
     const handleManualInputComplete = useCallback(async (data: ManualInputData) => {
         if (!shop) {
             showError("店铺信息未找到");
@@ -302,23 +290,7 @@ export function ScanPage({
             showError("处理失败，请稍后重试");
         }
     }, [shop, showSuccess, showError, submit]);
-    const isProcessingPaste = processPasteFetcher.state === "submitting";
-    useEffect(() => {
-        const result = isFetcherResult(processPasteFetcher.data) ? processPasteFetcher.data : undefined;
-        if (!result || processPasteFetcher.state !== "idle" || !isMountedRef.current) return;
-        if (result.success) {
-            setPasteProcessed(true);
-            showSuccess(result.message || "已成功处理粘贴内容");
-            if (reloadTimeoutRef.current) {
-                clearTimeout(reloadTimeoutRef.current);
-            }
-            reloadTimeoutRef.current = setTimeout(() => {
-                window.location.reload();
-            }, 1500);
-        } else if (result.error) {
-            showError(result.error);
-        }
-    }, [processPasteFetcher.data, processPasteFetcher.state, showSuccess, showError]);
+    const isProcessingPaste = isSavingAnalysis;
     useEffect(() => {
         const result = isFetcherResult(saveAnalysisFetcher.data) ? saveAnalysisFetcher.data : undefined;
         if (!result || saveAnalysisFetcher.state !== "idle" || !isMountedRef.current) return;
@@ -327,7 +299,14 @@ export function ScanPage({
                 analysisSavedRef.current = true;
             }
             setAnalysisSaved(true);
+            setPasteProcessed(true);
             showSuccess("分析结果已保存！");
+            if (reloadTimeoutRef.current) {
+                clearTimeout(reloadTimeoutRef.current);
+            }
+            reloadTimeoutRef.current = setTimeout(() => {
+                window.location.reload();
+            }, 1500);
         } else if (result.error) {
             analysisSavedRef.current = false;
             setAnalysisSaved(false);
@@ -688,7 +667,7 @@ export function ScanPage({
                 onSaveAnalysis={handleSaveAnalysis}
                 onProcessManualPaste={handleProcessManualPaste}
                 saveAnalysisFetcherData={saveAnalysisFetcher.data}
-                processPasteFetcherData={processPasteFetcher.data}
+                processPasteFetcherData={saveAnalysisFetcher.data}
               />
             </Suspense>
           )}

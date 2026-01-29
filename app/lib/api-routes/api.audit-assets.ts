@@ -9,14 +9,11 @@ import {
   type AssetCategory,
   type MigrationStatus,
 } from "../../services/audit-asset.server";
-import { analyzeScriptContent } from "../../services/scanner/content-analysis";
 import { logger } from "../../utils/logger.server";
 import { readJsonWithSizeLimit } from "../../utils/body-size-guard";
 import { getShopIdByDomain } from "../../services/db/shop-repository.server";
 import { AppError, ErrorCode, Errors } from "../../utils/errors/app-error";
 import { successResponse } from "../../utils/errors/result-response";
-
-const MAX_SCRIPT_LENGTH = 1024 * 1024;
 
 async function getShopIdFromSession(request: Request): Promise<string> {
   const { session } = await authenticate.admin(request);
@@ -32,34 +29,6 @@ const MAX_ITEM_NAME_LENGTH = 255;
 const MAX_ITEM_TYPE_LENGTH = 50;
 const MAX_PLATFORMS_COUNT = 100;
 const MAX_ITEMS_COUNT = 100;
-
-function validateScriptContent(scriptContent: unknown): { valid: boolean; error?: AppError } {
-  if (!scriptContent || typeof scriptContent !== "string") {
-    return { valid: false, error: Errors.missingField("scriptContent") };
-  }
-  if (scriptContent.length === 0) {
-    return { valid: false, error: new AppError(ErrorCode.VALIDATION_ERROR, "Script content cannot be empty", false, { field: "scriptContent" }) };
-  }
-  if (scriptContent.length > MAX_SCRIPT_LENGTH) {
-    return { valid: false, error: Errors.payloadTooLarge(scriptContent.length, MAX_SCRIPT_LENGTH) };
-  }
-  if (scriptContent.trim().length === 0) {
-    return { valid: false, error: new AppError(ErrorCode.VALIDATION_ERROR, "Script content cannot be only whitespace", false, { field: "scriptContent" }) };
-  }
-  const suspiciousPatterns = [
-    /<script[^>]*>.*eval\s*\(/i,
-    /<script[^>]*>.*Function\s*\(/i,
-    /javascript:\s*eval/i,
-    /onerror\s*=/i,
-    /onload\s*=/i,
-  ];
-  for (const pattern of suspiciousPatterns) {
-    if (pattern.test(scriptContent)) {
-      return { valid: false, error: new AppError(ErrorCode.VALIDATION_ERROR, "Script content contains potentially unsafe patterns", false, { field: "scriptContent" }) };
-    }
-  }
-  return { valid: true };
-}
 
 function validatePlatformName(platform: string): boolean {
   return typeof platform === "string" &&
@@ -84,70 +53,6 @@ function validateItem(item: unknown): item is { name: string; type: string } {
     return false;
   }
   return true;
-}
-
-async function handleCreateFromPaste(
-  shopId: string,
-  scriptContent: string
-): Promise<Response> {
-  const validation = validateScriptContent(scriptContent);
-  if (!validation.valid && validation.error) {
-    throw validation.error;
-  }
-  const analysisResult = analyzeScriptContent(scriptContent);
-  const createdAssets = [];
-  try {
-    for (const platform of analysisResult.identifiedPlatforms) {
-      const asset = await createAuditAsset(shopId, {
-        sourceType: "manual_paste",
-        category: "pixel",
-        platform,
-        displayName: `手动粘贴: ${platform}`,
-        riskLevel: "high",
-        suggestedMigration: "web_pixel",
-        details: {
-          content: scriptContent,
-          source: "manual_paste",
-          analysisRiskScore: analysisResult.riskScore,
-          detectedPatterns: analysisResult.platformDetails
-            .filter((d: { platform: string }) => d.platform === platform)
-            .map((d: { matchedPattern: string }) => d.matchedPattern),
-        },
-      });
-      if (asset) createdAssets.push(asset);
-    }
-    if (analysisResult.identifiedPlatforms.length === 0 && analysisResult.riskScore > 0) {
-      const asset = await createAuditAsset(shopId, {
-        sourceType: "manual_paste",
-        category: "other",
-        displayName: "未识别的脚本",
-        riskLevel: analysisResult.riskScore > 60 ? "high" : "medium",
-        suggestedMigration: "none",
-        details: {
-          content: scriptContent,
-          source: "manual_paste",
-          analysisRiskScore: analysisResult.riskScore,
-          risks: analysisResult.risks,
-        },
-      });
-      if (asset) createdAssets.push(asset);
-    }
-  } catch (error) {
-    logger.error("Failed to create audit assets from paste", {
-      shopId,
-      error: error instanceof Error ? error.message : String(error),
-    });
-    throw AppError.wrap(error, ErrorCode.INTERNAL_ERROR, "Failed to create audit assets", { shopId });
-  }
-  return successResponse({
-    analysisResult: {
-      riskScore: analysisResult.riskScore,
-      platforms: analysisResult.identifiedPlatforms,
-      risks: analysisResult.risks.length,
-    },
-    createdAssets: createdAssets.length,
-    assets: createdAssets,
-  });
 }
 
 async function handleConfirmMerchant(
@@ -408,10 +313,6 @@ async function handleActionByType(
   const extractors = createValueExtractors(jsonBody, formData);
 
   switch (actionType) {
-    case "create_from_paste": {
-      const scriptContent = extractors.getStringValue("scriptContent");
-      return handleCreateFromPaste(shopId, scriptContent);
-    }
     case "confirm_merchant": {
       const platform = extractors.getNullableStringValue("platform");
       const category = extractors.getCategoryValue("category");
