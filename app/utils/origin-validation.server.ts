@@ -9,7 +9,7 @@ export function shouldAllowNullOrigin(): boolean {
     const v = process.env.PIXEL_ALLOW_NULL_ORIGIN_WITH_SIGNATURE_ONLY?.toLowerCase().trim();
     if (v === "false" || v === "0") return false;
     if (v === "true" || v === "1") return true;
-    return true;
+    return process.env.NODE_ENV !== "production";
 }
 const ALLOWED_ORIGIN_PATTERNS: Array<{
     pattern: RegExp;
@@ -306,6 +306,36 @@ export function validatePixelOriginForShop(
                 reason: "null_origin_requires_signature",
                 shouldReject: true,
             };
+        }
+        if (options?.referer) {
+            try {
+                const refererUrl = new URL(options.referer);
+                const refererHost = refererUrl.hostname.toLowerCase();
+                const isRefererAllowed = shopAllowedDomains.some(domain => {
+                    const normalizedDomain = domain.toLowerCase();
+                    return refererHost === normalizedDomain || refererHost.endsWith(`.${normalizedDomain}`);
+                }) || SHOPIFY_PLATFORM_HOSTS.some(domain => {
+                    return refererHost === domain || refererHost.endsWith(`.${domain}`);
+                });
+                if (!isRefererAllowed) {
+                    logger.warn(`[Origin Null] Referer not in allowlist for null origin request`, {
+                        referer: options.referer,
+                        shopDomain: options.shopDomain,
+                        shopAllowedDomains,
+                    });
+                    return {
+                        valid: false,
+                        reason: "null_origin_referer_not_allowed",
+                        shouldReject: true,
+                    };
+                }
+            } catch {
+                return {
+                    valid: false,
+                    reason: "null_origin_invalid_referer",
+                    shouldReject: true,
+                };
+            }
         }
         return {
             valid: true,

@@ -1,0 +1,32 @@
+name = "Tracking Guardian"
+client_id = "00abdc5a393d94902ada694e9cb85e5f"
+application_url = "__SHOPIFY_APP_URL__"
+embedded = true
+
+[access_scopes]
+scopes = "read_script_tags,read_pixels,write_pixels,read_customer_events"
+
+[auth]
+redirect_urls = [
+  "__SHOPIFY_APP_URL__/auth/callback",
+  "__SHOPIFY_APP_URL__/auth/shopify/callback",
+  "__SHOPIFY_APP_URL__/api/auth/callback"
+]
+
+[webhooks]
+api_version = "2026-01"
+
+[[webhooks.subscriptions]]
+topics = ["app/uninstalled"]
+uri = "/webhooks"
+
+[[webhooks.subscriptions]]
+compliance_topics = ["customers/data_request", "customers/redact", "shop/redact"]
+uri = "/webhooks"
+
+
+[pos]
+embedded = false
+
+[build]
+automatically_update_urls_on_dev = true

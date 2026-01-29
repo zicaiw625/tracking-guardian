@@ -112,11 +112,29 @@ export default async function handleRequest(request: Request, responseStatusCode
         }
     }
     const isEmbeddedDocumentRequest = (() => {
-      if (url.searchParams.get("embedded") === "1") return true;
-      if (url.searchParams.has("host")) return true;
       const secFetchDest = request.headers.get("Sec-Fetch-Dest");
-      if (secFetchDest === "iframe") return true;
-      return false;
+      if (secFetchDest !== "iframe") {
+        return false;
+      }
+      const hostParam = url.searchParams.get("host");
+      if (hostParam) {
+        try {
+          const decoded = Buffer.from(hostParam, "base64").toString("utf-8");
+          const parsed = JSON.parse(decoded);
+          if (typeof parsed === "object" && parsed !== null) {
+            const hasShopifyContext = 
+              (typeof parsed.shop === "string" && parsed.shop.includes(".myshopify.com")) ||
+              (typeof parsed.hmac === "string") ||
+              (typeof parsed.timestamp === "string" || typeof parsed.timestamp === "number");
+            if (hasShopifyContext) {
+              return true;
+            }
+          }
+        } catch {
+          return false;
+        }
+      }
+      return true;
     })();
     if (isEmbeddedDocumentRequest) {
       responseHeaders.delete("X-Frame-Options");
@@ -124,32 +142,8 @@ export default async function handleRequest(request: Request, responseStatusCode
     }
     addDocumentResponseHeaders(request, responseHeaders);
     if (isEmbeddedDocumentRequest && !responseHeaders.has("Content-Security-Policy")) {
-      const shopDomain = (() => {
-        const url = new URL(request.url);
-        const shopParam = url.searchParams.get("shop");
-        if (shopParam) {
-          const validation = SecureShopDomainSchema.safeParse(shopParam);
-          if (validation.success) {
-            return validation.data;
-          }
-        }
-        const shopHeader = request.headers.get("x-shopify-shop-domain");
-        if (shopHeader) {
-          const validation = SecureShopDomainSchema.safeParse(shopHeader);
-          if (validation.success) {
-            return validation.data;
-          }
-        }
-        return null;
-      })();
-      
-      const frameAncestors = ["https://admin.shopify.com"];
-      if (shopDomain) {
-        frameAncestors.push(`https://${shopDomain}`);
-      }
-      
       const fallbackCsp = buildCspHeader({
-        "frame-ancestors": frameAncestors,
+        "frame-ancestors": ["https://admin.shopify.com"],
         "base-uri": ["'self'"],
         "object-src": ["'none'"],
       });

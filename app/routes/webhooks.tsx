@@ -97,28 +97,57 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       });
     }
   } catch (error) {
+    const topic = request.headers.get("X-Shopify-Topic") || "unknown";
+    const shopHeader = request.headers.get("X-Shopify-Shop-Domain") || "unknown";
+    const webhookIdHeader = request.headers.get("X-Shopify-Webhook-Id") || request.headers.get("X-Shopify-Event-Id") || "unknown";
+    const hasHmacHeader = !!request.headers.get("X-Shopify-Hmac-Sha256");
+    const hasTopicHeader = !!request.headers.get("X-Shopify-Topic");
+    const hasShopHeader = !!request.headers.get("X-Shopify-Shop-Domain");
+    
     if (error instanceof Response) {
       const errorStatus = error.status;
-      const topic = request.headers.get("X-Shopify-Topic") || "unknown";
-      const shopHeader = request.headers.get("X-Shopify-Shop-Domain") || "unknown";
-      const webhookIdHeader = request.headers.get("X-Shopify-Webhook-Id") || request.headers.get("X-Shopify-Event-Id") || "unknown";
       if (errorStatus === 401) {
-        return error;
+        logger.warn("[Webhook] HMAC validation failed - returning 401", {
+          topic,
+          shop: shopHeader,
+          webhookId: webhookIdHeader,
+          hint: "If this spikes unexpectedly, ensure no middleware/adapter reads or parses the request body before authenticate.webhook(request). Shopify webhook HMAC verification requires the raw body.",
+        });
+        return new Response("Unauthorized: Invalid HMAC", { status: 401 });
       }
-      logger.warn("[Webhook] HMAC validation failed - returning 401", {
+      if (errorStatus === 400) {
+        return new Response("Bad Request: Invalid webhook request", { status: 400 });
+      }
+      logger.warn("[Webhook] Authentication error - returning 401", {
         topic,
         shop: shopHeader,
         originalStatus: errorStatus,
         webhookId: webhookIdHeader,
-        hint: "If this spikes unexpectedly, ensure no middleware/adapter reads or parses the request body before authenticate.webhook(request). Shopify webhook HMAC verification requires the raw body.",
       });
       return new Response("Unauthorized: Invalid HMAC", { status: 401 });
     }
     if (error instanceof SyntaxError) {
-      logger.warn("[Webhook] Payload JSON parse error - returning 400");
+      logger.warn("[Webhook] Payload JSON parse error - returning 400", {
+        topic,
+        shop: shopHeader,
+      });
       return new Response("Bad Request: Invalid JSON", { status: 400 });
     }
-    logger.error("[Webhook] Authentication error:", error);
+    if (!hasHmacHeader || !hasTopicHeader || !hasShopHeader) {
+      logger.warn("[Webhook] Missing required headers - returning 400", {
+        topic,
+        shop: shopHeader,
+        hasHmacHeader,
+        hasTopicHeader,
+        hasShopHeader,
+      });
+      return new Response("Bad Request: Missing required headers", { status: 400 });
+    }
+    logger.error("[Webhook] Authentication error:", error, {
+      topic,
+      shop: shopHeader,
+      webhookId: webhookIdHeader,
+    });
     return new Response("Bad Request: Webhook authentication failed", { status: 400 });
   }
   let shopRecord: ShopWithPixelConfigs | null = null;

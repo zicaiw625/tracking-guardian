@@ -17,7 +17,7 @@
     "db:migrate": "prisma migrate dev",
     "db:deploy": "prisma migrate deploy",
     "db:studio": "prisma studio",
-    "render-build": "pnpm generate && pnpm db:deploy && pnpm ext:inject && pnpm ext:validate && pnpm build",
+    "render-build": "pnpm generate && pnpm db:deploy && pnpm shopify:config:build && pnpm ext:inject && pnpm ext:validate && pnpm build",
     "pretest": "prisma generate",
     "test": "vitest run",
     "test:watch": "vitest",
@@ -37,6 +37,8 @@
     "ext:inject": "node scripts/build-extensions.mjs inject",
     "ext:restore": "node scripts/build-extensions.mjs restore",
     "ext:validate": "node scripts/validate-extensions.mjs",
+    "shopify:config:build": "node scripts/build-shopify-config.mjs build",
+    "shopify:config:restore": "node scripts/build-shopify-config.mjs restore",
     "pre-deploy:check": "node scripts/pre-deploy-check.mjs",
     "deploy:ext": "pnpm pre-deploy:check && pnpm ext:inject && pnpm ext:validate && shopify app deploy && pnpm ext:restore"
   },

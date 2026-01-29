@@ -6,6 +6,77 @@ export const DEFAULT_RETRY_ATTEMPTS = 3;
 export const DEFAULT_BASE_DELAY_MS = 1000;
 export const DEFAULT_MAX_DELAY_MS = 30000;
 
+const ALLOWED_OUTBOUND_HOSTS = [
+  "admin.shopify.com",
+  "*.admin.shopify.com",
+  "*.myshopify.com",
+  "graphql.shopify.com",
+  "*.graphql.shopify.com",
+  "graph.facebook.com",
+  "*.graph.facebook.com",
+  "graph.facebook.net",
+  "*.graph.facebook.net",
+  "google-analytics.com",
+  "*.google-analytics.com",
+  "analyticsdata.googleapis.com",
+  "*.analyticsdata.googleapis.com",
+  "www.googleapis.com",
+  "*.googleapis.com",
+] as const;
+
+function isHostAllowed(hostname: string): boolean {
+  const normalized = hostname.toLowerCase();
+  for (const pattern of ALLOWED_OUTBOUND_HOSTS) {
+    if (pattern.startsWith("*.")) {
+      const domain = pattern.slice(2);
+      if (normalized === domain || normalized.endsWith(`.${domain}`)) {
+        return true;
+      }
+    } else {
+      if (normalized === pattern) {
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
+export function validateOutboundUrl(url: string): { valid: boolean; reason?: string } {
+  try {
+    const parsed = new URL(url);
+    if (parsed.protocol !== "https:" && parsed.protocol !== "http:") {
+      return { valid: false, reason: `Invalid protocol: ${parsed.protocol}` };
+    }
+    if (parsed.protocol === "http:" && !isLocalhost(parsed.hostname)) {
+      return { valid: false, reason: "HTTP protocol not allowed for non-localhost URLs" };
+    }
+    if (isLocalhost(parsed.hostname) || isPrivateIP(parsed.hostname)) {
+      return { valid: false, reason: "Localhost and private IP addresses are not allowed" };
+    }
+    if (!isHostAllowed(parsed.hostname)) {
+      return { valid: false, reason: `Host not in allowlist: ${parsed.hostname}` };
+    }
+    return { valid: true };
+  } catch (error) {
+    return { valid: false, reason: `Invalid URL: ${error instanceof Error ? error.message : String(error)}` };
+  }
+}
+
+function isLocalhost(hostname: string): boolean {
+  const normalized = hostname.toLowerCase();
+  return normalized === "localhost" || normalized === "127.0.0.1" || normalized === "::1" || normalized === "0.0.0.0";
+}
+
+function isPrivateIP(hostname: string): boolean {
+  if (/^10\./.test(hostname)) return true;
+  if (/^172\.(1[6-9]|2[0-9]|3[0-1])\./.test(hostname)) return true;
+  if (/^192\.168\./.test(hostname)) return true;
+  if (/^169\.254\./.test(hostname)) return true;
+  if (/^fc00:/i.test(hostname)) return true;
+  if (/^fe80:/i.test(hostname)) return true;
+  return false;
+}
+
 export interface HttpRequestOptions extends RequestInit {
   timeout?: number;
   retries?: number;
@@ -100,6 +171,24 @@ export async function httpRequest<T = unknown>(
   url: string,
   options: HttpRequestOptions = {}
 ): Promise<HttpResponse<T>> {
+  const urlValidation = validateOutboundUrl(url);
+  if (!urlValidation.valid) {
+    logger.error(`[SSRF Protection] Blocked outbound request to ${safeUrlForLogs(url)}: ${urlValidation.reason}`);
+    const duration = 0;
+    const errorData: HttpError = {
+      type: "unknown",
+      message: `SSRF protection: ${urlValidation.reason || "URL not allowed"}`,
+      retryable: false,
+    };
+    return {
+      ok: false,
+      status: 403,
+      statusText: "Forbidden",
+      headers: new Headers(),
+      data: errorData as T,
+      duration,
+    };
+  }
   const {
     timeout = DEFAULT_TIMEOUT_MS,
     retries = 0,

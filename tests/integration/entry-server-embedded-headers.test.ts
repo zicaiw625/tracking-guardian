@@ -87,8 +87,11 @@ describe("entry.server embedded headers", () => {
   });
 
   it("should remove X-Frame-Options and replace CSP for embedded requests", async () => {
-    const request = new Request("https://example.com/app?embedded=1", {
-      headers: { "user-agent": "Mozilla/5.0" },
+    const request = new Request("https://example.com/app", {
+      headers: {
+        "user-agent": "Mozilla/5.0",
+        "Sec-Fetch-Dest": "iframe",
+      },
     });
     const responseHeaders = new Headers({
       "X-Frame-Options": "DENY",
