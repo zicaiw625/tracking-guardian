@@ -7,7 +7,7 @@ import { addDocumentResponseHeaders } from "./shopify.server";
 import { ensureSecretsValid, enforceSecurityChecks } from "./utils/secrets.server";
 import { validateConfig, logConfigStatus, API_CONFIG } from "./utils/config.server";
 import { logger } from "./utils/logger.server";
-import { EMBEDDED_APP_HEADERS, addSecurityHeadersToHeaders, getProductionSecurityHeaders, validateSecurityHeaders, buildCspHeader } from "./utils/security-headers";
+import { EMBEDDED_APP_HEADERS, addSecurityHeadersToHeaders, getProductionSecurityHeaders, validateSecurityHeaders, buildCspHeader, NON_EMBEDDED_PAGE_CSP_DIRECTIVES } from "./utils/security-headers";
 import { RedisClientFactory } from "./utils/redis-client.server";
 import prisma from "./db.server";
 import { getCorsHeadersPreBody } from "./lib/pixel-events/cors";
@@ -123,14 +123,11 @@ export default async function handleRequest(request: Request, responseStatusCode
     const frameAncestors = ["https://admin.shopify.com"];
     if (shopDomain) frameAncestors.unshift(`https://${shopDomain}`);
     responseHeaders.delete("X-Frame-Options");
-    responseHeaders.set(
-      "Content-Security-Policy",
-      buildCspHeader({
-        "frame-ancestors": frameAncestors,
-        "base-uri": ["'self'"],
-        "object-src": ["'none'"],
-      })
-    );
+    const cspDirectives = {
+      ...NON_EMBEDDED_PAGE_CSP_DIRECTIVES,
+      "frame-ancestors": frameAncestors,
+    };
+    responseHeaders.set("Content-Security-Policy", buildCspHeader(cspDirectives));
     const documentSecurityHeaders =
       process.env.NODE_ENV === "production"
         ? getProductionSecurityHeaders(EMBEDDED_APP_HEADERS)

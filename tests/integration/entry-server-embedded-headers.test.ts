@@ -25,6 +25,23 @@ vi.mock("../../app/utils/logger.server", () => ({
 
 vi.mock("../../app/utils/security-headers", () => ({
   EMBEDDED_APP_HEADERS: {},
+  NON_EMBEDDED_PAGE_CSP_DIRECTIVES: {
+    "default-src": ["'self'"],
+    "script-src": ["'self'", "https://cdn.shopify.com"],
+    "style-src": ["'self'", "'unsafe-inline'", "https://cdn.shopify.com"],
+    "img-src": ["'self'", "data:", "https:", "blob:"],
+    "font-src": ["'self'", "https://cdn.shopify.com"],
+    "connect-src": [
+      "'self'",
+      "https://cdn.shopify.com",
+      "https://monorail-edge.shopifysvc.com",
+    ],
+    "frame-ancestors": ["https://admin.shopify.com"],
+    "base-uri": ["'self'"],
+    "form-action": ["'self'"],
+    "object-src": ["'none'"],
+    "upgrade-insecure-requests": [],
+  },
   API_SECURITY_HEADERS: {
     "X-Content-Type-Options": "nosniff",
     "X-Frame-Options": "DENY",

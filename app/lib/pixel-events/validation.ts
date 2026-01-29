@@ -221,7 +221,22 @@ function sanitizeEventData(
         sanitized[key] = value === null || value === undefined ? null : String(value);
       } else if (key === "orderNumber" || key === "url" || key === "title" || key === "productId" || key === "productTitle") {
         if (key === "url") {
-          sanitized.url = truncate(value, 2000);
+          const urlValue = value === null || value === undefined ? null : String(value);
+          if (urlValue) {
+            const trimmed = urlValue.trim();
+            if (trimmed.startsWith("/")) {
+              sanitized.url = truncate(trimmed, 2000);
+            } else {
+              try {
+                const u = new URL(trimmed);
+                sanitized.url = truncate(`${u.origin}${u.pathname}`, 2000);
+              } catch {
+                sanitized.url = truncate(trimmed, 2000);
+              }
+            }
+          } else {
+            sanitized.url = undefined;
+          }
         } else if (key === "title") {
           sanitized.title = truncate(value, 500);
         } else if (key === "productTitle") {
