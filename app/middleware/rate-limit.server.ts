@@ -1,5 +1,6 @@
 import { json } from "@remix-run/node";
 import type { LoaderFunctionArgs, ActionFunctionArgs } from "@remix-run/node";
+import { isIP } from "net";
 import { RATE_LIMIT_CONFIG } from "../utils/config.server";
 import { logger } from "../utils/logger.server";
 import {
@@ -352,15 +353,25 @@ function getTrustedIpHeaders(): string[] {
     .filter(Boolean);
 }
 
+const MAX_IP_KEY_LENGTH = 64;
+const MAX_RATE_LIMIT_KEY_LENGTH = 256;
+
 function resolveIpFromHeader(headers: Headers, headerName: string): string | null {
   const value = headers.get(headerName);
   if (!value) {
     return null;
   }
+  let candidate: string;
   if (headerName === "x-forwarded-for") {
-    return (value.split(",").map(s => s.trim()).filter(Boolean))[0] || null;
+    candidate = (value.split(",").map(s => s.trim()).filter(Boolean))[0] || "";
+  } else {
+    candidate = value;
   }
-  return value;
+  const trimmed = candidate.trim();
+  if (!trimmed || isIP(trimmed) === 0) {
+    return null;
+  }
+  return trimmed.slice(0, MAX_IP_KEY_LENGTH);
 }
 
 export function ipKeyExtractor(request: Request): string {
@@ -509,6 +520,7 @@ export function withRateLimit<T>(
         });
         key = `fallback:${request.url || "unknown"}`;
       }
+      key = key.slice(0, MAX_RATE_LIMIT_KEY_LENGTH);
       const result = await rateLimitStore.checkAsync(key, maxRequests, windowMs);
       const headers = new Headers();
       headers.set("X-RateLimit-Limit", String(maxRequests));

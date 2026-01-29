@@ -86,7 +86,7 @@ export const originValidationPostShopMiddleware: IngestMiddleware = async (
     {
       referer,
       shopDomain: context.shop.shopDomain,
-      hasSignatureHeaderOrHMAC: context.hasSignatureHeader,
+      hasSignatureHeaderOrHMAC: context.keyValidation?.matched === true,
     }
   );
 

@@ -26,8 +26,8 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     timestampValidationMiddleware,
     eventValidationMiddleware,
     shopLoadingMiddleware,
-    originValidationPostShopMiddleware,
     hmacValidationMiddleware,
+    originValidationPostShopMiddleware,
     rateLimitPostShopMiddleware,
     enqueueMiddleware,
   ];

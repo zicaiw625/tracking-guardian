@@ -1,3 +1,3 @@
-import { json } from "@remix-run/node";
+import { jsonApi } from "~/utils/security-headers";
 
-export const loader = () => json({ ok: true });
+export const loader = () => jsonApi({ ok: true });

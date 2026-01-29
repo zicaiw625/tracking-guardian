@@ -4,7 +4,7 @@ import prisma from "../../db.server";
 import { generateVerificationReportData, generateVerificationReportCSV } from "../../services/verification-report.server";
 import { logger } from "../../utils/logger.server";
 import { sanitizeFilename } from "../../utils/responses";
-import { jsonApi } from "../../utils/security-headers";
+import { jsonApi, withSecurityHeaders } from "../../utils/security-headers";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   try {
@@ -47,10 +47,10 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       const filename = `verification_report_${reportData.runId}_${new Date().toISOString().split("T")[0]}.csv`;
       return new Response("\uFEFF" + csv, {
         status: 200,
-        headers: {
+        headers: withSecurityHeaders({
           "Content-Type": "text/csv; charset=utf-8",
           "Content-Disposition": `attachment; filename="${sanitizeFilename(filename)}"`,
-        },
+        }),
       });
     }
 
