@@ -34,8 +34,10 @@ interface StepStatus {
 }
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
-  const { session } = await authenticate.admin(request);
+  const { session, admin } = await authenticate.admin(request);
   const shopDomain = session.shop;
+  const { checkCustomerAccountsEnabled } = await import("../services/customer-accounts.server");
+  const customerAccountsStatus = await checkCustomerAccountsEnabled(admin);
   const shop = await prisma.shop.findUnique({
     where: { shopDomain },
     select: {
@@ -61,6 +63,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
         modules: { completed: false, inProgress: false, canAccess: false },
         verification: { completed: false, inProgress: false, canAccess: false },
       },
+      customerAccountsStatus: { enabled: false },
     });
   }
 
@@ -118,6 +121,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     shop: { id: shop.id, domain: shopDomain },
     planId,
     steps,
+    customerAccountsStatus: { enabled: customerAccountsStatus.enabled },
   });
 };
 
@@ -190,7 +194,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 };
 
 export default function MigratePage() {
-  const { shop, planId, steps } = useLoaderData<typeof loader>();
+  const { shop, planId, steps, customerAccountsStatus } = useLoaderData<typeof loader>();
 
   const getStepProgress = () => {
     const completedCount = Object.values(steps).filter((s) => s.completed).length;
@@ -377,6 +381,22 @@ export default function MigratePage() {
                       </BlockStack>
                     </InlineStack>
                     <Divider />
+                    {isModulesStep && customerAccountsStatus?.enabled === false && (
+                      <Banner tone="warning" title="Order status 区块依赖店铺启用 Customer Account">
+                        <BlockStack gap="200">
+                          <Text as="p" variant="bodySm">
+                            Order status 页区块需店铺已启用新版客户账户（Customer Account）或 Checkout API 支持，否则该区块可能不可见。请前往 Shopify 后台开启相关设置。
+                          </Text>
+                          <Button
+                            url={shop ? getShopifyAdminUrl(shop.domain, "/settings/checkout") : "#"}
+                            external
+                            size="slim"
+                          >
+                            打开结账设置
+                          </Button>
+                        </BlockStack>
+                      </Banner>
+                    )}
                     {isModulesStep && canAccess && !stepStatus.completed && (
                       <>
                         <List type="number">
@@ -496,7 +516,7 @@ export default function MigratePage() {
                     添加结账与订单状态区块
                   </Text>
                   <Text as="p" variant="bodySm" tone="subdued">
-                    在 Shopify 结账设置或主题编辑器中打开结账/客户账户自定义，在 Thank you 页和 Order status 页添加本应用提供的区块，保存并发布。详见上方步骤卡片中的操作清单与图示。
+                    在 Shopify 结账设置或主题编辑器中打开结账/客户账户自定义，在 Thank you 页和 Order status 页添加本应用提供的区块，保存并发布。Order status 区块需店铺已启用新版客户账户（Customer Account）或 Checkout API 支持，否则该区块可能不可见。详见上方步骤卡片中的操作清单与图示。
                   </Text>
                 </BlockStack>
               </List.Item>

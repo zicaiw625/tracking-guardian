@@ -27,7 +27,7 @@ export default reactExtension(
       <BlockStack spacing="loose">
         {showBanner && (
           <Banner title={bannerTitle}>
-            <Text>追踪状态：正常（如有异常会在后台提示）。</Text>
+            <Text>本区块为静态提示；实时追踪状态与异常请前往应用后台的 Verification / Monitoring 查看。</Text>
           </Banner>
         )}
         {showInvoice && invoiceUrl && (

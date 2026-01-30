@@ -30,7 +30,7 @@
 ## v1 MVP 核心功能（付费理由非常硬）
 
 ### (A) 免费：Audit 风险报告（必须强）
-- **自动扫描**：通过 Shopify API 读取已安装的 ScriptTags 和 Web Pixels
+- **自动扫描**：通过 Shopify API 读取已安装的 ScriptTags 和 Web Pixels。自动扫描**仅覆盖** ScriptTags 与 Web Pixels；**不包含** checkout.liquid / Additional Scripts（需手动粘贴）。
 - **手动分析**：支持手动粘贴 Additional Scripts 内容进行分析
   - ⚠️ **注意**：Shopify API 无法自动读取 checkout.liquid 中的 Additional Scripts，需要商家手动复制粘贴
 - **迁移清单**：生成完整的迁移清单，包含每个待迁移项

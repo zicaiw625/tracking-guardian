@@ -27,7 +27,7 @@ export default reactExtension(
       <BlockStack spacing="loose">
         {showBanner && (
           <Banner title={bannerTitle}>
-            <Text>本次订单追踪已启用（尊重客户同意设置）。</Text>
+            <Text>本区块为静态提示；详细状态请查看应用后台。</Text>
           </Banner>
         )}
         {showInvoice && invoiceUrl && (
