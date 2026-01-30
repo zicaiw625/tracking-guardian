@@ -73,6 +73,21 @@ model Shop {
   AuditLog                AuditLog[]
   AlertEvent              AlertEvent[]
   DailyAggregatedMetrics   DailyAggregatedMetrics[]
+  OrderSummary             OrderSummary[]
+}
+
+model OrderSummary {
+  id         String   @id
+  shopId     String
+  orderId   String
+  totalPrice Decimal  @db.Decimal(12, 2)
+  currency  String
+  createdAt DateTime @default(now())
+  Shop      Shop     @relation(fields: [shopId], references: [id], onDelete: Cascade)
+
+  @@unique([shopId, orderId])
+  @@index([shopId])
+  @@index([shopId, orderId])
 }
 
 model AlertEvent {

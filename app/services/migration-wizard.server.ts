@@ -8,6 +8,7 @@ import type { Platform } from "./migration.server";
 import type { PlanId } from "./billing/plans";
 import { canCreatePixelConfig } from "./billing/feature-gates.server";
 import { getValidCredentials } from "./credentials.server";
+import { PLATFORM_ENDPOINTS } from "../utils/config.shared";
 
 export interface WizardConfig {
   platform: Platform | "pinterest";
@@ -403,10 +404,122 @@ export async function validateTestEnvironment(
         details.verificationInstructions = `测试事件已发送，请在 GA4 DebugView 中查看：${details.debugViewUrl}`;
       }
     }
-    details.eventSent = false;
+    const startTime = Date.now();
+    let eventSent = false;
+    let sendError: string | undefined;
+    if (platform === "google") {
+      const credentials = credentialsResult.value.credentials as { measurementId?: string; apiSecret?: string };
+      const measurementId = credentials.measurementId ?? "";
+      const apiSecret = credentials.apiSecret ?? "";
+      const url = PLATFORM_ENDPOINTS.GA4_MEASUREMENT_PROTOCOL(measurementId, apiSecret);
+      const body = {
+        client_id: `test-${startTime}`,
+        events: [
+          {
+            name: "purchase",
+            params: {
+              value: 1,
+              currency: "USD",
+              transaction_id: `test-${startTime}`,
+            },
+          },
+        ],
+      };
+      try {
+        const res = await fetch(url, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(body),
+        });
+        eventSent = res.ok;
+        if (!res.ok) {
+          const text = await res.text();
+          sendError = `GA4 ${res.status}: ${text.slice(0, 200)}`;
+        }
+      } catch (e) {
+        sendError = e instanceof Error ? e.message : "GA4 request failed";
+      }
+    } else if (platform === "meta") {
+      const credentials = credentialsResult.value.credentials as {
+        pixelId?: string;
+        accessToken?: string;
+        testEventCode?: string;
+      };
+      const pixelId = credentials.pixelId ?? "";
+      const accessToken = credentials.accessToken ?? "";
+      const url = `${PLATFORM_ENDPOINTS.META_GRAPH_API(pixelId)}?access_token=${encodeURIComponent(accessToken)}`;
+      const eventPayload: Record<string, unknown> = {
+        event_name: "Purchase",
+        event_time: Math.floor(Date.now() / 1000),
+        user_data: {},
+        custom_data: { value: 1, currency: "USD" },
+      };
+      if (credentials.testEventCode) {
+        eventPayload.test_event_code = credentials.testEventCode;
+      }
+      const body = { data: [eventPayload] };
+      try {
+        const res = await fetch(url, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(body),
+        });
+        eventSent = res.ok;
+        if (!res.ok) {
+          const text = await res.text();
+          sendError = `Meta ${res.status}: ${text.slice(0, 200)}`;
+        }
+      } catch (e) {
+        sendError = e instanceof Error ? e.message : "Meta request failed";
+      }
+    } else if (platform === "tiktok") {
+      const credentials = credentialsResult.value.credentials as {
+        pixelId?: string;
+        accessToken?: string;
+        testEventCode?: string;
+      };
+      const pixelCode = credentials.pixelId ?? "";
+      const accessToken = credentials.accessToken ?? "";
+      const url = "https://business-api.tiktok.com/open_api/v1.3/event/track/";
+      const body: Record<string, unknown> = {
+        pixel_code: pixelCode,
+        event: "CompletePayment",
+        timestamp: new Date().toISOString(),
+        context: {
+          user: { external_id: `test-${startTime}` },
+          page: { url: "https://test.tracking-guardian.local/" },
+        },
+        properties: { value: 1, currency: "USD" },
+      };
+      if (credentials.testEventCode) {
+        body.test_event_code = credentials.testEventCode;
+      }
+      try {
+        const res = await fetch(url, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Access-Token": accessToken,
+          },
+          body: JSON.stringify(body),
+        });
+        eventSent = res.ok;
+        if (!res.ok) {
+          const text = await res.text();
+          sendError = `TikTok ${res.status}: ${text.slice(0, 200)}`;
+        }
+      } catch (e) {
+        sendError = e instanceof Error ? e.message : "TikTok request failed";
+      }
+    }
+    details.eventSent = eventSent;
+    details.responseTime = Date.now() - startTime;
+    if (sendError) {
+      details.error = sendError;
+    }
     return {
-      valid: false,
-      message: "测试事件发送功能已移除",
+      valid: eventSent,
+      message: eventSent ? "测试事件已发送" : (sendError ?? "测试事件发送失败"),
       details,
     };
   } catch (error) {

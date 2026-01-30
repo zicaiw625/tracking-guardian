@@ -274,6 +274,16 @@ export async function analyzeRecentEvents(
       orderKey: true,
     },
   });
+  const orderKeysFromReceipts = [...new Set(receipts.map((r) => r.orderKey).filter(Boolean) as string[])];
+  const orderSummaries = orderKeysFromReceipts.length > 0
+    ? await prisma.orderSummary.findMany({
+        where: { shopId, orderId: { in: orderKeysFromReceipts } },
+        select: { orderId: true, totalPrice: true, currency: true },
+      })
+    : [];
+  const orderSummaryMap = new Map(
+    orderSummaries.map((o) => [o.orderId, { totalPrice: Number(o.totalPrice), currency: o.currency }])
+  );
   const results: VerificationEventResult[] = [];
   let passedTests = 0;
   const failedTests = 0;
@@ -281,6 +291,7 @@ export async function analyzeRecentEvents(
   let totalValueAccuracy = 0;
   let valueChecks = 0;
   const orderIds = new Set<string>();
+  const consistencyIssues: Array<{ orderId: string; issue: string; type: "value_mismatch" | "currency_mismatch" | "missing" | "duplicate" }> = [];
   for (const receipt of receipts) {
     const payload = receipt.payloadJson as Record<string, unknown> | null;
     const platform = extractPlatformFromPayload(payload);
@@ -374,7 +385,31 @@ export async function analyzeRecentEvents(
       } else {
         passedTests++;
         valueChecks++;
-        totalValueAccuracy += 100;
+        const orderSummary = orderId ? orderSummaryMap.get(orderId) : undefined;
+        if (orderSummary) {
+          const valueMatch = Math.abs((value ?? 0) - orderSummary.totalPrice) < 0.01;
+          const currencyMatch = (currency ?? "").toUpperCase() === (orderSummary.currency ?? "").toUpperCase();
+          if (valueMatch && currencyMatch) {
+            totalValueAccuracy += 100;
+          } else {
+            if (!valueMatch && orderId) {
+              consistencyIssues.push({
+                orderId,
+                issue: `payload value ${value} vs order total ${orderSummary.totalPrice}`,
+                type: "value_mismatch",
+              });
+            }
+            if (!currencyMatch && orderId) {
+              consistencyIssues.push({
+                orderId,
+                issue: `payload currency ${currency} vs order currency ${orderSummary.currency}`,
+                type: "currency_mismatch",
+              });
+            }
+          }
+        } else {
+          totalValueAccuracy += 100;
+        }
         results.push({
           testItemId: "purchase",
           eventType: receipt.eventType,
@@ -444,7 +479,13 @@ export async function analyzeRecentEvents(
       }
     }
   }
-  const reconciliation: VerificationSummary["reconciliation"] | undefined = undefined;
+  const reconciliation: VerificationSummary["reconciliation"] | undefined =
+    consistencyIssues.length > 0
+      ? {
+          pixelVsCapi: { pixelOnly: 0, capiOnly: 0, both: 0, consentBlocked: 0 },
+          consistencyIssues,
+        }
+      : undefined;
   await prisma.verificationRun.update({
     where: { id: runId },
     data: {

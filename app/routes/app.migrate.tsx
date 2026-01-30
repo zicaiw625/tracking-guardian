@@ -1,4 +1,4 @@
-import type { LoaderFunctionArgs } from "@remix-run/node";
+import type { ActionFunctionArgs, LoaderFunctionArgs } from "@remix-run/node";
 import { json } from "@remix-run/node";
 import { useLoaderData } from "@remix-run/react";
 import {
@@ -22,6 +22,7 @@ import { authenticate } from "../shopify.server";
 import prisma from "../db.server";
 import { normalizePlanId, type PlanId } from "../services/billing/plans";
 import { isPlanAtLeast } from "../utils/plans";
+import { validateTestEnvironment, saveWizardDraft, clearWizardDraft } from "../services/migration-wizard.server";
 
 type MigrationStep = "audit" | "pixels" | "modules" | "verification";
 
@@ -115,6 +116,58 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     planId,
     steps,
   });
+};
+
+export const action = async ({ request }: ActionFunctionArgs) => {
+  const { session } = await authenticate.admin(request);
+  const shopDomain = session.shop;
+  const shop = await prisma.shop.findUnique({
+    where: { shopDomain },
+    select: { id: true },
+  });
+  if (!shop) {
+    return json({ success: false, error: "Shop not found" }, { status: 404 });
+  }
+  const formData = await request.formData();
+  const actionType = formData.get("_action");
+  if (actionType === "validateTestEnvironment") {
+    const platform = formData.get("platform") as string | null;
+    if (!platform || !["google", "meta", "tiktok"].includes(platform)) {
+      return json({
+        valid: false,
+        message: "无效或缺失的 platform 参数",
+      });
+    }
+    try {
+      const result = await validateTestEnvironment(shop.id, platform as "google" | "meta" | "tiktok");
+      return json(result);
+    } catch (error) {
+      return json({
+        valid: false,
+        message: error instanceof Error ? error.message : "验证失败",
+        details: { eventSent: false, error: error instanceof Error ? error.message : "验证失败" },
+      }, { status: 500 });
+    }
+  }
+  if (actionType === "saveWizardDraft") {
+    const draftRaw = formData.get("draft");
+    if (typeof draftRaw !== "string") {
+      return json({ success: false, error: "缺少 draft 参数" }, { status: 400 });
+    }
+    let draft: Parameters<typeof saveWizardDraft>[1];
+    try {
+      draft = JSON.parse(draftRaw) as Parameters<typeof saveWizardDraft>[1];
+    } catch {
+      return json({ success: false, error: "draft 格式无效" }, { status: 400 });
+    }
+    const result = await saveWizardDraft(shop.id, draft);
+    return json(result.success ? { success: true } : { success: false, error: result.error });
+  }
+  if (actionType === "clearWizardDraft") {
+    const result = await clearWizardDraft(shop.id);
+    return json({ success: result.success });
+  }
+  return json({ success: false, error: "Unknown action" }, { status: 400 });
 };
 
 export default function MigratePage() {

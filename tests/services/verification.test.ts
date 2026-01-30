@@ -27,6 +27,9 @@ vi.mock("../../app/db.server", () => ({
     eventLog: {
       findMany: vi.fn(),
     },
+    orderSummary: {
+      findMany: vi.fn(),
+    },
   },
 }));
 
@@ -244,6 +247,7 @@ describe("Verification Service", () => {
       vi.mocked(prisma.pixelEventReceipt.findMany).mockResolvedValue(mockReceipts as any);
       vi.mocked(prisma.pixelEventReceipt.findFirst).mockResolvedValue(null);
       vi.mocked(prisma.eventLog.findMany).mockResolvedValue([]);
+      vi.mocked(prisma.orderSummary.findMany).mockResolvedValue([]);
       vi.mocked(prisma.verificationRun.update).mockResolvedValue({
         ...mockRun,
         status: "completed",
@@ -293,6 +297,7 @@ describe("Verification Service", () => {
       vi.mocked(prisma.pixelEventReceipt.findMany).mockResolvedValue(mockReceipts as any);
       vi.mocked(prisma.pixelEventReceipt.findFirst).mockResolvedValue(null);
       vi.mocked(prisma.eventLog.findMany).mockResolvedValue([]);
+      vi.mocked(prisma.orderSummary.findMany).mockResolvedValue([]);
       vi.mocked(prisma.verificationRun.update).mockResolvedValue({
         ...mockRun,
         status: "completed",

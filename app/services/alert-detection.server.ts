@@ -1,6 +1,8 @@
 import { randomUUID } from "crypto";
 import prisma from "../db.server";
 import { logger } from "../utils/logger.server";
+import { sendAlertToChannels } from "./alert-delivery.server";
+import type { AlertConfigItem } from "./alert-delivery.server";
 
 const SUCCESS_RATE_THRESHOLD = 0.7;
 const MISSING_PARAMS_RATE_THRESHOLD = 0.5;
@@ -21,7 +23,10 @@ function hashPayload(payload: Record<string, unknown>): string {
   return String(Math.abs(h));
 }
 
-export async function runAlertDetection(shopId: string, forDate?: Date): Promise<{ created: number }> {
+export async function runAlertDetection(shopId: string, forDate?: Date): Promise<{
+  created: number;
+  createdAlerts: Array<{ alertType: string; severity: string; message: string; payload: Record<string, unknown>; sentAt: Date }>;
+}> {
   const date = forDate ?? (() => {
     const y = new Date();
     y.setUTCDate(y.getUTCDate() - 1);
@@ -32,13 +37,14 @@ export async function runAlertDetection(shopId: string, forDate?: Date): Promise
   startOfDay.setUTCHours(0, 0, 0, 0);
   const key = dateKey(startOfDay);
   let created = 0;
+  const createdAlerts: Array<{ alertType: string; severity: string; message: string; payload: Record<string, unknown>; sentAt: Date }> = [];
 
   const metrics = await prisma.dailyAggregatedMetrics.findUnique({
     where: { shopId_date: { shopId, date: startOfDay } },
   });
 
   if (!metrics) {
-    return { created };
+    return { created, createdAlerts };
   }
 
   const prevDate = new Date(startOfDay);
@@ -98,9 +104,27 @@ export async function runAlertDetection(shopId: string, forDate?: Date): Promise
       },
     });
     created++;
+    createdAlerts.push({ ...a, sentAt });
   }
 
-  return { created };
+  return { created, createdAlerts };
+}
+
+function toAlertConfigItems(raw: unknown): AlertConfigItem[] {
+  if (!Array.isArray(raw)) return [];
+  return raw.map((c: unknown) => {
+    const item = c && typeof c === "object" ? c as Record<string, unknown> : {};
+    const settings = item.settings && typeof item.settings === "object" ? item.settings as Record<string, unknown> : null;
+    return {
+      channel: typeof item.channel === "string" ? item.channel : "email",
+      enabled: typeof item.isEnabled === "boolean" ? item.isEnabled : true,
+      settings,
+      webhookUrl: typeof item.webhookUrl === "string" ? item.webhookUrl : (settings?.webhookUrl as string | undefined),
+      botToken: typeof item.botToken === "string" ? item.botToken : (settings?.botToken as string | undefined),
+      chatId: typeof item.chatId === "string" ? item.chatId : (settings?.chatId as string | undefined),
+      email: typeof item.email === "string" ? item.email : (settings?.email as string | undefined),
+    };
+  });
 }
 
 export async function runAlertDetectionForAllShops(): Promise<{ shopsProcessed: number; alertsCreated: number }> {
@@ -115,11 +139,21 @@ export async function runAlertDetectionForAllShops(): Promise<{ shopsProcessed: 
   for (const shop of shops) {
     try {
       const settings = shop.settings && typeof shop.settings === "object" ? shop.settings as Record<string, unknown> : null;
-      const alertConfigs = settings?.alertConfigs && Array.isArray(settings.alertConfigs) ? settings.alertConfigs : [];
-      const runForShop = alertConfigs.length > 0 || true;
+      const rawAlertConfigs = settings?.alertConfigs && Array.isArray(settings.alertConfigs) ? settings.alertConfigs : [];
+      const runForShop = rawAlertConfigs.length > 0 || true;
       if (!runForShop) continue;
       const result = await runAlertDetection(shop.id, yesterday);
       alertsCreated += result.created;
+      const alertConfigItems = toAlertConfigItems(rawAlertConfigs);
+      for (const createdAlert of result.createdAlerts) {
+        await sendAlertToChannels(shop.id, {
+          alertType: createdAlert.alertType,
+          severity: createdAlert.severity,
+          message: createdAlert.message,
+          payload: createdAlert.payload,
+          sentAt: createdAlert.sentAt,
+        }, alertConfigItems);
+      }
     } catch (error) {
       logger.error("Alert detection failed for shop", error instanceof Error ? error : new Error(String(error)), { shopId: shop.id });
     }
