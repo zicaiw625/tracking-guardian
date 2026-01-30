@@ -70,4 +70,4 @@ type = "single_line_text_field"
 name = "Aftersales URL"
 
 [extensions.capabilities]
-network_access = true
+network_access = false

@@ -4,7 +4,7 @@ application_url = "__SHOPIFY_APP_URL__"
 embedded = true
 
 [access_scopes]
-scopes = "read_script_tags,read_pixels,write_pixels,read_customer_events"
+scopes = "read_script_tags,read_pixels,write_pixels,read_customer_events,read_orders"
 
 [auth]
 redirect_urls = [

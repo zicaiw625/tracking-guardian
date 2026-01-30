@@ -14,7 +14,8 @@ import { getRedisClient, getRedisClientStrict } from "../../utils/redis-client.s
 function buildMinimalPayloadForReceipt(
   payload: PixelEventPayload,
   trustLevel?: string,
-  hmacMatched?: boolean
+  hmacMatched?: boolean,
+  platform?: string | null
 ): Record<string, unknown> {
   const items = (payload.data?.items ?? [])
     .slice(0, 50)
@@ -22,7 +23,7 @@ function buildMinimalPayloadForReceipt(
       id: String(i?.id ?? ""),
       quantity: typeof i?.quantity === "number" ? i.quantity : 1,
     }));
-  return {
+  const base: Record<string, unknown> = {
     consent: payload.consent,
     data: {
       value: payload.data?.value ?? 0,
@@ -33,6 +34,11 @@ function buildMinimalPayloadForReceipt(
     trustLevel: trustLevel ?? "untrusted",
     hmacMatched: hmacMatched ?? false,
   };
+  if (platform != null && platform !== "") {
+    base.platform = platform;
+    base.destination = platform;
+  }
+  return base;
 }
 
 export interface MatchKeyResult {
@@ -150,12 +156,16 @@ export async function upsertPixelEventReceipt(
               : trustLevel ?? "untrusted",
           hmacMatched: hmacMatched ?? false,
         };
+        if (platform != null && platform !== "") {
+          payloadToStore.platform = platform;
+          payloadToStore.destination = platform;
+        }
       } else {
         const sanitizedPayload =
           sanitized && typeof sanitized === "object"
             ? (sanitized as PixelEventPayload)
             : payload;
-        payloadToStore = buildMinimalPayloadForReceipt(sanitizedPayload, trustLevel, hmacMatched);
+        payloadToStore = buildMinimalPayloadForReceipt(sanitizedPayload, trustLevel, hmacMatched, platform);
       }
     }
     let receipt;

@@ -207,8 +207,8 @@ export default function PrivacyPage() {
 
             <h3>与 PCD（受保护客户数据）的关系</h3>
             <p>
-              当前公开上架版本<strong>不访问</strong> Shopify Protected Customer Data (PCD)，也<strong>不请求</strong> <code>read_orders</code> 等订单类权限。
-              未来如引入基于订单的验收/对账或再购等功能，这些能力将作为后续版本规划，届时会在：
+              当前公开上架版本<strong>不访问</strong> Shopify Protected Customer Data (PCD)。我们请求 <code>read_orders</code> 仅用于接收 <code>orders/create</code> webhook 以进行订单对账，不通过 Admin API 读取订单详情。
+              未来如引入基于订单详情的验收/对账或再购等功能，这些能力将作为后续版本规划，届时会在：
             </p>
             <ul>
               <li>更新本隐私政策并在应用内明确标注相关功能</li>
