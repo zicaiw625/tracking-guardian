@@ -287,7 +287,7 @@ export default function PrivacyPage() {
                     转化追踪
                   </Text>
                   <Text as="p" variant="bodySm">
-                    v1 默认仅基于 Web Pixel 客户事件和像素收据（PixelEventReceipt），不通过 Admin API 读取订单，也不向第三方平台发送服务端事件。
+                    v1 默认仅基于 Web Pixel 客户事件和像素收据（PixelEventReceipt），不通过 Admin API 读取订单，不订阅订单 webhook，也不向第三方平台发送服务端事件。
                   </Text>
                   <Banner tone="warning">
                     <BlockStack gap="200">
@@ -307,7 +307,7 @@ export default function PrivacyPage() {
                     对账与诊断
                   </Text>
                   <Text as="p" variant="bodySm">
-                    v1 默认仅基于 Web Pixel 客户事件和像素收据（PixelEventReceipt），不通过 Admin API 读取订单。我们通过比对像素事件收据与内部日志，帮助您发现追踪缺口并优化配置。
+                    v1 默认仅基于 Web Pixel 客户事件和像素收据（PixelEventReceipt），不通过 Admin API 读取订单，不订阅订单 webhook。我们通过比对像素事件收据与内部日志，帮助您发现追踪缺口并优化配置。
                   </Text>
                 </BlockStack>
               </Card>

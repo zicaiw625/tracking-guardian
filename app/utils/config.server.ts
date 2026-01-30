@@ -314,6 +314,8 @@ export const PCD_CONFIG = {
   APPROVED: getBoolEnv("PCD_APPROVED", false),
 } as const;
 
+export const ORDER_WEBHOOK_ENABLED = getBoolEnv("ORDER_WEBHOOK_ENABLED", false);
+
 export const FEATURE_FLAGS = {
   FUNNEL_EVENTS: getBoolEnv("FEATURE_FUNNEL_EVENTS", false),
   DEBUG_LOGGING: getBoolEnv("FEATURE_DEBUG_LOGGING", false),

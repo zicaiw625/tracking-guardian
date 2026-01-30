@@ -550,7 +550,7 @@ export function SecurityTab({
                     <br />
                     我们不存储客户 PII（姓名/邮箱/电话/地址），仅在必要时存不可逆
                     hash 作为像素事件去重或诊断信号；当前公开上架版本不会从
-                    Shopify 读取订单明细，也不会访问 Protected Customer Data (PCD)。
+                    Shopify 读取订单明细，也不会访问 Protected Customer Data (PCD)。当前不申请 read_orders、不订阅订单 webhook。
                     未来如引入基于订单的验收/对账或再购等功能，将在获得 PCD 审批
                     后单独启用，并更新隐私与合规文档。
                   </Text>

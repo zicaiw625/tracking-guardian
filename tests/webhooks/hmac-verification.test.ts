@@ -352,6 +352,48 @@ describe("P0-2: Webhook HMAC Signature Verification", () => {
     });
   });
   describe("Business Webhooks with HMAC", () => {
+    it("returns 200 for ORDERS_PAID when order webhook gate is off without persisting", async () => {
+      vi.mocked(authenticate.webhook).mockResolvedValue({
+        topic: "ORDERS_PAID",
+        shop: "test-shop.myshopify.com",
+        session: { shop: "test-shop.myshopify.com" },
+        admin: { graphql: vi.fn() },
+        payload: {
+          id: 12345678901234,
+          order_number: "1001",
+          total_price: "99.99",
+          currency: "USD",
+          line_items: [],
+        },
+      } as any);
+      vi.mocked(prisma.shop.findUnique).mockResolvedValue({
+        id: "shop-id",
+        shopDomain: "test-shop.myshopify.com",
+        isActive: true,
+        plan: "starter",
+        pixelConfigs: [],
+      } as any);
+      vi.mocked(prisma.webhookLog.create).mockResolvedValue({ id: "log-id" } as any);
+      vi.mocked(prisma.webhookLog.update).mockResolvedValue(undefined as any);
+      const request = new Request("https://example.com/webhook", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-Shopify-Topic": "orders/paid",
+          "X-Shopify-Shop-Domain": "test-shop.myshopify.com",
+          "X-Shopify-Hmac-Sha256": "valid-hmac-signature",
+          "X-Shopify-Webhook-Id": "unique-webhook-id-gate-off",
+        },
+        body: JSON.stringify({
+          id: 12345678901234,
+          total_price: "99.99",
+          currency: "USD",
+        }),
+      });
+      const response = await action({ request, params: {}, context: {} });
+      expect(response.status).toBe(200);
+      expect(prisma.orderSummary.upsert).not.toHaveBeenCalled();
+    });
     it("returns 200 for ORDERS_PAID with valid HMAC and valid shop", async () => {
       vi.mocked(authenticate.webhook).mockResolvedValue({
         topic: "ORDERS_PAID",

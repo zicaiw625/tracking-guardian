@@ -242,7 +242,7 @@ export default function VerificationOrdersPage() {
           <Card>
             <BlockStack gap="200">
               <Text as="p" variant="bodyMd">
-                当前时间窗内暂无订单记录。请确认 orders/create webhook 已正常接收，或扩大时间窗。
+                当前时间窗内暂无订单记录。订单层对账为可选能力，需启用订单 webhook 并正常接收后再查看；或扩大时间窗。
               </Text>
               <Button url="/app/verification" variant="primary">
                 返回验收页面

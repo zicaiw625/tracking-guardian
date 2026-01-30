@@ -1,6 +1,7 @@
 import { randomUUID } from "crypto";
 import prisma from "../../db.server";
 import { logger } from "../../utils/logger.server";
+import { ORDER_WEBHOOK_ENABLED } from "../../utils/config.server";
 import type { WebhookContext, WebhookHandlerResult, ShopWithPixelConfigs } from "../types";
 
 function normalizeOrderId(id: unknown): string {
@@ -33,6 +34,9 @@ export async function handleOrdersCreate(
   const { shop, payload } = context;
   if (!shopRecord) {
     logger.info(`orders/create received for unknown shop ${shop}, acknowledging`);
+    return { success: true, status: 200, message: "OK" };
+  }
+  if (!ORDER_WEBHOOK_ENABLED) {
     return { success: true, status: 200, message: "OK" };
   }
   const parsed = parseOrderPayload(payload);

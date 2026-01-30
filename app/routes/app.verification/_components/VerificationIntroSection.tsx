@@ -92,7 +92,7 @@ export function VerificationIntroSection({
                     <Badge tone="success">所有套餐可用</Badge>
                   </InlineStack>
                   <Text as="p" variant="bodySm">
-                    <strong>验收范围：</strong>orders/create 与像素事件对账
+                    <strong>验收范围：</strong>checkout_completed 事件验证与像素收据验收
                   </Text>
                   <List type="bullet">
                     <List.Item>

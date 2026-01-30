@@ -174,7 +174,7 @@ pnpm install
 ```env
 SHOPIFY_API_KEY=your_api_key
 SHOPIFY_API_SECRET=your_api_secret
-SCOPES=read_script_tags,read_pixels,write_pixels,read_customer_events,read_orders
+SCOPES=read_script_tags,read_pixels,write_pixels,read_customer_events
 SHOPIFY_APP_URL=https://your-app-url.com
 DATABASE_URL=postgresql://user:password@localhost:5432/tracking_guardian
 ```
@@ -189,7 +189,7 @@ DATABASE_URL=postgresql://user:password@localhost:5432/tracking_guardian
 
 **标准配置（所有环境必须完全一致，包括顺序和拼写）**：
 ```
-SCOPES=read_script_tags,read_pixels,write_pixels,read_customer_events,read_orders
+SCOPES=read_script_tags,read_pixels,write_pixels,read_customer_events
 ```
 
 **⚠️ 关键要求**：
@@ -202,7 +202,8 @@ SCOPES=read_script_tags,read_pixels,write_pixels,read_customer_events,read_order
 - `read_pixels`：查询已安装的 Web Pixel 状态
 - `write_pixels`：创建/更新 App Pixel Extension
 - `read_customer_events`：读取 Web Pixel 产生的客户事件，用于验证事件完整性与诊断
-- `read_orders`：用于 `orders/create` webhook 订单对账
+
+当前版本不申请 `read_orders`，不订阅订单 webhook；验收基于 Web Pixel 的 `checkout_completed` 等标准事件。
 
 # P0-2: Web Pixel Origin null 兼容配置（生产环境必须显式设置）
 # ⚠️ 生产环境部署必配项：此变量在生产环境必须显式设置，否则应用启动会失败
@@ -400,9 +401,8 @@ railway up
 | `read_pixels` | 查询已安装的 Web Pixel 状态 | `migration.server.ts` | ✅ 是 |
 | `write_pixels` | 创建/更新 App Pixel Extension | `migration.server.ts` | ✅ 是 |
 | `read_customer_events` | 读取 Web Pixel 产生的客户事件，用于验证事件完整性与诊断 | `pixel-events` 相关服务层 | ✅ 是 |
-| `read_orders` | 用于 `orders/create` webhook 订单对账 | `webhooks/handlers/orders-create.handler.ts` | ✅ 是 |
 
-**权限说明**：所有权限均为当前版本的核心功能所必需，**必须全部包含在 SCOPES 环境变量中**。
+**权限说明**：所有权限均为当前版本的核心功能所必需，**必须全部包含在 SCOPES 环境变量中**。当前不申请 `read_orders`，不订阅订单 webhook。
 
 **配置一致性要求**：
 
@@ -413,7 +413,7 @@ railway up
 
 **标准配置**（所有环境必须完全一致）：
 ```
-SCOPES=read_script_tags,read_pixels,write_pixels,read_customer_events,read_orders
+SCOPES=read_script_tags,read_pixels,write_pixels,read_customer_events
 ```
 
 **⚠️ 关键要求**：
@@ -463,7 +463,7 @@ ScriptTag 清理需要商家手动操作：
 - ❌ 直接删除 ScriptTag（需商家手动操作）
 - ❌ 在 TYP/OSP 页面注入任何客户端脚本
 
-当前公开版本的追踪与对账均依赖 **Web Pixel Extension** 与 **订单/退款 Webhooks**，**不会代表商家向 Meta/GA4/TikTok 等平台发起服务端 CAPI/MP 请求**。当前版本核心价值为「迁移 + 像素链路验收 + 断档监控」，不提供默认的 CAPI/服务端全自动投递；若需 CAPI/MP，需在未来版本或单独能力中显式启用。
+当前公开版本的追踪与对账均依赖 **Web Pixel Extension**（不订阅订单 webhook），**不会代表商家向 Meta/GA4/TikTok 等平台发起服务端 CAPI/MP 请求**。当前版本核心价值为「迁移 + 像素链路验收 + 断档监控」，不提供默认的 CAPI/服务端全自动投递；若需 CAPI/MP，需在未来版本或单独能力中显式启用。
 
 ### P0-3: 最小权限说明
 
@@ -480,14 +480,8 @@ ScriptTag 清理需要商家手动操作：
 - `customers/redact` - 客户数据删除请求
 - `shop/redact` - 店铺数据完全删除
 
-### 订单与退款 Webhook（v1.0 功能）
-以下 webhooks 已启用，用于事件对账和验收验证：
-
-- `orders/create` - 订单创建时记录订单摘要（用于对账）
-- `orders/updated` - 订单更新时同步状态（用于对账）
-- `orders/cancelled` - 订单取消时同步状态（用于对账）
-- `orders/edited` - 订单编辑时同步状态（用于对账）
-- `refunds/create` - 退款创建时同步状态（用于对账）
+### 订单 Webhook（V2 能力，当前未启用）
+当前仅启用 `app/uninstalled` 与 GDPR 合规 webhook；**不**订阅 `orders/create`、`orders/paid`。订单层对账为 V2 能力，由 `ORDER_WEBHOOK_ENABLED` 及 PCD 审批控制；启用后才会处理订单 webhook 并落库订单摘要。
 
 ## 上架前 Checklist
 

@@ -1,4 +1,5 @@
 import { logger } from "../utils/logger.server";
+import { ORDER_WEBHOOK_ENABLED } from "../utils/config.server";
 import { WebhookStatus } from "../types";
 import {
   handleAppUninstalled,
@@ -70,6 +71,15 @@ export async function dispatchWebhook(
         `This may indicate a configuration mismatch or a legacy subscription. ` +
         `Responding 200 to prevent Shopify retries.`
     );
+    if (webhookId) {
+      await updateWebhookStatus(shop, webhookId, topic, WebhookStatus.PROCESSED);
+    }
+    return new Response("OK", { status: 200 });
+  }
+  if (
+    (normalizedTopic === "ORDERS_CREATE" || normalizedTopic === "ORDERS_PAID") &&
+    !ORDER_WEBHOOK_ENABLED
+  ) {
     if (webhookId) {
       await updateWebhookStatus(shop, webhookId, topic, WebhookStatus.PROCESSED);
     }
