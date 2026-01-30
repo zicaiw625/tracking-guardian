@@ -20,7 +20,7 @@ export default function SupportPage() {
       <BlockStack gap="500">
         <PageIntroCard
           title="支持与工单"
-          description="遇到迁移、像素、验收问题可通过工单与 FAQ 获取支持。"
+          description="遇到迁移、像素、验收问题可通过工单与 FAQ 获取支持。当前版本聚焦迁移与验收，服务端转化投递为可选/后续能力，默认关闭。"
           items={[
             "支持 PII/PCD 与隐私合规咨询",
             "迁移方案可预约专家协助",

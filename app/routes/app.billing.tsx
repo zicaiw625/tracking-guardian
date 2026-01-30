@@ -310,7 +310,7 @@ export default function BillingPage() {
           </Banner>)}
         <PageIntroCard
           title="订阅与账单概览"
-          description="查看当前套餐、使用量、账单历史，并管理续费与升级。"
+          description="查看当前套餐、使用量、账单历史，并管理续费与升级。当前套餐包含像素迁移、验收报告与断档告警；服务端 CAPI 投递为可选能力，默认关闭。"
           items={[
             "套餐权益与用量一目了然",
             "支持在 Shopify 账单中心查看发票",

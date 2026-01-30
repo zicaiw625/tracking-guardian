@@ -191,7 +191,7 @@ export default function PrivacyPage() {
             <div className="warning">
               <p><strong>重要：当前版本不提供服务端投递</strong></p>
               <p>
-                当前版本仅接收并校验 Web Pixel 事件，用于应用内诊断与验收，不向第三方平台发送服务端事件。
+                服务端向广告平台投递默认关闭，核心为客户端像素与验收对账。当前版本仅接收并校验 Web Pixel 事件，用于应用内诊断与验收，不向第三方平台发送服务端事件。
               </p>
             </div>
 

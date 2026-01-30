@@ -179,7 +179,7 @@ Tracking Guardian 是一个 Shopify 应用，作为**数据处理者**（Data Pr
 
 ### 默认行为
 
-**重要**: 当前公开上架版本（v1.0）中，服务端转化追踪（Server-side CAPI/MP）**默认关闭且 UI 入口隐藏**。该功能通过 `SERVER_SIDE_CONVERSIONS_ENABLED` 环境变量控制，默认值为 `false`。
+**重要**: 当前公开上架版本（v1.0）中，服务端转化追踪（Server-side CAPI/MP）**默认关闭且 UI 入口隐藏**。该功能通过 `SERVER_SIDE_CONVERSIONS_ENABLED` 环境变量控制，默认值为 `false`。v1.0 核心能力为迁移、验收与监控；CAPI/MP 为可选或后续能力，需显式开启并符合隐私政策。
 
 只有在设置页面中显式启用后，才会开始发送服务端事件。
 

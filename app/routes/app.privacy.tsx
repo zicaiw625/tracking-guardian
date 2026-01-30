@@ -295,7 +295,7 @@ export default function PrivacyPage() {
                         重要：当前版本不提供服务端投递
                       </Text>
                       <Text as="p" variant="bodySm">
-                        当前版本仅接收与校验 Web Pixel 事件，用于应用内诊断与验收。
+                        服务端向广告平台投递默认关闭，核心为客户端像素与验收对账。当前版本仅接收与校验 Web Pixel 事件，用于应用内诊断与验收。
                       </Text>
                     </BlockStack>
                   </Banner>

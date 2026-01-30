@@ -51,7 +51,7 @@ export default function PublicSupportPage() {
                     Contact & Support
                   </Text>
                   <Text as="p">
-                    Need help with checkout/Thank you migration or Web Pixel events? Reach out anytime:
+                    Need help with checkout/Thank you migration or Web Pixel events? The current version focuses on migration, verification, and gap monitoring; server-side conversion delivery is optional and off by default. Reach out anytime:
                   </Text>
                   <List type="bullet">
                     <List.Item>

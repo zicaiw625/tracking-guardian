@@ -28,12 +28,14 @@ export async function aggregateDailyMetrics(
     where: {
       shopId,
       createdAt: { gte: startOfDay, lte: endOfDay },
-      eventType: { in: ["purchase", "checkout_completed"] },
     },
-    select: { payloadJson: true, createdAt: true },
+    select: { payloadJson: true, createdAt: true, eventType: true },
     take: 10000,
   });
-  const matchedReceipts = receipts.filter((r) => isReceiptHmacMatched(r.payloadJson));
+  const purchaseReceipts = receipts.filter(
+    (r) => r.eventType === "purchase" || r.eventType === "checkout_completed"
+  );
+  const matchedReceipts = purchaseReceipts.filter((r) => isReceiptHmacMatched(r.payloadJson));
   const orders: Array<{ platform: string; status: string; value: number }> = [];
   for (const receipt of matchedReceipts) {
     const parsed = parseReceiptPayload(receipt.payloadJson);
@@ -69,7 +71,7 @@ export async function aggregateDailyMetrics(
     platformBreakdown[order.platform].count++;
     platformBreakdown[order.platform].value += order.value;
   }
-  const eventVolume = matchedReceipts.length;
+  const eventVolume = receipts.length;
   const ordersWithMissingParams = orders.filter((o) => o.status !== "ok").length;
   const missingParamsRate = totalOrders > 0 ? ordersWithMissingParams / totalOrders : 0;
   const now = new Date();
@@ -126,8 +128,9 @@ export async function getAggregatedMetrics(
     totalValue: number;
     successRate: number;
   }>;
+  eventVolumeByType: Record<string, number>;
+  totalEventVolume: number;
 }> {
-  
   const receipts = await prisma.pixelEventReceipt.findMany({
     where: {
       shopId,
@@ -135,18 +138,24 @@ export async function getAggregatedMetrics(
         gte: startDate,
         lte: endDate,
       },
-      eventType: {
-        in: ["purchase", "checkout_completed"],
-      },
     },
     select: {
       payloadJson: true,
       createdAt: true,
+      eventType: true,
     },
     take: 10000,
   });
+  const purchaseReceipts = receipts.filter(
+    (r) => r.eventType === "purchase" || r.eventType === "checkout_completed"
+  );
+  const eventVolumeByType: Record<string, number> = {};
+  for (const r of receipts) {
+    const t = r.eventType || "unknown";
+    eventVolumeByType[t] = (eventVolumeByType[t] ?? 0) + 1;
+  }
   const orders: Array<{ platform: string; status: string; value: number; createdAt: Date }> = [];
-  for (const receipt of receipts) {
+  for (const receipt of purchaseReceipts) {
     const parsed = parseReceiptPayload(receipt.payloadJson);
     if (!parsed) {
       const payload = isRecord(receipt.payloadJson) ? receipt.payloadJson : null;
@@ -209,6 +218,8 @@ export async function getAggregatedMetrics(
     successRate,
     platformBreakdown,
     dailyBreakdown,
+    eventVolumeByType,
+    totalEventVolume: receipts.length,
   };
 }
 

@@ -34,12 +34,24 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   });
   const sevenDaysAgo = new Date();
   sevenDaysAgo.setUTCDate(sevenDaysAgo.getUTCDate() - 7);
-  let aggregatedSummary: { totalOrders: number; totalValue: number; successRate: number } | null = null;
+  let aggregatedSummary: {
+    totalOrders: number;
+    totalValue: number;
+    successRate: number;
+    totalEventVolume: number;
+    eventVolumeByType: Record<string, number>;
+  } | null = null;
   let eventLossStats: Awaited<ReturnType<typeof getEventLossStats>> | null = null;
   let monitoringStats: Awaited<ReturnType<typeof getEventMonitoringStats>> | null = null;
   try {
     const agg = await getAggregatedMetrics(shop.id, sevenDaysAgo, new Date());
-    aggregatedSummary = { totalOrders: agg.totalOrders, totalValue: agg.totalValue, successRate: agg.successRate };
+    aggregatedSummary = {
+      totalOrders: agg.totalOrders,
+      totalValue: agg.totalValue,
+      successRate: agg.successRate,
+      totalEventVolume: agg.totalEventVolume,
+      eventVolumeByType: agg.eventVolumeByType,
+    };
   } catch {
     aggregatedSummary = null;
   }
@@ -114,6 +126,10 @@ export default function MonitoringPage() {
                       <Box>
                         <Text as="p" variant="bodySm" tone="subdued">成功率</Text>
                         <Text as="p" variant="headingLg">{(aggregatedSummary.successRate * 100).toFixed(1)}%</Text>
+                      </Box>
+                      <Box>
+                        <Text as="p" variant="bodySm" tone="subdued">总事件量（含全漏斗）</Text>
+                        <Text as="p" variant="headingLg">{aggregatedSummary.totalEventVolume}</Text>
                       </Box>
                     </InlineStack>
                   </BlockStack>

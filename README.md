@@ -463,7 +463,7 @@ ScriptTag 清理需要商家手动操作：
 - ❌ 直接删除 ScriptTag（需商家手动操作）
 - ❌ 在 TYP/OSP 页面注入任何客户端脚本
 
-当前公开版本的追踪与对账均依赖 **Web Pixel Extension** 与 **订单/退款 Webhooks**，**不会代表商家向 Meta/GA4/TikTok 等平台发起服务端 CAPI/MP 请求**。
+当前公开版本的追踪与对账均依赖 **Web Pixel Extension** 与 **订单/退款 Webhooks**，**不会代表商家向 Meta/GA4/TikTok 等平台发起服务端 CAPI/MP 请求**。当前版本核心价值为「迁移 + 像素链路验收 + 断档监控」，不提供默认的 CAPI/服务端全自动投递；若需 CAPI/MP，需在未来版本或单独能力中显式启用。
 
 ### P0-3: 最小权限说明
 
@@ -502,7 +502,7 @@ ScriptTag 清理需要商家手动操作：
 提交审核时可将以下步骤放入 Review notes / Test instructions，便于审核人员快速验收：
 
 1. 安装应用后进入 **Audit**：点 Scan，生成风险报告
-2. 进入 **Pixels**：创建一个 Pixel 配置（Test 模式），并说明 server-side 默认关闭
+2. 进入 **Pixels**：创建一个 Pixel 配置（Test 模式）；核心价值为迁移与验收，非 CAPI 替代，server-side 默认关闭
 3. 在店铺下一个测试单
 4. 进入 **Verification**：跑一次 quick run，看到事件收据与参数完整率
 5. （Growth+）下载 CSV 报告（如果 reviewer 用的是免费计划，就说明该入口会提示升级）

@@ -1,6 +1,6 @@
 import type { ActionFunctionArgs, LoaderFunctionArgs } from "@remix-run/node";
 import { json } from "@remix-run/node";
-import { useLoaderData } from "@remix-run/react";
+import { useLoaderData, Form } from "@remix-run/react";
 import {
   Page,
   Card,
@@ -15,6 +15,7 @@ import {
   Divider,
   List,
 } from "@shopify/polaris";
+import { getShopifyAdminUrl } from "../utils/helpers";
 import { CheckCircleIcon, ArrowRightIcon, LockIcon } from "~/components/icons";
 import { PageIntroCard } from "~/components/layout/PageIntroCard";
 import { CheckoutCompletedBehaviorHint } from "~/components/verification/CheckoutCompletedBehaviorHint";
@@ -79,9 +80,11 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   });
   const settings = (uiModules?.settings as Record<string, unknown>) || {};
   const uiModulesConfig = (settings.uiModules as Record<string, unknown>) || {};
-  const hasEnabledModules = Object.values(uiModulesConfig).some(
-    (module: unknown) => module && typeof module === "object" && "isEnabled" in module && (module as { isEnabled: boolean }).isEnabled
-  );
+  const hasEnabledModules =
+    (settings.uiModules as Record<string, unknown> | undefined)?.done === true ||
+    Object.values(uiModulesConfig).some(
+      (module: unknown) => module && typeof module === "object" && "isEnabled" in module && (module as { isEnabled: boolean }).isEnabled
+    );
 
   const latestVerification = await prisma.verificationRun.findFirst({
     where: { shopId: shop.id },
@@ -167,6 +170,22 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     const result = await clearWizardDraft(shop.id);
     return json({ success: result.success });
   }
+  if (actionType === "markModulesStepDone") {
+    const shopRow = await prisma.shop.findUnique({
+      where: { id: shop.id },
+      select: { settings: true },
+    });
+    const settings = (shopRow?.settings as Record<string, unknown>) || {};
+    const updated = {
+      ...settings,
+      uiModules: { thankYou: { isEnabled: true }, orderStatus: { isEnabled: true } },
+    };
+    await prisma.shop.update({
+      where: { id: shop.id },
+      data: { settings: updated as object },
+    });
+    return json({ success: true });
+  }
   return json({ success: false, error: "Unknown action" }, { status: 400 });
 };
 
@@ -197,8 +216,15 @@ export default function MigratePage() {
       requiresPlan: "starter" as PlanId,
     },
     {
+      id: "modules" as MigrationStep,
+      title: "3. 添加结账与订单状态区块",
+      description: "在 Shopify 结账与客户账户编辑器中添加本应用的 Thank you 页和 Order status 页区块",
+      requiresPlan: "starter" as PlanId,
+      isModulesStep: true,
+    },
+    {
       id: "verification" as MigrationStep,
-      title: "3. 验收与监控",
+      title: "4. 验收与监控",
       description: "运行验收测试，生成报告，设置断档告警",
       url: "/app/verification",
       icon: CheckCircleIcon,
@@ -227,6 +253,7 @@ export default function MigratePage() {
           items={[
             "扫描现有追踪脚本并评估风险",
             "配置 Web Pixel 和事件映射",
+            "在结账与订单状态页添加本应用区块",
             "验收测试并生成报告",
           ]}
           primaryAction={{ content: "开始迁移", url: "/app/scan" }}
@@ -318,6 +345,7 @@ export default function MigratePage() {
             const canAccess = stepConfig.requiresPlan
               ? isPlanAtLeast(planId, stepConfig.requiresPlan) && stepStatus.canAccess
               : stepStatus.canAccess;
+            const isModulesStep = "isModulesStep" in stepConfig && stepConfig.isModulesStep === true;
 
             return (
               <Layout.Section key={stepConfig.id} variant="oneHalf">
@@ -349,25 +377,68 @@ export default function MigratePage() {
                       </BlockStack>
                     </InlineStack>
                     <Divider />
-                    <InlineStack align="end">
-                      {canAccess ? (
-                        <Button
-                          url={stepConfig.url}
-                          variant={stepStatus.completed ? "secondary" : "primary"}
-                          icon={stepStatus.completed ? undefined : ArrowRightIcon}
-                        >
-                          {stepStatus.completed ? "查看详情" : "开始"}
-                        </Button>
-                      ) : (
-                        <Button
-                          url="/app/billing"
-                          variant="secondary"
-                          icon={LockIcon}
-                        >
-                          升级解锁
-                        </Button>
-                      )}
-                    </InlineStack>
+                    {isModulesStep && canAccess && !stepStatus.completed && (
+                      <>
+                        <List type="number">
+                          <List.Item>打开结账或客户账户编辑器</List.Item>
+                          <List.Item>在 Thank you 页添加本应用提供的区块</List.Item>
+                          <List.Item>在 Order status 页添加本应用提供的区块</List.Item>
+                          <List.Item>保存并发布</List.Item>
+                        </List>
+                        <InlineStack gap="200">
+                          <Button
+                            url={shop ? getShopifyAdminUrl(shop.domain, "/settings/checkout") : "#"}
+                            external
+                          >
+                            结账设置
+                          </Button>
+                          <Button
+                            url={shop ? getShopifyAdminUrl(shop.domain, "/themes/current/editor") : "#"}
+                            external
+                          >
+                            主题编辑器
+                          </Button>
+                        </InlineStack>
+                        <img
+                          src="/images/checkout-editor-step-1.svg"
+                          alt="结账编辑器示意"
+                          style={{ maxWidth: "100%", height: "auto" }}
+                        />
+                        <Form method="post">
+                          <input type="hidden" name="_action" value="markModulesStepDone" />
+                          <Button submit variant="primary">
+                            我已添加区块
+                          </Button>
+                        </Form>
+                      </>
+                    )}
+                    {(!isModulesStep || stepStatus.completed || !canAccess) && (
+                      <InlineStack align="end">
+                        {canAccess ? (
+                          isModulesStep && stepStatus.completed ? (
+                            <Button url="/app/verification" variant="secondary">
+                              下一步：验收与监控
+                            </Button>
+                          ) : !isModulesStep ? (
+                            <Button
+                              url={stepConfig.url}
+                              variant={stepStatus.completed ? "secondary" : "primary"}
+                              icon={stepStatus.completed ? undefined : ArrowRightIcon}
+                            >
+                              {stepStatus.completed ? "查看详情" : "开始"}
+                            </Button>
+                          ) : null
+                        ) : (
+                          <Button
+                            url="/app/billing"
+                            variant="secondary"
+                            icon={LockIcon}
+                          >
+                            升级解锁
+                          </Button>
+                        )}
+                      </InlineStack>
+                    )}
                   </BlockStack>
                 </Card>
               </Layout.Section>
@@ -416,6 +487,16 @@ export default function MigratePage() {
                   <Text as="p" variant="bodySm" tone="subdued">
                     创建 Web Pixel Extension，配置事件映射（Shopify 标准事件 → 平台事件），
                     设置平台凭证（GA4/Meta/TikTok）。需要 Starter ($29/月) 及以上套餐。
+                  </Text>
+                </BlockStack>
+              </List.Item>
+              <List.Item>
+                <BlockStack gap="200">
+                  <Text as="span" fontWeight="semibold">
+                    添加结账与订单状态区块
+                  </Text>
+                  <Text as="p" variant="bodySm" tone="subdued">
+                    在 Shopify 结账设置或主题编辑器中打开结账/客户账户自定义，在 Thank you 页和 Order status 页添加本应用提供的区块，保存并发布。详见上方步骤卡片中的操作清单与图示。
                   </Text>
                 </BlockStack>
               </List.Item>

@@ -73,7 +73,7 @@ export default function Index() {
   return (
     <Page
       title="升级迁移交付平台"
-      subtitle={`Shopify 官方 deadline：Plus 商家 ${formatDeadlineDate(DEPRECATION_DATES.plusScriptTagExecutionOff, "exact")} 开始限制，${formatDeadlineDate(DEPRECATION_DATES.plusAutoUpgradeStart, "month")} 起自动升级 • 非 Plus 商家 ${formatDeadlineDate(DEPRECATION_DATES.nonPlusScriptTagExecutionOff, "exact")} 截止 • 升级不丢功能/不丢数据 • 可交付的验收报告 • 上线后有断档告警`}
+      subtitle={`Shopify 官方 deadline：Plus 商家 ${formatDeadlineDate(DEPRECATION_DATES.plusScriptTagExecutionOff, "exact")} 开始限制，${formatDeadlineDate(DEPRECATION_DATES.plusAutoUpgradeStart, "month")} 起自动升级 • 非 Plus 商家 ${formatDeadlineDate(DEPRECATION_DATES.nonPlusScriptTagExecutionOff, "exact")} 截止 • 核心：迁移、验收、断档监控 • 可交付的验收报告 • 上线后有断档告警`}
       primaryAction={
         !progress.allComplete && nextStep
           ? { content: nextStep.cta, url: nextStep.url }

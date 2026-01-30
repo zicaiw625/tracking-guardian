@@ -396,7 +396,7 @@ export async function distributeEvents(
     }
     
     const isPurchaseEvent = event.payload.eventName === "checkout_completed";
-    
+
     if (isPurchaseEvent && event.orderId) {
       if (activeVerificationRunId === undefined) {
         const run = await prisma.verificationRun.findFirst({
@@ -406,7 +406,7 @@ export async function distributeEvents(
         });
         activeVerificationRunId = run?.id ?? null;
       }
-      
+
       logConsentFilterMetrics(
         shopDomain,
         event.orderId,
@@ -414,7 +414,7 @@ export async function distributeEvents(
         skippedPlatforms,
         consentResult
       );
-      
+
       try {
         const primaryPlatform = platformsToRecord.length > 0 ? platformsToRecord[0].platform : null;
         const eventType = "purchase";
@@ -441,8 +441,33 @@ export async function distributeEvents(
           error: error instanceof Error ? error.message : String(error),
         });
       }
+    } else if (!isPurchaseEvent && event.eventId) {
+      try {
+        const primaryPlatform = platformsToRecord.length > 0 ? platformsToRecord[0].platform : null;
+        const eventType = event.payload.eventName;
+        await upsertPixelEventReceipt(
+          shopId,
+          event.eventId,
+          event.payload,
+          origin,
+          eventType,
+          null,
+          primaryPlatform || null,
+          null,
+          null,
+          true,
+          keyValidation.trustLevel,
+          keyValidation.matched
+        );
+      } catch (error) {
+        logger.warn(`Failed to write receipt for non-purchase event`, {
+          shopId,
+          eventName: event.payload.eventName,
+          error: error instanceof Error ? error.message : String(error),
+        });
+      }
     }
-    
+
     const payloadWithTrust = {
       ...event.payload,
       data: {
