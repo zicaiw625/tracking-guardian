@@ -6,6 +6,13 @@ const QUEUE_KEY = "ingest:queue";
 const MAX_QUEUE_SIZE = 100_000;
 const MAX_BATCHES_PER_RUN = 50;
 
+export interface IngestRequestContext {
+  ip?: string | null;
+  user_agent?: string | null;
+  page_url?: string | null;
+  referrer?: string | null;
+}
+
 export interface IngestQueueEntry {
   requestId: string;
   shopId: string;
@@ -15,6 +22,7 @@ export interface IngestQueueEntry {
   validatedEvents: Array<{ payload: PixelEventPayload; index: number }>;
   keyValidation: KeyValidationResult;
   origin: string | null;
+  requestContext?: IngestRequestContext;
   enabledPixelConfigs?: Array<{
     platform: string;
     id: string;
@@ -145,6 +153,20 @@ export async function processIngestQueue(
           persisted: ok,
         });
         errors++;
+      }
+      try {
+        const { persistInternalEventsAndDispatchJobs } = await import("~/services/dispatch/internal-event-write.server");
+        await persistInternalEventsAndDispatchJobs(
+          entry.shopId,
+          processedEvents,
+          entry.requestContext
+        );
+      } catch (e) {
+        logger.error("Failed to persist InternalEvent and dispatch jobs", {
+          shopId: entry.shopId,
+          shopDomain: entry.shopDomain,
+          error: e instanceof Error ? e.message : String(e),
+        });
       }
       processed++;
     } catch (e) {

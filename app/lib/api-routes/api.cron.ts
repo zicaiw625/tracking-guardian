@@ -37,6 +37,13 @@ async function runCronTasks(task: string, requestId: string): Promise<Record<str
     results.ingest_worker = ingestResult;
   }
 
+  if (task === "all" || task === "dispatch_worker") {
+    logger.info("[Cron] Running dispatch worker", { requestId });
+    const { runDispatchWorker } = await import("../../services/dispatch/run-worker.server");
+    const dispatchResult = await runDispatchWorker();
+    results.dispatch_worker = dispatchResult;
+  }
+
   if (task === "all" || task === "aggregate_daily") {
     logger.info("[Cron] Running aggregate_daily", { requestId });
     const yesterday = new Date();

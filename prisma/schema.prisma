@@ -74,6 +74,7 @@ model Shop {
   AlertEvent              AlertEvent[]
   DailyAggregatedMetrics   DailyAggregatedMetrics[]
   OrderSummary             OrderSummary[]
+  InternalEvent            InternalEvent[]
 }
 
 model OrderSummary {
@@ -378,5 +379,52 @@ model AuditLog {
   @@index([resourceType])
   @@index([createdAt])
   @@index([shopId, createdAt])
+}
+
+model InternalEvent {
+  id               String    @id
+  shopId            String
+  source           String
+  event_name       String
+  event_id         String
+  client_id        String?
+  timestamp        BigInt
+  occurred_at      DateTime
+  ip               String?
+  user_agent       String?
+  page_url         String?
+  referrer         String?
+  querystring      String?
+  currency         String?
+  value            Decimal   @db.Decimal(12, 2)
+  transaction_id   String?
+  items            Json?
+  user_data_hashed Json?
+  consent_purposes Json?
+  createdAt        DateTime  @default(now())
+  Shop             Shop      @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  EventDispatchJob EventDispatchJob[]
+
+  @@unique([shopId, event_id, event_name])
+  @@index([shopId])
+  @@index([shopId, occurred_at])
+  @@index([shopId, source])
+}
+
+model EventDispatchJob {
+  id                String        @id
+  internal_event_id String
+  destination       String
+  status            String
+  attempts          Int           @default(0)
+  next_retry_at     DateTime
+  last_error        String?
+  last_response_code Int?
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+  InternalEvent     InternalEvent @relation(fields: [internal_event_id], references: [id], onDelete: Cascade)
+
+  @@unique([internal_event_id, destination])
+  @@index([status, next_retry_at])
 }
 

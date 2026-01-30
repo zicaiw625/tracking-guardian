@@ -38,7 +38,21 @@ vi.mock("../../app/db.server", () => ({
     verificationRun: { count: vi.fn().mockResolvedValue(0) },
     scanReport: { count: vi.fn().mockResolvedValue(0) },
     auditAsset: { count: vi.fn().mockResolvedValue(0) },
-    pixelConfig: { count: vi.fn().mockResolvedValue(0) },
+    pixelConfig: {
+      count: vi.fn().mockResolvedValue(0),
+      findMany: vi.fn().mockResolvedValue([]),
+      findFirst: vi.fn().mockResolvedValue(null),
+    },
+    internalEvent: {
+      findUnique: vi.fn().mockResolvedValue(null),
+      create: vi.fn().mockResolvedValue({ id: "internal-event-id" }),
+    },
+    eventDispatchJob: {
+      create: vi.fn().mockResolvedValue({ id: "dispatch-job-id" }),
+    },
+    orderSummary: {
+      upsert: vi.fn().mockResolvedValue({ id: "order-summary-id" }),
+    },
     $transaction: vi.fn().mockImplementation(async (fn: (tx: unknown) => Promise<unknown>) => {
       const tx = {
         webhookLog: { deleteMany: vi.fn().mockResolvedValue({ count: 0 }) },
@@ -53,6 +67,9 @@ vi.mock("../../app/db.server", () => ({
         scanReport: { count: vi.fn().mockResolvedValue(0) },
         auditAsset: { count: vi.fn().mockResolvedValue(0) },
         pixelConfig: { count: vi.fn().mockResolvedValue(0) },
+        internalEvent: { create: vi.fn().mockResolvedValue({ id: "internal-event-id" }) },
+        eventDispatchJob: { create: vi.fn().mockResolvedValue({ id: "dispatch-job-id" }) },
+        orderSummary: { upsert: vi.fn().mockResolvedValue({ id: "order-summary-id" }) },
       };
       return fn(tx);
     }),

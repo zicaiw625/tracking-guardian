@@ -7,6 +7,7 @@ import {
   handleShopRedact,
   handleAppSubscriptionsUpdate,
   handleOrdersCreate,
+  handleOrdersPaid,
 } from "./handlers";
 import { tryAcquireWebhookLock, updateWebhookStatus } from "./middleware";
 import type { WebhookContext, WebhookHandlerResult, ShopWithPixelConfigs } from "./types";
@@ -31,6 +32,7 @@ const WEBHOOK_HANDLERS: Record<
   SHOP_REDACT: (ctx) => handleShopRedact(ctx),
   APP_SUBSCRIPTIONS_UPDATE: (ctx) => handleAppSubscriptionsUpdate(ctx),
   ORDERS_CREATE: (ctx, shop) => handleOrdersCreate(ctx, shop),
+  ORDERS_PAID: (ctx, shop) => handleOrdersPaid(ctx, shop),
 };
 
 const GDPR_TOPICS = new Set([

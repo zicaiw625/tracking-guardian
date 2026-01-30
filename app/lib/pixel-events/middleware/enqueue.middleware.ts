@@ -16,6 +16,13 @@ export const enqueueMiddleware: IngestMiddleware = async (
   }
 
 
+  const firstPayload = context.validatedEvents[0]?.payload;
+  const requestContext = {
+    ip: context.request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? context.request.headers.get("x-real-ip") ?? null,
+    user_agent: context.request.headers.get("user-agent") ?? null,
+    page_url: typeof firstPayload?.data?.url === "string" ? firstPayload.data.url : null,
+    referrer: null as string | null,
+  };
   const entry = {
     requestId: context.requestId,
     shopId: context.shop.id,
@@ -25,6 +32,7 @@ export const enqueueMiddleware: IngestMiddleware = async (
     validatedEvents: context.validatedEvents,
     keyValidation: context.keyValidation,
     origin: context.origin,
+    requestContext,
     enabledPixelConfigs: context.enabledPixelConfigs.map((c) => ({
       platform: (c as { platform?: string }).platform ?? "",
       id: (c as { id?: string }).id ?? "",
