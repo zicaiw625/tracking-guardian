@@ -255,6 +255,7 @@ export function useScriptAnalysis(
         scriptContent,
         setScriptContent,
         analysisResult,
+        setAnalysisResult,
         analysisError,
         isAnalyzing,
         analysisProgress,

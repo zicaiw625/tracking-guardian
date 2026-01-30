@@ -85,11 +85,30 @@ async function sendEmail(to: string, subject: string, text: string): Promise<voi
   }
 }
 
+const ALERT_CHANNELS_ENABLED = ["true", "1", "yes"].includes(
+  (process.env.ALERT_CHANNELS_ENABLED ?? "").toLowerCase().trim()
+);
+
+function isValidUrl(s: string): boolean {
+  try {
+    new URL(s);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+function isValidEmail(s: string): boolean {
+  return EMAIL_REGEX.test(s.trim());
+}
+
 export async function sendAlertToChannels(
   shopId: string,
   alert: AlertPayload,
   configs: AlertConfigItem[]
 ): Promise<void> {
+  if (!ALERT_CHANNELS_ENABLED) return;
   const enabled = configs.filter((c) => c.enabled !== false);
   if (enabled.length === 0) return;
   let shopDomain: string | null = null;
@@ -108,20 +127,26 @@ export async function sendAlertToChannels(
     try {
       if (config.channel === "slack") {
         const webhookUrl = config.webhookUrl ?? (config.settings?.webhookUrl as string | undefined);
-        if (webhookUrl && typeof webhookUrl === "string") {
-          await sendSlack(webhookUrl, text);
+        if (!webhookUrl || typeof webhookUrl !== "string" || !webhookUrl.trim() || !isValidUrl(webhookUrl)) {
+          logger.warn("[AlertDelivery] Slack config invalid: missing or invalid webhookUrl", { shopId });
+          continue;
         }
+        await sendSlack(webhookUrl.trim(), text);
       } else if (config.channel === "telegram") {
         const botToken = config.botToken ?? (config.settings?.botToken as string | undefined);
         const chatId = config.chatId ?? (config.settings?.chatId as string | undefined);
-        if (botToken && chatId && typeof botToken === "string" && typeof chatId === "string") {
-          await sendTelegram(botToken, chatId, text);
+        if (!botToken || !chatId || typeof botToken !== "string" || typeof chatId !== "string" || !botToken.trim() || !chatId.trim()) {
+          logger.warn("[AlertDelivery] Telegram config invalid: missing botToken or chatId", { shopId });
+          continue;
         }
+        await sendTelegram(botToken.trim(), chatId.trim(), text);
       } else if (config.channel === "email") {
         const email = config.email ?? (config.settings?.email as string | undefined);
-        if (email && typeof email === "string") {
-          await sendEmail(email, subject, text);
+        if (!email || typeof email !== "string" || !email.trim() || !isValidEmail(email)) {
+          logger.warn("[AlertDelivery] Email config invalid: missing or invalid email", { shopId });
+          continue;
         }
+        await sendEmail(email.trim(), subject, text);
       }
     } catch (error) {
       logger.error("[AlertDelivery] Channel send failed", {

@@ -8,6 +8,7 @@ import {
   TextField,
   Box,
   Divider,
+  Banner,
 } from "@shopify/polaris";
 import { useSubmit } from "@remix-run/react";
 import { useState, useCallback, useEffect } from "react";
@@ -16,9 +17,10 @@ import type { AlertConfigDisplay } from "../types";
 interface AlertsTabProps {
   alertConfigs: AlertConfigDisplay[];
   isSubmitting: boolean;
+  alertChannelsEnabled?: boolean;
 }
 
-export function AlertsTab({ alertConfigs, isSubmitting }: AlertsTabProps) {
+export function AlertsTab({ alertConfigs, isSubmitting, alertChannelsEnabled = false }: AlertsTabProps) {
   const submit = useSubmit();
   const [configs, setConfigs] = useState<AlertConfigDisplay[]>(alertConfigs);
   useEffect(() => {
@@ -80,6 +82,13 @@ export function AlertsTab({ alertConfigs, isSubmitting }: AlertsTabProps) {
 
   return (
     <BlockStack gap="400">
+      {!alertChannelsEnabled && (
+        <Banner tone="warning" title="外发通知已关闭">
+          <Text as="p" variant="bodySm">
+            当前版本外发通知（Slack/Telegram/Email）已关闭，仅应用内告警记录生效。如需开启请联系支持或等待后续版本。
+          </Text>
+        </Banner>
+      )}
       <Card>
         <BlockStack gap="400">
           <Text as="h2" variant="headingMd">告警配置</Text>

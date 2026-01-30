@@ -83,7 +83,33 @@ export function VerificationIntroSection({
               </Box>
             </Layout.Section>
             <Layout.Section variant="oneHalf">
-              <Box background="bg-surface-secondary" padding="400" borderRadius="200" />
+              <Box background="bg-surface-secondary" padding="400" borderRadius="200">
+                <BlockStack gap="300">
+                  <InlineStack align="space-between" blockAlign="center">
+                    <Text as="h3" variant="headingSm">
+                      订单层验收
+                    </Text>
+                    <Badge tone="success">所有套餐可用</Badge>
+                  </InlineStack>
+                  <Text as="p" variant="bodySm">
+                    <strong>验收范围：</strong>orders/create 与像素事件对账
+                  </Text>
+                  <List type="bullet">
+                    <List.Item>
+                      <Text as="span" variant="bodySm">有订单无像素（丢单）</Text>
+                    </List.Item>
+                    <List.Item>
+                      <Text as="span" variant="bodySm">金额/币种一致性</Text>
+                    </List.Item>
+                    <List.Item>
+                      <Text as="span" variant="bodySm">差异率与合理缺失说明</Text>
+                    </List.Item>
+                  </List>
+                  <Button url="/app/verification/orders" variant="primary" size="slim">
+                    前往订单层验收
+                  </Button>
+                </BlockStack>
+              </Box>
             </Layout.Section>
           </Layout>
         </BlockStack>

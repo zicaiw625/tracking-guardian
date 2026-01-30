@@ -18,7 +18,7 @@ export const loader = settingsLoader;
 export const action = settingsAction;
 
 export default function SettingsPage() {
-  const { shop, hmacSecurityStats, pixelStrictOrigin } =
+  const { shop, hmacSecurityStats, pixelStrictOrigin, alertChannelsEnabled } =
     useLoaderData<typeof settingsLoader>();
   const actionData = useActionData<SettingsActionResponse>();
   const submit = useSubmit();
@@ -129,6 +129,7 @@ export default function SettingsPage() {
             <AlertsTab
               alertConfigs={shop?.alertConfigs ?? []}
               isSubmitting={isSubmitting}
+              alertChannelsEnabled={alertChannelsEnabled ?? false}
             />
           )}
         </Tabs>

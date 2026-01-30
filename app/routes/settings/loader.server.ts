@@ -178,6 +178,9 @@ export async function settingsLoader({ request }: LoaderFunctionArgs) {
     const pixelStrictOrigin = ["true", "1", "yes"].includes(
       (process.env.PIXEL_STRICT_ORIGIN ?? "").toLowerCase().trim()
     );
+    const alertChannelsEnabled = ["true", "1", "yes"].includes(
+      (process.env.ALERT_CHANNELS_ENABLED ?? "").toLowerCase().trim()
+    );
     const rawSettings = (shop && "settings" in shop && shop.settings && typeof shop.settings === "object") ? shop.settings as Record<string, unknown> : null;
     const rawAlertConfigs = rawSettings?.alertConfigs && Array.isArray(rawSettings.alertConfigs) ? rawSettings.alertConfigs : [];
     const alertConfigs: AlertConfigDisplay[] = rawAlertConfigs.map((c: unknown, i: number) => {
@@ -214,6 +217,7 @@ export async function settingsLoader({ request }: LoaderFunctionArgs) {
       pcdApproved: false,
       pcdStatusMessage: "我们不收集终端客户 PII，当前公开上架版本不会从 Shopify 读取订单明细或访问 PCD。未来如引入基于订单的验收/对账或再购等功能，将在获得 PCD 审批后单独启用并更新隐私文档。",
       pixelStrictOrigin,
+      alertChannelsEnabled,
       currentMonitoringData,
       hmacSecurityStats: null,
     };

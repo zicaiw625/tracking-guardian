@@ -38,6 +38,10 @@ interface ScanManualSupplementTabProps {
     onProcessManualPaste: () => void;
     saveAnalysisFetcherData: unknown;
     processPasteFetcherData: unknown;
+    replacementChecklistItems: Array<{ id: string; contentSummary: string; result: ScriptAnalysisResult }>;
+    onAddToReplacementChecklist: () => void;
+    onRemoveFromReplacementChecklist: (id: string) => void;
+    onExportReplacementChecklistCSV: () => void;
 }
 
 export function ScanManualSupplementTab({
@@ -63,6 +67,10 @@ export function ScanManualSupplementTab({
     onProcessManualPaste,
     saveAnalysisFetcherData,
     processPasteFetcherData,
+    replacementChecklistItems,
+    onAddToReplacementChecklist,
+    onRemoveFromReplacementChecklist,
+    onExportReplacementChecklistCSV,
 }: ScanManualSupplementTabProps) {
     return (
         <BlockStack gap="500">
@@ -191,9 +199,81 @@ export function ScanManualSupplementTab({
                                 </div>
                             </Banner>
                         )}
+                        {analysisResult && (
+                            <InlineStack gap="200">
+                                <Button onClick={onAddToReplacementChecklist} variant="secondary" size="slim">
+                                    加入清单并添加下一条
+                                </Button>
+                            </InlineStack>
+                        )}
                     </BlockStack>
                 </Card>
             </Box>
+            {replacementChecklistItems.length > 0 && (
+                <Card>
+                    <BlockStack gap="400">
+                        <InlineStack align="space-between" blockAlign="center">
+                            <Text as="h2" variant="headingMd">
+                                替代方案清单
+                            </Text>
+                            <Button onClick={onExportReplacementChecklistCSV} variant="primary" size="slim">
+                                导出替代方案清单 CSV
+                            </Button>
+                        </InlineStack>
+                        <BlockStack gap="200">
+                            {replacementChecklistItems.map((item, index) => {
+                                const hasTracking = ["google", "meta", "tiktok", "facebook", "ga4", "pixel"].some((t) =>
+                                    item.result.identifiedPlatforms.some((p) => p.toLowerCase().includes(t))
+                                );
+                                const hasDomRisk = item.result.risks.some(
+                                    (r) => /window|document|dom/i.test(r.id) || /window|document|dom/i.test(r.name || "")
+                                );
+                                const replacement = hasTracking ? "Web Pixel 迁移" : hasDomRisk ? "Checkout UI Extension 或需人工复核" : "需人工复核（review & replace）";
+                                const platforms = item.result.identifiedPlatforms.join(", ") || "-";
+                                const topRisk = item.result.risks[0]?.name || "-";
+                                return (
+                                    <Box key={item.id} padding="300" background="bg-surface-secondary" borderRadius="200">
+                                        <InlineStack align="space-between" blockAlign="center" gap="400">
+                                            <BlockStack gap="100">
+                                                <InlineStack gap="200" blockAlign="center">
+                                                    <Text as="span" variant="bodyMd" fontWeight="semibold">
+                                                        #{index + 1}
+                                                    </Text>
+                                                    <Text as="span" variant="bodySm" tone="subdued">
+                                                        {item.contentSummary}
+                                                    </Text>
+                                                </InlineStack>
+                                                <InlineStack gap="400" wrap>
+                                                    <Text as="span" variant="bodySm">
+                                                        平台: {platforms}
+                                                    </Text>
+                                                    <Text as="span" variant="bodySm">
+                                                        建议: {replacement}
+                                                    </Text>
+                                                    <Text as="span" variant="bodySm">
+                                                        风险分: {item.result.riskScore}
+                                                    </Text>
+                                                    <Text as="span" variant="bodySm">
+                                                        主要风险: {topRisk}
+                                                    </Text>
+                                                </InlineStack>
+                                            </BlockStack>
+                                            <Button
+                                                variant="plain"
+                                                tone="critical"
+                                                size="slim"
+                                                onClick={() => onRemoveFromReplacementChecklist(item.id)}
+                                            >
+                                                移除
+                                            </Button>
+                                        </InlineStack>
+                                    </Box>
+                                );
+                            })}
+                        </BlockStack>
+                    </BlockStack>
+                </Card>
+            )}
             {analysisResult && <AnalysisResultSummary analysisResult={analysisResult} />}
             {analysisResult && analysisResult.risks.length > 0 && (
                 <Card>

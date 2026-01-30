@@ -28,6 +28,7 @@ import { generateChecklistText } from "../utils/scan-format";
 import { useScriptAnalysis } from "./app.scan/_components/useScriptAnalysis";
 import { TIMEOUTS } from "../utils/scan-constants";
 import { isFetcherResult } from "../utils/scan-validation";
+import type { ScriptAnalysisResult } from "../services/scanner.server";
 
 
 
@@ -61,7 +62,8 @@ export function ScanPage({
     const [selectedTab, setSelectedTab] = useState(effectiveInitialTab);
     const [analysisSaved, setAnalysisSaved] = useState(false);
     const scriptAnalysis = useScriptAnalysis(scriptAnalysisMaxContentLength, scriptAnalysisChunkSize);
-    const { scriptContent, setScriptContent, analysisResult, analysisError, isAnalyzing, analysisProgress, handleAnalyzeScript } = scriptAnalysis;
+    const { scriptContent, setScriptContent, analysisResult, setAnalysisResult, analysisError, isAnalyzing, analysisProgress, handleAnalyzeScript } = scriptAnalysis;
+    const [replacementChecklistItems, setReplacementChecklistItems] = useState<Array<{ id: string; contentSummary: string; result: ScriptAnalysisResult }>>([]);
     const [guidanceModalOpen, setGuidanceModalOpen] = useState(false);
     const [guidanceContent, setGuidanceContent] = useState<{ title: string; platform?: string; scriptTagId?: number } | null>(null);
     const [manualInputWizardOpen, setManualInputWizardOpen] = useState(false);
@@ -221,6 +223,56 @@ export function ScanPage({
         }
         handleSaveAnalysis();
     }, [analysisResult, saveAnalysisFetcher.state, handleSaveAnalysis]);
+    const addToReplacementChecklist = useCallback(() => {
+        if (!analysisResult) return;
+        const summary = scriptContent.slice(0, 80).replace(/\s+/g, " ").trim() || "(无摘要)";
+        setReplacementChecklistItems((prev) => [
+            ...prev,
+            { id: crypto.randomUUID(), contentSummary: summary, result: analysisResult },
+        ]);
+        setScriptContent("");
+        setAnalysisResult(null);
+    }, [analysisResult, scriptContent, setScriptContent, setAnalysisResult]);
+    const removeFromReplacementChecklist = useCallback((id: string) => {
+        setReplacementChecklistItems((prev) => prev.filter((x) => x.id !== id));
+    }, []);
+    const exportReplacementChecklistCSV = useCallback(() => {
+        const TRACKING_PLATFORMS = ["google", "meta", "tiktok", "facebook", "ga4", "pixel"];
+        const getReplacementSuggestion = (r: ScriptAnalysisResult): string => {
+            const hasTracking = r.identifiedPlatforms.some((p) =>
+                TRACKING_PLATFORMS.some((t) => p.toLowerCase().includes(t))
+            );
+            const hasDomRisk = r.risks.some(
+                (risk) =>
+                    /window|document|dom/i.test(risk.id) || /window|document|dom/i.test(risk.name || "")
+            );
+            if (hasTracking) return "Web Pixel 迁移";
+            if (hasDomRisk) return "Checkout UI Extension 或需人工复核";
+            return "需人工复核（review & replace）";
+        };
+        const escapeCSV = (v: string | number): string => {
+            const s = String(v).trim();
+            if (/^[=+\-@]/.test(s)) return `'${s}`;
+            if (s.includes(",") || s.includes('"') || s.includes("\n")) return `"${s.replace(/"/g, '""')}"`;
+            return s;
+        };
+        const headers = ["序号", "脚本摘要", "识别平台", "建议替代方式", "风险评分", "主要风险", "建议措施"];
+        const rows = replacementChecklistItems.map((item, i) => {
+            const repl = getReplacementSuggestion(item.result);
+            const platforms = item.result.identifiedPlatforms.join("; ") || "-";
+            const topRisk = item.result.risks[0]?.name || "-";
+            const recs = item.result.recommendations.slice(0, 2).join("; ") || "-";
+            return [i + 1, item.contentSummary, platforms, repl, item.result.riskScore, topRisk, recs].map(escapeCSV).join(",");
+        });
+        const csv = [headers.map(escapeCSV).join(","), ...rows].join("\n");
+        const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `additional-scripts-replacement-checklist-${new Date().toISOString().split("T")[0]}.csv`;
+        a.click();
+        URL.revokeObjectURL(url);
+    }, [replacementChecklistItems]);
     const handleManualInputComplete = useCallback(async (data: ManualInputData) => {
         if (!shop) {
             showError("店铺信息未找到");
@@ -668,6 +720,10 @@ export function ScanPage({
                 onProcessManualPaste={handleProcessManualPaste}
                 saveAnalysisFetcherData={saveAnalysisFetcher.data}
                 processPasteFetcherData={saveAnalysisFetcher.data}
+                replacementChecklistItems={replacementChecklistItems}
+                onAddToReplacementChecklist={addToReplacementChecklist}
+                onRemoveFromReplacementChecklist={removeFromReplacementChecklist}
+                onExportReplacementChecklistCSV={exportReplacementChecklistCSV}
               />
             </Suspense>
           )}

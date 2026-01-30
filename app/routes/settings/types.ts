@@ -63,6 +63,7 @@ export interface SettingsLoaderData {
   pcdApproved?: boolean;
   pcdStatusMessage?: string;
   pixelStrictOrigin?: boolean;
+  alertChannelsEnabled?: boolean;
   currentMonitoringData?: {
     failureRate: number;
     volumeDrop: number;
