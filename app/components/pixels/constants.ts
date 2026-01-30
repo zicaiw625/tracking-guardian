@@ -3,7 +3,7 @@ import type { WizardTemplate } from "~/components/migrate/PixelMigrationWizard";
 export const SUPPORTED_PLATFORMS = ["google", "meta", "tiktok"] as const;
 export type SupportedPlatform = (typeof SUPPORTED_PLATFORMS)[number];
 
-export type SetupStep = "select" | "mappings" | "review";
+export type SetupStep = "select" | "mappings" | "credentials" | "review";
 
 export interface PlatformConfig {
   platform: SupportedPlatform;
@@ -68,6 +68,13 @@ export const PLATFORM_INFO: Record<
         type: "text",
         helpText: "在 GA4 管理后台的「数据流」中查找",
       },
+      {
+        key: "apiSecret",
+        label: "API Secret",
+        placeholder: "",
+        type: "password",
+        helpText: "在 GA4 数据流 > Measurement Protocol API secrets 中创建",
+      },
     ],
   },
   meta: {
@@ -82,6 +89,13 @@ export const PLATFORM_INFO: Record<
         type: "text",
         helpText: "在 Meta Events Manager 中查找",
       },
+      {
+        key: "accessToken",
+        label: "Access Token",
+        placeholder: "",
+        type: "password",
+        helpText: "在 Meta Events Manager 中生成系统用户访问令牌",
+      },
     ],
   },
   tiktok: {
@@ -95,6 +109,13 @@ export const PLATFORM_INFO: Record<
         placeholder: "C1234567890ABCDEF",
         type: "text",
         helpText: "在 TikTok Events Manager 中查找",
+      },
+      {
+        key: "accessToken",
+        label: "Access Token",
+        placeholder: "",
+        type: "password",
+        helpText: "在 TikTok Events Manager 中生成",
       },
     ],
   },
@@ -144,5 +165,6 @@ export const PRESET_TEMPLATES: WizardTemplate[] = [
 export const PIXEL_SETUP_STEPS = [
   { id: "select" as const, label: "选择平台" },
   { id: "mappings" as const, label: "事件映射" },
+  { id: "credentials" as const, label: "平台凭证" },
   { id: "review" as const, label: "检查配置" },
 ];

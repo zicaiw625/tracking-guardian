@@ -11,6 +11,7 @@ import { createWebPixel, getExistingWebPixels, isOurWebPixel, updateWebPixel } f
 import { decryptIngestionSecret, encryptIngestionSecret, isTokenEncrypted } from "../../utils/token-encryption.server";
 import { randomBytes } from "crypto";
 import { trackEvent } from "../../services/analytics.server";
+import { encryptJson } from "../../utils/crypto.server";
 
 const SUPPORTED_PLATFORMS = ["google", "meta", "tiktok"] as const;
 type SupportedPlatform = (typeof SUPPORTED_PLATFORMS)[number];
@@ -53,6 +54,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         platform: string;
         platformId: string;
         credentials: Record<string, string>;
+        serverSideEnabled?: boolean;
         eventMappings: Record<string, string>;
         environment: "test" | "live";
       }>;
@@ -67,6 +69,23 @@ export const action = async ({ request }: ActionFunctionArgs) => {
           }, { status: 400 });
         }
         const platformIdValue = config.platformId?.trim() || null;
+        const creds = config.credentials ?? {};
+        const hasCredentials =
+          platform === "google"
+            ? !!(creds.measurementId?.trim() && creds.apiSecret?.trim())
+            : !!(creds.pixelId?.trim() && creds.accessToken?.trim());
+        const credentialsEncrypted = hasCredentials
+          ? encryptJson(
+              platform === "google"
+                ? { measurementId: creds.measurementId ?? "", apiSecret: creds.apiSecret ?? "" }
+                : {
+                    pixelId: creds.pixelId ?? "",
+                    accessToken: creds.accessToken ?? "",
+                    ...(creds.testEventCode ? { testEventCode: creds.testEventCode } : {}),
+                  }
+            )
+          : null;
+        const serverSideEnabled = (config.serverSideEnabled === true && hasCredentials) || false;
         const existingConfig = await prisma.pixelConfig.findFirst({
           where: {
             shopId: shop.id,
@@ -100,8 +119,8 @@ export const action = async ({ request }: ActionFunctionArgs) => {
           },
           update: {
             platformId: platformIdValue as string | null,
-            credentialsEncrypted: null,
-            serverSideEnabled: false,
+            credentialsEncrypted,
+            serverSideEnabled,
             eventMappings: config.eventMappings as object,
             clientConfig: clientConfig as object,
             environment: config.environment,
@@ -113,8 +132,8 @@ export const action = async ({ request }: ActionFunctionArgs) => {
             shopId: shop.id,
             platform,
             platformId: platformIdValue,
-            credentialsEncrypted: null,
-            serverSideEnabled: false,
+            credentialsEncrypted,
+            serverSideEnabled,
             eventMappings: config.eventMappings as object,
             clientConfig: clientConfig as object,
             environment: config.environment,

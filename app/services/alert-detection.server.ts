@@ -140,7 +140,7 @@ export async function runAlertDetectionForAllShops(): Promise<{ shopsProcessed: 
     try {
       const settings = shop.settings && typeof shop.settings === "object" ? shop.settings as Record<string, unknown> : null;
       const rawAlertConfigs = settings?.alertConfigs && Array.isArray(settings.alertConfigs) ? settings.alertConfigs : [];
-      const runForShop = rawAlertConfigs.length > 0 || true;
+      const runForShop = rawAlertConfigs.length > 0;
       if (!runForShop) continue;
       const result = await runAlertDetection(shop.id, yesterday);
       alertsCreated += result.created;

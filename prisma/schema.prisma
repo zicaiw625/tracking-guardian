@@ -218,6 +218,7 @@ model PixelEventReceipt {
   shopId            String
   eventId           String
   eventType         String
+  platform          String           @default("unknown")
   pixelTimestamp    DateTime
   verificationRunId String?
   originHost        String?
@@ -229,7 +230,7 @@ model PixelEventReceipt {
   Shop              Shop             @relation(fields: [shopId], references: [id], onDelete: Cascade)
   VerificationRun   VerificationRun? @relation(fields: [verificationRunId], references: [id], onDelete: SetNull)
 
-  @@unique([shopId, eventId, eventType])
+  @@unique([shopId, eventId, eventType, platform])
   @@index([shopId])
   @@index([shopId, pixelTimestamp])
   @@index([verificationRunId])
@@ -238,6 +239,7 @@ model PixelEventReceipt {
   @@index([orderKey])
   @@index([altOrderKey])
   @@index([eventId])
+  @@index([platform])
 }
 
 model VerificationRun {

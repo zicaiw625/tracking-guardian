@@ -1,4 +1,4 @@
-import { BlockStack, TextField, Banner, Text } from "@shopify/polaris";
+import { BlockStack, TextField } from "@shopify/polaris";
 
 export type PlatformType = "meta" | "google" | "tiktok";
 
@@ -88,11 +88,6 @@ function GoogleForm({ values, onChange, errors, disabled }: GoogleFormProps) {
       : undefined);
   return (
     <BlockStack gap="300">
-      <Banner tone="info">
-        <p>
-          <strong>凭证配置（规划项）</strong>：当前版本默认不进行服务端投递，本表单用于后续能力规划。
-        </p>
-      </Banner>
       <TextField
         label="Measurement ID"
         value={values.measurementId}
@@ -109,13 +104,10 @@ function GoogleForm({ values, onChange, errors, disabled }: GoogleFormProps) {
         value={values.apiSecret}
         onChange={(v) => onChange({ ...values, apiSecret: v })}
         autoComplete="off"
-        helpText="（规划项）在 GA4 > 数据流 > Measurement Protocol API secrets 中创建"
+        helpText="在 GA4 > 数据流 > Measurement Protocol API secrets 中创建"
         error={errors?.apiSecret}
         disabled={disabled}
       />
-      <Text as="p" variant="bodySm" tone="subdued">
-        💡 提示：v1 以 Web Pixel → /ingest → 落库/验收 为主。
-      </Text>
     </BlockStack>
   );
 }

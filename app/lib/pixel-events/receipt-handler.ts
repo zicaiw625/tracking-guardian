@@ -133,6 +133,7 @@ export async function upsertPixelEventReceipt(
       : null;
   const payloadData = payload?.data as Record<string, unknown> | undefined;
   const extractedOrderKey = orderKey || (payloadData?.orderId as string | undefined);
+  const platformValue = platform ?? "unknown";
   try {
     let payloadToStore: Record<string, unknown> | null = null;
     if (storePayload && payload) {
@@ -176,6 +177,7 @@ export async function upsertPixelEventReceipt(
           shopId,
           eventId,
           eventType,
+          platform: platformValue,
           pixelTimestamp: new Date(payload.timestamp),
           originHost: originHost || null,
           verificationRunId: verificationRunId || null,
@@ -198,10 +200,11 @@ export async function upsertPixelEventReceipt(
         if (verificationRunId) {
           receipt = await prisma.pixelEventReceipt.update({
             where: {
-              shopId_eventId_eventType: {
+              shopId_eventId_eventType_platform: {
                 shopId,
                 eventId,
                 eventType,
+                platform: platformValue,
               },
             },
             data: {
@@ -225,10 +228,11 @@ export async function upsertPixelEventReceipt(
         } else {
           const existing = await prisma.pixelEventReceipt.findUnique({
             where: {
-              shopId_eventId_eventType: {
+              shopId_eventId_eventType_platform: {
                 shopId,
                 eventId,
                 eventType,
+                platform: platformValue,
               },
             },
             select: {

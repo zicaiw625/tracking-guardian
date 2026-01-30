@@ -22,7 +22,9 @@ import {
 } from "./constants";
 import { SelectPlatformStep } from "./steps/SelectPlatformStep";
 import { MappingsStep } from "./steps/MappingsStep";
+import { CredentialsStep } from "./steps/CredentialsStep";
 import { ReviewStep } from "./steps/ReviewStep";
+import { areCredentialsComplete } from "~/components/forms/PlatformCredentialsForm";
 
 export interface NewPixelWizardProps {
   templates: { presets?: WizardTemplate[]; custom?: WizardTemplate[] } | null;
@@ -153,6 +155,20 @@ export function NewPixelWizard({
     []
   );
 
+  const handleCredentialsChange = useCallback(
+    (platform: SupportedPlatform, credentials: Record<string, string>) => {
+      setPlatformConfigs((prev) => {
+        const currentConfig = prev[platform];
+        if (!currentConfig) return prev;
+        return {
+          ...prev,
+          [platform]: { ...currentConfig, credentials },
+        };
+      });
+    },
+    []
+  );
+
   const validateStep = useCallback(
     (step: SetupStep) => {
       const errors: string[] = [];
@@ -192,10 +208,13 @@ export function NewPixelWizard({
     }
     const configs = Array.from(selectedPlatforms).map((platform) => {
       const config = platformConfigs[platform] as PlatformConfig;
+      const creds = config.credentials ?? {};
+      const serverSideEnabled = areCredentialsComplete(platform, creds as unknown as Parameters<typeof areCredentialsComplete>[1]);
       return {
         platform,
         platformId: config.platformId,
-        credentials: {},
+        credentials: creds,
+        serverSideEnabled,
         eventMappings: config.eventMappings,
         environment: config.environment,
       };
@@ -245,6 +264,13 @@ export function NewPixelWizard({
           selectedPlatforms={selectedPlatforms}
           platformConfigs={platformConfigs}
           onEventMappingUpdate={handleEventMappingUpdate}
+        />
+      )}
+      {currentStep === "credentials" && (
+        <CredentialsStep
+          selectedPlatforms={selectedPlatforms}
+          platformConfigs={platformConfigs}
+          onCredentialsChange={handleCredentialsChange}
         />
       )}
       {currentStep === "review" && (

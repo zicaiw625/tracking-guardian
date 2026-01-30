@@ -298,16 +298,18 @@ describe("Pixel Events API - Idempotent Writes", () => {
     (prisma.pixelEventReceipt.upsert as any) = mockUpsert;
     await prisma.pixelEventReceipt.upsert({
       where: {
-        shopId_eventId_eventType: {
+        shopId_eventId_eventType_platform: {
           shopId: "shop-1",
           eventId: "evt-1",
           eventType: "purchase",
+          platform: "unknown",
         },
       },
       create: {
         shopId: "shop-1",
         eventId: "evt-1",
         eventType: "purchase",
+        platform: "unknown",
         pixelTimestamp: new Date(),
         orderKey: "order-1",
       },
@@ -317,10 +319,11 @@ describe("Pixel Events API - Idempotent Writes", () => {
     });
     expect(mockUpsert).toHaveBeenCalledTimes(1);
     expect(mockUpsert.mock.calls[0][0].where).toEqual({
-      shopId_eventId_eventType: {
+      shopId_eventId_eventType_platform: {
         shopId: "shop-1",
         eventId: "evt-1",
         eventType: "purchase",
+        platform: "unknown",
       },
     });
   });

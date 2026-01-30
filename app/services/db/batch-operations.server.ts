@@ -21,6 +21,7 @@ export interface PixelReceiptData {
   eventId: string;
   orderId: string;
   eventType: string;
+  platform?: string;
   originHost?: string | null;
   pixelTimestamp?: Date;
   capiInput?: Prisma.JsonValue;
@@ -53,13 +54,15 @@ export async function batchInsertReceipts(
   try {
     await db.$transaction(async (tx) => {
       const upsertResults = await Promise.allSettled(
-        receipts.map((receipt) =>
-          tx.pixelEventReceipt.upsert({
+        receipts.map((receipt) => {
+          const platform = receipt.platform ?? "unknown";
+          return tx.pixelEventReceipt.upsert({
             where: {
-              shopId_eventId_eventType: {
+              shopId_eventId_eventType_platform: {
                 shopId: receipt.shopId,
                 eventId: receipt.eventId,
                 eventType: receipt.eventType,
+                platform,
               },
             },
             create: {
@@ -67,6 +70,7 @@ export async function batchInsertReceipts(
               shopId: receipt.shopId,
               eventId: receipt.eventId,
               eventType: receipt.eventType,
+              platform,
               originHost: receipt.originHost,
               pixelTimestamp: receipt.pixelTimestamp ?? now,
               payloadJson: toInputJsonValue(receipt.capiInput),
@@ -76,8 +80,8 @@ export async function batchInsertReceipts(
               originHost: receipt.originHost,
               orderKey: receipt.orderId,
             },
-          })
-        )
+          });
+        })
       );
       upsertResults.forEach((result, index) => {
         if (index >= receipts.length || index >= upsertResults.length) {

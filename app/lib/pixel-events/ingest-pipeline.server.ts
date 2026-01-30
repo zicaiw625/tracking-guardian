@@ -416,23 +416,24 @@ export async function distributeEvents(
       );
 
       try {
-        const primaryPlatform = platformsToRecord.length > 0 ? platformsToRecord[0].platform : null;
         const eventType = "purchase";
         const shouldStorePayload = activeVerificationRunId !== null || destinations.length > 0;
-        await upsertPixelEventReceipt(
-          shopId,
-          event.eventId!,
-          event.payload,
-          origin,
-          eventType,
-          activeVerificationRunId ?? null,
-          primaryPlatform || null,
-          event.orderId || null,
-          event.altOrderKey,
-          shouldStorePayload,
-          keyValidation.trustLevel,
-          keyValidation.matched
-        );
+        for (const { platform } of platformsToRecord) {
+          await upsertPixelEventReceipt(
+            shopId,
+            event.eventId!,
+            event.payload,
+            origin,
+            eventType,
+            activeVerificationRunId ?? null,
+            platform,
+            event.orderId || null,
+            event.altOrderKey,
+            shouldStorePayload,
+            keyValidation.trustLevel,
+            keyValidation.matched
+          );
+        }
       } catch (error) {
         const orderIdHash = event.orderId ? hashValueSync(event.orderId).slice(0, 12) : null;
         logger.warn(`Failed to write receipt for purchase event`, {
@@ -443,22 +444,23 @@ export async function distributeEvents(
       }
     } else if (!isPurchaseEvent && event.eventId) {
       try {
-        const primaryPlatform = platformsToRecord.length > 0 ? platformsToRecord[0].platform : null;
         const eventType = event.payload.eventName;
-        await upsertPixelEventReceipt(
-          shopId,
-          event.eventId,
-          event.payload,
-          origin,
-          eventType,
-          null,
-          primaryPlatform || null,
-          null,
-          null,
-          true,
-          keyValidation.trustLevel,
-          keyValidation.matched
-        );
+        for (const { platform } of platformsToRecord) {
+          await upsertPixelEventReceipt(
+            shopId,
+            event.eventId,
+            event.payload,
+            origin,
+            eventType,
+            null,
+            platform,
+            null,
+            null,
+            true,
+            keyValidation.trustLevel,
+            keyValidation.matched
+          );
+        }
       } catch (error) {
         logger.warn(`Failed to write receipt for non-purchase event`, {
           shopId,
