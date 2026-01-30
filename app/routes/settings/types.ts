@@ -57,11 +57,18 @@ export interface TokenIssues {
   affectedPlatforms: string[];
 }
 
+export interface TypOspStatusDisplay {
+  typOspPagesEnabled: boolean | null;
+  status: "enabled" | "disabled" | "unknown";
+  unknownReason?: string | null;
+}
+
 export interface SettingsLoaderData {
   shop: ShopSettingsData | null;
   tokenIssues: TokenIssues;
   pcdApproved?: boolean;
   pcdStatusMessage?: string;
+  typOspStatus?: TypOspStatusDisplay | null;
   pixelStrictOrigin?: boolean;
   alertChannelsEnabled?: boolean;
   currentMonitoringData?: {

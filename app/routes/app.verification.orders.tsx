@@ -16,6 +16,7 @@ import {
 import { authenticate } from "../shopify.server";
 import prisma from "../db.server";
 import { performPixelVsOrderReconciliation } from "../services/verification/order-reconciliation.server";
+import { PCD_CONFIG } from "../utils/config.server";
 
 const HOUR_OPTIONS = [
   { label: "最近 24 小时", value: "24" },
@@ -35,6 +36,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       shop: null,
       reconciliation: null,
       hours: 24,
+      pcdDisabled: false,
     });
   }
   const url = new URL(request.url);
@@ -45,16 +47,18 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       hoursParam ? parseInt(hoursParam, 10) || 24 : 24
     )
   );
-  const reconciliation = await performPixelVsOrderReconciliation(shop.id, hours);
+  const pcdDisabled = !PCD_CONFIG.APPROVED;
+  const reconciliation = pcdDisabled ? null : await performPixelVsOrderReconciliation(shop.id, hours);
   return json({
     shop: { id: shop.id, domain: shopDomain },
     reconciliation,
     hours,
+    pcdDisabled,
   });
 };
 
 export default function VerificationOrdersPage() {
-  const { shop, reconciliation, hours } = useLoaderData<typeof loader>();
+  const { shop, reconciliation, hours, pcdDisabled } = useLoaderData<typeof loader>();
   const [searchParams, setSearchParams] = useSearchParams();
 
   const handleHoursChange = (value: string) => {
@@ -63,7 +67,42 @@ export default function VerificationOrdersPage() {
     setSearchParams(next);
   };
 
-  if (!shop || !reconciliation) {
+  if (!shop) {
+    return (
+      <Page title="订单层验收">
+        <Banner tone="warning">
+          <Text as="p">店铺信息未找到，请重新安装应用。</Text>
+        </Banner>
+        <Button url="/app/verification" variant="primary">
+          返回验收页面
+        </Button>
+      </Page>
+    );
+  }
+
+  if (pcdDisabled) {
+    return (
+      <Page title="订单层验收" backAction={{ content: "验收", url: "/app/verification" }}>
+        <BlockStack gap="400">
+          <Banner tone="warning">
+            <BlockStack gap="200">
+              <Text as="p" variant="bodySm" fontWeight="semibold">
+                当前未启用订单对账
+              </Text>
+              <Text as="p" variant="bodySm">
+                订单层验收依赖 Shopify 订单数据，需获得 PCD（Protected Customer Data）审批后启用。当前版本仅提供像素收据层验收，请在「验收」页使用像素层验收与报告导出。
+              </Text>
+            </BlockStack>
+          </Banner>
+          <Button url="/app/verification" variant="primary">
+            返回验收页面
+          </Button>
+        </BlockStack>
+      </Page>
+    );
+  }
+
+  if (!reconciliation) {
     return (
       <Page title="订单层验收">
         <Banner tone="warning">

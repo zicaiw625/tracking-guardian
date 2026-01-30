@@ -1,8 +1,9 @@
 import { useState, useEffect, useCallback } from "react";
 import { useLoaderData, useSubmit, useActionData, useNavigation, useSearchParams } from "@remix-run/react";
-import { Page, BlockStack, Banner, Tabs, Button, InlineStack, Text } from "@shopify/polaris";
+import { Page, BlockStack, Banner, Tabs, Button, InlineStack, Text, Card, Badge } from "@shopify/polaris";
 import { PageIntroCard } from "~/components/layout/PageIntroCard";
 import { useToastContext } from "~/components/ui";
+import { getShopifyAdminUrl } from "~/utils/helpers";
 
 import { settingsLoader } from "./loader.server";
 import { settingsAction } from "./actions.server";
@@ -18,7 +19,7 @@ export const loader = settingsLoader;
 export const action = settingsAction;
 
 export default function SettingsPage() {
-  const { shop, hmacSecurityStats, pixelStrictOrigin, alertChannelsEnabled } =
+  const { shop, hmacSecurityStats, pixelStrictOrigin, alertChannelsEnabled, typOspStatus } =
     useLoaderData<typeof settingsLoader>();
   const actionData = useActionData<SettingsActionResponse>();
   const submit = useSubmit();
@@ -114,6 +115,45 @@ export default function SettingsPage() {
             </InlineStack>
           </BlockStack>
         </Banner>
+        <Card>
+          <BlockStack gap="300">
+            <InlineStack align="space-between" blockAlign="center">
+              <Text as="h2" variant="headingMd">
+                页面模块（Thank you / Order status）
+              </Text>
+              {typOspStatus && (
+                <Badge
+                  tone={
+                    typOspStatus.status === "enabled"
+                      ? "success"
+                      : typOspStatus.status === "disabled"
+                        ? "warning"
+                        : "info"
+                  }
+                >
+                  {typOspStatus.status === "enabled"
+                    ? "已启用"
+                    : typOspStatus.status === "disabled"
+                      ? "未启用"
+                      : "待检测"}
+                </Badge>
+              )}
+            </InlineStack>
+            <Text as="p" variant="bodySm" tone="subdued">
+              本应用在 Thank you 页与 Order status 页提供 UI 扩展（发票、问卷、售后链接等）。请在 Shopify 的 Checkout and accounts 编辑器中添加并启用本应用的区块。
+            </Text>
+            {shop?.domain && (
+              <Button url={getShopifyAdminUrl(shop.domain, "/settings/checkout")} external variant="primary">
+                打开 Checkout 设置
+              </Button>
+            )}
+            {typOspStatus?.status === "unknown" && typOspStatus.unknownReason && (
+              <Text as="p" variant="bodySm" tone="subdued">
+                状态说明：{typOspStatus.unknownReason === "NOT_PLUS" ? "需 Shopify Plus 或适用计划" : typOspStatus.unknownReason === "NO_EDITOR_ACCESS" ? "需具备 Checkout and accounts 编辑器访问权限" : typOspStatus.unknownReason}
+              </Text>
+            )}
+          </BlockStack>
+        </Card>
         <Tabs tabs={tabs} selected={selectedTab} onSelect={handleTabChange}>
           {selectedTab === 0 && (
             <SecurityTab

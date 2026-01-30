@@ -3,14 +3,14 @@ import { json } from "@remix-run/node";
 import { authenticate } from "../../shopify.server";
 import prisma from "../../db.server";
 import { checkTokenExpirationIssues } from "../../services/retry.server";
-
+import { getCachedTypOspStatus, refreshTypOspStatus } from "../../services/checkout-profile.server";
 import { getEventMonitoringStats, getEventVolumeStats } from "../../services/monitoring.server";
 import { logger } from "../../utils/logger.server";
-import type { SettingsLoaderData, PixelConfigDisplay, AlertConfigDisplay } from "./types";
+import type { SettingsLoaderData, PixelConfigDisplay, AlertConfigDisplay, TypOspStatusDisplay } from "./types";
 
 export async function settingsLoader({ request }: LoaderFunctionArgs) {
   try {
-    const { session } = await authenticate.admin(request);
+    const { session, admin } = await authenticate.admin(request);
     const shopDomain = session.shop;
     let shop: {
       id: string;
@@ -181,6 +181,28 @@ export async function settingsLoader({ request }: LoaderFunctionArgs) {
     const alertChannelsEnabled = ["true", "1", "yes"].includes(
       (process.env.ALERT_CHANNELS_ENABLED ?? "").toLowerCase().trim()
     );
+    let typOspStatus: TypOspStatusDisplay | null = null;
+    if (shop && admin) {
+      try {
+        const cached = await getCachedTypOspStatus(shop.id);
+        if (cached.isStale) {
+          const result = await refreshTypOspStatus(admin, shop.id);
+          typOspStatus = {
+            typOspPagesEnabled: result.typOspPagesEnabled,
+            status: result.status,
+            unknownReason: result.status === "unknown" ? result.unknownReason ?? null : null,
+          };
+        } else {
+          typOspStatus = {
+            typOspPagesEnabled: cached.typOspPagesEnabled,
+            status: cached.status,
+            unknownReason: null,
+          };
+        }
+      } catch (error) {
+        logger.error("Failed to get typOsp status for settings", { shopId: shop.id, error });
+      }
+    }
     const rawSettings = (shop && "settings" in shop && shop.settings && typeof shop.settings === "object") ? shop.settings as Record<string, unknown> : null;
     const rawAlertConfigs = rawSettings?.alertConfigs && Array.isArray(rawSettings.alertConfigs) ? rawSettings.alertConfigs : [];
     const alertConfigs: AlertConfigDisplay[] = rawAlertConfigs.map((c: unknown, i: number) => {
@@ -216,6 +238,7 @@ export async function settingsLoader({ request }: LoaderFunctionArgs) {
       tokenIssues,
       pcdApproved: false,
       pcdStatusMessage: "我们不收集终端客户 PII，当前公开上架版本不会从 Shopify 读取订单明细或访问 PCD。未来如引入基于订单的验收/对账或再购等功能，将在获得 PCD 审批后单独启用并更新隐私文档。",
+      typOspStatus,
       pixelStrictOrigin,
       alertChannelsEnabled,
       currentMonitoringData,

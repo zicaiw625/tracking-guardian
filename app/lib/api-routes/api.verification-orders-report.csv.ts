@@ -6,9 +6,13 @@ import { performPixelVsOrderReconciliation } from "../../services/verification/o
 import { escapeCSV } from "../../utils/csv.server";
 import { sanitizeFilename } from "../../utils/responses";
 import { withSecurityHeaders } from "../../utils/security-headers";
+import { PCD_CONFIG } from "../../utils/config.server";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   try {
+    if (!PCD_CONFIG.APPROVED) {
+      return new Response("Order reconciliation is not enabled; PCD approval required.", { status: 403 });
+    }
     const url = new URL(request.url);
     const hoursParam = url.searchParams.get("hours");
     const hours = Math.min(

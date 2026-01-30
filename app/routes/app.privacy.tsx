@@ -356,24 +356,11 @@ export default function PrivacyPage() {
                 <InlineStack gap="300" blockAlign="center">
                   <Icon source={ClockIcon} />
                   <Text as="span" fontWeight="semibold">
-                    ConversionJob（转化任务）
-                  </Text>
-                </InlineStack>
-                <Text as="p" variant="bodySm">
-                  保存 <strong>30 天</strong>，用于重试失败的发送和对账分析。
-                </Text>
-              </BlockStack>
-            </Box>
-            <Box background="bg-surface-secondary" padding="400" borderRadius="200">
-              <BlockStack gap="300">
-                <InlineStack gap="300" blockAlign="center">
-                  <Icon source={ClockIcon} />
-                  <Text as="span" fontWeight="semibold">
                     PixelEventReceipt（像素收据）
                   </Text>
                 </InlineStack>
                 <Text as="p" variant="bodySm">
-                  保存 <strong>7 天</strong>，用于订单-像素匹配验证。
+                  按店铺数据保留设置（默认 90 天），用于像素事件匹配与验收。
                 </Text>
               </BlockStack>
             </Box>
@@ -382,11 +369,11 @@ export default function PrivacyPage() {
                 <InlineStack gap="300" blockAlign="center">
                   <Icon source={ClockIcon} />
                   <Text as="span" fontWeight="semibold">
-                    ConversionLog（发送日志）
+                    VerificationRun（验收运行）
                   </Text>
                 </InlineStack>
                 <Text as="p" variant="bodySm">
-                  保存 <strong>90 天</strong>，用于审计和问题排查。
+                  按店铺数据保留设置（默认 90 天），用于验收报告与历史记录。
                 </Text>
               </BlockStack>
             </Box>
@@ -395,11 +382,24 @@ export default function PrivacyPage() {
                 <InlineStack gap="300" blockAlign="center">
                   <Icon source={ClockIcon} />
                   <Text as="span" fontWeight="semibold">
-                    ReconciliationReport（对账报告）
+                    ScanReport（扫描报告）
                   </Text>
                 </InlineStack>
                 <Text as="p" variant="bodySm">
-                  保存 <strong>365 天</strong>，用于长期趋势分析。
+                  按店铺数据保留设置（默认 90 天），用于迁移审计与风险清单。
+                </Text>
+              </BlockStack>
+            </Box>
+            <Box background="bg-surface-secondary" padding="400" borderRadius="200">
+              <BlockStack gap="300">
+                <InlineStack gap="300" blockAlign="center">
+                  <Icon source={ClockIcon} />
+                  <Text as="span" fontWeight="semibold">
+                    EventLog / AuditLog（事件与审计日志）
+                  </Text>
+                </InlineStack>
+                <Text as="p" variant="bodySm">
+                  按店铺数据保留设置（默认 90 天）；审计日志至少 180 天或取较大值，用于问题排查与合规审计。
                 </Text>
               </BlockStack>
             </Box>

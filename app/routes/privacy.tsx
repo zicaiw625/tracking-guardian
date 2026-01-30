@@ -207,24 +207,19 @@ export default function PrivacyPage() {
 
             <h3>与 PCD（受保护客户数据）的关系</h3>
             <p>
-              当前公开上架版本<strong>不访问</strong> Shopify Protected Customer Data (PCD)。我们请求 <code>read_orders</code> 仅用于接收 <code>orders/create</code> webhook 以进行订单对账，不通过 Admin API 读取订单详情。
-              未来如引入基于订单详情的验收/对账或再购等功能，这些能力将作为后续版本规划，届时会在：
+              当前公开上架版本<strong>不访问</strong> Shopify Protected Customer Data (PCD)。我们不请求 <code>read_orders</code>，不通过 Admin API 读取订单或客户详情，仅基于 Web Pixel 事件收据进行诊断与验收。
+              未来如引入基于订单详情的验收/对账或再购等功能，将在获得 Shopify PCD 审批后启用，并更新本隐私政策与应用内说明。
             </p>
-            <ul>
-              <li>更新本隐私政策并在应用内明确标注相关功能</li>
-              <li>仅在获得 Shopify PCD 审批后才会启用相应能力</li>
-              <li>继续遵循“字段最小化”与“用途限定”的原则</li>
-            </ul>
           </div>
 
           <div className="section">
             <h2>数据保留</h2>
             <p>我们遵循数据最小化原则，仅保存必要的数据，并定期清理过期数据。所有数据类型的保留周期由店铺的数据保留设置控制（默认 90 天）：</p>
             <ul>
-              <li><strong>ConversionJob（转化任务）</strong>：按店铺数据保留周期（默认 90 天）</li>
               <li><strong>PixelEventReceipt（像素收据）</strong>：按店铺数据保留周期（默认 90 天）</li>
-              <li><strong>ConversionLog（发送日志）</strong>：按店铺数据保留周期（默认 90 天）</li>
-              <li><strong>ReconciliationReport（对账报告）</strong>：按店铺数据保留周期（默认 90 天）</li>
+              <li><strong>VerificationRun（验收运行）</strong>：按店铺数据保留周期（默认 90 天）</li>
+              <li><strong>ScanReport（扫描报告）</strong>：按店铺数据保留周期（默认 90 天）</li>
+              <li><strong>EventLog / AuditLog（事件与审计日志）</strong>：按店铺数据保留周期（默认 90 天）；审计日志至少 180 天或取较大值</li>
             </ul>
           </div>
 
