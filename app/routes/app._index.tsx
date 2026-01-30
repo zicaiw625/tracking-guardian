@@ -2,7 +2,7 @@ import type { loader } from "./app._index/loader.server";
 export { loader } from "./app._index/loader.server";
 import { useLoaderData } from "@remix-run/react";
 import { useState, useEffect } from "react";
-import { Page, BlockStack } from "@shopify/polaris";
+import { Page, BlockStack, Banner, Text } from "@shopify/polaris";
 import { DashboardOverview } from "~/components/dashboard/DashboardOverview";
 import { DashboardMetrics } from "~/components/dashboard/DashboardMetrics";
 import {
@@ -99,6 +99,18 @@ export default function Index() {
           scriptTagsCount={data.scriptTagsCount}
           hasOrderStatusScripts={data.hasOrderStatusScripts}
         />
+        <Banner
+          title="ScriptTag 弃用时间线（产品教育）"
+          tone="info"
+          action={{ content: "迁移清单", url: "/app/scan" }}
+          secondaryAction={{ content: "验收报告", url: "/app/verification" }}
+        >
+          <BlockStack gap="200">
+            <Text as="p" variant="bodySm">
+              ScriptTag 在 Thank you / Order status 页面的能力与 <strong>2025-08-28</strong>（Plus 商家）的弃用相关（来自 Shopify 2025-01 公告）。建议使用「迁移」页的迁移清单与「验收」页的验证报告完成迁移，确保追踪平稳过渡。
+            </Text>
+          </BlockStack>
+        </Banner>
         <MigrationDeadlineBanner scriptTagsCount={data.scriptTagsCount} />
       </BlockStack>
     </Page>

@@ -220,6 +220,9 @@ export default function PrivacyPage() {
               代表商家（数据控制者）处理转化追踪数据。我们遵循 GDPR、CCPA 等隐私法规，
               确保数据安全和合规。
             </p>
+            <p>
+              本应用不依赖客户 PII；即使 Shopify 将 PII 脱敏为 null，核心功能（事件验证、监控、迁移建议）仍可用。
+            </p>
           </BlockStack>
         </Banner>
         <Card>
@@ -318,6 +321,31 @@ export default function PrivacyPage() {
                   </Text>
                   <Text as="p" variant="bodySm">
                     根据客户的同意状态，自动决定是否向特定平台发送数据，确保符合 GDPR/CCPA。
+                  </Text>
+                </BlockStack>
+              </Card>
+              <Card>
+                <BlockStack gap="300">
+                  <Text as="h3" variant="headingSm">
+                    Web Pixel 数据发送说明
+                  </Text>
+                  <Text as="p" variant="bodySm" fontWeight="semibold">
+                    何时发送
+                  </Text>
+                  <Text as="p" variant="bodySm">
+                    当访客在结账或浏览时触发 Shopify 标准事件（如 checkout_completed、page_viewed、product_viewed、checkout_started 等）时，本应用的 Web Pixel 会向本应用后端发送事件；仅在客户已通过 Customer Privacy API 授予相应同意（analytics 或 marketing，依事件类型）时发送。
+                  </Text>
+                  <Text as="p" variant="bodySm" fontWeight="semibold">
+                    发送字段
+                  </Text>
+                  <Text as="p" variant="bodySm">
+                    仅发送事件类型、时间戳、店铺域名、以及订单/结账相关非 PII（如 orderId、checkoutToken、金额、货币、商品 ID/数量等）。不包含客户姓名、邮箱、电话、地址等个人身份信息。
+                  </Text>
+                  <Text as="p" variant="bodySm" fontWeight="semibold">
+                    如何跟随 consent 变化
+                  </Text>
+                  <Text as="p" variant="bodySm">
+                    本 Pixel 声明并依赖 Shopify Customer Privacy API（analytics、marketing）。订阅 visitorConsentCollected 事件；当商户在店铺中更新同意配置或访客更改选择时，Pixel 会更新内部 consent 状态，未同意时对应事件不会发送到后端。
                   </Text>
                 </BlockStack>
               </Card>
