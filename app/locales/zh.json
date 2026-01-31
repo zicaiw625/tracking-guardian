@@ -105,7 +105,21 @@
     "upgradeToGoLive": "升级到 Go-Live",
     "reportCenter": "报告中心",
     "reportCenterDesc": "管理 Audit / Verification / Monitoring 报告导出与历史记录。",
-    "enterReportCenter": "进入报告中心"
+    "enterReportCenter": "进入报告中心",
+    "dataConnection": {
+      "title": "数据未接入",
+      "messageBoth": "数据连接未配置：需要配置 Ingestion Key 并安装 Web Pixel 才能开始接收追踪数据",
+      "messageNoIngestion": "数据连接未完成：需要配置 Ingestion Key",
+      "messageNoPixel": "数据连接未完成：需要安装 Web Pixel",
+      "messagePixelNoKey": "数据连接配置不完整：Web Pixel 配置缺失 ingestion_key，请重新同步配置",
+      "issueIngestion": "Ingestion Key 未配置",
+      "issueNoPixel": "Web Pixel 未安装",
+      "issuePixelNoKey": "Web Pixel 配置缺失 ingestion_key",
+      "issuesLabel": "问题：",
+      "actionSettings": "前往设置",
+      "actionInstallPixel": "安装 Web Pixel",
+      "actionFixConfig": "修复配置"
+    }
   },
   "errors": {
     "unknown": "发生未知错误",

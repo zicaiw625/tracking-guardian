@@ -105,7 +105,21 @@
     "upgradeToGoLive": "Upgrade to Go-Live",
     "reportCenter": "Report center",
     "reportCenterDesc": "Manage Audit / Verification / Monitoring report export and history.",
-    "enterReportCenter": "Enter report center"
+    "enterReportCenter": "Enter report center",
+    "dataConnection": {
+      "title": "Data not connected",
+      "messageBoth": "Data connection not configured: configure Ingestion Key and install Web Pixel to start receiving tracking data.",
+      "messageNoIngestion": "Data connection incomplete: configure Ingestion Key.",
+      "messageNoPixel": "Data connection incomplete: Web Pixel needs to be installed.",
+      "messagePixelNoKey": "Data connection incomplete: Web Pixel config missing ingestion_key. Please re-sync config.",
+      "issueIngestion": "Ingestion Key not configured",
+      "issueNoPixel": "Web Pixel not installed",
+      "issuePixelNoKey": "Web Pixel config missing ingestion_key",
+      "issuesLabel": "Issues: ",
+      "actionSettings": "Go to Settings",
+      "actionInstallPixel": "Install Web Pixel",
+      "actionFixConfig": "Fix config"
+    }
   },
   "errors": {
     "unknown": "An unknown error occurred",
