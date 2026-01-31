@@ -1,6 +1,7 @@
 import { memo } from "react";
 import { Card, BlockStack, Text, Button, InlineStack, Box } from "@shopify/polaris";
 import { EmptyStateDisplay } from "./ErrorDisplay";
+import { useT } from "~/context/LocaleContext";
 
 export interface EnhancedEmptyStateProps {
   title?: string;
@@ -22,8 +23,8 @@ export interface EnhancedEmptyStateProps {
 }
 
 export const EnhancedEmptyState = memo(function EnhancedEmptyState({
-  title = "暂无数据",
-  description = "当前没有可显示的内容。",
+  title: titleProp,
+  description: descriptionProp,
   primaryAction,
   secondaryAction,
   icon,
@@ -31,6 +32,9 @@ export const EnhancedEmptyState = memo(function EnhancedEmptyState({
   helpText,
   children,
 }: EnhancedEmptyStateProps) {
+  const t = useT();
+  const title = titleProp ?? t("common.noData");
+  const description = descriptionProp ?? t("common.noDataDesc");
   const hasActions = primaryAction || secondaryAction;
   return (
     <Card>
@@ -96,12 +100,12 @@ export function EmptyStateNoData({
   primaryAction?: EnhancedEmptyStateProps["primaryAction"];
   secondaryAction?: EnhancedEmptyStateProps["secondaryAction"];
 }) {
+  const t = useT();
   return (
     <EnhancedEmptyState
       icon="📭"
-      title="暂无数据"
-      description="当前没有可显示的数据。"
-      helpText="请执行相关操作或稍后再试。"
+      title={t("common.noData")}
+      description={t("common.noDataDesc")}
       primaryAction={primaryAction}
       secondaryAction={secondaryAction}
     />
@@ -115,18 +119,19 @@ export function EmptyStateNoResults({
   onReset?: () => void;
   onSearch?: () => void;
 }) {
+  const t = useT();
   return (
     <EnhancedEmptyState
       icon="🔍"
-      title="未找到结果"
-      description="没有找到匹配的搜索结果。"
-      helpText="请尝试调整搜索条件或筛选器。"
+      title={t("common.noResults")}
+      description={t("common.noResultsDesc")}
+      helpText={t("common.tryAdjustSearch")}
       primaryAction={onSearch ? {
-        content: "重新搜索",
+        content: t("common.searchAgain"),
         onAction: onSearch,
       } : undefined}
       secondaryAction={onReset ? {
-        content: "清除筛选",
+        content: t("common.clearFilters"),
         onAction: onReset,
       } : undefined}
     />
@@ -135,18 +140,20 @@ export function EmptyStateNoResults({
 
 export function EmptyStateNotConfigured({
   onConfigure,
-  configType = "配置"
+  configType
 }: {
   onConfigure?: () => void;
   configType?: string;
 }) {
+  const t = useT();
+  const ct = configType ?? t("common.resource");
   return (
     <EnhancedEmptyState
       icon="⚙️"
-      title={`${configType}未设置`}
-      description={`请先完成${configType}设置以使用此功能。`}
+      title={t("common.configNotSet", { configType: ct })}
+      description={t("common.completeConfigFirst", { configType: ct })}
       primaryAction={onConfigure ? {
-        content: `开始${configType}`,
+        content: t("common.startConfig", { configType: ct }),
         onAction: onConfigure,
       } : undefined}
     />
@@ -160,21 +167,22 @@ export function EmptyStateNoPermission({
   onUpgrade?: () => void;
   requiredFeature?: string;
 }) {
+  const t = useT();
   const upgradeAction = onUpgrade ? {
-    content: "查看套餐",
+    content: t("common.viewPlans"),
     onAction: onUpgrade,
   } : {
-    content: "查看套餐",
+    content: t("common.viewPlans"),
     url: "/app/billing",
   };
   return (
     <EnhancedEmptyState
       icon="🔒"
-      title="需要升级套餐"
+      title={t("common.upgradeRequired")}
       description={requiredFeature
-        ? `此功能需要 ${requiredFeature} 套餐。`
-        : "您的当前套餐不支持此功能。"}
-      helpText="升级套餐以解锁更多功能。"
+        ? t("common.featureRequiresPlan", { plan: requiredFeature })
+        : t("common.currentPlanNotSupported")}
+      helpText={t("common.upgradeToUnlock")}
       primaryAction={upgradeAction}
     />
   );

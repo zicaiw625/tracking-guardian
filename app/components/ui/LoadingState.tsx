@@ -10,6 +10,7 @@ import {
   Spinner,
   Text,
 } from "@shopify/polaris";
+import { useT } from "~/context/LocaleContext";
 
 export interface PageSkeletonProps {
   cards?: number;
@@ -115,15 +116,17 @@ export interface InlineSpinnerProps {
 }
 
 export function InlineSpinner({
-  message = "加载中...",
+  message,
   size = "small",
 }: InlineSpinnerProps) {
+  const t = useT();
+  const displayMessage = message ?? t("common.loading");
   return (
     <InlineStack gap="200" align="center" blockAlign="center">
       <Spinner size={size} />
-      {message && (
+      {displayMessage && (
         <Text as="span" tone="subdued">
-          {message}
+          {displayMessage}
         </Text>
       )}
     </InlineStack>
@@ -134,7 +137,9 @@ export interface FullScreenLoadingProps {
   message?: string;
 }
 
-export function FullScreenLoading({ message = "加载中..." }: FullScreenLoadingProps) {
+export function FullScreenLoading({ message }: FullScreenLoadingProps) {
+  const t = useT();
+  const displayMessage = message ?? t("common.loading");
   return (
     <Box
       position="relative"
@@ -152,7 +157,7 @@ export function FullScreenLoading({ message = "加载中..." }: FullScreenLoadin
         <BlockStack gap="400" align="center">
           <Spinner size="large" />
           <Text as="p" variant="bodyMd" tone="subdued">
-            {message}
+            {displayMessage}
           </Text>
         </BlockStack>
       </div>

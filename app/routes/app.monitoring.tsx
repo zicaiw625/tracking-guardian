@@ -8,6 +8,7 @@ import { getAggregatedMetrics } from "../services/dashboard-aggregation.server";
 import { getEventLossStats } from "../services/pixel-event-loss.server";
 import { getEventMonitoringStats } from "../services/monitoring.server";
 import { PageIntroCard } from "~/components/layout/PageIntroCard";
+import { useLocale } from "~/context/LocaleContext";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   const { session } = await authenticate.admin(request);
@@ -75,13 +76,14 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 };
 
 export default function MonitoringPage() {
+  const { t, tArray } = useLocale();
   const { shop, alerts, aggregatedSummary, eventLossStats, monitoringStats } = useLoaderData<typeof loader>();
 
   if (!shop) {
     return (
       <Page title="Monitoring">
         <BlockStack gap="400">
-          <Text as="p" tone="subdued">未找到店铺信息。</Text>
+          <Text as="p" tone="subdued">{t("monitoring.shopNotFound")}</Text>
         </BlockStack>
       </Page>
     );
@@ -98,14 +100,10 @@ export default function MonitoringPage() {
     <Page title="Monitoring">
       <BlockStack gap="500">
         <PageIntroCard
-          title="断档监控与告警"
-          description="查看近期告警、事件成功率与流失统计；在设置中配置告警通道与阈值。"
-          items={[
-            "告警列表：最近 30 天触发的异常告警",
-            "近 7 日转化与成功率汇总",
-            "近 24 小时事件流失与成功率",
-          ]}
-          primaryAction={{ content: "告警配置", url: "/app/settings?tab=alerts" }}
+          title={t("monitoring.title")}
+          description={t("monitoring.description")}
+          items={tArray("monitoring.items")}
+          primaryAction={{ content: t("monitoring.alertsConfig"), url: "/app/settings?tab=alerts" }}
         />
         <Layout>
           <Layout.Section>
@@ -113,22 +111,22 @@ export default function MonitoringPage() {
               {aggregatedSummary !== null && (
                 <Card>
                   <BlockStack gap="300">
-                    <Text as="h2" variant="headingMd">近 7 日汇总</Text>
+                    <Text as="h2" variant="headingMd">{t("monitoring.last7DaysSummary")}</Text>
                     <InlineStack gap="600">
                       <Box>
-                        <Text as="p" variant="bodySm" tone="subdued">订单数</Text>
+                        <Text as="p" variant="bodySm" tone="subdued">{t("monitoring.orderCount")}</Text>
                         <Text as="p" variant="headingLg">{aggregatedSummary.totalOrders}</Text>
                       </Box>
                       <Box>
-                        <Text as="p" variant="bodySm" tone="subdued">总金额</Text>
+                        <Text as="p" variant="bodySm" tone="subdued">{t("monitoring.totalAmount")}</Text>
                         <Text as="p" variant="headingLg">{aggregatedSummary.totalValue.toFixed(2)}</Text>
                       </Box>
                       <Box>
-                        <Text as="p" variant="bodySm" tone="subdued">成功率</Text>
+                        <Text as="p" variant="bodySm" tone="subdued">{t("monitoring.successRate")}</Text>
                         <Text as="p" variant="headingLg">{(aggregatedSummary.successRate * 100).toFixed(1)}%</Text>
                       </Box>
                       <Box>
-                        <Text as="p" variant="bodySm" tone="subdued">总事件量（含全漏斗）</Text>
+                        <Text as="p" variant="bodySm" tone="subdued">{t("monitoring.totalEventVolume")}</Text>
                         <Text as="p" variant="headingLg">{aggregatedSummary.totalEventVolume}</Text>
                       </Box>
                     </InlineStack>
@@ -138,18 +136,18 @@ export default function MonitoringPage() {
               {monitoringStats !== null && (
                 <Card>
                   <BlockStack gap="300">
-                    <Text as="h2" variant="headingMd">近 24 小时事件</Text>
+                    <Text as="h2" variant="headingMd">{t("monitoring.last24hEvents")}</Text>
                     <InlineStack gap="600">
                       <Box>
-                        <Text as="p" variant="bodySm" tone="subdued">总事件</Text>
+                        <Text as="p" variant="bodySm" tone="subdued">{t("monitoring.totalEvents")}</Text>
                         <Text as="p" variant="headingLg">{monitoringStats.totalEvents}</Text>
                       </Box>
                       <Box>
-                        <Text as="p" variant="bodySm" tone="subdued">成功率</Text>
+                        <Text as="p" variant="bodySm" tone="subdued">{t("monitoring.successRate")}</Text>
                         <Text as="p" variant="headingLg">{monitoringStats.successRate.toFixed(1)}%</Text>
                       </Box>
                       <Box>
-                        <Text as="p" variant="bodySm" tone="subdued">失败率</Text>
+                        <Text as="p" variant="bodySm" tone="subdued">{t("monitoring.failureRate")}</Text>
                         <Text as="p" variant="headingLg">{monitoringStats.failureRate.toFixed(1)}%</Text>
                       </Box>
                     </InlineStack>
@@ -159,14 +157,14 @@ export default function MonitoringPage() {
               {eventLossStats !== null && (
                 <Card>
                   <BlockStack gap="300">
-                    <Text as="h2" variant="headingMd">事件流失（24h）</Text>
+                    <Text as="h2" variant="headingMd">{t("monitoring.eventLoss24h")}</Text>
                     <InlineStack gap="600">
                       <Box>
-                        <Text as="p" variant="bodySm" tone="subdued">接收</Text>
+                        <Text as="p" variant="bodySm" tone="subdued">{t("monitoring.received")}</Text>
                         <Text as="p" variant="headingLg">{eventLossStats.totalReceived}</Text>
                       </Box>
                       <Box>
-                        <Text as="p" variant="bodySm" tone="subdued">流失率</Text>
+                        <Text as="p" variant="bodySm" tone="subdued">{t("monitoring.lossRate")}</Text>
                         <Text as="p" variant="headingLg">{(eventLossStats.lossRate * 100).toFixed(1)}%</Text>
                       </Box>
                     </InlineStack>
@@ -176,15 +174,15 @@ export default function MonitoringPage() {
               <Card>
                 <BlockStack gap="300">
                   <InlineStack align="space-between" blockAlign="center">
-                    <Text as="h2" variant="headingMd">告警列表</Text>
-                    <Button url="/app/settings?tab=alerts">告警配置</Button>
+                    <Text as="h2" variant="headingMd">{t("monitoring.alertList")}</Text>
+                    <Button url="/app/settings?tab=alerts">{t("monitoring.alertsConfig")}</Button>
                   </InlineStack>
                   {alertRows.length === 0 ? (
-                    <Text as="p" tone="subdued">近期无告警。</Text>
+                    <Text as="p" tone="subdued">{t("monitoring.noAlertsRecently")}</Text>
                   ) : (
                     <DataTable
                       columnContentTypes={["text", "text", "text", "text"]}
-                      headings={["时间", "类型", "严重程度", "消息"]}
+                      headings={[t("monitoring.time"), t("monitoring.type"), t("monitoring.severity"), t("monitoring.message")]}
                       rows={alertRows}
                     />
                   )}

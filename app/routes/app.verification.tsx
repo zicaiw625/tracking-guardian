@@ -39,10 +39,13 @@ import { VerificationHistoryPanel } from "~/components/verification/Verification
 import { VerificationIntroSection } from "./app.verification/_components/VerificationIntroSection";
 import type { FeatureGateResult } from "../services/billing/feature-gates.server";
 import { UpgradePrompt } from "~/components/ui/UpgradePrompt";
+import { useLocale } from "~/context/LocaleContext";
 
 const TestOrderGuide = lazy(() => import("~/components/verification/TestOrderGuide").then(module => ({ default: module.TestOrderGuide })));
 
 export default function VerificationPage() {
+  const { t, locale } = useLocale();
+  const dateLocale = locale === "zh" ? "zh-CN" : "en";
   const loaderData = useLoaderData<typeof loader>();
   const trackingApiEnabled =
     loaderData && typeof loaderData === "object" && "trackingApiEnabled" in loaderData
@@ -60,13 +63,13 @@ export default function VerificationPage() {
     if (actionData) {
       const data = actionData as { success?: boolean; error?: string; actionType?: string };
       if (data.success) {
-        showSuccess("验收运行已启动");
+        showSuccess(t("verification.runStarted"));
         revalidator.revalidate();
       } else if (data.error) {
         showError(data.error);
       }
     }
-  }, [actionData, showSuccess, showError, revalidator]);
+  }, [actionData, showSuccess, showError, revalidator, t]);
   const [selectedTab, setSelectedTab] = useState(0);
   const [showGuideModal, setShowGuideModal] = useState(false);
   const [guideExpanded, setGuideExpanded] = useState(true);
@@ -81,9 +84,9 @@ export default function VerificationPage() {
       .map((s) => `${s.step}. ${s.title}\n   ${s.description}`)
       .join("\n\n");
     const tipsText = testGuide.tips.map((t) => `• ${t}`).join("\n");
-    const fullText = `# 验收测试指引\n\n预计时间: ${testGuide.estimatedTime}\n\n## 测试步骤\n\n${guideText}\n\n## 提示\n\n${tipsText}`;
+    const fullText = `# ${t("verification.guideCopyTitle")}\n\n${t("verification.guideCopyEstimated")}: ${testGuide.estimatedTime}\n\n## ${t("verification.guideCopySteps")}\n\n${guideText}\n\n## ${t("verification.guideCopyTips")}\n\n${tipsText}`;
     navigator.clipboard.writeText(fullText);
-  }, [testGuide]);
+  }, [testGuide, t]);
   const handleExportCsv = useCallback(() => {
     if (!latestRun) return;
     if (canExportReports) {
@@ -110,21 +113,21 @@ export default function VerificationPage() {
     window.location.href = "/app/billing?upgrade=growth";
   }, [latestRun, canExportReports, shop, shopDomain, currentPlan]);
     const tabs = [
-    { id: "overview", content: "验收概览" },
-    { id: "pixel-layer", content: "像素层验收（Web Pixels 标准事件）" },
-    { id: "results", content: "详细结果" },
-    { id: "test-guide", content: "测试订单指引" },
-    { id: "history", content: "历史记录" },
+    { id: "overview", content: t("verification.tabOverview") },
+    { id: "pixel-layer", content: t("verification.tabPixelLayer") },
+    { id: "results", content: t("verification.tabResults") },
+    { id: "test-guide", content: t("verification.tabTestGuide") },
+    { id: "history", content: t("verification.tabHistory") },
   ];
   if (!shop) {
     return (
-      <Page title="验收向导">
+      <Page title={t("verification.noShopTitle")}>
         <EnhancedEmptyState
           icon="⚠️"
-          title="未找到店铺配置"
-          description="请确保应用已正确安装。"
+          title={t("verification.noShopDesc")}
+          description={t("verification.noShopHint")}
           primaryAction={{
-            content: "返回首页",
+            content: t("verification.backToHome"),
             url: "/app",
           }}
         />
@@ -133,7 +136,7 @@ export default function VerificationPage() {
   }
   if (!canAccessVerification && gateResult) {
     return (
-      <Page title="验收向导">
+      <Page title={t("verification.noShopTitle")}>
         <UpgradePrompt
           feature="verification"
           currentPlan={currentPlan || "free"}
@@ -149,23 +152,23 @@ export default function VerificationPage() {
     : 0;
   return (
     <Page
-      title="验收（Verification）+ 断档监控（Monitoring）"
-      subtitle="测试清单 + 事件触发记录 + 参数完整率 + 订单金额/币种一致性 • 隐私合规检查（consent/customerPrivacy）• 验收报告导出（CSV）是核心付费点（给老板/客户看的证据）• Growth 套餐 $79/月 或 Agency 套餐 $199/月"
+      title={t("verification.pageTitle")}
+      subtitle={t("verification.pageSubtitle")}
       primaryAction={{
-        content: isRunning ? "运行中..." : "运行验收",
+        content: isRunning ? t("verification.running") : t("verification.runVerification"),
         onAction: handleRunVerification,
         loading: isRunning,
         icon: PlayIcon,
       }}
       secondaryActions={[
         {
-          content: "刷新",
+          content: t("verification.refresh"),
           onAction: () => revalidator.revalidate(),
           icon: RefreshIcon,
         },
         ...(latestRun && canExportReports ? [
           {
-            content: "导出 CSV",
+            content: t("verification.exportCsv"),
             onAction: handleExportCsv,
             icon: ExportIcon,
           },
@@ -174,13 +177,10 @@ export default function VerificationPage() {
     >
       <BlockStack gap="500">
         <PageIntroCard
-          title="验收流程概览"
-          description="通过测试清单验证事件触发与参数完整率，输出可交付的验收报告。"
-          items={[
-            "像素层验收覆盖标准事件",
-            "报告支持 CSV 导出",
-          ]}
-          primaryAction={{ content: "查看验收报告", url: "/app/reports" }}
+          title={t("verification.introTitle")}
+          description={t("verification.introDesc")}
+          items={[t("verification.introItems.0"), t("verification.introItems.1")]}
+          primaryAction={{ content: t("verification.viewReport"), url: "/app/reports" }}
         />
         <VerificationIntroSection
           testGuide={testGuide}
@@ -213,17 +213,17 @@ export default function VerificationPage() {
                     <Layout>
                       <Layout.Section variant="oneThird">
                         <ScoreCard
-                          title="通过率"
+                          title={t("verification.passRate")}
                           score={passRate}
-                          description={`${latestRun.passedTests}/${latestRun.totalTests} 项测试通过`}
+                          description={t("verification.passRateDesc", { passed: latestRun.passedTests, total: latestRun.totalTests })}
                           tone={passRate >= 80 ? "success" : passRate >= 50 ? "warning" : "critical"}
                         />
                       </Layout.Section>
                       <Layout.Section variant="oneThird">
                         <ScoreCard
-                          title="参数完整率"
+                          title={t("verification.paramCompleteness")}
                           score={latestRun.parameterCompleteness}
-                          description="事件参数完整程度"
+                          description={t("verification.paramCompletenessDesc")}
                           tone={
                             latestRun.parameterCompleteness >= 80
                               ? "success"
@@ -235,9 +235,9 @@ export default function VerificationPage() {
                       </Layout.Section>
                       <Layout.Section variant="oneThird">
                         <ScoreCard
-                          title="金额准确率"
+                          title={t("verification.valueAccuracy")}
                           score={latestRun.valueAccuracy}
-                          description="订单金额与事件一致"
+                          description={t("verification.valueAccuracyDesc")}
                           tone={
                             latestRun.valueAccuracy >= 95
                               ? "success"
@@ -252,7 +252,7 @@ export default function VerificationPage() {
                       <BlockStack gap="400">
                         <InlineStack align="space-between" blockAlign="center">
                           <Text as="h2" variant="headingMd">
-                            验收状态
+                            {t("verification.statusLabel")}
                           </Text>
                           <StatusBadge status={latestRun.status} />
                         </InlineStack>
@@ -260,25 +260,25 @@ export default function VerificationPage() {
                         <InlineStack gap="400" align="space-between">
                           <BlockStack gap="100">
                             <Text as="p" variant="bodySm" tone="subdued">
-                              验收时间
+                              {t("verification.completedAtLabel")}
                             </Text>
                             <Text as="p" fontWeight="semibold">
                               {latestRun.completedAt
-                                ? new Date(latestRun.completedAt).toLocaleString("zh-CN")
+                                ? new Date(latestRun.completedAt).toLocaleString(dateLocale)
                                 : "-"}
                             </Text>
                           </BlockStack>
                           <BlockStack gap="100">
                             <Text as="p" variant="bodySm" tone="subdued">
-                              验收类型
+                              {t("verification.runTypeLabel")}
                             </Text>
                             <Text as="p" fontWeight="semibold">
-                              {latestRun.runType === "full" ? "完整验收" : "快速验收"}
+                              {latestRun.runType === "full" ? t("verification.runTypeFull") : t("verification.runTypeQuick")}
                             </Text>
                           </BlockStack>
                           <BlockStack gap="100">
                             <Text as="p" variant="bodySm" tone="subdued">
-                              测试平台
+                              {t("verification.platformsLabel")}
                             </Text>
                             <InlineStack gap="100">
                               {latestRun.platforms.map((p) => (
@@ -295,7 +295,7 @@ export default function VerificationPage() {
                                 {latestRun.passedTests}
                               </Text>
                               <Text as="p" variant="bodySm" tone="subdued">
-                                通过
+                                {t("verification.passed")}
                               </Text>
                             </BlockStack>
                             <BlockStack gap="100" align="center">
@@ -304,7 +304,7 @@ export default function VerificationPage() {
                                 {latestRun.missingParamTests}
                               </Text>
                               <Text as="p" variant="bodySm" tone="subdued">
-                                参数缺失
+                                {t("verification.missingParams")}
                               </Text>
                             </BlockStack>
                             <BlockStack gap="100" align="center">
@@ -313,37 +313,36 @@ export default function VerificationPage() {
                                 {latestRun.failedTests}
                               </Text>
                               <Text as="p" variant="bodySm" tone="subdued">
-                                失败
+                                {t("verification.failed")}
                               </Text>
                             </BlockStack>
                           </InlineStack>
                         </Box>
                         {latestRun.failedTests > 0 && (
-                          <Banner tone="critical" title="存在失败的测试项">
+                          <Banner tone="critical" title={t("verification.bannerFailedTitle")}>
                             <BlockStack gap="100">
                               <Text as="p" variant="bodySm">
-                                请检查以下可能的原因：
+                                {t("verification.bannerFailedReasons")}
                               </Text>
                               <List type="bullet">
-                                <List.Item>Web Pixel 是否已正确安装并启用</List.Item>
-                                <List.Item>事件是否在结账漏斗中实际触发</List.Item>
-                                <List.Item>是否有广告拦截器或浏览器策略影响请求发送</List.Item>
+                                <List.Item>{t("verification.bannerFailedItem1")}</List.Item>
+                                <List.Item>{t("verification.bannerFailedItem2")}</List.Item>
+                                <List.Item>{t("verification.bannerFailedItem3")}</List.Item>
                               </List>
                             </BlockStack>
                           </Banner>
                         )}
                         {latestRun.missingParamTests > 0 && latestRun.failedTests === 0 && (
-                          <Banner tone="warning" title="部分事件参数不完整">
+                          <Banner tone="warning" title={t("verification.bannerPartialTitle")}>
                             <Text as="p" variant="bodySm">
-                              某些事件缺少必要参数（如 value 或 currency），可能影响归因效果。
-                              请检查订单数据是否完整。
+                              {t("verification.bannerPartialDesc")}
                             </Text>
                           </Banner>
                         )}
                         {passRate >= 80 && (
-                          <Banner tone="success" title="验收通过">
+                          <Banner tone="success" title={t("verification.bannerSuccessTitle")}>
                             <Text as="p" variant="bodySm">
-                              🎉 您的追踪配置工作正常！建议定期运行验收以确保持续稳定。
+                              🎉 {t("verification.bannerSuccessDesc")}
                             </Text>
                           </Banner>
                         )}
@@ -352,19 +351,19 @@ export default function VerificationPage() {
                             <Divider />
                             <BlockStack gap="400">
                               <Text as="h3" variant="headingSm">
-                                📊 渠道对账
+                                📊 {t("verification.reconciliationTitle")}
                               </Text>
                               <Card>
                                 <BlockStack gap="300">
                                   {latestRun.reconciliation.pixelVsCapi && (
                                     <DataTable
                                       columnContentTypes={["text", "numeric", "numeric"]}
-                                      headings={["指标", "Pixel", "服务端(规划)"]}
+                                      headings={[t("verification.tableMetric"), t("verification.tablePixel"), t("verification.tableCapi")]}
                                       rows={[
-                                        ["仅 Pixel", String(latestRun.reconciliation.pixelVsCapi.pixelOnly || 0), "0"],
-                                        ["仅 服务端(规划)", "0", String(latestRun.reconciliation.pixelVsCapi.capiOnly || 0)],
-                                        ["两者都有", String(latestRun.reconciliation.pixelVsCapi.both || 0), String(latestRun.reconciliation.pixelVsCapi.both || 0)],
-                                        ["被 Consent 阻止", String(latestRun.reconciliation.pixelVsCapi.consentBlocked || 0), String(latestRun.reconciliation.pixelVsCapi.consentBlocked || 0)],
+                                        [t("verification.rowPixelOnly"), String(latestRun.reconciliation.pixelVsCapi.pixelOnly || 0), "0"],
+                                        [t("verification.rowCapiOnly"), "0", String(latestRun.reconciliation.pixelVsCapi.capiOnly || 0)],
+                                        [t("verification.rowBoth"), String(latestRun.reconciliation.pixelVsCapi.both || 0), String(latestRun.reconciliation.pixelVsCapi.both || 0)],
+                                        [t("verification.rowConsentBlocked"), String(latestRun.reconciliation.pixelVsCapi.consentBlocked || 0), String(latestRun.reconciliation.pixelVsCapi.consentBlocked || 0)],
                                       ]}
                                     />
                                   )}
@@ -378,7 +377,7 @@ export default function VerificationPage() {
                                         {latestRun.reconciliation.pixelVsCapi.both}
                                       </Text>
                                       <Text as="p" variant="bodySm" tone="subdued">
-                                        两者都有
+                                        {t("verification.bothLabel")}
                                       </Text>
                                     </BlockStack>
                                   </Box>
@@ -390,7 +389,7 @@ export default function VerificationPage() {
                                         {latestRun.reconciliation.pixelVsCapi.pixelOnly}
                                       </Text>
                                       <Text as="p" variant="bodySm" tone="subdued">
-                                        仅 Pixel
+                                        {t("verification.pixelOnlyLabel")}
                                       </Text>
                                     </BlockStack>
                                   </Box>
@@ -402,26 +401,26 @@ export default function VerificationPage() {
                                         {latestRun.reconciliation.pixelVsCapi.capiOnly}
                                       </Text>
                                       <Text as="p" variant="bodySm" tone="subdued">
-                                        仅 服务端(规划)
+                                        {t("verification.capiOnlyLabel")}
                                       </Text>
                                     </BlockStack>
                                   </Box>
                                 </Layout.Section>
                               </Layout>
                               {latestRun.reconciliation.consistencyIssues && latestRun.reconciliation.consistencyIssues.length > 0 && (
-                                <Banner tone="warning" title="发现一致性问题">
+                                <Banner tone="warning" title={t("verification.consistencyBannerTitle")}>
                                   <List type="bullet">
                                     {latestRun.reconciliation.consistencyIssues.slice(0, 5).map((issue, idx) => (
                                       <List.Item key={idx}>
                                         <Text as="span" variant="bodySm">
-                                          <strong>订单 {issue.orderId}:</strong> {issue.issue}
+                                          <strong>{t("verification.orderIssue", { orderId: issue.orderId, issue: issue.issue })}</strong>
                                         </Text>
                                       </List.Item>
                                     ))}
                                     {latestRun.reconciliation.consistencyIssues.length > 5 && (
                                       <List.Item>
                                         <Text as="span" variant="bodySm" tone="subdued">
-                                          还有 {latestRun.reconciliation.consistencyIssues.length - 5} 个问题，详见详细结果
+                                          {t("verification.moreIssues", { count: latestRun.reconciliation.consistencyIssues.length - 5 })}
                                         </Text>
                                       </List.Item>
                                     )}
@@ -433,10 +432,10 @@ export default function VerificationPage() {
                                   <Divider />
                                   <BlockStack gap="300">
                                     <Text as="h3" variant="headingSm">
-                                      🔍 本地一致性检查
+                                      🔍 {t("verification.localConsistencyTitle")}
                                     </Text>
                                     <Text as="p" variant="bodySm" tone="subdued">
-                                      对订单数据进行深度一致性验证，确保 Pixel 与对账结果一致
+                                      {t("verification.localConsistencyDesc")}
                                     </Text>
                                     <Layout>
                                       <Layout.Section variant="oneThird">
@@ -446,7 +445,7 @@ export default function VerificationPage() {
                                               {latestRun.reconciliation.localConsistency.totalChecked}
                                             </Text>
                                             <Text as="p" variant="bodySm" tone="subdued">
-                                              检查订单数
+                                              {t("verification.checkedCount")}
                                             </Text>
                                           </BlockStack>
                                         </Box>
@@ -458,7 +457,7 @@ export default function VerificationPage() {
                                               {latestRun.reconciliation.localConsistency.consistent}
                                             </Text>
                                             <Text as="p" variant="bodySm" tone="subdued">
-                                              完全一致
+                                              {t("verification.consistent")}
                                             </Text>
                                           </BlockStack>
                                         </Box>
@@ -470,7 +469,7 @@ export default function VerificationPage() {
                                               {latestRun.reconciliation.localConsistency.partial}
                                             </Text>
                                             <Text as="p" variant="bodySm" tone="subdued">
-                                              部分一致
+                                              {t("verification.partial")}
                                             </Text>
                                           </BlockStack>
                                         </Box>
@@ -482,7 +481,7 @@ export default function VerificationPage() {
                                           {latestRun.reconciliation.localConsistency.inconsistent}
                                         </Text>
                                         <Text as="p" variant="bodySm" tone="subdued">
-                                          不一致
+                                          {t("verification.inconsistent")}
                                         </Text>
                                       </BlockStack>
                                     </Box>
@@ -497,19 +496,19 @@ export default function VerificationPage() {
                                         }
                                         title={
                                           latestRun.reconciliation.localConsistency.inconsistent > 0
-                                            ? "发现不一致订单"
+                                            ? t("verification.localBannerInconsistent")
                                             : latestRun.reconciliation.localConsistency.partial > 0
-                                              ? "发现部分一致订单"
-                                              : "检查完成"
+                                              ? t("verification.localBannerPartial")
+                                              : t("verification.localBannerDone")
                                         }
                                       >
                                         <BlockStack gap="200">
                                           <Text as="p" variant="bodySm">
                                             {latestRun.reconciliation.localConsistency.inconsistent > 0
-                                              ? "以下订单存在关键参数不一致（如金额、币种、事件ID重复等），需要检查配置。"
+                                              ? t("verification.localBannerInconsistentDesc")
                                               : latestRun.reconciliation.localConsistency.partial > 0
-                                                ? "以下订单存在部分参数不一致，可能影响追踪准确性。"
-                                                : "所有检查的订单参数一致。"}
+                                                ? t("verification.localBannerPartialDesc")
+                                                : t("verification.localBannerDoneDesc")}
                                           </Text>
                                           {latestRun.reconciliation.localConsistency.issues.length > 0 && (
                                             <BlockStack gap="100">
@@ -523,10 +522,12 @@ export default function VerificationPage() {
                                                   <InlineStack gap="200" align="space-between" blockAlign="start">
                                                     <BlockStack gap="050">
                                                       <Text as="p" variant="bodySm" fontWeight="semibold">
-                                                        订单 {issue.orderId}
+                                                        {t("verification.orderLabel", { orderId: issue.orderId })}
                                                       </Text>
                                                       <Text as="p" variant="bodySm" tone="subdued">
-                                                        状态: {issue.status === "consistent" ? "一致" : issue.status === "partial" ? "部分一致" : "不一致"}
+                                                        {t("verification.statusLine", {
+                                                          status: issue.status === "consistent" ? t("verification.statusConsistent") : issue.status === "partial" ? t("verification.statusPartial") : t("verification.statusInconsistent"),
+                                                        })}
                                                       </Text>
                                                     </BlockStack>
                                                     <Badge
@@ -539,10 +540,10 @@ export default function VerificationPage() {
                                                       }
                                                     >
                                                       {issue.status === "consistent"
-                                                        ? "一致"
+                                                        ? t("verification.consistent")
                                                         : issue.status === "partial"
-                                                          ? "部分一致"
-                                                          : "不一致"}
+                                                          ? t("verification.partial")
+                                                          : t("verification.inconsistent")}
                                                     </Badge>
                                                   </InlineStack>
                                                   {issue.issues && issue.issues.length > 0 && (
@@ -562,7 +563,7 @@ export default function VerificationPage() {
                                               ))}
                                               {latestRun.reconciliation.localConsistency.issues.length > 5 && (
                                                 <Text as="p" variant="bodySm" tone="subdued">
-                                                  还有 {latestRun.reconciliation.localConsistency.issues.length - 5} 个订单详情，请查看详细结果或导出报告
+                                                  {t("verification.moreOrders", { count: latestRun.reconciliation.localConsistency.issues.length - 5 })}
                                                 </Text>
                                               )}
                                             </BlockStack>
@@ -580,25 +581,25 @@ export default function VerificationPage() {
                     </Card>
                   </>
                 )}
-                <Banner tone="info" title="重要说明：验收范围与平台归因">
+                <Banner tone="info" title={t("verification.scopeBannerTitle")}>
                   <BlockStack gap="200">
                     <Text as="p" variant="bodySm">
-                      <strong>本应用验收侧重于事件触发与数据质量，不保证平台侧归因一致。</strong>
+                      <strong>{t("verification.scopeBannerP1")}</strong>
                     </Text>
                     <List type="bullet">
                       <List.Item>
                         <Text as="span" variant="bodySm">
-                          <strong>我们提供：</strong>像素事件触发记录、参数完整率、订单金额/币种一致性等验收证据。
+                          <strong>{t("verification.weProvide")}</strong>
                         </Text>
                       </List.Item>
                       <List.Item>
                         <Text as="span" variant="bodySm">
-                          <strong>我们不保证：</strong>平台侧报表中的归因数据与 Shopify 订单数据完全一致。平台侧归因受多种因素影响，包括平台算法、用户隐私设置、跨设备追踪限制、数据处理延迟等。
+                          <strong>{t("verification.weDontGuarantee")}</strong>
                         </Text>
                       </List.Item>
                       <List.Item>
                         <Text as="span" variant="bodySm">
-                          <strong>验收报告说明：</strong>如果验收显示“通过”，表示像素事件在本应用的接收与校验链路中表现正常；平台侧归因可能仍存在差异，这是正常现象。
+                          <strong>{t("verification.reportNote")}</strong>
                         </Text>
                       </List.Item>
                     </List>
@@ -607,11 +608,11 @@ export default function VerificationPage() {
                 {!isRunning && !latestRun && (
                   <EnhancedEmptyState
                     icon="✅"
-                    title="尚未运行验收"
-                    description="按照上方的测试指引完成测试订单后，点击「运行验收」分析结果。"
-                    helpText="验收会分析过去 24 小时内的事件数据，验证追踪是否正常工作。"
+                    title={t("verification.emptyTitle")}
+                    description={t("verification.emptyDesc")}
+                    helpText={t("verification.emptyHelp")}
                     primaryAction={{
-                      content: "运行验收",
+                      content: t("verification.runVerification"),
                       onAction: handleRunVerification,
                     }}
                   />
@@ -644,10 +645,11 @@ export default function VerificationPage() {
                     category: "category" in item ? (item.category as string) : "purchase",
                   }))}
                   onTestComplete={(itemId, verified) => {
+                    const name = testItems.find((i) => i.id === itemId)?.name ?? "";
                     if (verified) {
-                      showSuccess(`测试项 "${testItems.find((i) => i.id === itemId)?.name}" 验证通过`);
+                      showSuccess(t("verification.itemPassed", { name }));
                     } else {
-                      showError(`测试项 "${testItems.find((i) => i.id === itemId)?.name}" 验证失败，请检查事件触发情况`);
+                      showError(t("verification.itemFailed", { name }));
                     }
                   }}
                 />
@@ -666,11 +668,11 @@ export default function VerificationPage() {
           <BlockStack gap="400">
             <InlineStack align="space-between" blockAlign="center">
               <Text as="h2" variant="headingMd">
-                📝 验收测试清单
+                📝 {t("verification.checklistTitle")}
               </Text>
               {latestRun && (
                 <Badge tone={latestRun.status === "completed" ? "success" : latestRun.status === "running" ? "info" : undefined}>
-                  {latestRun.status === "completed" ? "已完成" : latestRun.status === "running" ? "运行中" : "待运行"}
+                  {latestRun.status === "completed" ? t("verification.statusCompleted") : latestRun.status === "running" ? t("verification.statusRunning") : t("verification.statusPending")}
                 </Badge>
               )}
             </InlineStack>
@@ -726,21 +728,21 @@ export default function VerificationPage() {
                           <Text as="span" fontWeight="semibold">
                             {item.name}
                           </Text>
-                          {item.required && <Badge tone="attention">必测</Badge>}
+                          {item.required && <Badge tone="attention">{t("verification.badgeRequired")}</Badge>}
                           {itemStatus === "success" && (
-                            <Badge tone="success">✓ 通过</Badge>
+                            <Badge tone="success">{t("verification.badgePass")}</Badge>
                           )}
                           {itemStatus === "partial" && (
-                            <Badge tone="warning">⚠ 部分通过</Badge>
+                            <Badge tone="warning">{t("verification.badgePartial")}</Badge>
                           )}
                           {itemStatus === "failed" && (
-                            <Badge tone="critical">✗ 失败</Badge>
+                            <Badge tone="critical">{t("verification.badgeFail")}</Badge>
                           )}
                           {itemStatus === "missing_params" && (
-                            <Badge tone="warning">⚠ 参数缺失</Badge>
+                            <Badge tone="warning">{t("verification.badgeMissingParams")}</Badge>
                           )}
                           {itemStatus === "not_tested" && (
-                            <Badge>未测试</Badge>
+                            <Badge>{t("verification.badgeNotTested")}</Badge>
                           )}
                         </InlineStack>
                         <Text as="span" variant="bodySm" tone="subdued">
@@ -749,15 +751,17 @@ export default function VerificationPage() {
                         {itemResults.length > 0 && (
                           <BlockStack gap="100">
                             <Text as="span" variant="bodySm" tone="subdued">
-                              测试结果: {itemResults.filter((r) => r.status === "success").length} / {itemResults.length} 通过
+                              {t("verification.testResultLine", { passed: itemResults.filter((r) => r.status === "success").length, total: itemResults.length })}
                             </Text>
                             {itemResults.some((r) => r.discrepancies && r.discrepancies.length > 0) && (
                               <Banner tone="warning">
                                 <Text as="p" variant="bodySm">
-                                  发现问题: {itemResults
-                                    .filter((r) => r.discrepancies && r.discrepancies.length > 0)
-                                    .map((r) => r.discrepancies?.join(", "))
-                                    .join("; ")}
+                                  {t("verification.issuesFound", {
+                                    details: itemResults
+                                      .filter((r) => r.discrepancies && r.discrepancies.length > 0)
+                                      .map((r) => r.discrepancies?.join(", "))
+                                      .join("; "),
+                                  })}
                                 </Text>
                               </Banner>
                             )}
@@ -782,11 +786,11 @@ export default function VerificationPage() {
         <Card>
           <BlockStack gap="400">
             <Text as="h2" variant="headingMd">
-              🔗 相关页面
+              🔗 {t("verification.relatedPages")}
             </Text>
             <InlineStack gap="300" wrap>
-              <Button url="/app/settings">查看设置</Button>
-              <Button url="/app/migrate">安装 Pixel</Button>
+              <Button url="/app/settings">{t("verification.viewSettings")}</Button>
+              <Button url="/app/migrate">{t("verification.installPixel")}</Button>
             </InlineStack>
           </BlockStack>
         </Card>
@@ -794,9 +798,9 @@ export default function VerificationPage() {
       <Modal
         open={showGuideModal}
         onClose={() => setShowGuideModal(false)}
-        title="测试订单指引"
+        title={t("verification.modalTestOrderTitle")}
         primaryAction={{
-          content: "知道了",
+          content: t("verification.gotIt"),
           onAction: () => setShowGuideModal(false),
         }}
       >

@@ -10,6 +10,7 @@ import {
 import { ManualInputWizard, type ManualInputData } from "~/components/scan/ManualInputWizard";
 import { GuidedSupplement } from "~/components/scan/GuidedSupplement";
 import { getDateDisplayLabel, DEPRECATION_DATES } from "~/utils/deprecation-dates";
+import { useT } from "~/context/LocaleContext";
 
 export interface ScanPageModalsProps {
   guidanceModalOpen: boolean;
@@ -48,6 +49,7 @@ export function ScanPageModals({
   shopId,
   showSuccess,
 }: ScanPageModalsProps) {
+  const t = useT();
   return (
     <>
       <Modal
@@ -221,7 +223,7 @@ export function ScanPageModals({
         open={guidedSupplementOpen}
         onClose={() => setGuidedSupplementOpen(false)}
         onComplete={(count) => {
-          showSuccess(`成功创建 ${count} 个迁移资产`);
+          showSuccess(t("scan.migrateAssetsCreated", { count }));
           window.location.reload();
         }}
         shopId={shopId}

@@ -1,5 +1,6 @@
 import { Card, BlockStack, Text } from "@shopify/polaris";
 import { PLATFORM_INFO, type SupportedPlatform, type PlatformConfig } from "../constants";
+import { useT } from "~/context/LocaleContext";
 import {
   PlatformCredentialsForm,
   getEmptyCredentials,
@@ -59,14 +60,15 @@ export function CredentialsStep({
   platformConfigs,
   onCredentialsChange,
 }: CredentialsStepProps) {
+  const t = useT();
   return (
     <Card>
       <BlockStack gap="400">
         <Text as="h3" variant="headingMd">
-          平台凭证（可选）
+          {t("pixels.credentialsTitle")}
         </Text>
         <Text as="p" tone="subdued">
-          当前版本不进行服务端投递；凭证可保存用于后续能力规划。
+          {t("pixels.credentialsDesc")}
         </Text>
         {Array.from(selectedPlatforms).map((platform) => {
           const config = platformConfigs[platform];

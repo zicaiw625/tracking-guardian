@@ -1,4 +1,5 @@
 import { Banner, Card, Text, BlockStack, Button, InlineStack } from "@shopify/polaris";
+import { useT } from "~/context/LocaleContext";
 
 export interface ErrorDisplayProps {
   title?: string;
@@ -22,7 +23,7 @@ export interface ApiErrorDisplayProps {
 }
 
 export function ErrorDisplay({
-  title = "发生错误",
+  title: titleProp,
   message,
   code,
   retryable = false,
@@ -30,6 +31,8 @@ export function ErrorDisplay({
   onDismiss,
   variant = "banner",
 }: ErrorDisplayProps) {
+  const t = useT();
+  const title = titleProp ?? t("common.errorOccurred");
   if (variant === "card") {
     return (
       <Card>
@@ -40,16 +43,16 @@ export function ErrorDisplay({
           <Text as="p">{message}</Text>
           {code && (
             <Text as="p" variant="bodySm" tone="subdued">
-              错误代码: {code}
+              {t("errors.errorCode")}: {code}
             </Text>
           )}
           <InlineStack gap="200">
             {retryable && onRetry && (
-              <Button onClick={onRetry}>重试</Button>
+              <Button onClick={onRetry}>{t("common.retry")}</Button>
             )}
             {onDismiss && (
               <Button variant="plain" onClick={onDismiss}>
-                关闭
+                {t("common.close")}
               </Button>
             )}
           </InlineStack>
@@ -64,7 +67,7 @@ export function ErrorDisplay({
       onDismiss={onDismiss}
       action={
         retryable && onRetry
-          ? { content: "重试", onAction: onRetry }
+          ? { content: t("common.retry"), onAction: onRetry }
           : undefined
       }
     >
@@ -72,7 +75,7 @@ export function ErrorDisplay({
         <Text as="p">{message}</Text>
         {code && (
           <Text as="p" variant="bodySm" tone="subdued">
-            错误代码: {code}
+            {t("errors.errorCode")}: {code}
           </Text>
         )}
       </BlockStack>
@@ -85,6 +88,7 @@ export function ApiErrorDisplay({
   onRetry,
   onDismiss,
 }: ApiErrorDisplayProps) {
+  const t = useT();
   if (!error) return null;
   if (typeof error === "string") {
     return (
@@ -96,17 +100,17 @@ export function ApiErrorDisplay({
       />
     );
   }
-  const message = error.message || error.error || "发生未知错误";
+  const message = error.message || error.error || t("common.unknownError");
   const code = error.code;
   if (error.details && error.details.length > 0) {
     return (
       <Banner
-        title="输入验证失败"
+        title={t("common.validationFailed")}
         tone="warning"
         onDismiss={onDismiss}
         action={
           onRetry
-            ? { content: "重试", onAction: onRetry }
+            ? { content: t("common.retry"), onAction: onRetry }
             : undefined
         }
       >
@@ -137,10 +141,11 @@ export interface NetworkErrorProps {
 }
 
 export function NetworkErrorDisplay({ onRetry }: NetworkErrorProps) {
+  const t = useT();
   return (
     <ErrorDisplay
-      title="网络连接错误"
-      message="无法连接到服务器，请检查您的网络连接后重试。"
+      title={t("common.networkError")}
+      message={t("common.networkErrorDesc")}
       retryable={!!onRetry}
       onRetry={onRetry}
     />
@@ -152,18 +157,20 @@ export interface NotFoundProps {
   onBack?: () => void;
 }
 
-export function NotFoundDisplay({ resource = "资源", onBack }: NotFoundProps) {
+export function NotFoundDisplay({ resource: resourceProp, onBack }: NotFoundProps) {
+  const t = useT();
+  const resource = resourceProp ?? t("common.resource");
   return (
     <Card>
       <BlockStack gap="400" align="center">
         <Text as="h2" variant="headingLg">
-          未找到
+          {t("common.notFound")}
         </Text>
         <Text as="p" tone="subdued">
-          请求的{resource}不存在或已被删除。
+          {t("common.resourceNotFound", { resource })}
         </Text>
         {onBack && (
-          <Button onClick={onBack}>返回</Button>
+          <Button onClick={onBack}>{t("common.back")}</Button>
         )}
       </BlockStack>
     </Card>
@@ -180,10 +187,13 @@ export interface EmptyStateProps {
 }
 
 export function EmptyStateDisplay({
-  title = "暂无数据",
-  message = "当前没有可显示的内容。",
+  title: titleProp,
+  message: messageProp,
   action,
 }: EmptyStateProps) {
+  const t = useT();
+  const title = titleProp ?? t("common.noData");
+  const message = messageProp ?? t("common.noDataDesc");
   return (
     <Card>
       <BlockStack gap="400" align="center">

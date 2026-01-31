@@ -27,6 +27,7 @@ import {
 import { generateChecklistText } from "../utils/scan-format";
 import { useScriptAnalysis } from "./app.scan/_components/useScriptAnalysis";
 import { TIMEOUTS } from "../utils/scan-constants";
+import { useT } from "~/context/LocaleContext";
 import { isFetcherResult } from "../utils/scan-validation";
 import type { ScriptAnalysisResult } from "../services/scanner.server";
 
@@ -43,10 +44,13 @@ type ScanPageProps = {
 export function ScanPage({
     initialTab = 0,
     showTabs = true,
-    pageTitle = "Audit 风险报告（免费获客）",
-    pageSubtitle = "迁移清单 + 风险分级 + 替代路径（Web Pixel / 不可迁移）• 明确提示 checkout.liquid / additional scripts / script tags 在 Thank you/Order status 的弃用与限制 • 可导出 CSV",
+    pageTitle: pageTitleProp,
+    pageSubtitle: pageSubtitleProp,
     showMigrationButtons = false,
 }: ScanPageProps) {
+    const t = useT();
+    const pageTitle = pageTitleProp ?? t("scan.pageTitle");
+    const pageSubtitle = pageSubtitleProp ?? t("scan.pageSubtitle");
     const [searchParams] = useSearchParams();
     const tabParam = searchParams.get("tab");
     const tabFromUrl = tabParam === "1" ? 1 : tabParam === "2" ? 2 : 0;
@@ -85,42 +89,30 @@ export function ScanPage({
     const introConfig = useMemo(() => {
         if (selectedTab === 1) {
             return {
-                title: "手动补充 Additional Scripts",
-                description: "补齐 Shopify API 无法读取的 Additional Scripts，确保报告覆盖 Thank you / Order status。",
-                items: [
-                    "粘贴 Additional Scripts 内容进行分析",
-                    "生成完整的迁移清单与风险分级",
-                    "支持一键保存到审计记录",
-                ],
-                primaryAction: { content: "进入手动分析", url: "/app/scan?tab=1" },
-                secondaryAction: { content: "查看报告", url: "/app/scan?tab=2" },
+                title: t("scan.introManualTitle"),
+                description: t("scan.introManualDesc"),
+                items: [t("scan.introManualItems.0"), t("scan.introManualItems.1"), t("scan.introManualItems.2")],
+                primaryAction: { content: t("scan.introManualPrimary"), url: "/app/scan?tab=1" },
+                secondaryAction: { content: t("scan.introManualSecondary"), url: "/app/scan?tab=2" },
             };
         }
         if (selectedTab === 2) {
             return {
-                title: "Audit 迁移清单",
-                description: "查看风险分级、推荐迁移路径与预估工时，作为迁移交付清单。",
-                items: [
-                    "清单支持 CSV 导出",
-                    "标注 Web Pixel / 不可迁移 路径",
-                    "优先处理高风险资产",
-                ],
-                primaryAction: { content: "查看完整报告", url: "/app/scan?tab=2" },
-                secondaryAction: { content: "返回扫描", url: "/app/scan" },
+                title: t("scan.introChecklistTitle"),
+                description: t("scan.introChecklistDesc"),
+                items: [t("scan.introChecklistItems.0"), t("scan.introChecklistItems.1"), t("scan.introChecklistItems.2")],
+                primaryAction: { content: t("scan.introChecklistPrimary"), url: "/app/scan?tab=2" },
+                secondaryAction: { content: t("scan.introChecklistSecondary"), url: "/app/scan" },
             };
         }
         return {
-            title: "Audit 自动扫描",
-            description: "自动扫描 ScriptTags 与 Web Pixels，生成迁移风险评估和建议。",
-            items: [
-                "检测已安装像素与平台信号",
-                "识别高风险脚本与阻塞项",
-                "输出迁移路径与工时建议",
-            ],
-            primaryAction: { content: "开始扫描", url: "/app/scan" },
-            secondaryAction: { content: "手动补充", url: "/app/scan?tab=1" },
+            title: t("scan.introAutoTitle"),
+            description: t("scan.introAutoDesc"),
+            items: [t("scan.introAutoItems.0"), t("scan.introAutoItems.1"), t("scan.introAutoItems.2")],
+            primaryAction: { content: t("scan.introAutoPrimary"), url: "/app/scan" },
+            secondaryAction: { content: t("scan.introAutoSecondary"), url: "/app/scan?tab=1" },
         };
-    }, [selectedTab]);
+    }, [selectedTab, t]);
     useEffect(() => {
         setSelectedTab(effectiveInitialTab);
     }, [effectiveInitialTab]);
@@ -143,12 +135,12 @@ export function ScanPage({
     const isUpgrading = upgradeFetcher.state === "submitting";
     const handleShowScriptTagGuidance = useCallback((scriptTagId: number, platform?: string) => {
         setGuidanceContent({
-            title: `清理 ScriptTag #${scriptTagId}`,
+            title: t("scan.cleanScriptTagTitle", { id: String(scriptTagId) }),
             platform,
             scriptTagId,
         });
         setGuidanceModalOpen(true);
-    }, []);
+    }, [t]);
     const closeGuidanceModal = useCallback(() => {
         setGuidanceModalOpen(false);
         setGuidanceContent(null);
@@ -166,11 +158,11 @@ export function ScanPage({
     const confirmDelete = useCallback(() => {
         if (!pendingDelete || isDeleting) return;
         if (!pendingDelete.gid || typeof pendingDelete.gid !== "string") {
-            setDeleteError("无效的 WebPixel ID");
+            setDeleteError(t("scan.invalidWebPixelId"));
             return;
         }
         if (!pendingDelete.gid.startsWith("gid://shopify/WebPixel/")) {
-            setDeleteError("WebPixel ID 格式不正确");
+            setDeleteError(t("scan.invalidWebPixelIdFormat"));
             return;
         }
         const formData = new FormData();
@@ -180,7 +172,7 @@ export function ScanPage({
             method: "post",
             action: "/app/actions/delete-web-pixel",
         });
-    }, [pendingDelete, deleteFetcher, isDeleting]);
+    }, [pendingDelete, deleteFetcher, isDeleting, t]);
     const closeDeleteModal = useCallback(() => {
         if (isDeleting) return;
         setDeleteModalOpen(false);
@@ -225,14 +217,14 @@ export function ScanPage({
     }, [analysisResult, saveAnalysisFetcher.state, handleSaveAnalysis]);
     const addToReplacementChecklist = useCallback(() => {
         if (!analysisResult) return;
-        const summary = scriptContent.slice(0, 80).replace(/\s+/g, " ").trim() || "(无摘要)";
+        const summary = scriptContent.slice(0, 80).replace(/\s+/g, " ").trim() || t("scan.noSummary");
         setReplacementChecklistItems((prev) => [
             ...prev,
             { id: crypto.randomUUID(), contentSummary: summary, result: analysisResult },
         ]);
         setScriptContent("");
         setAnalysisResult(null);
-    }, [analysisResult, scriptContent, setScriptContent, setAnalysisResult]);
+    }, [analysisResult, scriptContent, setScriptContent, setAnalysisResult, t]);
     const removeFromReplacementChecklist = useCallback((id: string) => {
         setReplacementChecklistItems((prev) => prev.filter((x) => x.id !== id));
     }, []);
@@ -246,9 +238,9 @@ export function ScanPage({
                 (risk) =>
                     /window|document|dom/i.test(risk.id) || /window|document|dom/i.test(risk.name || "")
             );
-            if (hasTracking) return "Web Pixel 迁移";
-            if (hasDomRisk) return "Checkout UI Extension 或需人工复核";
-            return "需人工复核（review & replace）";
+            if (hasTracking) return t("scan.replacementWebPixel");
+            if (hasDomRisk) return t("scan.replacementUiReview");
+            return t("scan.replacementManualReview");
         };
         const escapeCSV = (v: string | number): string => {
             const s = String(v).trim();
@@ -256,7 +248,7 @@ export function ScanPage({
             if (s.includes(",") || s.includes('"') || s.includes("\n")) return `"${s.replace(/"/g, '""')}"`;
             return s;
         };
-        const headers = ["序号", "脚本摘要", "识别平台", "建议替代方式", "风险评分", "主要风险", "建议措施"];
+        const headers = [t("scan.csvHeaderIndex"), t("scan.csvHeaderSummary"), t("scan.csvHeaderPlatform"), t("scan.csvHeaderSuggestion"), t("scan.csvHeaderRisk"), t("scan.csvHeaderRisks"), t("scan.csvHeaderActions")];
         const rows = replacementChecklistItems.map((item, i) => {
             const repl = getReplacementSuggestion(item.result);
             const platforms = item.result.identifiedPlatforms.join("; ") || "-";
@@ -272,10 +264,10 @@ export function ScanPage({
         a.download = `additional-scripts-replacement-checklist-${new Date().toISOString().split("T")[0]}.csv`;
         a.click();
         URL.revokeObjectURL(url);
-    }, [replacementChecklistItems]);
+    }, [replacementChecklistItems, t]);
     const handleManualInputComplete = useCallback(async (data: ManualInputData) => {
         if (!shop) {
-            showError("店铺信息未找到");
+            showError(t("scan.shopNotFound"));
             return;
         }
         try {
@@ -286,7 +278,7 @@ export function ScanPage({
                     sourceType: data.fromUpgradeWizard ? "merchant_confirmed" : "manual_paste" as const,
                     category: "pixel" as const,
                     platform,
-                    displayName: `手动补充: ${platform}`,
+                    displayName: t("scan.manualSupplementPlatform", { platform }),
                     riskLevel: "medium" as const,
                     suggestedMigration: "web_pixel" as const,
                     details: {
@@ -317,7 +309,7 @@ export function ScanPage({
                 assets.push({
                     sourceType: data.fromUpgradeWizard ? "merchant_confirmed" : "manual_paste" as const,
                     category: categoryMap[feature] || "other",
-                    displayName: `手动补充: ${feature}`,
+                    displayName: t("scan.manualSupplementFeature", { feature }),
                     riskLevel: "medium" as const,
                     suggestedMigration: migrationMap[feature] || "ui_extension",
                     details: {
@@ -332,16 +324,16 @@ export function ScanPage({
                 formData.append("_action", "create_from_wizard");
                 formData.append("assets", JSON.stringify(assets));
                 submit(formData, { method: "post" });
-                showSuccess(`正在创建 ${assets.length} 个审计资产记录...`);
+                showSuccess(t("scan.creatingAssets", { count: assets.length }));
             } else {
-                showError("请至少选择一个平台或功能");
+                showError(t("scan.selectPlatformOrFeature"));
             }
         } catch (error) {
             const { debugError } = await import("../utils/debug-log.client");
             debugError("Failed to process manual input", error);
-            showError("处理失败，请稍后重试");
+            showError(t("scan.processFailed"));
         }
-    }, [shop, showSuccess, showError, submit]);
+    }, [shop, showSuccess, showError, submit, t]);
     const isProcessingPaste = isSavingAnalysis;
     useEffect(() => {
         const result = isFetcherResult(saveAnalysisFetcher.data) ? saveAnalysisFetcher.data : undefined;
@@ -352,7 +344,7 @@ export function ScanPage({
             }
             setAnalysisSaved(true);
             setPasteProcessed(true);
-            showSuccess("分析结果已保存！");
+            showSuccess(t("scan.analysisSaved"));
             if (reloadTimeoutRef.current) {
                 clearTimeout(reloadTimeoutRef.current);
             }
@@ -362,9 +354,9 @@ export function ScanPage({
         } else if (result.error) {
             analysisSavedRef.current = false;
             setAnalysisSaved(false);
-            showError("保存失败：" + result.error);
+            showError(t("scan.saveFailed", { error: result.error }));
         }
-    }, [saveAnalysisFetcher.data, saveAnalysisFetcher.state, showSuccess, showError]);
+    }, [saveAnalysisFetcher.data, saveAnalysisFetcher.state, showSuccess, showError, t]);
     useEffect(() => {
         if (analysisResult) {
             analysisSavedRef.current = false;
@@ -391,13 +383,13 @@ export function ScanPage({
         const deleteResult = isFetcherResult(deleteFetcher.data) ? deleteFetcher.data : undefined;
         if (!deleteResult || deleteFetcher.state !== "idle" || !isMountedRef.current) return;
         if (deleteResult.success) {
-            showSuccess(deleteResult.message || "删除成功！");
+            showSuccess(deleteResult.message || t("scan.deleteSuccess"));
             setDeleteModalOpen(false);
             setPendingDelete(null);
             setDeleteError(null);
             reloadData();
         } else {
-            let errorMessage = deleteResult.error || "删除失败";
+            let errorMessage = deleteResult.error || t("scan.deleteFailed");
             if (deleteResult.details && typeof deleteResult.details === "object") {
                 const details = deleteResult.details as { message?: string };
                 if (details.message) {
@@ -407,15 +399,15 @@ export function ScanPage({
             setDeleteError(errorMessage);
             showError(errorMessage);
         }
-    }, [deleteFetcher.data, deleteFetcher.state, showSuccess, showError, reloadData]);
+    }, [deleteFetcher.data, deleteFetcher.state, showSuccess, showError, reloadData, t]);
     useEffect(() => {
         const upgradeResult = isFetcherResult(upgradeFetcher.data) ? upgradeFetcher.data : undefined;
         if (!upgradeResult || upgradeFetcher.state !== "idle" || !isMountedRef.current) return;
         if (upgradeResult.success) {
-            showSuccess(upgradeResult.message || "升级成功！");
+            showSuccess(upgradeResult.message || t("scan.upgradeSuccess"));
             reloadData();
         } else {
-            let errorMessage = upgradeResult.error || "升级失败";
+            let errorMessage = upgradeResult.error || t("scan.upgradeFailed");
             if (upgradeResult.details && typeof upgradeResult.details === "object") {
                 const details = upgradeResult.details as { message?: string };
                 if (details.message) {
@@ -424,7 +416,7 @@ export function ScanPage({
             }
             showError(errorMessage);
         }
-    }, [upgradeFetcher.data, upgradeFetcher.state, showSuccess, showError, reloadData]);
+    }, [upgradeFetcher.data, upgradeFetcher.state, showSuccess, showError, reloadData, t]);
     useEffect(() => {
         isMountedRef.current = true;
         return () => {
@@ -446,12 +438,12 @@ export function ScanPage({
         };
     }, []);
   const tabs = [
-    { id: "auto-scan", content: "自动扫描" },
-    { id: "manual-supplement", content: "手动补充" },
-    { id: "migration-checklist", content: "迁移清单" },
+    { id: "auto-scan", content: t("scan.tabAutoScan") },
+    { id: "manual-supplement", content: t("scan.tabManualSupplement") },
+    { id: "migration-checklist", content: t("scan.tabMigrationChecklist") },
   ];
   const visibleTabs = showTabs ? tabs : [];
-  const shouldShowMigrationButtons = showMigrationButtons && (!showTabs || selectedTab === 2 || pageTitle === "Audit 迁移清单");
+  const shouldShowMigrationButtons = showMigrationButtons && (!showTabs || selectedTab === 2 || pageTitle === t("scan.migrationChecklistTitle"));
   const auditAssetCount = useMemo(
     () => (Array.isArray(auditAssets) ? auditAssets.filter((asset): asset is NonNullable<typeof asset> => asset !== null).length : 0),
     [auditAssets]
@@ -486,12 +478,12 @@ export function ScanPage({
         try {
             const response = await fetch(`/api/scan-report/csv?reportId=${encodeURIComponent(latestScan.id)}`);
             if (!response.ok) {
-                let msg = "导出失败";
+                let msg = t("scan.exportFailed");
                 try {
                     const errorData = await response.json();
                     msg = errorData.error || msg;
                 } catch {
-                    // JSON 解析失败，使用默认错误消息
+                    void 0;
                 }
                 showError(msg);
                 return;
@@ -505,11 +497,11 @@ export function ScanPage({
             a.click();
             document.body.removeChild(a);
             URL.revokeObjectURL(url);
-            showSuccess("扫描报告 CSV 导出成功");
+            showSuccess(t("scan.scanReportExportSuccess"));
         } catch (error) {
-            showError("导出失败：" + (error instanceof Error ? error.message : "未知错误"));
+            showError(t("scan.exportFailedWithError", { error: error instanceof Error ? error.message : "Unknown error" }));
         }
-    }, [latestScan, showSuccess, showError]);
+    }, [latestScan, showSuccess, showError, t]);
     const handleCopyChecklist = useCallback(async () => {
         if (isCopying) return;
         setIsCopying(true);
@@ -517,18 +509,18 @@ export function ScanPage({
             const checklist = handleGenerateChecklistText("markdown");
             if (navigator.clipboard && navigator.clipboard.writeText) {
                 await navigator.clipboard.writeText(checklist);
-                showSuccess("清单已复制到剪贴板");
+                showSuccess(t("scan.checklistCopied"));
             } else {
-                showError("浏览器不支持复制功能");
+                showError(t("scan.browserNoCopy"));
             }
         } catch (error) {
             const { debugError } = await import("../utils/debug-log.client");
-            debugError("复制失败:", error);
-            showError("复制失败，请手动复制");
+            debugError("Copy failed:", error);
+            showError(t("scan.copyFailed"));
         } finally {
             setIsCopying(false);
         }
-    }, [isCopying, handleGenerateChecklistText, showSuccess, showError]);
+    }, [isCopying, handleGenerateChecklistText, showSuccess, showError, t]);
     const handleExportChecklist = useCallback(() => {
         if (isExporting) return;
         setIsExporting(true);
@@ -571,24 +563,24 @@ export function ScanPage({
                     URL.revokeObjectURL(exportBlobUrlRef.current);
                     exportBlobUrlRef.current = null;
                 }
-                showError("导出失败：无法创建下载链接");
+                showError(t("scan.exportFailedNoLink"));
                 setIsExporting(false);
                 return;
             }
-            showSuccess("清单导出成功");
+            showSuccess(t("scan.checklistExportSuccess"));
             setIsExporting(false);
         } catch (error) {
             import("../utils/debug-log.client").then(({ debugError }) => {
-              debugError("导出失败:", error);
+              debugError("Export failed:", error);
             });
             if (exportBlobUrlRef.current) {
                 URL.revokeObjectURL(exportBlobUrlRef.current);
                 exportBlobUrlRef.current = null;
             }
-            showError("导出失败，请重试");
+            showError(t("scan.exportFailedRetry"));
             setIsExporting(false);
         }
-    }, [isExporting, handleGenerateChecklistText, showSuccess, showError]);
+    }, [isExporting, handleGenerateChecklistText, showSuccess, showError, t]);
     const riskItems = useMemo(() => {
         return validateRiskItemsArray(latestScan?.riskItems);
     }, [latestScan?.riskItems]);
@@ -597,7 +589,7 @@ export function ScanPage({
       <ScanPageBanners
         deprecationStatus={deprecationStatus}
         onShowUpgradeGuide={() => {
-          setGuidanceContent({ title: "如何从 Shopify 升级向导获取脚本清单", platform: undefined });
+          setGuidanceContent({ title: t("scan.guidanceUpgradeWizard"), platform: undefined });
           setGuidanceModalOpen(true);
         }}
         scannerMaxScriptTags={scannerMaxScriptTags}
@@ -708,7 +700,7 @@ export function ScanPage({
                 onOpenGuidedSupplement={() => setGuidedSupplementOpen(true)}
                 onOpenManualInputWizard={() => setManualInputWizardOpen(true)}
                 onAssetsCreated={(count) => {
-                    showSuccess(`成功创建 ${count} 个迁移资产`);
+                    showSuccess(t("scan.migrateAssetsCreated", { count }));
                     window.location.reload();
                 }}
                 ScriptCodeEditor={ScriptCodeEditor}

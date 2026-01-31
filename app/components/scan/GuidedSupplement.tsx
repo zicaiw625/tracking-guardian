@@ -15,6 +15,7 @@ import {
 } from "@shopify/polaris";
 import { CheckCircleIcon } from "~/components/icons";
 import { useFetcher } from "@remix-run/react";
+import { useT } from "~/context/LocaleContext";
 
 export interface GuidedSupplementProps {
   open: boolean;
@@ -41,6 +42,7 @@ export function GuidedSupplement({
   onComplete,
   shopId: _shopId,
 }: GuidedSupplementProps) {
+  const t = useT();
   const [step, setStep] = useState<1 | 2 | 3>(1);
   const [selectedItems, setSelectedItems] = useState<string[]>([]);
   const [additionalNotes, setAdditionalNotes] = useState("");
@@ -440,7 +442,7 @@ export function GuidedSupplement({
               {fetcher.data && (fetcher.data as { success?: boolean }).success ? (
                 <Banner tone="success">
                   <Text as="p" variant="bodySm">
-                    成功创建迁移资产！
+                    {t("scan.migrateAssetsCreatedShort")}
                   </Text>
                 </Banner>
               ) : null}

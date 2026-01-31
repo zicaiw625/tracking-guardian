@@ -12,6 +12,7 @@ import {
 } from "@shopify/polaris";
 import { useSubmit } from "@remix-run/react";
 import { useState, useCallback, useEffect } from "react";
+import { useT } from "~/context/LocaleContext";
 import type { AlertConfigDisplay } from "../types";
 
 interface AlertsTabProps {
@@ -21,6 +22,7 @@ interface AlertsTabProps {
 }
 
 export function AlertsTab({ alertConfigs, isSubmitting, alertChannelsEnabled = false }: AlertsTabProps) {
+  const t = useT();
   const submit = useSubmit();
   const [configs, setConfigs] = useState<AlertConfigDisplay[]>(alertConfigs);
   useEffect(() => {
@@ -83,17 +85,17 @@ export function AlertsTab({ alertConfigs, isSubmitting, alertChannelsEnabled = f
   return (
     <BlockStack gap="400">
       {!alertChannelsEnabled && (
-        <Banner tone="warning" title="外发通知已关闭">
+        <Banner tone="warning" title={t("settings.alertsDisabledTitle")}>
           <Text as="p" variant="bodySm">
-            当前版本外发通知（Slack/Telegram/Email）已关闭，仅应用内告警记录生效。如需开启请联系支持或等待后续版本。
+            {t("settings.alertsDisabledDesc")}
           </Text>
         </Banner>
       )}
       <Card>
         <BlockStack gap="400">
-          <Text as="h2" variant="headingMd">告警配置</Text>
+          <Text as="h2" variant="headingMd">{t("settings.alertsConfigTitle")}</Text>
           <Text as="p" tone="subdued">
-            配置告警通道与阈值；当断档或异常触发时将写入告警记录，并可在 Monitoring 页面查看。
+            {t("settings.alertsConfigDesc")}
           </Text>
           {configs.length > 0 ? (
             <BlockStack gap="300">
@@ -103,7 +105,7 @@ export function AlertsTab({ alertConfigs, isSubmitting, alertChannelsEnabled = f
                     <InlineStack gap="200">
                       <Text as="span" variant="bodyMd">{c.channel}</Text>
                       <Text as="span" variant="bodySm" tone="subdued">
-                        阈值 {c.discrepancyThreshold}% · {c.isEnabled ? "启用" : "禁用"}
+                        {t("settings.threshold", { value: c.discrepancyThreshold })} · {c.isEnabled ? t("settings.enabledLabel") : t("settings.disabledLabel")}
                       </Text>
                     </InlineStack>
                     <Button
@@ -112,7 +114,7 @@ export function AlertsTab({ alertConfigs, isSubmitting, alertChannelsEnabled = f
                       onClick={() => handleRemove(c.id)}
                       disabled={isSubmitting}
                     >
-                      删除
+                      {t("settings.delete")}
                     </Button>
                   </InlineStack>
                   <Divider />

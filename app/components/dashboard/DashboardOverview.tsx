@@ -6,6 +6,7 @@ import { UpgradeHealthCheck } from "~/components/onboarding/UpgradeHealthCheck";
 import { PostInstallScanProgress } from "~/components/onboarding/PostInstallScanProgress";
 import { isPlanAtLeast } from "~/utils/plans";
 import type { DashboardData } from "~/types/dashboard";
+import { useLocale } from "~/context/LocaleContext";
 
 interface DashboardOverviewProps {
   data: DashboardData;
@@ -28,19 +29,15 @@ export function DashboardOverview({
   onScanComplete,
   backendUrlInfo,
 }: DashboardOverviewProps) {
+  const { t, tArray } = useLocale();
   const introConfig = {
-    title: "升级迁移交付平台",
-    description: "完成平台连接、扫描风险、迁移配置、验证测试，生成可交付的验收报告",
-    items: [
-      "自动扫描 ScriptTag 与 Web Pixels，生成迁移风险评估",
-      "Web Pixel 标准事件映射（GA4/Meta/TikTok）",
-      "测试清单 + 事件参数完整率 + 订单金额/币种一致性验证",
-      "上线后有断档告警",
-    ],
+    title: t("dashboard.overview.title"),
+    description: t("dashboard.overview.description"),
+    items: tArray("dashboard.overview.items"),
     primaryAction: data.migrationProgress?.currentStage === "audit" || !data.migrationProgress || !data.latestScan
-      ? { content: "开始免费体检", url: "/app/scan" }
-      : { content: "查看完整报告", url: "/app/scan?tab=2" },
-    secondaryAction: { content: "查看报告中心", url: "/app/reports" },
+      ? { content: t("dashboard.overview.startFreeScan"), url: "/app/scan" }
+      : { content: t("dashboard.overview.viewFullReport"), url: "/app/scan?tab=2" },
+    secondaryAction: { content: t("dashboard.overview.viewReportCenter"), url: "/app/reports" },
   };
 
   return (
@@ -54,41 +51,41 @@ export function DashboardOverview({
         />
       )}
       {backendUrlInfo?.placeholderDetected && (
-        <Banner tone="critical" title="⚠️ 严重错误：BACKEND_URL 未在构建时替换">
+        <Banner tone="critical" title={`⚠️ ${t("dashboard.backendUrl.errorTitle")}`}>
           <BlockStack gap="300">
             <Text as="p" variant="bodySm" fontWeight="semibold">
-              <strong>检测到占位符 __BACKEND_URL_PLACEHOLDER__，URL 未在构建时替换</strong>
+              <strong>{t("dashboard.backendUrl.detected")}</strong>
             </Text>
             <Text as="p" variant="bodySm">
-              像素扩展配置中仍包含占位符，这表明构建流程未正确替换占位符。如果占位符未被替换，像素扩展将无法发送事件到后端，导致事件丢失。这是一个严重的配置错误，必须在上线前修复。
+              {t("dashboard.backendUrl.description")}
             </Text>
             <Text as="p" variant="bodySm" fontWeight="semibold">
-              修复步骤（必须在生产环境部署前完成）：
+              {t("dashboard.backendUrl.fixSteps")}
             </Text>
             <List type="number">
               <List.Item>
                 <Text as="span" variant="bodySm">
-                  在 CI/CD 流程中，部署前必须运行 <code>pnpm ext:inject</code> 或 <code>pnpm deploy:ext</code>
+                  {t("dashboard.backendUrl.step1")}
                 </Text>
               </List.Item>
               <List.Item>
                 <Text as="span" variant="bodySm">
-                  确保环境变量 <code>SHOPIFY_APP_URL</code> 已正确设置
+                  {t("dashboard.backendUrl.step2")}
                 </Text>
               </List.Item>
               <List.Item>
                 <Text as="span" variant="bodySm">
-                  验证扩展构建产物中不再包含占位符
+                  {t("dashboard.backendUrl.step3")}
                 </Text>
               </List.Item>
               <List.Item>
                 <Text as="span" variant="bodySm">
-                  确保该 URL 已在 Web Pixel Extension 的 allowlist 中配置
+                  {t("dashboard.backendUrl.step4")}
                 </Text>
               </List.Item>
               <List.Item>
                 <Text as="span" variant="bodySm">
-                  禁止直接使用 <code>shopify app deploy</code>，必须使用 <code>pnpm deploy:ext</code>
+                  {t("dashboard.backendUrl.step5")}
                 </Text>
               </List.Item>
             </List>
@@ -97,11 +94,11 @@ export function DashboardOverview({
       )}
       {showWelcomeBanner && (
         <Banner
-          title="欢迎使用 Tracking Guardian"
+          title={t("dashboard.welcomeBanner")}
           onDismiss={onDismissWelcomeBanner}
         >
           <Text as="p" variant="bodySm">
-            开始您的迁移之旅：扫描风险 → 配置迁移 → 验证测试 → 生成报告
+            {t("dashboard.welcomeBannerDesc")}
           </Text>
         </Banner>
       )}
@@ -136,10 +133,10 @@ export function DashboardOverview({
             <InlineStack align="space-between" blockAlign="center">
               <BlockStack gap="100">
                 <Text as="h2" variant="headingMd">
-                  快速开始
+                  {t("dashboard.quickStart")}
                 </Text>
                 <Text as="p" variant="bodySm" tone="subdued">
-                  完成以下步骤以开始迁移
+                  {t("dashboard.quickStartDesc")}
                 </Text>
               </BlockStack>
               <Button
@@ -153,8 +150,8 @@ export function DashboardOverview({
                 icon={ArrowRightIcon}
               >
                 {data.migrationProgress?.currentStage === "audit" || !data.migrationProgress || !data.latestScan
-                  ? "开始免费体检"
-                  : "查看完整报告"}
+                  ? t("dashboard.overview.startFreeScan")
+                  : t("dashboard.overview.viewFullReport")}
               </Button>
             </InlineStack>
           </BlockStack>
@@ -168,15 +165,15 @@ export function DashboardOverview({
                 <InlineStack align="space-between" blockAlign="start">
                   <BlockStack gap="200">
                     <Text as="h3" variant="headingSm">
-                      🎯 启用像素迁移（Test 环境）
+                      🎯 {t("dashboard.pixelMigrationTitle")}
                     </Text>
                     <Text as="p" variant="bodySm" tone="subdued">
-                      标准事件映射 + 参数完整率 + 可下载 payload 证据（GA4/Meta/TikTok 三选一）
+                      {t("dashboard.pixelMigrationDesc")}
                     </Text>
                     <Text as="p" variant="bodySm" tone="subdued">
-                      <strong>技术说明：</strong>Web Pixel 是 strict sandbox（Web Worker），很多能力受限
+                      <strong>{t("dashboard.pixelMigrationTech")}</strong>
                     </Text>
-                    <Badge tone="info">Migration $49/月</Badge>
+                    <Badge tone="info">Migration $49/mo</Badge>
                   </BlockStack>
                   <Icon source={LockIcon} />
                 </InlineStack>
@@ -185,7 +182,7 @@ export function DashboardOverview({
                   variant={isPlanAtLeast(data.planId || "free", "starter") ? "primary" : "secondary"}
                   fullWidth
                 >
-                  {isPlanAtLeast(data.planId || "free", "starter") ? "开始迁移" : "升级到 Migration"}
+                  {isPlanAtLeast(data.planId || "free", "starter") ? t("dashboard.startMigration") : t("dashboard.upgradeToMigration")}
                 </Button>
               </BlockStack>
             </Card>
@@ -196,12 +193,12 @@ export function DashboardOverview({
                 <InlineStack align="space-between" blockAlign="start">
                   <BlockStack gap="200">
                     <Text as="h3" variant="headingSm">
-                      📦 Thank you/Order status 页面自检
+                      📦 {t("dashboard.thankYouOrderTitle")}
                     </Text>
                     <Text as="p" variant="bodySm" tone="subdued">
-                      迁移 tracking 到 Web Pixel，使用验收报告做交付验证。本应用不提供 Thank you/Order status 页面模块库。
+                      {t("dashboard.thankYouOrderDesc")}
                     </Text>
-                    <Badge tone="info">Migration $49/月</Badge>
+                    <Badge tone="info">Migration $49/mo</Badge>
                   </BlockStack>
                   <Icon source={LockIcon} />
                 </InlineStack>
@@ -210,7 +207,7 @@ export function DashboardOverview({
                   variant={isPlanAtLeast(data.planId || "free", "starter") ? "primary" : "secondary"}
                   fullWidth
                 >
-                  {isPlanAtLeast(data.planId || "free", "starter") ? "配置模块" : "升级到 Migration"}
+                  {isPlanAtLeast(data.planId || "free", "starter") ? t("dashboard.configureModules") : t("dashboard.upgradeToMigration")}
                 </Button>
               </BlockStack>
             </Card>
@@ -221,12 +218,12 @@ export function DashboardOverview({
                 <InlineStack align="space-between" blockAlign="start">
                   <BlockStack gap="200">
                     <Text as="h3" variant="headingSm">
-                      📄 生成验收报告（CSV）
+                      📄 {t("dashboard.verificationReportTitle")}
                     </Text>
                     <Text as="p" variant="bodySm" tone="subdued">
-                      测试清单 + 事件参数完整率 + 订单金额/币种一致性 + 隐私合规检查（consent/customerPrivacy）• 给老板/客户看的证据
+                      {t("dashboard.verificationReportDesc")}
                     </Text>
-                    <Badge tone="warning">Growth $79/月 或 Agency $199/月</Badge>
+                    <Badge tone="warning">Growth $79/mo or Agency $199/mo</Badge>
                   </BlockStack>
                   <Icon source={LockIcon} />
                 </InlineStack>
@@ -235,7 +232,7 @@ export function DashboardOverview({
                   variant={isPlanAtLeast(data.planId || "free", "growth") ? "primary" : "secondary"}
                   fullWidth
                 >
-                  {isPlanAtLeast(data.planId || "free", "growth") ? "生成报告" : "升级到 Go-Live"}
+                  {isPlanAtLeast(data.planId || "free", "growth") ? t("dashboard.generateReport") : t("dashboard.upgradeToGoLive")}
                 </Button>
               </BlockStack>
             </Card>
@@ -247,14 +244,14 @@ export function DashboardOverview({
           <InlineStack align="space-between" blockAlign="center">
             <BlockStack gap="100">
               <Text as="h2" variant="headingMd">
-                报告中心
+                {t("dashboard.reportCenter")}
               </Text>
               <Text as="p" variant="bodySm" tone="subdued">
-                管理 Audit / Verification / Monitoring 报告导出与历史记录。
+                {t("dashboard.reportCenterDesc")}
               </Text>
             </BlockStack>
             <Button url="/app/reports" size="slim" variant="primary">
-              进入报告中心
+              {t("dashboard.enterReportCenter")}
             </Button>
           </InlineStack>
         </BlockStack>

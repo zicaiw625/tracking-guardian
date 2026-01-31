@@ -14,10 +14,12 @@ import {
 import { DEPRECATION_DATES, formatDeadlineDate } from "../utils/migration-deadlines";
 import { ScriptTagMigrationBanner } from "~/components/dashboard/ScriptTagMigrationBanner";
 import { MigrationDeadlineBanner } from "~/components/dashboard/MigrationDeadlineBanner";
+import { useT } from "~/context/LocaleContext";
 
 const WELCOME_BANNER_DISMISSED_KEY = "tg-welcome-banner-dismissed";
 
 export default function Index() {
+  const t = useT();
   const loaderData = useLoaderData<typeof loader>();
   const [showWelcomeBanner, setShowWelcomeBanner] = useState(true);
   const [showScanProgress, setShowScanProgress] = useState(false);
@@ -75,13 +77,16 @@ export default function Index() {
   const handleScanComplete = () => {
     setShowScanProgress(false);
   };
-  const setupSteps = getSetupSteps(data);
+  const setupSteps = getSetupSteps(data, t);
   const nextStep = getNextSetupStep(setupSteps);
   const progress = getSetupProgress(setupSteps);
+  const plusStart = formatDeadlineDate(DEPRECATION_DATES.plusScriptTagExecutionOff, "exact");
+  const plusMonth = formatDeadlineDate(DEPRECATION_DATES.plusAutoUpgradeStart, "month");
+  const nonPlusEnd = formatDeadlineDate(DEPRECATION_DATES.nonPlusScriptTagExecutionOff, "exact");
   return (
     <Page
-      title="升级迁移交付平台"
-      subtitle={`Shopify 官方 deadline：Plus 商家 ${formatDeadlineDate(DEPRECATION_DATES.plusScriptTagExecutionOff, "exact")} 开始限制，${formatDeadlineDate(DEPRECATION_DATES.plusAutoUpgradeStart, "month")} 起自动升级 • 非 Plus 商家 ${formatDeadlineDate(DEPRECATION_DATES.nonPlusScriptTagExecutionOff, "exact")} 截止 • 核心：迁移、验收、断档监控 • 可交付的验收报告 • 上线后有断档告警`}
+      title={t("dashboard.title")}
+      subtitle={t("dashboard.subtitle", { plusStart, plusMonth, nonPlusEnd })}
       primaryAction={
         !progress.allComplete && nextStep
           ? { content: nextStep.cta, url: nextStep.url }
@@ -108,14 +113,14 @@ export default function Index() {
           hasOrderStatusScripts={data.hasOrderStatusScripts}
         />
         <Banner
-          title="ScriptTag 弃用时间线（产品教育）"
+          title={t("dashboard.scriptTagTimeline")}
           tone="info"
-          action={{ content: "迁移清单", url: "/app/scan" }}
-          secondaryAction={{ content: "验收报告", url: "/app/verification" }}
+          action={{ content: t("common.migrationChecklist"), url: "/app/scan" }}
+          secondaryAction={{ content: t("common.verificationReport"), url: "/app/verification" }}
         >
           <BlockStack gap="200">
             <Text as="p" variant="bodySm">
-              ScriptTag 在 Thank you / Order status 页面的能力与 <strong>2025-08-28</strong>（Plus 商家）的弃用相关（来自 Shopify 2025-01 公告）。建议使用「迁移」页的迁移清单与「验收」页的验证报告完成迁移，确保追踪平稳过渡。
+              {t("dashboard.scriptTagNotice", { date: "2025-08-28" })}
             </Text>
           </BlockStack>
         </Banner>

@@ -122,29 +122,32 @@ export interface SetupStep {
   done: boolean;
 }
 
-export function getSetupSteps(data: DashboardData): SetupStep[] {
+export function getSetupSteps(
+  data: DashboardData,
+  t: (key: string) => string
+): SetupStep[] {
   return [
     {
       id: "scan",
-      label: "扫描脚本",
-      description: "扫描现有的追踪脚本和像素",
-      cta: "开始扫描",
+      label: t("dashboard.setup.scan.label"),
+      description: t("dashboard.setup.scan.description"),
+      cta: t("dashboard.setup.scan.cta"),
       url: "/app/scan",
       done: data.latestScan !== null,
     },
     {
       id: "migrate",
-      label: "迁移设置",
-      description: "配置像素映射并完成验收",
-      cta: "配置迁移",
+      label: t("dashboard.setup.migrate.label"),
+      description: t("dashboard.setup.migrate.description"),
+      cta: t("dashboard.setup.migrate.cta"),
       url: "/app/pixels",
       done: data.hasEnabledPixelConfig,
     },
     {
       id: "alerts",
-      label: "设置警报",
-      description: "配置健康监控警报",
-      cta: "配置警报",
+      label: t("dashboard.setup.alerts.label"),
+      description: t("dashboard.setup.alerts.description"),
+      cta: t("dashboard.setup.alerts.cta"),
       url: "/app/settings?tab=alerts",
       done: data.hasAlertConfig,
     },

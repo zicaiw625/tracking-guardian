@@ -11,6 +11,7 @@ import { useState } from "react";
 import { QuestionCircleIcon } from "~/components/icons";
 import { SHOPIFY_HELP_LINKS } from "~/utils/migration-deadlines";
 import { getPlanConfig, type PlanId } from "~/services/billing/plans";
+import { useLocale } from "~/context/LocaleContext";
 
 interface TopBarProps {
   shopDomain: string;
@@ -26,6 +27,7 @@ export function TopBar({
   currentShopId: _currentShopId,
 }: TopBarProps) {
   const [popoverActive, setPopoverActive] = useState(false);
+  const { locale, setLocale, t } = useLocale();
   const planConfig = getPlanConfig(planId);
   const planBadgeTone =
     planId === "free"
@@ -49,13 +51,40 @@ export function TopBar({
         </Text>
         <InlineStack gap="300" blockAlign="center">
           <InlineStack gap="200" blockAlign="center">
-            <Badge tone={planBadgeTone}>{planConfig.name}</Badge>
+            <Button
+              size="slim"
+              variant={locale === "en" ? "primary" : "plain"}
+              onClick={() => {
+                setLocale("en");
+              }}
+            >
+              EN
+            </Button>
+            <Button
+              size="slim"
+              variant={locale === "zh" ? "primary" : "plain"}
+              onClick={() => {
+                setLocale("zh");
+              }}
+            >
+              中文
+            </Button>
+          </InlineStack>
+          <InlineStack gap="200" blockAlign="center">
+            <Badge tone={planBadgeTone}>
+              {locale === "en" ? planConfig.nameEn : planConfig.name}
+            </Badge>
           </InlineStack>
           <Popover
             active={popoverActive}
             activator={
-              <Button size="slim" variant="plain" icon={QuestionCircleIcon} onClick={() => setPopoverActive(!popoverActive)}>
-                帮助
+              <Button
+                size="slim"
+                variant="plain"
+                icon={QuestionCircleIcon}
+                onClick={() => setPopoverActive(!popoverActive)}
+              >
+                {t("topbar.help")}
               </Button>
             }
             onClose={() => setPopoverActive(false)}
@@ -63,7 +92,7 @@ export function TopBar({
             <ActionList
               items={[
                 {
-                  content: "文档",
+                  content: t("topbar.docs"),
                   external: true,
                   url: SHOPIFY_HELP_LINKS.UPGRADE_GUIDE,
                 },

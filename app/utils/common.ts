@@ -136,7 +136,7 @@ export function maskString(str: string, visibleChars: number = 4): string {
   return str.slice(0, visibleChars) + "***" + str.slice(-visibleChars);
 }
 
-export function formatNumber(num: number, locale: string = "zh-CN"): string {
+export function formatNumber(num: number, locale: string = "en"): string {
   return num.toLocaleString(locale);
 }
 
@@ -171,7 +171,7 @@ export function formatDate(
     month: "short",
     day: "numeric",
   },
-  locale: string = "zh-CN"
+  locale: string = "en"
 ): string {
   const d = typeof date === "string" ? new Date(date) : date;
   if (isNaN(d.getTime())) {
@@ -182,7 +182,7 @@ export function formatDate(
 
 export function formatDateTime(
   date: Date | string,
-  locale: string = "zh-CN"
+  locale: string = "en"
 ): string {
   const d = typeof date === "string" ? new Date(date) : date;
   if (isNaN(d.getTime())) {
@@ -197,7 +197,7 @@ export function formatDateTime(
   });
 }
 
-export function getRelativeTime(date: Date | string, locale: string = "zh-CN"): string {
+export function getRelativeTime(date: Date | string, locale: string = "en"): string {
   const d = typeof date === "string" ? new Date(date) : date;
   if (isNaN(d.getTime())) {
     return "Invalid Date";

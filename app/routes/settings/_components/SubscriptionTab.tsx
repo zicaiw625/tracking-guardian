@@ -14,6 +14,7 @@ import {
 } from "@shopify/polaris";
 import { BILLING_PLANS, type PlanId, getUpgradeOptions } from "~/services/billing/plans";
 import { useToastContext } from "~/components/ui";
+import { useLocale } from "~/context/LocaleContext";
 
 interface SubscriptionTabProps {
   currentPlan: PlanId;
@@ -28,13 +29,15 @@ interface SubscriptionTabProps {
 
 export function SubscriptionTab({ currentPlan, subscriptionStatus }: SubscriptionTabProps) {
   useToastContext();
+  const { t, locale } = useLocale();
   const [upgradingPlan, setUpgradingPlan] = useState<PlanId | null>(null);
   const handleUpgrade = useCallback((planId: PlanId) => {
     setUpgradingPlan(planId);
     window.location.href = `/app/billing?upgrade=${planId}`;
   }, []);
-  const currentPlanConfig = BILLING_PLANS[currentPlan];
+  const currentPlanConfig = BILLING_PLANS[currentPlan] ?? BILLING_PLANS.free;
   const upgradeOptions = getUpgradeOptions(currentPlan);
+  const planName = locale === "zh" ? currentPlanConfig.name : currentPlanConfig.nameEn;
   return (
     <Layout>
       <Layout.Section>
@@ -42,16 +45,16 @@ export function SubscriptionTab({ currentPlan, subscriptionStatus }: Subscriptio
           <BlockStack gap="400">
             <InlineStack align="space-between">
               <Text as="h2" variant="headingMd">
-                当前计划
+                {t("settings.currentPlan")}
               </Text>
               <Badge tone={currentPlan === "free" ? "info" : "success"}>
-                {currentPlanConfig.name}
+                {planName}
               </Badge>
             </InlineStack>
             {subscriptionStatus?.isTrialing && (
               <Banner tone="info">
                 <Text as="p" variant="bodySm">
-                  试用期剩余 {subscriptionStatus.trialDaysRemaining ?? subscriptionStatus.trialDays ?? 0} 天
+                  {t("settings.trialDaysRemaining", { days: subscriptionStatus.trialDaysRemaining ?? subscriptionStatus.trialDays ?? 0 })}
                 </Text>
               </Banner>
             )}
@@ -67,7 +70,7 @@ export function SubscriptionTab({ currentPlan, subscriptionStatus }: Subscriptio
                 <InlineStack align="space-between">
                   <BlockStack gap="100">
                     <Text as="h3" variant="headingMd">
-                      {currentPlanConfig.name}
+                      {planName}
                     </Text>
                     {currentPlanConfig.tagline && (
                       <Text as="p" variant="bodySm" tone="subdued">
@@ -75,7 +78,7 @@ export function SubscriptionTab({ currentPlan, subscriptionStatus }: Subscriptio
                       </Text>
                     )}
                   </BlockStack>
-                  <Badge tone="success">当前计划</Badge>
+                  <Badge tone="success">{t("settings.currentPlan")}</Badge>
                 </InlineStack>
                 <List type="bullet">
                   {currentPlanConfig.features.map((feature, idx) => (
@@ -95,11 +98,12 @@ export function SubscriptionTab({ currentPlan, subscriptionStatus }: Subscriptio
               <>
                 <Divider />
                 <Text as="h3" variant="headingMd">
-                  升级套餐
+                  {t("settings.upgradePlans")}
                 </Text>
                 <BlockStack gap="300">
                   {upgradeOptions.map((planId) => {
                     const planConfig = BILLING_PLANS[planId];
+                    const upgradePlanName = locale === "zh" ? planConfig.name : planConfig.nameEn;
                     return (
                       <Box
                         key={planId}
@@ -113,7 +117,7 @@ export function SubscriptionTab({ currentPlan, subscriptionStatus }: Subscriptio
                           <InlineStack align="space-between" blockAlign="start">
                             <BlockStack gap="100">
                               <Text as="h4" variant="headingSm">
-                                {planConfig.name}
+                                {upgradePlanName}
                               </Text>
                               {planConfig.tagline && (
                                 <Text as="p" variant="bodySm" tone="subdued">
@@ -122,7 +126,7 @@ export function SubscriptionTab({ currentPlan, subscriptionStatus }: Subscriptio
                               )}
                             </BlockStack>
                             <Text as="span" variant="headingMd" fontWeight="bold">
-                              ${planConfig.price}/月
+                              ${planConfig.price}/mo
                             </Text>
                           </InlineStack>
                           <List type="bullet">
@@ -137,7 +141,7 @@ export function SubscriptionTab({ currentPlan, subscriptionStatus }: Subscriptio
                             onClick={() => handleUpgrade(planId)}
                             loading={upgradingPlan === planId}
                           >
-                            升级到 {planConfig.name}
+                            {t("settings.upgradeTo", { plan: upgradePlanName })}
                           </Button>
                         </BlockStack>
                       </Box>
@@ -150,20 +154,20 @@ export function SubscriptionTab({ currentPlan, subscriptionStatus }: Subscriptio
             <Banner tone="info">
               <BlockStack gap="200">
                 <Text as="p" variant="bodySm" fontWeight="semibold">
-                  需要更多计费信息？
+                  {t("settings.needBillingInfo")}
                 </Text>
                 <Text as="p" variant="bodySm">
-                  您可以访问 <a href="/app/billing">订阅与计费</a> 页面查看完整的账单历史、使用量统计和发票信息。
+                  {t("settings.billingInfoDescBefore")}<a href="/app/billing">{t("settings.subscriptionBilling")}</a>{t("settings.billingInfoDescAfter")}
                 </Text>
               </BlockStack>
             </Banner>
             <Divider />
             <Text as="h3" variant="headingMd">
-              套餐对比
+              {t("settings.planComparison")}
             </Text>
             <Banner tone="info">
               <Text as="p" variant="bodySm">
-                需要帮助选择套餐？请联系我们的销售团队获取个性化建议。
+                {t("settings.needHelpChoose")}
               </Text>
             </Banner>
           </BlockStack>

@@ -26,6 +26,7 @@ import {
   ClockIcon,
 } from "~/components/icons";
 import { CardSkeleton, useToastContext } from "~/components/ui";
+import { useLocale } from "~/context/LocaleContext";
 
 import { authenticate } from "../shopify.server";
 import prisma from "../db.server";
@@ -47,7 +48,7 @@ function estimateMigrationTime(
   platformCount: number,
   riskScore: number,
   riskItems?: RiskItem[]
-): { hours: number; label: string; description: string } {
+): { hours: number; labelKey: string; descriptionKey: string } {
   const baseTime = 0.25;
   const highRiskScriptTags = riskItems?.filter(item => item.severity === "high").length || 0;
   const mediumRiskScriptTags = riskItems?.filter(item => item.severity === "medium").length || 0;
@@ -75,32 +76,25 @@ function estimateMigrationTime(
   const sequentialTime = baseTime + scriptTagTime + platformTime;
   const parallelTime = baseTime + scriptTagTime + (platformTime * parallelFactor);
   const totalHours = Math.max(sequentialTime, parallelTime) * riskMultiplier;
-  let description = "";
+  let descriptionKey: string;
+  let labelKey: string;
   if (totalHours <= 0.5) {
-    description = "您的配置相对简单，迁移将非常快速。建议一次性完成所有步骤。";
+    labelKey = "onboarding.estimateLabel1";
+    descriptionKey = "onboarding.estimateDesc1";
   } else if (totalHours <= 1) {
-    description = "标准迁移流程，按步骤操作即可。建议预留 1 小时完成迁移和测试。";
+    labelKey = "onboarding.estimateLabel2";
+    descriptionKey = "onboarding.estimateDesc2";
   } else if (totalHours <= 2) {
-    description = "需要一些时间处理多个平台或复杂配置。建议分 2-3 个阶段完成，每阶段完成后进行测试。";
+    labelKey = totalHours <= 1.5 ? "onboarding.estimateLabel3" : "onboarding.estimateLabel4";
+    descriptionKey = totalHours <= 1.5 ? "onboarding.estimateDesc3" : "onboarding.estimateDesc4";
   } else {
-    description = "配置较为复杂，建议分阶段完成迁移。优先处理高风险项，确保每步验证后再继续。";
-  }
-  let label = "";
-  if (totalHours <= 0.5) {
-    label = "约 30 分钟";
-  } else if (totalHours <= 1) {
-    label = "约 1 小时";
-  } else if (totalHours <= 1.5) {
-    label = "约 1-1.5 小时";
-  } else if (totalHours <= 2) {
-    label = "约 1.5-2 小时";
-  } else {
-    label = "2+ 小时";
+    labelKey = "onboarding.estimateLabel5";
+    descriptionKey = "onboarding.estimateDesc4";
   }
   return {
     hours: Math.round(totalHours * 100) / 100,
-    label,
-    description
+    labelKey,
+    descriptionKey,
   };
 }
 
@@ -125,8 +119,8 @@ interface OnboardingData {
   } | null;
   migrationEstimate: {
     hours: number;
-    label: string;
-    description: string;
+    labelKey: string;
+    descriptionKey: string;
   } | null;
   urgency: {
     level: "critical" | "high" | "medium" | "low" | "resolved";
@@ -352,21 +346,14 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   return json({ error: "未知操作" }, { status: 400 });
 };
 
-function UrgencyBadge({ level }: { level: string }) {
-  switch (level) {
-    case "critical":
-      return <Badge tone="critical">紧急</Badge>;
-    case "high":
-      return <Badge tone="warning">高优先级</Badge>;
-    case "medium":
-      return <Badge tone="attention">中等</Badge>;
-    case "low":
-      return <Badge tone="info">低</Badge>;
-    case "resolved":
-      return <Badge tone="success">已解决</Badge>;
-    default:
-      return <Badge>未知</Badge>;
-  }
+function UrgencyBadge({ level, t }: { level: string; t: (key: string) => string }) {
+  const label = level === "critical" ? t("onboarding.urgencyCritical") :
+    level === "high" ? t("onboarding.urgencyHigh") :
+    level === "medium" ? t("onboarding.urgencyMedium") :
+    level === "low" ? t("onboarding.urgencyLow") :
+    level === "resolved" ? t("onboarding.urgencyResolved") : t("onboarding.unknown");
+  const tone = level === "critical" ? "critical" : level === "high" ? "warning" : level === "medium" ? "attention" : level === "low" ? "info" : level === "resolved" ? "success" : undefined;
+  return <Badge tone={tone}>{label}</Badge>;
 }
 
 function StepIndicator({ currentStep, totalSteps }: { currentStep: number; totalSteps: number }) {
@@ -405,6 +392,7 @@ function StepIndicator({ currentStep, totalSteps }: { currentStep: number; total
 }
 
 export default function OnboardingPage() {
+  const { t } = useLocale();
   const data = useLoaderData<typeof loader>();
   const actionData = useActionData<typeof action>();
   const submit = useSubmit();
@@ -418,17 +406,17 @@ export default function OnboardingPage() {
     if (actionData) {
       if ("success" in actionData && actionData.success) {
         if ("actionType" in actionData && actionData.actionType === "run_scan") {
-          showSuccess("扫描完成！正在加载结果...");
+          showSuccess(t("onboarding.scanComplete"));
         } else if ("actionType" in actionData && actionData.actionType === "complete_onboarding") {
-          showSuccess("欢迎使用 Tracking Guardian！");
+          showSuccess(t("onboarding.welcomeDone"));
         } else {
-          showSuccess("操作成功");
+          showSuccess(t("onboarding.operationSuccess"));
         }
       } else if ("error" in actionData && actionData.error) {
         showError(actionData.error);
       }
     }
-  }, [actionData, showSuccess, showError]);
+  }, [actionData, showSuccess, showError, t]);
   useEffect(() => {
     if (autoScan && !data.scanComplete && !isScanning) {
       handleStartScan();
@@ -456,10 +444,10 @@ export default function OnboardingPage() {
   };
   if (!data.shop) {
     return (
-      <Page title="欢迎使用 Tracking Guardian">
+      <Page title={t("onboarding.welcome")}>
         <Card>
           <Banner tone="critical">
-            <Text as="p">店铺信息加载失败，请刷新页面重试。</Text>
+            <Text as="p">{t("onboarding.shopLoadFailed")}</Text>
           </Banner>
         </Card>
       </Page>
@@ -467,8 +455,8 @@ export default function OnboardingPage() {
   }
   return (
     <Page
-      title="🚀 欢迎使用升级迁移交付平台"
-      subtitle="升级不丢功能/不丢数据 • 可交付的验收报告 • 上线后有断档告警"
+      title={t("onboarding.pageTitle")}
+      subtitle={t("onboarding.pageSubtitle")}
     >
       <BlockStack gap="500">
         <Card>
@@ -477,21 +465,21 @@ export default function OnboardingPage() {
           <Box padding="400">
             <InlineStack gap="400" align="space-between">
               <BlockStack gap="100">
-                <Text as="span" variant="bodySm" tone="subdued">步骤 1</Text>
+                <Text as="span" variant="bodySm" tone="subdued">{t("onboarding.step", { n: 1 })}</Text>
                 <Text as="span" fontWeight={data.step >= 1 ? "bold" : "regular"}>
-                  自动体检
+                  {t("onboarding.step1Name")}
                 </Text>
               </BlockStack>
               <BlockStack gap="100">
-                <Text as="span" variant="bodySm" tone="subdued">步骤 2</Text>
+                <Text as="span" variant="bodySm" tone="subdued">{t("onboarding.step", { n: 2 })}</Text>
                 <Text as="span" fontWeight={data.step >= 2 ? "bold" : "regular"}>
-                  风险评估
+                  {t("onboarding.step2Name")}
                 </Text>
               </BlockStack>
               <BlockStack gap="100">
-                <Text as="span" variant="bodySm" tone="subdued">步骤 3</Text>
+                <Text as="span" variant="bodySm" tone="subdued">{t("onboarding.step", { n: 3 })}</Text>
                 <Text as="span" fontWeight={data.step >= 3 ? "bold" : "regular"}>
-                  开始迁移
+                  {t("onboarding.step3Name")}
                 </Text>
               </BlockStack>
             </InlineStack>
@@ -501,10 +489,10 @@ export default function OnboardingPage() {
           <BlockStack gap="400">
             <InlineStack align="space-between" blockAlign="center">
               <Text as="h2" variant="headingMd">
-                📋 店铺状态概览
+                📋 {t("onboarding.shopOverview")}
               </Text>
               <Badge tone={data.shop.typOspEnabled ? "success" : "warning"}>
-                {data.shop.typOspEnabled ? "已升级新页面" : "使用旧页面"}
+                {data.shop.typOspEnabled ? t("onboarding.upgraded") : t("onboarding.legacy")}
               </Badge>
             </InlineStack>
             <Divider />
@@ -512,7 +500,7 @@ export default function OnboardingPage() {
               <Layout.Section variant="oneThird">
                 <Box background="bg-surface-secondary" padding="400" borderRadius="200">
                   <BlockStack gap="200">
-                    <Text as="p" variant="bodySm" tone="subdued">店铺域名</Text>
+                    <Text as="p" variant="bodySm" tone="subdued">{t("onboarding.domain")}</Text>
                     <Text as="p" fontWeight="semibold">{data.shop.domain}</Text>
                   </BlockStack>
                 </Box>
@@ -520,10 +508,10 @@ export default function OnboardingPage() {
               <Layout.Section variant="oneThird">
                 <Box background="bg-surface-secondary" padding="400" borderRadius="200">
                   <BlockStack gap="200">
-                    <Text as="p" variant="bodySm" tone="subdued">店铺类型</Text>
+                    <Text as="p" variant="bodySm" tone="subdued">{t("onboarding.shopType")}</Text>
                     <Text as="p" fontWeight="semibold">
-                      {data.shop.tier === "plus" ? "Shopify Plus" :
-                       data.shop.tier === "non_plus" ? "标准版" : "待检测"}
+                      {data.shop.tier === "plus" ? t("onboarding.plus") :
+                       data.shop.tier === "non_plus" ? t("onboarding.standard") : t("onboarding.pendingCheck")}
                     </Text>
                   </BlockStack>
                 </Box>
@@ -531,10 +519,10 @@ export default function OnboardingPage() {
               <Layout.Section variant="oneThird">
                 <Box background="bg-surface-secondary" padding="400" borderRadius="200">
                   <BlockStack gap="200">
-                    <Text as="p" variant="bodySm" tone="subdued">Thank you 页面</Text>
+                    <Text as="p" variant="bodySm" tone="subdued">{t("onboarding.thankYouPage")}</Text>
                     <Text as="p" fontWeight="semibold">
-                      {data.shop.typOspEnabled === null ? "待检测" :
-                       data.shop.typOspEnabled ? "新版 (Extensibility)" : "旧版"}
+                      {data.shop.typOspEnabled === null ? t("onboarding.pendingCheck") :
+                       data.shop.typOspEnabled ? "Extensibility" : t("onboarding.legacy")}
                     </Text>
                   </BlockStack>
                 </Box>
@@ -543,7 +531,7 @@ export default function OnboardingPage() {
             {data.shop.typOspReason && !data.shop.typOspEnabled && (
               <Banner tone="info">
                 <Text as="p" variant="bodySm">
-                  检测提示: {data.shop.typOspReason}
+                  {t("onboarding.detectionNote", { reason: data.shop.typOspReason })}
                 </Text>
               </Banner>
             )}
@@ -554,12 +542,11 @@ export default function OnboardingPage() {
             <BlockStack gap="400">
               <InlineStack align="space-between" blockAlign="center">
                 <Text as="h2" variant="headingMd">
-                  🔍 自动体检
+                  🔍 {t("onboarding.autoScan")}
                 </Text>
               </InlineStack>
               <Text as="p" tone="subdued">
-                我们将自动扫描您店铺中的 ScriptTags 和 Web Pixels，Additional Scripts 需要通过手动粘贴识别，
-                识别需要迁移的脚本并评估风险等级。
+                {t("onboarding.autoScanDesc")}
               </Text>
               {isScanning ? (
                 <Card>
@@ -568,7 +555,7 @@ export default function OnboardingPage() {
                     <Box paddingBlockStart="200">
                       <ProgressBar progress={60} tone="primary" />
                       <Text as="p" variant="bodySm" tone="subdued" alignment="center">
-                        这通常需要 10-30 秒，请勿关闭页面
+                        {t("onboarding.scanningProgress")}
                       </Text>
                     </Box>
                   </BlockStack>
@@ -577,17 +564,17 @@ export default function OnboardingPage() {
                 <BlockStack gap="300">
                   <Box background="bg-surface-secondary" padding="400" borderRadius="200">
                     <BlockStack gap="200">
-                      <Text as="p" fontWeight="semibold">扫描内容包括：</Text>
+                      <Text as="p" fontWeight="semibold">{t("onboarding.scanIncludes")}</Text>
                       <List type="bullet">
-                        <List.Item>ScriptTags (第三方追踪脚本)</List.Item>
-                        <List.Item>Web Pixels (已安装的像素应用)</List.Item>
-                        <List.Item>Checkout 配置状态</List.Item>
-                        <List.Item>追踪平台识别 (GA4/Meta/TikTok 等)</List.Item>
+                        <List.Item>{t("onboarding.scanItem1")}</List.Item>
+                        <List.Item>{t("onboarding.scanItem2")}</List.Item>
+                        <List.Item>{t("onboarding.scanItem3")}</List.Item>
+                        <List.Item>{t("onboarding.scanItem4")}</List.Item>
                       </List>
                     </BlockStack>
                   </Box>
                   <Checkbox
-                    label="我了解扫描不会修改任何店铺设置"
+                    label={t("onboarding.acknowledgeScan")}
                     checked={acknowledged}
                     onChange={setAcknowledged}
                   />
@@ -599,10 +586,10 @@ export default function OnboardingPage() {
                       loading={isScanning}
                       size="large"
                     >
-                      开始自动体检
+                      {t("onboarding.startAutoScan")}
                     </Button>
                     <Button url="/app?skip=true" variant="plain">
-                      跳过，稍后扫描
+                      {t("onboarding.skipScan")}
                     </Button>
                   </InlineStack>
                 </BlockStack>
@@ -616,7 +603,7 @@ export default function OnboardingPage() {
               <Layout.Section variant="oneThird">
                 <Card>
                   <BlockStack gap="400">
-                    <Text as="h2" variant="headingMd">风险评分</Text>
+                    <Text as="h2" variant="headingMd">{t("onboarding.riskScore")}</Text>
                     <Box
                       background={
                         data.scanResult.riskScore > 60
@@ -637,10 +624,10 @@ export default function OnboardingPage() {
                     </Box>
                     <Text as="p" variant="bodySm" tone="subdued">
                       {data.scanResult.riskScore > 60
-                        ? "需要立即处理"
+                        ? t("onboarding.needActionNow")
                         : data.scanResult.riskScore > 30
-                          ? "建议尽快迁移"
-                          : "风险较低"}
+                          ? t("onboarding.migrateSoon")
+                          : t("onboarding.lowRisk")}
                     </Text>
                   </BlockStack>
                 </Card>
@@ -648,17 +635,17 @@ export default function OnboardingPage() {
               <Layout.Section variant="oneThird">
                 <Card>
                   <BlockStack gap="400">
-                    <Text as="h2" variant="headingMd">预计迁移时间</Text>
+                    <Text as="h2" variant="headingMd">{t("onboarding.estimatedTime")}</Text>
                     <Box background="bg-surface-secondary" padding="600" borderRadius="200">
                       <BlockStack gap="200" align="center">
                         <Icon source={ClockIcon} tone="base" />
                         <Text as="p" variant="headingLg" fontWeight="bold">
-                          {data.migrationEstimate?.label || "待评估"}
+                          {data.migrationEstimate ? t(data.migrationEstimate.labelKey) : t("onboarding.toEvaluate")}
                         </Text>
                       </BlockStack>
                     </Box>
                     <Text as="p" variant="bodySm" tone="subdued">
-                      {data.migrationEstimate?.description || "完成扫描后显示"}
+                      {data.migrationEstimate ? t(data.migrationEstimate.descriptionKey) : t("onboarding.estimateDesc")}
                     </Text>
                   </BlockStack>
                 </Card>
@@ -666,7 +653,7 @@ export default function OnboardingPage() {
               <Layout.Section variant="oneThird">
                 <Card>
                   <BlockStack gap="400">
-                    <Text as="h2" variant="headingMd">迁移紧急度</Text>
+                    <Text as="h2" variant="headingMd">{t("onboarding.migrationUrgency")}</Text>
                     <Box
                       background={
                         data.urgency?.level === "critical"
@@ -679,9 +666,13 @@ export default function OnboardingPage() {
                       borderRadius="200"
                     >
                       <BlockStack gap="200" align="center">
-                        <UrgencyBadge level={data.urgency?.level || "unknown"} />
+                        <UrgencyBadge level={data.urgency?.level || "unknown"} t={t} />
                         <Text as="p" variant="headingMd" fontWeight="bold">
-                          {data.urgency?.label || "待评估"}
+                          {data.urgency?.level === "critical" ? t("onboarding.urgencyCritical") :
+                           data.urgency?.level === "high" ? t("onboarding.urgencyHigh") :
+                           data.urgency?.level === "medium" ? t("onboarding.urgencyMedium") :
+                           data.urgency?.level === "low" ? t("onboarding.urgencyLow") :
+                           data.urgency?.level === "resolved" ? t("onboarding.urgencyResolved") : t("onboarding.toEvaluate")}
                         </Text>
                       </BlockStack>
                     </Box>
@@ -694,7 +685,7 @@ export default function OnboardingPage() {
             </Layout>
             <Card>
               <BlockStack gap="400">
-                <Text as="h2" variant="headingMd">📊 检测结果摘要</Text>
+                <Text as="h2" variant="headingMd">📊 {t("onboarding.resultSummary")}</Text>
                 <Divider />
                 <Layout>
                   <Layout.Section variant="oneHalf">
