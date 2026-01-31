@@ -50,19 +50,6 @@ export default function App() {
   const handleSetLocale = (next: string) => {
     if (typeof window === "undefined") return;
     if (next === locale) return;
-    const url = new URL(window.location.href);
-    url.searchParams.set("tg_locale", next);
-    url.searchParams.delete("locale");
-    navigate(
-      {
-        pathname: url.pathname,
-        search: url.searchParams.toString()
-          ? `?${url.searchParams.toString()}`
-          : "",
-        hash: url.hash,
-      },
-      { replace: true }
-    );
     revalidator.revalidate();
   };
 
