@@ -275,7 +275,7 @@ export default function PrivacyPage() {
 
           <div className="section">
             <h2>完整合规文档</h2>
-            <p>更多说明见应用内「隐私与合规」页。</p>
+            <p>更多说明见应用内「隐私与合规」页。另见 <a href="/terms">服务条款</a>。</p>
           </div>
 
           <div className="section">

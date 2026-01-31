@@ -67,7 +67,9 @@ export default function Index() {
   const handleDismissWelcomeBanner = () => {
     try {
       localStorage.setItem(WELCOME_BANNER_DISMISSED_KEY, "true");
-    } catch {}
+    } catch {
+      void 0;
+    }
     setShowWelcomeBanner(false);
   };
   const handleScanComplete = () => {

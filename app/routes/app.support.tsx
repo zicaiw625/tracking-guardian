@@ -3,18 +3,21 @@ import { json } from "@remix-run/node";
 import { useLoaderData } from "@remix-run/react";
 import { Page, Layout, Card, BlockStack, Text, List, Link } from "@shopify/polaris";
 import { PageIntroCard } from "~/components/layout/PageIntroCard";
+import { getSupportConfig } from "../utils/config.server";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   const url = new URL(request.url);
+  const support = getSupportConfig();
   return json({
     host: url.host,
-    contactEmail: "support@tracking-guardian.app",
-    faqUrl: "https://help.tracking-guardian.app",
+    contactEmail: support.contactEmail,
+    faqUrl: support.faqUrl,
+    statusPageUrl: support.statusPageUrl,
   });
 };
 
 export default function SupportPage() {
-  const { contactEmail, faqUrl } = useLoaderData<typeof loader>();
+  const { contactEmail, faqUrl, statusPageUrl } = useLoaderData<typeof loader>();
   return (
     <Page title="Support" subtitle="帮助中心">
       <BlockStack gap="500">
@@ -44,7 +47,12 @@ export default function SupportPage() {
                       帮助中心：<Link url={faqUrl} external>{faqUrl}</Link>
                     </List.Item>
                     <List.Item>
-                      状态页：<Link url="https://status.tracking-guardian.app" external>status.tracking-guardian.app</Link>
+                      状态页：<Link url={statusPageUrl} external>{statusPageUrl.replace(/^https?:\/\//, "")}</Link>
+                    </List.Item>
+                    <List.Item>
+                      <Link url="/privacy" external>隐私政策</Link>
+                      {" · "}
+                      <Link url="/terms" external>服务条款</Link>
                     </List.Item>
                   </List>
                 </BlockStack>

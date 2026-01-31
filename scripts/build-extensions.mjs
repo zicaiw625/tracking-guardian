@@ -99,19 +99,34 @@ function loadEnv() {
     }
 }
 
+function resolveBackendUrl() {
+    const candidates = [
+        process.env.RENDER_EXTERNAL_URL,
+        process.env.PUBLIC_APP_URL,
+    ].filter(Boolean);
+    for (const candidate of candidates) {
+        try {
+            const url = new URL(candidate);
+            if (url.protocol === "https:" || url.hostname === "localhost" || url.hostname === "127.0.0.1") {
+                return candidate;
+            }
+        } catch {
+        }
+    }
+    return null;
+}
+
 function injectBackendUrl() {
     loadEnv();
-    const backendUrl = process.env.SHOPIFY_APP_URL;
+    let backendUrl = process.env.SHOPIFY_APP_URL || resolveBackendUrl();
     const isCI = process.env.CI === "true" || process.env.GITHUB_ACTIONS === "true" || process.env.RENDER === "true";
     if (!backendUrl) {
         if (isCI) {
-            console.error("❌ SHOPIFY_APP_URL is required in CI/CD environment!");
-            console.error("   Please set SHOPIFY_APP_URL environment variable to your app's URL.");
+            console.error("❌ No valid backend URL found. Set SHOPIFY_APP_URL, RENDER_EXTERNAL_URL, or PUBLIC_APP_URL.");
             console.error("   Example: SHOPIFY_APP_URL=https://your-app.onrender.com");
             process.exit(1);
         }
-        console.log("⚠️  SHOPIFY_APP_URL not set, using default production URL");
-        console.log("   Note: In production, always set SHOPIFY_APP_URL to avoid misdirected events.");
+        console.log("⚠️  SHOPIFY_APP_URL not set, no fallback URL available. Skipping injection.");
         return;
     }
     try {
@@ -184,13 +199,15 @@ switch (command) {
         console.log(`
 Extension Build Helper
 Usage:
-  node scripts/build-extensions.mjs inject   - Replace placeholder with SHOPIFY_APP_URL
+  node scripts/build-extensions.mjs inject   - Replace placeholder with backend URL
   node scripts/build-extensions.mjs restore  - Restore placeholder for version control
-Environment Variables:
-  SHOPIFY_APP_URL  - The backend URL to inject (required for inject command)
+Environment Variables (inject uses first available):
+  SHOPIFY_APP_URL  - Preferred backend URL
+  RENDER_EXTERNAL_URL  - Fallback on Render (auto-set for web services)
+  PUBLIC_APP_URL  - Fallback
 Example:
   SHOPIFY_APP_URL=https://your-app.onrender.com
-  npm run deploy  # Shopify CLI builds extensions
+  npm run deploy
   npm run ext:restore
 `);
 }

@@ -714,6 +714,11 @@ export default function PrivacyPage() {
                 </Link>
               </List.Item>
               <List.Item>
+                <Link url="/terms" external>
+                  服务条款
+                </Link>
+              </List.Item>
+              <List.Item>
                 <Link url="https://help.shopify.com/en/manual/your-account/privacy" external>
                   Shopify 客户数据保护指南
                 </Link>

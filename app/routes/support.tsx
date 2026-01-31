@@ -16,6 +16,7 @@ import polarisStyles from "@shopify/polaris/build/esm/styles.css?url";
 import translations from "@shopify/polaris/locales/en.json" with { type: "json" };
 import { getPolarisTranslations } from "../utils/polaris-i18n";
 import { PUBLIC_PAGE_HEADERS, addSecurityHeadersToHeaders } from "../utils/security-headers";
+import { getSupportConfig } from "../utils/config.server";
 
 const i18n = getPolarisTranslations(translations);
 
@@ -23,10 +24,12 @@ export const links = () => [{ rel: "stylesheet", href: polarisStyles }];
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   const url = new URL(request.url);
+  const support = getSupportConfig();
   const response = json({
     host: url.host,
-    contactEmail: "support@tracking-guardian.app",
-    faqUrl: "https://help.tracking-guardian.app",
+    contactEmail: support.contactEmail,
+    faqUrl: support.faqUrl,
+    statusPageUrl: support.statusPageUrl,
   });
   const headers = new Headers(response.headers);
   addSecurityHeadersToHeaders(headers, PUBLIC_PAGE_HEADERS);
@@ -38,7 +41,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 };
 
 export default function PublicSupportPage() {
-  const { contactEmail } = useLoaderData<typeof loader>();
+  const { contactEmail, statusPageUrl } = useLoaderData<typeof loader>();
   return (
     <AppProvider i18n={i18n as any}>
       <Page title="Support & FAQ" subtitle="Tracking Guardian Help Center">
@@ -70,9 +73,14 @@ export default function PublicSupportPage() {
                     </List.Item>
                     <List.Item>
                       Status page:{" "}
-                      <Link url="https://status.tracking-guardian.app">
-                        status.tracking-guardian.app
+                      <Link url={statusPageUrl}>
+                        {statusPageUrl.replace(/^https?:\/\//, "")}
                       </Link>
+                    </List.Item>
+                    <List.Item>
+                      <Link url="/privacy">Privacy Policy</Link>
+                      {" · "}
+                      <Link url="/terms">Terms of Service</Link>
                     </List.Item>
                   </List>
                 </BlockStack>

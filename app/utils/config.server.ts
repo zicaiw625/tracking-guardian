@@ -286,6 +286,18 @@ export function getNumEnv(key: string, defaultValue: number): number {
   return isNaN(num) ? defaultValue : num;
 }
 
+export function getSupportConfig(): {
+  contactEmail: string;
+  faqUrl: string;
+  statusPageUrl: string;
+} {
+  return {
+    contactEmail: getEnv("SUPPORT_EMAIL", "support@tracking-guardian.app"),
+    faqUrl: getEnv("SUPPORT_FAQ_URL", "https://help.tracking-guardian.app"),
+    statusPageUrl: getEnv("STATUS_PAGE_URL", "https://status.tracking-guardian.app"),
+  };
+}
+
 export function isProduction(): boolean {
   return process.env.NODE_ENV === "production";
 }
