@@ -62,6 +62,12 @@ Tracking Guardian 是一个 Shopify 应用，作为**数据处理者**（Data Pr
 
 **重要**：我们不会在数据库内保存任何脚本正文或片段（包括手动粘贴的内容）。对于手动粘贴的脚本，仅在浏览器本地进行分析；原始脚本文本不上传、不进入服务端，仅上传并保存分析结果（指纹、平台类型、风险评分和脱敏摘要）。
 
+#### 请求相关技术数据
+- **字段**：IP 地址、User-Agent、page_url、referrer（与请求相关的技术数据）
+- **用途**：安全、反作弊与验收目的
+- **保留周期**：与店铺 dataRetentionDays 一致（默认 90 天）
+- **删除方式**：同 GDPR/webhook 删除策略（CUSTOMERS_REDACT、SHOP_REDACT 等）
+
 #### Session（OAuth/会话存储）
 - **可能字段**：`firstName`、`lastName`、`email`（来自 Shopify 在线 Session，仅店铺管理员/员工，非终端客户）
 - **用途**：鉴权与会话维持
@@ -193,9 +199,9 @@ Tracking Guardian 是一个 Shopify 应用，作为**数据处理者**（Data Pr
 
 ### 默认行为
 
-**重要**: 当前公开上架版本（v1.0）中，服务端转化追踪（Server-side CAPI/MP）**默认关闭且 UI 入口隐藏**。该功能通过 `SERVER_SIDE_CONVERSIONS_ENABLED` 环境变量控制，默认值为 `false`。v1.0 核心能力为迁移、验收与监控；CAPI/MP 为可选或后续能力，需显式开启并符合隐私政策。
+**重要**：v1 上架版不启用服务端投递；后端不创建、不执行 S2S 投递任务。该功能通过 `SERVER_SIDE_CONVERSIONS_ENABLED` 环境变量控制，默认值为 `false`。v1.0 核心能力为迁移、验收与监控。v1 仅支持 analytics 用途的客户端像素与验收；Meta/TikTok 凭证入口仅为后续 S2S 能力预留，当前版本不向营销平台发送数据。
 
-只有在设置页面中显式启用后，才会开始发送服务端事件。
+只有在设置页面中显式启用且 `SERVER_SIDE_CONVERSIONS_ENABLED=true` 时，才会开始发送服务端事件。
 
 启用服务端追踪前，商家必须：
 1. 在隐私政策中明确说明向第三方平台发送的数据类型和用途

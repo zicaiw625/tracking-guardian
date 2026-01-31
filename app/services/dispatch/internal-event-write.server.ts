@@ -30,6 +30,7 @@ export async function persistInternalEventsAndDispatchJobs(
   processedEvents: ProcessedEvent[],
   requestContext: IngestRequestContext | undefined
 ): Promise<void> {
+  if (process.env.SERVER_SIDE_CONVERSIONS_ENABLED !== "true") return;
   const s2sConfigs = await prisma.pixelConfig.findMany({
     where: {
       shopId,

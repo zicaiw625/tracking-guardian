@@ -45,6 +45,9 @@ export async function runDispatchWorker(options?: { maxJobs?: number }): Promise
   sent: number;
   failed: number;
 }> {
+  if (process.env.SERVER_SIDE_CONVERSIONS_ENABLED !== "true") {
+    return { processed: 0, sent: 0, failed: 0 };
+  }
   const maxJobs = options?.maxJobs ?? DEFAULT_MAX_JOBS;
   const now = new Date();
   const jobs = await listPendingJobs(maxJobs, now);

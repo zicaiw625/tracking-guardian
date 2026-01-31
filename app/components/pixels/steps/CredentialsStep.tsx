@@ -66,7 +66,7 @@ export function CredentialsStep({
           平台凭证（可选）
         </Text>
         <Text as="p" tone="subdued">
-          填写后将启用服务端投递（S2S/CAPI），事件会同时从客户端与服务端发送到对应平台。
+          当前版本不进行服务端投递；凭证可保存用于后续能力规划。
         </Text>
         {Array.from(selectedPlatforms).map((platform) => {
           const config = platformConfigs[platform];

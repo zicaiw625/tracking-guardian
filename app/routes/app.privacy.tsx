@@ -274,6 +274,16 @@ export default function PrivacyPage() {
                 ]}
                 tone="success"
               />
+              <Card>
+                <BlockStack gap="200">
+                  <Text as="h3" variant="headingSm">
+                    请求相关技术数据
+                  </Text>
+                  <Text as="p" variant="bodySm">
+                    为安全、反作弊与验收目的，我们可能存储与请求相关的技术数据（如 IP 地址、User-Agent、page_url、referrer），保留周期与店铺数据保留设置一致，删除方式同 GDPR/webhook 删除策略。
+                  </Text>
+                </BlockStack>
+              </Card>
             </BlockStack>
           </Layout.Section>
           <Layout.Section variant="oneHalf">
