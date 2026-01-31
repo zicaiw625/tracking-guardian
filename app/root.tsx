@@ -70,7 +70,7 @@ export default function App() {
     if (typeof window === "undefined") return;
     const url = new URL(window.location.href);
     const current = url.searchParams.get("tg_locale") ?? url.searchParams.get("locale");
-    if (current === locale) return;
+    if (current) return;
     url.searchParams.set("tg_locale", locale);
     url.searchParams.delete("locale");
     navigate(
