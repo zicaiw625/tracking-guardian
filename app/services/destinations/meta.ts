@@ -1,5 +1,6 @@
 import type { MetaCredentials } from "~/types";
 import type { InternalEventPayload, SendEventResult } from "./types";
+import { S2S_FETCH_TIMEOUT_MS } from "./types";
 
 const META_GRAPH_BASE = "https://graph.facebook.com/v18.0";
 
@@ -67,12 +68,16 @@ export async function sendEvent(
   if (testEventCode) {
     body.test_event_code = testEventCode;
   }
-  const url = `${META_GRAPH_BASE}/${pixelId}/events?access_token=${encodeURIComponent(accessToken)}`;
+  const url = `${META_GRAPH_BASE}/${pixelId}/events`;
   try {
     const res = await fetch(url, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${accessToken}`,
+      },
       body: JSON.stringify(body),
+      signal: AbortSignal.timeout(S2S_FETCH_TIMEOUT_MS),
     });
     const json = await res.json().catch(() => ({}));
     if (res.ok && !(json as { error?: unknown }).error) {

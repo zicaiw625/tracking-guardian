@@ -11,6 +11,8 @@ vi.mock("../../../app/db.server", () => {
     webhookLog: { deleteMany: vi.fn() },
     gDPRJob: { deleteMany: vi.fn() },
     pixelEventReceipt: { findMany: vi.fn(), deleteMany: vi.fn(), count: vi.fn() },
+    internalEvent: { deleteMany: vi.fn() },
+    orderSummary: { deleteMany: vi.fn() },
     auditLog: { deleteMany: vi.fn(), create: vi.fn() },
     scanReport: { deleteMany: vi.fn(), count: vi.fn() },
     reconciliationReport: { deleteMany: vi.fn() },
@@ -101,6 +103,8 @@ describe("GDPR Handlers", () => {
     it("should delete customer data for specified orders", async () => {
       vi.mocked(prisma.shop.findUnique).mockResolvedValue(mockShop as never);
       vi.mocked(prisma.pixelEventReceipt.deleteMany).mockResolvedValue({ count: 2 });
+      vi.mocked(prisma.internalEvent.deleteMany).mockResolvedValue({ count: 0 });
+      vi.mocked(prisma.orderSummary.deleteMany).mockResolvedValue({ count: 0 });
       vi.mocked(prisma.pixelEventReceipt.findMany).mockResolvedValue([]);
       const result = await processCustomerRedact("test-shop.myshopify.com", {
         customer_id: 123,
@@ -123,6 +127,8 @@ describe("GDPR Handlers", () => {
     it("should handle linked checkout tokens", async () => {
       vi.mocked(prisma.shop.findUnique).mockResolvedValue(mockShop as never);
       vi.mocked(prisma.pixelEventReceipt.deleteMany).mockResolvedValue({ count: 1 });
+      vi.mocked(prisma.internalEvent.deleteMany).mockResolvedValue({ count: 0 });
+      vi.mocked(prisma.orderSummary.deleteMany).mockResolvedValue({ count: 0 });
       vi.mocked(prisma.pixelEventReceipt.findMany).mockResolvedValue([
         { checkoutToken: "token-123" },
       ] as never);

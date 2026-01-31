@@ -1,3 +1,5 @@
+export const S2S_FETCH_TIMEOUT_MS = 20_000;
+
 export interface InternalEventPayload {
   id: string;
   shopId: string;

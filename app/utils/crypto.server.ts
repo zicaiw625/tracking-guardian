@@ -53,6 +53,9 @@ export function getEncryptionKey(): Buffer {
     const isProduction = process.env.NODE_ENV === "production";
     const isCI = process.env.CI === "true" || process.env.CI === "1";
     const isTest = process.env.NODE_ENV === "test";
+    if (isProduction && !secret) {
+        throw new Error("ENCRYPTION_SECRET must be set in production environments");
+    }
     if (!process.env.ENCRYPTION_SALT && isProduction) {
         throw new Error("ENCRYPTION_SALT must be set in production environments");
     }

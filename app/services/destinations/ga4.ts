@@ -1,5 +1,6 @@
 import type { GoogleCredentials } from "~/types";
 import type { InternalEventPayload, SendEventResult } from "./types";
+import { S2S_FETCH_TIMEOUT_MS } from "./types";
 
 const GA4_MP_URL = "https://www.google-analytics.com/mp/collect";
 
@@ -55,6 +56,7 @@ export async function sendEvent(
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),
+      signal: AbortSignal.timeout(S2S_FETCH_TIMEOUT_MS),
     });
     if (res.ok) {
       return { ok: true, statusCode: res.status };

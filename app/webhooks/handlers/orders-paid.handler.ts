@@ -2,9 +2,23 @@ import { randomUUID } from "crypto";
 import { Prisma } from "@prisma/client";
 import prisma from "../../db.server";
 import { logger } from "../../utils/logger.server";
-import { hashValueSync } from "../../utils/crypto.server";
+import { hashValueSync, normalizeOrderId as normalizeOrderIdForReceipt } from "../../utils/crypto.server";
 import { ORDER_WEBHOOK_ENABLED } from "../../utils/config.server";
+import { evaluatePlatformConsent } from "../../utils/platform-consent";
+import type { ConsentState } from "../../utils/platform-consent";
 import type { WebhookContext, WebhookHandlerResult, ShopWithPixelConfigs } from "../types";
+
+function consentFromReceiptPayload(payloadJson: unknown): ConsentState | null {
+  if (payloadJson == null || typeof payloadJson !== "object") return null;
+  const raw = (payloadJson as { consent?: unknown }).consent;
+  if (raw == null || typeof raw !== "object") return null;
+  const c = raw as Record<string, unknown>;
+  const marketing = typeof c.marketing === "boolean" ? c.marketing : undefined;
+  const analytics = typeof c.analytics === "boolean" ? c.analytics : undefined;
+  const saleOfDataAllowed = typeof c.saleOfDataAllowed === "boolean" ? c.saleOfDataAllowed : typeof c.saleOfData === "boolean" ? c.saleOfData : undefined;
+  if (marketing === undefined && analytics === undefined && saleOfDataAllowed === undefined) return null;
+  return { marketing, analytics, saleOfDataAllowed };
+}
 
 function normalizeOrderId(id: unknown): string {
   const s = String(id);
@@ -119,6 +133,21 @@ export async function handleOrdersPaid(
       return { success: true, status: 200, message: "OK", orderId: parsed.orderId };
     }
 
+    const normalizedOrderIdForReceipt = normalizeOrderIdForReceipt(parsed.orderId);
+    const receipt = await prisma.pixelEventReceipt.findFirst({
+      where: {
+        shopId,
+        eventType: "purchase",
+        OR: [
+          { orderKey: normalizedOrderIdForReceipt },
+          { altOrderKey: normalizedOrderIdForReceipt },
+        ],
+      },
+      orderBy: { pixelTimestamp: "desc" },
+      select: { payloadJson: true },
+    });
+    const consentState = consentFromReceiptPayload(receipt?.payloadJson ?? null);
+
     const s2sConfigs = await prisma.pixelConfig.findMany({
       where: {
         shopId,
@@ -133,17 +162,29 @@ export async function handleOrdersPaid(
       meta: "META",
       tiktok: "TIKTOK",
     };
-    const s2sDestinations = s2sConfigs
+    const allS2sDestinations = s2sConfigs
       .map((c) => destinationsByPlatform[c.platform])
       .filter(Boolean) as ("GA4" | "META" | "TIKTOK")[];
+    const s2sDestinations: ("GA4" | "META" | "TIKTOK")[] = [];
+    for (const dest of allS2sDestinations) {
+      const platform = dest === "GA4" ? "google" : dest === "META" ? "meta" : "tiktok";
+      const decision = evaluatePlatformConsent(platform, consentState, true);
+      if (decision.allowed) s2sDestinations.push(dest);
+    }
 
+    const hasMarketingAllowed = s2sDestinations.some((d) => d === "META" || d === "TIKTOK");
     const userDataHashed: Record<string, string> = {};
-    if (parsed.email) {
+    if (hasMarketingAllowed && parsed.email) {
       userDataHashed.em = hashValueSync(parsed.email.toLowerCase().trim());
     }
-    if (parsed.phone) {
+    if (hasMarketingAllowed && parsed.phone) {
       userDataHashed.ph = hashValueSync(normalizePhoneForHash(parsed.phone));
     }
+
+    const consentPurposes =
+      consentState != null
+        ? { marketing: consentState.marketing, analytics: consentState.analytics, saleOfDataAllowed: consentState.saleOfDataAllowed }
+        : Prisma.JsonNull;
 
     const now = Date.now();
     await prisma.$transaction(async (tx) => {
@@ -167,7 +208,7 @@ export async function handleOrdersPaid(
           transaction_id: parsed.orderId,
           items: parsed.items,
           user_data_hashed: Object.keys(userDataHashed).length > 0 ? userDataHashed : Prisma.JsonNull,
-          consent_purposes: Prisma.JsonNull,
+          consent_purposes: consentPurposes,
         },
       });
       for (const destination of s2sDestinations) {

@@ -22,7 +22,7 @@ export async function processCustomerRedact(
   }
   const orderIdStrings = ordersToRedact.map((id: number | string) => String(id));
   const allOrderIdPatterns = orderIdStrings;
-  const [pixelReceiptResult] = await Promise.all([
+  const [pixelReceiptResult, internalEventResult, orderSummaryResult] = await Promise.all([
     prisma.pixelEventReceipt.deleteMany({
       where: {
         shopId: shop.id,
@@ -31,6 +31,18 @@ export async function processCustomerRedact(
           { altOrderKey: { in: allOrderIdPatterns } },
         ],
       },
+    }),
+    prisma.internalEvent.deleteMany({
+      where: {
+        shopId: shop.id,
+        OR: [
+          { transaction_id: { in: orderIdStrings } },
+          { event_id: { in: orderIdStrings } },
+        ],
+      },
+    }),
+    prisma.orderSummary.deleteMany({
+      where: { shopId: shop.id, orderId: { in: orderIdStrings } },
     }),
   ]);
   const result: CustomerRedactResult = {
@@ -44,6 +56,8 @@ export async function processCustomerRedact(
   };
   logger.info(`[GDPR] Customer redact completed for ${shopDomain}`, {
     ...result.deletedCounts,
+    internalEvents: internalEventResult.count,
+    orderSummaries: orderSummaryResult.count,
   });
   return result;
 }

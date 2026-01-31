@@ -1,5 +1,6 @@
 import type { TikTokCredentials } from "~/types";
 import type { InternalEventPayload, SendEventResult } from "./types";
+import { S2S_FETCH_TIMEOUT_MS } from "./types";
 
 const TIKTOK_EVENTS_API = "https://business-api.tiktok.com/open_api/v1.3/event/track";
 
@@ -72,6 +73,7 @@ export async function sendEvent(
         "Access-Token": accessToken,
       },
       body: JSON.stringify(body),
+      signal: AbortSignal.timeout(S2S_FETCH_TIMEOUT_MS),
     });
     const json = await res.json().catch(() => ({}));
     const code = (json as { code?: number }).code;
