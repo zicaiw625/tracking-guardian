@@ -358,7 +358,7 @@ export default function BillingPage() {
                       {subscription.currentPeriodEnd && (<InlineStack align="space-between">
                           <Text as="span" tone="subdued">下次扣费日期</Text>
                           <Text as="span">
-                            {new Date(subscription.currentPeriodEnd).toLocaleDateString("zh-CN")}
+                            {new Date(subscription.currentPeriodEnd).toLocaleDateString(dateLocale)}
                           </Text>
                         </InlineStack>)}
                     </BlockStack>
@@ -369,7 +369,7 @@ export default function BillingPage() {
                     )}
                     {(subscription as typeof subscription & { status?: string }).status === "CANCELLED" && subscription.currentPeriodEnd && (
                       <Banner tone="info" title="订阅已取消">
-                        <p>您仍可使用至 {new Date(subscription.currentPeriodEnd).toLocaleDateString("zh-CN")}。</p>
+                        <p>您仍可使用至 {new Date(subscription.currentPeriodEnd).toLocaleDateString(dateLocale)}。</p>
                       </Banner>
                     )}
                   </>)}

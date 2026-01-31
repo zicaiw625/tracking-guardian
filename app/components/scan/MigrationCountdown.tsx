@@ -358,7 +358,7 @@ export function MigrationCountdown({
                     fontWeight={milestone.isNext ? "bold" : "regular"}
                     tone={milestone.isPassed ? "subdued" : undefined}
                   >
-                    {milestone.date.toLocaleDateString("zh-CN", {
+                    {milestone.date.toLocaleDateString(dateLocale, {
                       year: "numeric",
                       month: "short",
                       day: "numeric",

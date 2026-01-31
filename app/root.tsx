@@ -10,6 +10,7 @@ import {
   useRouteLoaderData,
   useRevalidator,
   useLocation,
+  useNavigate,
   isRouteErrorResponse,
 } from "@remix-run/react";
 import { useEffect } from "react";
@@ -41,11 +42,27 @@ export default function App() {
   const data = useRouteLoaderData<typeof loader>("root");
   const revalidator = useRevalidator();
   const location = useLocation();
+  const navigate = useNavigate();
   const locale = data?.locale ?? "en";
   const translations = data?.translations ?? en;
   const lang = locale === "zh" ? "zh-CN" : "en";
 
-  const handleSetLocale = () => {
+  const handleSetLocale = (next: string) => {
+    if (typeof window === "undefined") return;
+    if (next === locale) return;
+    const url = new URL(window.location.href);
+    url.searchParams.set("tg_locale", next);
+    url.searchParams.delete("locale");
+    navigate(
+      {
+        pathname: url.pathname,
+        search: url.searchParams.toString()
+          ? `?${url.searchParams.toString()}`
+          : "",
+        hash: url.hash,
+      },
+      { replace: true }
+    );
     revalidator.revalidate();
   };
 
@@ -56,8 +73,17 @@ export default function App() {
     if (current === locale) return;
     url.searchParams.set("tg_locale", locale);
     url.searchParams.delete("locale");
-    window.history.replaceState(null, "", url.pathname + url.search + url.hash);
-  }, [locale, location.pathname, location.search]);
+    navigate(
+      {
+        pathname: url.pathname,
+        search: url.searchParams.toString()
+          ? `?${url.searchParams.toString()}`
+          : "",
+        hash: url.hash,
+      },
+      { replace: true }
+    );
+  }, [locale, location.pathname, location.search, navigate]);
 
   return (
     <html lang={lang}>
