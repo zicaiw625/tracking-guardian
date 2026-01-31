@@ -9,6 +9,7 @@ import {
   useRouteError,
   useRouteLoaderData,
   useRevalidator,
+  useLocation,
   isRouteErrorResponse,
 } from "@remix-run/react";
 import { useEffect } from "react";
@@ -39,6 +40,7 @@ function PerformanceMonitor() {
 export default function App() {
   const data = useRouteLoaderData<typeof loader>("root");
   const revalidator = useRevalidator();
+  const location = useLocation();
   const locale = data?.locale ?? "en";
   const translations = data?.translations ?? en;
   const lang = locale === "zh" ? "zh-CN" : "en";
@@ -46,6 +48,16 @@ export default function App() {
   const handleSetLocale = () => {
     revalidator.revalidate();
   };
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const url = new URL(window.location.href);
+    const current = url.searchParams.get("tg_locale") ?? url.searchParams.get("locale");
+    if (current === locale) return;
+    url.searchParams.set("tg_locale", locale);
+    url.searchParams.delete("locale");
+    window.history.replaceState(null, "", url.pathname + url.search + url.hash);
+  }, [locale, location.pathname, location.search]);
 
   return (
     <html lang={lang}>
