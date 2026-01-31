@@ -122,19 +122,19 @@ export function AlertsTab({ alertConfigs, isSubmitting, alertChannelsEnabled = f
               ))}
             </BlockStack>
           ) : (
-            <Text as="p" tone="subdued">暂无告警通道，请添加。</Text>
+            <Text as="p" tone="subdued">{t("settings.noAlertChannels")}</Text>
           )}
           <Divider />
-          <Text as="h3" variant="headingSm">添加告警通道</Text>
+          <Text as="h3" variant="headingSm">{t("settings.addAlertChannelTitle")}</Text>
           <Select
-            label="通道类型"
+            label={t("settings.alertsChannelType")}
             options={channelOptions}
             value={newChannel}
             onChange={setNewChannel}
           />
           {newChannel === "email" && (
             <TextField
-              label="邮箱"
+              label={t("settings.alertsEmail")}
               value={newEmail}
               onChange={setNewEmail}
               type="email"
@@ -167,7 +167,7 @@ export function AlertsTab({ alertConfigs, isSubmitting, alertChannelsEnabled = f
             </BlockStack>
           )}
           <TextField
-            label="对账差异阈值（%）"
+            label={t("settings.discrepancyThresholdPct")}
             type="number"
             value={String(newThreshold)}
             onChange={(v) => setNewThreshold(parseInt(v, 10) || 10)}
@@ -176,7 +176,7 @@ export function AlertsTab({ alertConfigs, isSubmitting, alertChannelsEnabled = f
             autoComplete="off"
           />
           <InlineStack gap="300">
-            <Button onClick={handleAdd} disabled={isSubmitting}>添加</Button>
+            <Button onClick={handleAdd} disabled={isSubmitting}>{t("settings.addAlertChannel")}</Button>
             <Button variant="primary" onClick={handleSave} loading={isSubmitting}>保存告警配置</Button>
           </InlineStack>
         </BlockStack>

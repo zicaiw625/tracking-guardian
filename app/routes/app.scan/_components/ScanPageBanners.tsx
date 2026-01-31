@@ -2,6 +2,7 @@ import { BlockStack, Banner, Text, Button, List } from "@shopify/polaris";
 import { getDateDisplayLabel, DEPRECATION_DATES } from "~/utils/deprecation-dates";
 import { getUpgradeBannerTone } from "~/components/scan";
 import { parseDateSafely } from "~/utils/scan-validation";
+import { useLocale, useT } from "~/context/LocaleContext";
 
 export interface ScanPageBannersProps {
   deprecationStatus: unknown;
@@ -41,6 +42,8 @@ export function ScanPageBanners({
   isAgency,
 }: ScanPageBannersProps) {
   const dep = deprecationStatus as { additionalScripts?: { badge?: { text: string }; description?: string } } | null;
+  const { locale, t } = useLocale();
+  const dateLocale = locale === "zh" ? "zh-CN" : "en";
   return (
     <>
       <Banner tone="warning" title="Additional Scripts 需手动粘贴">
@@ -117,7 +120,7 @@ export function ScanPageBanners({
             )}
             {upgradeStatus.lastUpdated && parseDateSafely(upgradeStatus.lastUpdated) && (
               <Text as="p" variant="bodySm" tone="subdued">
-                状态更新时间: {parseDateSafely(upgradeStatus.lastUpdated)!.toLocaleString("zh-CN")}
+                {t("scan.statusUpdatedAt")}: {parseDateSafely(upgradeStatus.lastUpdated)!.toLocaleString(dateLocale)}
               </Text>
             )}
           </BlockStack>

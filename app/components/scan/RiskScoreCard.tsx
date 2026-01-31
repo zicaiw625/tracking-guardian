@@ -1,4 +1,5 @@
 import { Card, BlockStack, Box, Text } from "@shopify/polaris";
+import { useLocale, useT } from "~/context/LocaleContext";
 
 interface RiskScoreCardProps {
   riskScore: number;
@@ -6,11 +7,14 @@ interface RiskScoreCardProps {
 }
 
 export function RiskScoreCard({ riskScore, createdAt }: RiskScoreCardProps) {
+  const { locale } = useLocale();
+  const t = useT();
+  const dateLocale = locale === "zh" ? "zh-CN" : "en";
   return (
     <Card>
       <BlockStack gap="400">
         <Text as="h2" variant="headingMd">
-          风险评分
+          {t("scan.riskScoreTitle")}
         </Text>
         <Box
           background={
@@ -33,7 +37,7 @@ export function RiskScoreCard({ riskScore, createdAt }: RiskScoreCardProps) {
           </BlockStack>
         </Box>
         <Text as="p" variant="bodySm" tone="subdued">
-          扫描时间: {new Date(createdAt).toLocaleString("zh-CN")}
+          {t("scan.scanTime")}: {new Date(createdAt).toLocaleString(dateLocale)}
         </Text>
       </BlockStack>
     </Card>

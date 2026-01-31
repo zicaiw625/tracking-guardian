@@ -79,8 +79,10 @@ export async function saveConfigSnapshot(
 export async function rollbackConfig(
   shopId: string,
   platform: string,
-  environment: PixelEnvironment = "live"
+  environment: PixelEnvironment = "live",
+  locale: string = "en"
 ): Promise<RollbackResult> {
+  const isZh = locale === "zh";
   try {
     const config = await prisma.pixelConfig.findFirst({
       where: {
@@ -92,13 +94,13 @@ export async function rollbackConfig(
     if (!config) {
       return {
         success: false,
-        message: "配置不存在",
+        message: isZh ? "配置不存在" : "Config not found",
       };
     }
     if (!config.rollbackAllowed || !config.previousConfig) {
       return {
         success: false,
-        message: "没有可回滚的版本",
+        message: isZh ? "没有可回滚的版本" : "No version to roll back",
       };
     }
     const snapshot = config.previousConfig as unknown as PixelConfigSnapshot;
@@ -138,7 +140,7 @@ export async function rollbackConfig(
     });
     return {
       success: true,
-      message: `已回滚到版本 ${config.configVersion + 1}`,
+      message: isZh ? `已回滚到版本 ${config.configVersion + 1}` : `Rolled back to version ${config.configVersion + 1}`,
       previousVersion,
       currentVersion: config.configVersion + 1,
     };
@@ -146,7 +148,7 @@ export async function rollbackConfig(
     logger.error("Failed to rollback config", { shopId, platform, error });
     return {
       success: false,
-      message: "回滚失败，请稍后重试",
+      message: isZh ? "回滚失败，请稍后重试" : "Rollback failed. Please try again later",
     };
   }
 }
@@ -155,8 +157,10 @@ export async function switchEnvironment(
   shopId: string,
   platform: string,
   newEnvironment: PixelEnvironment,
-  currentEnvironment?: PixelEnvironment
+  currentEnvironment?: PixelEnvironment,
+  locale: string = "en"
 ): Promise<EnvironmentSwitchResult> {
+  const isZh = locale === "zh";
   try {
     let actualCurrentEnvironment = currentEnvironment;
     if (!actualCurrentEnvironment) {
@@ -182,14 +186,15 @@ export async function switchEnvironment(
     if (!config) {
       return {
         success: false,
-        message: "配置不存在",
+        message: isZh ? "配置不存在" : "Config not found",
       };
     }
     const previousEnvironment = config.environment as PixelEnvironment;
     if (previousEnvironment === newEnvironment) {
+      const envLabel = newEnvironment === "live" ? (isZh ? "生产" : "live") : (isZh ? "测试" : "test");
       return {
         success: true,
-        message: `已在 ${newEnvironment} 环境`,
+        message: isZh ? `已在 ${envLabel} 环境` : `Already on ${newEnvironment} environment`,
         previousEnvironment,
         newEnvironment,
       };
@@ -248,9 +253,10 @@ export async function switchEnvironment(
       from: previousEnvironment,
       to: newEnvironment
     });
+    const envLabel = newEnvironment === "live" ? (isZh ? "生产" : "live") : (isZh ? "测试" : "test");
     return {
       success: true,
-      message: `已切换到 ${newEnvironment === "live" ? "生产" : "测试"} 环境`,
+      message: isZh ? `已切换到 ${envLabel} 环境` : `Switched to ${newEnvironment} environment`,
       previousEnvironment,
       newEnvironment,
     };
@@ -258,7 +264,7 @@ export async function switchEnvironment(
     logger.error("Failed to switch environment", { shopId, platform, error });
     return {
       success: false,
-      message: "切换失败，请稍后重试",
+      message: isZh ? "切换失败，请稍后重试" : "Switch failed. Please try again later",
     };
   }
 }

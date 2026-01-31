@@ -324,7 +324,8 @@ export async function clearWizardDraft(shopId: string): Promise<{ success: boole
 
 export async function validateTestEnvironment(
   shopId: string,
-  platform: Platform | "pinterest"
+  platform: Platform | "pinterest",
+  locale: string = "en"
 ): Promise<{
   valid: boolean;
   message: string;
@@ -337,6 +338,7 @@ export async function validateTestEnvironment(
     verificationInstructions?: string;
   };
 }> {
+  const isZh = locale === "zh";
   const config = await prisma.pixelConfig.findFirst({
     where: {
       shopId,
@@ -347,19 +349,19 @@ export async function validateTestEnvironment(
   if (!config) {
     return {
       valid: false,
-      message: "配置不存在",
+      message: isZh ? "配置不存在" : "Config not found",
     };
   }
   if (config.environment !== "test") {
     return {
       valid: false,
-      message: "当前环境不是测试模式",
+      message: isZh ? "当前环境不是测试模式" : "Current environment is not test mode",
     };
   }
   if (!config.credentialsEncrypted) {
     return {
       valid: false,
-      message: "凭证未配置",
+      message: isZh ? "凭证未配置" : "Credentials not configured",
     };
   }
   try {
@@ -370,7 +372,7 @@ export async function validateTestEnvironment(
     if (!credentialsResult.ok) {
       return {
         valid: false,
-        message: `凭证验证失败: ${credentialsResult.error.message}`,
+        message: isZh ? `凭证验证失败: ${credentialsResult.error.message}` : `Credential validation failed: ${credentialsResult.error.message}`,
       };
     }
     const details: {
@@ -519,7 +521,7 @@ export async function validateTestEnvironment(
     }
     return {
       valid: eventSent,
-      message: eventSent ? "测试事件已发送" : (sendError ?? "测试事件发送失败"),
+      message: eventSent ? (isZh ? "测试事件已发送" : "Test event sent") : (sendError ?? (isZh ? "测试事件发送失败" : "Test event send failed")),
       details,
     };
   } catch (error) {
@@ -530,10 +532,10 @@ export async function validateTestEnvironment(
     });
     return {
       valid: false,
-      message: `验证过程出错: ${error instanceof Error ? error.message : "未知错误"}`,
+      message: isZh ? `验证过程出错: ${error instanceof Error ? error.message : "未知错误"}` : `Validation error: ${error instanceof Error ? error.message : "Unknown error"}`,
       details: {
         eventSent: false,
-        error: error instanceof Error ? error.message : "未知错误",
+        error: error instanceof Error ? error.message : (isZh ? "未知错误" : "Unknown error"),
       },
     };
   }

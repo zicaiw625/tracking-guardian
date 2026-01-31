@@ -10,10 +10,13 @@ import { checkSensitiveInfoInData } from "../../utils/scan-validation";
 import { containsSensitiveInfo, sanitizeSensitiveInfo } from "../../utils/security";
 import { sanitizeFilename } from "../../utils/responses";
 import { logger } from "../../utils/logger.server";
+import { getLocaleFromRequest } from "../../utils/locale.server";
 import type { RiskItem } from "../../types";
 
 export const action = async ({ request }: ActionFunctionArgs) => {
     const { session, admin } = await authenticate.admin(request);
+    const locale = getLocaleFromRequest(request);
+    const isZh = locale === "zh";
     const shopDomain = session.shop;
     const shop = await prisma.shop.findUnique({
         where: { shopDomain },
@@ -27,7 +30,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         try {
             const analysisDataStr = formData.get("analysisData") as string;
             if (!analysisDataStr) {
-                return json({ error: "缺少分析数据" }, { status: 400 });
+                return json({ error: isZh ? "缺少分析数据" : "Missing analysis data" }, { status: 400 });
             }
             if (analysisDataStr.length > SAVE_ANALYSIS_LIMITS.MAX_INPUT_SIZE) {
                 logger.warn("Analysis data too large", {
@@ -36,7 +39,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
                     maxSize: SAVE_ANALYSIS_LIMITS.MAX_INPUT_SIZE
                 });
                 return json({
-                    error: `分析数据过大（最大 ${SAVE_ANALYSIS_LIMITS.MAX_INPUT_SIZE / 1024}KB）`
+                    error: isZh ? `分析数据过大（最大 ${SAVE_ANALYSIS_LIMITS.MAX_INPUT_SIZE / 1024}KB）` : `Analysis data too large (max ${SAVE_ANALYSIS_LIMITS.MAX_INPUT_SIZE / 1024}KB)`
                 }, { status: 400 });
             }
             let parsedData: unknown;
@@ -48,10 +51,10 @@ export const action = async ({ request }: ActionFunctionArgs) => {
                     error: parseError instanceof Error ? parseError.message : String(parseError),
                     actionType: "save_analysis"
                 });
-                return json({ error: "无法解析分析数据：无效的 JSON 格式" }, { status: 400 });
+                return json({ error: isZh ? "无法解析分析数据：无效的 JSON 格式" : "Invalid JSON format for analysis data" }, { status: 400 });
             }
             if (!parsedData || typeof parsedData !== "object") {
-                return json({ error: "无效的分析数据格式：必须是对象" }, { status: 400 });
+                return json({ error: isZh ? "无效的分析数据格式：必须是对象" : "Invalid analysis data format: must be object" }, { status: 400 });
             }
             const data = parsedData as Record<string, unknown>;
             if (checkSensitiveInfoInData(parsedData)) {
@@ -61,39 +64,39 @@ export const action = async ({ request }: ActionFunctionArgs) => {
                     actionType: "save_analysis"
                 });
                 return json({
-                    error: "检测到可能包含敏感信息的内容（如 API keys、tokens、客户信息等）。请先脱敏后再保存。"
+                    error: isZh ? "检测到可能包含敏感信息的内容（如 API keys、tokens、客户信息等）。请先脱敏后再保存。" : "Content may contain sensitive information (e.g. API keys, tokens). Please redact before saving."
                 }, { status: 400 });
             }
             if (!Array.isArray(data.identifiedPlatforms)) {
-                return json({ error: "无效的分析数据格式：identifiedPlatforms 必须是数组" }, { status: 400 });
+                return json({ error: isZh ? "无效的分析数据格式：identifiedPlatforms 必须是数组" : "Invalid format: identifiedPlatforms must be array" }, { status: 400 });
             }
             if (!Array.isArray(data.platformDetails)) {
-                return json({ error: "无效的分析数据格式：platformDetails 必须是数组" }, { status: 400 });
+                return json({ error: isZh ? "无效的分析数据格式：platformDetails 必须是数组" : "Invalid format: platformDetails must be array" }, { status: 400 });
             }
             if (!Array.isArray(data.risks)) {
-                return json({ error: "无效的分析数据格式：risks 必须是数组" }, { status: 400 });
+                return json({ error: isZh ? "无效的分析数据格式：risks 必须是数组" : "Invalid format: risks must be array" }, { status: 400 });
             }
             if (!Array.isArray(data.recommendations)) {
-                return json({ error: "无效的分析数据格式：recommendations 必须是数组" }, { status: 400 });
+                return json({ error: isZh ? "无效的分析数据格式：recommendations 必须是数组" : "Invalid format: recommendations must be array" }, { status: 400 });
             }
             if (data.identifiedPlatforms.length > SAVE_ANALYSIS_LIMITS.MAX_PLATFORMS) {
                 return json({
-                    error: `identifiedPlatforms 数组过长（最多 ${SAVE_ANALYSIS_LIMITS.MAX_PLATFORMS} 个）`
+                    error: isZh ? `identifiedPlatforms 数组过长（最多 ${SAVE_ANALYSIS_LIMITS.MAX_PLATFORMS} 个）` : `identifiedPlatforms array too long (max ${SAVE_ANALYSIS_LIMITS.MAX_PLATFORMS})`
                 }, { status: 400 });
             }
             if (data.platformDetails.length > SAVE_ANALYSIS_LIMITS.MAX_PLATFORM_DETAILS) {
                 return json({
-                    error: `platformDetails 数组过长（最多 ${SAVE_ANALYSIS_LIMITS.MAX_PLATFORM_DETAILS} 个）`
+                    error: isZh ? `platformDetails 数组过长（最多 ${SAVE_ANALYSIS_LIMITS.MAX_PLATFORM_DETAILS} 个）` : `platformDetails array too long (max ${SAVE_ANALYSIS_LIMITS.MAX_PLATFORM_DETAILS})`
                 }, { status: 400 });
             }
             if (data.risks.length > SAVE_ANALYSIS_LIMITS.MAX_RISKS) {
                 return json({
-                    error: `risks 数组过长（最多 ${SAVE_ANALYSIS_LIMITS.MAX_RISKS} 个）`
+                    error: isZh ? `risks 数组过长（最多 ${SAVE_ANALYSIS_LIMITS.MAX_RISKS} 个）` : `risks array too long (max ${SAVE_ANALYSIS_LIMITS.MAX_RISKS})`
                 }, { status: 400 });
             }
             if (data.recommendations.length > SAVE_ANALYSIS_LIMITS.MAX_RECOMMENDATIONS) {
                 return json({
-                    error: `recommendations 数组过长（最多 ${SAVE_ANALYSIS_LIMITS.MAX_RECOMMENDATIONS} 个）`
+                    error: isZh ? `recommendations 数组过长（最多 ${SAVE_ANALYSIS_LIMITS.MAX_RECOMMENDATIONS} 个）` : `recommendations array too long (max ${SAVE_ANALYSIS_LIMITS.MAX_RECOMMENDATIONS})`
                 }, { status: 400 });
             }
             if (
@@ -104,7 +107,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
                 data.riskScore > SAVE_ANALYSIS_LIMITS.MAX_RISK_SCORE
             ) {
                 return json({
-                    error: "无效的分析数据格式：riskScore 必须是 0-100 之间的整数"
+                    error: isZh ? "无效的分析数据格式：riskScore 必须是 0-100 之间的整数" : "Invalid format: riskScore must be integer 0-100"
                 }, { status: 400 });
             }
             if (!data.identifiedPlatforms.every((p: unknown) => {
@@ -130,7 +133,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
                     typeof detail.matchedPattern === "string"
                 );
             })) {
-                return json({ error: "无效的分析数据格式：platformDetails 中的元素结构不正确" }, { status: 400 });
+                return json({ error: isZh ? "无效的分析数据格式：platformDetails 中的元素结构不正确" : "Invalid format: platformDetails element structure" }, { status: 400 });
             }
             if (!data.risks.every((r: unknown) => {
                 if (typeof r !== "object" || r === null || Array.isArray(r)) return false;
@@ -143,7 +146,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
                     (risk.severity === "high" || risk.severity === "medium" || risk.severity === "low")
                 );
             })) {
-                return json({ error: "无效的分析数据格式：risks 中的元素结构不正确" }, { status: 400 });
+                return json({ error: isZh ? "无效的分析数据格式：risks 中的元素结构不正确" : "Invalid format: risks element structure" }, { status: 400 });
             }
             if (!data.recommendations.every((r: unknown) => {
                 return (
@@ -284,9 +287,9 @@ export const action = async ({ request }: ActionFunctionArgs) => {
                 actionType: "save_analysis",
                 savedCount: createdAssets.length,
                 message: createdAssets.length > 0
-                    ? `已保存 ${createdAssets.length} 个审计资产记录${failedAssets.length > 0 ? `，${failedAssets.length} 个失败` : ''}`
-                    : "保存失败，请检查日志",
-                ...(failedAssets.length > 0 && { warning: `${failedAssets.length} 个资产保存失败` })
+                    ? (isZh ? `已保存 ${createdAssets.length} 个审计资产记录${failedAssets.length > 0 ? `，${failedAssets.length} 个失败` : ''}` : `Saved ${createdAssets.length} audit assets${failedAssets.length > 0 ? `, ${failedAssets.length} failed` : ''}`)
+                    : (isZh ? "保存失败，请检查日志" : "Save failed. Check logs"),
+                ...(failedAssets.length > 0 && { warning: isZh ? `${failedAssets.length} 个资产保存失败` : `${failedAssets.length} assets failed to save` })
             });
         } catch (error) {
             const randomBytes = new Uint8Array(4);
@@ -300,7 +303,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
                 actionType: "save_analysis"
             });
             return json({
-                error: "保存失败，请稍后重试",
+                error: isZh ? "保存失败，请稍后重试" : "Save failed. Please try again later",
                 errorId
             }, { status: 500 });
         }
@@ -309,23 +312,23 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         try {
             const assetsStr = formData.get("assets") as string;
             if (!assetsStr) {
-                return json({ error: "缺少资产数据" }, { status: 400 });
+                return json({ error: isZh ? "缺少资产数据" : "Missing asset data" }, { status: 400 });
             }
             let assets: AuditAssetInput[];
             try {
                 const parsed = JSON.parse(assetsStr);
                 if (!Array.isArray(parsed) || parsed.length === 0) {
-                    return json({ error: "资产数据必须是非空数组" }, { status: 400 });
+                    return json({ error: isZh ? "资产数据必须是非空数组" : "Asset data must be non-empty array" }, { status: 400 });
                 }
                 assets = parsed as AuditAssetInput[];
             } catch {
-                return json({ error: "无效的资产数据格式" }, { status: 400 });
+                return json({ error: isZh ? "无效的资产数据格式" : "Invalid asset data format" }, { status: 400 });
             }
             const result = await batchCreateAuditAssets(shop.id, assets);
             return json({
                 success: true,
                 actionType: "create_from_wizard",
-                message: `已创建 ${result.created} 个审计资产记录${result.updated > 0 ? `，更新 ${result.updated} 个` : ''}${result.failed > 0 ? `，${result.failed} 个失败` : ''}`,
+                message: isZh ? `已创建 ${result.created} 个审计资产记录${result.updated > 0 ? `，更新 ${result.updated} 个` : ''}${result.failed > 0 ? `，${result.failed} 个失败` : ''}` : `Created ${result.created} audit assets${result.updated > 0 ? `, updated ${result.updated}` : ''}${result.failed > 0 ? `, ${result.failed} failed` : ''}`,
                 created: result.created,
                 updated: result.updated,
                 failed: result.failed,
@@ -335,24 +338,24 @@ export const action = async ({ request }: ActionFunctionArgs) => {
                 shopId: shop.id,
                 error: error instanceof Error ? error.message : String(error),
             });
-            return json({ error: "创建失败，请稍后重试" }, { status: 500 });
+            return json({ error: isZh ? "创建失败，请稍后重试" : "Create failed. Please try again later" }, { status: 500 });
         }
     }
     if (actionType === "mark_asset_complete") {
         try {
             const assetId = formData.get("assetId") as string;
             if (!assetId) {
-                return json({ error: "缺少资产 ID" }, { status: 400 });
+                return json({ error: isZh ? "缺少资产 ID" : "Missing asset ID" }, { status: 400 });
             }
             const asset = await prisma.auditAsset.findUnique({
                 where: { id: assetId },
                 select: { shopId: true, migrationStatus: true },
             });
             if (!asset) {
-                return json({ error: "资产不存在" }, { status: 404 });
+                return json({ error: isZh ? "资产不存在" : "Asset not found" }, { status: 404 });
             }
             if (asset.shopId !== shop.id) {
-                return json({ error: "无权访问此资产" }, { status: 403 });
+                return json({ error: isZh ? "无权访问此资产" : "Access denied to this asset" }, { status: 403 });
             }
             await prisma.auditAsset.update({
                 where: { id: assetId },
@@ -364,18 +367,19 @@ export const action = async ({ request }: ActionFunctionArgs) => {
             return json({
                 success: true,
                 actionType: "mark_asset_complete",
-                message: "已标记为已完成",
+                message: isZh ? "已标记为已完成" : "Marked as completed",
             });
         } catch (error) {
             logger.error("Mark asset complete error", {
                 shopId: shop.id,
                 error: error instanceof Error ? error.message : String(error),
             });
-            return json({ error: "标记失败，请稍后重试" }, { status: 500 });
+            return json({ error: isZh ? "标记失败，请稍后重试" : "Mark failed. Please try again later" }, { status: 500 });
         }
     }
     if (actionType === "export_checklist_csv") {
         try {
+            const dateLocale = locale === "zh" ? "zh-CN" : "en";
             const checklist = await generateMigrationChecklist(shop.id);
             const formatEstimatedTime = (minutes: number) => {
                 if (minutes < 60) {
@@ -394,7 +398,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
             const csvLines: string[] = [];
             csvLines.push("迁移清单");
             csvLines.push(`店铺: ${shopDomain}`);
-            csvLines.push(`生成时间: ${new Date().toLocaleString("zh-CN")}`);
+            csvLines.push(`生成时间: ${new Date().toLocaleString(dateLocale)}`);
             csvLines.push(`待迁移项: ${checklist.totalItems}`);
             csvLines.push(`高风险项: ${checklist.highPriorityItems}`);
             csvLines.push(`中风险项: ${checklist.mediumPriorityItems}`);
@@ -430,11 +434,11 @@ export const action = async ({ request }: ActionFunctionArgs) => {
                 shopId: shop.id,
                 error: error instanceof Error ? error.message : String(error),
             });
-            return json({ error: "导出失败，请稍后重试" }, { status: 500 });
+            return json({ error: isZh ? "导出失败，请稍后重试" : "Export failed. Please try again later" }, { status: 500 });
         }
     }
     if (actionType && actionType !== "scan") {
-        return json({ error: "不支持的操作类型" }, { status: 400 });
+        return json({ error: isZh ? "不支持的操作类型" : "Unsupported action type" }, { status: 400 });
     }
     try {
         const scanResult = await scanShopTracking(admin, shop.id);
@@ -447,6 +451,6 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     }
     catch (error) {
         logger.error("Scan error", error);
-        return json({ error: error instanceof Error ? error.message : "Scan failed" }, { status: 500 });
+        return json({ error: error instanceof Error ? error.message : (isZh ? "扫描失败" : "Scan failed") }, { status: 500 });
     }
 };

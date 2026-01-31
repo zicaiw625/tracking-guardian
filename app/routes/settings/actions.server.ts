@@ -17,12 +17,15 @@ import {
   rollbackConfig,
   type PixelEnvironment,
 } from "../../services/pixel-rollback.server";
+import { getLocaleFromRequest } from "../../utils/locale.server";
 
 export async function handleRotateIngestionSecret(
   shopId: string,
   sessionShop: string,
-  admin: Awaited<ReturnType<typeof authenticate.admin>>["admin"]
+  admin: Awaited<ReturnType<typeof authenticate.admin>>["admin"],
+  locale: string
 ) {
+  const isZh = locale === "zh";
   const currentShop = await prisma.shop.findUnique({
     where: { id: shopId },
     select: { ingestionSecret: true },
@@ -58,29 +61,29 @@ export async function handleRotateIngestionSecret(
       if (result.success) {
         pixelSyncResult = {
           success: true,
-          message: "已自动同步到 Web Pixel 配置",
+          message: isZh ? "已自动同步到 Web Pixel 配置" : "Synced to Web Pixel config",
         };
       } else {
         pixelSyncResult = {
           success: false,
-          message: `Web Pixel 同步失败: ${result.error}`,
+          message: isZh ? `Web Pixel 同步失败: ${result.error}` : `Web Pixel sync failed: ${result.error}`,
         };
       }
     } else {
       pixelSyncResult = {
         success: false,
-        message: "未找到已安装的 Web Pixel，请先在「迁移」页面安装像素",
+        message: isZh ? "未找到已安装的 Web Pixel，请先在「迁移」页面安装像素" : "No installed Web Pixel found. Please install pixel on the Migration page first",
       };
     }
   } catch (pixelError) {
     logger.error("Failed to sync ingestion token to Web Pixel", pixelError);
     pixelSyncResult = {
       success: false,
-      message: "Web Pixel 同步失败，请手动重新配置",
+      message: isZh ? "Web Pixel 同步失败，请手动重新配置" : "Web Pixel sync failed. Please reconfigure manually",
     };
   }
-  const baseMessage = "关联令牌已更新。";
-  const graceMessage = ` 旧令牌将在 ${graceWindowMinutes} 分钟内继续有效。`;
+  const baseMessage = isZh ? "关联令牌已更新。" : "Ingestion token updated.";
+  const graceMessage = isZh ? ` 旧令牌将在 ${graceWindowMinutes} 分钟内继续有效。` : ` Previous token valid for ${graceWindowMinutes} minutes.`;
   const syncMessage = pixelSyncResult.success
     ? pixelSyncResult.message
     : `⚠️ ${pixelSyncResult.message}`;
@@ -95,7 +98,8 @@ export async function handleRotateIngestionSecret(
 export async function handleUpdatePrivacySettings(
   formData: FormData,
   shopId: string,
-  _sessionShop: string
+  _sessionShop: string,
+  locale: string
 ) {
   const consentStrategy =
     (formData.get("consentStrategy") as string) || "strict";
@@ -110,13 +114,14 @@ export async function handleUpdatePrivacySettings(
   });
   return json({
     success: true,
-    message: "隐私设置已更新",
+    message: locale === "zh" ? "隐私设置已更新" : "Privacy settings updated",
   });
 }
 
 export async function handleSaveAlertConfigs(
   formData: FormData,
-  shopId: string
+  shopId: string,
+  locale: string
 ) {
   const configsJson = formData.get("alertConfigs");
   let alertConfigs: Array<{
@@ -162,12 +167,14 @@ export async function handleSaveAlertConfigs(
   invalidateAlertConfigsCache(shopId);
   return json({
     success: true,
-    message: "告警配置已保存",
+    message: locale === "zh" ? "告警配置已保存" : "Alert config saved",
   });
 }
 
 export async function settingsAction({ request }: ActionFunctionArgs) {
   const { session, admin } = await authenticate.admin(request);
+  const locale = getLocaleFromRequest(request);
+  const isZh = locale === "zh";
   const shopDomain = session.shop;
   const shop = await prisma.shop.findUnique({
     where: { shopDomain },
@@ -179,30 +186,30 @@ export async function settingsAction({ request }: ActionFunctionArgs) {
   const action = formData.get("_action");
   switch (action) {
     case "rotateIngestionSecret":
-      return handleRotateIngestionSecret(shop.id, session.shop, admin);
+      return handleRotateIngestionSecret(shop.id, session.shop, admin, locale);
     case "updatePrivacySettings":
-      return handleUpdatePrivacySettings(formData, shop.id, session.shop);
+      return handleUpdatePrivacySettings(formData, shop.id, session.shop, locale);
     case "switchEnvironment": {
       const { checkV1FeatureBoundary } = await import("../../utils/version-gate");
       const gateResult = checkV1FeatureBoundary("server_side");
       if (!gateResult.allowed) {
-        return json({ error: gateResult.reason || "此功能在当前版本中不可用" }, { status: 403 });
+        return json({ error: gateResult.reason || (isZh ? "此功能在当前版本中不可用" : "This feature is not available in the current version") }, { status: 403 });
       }
       const platform = formData.get("platform") as string;
       const newEnvironment = formData.get("environment") as PixelEnvironment;
       if (!platform || !newEnvironment) {
         return json({
           success: false,
-          error: "缺少 platform 或 environment 参数"
+          error: isZh ? "缺少 platform 或 environment 参数" : "Missing platform or environment parameter"
         }, { status: 400 });
       }
       if (!["test", "live"].includes(newEnvironment)) {
         return json({
           success: false,
-          error: "无效的环境参数"
+          error: isZh ? "无效的环境参数" : "Invalid environment parameter"
         }, { status: 400 });
       }
-      const result = await switchEnvironment(shop.id, platform, newEnvironment);
+      const result = await switchEnvironment(shop.id, platform, newEnvironment, undefined, locale);
       if (result.success) {
         try {
           const shopData = await prisma.shop.findUnique({
@@ -243,16 +250,16 @@ export async function settingsAction({ request }: ActionFunctionArgs) {
       const { checkV1FeatureBoundary } = await import("../../utils/version-gate");
       const gateResult = checkV1FeatureBoundary("server_side");
       if (!gateResult.allowed) {
-        return json({ error: gateResult.reason || "此功能在当前版本中不可用" }, { status: 403 });
+        return json({ error: gateResult.reason || (isZh ? "此功能在当前版本中不可用" : "This feature is not available in the current version") }, { status: 403 });
       }
       const platform = formData.get("platform") as string;
       if (!platform) {
         return json({
           success: false,
-          error: "缺少 platform 参数"
+          error: isZh ? "缺少 platform 参数" : "Missing platform parameter"
         }, { status: 400 });
       }
-      const result = await rollbackConfig(shop.id, platform);
+      const result = await rollbackConfig(shop.id, platform, "live", locale);
       if (result.success) {
         await invalidateAllShopCaches(session.shop, shop.id);
       }
@@ -264,8 +271,8 @@ export async function settingsAction({ request }: ActionFunctionArgs) {
       });
     }
     case "saveAlertConfigs":
-      return handleSaveAlertConfigs(formData, shop.id);
+      return handleSaveAlertConfigs(formData, shop.id, locale);
     default:
-      return json({ error: "Unknown action" }, { status: 400 });
+      return json({ error: isZh ? "未知操作" : "Unknown action" }, { status: 400 });
   }
 }

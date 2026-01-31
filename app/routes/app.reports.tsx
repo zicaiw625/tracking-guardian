@@ -42,7 +42,8 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 };
 
 export default function ReportsPage() {
-  const { t, tArray } = useLocale();
+  const { t, tArray, locale } = useLocale();
+  const dateLocale = locale === "zh" ? "zh-CN" : "en";
   const { shop, canExportReports, latestRun, gateResult, currentPlan } = useLoaderData<typeof loader>();
 
   const handleExportVerificationCsv = () => {
@@ -96,7 +97,7 @@ export default function ReportsPage() {
                   <BlockStack gap="200">
                     <Text as="p" variant="bodySm">
                       {t("reports.latestRun")}: {latestRun.runName}, {latestRun.status === "completed" ? t("reports.completed") : latestRun.status}
-                      {latestRun.startedAt ? `, ${new Date(latestRun.startedAt).toLocaleString()}` : ""}
+                      {latestRun.startedAt ? `, ${new Date(latestRun.startedAt).toLocaleString(dateLocale)}` : ""}
                     </Text>
                     {canExportReports ? (
                       <InlineStack gap="200">

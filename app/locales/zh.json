@@ -52,7 +52,12 @@
     "currentPlanNotSupported": "您的当前套餐不支持此功能。",
     "upgradeToUnlock": "升级套餐以解锁更多功能。",
     "viewPlans": "查看套餐",
-    "resource": "资源"
+    "resource": "资源",
+    "updatedAt": "更新时间",
+    "environment": "环境",
+    "production": "生产",
+    "test": "测试",
+    "currentVersion": "当前版本"
   },
   "topbar": {
     "help": "帮助",
@@ -293,7 +298,10 @@
     "exportFailedRetry": "导出失败，请重试",
     "guidanceUpgradeWizard": "如何从 Shopify 升级向导获取脚本清单",
     "migrateAssetsCreated": "成功创建 {count} 个迁移资产",
-    "migrateAssetsCreatedShort": "成功创建迁移资产！"
+    "migrateAssetsCreatedShort": "成功创建迁移资产！",
+    "riskScoreTitle": "风险评分",
+    "scanTime": "扫描时间",
+    "statusUpdatedAt": "状态更新时间"
   },
   "pixels": {
     "credentialsTitle": "平台凭证（可选）",
@@ -521,7 +529,16 @@
     "tabPixelLayer": "像素层验收（Web Pixels 标准事件）",
     "tabResults": "详细结果",
     "tabTestGuide": "测试订单指引",
-    "tabHistory": "历史记录"
+    "tabHistory": "历史记录",
+    "historyTitle": "验收历史",
+    "historyTime": "时间",
+    "historyType": "类型",
+    "historyStatus": "状态",
+    "historyPassed": "通过",
+    "historyFailed": "失败",
+    "historyMissingParams": "参数缺失",
+    "historyEmptyTitle": "暂无验收历史记录",
+    "historyEmptyDesc": "运行验收测试后，历史记录将显示在这里。"
   },
   "monitoring": {
     "shopNotFound": "未找到店铺信息。",
@@ -577,6 +594,12 @@
     "alertsDisabledDesc": "当前版本外发通知（Slack/Telegram/Email）已关闭，仅应用内告警记录生效。如需开启请联系支持或等待后续版本。",
     "alertsConfigTitle": "告警配置",
     "alertsConfigDesc": "配置告警通道与阈值；当断档或异常触发时将写入告警记录，并可在 Monitoring 页面查看。",
+    "alertsChannelType": "通道类型",
+    "alertsEmail": "邮箱",
+    "discrepancyThresholdPct": "对账差异阈值（%）",
+    "addAlertChannel": "添加",
+    "noAlertChannels": "暂无告警通道，请添加。",
+    "addAlertChannelTitle": "添加告警通道",
     "threshold": "阈值 {value}%",
     "enabledLabel": "启用",
     "disabledLabel": "禁用",

@@ -12,6 +12,7 @@ import { decryptIngestionSecret, encryptIngestionSecret, isTokenEncrypted } from
 import { randomBytes } from "crypto";
 import { trackEvent } from "../../services/analytics.server";
 import { encryptJson } from "../../utils/crypto.server";
+import { getLocaleFromRequest } from "../../utils/locale.server";
 
 const SUPPORTED_PLATFORMS = ["google", "meta", "tiktok"] as const;
 type SupportedPlatform = (typeof SUPPORTED_PLATFORMS)[number];
@@ -22,6 +23,8 @@ function generateIngestionSecret(): string {
 
 export const action = async ({ request }: ActionFunctionArgs) => {
   const { session, admin } = await authenticate.admin(request);
+  const locale = getLocaleFromRequest(request);
+  const isZh = locale === "zh";
   const shopDomain = session.shop;
   const formData = await request.formData();
   const actionType = formData.get("_action");
@@ -41,12 +44,12 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   if (actionType === "savePixelConfigs") {
     const configsJson = formData.get("configs") as string;
     if (!configsJson) {
-      return json({ error: "缺少配置数据" }, { status: 400 });
+      return json({ error: isZh ? "缺少配置数据" : "Missing config data" }, { status: 400 });
     }
     if (!isPlanAtLeast(shop.plan, "starter")) {
       return json({
         success: false,
-        error: "启用像素迁移需要 Migration ($49/月) 及以上套餐。请先升级套餐。",
+        error: isZh ? "启用像素迁移需要 Migration ($49/月) 及以上套餐。请先升级套餐。" : "Pixel migration requires Migration ($49/mo) plan or above. Please upgrade.",
       }, { status: 403 });
     }
     try {
@@ -242,9 +245,9 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       logger.error("Failed to save pixel configs", error);
       return json({
         success: false,
-        error: error instanceof Error ? error.message : "保存配置失败",
+        error: error instanceof Error ? error.message : (isZh ? "保存配置失败" : "Failed to save config"),
       }, { status: 500 });
     }
   }
-  return json({ error: "Unknown action" }, { status: 400 });
+  return json({ error: isZh ? "未知操作" : "Unknown action" }, { status: 400 });
 };

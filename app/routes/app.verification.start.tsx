@@ -17,6 +17,7 @@ import {
 import { ClipboardIcon } from "~/components/icons";
 import { PageIntroCard } from "~/components/layout/PageIntroCard";
 import { useToastContext } from "~/components/ui";
+import { useLocale } from "~/context/LocaleContext";
 import { authenticate } from "../shopify.server";
 import prisma from "../db.server";
 import {
@@ -55,6 +56,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 export default function VerificationStartPage() {
   const { shop, testChecklist } = useLoaderData<typeof loader>();
   const { showSuccess, showError } = useToastContext();
+  const { locale } = useLocale();
   if (!shop || !testChecklist) {
     return (
       <Page title="验收测试清单">
@@ -65,7 +67,7 @@ export default function VerificationStartPage() {
     );
   }
   const handleCopyChecklist = async () => {
-    const markdown = generateChecklistMarkdown(testChecklist);
+    const markdown = generateChecklistMarkdown(testChecklist, locale);
     if (navigator.clipboard && navigator.clipboard.writeText) {
       try {
         await navigator.clipboard.writeText(markdown);

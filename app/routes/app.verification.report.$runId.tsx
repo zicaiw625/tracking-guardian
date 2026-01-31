@@ -21,6 +21,7 @@ import {
 import { FileIcon } from "~/components/icons";
 import { useToastContext, EnhancedEmptyState } from "~/components/ui";
 import { PageIntroCard } from "~/components/layout/PageIntroCard";
+import { useLocale } from "~/context/LocaleContext";
 import { authenticate } from "../shopify.server";
 import prisma from "../db.server";
 import { getVerificationRun } from "../services/verification.server";
@@ -159,6 +160,8 @@ export default function VerificationReportPage() {
   useActionData<typeof action>();
   useToastContext();
   const [isExporting, setIsExporting] = useState(false);
+  const { locale } = useLocale();
+  const dateLocale = locale === "zh" ? "zh-CN" : "en";
   if (!shop) {
     return (
       <Page title="验收报告">
@@ -201,7 +204,7 @@ export default function VerificationReportPage() {
   };
   const formatDate = (date?: Date | string) => {
     if (date == null) return "未开始";
-    return new Date(date).toLocaleString("zh-CN");
+    return new Date(date).toLocaleString(dateLocale);
   };
   return (
     <Page

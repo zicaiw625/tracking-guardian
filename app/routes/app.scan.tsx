@@ -27,7 +27,7 @@ import {
 import { generateChecklistText } from "../utils/scan-format";
 import { useScriptAnalysis } from "./app.scan/_components/useScriptAnalysis";
 import { TIMEOUTS } from "../utils/scan-constants";
-import { useT } from "~/context/LocaleContext";
+import { useLocale } from "~/context/LocaleContext";
 import { isFetcherResult } from "../utils/scan-validation";
 import type { ScriptAnalysisResult } from "../services/scanner.server";
 
@@ -48,7 +48,7 @@ export function ScanPage({
     pageSubtitle: pageSubtitleProp,
     showMigrationButtons = false,
 }: ScanPageProps) {
-    const t = useT();
+    const { t, locale } = useLocale();
     const pageTitle = pageTitleProp ?? t("scan.pageTitle");
     const pageSubtitle = pageSubtitleProp ?? t("scan.pageSubtitle");
     const [searchParams] = useSearchParams();
@@ -471,8 +471,8 @@ export function ScanPage({
     });
   }, [auditAssetCount, isAgency, latestScan?.riskScore, planIdSafe, shouldShowMigrationButtons, shop?.id]);
     const handleGenerateChecklistText = useCallback((format: "markdown" | "plain"): string => {
-        return generateChecklistText(migrationActions, shop?.domain, format);
-    }, [migrationActions, shop?.domain]);
+        return generateChecklistText(migrationActions, shop?.domain, format, locale);
+    }, [migrationActions, shop?.domain, locale]);
     const handleExportCSV = useCallback(async () => {
         if (!latestScan) return;
         try {

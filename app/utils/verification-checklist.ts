@@ -3,7 +3,8 @@ import { escapeCSV } from "~/utils/csv";
 
 export type TestChecklistInput = Omit<TestChecklist, "generatedAt"> & { generatedAt?: Date | string };
 
-export function generateChecklistMarkdown(checklist: TestChecklistInput): string {
+export function generateChecklistMarkdown(checklist: TestChecklistInput, locale: string = "en"): string {
+  const dateLocale = locale === "zh" ? "zh-CN" : "en";
   const formatTime = (minutes: number) => {
     if (minutes < 60) {
       return `${minutes} 分钟`;
@@ -13,7 +14,7 @@ export function generateChecklistMarkdown(checklist: TestChecklistInput): string
     return mins > 0 ? `${hours} 小时 ${mins} 分钟` : `${hours} 小时`;
   };
   let markdown = `# 验收测试清单\n\n`;
-  markdown += `**生成时间**: ${new Date(checklist.generatedAt ?? 0).toLocaleString("zh-CN")}\n`;
+  markdown += `**生成时间**: ${new Date(checklist.generatedAt ?? 0).toLocaleString(dateLocale)}\n`;
   markdown += `**测试类型**: ${checklist.testType === "quick" ? "快速测试" : checklist.testType === "full" ? "完整测试" : "自定义测试"}\n`;
   markdown += `**预计总时间**: ${formatTime(checklist.totalEstimatedTime)}\n`;
   markdown += `**必需项**: ${checklist.requiredItemsCount} | **可选项**: ${checklist.optionalItemsCount}\n\n`;

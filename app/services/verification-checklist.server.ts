@@ -332,7 +332,8 @@ export function getTestItemDetails(itemId: string): TestChecklistItem | null {
   return allItems.find((item) => item.id === itemId) || null;
 }
 
-export function generateChecklistMarkdown(checklist: TestChecklist): string {
+export function generateChecklistMarkdown(checklist: TestChecklist, locale: string = "en"): string {
+  const dateLocale = locale === "zh" ? "zh-CN" : "en";
   const formatTime = (minutes: number) => {
     if (minutes < 60) {
       return `${minutes} 分钟`;
@@ -342,7 +343,7 @@ export function generateChecklistMarkdown(checklist: TestChecklist): string {
     return mins > 0 ? `${hours} 小时 ${mins} 分钟` : `${hours} 小时`;
   };
   let markdown = `# 验收测试清单\n\n`;
-  markdown += `**生成时间**: ${checklist.generatedAt.toLocaleString("zh-CN")}\n`;
+  markdown += `**生成时间**: ${checklist.generatedAt.toLocaleString(dateLocale)}\n`;
   markdown += `**测试类型**: ${checklist.testType === "quick" ? "快速测试" : checklist.testType === "full" ? "完整测试" : "自定义测试"}\n`;
   markdown += `**预计总时间**: ${formatTime(checklist.totalEstimatedTime)}\n`;
   markdown += `**必需项**: ${checklist.requiredItemsCount} | **可选项**: ${checklist.optionalItemsCount}\n\n`;

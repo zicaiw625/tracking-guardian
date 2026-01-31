@@ -52,7 +52,12 @@
     "currentPlanNotSupported": "Your current plan does not support this feature.",
     "upgradeToUnlock": "Upgrade to unlock more features.",
     "viewPlans": "View plans",
-    "resource": "Resource"
+    "resource": "Resource",
+    "updatedAt": "Updated at",
+    "environment": "Environment",
+    "production": "Production",
+    "test": "Test",
+    "currentVersion": "Current version"
   },
   "topbar": {
     "help": "Help",
@@ -293,7 +298,10 @@
     "exportFailedRetry": "Export failed; please try again",
     "guidanceUpgradeWizard": "How to get script list from Shopify upgrade wizard",
     "migrateAssetsCreated": "Successfully created {count} migration assets",
-    "migrateAssetsCreatedShort": "Migration assets created."
+    "migrateAssetsCreatedShort": "Migration assets created.",
+    "riskScoreTitle": "Risk score",
+    "scanTime": "Scan time",
+    "statusUpdatedAt": "Status updated at"
   },
   "pixels": {
     "credentialsTitle": "Platform credentials (optional)",
@@ -521,7 +529,16 @@
     "tabPixelLayer": "Pixel layer (Web Pixels standard events)",
     "tabResults": "Results",
     "tabTestGuide": "Test order guide",
-    "tabHistory": "History"
+    "tabHistory": "History",
+    "historyTitle": "Verification history",
+    "historyTime": "Time",
+    "historyType": "Type",
+    "historyStatus": "Status",
+    "historyPassed": "Passed",
+    "historyFailed": "Failed",
+    "historyMissingParams": "Missing params",
+    "historyEmptyTitle": "No verification history yet",
+    "historyEmptyDesc": "History will appear here after you run verification."
   },
   "monitoring": {
     "shopNotFound": "Shop not found.",
@@ -577,6 +594,12 @@
     "alertsDisabledDesc": "Outbound notifications (Slack/Telegram/Email) are disabled in this version; only in-app alert records apply. Contact support or wait for a future release to enable.",
     "alertsConfigTitle": "Alert config",
     "alertsConfigDesc": "Configure alert channels and thresholds; alerts are recorded when gaps or anomalies trigger and can be viewed on the Monitoring page.",
+    "alertsChannelType": "Channel type",
+    "alertsEmail": "Email",
+    "discrepancyThresholdPct": "Discrepancy threshold (%)",
+    "addAlertChannel": "Add",
+    "noAlertChannels": "No alert channels. Add one.",
+    "addAlertChannelTitle": "Add alert channel",
     "threshold": "Threshold {value}%",
     "enabledLabel": "Enabled",
     "disabledLabel": "Disabled",

@@ -76,7 +76,8 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 };
 
 export default function MonitoringPage() {
-  const { t, tArray } = useLocale();
+  const { t, tArray, locale } = useLocale();
+  const dateLocale = locale === "zh" ? "zh-CN" : "en";
   const { shop, alerts, aggregatedSummary, eventLossStats, monitoringStats } = useLoaderData<typeof loader>();
 
   if (!shop) {
@@ -90,7 +91,7 @@ export default function MonitoringPage() {
   }
 
   const alertRows = alerts.map((a) => [
-    a.sentAt ? new Date(a.sentAt).toLocaleString() : "",
+    a.sentAt ? new Date(a.sentAt).toLocaleString(dateLocale) : "",
     a.alertType,
     <Badge key={a.id} tone={a.severity === "critical" ? "critical" : a.severity === "warning" ? "warning" : "info"}>{a.severity}</Badge>,
     a.message,

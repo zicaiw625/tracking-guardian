@@ -8,6 +8,7 @@ import {
   Divider,
   DataTable,
 } from "@shopify/polaris";
+import { useLocale } from "~/context/LocaleContext";
 import type { PixelConfigSnapshot } from "../../services/pixel-rollback.server";
 
 interface ConfigComparisonProps {
@@ -48,6 +49,8 @@ export function ConfigComparison({
   differences,
   platform: _platform,
 }: ConfigComparisonProps) {
+  const { locale, t } = useLocale();
+  const dateLocale = locale === "zh" ? "zh-CN" : "en";
   if (!previous) {
     return (
       <Card>
@@ -133,24 +136,24 @@ export function ConfigComparison({
         <BlockStack gap="200">
           <InlineStack align="space-between">
             <Text as="span" variant="bodySm" tone="subdued">
-              当前版本
+              {t("common.currentVersion")}
             </Text>
             <Badge>{`v${current.version}`}</Badge>
           </InlineStack>
           <InlineStack align="space-between">
             <Text as="span" variant="bodySm" tone="subdued">
-              更新时间
+              {t("common.updatedAt")}
             </Text>
             <Text as="span" variant="bodySm">
-              {new Date(current.updatedAt).toLocaleString("zh-CN")}
+              {new Date(current.updatedAt).toLocaleString(dateLocale)}
             </Text>
           </InlineStack>
           <InlineStack align="space-between">
             <Text as="span" variant="bodySm" tone="subdued">
-              环境
+              {t("common.environment")}
             </Text>
             <Badge tone={current.environment === "live" ? "success" : "warning"}>
-              {current.environment === "live" ? "生产" : "测试"}
+              {current.environment === "live" ? t("common.production") : t("common.test")}
             </Badge>
           </InlineStack>
         </BlockStack>

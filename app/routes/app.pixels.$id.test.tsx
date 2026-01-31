@@ -21,6 +21,7 @@ import { PageIntroCard } from "~/components/layout/PageIntroCard";
 import { authenticate } from "~/shopify.server";
 import prisma from "~/db.server";
 import { validateTestEnvironment } from "~/services/migration-wizard.server";
+import { getLocaleFromRequest } from "~/utils/locale.server";
 import { normalizePlanId, planSupportsFeature } from "~/services/billing/plans";
 import { getPixelEventIngestionUrl } from "~/utils/config.server";
 
@@ -88,10 +89,12 @@ export const loader = async ({ request, params }: LoaderFunctionArgs) => {
 
 export const action = async ({ request, params }: ActionFunctionArgs) => {
   const { session } = await authenticate.admin(request);
+  const locale = getLocaleFromRequest(request);
+  const isZh = locale === "zh";
   const shopDomain = session.shop;
   const pixelConfigId = params.id;
   if (!pixelConfigId) {
-    return json({ success: false, error: "缺少配置 ID" }, { status: 400 });
+    return json({ success: false, error: isZh ? "缺少配置 ID" : "Missing config ID" }, { status: 400 });
   }
   const formData = await request.formData();
   const actionType = formData.get("_action");
@@ -107,27 +110,27 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
     select: { platform: true },
   });
   if (!pixelConfig) {
-    return json({ success: false, error: "配置不存在" }, { status: 404 });
+    return json({ success: false, error: isZh ? "配置不存在" : "Config not found" }, { status: 404 });
   }
   if (actionType === "validateTestEnvironment") {
     const platform = pixelConfig.platform;
     if (!["google", "meta", "tiktok"].includes(platform)) {
       return json({
         success: false,
-        error: "当前仅支持 GA4、Meta、TikTok 的测试环境验证。",
+        error: isZh ? "当前仅支持 GA4、Meta、TikTok 的测试环境验证。" : "Test environment validation is only supported for GA4, Meta, TikTok.",
       }, { status: 400 });
     }
     try {
-      const result = await validateTestEnvironment(shop.id, platform as "google" | "meta" | "tiktok");
+      const result = await validateTestEnvironment(shop.id, platform as "google" | "meta" | "tiktok", locale);
       return json({ success: true, ...result });
     } catch (error) {
       return json({
         success: false,
-        error: error instanceof Error ? error.message : "验证失败",
+        error: error instanceof Error ? error.message : (isZh ? "验证失败" : "Validation failed"),
       }, { status: 500 });
     }
   }
-  return json({ success: false, error: "Unknown action" }, { status: 400 });
+  return json({ success: false, error: isZh ? "未知操作" : "Unknown action" }, { status: 400 });
 };
 
 type ActionResult = { success: true; valid?: boolean; message?: string; details?: unknown } | { success: false; error: string };

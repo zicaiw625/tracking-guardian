@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { Page, Layout, Card, Text, BlockStack, InlineStack, Button, Badge, Box, Divider, Banner, ProgressBar, List, DataTable, Modal } from "@shopify/polaris";
 import { useToastContext } from "~/components/ui";
 import { PageIntroCard } from "~/components/layout/PageIntroCard";
+import { useLocale } from "~/context/LocaleContext";
 import { authenticate } from "../shopify.server";
 import prisma from "../db.server";
 import { createSubscription, getSubscriptionStatus, cancelSubscription, checkOrderLimit, handleSubscriptionConfirmation, getBillingHistory, type BillingHistoryItem, type PlanId } from "../services/billing.server";
@@ -242,7 +243,9 @@ export default function BillingPage() {
     }, [upgradePlanId, isSubmitting, showSuccessBanner, showErrorBanner, submit]);
     const currentPlan = plans[subscription.plan as PlanId];
     const usagePercent = Math.min((usage.current / usage.limit) * 100, 100);
-    const dateFormatter = new Intl.DateTimeFormat("zh-CN", {
+    const { locale } = useLocale();
+    const dateLocale = locale === "zh" ? "zh-CN" : "en";
+    const dateFormatter = new Intl.DateTimeFormat(dateLocale, {
         dateStyle: "medium",
         timeStyle: "short",
     });

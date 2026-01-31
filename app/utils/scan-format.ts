@@ -56,9 +56,10 @@ export function generateChecklistText(
     priority: "high" | "medium" | "low";
   }> | null | undefined,
   shopDomain: string | null | undefined,
-  format: "markdown" | "plain"
+  format: "markdown" | "plain",
+  locale: string = "en"
 ): string {
-  
+  const dateLocale = locale === "zh" ? "zh-CN" : "en";
   const items = migrationActions && migrationActions.length > 0
     ? migrationActions.map((a, i) => {
         const priorityText = format === "markdown"
@@ -73,7 +74,7 @@ export function generateChecklistText(
     return [
       "# 迁移清单",
       `店铺: ${shopDomain || "未知"}`,
-      `生成时间: ${new Date().toLocaleString("zh-CN")}`,
+      `生成时间: ${new Date().toLocaleString(dateLocale)}`,
       "",
       "## 待处理项目",
       ...items,
@@ -87,7 +88,7 @@ export function generateChecklistText(
     return [
       "迁移清单",
       `店铺: ${shopDomain || "未知"}`,
-      `生成时间: ${new Date().toLocaleString("zh-CN")}`,
+      `生成时间: ${new Date().toLocaleString(dateLocale)}`,
       "",
       "待处理项目:",
       ...items,

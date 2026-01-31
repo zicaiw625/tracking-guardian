@@ -16,6 +16,7 @@ import { CheckoutCompletedBehaviorHint } from "~/components/verification/Checkou
 import { TestGuidePanel } from "~/components/verification/TestGuidePanel";
 import type { TestChecklist } from "~/services/verification-checklist.server";
 import { generateChecklistMarkdown, generateChecklistCSV } from "~/utils/verification-checklist";
+import { useLocale } from "~/context/LocaleContext";
 
 export interface VerificationIntroSectionProps {
   testGuide: { steps: Array<{ step: number; title: string; description: string }>; tips: string[]; estimatedTime: string };
@@ -42,6 +43,7 @@ export function VerificationIntroSection({
   canExportReports,
   currentPlan,
 }: VerificationIntroSectionProps) {
+  const { locale } = useLocale();
   return (
     <>
       <Card>
@@ -225,7 +227,7 @@ export function VerificationIntroSection({
                   size="slim"
                   onClick={() => {
                     const checklist: TestChecklist = { ...testChecklist, generatedAt: new Date(testChecklist.generatedAt) };
-                    const markdown = generateChecklistMarkdown(checklist);
+                    const markdown = generateChecklistMarkdown(checklist, locale);
                     navigator.clipboard.writeText(markdown);
                     showSuccess("测试清单已复制到剪贴板");
                   }}

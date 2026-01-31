@@ -2,6 +2,7 @@ import { Suspense, lazy } from "react";
 import { Box, BlockStack, Card, DataTable, Text } from "@shopify/polaris";
 import { StatusBadge } from "./VerificationBadges";
 import { EnhancedEmptyState, CardSkeleton } from "~/components/ui";
+import { useLocale, useT } from "~/context/LocaleContext";
 
 const ReportComparison = lazy(() =>
   import("./ReportComparison").then((m) => ({ default: m.ReportComparison }))
@@ -29,21 +30,24 @@ export function VerificationHistoryPanel({
   onRunVerification,
   shop,
 }: VerificationHistoryPanelProps) {
+  const { locale } = useLocale();
+  const t = useT();
+  const dateLocale = locale === "zh" ? "zh-CN" : "en";
   return (
     <Box padding="400">
       <BlockStack gap="500">
         <Card>
           <BlockStack gap="400">
             <Text as="h2" variant="headingMd">
-              验收历史
+              {t("verification.historyTitle")}
             </Text>
             {history.length > 0 ? (
               <DataTable
                 columnContentTypes={["text", "text", "text", "numeric", "numeric", "numeric"]}
-                headings={["时间", "类型", "状态", "通过", "失败", "参数缺失"]}
+                headings={[t("verification.historyTime"), t("verification.historyType"), t("verification.historyStatus"), t("verification.historyPassed"), t("verification.historyFailed"), t("verification.historyMissingParams")]}
                 rows={history.map((run) => [
                   run.completedAt
-                    ? new Date(run.completedAt).toLocaleString("zh-CN")
+                    ? new Date(run.completedAt).toLocaleString(dateLocale)
                     : "-",
                   run.runType === "full" ? "完整" : "快速",
                   <StatusBadge key={run.runId} status={run.status} />,
@@ -55,8 +59,8 @@ export function VerificationHistoryPanel({
             ) : (
               <EnhancedEmptyState
                 icon="📋"
-                title="暂无验收历史记录"
-                description="运行验收测试后，历史记录将显示在这里。"
+                title={t("verification.historyEmptyTitle")}
+                description={t("verification.historyEmptyDesc")}
                 primaryAction={{
                   content: "运行验收",
                   onAction: onRunVerification,

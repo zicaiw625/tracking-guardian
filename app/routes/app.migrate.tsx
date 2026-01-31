@@ -25,6 +25,7 @@ import prisma from "../db.server";
 import { normalizePlanId, type PlanId } from "../services/billing/plans";
 import { isPlanAtLeast } from "../utils/plans";
 import { validateTestEnvironment, saveWizardDraft, clearWizardDraft } from "../services/migration-wizard.server";
+import { getLocaleFromRequest } from "../utils/locale.server";
 
 type MigrationStep = "audit" | "pixels" | "modules" | "verification";
 
@@ -128,6 +129,8 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 
 export const action = async ({ request }: ActionFunctionArgs) => {
   const { session } = await authenticate.admin(request);
+  const locale = getLocaleFromRequest(request);
+  const isZh = locale === "zh";
   const shopDomain = session.shop;
   const shop = await prisma.shop.findUnique({
     where: { shopDomain },
@@ -143,30 +146,30 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     if (!platform || !["google", "meta", "tiktok"].includes(platform)) {
       return json({
         valid: false,
-        message: "无效或缺失的 platform 参数",
+        message: isZh ? "无效或缺失的 platform 参数" : "Invalid or missing platform parameter",
       });
     }
     try {
-      const result = await validateTestEnvironment(shop.id, platform as "google" | "meta" | "tiktok");
+      const result = await validateTestEnvironment(shop.id, platform as "google" | "meta" | "tiktok", locale);
       return json(result);
     } catch (error) {
       return json({
         valid: false,
-        message: error instanceof Error ? error.message : "验证失败",
-        details: { eventSent: false, error: error instanceof Error ? error.message : "验证失败" },
+        message: error instanceof Error ? error.message : (isZh ? "验证失败" : "Validation failed"),
+        details: { eventSent: false, error: error instanceof Error ? error.message : (isZh ? "验证失败" : "Validation failed") },
       }, { status: 500 });
     }
   }
   if (actionType === "saveWizardDraft") {
     const draftRaw = formData.get("draft");
     if (typeof draftRaw !== "string") {
-      return json({ success: false, error: "缺少 draft 参数" }, { status: 400 });
+      return json({ success: false, error: isZh ? "缺少 draft 参数" : "Missing draft parameter" }, { status: 400 });
     }
     let draft: Parameters<typeof saveWizardDraft>[1];
     try {
       draft = JSON.parse(draftRaw) as Parameters<typeof saveWizardDraft>[1];
     } catch {
-      return json({ success: false, error: "draft 格式无效" }, { status: 400 });
+      return json({ success: false, error: isZh ? "draft 格式无效" : "Invalid draft format" }, { status: 400 });
     }
     const result = await saveWizardDraft(shop.id, draft);
     return json(result.success ? { success: true } : { success: false, error: result.error });

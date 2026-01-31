@@ -10,6 +10,7 @@ import {
   List,
 } from "@shopify/polaris";
 import { ShareIcon, ArrowRightIcon, ClipboardIcon, ExportIcon } from "~/components/icons";
+import { useLocale } from "~/context/LocaleContext";
 import type { MigrationAction } from "../../services/scanner/types";
 import { getPlatformName } from "./utils";
 import { getShopifyAdminUrl } from "../../utils/helpers";
@@ -20,11 +21,13 @@ interface MigrationWizardProps {
 }
 
 export function MigrationWizard({ migrationActions, shopDomain }: MigrationWizardProps) {
+  const { locale } = useLocale();
+  const dateLocale = locale === "zh" ? "zh-CN" : "en";
   const handleCopyChecklist = () => {
     const checklist = [
       "# 迁移清单",
       `店铺: ${shopDomain || "未知"}`,
-      `生成时间: ${new Date().toLocaleString("zh-CN")}`,
+      `生成时间: ${new Date().toLocaleString(dateLocale)}`,
       "",
       "## 待处理项目",
       ...(migrationActions?.map(
@@ -44,7 +47,7 @@ export function MigrationWizard({ migrationActions, shopDomain }: MigrationWizar
     const checklist = [
       "迁移清单",
       `店铺: ${shopDomain || "未知"}`,
-      `生成时间: ${new Date().toLocaleString("zh-CN")}`,
+      `生成时间: ${new Date().toLocaleString(dateLocale)}`,
       "",
       "待处理项目:",
       ...(migrationActions?.map(

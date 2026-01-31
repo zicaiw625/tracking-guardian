@@ -12,6 +12,7 @@ import {
   Banner,
 } from "@shopify/polaris";
 import { CheckCircleIcon, ClockIcon } from "../icons";
+import { useLocale } from "~/context/LocaleContext";
 import { DEPRECATION_DATES, SHOPIFY_HELP_LINKS } from "../../utils/migration-deadlines";
 
 export type ShopTier = "plus" | "non_plus" | "unknown";
@@ -121,6 +122,8 @@ export function MigrationCountdown({
   platformCount = 0,
   lastCheckedAt,
 }: MigrationCountdownProps) {
+  const { locale, t } = useLocale();
+  const dateLocale = locale === "zh" ? "zh-CN" : "en";
   const now = new Date();
   const deadline = getDeadline(shopTier);
   const daysRemaining = getDaysRemaining(deadline, now);
@@ -129,7 +132,7 @@ export function MigrationCountdown({
   const urgencyTone = getUrgencyTone(daysRemaining);
   const urgencyBg = getUrgencyBackground(daysRemaining);
   const tierLabel = shopTier === "plus" ? "Shopify Plus" : shopTier === "non_plus" ? "标准版" : "未知";
-  const deadlineLabel = deadline.toLocaleDateString("zh-CN", {
+  const deadlineLabel = deadline.toLocaleDateString(dateLocale, {
     year: "numeric",
     month: "long",
     day: "numeric",
@@ -374,7 +377,7 @@ export function MigrationCountdown({
         </InlineStack>
         {lastCheckedAt && (
           <Text as="p" variant="bodySm" tone="subdued" alignment="end">
-            状态更新时间：{new Date(lastCheckedAt).toLocaleString("zh-CN")}
+            {t("scan.statusUpdatedAt")}: {new Date(lastCheckedAt).toLocaleString(dateLocale)}
           </Text>
         )}
       </BlockStack>

@@ -14,6 +14,7 @@ import {
 } from "@shopify/polaris";
 import { ClockIcon, ArrowLeftIcon } from "~/components/icons";
 import { useFetcher } from "@remix-run/react";
+import { useLocale } from "~/context/LocaleContext";
 import type { PlatformType } from "~/types/enums";
 
 export interface ConfigVersionManagerProps {
@@ -42,6 +43,8 @@ export function ConfigVersionManager({
   historyEndpoint,
   onRollbackComplete,
 }: ConfigVersionManagerProps) {
+  const { locale } = useLocale();
+  const dateLocale = locale === "zh" ? "zh-CN" : "en";
   const [versionHistory, setVersionHistory] = useState<{
     currentVersion: number;
     versions: ConfigVersion[];
@@ -178,7 +181,7 @@ export function ConfigVersionManager({
                         <InlineStack gap="300" blockAlign="center">
                           <Text as="span" variant="bodySm" tone="subdued">
                             <ClockIcon />
-                            {new Date(version.savedAt).toLocaleString("zh-CN")}
+                            {new Date(version.savedAt).toLocaleString(dateLocale)}
                           </Text>
                         </InlineStack>
                       </BlockStack>

@@ -121,7 +121,8 @@ export async function checkEntitlement(
 
 export async function requireEntitlementOrThrow(
   shopId: string,
-  entitlement: Entitlement
+  entitlement: Entitlement,
+  locale: string = "en"
 ): Promise<void> {
   const result = await checkEntitlement(shopId, entitlement);
   if (!result.allowed) {
@@ -134,10 +135,14 @@ export async function requireEntitlementOrThrow(
       reason: result.reason,
       requiredPlan: result.requiredPlan,
     });
+    const isZh = locale === "zh";
+    const fallbackMessage = isZh
+      ? `此功能需要 ${result.requiredPlan || "更高"} 套餐`
+      : `This feature requires ${result.requiredPlan || "higher"} plan`;
     throw new Response(
       JSON.stringify({
         error: "Feature not available",
-        message: result.reason || `此功能需要 ${result.requiredPlan || "更高"} 套餐`,
+        message: result.reason || fallbackMessage,
         currentPlan: planConfig.name,
         requiredPlan: result.requiredPlan,
         entitlement,
