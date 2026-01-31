@@ -1,15 +1,19 @@
-import type { LoaderFunctionArgs } from "@remix-run/node";
-import { json } from "@remix-run/node";
+import { json, type LoaderFunctionArgs, type MetaFunction } from "@remix-run/node";
 import { useLoaderData } from "@remix-run/react";
 import { getDynamicCorsHeaders } from "../utils/cors";
 import { PUBLIC_PAGE_HEADERS, addSecurityHeadersToHeaders } from "../utils/security-headers";
+import { getLocaleFromRequest } from "../utils/locale.server";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   const corsHeaders = getDynamicCorsHeaders(request);
+  const locale = getLocaleFromRequest(request);
+  const appName = "Tracking Guardian";
   const response = json({
-    appName: "Tracking Guardian",
+    appName,
     appDomain: process.env.SHOPIFY_APP_URL || process.env.APP_URL || "https://tracking-guardian.onrender.com",
     lastUpdated: "2025-01-15",
+    locale,
+    pageTitle: locale === "zh" ? `隐私政策 - ${appName}` : `Privacy Policy - ${appName}`,
   });
   const headers = new Headers(response.headers);
   Object.entries(corsHeaders).forEach(([key, value]) => {
@@ -23,16 +27,11 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   });
 };
 
-export default function PrivacyPage() {
-  const { appName, appDomain, lastUpdated } = useLoaderData<typeof loader>();
-  
-  return (
-    <html lang="zh-CN">
-      <head>
-        <meta charSet="utf-8" />
-        <meta name="viewport" content="width=device-width, initial-scale=1" />
-        <title>隐私政策 - {appName}</title>
-        <style>{`
+export const meta: MetaFunction<typeof loader> = ({ data }) => {
+  return [{ title: data?.pageTitle ?? "Privacy Policy" }];
+};
+
+const PAGE_STYLES = `
           * {
             margin: 0;
             padding: 0;
@@ -122,10 +121,15 @@ export default function PrivacyPage() {
           .section {
             margin-bottom: 30px;
           }
-        `}</style>
-      </head>
-      <body>
-        <div className="container">
+        `;
+
+export default function PrivacyPage() {
+  const { appName, appDomain, lastUpdated } = useLoaderData<typeof loader>();
+
+  return (
+    <>
+      <style>{PAGE_STYLES}</style>
+      <div className="container" style={{ margin: 20, maxWidth: 900, marginLeft: "auto", marginRight: "auto", background: "#fff", padding: 40, borderRadius: 8, boxShadow: "0 2px 4px rgba(0,0,0,0.1)" }}>
           <h1>隐私政策</h1>
           <div className="meta">
             <p><strong>应用名称：</strong>{appName}</p>
@@ -290,7 +294,6 @@ export default function PrivacyPage() {
             </p>
           </div>
         </div>
-      </body>
-    </html>
+    </>
   );
 }

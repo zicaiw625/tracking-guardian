@@ -1,18 +1,22 @@
-import type { LoaderFunctionArgs } from "@remix-run/node";
-import { json } from "@remix-run/node";
+import { json, type LoaderFunctionArgs, type MetaFunction } from "@remix-run/node";
 import { useLoaderData } from "@remix-run/react";
 import { getDynamicCorsHeaders } from "../utils/cors";
 import { PUBLIC_PAGE_HEADERS, addSecurityHeadersToHeaders } from "../utils/security-headers";
 import { getSupportConfig } from "../utils/config.server";
+import { getLocaleFromRequest } from "../utils/locale.server";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   const corsHeaders = getDynamicCorsHeaders(request);
   const support = getSupportConfig();
+  const locale = getLocaleFromRequest(request);
+  const appName = "Tracking Guardian";
   const response = json({
-    appName: "Tracking Guardian",
+    appName,
     appDomain: process.env.SHOPIFY_APP_URL || process.env.APP_URL || "https://tracking-guardian.onrender.com",
     lastUpdated: "2025-01-15",
     contactEmail: support.contactEmail,
+    locale,
+    pageTitle: locale === "zh" ? `服务条款 - ${appName}` : `Terms of Service - ${appName}`,
   });
   const headers = new Headers(response.headers);
   Object.entries(corsHeaders).forEach(([key, value]) => {
@@ -26,95 +30,34 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   });
 };
 
+export const meta: MetaFunction<typeof loader> = ({ data }) => {
+  return [{ title: data?.pageTitle ?? "Terms of Service" }];
+};
+
+const PAGE_STYLES = `
+          * { margin: 0; padding: 0; box-sizing: border-box; }
+          body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; color: #333; background: #f5f5f5; padding: 20px; }
+          .container { max-width: 900px; margin: 0 auto; background: white; padding: 40px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+          h1 { color: #202223; margin-bottom: 10px; font-size: 32px; }
+          h2 { color: #202223; margin-top: 30px; margin-bottom: 15px; font-size: 24px; border-bottom: 2px solid #e1e3e5; padding-bottom: 10px; }
+          h3 { color: #202223; margin-top: 20px; margin-bottom: 10px; font-size: 18px; }
+          p { margin-bottom: 15px; color: #5e6e77; }
+          ul, ol { margin-left: 20px; margin-bottom: 15px; }
+          li { margin-bottom: 8px; color: #5e6e77; }
+          .meta { color: #8c9196; font-size: 14px; margin-bottom: 30px; padding-bottom: 20px; border-bottom: 1px solid #e1e3e5; }
+          code { background: #f1f3f5; padding: 2px 6px; border-radius: 3px; font-family: monospace; font-size: 0.9em; }
+          a { color: #008060; text-decoration: none; }
+          a:hover { text-decoration: underline; }
+          .section { margin-bottom: 30px; }
+        `;
+
 export default function TermsPage() {
   const { appName, appDomain, lastUpdated, contactEmail } = useLoaderData<typeof loader>();
 
   return (
-    <html lang="zh-CN">
-      <head>
-        <meta charSet="utf-8" />
-        <meta name="viewport" content="width=device-width, initial-scale=1" />
-        <title>服务条款 - {appName}</title>
-        <style>{`
-          * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-          }
-          body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-            line-height: 1.6;
-            color: #333;
-            background: #f5f5f5;
-            padding: 20px;
-          }
-          .container {
-            max-width: 900px;
-            margin: 0 auto;
-            background: white;
-            padding: 40px;
-            border-radius: 8px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-          }
-          h1 {
-            color: #202223;
-            margin-bottom: 10px;
-            font-size: 32px;
-          }
-          h2 {
-            color: #202223;
-            margin-top: 30px;
-            margin-bottom: 15px;
-            font-size: 24px;
-            border-bottom: 2px solid #e1e3e5;
-            padding-bottom: 10px;
-          }
-          h3 {
-            color: #202223;
-            margin-top: 20px;
-            margin-bottom: 10px;
-            font-size: 18px;
-          }
-          p {
-            margin-bottom: 15px;
-            color: #5e6e77;
-          }
-          ul, ol {
-            margin-left: 20px;
-            margin-bottom: 15px;
-          }
-          li {
-            margin-bottom: 8px;
-            color: #5e6e77;
-          }
-          .meta {
-            color: #8c9196;
-            font-size: 14px;
-            margin-bottom: 30px;
-            padding-bottom: 20px;
-            border-bottom: 1px solid #e1e3e5;
-          }
-          code {
-            background: #f1f3f5;
-            padding: 2px 6px;
-            border-radius: 3px;
-            font-family: 'Monaco', 'Courier New', monospace;
-            font-size: 0.9em;
-          }
-          a {
-            color: #008060;
-            text-decoration: none;
-          }
-          a:hover {
-            text-decoration: underline;
-          }
-          .section {
-            margin-bottom: 30px;
-          }
-        `}</style>
-      </head>
-      <body>
-        <div className="container">
+    <>
+      <style>{PAGE_STYLES}</style>
+      <div className="container" style={{ margin: 20, maxWidth: 900, marginLeft: "auto", marginRight: "auto", background: "#fff", padding: 40, borderRadius: 8, boxShadow: "0 2px 4px rgba(0,0,0,0.1)" }}>
           <h1>服务条款</h1>
           <div className="meta">
             <p><strong>应用名称：</strong>{appName}</p>
@@ -173,7 +116,6 @@ export default function TermsPage() {
             </p>
           </div>
         </div>
-      </body>
-    </html>
+    </>
   );
 }

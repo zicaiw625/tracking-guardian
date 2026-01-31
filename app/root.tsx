@@ -15,23 +15,14 @@ import { useEffect } from "react";
 import polarisStyles from "@shopify/polaris/build/esm/styles.css?url";
 import { suppressMonorailErrors } from "./utils/suppress-monorail-errors.client";
 import { LocaleProvider } from "./context/LocaleContext";
+import { getLocaleFromRequest } from "./utils/locale.server";
 import en from "./locales/en.json" with { type: "json" };
 import zh from "./locales/zh.json" with { type: "json" };
-
-const COOKIE_NAME = "tg_locale";
-
-function parseLocaleFromCookie(cookieHeader: string | null): "en" | "zh" {
-  if (!cookieHeader) return "en";
-  const match = cookieHeader.match(new RegExp(`${COOKIE_NAME}=([^;]+)`));
-  const value = match?.[1]?.trim();
-  return value === "zh" ? "zh" : "en";
-}
 
 export const links = () => [{ rel: "stylesheet", href: polarisStyles }];
 
 export async function loader({ request }: LoaderFunctionArgs) {
-  const cookieHeader = request.headers.get("Cookie");
-  const locale = parseLocaleFromCookie(cookieHeader);
+  const locale = getLocaleFromRequest(request);
   const translations = locale === "zh" ? zh : en;
   return json({ locale, translations });
 }
