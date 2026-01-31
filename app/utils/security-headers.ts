@@ -13,9 +13,16 @@ export const WEBHOOK_CSP_DIRECTIVES: Record<string, string[]> = {
   "frame-ancestors": ["'none'"],
 };
 
+/** Inline script hashes from Shopify App Bridge / embedded app (browser-reported CSP violations) */
+const EMBEDDED_APP_INLINE_SCRIPT_HASHES = [
+  "'sha256-gqA0c0llTtLkfJMQkYd1sUTZ2kNn6uD4Y0x0UEoHEJc='",
+  "'sha256-YYjzwba16harWg4tSxRWM84nV0ijlLEt79T12emR5Zg='",
+  "'sha256-MmeqFQp37Bw8VKwtQvolAxA5nNhsM10g5tFwAbENphc='",
+];
+
 export const NON_EMBEDDED_PAGE_CSP_DIRECTIVES: Record<string, string[]> = {
   "default-src": ["'self'"],
-  "script-src": ["'self'", "https://cdn.shopify.com"],
+  "script-src": ["'self'", "https://cdn.shopify.com", ...EMBEDDED_APP_INLINE_SCRIPT_HASHES],
   "style-src": ["'self'", "'unsafe-inline'", "https://cdn.shopify.com"],
   "img-src": ["'self'", "data:", "https:", "blob:"],
   "font-src": ["'self'", "https://cdn.shopify.com"],
