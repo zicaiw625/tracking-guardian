@@ -16,21 +16,19 @@ function getWebhookId(authResult: Awaited<ReturnType<typeof authenticate.webhook
 }
 
 export const action = async ({ request }: ActionFunctionArgs) => {
-  const isProduction = process.env.NODE_ENV === "production";
   const ipKey = ipKeyExtractor(request);
   const ipRateLimit = await checkRateLimitAsync(
     ipKey,
     RATE_LIMIT_CONFIG.WEBHOOKS_IP.maxRequests,
     RATE_LIMIT_CONFIG.WEBHOOKS_IP.windowMs,
-    isProduction
+    false,
+    true
   );
-  if (isProduction && ipRateLimit.usingFallback) {
-    logger.error("[Webhook] Redis unavailable for rate limiting in production, rejecting request");
-    return new Response("Service Unavailable", {
-      status: 503,
-      headers: {
-        "Retry-After": "60",
-      },
+  if (ipRateLimit.usingFallback) {
+    logger.warn("[Webhook] Redis unavailable for rate limiting, using memory fallback", {
+      ipKey: ipKey === "untrusted" || ipKey === "unknown" ? ipKey : hashValueSync(ipKey).slice(0, 12),
+      topic: request.headers.get("X-Shopify-Topic") ?? undefined,
+      shop: request.headers.get("X-Shopify-Shop-Domain") ?? undefined,
     });
   }
   if (!ipRateLimit.allowed) {
@@ -69,18 +67,14 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       shopTopicKey,
       RATE_LIMIT_CONFIG.WEBHOOKS.maxRequests,
       RATE_LIMIT_CONFIG.WEBHOOKS.windowMs,
-      isProduction
+      false,
+      true
     );
-    if (isProduction && shopTopicRateLimit.usingFallback) {
-      logger.error("[Webhook] Redis unavailable for rate limiting in production, rejecting request", {
+    if (shopTopicRateLimit.usingFallback) {
+      logger.warn("[Webhook] Redis unavailable for rate limiting, using memory fallback", {
         shop: context.shop,
         topic: context.topic,
-      });
-      return new Response("Service Unavailable", {
-        status: 503,
-        headers: {
-          "Retry-After": "60",
-        },
+        webhookId: context.webhookId ?? undefined,
       });
     }
     if (!shopTopicRateLimit.allowed) {

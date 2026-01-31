@@ -1,5 +1,6 @@
 import prisma from "../../db.server";
 import { logger } from "../../utils/logger.server";
+import { safeFireAndForget } from "../../utils/helpers.server";
 import type { WebhookContext, WebhookHandlerResult, ShopWithPixelConfigs } from "../types";
 import { getExistingWebPixels, isOurWebPixel } from "../../services/migration.server";
 import { deleteWebPixel } from "../../services/admin-mutations.server";
@@ -68,20 +69,7 @@ export async function handleAppUninstalled(
 ): Promise<WebhookHandlerResult> {
   const { shop, admin, session } = context;
   logger.info(`Processing APP_UNINSTALLED for shop ${shop}`);
-  if (admin && typeof admin === "object" && "graphql" in admin) {
-    await tryCleanupWebPixel(admin as NonNullable<WebhookContext["admin"]>, shop);
-  }
-  if (session) {
-    await prisma.session.deleteMany({ where: { shop } });
-    logger.info(`Deleted sessions for ${shop}`);
-  }
   if (shopRecord) {
-    const pixelReceiptsDeleted = await prisma.pixelEventReceipt.deleteMany({
-      where: { shopId: shopRecord.id },
-    });
-    logger.info(`Deleted pixel event receipts for shop ${shop}`, {
-      pixelReceiptsDeleted: pixelReceiptsDeleted.count,
-    });
     await prisma.shop.update({
       where: { id: shopRecord.id },
       data: {
@@ -91,7 +79,26 @@ export async function handleAppUninstalled(
     });
     logger.info(`Marked shop ${shop} as inactive - will be deleted within 48 hours by cleanup task`);
   }
-  logger.info(`Successfully processed APP_UNINSTALLED for shop ${shop}`);
+  if (session) {
+    await prisma.session.deleteMany({ where: { shop } });
+    logger.info(`Deleted sessions for ${shop}`);
+  }
+  safeFireAndForget(
+    (async () => {
+      if (admin && typeof admin === "object" && "graphql" in admin) {
+        await tryCleanupWebPixel(admin as NonNullable<WebhookContext["admin"]>, shop);
+      }
+      if (shopRecord) {
+        const pixelReceiptsDeleted = await prisma.pixelEventReceipt.deleteMany({
+          where: { shopId: shopRecord.id },
+        });
+        logger.info(`Deleted pixel event receipts for shop ${shop}`, {
+          pixelReceiptsDeleted: pixelReceiptsDeleted.count,
+        });
+      }
+    })(),
+    { operation: "APP_UNINSTALLED cleanup", metadata: { shop } }
+  );
   return {
     success: true,
     status: 200,
