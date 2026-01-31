@@ -33,6 +33,11 @@ export function VerificationHistoryPanel({
   const { locale } = useLocale();
   const t = useT();
   const dateLocale = locale === "zh" ? "zh-CN" : "en";
+  const runTypeLabel = (runType: VerificationHistoryRun["runType"]) => {
+    if (runType === "full") return t("verification.runTypeFull");
+    if (runType === "custom") return t("verification.runTypeCustom");
+    return t("verification.runTypeQuick");
+  };
   return (
     <Box padding="400">
       <BlockStack gap="500">
@@ -49,7 +54,7 @@ export function VerificationHistoryPanel({
                   run.completedAt
                     ? new Date(run.completedAt).toLocaleString(dateLocale)
                     : "-",
-                  run.runType === "full" ? "完整" : "快速",
+                  runTypeLabel(run.runType),
                   <StatusBadge key={run.runId} status={run.status} />,
                   run.passedTests,
                   run.failedTests,
@@ -62,7 +67,7 @@ export function VerificationHistoryPanel({
                 title={t("verification.historyEmptyTitle")}
                 description={t("verification.historyEmptyDesc")}
                 primaryAction={{
-                  content: "运行验收",
+                  content: t("verification.runVerification"),
                   onAction: onRunVerification,
                 }}
               />
@@ -75,7 +80,7 @@ export function VerificationHistoryPanel({
               shopId={shop.id}
               availableRuns={history.map((run) => ({
                 runId: run.runId,
-                runName: run.runName || `${run.runType === "full" ? "完整" : "快速"}验收`,
+                runName: run.runName || `${runTypeLabel(run.runType)}`,
                 completedAt: run.completedAt ? new Date(run.completedAt) : undefined,
               }))}
             />
