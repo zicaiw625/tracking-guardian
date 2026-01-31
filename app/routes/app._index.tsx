@@ -47,9 +47,13 @@ export default function Index() {
   } as DashboardData;
   const shopDomain = loaderData.shopDomain ?? "";
   useEffect(() => {
-    const dismissed = localStorage.getItem(WELCOME_BANNER_DISMISSED_KEY);
-    if (dismissed === "true") {
-      setShowWelcomeBanner(false);
+    try {
+      const dismissed = localStorage.getItem(WELCOME_BANNER_DISMISSED_KEY);
+      if (dismissed === "true") {
+        setShowWelcomeBanner(false);
+      }
+    } catch {
+      setShowWelcomeBanner(true);
     }
     const isNewInstall = data.showOnboarding && !data.latestScan;
     if (isNewInstall) {
@@ -61,7 +65,9 @@ export default function Index() {
     }
   }, [data.showOnboarding, data.latestScan]);
   const handleDismissWelcomeBanner = () => {
-    localStorage.setItem(WELCOME_BANNER_DISMISSED_KEY, "true");
+    try {
+      localStorage.setItem(WELCOME_BANNER_DISMISSED_KEY, "true");
+    } catch {}
     setShowWelcomeBanner(false);
   };
   const handleScanComplete = () => {
