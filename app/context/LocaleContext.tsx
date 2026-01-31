@@ -55,7 +55,6 @@ export function LocaleProvider({
 }) {
   const setLocale = useCallback(
     (next: Locale) => {
-      // 1) Update URL first so revalidation request carries locale (works in iframes when cookie may not be sent)
       if (typeof window !== "undefined") {
         const url = new URL(window.location.href);
         url.searchParams.set(COOKIE_NAME, next);

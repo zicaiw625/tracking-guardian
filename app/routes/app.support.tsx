@@ -18,8 +18,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 };
 
 export default function SupportPage() {
-  const t = useLocale().t;
-  const tArray = useLocale().tArray;
+  const { t, tArray } = useLocale();
   const { contactEmail, faqUrl, statusPageUrl } = useLoaderData<typeof loader>();
   return (
     <Page title={t("support.title")} subtitle={t("support.subtitle")}>
