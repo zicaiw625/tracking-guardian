@@ -55,11 +55,6 @@ export function LocaleProvider({
 }) {
   const setLocale = useCallback(
     (next: Locale) => {
-      if (typeof window !== "undefined") {
-        const url = new URL(window.location.href);
-        url.searchParams.set(COOKIE_NAME, next);
-        window.history.replaceState(null, "", url.pathname + url.search + url.hash);
-      }
       document.cookie = `${COOKIE_NAME}=${next}; path=/; max-age=${COOKIE_MAX_AGE}; SameSite=Lax`;
       try {
         localStorage.setItem(COOKIE_NAME, next);
