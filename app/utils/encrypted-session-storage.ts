@@ -1,4 +1,5 @@
 import type { Session } from "@shopify/shopify-api";
+import prisma from "../db.server";
 
 interface SessionStorage {
   storeSession(session: Session): Promise<boolean>;
@@ -132,12 +133,7 @@ export function createEncryptedSessionStorage(baseStorage: SessionStorage): Sess
         },
     };
 }
-export async function migrateSessionTokensToEncrypted(prisma: {
-    session: {
-        findMany: (args?: { select?: { id?: boolean; accessToken?: boolean; refreshToken?: boolean } }) => Promise<Array<{ id: string; accessToken: string | null; refreshToken: string | null }>>;
-        update: (args: { where: { id: string }; data: { accessToken?: string; refreshToken?: string } }) => Promise<unknown>;
-    };
-}): Promise<{
+export async function migrateSessionTokensToEncrypted(): Promise<{
     migrated: number;
     skipped: number;
     errors: number;

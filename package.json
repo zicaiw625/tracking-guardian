@@ -40,6 +40,7 @@
     "shopify:config:build": "node scripts/build-shopify-config.mjs build",
     "shopify:config:restore": "node scripts/build-shopify-config.mjs restore",
     "pre-deploy:check": "node scripts/pre-deploy-check.mjs",
+    "pre-launch": "pnpm ci:lint && pnpm ci:test && pnpm audit -P --audit-level=moderate",
     "deploy:ext": "pnpm pre-deploy:check && pnpm ext:inject && pnpm ext:validate && shopify app deploy && pnpm ext:restore"
   },
   "type": "module",

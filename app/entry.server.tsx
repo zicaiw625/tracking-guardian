@@ -5,6 +5,7 @@ import { createReadableStreamFromReadable, type EntryContext, } from "@remix-run
 import { isbot } from "isbot";
 import { addDocumentResponseHeaders } from "./shopify.server";
 import { ensureSecretsValid, enforceSecurityChecks } from "./utils/secrets.server";
+import { validateEncryptionConfig } from "./utils/crypto.server";
 import { validateConfig, logConfigStatus, API_CONFIG } from "./utils/config.server";
 import { logger } from "./utils/logger.server";
 import { EMBEDDED_APP_HEADERS, addSecurityHeadersToHeaders, getProductionSecurityHeaders, validateSecurityHeaders, buildCspHeader, NON_EMBEDDED_PAGE_CSP_DIRECTIVES } from "./utils/security-headers";
@@ -58,6 +59,7 @@ const startupGate = (async () => {
   try {
     await enforceSecurityChecks();
     ensureSecretsValid();
+    validateEncryptionConfig();
     if (process.env.NODE_ENV === "production" && process.env.TRUST_PROXY !== "true") {
       throw new Error("TRUST_PROXY must be true in production for correct IP rate limiting");
     }

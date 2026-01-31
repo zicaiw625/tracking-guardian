@@ -224,12 +224,21 @@ PIXEL_ALLOW_NULL_ORIGIN_WITH_SIGNATURE_ONLY=true
 # - 建议在 Diagnostics 页面检查配置状态，确保正确设置
 # - 如果遇到"为什么收不到事件"的问题，首先检查此配置是否正确
 
+# 生产环境必配：限流与真实 IP（反向代理）
+# 用于正确获取客户端 IP（X-Forwarded-For 等），限流与安全策略依赖于此；生产未设置会导致启动失败
+TRUST_PROXY=true
+
 # 可选：安全相关环境变量
 CRON_SECRET=your_cron_secret_min_32_chars  # 用于 cron job 鉴权
 ENCRYPTION_SECRET=your_encryption_secret_min_32_chars  # 用于数据加密
 ENCRYPTION_SALT=your_encryption_salt_min_16_chars
 PIXEL_STRICT_ORIGIN=false
 ```
+
+**反向代理与 TRUST_PROXY**：生产环境必须设置 `TRUST_PROXY=true`，否则应用无法正确解析客户端 IP，限流会退化为单 key，存在自 DoS 风险，启动时会直接失败。
+
+- **Render**：`render.yaml` 已配置 `TRUST_PROXY=true`，无需额外操作。
+- **自建 NGINX / Cloudflare**：确保反向代理将真实客户端 IP 写入约定 header（如 `X-Forwarded-For` 或 Cloudflare 的 `CF-Connecting-IP`），并在应用环境变量中设置 `TRUST_PROXY=true`。若使用自定义 IP header，可配置 `RATE_LIMIT_TRUSTED_IP_HEADERS`（逗号分隔的 header 名）。
 
 `ENCRYPTION_SALT` **必须稳定不变**（不要在每次部署时更换），否则历史密文将无法解密。可使用以下命令生成一次并持久保存：
 
@@ -295,6 +304,7 @@ pnpm install --frozen-lockfile && pnpm generate && pnpm db:deploy && pnpm ext:in
 2. 在 CI/CD 流程中，部署前必须运行 `pnpm ext:inject` 和 `pnpm ext:validate` 或使用 `pnpm deploy:ext`
 3. 验证扩展构建产物中不再包含 `__BACKEND_URL_PLACEHOLDER__` 占位符
 4. 确保该 URL 已在 Web Pixel Extension 的 allowlist 中配置（Partner Dashboard → App → API access → UI extensions network access）
+5. 生产环境已设置 `TRUST_PROXY=true`，且反向代理正确传递客户端 IP header（如 X-Forwarded-For 或 CF-Connecting-IP）
 
 #### UI extensions network access
 
@@ -700,6 +710,18 @@ pnpm test:coverage
 ```
 
 ## 脚本说明
+
+### 上架前必跑项
+
+上架或提交前应在本地或 CI 中至少跑完以下命令，确保安全与类型边界不被破坏：
+
+- `pnpm lint`（或 `pnpm ci:lint`，已含 typecheck）
+- `pnpm test`（或 `pnpm ci:test`）
+- `pnpm typecheck`（即 `tsc`，tsconfig 已 noEmit）
+- `pnpm audit`（或 `pnpm ci:security`，含 `pnpm audit -P --audit-level=moderate` 与许可证检查）
+- 可选：`pnpm pre-deploy:check` 作为部署前综合检查
+
+当前 CI（`.github/workflows/ci.yml`）在 push/PR 到 main 或 develop 时会运行上述步骤（lint、test、compliance、security、pre-deploy-check）。一条命令跑完上架前检查可执行：`pnpm pre-launch`。
 
 ### 推荐使用的脚本（与部署/合规相关）
 

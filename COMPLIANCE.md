@@ -264,6 +264,11 @@ Tracking Guardian 是一个 Shopify 应用，作为**数据处理者**（Data Pr
 - Nonce 防重放机制（Redis 存储，1 小时过期）
 - 订单真实性以 Shopify webhook/后台订单对账为准，像素事件仅用于接收、关联与噪声过滤
 
+### 像素事件信任与隐私策略摘要（可审计）
+
+- **信任模型**：HMAC 作为防滥用与防随机脚本扫接口的门槛，不作为强身份认证。高价值事件（如 Purchase、Refund）的最终可信度依赖服务端可验证信号（receipt、去重、后台对账等），不依赖客户端 HMAC alone。
+- **未同意时行为**：未获得必要同意（analytics/marketing 等）时，不向后端发送对应类型事件（deny all）；策略与扩展内 `customerPrivacy` 及 `visitorConsentCollected` 逻辑一致，见 `extensions/tracking-pixel` 与 `extensions/post-checkout-badge` 中相关实现。
+
 ### Web Pixel ingestion_key/HMAC 威胁模型
 
 - **设计定位**：`ingestion_key` 是完整性校验密钥，用于事件完整性校验、抗滥用信号与店铺关联，不作为强鉴权凭证；密钥会随 Web Pixel settings 下发到客户端运行环境。真正的安全由 webhook/订单对账与整体架构设计提供。

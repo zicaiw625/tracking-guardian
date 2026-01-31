@@ -165,6 +165,9 @@ export function validateEncryptionConfig(): {
     if (!process.env.ENCRYPTION_SALT && isProduction) {
         throw new Error("ENCRYPTION_SALT must be set in production environments");
     }
+    if (isProduction && secretSource === "ENCRYPTION_SECRET" && warnings.some((w) => w.includes("ENCRYPTION_SECRET is shorter than recommended"))) {
+        throw new Error("ENCRYPTION_SECRET must be at least 32 characters in production. Generate with: openssl rand -base64 32");
+    }
     return { valid: true, warnings, secretSource };
 }
 const ALGORITHM = "aes-256-gcm";
