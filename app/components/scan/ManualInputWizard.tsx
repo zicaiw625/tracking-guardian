@@ -13,6 +13,7 @@ import {
   Badge,
 } from "@shopify/polaris";
 import { CheckCircleIcon } from "~/components/icons";
+import { useTranslation, Trans } from "react-i18next";
 
 export interface ManualInputWizardProps {
   open: boolean;
@@ -28,23 +29,24 @@ export interface ManualInputData {
 }
 
 const AVAILABLE_PLATFORMS = [
-  { value: "google", label: "Google Analytics / GA4" },
-  { value: "meta", label: "Meta Pixel / Facebook" },
-  { value: "tiktok", label: "TikTok Pixel" },
-  { value: "other", label: "其他平台" },
+  { value: "google", labelKey: "scan.manualInput.platforms.google" },
+  { value: "meta", labelKey: "scan.manualInput.platforms.meta" },
+  { value: "tiktok", labelKey: "scan.manualInput.platforms.tiktok" },
+  { value: "other", labelKey: "scan.manualInput.platforms.other" },
 ];
 
 const AVAILABLE_FEATURES = [
-  { value: "survey", label: "售后问卷 / 评价收集" },
-  { value: "support", label: "客服入口 / 帮助中心" },
-  { value: "reorder", label: "再购功能" },
-  { value: "affiliate", label: "联盟追踪 / 分佣" },
-  { value: "upsell", label: "追加销售 / 推荐商品" },
-  { value: "tracking", label: "订单追踪 / 物流查询" },
-  { value: "other", label: "其他功能" },
+  { value: "survey", labelKey: "scan.manualInput.features.survey" },
+  { value: "support", labelKey: "scan.manualInput.features.support" },
+  { value: "reorder", labelKey: "scan.manualInput.features.reorder" },
+  { value: "affiliate", labelKey: "scan.manualInput.features.affiliate" },
+  { value: "upsell", labelKey: "scan.manualInput.features.upsell" },
+  { value: "tracking", labelKey: "scan.manualInput.features.tracking" },
+  { value: "other", labelKey: "scan.manualInput.features.other" },
 ];
 
 export function ManualInputWizard({ open, onClose, onComplete }: ManualInputWizardProps) {
+  const { t } = useTranslation();
   const [step, setStep] = useState<1 | 2 | 3>(1);
   const [selectedPlatforms, setSelectedPlatforms] = useState<string[]>([]);
   const [selectedFeatures, setSelectedFeatures] = useState<string[]>([]);
@@ -103,45 +105,45 @@ export function ManualInputWizard({ open, onClose, onComplete }: ManualInputWiza
     <Modal
       open={open}
       onClose={handleCancel}
-      title="补充迁移信息"
+      title={t("scan.manualInput.title")}
       primaryAction={
         step === 3
           ? {
-              content: "完成",
+              content: t("scan.manualInput.actions.complete"),
               onAction: handleComplete,
               disabled: !canComplete,
             }
           : {
-              content: "下一步",
+              content: t("scan.manualInput.actions.next"),
               onAction: handleNext,
               disabled: step === 1 ? !canProceedFromStep1 : !canProceedFromStep2,
             }
       }
       secondaryActions={[
-        ...(step > 1 ? [{ content: "上一步", onAction: handleBack }] : []),
-        { content: "取消", onAction: handleCancel },
+        ...(step > 1 ? [{ content: t("scan.manualInput.actions.back"), onAction: handleBack }] : []),
+        { content: t("scan.manualInput.actions.cancel"), onAction: handleCancel },
       ]}
     >
       <Modal.Section>
         <BlockStack gap="400">
           <InlineStack gap="200" align="center">
-            <Badge tone={step >= 1 ? "success" : "info"}>步骤 1</Badge>
+            <Badge tone={step >= 1 ? "success" : "info"}>{t("scan.manualInput.step1")}</Badge>
             <Text as="span">→</Text>
-            <Badge tone={step >= 2 ? "success" : step > 2 ? "info" : undefined}>步骤 2</Badge>
+            <Badge tone={step >= 2 ? "success" : step > 2 ? "info" : undefined}>{t("scan.manualInput.step2")}</Badge>
             <Text as="span">→</Text>
-            <Badge tone={step >= 3 ? "success" : undefined}>步骤 3</Badge>
+            <Badge tone={step >= 3 ? "success" : undefined}>{t("scan.manualInput.step3")}</Badge>
           </InlineStack>
           {step === 1 && (
             <BlockStack gap="400">
               <Text as="h3" variant="headingMd">
-                您使用了哪些追踪平台？
+                {t("scan.manualInput.platforms.title")}
               </Text>
               <Text as="p" variant="bodySm" tone="subdued">
-                勾选所有在 Thank you / Order status 页面使用的追踪平台
+                {t("scan.manualInput.platforms.description")}
               </Text>
               <Banner tone="warning">
                 <Text as="p" variant="bodySm">
-                  <strong>v1 支持范围</strong>：GA4、Meta、TikTok（其他平台将在 v1.1+ 支持）。请选择所有您使用的平台，系统将在报告中标注 v1 可迁移的项目。
+                  <Trans i18nKey="scan.manualInput.platforms.v1Support" components={{ strong: <strong /> }} />
                 </Text>
               </Banner>
               <BlockStack gap="300">
@@ -155,15 +157,15 @@ export function ManualInputWizard({ open, onClose, onComplete }: ManualInputWiza
                   return (
                     <InlineStack key={platform.value} gap="200" blockAlign="center">
                       <Checkbox
-                        label={platform.label}
+                        label={t(platform.labelKey)}
                         checked={selectedPlatforms.includes(platform.value)}
                         onChange={() => handlePlatformToggle(platform.value)}
                       />
                       {isV1Supported && (
-                        <Badge tone="success" size="small">v1 支持</Badge>
+                        <Badge tone="success" size="small">{t("scan.manualInput.platforms.v1Supported")}</Badge>
                       )}
                       {!isV1Supported && platform.value !== "other" && (
-                        <Badge tone="info" size="small">v1.1+</Badge>
+                        <Badge tone="info" size="small">{t("scan.manualInput.platforms.v11Plus")}</Badge>
                       )}
                     </InlineStack>
                   );
@@ -171,14 +173,14 @@ export function ManualInputWizard({ open, onClose, onComplete }: ManualInputWiza
               </BlockStack>
               <Divider />
               <Text as="h3" variant="headingMd">
-                您使用了哪些功能？
+                {t("scan.manualInput.features.title")}
               </Text>
               <Text as="p" variant="bodySm" tone="subdued">
-                勾选所有在 Thank you / Order status 页面使用的功能
+                {t("scan.manualInput.features.description")}
               </Text>
               <Banner tone="warning">
                 <Text as="p" variant="bodySm">
-                  <strong>v1 支持范围</strong>：Web Pixel 迁移与验收。请选择页面上使用的功能，系统将在报告中标注。
+                  <Trans i18nKey="scan.manualInput.features.v1Support" components={{ strong: <strong /> }} />
                 </Text>
               </Banner>
               <BlockStack gap="300">
@@ -187,15 +189,15 @@ export function ManualInputWizard({ open, onClose, onComplete }: ManualInputWiza
                   return (
                     <InlineStack key={feature.value} gap="200" blockAlign="center">
                       <Checkbox
-                        label={feature.label}
+                        label={t(feature.labelKey)}
                         checked={selectedFeatures.includes(feature.value)}
                         onChange={() => handleFeatureToggle(feature.value)}
                       />
                       {isV1Supported && (
-                        <Badge tone="success" size="small">v1 支持</Badge>
+                        <Badge tone="success" size="small">{t("scan.manualInput.platforms.v1Supported")}</Badge>
                       )}
                       {!isV1Supported && (
-                        <Badge tone="info" size="small">v1.1+</Badge>
+                        <Badge tone="info" size="small">{t("scan.manualInput.platforms.v11Plus")}</Badge>
                       )}
                     </InlineStack>
                   );
@@ -204,7 +206,7 @@ export function ManualInputWizard({ open, onClose, onComplete }: ManualInputWiza
               {selectedPlatforms.length === 0 && selectedFeatures.length === 0 && (
                 <Banner tone="info">
                   <Text as="p" variant="bodySm">
-                    请至少选择一个平台或功能，以便我们生成准确的迁移建议
+                    {t("scan.manualInput.validation.selectOne")}
                   </Text>
                 </Banner>
               )}
@@ -213,46 +215,39 @@ export function ManualInputWizard({ open, onClose, onComplete }: ManualInputWiza
           {step === 2 && (
             <BlockStack gap="400">
               <Text as="h3" variant="headingMd">
-                信息来源
+                {t("scan.manualInput.source.title")}
               </Text>
               <Text as="p" variant="bodySm" tone="subdued">
-                这些信息来自哪里？
+                {t("scan.manualInput.source.description")}
               </Text>
               <Checkbox
-                label="来自 Shopify Admin 升级向导"
+                label={t("scan.manualInput.source.fromUpgradeWizard")}
                 checked={fromUpgradeWizard}
                 onChange={(checked) => setFromUpgradeWizard(checked)}
-                helpText="如果您从 Shopify 后台的升级向导中获取了脚本清单，请勾选此项"
+                helpText={t("scan.manualInput.source.fromUpgradeWizardHelp")}
               />
               <Banner tone="info">
                 <BlockStack gap="200">
                   <Text as="p" variant="bodySm" fontWeight="semibold">
-                    如何从 Shopify 升级向导获取信息：
+                    {t("scan.manualInput.source.guideTitle")}
                   </Text>
                   <List type="number">
-                    <List.Item>
-                      前往 Shopify Admin → 设置 → 结账和订单处理
-                    </List.Item>
-                    <List.Item>
-                      找到「Thank you / Order status 页面升级」部分
-                    </List.Item>
-                    <List.Item>
-                      查看升级向导中列出的脚本和功能清单
-                    </List.Item>
-                    <List.Item>
-                      将清单内容复制或截图，然后在此处补充
-                    </List.Item>
+                    {[0, 1, 2, 3].map(i => (
+                      <List.Item key={i}>
+                        {t(`scan.manualInput.source.guideSteps.${i}`)}
+                      </List.Item>
+                    ))}
                   </List>
                   <Divider />
                   <Text as="p" variant="bodySm" tone="subdued">
-                    💡 <strong>提示：</strong>如果您从 Shopify 升级向导中看到了脚本清单，可以：
+                    <Trans i18nKey="scan.manualInput.source.hint" components={{ strong: <strong /> }} />
                   </Text>
                   <List>
                     <List.Item>
-                      直接勾选上方对应的平台和功能（推荐）
+                      {t("scan.manualInput.source.hintList.0")}
                     </List.Item>
                     <List.Item>
-                      或者将脚本内容复制到"手动粘贴脚本"区域进行分析
+                      {t("scan.manualInput.source.hintList.1")}
                     </List.Item>
                   </List>
                 </BlockStack>
@@ -262,62 +257,62 @@ export function ManualInputWizard({ open, onClose, onComplete }: ManualInputWiza
           {step === 3 && (
             <BlockStack gap="400">
               <Text as="h3" variant="headingMd">
-                额外信息（可选）
+                {t("scan.manualInput.additionalInfo.title")}
               </Text>
               <Text as="p" variant="bodySm" tone="subdued">
-                如果您有其他需要补充的信息，请在此处填写
+                {t("scan.manualInput.additionalInfo.description")}
               </Text>
               <TextField
-                label="补充说明"
+                label={t("scan.manualInput.additionalInfo.label")}
                 value={additionalInfo}
                 onChange={setAdditionalInfo}
                 multiline={4}
                 autoComplete="off"
-                placeholder="例如：使用了自定义的订单追踪系统、集成了第三方客服工具等"
-                helpText="这些信息将帮助我们更准确地评估迁移风险"
+                placeholder={t("scan.manualInput.additionalInfo.placeholder")}
+                helpText={t("scan.manualInput.additionalInfo.helpText")}
               />
               <Divider />
               <Box background="bg-surface-secondary" padding="400" borderRadius="200">
                 <BlockStack gap="300">
                   <Text as="h3" variant="headingSm">
-                    信息摘要
+                    {t("scan.manualInput.summary.title")}
                   </Text>
                   <BlockStack gap="200">
                     <InlineStack gap="200" align="start">
                       <Text as="span" variant="bodySm" fontWeight="semibold">
-                        选择的平台：
+                        {t("scan.manualInput.summary.selectedPlatforms")}
                       </Text>
                       {selectedPlatforms.length > 0 ? (
                         <InlineStack gap="100" wrap>
                           {selectedPlatforms.map((p) => {
                             const platform = AVAILABLE_PLATFORMS.find((pl) => pl.value === p);
                             return (
-                              <Badge key={p}>{platform?.label || p}</Badge>
+                              <Badge key={p}>{platform ? t(platform.labelKey) : p}</Badge>
                             );
                           })}
                         </InlineStack>
                       ) : (
                         <Text as="span" variant="bodySm" tone="subdued">
-                          无
+                          {t("scan.manualInput.summary.none")}
                         </Text>
                       )}
                     </InlineStack>
                     <InlineStack gap="200" align="start">
                       <Text as="span" variant="bodySm" fontWeight="semibold">
-                        选择的功能：
+                        {t("scan.manualInput.summary.selectedFeatures")}
                       </Text>
                       {selectedFeatures.length > 0 ? (
                         <InlineStack gap="100" wrap>
                           {selectedFeatures.map((f) => {
                             const feature = AVAILABLE_FEATURES.find((fe) => fe.value === f);
                             return (
-                              <Badge key={f}>{feature?.label || f}</Badge>
+                              <Badge key={f}>{feature ? t(feature.labelKey) : f}</Badge>
                             );
                           })}
                         </InlineStack>
                       ) : (
                         <Text as="span" variant="bodySm" tone="subdued">
-                          无
+                          {t("scan.manualInput.summary.none")}
                         </Text>
                       )}
                     </InlineStack>
@@ -325,7 +320,7 @@ export function ManualInputWizard({ open, onClose, onComplete }: ManualInputWiza
                       <InlineStack gap="200" align="center">
                         <CheckCircleIcon />
                         <Text as="span" variant="bodySm">
-                          信息来自 Shopify 升级向导
+                          {t("scan.manualInput.summary.fromUpgradeWizard")}
                         </Text>
                       </InlineStack>
                     )}

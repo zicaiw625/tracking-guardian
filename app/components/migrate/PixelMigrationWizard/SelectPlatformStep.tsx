@@ -5,6 +5,7 @@ import type { PlatformConfig } from "./useWizardState";
 import type { WizardTemplate } from "../PixelMigrationWizard";
 import { PLATFORM_INFO } from "./constants";
 import { isV1SupportedPlatform } from "~/utils/v1-platforms";
+import { useTranslation, Trans } from "react-i18next";
 
 interface SelectPlatformStepProps {
   selectedPlatforms: Set<PlatformType>;
@@ -25,54 +26,56 @@ export function SelectPlatformStep({
   onShowTemplateModal,
   templates,
 }: SelectPlatformStepProps) {
+  const { t } = useTranslation();
+
   return (
     <BlockStack gap="400">
       <Text as="h3" variant="headingMd">
-        选择要配置的平台
+        {t("pixelMigration.selectPlatform.title")}
       </Text>
       <Text as="p" tone="subdued">
-        选择您要迁移的广告平台。您可以稍后在设置页面添加更多平台。
+        {t("pixelMigration.selectPlatform.description")}
       </Text>
       <Banner tone="info">
         <BlockStack gap="200">
           <Text as="p" variant="bodySm">
-            提示：您可以使用预设模板快速配置多个平台，或手动选择平台。
+            {t("pixelMigration.selectPlatform.templateTip")}
           </Text>
           <Button
             size="slim"
             onClick={() => onShowTemplateModal(true)}
             icon={SettingsIcon}
           >
-            查看预设模板
+            {t("pixelMigration.selectPlatform.viewTemplates")}
           </Button>
         </BlockStack>
       </Banner>
       <Banner tone="info">
         <BlockStack gap="200">
           <Text as="p" variant="bodySm" fontWeight="semibold">
-            v1 像素迁移核心能力：
+            {t("pixelMigration.selectPlatform.v1Capabilities.title")}
           </Text>
           <Text as="p" variant="bodySm">
-            • <strong>标准事件映射</strong>：Shopify 事件 → 平台事件（GA4/Meta/TikTok）
+            • <Trans i18nKey="pixelMigration.selectPlatform.v1Capabilities.mapping" components={{ strong: <strong /> }} />
           </Text>
           <Text as="p" variant="bodySm">
-            • <strong>参数完整率检查</strong>：自动验证事件参数是否完整
+            • <Trans i18nKey="pixelMigration.selectPlatform.v1Capabilities.paramsCheck" components={{ strong: <strong /> }} />
           </Text>
           <Text as="p" variant="bodySm">
-            • <strong>可下载 payload 证据</strong>：用于验证和存档（Test/Live 环境）
+            • <Trans i18nKey="pixelMigration.selectPlatform.v1Capabilities.payloadEvidence" components={{ strong: <strong /> }} />
           </Text>
           <Text as="p" variant="bodySm">
-            • <strong>v1 支持平台</strong>：GA4、Meta、TikTok（三选一，Migration $49/月）
+            • <Trans i18nKey="pixelMigration.selectPlatform.v1Capabilities.supportedPlatforms" components={{ strong: <strong /> }} />
           </Text>
           <Text as="p" variant="bodySm">
-            • <strong>v1.1+ 规划</strong>：Pinterest、Snapchat 等其他平台将在后续版本支持
+            • <Trans i18nKey="pixelMigration.selectPlatform.v1Capabilities.roadmap" components={{ strong: <strong /> }} />
           </Text>
           <Divider />
           <Text as="p" variant="bodySm" fontWeight="semibold">
-            ⚠️ 技术限制说明：
+            {t("pixelMigration.selectPlatform.techLimitations.title")}
           </Text>
           <Text as="p" variant="bodySm">
-            Web Pixel 运行在 strict sandbox（Web Worker）环境中，很多能力受限（如 DOM 访问、第三方 cookie、localStorage 等）。部分原有脚本功能可能无法完全迁移。
+            {t("pixelMigration.selectPlatform.techLimitations.content")}
           </Text>
         </BlockStack>
       </Banner>
@@ -99,15 +102,15 @@ export function SelectPlatformStep({
                           {info.name}
                         </Text>
                         {isV1Supported && (
-                          <Badge tone="success" size="small">v1 支持</Badge>
+                          <Badge tone="success" size="small">{t("pixelMigration.selectPlatform.v1Support")}</Badge>
                         )}
                         {!isV1Supported && (
-                          <Badge tone="info" size="small">v1.1+</Badge>
+                          <Badge tone="info" size="small">{t("pixelMigration.selectPlatform.v1Plus")}</Badge>
                         )}
                       </InlineStack>
                       <Text as="span" variant="bodySm" tone="subdued">
                         {info.description}
-                        {!isV1Supported && "（v1.1+ 版本将支持）"}
+                        {!isV1Supported && t("pixelMigration.selectPlatform.comingSoon")}
                       </Text>
                     </BlockStack>
                   </InlineStack>
@@ -125,7 +128,7 @@ export function SelectPlatformStep({
                 {isDisabled && (
                   <Banner tone="info">
                     <Text as="p" variant="bodySm">
-                      该平台将在 v1.1+ 版本支持。v1 专注于 GA4、Meta、TikTok 的最小可用迁移。
+                      {t("pixelMigration.selectPlatform.v1Focus")}
                     </Text>
                   </Banner>
                 )}
@@ -137,16 +140,16 @@ export function SelectPlatformStep({
       <Modal
         open={showTemplateModal}
         onClose={() => onShowTemplateModal(false)}
-        title="选择预设模板"
+        title={t("pixelMigration.selectPlatform.modalTitle")}
         primaryAction={{
-          content: "关闭",
+          content: t("common.close", "Close"),
           onAction: () => onShowTemplateModal(false),
         }}
       >
         <Modal.Section>
           <BlockStack gap="400">
             <Text as="p" tone="subdued">
-              选择一个预设模板快速配置多个平台的事件映射。
+              {t("pixelMigration.selectPlatform.modalDesc")}
             </Text>
             {templates.map((template) => (
               <Card key={template.id}>
@@ -155,24 +158,24 @@ export function SelectPlatformStep({
                     <BlockStack gap="100">
                       <InlineStack gap="200" blockAlign="center">
                         <Text as="span" fontWeight="semibold">
-                          {template.name}
+                          {t(template.name)}
                         </Text>
                         {template.isPublic && (
-                          <Badge tone="info">公开</Badge>
+                          <Badge tone="info">{t("pixelMigration.selectPlatform.public")}</Badge>
                         )}
                         {template.usageCount > 0 && (
-                          <Badge>{`使用 ${String(template.usageCount)} 次`}</Badge>
+                          <Badge>{t("pixelMigration.selectPlatform.usageCount", { count: template.usageCount })}</Badge>
                         )}
                       </InlineStack>
                       <Text as="span" variant="bodySm" tone="subdued">
-                        {template.description}
+                        {t(template.description)}
                       </Text>
                     </BlockStack>
                     <Button
                       size="slim"
                       onClick={() => onApplyTemplate(template)}
                     >
-                      应用
+                      {t("pixelMigration.selectPlatform.apply")}
                     </Button>
                   </InlineStack>
                   <InlineStack gap="100">

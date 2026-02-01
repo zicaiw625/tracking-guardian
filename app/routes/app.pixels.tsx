@@ -106,7 +106,7 @@ export default function PixelsListPage() {
   const { shop, pixelConfigs, latestByKey, backendUrlInfo } = useLoaderData<typeof loader>();
   if (!shop) {
     return (
-      <Page title="Pixels">
+      <Page title={t("pixels.list.title")}>
         <EnhancedEmptyState
           icon="⚠️"
           title={t("pixels.list.configured.empty")}

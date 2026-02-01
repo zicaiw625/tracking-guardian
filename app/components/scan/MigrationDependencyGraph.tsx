@@ -10,14 +10,15 @@ import {
   Banner,
 } from "@shopify/polaris";
 import type { DependencyGraph } from "~/services/dependency-analysis.server";
+import { useTranslation } from "react-i18next";
 
-function formatTime(minutes: number): string {
+function formatTime(minutes: number, t: any): string {
   if (minutes < 60) {
-    return `${minutes} 分钟`;
+    return `${minutes} ${t("common.minutes")}`;
   }
   const hours = Math.floor(minutes / 60);
   const mins = minutes % 60;
-  return mins > 0 ? `${hours} 小时 ${mins} 分钟` : `${hours} 小时`;
+  return mins > 0 ? `${hours} ${t("common.hours")} ${mins} ${t("common.minutes")}` : `${hours} ${t("common.hours")}`;
 }
 
 interface MigrationDependencyGraphProps {
@@ -29,6 +30,7 @@ export function MigrationDependencyGraph({
   dependencyGraph,
   onAssetClick: _onAssetClick,
 }: MigrationDependencyGraphProps) {
+  const { t } = useTranslation();
   const { sortedNodes, cycles, criticalPath } = useMemo(() => {
     if (!dependencyGraph) {
       return { sortedNodes: [], cycles: [], criticalPath: [] };
@@ -131,11 +133,11 @@ export function MigrationDependencyGraph({
       <Card>
         <BlockStack gap="300">
           <Text as="h3" variant="headingMd">
-            依赖关系分析
+            {t("scan.dependencyGraph.title")}
           </Text>
           <Banner>
             <Text as="p" variant="bodySm">
-              暂无待迁移的资产，或资产之间没有依赖关系。
+              {t("scan.dependencyGraph.empty")}
             </Text>
           </Banner>
         </BlockStack>
@@ -147,26 +149,26 @@ export function MigrationDependencyGraph({
       <BlockStack gap="400">
         <InlineStack align="space-between" blockAlign="center">
           <Text as="h3" variant="headingMd">
-            依赖关系分析
+            {t("scan.dependencyGraph.title")}
           </Text>
           <Badge tone="info">
-            {`${dependencyGraph.nodes.length} 个资产`}
+            {t("scan.dependencyGraph.assetsCount", { count: dependencyGraph.nodes.length })}
           </Badge>
         </InlineStack>
         {cycles.length > 0 && (
           <Banner tone="critical">
             <BlockStack gap="200">
               <Text as="p" variant="bodySm" fontWeight="semibold">
-                检测到循环依赖
+                {t("scan.dependencyGraph.cycleDetected")}
               </Text>
               <Text as="p" variant="bodySm">
-                以下资产之间存在循环依赖关系，需要手动调整迁移顺序：
+                {t("scan.dependencyGraph.cycleDesc")}
               </Text>
               <List type="bullet">
                 {cycles.map((cycle, index) => (
                   <List.Item key={index}>
                     <Text as="span" variant="bodySm">
-                      {cycle.length} 个资产形成循环
+                      {t("scan.dependencyGraph.cycleItem", { count: cycle.length })}
                     </Text>
                   </List.Item>
                 ))}
@@ -185,10 +187,10 @@ export function MigrationDependencyGraph({
             <BlockStack gap="300">
               <InlineStack align="space-between" blockAlign="center">
                 <Text as="h4" variant="headingSm">
-                  关键路径（最长依赖链）
+                  {t("scan.dependencyGraph.criticalPath")}
                 </Text>
                 <Badge>
-                  {`${criticalPath.length} 步`}
+                  {t("scan.dependencyGraph.steps", { count: criticalPath.length })}
                 </Badge>
               </InlineStack>
               <List type="number">
@@ -217,12 +219,12 @@ export function MigrationDependencyGraph({
                         )}
                         {node.priority && (
                           <Badge tone="success">
-                            {`优先级: ${node.priority}/10`}
+                            {t("scan.dependencyGraph.priority", { priority: node.priority })}
                           </Badge>
                         )}
                         {node.estimatedTimeMinutes && (
                           <Badge tone="info">
-                            {`预计: ${formatTime(node.estimatedTimeMinutes)}`}
+                            {t("scan.dependencyGraph.estimated", { time: formatTime(node.estimatedTimeMinutes, t) })}
                           </Badge>
                         )}
                       </InlineStack>
@@ -242,7 +244,7 @@ export function MigrationDependencyGraph({
         >
           <BlockStack gap="300">
             <Text as="h4" variant="headingSm">
-              推荐迁移顺序（基于依赖关系）
+              {t("scan.dependencyGraph.recommendedOrder")}
             </Text>
             <List type="number">
               {sortedNodes.map((node, index) => {
@@ -272,19 +274,19 @@ export function MigrationDependencyGraph({
                         )}
                         {node.priority && (
                           <Badge tone="success">
-                            {`优先级: ${node.priority}/10`}
+                            {t("scan.dependencyGraph.priority", { priority: node.priority })}
                           </Badge>
                         )}
                         {node.estimatedTimeMinutes && (
                           <Badge tone="info">
-                            {`预计: ${formatTime(node.estimatedTimeMinutes)}`}
+                            {t("scan.dependencyGraph.estimated", { time: formatTime(node.estimatedTimeMinutes, t) })}
                           </Badge>
                         )}
                       </InlineStack>
                       {dependencies.length > 0 && (
                         <Box paddingInlineStart="400">
                           <Text as="p" variant="bodySm" tone="subdued">
-                            依赖: {dependencies.length} 个资产
+                            {t("scan.dependencyGraph.dependenciesCount", { count: dependencies.length })}
                           </Text>
                         </Box>
                       )}
@@ -304,7 +306,7 @@ export function MigrationDependencyGraph({
         >
           <BlockStack gap="300">
             <Text as="h4" variant="headingSm">
-              依赖关系详情
+              {t("scan.dependencyGraph.details")}
             </Text>
             {dependencyGraph.edges
               .filter((e) => e.type === "depends_on")

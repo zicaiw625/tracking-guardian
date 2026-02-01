@@ -8,6 +8,7 @@ import {
   Button,
   Modal,
 } from "@shopify/polaris";
+import { useTranslation } from "react-i18next";
 import { ArrowRightIcon, CheckCircleIcon } from "~/components/icons";
 import type { WizardTemplate } from "~/components/migrate/PixelMigrationWizard";
 import {
@@ -72,6 +73,7 @@ export function NewPixelWizard({
   showSuccess,
   showError,
 }: NewPixelWizardProps) {
+  const { t } = useTranslation();
   const [currentStep, setCurrentStep] = useState<SetupStep>("select");
   const [selectedPlatforms, setSelectedPlatforms] = useState<Set<SupportedPlatform>>(new Set());
   const [platformConfigs, setPlatformConfigs] = useState<Partial<Record<SupportedPlatform, PlatformConfig>>>(initialConfigs);
@@ -130,9 +132,9 @@ export function NewPixelWizard({
       setSelectedPlatforms(platforms);
       setPlatformConfigs(configs);
       setShowTemplateModal(false);
-      showSuccess(`已应用模板「${template.name}」`);
+      showSuccess(t("pixelMigration.selectPlatform.templateApplied", { name: t(template.name) }));
     },
-    [platformConfigs, showSuccess]
+    [platformConfigs, showSuccess, t]
   );
 
   const handleEventMappingUpdate = useCallback(
@@ -155,55 +157,41 @@ export function NewPixelWizard({
     []
   );
 
-  const handleCredentialsChange = useCallback(
-    (platform: SupportedPlatform, credentials: Record<string, string>) => {
-      setPlatformConfigs((prev) => {
-        const currentConfig = prev[platform];
-        if (!currentConfig) return prev;
-        return {
-          ...prev,
-          [platform]: { ...currentConfig, credentials },
-        };
-      });
-    },
-    []
-  );
-
   const validateStep = useCallback(
     (step: SetupStep) => {
       const errors: string[] = [];
       if (step === "select" && selectedPlatforms.size === 0) {
-        errors.push("请至少选择一个平台");
+        errors.push(t("pixelMigration.validation.selectPlatform"));
       }
       if (step === "mappings") {
         Array.from(selectedPlatforms).forEach((platform) => {
           const config = platformConfigs[platform];
           if (!config || Object.keys(config.eventMappings || {}).length === 0) {
-            errors.push(`${PLATFORM_INFO[platform]?.name || platform}: 至少需要配置一个事件映射`);
+            errors.push(t("pixelMigration.validation.minEvents", { platform: PLATFORM_INFO[platform]?.name || platform }));
           }
         });
       }
       return errors;
     },
-    [platformConfigs, selectedPlatforms]
+    [platformConfigs, selectedPlatforms, t]
   );
 
   const handleNext = useCallback(() => {
     const errors = validateStep(currentStep);
     if (errors.length > 0) {
-      showError(`请先完成当前步骤：${errors.join("; ")}`);
+      showError(t("pixelMigration.validation.completeStep", { errors: errors.join("; ") }));
       return;
     }
     const currentIndex = PIXEL_SETUP_STEPS.findIndex((s) => s.id === currentStep);
     if (currentIndex < PIXEL_SETUP_STEPS.length - 1) {
       setCurrentStep(PIXEL_SETUP_STEPS[currentIndex + 1].id);
     }
-  }, [currentStep, validateStep, showError]);
+  }, [currentStep, validateStep, showError, t]);
 
   const handleSave = useCallback(() => {
     const errors = validateStep("mappings");
     if (errors.length > 0) {
-      showError(`配置错误：${errors.join("; ")}`);
+      showError(t("pixelMigration.validation.configError", { errors: errors.join("; ") }));
       return;
     }
     const configs = Array.from(selectedPlatforms).map((platform) => {
@@ -223,7 +211,7 @@ export function NewPixelWizard({
     formData.append("_action", "savePixelConfigs");
     formData.append("configs", JSON.stringify(configs));
     submit(formData, { method: "post" });
-  }, [platformConfigs, selectedPlatforms, submit, validateStep, showError]);
+  }, [platformConfigs, selectedPlatforms, submit, validateStep, showError, t]);
 
   const currentIndex = PIXEL_SETUP_STEPS.findIndex((s) => s.id === currentStep);
 
@@ -233,9 +221,9 @@ export function NewPixelWizard({
         <BlockStack gap="400">
           <InlineStack align="space-between" blockAlign="center">
             <Text as="h2" variant="headingMd">
-              配置进度
+              {t("pixelMigration.common.progress")}
             </Text>
-            <Badge tone="info">{`步骤 ${currentIndex + 1} / ${PIXEL_SETUP_STEPS.length}`}</Badge>
+            <Badge tone="info">{t("pixelMigration.common.stepProgress", { current: currentIndex + 1, total: PIXEL_SETUP_STEPS.length })}</Badge>
           </InlineStack>
           <InlineStack gap="300" wrap>
             {PIXEL_SETUP_STEPS.map((step, index) => (
@@ -245,7 +233,7 @@ export function NewPixelWizard({
                   index === currentIndex ? "success" : index < currentIndex ? "info" : undefined
                 }
               >
-                {step.label}
+                {t(step.label)}
               </Badge>
             ))}
           </InlineStack>
@@ -270,7 +258,7 @@ export function NewPixelWizard({
         <CredentialsStep
           selectedPlatforms={selectedPlatforms}
           platformConfigs={platformConfigs}
-          onCredentialsChange={handleCredentialsChange}
+          onChange={setPlatformConfigs}
         />
       )}
       {currentStep === "review" && (
@@ -284,7 +272,7 @@ export function NewPixelWizard({
       <Card>
         <InlineStack align="space-between" wrap>
           <Button url="/app/pixels" disabled={isSubmitting}>
-            取消
+            {t("pixelMigration.actions.cancel")}
           </Button>
           <InlineStack gap="200" wrap>
             {currentIndex > 0 && (
@@ -292,7 +280,7 @@ export function NewPixelWizard({
                 onClick={() => setCurrentStep(PIXEL_SETUP_STEPS[currentIndex - 1].id)}
                 disabled={isSubmitting}
               >
-                上一步
+                {t("pixelMigration.actions.back")}
               </Button>
             )}
             {currentStep !== "review" ? (
@@ -302,7 +290,7 @@ export function NewPixelWizard({
                 disabled={isSubmitting}
                 icon={ArrowRightIcon}
               >
-                下一步
+                {t("pixelMigration.actions.next")}
               </Button>
             ) : (
               <Button
@@ -312,7 +300,7 @@ export function NewPixelWizard({
                 icon={CheckCircleIcon}
                 disabled={!isStarterOrAbove}
               >
-                保存配置并测试
+                {t("pixelMigration.actions.saveAndTest")}
               </Button>
             )}
           </InlineStack>
@@ -322,16 +310,16 @@ export function NewPixelWizard({
       <Modal
         open={showTemplateModal}
         onClose={() => setShowTemplateModal(false)}
-        title="选择预设模板"
+        title={t("pixelMigration.selectPlatform.modalTitle")}
         primaryAction={{
-          content: "关闭",
+          content: t("pixelMigration.actions.close"),
           onAction: () => setShowTemplateModal(false),
         }}
       >
         <Modal.Section>
           <BlockStack gap="400">
             <Text as="p" tone="subdued">
-              选择一个预设模板快速配置多个平台的事件映射。
+              {t("pixelMigration.selectPlatform.modalDesc")}
             </Text>
             {availableTemplates.map((template) => {
               if (!template) return null;
@@ -342,16 +330,16 @@ export function NewPixelWizard({
                       <BlockStack gap="100">
                         <InlineStack gap="200" blockAlign="center">
                           <Text as="span" fontWeight="semibold">
-                            {template.name}
+                            {t(template.name)}
                           </Text>
-                          {template.isPublic && <Badge tone="info">公开</Badge>}
+                          {template.isPublic && <Badge tone="info">{t("pixelMigration.selectPlatform.public")}</Badge>}
                         </InlineStack>
                         <Text as="span" variant="bodySm" tone="subdued">
-                          {template.description}
+                          {t(template.description)}
                         </Text>
                       </BlockStack>
                       <Button size="slim" onClick={() => handleApplyTemplate(template)}>
-                        应用
+                        {t("pixelMigration.selectPlatform.apply")}
                       </Button>
                     </InlineStack>
                   </BlockStack>

@@ -18,8 +18,7 @@ import translations from "@shopify/polaris/locales/en.json" with { type: "json" 
 import { getPolarisTranslations } from "../utils/polaris-i18n";
 import { getDynamicCorsHeaders } from "../utils/cors";
 import { PUBLIC_PAGE_HEADERS, addSecurityHeadersToHeaders } from "../utils/security-headers";
-import { useTranslation, I18nextProvider } from "react-i18next";
-import i18nGlobal from "../i18n"; // Import global i18n instance
+import { useTranslation } from "react-i18next";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   const corsHeaders = getDynamicCorsHeaders(request);
@@ -147,9 +146,5 @@ function SupportContent() {
 }
 
 export default function PublicSupportPage() {
-  return (
-    <I18nextProvider i18n={i18nGlobal}>
-      <SupportContent />
-    </I18nextProvider>
-  );
+  return <SupportContent />;
 }

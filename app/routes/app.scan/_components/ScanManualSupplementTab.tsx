@@ -182,7 +182,7 @@ export function ScanManualSupplementTab({
                                 onAnalyze={handleAnalyzeScript}
                                 analysisResult={analysisResult}
                                 isAnalyzing={isAnalyzing}
-                                placeholder={`<!-- 示例 -->
+                                placeholder={`<!-- Example -->
 <script>
   gtag('event', 'purchase', {...});
   fbq('track', 'Purchase', {...});

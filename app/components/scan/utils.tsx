@@ -65,22 +65,22 @@ export function getStatusText(status: string, t?: TFunction) {
 }
 
 export function getPlatformName(platform: string, t?: TFunction) {
-  const map = t
+  const map: Record<string, string> = t
     ? {
-        "google-analytics": "Google Analytics 4 (GA4)",
-        "facebook-pixel": "Meta (Facebook) Pixel",
-        tiktok: "TikTok Pixel",
-        pinterest: "Pinterest Tag",
-        snapchat: "Snapchat Pixel",
-        bing: "Microsoft (Bing) Ads",
-        twitter: "X (Twitter) Pixel",
-        linkedin: "LinkedIn Insight Tag",
-        criteo: "Criteo OneTag",
-        taboola: "Taboola Pixel",
-        outbrain: "Outbrain Pixel",
-        reddit: "Reddit Pixel",
-        quora: "Quora Pixel",
-        "klaviyo-onsite": "Klaviyo Onsite",
+        "google-analytics": t("platforms.google_analytics"),
+        "facebook-pixel": t("platforms.meta_pixel"),
+        tiktok: t("platforms.tiktok_pixel"),
+        pinterest: t("platforms.pinterest_tag"),
+        snapchat: t("platforms.snapchat_pixel"),
+        bing: t("platforms.microsoft_ads"),
+        twitter: t("platforms.twitter_pixel"),
+        linkedin: t("platforms.linkedin_tag"),
+        criteo: t("platforms.criteo_onetag"),
+        taboola: t("platforms.taboola_pixel"),
+        outbrain: t("platforms.outbrain_pixel"),
+        reddit: t("platforms.reddit_pixel"),
+        quora: t("platforms.quora_pixel"),
+        "klaviyo-onsite": t("platforms.klaviyo_onsite"),
       }
     : {
         "google-analytics": "Google Analytics 4 (GA4)",
@@ -100,6 +100,5 @@ export function getPlatformName(platform: string, t?: TFunction) {
       };
 
   const normalized = platform?.toLowerCase().replace(/_/g, "-");
-  // @ts-expect-error - normalized string might not be in map keys
   return map[normalized] || platform;
 }

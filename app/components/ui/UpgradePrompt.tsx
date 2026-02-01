@@ -11,6 +11,7 @@ import { LockIcon } from "~/components/icons";
 import { type PlanId } from "~/services/billing/plans";
 import { isPlanAtLeast, getPlanDefinition } from "~/utils/plans";
 import type { FeatureGateResult } from "~/services/billing/feature-gates.server";
+import { useTranslation, Trans } from "react-i18next";
 
 export interface UpgradePromptProps {
   feature: "pixel_destinations" | "ui_modules" | "verification" | "alerts" | "reconciliation" | "agency";
@@ -23,77 +24,13 @@ export interface UpgradePromptProps {
   compact?: boolean;
 }
 
-const FEATURE_INFO: Record<
-  UpgradePromptProps["feature"],
-  {
-    name: string;
-    description: string;
-    requiredPlan: PlanId;
-    featureList?: string[];
-  }
-> = {
-  pixel_destinations: {
-    name: "像素目的地",
-    description: "标准事件映射 + 参数完整率（v1 最小可用迁移）",
-    requiredPlan: "starter",
-    featureList: [
-      "支持 GA4、Meta、TikTok（v1 仅此 3 个平台，避开 Elevar/Littledata 高价位竞争）",
-      "标准事件映射：自动映射标准电商事件（purchase、view_item、add_to_cart 等）",
-      "参数完整率检查：验证事件参数（value、currency、items 等）的完整性",
-      "可下载 payload 证据：支持下载事件 payload，用于验证和存档",
-      "Test/Live 环境切换：支持测试环境验证后再发布到生产环境",
-      "技术说明：Web Pixel 运行在严格沙箱（Web Worker）环境中，很多能力受限",
-    ],
-  },
-  ui_modules: {
-    name: "UI 模块",
-    description: "Thank you / Order status 页面侧自定义（以 Shopify 官方能力为准）",
-    requiredPlan: "starter",
-    featureList: [
-      "当前版本不提供页面模块库",
-    ],
-  },
-  verification: {
-    name: "验收功能",
-    description: "验证迁移配置是否正确工作",
-    requiredPlan: "starter",
-    featureList: [
-      "测试订单生成与验证",
-      "事件参数完整性检查",
-      "金额准确性验证",
-    ],
-  },
-  alerts: {
-    name: "告警功能",
-    description: "实时监控追踪健康状态",
-    requiredPlan: "growth",
-    featureList: [
-      "多渠道告警（邮件/Slack/Telegram）",
-      "事件失败率监控",
-      "自动异常检测",
-    ],
-  },
-  reconciliation: {
-    name: "事件对账",
-    description: "对比 Shopify 订单与平台转化数据",
-    requiredPlan: "growth",
-    featureList: [
-      "每日自动对账",
-      "偏差率分析",
-      "送达缺口定位",
-    ],
-  },
-  agency: {
-    name: "Agency 多店功能",
-    description: "管理多个店铺的批量操作",
-    requiredPlan: "agency",
-    featureList: [
-      "多店工作区管理",
-      "批量 Audit 扫描",
-      "批量应用像素模板",
-      "迁移验收报告导出",
-    ],
-  },
+const FEATURE_CONFIG: Record<UpgradePromptProps["feature"], { requiredPlan: PlanId }> = {
+  pixel_destinations: { requiredPlan: "starter" },
+  ui_modules: { requiredPlan: "starter" },
+  verification: { requiredPlan: "starter" },
+  alerts: { requiredPlan: "growth" },
+  reconciliation: { requiredPlan: "growth" },
+  agency: { requiredPlan: "agency" },
 };
 
 export function UpgradePrompt({
@@ -106,14 +43,24 @@ export function UpgradePrompt({
   tone = "info",
   compact = false,
 }: UpgradePromptProps) {
-  const info = FEATURE_INFO[feature];
-  const requiredPlan = getPlanDefinition(info.requiredPlan);
+  const { t } = useTranslation();
+  const config = FEATURE_CONFIG[feature];
+  
+  // Get translated info
+  const name = t(`ui.upgrade.features.${feature}.name`);
+  const description = t(`ui.upgrade.features.${feature}.description`);
+  const listObj = t(`ui.upgrade.features.${feature}.list`, { returnObjects: true });
+  const featureList = typeof listObj === 'object' && listObj !== null ? Object.values(listObj) : [];
+
+  const requiredPlan = getPlanDefinition(config.requiredPlan);
   const currentPlanDef = getPlanDefinition(currentPlan);
-  const isUpgradeNeeded = currentPlan !== "free" && !isPlanAtLeast(currentPlan, info.requiredPlan);
+  const isUpgradeNeeded = currentPlan !== "free" && !isPlanAtLeast(currentPlan, config.requiredPlan);
   const needsUpgrade = isUpgradeNeeded || (gateResult && !gateResult.allowed);
+  
   if (!needsUpgrade && !gateResult) {
     return null;
   }
+  
   const showLimitInfo = limit !== undefined && current !== undefined && current >= limit;
   const handleUpgrade = () => {
     if (onUpgrade) {
@@ -122,38 +69,40 @@ export function UpgradePrompt({
       window.location.href = "/app/billing";
     }
   };
+  
   if (compact) {
     return (
       <Banner tone={tone}>
         <InlineStack gap="300" blockAlign="center">
           <LockIcon />
           <Text as="span" variant="bodySm">
-            {gateResult?.reason || `${info.name}需要 ${requiredPlan.name} 及以上套餐`}
+            {gateResult?.reason || t("ui.upgrade.lock.title", { name })}
           </Text>
           <Button size="slim" variant="plain" onClick={handleUpgrade}>
-            升级套餐
+            {t("ui.upgrade.upgradeAction")}
           </Button>
         </InlineStack>
       </Banner>
     );
   }
+  
   return (
     <Card>
       <BlockStack gap="400">
         <InlineStack gap="200" blockAlign="center">
           <LockIcon />
           <Text as="h3" variant="headingMd">
-            {info.name}需要升级套餐
+            {t("ui.upgrade.lock.title", { name })}
           </Text>
         </InlineStack>
         <Text as="p" tone="subdued">
-          {info.description}
+          {description}
         </Text>
         {showLimitInfo && (
           <Banner tone="warning">
             <Text as="p" variant="bodySm">
-              当前已使用 {current} / {limit} 个{info.name}。
-              {limit === 0 && "当前套餐不支持此功能。"}
+              {t("ui.upgrade.limit.info", { current, limit, name })}
+              {limit === 0 && " " + t("ui.upgrade.limit.unsupported")}
             </Text>
           </Banner>
         )}
@@ -164,28 +113,28 @@ export function UpgradePrompt({
             </Text>
           </Banner>
         )}
-        {info.featureList && (
+        {featureList.length > 0 && (
           <BlockStack gap="200">
             <Text as="p" variant="bodySm" fontWeight="semibold">
-              {requiredPlan.name} 套餐包含：
+              {t("ui.upgrade.requiredPlan.includes", { requiredPlan: requiredPlan.name })}
             </Text>
             <List type="bullet">
-              {info.featureList.map((item, index) => (
-                <List.Item key={index}>{item}</List.Item>
+              {featureList.map((item, index) => (
+                <List.Item key={index}>{item as string}</List.Item>
               ))}
             </List>
           </BlockStack>
         )}
         <BlockStack gap="200">
           <Text as="p" variant="bodySm" tone="subdued">
-            当前套餐：<strong>{currentPlanDef.name}</strong>
+            <Trans i18nKey="ui.upgrade.currentPlan" values={{ plan: currentPlanDef.name }} components={{ strong: <strong /> }} />
           </Text>
           <Text as="p" variant="bodySm" tone="subdued">
-            需要套餐：<strong>{requiredPlan.name}</strong>（{requiredPlan.priceLabel}/月）
+            <Trans i18nKey="ui.upgrade.requiredPlan.label" values={{ plan: requiredPlan.name, price: requiredPlan.priceLabel }} components={{ strong: <strong /> }} />
           </Text>
         </BlockStack>
         <Button variant="primary" onClick={handleUpgrade} fullWidth>
-          升级到 {requiredPlan.name}
+          {t("ui.upgrade.upgradeTo", { plan: requiredPlan.name })}
         </Button>
       </BlockStack>
     </Card>

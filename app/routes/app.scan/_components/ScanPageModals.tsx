@@ -126,22 +126,22 @@ export function ScanPageModals({
                   <List type="number">
                     <List.Item>
                       <Text as="span">
-                        <strong>{t("ScanModals.Guidance.Steps.Pixel")}</strong>：在「迁移」页面确认 Tracking Guardian Pixel 已安装并正常运行
+                        <Trans i18nKey="ScanModals.Guidance.Steps.PixelFull" components={{ 0: <strong /> }} />
                       </Text>
                     </List.Item>
                     <List.Item>
                       <Text as="span">
-                        <strong>{t("ScanModals.Guidance.Steps.Creds")}</strong>：在「迁移」页面配置相应平台的像素 ID（GA4/Meta/TikTok）
+                        <Trans i18nKey="ScanModals.Guidance.Steps.CredsFull" components={{ 0: <strong /> }} />
                       </Text>
                     </List.Item>
                     <List.Item>
                       <Text as="span">
-                        <strong>{t("ScanModals.Guidance.Steps.Verify")}</strong>：完成一次测试订单，在「监控」页面确认事件已收到
+                        <Trans i18nKey="ScanModals.Guidance.Steps.VerifyFull" components={{ 0: <strong /> }} />
                       </Text>
                     </List.Item>
                     <List.Item>
                       <Text as="span">
-                        <strong>{t("ScanModals.Guidance.Steps.Delete")}</strong>：前往 Shopify 后台 → 设置 → 应用和销售渠道，找到创建该 ScriptTag 的应用并卸载
+                        <Trans i18nKey="ScanModals.Guidance.Steps.DeleteFull" components={{ 0: <strong /> }} />
                       </Text>
                     </List.Item>
                   </List>
@@ -236,7 +236,7 @@ export function ScanPageModals({
         open={guidedSupplementOpen}
         onClose={() => setGuidedSupplementOpen(false)}
         onComplete={(count) => {
-          showSuccess(`成功创建 ${count} 个迁移资产`);
+          showSuccess(t("scan.success.assetsCreated", { count }));
           window.location.reload();
         }}
         shopId={shopId}

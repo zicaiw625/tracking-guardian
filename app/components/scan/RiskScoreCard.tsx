@@ -1,4 +1,5 @@
 import { Card, BlockStack, Box, Text } from "@shopify/polaris";
+import { useTranslation } from "react-i18next";
 
 interface RiskScoreCardProps {
   riskScore: number;
@@ -6,11 +7,13 @@ interface RiskScoreCardProps {
 }
 
 export function RiskScoreCard({ riskScore, createdAt }: RiskScoreCardProps) {
+  const { t, i18n } = useTranslation();
+  const locale = (i18n.resolvedLanguage ?? i18n.language)?.toLowerCase().startsWith("zh") ? "zh-CN" : "en-US";
   return (
     <Card>
       <BlockStack gap="400">
         <Text as="h2" variant="headingMd">
-          风险评分
+          {t("scan.riskScoreCard.title")}
         </Text>
         <Box
           background={
@@ -33,7 +36,7 @@ export function RiskScoreCard({ riskScore, createdAt }: RiskScoreCardProps) {
           </BlockStack>
         </Box>
         <Text as="p" variant="bodySm" tone="subdued">
-          扫描时间: {new Date(createdAt).toLocaleString("zh-CN")}
+          {t("scan.riskScoreCard.scanTime", { time: new Date(createdAt).toLocaleString(locale) })}
         </Text>
       </BlockStack>
     </Card>

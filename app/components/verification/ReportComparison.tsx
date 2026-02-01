@@ -156,7 +156,15 @@ export function ReportComparison({ shopId: _shopId, availableRuns }: ReportCompa
             options={[
               { label: t("components.reportComparison.selectReport"), value: "" },
               ...availableRuns.map((run) => ({
-                label: `${run.runName} (${run.completedAt ? new Date(run.completedAt).toLocaleDateString(i18n.language === 'zh' ? "zh-CN" : "en-US") : t("components.reportComparison.incomplete")})`,
+                label: `${run.runName} (${
+                  run.completedAt
+                    ? new Date(run.completedAt).toLocaleDateString(
+                        (i18n.resolvedLanguage ?? i18n.language)?.toLowerCase().startsWith("zh")
+                          ? "zh-CN"
+                          : "en-US"
+                      )
+                    : t("components.reportComparison.incomplete")
+                })`,
                 value: run.runId,
               })),
             ]}
@@ -168,7 +176,15 @@ export function ReportComparison({ shopId: _shopId, availableRuns }: ReportCompa
             options={[
               { label: t("components.reportComparison.selectReport"), value: "" },
               ...availableRuns.map((run) => ({
-                label: `${run.runName} (${run.completedAt ? new Date(run.completedAt).toLocaleDateString(i18n.language === 'zh' ? "zh-CN" : "en-US") : t("components.reportComparison.incomplete")})`,
+                label: `${run.runName} (${
+                  run.completedAt
+                    ? new Date(run.completedAt).toLocaleDateString(
+                        (i18n.resolvedLanguage ?? i18n.language)?.toLowerCase().startsWith("zh")
+                          ? "zh-CN"
+                          : "en-US"
+                      )
+                    : t("components.reportComparison.incomplete")
+                })`,
                 value: run.runId,
               })),
             ]}

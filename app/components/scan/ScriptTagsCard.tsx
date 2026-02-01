@@ -1,5 +1,6 @@
 import { Card, BlockStack, InlineStack, Text, Badge, Banner } from "@shopify/polaris";
 import type { ScriptTag } from "../../types";
+import { useTranslation } from "react-i18next";
 
 interface DeprecationInfo {
   badge: { text: string };
@@ -13,12 +14,13 @@ interface ScriptTagsCardProps {
 }
 
 export function ScriptTagsCard({ scriptTags, deprecationStatus }: ScriptTagsCardProps) {
+  const { t } = useTranslation();
   return (
     <Card>
       <BlockStack gap="400">
         <InlineStack align="space-between" blockAlign="center">
           <Text as="h2" variant="headingMd">
-            ScriptTags
+            {t("scan.scriptTagsCard.title")}
           </Text>
           {deprecationStatus && (
             <Badge tone={deprecationStatus.isExpired ? "critical" : "warning"}>
@@ -28,7 +30,7 @@ export function ScriptTagsCard({ scriptTags, deprecationStatus }: ScriptTagsCard
         </InlineStack>
         <BlockStack gap="200">
           <InlineStack align="space-between">
-            <Text as="span">已安装数量</Text>
+            <Text as="span">{t("scan.scriptTagsCard.installedCount")}</Text>
             <Text as="span" fontWeight="semibold">
               {scriptTags.length}
             </Text>

@@ -1,5 +1,6 @@
 import { Card, BlockStack, InlineStack, Text, Badge, Button, Checkbox } from "@shopify/polaris";
 import { SettingsIcon } from "~/components/icons";
+import { useTranslation } from "react-i18next";
 import { PLATFORM_INFO, SUPPORTED_PLATFORMS, type SupportedPlatform } from "../constants";
 
 interface SelectPlatformStepProps {
@@ -13,27 +14,28 @@ export function SelectPlatformStep({
   onPlatformToggle,
   onOpenTemplateModal,
 }: SelectPlatformStepProps) {
+  const { t } = useTranslation();
   return (
     <Card>
       <BlockStack gap="400">
         <InlineStack align="space-between" blockAlign="center">
           <Text as="h3" variant="headingMd">
-            选择要配置的平台
+            {t("pixelMigration.selectPlatform.title")}
           </Text>
           <Button size="slim" icon={SettingsIcon} onClick={onOpenTemplateModal}>
-            查看模板
+            {t("pixelMigration.selectPlatform.viewTemplates")}
           </Button>
         </InlineStack>
         <Text as="p" tone="subdued">
-          选择您要迁移的广告平台，可使用预设模板快速配置事件映射。
+          {t("pixelMigration.selectPlatform.templateTip")}
         </Text>
         <Card>
           <BlockStack gap="200">
             <Text as="p" variant="bodySm" fontWeight="semibold">
-              v1 支持平台：
+              {t("pixelMigration.selectPlatform.v1Support")}
             </Text>
             <Text as="p" variant="bodySm">
-              v1 版本仅支持 GA4、Meta、TikTok 三个平台。其他平台（Pinterest、Snapchat、Twitter 等）将在 v1.1+ 版本支持。
+              {t("pixelMigration.selectPlatform.v1Focus")}
             </Text>
           </BlockStack>
         </Card>
@@ -55,11 +57,11 @@ export function SelectPlatformStep({
                             {info.name}
                           </Text>
                           <Badge tone="success" size="small">
-                            v1 支持
+                            {t("pixelMigration.selectPlatform.v1Support")}
                           </Badge>
                         </InlineStack>
                         <Text as="span" variant="bodySm" tone="subdued">
-                          {info.description}
+                          {t(info.descriptionKey)}
                         </Text>
                       </BlockStack>
                     </InlineStack>

@@ -46,76 +46,76 @@ export const PLATFORM_INFO: Record<
   {
     name: string;
     icon: string;
-    description: string;
+    descriptionKey: string;
     credentialFields: Array<{
       key: string;
-      label: string;
-      placeholder: string;
+      labelKey: string;
+      placeholderKey: string;
       type: "text" | "password";
-      helpText?: string;
+      helpTextKey?: string;
     }>;
   }
 > = {
   google: {
     name: "Google Analytics 4",
     icon: "🔵",
-    description: "用于 Web Pixel 标准事件映射",
+    descriptionKey: "pixelMigration.platforms.google.description",
     credentialFields: [
       {
         key: "measurementId",
-        label: "Measurement ID",
-        placeholder: "G-XXXXXXXXXX",
+        labelKey: "pixelMigration.platforms.google.fields.measurementId.label",
+        placeholderKey: "pixelMigration.platforms.google.fields.measurementId.placeholder",
         type: "text",
-        helpText: "在 GA4 管理后台的「数据流」中查找",
+        helpTextKey: "pixelMigration.platforms.google.fields.measurementId.helpText",
       },
       {
         key: "apiSecret",
-        label: "API Secret",
-        placeholder: "",
+        labelKey: "pixelMigration.platforms.google.fields.apiSecret.label",
+        placeholderKey: "pixelMigration.platforms.google.fields.apiSecret.placeholder",
         type: "password",
-        helpText: "在 GA4 数据流 > Measurement Protocol API secrets 中创建",
+        helpTextKey: "pixelMigration.platforms.google.fields.apiSecret.helpText",
       },
     ],
   },
   meta: {
     name: "Meta (Facebook) Pixel",
     icon: "📘",
-    description: "用于 Web Pixel 标准事件映射",
+    descriptionKey: "pixelMigration.platforms.meta.description",
     credentialFields: [
       {
         key: "pixelId",
-        label: "Pixel ID",
-        placeholder: "123456789012345",
+        labelKey: "pixelMigration.platforms.meta.fields.pixelId.label",
+        placeholderKey: "pixelMigration.platforms.meta.fields.pixelId.placeholder",
         type: "text",
-        helpText: "在 Meta Events Manager 中查找",
+        helpTextKey: "pixelMigration.platforms.meta.fields.pixelId.helpText",
       },
       {
         key: "accessToken",
-        label: "Access Token",
-        placeholder: "",
+        labelKey: "pixelMigration.platforms.meta.fields.accessToken.label",
+        placeholderKey: "pixelMigration.platforms.meta.fields.accessToken.placeholder",
         type: "password",
-        helpText: "在 Meta Events Manager 中生成系统用户访问令牌",
+        helpTextKey: "pixelMigration.platforms.meta.fields.accessToken.helpText",
       },
     ],
   },
   tiktok: {
     name: "TikTok Pixel",
     icon: "🎵",
-    description: "用于 Web Pixel 标准事件映射",
+    descriptionKey: "pixelMigration.platforms.tiktok.description",
     credentialFields: [
       {
         key: "pixelId",
-        label: "Pixel ID",
-        placeholder: "C1234567890ABCDEF",
+        labelKey: "pixelMigration.platforms.tiktok.fields.pixelId.label",
+        placeholderKey: "pixelMigration.platforms.tiktok.fields.pixelId.placeholder",
         type: "text",
-        helpText: "在 TikTok Events Manager 中查找",
+        helpTextKey: "pixelMigration.platforms.tiktok.fields.pixelId.helpText",
       },
       {
         key: "accessToken",
-        label: "Access Token",
-        placeholder: "",
+        labelKey: "pixelMigration.platforms.tiktok.fields.accessToken.label",
+        placeholderKey: "pixelMigration.platforms.tiktok.fields.accessToken.placeholder",
         type: "password",
-        helpText: "在 TikTok Events Manager 中生成",
+        helpTextKey: "pixelMigration.platforms.tiktok.fields.accessToken.helpText",
       },
     ],
   },
@@ -124,8 +124,8 @@ export const PLATFORM_INFO: Record<
 export const PRESET_TEMPLATES: WizardTemplate[] = [
   {
     id: "standard",
-    name: "标准配置（v1）",
-    description: "适用于大多数电商店铺的标准事件映射（GA4/Meta/TikTok）",
+    name: "pixelMigration.templates.standard.name",
+    description: "pixelMigration.templates.standard.description",
     platforms: ["google", "meta", "tiktok"],
     eventMappings: {
       google: { checkout_completed: "purchase" },
@@ -137,8 +137,8 @@ export const PRESET_TEMPLATES: WizardTemplate[] = [
   },
   {
     id: "advanced",
-    name: "高级配置（v1.1+）",
-    description: "包含更多事件类型的完整映射（v1.1+ 将支持 Pinterest/Snapchat）",
+    name: "pixelMigration.templates.advanced.name",
+    description: "pixelMigration.templates.advanced.description",
     platforms: ["google", "meta", "tiktok"],
     eventMappings: {
       google: {
@@ -163,8 +163,8 @@ export const PRESET_TEMPLATES: WizardTemplate[] = [
 ];
 
 export const PIXEL_SETUP_STEPS = [
-  { id: "select" as const, label: "选择平台" },
-  { id: "mappings" as const, label: "事件映射" },
-  { id: "credentials" as const, label: "平台凭证" },
-  { id: "review" as const, label: "检查配置" },
+  { id: "select" as const, label: "pixelMigration.steps.select" },
+  { id: "mappings" as const, label: "pixelMigration.steps.mappings" },
+  { id: "credentials" as const, label: "pixelMigration.steps.credentials" },
+  { id: "review" as const, label: "pixelMigration.steps.review" },
 ];

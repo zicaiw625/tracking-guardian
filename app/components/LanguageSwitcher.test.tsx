@@ -22,8 +22,13 @@ vi.mock("@shopify/polaris", async (importOriginal) => {
 
 // Mock react-i18next
 const changeLanguageMock = vi.fn();
+const tMock = (key: string) => {
+  if (key === "common.language.english") return "English";
+  if (key === "common.language.chinese") return "中文";
+  return key;
+};
 const useTranslationMock = vi.fn(() => ({
-  t: (key: string) => key,
+  t: tMock,
   i18n: {
     language: "en",
     changeLanguage: changeLanguageMock,
@@ -50,7 +55,7 @@ describe("LanguageSwitcher", () => {
 
   it("renders the current language (English)", () => {
     useTranslationMock.mockReturnValue({
-      t: (key: string) => key,
+      t: tMock,
       i18n: {
         language: "en",
         changeLanguage: changeLanguageMock,
@@ -68,7 +73,7 @@ describe("LanguageSwitcher", () => {
 
   it("renders the current language (Chinese)", () => {
     useTranslationMock.mockReturnValue({
-      t: (key: string) => key,
+      t: tMock,
       i18n: {
         language: "zh",
         changeLanguage: changeLanguageMock,
@@ -86,7 +91,7 @@ describe("LanguageSwitcher", () => {
 
   it("opens popover and switches language to Chinese", async () => {
     useTranslationMock.mockReturnValue({
-      t: (key: string) => key,
+      t: tMock,
       i18n: {
         language: "en",
         changeLanguage: changeLanguageMock,
@@ -120,7 +125,7 @@ describe("LanguageSwitcher", () => {
 
   it("opens popover and switches language to English", async () => {
     useTranslationMock.mockReturnValue({
-      t: (key: string) => key,
+      t: tMock,
       i18n: {
         language: "zh",
         changeLanguage: changeLanguageMock,

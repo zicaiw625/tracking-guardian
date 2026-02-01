@@ -1,6 +1,7 @@
 import type { ActionFunctionArgs } from "@remix-run/node";
 import { json } from "@remix-run/node";
 import { authenticate } from "../shopify.server";
+import { createI18nServerInstance } from "../i18n.server";
 import prisma from "../db.server";
 import {
   rollbackConfig,
@@ -16,6 +17,8 @@ import { isV1SupportedPlatform, getV1Platforms } from "../utils/v1-platforms";
 
 export const action = async ({ request }: ActionFunctionArgs) => {
   const { session } = await authenticate.admin(request);
+  const i18n = await createI18nServerInstance(request);
+  const t = i18n.getFixedT(i18n.language);
   const shopDomain = session.shop;
   const shop = await prisma.shop.findUnique({
     where: { shopDomain },
@@ -28,13 +31,13 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   const actionType = formData.get("_action") as string;
   const platform = formData.get("platform") as string;
   if (!platform) {
-    return json({ success: false, error: "缺少 platform 参数" }, { status: 400 });
+    return json({ success: false, error: t("pixelConfig.errors.missingPlatform") }, { status: 400 });
   }
   if (!isV1SupportedPlatform(platform)) {
     const v1Platforms = getV1Platforms();
     return json({
       success: false,
-      error: `平台 ${platform} 在 v1.0 版本中不支持。v1.0 仅支持: ${v1Platforms.join(", ")}。`,
+      error: t("pixelConfig.errors.unsupportedPlatform", { platform, supported: v1Platforms.join(", ") }),
     }, { status: 400 });
   }
   try {
@@ -53,7 +56,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         if (!newEnvironment || !["test", "live"].includes(newEnvironment)) {
           return json({
             success: false,
-            error: "无效的环境参数"
+            error: t("pixelConfig.errors.invalidEnvironment")
           }, { status: 400 });
         }
         const result = await switchEnvironment(shop.id, platform, newEnvironment);
@@ -109,13 +112,13 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         });
       }
       default:
-        return json({ success: false, error: "未知操作" }, { status: 400 });
+        return json({ success: false, error: t("pixelConfig.errors.unknownAction") }, { status: 400 });
     }
   } catch (error) {
     logger.error("Pixel config action error", { actionType, platform, error });
     return json({
       success: false,
-      error: "操作失败，请稍后重试"
+      error: t("pixelConfig.errors.operationFailed")
     }, { status: 500 });
   }
 };

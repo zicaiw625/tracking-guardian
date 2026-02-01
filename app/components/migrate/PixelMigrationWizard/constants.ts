@@ -42,70 +42,70 @@ export const PLATFORM_INFO: Partial<Record<PlatformType, {
   google: {
     name: "Google Analytics 4",
     icon: "🔵",
-    description: "用于事件映射与验收（服务端投递为规划项）",
+    description: "pixelMigration.platforms.google.description",
     credentialFields: [
       {
         key: "measurementId",
-        label: "Measurement ID",
+        label: "pixelMigration.platforms.google.fields.measurementId.label",
         placeholder: "G-XXXXXXXXXX",
         type: "text",
-        helpText: "在 GA4 管理后台的「数据流」中查找",
+        helpText: "pixelMigration.platforms.google.fields.measurementId.helpText",
       },
       {
         key: "apiSecret",
-        label: "API Secret",
-        placeholder: "输入 API Secret",
+        label: "pixelMigration.platforms.google.fields.apiSecret.label",
+        placeholder: "pixelMigration.platforms.google.fields.apiSecret.placeholder",
         type: "password",
-        helpText: "在 GA4 管理后台的「数据流」→「Measurement Protocol API secrets」中创建",
+        helpText: "pixelMigration.platforms.google.fields.apiSecret.helpText",
       },
     ],
   },
   meta: {
     name: "Meta (Facebook) Pixel",
     icon: "📘",
-    description: "用于事件映射与验收（服务端投递为规划项）",
+    description: "pixelMigration.platforms.meta.description",
     credentialFields: [
       {
         key: "pixelId",
-        label: "Pixel ID",
+        label: "pixelMigration.platforms.meta.fields.pixelId.label",
         placeholder: "123456789012345",
         type: "text",
-        helpText: "在 Meta Events Manager 中查找",
+        helpText: "pixelMigration.platforms.meta.fields.pixelId.helpText",
       },
       {
         key: "accessToken",
-        label: "Access Token",
-        placeholder: "输入 Access Token",
+        label: "pixelMigration.platforms.meta.fields.accessToken.label",
+        placeholder: "pixelMigration.platforms.meta.fields.accessToken.placeholder",
         type: "password",
-        helpText: "在 Meta Events Manager → Settings → Conversions API 中生成",
+        helpText: "pixelMigration.platforms.meta.fields.accessToken.helpText",
       },
       {
         key: "testEventCode",
-        label: "Test Event Code (可选)",
+        label: "pixelMigration.platforms.meta.fields.testEventCode.label",
         placeholder: "TEST12345",
         type: "text",
-        helpText: "用于测试模式，可在 Events Manager 中获取",
+        helpText: "pixelMigration.platforms.meta.fields.testEventCode.helpText",
       },
     ],
   },
   tiktok: {
     name: "TikTok Pixel",
     icon: "🎵",
-    description: "用于事件映射与验收（服务端投递为规划项）",
+    description: "pixelMigration.platforms.tiktok.description",
     credentialFields: [
       {
         key: "pixelId",
-        label: "Pixel ID",
+        label: "pixelMigration.platforms.tiktok.fields.pixelId.label",
         placeholder: "C1234567890ABCDEF",
         type: "text",
-        helpText: "在 TikTok Events Manager 中查找",
+        helpText: "pixelMigration.platforms.tiktok.fields.pixelId.helpText",
       },
       {
         key: "accessToken",
-        label: "Access Token",
-        placeholder: "输入 Access Token",
+        label: "pixelMigration.platforms.tiktok.fields.accessToken.label",
+        placeholder: "pixelMigration.platforms.tiktok.fields.accessToken.placeholder",
         type: "password",
-        helpText: "在 TikTok Events Manager → Settings → Web Events 中生成",
+        helpText: "pixelMigration.platforms.tiktok.fields.accessToken.helpText",
       },
     ],
   },
@@ -114,8 +114,8 @@ export const PLATFORM_INFO: Partial<Record<PlatformType, {
 export const PRESET_TEMPLATES = [
   {
     id: "standard",
-    name: "标准配置（v1）",
-    description: "适用于大多数电商店铺的标准事件映射（GA4/Meta/TikTok）",
+    name: "pixelMigration.templates.standard.name",
+    description: "pixelMigration.templates.standard.description",
     platforms: ["google", "meta", "tiktok"],
     eventMappings: {
       google: {
@@ -131,8 +131,8 @@ export const PRESET_TEMPLATES = [
   },
   {
     id: "advanced",
-    name: "高级配置（v1.1+）",
-    description: "包含更多事件类型的完整映射（v1.1+ 将支持 Pinterest/Snapchat）",
+    name: "pixelMigration.templates.advanced.name",
+    description: "pixelMigration.templates.advanced.description",
     platforms: ["google", "meta", "tiktok"],
     eventMappings: {
       google: {

@@ -1,4 +1,5 @@
 import { Badge } from "@shopify/polaris";
+import { useTranslation } from "react-i18next";
 
 export interface PriorityBadgeProps {
   priority: number;
@@ -6,6 +7,7 @@ export interface PriorityBadgeProps {
 }
 
 export function PriorityBadge({ priority, size = "medium" }: PriorityBadgeProps) {
+  const { t } = useTranslation();
   const getTone = (): "critical" | "warning" | "info" | "success" => {
     if (priority >= 8) {
       return "critical";
@@ -16,19 +18,20 @@ export function PriorityBadge({ priority, size = "medium" }: PriorityBadgeProps)
     }
     return "success";
   };
-  const getLabel = (): string => {
+  const getLabelKey = (): string => {
     if (priority >= 8) {
-      return "高优先级";
+      return "high";
     } else if (priority >= 5) {
-      return "中优先级";
+      return "medium";
     } else if (priority >= 3) {
-      return "低优先级";
+      return "low";
     }
-    return "最低优先级";
+    return "lowest";
   };
+  const label = t(`scan.priority.${getLabelKey()}`);
   return (
     <Badge tone={getTone()} size={size}>
-      {`${getLabel()} (${priority}/10)`}
+      {t("scan.priority.label", { label, priority })}
     </Badge>
   );
 }

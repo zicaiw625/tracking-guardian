@@ -13,15 +13,15 @@ export function DataConnectionBanner({
   
   // Helper to translate specific issue strings if they match known patterns
   const translateIssue = (issue: string) => {
-    if (issue === "Ingestion Key Not Configured") return t("dashboard.dataConnection.issueIngestionSecret");
-    if (issue === "Web Pixel Not Installed") return t("dashboard.dataConnection.issueWebPixel");
-    if (issue === "Web Pixel Missing ingestion_key") return t("dashboard.dataConnection.issueIngestionKey");
+    if (issue === "MISSING_SECRET") return t("dashboard.dataConnection.issueIngestionSecret");
+    if (issue === "MISSING_PIXEL") return t("dashboard.dataConnection.issueWebPixel");
+    if (issue === "MISSING_KEY") return t("dashboard.dataConnection.issueIngestionKey");
     return issue;
   };
 
-  const hasIngestionSecretIssue = issues.includes("Ingestion Key Not Configured");
-  const hasWebPixelIssue = issues.includes("Web Pixel Not Installed");
-  const hasIngestionKeyIssue = issues.includes("Web Pixel Missing ingestion_key");
+  const hasIngestionSecretIssue = issues.includes("MISSING_SECRET");
+  const hasWebPixelIssue = issues.includes("MISSING_PIXEL");
+  const hasIngestionKeyIssue = issues.includes("MISSING_KEY");
 
   if (hasIngestionSecretIssue && hasWebPixelIssue) {
     return (

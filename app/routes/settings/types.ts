@@ -90,15 +90,21 @@ export interface SettingsLoaderData {
 
 export interface ActionSuccessResponse {
   success: true;
-  message: string;
+  messageKey: string;
+  messageParams?: Record<string, unknown>;
   pixelSyncSuccess?: boolean;
   graceWindowExpiry?: string;
+  previousEnvironment?: "test" | "live";
+  newEnvironment?: "test" | "live";
+  previousVersion?: number;
+  currentVersion?: number;
 }
 
 export interface ActionErrorResponse {
   success: false;
+  errorKey?: string;
+  errorParams?: Record<string, unknown>;
   error?: string;
-  message?: string;
   requirePcdAcknowledgement?: boolean;
 }
 

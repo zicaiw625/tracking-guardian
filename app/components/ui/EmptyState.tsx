@@ -1,6 +1,7 @@
 import { memo } from "react";
 import { Card, BlockStack, Text, Button, InlineStack, Box } from "@shopify/polaris";
 import { EmptyStateDisplay } from "./ErrorDisplay";
+import { useTranslation } from "react-i18next";
 
 export interface EnhancedEmptyStateProps {
   title?: string;
@@ -22,8 +23,8 @@ export interface EnhancedEmptyStateProps {
 }
 
 export const EnhancedEmptyState = memo(function EnhancedEmptyState({
-  title = "暂无数据",
-  description = "当前没有可显示的内容。",
+  title,
+  description,
   primaryAction,
   secondaryAction,
   icon,
@@ -31,7 +32,12 @@ export const EnhancedEmptyState = memo(function EnhancedEmptyState({
   helpText,
   children,
 }: EnhancedEmptyStateProps) {
+  const { t } = useTranslation();
   const hasActions = primaryAction || secondaryAction;
+
+  const displayTitle = title || t("ui.emptyState.title");
+  const displayDescription = description || t("ui.emptyState.description");
+
   return (
     <Card>
       <BlockStack gap="400" align="center">
@@ -50,10 +56,10 @@ export const EnhancedEmptyState = memo(function EnhancedEmptyState({
         ) : null}
         <BlockStack gap="200" align="center">
           <Text as="h2" variant="headingMd">
-            {title}
+            {displayTitle}
           </Text>
           <Text as="p" tone="subdued" alignment="center">
-            {description}
+            {displayDescription}
           </Text>
           {helpText && (
             <Text as="p" variant="bodySm" tone="subdued" alignment="center">
@@ -96,12 +102,13 @@ export function EmptyStateNoData({
   primaryAction?: EnhancedEmptyStateProps["primaryAction"];
   secondaryAction?: EnhancedEmptyStateProps["secondaryAction"];
 }) {
+  const { t } = useTranslation();
   return (
     <EnhancedEmptyState
       icon="📭"
-      title="暂无数据"
-      description="当前没有可显示的数据。"
-      helpText="请执行相关操作或稍后再试。"
+      title={t("ui.emptyState.title")}
+      description={t("ui.emptyState.description")}
+      helpText={t("ui.emptyState.helpText")}
       primaryAction={primaryAction}
       secondaryAction={secondaryAction}
     />
@@ -115,18 +122,19 @@ export function EmptyStateNoResults({
   onReset?: () => void;
   onSearch?: () => void;
 }) {
+  const { t } = useTranslation();
   return (
     <EnhancedEmptyState
       icon="🔍"
-      title="未找到结果"
-      description="没有找到匹配的搜索结果。"
-      helpText="请尝试调整搜索条件或筛选器。"
+      title={t("ui.emptyState.noResults.title")}
+      description={t("ui.emptyState.noResults.description")}
+      helpText={t("ui.emptyState.noResults.helpText")}
       primaryAction={onSearch ? {
-        content: "重新搜索",
+        content: t("ui.emptyState.search.content"),
         onAction: onSearch,
       } : undefined}
       secondaryAction={onReset ? {
-        content: "清除筛选",
+        content: t("ui.emptyState.reset.content"),
         onAction: onReset,
       } : undefined}
     />
@@ -135,18 +143,20 @@ export function EmptyStateNoResults({
 
 export function EmptyStateNotConfigured({
   onConfigure,
-  configType = "配置"
+  configType
 }: {
   onConfigure?: () => void;
   configType?: string;
 }) {
+  const { t } = useTranslation();
+  const finalConfigType = configType || t("ui.common.config");
   return (
     <EnhancedEmptyState
       icon="⚙️"
-      title={`${configType}未设置`}
-      description={`请先完成${configType}设置以使用此功能。`}
+      title={t("ui.emptyState.notConfigured.title", { configType: finalConfigType })}
+      description={t("ui.emptyState.notConfigured.description", { configType: finalConfigType })}
       primaryAction={onConfigure ? {
-        content: `开始${configType}`,
+        content: t("ui.emptyState.notConfigured.action", { configType: finalConfigType }),
         onAction: onConfigure,
       } : undefined}
     />
@@ -160,21 +170,22 @@ export function EmptyStateNoPermission({
   onUpgrade?: () => void;
   requiredFeature?: string;
 }) {
+  const { t } = useTranslation();
   const upgradeAction = onUpgrade ? {
-    content: "查看套餐",
+    content: t("ui.emptyState.noPermission.action"),
     onAction: onUpgrade,
   } : {
-    content: "查看套餐",
+    content: t("ui.emptyState.noPermission.action"),
     url: "/app/billing",
   };
   return (
     <EnhancedEmptyState
       icon="🔒"
-      title="需要升级套餐"
+      title={t("ui.emptyState.noPermission.title")}
       description={requiredFeature
-        ? `此功能需要 ${requiredFeature} 套餐。`
-        : "您的当前套餐不支持此功能。"}
-      helpText="升级套餐以解锁更多功能。"
+        ? t("ui.emptyState.noPermission.descriptionWithFeature", { requiredFeature })
+        : t("ui.emptyState.noPermission.description")}
+      helpText={t("ui.emptyState.noPermission.helpText")}
       primaryAction={upgradeAction}
     />
   );

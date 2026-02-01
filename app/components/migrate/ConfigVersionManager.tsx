@@ -183,7 +183,11 @@ export function ConfigVersionManager({
                         <InlineStack gap="300" blockAlign="center">
                           <Text as="span" variant="bodySm" tone="subdued">
                             <ClockIcon />
-                            {new Date(version.savedAt).toLocaleString(i18n.language === 'zh' ? "zh-CN" : "en-US")}
+                            {new Date(version.savedAt).toLocaleString(
+                              (i18n.resolvedLanguage ?? i18n.language)?.toLowerCase().startsWith("zh")
+                                ? "zh-CN"
+                                : "en-US"
+                            )}
                           </Text>
                         </InlineStack>
                       </BlockStack>

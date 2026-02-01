@@ -2,6 +2,7 @@ import { BlockStack, Text, Card, InlineStack, Badge, Box, Divider, TextField, Se
 import type { PlatformType } from "~/types/enums";
 import type { PlatformConfig } from "./useWizardState";
 import { PLATFORM_INFO } from "./constants";
+import { useTranslation } from "react-i18next";
 
 interface CredentialsStepProps {
   selectedPlatforms: Set<PlatformType>;
@@ -16,13 +17,15 @@ export function CredentialsStep({
   onCredentialUpdate,
   onEnvironmentToggle,
 }: CredentialsStepProps) {
+  const { t } = useTranslation();
+
   return (
     <BlockStack gap="500">
       <Text as="h3" variant="headingMd">
-        填写平台凭证
+        {t("pixelMigration.credentials.title")}
       </Text>
       <Text as="p" tone="subdued">
-        为每个选中的平台填写 API 凭证。这些凭证将加密存储，用于后续能力规划；当前版本默认不进行服务端投递。
+        {t("pixelMigration.credentials.description")}
       </Text>
       {Array.from(selectedPlatforms).map((platform) => {
         const config = platformConfigs[platform];
@@ -47,14 +50,14 @@ export function CredentialsStep({
                     borderRadius="200"
                   >
                     <Badge tone={config.environment === "live" ? "critical" : "warning"}>
-                      {config.environment === "live" ? "🔴 生产模式" : "🟡 测试模式"}
+                      {config.environment === "live" ? t("pixelMigration.credentials.liveMode") : t("pixelMigration.credentials.testMode")}
                     </Badge>
                   </Box>
                   <Select
-                    label="切换环境"
+                    label={t("pixelMigration.credentials.switchEnv")}
                     options={[
-                      { label: "🟡 测试环境 (Test) - 用于验证配置", value: "test" },
-                      { label: "🔴 生产环境 (Live)", value: "live" },
+                      { label: t("pixelMigration.credentials.testEnvOption"), value: "test" },
+                      { label: t("pixelMigration.credentials.liveEnvOption"), value: "live" },
                     ]}
                     value={config.environment}
                     onChange={(value) =>
@@ -62,8 +65,8 @@ export function CredentialsStep({
                     }
                     helpText={
                       config.environment === "test"
-                        ? "测试模式：用于验证映射与验收"
-                        : "生产模式：用于生产环境验收与监控"
+                        ? t("pixelMigration.credentials.testEnvHelp")
+                        : t("pixelMigration.credentials.liveEnvHelp")
                     }
                   />
                 </BlockStack>
@@ -74,7 +77,7 @@ export function CredentialsStep({
                   <BlockStack key={field.key} gap="100">
                     <TextField
                       key={field.key}
-                      label={field.label}
+                      label={t(field.label)}
                       type={field.type}
                       value={
                         config.credentials[
@@ -84,8 +87,8 @@ export function CredentialsStep({
                       onChange={(value) =>
                         onCredentialUpdate(platform, field.key, value)
                       }
-                      placeholder={field.placeholder}
-                      helpText={field.helpText}
+                      placeholder={t(field.placeholder)}
+                      helpText={field.helpText ? t(field.helpText) : undefined}
                       autoComplete="off"
                     />
                   </BlockStack>
@@ -94,7 +97,7 @@ export function CredentialsStep({
               {config.environment === "test" && (
                 <Banner tone="info">
                   <Text as="p" variant="bodySm">
-                    测试模式下，事件将发送到平台的测试端点，不会影响实际广告数据。
+                    {t("pixelMigration.credentials.testModeBanner")}
                   </Text>
                 </Banner>
               )}

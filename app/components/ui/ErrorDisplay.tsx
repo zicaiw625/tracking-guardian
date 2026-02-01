@@ -1,4 +1,5 @@
 import { Banner, Card, Text, BlockStack, Button, InlineStack } from "@shopify/polaris";
+import { useTranslation } from "react-i18next";
 
 export interface ErrorDisplayProps {
   title?: string;
@@ -22,7 +23,7 @@ export interface ApiErrorDisplayProps {
 }
 
 export function ErrorDisplay({
-  title = "发生错误",
+  title,
   message,
   code,
   retryable = false,
@@ -30,26 +31,29 @@ export function ErrorDisplay({
   onDismiss,
   variant = "banner",
 }: ErrorDisplayProps) {
+  const { t } = useTranslation();
+  const displayTitle = title || t("ui.error.title");
+
   if (variant === "card") {
     return (
       <Card>
         <BlockStack gap="400">
           <Text as="h2" variant="headingMd" tone="critical">
-            {title}
+            {displayTitle}
           </Text>
           <Text as="p">{message}</Text>
           {code && (
             <Text as="p" variant="bodySm" tone="subdued">
-              错误代码: {code}
+              {t("ui.error.code", { code })}
             </Text>
           )}
           <InlineStack gap="200">
             {retryable && onRetry && (
-              <Button onClick={onRetry}>重试</Button>
+              <Button onClick={onRetry}>{t("ui.error.retry")}</Button>
             )}
             {onDismiss && (
               <Button variant="plain" onClick={onDismiss}>
-                关闭
+                {t("ui.error.close")}
               </Button>
             )}
           </InlineStack>
@@ -59,12 +63,12 @@ export function ErrorDisplay({
   }
   return (
     <Banner
-      title={title}
+      title={displayTitle}
       tone="critical"
       onDismiss={onDismiss}
       action={
         retryable && onRetry
-          ? { content: "重试", onAction: onRetry }
+          ? { content: t("ui.error.retry"), onAction: onRetry }
           : undefined
       }
     >
@@ -72,7 +76,7 @@ export function ErrorDisplay({
         <Text as="p">{message}</Text>
         {code && (
           <Text as="p" variant="bodySm" tone="subdued">
-            错误代码: {code}
+            {t("ui.error.code", { code })}
           </Text>
         )}
       </BlockStack>
@@ -85,6 +89,7 @@ export function ApiErrorDisplay({
   onRetry,
   onDismiss,
 }: ApiErrorDisplayProps) {
+  const { t } = useTranslation();
   if (!error) return null;
   if (typeof error === "string") {
     return (
@@ -96,17 +101,17 @@ export function ApiErrorDisplay({
       />
     );
   }
-  const message = error.message || error.error || "发生未知错误";
+  const message = error.message || error.error || t("ui.error.api.unknown");
   const code = error.code;
   if (error.details && error.details.length > 0) {
     return (
       <Banner
-        title="输入验证失败"
+        title={t("ui.error.validation.title")}
         tone="warning"
         onDismiss={onDismiss}
         action={
           onRetry
-            ? { content: "重试", onAction: onRetry }
+            ? { content: t("ui.error.retry"), onAction: onRetry }
             : undefined
         }
       >
@@ -137,10 +142,11 @@ export interface NetworkErrorProps {
 }
 
 export function NetworkErrorDisplay({ onRetry }: NetworkErrorProps) {
+  const { t } = useTranslation();
   return (
     <ErrorDisplay
-      title="网络连接错误"
-      message="无法连接到服务器，请检查您的网络连接后重试。"
+      title={t("ui.error.network.title")}
+      message={t("ui.error.network.message")}
       retryable={!!onRetry}
       onRetry={onRetry}
     />
@@ -152,18 +158,20 @@ export interface NotFoundProps {
   onBack?: () => void;
 }
 
-export function NotFoundDisplay({ resource = "资源", onBack }: NotFoundProps) {
+export function NotFoundDisplay({ resource, onBack }: NotFoundProps) {
+  const { t } = useTranslation();
+  const displayResource = resource || t("ui.error.notFound.resource");
   return (
     <Card>
       <BlockStack gap="400" align="center">
         <Text as="h2" variant="headingLg">
-          未找到
+          {t("ui.error.notFound.title")}
         </Text>
         <Text as="p" tone="subdued">
-          请求的{resource}不存在或已被删除。
+          {t("ui.error.notFound.message", { resource: displayResource })}
         </Text>
         {onBack && (
-          <Button onClick={onBack}>返回</Button>
+          <Button onClick={onBack}>{t("ui.error.back")}</Button>
         )}
       </BlockStack>
     </Card>
@@ -180,18 +188,21 @@ export interface EmptyStateProps {
 }
 
 export function EmptyStateDisplay({
-  title = "暂无数据",
-  message = "当前没有可显示的内容。",
+  title,
+  message,
   action,
 }: EmptyStateProps) {
+  const { t } = useTranslation();
+  const displayTitle = title || t("ui.emptyState.title");
+  const displayMessage = message || t("ui.emptyState.description");
   return (
     <Card>
       <BlockStack gap="400" align="center">
         <Text as="h2" variant="headingMd">
-          {title}
+          {displayTitle}
         </Text>
         <Text as="p" tone="subdued">
-          {message}
+          {displayMessage}
         </Text>
         {action && (
           <Button variant="primary" onClick={action.onAction}>

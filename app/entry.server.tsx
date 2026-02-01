@@ -3,6 +3,7 @@ import { renderToPipeableStream } from "react-dom/server";
 import { RemixServer } from "@remix-run/react";
 import { createReadableStreamFromReadable, type EntryContext, } from "@remix-run/node";
 import { isbot } from "isbot";
+import { I18nextProvider } from "react-i18next";
 import { addDocumentResponseHeaders } from "./shopify.server";
 import { ensureSecretsValid, enforceSecurityChecks } from "./utils/secrets.server";
 import { validateEncryptionConfig } from "./utils/crypto.server";
@@ -13,6 +14,7 @@ import { RedisClientFactory } from "./utils/redis-client.server";
 import prisma from "./db.server";
 import { getCorsHeadersPreBody } from "./lib/pixel-events/cors";
 import { SecureShopDomainSchema } from "./utils/security";
+import { createI18nServerInstance } from "./i18n.server";
 const ABORT_DELAY = 5000;
 
 if (typeof process !== "undefined") {
@@ -91,6 +93,7 @@ const startupGate = (async () => {
 
 export default async function handleRequest(request: Request, responseStatusCode: number, responseHeaders: Headers, remixContext: EntryContext) {
     await startupGate;
+    const i18n = await createI18nServerInstance(request);
     const url = new URL(request.url);
     if (url.pathname === "/ingest" && request.method === "POST") {
         const contentLength = request.headers.get("Content-Length");
@@ -139,7 +142,11 @@ export default async function handleRequest(request: Request, responseStatusCode
     const callbackName = isbot(userAgent ?? "") ? "onAllReady" : "onShellReady";
     return new Promise((resolve, reject) => {
         let abortTimeoutId: NodeJS.Timeout | null = null;
-        const { pipe, abort } = renderToPipeableStream(<RemixServer context={remixContext} url={request.url} abortDelay={ABORT_DELAY}/>, {
+        const { pipe, abort } = renderToPipeableStream(
+          <I18nextProvider i18n={i18n}>
+            <RemixServer context={remixContext} url={request.url} abortDelay={ABORT_DELAY} />
+          </I18nextProvider>,
+          {
             [callbackName]: () => {
                 const body = new PassThrough();
                 const stream = createReadableStreamFromReadable(body);
@@ -165,7 +172,8 @@ export default async function handleRequest(request: Request, responseStatusCode
                 responseStatusCode = 500;
                 logger.error("React render error", error);
             },
-        });
+          }
+        );
         abortTimeoutId = setTimeout(() => {
             abortTimeoutId = null;
             abort();
