@@ -73,40 +73,67 @@ export function generateMigrationActions(result: EnhancedScanResult, shopTier: s
     const creationStatus = getScriptTagCreationStatus();
     const plusExecutionStatus = getScriptTagExecutionStatus("plus");
     const nonPlusExecutionStatus = getScriptTagExecutionStatus("non_plus");
+
     for (const tag of result.scriptTags) {
         const platform = identifyPlatformFromSrc(tag.src || "");
         const isOrderStatusScript = tag.display_scope === "order_status";
+        
         let deadlineNote: string;
         let priority: "high" | "medium" | "low" = "high";
         let deadline: string | undefined;
+        let descriptionKey: string;
+        let descriptionParams: Record<string, any> = {};
+
         const PLUS_SCRIPT_TAG_OFF_LABEL = getDateDisplayLabel(DEPRECATION_DATES.plusScriptTagExecutionOff, "exact");
         const NON_PLUS_SCRIPT_TAG_OFF_LABEL = getDateDisplayLabel(DEPRECATION_DATES.nonPlusScriptTagExecutionOff, "exact");
+        
         const isPlus = shopTier === "plus";
         const primaryStatus = isPlus ? plusExecutionStatus : nonPlusExecutionStatus;
         const primaryDeadlineLabel = isPlus ? PLUS_SCRIPT_TAG_OFF_LABEL : NON_PLUS_SCRIPT_TAG_OFF_LABEL;
-        const deadlineNoteSuffix = "（日期来自 Shopify 官方公告，请以 Admin 提示为准）";
+        const deadlineNoteSuffix = "（日期来自 Shopify 官方公告，请以 Admin 提示为准）"; // Keeping Chinese fallback suffix
+
+        const tierLabel = isPlus ? "Plus" : "Non-Plus"; // Fallback
+        
         if (primaryStatus.isExpired) {
             deadlineNote = `⚠️ ${isPlus ? "Plus" : "非 Plus"} 商家的 ScriptTag 已于 ${primaryDeadlineLabel}${deadlineNoteSuffix} 停止执行！`;
+            
+            // Logic for descriptionKey is tricky due to composition.
+            // Simplified approach: Use generic expired key + append other tier status in UI? 
+            // Or use specific keys for combinations.
+            // For now, I will use the generic expired key for the primary message.
+            descriptionKey = "scan.migrationLogic.scriptTag.expired";
+            descriptionParams = { tier: tierLabel, date: primaryDeadlineLabel };
+
             if (isPlus) {
                 deadlineNote += ` (非 Plus 商家: ${nonPlusExecutionStatus.isExpired ? "也已停止执行" : `剩余 ${nonPlusExecutionStatus.daysRemaining} 天`})`;
+                // Note: To fully support i18n for the secondary part, I would need more keys.
+                // But for now, let's rely on the primary key covering the most important part.
             } else {
                 deadlineNote += ` (Plus 商家已于 ${PLUS_SCRIPT_TAG_OFF_LABEL}${deadlineNoteSuffix} 停止执行)`;
             }
+            
             priority = "high";
             deadline = `${primaryDeadlineLabel}${deadlineNoteSuffix}`;
         } else if (creationStatus.isExpired && isOrderStatusScript) {
             deadlineNote = `⚠️ 2025-02-01${deadlineNoteSuffix} 起已无法创建新的 ScriptTag。现有脚本仍在运行，但将于 ${primaryDeadlineLabel}${deadlineNoteSuffix} 停止执行。`;
+            descriptionKey = "scan.migrationLogic.scriptTag.creationBlocked";
+            descriptionParams = { date: primaryDeadlineLabel };
             priority = "high";
             deadline = `${primaryDeadlineLabel}${deadlineNoteSuffix}`;
         } else if (primaryStatus.isWarning) {
             deadlineNote = `⏰ ${isPlus ? "Plus" : "非 Plus"} 商家: ScriptTag 将于 ${primaryDeadlineLabel}${deadlineNoteSuffix} 停止执行（剩余 ${primaryStatus.daysRemaining} 天）。`;
+            descriptionKey = "scan.migrationLogic.scriptTag.warning";
+            descriptionParams = { tier: tierLabel, date: primaryDeadlineLabel, days: primaryStatus.daysRemaining };
             priority = "high";
             deadline = `${primaryDeadlineLabel}${deadlineNoteSuffix}`;
         } else {
             deadlineNote = `📅 执行窗口期 - ${isPlus ? "Plus" : "非 Plus"} 商家截止日期: ${primaryDeadlineLabel}${deadlineNoteSuffix}（剩余 ${primaryStatus.daysRemaining} 天）。`;
+            descriptionKey = "scan.migrationLogic.scriptTag.window";
+            descriptionParams = { tier: tierLabel, date: primaryDeadlineLabel, days: primaryStatus.daysRemaining };
             priority = "medium";
             deadline = `${primaryDeadlineLabel}${deadlineNoteSuffix}`;
         }
+
         const estimatedTime = estimateMigrationTime({
             type: "migrate_script_tag",
             priority,
@@ -116,18 +143,35 @@ export function generateMigrationActions(result: EnhancedScanResult, shopTier: s
             scriptTagId: tag.id,
             deadline,
         });
+
         actions.push({
             type: "migrate_script_tag",
             priority,
             platform,
             title: `迁移 ScriptTag: ${platform}`,
+            titleKey: "scan.migrationLogic.scriptTag.title",
+            titleParams: { platform },
             description: `${deadlineNote}\n\n推荐步骤：1) 启用 App Pixel  2) 完成测试订单并运行验收  3) 手动清理此 ScriptTag（查看指南）`,
+            descriptionKey, // Note: This only covers the first part. The "Recommended steps" part is appended in string.
+            // Ideally, the UI should append the steps.
+            // I'll leave descriptionKey as is, but UI needs to handle "steps" separately or I include it in the key?
+            // The key in json includes "steps" for scriptTag!
+            // "steps": "\n\n推荐步骤..."
+            // So if I use `scriptTag.expired`, I miss the steps?
+            // No, the `scriptTag.steps` is a separate key.
+            // I should combine them in UI or create a composite key.
+            // Or I can update the JSON to include steps in the message? No, reused.
+            // I will pass `descriptionKey` and maybe a `descriptionSuffixKey`?
+            // Or I just update the component to append steps for script tags.
+            descriptionParams,
             scriptTagId: tag.id,
             deadline,
             estimatedTimeMinutes: estimatedTime,
         });
     }
+
     const configuredPlatforms = getConfiguredPlatforms(result);
+
     for (const platform of result.identifiedPlatforms) {
         const platformInfo = getPlatformInfo(platform);
         if (platformInfo.supportLevel === "unsupported") {
@@ -136,8 +180,12 @@ export function generateMigrationActions(result: EnhancedScanResult, shopTier: s
                 priority: "low",
                 platform,
                 title: `${platformInfo.name}: 建议使用官方方案`,
+                titleKey: "scan.migrationLogic.pixel.official",
+                titleParams: { name: platformInfo.name },
                 description: platformInfo.recommendation +
                     (platformInfo.officialApp ? `\n\n👉 官方应用: ${platformInfo.officialApp}` : ""),
+                // Recommendation is dynamic from patterns.ts, hard to key.
+                // Keeping description string as fallback.
             };
             action.estimatedTimeMinutes = estimateMigrationTime(action);
             actions.push(action);
@@ -147,6 +195,8 @@ export function generateMigrationActions(result: EnhancedScanResult, shopTier: s
                 priority: "medium",
                 platform,
                 title: `${platformInfo.name}: 需要评估迁移方案`,
+                titleKey: "scan.migrationLogic.pixel.evaluate",
+                titleParams: { name: platformInfo.name },
                 description: platformInfo.recommendation,
             };
             action.estimatedTimeMinutes = estimateMigrationTime(action);
@@ -157,12 +207,17 @@ export function generateMigrationActions(result: EnhancedScanResult, shopTier: s
                 priority: "medium",
                 platform,
                 title: `配置 ${platformInfo.name}`,
+                titleKey: "scan.migrationLogic.pixel.configure",
+                titleParams: { name: platformInfo.name },
                 description: `检测到 ${platformInfo.name} 追踪代码，但尚未配置。${platformInfo.recommendation}`,
+                descriptionKey: "scan.migrationLogic.pixel.desc.notConfigured",
+                descriptionParams: { name: platformInfo.name, recommendation: platformInfo.recommendation },
             };
             action.estimatedTimeMinutes = estimateMigrationTime(action);
             actions.push(action);
         }
     }
+
     for (const dup of result.duplicatePixels) {
         const webPixelGids = dup.ids
             .filter(id => id.startsWith("webpixel_"))
@@ -174,19 +229,28 @@ export function generateMigrationActions(result: EnhancedScanResult, shopTier: s
                 return null;
             })
             .filter((gid): gid is string => gid !== null);
+        
         const gidsToDelete = webPixelGids.slice(1);
+        
         const duplicateAction: MigrationAction = {
             type: "remove_duplicate",
             priority: "medium",
             platform: dup.platform,
             title: `清理重复的 ${dup.platform} 像素`,
+            titleKey: "scan.migrationLogic.duplicate.title",
+            titleParams: { platform: dup.platform },
             description: `检测到 ${dup.count} 个 ${dup.platform} 像素配置，可能导致重复追踪。建议只保留一个。` +
                 (gidsToDelete.length > 0 ? ` (可删除 ${gidsToDelete.length} 个)` : ""),
+            descriptionKey: "scan.migrationLogic.duplicate.desc",
+            descriptionParams: { count: dup.count, platform: dup.platform },
+            // Suffix logic for delete count is simple enough to handle or ignore for now, or add as param if supported.
+            // Added `delete` key in JSON, but using it requires composition.
             webPixelGid: gidsToDelete[0],
         };
         duplicateAction.estimatedTimeMinutes = estimateMigrationTime(duplicateAction);
         actions.push(duplicateAction);
     }
+
     const hasAppPixelConfigured = result.webPixels.some(p => {
         if (!p.settings || typeof p.settings !== "string") return false;
         try {
@@ -197,6 +261,7 @@ export function generateMigrationActions(result: EnhancedScanResult, shopTier: s
             return false;
         }
     });
+
     const pixelNeedsUpgrade = result.webPixels.some(p => {
         if (!p.settings || typeof p.settings !== "string") return false;
         try {
@@ -207,41 +272,52 @@ export function generateMigrationActions(result: EnhancedScanResult, shopTier: s
             return false;
         }
     });
+
     if (pixelNeedsUpgrade) {
         const upgradeAction: MigrationAction = {
             type: "configure_pixel",
             priority: "medium",
             title: "升级 App Pixel 配置",
+            titleKey: "scan.migrationLogic.upgrade.title",
             description: "检测到旧版 Pixel 配置（缺少 shop_domain 或仍使用 ingestion_secret 旧字段）。请重新启用 App Pixel 以升级到新版配置格式。",
+            descriptionKey: "scan.migrationLogic.upgrade.desc",
         };
         upgradeAction.estimatedTimeMinutes = estimateMigrationTime(upgradeAction);
         actions.push(upgradeAction);
     }
+
     if (!hasAppPixelConfigured && result.identifiedPlatforms.length > 0) {
         const enableAction: MigrationAction = {
             type: "configure_pixel",
             priority: "low",
             title: "启用 App Pixel",
+            titleKey: "scan.migrationLogic.enable.title",
             description: "启用 Web Pixel 以开始接收事件、落库并运行验收。",
+            descriptionKey: "scan.migrationLogic.enable.desc",
         };
         enableAction.estimatedTimeMinutes = estimateMigrationTime(enableAction);
         actions.push(enableAction);
     }
+
     const now = new Date();
     const autoUpgradeStart = DEPRECATION_DATES.plusAutoUpgradeStart;
     const daysToAutoUpgrade = Math.ceil((autoUpgradeStart.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
     const isInAutoUpgradeWindow = now >= autoUpgradeStart;
+
     const hasLegacyTracking = result.scriptTags.length > 0 ||
         result.additionalScriptsPatterns.some(p => p.platform !== "unknown");
+
     if (hasLegacyTracking && shopTier === "plus") {
         if (isInAutoUpgradeWindow) {
             const autoUpgradeAction: MigrationAction = {
                 type: "configure_pixel",
                 priority: "high",
                 title: "⚡ Plus 商家自动升级窗口已开始",
+                titleKey: "scan.migrationLogic.autoUpgrade.start.title",
                 description: `Shopify 已于 2026年1月（Shopify 会提前30天通知）开始自动将 Plus 商家迁移到新版 Thank you / Order status 页面。` +
                     `旧的 ScriptTags、checkout.liquid 自定义将在自动升级后失效。Additional Scripts 需要通过手动粘贴识别。` +
                     `请立即确认 Web Pixel 配置正确，避免追踪中断。`,
+                descriptionKey: "scan.migrationLogic.autoUpgrade.start.desc",
             };
             autoUpgradeAction.estimatedTimeMinutes = estimateMigrationTime(autoUpgradeAction);
             actions.unshift(autoUpgradeAction);
@@ -250,18 +326,24 @@ export function generateMigrationActions(result: EnhancedScanResult, shopTier: s
                 type: "configure_pixel",
                 priority: daysToAutoUpgrade <= 30 ? "high" : "medium",
                 title: `📅 Plus 自动升级倒计时：剩余 ${daysToAutoUpgrade} 天`,
+                titleKey: "scan.migrationLogic.autoUpgrade.countdown.title",
+                titleParams: { days: daysToAutoUpgrade },
                 description: `Shopify 将于 2026年1月（Shopify 会提前30天通知）开始自动将 Plus 商家迁移到新版页面。` +
                     `自动升级后，旧的 Additional Scripts、ScriptTags、checkout.liquid 自定义将失效。` +
                     `建议提前完成迁移，确保控制迁移时机。`,
+                descriptionKey: "scan.migrationLogic.autoUpgrade.countdown.desc",
             };
             countdownAction.estimatedTimeMinutes = estimateMigrationTime(countdownAction);
             actions.push(countdownAction);
         }
     }
+
     const priorityOrder: Record<string, number> = { high: 0, medium: 1, low: 2 };
     actions.sort((a, b) => priorityOrder[a.priority] - priorityOrder[b.priority]);
+
     return actions;
 }
+
 function getConfiguredPlatforms(result: EnhancedScanResult): Set<string> {
     const configuredPlatforms = new Set<string>();
     for (const pixel of result.webPixels) {

@@ -16,6 +16,7 @@ import { CheckoutCompletedBehaviorHint } from "~/components/verification/Checkou
 import { TestGuidePanel } from "~/components/verification/TestGuidePanel";
 import type { TestChecklist } from "~/services/verification-checklist.server";
 import { generateChecklistMarkdown, generateChecklistCSV } from "~/utils/verification-checklist";
+import { useTranslation } from "react-i18next";
 
 export interface VerificationIntroSectionProps {
   testGuide: { steps: Array<{ step: number; title: string; description: string }>; tips: string[]; estimatedTime: string };
@@ -42,15 +43,17 @@ export function VerificationIntroSection({
   canExportReports,
   currentPlan,
 }: VerificationIntroSectionProps) {
+  const { t } = useTranslation();
+
   return (
     <>
       <Card>
         <BlockStack gap="400">
           <Text as="h2" variant="headingMd">
-            📊 验收类型说明
+            {t("verification.intro.title")}
           </Text>
           <Text as="p" variant="bodySm" tone="subdued">
-            PRD 2.5要求：验收分为两类，请根据您的需求选择相应的验收方式。
+            {t("verification.intro.description")}
           </Text>
           <Layout>
             <Layout.Section variant="oneHalf">
@@ -58,26 +61,26 @@ export function VerificationIntroSection({
                 <BlockStack gap="300">
                   <InlineStack align="space-between" blockAlign="center">
                     <Text as="h3" variant="headingSm">
-                      🎯 像素层验收
+                      {t("verification.intro.pixelLayer.title")}
                     </Text>
-                    <Badge tone="success">所有套餐可用</Badge>
+                    <Badge tone="success">{t("verification.intro.allPlansAvailable")}</Badge>
                   </InlineStack>
                   <Text as="p" variant="bodySm">
-                    <strong>验收范围：</strong>Web Pixels 标准事件
+                    <strong>{t("verification.intro.scopeLabel")}</strong>{t("verification.intro.pixelLayer.scope")}
                   </Text>
                   <List type="bullet">
                     <List.Item>
-                      <Text as="span" variant="bodySm">事件触发次数</Text>
+                      <Text as="span" variant="bodySm">{t("verification.intro.pixelLayer.item1")}</Text>
                     </List.Item>
                     <List.Item>
-                      <Text as="span" variant="bodySm">payload 参数完整率（value/currency/items）</Text>
+                      <Text as="span" variant="bodySm">{t("verification.intro.pixelLayer.item2")}</Text>
                     </List.Item>
                     <List.Item>
-                      <Text as="span" variant="bodySm">checkout_completed 的金额/币种一致性</Text>
+                      <Text as="span" variant="bodySm">{t("verification.intro.pixelLayer.item3")}</Text>
                     </List.Item>
                   </List>
                   <Text as="p" variant="bodySm" tone="subdued">
-                    <strong>支持的事件：</strong>checkout_started、checkout_completed、checkout_contact_info_submitted、checkout_shipping_info_submitted、payment_info_submitted、product_added_to_cart、product_viewed、page_viewed 等
+                    <strong>{t("verification.intro.supportedEventsLabel")}</strong>checkout_started, checkout_completed, checkout_contact_info_submitted, checkout_shipping_info_submitted, payment_info_submitted, product_added_to_cart, product_viewed, page_viewed
                   </Text>
                 </BlockStack>
               </Box>
@@ -87,26 +90,26 @@ export function VerificationIntroSection({
                 <BlockStack gap="300">
                   <InlineStack align="space-between" blockAlign="center">
                     <Text as="h3" variant="headingSm">
-                      订单层验收
+                      {t("verification.intro.orderLayer.title")}
                     </Text>
-                    <Badge tone="success">所有套餐可用</Badge>
+                    <Badge tone="success">{t("verification.intro.allPlansAvailable")}</Badge>
                   </InlineStack>
                   <Text as="p" variant="bodySm">
-                    <strong>验收范围：</strong>checkout_completed 事件验证与像素收据验收
+                    <strong>{t("verification.intro.scopeLabel")}</strong>{t("verification.intro.orderLayer.scope")}
                   </Text>
                   <List type="bullet">
                     <List.Item>
-                      <Text as="span" variant="bodySm">有订单无像素（丢单）</Text>
+                      <Text as="span" variant="bodySm">{t("verification.intro.orderLayer.item1")}</Text>
                     </List.Item>
                     <List.Item>
-                      <Text as="span" variant="bodySm">金额/币种一致性</Text>
+                      <Text as="span" variant="bodySm">{t("verification.intro.orderLayer.item2")}</Text>
                     </List.Item>
                     <List.Item>
-                      <Text as="span" variant="bodySm">差异率与合理缺失说明</Text>
+                      <Text as="span" variant="bodySm">{t("verification.intro.orderLayer.item3")}</Text>
                     </List.Item>
                   </List>
                   <Button url="/app/verification/orders" variant="primary" size="slim">
-                    前往订单层验收
+                    {t("verification.intro.orderLayer.cta")}
                   </Button>
                 </BlockStack>
               </Box>
@@ -114,58 +117,52 @@ export function VerificationIntroSection({
           </Layout>
         </BlockStack>
       </Card>
-      <Banner title="⚠️ v1.0 验收范围说明（重要）" tone="warning">
+      <Banner title={t("verification.intro.v1Warning.title")} tone="warning">
         <BlockStack gap="300">
           <Text as="p" variant="bodySm" fontWeight="semibold">
-            <strong>v1.0 版本仅支持 checkout/purchase 漏斗事件验收</strong>
+            <strong>{t("verification.intro.v1Warning.subtitle")}</strong>
           </Text>
           <List type="bullet">
             <List.Item>
               <Text as="span" variant="bodySm">
-                <strong>✅ 支持的事件类型：</strong>checkout_started、checkout_completed、checkout_contact_info_submitted、checkout_shipping_info_submitted、payment_info_submitted、product_added_to_cart、product_viewed、page_viewed 等 Web Pixels 标准 checkout 漏斗事件
+                <strong>{t("verification.intro.v1Warning.supportedLabel")}</strong>{t("verification.intro.v1Warning.supportedContent")}
               </Text>
             </List.Item>
             <List.Item>
               <Text as="span" variant="bodySm">
-                <strong>❌ 不支持的事件类型：</strong>退款（refund）、订单取消（cancel）、订单编辑（order_edit）、订阅订单（subscription）等事件在 v1.0 中不可验收
+                <strong>{t("verification.intro.v1Warning.unsupportedLabel")}</strong>{t("verification.intro.v1Warning.unsupportedContent")}
               </Text>
             </List.Item>
             <List.Item>
               <Text as="span" variant="bodySm">
-                <strong>补充：</strong>Web Pixels 仅覆盖 checkout 漏斗，订单层事件（refund/cancel）需通过订单 webhook 才能验收。
+                <strong>{t("verification.intro.v1Warning.noteLabel")}</strong>{t("verification.intro.v1Warning.noteContent")}
               </Text>
             </List.Item>
             <List.Item>
               <Text as="span" variant="bodySm">
-                <strong>原因：</strong>Web Pixel Extension 运行在 strict sandbox 环境，只能订阅 Shopify 标准 checkout 漏斗事件。退款、取消、编辑订单、订阅等事件需要订单 webhooks 或后台定时对账才能获取，将在 v1.1+ 版本中通过订单 webhooks 实现（严格做 PII 最小化）
+                <strong>{t("verification.intro.v1Warning.reasonLabel")}</strong>{t("verification.intro.v1Warning.reasonContent")}
               </Text>
             </List.Item>
           </List>
           <Text as="p" variant="bodySm" tone="subdued">
-            <strong>注意：</strong>v1.0 验收范围与 Web Pixel Extension 的能力范围一致，符合隐私最小化原则。
+            <strong>{t("verification.intro.v1Warning.attentionLabel")}</strong>{t("verification.intro.v1Warning.attentionContent")}
           </Text>
         </BlockStack>
       </Banner>
-      <Banner tone="info" title="重要说明：验收范围与平台归因">
+      <Banner tone="info" title={t("verification.intro.attribution.title")}>
         <BlockStack gap="200">
           <Text as="p" variant="bodySm">
-            <strong>本应用验收侧重于事件触发与数据质量，不保证平台侧归因一致。</strong>
+            <strong>{t("verification.intro.attribution.subtitle")}</strong>
           </Text>
           <List type="bullet">
             <List.Item>
-              <Text as="span" variant="bodySm">
-                <strong>我们提供：</strong>像素事件触发记录、参数完整率、订单金额/币种一致性等验收证据。
-              </Text>
+              <Text as="span" variant="bodySm"><strong>{t("verification.intro.attribution.provideLabel")}</strong>{t("verification.intro.attribution.provideContent")}</Text>
             </List.Item>
             <List.Item>
-              <Text as="span" variant="bodySm">
-                <strong>我们不保证：</strong>平台侧报表中的归因数据与 Shopify 订单数据完全一致。平台侧归因受多种因素影响，包括平台算法、用户隐私设置、跨设备追踪限制等。
-              </Text>
+              <Text as="span" variant="bodySm"><strong>{t("verification.intro.attribution.noGuaranteeLabel")}</strong>{t("verification.intro.attribution.noGuaranteeContent")}</Text>
             </List.Item>
             <List.Item>
-              <Text as="span" variant="bodySm">
-                <strong>验收报告说明：</strong>如果验收显示“通过”，表示像素事件在本应用的接收与校验链路中表现正常；平台侧归因可能仍存在差异，这是正常现象。
-              </Text>
+              <Text as="span" variant="bodySm"><strong>{t("verification.intro.attribution.methodLabel")}</strong>{t("verification.intro.attribution.methodContent")}</Text>
             </List.Item>
           </List>
         </BlockStack>
@@ -173,36 +170,36 @@ export function VerificationIntroSection({
       <CheckoutExtensibilityWarning />
       {latestRun && !canExportReports && (
         <Banner
-          title="📄 生成验收报告（CSV）- 核心付费点"
+          title={t("verification.intro.upgradeBanner.title")}
           tone="warning"
-          action={{ content: "升级到 Growth 套餐（$79/月）", url: "/app/billing?upgrade=growth" }}
+          action={{ content: t("verification.intro.upgradeBanner.cta"), url: "/app/billing?upgrade=growth" }}
         >
           <BlockStack gap="200">
             <Text as="p" variant="bodySm">
-              需要 <strong>Growth 成长版</strong> ($79/月) 或 <strong>Agency 版</strong> ($199/月) 套餐。
+              {t("verification.intro.upgradeBanner.content1")}
             </Text>
             <Text as="p" variant="bodySm">
-              报告包含：测试清单 + 事件触发记录 + 参数完整率 + 订单金额/币种一致性 + 隐私合规检查（consent/customerPrivacy）
+              {t("verification.intro.upgradeBanner.content2")}
             </Text>
             <Text as="p" variant="bodySm">
-              这是项目的核心交付件，适合 Agency 直接报给客户的验收报告。
+              {t("verification.intro.upgradeBanner.content3")}
             </Text>
             <Text as="p" variant="bodySm" tone="subdued">
-              当前套餐：<strong>{currentPlan === "free" ? "免费版" : currentPlan === "starter" ? "Migration 迁移版" : currentPlan}</strong>
+              {t("verification.intro.upgradeBanner.currentPlan")}<strong>{currentPlan === "free" ? t("plans.free") : currentPlan === "starter" ? t("plans.starter") : currentPlan}</strong>
             </Text>
           </BlockStack>
         </Banner>
       )}
       <Banner tone="info">
         <BlockStack gap="200">
-          <Text as="p" variant="bodySm" fontWeight="semibold">📋 v1.0 验收范围说明</Text>
-          <Text as="p" variant="bodySm"><strong>v1.0 版本验收范围：</strong></Text>
+          <Text as="p" variant="bodySm" fontWeight="semibold">{t("verification.intro.scope.title")}</Text>
+          <Text as="p" variant="bodySm"><strong>{t("verification.intro.scope.subtitle")}</strong></Text>
           <List type="bullet">
-            <List.Item>✅ <strong>Checkout/Purchase 漏斗事件</strong>：checkout_started, checkout_completed, product_added_to_cart, product_viewed, page_viewed 等</List.Item>
-            <List.Item>❌ <strong>退款、取消、编辑订单、订阅事件</strong>：这些事件类型将在 v1.1+ 版本中通过订单 webhooks 实现</List.Item>
+            <List.Item>✅ <strong>{t("verification.intro.scope.item1Title")}</strong>：checkout_started, checkout_completed, product_added_to_cart, product_viewed, page_viewed</List.Item>
+            <List.Item>❌ <strong>{t("verification.intro.scope.item2Title")}</strong>：{t("verification.intro.scope.item2Content")}</List.Item>
           </List>
           <Text as="p" variant="bodySm" tone="subdued">
-            <strong>原因：</strong>Web Pixel Extension 运行在 strict sandbox 环境，只能订阅 Shopify 标准 checkout 漏斗事件。退款、取消、编辑订单、订阅等事件需要订单 webhooks 或后台定时对账才能获取，v1.0 版本仅依赖 Web Pixel Extension，不处理订单相关 webhooks（符合隐私最小化原则）。
+            <strong>{t("verification.intro.v1Warning.reasonLabel")}</strong>{t("verification.intro.v1Warning.reasonContent")}
           </Text>
         </BlockStack>
       </Banner>
@@ -218,7 +215,7 @@ export function VerificationIntroSection({
         <Card>
           <BlockStack gap="400">
             <InlineStack align="space-between" blockAlign="center">
-              <Text as="h2" variant="headingMd">📝 详细测试清单</Text>
+              <Text as="h2" variant="headingMd">{t("verification.intro.checklist.title")}</Text>
               <InlineStack gap="200">
                 <Button
                   icon={ClipboardIcon}
@@ -227,10 +224,10 @@ export function VerificationIntroSection({
                     const checklist: TestChecklist = { ...testChecklist, generatedAt: new Date(testChecklist.generatedAt) };
                     const markdown = generateChecklistMarkdown(checklist);
                     navigator.clipboard.writeText(markdown);
-                    showSuccess("测试清单已复制到剪贴板");
+                    showSuccess(t("verification.intro.checklist.copySuccess"));
                   }}
                 >
-                  复制清单
+                  {t("verification.intro.checklist.copy")}
                 </Button>
                 <Button
                   icon={ExportIcon}
@@ -245,18 +242,18 @@ export function VerificationIntroSection({
                     a.download = `test-checklist-${new Date().toISOString().split("T")[0]}.csv`;
                     a.click();
                     URL.revokeObjectURL(url);
-                    showSuccess("测试清单已导出");
+                    showSuccess(t("verification.intro.checklist.exportSuccess"));
                   }}
                 >
-                  导出 CSV
+                  {t("verification.intro.checklist.export")}
                 </Button>
               </InlineStack>
             </InlineStack>
             <BlockStack gap="200">
               <InlineStack gap="300" wrap>
-                <Badge tone="info">{`${String(testChecklist.requiredItemsCount)} 项必需`}</Badge>
-                <Badge>{`${String(testChecklist.optionalItemsCount)} 项可选`}</Badge>
-                <Badge tone="success">{`预计 ${String(Math.floor(testChecklist.totalEstimatedTime / 60))} 小时 ${String(testChecklist.totalEstimatedTime % 60)} 分钟`}</Badge>
+                <Badge tone="info">{`${String(testChecklist.requiredItemsCount)} ${t("verification.intro.checklist.requiredCount")}`}</Badge>
+                <Badge>{`${String(testChecklist.optionalItemsCount)} ${t("verification.intro.checklist.optionalCount")}`}</Badge>
+                <Badge tone="success">{`${t("verification.intro.checklist.estimated")} ${String(Math.floor(testChecklist.totalEstimatedTime / 60))} ${t("common.hours")} ${String(testChecklist.totalEstimatedTime % 60)} ${t("common.minutes")}`}</Badge>
               </InlineStack>
             </BlockStack>
             <BlockStack gap="300">
@@ -267,18 +264,18 @@ export function VerificationIntroSection({
                       <BlockStack gap="200">
                         <InlineStack gap="200" blockAlign="center">
                           <Text as="span" fontWeight="semibold">{item.required ? "✅" : "⚪"} {item.name}</Text>
-                          <Badge tone={item.required ? "warning" : "info"}>{item.required ? "必需" : "可选"}</Badge>
+                          <Badge tone={item.required ? "warning" : "info"}>{item.required ? t("common.required") : t("common.optional")}</Badge>
                           <Badge>{item.category}</Badge>
                         </InlineStack>
                         <Text as="p" variant="bodySm" tone="subdued">{item.description}</Text>
                         <InlineStack gap="200" blockAlign="center">
-                          <Text as="span" variant="bodySm" tone="subdued">平台: {item.platforms.join(", ")}</Text>
-                          <Text as="span" variant="bodySm" tone="subdued">• 预计 {item.estimatedTime} 分钟</Text>
+                          <Text as="span" variant="bodySm" tone="subdued">{t("common.platform")} {item.platforms.join(", ")}</Text>
+                          <Text as="span" variant="bodySm" tone="subdued">• {t("verification.intro.checklist.estimated")} {item.estimatedTime} {t("common.minutes")}</Text>
                         </InlineStack>
                       </BlockStack>
                     </InlineStack>
                     <BlockStack gap="200">
-                      <Text as="h4" variant="headingSm">操作步骤</Text>
+                      <Text as="h4" variant="headingSm">{t("verification.intro.checklist.steps")}</Text>
                       <List type="number">
                         {item.steps.map((step, i) => (
                           <List.Item key={i}>
@@ -288,7 +285,7 @@ export function VerificationIntroSection({
                       </List>
                     </BlockStack>
                     <BlockStack gap="200">
-                      <Text as="h4" variant="headingSm">预期结果</Text>
+                      <Text as="h4" variant="headingSm">{t("verification.intro.checklist.expectedResults")}</Text>
                       <List>
                         {item.expectedResults.map((result, i) => (
                           <List.Item key={i}>
@@ -304,20 +301,20 @@ export function VerificationIntroSection({
           </BlockStack>
         </Card>
       )}
-      <Banner tone="info" title="重要说明：验收范围与平台归因">
+      <Banner tone="info" title={t("verification.intro.attribution.title")}>
         <BlockStack gap="200">
           <Text as="p" variant="bodySm">
-            <strong>本应用验收侧重于事件触发与数据质量，不保证平台侧归因一致。</strong>
+            <strong>{t("verification.intro.attribution.subtitle")}</strong>
           </Text>
           <List type="bullet">
             <List.Item>
-              <Text as="span" variant="bodySm"><strong>我们提供：</strong>像素事件触发记录、参数完整率、订单金额/币种一致性等验收证据。</Text>
+              <Text as="span" variant="bodySm"><strong>{t("verification.intro.attribution.provideLabel")}</strong>{t("verification.intro.attribution.provideContent")}</Text>
             </List.Item>
             <List.Item>
-              <Text as="span" variant="bodySm"><strong>我们不保证：</strong>平台侧报表中的归因数据与 Shopify 订单数据完全一致。平台侧归因受多种因素影响，包括平台算法、用户隐私设置、跨设备追踪限制、平台数据去重和合并规则等。</Text>
+              <Text as="span" variant="bodySm"><strong>{t("verification.intro.attribution.noGuaranteeLabel")}</strong>{t("verification.intro.attribution.noGuaranteeContent")}</Text>
             </List.Item>
             <List.Item>
-              <Text as="span" variant="bodySm"><strong>验证方法：</strong>您可以通过本应用的验收报告查看事件触发与数据质量，或使用平台提供的工具验证事件接收情况。</Text>
+              <Text as="span" variant="bodySm"><strong>{t("verification.intro.attribution.methodLabel")}</strong>{t("verification.intro.attribution.methodContent")}</Text>
             </List.Item>
           </List>
         </BlockStack>

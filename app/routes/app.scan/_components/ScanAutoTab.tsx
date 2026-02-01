@@ -8,6 +8,9 @@ import { MigrationDependencyGraph } from "~/components/scan/MigrationDependencyG
 import { getPlatformName, getSeverityBadge } from "~/components/scan";
 import { getShopifyAdminUrl } from "~/utils/helpers";
 import type { MigrationAction } from "~/services/scanner/types";
+import type { UpgradeStatusUI } from "~/utils/deprecation-dates";
+import type { RiskItem } from "~/types";
+import { useTranslation } from "react-i18next";
 
 interface ScanAutoTabProps {
     // 使用 loader 返回的 latestScan；在内部再按需要进行安全访问
@@ -15,22 +18,13 @@ interface ScanAutoTabProps {
     isScanning: boolean;
     handleScan: () => void;
     onExportCSV: () => void;
-    upgradeStatus: {
-        title?: string;
-        message?: string;
-        urgency?: "critical" | "high" | "medium" | "low" | "resolved";
-        autoUpgradeInfo?: {
-            autoUpgradeMessage?: string;
-            isInAutoUpgradeWindow?: boolean;
-        };
-        actions?: string[];
-    } | null;
+    upgradeStatus: UpgradeStatusUI | null;
     identifiedPlatforms: string[];
     scriptTags: any[];
     deprecationStatus: any;
     planId: string;
     planIdSafe: string;
-    riskItems: Array<{ severity: "high" | "medium" | "low"; name: string; description: string; details?: string; platform?: string; impact?: string }>;
+    riskItems: RiskItem[];
     migrationActions: MigrationAction[] | null;
     auditAssets: any[] | null;
     migrationProgress: { completionRate: number; total: number; completed: number; inProgress: number; pending: number } | null;
@@ -88,6 +82,8 @@ export function ScanAutoTab({
     onCopyChecklist,
     onExportChecklist,
 }: ScanAutoTabProps) {
+    const { t } = useTranslation();
+
     return (
         <BlockStack gap="500">
             <Box paddingBlockStart="400">
@@ -95,13 +91,13 @@ export function ScanAutoTab({
                     {latestScan && (
                         <InlineStack gap="200">
                             <Button icon={ExportIcon} onClick={onExportCSV}>
-                                导出扫描报告 CSV
+                                {t("scan.autoTab.exportCSV")}
                             </Button>
                         </InlineStack>
                     )}
                     <InlineStack gap="200">
                         <Button variant="primary" onClick={handleScan} loading={isScanning} icon={SearchIcon}>
-                            {isScanning ? "扫描中..." : "开始扫描"}
+                            {isScanning ? t("scan.autoTab.scanning") : t("scan.autoTab.startScan")}
                         </Button>
                     </InlineStack>
                 </InlineStack>
@@ -119,15 +115,15 @@ export function ScanAutoTab({
             {!latestScan && !isScanning && (
                 <EnhancedEmptyState
                     icon="🔍"
-                    title="还没有扫描报告"
-                    description="点击开始扫描，我们会自动检测 ScriptTags 和已安装的像素配置，并给出风险等级与迁移建议。预计耗时约 10 秒，不会修改任何设置。"
-                    helpText="关于 Additional Scripts：Shopify API 无法自动读取 checkout.liquid 中的 Additional Scripts。请切换到「手动分析」标签页，粘贴脚本内容进行分析。"
+                    title={t("scan.autoTab.emptyState.title")}
+                    description={t("scan.autoTab.emptyState.description")}
+                    helpText={t("scan.autoTab.emptyState.helpText")}
                     primaryAction={{
-                        content: "开始扫描",
+                        content: t("scan.autoTab.startScan"),
                         onAction: handleScan,
                     }}
                     secondaryAction={{
-                        content: "了解更多",
+                        content: t("scan.autoTab.emptyState.learnMore"),
                         url: "https://help.shopify.com/en/manual/pixels/web-pixels",
                     }}
                 />
@@ -137,28 +133,34 @@ export function ScanAutoTab({
                     <BlockStack gap="400">
                         <InlineStack align="space-between" blockAlign="center">
                             <Text as="h2" variant="headingMd">
-                                Shopify 升级风险窗口
+                                {t("scan.autoTab.upgradeWindow.title")}
                             </Text>
                             <Badge tone={upgradeStatus.urgency === "critical" ? "critical" : upgradeStatus.urgency === "high" ? "warning" : "info"}>
-                                {upgradeStatus.urgency === "critical" ? "紧急" : upgradeStatus.urgency === "high" ? "高优先级" : upgradeStatus.urgency === "medium" ? "中优先级" : "低优先级"}
+                                {upgradeStatus.urgency === "critical" ? t("scan.autoTab.upgradeWindow.critical") : upgradeStatus.urgency === "high" ? t("scan.autoTab.upgradeWindow.high") : upgradeStatus.urgency === "medium" ? t("scan.autoTab.upgradeWindow.medium") : t("scan.autoTab.upgradeWindow.low")}
                             </Badge>
                         </InlineStack>
                         <Divider />
-                        <Banner tone={upgradeStatus.urgency === "critical" ? "critical" : upgradeStatus.urgency === "high" ? "warning" : "info"} title={upgradeStatus.title}>
+                        <Banner tone={upgradeStatus.urgency === "critical" ? "critical" : upgradeStatus.urgency === "high" ? "warning" : "info"} title={upgradeStatus.titleKey ? t(upgradeStatus.titleKey, upgradeStatus.titleParams) : upgradeStatus.title}>
                             <BlockStack gap="200">
-                                <Text as="p">{upgradeStatus.message}</Text>
-                                {upgradeStatus.autoUpgradeInfo && upgradeStatus.autoUpgradeInfo.autoUpgradeMessage && (
-                                    <Banner tone={upgradeStatus.autoUpgradeInfo.isInAutoUpgradeWindow ? "critical" : "warning"} title={upgradeStatus.autoUpgradeInfo.isInAutoUpgradeWindow ? "⚡ 自动升级窗口已开始" : "⚠️ 自动升级风险窗口"}>
-                                        <Text as="p">{upgradeStatus.autoUpgradeInfo.autoUpgradeMessage}</Text>
+                                <Text as="p">{upgradeStatus.messageKey ? t(upgradeStatus.messageKey, upgradeStatus.messageParams) : upgradeStatus.message}</Text>
+                                {upgradeStatus.autoUpgradeInfo && (upgradeStatus.autoUpgradeInfo.autoUpgradeMessage || upgradeStatus.autoUpgradeInfo.autoUpgradeMessageKey) && (
+                                    <Banner tone={upgradeStatus.autoUpgradeInfo.isInAutoUpgradeWindow ? "critical" : "warning"} title={upgradeStatus.autoUpgradeInfo.isInAutoUpgradeWindow ? t("scan.autoTab.upgradeWindow.autoUpgradeStarted") : t("scan.autoTab.upgradeWindow.autoUpgradeRisk")}>
+                                        <Text as="p">{upgradeStatus.autoUpgradeInfo.autoUpgradeMessageKey ? t(upgradeStatus.autoUpgradeInfo.autoUpgradeMessageKey, upgradeStatus.autoUpgradeInfo.autoUpgradeMessageParams) : upgradeStatus.autoUpgradeInfo.autoUpgradeMessage}</Text>
                                     </Banner>
                                 )}
-                                {upgradeStatus.actions && upgradeStatus.actions.length > 0 && (
+                                {(upgradeStatus.actionsKeys?.length > 0 || (upgradeStatus.actions && upgradeStatus.actions.length > 0)) && (
                                     <BlockStack gap="100">
-                                        <Text as="p" fontWeight="semibold">建议操作：</Text>
+                                        <Text as="p" fontWeight="semibold">{t("scan.autoTab.upgradeWindow.suggestedActions")}</Text>
                                         <List>
-                                            {upgradeStatus.actions.map((action, idx) => (
-                                                <List.Item key={idx}>{action}</List.Item>
-                                            ))}
+                                            {upgradeStatus.actionsKeys && upgradeStatus.actionsKeys.length > 0 ? (
+                                                upgradeStatus.actionsKeys.map((item, idx) => (
+                                                    <List.Item key={idx}>{t(item.key, item.params)}</List.Item>
+                                                ))
+                                            ) : (
+                                                upgradeStatus.actions && upgradeStatus.actions.map((action, idx) => (
+                                                    <List.Item key={idx}>{action}</List.Item>
+                                                ))
+                                            )}
                                         </List>
                                     </BlockStack>
                                 )}
@@ -190,13 +192,13 @@ export function ScanAutoTab({
                     <BlockStack gap="400">
                         <InlineStack align="space-between" blockAlign="center">
                             <Text as="h2" variant="headingMd">
-                                风险详情
+                                {t("scan.autoTab.riskDetails.title")}
                             </Text>
                             <Badge tone="info">{`${riskItems.length} 项`}</Badge>
                         </InlineStack>
                         <Banner tone="info">
                             <Text as="p" variant="bodySm">
-                                风险识别基于脚本 URL 和已知平台指纹推断，并非实际脚本内容分析。如需更精确的检测，请在「脚本内容分析」中粘贴实际脚本代码。
+                                {t("scan.autoTab.riskDetails.disclaimer")}
                             </Text>
                         </Banner>
                         {(() => {
@@ -227,17 +229,17 @@ export function ScanAutoTab({
                                                                     ? "warning"
                                                                     : "info"}/>
                                                             <Text as="span" fontWeight="semibold">
-                                                                {item.name}
+                                                                {item.nameKey ? t(item.nameKey, item.nameParams) : item.name}
                                                             </Text>
                                                         </InlineStack>
                                                         {getSeverityBadge(item.severity)}
                                                     </InlineStack>
                                                     <Text as="p" tone="subdued">
-                                                        {item.description}
+                                                        {item.descriptionKey ? t(item.descriptionKey, item.descriptionParams) : item.description}
                                                     </Text>
-                                                    {item.details && (
+                                                    {(item.details || item.detailsKey) && (
                                                         <Text as="p" variant="bodySm">
-                                                            {item.details}
+                                                            {item.detailsKey ? t(item.detailsKey, item.detailsParams) : item.details}
                                                         </Text>
                                                     )}
                                                     <InlineStack align="space-between" blockAlign="center">
@@ -245,14 +247,14 @@ export function ScanAutoTab({
                                                             {item.platform && (
                                                                 <Badge>{getPlatformName(item.platform)}</Badge>
                                                             )}
-                                                            {item.impact && (
+                                                            {(item.impact || item.impactKey) && (
                                                                 <Text as="span" variant="bodySm" tone="critical">
-                                                                    影响: {item.impact}
+                                                                    {t("scan.autoTab.riskDetails.impact")} {item.impactKey ? t(item.impactKey, item.impactParams) : item.impact}
                                                                 </Text>
                                                             )}
                                                         </InlineStack>
                                                         <Button url={`/app/migrate${item.platform ? `?platform=${item.platform}` : ""}`} size="slim" icon={ArrowRightIcon}>
-                                                            一键迁移
+                                                            {t("scan.autoTab.riskDetails.oneClickMigrate")}
                                                         </Button>
                                                     </InlineStack>
                                                 </BlockStack>
@@ -263,7 +265,7 @@ export function ScanAutoTab({
                                         <Banner tone="warning">
                                             <BlockStack gap="200">
                                                 <Text as="p" variant="bodySm">
-                                                    <strong>免费版限制：</strong>仅显示前 {FREE_AUDIT_LIMIT} 条高风险项，还有 {hiddenCount} 项未显示。
+                                                    <strong>{t("scan.autoTab.riskDetails.freeLimit")}</strong>{t("scan.autoTab.riskDetails.freeLimitDesc", { limit: FREE_AUDIT_LIMIT, count: hiddenCount })}
                                                 </Text>
                                                 <InlineStack gap="200">
                                                     <Button
@@ -271,13 +273,13 @@ export function ScanAutoTab({
                                                         variant="primary"
                                                         size="slim"
                                                     >
-                                                        升级解锁完整报告
+                                                        {t("scan.autoTab.riskDetails.upgradeUnlock")}
                                                     </Button>
                                                     <Button
                                                         url="/app/migrate"
                                                         size="slim"
                                                     >
-                                                        启用 Purchase-only 修复（10 分钟）
+                                                        {t("scan.autoTab.riskDetails.purchaseOnlyFix")}
                                                     </Button>
                                                 </InlineStack>
                                             </BlockStack>
@@ -287,21 +289,21 @@ export function ScanAutoTab({
                                         <BlockStack gap="300">
                                             <InlineStack align="space-between" blockAlign="center">
                                                 <Text as="span" fontWeight="semibold">
-                                                    预计修复时间
+                                                    {t("scan.autoTab.riskDetails.estimatedFixTime")}
                                                 </Text>
                                                 <Badge tone={estimatedTimeMinutes > 60 ? "warning" : "info"}>
                                                     {estimatedTimeMinutes > 60
-                                                        ? `${Math.floor(estimatedTimeMinutes / 60)} 小时 ${estimatedTimeMinutes % 60} 分钟`
-                                                        : `${estimatedTimeMinutes} 分钟`}
+                                                        ? `${Math.floor(estimatedTimeMinutes / 60)} ${t("common.hours")} ${estimatedTimeMinutes % 60} ${t("common.minutes")}`
+                                                        : `${estimatedTimeMinutes} ${t("common.minutes")}`}
                                                 </Badge>
                                             </InlineStack>
                                             <Text as="p" variant="bodySm" tone="subdued">
-                                                基于当前风险项数量和严重程度估算
+                                                {t("scan.autoTab.riskDetails.basedOnRisk")}
                                             </Text>
                                             {isFreePlan && (
                                                 <Banner tone="info">
                                                     <Text as="p" variant="bodySm">
-                                                        <strong>升级到 Migration 版</strong>可启用 Full-funnel 修复（30 分钟，Growth 套餐），获得完整迁移清单和验收报告。
+                                                        <strong>{t("scan.autoTab.riskDetails.upgradeMigration")}</strong>{t("scan.autoTab.riskDetails.upgradeMigrationDesc")}
                                                     </Text>
                                                 </Banner>
                                             )}
@@ -318,9 +320,9 @@ export function ScanAutoTab({
                     <BlockStack gap="400">
                         <InlineStack align="space-between" blockAlign="center">
                             <Text as="h2" variant="headingMd">
-                                迁移操作
+                                {t("scan.autoTab.migrationActions.title")}
                             </Text>
-                            <Badge tone="attention">{`${migrationActions.length} 项待处理`}</Badge>
+                            <Badge tone="attention">{`${migrationActions.length} ${t("scan.autoTab.migrationActions.pending")}`}</Badge>
                         </InlineStack>
                         <BlockStack gap="300">
                             {migrationActions.map((action, index) => (
@@ -330,14 +332,14 @@ export function ScanAutoTab({
                                             <BlockStack gap="100">
                                                 <InlineStack gap="200" blockAlign="center">
                                                     <Text as="span" fontWeight="semibold">
-                                                        {action.title}
+                                                        {action.titleKey ? t(action.titleKey, action.titleParams) : action.title}
                                                     </Text>
                                                     <Badge tone={
                                                         action.priority === "high" ? "critical" :
                                                         action.priority === "medium" ? "warning" : "info"
                                                     }>
-                                                        {action.priority === "high" ? "高优先级" :
-                                                         action.priority === "medium" ? "中优先级" : "低优先级"}
+                                                        {action.priority === "high" ? t("scan.autoTab.upgradeWindow.high") :
+                                                         action.priority === "medium" ? t("scan.autoTab.upgradeWindow.medium") : t("scan.autoTab.upgradeWindow.low")}
                                                     </Badge>
                                                 </InlineStack>
                                                 {action.platform && (
@@ -345,11 +347,11 @@ export function ScanAutoTab({
                                                 )}
                                             </BlockStack>
                                             {action.deadline && (
-                                                <Badge tone="warning">{`截止: ${action.deadline}`}</Badge>
+                                                <Badge tone="warning">{`${t("scan.autoTab.migrationActions.deadline")} ${action.deadline}`}</Badge>
                                             )}
                                         </InlineStack>
                                         <Text as="p" variant="bodySm" tone="subdued">
-                                            {action.description}
+                                            {action.descriptionKey ? t(action.descriptionKey, action.descriptionParams) : action.description}
                                         </Text>
                                         <InlineStack gap="200" align="end">
                                             {action.type === "migrate_script_tag" && action.scriptTagId && (
@@ -361,7 +363,7 @@ export function ScanAutoTab({
                                                         action.platform
                                                     )}
                                                 >
-                                                    查看清理指南
+                                                    {t("scan.autoTab.migrationActions.cleanGuide")}
                                                 </Button>
                                             )}
                                             {action.type === "remove_duplicate" && action.webPixelGid && (
@@ -371,7 +373,7 @@ export function ScanAutoTab({
                                                     loading={isDeleting && pendingDelete?.gid === action.webPixelGid}
                                                     onClick={() => onDeleteWebPixel(action.webPixelGid!, action.platform)}
                                                 >
-                                                    删除重复像素
+                                                    {t("scan.autoTab.migrationActions.removeDuplicate")}
                                                 </Button>
                                             )}
                                             {action.type === "configure_pixel" && action.description?.includes("升级") && (
@@ -381,7 +383,7 @@ export function ScanAutoTab({
                                                     loading={isUpgrading}
                                                     onClick={onUpgradePixelSettings}
                                                 >
-                                                    升级配置
+                                                    {t("scan.autoTab.migrationActions.upgradeConfig")}
                                                 </Button>
                                             )}
                                             {action.type === "configure_pixel" && !action.description?.includes("升级") && (
@@ -390,7 +392,7 @@ export function ScanAutoTab({
                                                     url="/app/migrate"
                                                     icon={ArrowRightIcon}
                                                 >
-                                                    配置 Pixel
+                                                    {t("scan.autoTab.migrationActions.configurePixel")}
                                                 </Button>
                                             )}
                                         </InlineStack>
@@ -421,10 +423,10 @@ export function ScanAutoTab({
                     <BlockStack gap="400">
                         <InlineStack align="space-between" blockAlign="center">
                             <Text as="h2" variant="headingMd">
-                                📊 迁移进度
+                                {t("scan.autoTab.migrationProgress.title")}
                             </Text>
                             <Badge tone={migrationProgress.completionRate === 100 ? "success" : "attention"}>
-                                {`${Math.round(migrationProgress.completionRate)}% 完成`}
+                                {`${Math.round(migrationProgress.completionRate)}% ${t("scan.autoTab.migrationProgress.completed")}`}
                             </Badge>
                         </InlineStack>
                         <BlockStack gap="300">
@@ -436,17 +438,17 @@ export function ScanAutoTab({
                             <InlineStack gap="400" align="space-between" wrap>
                                 <BlockStack gap="100">
                                     <Text as="span" variant="bodySm" tone="subdued">
-                                        总计: {migrationProgress.total} 项
+                                        {t("scan.autoTab.migrationProgress.total", { count: migrationProgress.total })}
                                     </Text>
                                     <Text as="span" variant="bodySm" tone="subdued">
-                                        已完成: {migrationProgress.completed} | 进行中: {migrationProgress.inProgress} | 待处理: {migrationProgress.pending}
+                                        {t("scan.autoTab.migrationProgress.stats", { completed: migrationProgress.completed, inProgress: migrationProgress.inProgress, pending: migrationProgress.pending })}
                                     </Text>
                                 </BlockStack>
                                 {migrationTimeline.totalEstimatedTime > 0 && (
                                     <InlineStack gap="200" blockAlign="center">
                                         <Icon source={ClockIcon} tone="subdued" />
                                         <Text as="span" variant="bodySm" tone="subdued" fontWeight="semibold">
-                                            预计剩余时间: {Math.round(migrationTimeline.totalEstimatedTime / 60)} 小时 {migrationTimeline.totalEstimatedTime % 60} 分钟
+                                            {t("scan.autoTab.migrationProgress.remainingTime")} {Math.round(migrationTimeline.totalEstimatedTime / 60)} {t("common.hours")} {migrationTimeline.totalEstimatedTime % 60} {t("common.minutes")}
                                         </Text>
                                     </InlineStack>
                                 )}
@@ -457,7 +459,7 @@ export function ScanAutoTab({
                                 <Divider />
                                 <BlockStack gap="300">
                                     <Text as="h3" variant="headingSm">
-                                        下一步建议
+                                        {t("scan.autoTab.migrationProgress.nextSteps")}
                                     </Text>
                                 {migrationTimeline.assets
                                         .filter((item: any) => item.canStart && item.asset.migrationStatus === "pending")
@@ -468,29 +470,29 @@ export function ScanAutoTab({
                                                     <BlockStack gap="100">
                                                         <InlineStack gap="200" blockAlign="center">
                                                             <Text as="span" fontWeight="semibold">
-                                                                {item.asset.displayName || item.asset.platform || "未知资产"}
+                                                                {item.asset.displayName || item.asset.platform || t("scan.autoTab.migrationProgress.unknownAsset")}
                                                             </Text>
                                                             <Badge tone={(item.asset.priority || item.priority.priority) >= 8 ? "critical" : (item.asset.priority || item.priority.priority) >= 5 ? undefined : "info"}>
-                                                                {`优先级 ${item.asset.priority || item.priority.priority}/10`}
+                                                                {t("scan.autoTab.migrationProgress.priority", { priority: item.asset.priority || item.priority.priority })}
                                                             </Badge>
                                                             {(item.asset.priority || item.priority.priority) >= 8 && (
-                                                                <Badge tone="attention">高优先级</Badge>
+                                                                <Badge tone="attention">{t("scan.autoTab.upgradeWindow.high")}</Badge>
                                                             )}
                                                             {(item.asset.priority || item.priority.priority) >= 5 && (item.asset.priority || item.priority.priority) < 8 && (
-                                                                <Badge tone="warning">中优先级</Badge>
+                                                                <Badge tone="warning">{t("scan.autoTab.upgradeWindow.medium")}</Badge>
                                                             )}
                                                         </InlineStack>
                                                         <InlineStack gap="200" blockAlign="center">
                                                             <Text as="span" variant="bodySm" tone="subdued">
-                                                                {item.priority.reason || "无说明"}
+                                                                {item.priority.reasonKey ? t(item.priority.reasonKey, item.priority.reasonParams) : item.priority.reason || t("scan.autoTab.migrationProgress.noReason")}
                                                             </Text>
                                                             {item.asset.estimatedTimeMinutes && (
                                                                 <InlineStack gap="100" blockAlign="center">
                                                                     <Icon source={ClockIcon} />
                                                                     <Badge>
                                                                         {`预计 ${item.asset.estimatedTimeMinutes < 60
-                                                                            ? `${item.asset.estimatedTimeMinutes} 分钟`
-                                                                            : `${Math.floor(item.asset.estimatedTimeMinutes / 60)} 小时 ${item.asset.estimatedTimeMinutes % 60} 分钟`}`}
+                                                                            ? `${item.asset.estimatedTimeMinutes} ${t("common.minutes")}`
+                                                                            : `${Math.floor(item.asset.estimatedTimeMinutes / 60)} ${t("common.hours")} ${item.asset.estimatedTimeMinutes % 60} ${t("common.minutes")}`}`}
                                                                     </Badge>
                                                                 </InlineStack>
                                                             )}
@@ -499,8 +501,8 @@ export function ScanAutoTab({
                                                                     <Icon source={ClockIcon} />
                                                                     <Badge>
                                                                         {`预计 ${item.priority.estimatedTime < 60
-                                                                            ? `${item.priority.estimatedTime} 分钟`
-                                                                            : `${Math.floor(item.priority.estimatedTime / 60)} 小时 ${item.priority.estimatedTime % 60} 分钟`}`}
+                                                                            ? `${item.priority.estimatedTime} ${t("common.minutes")}`
+                                                                            : `${Math.floor(item.priority.estimatedTime / 60)} ${t("common.hours")} ${item.priority.estimatedTime % 60} ${t("common.minutes")}`}`}
                                                                     </Badge>
                                                                 </InlineStack>
                                                             )}
@@ -508,7 +510,7 @@ export function ScanAutoTab({
                                                         {item.blockingDependencies.length > 0 && (
                                                             <Banner tone="warning">
                                                                 <Text as="p" variant="bodySm">
-                                                                    等待 {item.blockingDependencies.length} 个依赖项完成
+                                                                    {t("scan.autoTab.migrationProgress.waitingDependencies", { count: item.blockingDependencies.length })}
                                                                 </Text>
                                                             </Banner>
                                                         )}
@@ -519,7 +521,7 @@ export function ScanAutoTab({
                                                             url={`/app/migrate?asset=${item.asset.id}`}
                                                             disabled={!item.canStart}
                                                         >
-                                                            开始迁移
+                                                            {t("checklist.startMigration")}
                                                         </Button>
                                                         <Button
                                                             size="slim"
@@ -531,7 +533,7 @@ export function ScanAutoTab({
                                                                 submit(formData, { method: "post" });
                                                             }}
                                                         >
-                                                            标记完成
+                                                            {t("scan.autoTab.migrationProgress.markComplete")}
                                                         </Button>
                                                     </InlineStack>
                                                 </InlineStack>
@@ -540,7 +542,7 @@ export function ScanAutoTab({
                                     {migrationTimeline.assets.filter((item: any) => item.canStart && item.asset.migrationStatus === "pending").length === 0 && (
                                         <Banner tone="success">
                                             <Text as="p" variant="bodySm">
-                                                所有可立即开始的迁移任务已完成！请检查是否有依赖项需要先完成。
+                                                {t("scan.autoTab.migrationProgress.allReadyCompleted")}
                                             </Text>
                                         </Banner>
                                     )}
@@ -561,20 +563,20 @@ export function ScanAutoTab({
                     <BlockStack gap="400">
                         <InlineStack align="space-between" blockAlign="center">
                             <Text as="h2" variant="headingMd">
-                                🧭 迁移向导
+                                {t("scan.autoTab.wizard.title")}
                             </Text>
-                            <Badge tone="info">P1-3 迁移闭环</Badge>
+                            <Badge tone="info">{t("scan.autoTab.wizard.badge")}</Badge>
                         </InlineStack>
                         <Text as="p" tone="subdued">
-                            根据扫描结果，以下是完成迁移所需的步骤。点击各项可直接跳转到对应位置。
+                            {t("scan.autoTab.wizard.description")}
                         </Text>
                         <Divider />
                         <BlockStack gap="300">
                             <Text as="h3" variant="headingSm">
-                                📦 Web Pixel 设置
+                                {t("scan.autoTab.wizard.webPixelTitle")}
                             </Text>
                             <Text as="p" variant="bodySm" tone="subdued">
-                                Web Pixel 是 Shopify 推荐的客户端追踪方式，替代传统 ScriptTag。
+                                {t("scan.autoTab.wizard.webPixelDesc")}
                             </Text>
                             <InlineStack gap="300" wrap>
                                 <Button
@@ -583,23 +585,23 @@ export function ScanAutoTab({
                                     external
                                     icon={ShareIcon}
                                 >
-                                    管理 Pixels（Shopify 后台）
+                                    {t("scan.autoTab.wizard.managePixels")}
                                 </Button>
                                 <Button
                                     url="/app/migrate"
                                     icon={ArrowRightIcon}
                                 >
-                                    在应用内配置 Pixel
+                                    {t("scan.autoTab.wizard.configureInApp")}
                                 </Button>
                             </InlineStack>
                         </BlockStack>
                         <Divider />
                         <BlockStack gap="300">
                             <Text as="h3" variant="headingSm">
-                                🛒 Checkout Editor（参考）
+                                {t("scan.autoTab.wizard.checkoutEditorTitle")}
                             </Text>
                             <Text as="p" variant="bodySm" tone="subdued">
-                                如果您已启用新的 Thank you / Order status 体验，请使用 Shopify 官方编辑器完成页面侧自定义（本应用不提供页面模块库）。
+                                {t("scan.autoTab.wizard.checkoutEditorDesc")}
                             </Text>
                             <InlineStack gap="300" wrap>
                                 <Button
@@ -608,42 +610,42 @@ export function ScanAutoTab({
                                     external
                                     icon={ShareIcon}
                                 >
-                                    打开 Checkout Editor
+                                    {t("scan.autoTab.wizard.openEditor")}
                                 </Button>
                                 <Button
                                     url="https://shopify.dev/docs/apps/online-store/checkout-extensibility"
                                     external
                                     icon={InfoIcon}
                                 >
-                                    查看官方文档
+                                    {t("scan.autoTab.wizard.viewDocs")}
                                 </Button>
                             </InlineStack>
                         </BlockStack>
                         <Divider />
                         <BlockStack gap="300">
                             <Text as="h3" variant="headingSm">
-                                📋 迁移清单
+                                {t("scan.autoTab.wizard.checklistTitle")}
                             </Text>
                             <Text as="p" variant="bodySm" tone="subdued">
-                                生成可导出的迁移步骤清单，方便团队协作或记录进度。
+                                {t("scan.autoTab.wizard.checklistDesc")}
                             </Text>
                             <Box background="bg-surface-secondary" padding="400" borderRadius="200">
                                 <BlockStack gap="200">
-                                    <Text as="p" fontWeight="semibold">待迁移项目：</Text>
+                                    <Text as="p" fontWeight="semibold">{t("scan.autoTab.wizard.pendingItems")}</Text>
                                     <List type="number">
                                         {migrationActions && migrationActions.length > 0 ? (
                                             migrationActions.slice(0, MAX_VISIBLE_ACTIONS).map((action) => (
                                                 <List.Item key={`${action.type}-${action.platform || 'unknown'}-${action.scriptTagId || action.webPixelGid || 'no-id'}`}>
-                                                    {action.title}
+                                                    {action.titleKey ? t(action.titleKey, action.titleParams) : action.title}
                                                     {action.platform && ` (${getPlatformName(action.platform)})`}
                                                     {action.priority === "high" && " ⚠️"}
                                                 </List.Item>
                                             ))
                                         ) : (
-                                            <List.Item>暂无待处理项目 ✅</List.Item>
+                                            <List.Item>{t("scan.autoTab.migrationActions.noPending")}</List.Item>
                                         )}
                                         {migrationActions && migrationActions.length > MAX_VISIBLE_ACTIONS && (
-                                            <List.Item>...还有 {migrationActions.length - MAX_VISIBLE_ACTIONS} 项</List.Item>
+                                            <List.Item>{t("scan.autoTab.migrationActions.moreItems", { count: migrationActions.length - MAX_VISIBLE_ACTIONS })}</List.Item>
                                         )}
                                     </List>
                                     <InlineStack gap="200" align="end">
@@ -652,14 +654,14 @@ export function ScanAutoTab({
                                             loading={isCopying}
                                             onClick={onCopyChecklist}
                                         >
-                                            复制清单
+                                            {t("scan.autoTab.wizard.copyChecklist")}
                                         </Button>
                                         <Button
                                             icon={ExportIcon}
                                             loading={isExporting}
                                             onClick={onExportChecklist}
                                         >
-                                            导出文本
+                                            {t("scan.autoTab.wizard.exportText")}
                                         </Button>
                                     </InlineStack>
                                 </BlockStack>
@@ -668,38 +670,35 @@ export function ScanAutoTab({
                         <Divider />
                         <BlockStack gap="300">
                             <Text as="h3" variant="headingSm">
-                                🔄 替代方案一览
+                                {t("scan.autoTab.wizard.alternativesTitle")}
                             </Text>
                             <Box background="bg-surface-secondary" padding="400" borderRadius="200">
                                 <BlockStack gap="300">
                                     <InlineStack gap="400" wrap>
                                         <Box minWidth="200px">
                                             <BlockStack gap="100">
-                                                <Badge tone="success">官方替代</Badge>
+                                                <Badge tone="success">{t("scan.autoTab.wizard.officialAlternative")}</Badge>
                                                 <Text as="p" variant="bodySm">
-                                                    • Shopify Pixels（客户端）
-                                                    <br />• Customer Events API
+                                                    <span dangerouslySetInnerHTML={{ __html: t("scan.autoTab.wizard.officialAlternativeDesc") }} />
                                                 </Text>
                                             </BlockStack>
                                         </Box>
                                         <Box minWidth="200px">
                                             <BlockStack gap="100">
-                                                <Badge tone="info">Web Pixel 替代</Badge>
+                                                <Badge tone="info">{t("scan.autoTab.wizard.webPixelAlternative")}</Badge>
                                                 <Text as="p" variant="bodySm">
-                                                    • ScriptTag → Web Pixel
-                                                    <br />• checkout.liquid → Web Pixel
+                                                    <span dangerouslySetInnerHTML={{ __html: t("scan.autoTab.wizard.webPixelAlternativeDesc") }} />
                                                 </Text>
                                             </BlockStack>
                                         </Box>
                                         <Box minWidth="200px">
                                             <BlockStack gap="100">
-                                                <Badge tone="warning">页面侧自定义</Badge>
+                                                <Badge tone="warning">{t("scan.autoTab.wizard.pageCustomization")}</Badge>
                                                 <Text as="p" variant="bodySm">
-                                                    • Additional Scripts：需人工梳理并在新体验下重做
-                                                    <br />• Thank you/Order status 自定义逻辑：以 Shopify 官方能力为准
+                                                    <span dangerouslySetInnerHTML={{ __html: t("scan.autoTab.wizard.pageCustomizationDesc") }} />
                                                 </Text>
                                                 <Text as="p" variant="bodySm" tone="subdued">
-                                                    <strong>说明：</strong>当前版本不提供 Survey/Help/Reorder 等页面模块库，页面侧功能请按 Shopify 官方能力与审核要求实施。
+                                                    <strong>{t("scan.autoTab.wizard.pageCustomizationNote")}</strong>{t("scan.autoTab.wizard.pageCustomizationNoteDesc")}
                                                 </Text>
                                             </BlockStack>
                                         </Box>
@@ -712,10 +711,9 @@ export function ScanAutoTab({
             )}
             <ScanHistoryTable scanHistory={scanHistory} onStartScan={handleScan} />
             {latestScan && latestScan.riskScore && latestScan.riskScore > 0 && (
-                <Banner title="建议进行迁移" tone="warning" action={{ content: "前往迁移工具", url: "/app/migrate" }}>
+                <Banner title={t("scan.autoTab.suggestMigrationBanner.title")} tone="warning" action={{ content: t("scan.autoTab.suggestMigrationBanner.action"), url: "/app/migrate" }}>
                     <p>
-                        检测到您的店铺存在需要迁移的追踪脚本。
-                        建议使用我们的迁移工具将追踪代码更新为 Shopify Web Pixel 格式。
+                        {t("scan.autoTab.suggestMigrationBanner.content")}
                     </p>
                 </Banner>
             )}

@@ -8,6 +8,154 @@
     "settings": "Settings",
     "billing": "Billing"
   },
+  "deprecation": {
+    "scriptTagCreation": {
+      "expired": {
+        "message": "From Feb 1, 2025, new ScriptTags cannot be created on Thank you / Order status pages. Existing ScriptTags are still running but will stop at a later deadline.",
+        "brief": "Creation Blocked (2025-02-01)"
+      },
+      "warning": {
+        "message": "{{days}} days later ({{date}}), new ScriptTags cannot be created on TYP/OSP pages. Early migration planning is recommended.",
+        "brief": "Creation Blocked in {{days}} days"
+      },
+      "info": {
+        "message": "From 2025-02-01, new ScriptTags cannot be created. Early migration to Web Pixel is recommended.",
+        "brief": "Creation Blocked on 2025-02-01"
+      }
+    },
+    "scriptTagExecution": {
+      "expired": {
+        "message": "{{tier}} ScriptTags stopped execution on {{date}}. Please migrate to Web Pixel immediately to restore tracking.",
+        "brief": "Stopped Execution ({{date}})"
+      },
+      "warning": {
+        "message": "{{tier}} ScriptTags will stop execution on {{date}} ({{days}} days remaining). Please migrate ASAP!",
+        "brief": "{{days}} days remaining"
+      },
+      "info": {
+        "message": "{{tier}} ScriptTags will stop execution on {{date}}. Early migration to Web Pixel is recommended.",
+        "brief": "Deadline {{date}}"
+      }
+    },
+    "additionalScripts": {
+      "expired": {
+        "message": "{{tier}} Additional Scripts became read-only on {{date}}. Please use Web Pixel for tracking.",
+        "brief": "Read-only ({{date}})"
+      },
+      "warning": {
+        "message": "{{tier}} Additional Scripts will become read-only on {{date}} ({{days}} days remaining). Please migrate ASAP.",
+        "brief": "{{days}} days remaining"
+      },
+      "info": {
+        "message": "{{tier}} Additional Scripts will become read-only on {{date}}. Early migration to Web Pixel is recommended.",
+        "brief": "Deadline {{date}}"
+      }
+    },
+    "tier": {
+      "plus": "Plus Merchant",
+      "nonPlus": "Non-Plus Merchant",
+      "generic": "Merchant"
+    },
+    "urgency": {
+      "status": {
+        "good": "Your tracking configuration status is good."
+      },
+      "action": {
+        "removeScriptTag": "Immediately remove ScriptTags on Order Status page and enable Web Pixel",
+        "replaceAdditionalScripts": "Replace Additional Scripts with Web Pixel",
+        "migrateInDays": "Complete migration within {{days}} days",
+        "migrateScriptTag": "Migrate ScriptTag tracking to Web Pixel"
+      },
+      "message": {
+        "low": "Recommended to complete Web Pixel migration and run verification to ensure no data loss after upgrade."
+      }
+    },
+    "upgradeStatus": {
+      "upgraded": {
+        "title": "Upgraded to new Thank you / Order status pages",
+        "message": "Your store is using the new Checkout Extensibility pages. Legacy ScriptTags and Additional Scripts are no longer executing.",
+        "action": {
+          "clean": "Recommended to delete inactive legacy ScriptTags to keep configuration clean"
+        }
+      },
+      "unknown": {
+        "title": {
+          "plus": "⚠️ Plus Merchant: Please confirm page upgrade status",
+          "generic": "Upgrade Status Pending Confirmation"
+        },
+        "message": {
+          "plus": "Plus Merchant Additional Scripts became read-only on {{date}} (Date from Shopify official announcement, check Admin for actual). If you haven't upgraded to new Thank you / Order status pages, legacy scripts might have stopped running. Please check if your tracking is normal.",
+          "generic": "We cannot currently confirm via Shopify Admin API if your store's Thank you / Order status pages have enabled extensibility."
+        },
+        "action": {
+          "check": "Go to Shopify Admin -> Settings -> Checkout to check current page version",
+          "checkWebPixel": "If upgraded: Confirm Web Pixel is running normally",
+          "migrate": "If not upgraded: Legacy scripts might still run, but early migration is recommended",
+          "plusDeadline": "Plus Merchant Deadline: {{date}} (Date from Shopify official announcement, check Admin for actual)",
+          "nonPlusDeadline": "Non-Plus Merchant: Approx {{days}} days until deadline ({{date}}, check Admin for actual)"
+        },
+        "reason": {
+          "NOT_PLUS": "Reason: Store might not be Plus, or missing checkoutProfiles scope.",
+          "NO_EDITOR_ACCESS": "Reason: Missing 'checkout and accounts editor' access scope.",
+          "RATE_LIMIT": "Reason: Shopify API rate limit, please retry later.",
+          "FIELD_NOT_AVAILABLE": "Reason: typOspPagesActive field missing in API response (degraded).",
+          "NO_PROFILES": "Reason: No checkout profiles returned.",
+          "API_ERROR": "Reason: Shopify Admin API query failed.",
+          "NO_ADMIN_CONTEXT": "Reason: Missing Admin API context (no offline session or unauthorized).",
+          "generic": "Reason: {{reason}}"
+        }
+      },
+      "critical": {
+        "title": "🚨 Plus Merchant: Additional Scripts are Read-only",
+        "message": "Your store hasn't upgraded to new pages yet. Plus Merchant Additional Scripts became read-only on {{date}} (Date from Shopify official announcement, check Admin for actual). Shopify may migrate your pages to the new version at any time.",
+        "action": {
+          "configure": "Configure Web Pixel immediately to ensure no tracking interruption",
+          "check": "Check if Web Pixel configuration is correct",
+          "upgrade": "Consider actively upgrading to new pages for better control"
+        }
+      },
+      "expired": {
+        "title": "Deadline Passed - Migrate Immediately",
+        "message": "Additional Scripts became read-only on {{date}} (Date from Shopify official announcement, check Admin for actual). Please complete migration ASAP to avoid tracking interruption.",
+        "action": {
+          "configure": "Configure Web Pixel Immediately",
+          "verify": "Verify if tracking is working"
+        }
+      },
+      "high": {
+        "title": "Urgent: {{days}} days remaining",
+        "message": "Your store hasn't upgraded to new pages yet. Additional Scripts will become read-only on {{date}} (Date from Shopify official announcement, check Admin for actual) ({{days}} days remaining).",
+        "action": {
+          "configure": "Complete Web Pixel configuration ASAP",
+          "test": "Test tracking functionality after migration"
+        }
+      },
+      "medium": {
+        "title": "Please Plan Migration: {{days}} days remaining",
+        "message": "Your store hasn't upgraded to new pages yet. Recommended to complete migration before deadline.",
+        "action": {
+          "plan": "Plan migration schedule",
+          "configure": "Configure Web Pixel in settings page"
+        }
+      },
+      "low": {
+        "title": "Migration Recommended",
+        "message": "Your store hasn't upgraded to new pages yet. Although there is ample time, early migration planning is recommended.",
+        "action": {
+          "learn": "Learn about Web Pixel and Checkout Extensibility",
+          "preview": "Preview migration process in test store"
+        }
+      }
+    },
+    "autoUpgrade": {
+      "start": "⚡ Plus Merchant Auto-upgrade Window Open (From {{date}}, Shopify will notify 30 days in advance, date from official announcement, check Admin for actual): Shopify is gradually auto-migrating Plus merchants' Thank you / Order status pages to the new version. After auto-upgrade, legacy Additional Scripts, ScriptTags, checkout.liquid customizations will be disabled.",
+      "risk": "⚠️ Plus Merchant Auto-upgrade Risk Window ({{days}} days remaining): Shopify will start auto-migrating Plus merchants to new pages on {{date}} (Shopify will notify 30 days in advance, date from official announcement, check Admin for actual). After auto-upgrade, legacy Additional Scripts, ScriptTags, checkout.liquid customizations will be lost. Early completion of migration is recommended.",
+      "note": {
+        "start": "\n\n⚡ Auto-upgrade Window Open: Shopify is auto-migrating Plus merchants to new pages (From {{date}}, Shopify will notify 30 days in advance, date from official announcement, check Admin for actual).",
+        "risk": "\n\n📅 From {{date}} (Shopify will notify 30 days in advance, date from official announcement, check Admin for actual), Shopify will start auto-migrating Plus merchants to new pages."
+      }
+    }
+  },
   "topbar": {
     "help": "Help",
     "documentation": "Documentation"
@@ -16,7 +164,12 @@
     "loading": "Loading...",
     "error": "Error",
     "save": "Save",
-    "cancel": "Cancel"
+    "cancel": "Cancel",
+    "required": "Required",
+    "optional": "Optional",
+    "platform": "Platform:",
+    "hours": "hours",
+    "minutes": "minutes"
   },
   "plans": {
     "free": "Free",
@@ -153,6 +306,133 @@
     }
   },
   "scan": {
+    "risks": {
+      "deprecatedScriptTagOrderStatus": {
+        "name": "Order Status Page ScriptTag (Deprecated)",
+        "description": "Detected {{count}} ScriptTags for Order Status Page ({{platform}}), which is the main target of Shopify's deprecation announcement. Detection method: URL pattern matching",
+        "details": "Platform: {{platform}}, Script Count: {{count}}"
+      },
+      "deprecatedScriptTag": {
+        "name": "ScriptTag API (Migration Recommended)",
+        "description": "Detected {{count}} ScriptTags ({{platform}}). Migration to Web Pixel is recommended for better compatibility. Detection method: URL pattern matching",
+        "details": "Platform: {{platform}}, Scope: {{scope}}"
+      },
+      "inlineTracking": {
+        "name": "Inline Tracking Code",
+        "description": "Detected hardcoded tracking scripts in page source. Migration to Shopify Web Pixel is recommended. Detection method: URL pattern matching and content inference",
+        "details": "Detected Platforms: {{platforms}}"
+      },
+      "noServerSide": {
+        "name": "Server-side Tracking Recommended",
+        "description": "For detected supported platforms, enabling Conversion API is recommended to resist ad blockers and improve data accuracy",
+        "details": "Supported Platforms: {{platforms}}"
+      }
+    },
+    "checklist": {
+      "export": {
+        "title": "Migration Checklist",
+        "shop": "Shop",
+        "generatedAt": "Generated At",
+        "pendingItems": "Pending Items",
+        "quickLinks": "Quick Links",
+        "pixelsAdmin": "Pixels Admin",
+        "checkoutEditor": "Checkout Editor",
+        "migrationTool": "App Migration Tool",
+        "needDomain": "(Shop domain required)",
+        "unknown": "Unknown",
+        "priorityHigh": "High",
+        "priorityMedium": "Med",
+        "priorityLow": "Low",
+        "priorityHighFull": "High Priority",
+        "priorityMediumFull": "Medium Priority",
+        "priorityLowFull": "Low Priority",
+        "none": "None"
+      },
+      "description": {
+        "withPlatform": "{{category}} ({{platform}}) - {{migration}}",
+        "basic": "{{category}} - {{migration}}"
+      },
+      "category": {
+        "pixel": "Tracking Pixel",
+        "affiliate": "Affiliate Tracking",
+        "survey": "Post-purchase Survey",
+        "support": "Support Widget",
+        "analytics": "On-site Analytics",
+        "other": "Other"
+      },
+      "platform": {
+        "google": "Google Analytics",
+        "meta": "Meta (Facebook)",
+        "tiktok": "TikTok",
+        "pinterest": "Pinterest"
+      },
+      "migrationPath": {
+        "web_pixel": "Migrate to Web Pixel",
+        "ui_extension": "Migrate to UI Extension",
+        "server_side": "Server-side Delivery (Planned)",
+        "none": "No Migration Needed"
+      },
+      "requiredInfo": {
+        "webPixelConfig": "Web Pixel configuration required",
+        "platform": "Platform: {{platform}}",
+        "eventMappings": "Event mappings required",
+        "uiExtensionManual": "Manual logic migration via Shopify UI Extension required",
+        "moduleType": "Module Type: {{category}}",
+        "serverSideNotSupported": "Server-side delivery not supported in current version",
+        "apiKey": "API Key required",
+        "manualHandling": "Manual handling or removal required"
+      },
+      "riskReason": {
+        "scriptTagDeprecated": "ScriptTags on Thank you/Order status page are deprecated and may stop working",
+        "gaMigration": "Google Analytics ScriptTag needs migration to Web Pixel",
+        "high": "High Risk: Immediate migration required",
+        "medium": "Medium Risk: Migration recommended soon",
+        "low": "Low Risk: Gradual migration possible"
+      }
+    },
+    "migrationLogic": {
+      "scriptTag": {
+        "expired": "⚠️ {{tier}} ScriptTags stopped execution on {{date}}!",
+        "otherTierExpired": " ({{tier}}: Also stopped execution)",
+        "otherTierRemaining": " ({{tier}}: {{days}} days remaining)",
+        "creationBlocked": "⚠️ From 2025-02-01, new ScriptTags cannot be created. Existing scripts are running but will stop on {{date}}.",
+        "warning": "⏰ {{tier}}: ScriptTags will stop execution on {{date}} ({{days}} days remaining).",
+        "window": "📅 Execution Window - {{tier}} deadline: {{date}} ({{days}} days remaining).",
+        "title": "Migrate ScriptTag: {{platform}}",
+        "steps": "\n\nRecommended Steps: 1) Enable App Pixel 2) Complete test order and verification 3) Manually clean up this ScriptTag (See guide)"
+      },
+      "pixel": {
+        "official": "{{name}}: Official solution recommended",
+        "evaluate": "{{name}}: Migration plan evaluation needed",
+        "configure": "Configure {{name}}",
+        "desc": {
+          "notConfigured": "{{name}} tracking code detected but not configured. {{recommendation}}"
+        }
+      },
+      "duplicate": {
+        "title": "Clean up duplicate {{platform}} pixels",
+        "desc": "Detected {{count}} {{platform}} pixel configurations, which may cause duplicate tracking. Recommended to keep only one.",
+        "delete": " (Can delete {{count}})"
+      },
+      "upgrade": {
+        "title": "Upgrade App Pixel Configuration",
+        "desc": "Legacy Pixel configuration detected (missing shop_domain or using ingestion_secret). Please re-enable App Pixel to upgrade to new configuration format."
+      },
+      "enable": {
+        "title": "Enable App Pixel",
+        "desc": "Enable Web Pixel to start receiving events, storing data, and running verification."
+      },
+      "autoUpgrade": {
+        "start": {
+          "title": "⚡ Plus Merchant Auto-upgrade Window Open",
+          "desc": "Shopify started auto-migrating Plus merchants to new Thank you / Order status pages in Jan 2026 (Shopify notifies 30 days in advance). Legacy ScriptTags, checkout.liquid customizations will be disabled after auto-upgrade. Additional Scripts need manual identification. Please confirm Web Pixel configuration immediately to avoid tracking interruption."
+        },
+        "countdown": {
+          "title": "📅 Plus Auto-upgrade Countdown: {{days}} days remaining",
+          "desc": "Shopify will start auto-migrating Plus merchants to new pages in Jan 2026 (Shopify notifies 30 days in advance). Legacy Additional Scripts, ScriptTags, checkout.liquid customizations will be disabled. Early migration recommended to control timing."
+        }
+      }
+    },
     "summary": {
       "riskScore": {
         "title": "Risk Score",
@@ -231,6 +511,259 @@
           "item2": "For managed migration, submit ticket in support channels"
         }
       }
+    },
+    "autoTab": {
+      "exportCSV": "Export Scan Report CSV",
+      "scanning": "Scanning...",
+      "startScan": "Start Scan",
+      "emptyState": {
+        "title": "No Scan Report Yet",
+        "description": "Click Start Scan to automatically detect ScriptTags and installed pixel configurations, and get risk levels and migration suggestions. Estimated time is about 10 seconds, no settings will be modified.",
+        "helpText": "About Additional Scripts: Shopify API cannot automatically read Additional Scripts in checkout.liquid. Please switch to the 'Manual Analysis' tab and paste script content for analysis.",
+        "learnMore": "Learn More"
+      },
+      "upgradeWindow": {
+        "title": "Shopify Upgrade Risk Window",
+        "critical": "Critical",
+        "high": "High Priority",
+        "medium": "Medium Priority",
+        "low": "Low Priority",
+        "autoUpgradeStarted": "⚡ Auto-upgrade Window Open",
+        "autoUpgradeRisk": "⚠️ Auto-upgrade Risk Window",
+        "suggestedActions": "Suggested Actions:"
+      },
+      "riskDetails": {
+        "title": "Risk Details",
+        "disclaimer": "Risk identification is based on script URLs and known platform fingerprints, not actual script content analysis. For more accurate detection, please paste actual script code in 'Script Content Analysis'.",
+        "impact": "Impact:",
+        "oneClickMigrate": "One-click Migrate",
+        "freeLimit": "Free Plan Limit:",
+        "freeLimitDesc": "Only showing first {{limit}} high risk items, {{count}} items hidden.",
+        "upgradeUnlock": "Upgrade to Unlock Full Report",
+        "purchaseOnlyFix": "Enable Purchase-only Fix (10 mins)",
+        "estimatedFixTime": "Estimated Fix Time",
+        "basedOnRisk": "Estimated based on current risk item count and severity",
+        "upgradeMigration": "Upgrade to Migration Plan",
+        "upgradeMigrationDesc": "Enable Full-funnel Fix (30 mins, Growth Plan), get full migration checklist and acceptance report."
+      },
+      "migrationActions": {
+        "title": "Migration Actions",
+        "pending": "items pending",
+        "deadline": "Deadline:",
+        "cleanGuide": "View Cleanup Guide",
+        "removeDuplicate": "Remove Duplicate Pixel",
+        "upgradeConfig": "Upgrade Config",
+        "configurePixel": "Configure Pixel",
+        "noPending": "No pending items ✅",
+        "moreItems": "...and {{count}} more"
+      },
+      "migrationProgress": {
+        "title": "Migration Progress",
+        "completed": "Completed",
+        "total": "Total: {{count}} items",
+        "stats": "Completed: {{completed}} | In Progress: {{inProgress}} | Pending: {{pending}}",
+        "remainingTime": "Estimated Remaining Time:",
+        "nextSteps": "Next Steps Suggestion",
+        "unknownAsset": "Unknown Asset",
+        "priority": "Priority {{priority}}/10",
+        "noReason": "No reason provided",
+        "waitingDependencies": "Waiting for {{count}} dependencies",
+        "markComplete": "Mark Complete",
+        "allReadyCompleted": "All immediately actionable migration tasks completed! Please check if dependencies need to be finished first."
+      },
+      "wizard": {
+        "title": "Migration Wizard",
+        "badge": "P1-3 Migration Loop",
+        "description": "Based on scan results, here are the steps required to complete migration. Click items to jump to corresponding locations.",
+        "webPixelTitle": "Web Pixel Setup",
+        "webPixelDesc": "Web Pixel is the Shopify recommended client-side tracking method, replacing traditional ScriptTags.",
+        "managePixels": "Manage Pixels (Shopify Admin)",
+        "configureInApp": "Configure Pixel in App",
+        "checkoutEditorTitle": "Checkout Editor (Reference)",
+        "checkoutEditorDesc": "If you have enabled the new Thank you / Order status experience, please use Shopify official editor for page customization (this app does not provide page module library).",
+        "openEditor": "Open Checkout Editor",
+        "viewDocs": "View Official Docs",
+        "checklistTitle": "Migration Checklist",
+        "checklistDesc": "Generate exportable migration step checklist for team collaboration or progress tracking.",
+        "pendingItems": "Pending Migration Items:",
+        "copyChecklist": "Copy Checklist",
+        "exportText": "Export Text",
+        "alternativesTitle": "Alternatives Overview",
+        "officialAlternative": "Official Alternative",
+        "officialAlternativeDesc": "• Shopify Pixels (Client-side)<br />• Customer Events API",
+        "webPixelAlternative": "Web Pixel Alternative",
+        "webPixelAlternativeDesc": "• ScriptTag → Web Pixel<br />• checkout.liquid → Web Pixel",
+        "pageCustomization": "Page Customization",
+        "pageCustomizationDesc": "• Additional Scripts: Need manual review and redo in new experience<br />• Thank you/Order status custom logic: Subject to Shopify official capabilities",
+        "pageCustomizationNote": "Note:",
+        "pageCustomizationNoteDesc": "Current version does not provide Survey/Help/Reorder page modules, please implement page features according to Shopify official capabilities and review requirements."
+    },
+    "suggestMigrationBanner": {
+      "title": "Migration Recommended",
+      "action": "Go to Migration Tool",
+      "content": "Detected tracking scripts that need migration in your store. We recommend using our migration tool to update tracking code to Shopify Web Pixel format."
     }
+  }
+  },
+  "verification": {
+    "intro": {
+      "title": "Verification Type Explanation",
+      "description": "PRD 2.5 Requirement: Verification is divided into two categories. Please choose the appropriate verification method according to your needs.",
+      "pixelLayer": {
+        "title": "Pixel Layer Verification",
+        "scope": "Web Pixels Standard Events",
+        "item1": "Event Trigger Count",
+        "item2": "Payload Parameter Completeness (value/currency/items)",
+        "item3": "Amount/Currency Consistency for checkout_completed"
+      },
+      "orderLayer": {
+        "title": "Order Layer Verification",
+        "scope": "checkout_completed Event Verification & Pixel Receipt Verification",
+        "item1": "Order without Pixel (Missing Order)",
+        "item2": "Amount/Currency Consistency",
+        "item3": "Discrepancy Rate & Reasonable Missing Explanation",
+        "cta": "Go to Order Layer Verification"
+      },
+      "scopeLabel": "Verification Scope:",
+      "supportedEventsLabel": "Supported Events:",
+      "allPlansAvailable": "Available on All Plans",
+      "v1Warning": {
+        "title": "v1.0 Verification Scope (Important)",
+        "subtitle": "v1.0 only supports checkout/purchase funnel event verification",
+        "supportedLabel": "Supported Event Types:",
+        "supportedContent": "checkout_started, checkout_completed, checkout_contact_info_submitted, checkout_shipping_info_submitted, payment_info_submitted, product_added_to_cart, product_viewed, page_viewed, and other Web Pixels standard checkout funnel events",
+        "unsupportedLabel": "Unsupported Event Types:",
+        "unsupportedContent": "Refund, Order Cancel, Order Edit, Subscription orders, etc. are NOT verifiable in v1.0",
+        "noteLabel": "Note:",
+        "noteContent": "Web Pixels only cover the checkout funnel. Order layer events (refund/cancel) require order webhooks for verification.",
+        "reasonLabel": "Reason:",
+        "reasonContent": "Web Pixel Extension runs in a strict sandbox environment and can only subscribe to Shopify standard checkout funnel events. Refund, cancel, edit, subscription events require order webhooks or backend reconciliation, which will be implemented in v1.1+ via order webhooks (with strict PII minimization).",
+        "attentionLabel": "Attention:",
+        "attentionContent": "The v1.0 verification scope matches the Web Pixel Extension capabilities, adhering to privacy minimization principles."
+      },
+      "attribution": {
+        "title": "Important: Verification Scope vs Platform Attribution",
+        "subtitle": "This app's verification focuses on event triggering and data quality, and does not guarantee consistency with platform-side attribution.",
+        "provideLabel": "We Provide:",
+        "provideContent": "Pixel event trigger records, parameter completeness, order amount/currency consistency evidence.",
+        "noGuaranteeLabel": "We Do Not Guarantee:",
+        "noGuaranteeContent": "That attribution data in platform reports matches Shopify order data exactly. Platform attribution is affected by multiple factors including platform algorithms, user privacy settings, cross-device tracking restrictions, and platform data deduplication/merging rules.",
+        "reportLabel": "Verification Report Note:",
+        "reportContent": "If verification shows 'Passed', it means pixel events are normal in this app's reception and validation link; platform-side attribution may still show discrepancies, which is normal.",
+        "methodLabel": "Verification Method:",
+        "methodContent": "You can view event triggering and data quality via this app's verification report, or use platform-provided tools to verify event reception."
+      },
+      "upgradeBanner": {
+        "title": "Generate Acceptance Report (CSV) - Core Paid Feature",
+        "cta": "Upgrade to Growth Plan ($79/mo)",
+        "content1": "Requires Growth ($79/mo) or Agency ($199/mo) plan.",
+        "content2": "Report includes: Test Checklist + Event Trigger Records + Parameter Completeness + Order Amount/Currency Consistency + Privacy Compliance Check (consent/customerPrivacy)",
+        "content3": "This is the core deliverable of the project, suitable for Agencies to report acceptance to clients.",
+        "currentPlan": "Current Plan:"
+      },
+      "scope": {
+        "title": "v1.0 Verification Scope",
+        "subtitle": "v1.0 Verification Scope:",
+        "item1Title": "Checkout/Purchase Funnel Events",
+        "item2Title": "Refund, Cancel, Edit, Subscription Events",
+        "item2Content": "These event types will be implemented in v1.1+ via order webhooks"
+      },
+      "checklist": {
+        "title": "Detailed Test Checklist",
+        "copy": "Copy Checklist",
+        "copySuccess": "Test checklist copied to clipboard",
+        "export": "Export CSV",
+        "exportSuccess": "Test checklist exported",
+        "requiredCount": "Required",
+        "optionalCount": "Optional",
+        "estimated": "Estimated",
+        "steps": "Steps",
+        "expectedResults": "Expected Results"
+      }
+    }
+  },
+  "checklist": {
+    "title": "Migration Checklist",
+    "highRisk": "High Risk",
+    "mediumRisk": "Medium Risk",
+    "totalTime": "Estimated Total Time",
+    "progress": "Progress",
+    "search": "Search",
+    "searchPlaceholder": "Search asset name, platform, category...",
+    "riskLevel": "Risk Level",
+    "category": "Category",
+    "status": "Status",
+    "sort": "Sort",
+    "exportCSV": "Export CSV",
+    "countSuffix": "items",
+    "filters": {
+      "all": "All",
+      "high": "High Risk",
+      "medium": "Medium Risk",
+      "low": "Low Risk",
+      "pending": "Pending",
+      "inProgress": "In Progress",
+      "completed": "Completed",
+      "skipped": "Skipped"
+    },
+    "sortOptions": {
+      "priority": "Priority",
+      "time": "Estimated Time",
+      "risk": "Risk Level",
+      "category": "Category"
+    },
+    "riskLevelText": {
+      "high": "High",
+      "medium": "Medium",
+      "low": "Low"
+    },
+    "prdNote": "PRD 2.2: Migration Checklist Delivery Structure (4 columns)",
+    "prdItems": [
+      "Asset Name/Fingerprint (hash)",
+      "Risk Level (High/Med/Low) + Reason",
+      "Recommended Migration Path (Web Pixel / Manual / Not Supported)",
+      "Estimated Time + Info Needed (Pixel ID, Token, Survey Questions, etc.)"
+    ],
+    "noMatch": "No matching items, please adjust filters",
+    "empty": "No migration checklist items",
+    "tableHeadings": [
+      "Asset Name/Fingerprint",
+      "Risk Level + Reason",
+      "Recommended Migration Path",
+      "Estimated Time + Info Needed"
+    ],
+    "migrationPath": {
+      "webPixel": "Web Pixel",
+      "manual": "Manual Migration",
+      "notProvided": "Not Provided",
+      "notSupported": "External redirect / not supported",
+      "none": "No Migration Needed"
+    },
+    "needsInfo": {
+      "platform": "Platform: {{platform}}",
+      "pixelId": "Pixel ID Required",
+      "surveyQuestions": "Survey Questions Required",
+      "none": "No Special Requirements"
+    },
+    "unnamedAsset": "Unnamed Asset",
+    "riskReason": "{{level}} Risk - {{reason}}",
+    "statusLabel": {
+      "completed": "Completed",
+      "inProgress": "In Progress",
+      "pending": "Pending",
+      "skipped": "Skipped"
+    },
+    "dependencies": {
+      "show": "Show Dependencies",
+      "hide": "Hide Dependencies",
+      "depsCount": " ({{count}} dependencies)",
+      "dependentsCount": " ({{count}} dependents)",
+      "title": "Dependencies",
+      "desc": "Need to complete migration of following assets first:",
+      "dependentsTitle": "Dependents",
+      "dependentsDesc": "Migration of following assets depends on this asset:"
+    },
+    "startMigration": "Start Migration",
+    "markComplete": "Mark Complete"
   }
 }

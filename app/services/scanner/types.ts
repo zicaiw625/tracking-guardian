@@ -8,7 +8,11 @@ export interface MigrationAction {
     priority: "high" | "medium" | "low";
     platform?: string;
     title: string;
+    titleKey?: string;
+    titleParams?: Record<string, any>;
     description: string;
+    descriptionKey?: string;
+    descriptionParams?: Record<string, any>;
     scriptTagId?: number;
     webPixelGid?: string;
     deadline?: string;

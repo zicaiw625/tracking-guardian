@@ -29,6 +29,7 @@ import { useScriptAnalysis } from "./app.scan/_components/useScriptAnalysis";
 import { TIMEOUTS } from "../utils/scan-constants";
 import { isFetcherResult } from "../utils/scan-validation";
 import type { ScriptAnalysisResult } from "../services/scanner.server";
+import { useTranslation } from "react-i18next";
 
 
 
@@ -47,6 +48,7 @@ export function ScanPage({
     pageSubtitle = "迁移清单 + 风险分级 + 替代路径（Web Pixel / 不可迁移）• 明确提示 checkout.liquid / additional scripts / script tags 在 Thank you/Order status 的弃用与限制 • 可导出 CSV",
     showMigrationButtons = false,
 }: ScanPageProps) {
+    const { t } = useTranslation();
     const [searchParams] = useSearchParams();
     const tabParam = searchParams.get("tab");
     const tabFromUrl = tabParam === "1" ? 1 : tabParam === "2" ? 2 : 0;
@@ -479,8 +481,8 @@ export function ScanPage({
     });
   }, [auditAssetCount, isAgency, latestScan?.riskScore, planIdSafe, shouldShowMigrationButtons, shop?.id]);
     const handleGenerateChecklistText = useCallback((format: "markdown" | "plain"): string => {
-        return generateChecklistText(migrationActions, shop?.domain, format);
-    }, [migrationActions, shop?.domain]);
+        return generateChecklistText(migrationActions, shop?.domain, format, t);
+    }, [migrationActions, shop?.domain, t]);
     const handleExportCSV = useCallback(async () => {
         if (!latestScan) return;
         try {

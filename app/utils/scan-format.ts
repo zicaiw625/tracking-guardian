@@ -52,44 +52,70 @@ export function calculateROIEstimate(
 export function generateChecklistText(
   migrationActions: Array<{
     title: string;
+    titleKey?: string;
+    titleParams?: Record<string, any>;
     platform?: string;
     priority: "high" | "medium" | "low";
   }> | null | undefined,
   shopDomain: string | null | undefined,
-  format: "markdown" | "plain"
+  format: "markdown" | "plain",
+  t?: (key: string, options?: any) => string
 ): string {
   
+  const _t = t || ((key: string, _options?: any) => {
+      // Fallback for Chinese if no t provided
+      if (key === "scan.checklist.export.title") return "迁移清单";
+      if (key === "scan.checklist.export.shop") return "店铺";
+      if (key === "scan.checklist.export.generatedAt") return "生成时间";
+      if (key === "scan.checklist.export.pendingItems") return "待处理项目";
+      if (key === "scan.checklist.export.quickLinks") return "快速链接";
+      if (key === "scan.checklist.export.pixelsAdmin") return "Pixels 管理";
+      if (key === "scan.checklist.export.checkoutEditor") return "Checkout Editor";
+      if (key === "scan.checklist.export.migrationTool") return "应用迁移工具";
+      if (key === "scan.checklist.export.needDomain") return "(需要店铺域名)";
+      if (key === "scan.checklist.export.unknown") return "未知";
+      if (key === "scan.checklist.export.priorityHigh") return "高";
+      if (key === "scan.checklist.export.priorityMedium") return "中";
+      if (key === "scan.checklist.export.priorityLow") return "低";
+      if (key === "scan.checklist.export.priorityHighFull") return "高优先级";
+      if (key === "scan.checklist.export.priorityMediumFull") return "中优先级";
+      if (key === "scan.checklist.export.priorityLowFull") return "低优先级";
+      if (key === "scan.checklist.export.none") return "无";
+      return key;
+  });
+
   const items = migrationActions && migrationActions.length > 0
     ? migrationActions.map((a, i) => {
         const priorityText = format === "markdown"
-          ? (a.priority === "high" ? "高" : a.priority === "medium" ? "中" : "低")
-          : (a.priority === "high" ? "高优先级" : a.priority === "medium" ? "中优先级" : "低优先级");
+          ? (a.priority === "high" ? _t("scan.checklist.export.priorityHigh") : a.priority === "medium" ? _t("scan.checklist.export.priorityMedium") : _t("scan.checklist.export.priorityLow"))
+          : (a.priority === "high" ? _t("scan.checklist.export.priorityHighFull") : a.priority === "medium" ? _t("scan.checklist.export.priorityMediumFull") : _t("scan.checklist.export.priorityLowFull"));
         const platformText = a.platform ? ` (${getPlatformName(a.platform)})` : "";
-        return `${i + 1}. [${priorityText}] ${a.title}${platformText}`;
+        const title = a.titleKey && t ? t(a.titleKey, a.titleParams) : a.title;
+        return `${i + 1}. [${priorityText}] ${title}${platformText}`;
       })
-    : ["无"];
+    : [_t("scan.checklist.export.none")];
   
   if (format === "markdown") {
     return [
-      "# 迁移清单",
-      `店铺: ${shopDomain || "未知"}`,
-      `生成时间: ${new Date().toLocaleString("zh-CN")}`,
+      `# ${_t("scan.checklist.export.title")}`,
+      `${_t("scan.checklist.export.shop")}: ${shopDomain || _t("scan.checklist.export.unknown")}`,
+      `${_t("scan.checklist.export.generatedAt")}: ${new Date().toLocaleString()}`,
       "",
-      "## 待处理项目",
+      `## ${_t("scan.checklist.export.pendingItems")}`,
       ...items,
       "",
-      "## 快速链接",
-      shopDomain ? `- Pixels 管理: ${getShopifyAdminUrl(shopDomain, "/settings/notifications")}` : "- Pixels 管理: (需要店铺域名)",
-      shopDomain ? `- Checkout Editor: ${getShopifyAdminUrl(shopDomain, "/themes/current/editor")}` : "- Checkout Editor: (需要店铺域名)",
-      "- 应用迁移工具: /app/migrate",
+      `## ${_t("scan.checklist.export.quickLinks")}`,
+      shopDomain ? `- ${_t("scan.checklist.export.pixelsAdmin")}: ${getShopifyAdminUrl(shopDomain, "/settings/notifications")}` : `- ${_t("scan.checklist.export.pixelsAdmin")}: ${_t("scan.checklist.export.needDomain")}`,
+      shopDomain ? `- ${_t("scan.checklist.export.checkoutEditor")}: ${getShopifyAdminUrl(shopDomain, "/themes/current/editor")}` : `- ${_t("scan.checklist.export.checkoutEditor")}: ${_t("scan.checklist.export.needDomain")}`,
+      `- ${_t("scan.checklist.export.migrationTool")}: /app/migrate`,
     ].join("\n");
   } else {
     return [
-      "迁移清单",
-      `店铺: ${shopDomain || "未知"}`,
-      `生成时间: ${new Date().toLocaleString("zh-CN")}`,
+      _t("scan.checklist.export.title"),
+      `${_t("scan.checklist.export.shop")}: ${shopDomain || _t("scan.checklist.export.unknown")}`,
+      `${_t("scan.checklist.export.generatedAt")}: ${new Date().toLocaleString()}`,
       "",
-      "待处理项目:",
+      `${_t("scan.checklist.export.pendingItems")}:`,
       ...items,
     ].join("\n");
   }

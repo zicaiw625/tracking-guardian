@@ -8,6 +8,154 @@
     "settings": "设置",
     "billing": "计费"
   },
+  "deprecation": {
+    "scriptTagCreation": {
+      "expired": {
+        "message": "自 2025 年 2 月 1 日起，无法在 Thank you / Order status 页面创建新的 ScriptTag。现有的 ScriptTag 仍在运行，但将于稍后的截止日期停止。",
+        "brief": "禁止创建（2025-02-01）"
+      },
+      "warning": {
+        "message": "{{days}} 天后（{{date}}）将无法在 TYP/OSP 页面创建新的 ScriptTag。建议提前规划迁移。",
+        "brief": "{{days}} 天后禁止创建"
+      },
+      "info": {
+        "message": "2025-02-01 起将无法创建新的 ScriptTag。建议提前迁移到 Web Pixel。",
+        "brief": "2025-02-01 禁止创建"
+      }
+    },
+    "scriptTagExecution": {
+      "expired": {
+        "message": "{{tier}}的 ScriptTag 已于 {{date}} 停止执行。请立即迁移到 Web Pixel 以恢复追踪功能。",
+        "brief": "已停止执行（{{date}}）"
+      },
+      "warning": {
+        "message": "{{tier}}的 ScriptTag 将于 {{date}} 停止执行（剩余 {{days}} 天）。请尽快完成迁移！",
+        "brief": "剩余 {{days}} 天"
+      },
+      "info": {
+        "message": "{{tier}}的 ScriptTag 将于 {{date}} 停止执行。建议提前迁移到 Web Pixel。",
+        "brief": "截止 {{date}}"
+      }
+    },
+    "additionalScripts": {
+      "expired": {
+        "message": "{{tier}}的 Additional Scripts 已于 {{date}} 变为只读。请使用 Web Pixel 进行追踪。",
+        "brief": "已只读（{{date}}）"
+      },
+      "warning": {
+        "message": "{{tier}}的 Additional Scripts 将于 {{date}} 变为只读（剩余 {{days}} 天）。请尽快迁移。",
+        "brief": "剩余 {{days}} 天"
+      },
+      "info": {
+        "message": "{{tier}}的 Additional Scripts 将于 {{date}} 变为只读。建议提前迁移到 Web Pixel。",
+        "brief": "截止 {{date}}"
+      }
+    },
+    "tier": {
+      "plus": "Plus 商家",
+      "nonPlus": "非 Plus 商家",
+      "generic": "商家"
+    },
+    "urgency": {
+      "status": {
+        "good": "您的追踪配置状态良好。"
+      },
+      "action": {
+        "removeScriptTag": "立即删除订单状态页的 ScriptTag 并启用 Web Pixel",
+        "replaceAdditionalScripts": "使用 Web Pixel 替代 Additional Scripts",
+        "migrateInDays": "在 {{days}} 天内完成迁移",
+        "migrateScriptTag": "将 ScriptTag 追踪迁移到 Web Pixel"
+      },
+      "message": {
+        "low": "建议完成 Web Pixel 迁移并运行验收，确保升级后不丢数据。"
+      }
+    },
+    "upgradeStatus": {
+      "upgraded": {
+        "title": "已升级到新版 Thank you / Order status 页面",
+        "message": "您的店铺已使用新版 Checkout Extensibility 页面。旧版 ScriptTags 和 Additional Scripts 已不再执行。",
+        "action": {
+          "clean": "建议删除不再生效的旧版 ScriptTags 以保持配置整洁"
+        }
+      },
+      "unknown": {
+        "title": {
+          "plus": "⚠️ Plus 商家：请确认页面升级状态",
+          "generic": "升级状态待确认"
+        },
+        "message": {
+          "plus": "Plus 商家的 Additional Scripts 已于 {{date}}（日期来自 Shopify 官方公告，请以 Admin 提示为准）进入只读模式。如果您尚未升级到新版 Thank you / Order status 页面，旧脚本可能已停止运行。请检查您的追踪是否正常。",
+          "generic": "我们暂时无法通过 Shopify Admin API 确认您店铺的 Thank you / Order status 页面是否已启用 extensibility。"
+        },
+        "action": {
+          "check": "前往 Shopify 后台 → 设置 → 结账 查看当前页面版本",
+          "checkWebPixel": "如已升级：确认 Web Pixel 正常运行",
+          "migrate": "如未升级：旧脚本可能仍在运行，但建议尽快迁移",
+          "plusDeadline": "Plus 商家截止日期：{{date}}（日期来自 Shopify 官方公告，请以 Admin 提示为准）",
+          "nonPlusDeadline": "非 Plus 商家：距截止日期（{{date}}，日期来自 Shopify 官方公告，请以 Admin 提示为准）还有约 {{days}} 天"
+        },
+        "reason": {
+          "NOT_PLUS": "原因：店铺可能不是 Plus，或没有 checkoutProfiles 权限。",
+          "NO_EDITOR_ACCESS": "原因：缺少「checkout and accounts editor」访问权限。",
+          "RATE_LIMIT": "原因：Shopify API 限流，请稍后重试。",
+          "FIELD_NOT_AVAILABLE": "原因：API 响应中缺少 typOspPagesActive 字段（已降级处理）。",
+          "NO_PROFILES": "原因：未返回 checkout profiles。",
+          "API_ERROR": "原因：Shopify Admin API 查询失败。",
+          "NO_ADMIN_CONTEXT": "原因：缺少 Admin API 上下文（无离线 session 或未授权）。",
+          "generic": "原因：{{reason}}"
+        }
+      },
+      "critical": {
+        "title": "🚨 Plus 商家：Additional Scripts 已进入只读模式",
+        "message": "您的店铺尚未升级到新版页面。Plus 商家的 Additional Scripts 已于 {{date}}（日期来自 Shopify 官方公告，请以 Admin 提示为准）进入只读模式。Shopify 可能随时将您的页面迁移到新版本。",
+        "action": {
+          "configure": "立即配置 Web Pixel 以确保追踪不中断",
+          "check": "检查 Web Pixel 配置是否正确",
+          "upgrade": "考虑主动升级到新版页面以获得更好的控制"
+        }
+      },
+      "expired": {
+        "title": "截止日期已过 - 请立即迁移",
+        "message": "Additional Scripts 已于 {{date}}（日期来自 Shopify 官方公告，请以 Admin 提示为准）进入只读模式。请尽快完成迁移以避免追踪中断。",
+        "action": {
+          "configure": "立即配置 Web Pixel",
+          "verify": "验证追踪是否正常工作"
+        }
+      },
+      "high": {
+        "title": "紧急：剩余 {{days}} 天",
+        "message": "您的店铺尚未升级到新版页面。Additional Scripts 将于 {{date}}（日期来自 Shopify 官方公告，请以 Admin 提示为准）进入只读模式（剩余 {{days}} 天）。",
+        "action": {
+          "configure": "尽快完成 Web Pixel 配置",
+          "test": "测试迁移后的追踪功能"
+        }
+      },
+      "medium": {
+        "title": "请规划迁移：剩余 {{days}} 天",
+        "message": "您的店铺尚未升级到新版页面。建议在截止日期前完成迁移。",
+        "action": {
+          "plan": "规划迁移时间表",
+          "configure": "在设置页面配置 Web Pixel"
+        }
+      },
+      "low": {
+        "title": "建议迁移",
+        "message": "您的店铺尚未升级到新版页面。虽然时间充裕，但建议提前规划迁移。",
+        "action": {
+          "learn": "了解 Web Pixel 和 Checkout Extensibility",
+          "preview": "在测试店铺中预演迁移流程"
+        }
+      }
+    },
+    "autoUpgrade": {
+      "start": "⚡ Plus 商家自动升级窗口已开始（{{date}}起，Shopify 会提前30天通知，日期来自 Shopify 官方公告，请以 Admin 提示为准）：Shopify 正在逐步将 Plus 商家的 Thank you / Order status 页面自动迁移到新版本。自动升级后，旧的 Additional Scripts、ScriptTags、checkout.liquid 自定义将失效。",
+      "risk": "⚠️ Plus 商家自动升级风险窗口（剩余 {{days}} 天）：Shopify 将于 {{date}}（Shopify 会提前30天通知，日期来自 Shopify 官方公告，请以 Admin 提示为准）开始自动将 Plus 商家迁移到新版页面。自动升级后，旧的 Additional Scripts、ScriptTags、checkout.liquid 自定义将丢失。建议提前完成迁移。",
+      "note": {
+        "start": "\n\n⚡ 自动升级窗口已开始：Shopify 正在将 Plus 商家自动迁移到新版页面（{{date}}起，Shopify 会提前30天通知，日期来自 Shopify 官方公告，请以 Admin 提示为准）。",
+        "risk": "\n\n📅 {{date}}起（Shopify 会提前30天通知，日期来自 Shopify 官方公告，请以 Admin 提示为准），Shopify 将开始自动迁移 Plus 商家到新版页面。"
+      }
+    }
+  },
   "topbar": {
     "help": "帮助",
     "documentation": "文档"
@@ -16,7 +164,12 @@
     "loading": "加载中...",
     "error": "错误",
     "save": "保存",
-    "cancel": "取消"
+    "cancel": "取消",
+    "required": "必需",
+    "optional": "可选",
+    "platform": "平台:",
+    "hours": "小时",
+    "minutes": "分钟"
   },
   "plans": {
     "free": "免费版",
@@ -59,9 +212,9 @@
       "title": "重要迁移截止日期",
       "action": "了解更多",
       "disclaimer": "<strong>重要提示：</strong>以下日期来自 Shopify 官方公告，仅供参考。实际截止日期请以 Shopify Admin 中的提示为准。Shopify 可能会更新策略，我们建议您定期查看 Shopify 官方文档。",
-      "plusMerchant": "<strong>Plus 商家:</strong> <strong>{{date1}}</strong> 开始限制（ScriptTag 停止执行；Additional Scripts 进入只读模式（不可编辑，PII 不可访问），关键节点：升级/限制开始），<strong>{{date2}}</strong> 起 Shopify 开始自动升级（legacy 定制会丢失）。参考 <1>Shopify Help Center</1>",
+      "plusMerchant": "<strong>Plus 商家:</strong> <strong>{{date1}}</strong> 开始限制（ScriptTag 停止执行；Additional Scripts 进入只读模式（不可编辑，PII 不可访问），关键节点：升级/限制开始），<strong>{{date2}}</strong> 起 Shopify 开始自动升级（legacy 定制会丢失）。参考 <1>Shopify 帮助中心</1>",
       "plusGuide": "查看 Plus 商家升级指南",
-      "nonPlusMerchant": "<strong>非 Plus 商家:</strong> 最晚 <strong>{{date}}</strong> 截止。参考 <1>Shopify Help Center</1>",
+      "nonPlusMerchant": "<strong>非 Plus 商家:</strong> 最晚 <strong>{{date}}</strong> 截止。参考 <1>Shopify 帮助中心</1>",
       "deprecationSchedule": "查看 ScriptTags 弃用时间表",
       "footer": "checkout.liquid、附加脚本（Additional Scripts）、ScriptTags 将逐步下线，建议尽早迁移到 Web Pixels"
     },
@@ -100,7 +253,7 @@
         "subtitle": "检测到占位符 __BACKEND_URL_PLACEHOLDER__，URL 未在构建时替换",
         "description": "像素扩展配置中仍包含占位符，这表明构建流程未正确替换占位符。如果占位符未被替换，像素扩展将无法发送事件到后端，导致事件丢失。这是一个严重的配置错误，必须在上线前修复。",
         "fixStepsTitle": "修复步骤（必须在生产环境部署前完成）：",
-        "step1": "在 CI/CD 流程中，部署前必须运行 <code>pnpm ext:inject</code> 或 <code>pnpm deploy:ext</code>",
+        "step1": "在 CI/CD 流程中，部署前必须运行 <code>pnpm ext:inject</code> or <code>pnpm deploy:ext</code>",
         "step2": "确保环境变量 <code>SHOPIFY_APP_URL</code> 已正确设置",
         "step3": "验证扩展构建产物中不再包含占位符",
         "step4": "确保该 URL 已在 Web Pixel Extension 的 allowlist 中配置",
@@ -153,6 +306,133 @@
     }
   },
   "scan": {
+    "risks": {
+      "deprecatedScriptTagOrderStatus": {
+        "name": "订单状态页 ScriptTag（将被废弃）",
+        "description": "检测到 {{count}} 个用于订单状态页的 ScriptTag ({{platform}})，这是 Shopify 废弃公告的主要目标。检测方法：URL 模式匹配",
+        "details": "平台: {{platform}}, 脚本数量: {{count}}"
+      },
+      "deprecatedScriptTag": {
+        "name": "ScriptTag API（建议迁移）",
+        "description": "检测到 {{count}} 个 ScriptTag ({{platform}})，建议迁移到 Web Pixel 以获得更好的兼容性。检测方法：URL 模式匹配",
+        "details": "平台: {{platform}}, 范围: {{scope}}"
+      },
+      "inlineTracking": {
+        "name": "内联追踪代码",
+        "description": "检测到页面源码中包含硬编码的追踪脚本，建议迁移到 Shopify Web Pixel。检测方法：URL 模式匹配与内容模式推断",
+        "details": "检测到平台: {{platforms}}"
+      },
+      "noServerSide": {
+        "name": "建议启用服务端追踪",
+        "description": "对于检测到的支持平台，建议开启 Conversion API 以抵抗广告拦截和提升数据准确性",
+        "details": "支持平台: {{platforms}}"
+      }
+    },
+    "checklist": {
+      "export": {
+        "title": "迁移清单",
+        "shop": "店铺",
+        "generatedAt": "生成时间",
+        "pendingItems": "待处理项目",
+        "quickLinks": "快速链接",
+        "pixelsAdmin": "Pixels 管理",
+        "checkoutEditor": "Checkout Editor",
+        "migrationTool": "应用迁移工具",
+        "needDomain": "(需要店铺域名)",
+        "unknown": "未知",
+        "priorityHigh": "高",
+        "priorityMedium": "中",
+        "priorityLow": "低",
+        "priorityHighFull": "高优先级",
+        "priorityMediumFull": "中优先级",
+        "priorityLowFull": "低优先级",
+        "none": "无"
+      },
+      "description": {
+        "withPlatform": "{{category}} ({{platform}}) - {{migration}}",
+        "basic": "{{category}} - {{migration}}"
+      },
+      "category": {
+        "pixel": "追踪像素",
+        "affiliate": "联盟追踪",
+        "survey": "售后问卷",
+        "support": "客服入口",
+        "analytics": "站内分析",
+        "other": "其他"
+      },
+      "platform": {
+        "google": "Google Analytics",
+        "meta": "Meta (Facebook)",
+        "tiktok": "TikTok",
+        "pinterest": "Pinterest"
+      },
+      "migrationPath": {
+        "web_pixel": "迁移到 Web Pixel",
+        "ui_extension": "迁移到 UI Extension",
+        "server_side": "服务端投递（规划项）",
+        "none": "无需迁移"
+      },
+      "requiredInfo": {
+        "webPixelConfig": "需要配置 Web Pixel 扩展",
+        "platform": "平台: {{platform}}",
+        "eventMappings": "需要配置事件映射",
+        "uiExtensionManual": "需要按 Shopify 官方能力手动迁移页面逻辑",
+        "moduleType": "模块类型: {{category}}",
+        "serverSideNotSupported": "当前版本不提供服务端投递",
+        "apiKey": "需要 API Key",
+        "manualHandling": "需要手动处理或移除"
+      },
+      "riskReason": {
+        "scriptTagDeprecated": "脚本标签在 Thank you/Order status 页面已被弃用，可能导致功能失效",
+        "gaMigration": "Google Analytics 脚本标签需要迁移到 Web Pixel",
+        "high": "高风险：需要立即迁移",
+        "medium": "中等风险：建议尽快迁移",
+        "low": "低风险：可逐步迁移"
+      }
+    },
+    "migrationLogic": {
+      "scriptTag": {
+        "expired": "⚠️ {{tier}} 商家的 ScriptTag 已于 {{date}} 停止执行！",
+        "otherTierExpired": " ({{tier}} 商家: 也已停止执行)",
+        "otherTierRemaining": " ({{tier}} 商家: 剩余 {{days}} 天)",
+        "creationBlocked": "⚠️ 2025-02-01 起已无法创建新的 ScriptTag。现有脚本仍在运行，但将于 {{date}} 停止执行。",
+        "warning": "⏰ {{tier}} 商家: ScriptTag 将于 {{date}} 停止执行（剩余 {{days}} 天）。",
+        "window": "📅 执行窗口期 - {{tier}} 商家截止日期: {{date}}（剩余 {{days}} 天）。",
+        "title": "迁移 ScriptTag: {{platform}}",
+        "steps": "\n\n推荐步骤：1) 启用 App Pixel  2) 完成测试订单并运行验收  3) 手动清理此 ScriptTag（查看指南）"
+      },
+      "pixel": {
+        "official": "{{name}}: 建议使用官方方案",
+        "evaluate": "{{name}}: 需要评估迁移方案",
+        "configure": "配置 {{name}}",
+        "desc": {
+          "notConfigured": "检测到 {{name}} 追踪代码，但尚未配置。{{recommendation}}"
+        }
+      },
+      "duplicate": {
+        "title": "清理重复的 {{platform}} 像素",
+        "desc": "检测到 {{count}} 个 {{platform}} 像素配置，可能导致重复追踪。建议只保留一个。",
+        "delete": " (可删除 {{count}} 个)"
+      },
+      "upgrade": {
+        "title": "升级 App Pixel 配置",
+        "desc": "检测到旧版 Pixel 配置（缺少 shop_domain 或仍使用 ingestion_secret 旧字段）。请重新启用 App Pixel 以升级到新版配置格式。"
+      },
+      "enable": {
+        "title": "启用 App Pixel",
+        "desc": "启用 Web Pixel 以开始接收事件、落库并运行验收。"
+      },
+      "autoUpgrade": {
+        "start": {
+          "title": "⚡ Plus 商家自动升级窗口已开始",
+          "desc": "Shopify 已于 2026年1月（Shopify 会提前30天通知）开始自动将 Plus 商家迁移到新版 Thank you / Order status 页面。旧的 ScriptTags、checkout.liquid 自定义将在自动升级后失效。Additional Scripts 需要通过手动粘贴识别。请立即确认 Web Pixel 配置正确，避免追踪中断。"
+        },
+        "countdown": {
+          "title": "📅 Plus 自动升级倒计时：剩余 {{days}} 天",
+          "desc": "Shopify 将于 2026年1月（Shopify 会提前30天通知）开始自动将 Plus 商家迁移到新版页面。自动升级后，旧的 Additional Scripts、ScriptTags、checkout.liquid 自定义将失效。建议提前完成迁移，确保控制迁移时机。"
+        }
+      }
+    },
     "summary": {
       "riskScore": {
         "title": "风险评分",
@@ -231,6 +511,302 @@
           "item2": "如需迁移托管，可在支持渠道提交工单"
         }
       }
+    },
+    "migrationLogic": {
+      "scriptTag": {
+        "expired": "⚠️ {{tier}} 商家的 ScriptTag 已于 {{date}} 停止执行！",
+        "otherTierExpired": " ({{tier}} 商家: 也已停止执行)",
+        "otherTierRemaining": " ({{tier}} 商家: 剩余 {{days}} 天)",
+        "creationBlocked": "⚠️ 2025-02-01 起已无法创建新的 ScriptTag。现有脚本仍在运行，但将于 {{date}} 停止执行。",
+        "warning": "⏰ {{tier}} 商家: ScriptTag 将于 {{date}} 停止执行（剩余 {{days}} 天）。",
+        "window": "📅 执行窗口期 - {{tier}} 商家截止日期: {{date}}（剩余 {{days}} 天）。",
+        "title": "迁移 ScriptTag: {{platform}}",
+        "steps": "\n\n推荐步骤：1) 启用 App Pixel  2) 完成测试订单并运行验收  3) 手动清理此 ScriptTag（查看指南）"
+      },
+      "pixel": {
+        "official": "{{name}}: 建议使用官方方案",
+        "evaluate": "{{name}}: 需要评估迁移方案",
+        "configure": "配置 {{name}}",
+        "desc": {
+          "notConfigured": "检测到 {{name}} 追踪代码，但尚未配置。{{recommendation}}"
+        }
+      },
+      "duplicate": {
+        "title": "清理重复的 {{platform}} 像素",
+        "desc": "检测到 {{count}} 个 {{platform}} 像素配置，可能导致重复追踪。建议只保留一个。",
+        "delete": " (可删除 {{count}} 个)"
+      },
+      "upgrade": {
+        "title": "升级 App Pixel 配置",
+        "desc": "检测到旧版 Pixel 配置（缺少 shop_domain 或仍使用 ingestion_secret 旧字段）。请重新启用 App Pixel 以升级到新版配置格式。"
+      },
+      "enable": {
+        "title": "启用 App Pixel",
+        "desc": "启用 Web Pixel 以开始接收事件、落库并运行验收。"
+      },
+      "autoUpgrade": {
+        "start": {
+          "title": "⚡ Plus 商家自动升级窗口已开始",
+          "desc": "Shopify 已于 2026年1月（Shopify 会提前30天通知）开始自动将 Plus 商家迁移到新版 Thank you / Order status 页面。旧的 ScriptTags、checkout.liquid 自定义将在自动升级后失效。Additional Scripts 需要通过手动粘贴识别。请立即确认 Web Pixel 配置正确，避免追踪中断。"
+        },
+        "countdown": {
+          "title": "📅 Plus 自动升级倒计时：剩余 {{days}} 天",
+          "desc": "Shopify 将于 2026年1月（Shopify 会提前30天通知）开始自动将 Plus 商家迁移到新版页面。自动升级后，旧的 Additional Scripts、ScriptTags、checkout.liquid 自定义将失效。建议提前完成迁移，确保控制迁移时机。"
+        }
+      }
+    },
+    "autoTab": {
+      "exportCSV": "导出扫描报告 CSV",
+      "scanning": "扫描中...",
+      "startScan": "开始扫描",
+      "emptyState": {
+        "title": "还没有扫描报告",
+        "description": "点击开始扫描，我们会自动检测 ScriptTags 和已安装的像素配置，并给出风险等级与迁移建议。预计耗时约 10 秒，不会修改任何设置。",
+        "helpText": "关于 Additional Scripts：Shopify API 无法自动读取 checkout.liquid 中的 Additional Scripts。请切换到「手动分析」标签页，粘贴脚本内容进行分析。",
+        "learnMore": "了解更多"
+      },
+      "upgradeWindow": {
+        "title": "Shopify 升级风险窗口",
+        "critical": "紧急",
+        "high": "高优先级",
+        "medium": "中优先级",
+        "low": "低优先级",
+        "autoUpgradeStarted": "⚡ 自动升级窗口已开始",
+        "autoUpgradeRisk": "⚠️ 自动升级风险窗口",
+        "suggestedActions": "建议操作："
+      },
+      "riskDetails": {
+        "title": "风险详情",
+        "disclaimer": "风险识别基于脚本 URL 和已知平台指纹推断，并非实际脚本内容分析。如需更精确的检测，请在「脚本内容分析」中粘贴实际脚本代码。",
+        "impact": "影响:",
+        "oneClickMigrate": "一键迁移",
+        "freeLimit": "免费版限制：",
+        "freeLimitDesc": "仅显示前 {{limit}} 条高风险项，还有 {{count}} 项未显示。",
+        "upgradeUnlock": "升级解锁完整报告",
+        "purchaseOnlyFix": "启用 Purchase-only 修复（10 分钟）",
+        "estimatedFixTime": "预计修复时间",
+        "basedOnRisk": "基于当前风险项数量和严重程度估算",
+        "upgradeMigration": "升级到 Migration 版",
+        "upgradeMigrationDesc": "可启用 Full-funnel 修复（30 分钟，Growth 套餐），获得完整迁移清单和验收报告。"
+      },
+      "migrationActions": {
+        "title": "迁移操作",
+        "pending": "项待处理",
+        "deadline": "截止:",
+        "cleanGuide": "查看清理指南",
+        "removeDuplicate": "删除重复像素",
+        "upgradeConfig": "升级配置",
+        "configurePixel": "配置 Pixel",
+        "noPending": "暂无待处理项目 ✅",
+        "moreItems": "...还有 {{count}} 项"
+      },
+      "migrationProgress": {
+        "title": "迁移进度",
+        "completed": "完成",
+        "total": "总计: {{count}} 项",
+        "stats": "已完成: {{completed}} | 进行中: {{inProgress}} | 待处理: {{pending}}",
+        "remainingTime": "预计剩余时间:",
+        "nextSteps": "下一步建议",
+        "unknownAsset": "未知资产",
+        "priority": "优先级 {{priority}}/10",
+        "noReason": "无说明",
+        "waitingDependencies": "等待 {{count}} 个依赖项完成",
+        "markComplete": "标记完成",
+        "allReadyCompleted": "所有可立即开始的迁移任务已完成！请检查是否有依赖项需要先完成。"
+      },
+      "wizard": {
+        "title": "迁移向导",
+        "badge": "P1-3 迁移闭环",
+        "description": "根据扫描结果，以下是完成迁移所需的步骤。点击各项可直接跳转到对应位置。",
+        "webPixelTitle": "Web Pixel 设置",
+        "webPixelDesc": "Web Pixel 是 Shopify 推荐的客户端追踪方式，替代传统 ScriptTag。",
+        "managePixels": "管理 Pixels（Shopify 后台）",
+        "configureInApp": "在应用内配置 Pixel",
+        "checkoutEditorTitle": "Checkout Editor（参考）",
+        "checkoutEditorDesc": "如果您已启用新的 Thank you / Order status 体验，请使用 Shopify 官方编辑器完成页面侧自定义（本应用不提供页面模块库）。",
+        "openEditor": "打开 Checkout Editor",
+        "viewDocs": "查看官方文档",
+        "checklistTitle": "迁移清单",
+        "checklistDesc": "生成可导出的迁移步骤清单，方便团队协作或记录进度。",
+        "pendingItems": "待迁移项目：",
+        "copyChecklist": "复制清单",
+        "exportText": "导出文本",
+        "alternativesTitle": "替代方案一览",
+        "officialAlternative": "官方替代",
+        "officialAlternativeDesc": "• Shopify Pixels（客户端）<br />• Customer Events API",
+        "webPixelAlternative": "Web Pixel 替代",
+        "webPixelAlternativeDesc": "• ScriptTag → Web Pixel<br />• checkout.liquid → Web Pixel",
+        "pageCustomization": "页面侧自定义",
+        "pageCustomizationDesc": "• Additional Scripts：需人工梳理并在新体验下重做<br />• Thank you/Order status 自定义逻辑：以 Shopify 官方能力为准",
+        "pageCustomizationNote": "说明：",
+        "pageCustomizationNoteDesc": "当前版本不提供 Survey/Help/Reorder 等页面模块库，页面侧功能请按 Shopify 官方能力与审核要求实施。"
+    },
+    "suggestMigrationBanner": {
+      "title": "建议进行迁移",
+      "action": "前往迁移工具",
+      "content": "检测到您的店铺存在需要迁移的追踪脚本。建议使用我们的迁移工具将追踪代码更新为 Shopify Web Pixel 格式。"
     }
+  }
+  },
+  "verification": {
+    "intro": {
+      "title": "验收类型说明",
+      "description": "PRD 2.5要求：验收分为两类，请根据您的需求选择相应的验收方式。",
+      "pixelLayer": {
+        "title": "像素层验收",
+        "scope": "Web Pixels 标准事件",
+        "item1": "事件触发次数",
+        "item2": "payload 参数完整率（value/currency/items）",
+        "item3": "checkout_completed 的金额/币种一致性"
+      },
+      "orderLayer": {
+        "title": "订单层验收",
+        "scope": "checkout_completed 事件验证与像素收据验收",
+        "item1": "有订单无像素（丢单）",
+        "item2": "金额/币种一致性",
+        "item3": "差异率与合理缺失说明",
+        "cta": "前往订单层验收"
+      },
+      "scopeLabel": "验收范围：",
+      "supportedEventsLabel": "支持的事件：",
+      "allPlansAvailable": "所有套餐可用",
+      "v1Warning": {
+        "title": "v1.0 验收范围说明（重要）",
+        "subtitle": "v1.0 版本仅支持 checkout/purchase 漏斗事件验收",
+        "supportedLabel": "支持的事件类型：",
+        "supportedContent": "checkout_started、checkout_completed、checkout_contact_info_submitted、checkout_shipping_info_submitted、payment_info_submitted、product_added_to_cart、product_viewed、page_viewed 等 Web Pixels 标准 checkout 漏斗事件",
+        "unsupportedLabel": "不支持的事件类型：",
+        "unsupportedContent": "退款（refund）、订单取消（cancel）、订单编辑（order_edit）、订阅订单（subscription）等事件在 v1.0 中不可验收",
+        "noteLabel": "补充：",
+        "noteContent": "Web Pixels 仅覆盖 checkout 漏斗，订单层事件（refund/cancel）需通过订单 webhook 才能验收。",
+        "reasonLabel": "原因：",
+        "reasonContent": "Web Pixel Extension 运行在 strict sandbox 环境，只能订阅 Shopify 标准 checkout 漏斗事件。退款、取消、编辑订单、订阅等事件需要订单 webhooks 或后台定时对账才能获取，将在 v1.1+ 版本中通过订单 webhooks 实现（严格做 PII 最小化）",
+        "attentionLabel": "注意：",
+        "attentionContent": "v1.0 验收范围与 Web Pixel Extension 的能力范围一致，符合隐私最小化原则。"
+      },
+      "attribution": {
+        "title": "重要说明：验收范围与平台归因",
+        "subtitle": "本应用验收侧重于事件触发与数据质量，不保证平台侧归因一致。",
+        "provideLabel": "我们提供：",
+        "provideContent": "像素事件触发记录、参数完整率、订单金额/币种一致性等验收证据。",
+        "noGuaranteeLabel": "我们不保证：",
+        "noGuaranteeContent": "平台侧报表中的归因数据与 Shopify 订单数据完全一致。平台侧归因受多种因素影响，包括平台算法、用户隐私设置、跨设备追踪限制、平台数据去重和合并规则等。",
+        "reportLabel": "验收报告说明：",
+        "reportContent": "如果验收显示“通过”，表示像素事件在本应用的接收与校验链路中表现正常；平台侧归因可能仍存在差异，这是正常现象。",
+        "methodLabel": "验证方法：",
+        "methodContent": "您可以通过本应用的验收报告查看事件触发与数据质量，或使用平台提供的工具验证事件接收情况。"
+      },
+      "upgradeBanner": {
+        "title": "生成验收报告（CSV）- 核心付费点",
+        "cta": "升级到 Growth 套餐（$79/月）",
+        "content1": "需要 Growth 成长版 ($79/月) 或 Agency 版 ($199/月) 套餐。",
+        "content2": "报告包含：测试清单 + 事件触发记录 + 参数完整率 + 订单金额/币种一致性 + 隐私合规检查（consent/customerPrivacy）",
+        "content3": "这是项目的核心交付件，适合 Agency 直接报给客户的验收报告。",
+        "currentPlan": "当前套餐："
+      },
+      "scope": {
+        "title": "v1.0 验收范围说明",
+        "subtitle": "v1.0 版本验收范围：",
+        "item1Title": "Checkout/Purchase 漏斗事件",
+        "item2Title": "退款、取消、编辑订单、订阅事件",
+        "item2Content": "这些事件类型将在 v1.1+ 版本中通过订单 webhooks 实现"
+      },
+      "checklist": {
+        "title": "详细测试清单",
+        "copy": "复制清单",
+        "copySuccess": "测试清单已复制到剪贴板",
+        "export": "导出 CSV",
+        "exportSuccess": "测试清单已导出",
+        "requiredCount": "项必需",
+        "optionalCount": "项可选",
+        "estimated": "预计",
+        "steps": "操作步骤",
+        "expectedResults": "预期结果"
+      }
+    }
+  },
+  "checklist": {
+    "title": "迁移清单",
+    "highRisk": "高风险项",
+    "mediumRisk": "中风险项",
+    "totalTime": "预计总时间",
+    "progress": "完成进度",
+    "search": "搜索",
+    "searchPlaceholder": "搜索资产名称、平台、类别...",
+    "riskLevel": "风险等级",
+    "category": "类别",
+    "status": "状态",
+    "sort": "排序",
+    "exportCSV": "导出 CSV",
+    "countSuffix": "项",
+    "filters": {
+      "all": "全部",
+      "high": "高风险",
+      "medium": "中风险",
+      "low": "低风险",
+      "pending": "待处理",
+      "inProgress": "进行中",
+      "completed": "已完成",
+      "skipped": "已跳过"
+    },
+    "sortOptions": {
+      "priority": "优先级",
+      "time": "预计时间",
+      "risk": "风险等级",
+      "category": "类别"
+    },
+    "riskLevelText": {
+      "high": "高",
+      "medium": "中",
+      "low": "低"
+    },
+    "prdNote": "PRD 2.2: 迁移清单交付结构（4列）",
+    "prdItems": [
+      "资产名称/指纹（hash）",
+      "风险等级（High/Med/Low）+ 原因",
+      "推荐迁移路径（Web Pixel / 手动迁移 / 不可迁移）",
+      "预估工时 + 需要的信息（Pixel ID、Token、问卷题目等）"
+    ],
+    "noMatch": "没有匹配的项，请调整筛选条件",
+    "empty": "暂无迁移清单项",
+    "tableHeadings": [
+      "资产名称/指纹",
+      "风险等级 + 原因",
+      "推荐迁移路径",
+      "预估工时 + 需要的信息"
+    ],
+    "migrationPath": {
+      "webPixel": "Web Pixel",
+      "manual": "手动迁移",
+      "notProvided": "不提供",
+      "notSupported": "External redirect / not supported",
+      "none": "无需迁移"
+    },
+    "needsInfo": {
+      "platform": "平台: {{platform}}",
+      "pixelId": "需要 Pixel ID",
+      "surveyQuestions": "需要问卷题目",
+      "none": "无特殊要求"
+    },
+    "unnamedAsset": "未命名资产",
+    "riskReason": "{{level}}风险 - {{reason}}",
+    "statusLabel": {
+      "completed": "已完成",
+      "inProgress": "进行中",
+      "pending": "待处理",
+      "skipped": "已跳过"
+    },
+    "dependencies": {
+      "show": "显示依赖关系",
+      "hide": "隐藏依赖关系",
+      "depsCount": " ({{count}} 个依赖)",
+      "dependentsCount": " ({{count}} 个被依赖)",
+      "title": "依赖项",
+      "desc": "需要先完成以下资产的迁移：",
+      "dependentsTitle": "被依赖项",
+      "dependentsDesc": "以下资产的迁移依赖此资产："
+    },
+    "startMigration": "开始迁移",
+    "markComplete": "标记完成"
   }
 }

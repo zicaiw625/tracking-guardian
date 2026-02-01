@@ -22,13 +22,23 @@ export type RiskSeverity = "high" | "medium" | "low";
 export interface RiskItem {
   id: string;
   name: string;
+  nameKey?: string;
+  nameParams?: Record<string, any>;
   description: string;
+  descriptionKey?: string;
+  descriptionParams?: Record<string, any>;
   severity: RiskSeverity;
   points: number;
   details?: string;
+  detailsKey?: string;
+  detailsParams?: Record<string, any>;
   platform?: string;
   impact?: string;
+  impactKey?: string;
+  impactParams?: Record<string, any>;
   recommendation?: string;
+  recommendationKey?: string;
+  recommendationParams?: Record<string, any>;
 }
 
 export interface ScanResult {

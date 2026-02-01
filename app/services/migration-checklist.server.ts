@@ -7,14 +7,19 @@ export interface MigrationChecklistItem {
   assetId: string;
   title: string;
   description: string;
+  descriptionKey?: string;
+  descriptionParams?: Record<string, any>;
   category: string;
   platform?: string;
   riskLevel: "high" | "medium" | "low";
   riskReason: string;
+  riskReasonKey?: string;
+  riskReasonParams?: Record<string, any>;
   suggestedMigration: "web_pixel" | "ui_extension" | "server_side" | "none";
   priority: number;
   estimatedTime: number;
   requiredInfo: string;
+  requiredInfoKeys?: { key: string; params?: any }[];
   status: "pending" | "in_progress" | "completed" | "skipped";
   fingerprint?: string | null;
 }
@@ -257,27 +262,32 @@ export async function generateMigrationChecklist(
       hasDependencies,
       complexity
     );
-    const riskReason = getRiskReason({
+    const riskReasonResult = getRiskReason({
       category: asset.category,
       platform: asset.platform,
       riskLevel: asset.riskLevel,
       details: asset.details as Record<string, unknown> | null,
     });
-    const requiredInfo = extractRequiredInfo({
+    const requiredInfoResult = extractRequiredInfo({
       category: asset.category,
       platform: asset.platform,
       suggestedMigration: asset.suggestedMigration,
       details: asset.details as Record<string, unknown> | null,
     });
+    const descriptionResult = getMigrationDescription(asset as AuditAsset);
     return {
       id: `checklist-${asset.id}`,
       assetId: asset.id,
       title: asset.displayName || `${asset.category} - ${asset.platform || "未知"}`,
-      description: getMigrationDescription(asset as AuditAsset),
+      description: descriptionResult.text,
+      descriptionKey: descriptionResult.key,
+      descriptionParams: descriptionResult.params,
       category: asset.category,
       platform: asset.platform || undefined,
       riskLevel: asset.riskLevel as "high" | "medium" | "low",
-      riskReason,
+      riskReason: riskReasonResult.text,
+      riskReasonKey: riskReasonResult.key,
+      riskReasonParams: riskReasonResult.params,
       suggestedMigration: asset.suggestedMigration as
         | "web_pixel"
         | "ui_extension"
@@ -285,7 +295,8 @@ export async function generateMigrationChecklist(
         | "none",
       priority,
       estimatedTime,
-      requiredInfo,
+      requiredInfo: requiredInfoResult.text,
+      requiredInfoKeys: requiredInfoResult.keys,
       status: asset.migrationStatus as
         | "pending"
         | "in_progress"
@@ -376,7 +387,7 @@ export async function generateMigrationChecklist(
   };
 }
 
-function getMigrationDescription(asset: AuditAsset): string {
+function getMigrationDescription(asset: AuditAsset): { text: string, key: string, params: Record<string, any> } {
   const categoryNames: Record<string, string> = {
     pixel: "追踪像素",
     affiliate: "联盟追踪",
@@ -393,6 +404,8 @@ function getMigrationDescription(asset: AuditAsset): string {
   };
   const categoryName = categoryNames[asset.category] || "其他";
   const migrationName = migrationNames[asset.suggestedMigration] || "未知";
+  
+  let text = `${categoryName} - ${migrationName}`;
   if (asset.platform) {
     const platformNames: Record<string, string> = {
       google: "Google Analytics",
@@ -401,9 +414,17 @@ function getMigrationDescription(asset: AuditAsset): string {
       pinterest: "Pinterest",
     };
     const platformName = platformNames[asset.platform] || asset.platform;
-    return `${categoryName} (${platformName}) - ${migrationName}`;
+    text = `${categoryName} (${platformName}) - ${migrationName}`;
   }
-  return `${categoryName} - ${migrationName}`;
+
+  const key = asset.platform ? "scan.checklist.description.withPlatform" : "scan.checklist.description.basic";
+  const params = {
+      category: asset.category,
+      platform: asset.platform,
+      migration: asset.suggestedMigration
+  };
+
+  return { text, key, params };
 }
 
 export async function getMigrationChecklist(

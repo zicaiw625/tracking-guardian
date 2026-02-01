@@ -18,55 +18,67 @@ export interface PriorityResult {
   estimatedTimeMinutes: number;
   dependencies: string[];
   reasoning: string[];
+  reasoningKeys: { key: string; params?: Record<string, any> }[];
 }
 
 export function calculatePriority(factors: PriorityFactors): PriorityResult {
   const reasoning: string[] = [];
+  const reasoningKeys: { key: string; params?: Record<string, any> }[] = [];
   let priorityScore = 5;
   switch (factors.riskLevel) {
     case "high":
       priorityScore += 3.5;
       reasoning.push("高风险项：会失效/受限，必须优先处理");
+      reasoningKeys.push({ key: "scan.priority.reason.highRisk" });
       break;
     case "medium":
       priorityScore += 1.2;
       reasoning.push("中风险项：可直接替换，建议尽快处理");
+      reasoningKeys.push({ key: "scan.priority.reason.mediumRisk" });
       break;
     case "low":
       priorityScore -= 0.8;
       reasoning.push("低风险项：无需立即迁移，可延后处理");
+      reasoningKeys.push({ key: "scan.priority.reason.lowRisk" });
       break;
   }
   switch (factors.impactScope) {
     case "order_status":
       priorityScore += 2.5;
       reasoning.push("影响订单状态页：Shopify 废弃公告的主要目标，最高优先级");
+      reasoningKeys.push({ key: "scan.priority.reason.orderStatus" });
       break;
     case "checkout":
       priorityScore += 1.5;
       reasoning.push("影响结账流程：关键转化环节，高优先级");
+      reasoningKeys.push({ key: "scan.priority.reason.checkout" });
       break;
     case "all_pages":
       priorityScore += 0.8;
       reasoning.push("影响全站：范围较广，中等优先级");
+      reasoningKeys.push({ key: "scan.priority.reason.allPages" });
       break;
     case "other":
       priorityScore += 0.2;
       reasoning.push("影响其他页面：优先级较低");
+      reasoningKeys.push({ key: "scan.priority.reason.otherPages" });
       break;
   }
   switch (factors.migrationDifficulty) {
     case "easy":
       priorityScore += 0.8;
       reasoning.push("迁移简单：可直接替换，建议优先完成");
+      reasoningKeys.push({ key: "scan.priority.reason.easyMigration" });
       break;
     case "medium":
       priorityScore += 0;
       reasoning.push("迁移难度中等：需要一定配置时间");
+      reasoningKeys.push({ key: "scan.priority.reason.mediumMigration" });
       break;
     case "hard":
       priorityScore -= 0.5;
       reasoning.push("迁移困难：需要更多评估和配置时间");
+      reasoningKeys.push({ key: "scan.priority.reason.hardMigration" });
       break;
   }
   if (factors.shopTier === "plus") {
@@ -78,12 +90,15 @@ export function calculatePriority(factors: PriorityFactors): PriorityResult {
     if (now >= autoUpgradeStart) {
       priorityScore += 2;
       reasoning.push("Plus 商家自动升级已开始：立即处理");
+      reasoningKeys.push({ key: "scan.priority.reason.plusAutoUpgradeStarted" });
     } else if (daysUntilAutoUpgrade <= 30) {
       priorityScore += 2;
       reasoning.push(`Plus 自动升级倒计时：剩余 ${daysUntilAutoUpgrade} 天`);
+      reasoningKeys.push({ key: "scan.priority.reason.plusAutoUpgradeCountdown", params: { days: daysUntilAutoUpgrade } });
     } else if (daysUntilAutoUpgrade <= 90) {
       priorityScore += 1;
       reasoning.push(`Plus 自动升级倒计时：剩余 ${daysUntilAutoUpgrade} 天`);
+      reasoningKeys.push({ key: "scan.priority.reason.plusAutoUpgradeCountdown", params: { days: daysUntilAutoUpgrade } });
     }
   } else if (factors.shopTier === "non_plus") {
     const now = new Date();
@@ -94,31 +109,38 @@ export function calculatePriority(factors: PriorityFactors): PriorityResult {
     if (daysUntilDeadline <= 30) {
       priorityScore += 2;
       reasoning.push(`非 Plus 商家截止日期：剩余 ${daysUntilDeadline} 天`);
+      reasoningKeys.push({ key: "scan.priority.reason.nonPlusDeadline", params: { days: daysUntilDeadline } });
     } else if (daysUntilDeadline <= 90) {
       priorityScore += 1;
       reasoning.push(`非 Plus 商家截止日期：剩余 ${daysUntilDeadline} 天`);
+      reasoningKeys.push({ key: "scan.priority.reason.nonPlusDeadline", params: { days: daysUntilDeadline } });
     }
   }
   if (factors.hasDependencies) {
     if (factors.daysUntilDeadline && factors.daysUntilDeadline <= 30) {
       priorityScore += 1.5;
       reasoning.push(`存在依赖关系但截止日期临近（${factors.daysUntilDeadline} 天）：需要尽快处理`);
+      reasoningKeys.push({ key: "scan.priority.reason.dependenciesUrgent", params: { days: factors.daysUntilDeadline } });
     } else {
       priorityScore += 0.3;
       reasoning.push("存在依赖关系：需要先处理依赖项");
+      reasoningKeys.push({ key: "scan.priority.reason.dependencies" });
     }
   }
   if (factors.impactScope === "order_status" && factors.riskLevel === "high") {
     priorityScore += 1.2;
     reasoning.push("组合因素：订单状态页 + 高风险 = 最高优先级");
+    reasoningKeys.push({ key: "scan.priority.reason.comboOrderStatusHighRisk" });
   }
   if (factors.impactScope === "checkout" && factors.riskLevel === "high") {
     priorityScore += 0.8;
     reasoning.push("组合因素：结账流程 + 高风险 = 高优先级");
+    reasoningKeys.push({ key: "scan.priority.reason.comboCheckoutHighRisk" });
   }
   if (factors.migrationDifficulty === "easy" && factors.riskLevel === "high") {
     priorityScore += 0.5;
     reasoning.push("组合因素：简单迁移 + 高风险 = 快速解决高风险问题");
+    reasoningKeys.push({ key: "scan.priority.reason.comboEasyHighRisk" });
   }
   priorityScore = Math.max(1, Math.min(10, Math.round(priorityScore * 10) / 10));
   let estimatedTime = 15;
@@ -136,6 +158,7 @@ export function calculatePriority(factors: PriorityFactors): PriorityResult {
   if (factors.riskLevel === "high") {
     estimatedTime += 10;
     reasoning.push("高风险项需要额外验证时间：+10 分钟");
+    reasoningKeys.push({ key: "scan.priority.reason.extraTimeHighRisk" });
   } else if (factors.riskLevel === "low") {
     estimatedTime -= 2;
   }
@@ -164,6 +187,7 @@ export function calculatePriority(factors: PriorityFactors): PriorityResult {
     estimatedTimeMinutes: Math.max(5, Math.round(estimatedTime)),
     dependencies: [],
     reasoning,
+    reasoningKeys,
   };
 }
 
@@ -345,6 +369,8 @@ export interface MigrationTimelineAsset {
     priority: number;
     estimatedTime: number;
     reason: string;
+    reasonKey?: string;
+    reasonParams?: Record<string, any>;
   };
   canStart: boolean;
   blockingDependencies: string[];
@@ -391,11 +417,11 @@ export async function generateMigrationTimeline(
   });
   const dependencyMap = new Map<string, string[]>();
   const dependentsMap = new Map<string, string[]>();
-  assets.forEach((asset) => {
+  assets.forEach((asset: any) => {
     if (asset.dependencies && Array.isArray(asset.dependencies)) {
       const deps = asset.dependencies as string[];
       dependencyMap.set(asset.id, deps);
-      deps.forEach((depId) => {
+      deps.forEach((depId: string) => {
         const dependents = dependentsMap.get(depId) || [];
         dependents.push(asset.id);
         dependentsMap.set(depId, dependents);
@@ -409,11 +435,11 @@ export async function generateMigrationTimeline(
         migrationStatus: "completed",
       },
       select: { id: true },
-    })).map((a) => a.id)
+    })).map((a: { id: string }) => a.id)
   );
-  const timelineAssets: MigrationTimelineAsset[] = assets.map((asset) => {
+  const timelineAssets: MigrationTimelineAsset[] = assets.map((asset: any) => {
     const dependencies = (asset.dependencies as string[]) || [];
-    const blockingDeps = dependencies.filter((depId) => !completedAssetIds.has(depId));
+    const blockingDeps = dependencies.filter((depId: string) => !completedAssetIds.has(depId));
     const canStart = blockingDeps.length === 0;
     return {
       asset: {
@@ -435,6 +461,12 @@ export async function generateMigrationTimeline(
           : asset.riskLevel === "high"
             ? "高风险项，需要优先处理"
             : "可开始迁移",
+        reasonKey: dependencies.length > 0
+          ? "scan.priority.reason.blockingDependencies"
+          : asset.riskLevel === "high"
+            ? "scan.priority.reason.highRisk"
+            : "scan.priority.reason.readyToStart",
+        reasonParams: dependencies.length > 0 ? { count: blockingDeps.length } : undefined,
       },
       canStart,
       blockingDependencies: blockingDeps,
@@ -498,14 +530,14 @@ export async function getMigrationProgress(shopId: string): Promise<MigrationPro
     },
   });
   const total = assets.length;
-  const completed = assets.filter((a) => a.migrationStatus === "completed").length;
-  const inProgress = assets.filter((a) => a.migrationStatus === "in_progress").length;
-  const pending = assets.filter((a) => a.migrationStatus === "pending").length;
+  const completed = assets.filter((a: any) => a.migrationStatus === "completed").length;
+  const inProgress = assets.filter((a: any) => a.migrationStatus === "in_progress").length;
+  const pending = assets.filter((a: any) => a.migrationStatus === "pending").length;
   const remainingAssets = assets.filter(
-    (a) => a.migrationStatus !== "completed"
+    (a: any) => a.migrationStatus !== "completed"
   );
   const estimatedRemainingMinutes = remainingAssets.reduce(
-    (sum, a) => sum + (a.estimatedTimeMinutes || 15),
+    (sum: number, a: any) => sum + (a.estimatedTimeMinutes || 15),
     0
   );
   return {
