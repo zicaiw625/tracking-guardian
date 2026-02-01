@@ -26,7 +26,10 @@ export function MigrationDeadlineBanner({ scriptTagsCount }: { scriptTagsCount: 
             <Trans
               i18nKey="dashboard.migrationDeadlineBanner.plusMerchant"
               values={{ date1: plusDeadline, date2: plusAutoUpgrade }}
-              components={{ 1: <Link url={SHOPIFY_HELP_LINKS.UPGRADE_GUIDE} external>Shopify Help Center</Link> }}
+              components={{
+                1: <Link url={SHOPIFY_HELP_LINKS.UPGRADE_GUIDE} external>Shopify Help Center</Link>,
+                strong: <strong />,
+              }}
             />
           </Text>
           <Text as="p" variant="bodySm" tone="subdued">
@@ -43,7 +46,10 @@ export function MigrationDeadlineBanner({ scriptTagsCount }: { scriptTagsCount: 
             <Trans
               i18nKey="dashboard.migrationDeadlineBanner.nonPlusMerchant"
               values={{ date: nonPlusDeadline }}
-              components={{ 1: <Link url={SHOPIFY_HELP_LINKS.UPGRADE_GUIDE} external>Shopify Help Center</Link> }}
+              components={{
+                1: <Link url={SHOPIFY_HELP_LINKS.UPGRADE_GUIDE} external>Shopify Help Center</Link>,
+                strong: <strong />,
+              }}
             />
           </Text>
           <Text as="p" variant="bodySm" tone="subdued">
