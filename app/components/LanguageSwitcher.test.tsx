@@ -58,7 +58,7 @@ describe("LanguageSwitcher", () => {
     });
 
     render(
-      <AppProvider i18n={enTranslations}>
+      <AppProvider i18n={enTranslations as any}>
         <LanguageSwitcher />
       </AppProvider>
     );
@@ -76,7 +76,7 @@ describe("LanguageSwitcher", () => {
     });
 
     render(
-      <AppProvider i18n={enTranslations}>
+      <AppProvider i18n={enTranslations as any}>
         <LanguageSwitcher />
       </AppProvider>
     );
@@ -94,7 +94,7 @@ describe("LanguageSwitcher", () => {
     });
 
     render(
-      <AppProvider i18n={enTranslations}>
+      <AppProvider i18n={enTranslations as any}>
         <LanguageSwitcher />
       </AppProvider>
     );
@@ -128,7 +128,7 @@ describe("LanguageSwitcher", () => {
     });
 
     render(
-      <AppProvider i18n={enTranslations}>
+      <AppProvider i18n={enTranslations as any}>
         <LanguageSwitcher />
       </AppProvider>
     );

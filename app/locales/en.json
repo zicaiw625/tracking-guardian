@@ -18,6 +18,23 @@
     "save": "Save",
     "cancel": "Cancel"
   },
+  "plans": {
+    "free": "Free",
+    "starter": "Starter",
+    "pro": "Pro",
+    "enterprise": "Enterprise",
+    "unknown": "Unknown"
+  },
+  "errorPage": {
+    "unknownTitle": "Unknown Error",
+    "unknownMessage": "The system encountered an unexpected problem. Please try again later.",
+    "pageNotFound": "Page Not Found",
+    "pageNotFoundMessage": "The page you are looking for does not exist.",
+    "loadingError": "An error occurred while loading the page.",
+    "defaultMessage": "An error occurred.",
+    "unknownError": "Unknown error occurred.",
+    "retry": "Retry"
+  },
   "dashboard": {
     "title": "Upgrade Migration Delivery Platform",
     "subtitle": "Shopify official deadline: Plus merchants restricted from {{date1}}, auto-upgrade starts {{date2}} • Non-Plus merchants deadline {{date3}} • Core: Migration, Verification, Monitoring • Deliverable Verification Report • Post-launch Monitoring",
@@ -47,6 +64,173 @@
       "nonPlusMerchant": "<strong>Non-Plus Merchants:</strong> Deadline <strong>{{date}}</strong>. Refer to <1>Shopify Help Center</1>",
       "deprecationSchedule": "View ScriptTags Deprecation Schedule",
       "footer": "checkout.liquid, Additional Scripts, and ScriptTags will be phased out, early migration to Web Pixels is recommended"
+    },
+    "steps": {
+      "scan": {
+        "label": "Scan Scripts",
+        "description": "Scan existing tracking scripts and pixels",
+        "cta": "Start Scan"
+      },
+      "migrate": {
+        "label": "Migration Setup",
+        "description": "Configure pixel mapping and complete verification",
+        "cta": "Configure Migration"
+      },
+      "alerts": {
+        "label": "Setup Alerts",
+        "description": "Configure health monitoring alerts",
+        "cta": "Configure Alerts"
+      }
+    },
+    "intro": {
+      "description": "Complete platform connection, risk scanning, migration configuration, verification testing, and generate deliverable acceptance reports",
+      "items": [
+        "Auto-scan ScriptTag & Web Pixels, generate migration risk assessment",
+        "Web Pixel standard event mapping (GA4/Meta/TikTok)",
+        "Test checklist + Event parameter completeness + Order amount/currency consistency verification",
+        "Post-launch outage alerts"
+      ],
+      "startScan": "Start Free Checkup",
+      "viewReport": "View Full Report",
+      "reportCenter": "View Report Center"
+    },
+    "errors": {
+      "backendUrlMissing": {
+        "title": "⚠️ Critical Error: BACKEND_URL not replaced during build",
+        "subtitle": "Placeholder __BACKEND_URL_PLACEHOLDER__ detected, URL not replaced",
+        "description": "Placeholder found in pixel extension config, indicating build process failure. If not replaced, pixel extension cannot send events to backend, causing data loss. This is a critical configuration error must be fixed before launch.",
+        "fixStepsTitle": "Fix Steps (Must complete before production deployment):",
+        "step1": "Run <code>pnpm ext:inject</code> or <code>pnpm deploy:ext</code> before deployment in CI/CD",
+        "step2": "Ensure <code>SHOPIFY_APP_URL</code> environment variable is set correctly",
+        "step3": "Verify extension build artifacts do not contain placeholders",
+        "step4": "Ensure this URL is configured in Web Pixel Extension allowlist",
+        "step5": "Do not use <code>shopify app deploy</code> directly, must use <code>pnpm deploy:ext</code>"
+      }
+    },
+    "welcomeBanner": {
+      "title": "Welcome to Tracking Guardian",
+      "content": "Start your migration journey: Scan Risk → Configure Migration → Verify Test → Generate Report"
+    },
+    "quickStart": {
+      "title": "Quick Start",
+      "description": "Complete the following steps to start migration",
+      "startScan": "Start Free Checkup",
+      "viewReport": "View Full Report"
+    },
+    "cards": {
+      "migration": {
+        "title": "🎯 Enable Pixel Migration (Test Env)",
+        "description": "Standard event mapping + parameter completeness + downloadable payload evidence (GA4/Meta/TikTok)",
+        "technicalNoteTitle": "Technical Note:",
+        "technicalNoteContent": "Web Pixel is strict sandbox (Web Worker), many capabilities restricted",
+        "badge": "Migration $49/mo",
+        "cta": {
+          "start": "Start Migration",
+          "upgrade": "Upgrade to Migration"
+        }
+      },
+      "selfCheck": {
+        "title": "📦 Thank you/Order status Page Self-check",
+        "description": "Migrate tracking to Web Pixel, use acceptance report for delivery verification. This app does not provide Thank you/Order status page module library.",
+        "cta": {
+          "configure": "Configure Modules"
+        }
+      },
+      "report": {
+        "title": "📄 Generate Acceptance Report (CSV)",
+        "description": "Test checklist + Event parameter completeness + Order amount/currency consistency + Privacy compliance check (consent/customerPrivacy) • Evidence for boss/clients",
+        "badge": "Growth $79/mo or Agency $199/mo",
+        "cta": {
+          "generate": "Generate Report",
+          "upgrade": "Upgrade to Go-Live"
+        }
+      }
+    },
+    "reportCenter": {
+      "title": "Report Center",
+      "description": "Manage Audit / Verification / Monitoring report exports and history.",
+      "cta": "Enter Report Center"
+    }
+  },
+  "scan": {
+    "summary": {
+      "riskScore": {
+        "title": "Risk Score",
+        "level": "Risk Level",
+        "levels": {
+          "high": "High",
+          "med": "Med",
+          "low": "Low"
+        },
+        "estimatedTime": "Estimated Fix Time",
+        "hours": "{{count}} hours ",
+        "minutes": "{{count}} minutes",
+        "scannedAt": "Scanned at: "
+      },
+      "cta": {
+        "purchaseOnly": "Enable Purchase-only Fix (10 mins)",
+        "upgrade": "Upgrade to Migration to Enable Fix",
+        "fullFunnel": "Enable Full-funnel Fix (30 mins, Growth)"
+      },
+      "platforms": {
+        "title": "Detected Platforms",
+        "empty": "No tracking platforms detected"
+      },
+      "scriptTags": {
+        "title": "ScriptTags",
+        "count": "Installed Count"
+      }
+    },
+    "banners": {
+      "additionalScripts": {
+        "title": "Paste Additional Scripts Manually",
+        "content": "Shopify API cannot read checkout.liquid / Additional Scripts. Please paste original scripts in 'Script Analysis' below to ensure migration report covers custom logic on Thank you / Order status pages.",
+        "deadline": "Deadline Reminder: {{badge}} — {{desc}}",
+        "guide": "📋 View detailed steps to get script list"
+      },
+      "pagination": {
+        "title": "Scan Pagination Note",
+        "content": "Shopify API results are paginated. This scan iterates pages automatically, but stops at these thresholds for performance:",
+        "limitScriptTags": "ScriptTags max {{limit}} records",
+        "limitWebPixels": "Web Pixels max {{limit}} records",
+        "footer": "If store exceeds these limits, paste remaining scripts in 'Manual Analysis' or contact support for full export (limits adjustable, contact us)."
+      },
+      "partialRefresh": {
+        "title": "Partial Data Refresh Failed",
+        "content": "Scan used cached data but could not refresh Web Pixels info. Web Pixels, duplicate detection, and migration suggestions might be incomplete.",
+        "suggestion": "Suggestion: Click 'Start Scan' to re-run full scan for latest data."
+      },
+      "autoUpgrade": {
+        "windowOpen": "⚡ Plus Merchant Auto-upgrade Window Open",
+        "windowRisk": "⚠️ Plus Merchant Auto-upgrade Risk Window",
+        "officialPath": "<strong>Shopify Official Upgrade Path:</strong> Use blocks + web pixels to replace legacy customizations. Plus merchants: {{date1}} (Date from Shopify official announcement, check Admin for actual) deadline, {{date2}} (Date from Shopify official announcement, check Admin for actual) auto-upgrade will lose legacy customizations. Non-Plus merchants: {{date3}} (Date from Shopify official announcement, check Admin for actual) deadline."
+      },
+      "upgradeStatus": {
+        "pending": "Note: We haven't completed a valid upgrade status check yet. Please retry later, re-authorize app, or wait for background job refresh.",
+        "lastUpdated": "Status updated: {{date}}"
+      },
+      "plan": {
+        "title": "Current Plan: {{plan}}",
+        "action": "View Plan / Upgrade",
+        "starter": {
+          "item1": "<strong>Enable Pixel Migration (Test Env)</strong> → Enter paid trial/subscription (Starter $29/mo)",
+          "item2": "Pixel migration features: Standard event mapping + Parameter completeness check + Downloadable payload evidence (GA4/Meta/TikTok v1 support)",
+          "item3": "<strong>Generate Acceptance Report (CSV)</strong> → Paid (Growth $79/mo or Agency $199/mo)",
+          "item4": "Core capability of 'Upgrade Project Delivery': Let merchants 'Dare to Publish / Dare to Go Live'"
+        },
+        "growth": {
+          "item1": "Currently available: Web Pixel Standard Event Mapping (v1 MVP migration)",
+          "item2": "Upgrade to Pro to unlock event reconciliation and advanced alerting"
+        },
+        "pro": {
+          "item1": "Unlocked Multi-channel Pixels + Event Reconciliation",
+          "item2": "Multi-store, Whitelabel, Team Collaboration coming in v1.1, upgrade to Agency to use post-launch"
+        },
+        "agency": {
+          "item1": "Multi-store, Whitelabel, Team Collaboration coming in v1.1; Currently unlocked Unlimited Pixels, Acceptance Report Export & SLA",
+          "item2": "For managed migration, submit ticket in support channels"
+        }
+      }
     }
   }
 }

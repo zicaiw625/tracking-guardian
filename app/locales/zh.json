@@ -18,6 +18,23 @@
     "save": "保存",
     "cancel": "取消"
   },
+  "plans": {
+    "free": "免费版",
+    "starter": "入门版",
+    "pro": "专业版",
+    "enterprise": "企业版",
+    "unknown": "未知"
+  },
+  "errorPage": {
+    "unknownTitle": "发生未知错误",
+    "unknownMessage": "系统遇到了一个意外问题。请稍后再试。",
+    "pageNotFound": "页面未找到",
+    "pageNotFoundMessage": "您查找的页面不存在。",
+    "loadingError": "加载页面时发生错误。",
+    "defaultMessage": "发生错误。",
+    "unknownError": "发生未知错误。",
+    "retry": "重试"
+  },
   "dashboard": {
     "title": "升级迁移交付平台",
     "subtitle": "Shopify 官方 deadline：Plus 商家 {{date1}} 开始限制，{{date2}} 起自动升级 • 非 Plus 商家 {{date3}} 截止 • 核心：迁移、验收、断档监控 • 可交付的验收报告 • 上线后有断档告警",
@@ -47,6 +64,173 @@
       "nonPlusMerchant": "<strong>非 Plus 商家:</strong> 最晚 <strong>{{date}}</strong> 截止。参考 <1>Shopify Help Center</1>",
       "deprecationSchedule": "查看 ScriptTags 弃用时间表",
       "footer": "checkout.liquid、附加脚本（Additional Scripts）、ScriptTags 将逐步下线，建议尽早迁移到 Web Pixels"
+    },
+    "steps": {
+      "scan": {
+        "label": "扫描脚本",
+        "description": "扫描现有的追踪脚本和像素",
+        "cta": "开始扫描"
+      },
+      "migrate": {
+        "label": "迁移设置",
+        "description": "配置像素映射并完成验收",
+        "cta": "配置迁移"
+      },
+      "alerts": {
+        "label": "设置警报",
+        "description": "配置健康监控警报",
+        "cta": "配置警报"
+      }
+    },
+    "intro": {
+      "description": "完成平台连接、扫描风险、迁移配置、验证测试，生成可交付的验收报告",
+      "items": [
+        "自动扫描 ScriptTag 与 Web Pixels，生成迁移风险评估",
+        "Web Pixel 标准事件映射（GA4/Meta/TikTok）",
+        "测试清单 + 事件参数完整率 + 订单金额/币种一致性验证",
+        "上线后有断档告警"
+      ],
+      "startScan": "开始免费体检",
+      "viewReport": "查看完整报告",
+      "reportCenter": "查看报告中心"
+    },
+    "errors": {
+      "backendUrlMissing": {
+        "title": "⚠️ 严重错误：BACKEND_URL 未在构建时替换",
+        "subtitle": "检测到占位符 __BACKEND_URL_PLACEHOLDER__，URL 未在构建时替换",
+        "description": "像素扩展配置中仍包含占位符，这表明构建流程未正确替换占位符。如果占位符未被替换，像素扩展将无法发送事件到后端，导致事件丢失。这是一个严重的配置错误，必须在上线前修复。",
+        "fixStepsTitle": "修复步骤（必须在生产环境部署前完成）：",
+        "step1": "在 CI/CD 流程中，部署前必须运行 <code>pnpm ext:inject</code> 或 <code>pnpm deploy:ext</code>",
+        "step2": "确保环境变量 <code>SHOPIFY_APP_URL</code> 已正确设置",
+        "step3": "验证扩展构建产物中不再包含占位符",
+        "step4": "确保该 URL 已在 Web Pixel Extension 的 allowlist 中配置",
+        "step5": "禁止直接使用 <code>shopify app deploy</code>，必须使用 <code>pnpm deploy:ext</code>"
+      }
+    },
+    "welcomeBanner": {
+      "title": "欢迎使用 Tracking Guardian",
+      "content": "开始您的迁移之旅：扫描风险 → 配置迁移 → 验证测试 → 生成报告"
+    },
+    "quickStart": {
+      "title": "快速开始",
+      "description": "完成以下步骤以开始迁移",
+      "startScan": "开始免费体检",
+      "viewReport": "查看完整报告"
+    },
+    "cards": {
+      "migration": {
+        "title": "🎯 启用像素迁移（Test 环境）",
+        "description": "标准事件映射 + 参数完整率 + 可下载 payload 证据（GA4/Meta/TikTok 三选一）",
+        "technicalNoteTitle": "技术说明：",
+        "technicalNoteContent": "Web Pixel 是 strict sandbox（Web Worker），很多能力受限",
+        "badge": "Migration $49/月",
+        "cta": {
+          "start": "开始迁移",
+          "upgrade": "升级到 Migration"
+        }
+      },
+      "selfCheck": {
+        "title": "📦 Thank you/Order status 页面自检",
+        "description": "迁移 tracking 到 Web Pixel，使用验收报告做交付验证。本应用不提供 Thank you/Order status 页面模块库。",
+        "cta": {
+          "configure": "配置模块"
+        }
+      },
+      "report": {
+        "title": "📄 生成验收报告（CSV）",
+        "description": "测试清单 + 事件参数完整率 + 订单金额/币种一致性 + 隐私合规检查（consent/customerPrivacy）• 给老板/客户看的证据",
+        "badge": "Growth $79/月 或 Agency $199/月",
+        "cta": {
+          "generate": "生成报告",
+          "upgrade": "升级到 Go-Live"
+        }
+      }
+    },
+    "reportCenter": {
+      "title": "报告中心",
+      "description": "管理 Audit / Verification / Monitoring 报告导出与历史记录。",
+      "cta": "进入报告中心"
+    }
+  },
+  "scan": {
+    "summary": {
+      "riskScore": {
+        "title": "风险评分",
+        "level": "风险等级",
+        "levels": {
+          "high": "高",
+          "med": "中",
+          "low": "低"
+        },
+        "estimatedTime": "预计修复时间",
+        "hours": "{{count}} 小时 ",
+        "minutes": "{{count}} 分钟",
+        "scannedAt": "扫描时间: "
+      },
+      "cta": {
+        "purchaseOnly": "启用Purchase-only修复（10分钟）",
+        "upgrade": "升级到 Migration 启用修复",
+        "fullFunnel": "启用Full-funnel修复（30分钟，Growth）"
+      },
+      "platforms": {
+        "title": "检测到的平台",
+        "empty": "未检测到追踪平台"
+      },
+      "scriptTags": {
+        "title": "ScriptTags",
+        "count": "已安装数量"
+      }
+    },
+    "banners": {
+      "additionalScripts": {
+        "title": "Additional Scripts 需手动粘贴",
+        "content": "Shopify API 无法读取 checkout.liquid / Additional Scripts。请在下方「脚本内容分析」中粘贴原始脚本，确保迁移报告涵盖 Thank you / Order status 页的自定义逻辑。",
+        "deadline": "截止提醒：{{badge}} — {{desc}}",
+        "guide": "📋 查看获取脚本清单的详细步骤"
+      },
+      "pagination": {
+        "title": "扫描分页说明",
+        "content": "Shopify API 结果是分页的。本扫描会自动迭代页面，但为了性能会在以下阈值停止并提示：",
+        "limitScriptTags": "ScriptTags 最多处理 {{limit}} 条记录",
+        "limitWebPixels": "Web Pixel 最多处理 {{limit}} 条记录",
+        "footer": "如果商店超过以上数量，请在「手动分析」中粘贴剩余脚本，或联系支持获取完整导出（当前上限可调整，请联系我们）。"
+      },
+      "partialRefresh": {
+        "title": "部分数据刷新失败",
+        "content": "扫描使用了缓存数据，但无法刷新 Web Pixels 信息。Web Pixels、重复像素检测和迁移操作建议可能不完整。",
+        "suggestion": "建议：点击「开始扫描」按钮重新执行完整扫描以获取最新数据。"
+      },
+      "autoUpgrade": {
+        "windowOpen": "⚡ Plus 商家自动升级窗口已开始",
+        "windowRisk": "⚠️ Plus 商家自动升级风险窗口",
+        "officialPath": "<strong>Shopify 官方升级路径：</strong>使用 blocks + web pixels 替代 legacy customizations。Plus 商家：{{date1}}（日期来自 Shopify 官方公告，请以 Admin 提示为准）截止，{{date2}}（日期来自 Shopify 官方公告，请以 Admin 提示为准）自动升级会丢失 legacy 自定义。非 Plus 商家：{{date3}}（日期来自 Shopify 官方公告，请以 Admin 提示为准）截止。"
+      },
+      "upgradeStatus": {
+        "pending": "提示：我们尚未完成一次有效的升级状态检测。请稍后重试、重新授权应用，或等待后台定时任务自动刷新。",
+        "lastUpdated": "状态更新时间: {{date}}"
+      },
+      "plan": {
+        "title": "当前套餐：{{plan}}",
+        "action": "查看套餐/升级",
+        "starter": {
+          "item1": "<strong>启用像素迁移（Test 环境）</strong> → 进入付费试用/订阅（Starter $29/月）",
+          "item2": "像素迁移功能包括：标准事件映射 + 参数完整率检查 + 可下载 payload 证据（GA4/Meta/TikTok v1 支持）",
+          "item3": "<strong>生成验收报告（CSV）</strong> → 付费（Growth $79/月 或 Agency $199/月）",
+          "item4": "这是\"升级项目交付\"的核心能力：让商家\"敢点发布/敢切 Live\""
+        },
+        "growth": {
+          "item1": "当前可用：Web Pixel 标准事件映射（v1 最小可用迁移）",
+          "item2": "升级到 Pro 以解锁事件对账与高级告警能力"
+        },
+        "pro": {
+          "item1": "已解锁多渠道像素 + 事件对账",
+          "item2": "多店铺、白标、团队协作即将在 v1.1 推出，可升级至 Agency 以在发布后使用"
+        },
+        "agency": {
+          "item1": "多店铺、白标、团队协作即将在 v1.1 推出；当前已解锁无限像素、验收报告导出与 SLA",
+          "item2": "如需迁移托管，可在支持渠道提交工单"
+        }
+      }
     }
   }
 }

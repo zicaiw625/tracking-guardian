@@ -77,7 +77,7 @@ export default function Index() {
   const handleScanComplete = () => {
     setShowScanProgress(false);
   };
-  const setupSteps = getSetupSteps(data);
+  const setupSteps = getSetupSteps(data, t);
   const nextStep = getNextSetupStep(setupSteps);
   const progress = getSetupProgress(setupSteps);
   return (

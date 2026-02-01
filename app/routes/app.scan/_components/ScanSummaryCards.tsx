@@ -4,6 +4,7 @@ import { getPlatformName } from "~/components/scan/utils";
 import { safeFormatDate, validateRiskItemsArray } from "~/utils/scan-data-validation";
 import { calculateEstimatedTime, getRiskLevelBackground, getRiskLevelBadgeTone } from "~/utils/scan-format";
 import { isPlanAtLeast } from "~/utils/plans";
+import { useTranslation } from "react-i18next";
 
 interface ScanSummaryCardsProps {
   latestScan: {
@@ -30,11 +31,12 @@ export function ScanSummaryCards({
   deprecationStatus,
   planIdSafe,
 }: ScanSummaryCardsProps) {
+  const { t } = useTranslation();
   const riskItems = validateRiskItemsArray(latestScan.riskItems);
   const estimatedTime = calculateEstimatedTime(riskItems);
   const riskBackground = getRiskLevelBackground(latestScan.riskScore);
   const riskBadgeTone = getRiskLevelBadgeTone(latestScan.riskScore);
-  const riskLevelText = latestScan.riskScore > 60 ? "High" : latestScan.riskScore > 30 ? "Med" : "Low";
+  const riskLevelText = latestScan.riskScore > 60 ? t("scan.summary.riskScore.levels.high") : latestScan.riskScore > 30 ? t("scan.summary.riskScore.levels.med") : t("scan.summary.riskScore.levels.low");
 
   return (
     <Layout>
@@ -42,7 +44,7 @@ export function ScanSummaryCards({
         <Card>
           <BlockStack gap="400">
             <Text as="h2" variant="headingMd">
-              风险评分
+              {t("scan.summary.riskScore.title")}
             </Text>
             <Box background={riskBackground} padding="600" borderRadius="200">
               <BlockStack gap="200" align="center">
@@ -56,7 +58,7 @@ export function ScanSummaryCards({
             </Box>
             <InlineStack align="space-between" blockAlign="center">
               <Text as="span" variant="bodySm" tone="subdued">
-                风险等级
+                {t("scan.summary.riskScore.level")}
               </Text>
               <Badge tone={riskBadgeTone}>
                 {riskLevelText}
@@ -65,15 +67,15 @@ export function ScanSummaryCards({
             {estimatedTime.totalMinutes > 0 && (
               <InlineStack align="space-between" blockAlign="center">
                 <Text as="span" variant="bodySm" tone="subdued">
-                  预计修复时间
+                  {t("scan.summary.riskScore.estimatedTime")}
                 </Text>
                 <Text as="span" variant="bodySm" fontWeight="semibold">
-                  {estimatedTime.hours > 0 ? `${estimatedTime.hours} 小时 ` : ""}{estimatedTime.minutes > 0 ? `${estimatedTime.minutes} 分钟` : ""}
+                  {estimatedTime.hours > 0 ? t("scan.summary.riskScore.hours", { count: estimatedTime.hours }) : ""}{estimatedTime.minutes > 0 ? t("scan.summary.riskScore.minutes", { count: estimatedTime.minutes }) : ""}
                 </Text>
               </InlineStack>
             )}
             <Text as="p" variant="bodySm" tone="subdued">
-              扫描时间:{" "}
+              {t("scan.summary.riskScore.scannedAt")}
               {safeFormatDate(latestScan.createdAt)}
             </Text>
             <Divider />
@@ -84,8 +86,8 @@ export function ScanSummaryCards({
                 fullWidth
               >
                 {isPlanAtLeast(planIdSafe, "starter")
-                  ? "启用Purchase-only修复（10分钟）"
-                  : "升级到 Migration 启用修复"}
+                  ? t("scan.summary.cta.purchaseOnly")
+                  : t("scan.summary.cta.upgrade")}
               </Button>
               {!isPlanAtLeast(planIdSafe, "growth") && (
                 <Button
@@ -93,7 +95,7 @@ export function ScanSummaryCards({
                   variant="secondary"
                   fullWidth
                 >
-                  启用Full-funnel修复（30分钟，Growth）
+                  {t("scan.summary.cta.fullFunnel")}
                 </Button>
               )}
             </BlockStack>
@@ -104,7 +106,7 @@ export function ScanSummaryCards({
         <Card>
           <BlockStack gap="400">
             <Text as="h2" variant="headingMd">
-              检测到的平台
+              {t("scan.summary.platforms.title")}
             </Text>
             {identifiedPlatforms.length > 0 ? (
               <BlockStack gap="200">
@@ -117,7 +119,7 @@ export function ScanSummaryCards({
               </BlockStack>
             ) : (
               <Text as="p" tone="subdued">
-                未检测到追踪平台
+                {t("scan.summary.platforms.empty")}
               </Text>
             )}
           </BlockStack>
@@ -128,7 +130,7 @@ export function ScanSummaryCards({
           <BlockStack gap="400">
             <InlineStack align="space-between" blockAlign="center">
               <Text as="h2" variant="headingMd">
-                ScriptTags
+                {t("scan.summary.scriptTags.title")}
               </Text>
               {deprecationStatus?.scriptTag && (
                 <Badge tone={deprecationStatus.scriptTag.isExpired ? "critical" : "warning"}>
@@ -138,7 +140,7 @@ export function ScanSummaryCards({
             </InlineStack>
             <BlockStack gap="200">
               <InlineStack align="space-between">
-                <Text as="span">已安装数量</Text>
+                <Text as="span">{t("scan.summary.scriptTags.count")}</Text>
                 <Text as="span" fontWeight="semibold">
                   {scriptTags.length}
                 </Text>

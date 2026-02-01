@@ -2,6 +2,7 @@ import { BlockStack, Banner, Text, Button, List } from "@shopify/polaris";
 import { getDateDisplayLabel, DEPRECATION_DATES } from "~/utils/deprecation-dates";
 import { getUpgradeBannerTone } from "~/components/scan";
 import { parseDateSafely } from "~/utils/scan-validation";
+import { useTranslation, Trans } from "react-i18next";
 
 export interface ScanPageBannersProps {
   deprecationStatus: unknown;
@@ -40,59 +41,70 @@ export function ScanPageBanners({
   isProOrAbove,
   isAgency,
 }: ScanPageBannersProps) {
+  const { t, i18n } = useTranslation();
   const dep = deprecationStatus as { additionalScripts?: { badge?: { text: string }; description?: string } } | null;
   return (
     <>
-      <Banner tone="warning" title="Additional Scripts 需手动粘贴">
+      <Banner tone="warning" title={t("scan.banners.additionalScripts.title")}>
         <BlockStack gap="200">
           <Text as="p">
-            Shopify API 无法读取 checkout.liquid / Additional Scripts。请在下方「脚本内容分析」中粘贴原始脚本，确保迁移报告涵盖 Thank you / Order status 页的自定义逻辑。
+            {t("scan.banners.additionalScripts.content")}
           </Text>
           {dep?.additionalScripts && (
             <Text as="p" tone="subdued">
-              截止提醒：{dep.additionalScripts.badge?.text ?? ""} — {dep.additionalScripts.description ?? ""}
+              {t("scan.banners.additionalScripts.deadline", {
+                badge: dep.additionalScripts.badge?.text ?? "",
+                desc: dep.additionalScripts.description ?? ""
+              })}
             </Text>
           )}
           <Button size="slim" variant="plain" onClick={onShowUpgradeGuide}>
-            📋 查看获取脚本清单的详细步骤
+            {t("scan.banners.additionalScripts.guide")}
           </Button>
         </BlockStack>
       </Banner>
-      <Banner tone="info" title="扫描分页说明">
+      <Banner tone="info" title={t("scan.banners.pagination.title")}>
         <BlockStack gap="200">
           <Text as="p">
-            Shopify API 结果是分页的。本扫描会自动迭代页面，但为了性能会在以下阈值停止并提示：
+            {t("scan.banners.pagination.content")}
           </Text>
           <List type="bullet">
-            <List.Item>ScriptTags 最多处理 {scannerMaxScriptTags.toLocaleString()} 条记录</List.Item>
-            <List.Item>Web Pixel 最多处理 {scannerMaxWebPixels.toLocaleString()} 条记录</List.Item>
+            <List.Item>{t("scan.banners.pagination.limitScriptTags", { limit: scannerMaxScriptTags.toLocaleString() })}</List.Item>
+            <List.Item>{t("scan.banners.pagination.limitWebPixels", { limit: scannerMaxWebPixels.toLocaleString() })}</List.Item>
           </List>
           <Text as="p" tone="subdued">
-            如果商店超过以上数量，请在「手动分析」中粘贴剩余脚本，或联系支持获取完整导出（当前上限可调整，请联系我们）。
+            {t("scan.banners.pagination.footer")}
           </Text>
         </BlockStack>
       </Banner>
       {partialRefresh && (
-        <Banner tone="warning" title="部分数据刷新失败">
+        <Banner tone="warning" title={t("scan.banners.partialRefresh.title")}>
           <BlockStack gap="200">
             <Text as="p" variant="bodySm">
-              扫描使用了缓存数据，但无法刷新 Web Pixels 信息。Web Pixels、重复像素检测和迁移操作建议可能不完整。
+              {t("scan.banners.partialRefresh.content")}
             </Text>
             <Text as="p" variant="bodySm" tone="subdued">
-              建议：点击「开始扫描」按钮重新执行完整扫描以获取最新数据。
+              {t("scan.banners.partialRefresh.suggestion")}
             </Text>
           </BlockStack>
         </Banner>
       )}
       {upgradeStatus?.autoUpgradeInfo?.autoUpgradeMessage && (
         <Banner
-          title={upgradeStatus.autoUpgradeInfo.isInAutoUpgradeWindow ? "⚡ Plus 商家自动升级窗口已开始" : "⚠️ Plus 商家自动升级风险窗口"}
+          title={upgradeStatus.autoUpgradeInfo.isInAutoUpgradeWindow ? t("scan.banners.autoUpgrade.windowOpen") : t("scan.banners.autoUpgrade.windowRisk")}
           tone={upgradeStatus.autoUpgradeInfo.isInAutoUpgradeWindow ? "critical" : "warning"}
         >
           <BlockStack gap="200">
             <Text as="p">{upgradeStatus.autoUpgradeInfo.autoUpgradeMessage}</Text>
             <Text as="p" variant="bodySm" tone="subdued">
-              <strong>Shopify 官方升级路径：</strong>使用 blocks + web pixels 替代 legacy customizations。Plus 商家：{getDateDisplayLabel(DEPRECATION_DATES.plusAdditionalScriptsReadOnly, "exact")}（日期来自 Shopify 官方公告，请以 Admin 提示为准）截止，{getDateDisplayLabel(DEPRECATION_DATES.plusAutoUpgradeStart, "month")}（日期来自 Shopify 官方公告，请以 Admin 提示为准）自动升级会丢失 legacy 自定义。非 Plus 商家：{getDateDisplayLabel(DEPRECATION_DATES.nonPlusAdditionalScriptsReadOnly, "exact")}（日期来自 Shopify 官方公告，请以 Admin 提示为准）截止。
+              <Trans
+                i18nKey="scan.banners.autoUpgrade.officialPath"
+                values={{
+                  date1: getDateDisplayLabel(DEPRECATION_DATES.plusAdditionalScriptsReadOnly, "exact"),
+                  date2: getDateDisplayLabel(DEPRECATION_DATES.plusAutoUpgradeStart, "month"),
+                  date3: getDateDisplayLabel(DEPRECATION_DATES.nonPlusAdditionalScriptsReadOnly, "exact")
+                }}
+              />
             </Text>
           </BlockStack>
         </Banner>
@@ -112,12 +124,12 @@ export function ScanPageBanners({
             )}
             {!upgradeStatus.hasOfficialSignal && (
               <Text as="p" variant="bodySm" tone="subdued">
-                提示：我们尚未完成一次有效的升级状态检测。请稍后重试、重新授权应用，或等待后台定时任务自动刷新。
+                {t("scan.banners.upgradeStatus.pending")}
               </Text>
             )}
             {upgradeStatus.lastUpdated && parseDateSafely(upgradeStatus.lastUpdated) && (
               <Text as="p" variant="bodySm" tone="subdued">
-                状态更新时间: {parseDateSafely(upgradeStatus.lastUpdated)!.toLocaleString("zh-CN")}
+                {t("scan.banners.upgradeStatus.lastUpdated", { date: parseDateSafely(upgradeStatus.lastUpdated)!.toLocaleString(i18n.language === "en" ? "en-US" : "zh-CN") })}
               </Text>
             )}
           </BlockStack>
@@ -125,10 +137,10 @@ export function ScanPageBanners({
       )}
       {planId && planLabel && (
         <Banner
-          title={`当前套餐：${planLabel}`}
+          title={t("scan.banners.plan.title", { plan: planLabel })}
           tone={isGrowthOrAbove ? "info" : "warning"}
           action={{
-            content: "查看套餐/升级",
+            content: t("scan.banners.plan.action"),
             url: "/app/settings?tab=subscription",
           }}
         >
@@ -138,28 +150,28 @@ export function ScanPageBanners({
             )}
             {!isGrowthOrAbove && (
               <List type="bullet">
-                <List.Item><strong>启用像素迁移（Test 环境）</strong> → 进入付费试用/订阅（Starter $29/月）</List.Item>
-                <List.Item>像素迁移功能包括：标准事件映射 + 参数完整率检查 + 可下载 payload 证据（GA4/Meta/TikTok v1 支持）</List.Item>
-                <List.Item><strong>生成验收报告（CSV）</strong> → 付费（Growth $79/月 或 Agency $199/月）</List.Item>
-                <List.Item>这是"升级项目交付"的核心能力：让商家"敢点发布/敢切 Live"</List.Item>
+                <List.Item><Trans i18nKey="scan.banners.plan.starter.item1" /></List.Item>
+                <List.Item>{t("scan.banners.plan.starter.item2")}</List.Item>
+                <List.Item><Trans i18nKey="scan.banners.plan.starter.item3" /></List.Item>
+                <List.Item>{t("scan.banners.plan.starter.item4")}</List.Item>
               </List>
             )}
             {isGrowthOrAbove && !isProOrAbove && (
               <List type="bullet">
-                <List.Item>当前可用：Web Pixel 标准事件映射（v1 最小可用迁移）</List.Item>
-                <List.Item>升级到 Pro 以解锁事件对账与高级告警能力</List.Item>
+                <List.Item>{t("scan.banners.plan.growth.item1")}</List.Item>
+                <List.Item>{t("scan.banners.plan.growth.item2")}</List.Item>
               </List>
             )}
             {isProOrAbove && !isAgency && (
               <List type="bullet">
-                <List.Item>已解锁多渠道像素 + 事件对账</List.Item>
-                <List.Item>多店铺、白标、团队协作即将在 v1.1 推出，可升级至 Agency 以在发布后使用</List.Item>
+                <List.Item>{t("scan.banners.plan.pro.item1")}</List.Item>
+                <List.Item>{t("scan.banners.plan.pro.item2")}</List.Item>
               </List>
             )}
             {isAgency && (
               <List type="bullet">
-                <List.Item>多店铺、白标、团队协作即将在 v1.1 推出；当前已解锁无限像素、验收报告导出与 SLA</List.Item>
-                <List.Item>如需迁移托管，可在支持渠道提交工单</List.Item>
+                <List.Item>{t("scan.banners.plan.agency.item1")}</List.Item>
+                <List.Item>{t("scan.banners.plan.agency.item2")}</List.Item>
               </List>
             )}
           </BlockStack>

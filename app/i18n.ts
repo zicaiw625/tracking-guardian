@@ -5,6 +5,7 @@ import LanguageDetector from "i18next-browser-languagedetector";
 import en from "./locales/en.json";
 import zh from "./locales/zh.json";
 
+// eslint-disable-next-line import/no-named-as-default-member
 i18next
   .use(initReactI18next) // passes i18n down to react-i18next
   .use(LanguageDetector)

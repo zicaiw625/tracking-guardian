@@ -66,25 +66,26 @@ export default function App() {
 
 export function ErrorBoundary() {
   const error = useRouteError();
-  let title = "发生未知错误";
-  let message = "系统遇到了一个意外问题。请稍后再试。";
+  const { t, i18n } = useTranslation();
+  let title = t("errorPage.unknownTitle");
+  let message = t("errorPage.unknownMessage");
   let code = "UNKNOWN_ERROR";
   let status = 500;
   const isProduction = process.env.NODE_ENV === "production";
   if (isRouteErrorResponse(error)) {
     status = error.status;
     title = error.status === 404
-      ? "Page Not Found"
-      : `${error.status} ${error.statusText || "Error"}`;
+      ? t("errorPage.pageNotFound")
+      : `${error.status} ${error.statusText || t("common.error")}`;
     message = typeof error.data === 'string'
       ? error.data
       : error.status === 404
-        ? "The page you are looking for does not exist."
-        : "An error occurred while loading the page.";
+        ? t("errorPage.pageNotFoundMessage")
+        : t("errorPage.loadingError");
     code = `HTTP_${error.status}`;
   } else if (error instanceof Error) {
-    message = error.message || "An error occurred.";
-    code = error.name || "Error";
+    message = error.message || t("errorPage.defaultMessage");
+    code = error.name || t("common.error");
     if (error.stack) {
       import("./utils/debug-log.client").then(({ debugError }) => {
         debugError("Error stack:", error.stack);
@@ -96,7 +97,7 @@ export function ErrorBoundary() {
       ? errObj.message
       : typeof errObj.error === "string"
         ? errObj.error
-        : "Unknown error occurred.";
+        : t("errorPage.unknownError");
     code = typeof errObj.code === "string"
       ? errObj.code
       : typeof errObj.name === "string"
@@ -106,18 +107,18 @@ export function ErrorBoundary() {
       debugError("Non-standard error caught in root ErrorBoundary:", error);
     });
   } else {
-    message = "Unknown error occurred.";
+    message = t("errorPage.unknownError");
     code = "UNKNOWN";
     import("./utils/debug-log.client").then(({ debugError }) => {
       debugError("Unknown error type caught in root ErrorBoundary:", error);
     });
   }
   if (isProduction && status >= 500) {
-    message = "The system encountered an unexpected problem. Please try again later.";
+    message = t("errorPage.unknownMessage");
     code = `ERROR_${status}`;
   }
   return (
-    <html lang="en">
+    <html lang={i18n.language || "en"}>
       <head>
         <meta charSet="utf-8" />
         <meta name="viewport" content="width=device-width,initial-scale=1" />
@@ -180,7 +181,7 @@ export function ErrorBoundary() {
               className="error-button"
               onClick={() => window.location.reload()}
             >
-              Retry
+              {t("errorPage.retry")}
             </button>
           </div>
         </div>
