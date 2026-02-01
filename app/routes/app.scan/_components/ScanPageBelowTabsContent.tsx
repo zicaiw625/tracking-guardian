@@ -22,6 +22,7 @@ import { MigrationImpactAnalysis } from "./MigrationImpactAnalysis";
 import type { MigrationTimeline } from "~/services/migration-priority.server";
 import type { AuditAssetRecord } from "~/services/audit-asset.server";
 import type { DependencyGraph } from "~/services/dependency-analysis.server";
+import { useTranslation } from "react-i18next";
 
 interface RiskItemLike {
   name: string;
@@ -102,12 +103,14 @@ export function ScanPageBelowTabsContent({
   dependencyGraph,
   _shop,
 }: ScanPageBelowTabsContentProps) {
+  const { t } = useTranslation();
+
   const handleExportCSV = async () => {
     if (!latestScan) return;
     try {
       const response = await fetch(`/api/scan-report/csv?reportId=${encodeURIComponent(latestScan.id)}`);
       if (!response.ok) {
-        let msg = "导出失败";
+        let msg = t("scan.errors.exportFailed");
         try {
           const errorData = await response.json();
           msg = errorData.error || msg;
@@ -126,9 +129,9 @@ export function ScanPageBelowTabsContent({
       a.click();
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
-      showSuccess("扫描报告 CSV 导出成功");
+      showSuccess(t("scan.success.exportSuccess"));
     } catch (error) {
-      showError("导出失败：" + (error instanceof Error ? error.message : "未知错误"));
+      showError(t("scan.errors.exportFailed") + ": " + (error instanceof Error ? error.message : t("common.unknown")));
     }
   };
 
@@ -138,13 +141,13 @@ export function ScanPageBelowTabsContent({
         {latestScan && (
           <InlineStack gap="200">
             <Button icon={ExportIcon} onClick={handleExportCSV}>
-              导出扫描报告 CSV
+              {t("scan.autoTab.exportCSV")}
             </Button>
           </InlineStack>
         )}
         <InlineStack gap="200">
           <Button variant="primary" onClick={handleScan} loading={isScanning} icon={SearchIcon}>
-            {isScanning ? "扫描中..." : "开始扫描"}
+            {isScanning ? t("scan.autoTab.scanning") : t("scan.autoTab.startScan")}
           </Button>
         </InlineStack>
       </InlineStack>
@@ -161,20 +164,20 @@ export function ScanPageBelowTabsContent({
       {!latestScan && !isScanning && (
         <EnhancedEmptyState
           icon="🔍"
-          title="还没有扫描报告"
-          description="点击开始扫描，我们会自动检测 ScriptTags 和已安装的像素配置，并给出风险等级与迁移建议。预计耗时约 10 秒，不会修改任何设置。"
-          helpText="关于 Additional Scripts：Shopify API 无法自动读取 checkout.liquid 中的 Additional Scripts。请切换到「手动分析」标签页，粘贴脚本内容进行分析。"
-          primaryAction={{ content: "开始扫描", onAction: handleScan }}
-          secondaryAction={{ content: "了解更多", url: "https://help.shopify.com/en/manual/pixels/web-pixels" }}
+          title={t("scan.autoTab.emptyState.title")}
+          description={t("scan.autoTab.emptyState.description")}
+          helpText={t("scan.autoTab.emptyState.helpText")}
+          primaryAction={{ content: t("scan.autoTab.startScan"), onAction: handleScan }}
+          secondaryAction={{ content: t("scan.autoTab.emptyState.learnMore"), url: "https://help.shopify.com/en/manual/pixels/web-pixels" }}
         />
       )}
       {latestScan && !isScanning && upgradeStatus?.title && upgradeStatus?.message && (
         <Card>
           <BlockStack gap="400">
             <InlineStack align="space-between" blockAlign="center">
-              <Text as="h2" variant="headingMd">Shopify 升级风险窗口</Text>
+              <Text as="h2" variant="headingMd">{t("scan.autoTab.upgradeWindow.title")}</Text>
               <Badge tone={upgradeStatus.urgency === "critical" ? "critical" : upgradeStatus.urgency === "high" ? "warning" : "info"}>
-                {upgradeStatus.urgency === "critical" ? "紧急" : upgradeStatus.urgency === "high" ? "高优先级" : upgradeStatus.urgency === "medium" ? "中优先级" : "低优先级"}
+                {upgradeStatus.urgency === "critical" ? t("scan.autoTab.upgradeWindow.critical") : upgradeStatus.urgency === "high" ? t("scan.autoTab.upgradeWindow.high") : upgradeStatus.urgency === "medium" ? t("scan.autoTab.upgradeWindow.medium") : t("scan.autoTab.upgradeWindow.low")}
               </Badge>
             </InlineStack>
             <Divider />
@@ -182,13 +185,13 @@ export function ScanPageBelowTabsContent({
               <BlockStack gap="200">
                 <Text as="p">{upgradeStatus.message}</Text>
                 {upgradeStatus.autoUpgradeInfo?.autoUpgradeMessage && (
-                  <Banner tone={upgradeStatus.autoUpgradeInfo.isInAutoUpgradeWindow ? "critical" : "warning"} title={upgradeStatus.autoUpgradeInfo.isInAutoUpgradeWindow ? "⚡ 自动升级窗口已开始" : "⚠️ 自动升级风险窗口"}>
+                  <Banner tone={upgradeStatus.autoUpgradeInfo.isInAutoUpgradeWindow ? "critical" : "warning"} title={upgradeStatus.autoUpgradeInfo.isInAutoUpgradeWindow ? t("scan.autoTab.upgradeWindow.autoUpgradeStarted") : t("scan.autoTab.upgradeWindow.autoUpgradeRisk")}>
                     <Text as="p">{upgradeStatus.autoUpgradeInfo.autoUpgradeMessage}</Text>
                   </Banner>
                 )}
                 {upgradeStatus.actions && upgradeStatus.actions.length > 0 && (
                   <BlockStack gap="100">
-                    <Text as="p" fontWeight="semibold">建议操作：</Text>
+                    <Text as="p" fontWeight="semibold">{t("scan.autoTab.upgradeWindow.suggestedActions")}</Text>
                     <List>
                       {upgradeStatus.actions.map((action, idx) => (
                         <List.Item key={idx}>{action}</List.Item>
@@ -223,12 +226,12 @@ export function ScanPageBelowTabsContent({
         <Card>
           <BlockStack gap="400">
             <InlineStack align="space-between" blockAlign="center">
-              <Text as="h2" variant="headingMd">风险详情</Text>
-              <Badge tone="info">{`${riskItems.length} 项`}</Badge>
+              <Text as="h2" variant="headingMd">{t("scan.autoTab.riskDetails.title")}</Text>
+              <Badge tone="info">{t("common.countItems", { count: riskItems.length })}</Badge>
             </InlineStack>
             <Banner tone="info">
               <Text as="p" variant="bodySm">
-                风险识别基于脚本 URL 和已知平台指纹推断，并非实际脚本内容分析。如需更精确的检测，请在「脚本内容分析」中粘贴实际脚本代码。
+                {t("scan.autoTab.riskDetails.disclaimer")}
               </Text>
             </Banner>
             {(() => {
@@ -252,16 +255,16 @@ export function ScanPageBelowTabsContent({
                               <Icon source={AlertCircleIcon} tone={item.severity === "high" ? "critical" : item.severity === "medium" ? "warning" : "info"} />
                               <Text as="span" fontWeight="semibold">{item.name}</Text>
                             </InlineStack>
-                            {getSeverityBadge(item.severity)}
+                            {getSeverityBadge(item.severity, t)}
                           </InlineStack>
                           <Text as="p" tone="subdued">{item.description}</Text>
                           {item.details && <Text as="p" variant="bodySm">{item.details}</Text>}
                           <InlineStack align="space-between" blockAlign="center">
                             <InlineStack gap="200">
-                              {item.platform && <Badge>{getPlatformName(item.platform)}</Badge>}
-                              {item.impact && <Text as="span" variant="bodySm" tone="critical">影响: {item.impact}</Text>}
+                              {item.platform && <Badge>{getPlatformName(item.platform, t)}</Badge>}
+                              {item.impact && <Text as="span" variant="bodySm" tone="critical">{t("scan.autoTab.riskDetails.impact")} {item.impact}</Text>}
                             </InlineStack>
-                            <Button url={`/app/migrate${item.platform ? `?platform=${item.platform}` : ""}`} size="slim" icon={ArrowRightIcon}>一键迁移</Button>
+                            <Button url={`/app/migrate${item.platform ? `?platform=${item.platform}` : ""}`} size="slim" icon={ArrowRightIcon}>{t("scan.autoTab.riskDetails.oneClickMigrate")}</Button>
                           </InlineStack>
                         </BlockStack>
                       </Box>
@@ -271,11 +274,11 @@ export function ScanPageBelowTabsContent({
                     <Banner tone="warning">
                       <BlockStack gap="200">
                         <Text as="p" variant="bodySm">
-                          <strong>免费版限制：</strong>仅显示前 {FREE_AUDIT_LIMIT} 条高风险项，还有 {hiddenCount} 项未显示。
+                          <strong>{t("scan.autoTab.riskDetails.freeLimit")}</strong>{t("scan.autoTab.riskDetails.freeLimitDesc", { limit: FREE_AUDIT_LIMIT, count: hiddenCount })}
                         </Text>
                         <InlineStack gap="200">
-                          <Button url="/app/billing" variant="primary" size="slim">升级解锁完整报告</Button>
-                          <Button url="/app/migrate" size="slim">启用 Purchase-only 修复（10 分钟）</Button>
+                          <Button url="/app/billing" variant="primary" size="slim">{t("scan.autoTab.riskDetails.upgradeUnlock")}</Button>
+                          <Button url="/app/migrate" size="slim">{t("scan.autoTab.riskDetails.purchaseOnlyFix")}</Button>
                         </InlineStack>
                       </BlockStack>
                     </Banner>
@@ -283,16 +286,16 @@ export function ScanPageBelowTabsContent({
                   <Box background="bg-surface-secondary" padding="400" borderRadius="200">
                     <BlockStack gap="300">
                       <InlineStack align="space-between" blockAlign="center">
-                        <Text as="span" fontWeight="semibold">预计修复时间</Text>
+                        <Text as="span" fontWeight="semibold">{t("scan.autoTab.riskDetails.estimatedFixTime")}</Text>
                         <Badge tone={estimatedTimeMinutes > 60 ? "warning" : "info"}>
-                          {estimatedTimeMinutes > 60 ? `${Math.floor(estimatedTimeMinutes / 60)} 小时 ${estimatedTimeMinutes % 60} 分钟` : `${estimatedTimeMinutes} 分钟`}
+                          {estimatedTimeMinutes > 60 ? t("common.time.hoursMinutes", { hours: Math.floor(estimatedTimeMinutes / 60), minutes: estimatedTimeMinutes % 60 }) : t("common.time.minutes", { count: estimatedTimeMinutes })}
                         </Badge>
                       </InlineStack>
-                      <Text as="p" variant="bodySm" tone="subdued">基于当前风险项数量和严重程度估算</Text>
+                      <Text as="p" variant="bodySm" tone="subdued">{t("scan.autoTab.riskDetails.basedOnRisk")}</Text>
                       {isFreePlan && (
                         <Banner tone="info">
                           <Text as="p" variant="bodySm">
-                            <strong>升级到 Migration 版</strong>可启用 Full-funnel 修复（30 分钟，Growth 套餐），获得完整迁移清单和验收报告。
+                            <strong>{t("scan.autoTab.riskDetails.upgradeMigration")}</strong>{t("scan.autoTab.riskDetails.upgradeMigrationDesc")}
                           </Text>
                         </Banner>
                       )}
@@ -308,8 +311,8 @@ export function ScanPageBelowTabsContent({
         <Card>
           <BlockStack gap="400">
             <InlineStack align="space-between" blockAlign="center">
-              <Text as="h2" variant="headingMd">迁移操作</Text>
-              <Badge tone="attention">{`${migrationActions.length} 项待处理`}</Badge>
+              <Text as="h2" variant="headingMd">{t("scan.autoTab.migrationActions.title")}</Text>
+              <Badge tone="attention">{t("scan.autoTab.migrationActions.pending", { count: migrationActions.length })}</Badge>
             </InlineStack>
             <BlockStack gap="300">
               {migrationActions.map((action, index) => (
@@ -320,26 +323,26 @@ export function ScanPageBelowTabsContent({
                         <InlineStack gap="200" blockAlign="center">
                           <Text as="span" fontWeight="semibold">{action.title}</Text>
                           <Badge tone={action.priority === "high" ? "critical" : action.priority === "medium" ? "warning" : "info"}>
-                            {action.priority === "high" ? "高优先级" : action.priority === "medium" ? "中优先级" : "低优先级"}
+                            {action.priority === "high" ? t("scan.autoTab.upgradeWindow.high") : action.priority === "medium" ? t("scan.autoTab.upgradeWindow.medium") : t("scan.autoTab.upgradeWindow.low")}
                           </Badge>
                         </InlineStack>
-                        {action.platform && <Badge>{getPlatformName(action.platform)}</Badge>}
+                        {action.platform && <Badge>{getPlatformName(action.platform, t)}</Badge>}
                       </BlockStack>
-                      {action.deadline && <Badge tone="warning">{`截止: ${action.deadline}`}</Badge>}
+                      {action.deadline && <Badge tone="warning">{`${t("scan.autoTab.migrationActions.deadline")} ${action.deadline}`}</Badge>}
                     </InlineStack>
                     <Text as="p" variant="bodySm" tone="subdued">{action.description}</Text>
                     <InlineStack gap="200" align="end">
                       {action.type === "migrate_script_tag" && action.scriptTagId != null && (
-                        <Button size="slim" icon={InfoIcon} onClick={() => handleShowScriptTagGuidance(action.scriptTagId!, action.platform)}>查看清理指南</Button>
+                        <Button size="slim" icon={InfoIcon} onClick={() => handleShowScriptTagGuidance(action.scriptTagId!, action.platform)}>{t("scan.autoTab.migrationActions.cleanGuide")}</Button>
                       )}
                       {action.type === "remove_duplicate" && action.webPixelGid && (
-                        <Button tone="critical" size="slim" loading={isDeleting && pendingDelete?.gid === action.webPixelGid} onClick={() => handleDeleteWebPixel(action.webPixelGid!, action.platform)}>删除重复像素</Button>
+                        <Button tone="critical" size="slim" loading={isDeleting && pendingDelete?.gid === action.webPixelGid} onClick={() => handleDeleteWebPixel(action.webPixelGid!, action.platform)}>{t("scan.autoTab.migrationActions.removeDuplicate")}</Button>
                       )}
                       {action.type === "configure_pixel" && action.description?.includes("升级") && (
-                        <Button size="slim" icon={RefreshIcon} loading={isUpgrading} onClick={handleUpgradePixelSettings}>升级配置</Button>
+                        <Button size="slim" icon={RefreshIcon} loading={isUpgrading} onClick={handleUpgradePixelSettings}>{t("scan.autoTab.migrationActions.upgradeConfig")}</Button>
                       )}
                       {action.type === "configure_pixel" && !action.description?.includes("升级") && (
-                        <Button size="slim" url="/app/migrate" icon={ArrowRightIcon}>配置 Pixel</Button>
+                        <Button size="slim" url="/app/migrate" icon={ArrowRightIcon}>{t("scan.autoTab.migrationActions.configurePixel")}</Button>
                       )}
                     </InlineStack>
                   </BlockStack>
@@ -366,23 +369,23 @@ export function ScanPageBelowTabsContent({
         <Card>
           <BlockStack gap="400">
             <InlineStack align="space-between" blockAlign="center">
-              <Text as="h2" variant="headingMd">📊 迁移进度</Text>
+              <Text as="h2" variant="headingMd">{t("scan.autoTab.migrationProgress.title")}</Text>
               <Badge tone={migrationProgress.completionRate === 100 ? "success" : "attention"}>
-                {`${Math.round(migrationProgress.completionRate)}% 完成`}
+                {t("scan.autoTab.migrationProgress.completed", { percent: Math.round(migrationProgress.completionRate) })}
               </Badge>
             </InlineStack>
             <BlockStack gap="300">
               <ProgressBar progress={migrationProgress.completionRate} tone={migrationProgress.completionRate === 100 ? "success" : "primary"} size="medium" />
               <InlineStack gap="400" align="space-between" wrap>
                 <BlockStack gap="100">
-                  <Text as="span" variant="bodySm" tone="subdued">总计: {migrationProgress.total} 项</Text>
-                  <Text as="span" variant="bodySm" tone="subdued">已完成: {migrationProgress.completed} | 进行中: {migrationProgress.inProgress} | 待处理: {migrationProgress.pending}</Text>
+                  <Text as="span" variant="bodySm" tone="subdued">{t("scan.autoTab.migrationProgress.total", { count: migrationProgress.total })}</Text>
+                  <Text as="span" variant="bodySm" tone="subdued">{t("scan.autoTab.migrationProgress.stats", { completed: migrationProgress.completed, inProgress: migrationProgress.inProgress, pending: migrationProgress.pending })}</Text>
                 </BlockStack>
                 {migrationTimeline.totalEstimatedTime > 0 && (
                   <InlineStack gap="200" blockAlign="center">
                     <Icon source={ClockIcon} tone="subdued" />
                     <Text as="span" variant="bodySm" tone="subdued" fontWeight="semibold">
-                      预计剩余时间: {Math.round(migrationTimeline.totalEstimatedTime / 60)} 小时 {migrationTimeline.totalEstimatedTime % 60} 分钟
+                      {t("scan.autoTab.migrationProgress.remainingTime")} {Math.round(migrationTimeline.totalEstimatedTime / 60)} {t("common.hours")} {migrationTimeline.totalEstimatedTime % 60} {t("common.minutes")}
                     </Text>
                   </InlineStack>
                 )}
@@ -392,7 +395,7 @@ export function ScanPageBelowTabsContent({
               <>
                 <Divider />
                 <BlockStack gap="300">
-                  <Text as="h3" variant="headingSm">下一步建议</Text>
+                  <Text as="h3" variant="headingSm">{t("scan.autoTab.migrationProgress.nextSteps")}</Text>
                   {migrationTimeline.assets
                     .filter((item) => item.canStart && item.asset.migrationStatus === "pending")
                     .slice(0, 3)
@@ -401,20 +404,20 @@ export function ScanPageBelowTabsContent({
                         <InlineStack align="space-between" blockAlign="center">
                           <BlockStack gap="100">
                             <InlineStack gap="200" blockAlign="center">
-                              <Text as="span" fontWeight="semibold">{item.asset.displayName || item.asset.platform || "未知资产"}</Text>
+                              <Text as="span" fontWeight="semibold">{item.asset.displayName || item.asset.platform || t("scan.autoTab.migrationProgress.unknownAsset")}</Text>
                               <Badge tone={(item.asset.priority ?? item.priority.priority) >= 8 ? "critical" : (item.asset.priority ?? item.priority.priority) >= 5 ? undefined : "info"}>
-                                {`优先级 ${item.asset.priority ?? item.priority.priority}/10`}
+                                {t("scan.autoTab.migrationProgress.priority", { priority: item.asset.priority ?? item.priority.priority })}
                               </Badge>
                             </InlineStack>
-                            <Text as="span" variant="bodySm" tone="subdued">{item.priority.reason || "无说明"}</Text>
+                            <Text as="span" variant="bodySm" tone="subdued">{item.priority.reason || t("scan.autoTab.migrationProgress.noReason")}</Text>
                             {item.blockingDependencies.length > 0 && (
                               <Banner tone="warning">
-                                <Text as="p" variant="bodySm">等待 {item.blockingDependencies.length} 个依赖项完成</Text>
+                                <Text as="p" variant="bodySm">{t("scan.autoTab.migrationProgress.waitingDependencies", { count: item.blockingDependencies.length })}</Text>
                               </Banner>
                             )}
                           </BlockStack>
                           <InlineStack gap="200">
-                            <Button size="slim" url={`/app/migrate?asset=${item.asset.id}`} disabled={!item.canStart}>开始迁移</Button>
+                            <Button size="slim" url={`/app/migrate?asset=${item.asset.id}`} disabled={!item.canStart}>{t("scan.actions.startMigration")}</Button>
                             <Button
                               size="slim"
                               variant="plain"
@@ -425,7 +428,7 @@ export function ScanPageBelowTabsContent({
                                 submit(formData, { method: "post" });
                               }}
                             >
-                              标记完成
+                              {t("scan.autoTab.migrationProgress.markComplete")}
                             </Button>
                           </InlineStack>
                         </InlineStack>
@@ -433,7 +436,7 @@ export function ScanPageBelowTabsContent({
                     ))}
                   {migrationTimeline.assets.filter((item) => item.canStart && item.asset.migrationStatus === "pending").length === 0 && (
                     <Banner tone="success">
-                      <Text as="p" variant="bodySm">所有可立即开始的迁移任务已完成！请检查是否有依赖项需要先完成。</Text>
+                      <Text as="p" variant="bodySm">{t("scan.autoTab.migrationProgress.allReadyCompleted")}</Text>
                     </Banner>
                   )}
                 </BlockStack>

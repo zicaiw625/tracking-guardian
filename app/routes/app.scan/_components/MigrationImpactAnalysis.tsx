@@ -1,7 +1,9 @@
+
 import { Card, Text, BlockStack, InlineStack, Badge, Box, Banner, Divider, Icon, RangeSlider, Button } from "@shopify/polaris";
 import { AlertCircleIcon, CheckCircleIcon, ArrowRightIcon } from "~/components/icons";
 import { getPlatformName } from "~/components/scan/utils";
 import { calculateROIEstimate } from "~/utils/scan-format";
+import { useTranslation, Trans } from "react-i18next";
 
 interface MigrationImpactAnalysisProps {
   latestScan: {
@@ -20,42 +22,47 @@ export function MigrationImpactAnalysis({
   monthlyOrders,
   onMonthlyOrdersChange,
 }: MigrationImpactAnalysisProps) {
+  const { t } = useTranslation();
   const roiEstimate = calculateROIEstimate(monthlyOrders, identifiedPlatforms.length, scriptTags.length);
 
   if (latestScan.riskScore === 0) {
     return null;
   }
 
+  const getRiskLevelText = (score: number) => {
+    if (score > 60) return t("scan.impactAnalysis.comparison.current.risk.high");
+    if (score > 30) return t("scan.impactAnalysis.comparison.current.risk.medium");
+    return t("scan.impactAnalysis.comparison.current.risk.low");
+  };
+
   return (
     <Card>
       <BlockStack gap="400">
         <InlineStack align="space-between" blockAlign="center">
           <Text as="h2" variant="headingMd">
-            📊 迁移影响分析（仅供参考）
+            {t("scan.impactAnalysis.title")}
           </Text>
-          <Badge tone="info">示例估算</Badge>
+          <Badge tone="info">{t("scan.impactAnalysis.badge")}</Badge>
         </InlineStack>
         <Banner tone="warning">
           <Text as="p" variant="bodySm">
-            <strong>⚠️ 免责声明：</strong>以下为简化示意，仅帮助理解迁移的必要性。
-            实际业务影响因店铺业务模式、流量来源、客户群体、广告账户设置等多种因素而异，
-            本工具无法预测具体数值影响，不构成任何效果保证或承诺。
+            <Trans i18nKey="scan.impactAnalysis.disclaimer" />
           </Text>
         </Banner>
         <Box background="bg-surface-secondary" padding="400" borderRadius="200">
           <BlockStack gap="300">
             <Text as="p" fontWeight="semibold">
-              🧮 输入您的月订单量，查看具体影响
+              {t("scan.impactAnalysis.monthlyOrders.title")}
             </Text>
             <RangeSlider
-              label="月订单量"
+              label={t("scan.impactAnalysis.monthlyOrders.label")}
               value={monthlyOrders}
               onChange={(value) => onMonthlyOrdersChange(value as number)}
               output
               min={100}
               max={10000}
               step={100}
-              suffix={<Text as="span" variant="bodySm">{monthlyOrders} 单/月</Text>}
+              suffix={<Text as="span" variant="bodySm">{t("scan.impactAnalysis.monthlyOrders.suffix", { count: monthlyOrders })}</Text>}
             />
           </BlockStack>
         </Box>
@@ -64,40 +71,40 @@ export function MigrationImpactAnalysis({
             <InlineStack gap="200" blockAlign="center">
               <Icon source={AlertCircleIcon} tone="critical" />
               <Text as="h3" variant="headingMd" tone="critical">
-                不迁移会丢失什么？（示意说明）
+                {t("scan.impactAnalysis.loss.title")}
               </Text>
             </InlineStack>
             <InlineStack gap="400" align="space-between" wrap>
               <Box background="bg-surface" padding="300" borderRadius="100" minWidth="150px">
                 <BlockStack gap="100">
-                  <Text as="p" variant="bodySm" tone="subdued">可能受影响的事件</Text>
+                  <Text as="p" variant="bodySm" tone="subdued">{t("scan.impactAnalysis.loss.events.label")}</Text>
                   <Text as="p" variant="headingLg" fontWeight="bold" tone="critical">
                     {roiEstimate.eventsLostPerMonth.toLocaleString()}
                   </Text>
                   <Text as="p" variant="bodySm" tone="critical">
-                    {roiEstimate.platforms} 平台 × {monthlyOrders} 订单
+                    {t("scan.impactAnalysis.loss.events.desc", { platformCount: roiEstimate.platforms, orders: monthlyOrders })}
                   </Text>
                 </BlockStack>
               </Box>
               <Box background="bg-surface" padding="300" borderRadius="100" minWidth="150px">
                 <BlockStack gap="100">
-                  <Text as="p" variant="bodySm" tone="subdued">受影响 ScriptTag</Text>
+                  <Text as="p" variant="bodySm" tone="subdued">{t("scan.impactAnalysis.loss.scriptTags.label")}</Text>
                   <Text as="p" variant="headingLg" fontWeight="bold" tone="critical">
                     {roiEstimate.scriptTagCount}
                   </Text>
                   <Text as="p" variant="bodySm" tone="critical">
-                    将在截止日停止执行
+                    {t("scan.impactAnalysis.loss.scriptTags.desc")}
                   </Text>
                 </BlockStack>
               </Box>
               <Box background="bg-surface" padding="300" borderRadius="100" minWidth="150px">
                 <BlockStack gap="100">
-                  <Text as="p" variant="bodySm" tone="subdued">实际影响</Text>
+                  <Text as="p" variant="bodySm" tone="subdued">{t("scan.impactAnalysis.loss.impact.label")}</Text>
                   <Text as="p" variant="headingLg" fontWeight="bold" tone="caution">
-                    因店铺而异
+                    {t("scan.impactAnalysis.loss.impact.title")}
                   </Text>
                   <Text as="p" variant="bodySm" tone="subdued">
-                    取决于流量来源和客户群体
+                    {t("scan.impactAnalysis.loss.impact.desc")}
                   </Text>
                 </BlockStack>
               </Box>
@@ -108,30 +115,27 @@ export function MigrationImpactAnalysis({
                   <Box key={platform} background="bg-surface" padding="300" borderRadius="100">
                     <InlineStack align="space-between" blockAlign="center">
                       <InlineStack gap="200">
-                        <Badge tone="critical">将失效</Badge>
+                        <Badge tone="critical">{t("scan.impactAnalysis.loss.platform.invalid")}</Badge>
                         <Text as="span" fontWeight="semibold">{getPlatformName(platform)}</Text>
                       </InlineStack>
                       <Text as="span" variant="bodySm" tone="critical">
-                        参考值（仅供估算）
+                        {t("scan.impactAnalysis.loss.platform.reference")}
                       </Text>
                     </InlineStack>
                   </Box>
                 ))
               ) : (
                 <Text as="p" variant="bodySm">
-                  当前 ScriptTag 中的追踪代码将在截止日期后全部失效
+                  {t("scan.impactAnalysis.loss.allInvalid")}
                 </Text>
               )}
             </BlockStack>
             <Banner tone="warning">
               <Text as="p" variant="bodySm">
-                <strong>⚠️ 重要提醒：</strong>
-                ScriptTag 在截止日期后将停止执行，导致其中的追踪代码失效。
-                实际对您业务的影响取决于流量来源、客户群体、广告策略等多种因素，
-                本工具无法预测具体金额影响。建议您结合自身业务情况评估迁移优先级。
+                <Trans i18nKey="scan.impactAnalysis.loss.warning" />
               </Text>
               <Text as="p" variant="bodySm" tone="subdued">
-                <strong>日期来源说明：</strong>截止日期来自 Shopify 官方公告，仅供参考。实际截止日期请以 Shopify Admin 中的提示为准。Shopify 可能会更新策略，我们建议您定期查看 Shopify 官方文档。
+                <Trans i18nKey="scan.impactAnalysis.loss.dateSource" />
               </Text>
             </Banner>
           </BlockStack>
@@ -142,40 +146,40 @@ export function MigrationImpactAnalysis({
             <InlineStack gap="200" blockAlign="center">
               <Icon source={CheckCircleIcon} tone="success" />
               <Text as="h3" variant="headingMd" tone="success">
-                迁移后能恢复什么？（您的预期收益）
+                {t("scan.impactAnalysis.gain.title")}
               </Text>
             </InlineStack>
             <InlineStack gap="400" align="space-between" wrap>
               <Box background="bg-surface" padding="300" borderRadius="100" minWidth="150px">
                 <BlockStack gap="100">
-                  <Text as="p" variant="bodySm" tone="subdued">每月恢复事件</Text>
+                  <Text as="p" variant="bodySm" tone="subdued">{t("scan.impactAnalysis.gain.events.label")}</Text>
                   <Text as="p" variant="headingLg" fontWeight="bold" tone="success">
                     {roiEstimate.eventsLostPerMonth.toLocaleString()}
                   </Text>
                   <Text as="p" variant="bodySm" tone="success">
-                    转化追踪功能恢复
+                    {t("scan.impactAnalysis.gain.events.desc")}
                   </Text>
                 </BlockStack>
               </Box>
               <Box background="bg-surface" padding="300" borderRadius="100" minWidth="150px">
                 <BlockStack gap="100">
-                  <Text as="p" variant="bodySm" tone="subdued">潜在收益（示例）</Text>
+                  <Text as="p" variant="bodySm" tone="subdued">{t("scan.impactAnalysis.gain.potential.label")}</Text>
                   <Text as="p" variant="headingLg" fontWeight="bold" tone="success">
-                    确保追踪
+                    {t("scan.impactAnalysis.gain.potential.title")}
                   </Text>
                   <Text as="p" variant="bodySm" tone="success">
-                    避免数据中断
+                    {t("scan.impactAnalysis.gain.potential.desc")}
                   </Text>
                 </BlockStack>
               </Box>
               <Box background="bg-surface" padding="300" borderRadius="100" minWidth="150px">
                 <BlockStack gap="100">
-                  <Text as="p" variant="bodySm" tone="subdued">Web Pixel</Text>
+                  <Text as="p" variant="bodySm" tone="subdued">{t("scan.impactAnalysis.gain.webPixel.label")}</Text>
                   <Text as="p" variant="headingLg" fontWeight="bold" tone="success">
-                    标准事件
+                    {t("scan.impactAnalysis.gain.webPixel.title")}
                   </Text>
                   <Text as="p" variant="bodySm" tone="success">
-                    合规迁移（v1）
+                    {t("scan.impactAnalysis.gain.webPixel.desc")}
                   </Text>
                 </BlockStack>
               </Box>
@@ -186,27 +190,24 @@ export function MigrationImpactAnalysis({
                   <Box key={platform} background="bg-surface" padding="300" borderRadius="100">
                     <InlineStack align="space-between" blockAlign="center">
                       <InlineStack gap="200">
-                        <Badge tone="success">✓ 恢复</Badge>
-                        <Text as="span" fontWeight="semibold">{getPlatformName(platform)}</Text>
+                        <Badge tone="success">{t("scan.impactAnalysis.gain.platform.restored")}</Badge>
+                        <Text as="span" fontWeight="semibold">{getPlatformName(platform, t)}</Text>
                       </InlineStack>
                       <Text as="span" variant="bodySm" tone="success">
-                        每月 {monthlyOrders.toLocaleString()} 个转化事件 → 广告平台
+                        {t("scan.impactAnalysis.gain.platform.desc", { orders: monthlyOrders.toLocaleString() })}
                       </Text>
                     </InlineStack>
                   </Box>
                 ))
               ) : (
                 <Text as="p" variant="bodySm">
-                  所有追踪功能将通过 Web Pixel 标准事件映射恢复（v1 最小可用迁移）
+                  {t("scan.impactAnalysis.gain.allRestored")}
                 </Text>
               )}
             </BlockStack>
             <Banner tone="success">
               <Text as="p" variant="bodySm">
-                <strong>✅ 迁移的核心价值：</strong>
-                迁移是一次性工作，完成后可确保转化追踪在 ScriptTag 废弃后继续正常工作。
-                v1 提供 Web Pixel 标准事件映射（GA4/Meta/TikTok）。
-                实际追踪效果因店铺情况而异。
+                <Trans i18nKey="scan.impactAnalysis.gain.coreValue" />
               </Text>
             </Banner>
           </BlockStack>
@@ -214,17 +215,17 @@ export function MigrationImpactAnalysis({
         <Divider />
         <BlockStack gap="300">
           <Text as="h3" variant="headingMd">
-            迁移前后对比
+            {t("scan.impactAnalysis.comparison.title")}
           </Text>
           <InlineStack gap="400" align="space-between" wrap={false}>
             <Box background="bg-surface-critical" padding="300" borderRadius="200" minWidth="200px">
               <BlockStack gap="100">
-                <Text as="p" variant="bodySm" tone="subdued">当前（不迁移）</Text>
+                <Text as="p" variant="bodySm" tone="subdued">{t("scan.impactAnalysis.comparison.current.label")}</Text>
                 <Text as="p" variant="headingLg" fontWeight="bold" tone="critical">
-                  {latestScan.riskScore > 60 ? "高风险" : latestScan.riskScore > 30 ? "中风险" : "低风险"}
+                  {getRiskLevelText(latestScan.riskScore)}
                 </Text>
                 <Text as="p" variant="bodySm" tone="critical">
-                  {scriptTags.length} 个 ScriptTag 将失效
+                  {t("scan.impactAnalysis.comparison.current.desc", { count: scriptTags.length })}
                 </Text>
               </BlockStack>
             </Box>
@@ -233,12 +234,12 @@ export function MigrationImpactAnalysis({
             </Box>
             <Box background="bg-surface-success" padding="300" borderRadius="200" minWidth="200px">
               <BlockStack gap="100">
-                <Text as="p" variant="bodySm" tone="subdued">迁移后</Text>
+                <Text as="p" variant="bodySm" tone="subdued">{t("scan.impactAnalysis.comparison.after.label")}</Text>
                 <Text as="p" variant="headingLg" fontWeight="bold" tone="success">
-                  功能恢复
+                  {t("scan.impactAnalysis.comparison.after.title")}
                 </Text>
                 <Text as="p" variant="bodySm" tone="success">
-                  Web Pixel 标准事件
+                  {t("scan.impactAnalysis.comparison.after.desc")}
                 </Text>
               </BlockStack>
             </Box>
@@ -247,33 +248,25 @@ export function MigrationImpactAnalysis({
             </Box>
             <Box background="bg-surface-success" padding="300" borderRadius="200" minWidth="200px">
               <BlockStack gap="100">
-                <Text as="p" variant="bodySm" tone="subdued">额外收益</Text>
+                <Text as="p" variant="bodySm" tone="subdued">{t("scan.impactAnalysis.comparison.extra.label")}</Text>
                 <Text as="p" variant="headingLg" fontWeight="bold" tone="success">
-                  更稳定
+                  {t("scan.impactAnalysis.comparison.extra.title")}
                 </Text>
                 <Text as="p" variant="bodySm" tone="success">
-                  不受隐私限制影响
+                  {t("scan.impactAnalysis.comparison.extra.desc")}
                 </Text>
               </BlockStack>
             </Box>
           </InlineStack>
-          <Banner tone="info" title="v1 最小可用迁移说明">
+          <Banner tone="info" title={t("scan.impactAnalysis.comparison.v1.title")}>
             <Text as="p" variant="bodySm">
-              ✅ v1 支持：Web Pixel 标准事件映射（GA4/Meta/TikTok）
-              <br />
-              ✅ 标准事件映射 + 参数完整率检查 + 可下载 payload 证据
-              <br />
-              ✅ 验收向导 + 事件参数完整率 + 订单金额/币种一致性验证
-              <br />
-              <Text as="span" tone="subdued">
-                注：实际归因效果因广告账户设置、流量来源等因素而异
-              </Text>
+              <Trans i18nKey="scan.impactAnalysis.comparison.v1.content" />
             </Text>
           </Banner>
         </BlockStack>
         <InlineStack align="end" gap="200">
           <Button url="/app/migrate" variant="primary">
-            立即开始迁移
+            {t("scan.impactAnalysis.action")}
           </Button>
         </InlineStack>
       </BlockStack>

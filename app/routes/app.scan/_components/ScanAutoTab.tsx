@@ -637,7 +637,7 @@ export function ScanAutoTab({
                                             migrationActions.slice(0, MAX_VISIBLE_ACTIONS).map((action) => (
                                                 <List.Item key={`${action.type}-${action.platform || 'unknown'}-${action.scriptTagId || action.webPixelGid || 'no-id'}`}>
                                                     {action.titleKey ? t(action.titleKey, action.titleParams) : action.title}
-                                                    {action.platform && ` (${getPlatformName(action.platform)})`}
+                                                    {action.platform && ` (${getPlatformName(action.platform, t)})`}
                                                     {action.priority === "high" && " ⚠️"}
                                                 </List.Item>
                                             ))

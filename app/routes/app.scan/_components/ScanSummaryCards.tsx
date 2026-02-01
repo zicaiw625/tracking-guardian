@@ -113,7 +113,7 @@ export function ScanSummaryCards({
                 {identifiedPlatforms.map((platform) => (
                   <InlineStack key={platform} gap="200" align="start">
                     <Icon source={CheckCircleIcon} tone="success" />
-                    <Text as="span">{getPlatformName(platform)}</Text>
+                    <Text as="span">{getPlatformName(platform, t)}</Text>
                   </InlineStack>
                 ))}
               </BlockStack>

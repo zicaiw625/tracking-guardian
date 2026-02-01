@@ -1,4 +1,125 @@
 {
+  "onboarding": {
+    "welcome": {
+      "title": "🚀 Welcome to Upgrade Migration Delivery Platform",
+      "subtitle": "Upgrade without losing features/data • Deliverable Acceptance Report • Post-launch Outage Alerts",
+      "errorTitle": "Welcome to Tracking Guardian",
+      "errorShopNotFound": "Failed to load shop info, please refresh."
+    },
+    "steps": {
+      "step1": "Auto Checkup",
+      "step2": "Risk Assessment",
+      "step3": "Start Migration"
+    },
+    "shopStatus": {
+      "title": "📋 Shop Status Overview",
+      "upgraded": "Upgraded to New Pages",
+      "legacy": "Using Legacy Pages",
+      "domain": "Shop Domain",
+      "tier": "Shop Tier",
+      "tierPlus": "Shopify Plus",
+      "tierStandard": "Standard",
+      "tierUnknown": "Pending Check",
+      "thankYouPage": "Thank you Page",
+      "thankYouNew": "New (Extensibility)",
+      "thankYouOld": "Legacy",
+      "thankYouUnknown": "Pending Check",
+      "detectReason": "Detection Note: "
+    },
+    "autoScan": {
+      "title": "🔍 Auto Checkup",
+      "description": "We will automatically scan ScriptTags and Web Pixels in your store. Additional Scripts need manual pasting for identification. We identify scripts needing migration and assess risk levels.",
+      "scanning": "This usually takes 10-30 seconds, please do not close the page",
+      "includes": "Scan includes:",
+      "itemScriptTags": "ScriptTags (Third-party tracking scripts)",
+      "itemWebPixels": "Web Pixels (Installed pixel apps)",
+      "itemCheckout": "Checkout Configuration Status",
+      "itemPlatforms": "Tracking Platform Identification (GA4/Meta/TikTok etc.)",
+      "acknowledge": "I understand the scan will not modify any shop settings",
+      "start": "Start Auto Checkup",
+      "skip": "Skip, scan later"
+    },
+    "riskScore": {
+      "title": "Risk Score",
+      "high": "Immediate Action Required",
+      "medium": "Migration Recommended ASAP",
+      "low": "Low Risk"
+    },
+    "estimate": {
+      "title": "Estimated Migration Time",
+      "pending": "Pending",
+      "pendingDesc": "Displayed after scan completes",
+      "min30": "Approx 30 mins",
+      "hour1": "Approx 1 hour",
+      "hour1_5": "Approx 1-1.5 hours",
+      "hour2": "Approx 1.5-2 hours",
+      "hour2plus": "2+ hours",
+      "descFast": "Your configuration is relatively simple, migration will be very fast. Recommended to complete all steps at once.",
+      "descStandard": "Standard migration process, just follow the steps. Recommended to reserve 1 hour for migration and testing.",
+      "descMedium": "Requires some time to handle multiple platforms or complex configurations. Recommended to complete in 2-3 stages, testing after each stage.",
+      "descComplex": "Configuration is complex, recommended to migrate in stages. Prioritize high-risk items and ensure verification after each step."
+    },
+    "urgency": {
+      "title": "Migration Urgency",
+      "pending": "Pending",
+      "critical": "Critical",
+      "high": "High Priority",
+      "medium": "Medium",
+      "low": "Low",
+      "resolved": "Resolved",
+      "unknown": "Unknown"
+    },
+    "summary": {
+      "title": "📊 Detection Summary",
+      "scriptTags": "ScriptTags Count",
+      "orderStatus": "Order Status Page Scripts",
+      "has": "Yes",
+      "none": "No",
+      "platforms": "Identified Platforms",
+      "detected": "Detected Tracking Platforms:",
+      "noDetected": "No known tracking platforms detected"
+    },
+    "risks": {
+      "title": "⚠️ Risk Items",
+      "more": "...and {{count}} more risk items, view full report for details"
+    },
+    "nextSteps": {
+      "title": "🎯 Next Steps",
+      "step1": "1. View Full Scan Report",
+      "step1Desc": "Understand details and migration suggestions for each risk item",
+      "actionReport": "View Report",
+      "step2": "2. Configure Platform Credentials",
+      "step2Desc": "Set up API credentials for GA4, Meta, TikTok, etc.",
+      "actionSettings": "Go to Settings",
+      "step3": "3. Install Web Pixel",
+      "step3Desc": "Replace old ScriptTags, enable new tracking method",
+      "actionMigrate": "Start Migration",
+      "step4": "4. Verification Test",
+      "step4Desc": "Place test order, verify if tracking works normally",
+      "actionVerify": "Verification Wizard",
+      "important": "Important: Page-side customization needs separate migration",
+      "importantDesc": "This app does not provide Thank you / Order status page module library. If your Additional Scripts/page logic rely on legacy experience, please migrate and verify according to Shopify official capabilities and review requirements.",
+      "startJourney": "Start Migration Journey"
+    },
+    "help": {
+      "title": "💡 Need Help?",
+      "desc": "If you encounter problems during migration, we provide the following support:",
+      "docs": "Shopify Official Docs",
+      "contact": "Contact Support"
+    },
+    "success": {
+      "scanComplete": "Scan complete! Loading results...",
+      "welcome": "Welcome to Tracking Guardian!",
+      "operation": "Operation successful"
+    },
+    "errors": {
+      "shopNotFound": "Shop not found",
+      "scanFailed": "Scan failed, please try again later",
+      "unknownAction": "Unknown action",
+      "apiError": "API error, please try again later",
+      "detectFailed": "Detection failed"
+    }
+  },
   "nav": {
     "dashboard": "Dashboard",
     "audit": "Audit",
@@ -171,7 +292,11 @@
     "hours": "hours",
     "minutes": "minutes",
     "estimated": "Estimated",
-    "countItems": "{{count}} items"
+    "countItems": "{{count}} items",
+    "unknown": "Unknown",
+    "learnMore": "Learn More",
+    "unknownAsset": "Unknown Asset",
+    "noDescription": "No description"
   },
   "plans": {
     "free": "Free",
@@ -487,12 +612,12 @@
     },
     "migrationLogic": {
       "scriptTag": {
-        "expired": "⚠️ {{tier}} ScriptTags stopped execution on {{date}}!",
+        "expired": "⚠️ {{tier}} ScriptTags stopped execution on {{date}}!\n\nRecommended Steps: 1) Enable App Pixel 2) Complete test order and verification 3) Manually clean up this ScriptTag (See guide)",
         "otherTierExpired": " ({{tier}}: Also stopped execution)",
         "otherTierRemaining": " ({{tier}}: {{days}} days remaining)",
         "creationBlocked": "⚠️ From 2025-02-01, new ScriptTags cannot be created. Existing scripts are running but will stop on {{date}}.",
-        "warning": "⏰ {{tier}}: ScriptTags will stop execution on {{date}} ({{days}} days remaining).",
-        "window": "📅 Execution Window - {{tier}} deadline: {{date}} ({{days}} days remaining).",
+        "warning": "⏰ {{tier}}: ScriptTags will stop execution on {{date}} ({{days}} days remaining).\n\nRecommended Steps: 1) Enable App Pixel 2) Complete test order and verification 3) Manually clean up this ScriptTag (See guide)",
+        "window": "📅 Execution Window - {{tier}} deadline: {{date}} ({{days}} days remaining).\n\nRecommended Steps: 1) Enable App Pixel 2) Complete test order and verification 3) Manually clean up this ScriptTag (See guide)",
         "title": "Migrate ScriptTag: {{platform}}",
         "steps": "\n\nRecommended Steps: 1) Enable App Pixel 2) Complete test order and verification 3) Manually clean up this ScriptTag (See guide)"
       },
@@ -507,6 +632,7 @@
       "duplicate": {
         "title": "Clean up duplicate {{platform}} pixels",
         "desc": "Detected {{count}} {{platform}} pixel configurations, which may cause duplicate tracking. Recommended to keep only one.",
+        "descWithDelete": "Detected {{count}} {{platform}} pixel configurations, which may cause duplicate tracking. Recommended to keep only one. (Can delete {{deleteCount}})",
         "delete": " (Can delete {{count}})"
       },
       "upgrade": {
@@ -697,6 +823,173 @@
       "title": "Migration Recommended",
       "action": "Go to Migration Tool",
       "content": "Detected tracking scripts that need migration in your store. We recommend using our migration tool to update tracking code to Shopify Web Pixel format."
+    },
+    "csvHeaders": {
+      "serialNumber": "No.",
+      "scriptSummary": "Script Summary",
+      "identifiedPlatform": "Identified Platform",
+      "suggestedAlternative": "Suggested Alternative",
+      "riskScore": "Risk Score",
+      "majorRisk": "Major Risk",
+      "suggestedAction": "Suggested Action"
+    },
+    "manualInput": {
+      "webPixelMigration": "Web Pixel Migration",
+      "checkoutUiExtension": "Checkout UI Extension or Manual Review",
+      "manualReview": "Manual Review (review & replace)",
+      "displayName": "Manual Supplement: {{name}}",
+      "noSummary": "(No Summary)"
+    },
+    "riskDetails": {
+      "title": "Risk Details",
+      "disclaimer": "Risk identification is based on script URLs and known platform fingerprints, not actual script content analysis. For more accurate detection, please paste actual script code in 'Script Content Analysis'.",
+      "impact": "Impact: {{impact}}",
+      "oneClickMigrate": "One-click Migrate"
+    },
+    "upgradeRisk": {
+      "title": "Shopify Upgrade Risk Window",
+      "suggestedActions": "Suggested Actions:"
+    },
+    "priority": {
+      "critical": "Critical",
+      "high": "High Priority",
+      "medium": "Medium Priority",
+      "low": "Low Priority",
+      "level": "Priority {{level}}/10"
+    },
+    "freePlanLimit": "Free Plan Limit: Only showing top {{limit}} high-risk items. {{count}} items hidden.",
+    "estimatedTime": {
+      "title": "Estimated Fix Time",
+      "disclaimer": "Estimated based on current risk items and severity"
+    },
+    "upgradeBanner": {
+      "text": "Upgrade to Migration Plan to enable Full-funnel Fix (30 min, Growth Plan) and get full migration checklist and verification report."
+    },
+    "migrationActions": {
+      "title": "Migration Actions",
+      "pendingCount": "{{count}} pending"
+    },
+    "deadline": "Deadline: {{date}}",
+    "progress": {
+      "title": "📊 Migration Progress",
+      "percentComplete": "{{percent}}% Complete",
+      "total": "Total: {{count}} items",
+      "breakdown": "Completed: {{completed}} | In Progress: {{inProgress}} | Pending: {{pending}}",
+      "estimatedRemaining": "Est. Remaining Time: {{hours}}h {{minutes}}m"
+    },
+    "nextSteps": {
+      "title": "Next Steps",
+      "allReady": "All immediately actionable migration tasks are complete! Check if any dependencies need to be finished first."
+    },
+    "dependencies": {
+      "waiting": "Waiting for {{count}} dependencies"
+    },
+    "utils": {
+      "severity": {
+        "high": "High Risk",
+        "medium": "Medium Risk",
+        "low": "Low Risk",
+        "unknown": "Unknown"
+      },
+      "status": {
+        "completed": "Completed",
+        "completedWithErrors": "Completed (with errors)",
+        "failed": "Failed",
+        "scanning": "Scanning",
+        "pending": "Pending",
+        "unknown": "Unknown"
+      },
+      "platform": {
+        "google": "GA4",
+        "meta": "Meta (Facebook) Pixel",
+        "tiktok": "TikTok Pixel",
+        "bing": "Microsoft Ads (Bing) ⚠️",
+        "clarity": "Microsoft Clarity ⚠️",
+        "webhook": "Generic Webhook"
+      }
+    },
+    "impactAnalysis": {
+      "title": "📊 Migration Impact Analysis (Reference Only)",
+      "badge": "Sample Estimate",
+      "disclaimer": "<strong>⚠️ Disclaimer:</strong> The following is a simplified illustration to help understand the necessity of migration. Actual business impact varies by store business model, traffic sources, customer base, ad account settings, etc. This tool cannot predict specific numerical impact and does not constitute any guarantee of results.",
+      "monthlyOrders": {
+        "title": "🧮 Enter your monthly orders to see specific impact",
+        "label": "Monthly Orders",
+        "suffix": "{{count}} orders/mo"
+      },
+      "loss": {
+        "title": "What will be lost without migration? (Illustration)",
+        "events": {
+          "label": "Potentially Affected Events",
+          "desc": "{{platformCount}} Platforms × {{orders}} Orders"
+        },
+        "scriptTags": {
+          "label": "Affected ScriptTags",
+          "desc": "Will stop execution on deadline"
+        },
+        "impact": {
+          "label": "Actual Impact",
+          "title": "Varies by Store",
+          "desc": "Depends on traffic source and customer base"
+        },
+        "platform": {
+          "invalid": "Will Fail",
+          "reference": "Reference (Estimate Only)"
+        },
+        "allInvalid": "All tracking codes in current ScriptTags will fail after deadline",
+        "warning": "<strong>⚠️ Important:</strong> ScriptTags will stop executing after the deadline, causing tracking codes within them to fail. The actual impact on your business depends on traffic sources, customer base, ad strategies, and other factors. This tool cannot predict the exact financial impact. We recommend evaluating migration priority based on your business situation.",
+        "dateSource": "<strong>Date Source:</strong> Deadlines are from Shopify official announcements for reference only. Please refer to Shopify Admin for actual deadlines. Shopify may update policies, we recommend checking Shopify official documentation regularly."
+      },
+      "gain": {
+        "title": "What will be restored after migration? (Your expected benefits)",
+        "events": {
+          "label": "Monthly Restored Events",
+          "desc": "Conversion tracking restored"
+        },
+        "potential": {
+          "label": "Potential Benefits (Example)",
+          "title": "Ensure Tracking",
+          "desc": "Avoid data interruption"
+        },
+        "webPixel": {
+          "label": "Web Pixel",
+          "title": "Standard Events",
+          "desc": "Compliant Migration (v1)"
+        },
+        "platform": {
+          "restored": "✓ Restored",
+          "desc": "Monthly {{orders}} conversion events → Ad Platforms"
+        },
+        "allRestored": "All tracking functions will be restored via Web Pixel standard event mapping (v1 MVP migration)",
+        "coreValue": "<strong>✅ Core Value of Migration:</strong> Migration is a one-time effort that ensures conversion tracking continues to work after ScriptTag deprecation. v1 provides Web Pixel standard event mapping (GA4/Meta/TikTok). Actual tracking effectiveness varies by store situation."
+      },
+      "comparison": {
+        "title": "Before vs After Migration",
+        "current": {
+          "label": "Current (No Migration)",
+          "risk": {
+            "high": "High Risk",
+            "medium": "Medium Risk",
+            "low": "Low Risk"
+          },
+          "desc": "{{count}} ScriptTags will fail"
+        },
+        "after": {
+          "label": "After Migration",
+          "title": "Function Restored",
+          "desc": "Web Pixel Standard Events"
+        },
+        "extra": {
+          "label": "Extra Benefits",
+          "title": "More Stable",
+          "desc": "Unaffected by privacy restrictions"
+        },
+        "v1": {
+          "title": "v1 MVP Migration Note",
+          "content": "✅ v1 Supports: Web Pixel standard event mapping (GA4/Meta/TikTok)<br />✅ Standard event mapping + Parameter completeness check + Downloadable payload evidence<br />✅ Acceptance wizard + Event parameter completeness + Order amount/currency consistency verification<br /><span class=\"subdued\">Note: Actual attribution effectiveness varies by ad account settings, traffic sources, etc.</span>"
+        }
+      },
+      "action": "Start Migration Now"
     }
   }
   },

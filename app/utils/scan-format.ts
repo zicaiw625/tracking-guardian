@@ -3,9 +3,11 @@ import { parseDateSafely } from "./scan-validation";
 import { getStatusText, getPlatformName } from "~/components/scan/utils";
 import { getShopifyAdminUrl } from "./helpers";
 import type { RiskItem } from "../types";
+import type { TFunction } from "i18next";
 
 export function formatScanHistoryForTable(
-  scanHistory: Array<{ riskScore?: unknown; identifiedPlatforms?: unknown; createdAt?: unknown; status?: string | null } | null>
+  scanHistory: Array<{ riskScore?: unknown; identifiedPlatforms?: unknown; createdAt?: unknown; status?: string | null } | null>,
+  t?: TFunction
 ): Array<[string, number, string, string]> {
   return scanHistory
     .filter((scan): scan is NonNullable<typeof scan> => scan !== null)
@@ -13,9 +15,9 @@ export function formatScanHistoryForTable(
       const riskScore = validateRiskScore(scan.riskScore);
       const platforms = validateStringArray(scan.identifiedPlatforms);
       const createdAt = parseDateSafely(scan.createdAt);
-      const status = getStatusText(scan.status);
+      const status = getStatusText(scan.status, t);
       return [
-        createdAt ? safeFormatDate(createdAt) : "未知",
+        createdAt ? safeFormatDate(createdAt) : (t ? t("common.unknown") : "未知"),
         riskScore,
         platforms.join(", ") || "-",
         status,

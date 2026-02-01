@@ -2,18 +2,21 @@ import { Card, BlockStack, Box, InlineStack, Text, Badge, Button, Icon } from "@
 import { AlertCircleIcon, ArrowRightIcon } from "~/components/icons";
 import type { RiskItem } from "../../types";
 import { getSeverityBadge, getPlatformName } from "./utils";
+import { useTranslation } from "react-i18next";
 
 interface RiskDetailsProps {
   riskItems: RiskItem[];
 }
 
 export function RiskDetails({ riskItems }: RiskDetailsProps) {
+  const { t } = useTranslation();
+
   if (riskItems.length === 0) return null;
   return (
     <Card>
       <BlockStack gap="400">
         <Text as="h2" variant="headingMd">
-          风险详情
+          {t("scan.riskDetails.title")}
         </Text>
         <BlockStack gap="300">
           {riskItems.map((item, index) => (
@@ -40,7 +43,7 @@ export function RiskDetails({ riskItems }: RiskDetailsProps) {
                       {item.name}
                     </Text>
                   </InlineStack>
-                  {getSeverityBadge(item.severity)}
+                  {getSeverityBadge(item.severity, t)}
                 </InlineStack>
                 <Text as="p" tone="subdued">
                   {item.description}
@@ -53,11 +56,11 @@ export function RiskDetails({ riskItems }: RiskDetailsProps) {
                 <InlineStack align="space-between" blockAlign="center">
                   <InlineStack gap="200">
                     {item.platform && (
-                      <Badge>{getPlatformName(item.platform)}</Badge>
+                      <Badge>{getPlatformName(item.platform, t)}</Badge>
                     )}
                     {item.impact && (
                       <Text as="span" variant="bodySm" tone="critical">
-                        影响: {item.impact}
+                        {t("scan.riskDetails.impact", { impact: item.impact })}
                       </Text>
                     )}
                   </InlineStack>
@@ -66,7 +69,7 @@ export function RiskDetails({ riskItems }: RiskDetailsProps) {
                     size="slim"
                     icon={ArrowRightIcon}
                   >
-                    一键迁移
+                    {t("scan.riskDetails.oneClickMigrate")}
                   </Button>
                 </InlineStack>
               </BlockStack>

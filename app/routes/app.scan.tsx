@@ -227,14 +227,14 @@ export function ScanPage({
     }, [analysisResult, saveAnalysisFetcher.state, handleSaveAnalysis]);
     const addToReplacementChecklist = useCallback(() => {
         if (!analysisResult) return;
-        const summary = scriptContent.slice(0, 80).replace(/\s+/g, " ").trim() || "(无摘要)";
+        const summary = scriptContent.slice(0, 80).replace(/\s+/g, " ").trim() || t("scan.manualInput.noSummary");
         setReplacementChecklistItems((prev) => [
             ...prev,
             { id: crypto.randomUUID(), contentSummary: summary, result: analysisResult },
         ]);
         setScriptContent("");
         setAnalysisResult(null);
-    }, [analysisResult, scriptContent, setScriptContent, setAnalysisResult]);
+    }, [analysisResult, scriptContent, setScriptContent, setAnalysisResult, t]);
     const removeFromReplacementChecklist = useCallback((id: string) => {
         setReplacementChecklistItems((prev) => prev.filter((x) => x.id !== id));
     }, []);
@@ -248,9 +248,9 @@ export function ScanPage({
                 (risk) =>
                     /window|document|dom/i.test(risk.id) || /window|document|dom/i.test(risk.name || "")
             );
-            if (hasTracking) return "Web Pixel 迁移";
-            if (hasDomRisk) return "Checkout UI Extension 或需人工复核";
-            return "需人工复核（review & replace）";
+            if (hasTracking) return t("scan.manualInput.webPixelMigration");
+            if (hasDomRisk) return t("scan.manualInput.checkoutUiExtension");
+            return t("scan.manualInput.manualReview");
         };
         const escapeCSV = (v: string | number): string => {
             const s = String(v).trim();
@@ -258,7 +258,15 @@ export function ScanPage({
             if (s.includes(",") || s.includes('"') || s.includes("\n")) return `"${s.replace(/"/g, '""')}"`;
             return s;
         };
-        const headers = ["序号", "脚本摘要", "识别平台", "建议替代方式", "风险评分", "主要风险", "建议措施"];
+        const headers = [
+            t("scan.csvHeaders.serialNumber"),
+            t("scan.csvHeaders.scriptSummary"),
+            t("scan.csvHeaders.identifiedPlatform"),
+            t("scan.csvHeaders.suggestedAlternative"),
+            t("scan.csvHeaders.riskScore"),
+            t("scan.csvHeaders.majorRisk"),
+            t("scan.csvHeaders.suggestedAction")
+        ];
         const rows = replacementChecklistItems.map((item, i) => {
             const repl = getReplacementSuggestion(item.result);
             const platforms = item.result.identifiedPlatforms.join("; ") || "-";
@@ -274,7 +282,7 @@ export function ScanPage({
         a.download = `additional-scripts-replacement-checklist-${new Date().toISOString().split("T")[0]}.csv`;
         a.click();
         URL.revokeObjectURL(url);
-    }, [replacementChecklistItems]);
+    }, [replacementChecklistItems, t]);
     const handleManualInputComplete = useCallback(async (data: ManualInputData) => {
         if (!shop) {
             showError(t("scan.errors.shopNotFound"));
@@ -288,7 +296,7 @@ export function ScanPage({
                     sourceType: data.fromUpgradeWizard ? "merchant_confirmed" : "manual_paste" as const,
                     category: "pixel" as const,
                     platform,
-                    displayName: `手动补充: ${platform}`,
+                    displayName: t("scan.manualInput.displayName", { name: platform }),
                     riskLevel: "medium" as const,
                     suggestedMigration: "web_pixel" as const,
                     details: {
@@ -319,7 +327,7 @@ export function ScanPage({
                 assets.push({
                     sourceType: data.fromUpgradeWizard ? "merchant_confirmed" : "manual_paste" as const,
                     category: categoryMap[feature] || "other",
-                    displayName: `手动补充: ${feature}`,
+                    displayName: t("scan.manualInput.displayName", { name: feature }),
                     riskLevel: "medium" as const,
                     suggestedMigration: migrationMap[feature] || "ui_extension",
                     details: {
@@ -710,7 +718,7 @@ export function ScanPage({
                 onOpenGuidedSupplement={() => setGuidedSupplementOpen(true)}
                 onOpenManualInputWizard={() => setManualInputWizardOpen(true)}
                 onAssetsCreated={(count) => {
-                    showSuccess(`成功创建 ${count} 个迁移资产`);
+                    showSuccess(t("scan.success.assetsCreated", { count }));
                     window.location.reload();
                 }}
                 ScriptCodeEditor={ScriptCodeEditor}

@@ -90,44 +90,38 @@ export function generateMigrationActions(result: EnhancedScanResult, shopTier: s
         const isPlus = shopTier === "plus";
         const primaryStatus = isPlus ? plusExecutionStatus : nonPlusExecutionStatus;
         const primaryDeadlineLabel = isPlus ? PLUS_SCRIPT_TAG_OFF_LABEL : NON_PLUS_SCRIPT_TAG_OFF_LABEL;
-        const deadlineNoteSuffix = "（日期来自 Shopify 官方公告，请以 Admin 提示为准）"; // Keeping Chinese fallback suffix
+        const deadlineNoteSuffix = " (Date from Shopify announcement, check Admin)";
 
-        const tierLabel = isPlus ? "Plus" : "Non-Plus"; // Fallback
+        const tierLabel = isPlus ? "Plus" : "Non-Plus";
         
         if (primaryStatus.isExpired) {
-            deadlineNote = `⚠️ ${isPlus ? "Plus" : "非 Plus"} 商家的 ScriptTag 已于 ${primaryDeadlineLabel}${deadlineNoteSuffix} 停止执行！`;
+            deadlineNote = `⚠️ ${tierLabel} ScriptTags stopped execution on ${primaryDeadlineLabel}${deadlineNoteSuffix}!`;
             
-            // Logic for descriptionKey is tricky due to composition.
-            // Simplified approach: Use generic expired key + append other tier status in UI? 
-            // Or use specific keys for combinations.
-            // For now, I will use the generic expired key for the primary message.
             descriptionKey = "scan.migrationLogic.scriptTag.expired";
             descriptionParams = { tier: tierLabel, date: primaryDeadlineLabel };
 
             if (isPlus) {
-                deadlineNote += ` (非 Plus 商家: ${nonPlusExecutionStatus.isExpired ? "也已停止执行" : `剩余 ${nonPlusExecutionStatus.daysRemaining} 天`})`;
-                // Note: To fully support i18n for the secondary part, I would need more keys.
-                // But for now, let's rely on the primary key covering the most important part.
+                deadlineNote += ` (Non-Plus: ${nonPlusExecutionStatus.isExpired ? "Also expired" : `${nonPlusExecutionStatus.daysRemaining} days remaining`})`;
             } else {
-                deadlineNote += ` (Plus 商家已于 ${PLUS_SCRIPT_TAG_OFF_LABEL}${deadlineNoteSuffix} 停止执行)`;
+                deadlineNote += ` (Plus stopped on ${PLUS_SCRIPT_TAG_OFF_LABEL}${deadlineNoteSuffix})`;
             }
             
             priority = "high";
             deadline = `${primaryDeadlineLabel}${deadlineNoteSuffix}`;
         } else if (creationStatus.isExpired && isOrderStatusScript) {
-            deadlineNote = `⚠️ 2025-02-01${deadlineNoteSuffix} 起已无法创建新的 ScriptTag。现有脚本仍在运行，但将于 ${primaryDeadlineLabel}${deadlineNoteSuffix} 停止执行。`;
+            deadlineNote = `⚠️ From 2025-02-01${deadlineNoteSuffix}, new ScriptTags cannot be created. Existing scripts are running but will stop on ${primaryDeadlineLabel}${deadlineNoteSuffix}.`;
             descriptionKey = "scan.migrationLogic.scriptTag.creationBlocked";
             descriptionParams = { date: primaryDeadlineLabel };
             priority = "high";
             deadline = `${primaryDeadlineLabel}${deadlineNoteSuffix}`;
         } else if (primaryStatus.isWarning) {
-            deadlineNote = `⏰ ${isPlus ? "Plus" : "非 Plus"} 商家: ScriptTag 将于 ${primaryDeadlineLabel}${deadlineNoteSuffix} 停止执行（剩余 ${primaryStatus.daysRemaining} 天）。`;
+            deadlineNote = `⏰ ${tierLabel}: ScriptTags will stop execution on ${primaryDeadlineLabel}${deadlineNoteSuffix} (${primaryStatus.daysRemaining} days remaining).`;
             descriptionKey = "scan.migrationLogic.scriptTag.warning";
             descriptionParams = { tier: tierLabel, date: primaryDeadlineLabel, days: primaryStatus.daysRemaining };
             priority = "high";
             deadline = `${primaryDeadlineLabel}${deadlineNoteSuffix}`;
         } else {
-            deadlineNote = `📅 执行窗口期 - ${isPlus ? "Plus" : "非 Plus"} 商家截止日期: ${primaryDeadlineLabel}${deadlineNoteSuffix}（剩余 ${primaryStatus.daysRemaining} 天）。`;
+            deadlineNote = `📅 Execution Window - ${tierLabel} deadline: ${primaryDeadlineLabel}${deadlineNoteSuffix} (${primaryStatus.daysRemaining} days remaining).`;
             descriptionKey = "scan.migrationLogic.scriptTag.window";
             descriptionParams = { tier: tierLabel, date: primaryDeadlineLabel, days: primaryStatus.daysRemaining };
             priority = "medium";
@@ -138,8 +132,8 @@ export function generateMigrationActions(result: EnhancedScanResult, shopTier: s
             type: "migrate_script_tag",
             priority,
             platform,
-            title: `迁移 ScriptTag: ${platform}`,
-            description: `${deadlineNote}\n\n推荐步骤：1) 启用 App Pixel  2) 完成测试订单并运行验收  3) 手动清理此 ScriptTag（查看指南）`,
+            title: `Migrate ScriptTag: ${platform}`,
+            description: `${deadlineNote}\n\nRecommended Steps: 1) Enable App Pixel 2) Complete test order and verification 3) Manually clean up this ScriptTag (See guide)`,
             scriptTagId: tag.id,
             deadline,
         });
@@ -148,21 +142,11 @@ export function generateMigrationActions(result: EnhancedScanResult, shopTier: s
             type: "migrate_script_tag",
             priority,
             platform,
-            title: `迁移 ScriptTag: ${platform}`,
+            title: `Migrate ScriptTag: ${platform}`,
             titleKey: "scan.migrationLogic.scriptTag.title",
             titleParams: { platform },
-            description: `${deadlineNote}\n\n推荐步骤：1) 启用 App Pixel  2) 完成测试订单并运行验收  3) 手动清理此 ScriptTag（查看指南）`,
-            descriptionKey, // Note: This only covers the first part. The "Recommended steps" part is appended in string.
-            // Ideally, the UI should append the steps.
-            // I'll leave descriptionKey as is, but UI needs to handle "steps" separately or I include it in the key?
-            // The key in json includes "steps" for scriptTag!
-            // "steps": "\n\n推荐步骤..."
-            // So if I use `scriptTag.expired`, I miss the steps?
-            // No, the `scriptTag.steps` is a separate key.
-            // I should combine them in UI or create a composite key.
-            // Or I can update the JSON to include steps in the message? No, reused.
-            // I will pass `descriptionKey` and maybe a `descriptionSuffixKey`?
-            // Or I just update the component to append steps for script tags.
+            description: `${deadlineNote}\n\nRecommended Steps: 1) Enable App Pixel 2) Complete test order and verification 3) Manually clean up this ScriptTag (See guide)`,
+            descriptionKey,
             descriptionParams,
             scriptTagId: tag.id,
             deadline,
@@ -179,13 +163,11 @@ export function generateMigrationActions(result: EnhancedScanResult, shopTier: s
                 type: "configure_pixel",
                 priority: "low",
                 platform,
-                title: `${platformInfo.name}: 建议使用官方方案`,
+                title: `${platformInfo.name}: Official solution recommended`,
                 titleKey: "scan.migrationLogic.pixel.official",
                 titleParams: { name: platformInfo.name },
                 description: platformInfo.recommendation +
-                    (platformInfo.officialApp ? `\n\n👉 官方应用: ${platformInfo.officialApp}` : ""),
-                // Recommendation is dynamic from patterns.ts, hard to key.
-                // Keeping description string as fallback.
+                    (platformInfo.officialApp ? `\n\n👉 Official App: ${platformInfo.officialApp}` : ""),
             };
             action.estimatedTimeMinutes = estimateMigrationTime(action);
             actions.push(action);
@@ -194,7 +176,7 @@ export function generateMigrationActions(result: EnhancedScanResult, shopTier: s
                 type: "configure_pixel",
                 priority: "medium",
                 platform,
-                title: `${platformInfo.name}: 需要评估迁移方案`,
+                title: `${platformInfo.name}: Migration plan evaluation needed`,
                 titleKey: "scan.migrationLogic.pixel.evaluate",
                 titleParams: { name: platformInfo.name },
                 description: platformInfo.recommendation,
@@ -206,10 +188,10 @@ export function generateMigrationActions(result: EnhancedScanResult, shopTier: s
                 type: "configure_pixel",
                 priority: "medium",
                 platform,
-                title: `配置 ${platformInfo.name}`,
+                title: `Configure ${platformInfo.name}`,
                 titleKey: "scan.migrationLogic.pixel.configure",
                 titleParams: { name: platformInfo.name },
-                description: `检测到 ${platformInfo.name} 追踪代码，但尚未配置。${platformInfo.recommendation}`,
+                description: `${platformInfo.name} tracking code detected but not configured. ${platformInfo.recommendation}`,
                 descriptionKey: "scan.migrationLogic.pixel.desc.notConfigured",
                 descriptionParams: { name: platformInfo.name, recommendation: platformInfo.recommendation },
             };
@@ -277,9 +259,9 @@ export function generateMigrationActions(result: EnhancedScanResult, shopTier: s
         const upgradeAction: MigrationAction = {
             type: "configure_pixel",
             priority: "medium",
-            title: "升级 App Pixel 配置",
+            title: "Upgrade App Pixel Configuration",
             titleKey: "scan.migrationLogic.upgrade.title",
-            description: "检测到旧版 Pixel 配置（缺少 shop_domain 或仍使用 ingestion_secret 旧字段）。请重新启用 App Pixel 以升级到新版配置格式。",
+            description: "Legacy Pixel configuration detected (missing shop_domain or using legacy ingestion_secret). Please re-enable App Pixel to upgrade to the new format.",
             descriptionKey: "scan.migrationLogic.upgrade.desc",
         };
         upgradeAction.estimatedTimeMinutes = estimateMigrationTime(upgradeAction);
@@ -290,9 +272,9 @@ export function generateMigrationActions(result: EnhancedScanResult, shopTier: s
         const enableAction: MigrationAction = {
             type: "configure_pixel",
             priority: "low",
-            title: "启用 App Pixel",
+            title: "Enable App Pixel",
             titleKey: "scan.migrationLogic.enable.title",
-            description: "启用 Web Pixel 以开始接收事件、落库并运行验收。",
+            description: "Enable Web Pixel to start receiving events, store data, and run verification.",
             descriptionKey: "scan.migrationLogic.enable.desc",
         };
         enableAction.estimatedTimeMinutes = estimateMigrationTime(enableAction);
@@ -312,11 +294,11 @@ export function generateMigrationActions(result: EnhancedScanResult, shopTier: s
             const autoUpgradeAction: MigrationAction = {
                 type: "configure_pixel",
                 priority: "high",
-                title: "⚡ Plus 商家自动升级窗口已开始",
+                title: "⚡ Plus Auto-Upgrade Window Started",
                 titleKey: "scan.migrationLogic.autoUpgrade.start.title",
-                description: `Shopify 已于 2026年1月（Shopify 会提前30天通知）开始自动将 Plus 商家迁移到新版 Thank you / Order status 页面。` +
-                    `旧的 ScriptTags、checkout.liquid 自定义将在自动升级后失效。Additional Scripts 需要通过手动粘贴识别。` +
-                    `请立即确认 Web Pixel 配置正确，避免追踪中断。`,
+                description: `Shopify has started automatically migrating Plus merchants to the new Thank you / Order status pages as of Jan 2026 (30-day notice provided). ` +
+                    `Old ScriptTags and checkout.liquid customizations will stop working after auto-upgrade. Additional Scripts need manual identification. ` +
+                    `Please verify Web Pixel configuration immediately to avoid tracking interruption.`,
                 descriptionKey: "scan.migrationLogic.autoUpgrade.start.desc",
             };
             autoUpgradeAction.estimatedTimeMinutes = estimateMigrationTime(autoUpgradeAction);
@@ -325,12 +307,12 @@ export function generateMigrationActions(result: EnhancedScanResult, shopTier: s
             const countdownAction: MigrationAction = {
                 type: "configure_pixel",
                 priority: daysToAutoUpgrade <= 30 ? "high" : "medium",
-                title: `📅 Plus 自动升级倒计时：剩余 ${daysToAutoUpgrade} 天`,
+                title: `📅 Plus Auto-Upgrade Countdown: ${daysToAutoUpgrade} days remaining`,
                 titleKey: "scan.migrationLogic.autoUpgrade.countdown.title",
                 titleParams: { days: daysToAutoUpgrade },
-                description: `Shopify 将于 2026年1月（Shopify 会提前30天通知）开始自动将 Plus 商家迁移到新版页面。` +
-                    `自动升级后，旧的 Additional Scripts、ScriptTags、checkout.liquid 自定义将失效。` +
-                    `建议提前完成迁移，确保控制迁移时机。`,
+                description: `Shopify will start automatically migrating Plus merchants to the new pages starting Jan 2026 (30-day notice provided). ` +
+                    `After auto-upgrade, old Additional Scripts, ScriptTags, and checkout.liquid customizations will stop working. ` +
+                    `Early migration is recommended to control the timing.`,
                 descriptionKey: "scan.migrationLogic.autoUpgrade.countdown.desc",
             };
             countdownAction.estimatedTimeMinutes = estimateMigrationTime(countdownAction);

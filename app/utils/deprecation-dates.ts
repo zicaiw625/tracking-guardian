@@ -204,6 +204,8 @@ export function getScriptTagExecutionStatus(tier: ShopTier, now: Date = new Date
     // const tierKey = tier === "plus" ? "deprecation.tier.plus" : tier === "non_plus" ? "deprecation.tier.nonPlus" : "deprecation.tier.generic";
     const dateLabel = getDateDisplayLabel(deadline, "exact");
 
+    const tierKeySuffix = tier === "plus" ? "plus" : tier === "non_plus" ? "nonPlus" : "generic";
+
     if (daysRemaining <= 0) {
         return {
             isExpired: true,
@@ -213,23 +215,8 @@ export function getScriptTagExecutionStatus(tier: ShopTier, now: Date = new Date
             message: `${tierLabel}的 ScriptTag 已于 ${dateLabel} 停止执行。请立即迁移到 Web Pixel 以恢复追踪功能。`,
             messageBrief: `已停止执行（${dateLabel}）`,
             tone: "critical",
-            messageKey: "deprecation.scriptTagExecution.expired.message",
-            messageParams: { tier: tierLabel, date: dateLabel }, // Note: tier param here is the label, but ideal is to translate tierKey. But for now passing label.
-            // Ideally params should be raw values, but "tier" needs translation.
-            // I'll assume the component will translate the tier or I pass the key?
-            // Passing the hardcoded label as param is easiest for now, but not fully i18n compliant if the param itself needs translation.
-            // However, `t` interpolation allows `t('key', { tier: t('tierKey') })`. But I can't call `t` here.
-            // So I should pass `tierKey` as a param? No, standard i18n doesn't recursive translate params automatically.
-            // I'll stick to passing the raw values for date/days. For tier, I'll pass the *key* if I can, but the string has `{{tier}}`.
-            // If I pass `tier: "deprecation.tier.plus"`, the output will be "deprecation.tier.plus的 ScriptTag...".
-            // So I'll keep passing the Chinese label for now in params to avoid breaking it, OR the consumer must translate tier.
-            // Actually, if I use Trans component, I can handle it.
-            // For now, I'll pass the hardcoded Chinese label in params to satisfy the current hardcoded logic,
-            // but the keys I added to json expect `{{tier}}`.
-            // I will use `tierLabel` which is Chinese.
-            // This means even in English it will say "Plus 商家 ScriptTags...".
-            // TO FIX THIS: I need the *consumer* to know the tier and translate it.
-            // I will add `tier` to params.
+            messageKey: `deprecation.scriptTagExecution.expired.message.${tierKeySuffix}`,
+            messageParams: { date: dateLabel },
             messageBriefKey: "deprecation.scriptTagExecution.expired.brief",
             messageBriefParams: { date: dateLabel },
         };
@@ -244,8 +231,8 @@ export function getScriptTagExecutionStatus(tier: ShopTier, now: Date = new Date
             message: `${tierLabel}的 ScriptTag 将于 ${dateLabel} 停止执行（剩余 ${daysRemaining} 天）。请尽快完成迁移！`,
             messageBrief: `剩余 ${daysRemaining} 天`,
             tone: "warning",
-            messageKey: "deprecation.scriptTagExecution.warning.message",
-            messageParams: { tier: tierLabel, date: dateLabel, days: daysRemaining },
+            messageKey: `deprecation.scriptTagExecution.warning.message.${tierKeySuffix}`,
+            messageParams: { date: dateLabel, days: daysRemaining },
             messageBriefKey: "deprecation.scriptTagExecution.warning.brief",
             messageBriefParams: { days: daysRemaining },
         };
@@ -259,8 +246,8 @@ export function getScriptTagExecutionStatus(tier: ShopTier, now: Date = new Date
         message: `${tierLabel}的 ScriptTag 将于 ${dateLabel} 停止执行。建议提前迁移到 Web Pixel。`,
         messageBrief: `截止 ${dateLabel}`,
         tone: "info",
-        messageKey: "deprecation.scriptTagExecution.info.message",
-        messageParams: { tier: tierLabel, date: dateLabel },
+        messageKey: `deprecation.scriptTagExecution.info.message.${tierKeySuffix}`,
+        messageParams: { date: dateLabel },
         messageBriefKey: "deprecation.scriptTagExecution.info.brief",
         messageBriefParams: { date: dateLabel },
     };
@@ -277,6 +264,7 @@ export function getAdditionalScriptsDeprecationStatus(tier: ShopTier, now: Date 
     const daysRemaining = getDaysRemaining(deadline, now);
     const tierLabel = tier === "plus" ? "Plus 商家" : tier === "non_plus" ? "非 Plus 商家" : "商家";
     const dateLabel = getDateDisplayLabel(deadline, "exact");
+    const tierKeySuffix = tier === "plus" ? "plus" : tier === "non_plus" ? "nonPlus" : "generic";
 
     if (daysRemaining <= 0) {
         return {
@@ -287,8 +275,8 @@ export function getAdditionalScriptsDeprecationStatus(tier: ShopTier, now: Date 
             message: `${tierLabel}的 Additional Scripts 已于 ${dateLabel} 变为只读。请使用 Web Pixel 进行追踪。`,
             messageBrief: `已只读（${dateLabel}）`,
             tone: "critical",
-            messageKey: "deprecation.additionalScripts.expired.message",
-            messageParams: { tier: tierLabel, date: dateLabel },
+            messageKey: `deprecation.additionalScripts.expired.message.${tierKeySuffix}`,
+            messageParams: { date: dateLabel },
             messageBriefKey: "deprecation.additionalScripts.expired.brief",
             messageBriefParams: { date: dateLabel },
         };
@@ -303,8 +291,8 @@ export function getAdditionalScriptsDeprecationStatus(tier: ShopTier, now: Date 
             message: `${tierLabel}的 Additional Scripts 将于 ${dateLabel} 变为只读（剩余 ${daysRemaining} 天）。请尽快迁移。`,
             messageBrief: `剩余 ${daysRemaining} 天`,
             tone: "warning",
-            messageKey: "deprecation.additionalScripts.warning.message",
-            messageParams: { tier: tierLabel, date: dateLabel, days: daysRemaining },
+            messageKey: `deprecation.additionalScripts.warning.message.${tierKeySuffix}`,
+            messageParams: { date: dateLabel, days: daysRemaining },
             messageBriefKey: "deprecation.additionalScripts.warning.brief",
             messageBriefParams: { days: daysRemaining },
         };
@@ -318,8 +306,8 @@ export function getAdditionalScriptsDeprecationStatus(tier: ShopTier, now: Date 
         message: `${tierLabel}的 Additional Scripts 将于 ${dateLabel} 变为只读。建议提前迁移到 Web Pixel。`,
         messageBrief: `截止 ${dateLabel}`,
         tone: "info",
-        messageKey: "deprecation.additionalScripts.info.message",
-        messageParams: { tier: tierLabel, date: dateLabel },
+        messageKey: `deprecation.additionalScripts.info.message.${tierKeySuffix}`,
+        messageParams: { date: dateLabel },
         messageBriefKey: "deprecation.additionalScripts.info.brief",
         messageBriefParams: { date: dateLabel },
     };

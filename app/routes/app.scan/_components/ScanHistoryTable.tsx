@@ -15,7 +15,7 @@ interface ScanHistoryTableProps {
 
 export function ScanHistoryTable({ scanHistory, onStartScan }: ScanHistoryTableProps) {
   const { t } = useTranslation();
-  const processedScanHistory = formatScanHistoryForTable(scanHistory);
+  const processedScanHistory = formatScanHistoryForTable(scanHistory, t);
 
   if (processedScanHistory.length === 0) {
     return (
