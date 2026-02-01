@@ -13,6 +13,7 @@ import { ToastProvider } from "../components/ui/ToastProvider";
 import { getPolarisTranslations } from "../utils/polaris-i18n";
 import { TopBar } from "../components/layout/TopBar";
 import { normalizePlanId, type PlanId } from "../services/billing/plans";
+import { useTranslation } from "react-i18next";
 
 const i18n = getPolarisTranslations(translations);
 
@@ -49,15 +50,17 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 };
 export default function App() {
     const { apiKey, shopDomain, planId, planDisplayName, currentShopId } = useLoaderData<typeof loader>();
+    const { t } = useTranslation();
+    
     return (<AppProvider isEmbeddedApp apiKey={apiKey} i18n={i18n as any}>
       <NavMenu>
-        <a href="/app" rel="home">Dashboard</a>
-        <a href="/app/scan">Audit</a>
-        <a href="/app/pixels">Pixels</a>
-        <a href="/app/verification">Verification</a>
-        <a href="/app/monitoring">Monitoring</a>
-        <a href="/app/settings">Settings</a>
-        <a href="/app/billing">Billing</a>
+        <a href="/app" rel="home">{t("nav.dashboard")}</a>
+        <a href="/app/scan">{t("nav.audit")}</a>
+        <a href="/app/pixels">{t("nav.pixels")}</a>
+        <a href="/app/verification">{t("nav.verification")}</a>
+        <a href="/app/monitoring">{t("nav.monitoring")}</a>
+        <a href="/app/settings">{t("nav.settings")}</a>
+        <a href="/app/billing">{t("nav.billing")}</a>
       </NavMenu>
       <TopBar
         shopDomain={shopDomain}

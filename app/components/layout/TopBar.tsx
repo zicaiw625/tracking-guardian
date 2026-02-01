@@ -11,6 +11,8 @@ import { useState } from "react";
 import { QuestionCircleIcon } from "~/components/icons";
 import { SHOPIFY_HELP_LINKS } from "~/utils/migration-deadlines";
 import { getPlanConfig, type PlanId } from "~/services/billing/plans";
+import { LanguageSwitcher } from "~/components/LanguageSwitcher";
+import { useTranslation } from "react-i18next";
 
 interface TopBarProps {
   shopDomain: string;
@@ -25,6 +27,7 @@ export function TopBar({
   planDisplayName: _planDisplayName,
   currentShopId: _currentShopId,
 }: TopBarProps) {
+  const { t } = useTranslation();
   const [popoverActive, setPopoverActive] = useState(false);
   const planConfig = getPlanConfig(planId);
   const planBadgeTone =
@@ -51,11 +54,12 @@ export function TopBar({
           <InlineStack gap="200" blockAlign="center">
             <Badge tone={planBadgeTone}>{planConfig.name}</Badge>
           </InlineStack>
+          <LanguageSwitcher />
           <Popover
             active={popoverActive}
             activator={
               <Button size="slim" variant="plain" icon={QuestionCircleIcon} onClick={() => setPopoverActive(!popoverActive)}>
-                帮助
+                {t("topbar.help")}
               </Button>
             }
             onClose={() => setPopoverActive(false)}
@@ -63,7 +67,7 @@ export function TopBar({
             <ActionList
               items={[
                 {
-                  content: "文档",
+                  content: t("topbar.documentation"),
                   external: true,
                   url: SHOPIFY_HELP_LINKS.UPGRADE_GUIDE,
                 },

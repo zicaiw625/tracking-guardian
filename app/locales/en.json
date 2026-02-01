@@ -1,0 +1,52 @@
+{
+  "nav": {
+    "dashboard": "Dashboard",
+    "audit": "Audit",
+    "pixels": "Pixels",
+    "verification": "Verification",
+    "monitoring": "Monitoring",
+    "settings": "Settings",
+    "billing": "Billing"
+  },
+  "topbar": {
+    "help": "Help",
+    "documentation": "Documentation"
+  },
+  "common": {
+    "loading": "Loading...",
+    "error": "Error",
+    "save": "Save",
+    "cancel": "Cancel"
+  },
+  "dashboard": {
+    "title": "Upgrade Migration Delivery Platform",
+    "subtitle": "Shopify official deadline: Plus merchants restricted from {{date1}}, auto-upgrade starts {{date2}} • Non-Plus merchants deadline {{date3}} • Core: Migration, Verification, Monitoring • Deliverable Verification Report • Post-launch Monitoring",
+    "scriptTagBanner": {
+      "title": "ScriptTag Deprecation Timeline (Product Education)",
+      "content": "ScriptTag capabilities on Thank you / Order status pages are related to the {{date}} (Plus merchants) deprecation (from Shopify 2025-01 announcement). It is recommended to use the Migration Checklist on the 'Audit' page and the Verification Report on the 'Verification' page to complete the migration and ensure smooth tracking transition.",
+      "action": "Migration Checklist",
+      "secondaryAction": "Verification Report"
+    },
+    "scriptTagMigrationBanner": {
+      "title": "Detected {{count}} ScriptTags needing migration",
+      "action": "View Migration Plan",
+      "secondaryAction": "View Scan Details",
+      "orderStatusWarning": "⚠️ Detected <strong>Order Status Page ScriptTag</strong>, which is the main target of Shopify's deprecation announcement. Please migrate to Web Pixel ASAP to avoid tracking interruption.",
+      "stepsTitle": "Recommended Migration Steps:",
+      "step1": "1. Enable Tracking Guardian Web Pixel on 'Migration' page",
+      "step2": "2. Complete test order and verify event receipts and parameter completeness on 'Verification' page",
+      "step3": "3. Manually delete old ScriptTags in Shopify Admin",
+      "step3Sub": "(Go to 'Settings -> Apps and sales channels', find the app that created the ScriptTag and uninstall it)"
+    },
+    "migrationDeadlineBanner": {
+      "title": "Important Migration Deadlines",
+      "action": "Learn More",
+      "disclaimer": "<strong>Important:</strong> The following dates are from Shopify official announcements for reference only. Please refer to Shopify Admin for actual deadlines. Shopify may update policies, we recommend checking Shopify official documentation regularly.",
+      "plusMerchant": "<strong>Plus Merchants:</strong> Restrictions start <strong>{{date1}}</strong> (ScriptTag execution stops; Additional Scripts enter read-only mode (uneditable, PII inaccessible), key milestone: upgrade/restriction starts), auto-upgrade starts <strong>{{date2}}</strong> (legacy customizations will be lost). Refer to <1>Shopify Help Center</1>",
+      "plusGuide": "View Plus Merchant Upgrade Guide",
+      "nonPlusMerchant": "<strong>Non-Plus Merchants:</strong> Deadline <strong>{{date}}</strong>. Refer to <1>Shopify Help Center</1>",
+      "deprecationSchedule": "View ScriptTags Deprecation Schedule",
+      "footer": "checkout.liquid, Additional Scripts, and ScriptTags will be phased out, early migration to Web Pixels is recommended"
+    }
+  }
+}

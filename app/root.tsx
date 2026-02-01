@@ -15,7 +15,7 @@ function PerformanceMonitor() {
 }
 
 export default function App() {
-    return (<html lang="zh-CN">
+    return (<html lang="en">
       <head>
         <meta charSet="utf-8"/>
         <meta name="viewport" content="width=device-width,initial-scale=1"/>
@@ -41,16 +41,16 @@ export function ErrorBoundary() {
   if (isRouteErrorResponse(error)) {
     status = error.status;
     title = error.status === 404
-      ? "页面未找到"
-      : `${error.status} ${error.statusText || "错误"}`;
+      ? "Page Not Found"
+      : `${error.status} ${error.statusText || "Error"}`;
     message = typeof error.data === 'string'
       ? error.data
       : error.status === 404
-        ? "您访问的页面不存在。"
-        : "页面加载时发生错误。";
+        ? "The page you are looking for does not exist."
+        : "An error occurred while loading the page.";
     code = `HTTP_${error.status}`;
   } else if (error instanceof Error) {
-    message = error.message || "发生了一个错误。";
+    message = error.message || "An error occurred.";
     code = error.name || "Error";
     if (error.stack) {
       import("./utils/debug-log.client").then(({ debugError }) => {
@@ -63,7 +63,7 @@ export function ErrorBoundary() {
       ? errObj.message
       : typeof errObj.error === "string"
         ? errObj.error
-        : "发生未知错误。";
+        : "Unknown error occurred.";
     code = typeof errObj.code === "string"
       ? errObj.code
       : typeof errObj.name === "string"
@@ -73,18 +73,18 @@ export function ErrorBoundary() {
       debugError("Non-standard error caught in root ErrorBoundary:", error);
     });
   } else {
-    message = "发生未知错误。";
+    message = "Unknown error occurred.";
     code = "UNKNOWN";
     import("./utils/debug-log.client").then(({ debugError }) => {
       debugError("Unknown error type caught in root ErrorBoundary:", error);
     });
   }
   if (isProduction && status >= 500) {
-    message = "系统遇到了一个意外问题。请稍后再试。";
+    message = "The system encountered an unexpected problem. Please try again later.";
     code = `ERROR_${status}`;
   }
   return (
-    <html lang="zh-CN">
+    <html lang="en">
       <head>
         <meta charSet="utf-8" />
         <meta name="viewport" content="width=device-width,initial-scale=1" />
@@ -142,12 +142,12 @@ export function ErrorBoundary() {
           <div className="error-card">
             <h1 className="error-title">{title}</h1>
             <p className="error-message">{message}</p>
-            <p className="error-code">错误代码: {code}</p>
+            <p className="error-code">Error Code: {code}</p>
             <button
               className="error-button"
               onClick={() => window.location.reload()}
             >
-              重试
+              Retry
             </button>
           </div>
         </div>

@@ -175,3 +175,7 @@ export const WarningIcon: IconSource = createIcon(
 export const QuestionCircleIcon: IconSource = createIcon(
   "M10 2a8 8 0 100 16 8 8 0 000-16zm0 3a1 1 0 011 1v2a1 1 0 11-2 0V6a1 1 0 011-1zm0 8a1.25 1.25 0 110-2.5 1.25 1.25 0 010 2.5z",
 );
+
+export const GlobeIcon: IconSource = createIcon(
+  "M10 2a8 8 0 100 16 8 8 0 000-16zM3.8 8h12.4a8.03 8.03 0 00-1.7-4.5A8.04 8.04 0 0010 3.5c-1.8 0-3.4 1-4.5 2.5A8.03 8.03 0 003.8 8zm12.4 4H3.8a8.03 8.03 0 001.7 4.5 8.04 8.04 0 004.5 2.5 8.03 8.03 0 004.5-2.5 8.03 8.03 0 001.7-4.5zM10 18.5c-1.5 0-2.8-2.6-3.2-6.5h6.4c-.4 3.9-1.7 6.5-3.2 6.5zm-3.2-8c.4-3.9 1.7-6.5 3.2-6.5s2.8 2.6 3.2 6.5H6.8z"
+);

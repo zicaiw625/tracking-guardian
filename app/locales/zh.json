@@ -1,0 +1,52 @@
+{
+  "nav": {
+    "dashboard": "仪表盘",
+    "audit": "审计",
+    "pixels": "像素",
+    "verification": "验证",
+    "monitoring": "监控",
+    "settings": "设置",
+    "billing": "计费"
+  },
+  "topbar": {
+    "help": "帮助",
+    "documentation": "文档"
+  },
+  "common": {
+    "loading": "加载中...",
+    "error": "错误",
+    "save": "保存",
+    "cancel": "取消"
+  },
+  "dashboard": {
+    "title": "升级迁移交付平台",
+    "subtitle": "Shopify 官方 deadline：Plus 商家 {{date1}} 开始限制，{{date2}} 起自动升级 • 非 Plus 商家 {{date3}} 截止 • 核心：迁移、验收、断档监控 • 可交付的验收报告 • 上线后有断档告警",
+    "scriptTagBanner": {
+      "title": "ScriptTag 弃用时间线（产品教育）",
+      "content": "ScriptTag 在 Thank you / Order status 页面的能力与 {{date}}（Plus 商家）的弃用相关（来自 Shopify 2025-01 公告）。建议使用「迁移」页的迁移清单与「验收」页的验证报告完成迁移，确保追踪平稳过渡。",
+      "action": "迁移清单",
+      "secondaryAction": "验收报告"
+    },
+    "scriptTagMigrationBanner": {
+      "title": "检测到 {{count}} 个 ScriptTag 需要迁移",
+      "action": "查看迁移方案",
+      "secondaryAction": "查看扫描详情",
+      "orderStatusWarning": "⚠️ 检测到 <strong>订单状态页 ScriptTag</strong>，这是 Shopify 废弃公告的主要目标。请尽快迁移到 Web Pixel 以避免追踪中断。",
+      "stepsTitle": "推荐迁移步骤：",
+      "step1": "1. 在「迁移」页面启用 Tracking Guardian Web Pixel",
+      "step2": "2. 完成测试订单并在「验收」页面确认事件收据与参数完整率",
+      "step3": "3. 在 Shopify 后台手动删除旧的 ScriptTag",
+      "step3Sub": "（前往「设置 → 应用和销售渠道」找到创建 ScriptTag 的应用并卸载）"
+    },
+    "migrationDeadlineBanner": {
+      "title": "重要迁移截止日期",
+      "action": "了解更多",
+      "disclaimer": "<strong>重要提示：</strong>以下日期来自 Shopify 官方公告，仅供参考。实际截止日期请以 Shopify Admin 中的提示为准。Shopify 可能会更新策略，我们建议您定期查看 Shopify 官方文档。",
+      "plusMerchant": "<strong>Plus 商家:</strong> <strong>{{date1}}</strong> 开始限制（ScriptTag 停止执行；Additional Scripts 进入只读模式（不可编辑，PII 不可访问），关键节点：升级/限制开始），<strong>{{date2}}</strong> 起 Shopify 开始自动升级（legacy 定制会丢失）。参考 <1>Shopify Help Center</1>",
+      "plusGuide": "查看 Plus 商家升级指南",
+      "nonPlusMerchant": "<strong>非 Plus 商家:</strong> 最晚 <strong>{{date}}</strong> 截止。参考 <1>Shopify Help Center</1>",
+      "deprecationSchedule": "查看 ScriptTags 弃用时间表",
+      "footer": "checkout.liquid、附加脚本（Additional Scripts）、ScriptTags 将逐步下线，建议尽早迁移到 Web Pixels"
+    }
+  }
+}
