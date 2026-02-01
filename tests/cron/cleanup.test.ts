@@ -38,6 +38,10 @@ vi.mock("../../app/db.server", () => ({
       findMany: vi.fn(),
       deleteMany: vi.fn(),
     },
+    internalEvent: {
+      findMany: vi.fn(),
+      deleteMany: vi.fn(),
+    },
   },
 }));
 
@@ -107,6 +111,7 @@ describe("Cleanup Task", () => {
       (prisma.scanReport.findMany as ReturnType<typeof vi.fn>).mockResolvedValue([]);
       (prisma.deliveryAttempt.findMany as ReturnType<typeof vi.fn>).mockResolvedValue([]);
       (prisma.eventLog.findMany as ReturnType<typeof vi.fn>).mockResolvedValue([]);
+      (prisma.internalEvent.findMany as ReturnType<typeof vi.fn>).mockResolvedValue([]);
       const result = await cleanupExpiredData();
       expect(result.shopsProcessed).toBe(2);
       expect(prisma.shop.findMany).toHaveBeenCalledWith({
@@ -130,6 +135,7 @@ describe("Cleanup Task", () => {
       (prisma.scanReport.findMany as ReturnType<typeof vi.fn>).mockResolvedValue([]);
       (prisma.deliveryAttempt.findMany as ReturnType<typeof vi.fn>).mockResolvedValue([]);
       (prisma.eventLog.findMany as ReturnType<typeof vi.fn>).mockResolvedValue([]);
+      (prisma.internalEvent.findMany as ReturnType<typeof vi.fn>).mockResolvedValue([]);
       await cleanupExpiredData();
       expect(prisma.auditLog.findMany).toHaveBeenCalled();
       const auditLogCall = (prisma.auditLog.findMany as ReturnType<typeof vi.fn>).mock.calls[0][0];
@@ -149,6 +155,7 @@ describe("Cleanup Task", () => {
       (prisma.scanReport.deleteMany as ReturnType<typeof vi.fn>).mockResolvedValue({ count: 2 });
       (prisma.deliveryAttempt.findMany as ReturnType<typeof vi.fn>).mockResolvedValue([]);
       (prisma.eventLog.findMany as ReturnType<typeof vi.fn>).mockResolvedValue([]);
+      (prisma.internalEvent.findMany as ReturnType<typeof vi.fn>).mockResolvedValue([]);
       const result = await cleanupExpiredData();
       expect(result.scanReportsDeleted).toBe(2);
       expect(prisma.scanReport.findMany).toHaveBeenCalled();

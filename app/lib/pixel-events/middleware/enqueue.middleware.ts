@@ -1,6 +1,21 @@
+import { isIP } from "net";
 import { jsonWithCors } from "../cors";
 import { enqueueIngestBatch } from "../ingest-queue.server";
 import type { IngestContext, IngestMiddleware, MiddlewareResult } from "./types";
+
+function clampString(s: string | null | undefined, max: number): string | null {
+  if (typeof s !== "string") return null;
+  return s.replace(/\0/g, "").slice(0, max);
+}
+
+function parseIp(request: Request): string | null {
+  const xff = request.headers.get("x-forwarded-for");
+  const raw = xff
+    ? xff.split(",").map((s) => s.trim()).filter(Boolean)[0] ?? ""
+    : request.headers.get("x-real-ip")?.trim() ?? "";
+  if (!raw || isIP(raw) === 0) return null;
+  return raw.slice(0, 64);
+}
 
 export const enqueueMiddleware: IngestMiddleware = async (
   context: IngestContext
@@ -17,10 +32,11 @@ export const enqueueMiddleware: IngestMiddleware = async (
 
 
   const firstPayload = context.validatedEvents[0]?.payload;
+  const pageUrlRaw = typeof firstPayload?.data?.url === "string" ? firstPayload.data.url : null;
   const requestContext = {
-    ip: context.request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? context.request.headers.get("x-real-ip") ?? null,
-    user_agent: context.request.headers.get("user-agent") ?? null,
-    page_url: typeof firstPayload?.data?.url === "string" ? firstPayload.data.url : null,
+    ip: parseIp(context.request),
+    user_agent: clampString(context.request.headers.get("user-agent"), 512),
+    page_url: clampString(pageUrlRaw, 2048),
     referrer: null as string | null,
   };
   const entry = {

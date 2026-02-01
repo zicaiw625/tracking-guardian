@@ -82,7 +82,7 @@ vi.mock("../../app/shopify.server", () => ({
   },
 }));
 
-vi.mock("../../app/utils/logger", () => ({
+vi.mock("../../app/utils/logger.server", () => ({
   logger: {
     info: vi.fn(),
     warn: vi.fn(),

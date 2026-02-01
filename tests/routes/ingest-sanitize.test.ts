@@ -23,7 +23,7 @@ vi.mock("../../app/utils/redis-client.server", () => ({
   getRedisClientStrict: vi.fn(),
 }));
 
-vi.mock("../../app/utils/logger", () => ({
+vi.mock("../../app/utils/logger.server", () => ({
   logger: {
     info: vi.fn(),
     warn: vi.fn(),

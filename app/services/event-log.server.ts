@@ -9,6 +9,7 @@ export function sanitizePII(payload: unknown): unknown {
   }
   const obj = sanitized as Record<string, unknown>;
   const allowedFields = new Set([
+    "id",
     "event_name",
     "eventname",
     "value",

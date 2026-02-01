@@ -29,19 +29,23 @@ vi.mock("../../app/utils/redis-client.server", () => ({
   }),
 }));
 
-vi.mock("../../app/utils/logger", () => ({
-  logger: {
-    info: vi.fn(),
-    warn: vi.fn(),
-    error: vi.fn(),
-    debug: vi.fn(),
-  },
-  metrics: {
-    pixelEvent: vi.fn(),
-    pixelRejection: vi.fn(),
-    silentDrop: vi.fn(),
-  },
-}));
+vi.mock("../../app/utils/logger.server", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../../app/utils/logger.server")>();
+  return {
+    ...actual,
+    logger: {
+      info: vi.fn(),
+      warn: vi.fn(),
+      error: vi.fn(),
+      debug: vi.fn(),
+    },
+    metrics: {
+      pixelEvent: vi.fn(),
+      pixelRejection: vi.fn(),
+      silentDrop: vi.fn(),
+    },
+  };
+});
 
 vi.mock("../../app/middleware/rate-limit.server", () => ({
   checkRateLimitAsync: vi.fn().mockResolvedValue({

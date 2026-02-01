@@ -17,7 +17,7 @@ vi.mock("../../app/db.server", () => ({
   },
 }));
 
-vi.mock("../../app/utils/logger", () => ({
+vi.mock("../../app/utils/logger.server", () => ({
   logger: {
     info: vi.fn(),
     warn: vi.fn(),
