@@ -19,6 +19,7 @@ i18next
       },
     },
     fallbackLng: "en",
+    supportedLngs: ["en", "zh"],
     debug: process.env.NODE_ENV === "development",
 
     interpolation: {

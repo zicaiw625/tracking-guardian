@@ -46,7 +46,7 @@ export default function App() {
     const polarisTranslations = i18n.language?.startsWith("zh") ? polarisTranslationsZh : polarisTranslationsEn;
     const polarisI18n = getPolarisTranslations(polarisTranslations);
 
-    return (<AppProvider isEmbeddedApp apiKey={apiKey} i18n={polarisI18n as any}>
+    return (<AppProvider isEmbeddedApp apiKey={apiKey} i18n={polarisI18n as any} key={i18n.language}>
       <NavMenu>
         <a href="/app" rel="home">{t("nav.dashboard")}</a>
         <a href="/app/scan">{t("nav.audit")}</a>

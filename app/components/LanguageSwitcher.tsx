@@ -30,12 +30,12 @@ export function LanguageSwitcher() {
           {
             content: "English",
             onAction: () => handleLanguageChange("en"),
-            active: i18n.language === "en",
+            active: i18n.language?.startsWith("en") || i18n.language === "en-US",
           },
           {
             content: "中文",
             onAction: () => handleLanguageChange("zh"),
-            active: i18n.language === "zh",
+            active: i18n.language?.startsWith("zh"),
           },
         ]}
       />
