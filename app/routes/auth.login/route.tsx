@@ -1,13 +1,13 @@
 import type { LoaderFunctionArgs } from "@remix-run/node";
 import { json } from "@remix-run/node";
 import { useLoaderData } from "@remix-run/react";
-import { AppProvider, Card, Page, Text, Banner, BlockStack, InlineStack } from "@shopify/polaris";
+import { AppProvider, Card, Page, Text, Banner, BlockStack, } from "@shopify/polaris";
 import polarisStyles from "@shopify/polaris/build/esm/styles.css?url";
 import polarisTranslationsEn from "@shopify/polaris/locales/en.json" with { type: "json" };
 import { login } from "../../shopify.server";
 import { getPolarisTranslations } from "../../utils/polaris-i18n";
-import { useTranslation } from "react-i18next";
-import { LanguageSwitcher } from "~/components/LanguageSwitcher";
+import { useTranslation, I18nextProvider } from "react-i18next";
+import i18nGlobal from "../../i18n";
 
 const i18nEn = getPolarisTranslations(polarisTranslationsEn);
 
@@ -41,12 +41,9 @@ function AuthContent() {
       <Page>
         <Card>
           <BlockStack gap="400">
-            <InlineStack align="space-between" blockAlign="center">
-              <Text variant="headingLg" as="h1">
-                Tracking Guardian
-              </Text>
-              <LanguageSwitcher />
-            </InlineStack>
+            <Text variant="headingLg" as="h1">
+              Tracking Guardian
+            </Text>
             {hasShopParam && errors ? (<Banner tone="critical">
                 <p>{t("Auth.Login.Error")}</p>
               </Banner>) : (<>
@@ -78,5 +75,9 @@ function AuthContent() {
 }
 
 export default function Auth() {
-  return <AuthContent />;
+  return (
+    <I18nextProvider i18n={i18nGlobal}>
+      <AuthContent />
+    </I18nextProvider>
+  );
 }

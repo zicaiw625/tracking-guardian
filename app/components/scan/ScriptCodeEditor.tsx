@@ -13,7 +13,6 @@ import {
 } from "@shopify/polaris";
 import { ClipboardIcon, CheckCircleIcon } from "~/components/icons";
 import type { ScriptAnalysisResult } from "~/services/scanner/types";
-import { useTranslation } from "react-i18next";
 
 export interface ScriptCodeEditorProps {
   value: string;
@@ -68,7 +67,6 @@ function detectScriptFragments(content: string): string[] {
   return fragments.filter(f => f.length > 0);
 }
 function PreviewPanel({ result }: { result: ScriptAnalysisResult | null }) {
-  const { t } = useTranslation();
   if (!result || result.identifiedPlatforms.length === 0) {
     return null;
   }
@@ -83,21 +81,21 @@ function PreviewPanel({ result }: { result: ScriptAnalysisResult | null }) {
       <BlockStack gap="300">
         <InlineStack align="space-between" blockAlign="center">
           <Text as="h3" variant="headingSm">
-            {t("scan.scriptEditor.previewPanel.title")}
+            实时识别结果
           </Text>
           <Badge tone="info">
-            {t("scan.scriptEditor.previewPanel.platformCount", { count: result.identifiedPlatforms.length })}
+            {`${result.identifiedPlatforms.length} 个平台`}
           </Badge>
         </InlineStack>
         <BlockStack gap="200">
           {result.identifiedPlatforms.map((platform) => {
             const platformNames: Record<string, string> = {
-              google: t("platforms.google_analytics"),
-              meta: t("platforms.meta_pixel"),
-              tiktok: t("platforms.tiktok"),
-              pinterest: t("platforms.pinterest"),
-              bing: t("platforms.microsoft_ads"),
-              snapchat: t("platforms.snapchat"),
+              google: "Google Analytics",
+              meta: "Meta (Facebook)",
+              tiktok: "TikTok",
+              pinterest: "Pinterest",
+              bing: "Microsoft Ads",
+              snapchat: "Snapchat",
             };
             const details = result.platformDetails.filter(
               (d) => d.platform === platform
@@ -121,12 +119,12 @@ function PreviewPanel({ result }: { result: ScriptAnalysisResult | null }) {
                           : "attention"
                       }
                     >
-                      {details[0]?.confidence === "high" ? t("scan.scriptEditor.previewPanel.highConfidence") : t("scan.scriptEditor.previewPanel.mediumConfidence")}
+                      {details[0]?.confidence === "high" ? "高置信度" : "中置信度"}
                     </Badge>
                   </InlineStack>
                   {details.length > 0 && (
                     <Text as="p" variant="bodySm" tone="subdued">
-                      {t("scan.scriptEditor.previewPanel.detected", { type: details[0].type })}
+                      检测到: {details[0].type}
                     </Text>
                   )}
                 </BlockStack>
@@ -138,7 +136,7 @@ function PreviewPanel({ result }: { result: ScriptAnalysisResult | null }) {
           <Box paddingBlockStart="200">
             <InlineStack align="space-between">
               <Text as="span" variant="bodySm">
-                {t("scan.scriptEditor.previewPanel.riskScore")}
+                风险评分
               </Text>
               <Badge
                 tone={
@@ -169,7 +167,6 @@ export function ScriptCodeEditor({
   onRealtimeAnalysis,
   enableBatchPaste = false,
 }: ScriptCodeEditorProps) {
-  const { t } = useTranslation();
   const [showPreview, setShowPreview] = useState(false);
   const [copied, setCopied] = useState(false);
   const [fragments, setFragments] = useState<string[]>([]);
@@ -217,7 +214,7 @@ export function ScriptCodeEditor({
         <BlockStack gap="400">
           <InlineStack align="space-between" blockAlign="center">
             <Text as="h2" variant="headingMd">
-              {t("scan.scriptEditor.title")}
+              脚本代码编辑器
             </Text>
             <InlineStack gap="200">
               {value && (
@@ -227,7 +224,7 @@ export function ScriptCodeEditor({
                   onClick={handleCopy}
                   icon={copied ? CheckCircleIcon : ClipboardIcon}
                 >
-                  {copied ? t("scan.scriptEditor.copied") : t("scan.scriptEditor.copy")}
+                  {copied ? "已复制" : "复制"}
                 </Button>
               )}
               {value && (
@@ -236,7 +233,7 @@ export function ScriptCodeEditor({
                   variant="plain"
                   onClick={() => setShowPreview(!showPreview)}
                 >
-                  {showPreview ? t("scan.scriptEditor.hidePreview") : t("scan.scriptEditor.showPreview")}
+                  {showPreview ? "隐藏预览" : "显示预览"}
                 </Button>
               )}
             </InlineStack>
@@ -245,13 +242,14 @@ export function ScriptCodeEditor({
             <Banner tone="info">
               <BlockStack gap="200">
                 <Text as="p" variant="bodySm">
-                  {t("scan.scriptEditor.detectedFragments", { count: fragments.length })}
+                  检测到 {fragments.length} 个脚本片段，将分别分析
                 </Text>
                 <List type="bullet">
                   {fragments.map((fragment, index) => (
                     <List.Item key={index}>
                       <Text as="span" variant="bodySm">
-                        {t("scan.scriptEditor.fragmentLabel", { index: index + 1, content: fragment.substring(0, 50) + (fragment.length > 50 ? '...' : '') })}
+                        片段 {index + 1}: {fragment.substring(0, 50)}
+                        {fragment.length > 50 ? '...' : ''}
                       </Text>
                     </List.Item>
                   ))}
@@ -262,29 +260,29 @@ export function ScriptCodeEditor({
           {enableRealtimeAnalysis && value.trim() && (
             <Banner tone="info">
               <Text as="p" variant="bodySm">
-                {t("scan.scriptEditor.realtimeAnalysis")}
+                💡 实时分析已启用，输入内容后会自动分析（延迟 500ms）
               </Text>
             </Banner>
           )}
           <Banner>
             <BlockStack gap="200">
               <Text as="p" variant="bodySm" fontWeight="semibold">
-                {t("scan.scriptEditor.howToCopy.title")}
+                如何从 Shopify Admin 复制脚本？
               </Text>
               <List type="number">
                 <List.Item>
                   <Text as="span" variant="bodySm">
-                    {t("scan.scriptEditor.howToCopy.step1")}
+                    前往 Shopify 后台 → 设置 → 结账
                   </Text>
                 </List.Item>
                 <List.Item>
                   <Text as="span" variant="bodySm">
-                    {t("scan.scriptEditor.howToCopy.step2")}
+                    找到「Additional scripts」部分
                   </Text>
                 </List.Item>
                 <List.Item>
                   <Text as="span" variant="bodySm">
-                    {t("scan.scriptEditor.howToCopy.step3")}
+                    复制所有脚本内容并粘贴到下方
                   </Text>
                 </List.Item>
               </List>
@@ -292,13 +290,13 @@ export function ScriptCodeEditor({
           </Banner>
           <Box position="relative">
             <TextField
-              label={t("scan.scriptEditor.label")}
+              label="粘贴脚本内容"
               value={value}
               onChange={onChange}
               multiline={12}
               autoComplete="off"
               placeholder={placeholder}
-              helpText={t("scan.scriptEditor.helpText")}
+              helpText="支持检测 Google、Meta、TikTok、Pinterest 等平台的追踪代码"
             />
             {value && showPreview && (
               <BlockStack gap="300">
@@ -311,7 +309,7 @@ export function ScriptCodeEditor({
                 >
                   <BlockStack gap="300">
                     <Text as="p" variant="bodySm" tone="subdued" fontWeight="semibold">
-                      {t("scan.scriptEditor.previewTitle")}
+                      代码高亮预览：
                     </Text>
                     <Box
                       padding="300"
@@ -345,7 +343,7 @@ export function ScriptCodeEditor({
               loading={isAnalyzing}
               disabled={!value.trim()}
             >
-              {t("scan.scriptEditor.analyzeButton")}
+              分析脚本
             </Button>
           </InlineStack>
         </BlockStack>

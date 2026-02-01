@@ -347,19 +347,19 @@ export async function validateTestEnvironment(
   if (!config) {
     return {
       valid: false,
-      message: "CONFIG_NOT_FOUND",
+      message: "配置不存在",
     };
   }
   if (config.environment !== "test") {
     return {
       valid: false,
-      message: "ENV_NOT_TEST",
+      message: "当前环境不是测试模式",
     };
   }
   if (!config.credentialsEncrypted) {
     return {
       valid: false,
-      message: "CREDENTIALS_NOT_CONFIGURED",
+      message: "凭证未配置",
     };
   }
   try {
@@ -370,7 +370,7 @@ export async function validateTestEnvironment(
     if (!credentialsResult.ok) {
       return {
         valid: false,
-        message: `CREDENTIALS_INVALID:${credentialsResult.error.message}`,
+        message: `凭证验证失败: ${credentialsResult.error.message}`,
       };
     }
     const details: {
@@ -519,7 +519,7 @@ export async function validateTestEnvironment(
     }
     return {
       valid: eventSent,
-      message: eventSent ? "EVENT_SENT_SUCCESS" : `EVENT_SENT_FAILED:${sendError ?? "Unknown error"}`,
+      message: eventSent ? "测试事件已发送" : (sendError ?? "测试事件发送失败"),
       details,
     };
   } catch (error) {
@@ -530,10 +530,10 @@ export async function validateTestEnvironment(
     });
     return {
       valid: false,
-      message: `VERIFICATION_ERROR:${error instanceof Error ? error.message : "Unknown error"}`,
+      message: `验证过程出错: ${error instanceof Error ? error.message : "未知错误"}`,
       details: {
         eventSent: false,
-        error: error instanceof Error ? error.message : "Unknown error",
+        error: error instanceof Error ? error.message : "未知错误",
       },
     };
   }

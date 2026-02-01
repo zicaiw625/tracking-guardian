@@ -1,131 +1,89 @@
-import {
-  Card,
-  BlockStack,
-  InlineStack,
-  Text,
-  Badge,
-  TextField,
-  Banner,
-  Select,
-} from "@shopify/polaris";
-import { useTranslation } from "react-i18next";
+import { Card, BlockStack, Text } from "@shopify/polaris";
 import { PLATFORM_INFO, type SupportedPlatform, type PlatformConfig } from "../constants";
+import {
+  PlatformCredentialsForm,
+  getEmptyCredentials,
+  type PlatformCredentials,
+  type GoogleCredentials,
+  type MetaCredentials,
+  type TikTokCredentials,
+} from "~/components/forms/PlatformCredentialsForm";
 
 interface CredentialsStepProps {
   selectedPlatforms: Set<SupportedPlatform>;
   platformConfigs: Partial<Record<SupportedPlatform, PlatformConfig>>;
-  onChange: (configs: Partial<Record<SupportedPlatform, PlatformConfig>>) => void;
+  onCredentialsChange: (platform: SupportedPlatform, credentials: Record<string, string>) => void;
+}
+
+function toFormValues(platform: SupportedPlatform, credentials: Record<string, string>): PlatformCredentials {
+  const empty = getEmptyCredentials(platform);
+  if (platform === "google") {
+    const e = empty as GoogleCredentials;
+    return {
+      measurementId: credentials.measurementId ?? e.measurementId,
+      apiSecret: credentials.apiSecret ?? e.apiSecret,
+    };
+  }
+  if (platform === "meta") {
+    const e = empty as MetaCredentials;
+    return {
+      pixelId: credentials.pixelId ?? e.pixelId,
+      accessToken: credentials.accessToken ?? e.accessToken,
+      testEventCode: credentials.testEventCode ?? e.testEventCode,
+    };
+  }
+  const e = empty as TikTokCredentials;
+  return {
+    pixelId: credentials.pixelId ?? e.pixelId,
+    accessToken: credentials.accessToken ?? e.accessToken,
+  };
+}
+
+function fromFormValues(platform: SupportedPlatform, values: PlatformCredentials): Record<string, string> {
+  if (platform === "google") {
+    const v = values as { measurementId: string; apiSecret: string };
+    return { measurementId: v.measurementId ?? "", apiSecret: v.apiSecret ?? "" };
+  }
+  if (platform === "meta") {
+    const v = values as { pixelId: string; accessToken: string; testEventCode?: string };
+    const out: Record<string, string> = { pixelId: v.pixelId ?? "", accessToken: v.accessToken ?? "" };
+    if (v.testEventCode) out.testEventCode = v.testEventCode;
+    return out;
+  }
+  const v = values as { pixelId: string; accessToken: string };
+  return { pixelId: v.pixelId ?? "", accessToken: v.accessToken ?? "" };
 }
 
 export function CredentialsStep({
   selectedPlatforms,
   platformConfigs,
-  onChange,
+  onCredentialsChange,
 }: CredentialsStepProps) {
-  const { t } = useTranslation();
-
-  const handleCredentialChange = (
-    platform: SupportedPlatform,
-    key: string,
-    value: string
-  ) => {
-    const currentConfig = platformConfigs[platform];
-    if (!currentConfig) return;
-
-    onChange({
-      ...platformConfigs,
-      [platform]: {
-        ...currentConfig,
-        credentials: {
-          ...currentConfig.credentials,
-          [key]: value,
-        },
-      },
-    });
-  };
-
-  const handleEnvironmentChange = (
-    platform: SupportedPlatform,
-    environment: "test" | "live"
-  ) => {
-    const currentConfig = platformConfigs[platform];
-    if (!currentConfig) return;
-
-    onChange({
-      ...platformConfigs,
-      [platform]: {
-        ...currentConfig,
-        environment,
-      },
-    });
-  };
-
   return (
     <Card>
       <BlockStack gap="400">
         <Text as="h3" variant="headingMd">
-          {t("pixelMigration.credentials.title")}
+          平台凭证（可选）
         </Text>
         <Text as="p" tone="subdued">
-          {t("pixelMigration.credentials.description")}
+          当前版本不进行服务端投递；凭证可保存用于后续能力规划。
         </Text>
         {Array.from(selectedPlatforms).map((platform) => {
           const config = platformConfigs[platform];
           const info = PLATFORM_INFO[platform];
           if (!config || !info) return null;
-
+          const formValues = toFormValues(platform, config.credentials ?? {});
           return (
             <Card key={platform}>
-              <BlockStack gap="400">
-                <InlineStack align="space-between" blockAlign="center">
-                  <InlineStack gap="200" blockAlign="center">
-                    <Text as="span" variant="headingLg">
-                      {info.icon}
-                    </Text>
-                    <Text as="span" fontWeight="semibold">
-                      {info.name}
-                    </Text>
-                  </InlineStack>
-                  <Badge tone={config.environment === "live" ? "critical" : "warning"}>
-                    {config.environment === "live" ? t("pixelMigration.credentials.liveMode") : t("pixelMigration.credentials.testMode")}
-                  </Badge>
-                </InlineStack>
-                
-                <Select
-                  label={t("pixelMigration.credentials.switchEnv")}
-                  options={[
-                    { label: t("pixelMigration.credentials.testEnvOption"), value: "test" },
-                    { label: t("pixelMigration.credentials.liveEnvOption"), value: "live" },
-                  ]}
-                  value={config.environment}
-                  onChange={(value) => handleEnvironmentChange(platform, value as "test" | "live")}
-                  helpText={
-                    config.environment === "test" 
-                      ? t("pixelMigration.credentials.testEnvHelp")
-                      : t("pixelMigration.credentials.liveEnvHelp")
-                  }
+              <BlockStack gap="300">
+                <Text as="span" fontWeight="semibold">
+                  {info.icon} {info.name}
+                </Text>
+                <PlatformCredentialsForm
+                  platform={platform}
+                  values={formValues}
+                  onChange={(values) => onCredentialsChange(platform, fromFormValues(platform, values))}
                 />
-
-                {config.environment === "test" && (
-                  <Banner tone="warning">
-                    {t("pixelMigration.credentials.testModeBanner")}
-                  </Banner>
-                )}
-
-                <BlockStack gap="300">
-                  {info.credentialFields.map((field) => (
-                    <TextField
-                      key={field.key}
-                      label={t(field.labelKey)}
-                      value={config.credentials?.[field.key] || ""}
-                      onChange={(value) => handleCredentialChange(platform, field.key, value)}
-                      placeholder={t(field.placeholderKey)}
-                      type={field.type}
-                      autoComplete="off"
-                      helpText={field.helpTextKey ? t(field.helpTextKey) : undefined}
-                    />
-                  ))}
-                </BlockStack>
               </BlockStack>
             </Card>
           );

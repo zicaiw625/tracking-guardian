@@ -45,9 +45,9 @@ export function DashboardOverview({
 
   const connectionIssues = [];
   if (data.dataConnection) {
-    if (!data.dataConnection.hasIngestionSecret) connectionIssues.push("MISSING_SECRET");
-    if (!data.dataConnection.hasWebPixel) connectionIssues.push("MISSING_PIXEL");
-    if (!data.dataConnection.webPixelHasIngestionKey) connectionIssues.push("MISSING_KEY");
+    if (!data.dataConnection.hasIngestionSecret) connectionIssues.push("Ingestion Key Not Configured");
+    if (!data.dataConnection.hasWebPixel) connectionIssues.push("Web Pixel Not Installed");
+    if (!data.dataConnection.webPixelHasIngestionKey) connectionIssues.push("Web Pixel Missing ingestion_key");
   }
 
   return (

@@ -5,6 +5,7 @@ export { ROIEstimator } from "./ROIEstimator";
 export { RiskDetails } from "./RiskDetails";
 export { MigrationActionsCard } from "./MigrationActionsCard";
 export { MigrationWizard } from "./MigrationWizard";
+export { ManualAnalysis } from "./ManualAnalysis";
 export { MigrationCountdown } from "./MigrationCountdown";
 export { MigrationChecklist } from "./MigrationChecklist";
 export { AnalysisResultSummary } from "./AnalysisResultSummary";

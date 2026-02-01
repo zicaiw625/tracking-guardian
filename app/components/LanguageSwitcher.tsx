@@ -4,7 +4,7 @@ import { useState, useCallback } from "react";
 import { useTranslation } from "react-i18next";
 
 export function LanguageSwitcher() {
-  const { i18n, t } = useTranslation();
+  const { i18n } = useTranslation();
   const [active, setActive] = useState(false);
 
   const toggleActive = useCallback(() => setActive((active) => !active), []);
@@ -17,12 +17,9 @@ export function LanguageSwitcher() {
     [i18n]
   );
 
-  const currentLang = i18n.resolvedLanguage ?? i18n.language;
-  const isZh = currentLang?.toLowerCase().startsWith("zh");
-
   const activator = (
     <Button onClick={toggleActive} icon={GlobeIcon} variant="plain">
-      {isZh ? t("common.language.chinese") : t("common.language.english")}
+      {i18n.language?.startsWith("zh") ? "中文" : "English"}
     </Button>
   );
 
@@ -31,14 +28,14 @@ export function LanguageSwitcher() {
       <ActionList
         items={[
           {
-            content: t("common.language.english"),
+            content: "English",
             onAction: () => handleLanguageChange("en"),
-            active: !isZh,
+            active: i18n.language?.startsWith("en") || i18n.language === "en-US",
           },
           {
-            content: t("common.language.chinese"),
+            content: "中文",
             onAction: () => handleLanguageChange("zh"),
-            active: !!isZh,
+            active: i18n.language?.startsWith("zh"),
           },
         ]}
       />

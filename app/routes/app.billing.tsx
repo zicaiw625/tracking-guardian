@@ -186,7 +186,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
                     });
                     return json({
                         success: false,
-                        errorCode: "INVALID_CONFIRMATION_URL",
+                        error: validation.error || "Invalid confirmation URL",
                     });
                 }
                 return shopifyRedirect(result.confirmationUrl, { target: "_parent" });
@@ -194,22 +194,19 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 
             return json({
                 success: false,
-                errorCode: "SUBSCRIPTION_FAILED",
+                error: result.error || "Subscription creation failed",
             });
         }
         case "cancel": {
             const subscriptionId = formData.get("subscriptionId") as string;
             if (!subscriptionId) {
-                return json({ success: false, errorCode: "MISSING_SUBSCRIPTION_ID" });
+                return json({ success: false, error: "Missing subscription ID" });
             }
             const result = await cancelSubscription(admin, shopDomain, subscriptionId);
-            if (result.success) {
-                return json({ success: true, actionType: "cancel" });
-            }
-            return json({ success: false, errorCode: "CANCEL_FAILED" });
+            return json(result);
         }
         default:
-            return json({ success: false, errorCode: "UNKNOWN_ACTION" });
+            return json({ success: false, error: "Unknown action" });
         }
     } catch (error) {
         if (error instanceof Response) {
@@ -220,7 +217,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
             stack: error instanceof Error ? error.stack : undefined,
         });
         return json(
-            { success: false, errorCode: "AUTH_FAILED" },
+            { success: false, error: "Authentication failed, please refresh and try again" },
             { status: 401 }
         );
     }
@@ -232,22 +229,20 @@ export default function BillingPage() {
     const actionData = useActionData<typeof action>();
     const submit = useSubmit();
     const navigation = useNavigation();
-    const { t, i18n } = useTranslation();
+    const { t } = useTranslation();
     const { showSuccess, showError } = useToastContext();
 
     useEffect(() => {
         if (actionData) {
-            const data = actionData as { success?: boolean; errorCode?: string; actionType?: string; confirmationUrl?: string };
+            const data = actionData as { success?: boolean; error?: string; actionType?: string; confirmationUrl?: string };
             if (data.success) {
                 if (data.actionType === "cancel") {
                     showSuccess(t("billing.subscriptionCancelled"));
                 } else {
                     showSuccess(t("common.operationSuccess"));
                 }
-            } else if (data.errorCode) {
-                showError(t(`billing.errors.${data.errorCode}`));
-            } else {
-                showError(t("billing.errors.UNKNOWN"));
+            } else if (data.error) {
+                showError(t("billing.failPrefix") + data.error);
             }
         }
     }, [actionData, showSuccess, showError, t]);
@@ -272,13 +267,10 @@ export default function BillingPage() {
     const currentPlan = plans[subscription.plan as PlanId];
     const usagePercent = Math.min((usage.current / usage.limit) * 100, 100);
 
-    const dateFormatter = new Intl.DateTimeFormat(
-        (i18n.resolvedLanguage ?? i18n.language)?.toLowerCase().startsWith("zh") ? "zh-CN" : "en-US",
-        {
+    const dateFormatter = new Intl.DateTimeFormat("zh-CN", {
         dateStyle: "medium",
         timeStyle: "short",
-        }
-    );
+    });
 
     const billingRows = (billingHistory || []).map((item: BillingHistoryItem) => {
         const amount = item.amount !== undefined ? `${item.amount.toFixed(2)} ${item.currency || ""}` : "—";

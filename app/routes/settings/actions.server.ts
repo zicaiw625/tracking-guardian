@@ -42,7 +42,7 @@ export async function handleRotateIngestionSecret(
     },
   });
   await invalidateAllShopCaches(sessionShop, shopId);
-  let pixelSyncResult = { success: false };
+  let pixelSyncResult = { success: false, message: "" };
   try {
     const existingPixels = await getExistingWebPixels(admin);
     const ourPixel = existingPixels.find((p) => {
@@ -58,23 +58,35 @@ export async function handleRotateIngestionSecret(
       if (result.success) {
         pixelSyncResult = {
           success: true,
+          message: "已自动同步到 Web Pixel 配置",
         };
       } else {
-        pixelSyncResult = { success: false };
+        pixelSyncResult = {
+          success: false,
+          message: `Web Pixel 同步失败: ${result.error}`,
+        };
       }
     } else {
-      pixelSyncResult = { success: false };
+      pixelSyncResult = {
+        success: false,
+        message: "未找到已安装的 Web Pixel，请先在「迁移」页面安装像素",
+      };
     }
   } catch (pixelError) {
     logger.error("Failed to sync ingestion token to Web Pixel", pixelError);
-    pixelSyncResult = { success: false };
+    pixelSyncResult = {
+      success: false,
+      message: "Web Pixel 同步失败，请手动重新配置",
+    };
   }
+  const baseMessage = "关联令牌已更新。";
+  const graceMessage = ` 旧令牌将在 ${graceWindowMinutes} 分钟内继续有效。`;
+  const syncMessage = pixelSyncResult.success
+    ? pixelSyncResult.message
+    : `⚠️ ${pixelSyncResult.message}`;
   return json({
     success: true,
-    messageKey: pixelSyncResult.success
-      ? "settings.toast.rotateSecret.synced"
-      : "settings.toast.rotateSecret.rotatedSyncFailed",
-    messageParams: { minutes: graceWindowMinutes },
+    message: `${baseMessage}${graceMessage}${syncMessage}`,
     pixelSyncSuccess: pixelSyncResult.success,
     graceWindowExpiry: graceWindowExpiry.toISOString(),
   });
@@ -98,7 +110,7 @@ export async function handleUpdatePrivacySettings(
   });
   return json({
     success: true,
-    messageKey: "settings.toast.privacyUpdated",
+    message: "隐私设置已更新",
   });
 }
 
@@ -150,7 +162,7 @@ export async function handleSaveAlertConfigs(
   invalidateAlertConfigsCache(shopId);
   return json({
     success: true,
-    messageKey: "settings.toast.alertsSaved",
+    message: "告警配置已保存",
   });
 }
 
@@ -161,7 +173,7 @@ export async function settingsAction({ request }: ActionFunctionArgs) {
     where: { shopDomain },
   });
   if (!shop) {
-    return json({ success: false, errorKey: "settings.errors.shopNotFound" }, { status: 404 });
+    return json({ error: "Shop not found" }, { status: 404 });
   }
   const formData = await request.formData();
   const action = formData.get("_action");
@@ -174,20 +186,20 @@ export async function settingsAction({ request }: ActionFunctionArgs) {
       const { checkV1FeatureBoundary } = await import("../../utils/version-gate");
       const gateResult = checkV1FeatureBoundary("server_side");
       if (!gateResult.allowed) {
-        return json({ success: false, errorKey: "settings.errors.featureUnavailable" }, { status: 403 });
+        return json({ error: gateResult.reason || "此功能在当前版本中不可用" }, { status: 403 });
       }
       const platform = formData.get("platform") as string;
       const newEnvironment = formData.get("environment") as PixelEnvironment;
       if (!platform || !newEnvironment) {
         return json({
           success: false,
-          errorKey: "settings.errors.missingPlatformOrEnvironment",
+          error: "缺少 platform 或 environment 参数"
         }, { status: 400 });
       }
       if (!["test", "live"].includes(newEnvironment)) {
         return json({
           success: false,
-          errorKey: "settings.errors.invalidEnvironment",
+          error: "无效的环境参数"
         }, { status: 400 });
       }
       const result = await switchEnvironment(shop.id, platform, newEnvironment);
@@ -220,15 +232,9 @@ export async function settingsAction({ request }: ActionFunctionArgs) {
         }
         await invalidateAllShopCaches(session.shop, shop.id);
       }
-      if (!result.success) {
-        return json({ success: false, errorKey: "settings.errors.environmentSwitchFailed" }, { status: 400 });
-      }
       return json({
-        success: true,
-        messageKey: result.previousEnvironment === result.newEnvironment
-          ? "settings.toast.environmentAlready"
-          : "settings.toast.environmentSwitched",
-        messageParams: { environment: result.newEnvironment ?? newEnvironment },
+        success: result.success,
+        message: result.message,
         previousEnvironment: result.previousEnvironment,
         newEnvironment: result.newEnvironment,
       });
@@ -237,26 +243,22 @@ export async function settingsAction({ request }: ActionFunctionArgs) {
       const { checkV1FeatureBoundary } = await import("../../utils/version-gate");
       const gateResult = checkV1FeatureBoundary("server_side");
       if (!gateResult.allowed) {
-        return json({ success: false, errorKey: "settings.errors.featureUnavailable" }, { status: 403 });
+        return json({ error: gateResult.reason || "此功能在当前版本中不可用" }, { status: 403 });
       }
       const platform = formData.get("platform") as string;
       if (!platform) {
         return json({
           success: false,
-          errorKey: "settings.errors.missingPlatform",
+          error: "缺少 platform 参数"
         }, { status: 400 });
       }
       const result = await rollbackConfig(shop.id, platform);
       if (result.success) {
         await invalidateAllShopCaches(session.shop, shop.id);
       }
-      if (!result.success) {
-        return json({ success: false, errorKey: "settings.errors.rollbackFailed" }, { status: 400 });
-      }
       return json({
-        success: true,
-        messageKey: "settings.toast.rollbackSuccess",
-        messageParams: { version: result.currentVersion },
+        success: result.success,
+        message: result.message,
         previousVersion: result.previousVersion,
         currentVersion: result.currentVersion,
       });
@@ -264,6 +266,6 @@ export async function settingsAction({ request }: ActionFunctionArgs) {
     case "saveAlertConfigs":
       return handleSaveAlertConfigs(formData, shop.id);
     default:
-      return json({ success: false, errorKey: "settings.errors.unknownAction" }, { status: 400 });
+      return json({ error: "Unknown action" }, { status: 400 });
   }
 }

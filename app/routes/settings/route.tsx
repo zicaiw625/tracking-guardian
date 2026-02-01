@@ -30,18 +30,7 @@ export default function SettingsPage() {
   useEffect(() => {
     if (actionData) {
       if (actionData.success) {
-        const messageParams = actionData.messageParams ?? undefined;
-        const env =
-          messageParams && typeof messageParams.environment === "string"
-            ? messageParams.environment
-            : null;
-        const normalizedParams =
-          env === "test" || env === "live"
-            ? { ...messageParams, environment: t(`settings.environment.${env}`) }
-            : messageParams;
-        showSuccess(t(actionData.messageKey, normalizedParams));
-      } else if (actionData.errorKey) {
-        showError(t(actionData.errorKey, actionData.errorParams));
+        showSuccess(actionData.message || t("settings.toast.saved"));
       } else if (actionData.error) {
         showError(actionData.error);
       }

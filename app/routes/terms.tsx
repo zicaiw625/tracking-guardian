@@ -4,7 +4,8 @@ import { useLoaderData } from "@remix-run/react";
 import { getDynamicCorsHeaders } from "../utils/cors";
 import { PUBLIC_PAGE_HEADERS, addSecurityHeadersToHeaders } from "../utils/security-headers";
 import { getSupportConfig } from "../utils/config.server";
-import { useTranslation, Trans } from "react-i18next";
+import { useTranslation, Trans, I18nextProvider } from "react-i18next";
+import i18n from "../i18n";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   const corsHeaders = getDynamicCorsHeaders(request);
@@ -30,11 +31,9 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 function TermsContent() {
   const { t, i18n: i18nInstance } = useTranslation();
   const { appName, appDomain, lastUpdated, contactEmail } = useLoaderData<typeof loader>();
-  const currentLang = i18nInstance.resolvedLanguage ?? i18nInstance.language;
-  const htmlLang = currentLang?.toLowerCase().startsWith("zh") ? "zh-CN" : "en";
 
   return (
-    <html lang={htmlLang}>
+    <html lang={i18nInstance.language || "zh-CN"}>
       <head>
         <meta charSet="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -121,9 +120,9 @@ function TermsContent() {
         <div className="container">
           <h1>{t("PublicTerms.Title")}</h1>
           <div className="meta">
-            <p><strong>{t("PublicTerms.Meta.AppName")}{t("common.punctuation.colon")}</strong>{appName}</p>
-            <p><strong>{t("PublicTerms.Meta.LastUpdated")}{t("common.punctuation.colon")}</strong>{lastUpdated}</p>
-            <p><strong>{t("PublicTerms.Meta.AppDomain")}{t("common.punctuation.colon")}</strong><a href={appDomain}>{appDomain}</a></p>
+            <p><strong>{t("PublicTerms.Meta.AppName")}：</strong>{appName}</p>
+            <p><strong>{t("PublicTerms.Meta.LastUpdated")}：</strong>{lastUpdated}</p>
+            <p><strong>{t("PublicTerms.Meta.AppDomain")}：</strong><a href={appDomain}>{appDomain}</a></p>
           </div>
 
           <div className="section">
@@ -174,5 +173,9 @@ function TermsContent() {
 }
 
 export default function TermsPage() {
-  return <TermsContent />;
+  return (
+    <I18nextProvider i18n={i18n}>
+      <TermsContent />
+    </I18nextProvider>
+  );
 }

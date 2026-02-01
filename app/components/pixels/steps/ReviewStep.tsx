@@ -1,5 +1,4 @@
 import { Card, BlockStack, InlineStack, Text, Badge, Banner, Divider } from "@shopify/polaris";
-import { useTranslation } from "react-i18next";
 import { PLATFORM_INFO, type SupportedPlatform, type PlatformConfig } from "../constants";
 
 interface BackendUrlInfo {
@@ -18,33 +17,31 @@ export function ReviewStep({
   platformConfigs,
   backendUrlInfo,
 }: ReviewStepProps) {
-  const { t } = useTranslation();
   return (
     <Card>
       <BlockStack gap="400">
         <Text as="h3" variant="headingMd">
-          {t("pixelMigration.review.title")}
+          检查配置
         </Text>
         <Text as="p" tone="subdued">
-          {t("pixelMigration.review.description")}
+          确认平台、凭证与事件映射无误后保存配置。
         </Text>
         {backendUrlInfo?.placeholderDetected && (
           <Banner tone="critical">
             <BlockStack gap="300">
               <Text as="p" variant="bodySm" fontWeight="semibold">
-                {t("pixels.test.backendCheck.placeholder.title")}
+                ⚠️ 严重错误：检测到占位符，URL 未在构建时替换
               </Text>
               <Text as="p" variant="bodySm">
                 <strong>
-                  {t("pixels.test.backendCheck.placeholder.warning")}
-                </strong>
-                {t("pixels.test.backendCheck.placeholder.impactDesc")}
+                  像素扩展配置中仍包含 __BACKEND_URL_PLACEHOLDER__，这表明构建流程未正确替换占位符。</strong>
+                如果占位符未被替换，像素扩展将无法发送事件到后端，导致事件丢失。这是一个严重的配置错误，必须在上线前修复。
               </Text>
               <Text as="p" variant="bodySm" fontWeight="semibold">
-                {t("pixels.test.backendCheck.placeholder.fix")}
+                修复步骤（必须在生产环境部署前完成）：
               </Text>
               <Text as="p" variant="bodySm" tone="subdued">
-                {t("pixels.test.backendCheck.placeholder.explanation")}
+                💡 提示：如果占位符未被替换，像素扩展会静默禁用事件发送，不会显示错误。这是导致事件丢失的常见原因，必须在生产环境部署前修复。
               </Text>
             </BlockStack>
           </Banner>
@@ -53,10 +50,17 @@ export function ReviewStep({
           <Banner tone="info">
             <BlockStack gap="200">
               <Text as="p" variant="bodySm" fontWeight="semibold">
-                {t("pixels.test.backendCheck.status.configured")}
+                ✅ BACKEND_URL 已正确配置
               </Text>
               <Text as="p" variant="bodySm">
-                {t("pixels.test.backendCheck.status.configured")}
+                扩展的 BACKEND_URL 已正确注入。生产环境部署时，请确保始终使用{" "}
+                <code>pnpm deploy:ext</code> 命令，该命令会自动执行{" "}
+                <code>pnpm ext:inject</code> 注入 BACKEND_URL。禁止直接使用{" "}
+                <code>shopify app deploy</code>。
+              </Text>
+              <Text as="p" variant="bodySm">
+                <strong>重要：扩展的 BACKEND_URL 注入是生命线。</strong>
+                如果占位符未被替换，像素扩展会静默禁用事件发送，不会显示错误。这是导致事件丢失的常见原因，必须在生产环境部署前修复。
               </Text>
             </BlockStack>
           </Banner>
@@ -64,13 +68,14 @@ export function ReviewStep({
         <Banner tone="warning">
           <BlockStack gap="200">
             <Text as="p" variant="bodySm" fontWeight="semibold">
-              {t("pixelMigration.sandbox.title")}
+              ⚠️ Strict Sandbox 能力边界说明（App Review 重要信息）
             </Text>
             <Text as="p" variant="bodySm">
-              {t("pixelMigration.sandbox.desc")}
+              Web Pixel 运行在 strict sandbox (Web Worker) 环境中，以下能力受限：
             </Text>
             <Text as="p" variant="bodySm" tone="subdued">
-              {t("pixelMigration.sandbox.reason")}
+              💡 提示：这是 Shopify 平台的设计限制，不是应用故障。验收报告中会自动标注所有因 strict
+              sandbox 限制而无法获取的字段和事件。在 App Review 时，请向 Shopify 说明这些限制是平台设计，不是应用缺陷。
             </Text>
           </BlockStack>
         </Banner>
@@ -91,24 +96,24 @@ export function ReviewStep({
                     </Text>
                   </InlineStack>
                   <Badge tone={config.environment === "live" ? "critical" : "warning"}>
-                    {config.environment === "live" ? t("pixelMigration.credentials.liveMode") : t("pixelMigration.credentials.testMode")}
+                    {config.environment === "live" ? "生产" : "测试"}
                   </Badge>
                 </InlineStack>
                 <Divider />
                 <InlineStack align="space-between">
                   <Text as="span" tone="subdued">
-                    {t("pixelMigration.review.platformId")}
+                    平台 ID
                   </Text>
                   <Text as="span" fontWeight="semibold">
-                    {config.platformId || t("pixelMigration.review.notSet")}
+                    {config.platformId || "未填写"}
                   </Text>
                 </InlineStack>
                 <InlineStack align="space-between">
                   <Text as="span" tone="subdued">
-                    {t("pixelMigration.review.eventMapping")}
+                    事件映射
                   </Text>
                   <Text as="span">
-                    {t("pixelMigration.review.eventCount", { count: Object.keys(config.eventMappings || {}).length })}
+                    {Object.keys(config.eventMappings || {}).length} 个事件
                   </Text>
                 </InlineStack>
               </BlockStack>

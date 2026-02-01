@@ -1,4 +1,3 @@
-/* eslint-disable import/no-named-as-default-member */
 import i18next from "i18next";
 import { initReactI18next } from "react-i18next";
 import LanguageDetector from "i18next-browser-languagedetector";
@@ -6,12 +5,11 @@ import LanguageDetector from "i18next-browser-languagedetector";
 import en from "./locales/en.json";
 import zh from "./locales/zh.json";
 
-if (!i18next.isInitialized) {
-  i18next.use(initReactI18next);
-  if (typeof window !== "undefined") {
-    i18next.use(LanguageDetector);
-  }
-  i18next.init({
+// eslint-disable-next-line import/no-named-as-default-member
+i18next
+  .use(initReactI18next) // passes i18n down to react-i18next
+  .use(LanguageDetector)
+  .init({
     resources: {
       en: {
         translation: en,
@@ -23,26 +21,14 @@ if (!i18next.isInitialized) {
     fallbackLng: "en",
     supportedLngs: ["en", "zh"],
     debug: process.env.NODE_ENV === "development",
+
     interpolation: {
-      escapeValue: false,
+      escapeValue: false, // react already safes from xss => https://www.i18next.com/translation-function/interpolation#unescape
     },
-    react: {
-      useSuspense: false,
-    },
-    ...(typeof window !== "undefined"
-      ? {
-          detection: {
-            order: ["cookie", "localStorage", "navigator"],
-            caches: ["cookie", "localStorage"],
-            cookieName: "i18next",
-            cookieOptions: {
-              path: "/",
-              sameSite: "lax",
-            },
-          } as any,
-        }
-      : {}),
+    detection: {
+        order: ['localStorage', 'navigator'],
+        caches: ['localStorage'],
+    }
   });
-}
 
 export default i18next;

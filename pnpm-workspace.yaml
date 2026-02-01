@@ -1,4 +1,3 @@
 packages:
   - .
-  - extensions/post-checkout-badge
-  - extensions/tracking-pixel
+  - extensions/*

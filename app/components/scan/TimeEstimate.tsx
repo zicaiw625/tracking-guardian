@@ -1,6 +1,5 @@
 import { Text, InlineStack , Icon } from "@shopify/polaris";
 import { ClockIcon } from "../icons";
-import { useTranslation } from "react-i18next";
 
 export interface TimeEstimateProps {
   minutes: number;
@@ -13,17 +12,16 @@ export function TimeEstimate({
   variant = "bodySm",
   showIcon = true,
 }: TimeEstimateProps) {
-  const { t } = useTranslation();
   const formatTime = (): string => {
     if (minutes < 60) {
-      return t("scan.timeEstimate.minutes", { count: minutes });
+      return `${minutes} 分钟`;
     }
     const hours = Math.floor(minutes / 60);
     const remainingMinutes = minutes % 60;
     if (remainingMinutes === 0) {
-      return t("scan.timeEstimate.hours", { count: hours });
+      return `${hours} 小时`;
     }
-    return t("scan.timeEstimate.hoursMinutes", { hours, minutes: remainingMinutes });
+    return `${hours} 小时 ${remainingMinutes} 分钟`;
   };
   return (
     <InlineStack gap="100" blockAlign="center">

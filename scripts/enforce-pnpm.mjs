@@ -8,7 +8,6 @@ if (!isPnpm || isYarnPnp) {
   console.error(
     "This project now uses pnpm workspaces exclusively. Yarn (including Yarn PnP) and npm installs are not supported."
   );
-  console.error(`Current user agent: ${userAgent}`);
   console.error("Please reinstall dependencies with pnpm.");
   process.exit(1);
 }

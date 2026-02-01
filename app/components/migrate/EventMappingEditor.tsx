@@ -21,7 +21,6 @@ import {
   ArrowUpIcon,
   ArrowDownIcon,
 } from "~/components/icons";
-import { useTranslation, Trans } from "react-i18next";
 
 type Platform = "google" | "meta" | "tiktok";
 
@@ -51,31 +50,31 @@ const SHOPIFY_EVENTS: ShopifyEvent[] = [
   {
     id: "checkout_completed",
     name: "Checkout Completed",
-    description: "pixelMigration.eventMapping.shopifyEvents.checkout_completed",
+    description: "顾客完成结账",
     availableParams: ["value", "currency", "items", "order_id"],
   },
   {
     id: "checkout_started",
     name: "Checkout Started",
-    description: "pixelMigration.eventMapping.shopifyEvents.checkout_started",
+    description: "顾客开始结账",
     availableParams: ["value", "currency", "items"],
   },
   {
     id: "product_added_to_cart",
     name: "Product Added to Cart",
-    description: "pixelMigration.eventMapping.shopifyEvents.product_added_to_cart",
+    description: "添加商品到购物车",
     availableParams: ["value", "currency", "items"],
   },
   {
     id: "product_viewed",
     name: "Product Viewed",
-    description: "pixelMigration.eventMapping.shopifyEvents.product_viewed",
+    description: "查看商品详情",
     availableParams: ["value", "currency", "items"],
   },
   {
     id: "page_viewed",
     name: "Page Viewed",
-    description: "pixelMigration.eventMapping.shopifyEvents.page_viewed",
+    description: "页面浏览",
     availableParams: ["value", "currency"],
   },
 ];
@@ -85,28 +84,28 @@ const PLATFORM_EVENTS: Record<Platform, PlatformEvent[]> = {
     {
       id: "purchase",
       name: "Purchase",
-      description: "pixelMigration.eventMapping.platformEvents.purchase",
+      description: "完成购买",
       requiredParams: ["value", "currency"],
       optionalParams: ["items", "transaction_id"],
     },
     {
       id: "begin_checkout",
       name: "Begin Checkout",
-      description: "pixelMigration.eventMapping.platformEvents.begin_checkout",
+      description: "开始结账",
       requiredParams: ["value", "currency"],
       optionalParams: ["items"],
     },
     {
       id: "add_to_cart",
       name: "Add to Cart",
-      description: "pixelMigration.eventMapping.platformEvents.add_to_cart",
+      description: "添加到购物车",
       requiredParams: ["value", "currency"],
       optionalParams: ["items"],
     },
     {
       id: "view_item",
       name: "View Item",
-      description: "pixelMigration.eventMapping.platformEvents.view_item",
+      description: "查看商品",
       requiredParams: ["value", "currency"],
       optionalParams: ["items"],
     },
@@ -115,28 +114,28 @@ const PLATFORM_EVENTS: Record<Platform, PlatformEvent[]> = {
     {
       id: "Purchase",
       name: "Purchase",
-      description: "pixelMigration.eventMapping.platformEvents.purchase",
+      description: "完成购买",
       requiredParams: ["value", "currency"],
       optionalParams: ["content_ids", "content_type", "contents"],
     },
     {
       id: "InitiateCheckout",
       name: "Initiate Checkout",
-      description: "pixelMigration.eventMapping.platformEvents.initiate_checkout",
+      description: "开始结账",
       requiredParams: ["value", "currency"],
       optionalParams: ["content_ids", "content_type", "contents"],
     },
     {
       id: "AddToCart",
       name: "Add to Cart",
-      description: "pixelMigration.eventMapping.platformEvents.add_to_cart",
+      description: "添加到购物车",
       requiredParams: ["value", "currency"],
       optionalParams: ["content_ids", "content_type", "contents"],
     },
     {
       id: "ViewContent",
       name: "View Content",
-      description: "pixelMigration.eventMapping.platformEvents.view_content",
+      description: "查看内容",
       requiredParams: ["value", "currency"],
       optionalParams: ["content_ids", "content_type", "contents"],
     },
@@ -145,28 +144,28 @@ const PLATFORM_EVENTS: Record<Platform, PlatformEvent[]> = {
     {
       id: "CompletePayment",
       name: "Complete Payment",
-      description: "pixelMigration.eventMapping.platformEvents.complete_payment",
+      description: "完成支付",
       requiredParams: ["value", "currency"],
       optionalParams: ["content_type", "contents"],
     },
     {
       id: "InitiateCheckout",
       name: "Initiate Checkout",
-      description: "pixelMigration.eventMapping.platformEvents.initiate_checkout",
+      description: "开始结账",
       requiredParams: ["value", "currency"],
       optionalParams: ["content_type", "contents"],
     },
     {
       id: "AddToCart",
       name: "Add to Cart",
-      description: "pixelMigration.eventMapping.platformEvents.add_to_cart",
+      description: "添加到购物车",
       requiredParams: ["value", "currency"],
       optionalParams: ["content_type", "contents"],
     },
     {
       id: "ViewContent",
       name: "View Content",
-      description: "pixelMigration.eventMapping.platformEvents.view_content",
+      description: "查看内容",
       requiredParams: ["value", "currency"],
       optionalParams: ["content_type", "contents"],
     },
@@ -209,7 +208,6 @@ export function EventMappingEditor({
   onMappingChange,
   onEnableChange: _onEnableChange,
 }: EventMappingEditorProps) {
-  const { t } = useTranslation();
   const [selectedEvents, setSelectedEvents] = useState<Set<string>>(new Set());
   const [bulkMappingValue, setBulkMappingValue] = useState<string>("");
   const [showComparison, setShowComparison] = useState<boolean>(false);
@@ -225,25 +223,25 @@ export function EventMappingEditor({
       const shopifyEventDef = SHOPIFY_EVENTS.find((e) => e.id === shopifyEvent);
       const platformEventDef = platformEvents.find((e) => e.id === platformEvent);
       if (!shopifyEventDef) {
-        errors.push(t("pixelMigration.eventMapping.unknownShopifyEvent", { event: shopifyEvent }));
+        errors.push(`未知的 Shopify 事件: ${shopifyEvent}`);
         return { valid: false, errors };
       }
       if (!platformEventDef) {
-        errors.push(t("pixelMigration.eventMapping.unknownPlatformEvent", { event: platformEvent }));
+        errors.push(`未知的平台事件: ${platformEvent}`);
         return { valid: false, errors };
       }
       const missingParams = platformEventDef.requiredParams.filter(
         (param) => !shopifyEventDef.availableParams.includes(param)
       );
       if (missingParams.length > 0) {
-        errors.push(t("pixelMigration.eventMapping.missingRequiredParams", { params: missingParams.join(", ") }));
+        errors.push(`缺少必需参数: ${missingParams.join(", ")}`);
       }
       return {
         valid: errors.length === 0,
         errors,
       };
     },
-    [platformEvents, t]
+    [platformEvents]
   );
   const applyRecommended = useCallback(() => {
     const recommended = RECOMMENDED_MAPPINGS[platform];
@@ -343,17 +341,17 @@ export function EventMappingEditor({
       <BlockStack gap="400">
         <InlineStack align="space-between" blockAlign="center">
           <Text as="h3" variant="headingMd">
-            {t("pixelMigration.eventMapping.title", { platform: PLATFORM_NAMES[platform] })}
+            事件映射配置 - {PLATFORM_NAMES[platform]}
           </Text>
           <InlineStack gap="200">
             <Button size="slim" variant="plain" onClick={() => setShowComparison(!showComparison)}>
-              {showComparison ? t("pixelMigration.eventMapping.hideComparison") : t("pixelMigration.eventMapping.showComparison")}
+              {showComparison ? "隐藏对比" : "显示对比视图"}
             </Button>
             <Popover
               active={popoverActive}
               activator={
                 <Button size="slim" variant="plain" onClick={() => setPopoverActive(!popoverActive)}>
-                  {`📋 ${t("pixelMigration.eventMapping.templates")}`}
+                  📋 映射模板
                 </Button>
               }
               onClose={() => setPopoverActive(false)}
@@ -361,11 +359,11 @@ export function EventMappingEditor({
               <ActionList
                 items={[
                   {
-                    content: t("pixelMigration.eventMapping.templateRecommended"),
+                    content: "推荐映射（默认）",
                     onAction: applyRecommended,
                   },
                   {
-                    content: t("pixelMigration.eventMapping.templatePurchaseOnly"),
+                    content: "仅购买事件",
                     onAction: () => {
                       const purchaseMapping = RECOMMENDED_MAPPINGS[platform];
                       if (purchaseMapping.checkout_completed) {
@@ -374,7 +372,7 @@ export function EventMappingEditor({
                     },
                   },
                   {
-                    content: t("pixelMigration.eventMapping.templateFullFunnel"),
+                    content: "完整漏斗映射",
                     onAction: () => {
                       const recommended = RECOMMENDED_MAPPINGS[platform];
                       Object.entries(recommended).forEach(([shopifyEvent, platformEvent]) => {
@@ -386,7 +384,7 @@ export function EventMappingEditor({
               />
             </Popover>
             <Button size="slim" variant="primary" onClick={applyRecommended}>
-              {`✨ ${t("pixelMigration.eventMapping.applyRecommended")}`}
+              ✨ 一键应用推荐映射
             </Button>
           </InlineStack>
         </InlineStack>
@@ -394,16 +392,16 @@ export function EventMappingEditor({
           <Banner tone="info">
             <BlockStack gap="200">
               <Text as="p" variant="bodySm" fontWeight="semibold">
-                {t("pixelMigration.eventMapping.bulkEdit", { count: selectedEvents.size })}
+                批量编辑模式：已选择 {selectedEvents.size} 个事件
               </Text>
               <InlineStack gap="200" blockAlign="center">
                 <Select
-                  label={t("pixelMigration.eventMapping.bulkMapTo")}
+                  label="批量映射到"
                   labelHidden
                   options={[
-                    { label: t("pixelMigration.eventMapping.selectPlatformEvent"), value: "" },
+                    { label: "选择平台事件", value: "" },
                     ...platformEvents.map((event) => ({
-                      label: `${event.name} - ${t(event.description)}`,
+                      label: `${event.name} - ${event.description}`,
                       value: event.id,
                     })),
                   ]}
@@ -411,10 +409,10 @@ export function EventMappingEditor({
                   onChange={setBulkMappingValue}
                 />
                 <Button size="slim" onClick={applyBulkMapping} disabled={!bulkMappingValue}>
-                  {t("pixelMigration.eventMapping.apply")}
+                  应用
                 </Button>
                 <Button size="slim" variant="plain" onClick={clearSelection}>
-                  {t("pixelMigration.eventMapping.cancelSelection")}
+                  取消选择
                 </Button>
               </InlineStack>
             </BlockStack>
@@ -423,26 +421,27 @@ export function EventMappingEditor({
         <Banner tone="info">
           <BlockStack gap="200">
             <Text as="p" variant="bodySm">
-              {t("pixelMigration.eventMapping.description", { platform: PLATFORM_NAMES[platform] })}
+              将 Shopify 标准事件映射到 {PLATFORM_NAMES[platform]} 的事件名称。
+              我们已为您配置了推荐映射，您也可以自定义。
             </Text>
             <Box paddingBlockStart="200">
               <Text as="p" variant="bodySm" fontWeight="semibold">
-                {t("pixelMigration.eventMapping.bestPractices")}
+                最佳实践提示：
               </Text>
               <List type="bullet">
                 <List.Item>
                   <Text as="span" variant="bodySm">
-                    <Trans i18nKey="pixelMigration.eventMapping.bestPractices1" values={{ event: RECOMMENDED_MAPPINGS[platform].checkout_completed || "purchase" }} components={{ strong: <strong /> }} />
+                    <strong>checkout_completed</strong> → <strong>{RECOMMENDED_MAPPINGS[platform].checkout_completed || "purchase"}</strong>：这是最重要的转化事件，确保正确映射
                   </Text>
                 </List.Item>
                 <List.Item>
                   <Text as="span" variant="bodySm">
-                    {t("pixelMigration.eventMapping.bestPractices2")}
+                    建议启用完整漏斗追踪：product_viewed → product_added_to_cart → checkout_started → checkout_completed
                   </Text>
                 </List.Item>
                 <List.Item>
                   <Text as="span" variant="bodySm">
-                    {t("pixelMigration.eventMapping.bestPractices3")}
+                    所有事件都会自动包含 value、currency、items 等参数，无需手动配置
                   </Text>
                 </List.Item>
               </List>
@@ -455,16 +454,11 @@ export function EventMappingEditor({
             <Card>
               <BlockStack gap="300">
                 <Text as="h4" variant="headingSm">
-                  {t("pixelMigration.eventMapping.comparisonTitle")}
+                  映射对比视图
                 </Text>
                 <DataTable
                   columnContentTypes={["text", "text", "text", "text"]}
-                  headings={[
-                    t("pixelMigration.eventMapping.shopifyEvent"),
-                    t("pixelMigration.eventMapping.currentMapping"),
-                    t("pixelMigration.eventMapping.recommendedMapping"),
-                    t("pixelMigration.eventMapping.status")
-                  ]}
+                  headings={["Shopify 事件", "当前映射", "推荐映射", "状态"]}
                   rows={SHOPIFY_EVENTS.map((shopifyEvent) => {
                     const currentMapping = mappings[shopifyEvent.id] || "";
                     const recommendedMapping = RECOMMENDED_MAPPINGS[platform][shopifyEvent.id] || "";
@@ -473,14 +467,14 @@ export function EventMappingEditor({
                     const recommendedPlatformEvent = platformEvents.find(e => e.id === recommendedMapping);
                     return [
                       shopifyEvent.name,
-                      currentMapping ? `${platformEvent?.name || currentMapping}` : t("pixelMigration.eventMapping.notMapped"),
+                      currentMapping ? `${platformEvent?.name || currentMapping}` : "未映射",
                       recommendedMapping ? `${recommendedPlatformEvent?.name || recommendedMapping}` : "-",
                       isRecommended ? (
-                        <Badge key="rec" tone="success">{t("pixelMigration.eventMapping.recommended")}</Badge>
+                        <Badge key="rec" tone="success">推荐</Badge>
                       ) : currentMapping ? (
-                        <Badge key="custom" tone="info">{t("pixelMigration.eventMapping.custom")}</Badge>
+                        <Badge key="custom" tone="info">自定义</Badge>
                       ) : (
-                        <Badge key="none" tone="warning">{t("pixelMigration.eventMapping.notConfigured")}</Badge>
+                        <Badge key="none" tone="warning">未配置</Badge>
                       ),
                     ];
                   })}
@@ -492,15 +486,15 @@ export function EventMappingEditor({
         <BlockStack gap="300">
           <InlineStack align="space-between" blockAlign="center">
             <Text as="span" variant="bodySm" tone="subdued">
-              {t("pixelMigration.eventMapping.selectMultiple")}
+              选择多个事件可进行批量编辑
             </Text>
             <InlineStack gap="200">
               <Button size="slim" variant="plain" onClick={selectAll}>
-                {t("pixelMigration.eventMapping.selectAll")}
+                全选
               </Button>
               {selectedEvents.size > 0 && (
                 <Button size="slim" variant="plain" onClick={clearSelection}>
-                  {t("pixelMigration.eventMapping.clearSelection")}
+                  清除选择
                 </Button>
               )}
             </InlineStack>
@@ -532,7 +526,7 @@ export function EventMappingEditor({
                             icon={ArrowUpIcon}
                             onClick={() => moveEventUp(shopifyEvent.id)}
                             disabled={index === 0}
-                            accessibilityLabel={t("pixelMigration.eventMapping.moveUp")}
+                            accessibilityLabel="上移"
                           />
                           <Button
                             size="micro"
@@ -540,7 +534,7 @@ export function EventMappingEditor({
                             icon={ArrowDownIcon}
                             onClick={() => moveEventDown(shopifyEvent.id)}
                             disabled={index === orderedEvents.length - 1}
-                            accessibilityLabel={t("pixelMigration.eventMapping.moveDown")}
+                            accessibilityLabel="下移"
                           />
                         </ButtonGroup>
                       </InlineStack>
@@ -550,22 +544,22 @@ export function EventMappingEditor({
                             {shopifyEvent.name}
                           </Text>
                         {mappingStatus?.status === "recommended" && (
-                          <Badge tone="success">{t("pixelMigration.eventMapping.recommended")}</Badge>
+                          <Badge tone="success">推荐</Badge>
                         )}
                         {mappingStatus?.status === "error" && (
-                          <Badge tone="critical">{t("pixelMigration.eventMapping.error")}</Badge>
+                          <Badge tone="critical">错误</Badge>
                         )}
                         {mappingStatus?.status === "custom" && (
-                          <Badge tone="info">{t("pixelMigration.eventMapping.custom")}</Badge>
+                          <Badge tone="info">自定义</Badge>
                         )}
                         {showComparison && recommendedMapping && currentMapping !== recommendedMapping && (
                           <Badge tone="warning">
-                            {`${t("pixelMigration.eventMapping.recommendedMapping")}: ${platformEvents.find(e => e.id === recommendedMapping)?.name || recommendedMapping}`}
+                            {`推荐: ${platformEvents.find(e => e.id === recommendedMapping)?.name || recommendedMapping}`}
                           </Badge>
                         )}
                       </InlineStack>
                       <Text as="span" variant="bodySm" tone="subdued">
-                        {t(shopifyEvent.description)}
+                        {shopifyEvent.description}
                       </Text>
                     </BlockStack>
                   </InlineStack>
@@ -574,11 +568,11 @@ export function EventMappingEditor({
                     <InlineStack gap="200" blockAlign="end">
                       <Box minWidth="300">
                         <Select
-                          label={t("pixelMigration.eventMapping.bulkMapTo")}
+                          label="映射到平台事件"
                           options={[
-                            { label: t("pixelMigration.eventMapping.selectPlatformEvent"), value: "" },
+                            { label: "请选择事件", value: "" },
                             ...platformEvents.map((event) => ({
-                              label: `${event.name} - ${t(event.description)}`,
+                              label: `${event.name} - ${event.description}`,
                               value: event.id,
                             })),
                           ]}
@@ -592,7 +586,7 @@ export function EventMappingEditor({
                           variant="plain"
                           onClick={() => togglePreview(shopifyEvent.id)}
                         >
-                          {isPreviewOpen ? t("pixelMigration.eventMapping.hidePreview") : t("pixelMigration.eventMapping.previewJson")}
+                          {isPreviewOpen ? "隐藏预览" : "预览事件 JSON"}
                         </Button>
                       )}
                     </InlineStack>
@@ -601,7 +595,7 @@ export function EventMappingEditor({
                     <Box padding="300" background="bg-surface-secondary" borderRadius="200">
                       <BlockStack gap="200">
                         <Text as="span" variant="bodySm" fontWeight="semibold">
-                          {t("pixelMigration.eventMapping.previewTitle", { platform: PLATFORM_NAMES[platform] })}
+                          平台事件预览（{PLATFORM_NAMES[platform]}）：
                         </Text>
                         <Box
                           padding="300"
@@ -620,12 +614,12 @@ export function EventMappingEditor({
                           </pre>
                         </Box>
                         <Text as="span" variant="bodySm" tone="subdued">
-                          {t("pixelMigration.eventMapping.previewDesc", { platform: PLATFORM_NAMES[platform] })}
+                          这是发送到 {PLATFORM_NAMES[platform]} 的事件格式预览。实际发送时会使用订单的真实数据。
                         </Text>
                         <Divider />
                         <BlockStack gap="200">
                           <Text as="span" variant="bodySm" fontWeight="semibold">
-                            {t("pixelMigration.eventMapping.paramMappingDetails")}
+                            参数映射详情：
                           </Text>
                           <BlockStack gap="100">
                             {(() => {
@@ -640,7 +634,7 @@ export function EventMappingEditor({
                                 <>
                                   {mappedParams.length > 0 && (
                                     <InlineStack gap="100" wrap>
-                                      <Text as="span" variant="bodySm" tone="subdued">{t("pixelMigration.eventMapping.mappedParams")}</Text>
+                                      <Text as="span" variant="bodySm" tone="subdued">已映射参数：</Text>
                                       {mappedParams.map((param) => (
                                         <Badge key={param} tone="success">{param}</Badge>
                                       ))}
@@ -648,7 +642,7 @@ export function EventMappingEditor({
                                   )}
                                   {missingParams.length > 0 && (
                                     <InlineStack gap="100" wrap>
-                                      <Text as="span" variant="bodySm" tone="subdued">{t("pixelMigration.eventMapping.missingParams")}</Text>
+                                      <Text as="span" variant="bodySm" tone="subdued">缺失参数：</Text>
                                       {missingParams.map((param) => (
                                         <Badge key={param} tone="warning">{param}</Badge>
                                       ))}
@@ -675,12 +669,12 @@ export function EventMappingEditor({
                     <Box background="bg-surface-secondary" padding="300" borderRadius="200">
                       <BlockStack gap="300">
                         <Text as="span" variant="bodySm" fontWeight="semibold">
-                          {t("pixelMigration.eventMapping.paramMappingPreview")}
+                          参数映射预览：
                         </Text>
                         <BlockStack gap="200">
                           <BlockStack gap="100">
                             <Text as="span" variant="bodySm" fontWeight="semibold" tone="subdued">
-                              {t("pixelMigration.eventMapping.shopifyParams")}
+                              Shopify 事件参数：
                             </Text>
                             <InlineStack gap="100" wrap>
                               {shopifyEvent.availableParams.map((param: string) => (
@@ -692,12 +686,12 @@ export function EventMappingEditor({
                           </BlockStack>
                           <Box>
                             <Text as="span" variant="bodySm" tone="subdued">
-                              {t("pixelMigration.eventMapping.mapTo")}
+                              ↓ 映射到 ↓
                             </Text>
                           </Box>
                           <BlockStack gap="100">
                             <Text as="span" variant="bodySm" fontWeight="semibold" tone="subdued">
-                              {t("pixelMigration.eventMapping.platformParams", { platform: PLATFORM_NAMES[platform] })}
+                              {PLATFORM_NAMES[platform]} 事件参数：
                             </Text>
                             <InlineStack gap="100" wrap>
                               {(() => {
@@ -707,12 +701,12 @@ export function EventMappingEditor({
                                   <>
                                     {platformEventDef.requiredParams.map((param) => (
                                       <Badge key={param} tone="critical">
-                                        {`${t("pixelMigration.eventMapping.required")}: ${param}`}
+                                        {`必需: ${param}`}
                                       </Badge>
                                     ))}
                                     {platformEventDef.optionalParams.map((param) => (
                                       <Badge key={param} tone="info">
-                                        {`${t("pixelMigration.eventMapping.optional")}: ${param}`}
+                                        {`可选: ${param}`}
                                       </Badge>
                                     ))}
                                   </>
@@ -730,7 +724,7 @@ export function EventMappingEditor({
                               return (
                                 <Banner tone="warning">
                                   <Text as="p" variant="bodySm">
-                                    {t("pixelMigration.eventMapping.missingWarning", { params: missingParams.join(", ") })}
+                                    警告：缺少必需参数 {missingParams.join(", ")}。这些参数可能需要在服务端补充。
                                   </Text>
                                 </Banner>
                               );

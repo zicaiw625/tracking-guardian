@@ -1,6 +1,5 @@
 import { memo } from "react";
 import { Badge, BlockStack, Box, Card, Divider, InlineStack, List, Text } from "@shopify/polaris";
-import { useTranslation } from "react-i18next";
 
 export const DashboardRiskScoreCard = memo(function DashboardRiskScoreCard({
   riskScore,
@@ -13,22 +12,20 @@ export const DashboardRiskScoreCard = memo(function DashboardRiskScoreCard({
   estimatedMigrationTimeMinutes?: number | null;
   topRiskSources?: Array<{ source: string; count: number; category: string }>;
 }) {
-  const { t } = useTranslation();
-
   const riskBadge =
     riskLevel === "high"
-      ? { tone: "critical" as const, label: t("dashboard.riskScore.high") }
+      ? { tone: "critical" as const, label: "高风险" }
       : riskLevel === "medium"
-        ? { tone: "warning" as const, label: t("dashboard.riskScore.medium") }
+        ? { tone: "warning" as const, label: "中风险" }
         : riskLevel === "low"
-          ? { tone: "success" as const, label: t("dashboard.riskScore.low") }
-          : { tone: "info" as const, label: t("dashboard.riskScore.pending") };
+          ? { tone: "success" as const, label: "低风险" }
+          : { tone: "info" as const, label: "待评估" };
   const formatEstimatedTime = (minutes: number | null): string => {
-    if (minutes === null) return t("dashboard.riskScore.pendingCalc");
-    if (minutes < 60) return `${minutes} ${t("dashboard.riskScore.minutes")}`;
+    if (minutes === null) return "待计算";
+    if (minutes < 60) return `${minutes} 分钟`;
     const hours = Math.floor(minutes / 60);
     const mins = minutes % 60;
-    return mins > 0 ? `${hours} ${t("dashboard.riskScore.hours")} ${mins} ${t("dashboard.riskScore.minutes")}` : `${hours} ${t("dashboard.riskScore.hours")}`;
+    return mins > 0 ? `${hours} 小时 ${mins} 分钟` : `${hours} 小时`;
   };
   const riskColor = riskLevel === "high"
     ? "bg-fill-critical"
@@ -41,7 +38,7 @@ export const DashboardRiskScoreCard = memo(function DashboardRiskScoreCard({
     <Card>
       <BlockStack gap="400">
         <Text as="h2" variant="headingMd">
-          {t("dashboard.riskScore.title")}
+          风险分数
         </Text>
         <Box background={riskColor} padding="600" borderRadius="200">
           <BlockStack gap="200" align="center">
@@ -55,10 +52,10 @@ export const DashboardRiskScoreCard = memo(function DashboardRiskScoreCard({
             ) : (
               <>
                 <Text as="p" variant="headingLg" fontWeight="semibold">
-                  {t("dashboard.riskScore.pending")}
+                  待评估
                 </Text>
                 <Text as="p" variant="bodySm" tone="subdued">
-                  {t("dashboard.riskScore.pendingDesc")}
+                  完成体检后显示
                 </Text>
               </>
             )}
@@ -66,14 +63,14 @@ export const DashboardRiskScoreCard = memo(function DashboardRiskScoreCard({
         </Box>
         <InlineStack align="space-between" blockAlign="center">
           <Text as="span" variant="bodyMd" fontWeight="semibold">
-            {t("dashboard.riskScore.riskLevel")}
+            风险等级
           </Text>
           <Badge tone={riskBadge.tone}>{riskBadge.label}</Badge>
         </InlineStack>
         <Divider />
         <InlineStack align="space-between" blockAlign="center">
           <Text as="span" variant="bodyMd" fontWeight="semibold">
-            {t("dashboard.riskScore.estimatedTime")}
+            预计迁移时长
           </Text>
           <Text as="span" variant="bodyMd">
             {formatEstimatedTime(estimatedMigrationTimeMinutes ?? null)}
@@ -84,7 +81,7 @@ export const DashboardRiskScoreCard = memo(function DashboardRiskScoreCard({
             <Divider />
             <BlockStack gap="200">
               <Text as="span" variant="bodyMd" fontWeight="semibold">
-                {t("dashboard.riskScore.topRiskSources")}
+                主要风险来源
               </Text>
               <List>
                 {topRiskSources.map((source, index) => (
@@ -93,7 +90,7 @@ export const DashboardRiskScoreCard = memo(function DashboardRiskScoreCard({
                       <Text as="span" variant="bodySm">
                         {index + 1}. {source.source}
                       </Text>
-                      <Badge tone="critical">{`${source.count} ${t("dashboard.quickStats.unit")}`}</Badge>
+                      <Badge tone="critical">{`${source.count} 个`}</Badge>
                     </InlineStack>
                   </List.Item>
                 ))}

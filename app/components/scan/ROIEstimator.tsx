@@ -14,9 +14,6 @@ import {
 } from "@shopify/polaris";
 import { AlertCircleIcon, CheckCircleIcon, ArrowRightIcon } from "~/components/icons";
 import type { ScriptTag } from "../../types";
-import { getPlatformName } from "./utils";
-import { useTranslation, Trans } from "react-i18next";
-
 interface ROIEstimatorProps {
   riskScore: number;
   scriptTags: ScriptTag[];
@@ -32,7 +29,6 @@ export function ROIEstimator({
   monthlyOrders,
   onMonthlyOrdersChange,
 }: ROIEstimatorProps) {
-  const { t } = useTranslation();
   const roiEstimate = useMemo(() => {
     const platforms = identifiedPlatforms.length || 1;
     const scriptTagCount = scriptTags.length;
@@ -45,36 +41,30 @@ export function ROIEstimator({
       scriptTagCount,
     };
   }, [monthlyOrders, identifiedPlatforms, scriptTags]);
-
   if (riskScore === 0) return null;
-
-  const getRiskLevelText = (score: number) => {
-    if (score > 60) return t("scan.roiEstimator.comparison.current.risk.high");
-    if (score > 30) return t("scan.roiEstimator.comparison.current.risk.medium");
-    return t("scan.roiEstimator.comparison.current.risk.low");
-  };
-
   return (
     <Card>
       <BlockStack gap="400">
         <InlineStack align="space-between" blockAlign="center">
           <Text as="h2" variant="headingMd">
-            {t("scan.roiEstimator.title")}
+            📊 迁移影响分析（仅供参考）
           </Text>
-          <Badge tone="info">{t("scan.roiEstimator.badge")}</Badge>
+          <Badge tone="info">示例估算</Badge>
         </InlineStack>
         <Banner tone="warning">
           <Text as="p" variant="bodySm">
-            <Trans i18nKey="scan.roiEstimator.disclaimer" />
+            <strong>⚠️ 免责声明：</strong>以下为简化示意，仅帮助理解迁移的必要性。
+            实际业务影响因店铺业务模式、流量来源、客户群体、广告账户设置等多种因素而异，
+            本工具无法预测具体数值影响，不构成任何效果保证或承诺。
           </Text>
         </Banner>
         <Box background="bg-surface-secondary" padding="400" borderRadius="200">
           <BlockStack gap="300">
             <Text as="p" fontWeight="semibold">
-              {t("scan.roiEstimator.input.title")}
+              🧮 输入您的月订单量，查看具体影响
             </Text>
             <RangeSlider
-              label={t("scan.roiEstimator.input.label")}
+              label="月订单量"
               value={monthlyOrders}
               onChange={(value) => onMonthlyOrdersChange(value as number)}
               output
@@ -83,7 +73,7 @@ export function ROIEstimator({
               step={100}
               suffix={
                 <Text as="span" variant="bodySm">
-                  {t("scan.roiEstimator.input.suffix", { count: monthlyOrders })}
+                  {monthlyOrders} 单/月
                 </Text>
               }
             />
@@ -94,79 +84,50 @@ export function ROIEstimator({
             <InlineStack gap="200" blockAlign="center">
               <Icon source={AlertCircleIcon} tone="critical" />
               <Text as="h3" variant="headingMd" tone="critical">
-                {t("scan.roiEstimator.loss.title")}
+                不迁移会丢失什么？（示意说明）
               </Text>
             </InlineStack>
             <InlineStack gap="400" align="space-between" wrap>
               <Box background="bg-surface" padding="300" borderRadius="100" minWidth="150px">
                 <BlockStack gap="100">
                   <Text as="p" variant="bodySm" tone="subdued">
-                    {t("scan.roiEstimator.loss.events.label")}
+                    可能受影响的事件
                   </Text>
                   <Text as="p" variant="headingLg" fontWeight="bold" tone="critical">
                     {roiEstimate.eventsLostPerMonth.toLocaleString()}
                   </Text>
                   <Text as="p" variant="bodySm" tone="critical">
-                    {t("scan.roiEstimator.loss.events.desc", { platformCount: roiEstimate.platforms, orders: monthlyOrders })}
+                    {roiEstimate.platforms} 平台 × {monthlyOrders} 订单
                   </Text>
                 </BlockStack>
               </Box>
               <Box background="bg-surface" padding="300" borderRadius="100" minWidth="150px">
                 <BlockStack gap="100">
                   <Text as="p" variant="bodySm" tone="subdued">
-                    {t("scan.roiEstimator.loss.scriptTags.label")}
+                    受影响 ScriptTag
                   </Text>
                   <Text as="p" variant="headingLg" fontWeight="bold" tone="critical">
                     {roiEstimate.scriptTagCount}
                   </Text>
                   <Text as="p" variant="bodySm" tone="critical">
-                    {t("scan.roiEstimator.loss.scriptTags.desc")}
+                    将在截止日停止执行
                   </Text>
                 </BlockStack>
               </Box>
               <Box background="bg-surface" padding="300" borderRadius="100" minWidth="150px">
                 <BlockStack gap="100">
                   <Text as="p" variant="bodySm" tone="subdued">
-                    {t("scan.roiEstimator.loss.impact.label")}
+                    实际影响
                   </Text>
                   <Text as="p" variant="headingLg" fontWeight="bold" tone="caution">
-                    {t("scan.roiEstimator.loss.impact.title")}
+                    因店铺而异
                   </Text>
                   <Text as="p" variant="bodySm" tone="subdued">
-                    {t("scan.roiEstimator.loss.impact.desc")}
+                    取决于流量来源和客户群体
                   </Text>
                 </BlockStack>
               </Box>
             </InlineStack>
-            <BlockStack gap="200">
-              {identifiedPlatforms.length > 0 ? (
-                identifiedPlatforms.map((platform) => (
-                  <Box key={platform} background="bg-surface" padding="300" borderRadius="100">
-                    <InlineStack align="space-between" blockAlign="center">
-                      <InlineStack gap="200">
-                        <Badge tone="critical">{t("scan.roiEstimator.loss.platform.invalid")}</Badge>
-                        <Text as="span" fontWeight="semibold">{getPlatformName(platform, t)}</Text>
-                      </InlineStack>
-                      <Text as="span" variant="bodySm" tone="critical">
-                        {t("scan.roiEstimator.loss.platform.reference")}
-                      </Text>
-                    </InlineStack>
-                  </Box>
-                ))
-              ) : (
-                <Text as="p" variant="bodySm">
-                  {t("scan.roiEstimator.loss.allInvalid")}
-                </Text>
-              )}
-            </BlockStack>
-            <Banner tone="warning">
-              <Text as="p" variant="bodySm">
-                {t("scan.roiEstimator.loss.warning")}
-              </Text>
-              <Text as="p" variant="bodySm" tone="subdued">
-                {t("scan.roiEstimator.loss.dataSource")}
-              </Text>
-            </Banner>
           </BlockStack>
         </Box>
         <Divider />
@@ -175,82 +136,56 @@ export function ROIEstimator({
             <InlineStack gap="200" blockAlign="center">
               <Icon source={CheckCircleIcon} tone="success" />
               <Text as="h3" variant="headingMd" tone="success">
-                {t("scan.roiEstimator.gain.title")}
+                迁移后能恢复什么？（您的预期收益）
               </Text>
             </InlineStack>
             <InlineStack gap="400" align="space-between" wrap>
               <Box background="bg-surface" padding="300" borderRadius="100" minWidth="150px">
                 <BlockStack gap="100">
                   <Text as="p" variant="bodySm" tone="subdued">
-                    {t("scan.roiEstimator.gain.events.label")}
+                    每月恢复事件
                   </Text>
                   <Text as="p" variant="headingLg" fontWeight="bold" tone="success">
                     {roiEstimate.eventsLostPerMonth.toLocaleString()}
                   </Text>
                   <Text as="p" variant="bodySm" tone="success">
-                    {t("scan.roiEstimator.gain.events.desc")}
+                    转化追踪功能恢复
                   </Text>
                 </BlockStack>
               </Box>
               <Box background="bg-surface" padding="300" borderRadius="100" minWidth="150px">
                 <BlockStack gap="100">
                   <Text as="p" variant="bodySm" tone="subdued">
-                    {t("scan.roiEstimator.gain.potential.label")}
+                    潜在收益（示例）
                   </Text>
                   <Text as="p" variant="headingLg" fontWeight="bold" tone="success">
-                    {t("scan.roiEstimator.gain.potential.title")}
+                    确保追踪
                   </Text>
                   <Text as="p" variant="bodySm" tone="success">
-                    {t("scan.roiEstimator.gain.potential.desc")}
+                    避免数据中断
                   </Text>
                 </BlockStack>
               </Box>
               <Box background="bg-surface" padding="300" borderRadius="100" minWidth="150px">
                 <BlockStack gap="100">
                   <Text as="p" variant="bodySm" tone="subdued">
-                    {t("scan.roiEstimator.gain.webPixel.label")}
+                    验收与监控
                   </Text>
                   <Text as="p" variant="headingLg" fontWeight="bold" tone="success">
-                    {t("scan.roiEstimator.gain.webPixel.title")}
+                    更可靠
                   </Text>
                   <Text as="p" variant="bodySm" tone="success">
-                    {t("scan.roiEstimator.gain.webPixel.desc")}
+                    可验证可交付
                   </Text>
                 </BlockStack>
               </Box>
             </InlineStack>
-            <BlockStack gap="200">
-              {identifiedPlatforms.length > 0 ? (
-                identifiedPlatforms.map((platform) => (
-                  <Box key={platform} background="bg-surface" padding="300" borderRadius="100">
-                    <InlineStack align="space-between" blockAlign="center">
-                      <InlineStack gap="200">
-                        <Badge tone="success">{t("scan.roiEstimator.gain.platform.restored")}</Badge>
-                        <Text as="span" fontWeight="semibold">{getPlatformName(platform, t)}</Text>
-                      </InlineStack>
-                      <Text as="span" variant="bodySm" tone="success">
-                        {t("scan.roiEstimator.gain.platform.desc", { orders: monthlyOrders.toLocaleString() })}
-                      </Text>
-                    </InlineStack>
-                  </Box>
-                ))
-              ) : (
-                <Text as="p" variant="bodySm">
-                  {t("scan.roiEstimator.gain.allRestored")}
-                </Text>
-              )}
-            </BlockStack>
-            <Banner tone="success">
-              <Text as="p" variant="bodySm">
-                {t("scan.roiEstimator.gain.coreValue")}
-              </Text>
-            </Banner>
           </BlockStack>
         </Box>
         <Divider />
         <BlockStack gap="300">
           <Text as="h3" variant="headingMd">
-            {t("scan.roiEstimator.comparison.title")}
+            迁移前后对比
           </Text>
           <InlineStack gap="400" align="space-between" wrap={false}>
             <Box
@@ -261,13 +196,13 @@ export function ROIEstimator({
             >
               <BlockStack gap="100">
                 <Text as="p" variant="bodySm" tone="subdued">
-                  {t("scan.roiEstimator.comparison.current.label")}
+                  当前（不迁移）
                 </Text>
                 <Text as="p" variant="headingLg" fontWeight="bold" tone="critical">
-                  {getRiskLevelText(riskScore)}
+                  {riskScore > 60 ? "高风险" : riskScore > 30 ? "中风险" : "低风险"}
                 </Text>
                 <Text as="p" variant="bodySm" tone="critical">
-                  {t("scan.roiEstimator.comparison.current.desc", { count: scriptTags.length })}
+                  {scriptTags.length} 个 ScriptTag 将失效
                 </Text>
               </BlockStack>
             </Box>
@@ -282,13 +217,13 @@ export function ROIEstimator({
             >
               <BlockStack gap="100">
                 <Text as="p" variant="bodySm" tone="subdued">
-                  {t("scan.roiEstimator.comparison.after.label")}
+                  迁移后
                 </Text>
                 <Text as="p" variant="headingLg" fontWeight="bold" tone="success">
-                  {t("scan.roiEstimator.comparison.after.title")}
+                  功能恢复
                 </Text>
                 <Text as="p" variant="bodySm" tone="success">
-                  {t("scan.roiEstimator.comparison.after.desc")}
+                  Web Pixel + 验收闭环
                 </Text>
               </BlockStack>
             </Box>
@@ -303,26 +238,34 @@ export function ROIEstimator({
             >
               <BlockStack gap="100">
                 <Text as="p" variant="bodySm" tone="subdued">
-                  {t("scan.roiEstimator.comparison.extra.label")}
+                  额外收益
                 </Text>
                 <Text as="p" variant="headingLg" fontWeight="bold" tone="success">
-                  {t("scan.roiEstimator.comparison.extra.title")}
+                  更稳定
                 </Text>
                 <Text as="p" variant="bodySm" tone="success">
-                  {t("scan.roiEstimator.comparison.extra.desc")}
+                  不受隐私限制影响
                 </Text>
               </BlockStack>
             </Box>
           </InlineStack>
-          <Banner tone="info" title={t("scan.roiEstimator.comparison.certainty.title")}>
+          <Banner tone="info" title="验收与监控带来的确定性">
             <Text as="p" variant="bodySm">
-              <Trans i18nKey="scan.roiEstimator.comparison.certainty.content" components={{ br: <br />, span: <span /> }} />
+              ✅ 升级后可快速确认事件是否持续触发
+              <br />
+              ✅ 通过事件收据与参数完整率定位问题
+              <br />
+              ✅ 断档监控与告警降低上线后维护成本
+              <br />
+              <Text as="span" tone="subdued">
+                注：广告平台侧归因效果以平台数据为准
+              </Text>
             </Text>
           </Banner>
         </BlockStack>
         <InlineStack align="end" gap="200">
           <Button url="/app/migrate" variant="primary">
-            {t("scan.roiEstimator.action")}
+            立即开始迁移
           </Button>
         </InlineStack>
       </BlockStack>

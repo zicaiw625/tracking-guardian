@@ -129,13 +129,7 @@ export function ScanPageBanners({
             )}
             {upgradeStatus.lastUpdated && parseDateSafely(upgradeStatus.lastUpdated) && (
               <Text as="p" variant="bodySm" tone="subdued">
-                {t("scan.banners.upgradeStatus.lastUpdated", {
-                  date: parseDateSafely(upgradeStatus.lastUpdated)!.toLocaleString(
-                    (i18n.resolvedLanguage ?? i18n.language)?.toLowerCase().startsWith("zh")
-                      ? "zh-CN"
-                      : "en-US"
-                  ),
-                })}
+                {t("scan.banners.upgradeStatus.lastUpdated", { date: parseDateSafely(upgradeStatus.lastUpdated)!.toLocaleString(i18n.language === "en" ? "en-US" : "zh-CN") })}
               </Text>
             )}
           </BlockStack>

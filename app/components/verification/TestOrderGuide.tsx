@@ -19,7 +19,6 @@ import {
 import { useState, useCallback, useEffect } from "react";
 import { useFetcher } from "@remix-run/react";
 import { CheckoutCompletedBehaviorHint } from "./CheckoutCompletedBehaviorHint";
-import { useTranslation } from "react-i18next";
 
 export interface TestOrderGuideProps {
   shopDomain: string;
@@ -42,7 +41,6 @@ export function TestOrderGuide({
   testItems,
   onTestComplete,
 }: TestOrderGuideProps) {
-  const { t } = useTranslation();
   const [copiedItem, setCopiedItem] = useState<string | null>(null);
   const [expandedItems, setExpandedItems] = useState<Set<string>>(new Set());
   const [testStatuses, setTestStatuses] = useState<Record<string, "pending" | "verifying" | "verified" | "failed">>({});
@@ -121,34 +119,34 @@ export function TestOrderGuide({
       <BlockStack gap="400">
         <BlockStack gap="200">
           <Text as="h2" variant="headingMd">
-            {t("verification.guide.title")}
+            📋 测试订单指引
           </Text>
           <Text as="p" tone="subdued">
-            {t("verification.guide.description")}
+            按照以下步骤创建测试订单，验证像素追踪是否正常工作。
           </Text>
         </BlockStack>
         <Banner tone="info">
           <BlockStack gap="200">
             <Text as="p" variant="bodySm" fontWeight="semibold">
-              {t("verification.guide.quickStart.title")}
+              快速开始（PRD 2.5: 对齐 Shopify 官方测试路径）
             </Text>
             <List type="bullet">
               <List.Item>
-                {t("verification.guide.quickStart.step1")}
+                在 Shopify 后台启用测试模式（Settings → Checkout → Test mode）
               </List.Item>
               <List.Item>
-                {t("verification.guide.quickStart.step2")}
+                使用测试支付方式（Bogus Gateway）完成订单
               </List.Item>
               <List.Item>
-                {t("verification.guide.quickStart.step3")}
+                在实时监控中查看事件触发情况
               </List.Item>
             </List>
             <Text as="p" variant="bodySm" tone="subdued">
-              <strong>{t("verification.guide.quickStart.reference")}</strong>
+              <strong>参考 Shopify 官方文档：</strong>
               <br />
-              • <a href="https://help.shopify.com/en/manual/checkout-settings/test-checkout" target="_blank" rel="noopener noreferrer">{t("verification.guide.quickStart.link1")}</a>
+              • <a href="https://help.shopify.com/en/manual/checkout-settings/test-checkout" target="_blank" rel="noopener noreferrer">测试结账流程</a>
               <br />
-              • <a href="https://help.shopify.com/en/manual/online-store/themes/customizing-themes/checkout-extensibility/web-pixels-api/test-custom-pixels" target="_blank" rel="noopener noreferrer">{t("verification.guide.quickStart.link2")}</a>
+              • <a href="https://help.shopify.com/en/manual/online-store/themes/customizing-themes/checkout-extensibility/web-pixels-api/test-custom-pixels" target="_blank" rel="noopener noreferrer">测试自定义像素</a>
             </Text>
           </BlockStack>
         </Banner>
@@ -164,12 +162,12 @@ export function TestOrderGuide({
                     <BlockStack gap="100">
                       <InlineStack gap="200" blockAlign="center">
                         <Text as="span" fontWeight="semibold">
-                          {t(`verification.testItems.${item.id}.name`) || item.name}
+                          {item.name}
                         </Text>
-                        <Badge tone="info">{t("verification.guide.testScenario")}</Badge>
+                        <Badge tone="info">测试场景</Badge>
                       </InlineStack>
                       <Text as="span" variant="bodySm" tone="subdued">
-                        {t(`verification.testItems.${item.id}.description`) || item.description}
+                        {item.description}
                       </Text>
                     </BlockStack>
                     <Button
@@ -177,7 +175,7 @@ export function TestOrderGuide({
                       variant="plain"
                       onClick={() => toggleExpanded(item.id)}
                     >
-                      {isExpanded ? t("verification.common.collapse") : t("verification.common.expand")}
+                      {isExpanded ? "收起" : "展开"}
                     </Button>
                   </InlineStack>
                   <Collapsible
@@ -190,32 +188,32 @@ export function TestOrderGuide({
                       <BlockStack gap="200">
                         <InlineStack align="space-between" blockAlign="center">
                           <Text as="h4" variant="headingSm">
-                            {t("verification.guide.steps")}
+                            操作步骤
                           </Text>
                           <Button
                             size="slim"
                             variant="plain"
                             icon={ClipboardIcon}
                             onClick={() => {
-                              const stepsText = item.steps.map((step, idx) => `${idx + 1}. ${t(`verification.testItems.${item.id}.steps.${idx}`) || step}`).join("\n");
+                              const stepsText = item.steps.map((step, idx) => `${idx + 1}. ${step}`).join("\n");
                               handleCopy(stepsText, `${item.id}-steps`);
                             }}
                           >
-                            {t("verification.guide.copyAll")}
+                            复制所有步骤
                           </Button>
                         </InlineStack>
                         <List type="number">
                           {item.steps.map((step, idx) => (
                             <List.Item key={idx}>
                               <InlineStack gap="200" blockAlign="center">
-                                <Text as="span">{t(`verification.testItems.${item.id}.steps.${idx}`) || step}</Text>
+                                <Text as="span">{step}</Text>
                                 <Button
                                   size="micro"
                                   variant="plain"
                                   icon={ClipboardIcon}
-                                  onClick={() => handleCopy(t(`verification.testItems.${item.id}.steps.${idx}`) || step, `${item.id}-step-${idx}`)}
+                                  onClick={() => handleCopy(step, `${item.id}-step-${idx}`)}
                                 >
-                                  {t("verification.common.copy")}
+                                  复制
                                 </Button>
                               </InlineStack>
                             </List.Item>
@@ -225,7 +223,7 @@ export function TestOrderGuide({
                       <BlockStack gap="200">
                         <InlineStack align="space-between" blockAlign="center">
                           <Text as="h4" variant="headingSm">
-                            {t("verification.guide.expectedEvents")}
+                            预期事件
                           </Text>
                           <Button
                             size="slim"
@@ -236,12 +234,12 @@ export function TestOrderGuide({
                             disabled={testStatuses[item.id] === "verifying"}
                           >
                             {testStatuses[item.id] === "verifying"
-                              ? t("verification.status.verifying")
+                              ? "验证中..."
                               : testStatuses[item.id] === "verified"
-                                ? t("verification.status.verified")
+                                ? "已验证"
                                 : testStatuses[item.id] === "failed"
-                                  ? t("verification.status.verificationFailed")
-                                  : t("verification.actions.autoVerify")}
+                                  ? "验证失败"
+                                  : "自动验证"}
                           </Button>
                         </InlineStack>
                         <InlineStack gap="100" wrap>
@@ -279,7 +277,7 @@ export function TestOrderGuide({
                             <BlockStack gap="200">
                               <InlineStack align="space-between" blockAlign="center">
                                 <Text as="span" variant="bodySm" fontWeight="semibold">
-                                  {t("verification.results.title")}
+                                  验证结果
                                 </Text>
                                 <Badge
                                   tone={
@@ -289,20 +287,18 @@ export function TestOrderGuide({
                                   }
                                 >
                                   {verificationResults[item.id].verified
-                                    ? t("verification.status.passed")
-                                    : t("verification.status.notPassed")}
+                                    ? "通过"
+                                    : "未通过"}
                                 </Badge>
                               </InlineStack>
                               <Text as="span" variant="bodySm">
-                                {t("verification.results.eventsFound", { 
-                                    0: verificationResults[item.id].eventsFound, 
-                                    1: verificationResults[item.id].expectedEvents 
-                                })}
+                                找到 {verificationResults[item.id].eventsFound} /{" "}
+                                {verificationResults[item.id].expectedEvents} 个预期事件
                               </Text>
                               {verificationResults[item.id].missingEvents.length > 0 && (
                                 <BlockStack gap="200">
                                   <Text as="span" variant="bodySm" fontWeight="semibold">
-                                    {t("verification.results.missingEvents")}
+                                    缺失事件：
                                   </Text>
                                   <List type="bullet">
                                     {verificationResults[item.id].missingEvents.map(
@@ -347,7 +343,7 @@ export function TestOrderGuide({
                         <BlockStack gap="200">
                           <InlineStack align="space-between" blockAlign="center">
                             <Text as="span" variant="bodySm" fontWeight="semibold">
-                              {t("verification.guide.testStoreLink")}
+                              测试店铺链接
                             </Text>
                             <Button
                               size="slim"
@@ -355,7 +351,7 @@ export function TestOrderGuide({
                               icon={isCopied ? CheckCircleIcon : ClipboardIcon}
                               onClick={() => handleCopy(testStoreUrl, item.id)}
                             >
-                              {isCopied ? t("verification.common.copied") : t("verification.common.copyLink")}
+                              {isCopied ? "已复制" : "复制链接"}
                             </Button>
                           </InlineStack>
                           <Text as="span" variant="bodySm" tone="subdued">
@@ -374,17 +370,17 @@ export function TestOrderGuide({
         <Banner tone="warning">
           <BlockStack gap="200">
             <Text as="p" variant="bodySm" fontWeight="semibold">
-              {t("verification.guide.notice.title")}
+              ⚠️ 注意事项
             </Text>
             <List type="bullet">
               <List.Item>
-                {t("verification.guide.notice.item1")}
+                测试订单不会产生实际费用，但会触发真实的像素事件
               </List.Item>
               <List.Item>
-                {t("verification.guide.notice.item2")}
+                建议在测试环境中完成所有验证，再切换到生产模式
               </List.Item>
               <List.Item>
-                {t("verification.guide.notice.item3")}
+                如果事件未触发，请检查像素配置和网络连接
               </List.Item>
             </List>
           </BlockStack>

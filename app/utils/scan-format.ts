@@ -17,7 +17,7 @@ export function formatScanHistoryForTable(
       const createdAt = parseDateSafely(scan.createdAt);
       const status = getStatusText(scan.status || "", t);
       return [
-        createdAt ? safeFormatDate(createdAt) : (t ? t("common.unknown") : "Unknown"),
+        createdAt ? safeFormatDate(createdAt) : (t ? t("common.unknown") : "未知"),
         riskScore,
         platforms.join(", ") || "-",
         status,
@@ -65,24 +65,24 @@ export function generateChecklistText(
 ): string {
   
   const _t = t || ((key: string, _options?: any) => {
-      // Fallback for English if no t provided
-      if (key === "scan.checklist.export.title") return "Migration Checklist";
-      if (key === "scan.checklist.export.shop") return "Shop";
-      if (key === "scan.checklist.export.generatedAt") return "Generated At";
-      if (key === "scan.checklist.export.pendingItems") return "Pending Items";
-      if (key === "scan.checklist.export.quickLinks") return "Quick Links";
-      if (key === "scan.checklist.export.pixelsAdmin") return "Pixels Management";
+      // Fallback for Chinese if no t provided
+      if (key === "scan.checklist.export.title") return "迁移清单";
+      if (key === "scan.checklist.export.shop") return "店铺";
+      if (key === "scan.checklist.export.generatedAt") return "生成时间";
+      if (key === "scan.checklist.export.pendingItems") return "待处理项目";
+      if (key === "scan.checklist.export.quickLinks") return "快速链接";
+      if (key === "scan.checklist.export.pixelsAdmin") return "Pixels 管理";
       if (key === "scan.checklist.export.checkoutEditor") return "Checkout Editor";
-      if (key === "scan.checklist.export.migrationTool") return "App Migration Tool";
-      if (key === "scan.checklist.export.needDomain") return "(Need Shop Domain)";
-      if (key === "scan.checklist.export.unknown") return "Unknown";
-      if (key === "scan.checklist.export.priorityHigh") return "High";
-      if (key === "scan.checklist.export.priorityMedium") return "Medium";
-      if (key === "scan.checklist.export.priorityLow") return "Low";
-      if (key === "scan.checklist.export.priorityHighFull") return "High Priority";
-      if (key === "scan.checklist.export.priorityMediumFull") return "Medium Priority";
-      if (key === "scan.checklist.export.priorityLowFull") return "Low Priority";
-      if (key === "scan.checklist.export.none") return "None";
+      if (key === "scan.checklist.export.migrationTool") return "应用迁移工具";
+      if (key === "scan.checklist.export.needDomain") return "(需要店铺域名)";
+      if (key === "scan.checklist.export.unknown") return "未知";
+      if (key === "scan.checklist.export.priorityHigh") return "高";
+      if (key === "scan.checklist.export.priorityMedium") return "中";
+      if (key === "scan.checklist.export.priorityLow") return "低";
+      if (key === "scan.checklist.export.priorityHighFull") return "高优先级";
+      if (key === "scan.checklist.export.priorityMediumFull") return "中优先级";
+      if (key === "scan.checklist.export.priorityLowFull") return "低优先级";
+      if (key === "scan.checklist.export.none") return "无";
       return key;
   });
 

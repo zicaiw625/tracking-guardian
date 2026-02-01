@@ -1,7 +1,7 @@
 import type { LoaderFunctionArgs, ActionFunctionArgs } from "@remix-run/node";
 import { json } from "@remix-run/node";
 import { useLoaderData, useSubmit, useActionData } from "@remix-run/react";
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import {
   Page,
   Layout,
@@ -18,7 +18,6 @@ import {
   List,
   Box,
 } from "@shopify/polaris";
-import { useTranslation, Trans } from "react-i18next";
 import { FileIcon } from "~/components/icons";
 import { useToastContext, EnhancedEmptyState } from "~/components/ui";
 import { PageIntroCard } from "~/components/layout/PageIntroCard";
@@ -122,24 +121,24 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
   const formData = await request.formData();
   const actionType = formData.get("_action");
   if (!runId) {
-    return json({ success: false, error: "MISSING_RUN_ID" }, { status: 400 });
+    return json({ success: false, error: "Missing runId" }, { status: 400 });
   }
   const shop = await prisma.shop.findUnique({
     where: { shopDomain },
     select: { id: true, plan: true },
   });
   if (!shop) {
-    return json({ success: false, error: "SHOP_NOT_FOUND" }, { status: 404 });
+    return json({ success: false, error: "Shop not found" }, { status: 404 });
   }
   const planId = normalizePlanId(shop.plan || "free") as PlanId;
   const canExportReports = planSupportsReportExport(planId);
   if (actionType === "export_csv") {
     if (!canExportReports) {
-      return json({ success: false, error: "EXPORT_RESTRICTED" }, { status: 403 });
+      return json({ success: false, error: "需要 Growth 或 Agency 套餐才能导出报告" }, { status: 403 });
     }
     const reportData = await generateVerificationReportData(shop.id, runId);
     if (!reportData) {
-      return json({ success: false, error: "REPORT_NOT_FOUND" }, { status: 404 });
+      return json({ success: false, error: "报告数据未找到" }, { status: 404 });
     }
     const csv = generateVerificationReportCSV(reportData);
     const timestamp = new Date().toISOString().split("T")[0];
@@ -151,52 +150,32 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
       }),
     });
   }
-  return json({ success: false, error: "UNKNOWN_ACTION" }, { status: 400 });
+  return json({ success: false, error: "Unknown action" }, { status: 400 });
 };
 
 export default function VerificationReportPage() {
-  const { t, i18n } = useTranslation();
   const { shop, run, reportData, canExportReports, gateResult, currentPlan, pixelStrictOrigin } = useLoaderData<typeof loader>();
   const submit = useSubmit();
-  const actionData = useActionData<typeof action>() as { success: boolean; error?: string } | undefined;
-  const { showError } = useToastContext();
-
-  useEffect(() => {
-    if (actionData?.error) {
-      let message = actionData.error;
-      if (message === "EXPORT_RESTRICTED") {
-        message = t("verification.report.errors.exportNeedPlan");
-      } else if (message === "REPORT_NOT_FOUND") {
-        message = t("verification.report.errors.reportDataNotFound");
-      } else if (message === "UNKNOWN_ACTION") {
-        message = t("verification.report.errors.unknownAction");
-      } else if (message === "MISSING_RUN_ID") {
-        message = t("verification.report.errors.missingRunId");
-      } else if (message === "SHOP_NOT_FOUND") {
-        message = t("verification.report.errors.shopNotFound");
-      }
-      showError(message);
-    }
-  }, [actionData, t, showError]);
-
+  useActionData<typeof action>();
+  useToastContext();
   const [isExporting, setIsExporting] = useState(false);
   if (!shop) {
     return (
-      <Page title={t("verification.report.title")}>
+      <Page title="验收报告">
         <Banner tone="warning">
-          <Text as="p">{t("verification.report.errors.shopNotFound")}</Text>
+          <Text as="p">店铺信息未找到，请重新安装应用。</Text>
         </Banner>
       </Page>
     );
   }
   if (!run || !reportData) {
     return (
-      <Page title={t("verification.report.title")}>
+      <Page title="验收报告">
         <EnhancedEmptyState
           icon="⚠️"
-          title={t("verification.report.notFound.title")}
-          description={t("verification.report.notFound.description")}
-          primaryAction={{ content: t("verification.report.notFound.action"), url: "/app/verification" }}
+          title="报告未找到"
+          description="验收运行记录不存在或无权访问。"
+          primaryAction={{ content: "返回验收页面", url: "/app/verification" }}
         />
       </Page>
     );
@@ -211,30 +190,28 @@ export default function VerificationReportPage() {
   const getStatusBadge = (status: string) => {
     switch (status) {
       case "completed":
-        return <Badge tone="success">{t("verification.report.status.completed")}</Badge>;
+        return <Badge tone="success">已完成</Badge>;
       case "running":
-        return <Badge tone="info">{t("verification.report.status.running")}</Badge>;
+        return <Badge tone="info">进行中</Badge>;
       case "failed":
-        return <Badge tone="critical">{t("verification.report.status.failed")}</Badge>;
+        return <Badge tone="critical">失败</Badge>;
       default:
-        return <Badge>{t("verification.report.status.pending")}</Badge>;
+        return <Badge>待开始</Badge>;
     }
   };
   const formatDate = (date?: Date | string) => {
-    if (date == null) return t("verification.report.status.pending");
-    return new Date(date).toLocaleString(
-      (i18n.resolvedLanguage ?? i18n.language)?.toLowerCase().startsWith("zh") ? "zh-CN" : "en-US"
-    );
+    if (date == null) return "未开始";
+    return new Date(date).toLocaleString("zh-CN");
   };
   return (
     <Page
-      title={`${t("verification.report.title")} - ${reportData.runName}`}
-      subtitle={t("verification.report.subtitle")}
-      backAction={{ content: t("verification.report.intro.primaryAction"), url: "/app/verification" }}
+      title={`验收报告 - ${reportData.runName}`}
+      subtitle="PRD 2.5: 导出验收报告（CSV）"
+      backAction={{ content: "返回验收页面", url: "/app/verification" }}
       primaryAction={
         canExportReports
           ? {
-              content: t("verification.report.exportCSV"),
+              content: "导出 CSV",
               icon: FileIcon,
               onAction: handleExportCSV,
               loading: isExporting,
@@ -245,14 +222,14 @@ export default function VerificationReportPage() {
     >
       <BlockStack gap="500">
         <PageIntroCard
-          title={t("verification.report.intro.title")}
-          description={t("verification.report.intro.description")}
+          title="验收报告说明"
+          description="报告用于交付验收结果，包含事件触发、参数完整率与一致性检查。"
           items={[
-            t("verification.report.intro.item1"),
-            t("verification.report.intro.item2"),
+            "支持 CSV 导出",
+            "可用于客户/管理层验收签收",
           ]}
-          primaryAction={{ content: t("verification.report.intro.primaryAction"), url: "/app/verification" }}
-          secondaryAction={{ content: t("verification.report.intro.secondaryAction"), url: "/app/reports" }}
+          primaryAction={{ content: "返回验收", url: "/app/verification" }}
+          secondaryAction={{ content: "报告中心", url: "/app/reports" }}
         />
         {!canExportReports && (
           <UpgradePrompt
@@ -265,7 +242,7 @@ export default function VerificationReportPage() {
           <BlockStack gap="400">
             <InlineStack align="space-between" blockAlign="center">
               <Text as="h2" variant="headingMd">
-                {t("verification.report.info.title")}
+                报告信息
               </Text>
               {getStatusBadge(reportData.status)}
             </InlineStack>
@@ -274,7 +251,7 @@ export default function VerificationReportPage() {
               <Layout.Section variant="oneThird">
                 <BlockStack gap="200">
                   <Text as="span" variant="bodySm" tone="subdued">
-                    {t("verification.report.info.name")}
+                    报告名称
                   </Text>
                   <Text as="span" variant="bodyMd" fontWeight="semibold">
                     {reportData.runName}
@@ -284,17 +261,17 @@ export default function VerificationReportPage() {
               <Layout.Section variant="oneThird">
                 <BlockStack gap="200">
                   <Text as="span" variant="bodySm" tone="subdued">
-                    {t("verification.report.info.type")}
+                    测试类型
                   </Text>
                   <Text as="span" variant="bodyMd">
-                    {reportData.runType === "quick" ? t("verification.report.type.quick") : reportData.runType === "full" ? t("verification.report.type.full") : t("verification.report.type.custom")}
+                    {reportData.runType === "quick" ? "快速测试" : reportData.runType === "full" ? "完整测试" : "自定义测试"}
                   </Text>
                 </BlockStack>
               </Layout.Section>
               <Layout.Section variant="oneThird">
                 <BlockStack gap="200">
                   <Text as="span" variant="bodySm" tone="subdued">
-                    {t("verification.report.info.completedAt")}
+                    完成时间
                   </Text>
                   <Text as="span" variant="bodyMd">
                     {formatDate(reportData.completedAt)}
@@ -307,7 +284,7 @@ export default function VerificationReportPage() {
         <Card>
           <BlockStack gap="400">
             <Text as="h2" variant="headingMd">
-              {t("verification.report.summary.title")}
+              测试摘要
             </Text>
             <Layout>
               <Layout.Section variant="oneThird">
@@ -317,7 +294,7 @@ export default function VerificationReportPage() {
                       {reportData.summary.totalTests}
                     </Text>
                     <Text as="p" variant="bodySm" tone="subdued">
-                      {t("verification.report.summary.totalTests")}
+                      总测试数
                     </Text>
                   </BlockStack>
                 </Box>
@@ -329,7 +306,7 @@ export default function VerificationReportPage() {
                       {reportData.summary.passedTests}
                     </Text>
                     <Text as="p" variant="bodySm" tone="subdued">
-                      {t("verification.report.summary.passed")}
+                      通过
                     </Text>
                   </BlockStack>
                 </Box>
@@ -341,7 +318,7 @@ export default function VerificationReportPage() {
                       {reportData.summary.failedTests}
                     </Text>
                     <Text as="p" variant="bodySm" tone="subdued">
-                      {t("verification.report.summary.failed")}
+                      失败
                     </Text>
                   </BlockStack>
                 </Box>
@@ -352,7 +329,7 @@ export default function VerificationReportPage() {
               <BlockStack gap="200">
                 <InlineStack align="space-between" blockAlign="center">
                   <Text as="span" variant="bodyMd" fontWeight="semibold">
-                    {t("verification.report.summary.completeness")}
+                    参数完整率
                   </Text>
                   <Text as="span" variant="headingMd" tone={reportData.summary.parameterCompleteness >= 90 ? "success" : reportData.summary.parameterCompleteness >= 70 ? "caution" : "critical"}>
                     {reportData.summary.parameterCompleteness.toFixed(1)}%
@@ -366,7 +343,7 @@ export default function VerificationReportPage() {
               <BlockStack gap="200">
                 <InlineStack align="space-between" blockAlign="center">
                   <Text as="span" variant="bodyMd" fontWeight="semibold">
-                    {t("verification.report.summary.accuracy")}
+                    金额准确率
                   </Text>
                   <Text as="span" variant="headingMd" tone={reportData.summary.valueAccuracy >= 95 ? "success" : reportData.summary.valueAccuracy >= 80 ? "caution" : "critical"}>
                     {reportData.summary.valueAccuracy.toFixed(1)}%
@@ -384,16 +361,11 @@ export default function VerificationReportPage() {
           <Card>
             <BlockStack gap="400">
               <Text as="h2" variant="headingMd">
-                {t("verification.report.platform.title")}
+                平台统计
               </Text>
               <DataTable
                 columnContentTypes={["text", "numeric", "numeric", "numeric"]}
-                headings={[
-                  t("verification.report.platform.headings.platform"),
-                  t("verification.report.platform.headings.sent"),
-                  t("verification.report.platform.headings.failed"),
-                  t("verification.report.platform.headings.rate"),
-                ]}
+                headings={["平台", "成功发送", "发送失败", "成功率"]}
                 rows={Object.entries(reportData.platformResults).map(([platform, stats]) => {
                   const total = stats.sent + stats.failed;
                   const successRate = total > 0 ? Math.round((stats.sent / total) * 100) : 0;
@@ -412,71 +384,61 @@ export default function VerificationReportPage() {
           <Card>
             <BlockStack gap="400">
               <Text as="h2" variant="headingMd">
-                {t("verification.report.events.title")}
+                事件详情
               </Text>
               <Banner tone="info">
                 <BlockStack gap="200">
                   <Text as="p" variant="bodySm">
-                    <Trans i18nKey="verification.report.events.notice" components={{ strong: <strong /> }} />
+                    💡 <strong>注意：</strong>以下事件包含发往平台的请求 payload 证据链。如果某些字段（如姓名、邮箱、电话、地址）为 null，可能是由于 PCD (Protected Customer Data) 需要额外 scope 审批（2025-12-10 起生效）或用户未同意 consent。这是 Shopify 平台的合规行为，不是故障。
                   </Text>
                   <Text as="p" variant="bodySm" fontWeight="semibold">
-                    <Trans i18nKey="verification.report.events.checkoutCompletedNote" components={{ strong: <strong /> }} />
+                    ⚠️ <strong>checkout_completed 事件触发行为说明（重要）：</strong>
                   </Text>
                   <Text as="p" variant="bodySm">
-                    <Trans i18nKey="verification.report.events.checkoutCompletedDesc" components={{ strong: <strong /> }} />
+                    <strong>checkout_completed</strong> 不一定在 Thank you 页触发，且通常只触发一次。当存在 upsell 或 post-purchase offer 时，事件会在第一层 upsell 页触发，且不会在 Thank you 页再次触发。这是 Shopify 的预期行为，不是故障。如果页面加载失败或用户快速离开，事件可能不会触发。验收报告会标注事件触发位置和可能缺失的原因，帮助区分"正常缺失"和"实际故障"。
                   </Text>
                   <Text as="p" variant="bodySm">
-                    <Trans i18nKey="verification.report.events.sandboxNote" components={{ strong: <strong /> }} />
+                    ⚠️ <strong>Strict Sandbox 限制（已自动标注）：</strong>Web Pixel 运行在 strict sandbox (Web Worker) 环境中，无法访问 DOM、localStorage、第三方 cookie 等，部分字段可能不可用。报告中已自动标注所有因 strict sandbox 限制而无法获取的字段和事件。如果某些字段为 null 或缺失，可能是由于 strict sandbox 限制，这是平台限制，不是故障。哪些事件/哪些字段拿不到已在报告中自动标注，减少纠纷。详细说明请查看下方的"Strict Sandbox 限制说明"部分。
                   </Text>
                   <Text as="p" variant="bodySm" fontWeight="semibold">
-                    {t("verification.report.events.limitFields")}
+                    已知限制字段（可能为 null，已自动标注）：
                   </Text>
                   <List type="bullet">
                     <List.Item>
                       <Text as="span" variant="bodySm">
-                        <Trans i18nKey="verification.report.events.limit1" components={{ strong: <strong /> }} />
+                        <strong>checkout_completed / checkout_started：</strong>buyer.email, buyer.phone, deliveryAddress, shippingAddress, billingAddress（这些字段在 Web Worker 环境中不可用，这是平台限制，不是故障。已在报告中自动标注）
                       </Text>
                     </List.Item>
                     <List.Item>
                       <Text as="span" variant="bodySm">
-                        <Trans i18nKey="verification.report.events.limit2" components={{ strong: <strong /> }} />
+                        <strong>checkout_contact_info_submitted：</strong>buyer.email, buyer.phone（这些字段在 Web Worker 环境中不可用，这是平台限制，不是故障。已在报告中自动标注）
                       </Text>
                     </List.Item>
                     <List.Item>
                       <Text as="span" variant="bodySm">
-                        <Trans i18nKey="verification.report.events.limit3" components={{ strong: <strong /> }} />
+                        <strong>checkout_shipping_info_submitted：</strong>deliveryAddress, shippingAddress（这些字段在 Web Worker 环境中不可用，这是平台限制，不是故障。已在报告中自动标注）
                       </Text>
                     </List.Item>
                     <List.Item>
                       <Text as="span" variant="bodySm">
-                        <Trans i18nKey="verification.report.events.limit4" components={{ strong: <strong /> }} />
+                        <strong>payment_info_submitted：</strong>billingAddress（这些字段在 Web Worker 环境中不可用，这是平台限制，不是故障。已在报告中自动标注）
                       </Text>
                     </List.Item>
                   </List>
                   <Text as="p" variant="bodySm" fontWeight="semibold">
-                    {t("verification.report.events.unavailableEvents")}
+                    不可用的事件类型（已自动标注，需要通过订单 webhooks 获取）：
                   </Text>
                   <Text as="p" variant="bodySm">
-                    {t("verification.report.events.unavailableEventsList")}
+                    refund, order_cancelled, order_edited, subscription_created, subscription_updated, subscription_cancelled（这些事件在 strict sandbox 中不可用，需要通过订单 webhooks 获取。已在报告中自动标注）
                   </Text>
                   <Text as="p" variant="bodySm" tone="subdued">
-                    <Trans i18nKey="verification.report.events.autoMarkNote" components={{ strong: <strong /> }} />
+                    💡 <strong>自动标注说明：</strong>报告中已自动标注所有因 strict sandbox 限制而无法获取的字段和事件。这些限制是 Shopify 平台的设计限制，不是故障。哪些事件/哪些字段拿不到已在报告中自动标注，减少纠纷。如需获取这些字段或事件，请使用订单 webhooks 或其他 Shopify API。详细说明请查看下方的"Strict Sandbox 限制说明"部分。
                   </Text>
                 </BlockStack>
               </Banner>
               <DataTable
                 columnContentTypes={["text", "text", "text", "text", "text", "numeric", "text", "text", "text"]}
-                headings={[
-                  t("verification.report.events.headings.testItem"),
-                  t("verification.report.events.headings.eventType"),
-                  t("verification.report.events.headings.platform"),
-                  t("verification.report.events.headings.orderId"),
-                  t("verification.report.events.headings.status"),
-                  t("verification.report.events.headings.amount"),
-                  t("verification.report.events.headings.currency"),
-                  t("verification.report.events.headings.issue"),
-                  t("verification.report.events.headings.limit"),
-                ]}
+                headings={["测试项", "事件类型", "平台", "订单ID", "状态", "金额", "币种", "问题", "Sandbox限制"]}
                 rows={reportData.events.slice(0, 50).map((event) => [
                   event.testItemId,
                   event.eventType,
@@ -491,7 +453,7 @@ export default function VerificationReportPage() {
               />
               {reportData.events.length > 50 && (
                 <Text as="p" variant="bodySm" tone="subdued">
-                  {t("verification.report.events.limitMore")}
+                  仅显示前 50 条事件，完整数据请导出报告查看。
                 </Text>
               )}
             </BlockStack>
@@ -501,10 +463,10 @@ export default function VerificationReportPage() {
           <Banner tone="warning">
             <BlockStack gap="200">
               <Text as="p" variant="bodySm" fontWeight="semibold">
-                {t("verification.report.origin.warning")}
+                事件接收校验：当前为宽松的 Origin 校验
               </Text>
               <Text as="p" variant="bodySm">
-                <Trans i18nKey="verification.report.origin.desc" components={{ code: <code /> }} />
+                来自非白名单或 HMAC 验证失败但未拒的请求仍可能被接收并标为低信任，验收报告可能包含此类事件。若需更高准确性，建议在部署环境设置 <code>PIXEL_STRICT_ORIGIN=true</code> 并配置 Origin 白名单。
               </Text>
             </BlockStack>
           </Banner>
@@ -513,40 +475,40 @@ export default function VerificationReportPage() {
           <Card>
             <BlockStack gap="400">
               <Text as="h2" variant="headingMd">
-                {t("verification.report.sandbox.title")}
+                Strict Sandbox 限制说明
               </Text>
               <Banner tone="warning">
                 <BlockStack gap="200">
                   <Text as="p" variant="bodySm" fontWeight="semibold">
-                    {t("verification.report.sandbox.bannerTitle")}
+                    ⚠️ Web Pixel 运行在 Strict Sandbox (Web Worker) 环境中
                   </Text>
                   <Text as="p" variant="bodySm">
-                    {t("verification.report.sandbox.bannerDesc")}
+                    Web Pixel 运行在 strict sandbox (Web Worker) 环境中，以下能力受限：
                   </Text>
                   <List type="bullet">
                     <List.Item>
                       <Text as="span" variant="bodySm">
-                        {t("verification.report.sandbox.limit1")}
+                        无法访问 DOM 元素
                       </Text>
                     </List.Item>
                     <List.Item>
                       <Text as="span" variant="bodySm">
-                        {t("verification.report.sandbox.limit2")}
+                        无法使用 localStorage/sessionStorage
                       </Text>
                     </List.Item>
                     <List.Item>
                       <Text as="span" variant="bodySm">
-                        {t("verification.report.sandbox.limit3")}
+                        无法访问第三方 cookie
                       </Text>
                     </List.Item>
                     <List.Item>
                       <Text as="span" variant="bodySm">
-                        {t("verification.report.sandbox.limit4")}
+                        无法执行某些浏览器 API
                       </Text>
                     </List.Item>
                     <List.Item>
                       <Text as="span" variant="bodySm">
-                        {t("verification.report.sandbox.limit5")}
+                        部分事件字段可能为 null 或 undefined，这是平台限制，不是故障
                       </Text>
                     </List.Item>
                   </List>
@@ -555,24 +517,24 @@ export default function VerificationReportPage() {
               {reportData.sandboxLimitations.missingFields.length > 0 && (
                 <BlockStack gap="300">
                   <Text as="h3" variant="headingSm">
-                    {t("verification.report.sandbox.missingFields")}
+                    缺失字段（由于 strict sandbox 限制，已自动标注）
                   </Text>
                   <Banner tone="info">
                     <Text as="p" variant="bodySm">
-                      {t("verification.report.sandbox.missingFieldsBanner")}
+                      以下字段因 strict sandbox 限制而无法获取，这是平台限制，不是故障。报告中已自动标注这些限制。哪些事件/哪些字段拿不到已在报告中自动标注，减少纠纷。
                     </Text>
                   </Banner>
                   {reportData.sandboxLimitations.missingFields.map((item, index) => (
                     <Box key={index} background="bg-surface-secondary" padding="300" borderRadius="200">
                       <BlockStack gap="200">
                         <Text as="p" variant="bodySm" fontWeight="semibold">
-                          {t("verification.report.sandbox.item.eventType")} {item.eventType}
+                          事件类型：{item.eventType}
                         </Text>
                         <Text as="p" variant="bodySm">
-                          {t("verification.report.sandbox.item.missingFields")} {item.fields.join(", ")}
+                          缺失字段（已自动标注）：{item.fields.join(", ")}
                         </Text>
                         <Text as="p" variant="bodySm" tone="subdued">
-                          {t("verification.report.sandbox.item.reason")} {item.reason}
+                          原因：{item.reason}
                         </Text>
                       </BlockStack>
                     </Box>
@@ -582,11 +544,11 @@ export default function VerificationReportPage() {
               {reportData.sandboxLimitations.unavailableEvents.length > 0 && (
                 <BlockStack gap="300">
                   <Text as="h3" variant="headingSm">
-                    {t("verification.report.sandbox.unavailableEvents")}
+                    不可用的事件类型（已自动标注）
                   </Text>
                   <Banner tone="info">
                     <Text as="p" variant="bodySm">
-                      {t("verification.report.sandbox.unavailableEventsBanner")}
+                      以下事件类型在 strict sandbox 中不可用，需要通过订单 webhooks 获取。报告中已自动标注这些限制。哪些事件/哪些字段拿不到已在报告中自动标注，减少纠纷。
                     </Text>
                   </Banner>
                   <Box background="bg-surface-secondary" padding="300" borderRadius="200">
@@ -599,7 +561,7 @@ export default function VerificationReportPage() {
               {reportData.sandboxLimitations.notes.length > 0 && (
                 <BlockStack gap="300">
                   <Text as="h3" variant="headingSm">
-                    {t("verification.report.sandbox.autoMarkTitle")}
+                    自动标注说明
                   </Text>
                   <Banner tone="info">
                     <BlockStack gap="200">
@@ -619,12 +581,12 @@ export default function VerificationReportPage() {
           <Card>
             <BlockStack gap="400">
               <Text as="h2" variant="headingMd">
-                {t("verification.report.reconciliation.title")}
+                渠道对账结果
               </Text>
               {reportData.reconciliation.localConsistency && (
                 <BlockStack gap="300">
                   <Text as="h3" variant="headingSm">
-                    {t("verification.report.reconciliation.local.title")}
+                    本地一致性检查
                   </Text>
                   <Layout>
                     <Layout.Section variant="oneThird">
@@ -634,7 +596,7 @@ export default function VerificationReportPage() {
                             {reportData.reconciliation.localConsistency.totalChecked}
                           </Text>
                           <Text as="p" variant="bodySm" tone="subdued">
-                            {t("verification.report.reconciliation.local.checked")}
+                            检查订单数
                           </Text>
                         </BlockStack>
                       </Box>
@@ -646,7 +608,7 @@ export default function VerificationReportPage() {
                             {reportData.reconciliation.localConsistency.consistent}
                           </Text>
                           <Text as="p" variant="bodySm" tone="subdued">
-                            {t("verification.report.reconciliation.local.consistent")}
+                            一致
                           </Text>
                         </BlockStack>
                       </Box>
@@ -658,7 +620,7 @@ export default function VerificationReportPage() {
                             {reportData.reconciliation.localConsistency.inconsistent}
                           </Text>
                           <Text as="p" variant="bodySm" tone="subdued">
-                            {t("verification.report.reconciliation.local.inconsistent")}
+                            不一致
                           </Text>
                         </BlockStack>
                       </Box>
@@ -673,10 +635,10 @@ export default function VerificationReportPage() {
           <Banner tone="warning">
             <BlockStack gap="200">
               <Text as="p" variant="bodySm">
-                <Trans i18nKey="verification.report.upgrade.desc" components={{ strong: <strong /> }} />
+                <strong>导出报告需要升级：</strong>验收报告导出（CSV）是核心付费点，需要 Growth ($79/月) 或 Agency ($199/月) 套餐。
               </Text>
               <Button url="/app/billing?upgrade=growth" variant="primary">
-                {t("verification.report.upgrade.button")}
+                升级解锁
               </Button>
             </BlockStack>
           </Banner>

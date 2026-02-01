@@ -9,7 +9,6 @@ import {
   Box,
   Divider,
 } from "@shopify/polaris";
-import { useTranslation, Trans } from "react-i18next";
 
 export interface RiskReportItem {
   id: string;
@@ -43,16 +42,15 @@ export interface RiskReportProps {
 }
 
 export function RiskReport({ report, onItemClick }: RiskReportProps) {
-  const { t } = useTranslation();
   const { summary, categories } = report;
   const getRiskBadge = (riskLevel: "high" | "medium" | "low") => {
     switch (riskLevel) {
       case "high":
-        return <Badge tone="critical">{t("scan.riskReport.highRiskBadge")}</Badge>;
+        return <Badge tone="critical">高风险</Badge>;
       case "medium":
-        return <Badge tone="warning">{t("scan.riskReport.mediumRiskBadge")}</Badge>;
+        return <Badge tone="warning">中风险</Badge>;
       case "low":
-        return <Badge tone="info">{t("scan.riskReport.lowRiskBadge")}</Badge>;
+        return <Badge tone="info">低风险</Badge>;
     }
   };
   const calculateRiskScore = () => {
@@ -72,7 +70,7 @@ export function RiskReport({ report, onItemClick }: RiskReportProps) {
         <BlockStack gap="400">
           <InlineStack align="space-between">
             <Text variant="headingMd" as="h2">
-              {t("scan.riskReport.riskOverview")}
+              风险概览
             </Text>
             {getRiskBadge(riskLevel)}
           </InlineStack>
@@ -80,7 +78,7 @@ export function RiskReport({ report, onItemClick }: RiskReportProps) {
             <BlockStack gap="200">
               <InlineStack align="space-between">
                 <Text variant="bodyMd" as="span">
-                  {t("scan.riskReport.riskScore")}
+                  风险分数
                 </Text>
                 <Text variant="headingLg" as="span" tone={riskLevel === "high" ? "critical" : riskLevel === "medium" ? undefined : undefined}>
                   {`${riskScore}/100`}
@@ -92,23 +90,23 @@ export function RiskReport({ report, onItemClick }: RiskReportProps) {
           <Divider />
           <BlockStack gap="300">
             <Text variant="headingSm" as="h3">
-              {t("scan.riskReport.summary")}
+              统计摘要
             </Text>
             <List type="bullet">
               <List.Item>
-                <Trans i18nKey="scan.riskReport.totalItems" values={{ count: summary.totalItems }} components={{ strong: <strong /> }} />
+                总计: <strong>{summary.totalItems}</strong> 项资产
               </List.Item>
               <List.Item>
-                <Trans i18nKey="scan.riskReport.highRisk" values={{ count: summary.highRiskCount }} components={{ strong: <strong /> }} />
+                高风险: <strong>{summary.highRiskCount}</strong> 项
               </List.Item>
               <List.Item>
-                <Trans i18nKey="scan.riskReport.mediumRisk" values={{ count: summary.mediumRiskCount }} components={{ strong: <strong /> }} />
+                中风险: <strong>{summary.mediumRiskCount}</strong> 项
               </List.Item>
               <List.Item>
-                <Trans i18nKey="scan.riskReport.lowRisk" values={{ count: summary.lowRiskCount }} components={{ strong: <strong /> }} />
+                低风险: <strong>{summary.lowRiskCount}</strong> 项
               </List.Item>
               <List.Item>
-                <Trans i18nKey="scan.riskReport.estimatedTime" values={{ time: summary.totalEstimatedTime }} components={{ strong: <strong /> }} />
+                预计迁移时间: <strong>{summary.totalEstimatedTime}</strong> 分钟
               </List.Item>
             </List>
           </BlockStack>
@@ -119,7 +117,7 @@ export function RiskReport({ report, onItemClick }: RiskReportProps) {
           <BlockStack gap="400">
             <InlineStack align="space-between">
               <Text variant="headingMd" as="h2">
-                {t("scan.riskReport.willFail")}
+                会失效/受限的项
               </Text>
               <Badge tone="critical">{String(categories.willFail.length)}</Badge>
             </InlineStack>
@@ -136,14 +134,14 @@ export function RiskReport({ report, onItemClick }: RiskReportProps) {
                       </InlineStack>
                       {item.platform && (
                         <Text variant="bodySm" as="span" tone="subdued">
-                          {t("scan.riskReport.platform", { name: item.platform })}
+                          平台: {item.platform}
                         </Text>
                       )}
                       <Text variant="bodySm" as="span">
                         {item.description}
                       </Text>
                       <Text variant="bodySm" as="span" tone="subdued">
-                        {t("scan.riskReport.estimatedTimeItem", { time: item.estimatedTimeMinutes })}
+                        预计时间: {item.estimatedTimeMinutes} 分钟
                       </Text>
                     </BlockStack>
                   </div>
@@ -158,7 +156,7 @@ export function RiskReport({ report, onItemClick }: RiskReportProps) {
           <BlockStack gap="400">
             <InlineStack align="space-between">
               <Text variant="headingMd" as="h2">
-                {t("scan.riskReport.canReplace")}
+                可直接替换的项
               </Text>
               <Badge>{String(categories.canReplace.length)}</Badge>
             </InlineStack>
@@ -175,14 +173,14 @@ export function RiskReport({ report, onItemClick }: RiskReportProps) {
                       </InlineStack>
                       {item.platform && (
                         <Text variant="bodySm" as="span" tone="subdued">
-                          {t("scan.riskReport.platform", { name: item.platform })}
+                          平台: {item.platform}
                         </Text>
                       )}
                       <Text variant="bodySm" as="span">
-                        {t("scan.riskReport.suggestedMigration", { method: item.suggestedMigration === "web_pixel" ? "Web Pixel" : item.suggestedMigration === "ui_extension" ? "UI Extension" : item.suggestedMigration })}
+                        推荐迁移方式: {item.suggestedMigration === "web_pixel" ? "Web Pixel" : item.suggestedMigration === "ui_extension" ? "UI Extension" : item.suggestedMigration}
                       </Text>
                       <Text variant="bodySm" as="span" tone="subdued">
-                        {t("scan.riskReport.estimatedTimeItem", { time: item.estimatedTimeMinutes })}
+                        预计时间: {item.estimatedTimeMinutes} 分钟
                       </Text>
                     </BlockStack>
                   </div>
@@ -197,7 +195,7 @@ export function RiskReport({ report, onItemClick }: RiskReportProps) {
           <BlockStack gap="400">
             <InlineStack align="space-between">
               <Text variant="headingMd" as="h2">
-                {t("scan.riskReport.noMigrationNeeded")}
+                无需迁移的项
               </Text>
               <Badge tone="success">{String(categories.noMigrationNeeded.length)}</Badge>
             </InlineStack>
@@ -213,7 +211,7 @@ export function RiskReport({ report, onItemClick }: RiskReportProps) {
                     </InlineStack>
                     {item.platform && (
                       <Text variant="bodySm" as="span" tone="subdued">
-                        {t("scan.riskReport.platform", { name: item.platform })}
+                        平台: {item.platform}
                       </Text>
                     )}
                     <Text variant="bodySm" as="span" tone="subdued">

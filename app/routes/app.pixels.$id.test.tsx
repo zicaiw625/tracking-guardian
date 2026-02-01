@@ -23,7 +23,6 @@ import prisma from "~/db.server";
 import { validateTestEnvironment } from "~/services/migration-wizard.server";
 import { normalizePlanId, planSupportsFeature } from "~/services/billing/plans";
 import { getPixelEventIngestionUrl } from "~/utils/config.server";
-import { useTranslation, Trans } from "react-i18next";
 
 
 const PLATFORM_LABELS: Record<string, string> = {
@@ -92,7 +91,7 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
   const shopDomain = session.shop;
   const pixelConfigId = params.id;
   if (!pixelConfigId) {
-    return json({ success: false, error: "Missing config ID" }, { status: 400 });
+    return json({ success: false, error: "缺少配置 ID" }, { status: 400 });
   }
   const formData = await request.formData();
   const actionType = formData.get("_action");
@@ -108,14 +107,14 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
     select: { platform: true },
   });
   if (!pixelConfig) {
-    return json({ success: false, error: "Configuration not found" }, { status: 404 });
+    return json({ success: false, error: "配置不存在" }, { status: 404 });
   }
   if (actionType === "validateTestEnvironment") {
     const platform = pixelConfig.platform;
     if (!["google", "meta", "tiktok"].includes(platform)) {
       return json({
         success: false,
-        error: "Currently only supports test environment verification for GA4, Meta, and TikTok.",
+        error: "当前仅支持 GA4、Meta、TikTok 的测试环境验证。",
       }, { status: 400 });
     }
     try {
@@ -124,7 +123,7 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
     } catch (error) {
       return json({
         success: false,
-        error: error instanceof Error ? error.message : "Verification failed",
+        error: error instanceof Error ? error.message : "验证失败",
       }, { status: 500 });
     }
   }
@@ -132,80 +131,57 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
 };
 
 type ActionResult = { success: true; valid?: boolean; message?: string; details?: unknown } | { success: false; error: string };
-
 export default function PixelTestPage() {
   const { shop, pixelConfig, backendUrlInfo } = useLoaderData<typeof loader>();
   const actionData = useActionData<typeof action>() as ActionResult | undefined;
   const submit = useSubmit();
   const navigation = useNavigation();
   const { showSuccess, showError } = useToastContext();
-  const { t } = useTranslation();
-
   useEffect(() => {
     if (!actionData) return;
-
-    const getMessage = (msg: string) => {
-      const parts = msg.split(":");
-      const code = parts[0];
-      const error = parts.slice(1).join(":");
-
-      switch (code) {
-        case "CONFIG_NOT_FOUND": return t("pixels.test.validation.configNotFound");
-        case "ENV_NOT_TEST": return t("pixels.test.validation.envNotTest");
-        case "CREDENTIALS_NOT_CONFIGURED": return t("pixels.test.validation.credentialsNotConfigured");
-        case "CREDENTIALS_INVALID": return t("pixels.test.validation.credentialsInvalid", { error });
-        case "EVENT_SENT_SUCCESS": return t("pixels.test.validation.eventSentSuccess");
-        case "EVENT_SENT_FAILED": return t("pixels.test.validation.eventSentFailed", { error });
-        case "VERIFICATION_ERROR": return t("pixels.test.validation.verificationError", { error });
-        case "PLATFORM_NOT_SUPPORTED": return t("pixels.test.errors.platformNotSupported");
-        case "VERIFICATION_FAILED": return t("pixels.test.errors.verificationFailed");
-        default: return msg;
-      }
-    };
-
     if (actionData.success && actionData.valid) {
-      showSuccess(getMessage(actionData.message || "EVENT_SENT_SUCCESS"));
+      showSuccess(actionData.message || "测试环境验证通过");
     } else if (actionData.success && actionData.valid === false) {
-      showError(getMessage(actionData.message || "VERIFICATION_FAILED"));
+      showError(actionData.message || "测试环境验证失败");
     } else if (actionData.success === false && "error" in actionData && actionData.error) {
-      showError(getMessage(actionData.error));
+      showError(actionData.error);
     }
-  }, [actionData, showSuccess, showError, t]);
-
+  }, [actionData, showSuccess, showError]);
   if (!shop || !pixelConfig) {
     return (
-      <Page title={t("pixels.test.title")}>
+      <Page title="Pixel 测试">
         <EnhancedEmptyState
           icon="⚠️"
-          title={t("pixels.test.empty.title")}
-          description={t("pixels.test.empty.description")}
-          primaryAction={{ content: t("pixels.test.back"), url: "/app/pixels" }}
+          title="配置不存在"
+          description="未找到对应的 Pixel 配置，请返回列表重新选择。"
+          primaryAction={{ content: "返回 Pixels", url: "/app/pixels" }}
         />
       </Page>
     );
   }
-
   const handleValidate = () => {
     const formData = new FormData();
     formData.append("_action", "validateTestEnvironment");
     formData.append("platform", pixelConfig.platform);
     submit(formData, { method: "post" });
   };
-
   const isSubmitting = navigation.state === "submitting";
-
   return (
     <Page
-      title={t("pixels.test.title")}
-      subtitle={t("pixels.test.subtitle")}
-      backAction={{ content: t("pixels.test.back"), url: "/app/pixels" }}
+      title="Pixel 测试"
+      subtitle="Pixel 测试与 Payload 预览"
+      backAction={{ content: "返回 Pixels", url: "/app/pixels" }}
     >
       <PageIntroCard
-        title={t("pixels.test.intro.title")}
-        description={t("pixels.test.intro.description")}
-        items={t("pixels.test.intro.items", { returnObjects: true }) as string[]}
-        primaryAction={{ content: t("pixels.test.back"), url: "/app/pixels" }}
-        secondaryAction={{ content: t("pixels.test.intro.secondary"), url: "/app/verification" }}
+        title="Test 环境验收"
+        description="跟随测试清单触发标准事件，检查 payload 参数完整率与平台发送状态。"
+        items={[
+          "优先验证 checkout_started/checkout_completed",
+          "确认 value/currency/items 参数完整率",
+          "验收通过后再切换 Live",
+        ]}
+        primaryAction={{ content: "返回 Pixels", url: "/app/pixels" }}
+        secondaryAction={{ content: "查看验收页", url: "/app/verification" }}
       />
       <Layout>
         <Layout.Section>
@@ -217,49 +193,67 @@ export default function PixelTestPage() {
                 </Text>
                 <InlineStack gap="200" blockAlign="center">
                   <Badge tone={pixelConfig.environment === "live" ? "critical" : "warning"}>
-                    {pixelConfig.environment === "live" ? t("pixels.test.labels.prod") : t("pixels.test.labels.test")}
+                    {pixelConfig.environment === "live" ? "生产" : "测试"}
                   </Badge>
                   <Badge>{`v${pixelConfig.configVersion}`}</Badge>
                 </InlineStack>
               </InlineStack>
               <Text as="p" tone="subdued">
-                {t("pixels.test.labels.platformId")}：{pixelConfig.platformId || t("pixels.test.labels.notSet")}
+                平台 ID：{pixelConfig.platformId || "未填写"}
               </Text>
               <Divider />
               <BlockStack gap="200">
-                <Text as="h3" variant="headingSm">{t("pixels.test.backendCheck.title")}</Text>
+                <Text as="h3" variant="headingSm">后端 URL 配置检查（硬校验）</Text>
                 {backendUrlInfo.placeholderDetected ? (
                   <Banner tone="critical">
                     <BlockStack gap="100">
                       <Text as="p" variant="bodySm" fontWeight="semibold">
-                        {t("pixels.test.backendCheck.placeholder.title")}
+                        检测到占位符，URL 未在构建时替换
                       </Text>
                       <Text as="p" variant="bodySm">
-                        {backendUrlInfo.warning || t("pixels.test.backendCheck.placeholder.warning")}
+                        {backendUrlInfo.warning || "像素扩展配置中仍包含 __BACKEND_URL_PLACEHOLDER__，这表明构建流程未正确替换占位符。"}
                       </Text>
                       <Text as="p" variant="bodySm" fontWeight="semibold">
-                        {t("pixels.test.backendCheck.placeholder.impactTitle")}
+                        影响说明：
                       </Text>
                       <Text as="p" variant="bodySm">
-                        {t("pixels.test.backendCheck.placeholder.impactDesc")}
+                        如果占位符未被替换，像素扩展将无法发送事件到后端，导致事件丢失。这是一个严重的配置错误，必须在上线前修复。
                       </Text>
                       <Text as="p" variant="bodySm" tone="subdued">
-                        {t("pixels.test.backendCheck.placeholder.fix")}
+                        修复方法：请在 CI/CD 流程中确保运行 'pnpm ext:inject' 或相应的构建脚本，将 SHOPIFY_APP_URL 环境变量注入到扩展配置中。同时确保该 URL 已在 Web Pixel Extension 的 allowlist 中配置。
                       </Text>
                       <Text as="p" variant="bodySm" fontWeight="semibold">
-                        {t("pixels.test.backendCheck.placeholder.checklistTitle")}
+                        CI/CD 流程检查清单：
                       </Text>
                       <List type="number">
-                         {(t("pixels.test.backendCheck.placeholder.items", { returnObjects: true }) as string[]).map((item, index) => (
-                           <List.Item key={index}>
-                             <Text as="span" variant="bodySm">
-                               <Trans i18nKey={`pixels.test.backendCheck.placeholder.items.${index}`} components={{ code: <code />, strong: <strong /> }} />
-                             </Text>
-                           </List.Item>
-                         ))}
+                        <List.Item>
+                          <Text as="span" variant="bodySm">
+                            确保在构建前设置 SHOPIFY_APP_URL 环境变量
+                          </Text>
+                        </List.Item>
+                        <List.Item>
+                          <Text as="span" variant="bodySm">
+                            在构建流程中运行 <code>pnpm ext:inject</code> 或 <code>node scripts/build-extensions.mjs inject</code>
+                          </Text>
+                        </List.Item>
+                        <List.Item>
+                          <Text as="span" variant="bodySm">
+                            验证占位符已被替换（检查 extensions/shared/config.ts 中的 BUILD_TIME_URL）
+                          </Text>
+                        </List.Item>
+                        <List.Item>
+                          <Text as="span" variant="bodySm">
+                            确保该 URL 已在 Partner Dashboard → App → API access → UI extensions network access 的 allowlist 中配置
+                          </Text>
+                        </List.Item>
+                        <List.Item>
+                          <Text as="span" variant="bodySm" fontWeight="semibold">
+                            <strong>重要：</strong>必须在 Partner Dashboard → App → API access → UI extensions network access 中批准该权限，否则部署会失败或模块无法正常工作。请确认权限状态为 'Approved' 或 '已批准'，如果显示为 'Pending' 或 '未批准'，请等待审核完成后再部署。
+                          </Text>
+                        </List.Item>
                       </List>
                       <Text as="p" variant="bodySm" fontWeight="semibold">
-                        {t("pixels.test.backendCheck.placeholder.serverUrl")}
+                        服务器端检测到的 URL（脱敏）：
                       </Text>
                       <Text as="p" variant="bodySm" tone="subdued">
                         {(() => {
@@ -276,7 +270,7 @@ export default function PixelTestPage() {
                         })()}
                       </Text>
                       <Text as="p" variant="bodySm" fontWeight="semibold">
-                        {t("pixels.test.backendCheck.placeholder.extensionUrl")}
+                        像素扩展端解析到的 backendUrl（硬校验）：
                       </Text>
                       <Text as="p" variant="bodySm" tone="subdued">
                         {backendUrlInfo.pixelExtensionUrl ? (() => {
@@ -290,33 +284,73 @@ export default function PixelTestPage() {
                           } catch {
                             return backendUrlInfo.pixelExtensionUrl.substring(0, 50) + "...";
                           }
-                        })() : t("pixels.test.backendCheck.placeholder.notConfigured")}
+                        })() : "未配置（占位符未替换）"}
                       </Text>
                       <Text as="p" variant="bodySm" tone="subdued">
-                        {t("pixels.test.backendCheck.placeholder.explanation")}
+                        💡 硬校验说明：此 URL 是服务器端根据构建时注入的 SHOPIFY_APP_URL 环境变量解析得到的，应与像素扩展端解析到的 URL 一致。如果占位符未替换，像素扩展将无法发送事件。您可以在浏览器控制台（开发模式下）检查像素扩展实际解析到的 URL（查找 "[Tracking Guardian]" 日志中的 "Backend URL resolved (硬校验)"），确保与服务器端检测到的 URL 一致。如果两者不一致或占位符未替换，请检查 CI/CD 流程是否正确替换了 __BACKEND_URL_PLACEHOLDER__，并确保该 URL 已在 Web Pixel Extension 的 allowlist 中配置。这是导致事件丢失的常见原因，必须在上线前验证。
                       </Text>
                       <Text as="p" variant="bodySm" fontWeight="semibold">
-                        {t("pixels.test.backendCheck.verifyBeforeLaunch.title")}
+                        构建流程验证步骤：
                       </Text>
                       <List type="number">
-                        {(t("pixels.test.backendCheck.verifyBeforeLaunch.items", { returnObjects: true }) as string[]).map((item, index) => (
-                            <List.Item key={index}>
-                              <Text as="span" variant="bodySm">
-                                {item}
-                              </Text>
-                            </List.Item>
-                          ))}
+                        <List.Item>
+                          <Text as="span" variant="bodySm">
+                            检查构建日志中是否显示 "Successfully injected BACKEND_URL"
+                          </Text>
+                        </List.Item>
+                        <List.Item>
+                          <Text as="span" variant="bodySm">
+                            验证 extensions/shared/config.ts 中的 BUILD_TIME_URL 不包含 "__BACKEND_URL_PLACEHOLDER__"
+                          </Text>
+                        </List.Item>
+                        <List.Item>
+                          <Text as="span" variant="bodySm">
+                            在浏览器控制台（开发模式）检查像素扩展解析到的 backendUrl，确保与服务器端一致
+                          </Text>
+                        </List.Item>
+                        <List.Item>
+                          <Text as="span" variant="bodySm">
+                            确认该 URL 已在 Partner Dashboard 的 allowlist 中配置
+                          </Text>
+                        </List.Item>
                       </List>
+                      {backendUrlInfo.allowlistStatus && (
+                        <BlockStack gap="100">
+                          <Text as="p" variant="bodySm" fontWeight="semibold">
+                            Allowlist 状态对照（硬校验）：
+                          </Text>
+                          <Text as="p" variant="bodySm" tone="subdued">
+                            {backendUrlInfo.allowlistStatus.inAllowlist ? "✅ 已配置" : "⚠️ 需要验证"}
+                          </Text>
+                          <Text as="p" variant="bodySm" tone="subdued">
+                            服务器端检测到的主机名：{backendUrlInfo.allowlistStatus.hostname}
+                          </Text>
+                          <Text as="p" variant="bodySm" tone="subdued">
+                            允许的主机列表：{backendUrlInfo.allowlistStatus.allowedHosts.length > 0 ? backendUrlInfo.allowlistStatus.allowedHosts.join(", ") : "无"}
+                          </Text>
+                          <Text as="p" variant="bodySm" tone="subdued">
+                            像素扩展解析到的主机名：{backendUrlInfo.allowlistStatus.pixelExtensionHostname || backendUrlInfo.allowlistStatus.hostname}
+                          </Text>
+                          {!backendUrlInfo.allowlistStatus.inAllowlist && (
+                            <Text as="p" variant="bodySm" tone="critical">
+                              ⚠️ 警告：检测到后端 URL 可能未在 allowlist 中。请检查 Web Pixel Extension 配置，确保后端域名已添加到 allowlist，否则像素事件将无法发送。这是导致事件丢失的常见原因。
+                            </Text>
+                          )}
+                        </BlockStack>
+                      )}
+                      <Text as="p" variant="bodySm" tone="subdued">
+                        💡 硬校验说明：此页面显示服务器端检测到的 URL 和像素扩展端解析到的 URL。如果占位符未替换或 URL 不一致，像素事件将无法发送。请确保 CI/CD 流程正确替换了 __BACKEND_URL_PLACEHOLDER__。您可以在浏览器控制台（开发模式下）检查像素扩展实际解析到的 URL（查找 "[Tracking Guardian]" 日志中的 "Backend URL resolved (硬校验)"），确保与服务器端检测到的 URL 一致。这是导致事件丢失的常见原因，必须在上线前验证。
+                      </Text>
                     </BlockStack>
                   </Banner>
                 ) : backendUrlInfo.isConfigured ? (
                   <Banner tone={backendUrlInfo.isLocalhost ? "warning" : "success"}>
                     <BlockStack gap="100">
                       <Text as="p" variant="bodySm" fontWeight="semibold">
-                        {t("pixels.test.backendCheck.status.title")}
+                        后端 URL 配置状态
                       </Text>
                       <Text as="p" variant="bodySm" fontWeight="semibold">
-                        {t("pixels.test.backendCheck.placeholder.serverUrl")}
+                        服务器端检测到的 URL（脱敏）：
                       </Text>
                       <Text as="p" variant="bodySm">
                         {(() => {
@@ -335,26 +369,26 @@ export default function PixelTestPage() {
                       {backendUrlInfo.allowlistStatus && (
                         <BlockStack gap="100">
                           <Text as="p" variant="bodySm" fontWeight="semibold">
-                            {t("pixels.test.backendCheck.status.allowlistTitle")}
+                            Allowlist 状态对照：
                           </Text>
                           <Text as="p" variant="bodySm">
-                            {backendUrlInfo.allowlistStatus.inAllowlist ? t("pixels.test.backendCheck.status.configured") : t("pixels.test.backendCheck.status.verify")}
+                            {backendUrlInfo.allowlistStatus.inAllowlist ? "✅ 已配置" : "⚠️ 需要验证"}
                           </Text>
                           <Text as="p" variant="bodySm" fontWeight="semibold">
-                            {t("pixels.test.backendCheck.placeholder.extensionUrl")}
+                            像素扩展端解析到的 backendUrl（硬校验）：
                           </Text>
                           <Text as="p" variant="bodySm" tone="subdued">
-                            {backendUrlInfo.allowlistStatus.pixelExtensionHostname || backendUrlInfo.allowlistStatus.hostname || t("pixels.test.backendCheck.status.notResolved")}
+                            {backendUrlInfo.allowlistStatus.pixelExtensionHostname || backendUrlInfo.allowlistStatus.hostname || "未解析到"}
                           </Text>
                           <Text as="p" variant="bodySm" tone="subdued">
-                            {t("pixels.test.backendCheck.placeholder.explanation")}
+                            💡 硬校验说明：此 URL 是服务器端根据构建时注入的 SHOPIFY_APP_URL 环境变量解析得到的，应与像素扩展端解析到的 URL 一致。如果占位符未替换，像素扩展将无法发送事件。您可以在浏览器控制台（开发模式下）检查像素扩展实际解析到的 URL（查找 "[Tracking Guardian]" 日志中的 "Backend URL resolved (硬校验)"），确保与服务器端检测到的 URL 一致。如果两者不一致或占位符未替换，请检查 CI/CD 流程是否正确替换了 __BACKEND_URL_PLACEHOLDER__，并确保该 URL 已在 Web Pixel Extension 的 allowlist 中配置。这是导致事件丢失的常见原因，必须在上线前验证。
                           </Text>
                           <Text as="p" variant="bodySm" tone="subdued">
-                            {t("pixels.test.backendCheck.status.allowedHosts")}{backendUrlInfo.allowlistStatus.allowedHosts.length > 0 ? backendUrlInfo.allowlistStatus.allowedHosts.join(", ") : t("pixels.test.backendCheck.status.none")}
+                            允许的主机列表：{backendUrlInfo.allowlistStatus.allowedHosts.length > 0 ? backendUrlInfo.allowlistStatus.allowedHosts.join(", ") : "无"}
                           </Text>
                           {!backendUrlInfo.allowlistStatus.inAllowlist && (
                             <Text as="p" variant="bodySm" tone="critical">
-                              {t("pixels.test.backendCheck.status.warning")}
+                              ⚠️ 警告：检测到后端 URL 可能未在 allowlist 中。请检查 Web Pixel Extension 配置，确保后端域名已添加到 allowlist，否则像素事件将无法发送。这是导致事件丢失的常见原因。
                             </Text>
                           )}
                         </BlockStack>
@@ -365,22 +399,35 @@ export default function PixelTestPage() {
                         </Text>
                       )}
                       <Text as="p" variant="bodySm" tone="subdued">
-                         {t("pixels.test.backendCheck.placeholder.explanation")}
+                        像素扩展将使用此 URL 发送事件。请确保此 URL 已在 Web Pixel Extension 的 allowlist 中配置。如果事件未发送，请检查扩展配置中的 allowlist 设置。
                       </Text>
                       <Text as="p" variant="bodySm" tone="subdued">
-                        {t("pixels.test.backendCheck.placeholder.explanation")}
+                        💡 硬校验说明：此页面显示服务器端检测到的 URL 和像素扩展端解析到的 URL。如果占位符未替换或 URL 不一致，像素事件将无法发送。请确保 CI/CD 流程正确替换了 __BACKEND_URL_PLACEHOLDER__，并且该 URL 已在 Web Pixel Extension 的 allowlist 中配置。
                       </Text>
                       <Text as="p" variant="bodySm" fontWeight="semibold">
-                        {t("pixels.test.backendCheck.verifyBeforeLaunch.title")}
+                        上线前必须验证：
                       </Text>
                       <List type="bullet">
-                        {(t("pixels.test.backendCheck.verifyBeforeLaunch.items", { returnObjects: true }) as string[]).map((item, index) => (
-                          <List.Item key={index}>
-                            <Text as="span" variant="bodySm">
-                              {item}
-                            </Text>
-                          </List.Item>
-                        ))}
+                        <List.Item>
+                          <Text as="span" variant="bodySm">
+                            占位符已在构建时替换（检查 extensions/shared/config.ts）
+                          </Text>
+                        </List.Item>
+                        <List.Item>
+                          <Text as="span" variant="bodySm">
+                            服务器端和像素扩展端 URL 一致
+                          </Text>
+                        </List.Item>
+                        <List.Item>
+                          <Text as="span" variant="bodySm">
+                            URL 已在 Partner Dashboard 的 allowlist 中配置
+                          </Text>
+                        </List.Item>
+                        <List.Item>
+                          <Text as="span" variant="bodySm">
+                            使用测试订单验证事件能正常发送
+                          </Text>
+                        </List.Item>
                       </List>
                     </BlockStack>
                   </Banner>
@@ -388,13 +435,13 @@ export default function PixelTestPage() {
                   <Banner tone="critical">
                     <BlockStack gap="100">
                       <Text as="p" variant="bodySm" fontWeight="semibold">
-                        {t("pixels.test.backendCheck.status.critical")}
+                        后端 URL 未正确配置
                       </Text>
                       <Text as="p" variant="bodySm">
-                        {backendUrlInfo.warning || t("pixels.test.backendCheck.status.criticalDesc")}
+                        {backendUrlInfo.warning || "SHOPIFY_APP_URL 环境变量未设置，像素事件可能无法发送。"}
                       </Text>
                       <Text as="p" variant="bodySm" tone="subdued">
-                        {t("pixels.test.backendCheck.placeholder.fix")}
+                        请在 CI/CD 流程中确保 SHOPIFY_APP_URL 环境变量已正确设置，并在构建时替换 __BACKEND_URL_PLACEHOLDER__。同时确保该 URL 已在 Web Pixel Extension 的 allowlist 中配置。
                       </Text>
                     </BlockStack>
                   </Banner>
@@ -404,22 +451,30 @@ export default function PixelTestPage() {
               <Banner tone="warning">
                 <BlockStack gap="300">
                   <Text as="p" variant="bodySm" fontWeight="semibold">
-                    {t("pixels.test.sandbox.title")}
+                    ⚠️ Strict Sandbox 能力边界说明（App Review 重要信息）
                   </Text>
                   <Text as="p" variant="bodySm">
-                    {t("pixels.test.sandbox.description")}
+                    Web Pixel 运行在 strict sandbox (Web Worker) 环境中，以下能力受限：
                   </Text>
                   <List type="bullet">
-                    {(t("pixels.test.sandbox.items", { returnObjects: true }) as string[]).map((item, index) => (
-                      <List.Item key={index}>
-                        <Text as="span" variant="bodySm">
-                          <Trans i18nKey={`pixels.test.sandbox.items.${index}`} components={{ strong: <strong /> }} />
-                        </Text>
-                      </List.Item>
-                    ))}
+                    <List.Item>
+                      <Text as="span" variant="bodySm">
+                        无法访问 DOM 元素、localStorage、第三方 cookie 等
+                      </Text>
+                    </List.Item>
+                    <List.Item>
+                      <Text as="span" variant="bodySm">
+                        部分事件字段可能为 null 或 undefined（如 buyer.email、buyer.phone、deliveryAddress、shippingAddress、billingAddress 等），这是平台限制，不是故障
+                      </Text>
+                    </List.Item>
+                    <List.Item>
+                      <Text as="span" variant="bodySm">
+                        <strong>v1.0 不支持的事件类型：</strong>退款（refund）、订单取消（order_cancelled）、订单编辑（order_edited）、订阅订单（subscription_created、subscription_updated、subscription_cancelled）等事件在 strict sandbox 中不可用，需要通过订单 webhooks 获取。这些事件将在 v1.1+ 版本中通过订单 webhooks 实现
+                      </Text>
+                    </List.Item>
                   </List>
                   <Text as="p" variant="bodySm" tone="subdued">
-                    {t("pixels.test.sandbox.tip")}
+                    💡 提示：这是 Shopify 平台的设计限制，不是应用故障。验收报告中会自动标注所有因 strict sandbox 限制而无法获取的字段和事件。在 App Review 时，请向 Shopify 说明这些限制是平台设计，不是应用缺陷。
                   </Text>
                 </BlockStack>
               </Banner>
@@ -432,16 +487,16 @@ export default function PixelTestPage() {
                     loading={isSubmitting}
                     disabled={isSubmitting}
                   >
-                    {t("pixels.test.actions.sendTest")}
+                    发送测试事件
                   </Button>
                   <Button url={`/app/pixels/${pixelConfig.id}/versions`} variant="plain">
-                    {t("pixels.test.actions.viewHistory")}
+                    查看版本历史
                   </Button>
                 </InlineStack>
               ) : (
-                <Banner tone="warning" title={t("pixels.test.actions.prodWarning")}>
+                <Banner tone="warning" title="当前为生产环境">
                   <Text as="p" variant="bodySm">
-                    {t("pixels.test.actions.prodDesc")}
+                    生产环境将发送真实事件。建议在测试环境完成验证后再切换生产。
                   </Text>
                 </Banner>
               )}
@@ -451,158 +506,193 @@ export default function PixelTestPage() {
         <Layout.Section variant="oneThird">
           <Card>
             <BlockStack gap="400">
-              <Text as="h2" variant="headingMd">{t("pixels.test.guide.title")}</Text>
+              <Text as="h2" variant="headingMd">PRD 2.3: Shopify 官方测试指引</Text>
               <Banner tone="info">
                 <BlockStack gap="200">
                   <Text as="p" variant="bodySm" fontWeight="semibold">
-                    {t("pixels.test.guide.subtitle")}
+                    参考 Shopify 官方"测试自定义像素"操作路径
                   </Text>
                   <Text as="p" variant="bodySm" tone="subdued">
-                    {t("pixels.test.guide.description")}
+                    PRD 2.3要求：Test指引可以直接复用Shopify官方"测试自定义像素"的操作路径，把它做成Verification的"自动清单"
                   </Text>
                   <Link url="https://help.shopify.com/en/manual/online-store/themes/customizing-themes/checkout-extensibility/web-pixels-api/test-custom-pixels" external>
-                    {t("pixels.test.guide.link")}
+                    查看 Shopify 官方测试指南
                   </Link>
                 </BlockStack>
               </Banner>
               <BlockStack gap="300">
-                <Text as="h3" variant="headingSm">{t("pixels.test.checklist.title")}</Text>
+                <Text as="h3" variant="headingSm">自动测试清单</Text>
                 <Banner tone="success">
                   <Text as="p" variant="bodySm" fontWeight="semibold">
-                    {t("pixels.test.checklist.banner")}
+                    ✅ 按照以下步骤操作，系统会自动检测事件是否成功触发
                   </Text>
                 </Banner>
                 <List type="number">
                   <List.Item>
                     <BlockStack gap="100">
                       <Text as="span" variant="bodySm" fontWeight="semibold">
-                        {t("pixels.test.checklist.checkoutStarted.title")}
+                        测试 checkout_started 事件
                       </Text>
                       <Text as="p" variant="bodySm" tone="subdued">
-                        <Trans i18nKey="pixels.test.checklist.checkoutStarted.action" components={{ strong: <strong /> }} />
+                        <strong>操作：</strong>进入店铺的 checkout 页面（每次进入都会触发 checkout_started 事件）
                       </Text>
                       <Text as="p" variant="bodySm" tone="subdued">
-                        <Trans i18nKey="pixels.test.checklist.checkoutStarted.verify" components={{ strong: <strong /> }} />
+                        <strong>验证：</strong>运行验收后查看结果，确认 payload 中包含正确的参数
                       </Text>
                       <Text as="p" variant="bodySm" tone="subdued">
-                        <Trans i18nKey="pixels.test.checklist.checkoutStarted.note" components={{ strong: <strong /> }} />
+                        <strong>注意：</strong>checkout_started 在 extensible 店铺每次进入 checkout 都会触发，可能多次触发
                       </Text>
                     </BlockStack>
                   </List.Item>
                   <List.Item>
                     <BlockStack gap="100">
                       <Text as="span" variant="bodySm" fontWeight="semibold">
-                        {t("pixels.test.checklist.shippingInfo.title")}
+                        测试 checkout_shipping_info_submitted 事件
                       </Text>
                       <Text as="p" variant="bodySm" tone="subdued">
-                        <Trans i18nKey="pixels.test.checklist.shippingInfo.action" components={{ strong: <strong /> }} />
+                        <strong>操作：</strong>在 checkout 页面填写 shipping 信息并提交
                       </Text>
                       <Text as="p" variant="bodySm" tone="subdued">
-                         <Trans i18nKey="pixels.test.checklist.shippingInfo.verify" components={{ strong: <strong /> }} />
+                        <strong>验证：</strong>运行验收后查看 checkout_shipping_info_submitted 事件是否到达
                       </Text>
                     </BlockStack>
                   </List.Item>
                   <List.Item>
                     <BlockStack gap="100">
                       <Text as="span" variant="bodySm" fontWeight="semibold">
-                        {t("pixels.test.checklist.completed.title")}
+                        测试 checkout_completed 事件
                       </Text>
                       <Text as="p" variant="bodySm" tone="subdued">
-                        <Trans i18nKey="pixels.test.checklist.completed.action" components={{ strong: <strong /> }} />
+                        <strong>操作：</strong>完成测试订单，在 Thank you 页面应触发 checkout_completed 事件
                       </Text>
                       <Text as="p" variant="bodySm" tone="subdued">
-                        <Trans i18nKey="pixels.test.checklist.completed.verify" components={{ strong: <strong /> }} />
+                        <strong>验证：</strong>运行验收后查看 checkout_completed 事件是否到达，确认这是最重要的转化事件
                       </Text>
                       <Text as="p" variant="bodySm" tone="subdued">
-                        <Trans i18nKey="pixels.test.checklist.completed.note" components={{ strong: <strong /> }} />
+                        <strong>注意：</strong>checkout_completed 不一定在 Thank you 页触发，当存在 upsell/post-purchase 时可能在第一个 upsell 页触发
                       </Text>
                     </BlockStack>
                   </List.Item>
                   <List.Item>
                     <BlockStack gap="100">
                       <Text as="span" variant="bodySm" fontWeight="semibold">
-                        {t("pixels.test.checklist.payload.title")}
+                        验证 payload 参数
                       </Text>
                       <Text as="p" variant="bodySm" tone="subdued">
-                        <Trans i18nKey="pixels.test.checklist.payload.action" components={{ strong: <strong /> }} />
+                        <strong>操作：</strong>在验收报告中查看 payload 详情
                       </Text>
                       <Text as="p" variant="bodySm" tone="subdued">
-                        <Trans i18nKey="pixels.test.checklist.payload.verify" components={{ strong: <strong /> }} />
+                        <strong>验证：</strong>确认 value、currency、items 等关键参数完整
                       </Text>
                     </BlockStack>
                   </List.Item>
                   <List.Item>
                     <BlockStack gap="100">
                       <Text as="span" variant="bodySm" fontWeight="semibold">
-                        {t("pixels.test.checklist.platform.title")}
+                        平台后台验证
                       </Text>
                       <Text as="p" variant="bodySm" tone="subdued">
-                        <Trans i18nKey="pixels.test.checklist.platform.action" components={{ strong: <strong /> }} />
+                        <strong>操作：</strong>在平台后台（GA4 DebugView、Meta Events Manager、TikTok Events Manager）查看
                       </Text>
                       <Text as="p" variant="bodySm" tone="subdued">
-                        <Trans i18nKey="pixels.test.checklist.platform.verify" components={{ strong: <strong /> }} />
+                        <strong>验证：</strong>确认事件已成功接收并正确归因
                       </Text>
                     </BlockStack>
                   </List.Item>
                 </List>
                 <Divider />
-                <Text as="h3" variant="headingSm">{t("pixels.test.checklist.tips.title")}</Text>
+                <Text as="h3" variant="headingSm">重要提示</Text>
                 <List type="bullet">
-                  {(t("pixels.test.checklist.tips.items", { returnObjects: true }) as string[]).map((item, index) => (
-                    <List.Item key={index}>
-                      <Text as="span" variant="bodySm">
-                        {item}
-                      </Text>
-                    </List.Item>
-                  ))}
+                  <List.Item>
+                    <Text as="span" variant="bodySm">
+                      checkout_started 在 extensible 店铺每次进入 checkout 都会触发，可能多次触发
+                    </Text>
+                  </List.Item>
+                  <List.Item>
+                    <Text as="span" variant="bodySm">
+                      建议使用测试订单（低金额）进行验证，避免影响真实数据
+                    </Text>
+                  </List.Item>
+                  <List.Item>
+                    <Text as="span" variant="bodySm">
+                      如果事件未到达，检查 Web Pixel 是否已正确安装和启用
+                    </Text>
+                  </List.Item>
                 </List>
                 <Divider />
                 <Banner tone="warning">
                   <BlockStack gap="200">
                     <Text as="p" variant="bodySm" fontWeight="semibold">
-                      {t("pixels.test.safety.title")}
+                      上线前安全措施验证（必须执行）
                     </Text>
                     <Text as="p" variant="bodySm">
-                      <Trans i18nKey="pixels.test.safety.description" components={{ strong: <strong /> }} />
+                      以下测试是上线前的关键验证步骤，**必须在生产环境部署前完成**，避免在生产环境高峰期出现事件丢失或服务不可用。
                     </Text>
                     <Text as="p" variant="bodySm" fontWeight="semibold">
-                      {t("pixels.test.safety.loadTest.title")}
+                      1. 高并发下单/事件峰值测试（必须执行）
                     </Text>
                     <Text as="p" variant="bodySm">
-                      <Trans i18nKey="pixels.test.safety.loadTest.description" components={{ code: <code />, strong: <strong /> }} />
-                    </Text>
-                    <Text as="p" variant="bodySm" fontWeight="semibold">
-                      {t("pixels.test.safety.standardsTitle")}
-                    </Text>
-                    <List type="bullet">
-                        {(t("pixels.test.safety.loadTest.standards", { returnObjects: true }) as string[]).map((item, index) => (
-                        <List.Item key={index}>
-                          <Text as="span" variant="bodySm">
-                            {item}
-                          </Text>
-                        </List.Item>
-                      ))}
-                    </List>
-                    <Text as="p" variant="bodySm" fontWeight="semibold">
-                      {t("pixels.test.safety.nullOrigin.title")}
-                    </Text>
-                    <Text as="p" variant="bodySm">
-                       <Trans i18nKey="pixels.test.safety.nullOrigin.description" components={{ code: <code />, strong: <strong /> }} />
+                      模拟黑五等高峰期的下单场景（建议峰值：100-1000 订单/分钟），验证 rate limit 配置是否会导致误杀正常请求。重点验证：rate limit 阈值是否合理，避免在高并发场景下误杀正常请求。如果压测中发现误杀，需要调整 rate limit 配置。这是上线前必须验证的关键测试，避免在生产环境高峰期出现事件丢失。
                     </Text>
                     <Text as="p" variant="bodySm" tone="subdued">
-                      <Trans i18nKey="pixels.test.safety.nullOrigin.config" components={{ code: <code />, strong: <strong /> }} />
+                      <strong>执行方法：</strong>使用项目内置压测脚本 <code>scripts/load-test-pixel-ingestion.mjs</code> 进行测试。运行命令：<code>CONCURRENT_REQUESTS=50 DURATION=60 node scripts/load-test-pixel-ingestion.mjs</code>（其中 CONCURRENT_REQUESTS 为并发数，DURATION 为持续时间秒数）。建议在生产环境部署前，在测试环境进行充分压测，确保 rate limit 配置不会误杀正常请求。如果压测中发现误杀，需要调整 rate limit 配置，避免在生产环境高峰期出现事件丢失。
                     </Text>
                     <Text as="p" variant="bodySm" fontWeight="semibold">
-                      {t("pixels.test.safety.standardsTitle")}
+                      验收标准：
                     </Text>
                     <List type="bullet">
-                       {(t("pixels.test.safety.nullOrigin.standards", { returnObjects: true }) as string[]).map((item, index) => (
-                        <List.Item key={index}>
-                          <Text as="span" variant="bodySm">
-                            {item}
-                          </Text>
-                        </List.Item>
-                      ))}
+                      <List.Item>
+                        <Text as="span" variant="bodySm">
+                          无 rate limit 误杀（所有正常请求应成功）
+                        </Text>
+                      </List.Item>
+                      <List.Item>
+                        <Text as="span" variant="bodySm">
+                          事件处理延迟 {'<'} 2秒（P95）
+                        </Text>
+                      </List.Item>
+                      <List.Item>
+                        <Text as="span" variant="bodySm">
+                          错误率 {'<'} 0.1%
+                        </Text>
+                      </List.Item>
+                      <List.Item>
+                        <Text as="span" variant="bodySm">
+                          数据库连接池无耗尽
+                        </Text>
+                      </List.Item>
+                    </List>
+                    <Text as="p" variant="bodySm" fontWeight="semibold">
+                      2. Origin: null 场景测试（必须执行）
+                    </Text>
+                    <Text as="p" variant="bodySm">
+                      某些 Shopify 场景（如 Web Worker 沙箱环境）可能出现 <code>Origin: null</code>。当前默认策略为：只要请求带签名并通过校验，即允许 Origin: null/missing。若您希望更严格，可以设置 <code>PIXEL_ALLOW_NULL_ORIGIN_WITH_SIGNATURE_ONLY=false</code> 强制拒绝该类请求（可能导致事件丢失）。
+                    </Text>
+                    <Text as="p" variant="bodySm" tone="subdued">
+                      <strong>执行方法：</strong>使用压测脚本的 <code>--null-origin-only</code> 参数专门测试 Origin: null 场景，确保生产环境签名与校验链路可用。运行命令：<code>node scripts/load-test-pixel-ingestion.mjs --null-origin-only</code>。如果测试失败，请检查签名密钥注入与后端校验逻辑。
+                    </Text>
+                    <Text as="p" variant="bodySm" tone="subdued">
+                      <strong>环境变量配置：</strong><code>PIXEL_ALLOW_NULL_ORIGIN_WITH_SIGNATURE_ONLY</code> 为可选开关。默认允许带签名的 Origin:null/missing；设置为 <code>false</code> 时该类请求将被拒绝，可能导致事件丢失。
+                    </Text>
+                    <Text as="p" variant="bodySm" fontWeight="semibold">
+                      验收标准：
+                    </Text>
+                    <List type="bullet">
+                      <List.Item>
+                        <Text as="span" variant="bodySm">
+                          所有 Origin: null 请求应成功处理
+                        </Text>
+                      </List.Item>
+                      <List.Item>
+                        <Text as="span" variant="bodySm">
+                          无事件丢失
+                        </Text>
+                      </List.Item>
+                      <List.Item>
+                        <Text as="span" variant="bodySm">
+                          日志中正确标记 Origin: null 请求
+                        </Text>
+                      </List.Item>
                     </List>
                   </BlockStack>
                 </Banner>
