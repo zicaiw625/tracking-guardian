@@ -15,7 +15,7 @@ export const WEBHOOK_CSP_DIRECTIVES: Record<string, string[]> = {
 
 export const NON_EMBEDDED_PAGE_CSP_DIRECTIVES: Record<string, string[]> = {
   "default-src": ["'self'"],
-  "script-src": ["'self'", "https://cdn.shopify.com"],
+  "script-src": ["'self'", "'unsafe-inline'", "https://cdn.shopify.com"],
   "style-src": ["'self'", "'unsafe-inline'", "https://cdn.shopify.com"],
   "img-src": ["'self'", "data:", "https:", "blob:"],
   "font-src": ["'self'", "https://cdn.shopify.com"],
@@ -98,7 +98,7 @@ export const PUBLIC_PAGE_HEADERS: Record<string, string> = {
   "X-Robots-Tag": "noindex",
   "Content-Security-Policy": buildCspHeader({
     "default-src": ["'self'"],
-    "script-src": ["'self'"],
+    "script-src": ["'self'", "'unsafe-inline'"],
     "style-src": ["'self'", "'unsafe-inline'"],
     "img-src": ["'self'", "data:", "https:"],
     "font-src": ["'self'"],
