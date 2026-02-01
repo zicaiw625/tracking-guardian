@@ -1,5 +1,6 @@
 import { memo, useMemo } from "react";
 import { Card, BlockStack, InlineStack, Text, Divider, Badge, Button, List } from "@shopify/polaris";
+import { useTranslation } from "react-i18next";
 
 export const QuickStatsCard = memo(function QuickStatsCard({
   configuredPlatforms,
@@ -16,33 +17,34 @@ export const QuickStatsCard = memo(function QuickStatsCard({
   planTagline?: string;
   planFeatures?: string[];
 }) {
+  const { t } = useTranslation();
   const displayFeatures = useMemo(() => planFeatures?.slice(0, 3) || [], [planFeatures]);
   const hasMoreFeatures = useMemo(() => (planFeatures?.length || 0) > 3, [planFeatures]);
   return (
     <Card>
       <BlockStack gap="400">
         <Text as="h2" variant="headingMd">
-          快速统计
+          {t("dashboard.quickStats.title")}
         </Text>
         <BlockStack gap="300">
           <InlineStack align="space-between">
-            <Text as="span">已配置平台</Text>
+            <Text as="span">{t("dashboard.quickStats.configuredPlatforms")}</Text>
             <Text as="span" fontWeight="semibold">
-              {configuredPlatforms} 个
+              {configuredPlatforms} {t("dashboard.quickStats.unit")}
             </Text>
           </InlineStack>
           <Divider />
           <InlineStack align="space-between">
-            <Text as="span">本周转化记录</Text>
+            <Text as="span">{t("dashboard.quickStats.weeklyConversions")}</Text>
             <Text as="span" fontWeight="semibold">
-              {weeklyConversions} 条
+              {weeklyConversions} {t("dashboard.quickStats.records")}
             </Text>
           </InlineStack>
           <Divider />
           <InlineStack align="space-between">
-            <Text as="span">当前套餐</Text>
+            <Text as="span">{t("dashboard.quickStats.currentPlan")}</Text>
             <Badge>
-              {planLabel || (plan === "free" ? "免费版" : plan)}
+              {planLabel || (plan === "free" ? t("dashboard.quickStats.freePlan") : plan)}
             </Badge>
           </InlineStack>
           {planTagline && (
@@ -60,7 +62,7 @@ export const QuickStatsCard = memo(function QuickStatsCard({
               {hasMoreFeatures && (
                 <List.Item>
                   <Text as="span" variant="bodySm" tone="subdued">
-                    ...更多权益，详见套餐页
+                    {t("dashboard.quickStats.moreFeatures")}
                   </Text>
                 </List.Item>
               )}
@@ -70,7 +72,7 @@ export const QuickStatsCard = memo(function QuickStatsCard({
             url="/app/settings?tab=subscription"
             size="slim"
           >
-            查看套餐/升级
+            {t("dashboard.quickStats.viewPlan")}
           </Button>
         </BlockStack>
       </BlockStack>

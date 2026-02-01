@@ -244,12 +244,12 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       const typOspResult = await refreshTypOspStatus(admin, shop.id);
       typOspEnabled = typOspResult.typOspPagesEnabled;
       if (typOspResult.status === "unknown") {
-        typOspReason = typOspResult.unknownReason || "检测失败";
+        typOspReason = typOspResult.unknownReason || "onboarding.errors.detectFailed";
       }
     } catch (error) {
       logger.error("Failed to refresh TYP/OSP status", { error });
       typOspEnabled = false;
-      typOspReason = "API错误，请稍后重试";
+      typOspReason = "onboarding.errors.apiError";
     }
   }
   const data: OnboardingData = {
@@ -280,7 +280,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     where: { shopDomain },
   });
   if (!shop) {
-    return json({ error: "店铺未找到" }, { status: 404 });
+    return json({ error: "onboarding.errors.shopNotFound" }, { status: 404 });
   }
   if (actionType === "run_scan") {
     try {
@@ -288,7 +288,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       return json({ success: true, actionType: "run_scan", result: scanResult });
     } catch (error) {
       logger.error("Onboarding scan error", { error });
-      return json({ error: "扫描失败，请稍后重试" }, { status: 500 });
+      return json({ error: "onboarding.errors.scanFailed" }, { status: 500 });
     }
   }
   if (actionType === "complete_onboarding") {
@@ -301,12 +301,15 @@ export const action = async ({ request }: ActionFunctionArgs) => {
             if (isTokenEncrypted(shop.ingestionSecret)) {
               ingestionSecret = decryptIngestionSecret(shop.ingestionSecret);
             } else {
-              ingestionSecret = shop.ingestionSecret;
-              const encryptedSecret = encryptIngestionSecret(ingestionSecret);
-              await prisma.shop.update({
-                where: { id: shop.id },
-                data: { ingestionSecret: encryptedSecret },
-              });
+              const secretToEncrypt = shop.ingestionSecret as string;
+              const encryptedSecret = encryptIngestionSecret(secretToEncrypt);
+              safeFireAndForget(
+                prisma.shop.update({
+                  where: { id: shop.id },
+                  data: { ingestionSecret: encryptedSecret },
+                })
+              );
+              ingestionSecret = secretToEncrypt;
             }
           } catch (error) {
             logger.error(`[Onboarding] Failed to decrypt ingestionSecret for ${shopDomain}`, error);
@@ -360,19 +363,20 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 };
 
 function UrgencyBadge({ level }: { level: string }) {
+  const { t } = useTranslation();
   switch (level) {
     case "critical":
-      return <Badge tone="critical">紧急</Badge>;
+      return <Badge tone="critical">{t("onboarding.urgency.critical")}</Badge>;
     case "high":
-      return <Badge tone="warning">高优先级</Badge>;
+      return <Badge tone="warning">{t("onboarding.urgency.high")}</Badge>;
     case "medium":
-      return <Badge tone="attention">中等</Badge>;
+      return <Badge tone="attention">{t("onboarding.urgency.medium")}</Badge>;
     case "low":
-      return <Badge tone="info">低</Badge>;
+      return <Badge tone="info">{t("onboarding.urgency.low")}</Badge>;
     case "resolved":
-      return <Badge tone="success">已解决</Badge>;
+      return <Badge tone="success">{t("onboarding.urgency.resolved")}</Badge>;
     default:
-      return <Badge>未知</Badge>;
+      return <Badge>{t("onboarding.urgency.unknown")}</Badge>;
   }
 }
 

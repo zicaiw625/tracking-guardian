@@ -1,9 +1,7 @@
-import { DEPRECATION_DATES, formatDeadlineDate, SHOPIFY_HELP_LINKS } from "../../utils/migration-deadlines";
 
 export interface PlanFeatures {
   id: string;
   name: string;
-  nameEn: string;
   price: number;
   monthlyOrderLimit: number;
   trialDays?: number;
@@ -22,8 +20,7 @@ export interface PlanFeatures {
 export const BILLING_PLANS = {
   free: {
     id: "free",
-    name: "免费版",
-    nameEn: "Free",
+    name: "plans.free.name",
     price: 0,
     monthlyOrderLimit: 100,
     pixelDestinations: 0,
@@ -33,19 +30,18 @@ export const BILLING_PLANS = {
     includesReconciliation: false,
     includesAgency: false,
     includesReportExport: false,
-    tagline: "升级不丢功能/不丢数据（在 Shopify 允许范围内）",
+    tagline: "plans.free.tagline",
     features: [
-      "Audit 风险报告（但不导出）",
-      "迁移清单 + 风险分级 + 替代路径",
-      "明确提示 checkout.liquid/additional scripts 弃用限制",
-      `升级倒计时（参考 Shopify Help Center：Plus 商家关键节点 ${formatDeadlineDate(DEPRECATION_DATES.plusScriptTagExecutionOff)}（升级/限制开始），${formatDeadlineDate(DEPRECATION_DATES.plusAutoUpgradeStart, "month")} 起开始自动升级（Shopify 会提前通知）；非 Plus 商家截止 ${formatDeadlineDate(DEPRECATION_DATES.nonPlusScriptTagExecutionOff)}。详情请参考 ${SHOPIFY_HELP_LINKS.UPGRADE_GUIDE}）`,
-      "基础文档支持",
+      "plans.free.features.audit",
+      "plans.free.features.checklist",
+      "plans.free.features.deprecation",
+      "plans.free.features.countdown",
+      "plans.free.features.docs",
     ],
   },
   starter: {
     id: "starter",
-    name: "Starter 入门版",
-    nameEn: "Starter",
+    name: "plans.starter.name",
     price: 29,
     monthlyOrderLimit: 1000,
     trialDays: 7,
@@ -56,22 +52,21 @@ export const BILLING_PLANS = {
     includesReconciliation: false,
     includesAgency: false,
     includesReportExport: false,
-    tagline: "像素最小可用迁移（标准事件映射 + 参数完整率）",
+    tagline: "plans.starter.tagline",
     features: [
-      "1 个像素目的地 (GA4/Meta/TikTok 三选一)",
-      "标准事件映射 + 参数完整率检查",
-      "可下载 payload 证据（验证和存档用）",
-      "验收向导（不含报告导出）",
-      "Test/Live 环境切换",
-      "每月 1,000 笔订单追踪",
-      "30 天数据保留",
-      "⚠️ Web Pixel 限制说明（strict sandbox）",
+      "plans.starter.features.pixel",
+      "plans.starter.features.mapping",
+      "plans.starter.features.payload",
+      "plans.starter.features.wizard",
+      "plans.starter.features.env",
+      "plans.starter.features.limit",
+      "plans.starter.features.retention",
+      "plans.starter.features.sandbox",
     ],
   },
   growth: {
     id: "growth",
-    name: "Growth 成长版",
-    nameEn: "Growth",
+    name: "plans.growth.name",
     price: 79,
     monthlyOrderLimit: 10000,
     trialDays: 7,
@@ -82,23 +77,22 @@ export const BILLING_PLANS = {
     includesReconciliation: true,
     includesAgency: false,
     includesReportExport: true,
-    tagline: "项目交付包（Agency 直接报给客户的交付包）",
+    tagline: "plans.growth.tagline",
     features: [
-      "像素迁移 + 模块发布 + 验收报告导出 (CSV)",
-      "可交付的验收报告（给老板/客户看的证据）",
-      "测试清单 + 事件触发记录 + 参数完整率",
-      "订单金额/币种一致性验证",
-      "隐私合规检查（consent/customerPrivacy）",
-      "事件对账与验收（事件对账功能）",
-      "断档监控与告警（事件量骤降告警、失败率阈值监控）",
-      "每月 10,000 笔订单追踪",
-      "90 天数据保留",
+      "plans.growth.features.migration",
+      "plans.growth.features.report",
+      "plans.growth.features.checklist",
+      "plans.growth.features.consistency",
+      "plans.growth.features.compliance",
+      "plans.growth.features.reconciliation",
+      "plans.growth.features.alerts",
+      "plans.growth.features.limit",
+      "plans.growth.features.retention",
     ],
   },
   monitor: {
     id: "monitor",
-    name: "Monitor 监控版（可选叠加）",
-    nameEn: "Monitor (Optional Add-on)",
+    name: "plans.monitor.name",
     price: 29,
     monthlyOrderLimit: 0,
     pixelDestinations: 0,
@@ -108,22 +102,21 @@ export const BILLING_PLANS = {
     includesReconciliation: false,
     includesAgency: false,
     includesReportExport: false,
-    tagline: "断档监控与告警（上线后保障，v1.0 可选功能）",
+    tagline: "plans.monitor.tagline",
     features: [
-      "事件量骤降告警",
-      "失败率阈值监控",
-      "purchase 缺参率检测",
-      "日志留存与查询",
-      "版本回滚支持",
-      "多渠道告警（邮件/Slack/Telegram）",
-      "实时事件监控",
-      "⚠️ 注意：此功能不在 PRD v1.0 正式套餐中",
+      "plans.monitor.features.drop",
+      "plans.monitor.features.threshold",
+      "plans.monitor.features.missing",
+      "plans.monitor.features.logs",
+      "plans.monitor.features.rollback",
+      "plans.monitor.features.channels",
+      "plans.monitor.features.realtime",
+      "plans.monitor.features.note",
     ],
   },
   agency: {
     id: "agency",
-    name: "Agency 版",
-    nameEn: "Agency",
+    name: "plans.agency.name",
     price: 199,
     monthlyOrderLimit: 100000,
     trialDays: 14,
@@ -134,14 +127,14 @@ export const BILLING_PLANS = {
     includesReconciliation: true,
     includesAgency: true,
     includesReportExport: true,
-    tagline: "企业级功能，其余能力可用",
+    tagline: "plans.agency.tagline",
     features: [
-      "无限像素目的地",
-      "Thank you/Order status 升级自检与交付支持",
-      "每月 100,000 笔订单追踪",
-      "无限数据保留",
-      "专属客户成功经理",
-      "SLA 保障",
+      "plans.agency.features.unlimited",
+      "plans.agency.features.support",
+      "plans.agency.features.limit",
+      "plans.agency.features.retention",
+      "plans.agency.features.manager",
+      "plans.agency.features.sla",
     ],
   },
 } as const;
@@ -248,7 +241,7 @@ export function getMaxShops(planId: PlanId): number {
       return 50;
     case "growth":
       return 1;
-    case "starter":
+      case "starter":
       return 1;
     case "free":
     default:

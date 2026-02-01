@@ -1,4 +1,5 @@
 import { useState, useCallback } from "react";
+import { useTranslation, Trans } from "react-i18next";
 import {
   Card,
   Text,
@@ -33,6 +34,7 @@ export function EnvironmentToggle({
   onRollback,
   isLoading = false,
 }: EnvironmentToggleProps) {
+  const { t } = useTranslation();
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [pendingEnvironment, setPendingEnvironment] = useState<PixelEnvironment | null>(null);
   const [isSwitching, setIsSwitching] = useState(false);
@@ -96,16 +98,16 @@ export function EnvironmentToggle({
           <InlineStack align="space-between" blockAlign="center">
             <BlockStack gap="100">
               <Text as="h3" variant="headingMd">
-                运行环境
+                {t("components.environmentToggle.title")}
               </Text>
               <Text as="p" variant="bodySm" tone="subdued">
-                {platformNames[platform] || platform} 像素配置
+                {platformNames[platform] || platform} {t("components.environmentToggle.pixelConfig")}
               </Text>
             </BlockStack>
             <Badge
               tone={currentEnvironment === "live" ? "success" : "warning"}
             >
-              {currentEnvironment === "live" ? "生产环境" : "测试环境"}
+              {currentEnvironment === "live" ? t("components.environmentToggle.prodEnv") : t("components.environmentToggle.testEnv")}
             </Badge>
           </InlineStack>
           <Box
@@ -119,12 +121,12 @@ export function EnvironmentToggle({
               <InlineStack align="space-between" blockAlign="center">
                 <BlockStack gap="100">
                   <Text as="span" fontWeight="semibold">
-                    当前环境
+                    {t("components.environmentToggle.currentEnv")}
                   </Text>
                   <Text as="span" variant="bodySm" tone="subdued">
                     {currentEnvironment === "test"
-                      ? "测试模式：事件发送到测试端点，不影响正式数据"
-                      : "生产模式：事件发送到正式端点，影响实际追踪数据"}
+                      ? t("components.environmentToggle.testModeDesc")
+                      : t("components.environmentToggle.prodModeDesc")}
                   </Text>
                 </BlockStack>
                 <ButtonGroup variant="segmented">
@@ -135,7 +137,7 @@ export function EnvironmentToggle({
                     loading={isSwitching && pendingEnvironment === "test"}
                     size="slim"
                   >
-                    🧪 测试
+                    🧪 {t("components.environmentToggle.testBtn")}
                   </Button>
                   <Button
                     pressed={currentEnvironment === "live"}
@@ -144,23 +146,21 @@ export function EnvironmentToggle({
                     loading={isSwitching && pendingEnvironment === "live"}
                     size="slim"
                   >
-                    🚀 生产
+                    🚀 {t("components.environmentToggle.prodBtn")}
                   </Button>
                 </ButtonGroup>
               </InlineStack>
               {currentEnvironment === "test" && (
                 <Banner tone="warning">
                   <Text as="p" variant="bodySm">
-                    ⚠️ 测试模式：事件将发送到平台的测试端点，不会影响正式数据。
-                    验证完成后请切换到生产环境。
+                    {t("components.environmentToggle.testWarning")}
                   </Text>
                 </Banner>
               )}
               {currentEnvironment === "live" && (
                 <Banner tone="info">
                   <Text as="p" variant="bodySm">
-                    ✅ 生产模式：事件将发送到正式端点，影响实际追踪数据。
-                    请确保配置正确后再切换到生产环境。
+                    {t("components.environmentToggle.prodInfo")}
                   </Text>
                 </Banner>
               )}
@@ -176,10 +176,10 @@ export function EnvironmentToggle({
                     <InlineStack align="space-between" blockAlign="center">
                       <BlockStack gap="050">
                         <Text as="span" variant="bodySm" fontWeight="semibold">
-                          配置版本管理
+                          {t("components.environmentToggle.versionManage")}
                         </Text>
                         <Text as="span" variant="bodySm" tone="subdued">
-                          当前版本: v{configVersion}
+                          {t("components.environmentToggle.currentVersion")}{configVersion}
                         </Text>
                       </BlockStack>
                       {canRollback && (
@@ -190,20 +190,20 @@ export function EnvironmentToggle({
                           disabled={isSwitching || isLoading}
                           loading={isSwitching}
                         >
-                          ⏪ 一键回滚
+                          ⏪ {t("components.environmentToggle.rollback")}
                         </Button>
                       )}
                     </InlineStack>
                     {canRollback && (
                       <Banner tone="info">
                         <Text as="p" variant="bodySm">
-                          💡 您可以回滚到上一个配置版本。回滚后，当前配置将被上一个版本替换，并创建新的版本记录。
+                          {t("components.environmentToggle.rollbackInfo")}
                         </Text>
                       </Banner>
                     )}
                     {!canRollback && (
                       <Text as="span" variant="bodySm" tone="subdued">
-                        暂无可回滚的版本
+                        {t("components.environmentToggle.noRollback")}
                       </Text>
                     )}
                   </BlockStack>
@@ -219,15 +219,15 @@ export function EnvironmentToggle({
           setShowConfirmModal(false);
           setPendingEnvironment(null);
         }}
-        title="确认切换到生产环境"
+        title={t("components.environmentToggle.confirmSwitchTitle")}
         primaryAction={{
-          content: "确认切换",
+          content: t("components.environmentToggle.confirmSwitchBtn"),
           onAction: handleConfirmSwitch,
           loading: isSwitching,
         }}
         secondaryActions={[
           {
-            content: "取消",
+            content: t("components.environmentToggle.cancel"),
             onAction: () => {
               setShowConfirmModal(false);
               setPendingEnvironment(null);
@@ -238,34 +238,34 @@ export function EnvironmentToggle({
         <Modal.Section>
           <BlockStack gap="300">
             <Text as="p" variant="bodyMd">
-              您即将从<strong>测试环境</strong>切换到<strong>生产环境</strong>。
+              <Trans i18nKey="components.environmentToggle.switchMessage" components={{ strong: <strong /> }} />
             </Text>
             <Banner tone="critical">
               <BlockStack gap="200">
                 <Text as="p" variant="bodySm" fontWeight="semibold">
-                  重要提示：
+                  {t("components.environmentToggle.importantNote")}
                 </Text>
                 <ul style={{ paddingLeft: "1.5rem", margin: 0 }}>
                   <li>
                     <Text as="span" variant="bodySm">
-                      生产环境的事件将影响实际的广告归因和转化数据
+                      {t("components.environmentToggle.switchWarning1")}
                     </Text>
                   </li>
                   <li>
                     <Text as="span" variant="bodySm">
-                      请确保已在测试环境中验证配置正确
+                      {t("components.environmentToggle.switchWarning2")}
                     </Text>
                   </li>
                   <li>
                     <Text as="span" variant="bodySm">
-                      切换后，当前配置版本将自动保存
+                      {t("components.environmentToggle.switchWarning3")}
                     </Text>
                   </li>
                 </ul>
               </BlockStack>
             </Banner>
             <Text as="p" variant="bodySm" tone="subdued">
-              确定要继续吗？
+              {t("components.environmentToggle.confirmContinue")}
             </Text>
           </BlockStack>
         </Modal.Section>
@@ -273,16 +273,16 @@ export function EnvironmentToggle({
       <Modal
         open={showRollbackModal}
         onClose={() => setShowRollbackModal(false)}
-        title="确认回滚配置版本"
+        title={t("components.environmentToggle.confirmRollbackTitle")}
         primaryAction={{
-          content: "确认回滚",
+          content: t("components.environmentToggle.confirmRollbackBtn"),
           destructive: true,
           onAction: confirmRollback,
           loading: isSwitching,
         }}
         secondaryActions={[
           {
-            content: "取消",
+            content: t("components.environmentToggle.cancel"),
             onAction: () => setShowRollbackModal(false),
           },
         ]}
@@ -290,11 +290,11 @@ export function EnvironmentToggle({
         <Modal.Section>
           <BlockStack gap="200">
             <Text as="p" variant="bodyMd">
-              确定要回滚到上一个配置版本吗？当前配置将被上一个版本替换。
+              {t("components.environmentToggle.rollbackMessage")}
             </Text>
             <Banner tone="warning">
               <Text as="p" variant="bodySm">
-                回滚操作会生成新的版本记录，建议在回滚前导出当前配置作为备份。
+                {t("components.environmentToggle.rollbackWarning")}
               </Text>
             </Banner>
           </BlockStack>

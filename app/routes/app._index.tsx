@@ -47,7 +47,6 @@ export default function Index() {
         }
       : undefined,
   } as DashboardData;
-  const shopDomain = loaderData.shopDomain ?? "";
   useEffect(() => {
     try {
       const dismissed = localStorage.getItem(WELCOME_BANNER_DISMISSED_KEY);
@@ -97,7 +96,6 @@ export default function Index() {
       <BlockStack gap="500">
         <DashboardOverview
           data={data}
-          shopDomain={shopDomain}
           showWelcomeBanner={showWelcomeBanner}
           showScanProgress={showScanProgress}
           scanStartedAt={scanStartedAt}
@@ -127,7 +125,7 @@ export default function Index() {
             </Text>
           </BlockStack>
         </Banner>
-        <MigrationDeadlineBanner scriptTagsCount={data.scriptTagsCount} />
+        <MigrationDeadlineBanner />
       </BlockStack>
     </Page>
   );

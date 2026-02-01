@@ -4,6 +4,8 @@ import { useLoaderData } from "@remix-run/react";
 import { getDynamicCorsHeaders } from "../utils/cors";
 import { PUBLIC_PAGE_HEADERS, addSecurityHeadersToHeaders } from "../utils/security-headers";
 import { getSupportConfig } from "../utils/config.server";
+import { useTranslation, Trans, I18nextProvider } from "react-i18next";
+import i18n from "../i18n";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   const corsHeaders = getDynamicCorsHeaders(request);
@@ -26,15 +28,16 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   });
 };
 
-export default function TermsPage() {
+function TermsContent() {
+  const { t, i18n: i18nInstance } = useTranslation();
   const { appName, appDomain, lastUpdated, contactEmail } = useLoaderData<typeof loader>();
 
   return (
-    <html lang="zh-CN">
+    <html lang={i18nInstance.language || "zh-CN"}>
       <head>
         <meta charSet="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
-        <title>服务条款 - {appName}</title>
+        <title>{t("PublicTerms.Title")} - {appName}</title>
         <style>{`
           * {
             margin: 0;
@@ -115,65 +118,64 @@ export default function TermsPage() {
       </head>
       <body>
         <div className="container">
-          <h1>服务条款</h1>
+          <h1>{t("PublicTerms.Title")}</h1>
           <div className="meta">
-            <p><strong>应用名称：</strong>{appName}</p>
-            <p><strong>最后更新：</strong>{lastUpdated}</p>
-            <p><strong>应用域名：</strong><a href={appDomain}>{appDomain}</a></p>
+            <p><strong>{t("PublicTerms.Meta.AppName")}：</strong>{appName}</p>
+            <p><strong>{t("PublicTerms.Meta.LastUpdated")}：</strong>{lastUpdated}</p>
+            <p><strong>{t("PublicTerms.Meta.AppDomain")}：</strong><a href={appDomain}>{appDomain}</a></p>
           </div>
 
           <div className="section">
-            <h2>1. 服务描述</h2>
+            <h2>{t("PublicTerms.Section1.Title")}</h2>
             <p>
-              {appName} 是一款 Shopify 应用，为商家提供 Web Pixel 迁移、验收与诊断服务。
-              包括但不限于：迁移辅助、像素事件验收、追踪缺口监测、扫描与报告功能。
-              具体功能以应用内实际提供为准，我们保留在不影响核心服务的前提下调整功能的权利。
+              <Trans i18nKey="PublicTerms.Section1.Content" values={{ appName }} />
             </p>
           </div>
 
           <div className="section">
-            <h2>2. 接受条款</h2>
+            <h2>{t("PublicTerms.Section2.Title")}</h2>
             <p>
-              安装或使用 {appName} 即表示您同意受本服务条款约束。
-              如不同意本条款，请勿安装或使用本应用。我们可能不时更新本条款，更新后的条款将在本页面发布，继续使用即视为接受更新。
+              <Trans i18nKey="PublicTerms.Section2.Content" values={{ appName }} />
             </p>
           </div>
 
           <div className="section">
-            <h2>3. 使用条件</h2>
+            <h2>{t("PublicTerms.Section3.Title")}</h2>
             <p>
-              您需确保：(a) 拥有在 Shopify 平台运营店铺的合法权利；(b) 遵守 Shopify 平台规则及适用法律法规；
-              (c) 提供的店铺信息真实、准确；(d) 不得利用本应用从事任何非法、欺诈或侵权活动。
-              我们保留在发现违规行为时暂停或终止服务的权利。
+              {t("PublicTerms.Section3.Content")}
             </p>
           </div>
 
           <div className="section">
-            <h2>4. 免责声明</h2>
+            <h2>{t("PublicTerms.Section4.Title")}</h2>
             <p>
-              本应用按「现状」提供，不提供任何形式的明示或暗示保证。在法律允许的最大范围内，
-              我们不对因使用或无法使用本应用而产生的任何直接、间接、附带、特殊或后果性损害承担责任，
-              包括但不限于利润损失、数据丢失、业务中断等。我们不对第三方服务（如 Shopify、广告平台）的可用性、准确性负责。
+              {t("PublicTerms.Section4.Content")}
             </p>
           </div>
 
           <div className="section">
-            <h2>5. 管辖法律</h2>
+            <h2>{t("PublicTerms.Section5.Title")}</h2>
             <p>
-              本服务条款受中华人民共和国法律管辖（如适用），或您所在地的法律管辖。
-              因本条款产生的争议，双方应尽量协商解决；协商不成的，可向有管辖权的法院提起诉讼。
+              {t("PublicTerms.Section5.Content")}
             </p>
           </div>
 
           <div className="section">
-            <h2>6. 联系方式与相关文档</h2>
+            <h2>{t("PublicTerms.Section6.Title")}</h2>
             <p>
-              如有任何关于本服务条款的问题，请通过 <a href={`mailto:${contactEmail}`}>{contactEmail}</a> 联系我们。
-              请同时参阅我们的 <a href="/privacy">隐私政策</a> 以了解数据处理与隐私合规信息。
+              <Trans i18nKey="PublicTerms.Section6.Content" values={{ email: contactEmail }} />
             </p>
           </div>
         </div>
       </body>
     </html>
+  );
+}
+
+export default function TermsPage() {
+  return (
+    <I18nextProvider i18n={i18n}>
+      <TermsContent />
+    </I18nextProvider>
   );
 }

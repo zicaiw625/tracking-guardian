@@ -11,19 +11,21 @@ import {
 import { CheckCircleIcon } from "~/components/icons";
 import type { ScriptAnalysisResult } from "../../services/scanner/types";
 import { getPlatformName } from "./utils";
+import { useTranslation } from "react-i18next";
 
 interface AnalysisResultSummaryProps {
   analysisResult: ScriptAnalysisResult;
 }
 
 export function AnalysisResultSummary({ analysisResult }: AnalysisResultSummaryProps) {
+  const { t } = useTranslation();
   return (
     <Layout>
       <Layout.Section variant="oneThird">
         <Card>
           <BlockStack gap="400">
             <Text as="h2" variant="headingMd">
-              风险评分
+              {t("scan.analysisResult.riskScore")}
             </Text>
             <Box
               background={
@@ -52,20 +54,20 @@ export function AnalysisResultSummary({ analysisResult }: AnalysisResultSummaryP
         <Card>
           <BlockStack gap="400">
             <Text as="h2" variant="headingMd">
-              检测到的平台
+              {t("scan.analysisResult.detectedPlatforms")}
             </Text>
             {analysisResult.identifiedPlatforms.length > 0 ? (
               <BlockStack gap="200">
                 {analysisResult.identifiedPlatforms.map((platform) => (
                   <InlineStack key={platform} gap="200" align="start">
                     <Icon source={CheckCircleIcon} tone="success" />
-                    <Text as="span">{getPlatformName(platform)}</Text>
+                    <Text as="span">{getPlatformName(platform, t)}</Text>
                   </InlineStack>
                 ))}
               </BlockStack>
             ) : (
               <Text as="p" tone="subdued">
-                未检测到已知追踪平台
+                {t("scan.analysisResult.noPlatforms")}
               </Text>
             )}
           </BlockStack>
@@ -75,7 +77,7 @@ export function AnalysisResultSummary({ analysisResult }: AnalysisResultSummaryP
         <Card>
           <BlockStack gap="400">
             <Text as="h2" variant="headingMd">
-              检测详情
+              {t("scan.analysisResult.details")}
             </Text>
             {analysisResult.platformDetails.length > 0 ? (
               <BlockStack gap="200">
@@ -92,7 +94,7 @@ export function AnalysisResultSummary({ analysisResult }: AnalysisResultSummaryP
                           {detail.type}
                         </Text>
                         <Badge tone={detail.confidence === "high" ? "success" : "info"}>
-                          {detail.confidence === "high" ? "高可信度" : "中可信度"}
+                          {detail.confidence === "high" ? t("scan.analysisResult.confidence.high") : t("scan.analysisResult.confidence.medium")}
                         </Badge>
                       </InlineStack>
                       <Text as="span" variant="bodySm" tone="subdued">
@@ -104,7 +106,7 @@ export function AnalysisResultSummary({ analysisResult }: AnalysisResultSummaryP
               </BlockStack>
             ) : (
               <Text as="p" tone="subdued">
-                无检测详情
+                {t("scan.analysisResult.noDetails")}
               </Text>
             )}
           </BlockStack>

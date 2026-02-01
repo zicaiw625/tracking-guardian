@@ -37,6 +37,8 @@ interface MigrationActionLike {
   type: string;
   title: string;
   description?: string;
+  descriptionKey?: string;
+  descriptionParams?: Record<string, any>;
   priority?: string;
   platform?: string;
   scriptTagId?: number;
@@ -168,7 +170,7 @@ export function ScanPageBelowTabsContent({
           description={t("scan.autoTab.emptyState.description")}
           helpText={t("scan.autoTab.emptyState.helpText")}
           primaryAction={{ content: t("scan.autoTab.startScan"), onAction: handleScan }}
-          secondaryAction={{ content: t("scan.autoTab.emptyState.learnMore"), url: "https://help.shopify.com/en/manual/pixels/web-pixels" }}
+          secondaryAction={{ content: t("scan.autoTab.emptyState.learnMore"), url: t("scan.autoTab.emptyState.learnMoreUrl") }}
         />
       )}
       {latestScan && !isScanning && upgradeStatus?.title && upgradeStatus?.message && (
@@ -330,7 +332,9 @@ export function ScanPageBelowTabsContent({
                       </BlockStack>
                       {action.deadline && <Badge tone="warning">{`${t("scan.autoTab.migrationActions.deadline")} ${action.deadline}`}</Badge>}
                     </InlineStack>
-                    <Text as="p" variant="bodySm" tone="subdued">{action.description}</Text>
+                    <Text as="p" variant="bodySm" tone="subdued">
+                      {action.descriptionKey ? t(action.descriptionKey, action.descriptionParams) : action.description}
+                    </Text>
                     <InlineStack gap="200" align="end">
                       {action.type === "migrate_script_tag" && action.scriptTagId != null && (
                         <Button size="slim" icon={InfoIcon} onClick={() => handleShowScriptTagGuidance(action.scriptTagId!, action.platform)}>{t("scan.autoTab.migrationActions.cleanGuide")}</Button>

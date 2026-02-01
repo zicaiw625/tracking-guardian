@@ -1,5 +1,60 @@
 {
   "onboarding": {
+    "upgradeHealthCheck": {
+      "title": "🏥 升级体检报告",
+      "riskLevel": {
+        "high": "高风险",
+        "medium": "中风险",
+        "low": "低风险"
+      },
+      "description": "我们已自动扫描您的店铺中的 ScriptTags 和 Web Pixels，评估迁移风险并生成迁移建议。Additional Scripts 需要手动粘贴识别。",
+      "upgradeStatus": {
+        "title": "升级状态",
+        "upgraded": "✅ 已升级到新版 Thank you / Order status 页面",
+        "notUpgraded": "⚠️ 尚未升级到新版页面",
+        "upgradedDesc": "您的店铺已使用新版页面，可以开始迁移追踪脚本",
+        "notUpgradedDesc": "建议先升级到新版页面，然后再迁移追踪脚本"
+      },
+      "summary": {
+        "title": "检测结果摘要",
+        "scriptTagsCount": "ScriptTags 数量",
+        "identifiedPlatforms": "识别到的平台",
+        "tip": "💡 提示：建议分阶段完成迁移，优先处理高风险项"
+      },
+      "riskScore": {
+        "high": "检测到多个高风险项，建议立即开始迁移",
+        "medium": "检测到一些需要关注的项，建议尽快完成迁移",
+        "low": "风险较低，可以按计划完成迁移"
+      },
+      "nextSteps": {
+        "title": "下一步操作",
+        "description": "根据检测结果，我们建议您：",
+        "step1": {
+          "upgraded": "开始 Audit 扫描，查看详细的迁移清单",
+          "notUpgraded": "先升级到新版 Thank you / Order status 页面"
+        },
+        "step2": "根据迁移清单配置像素追踪",
+        "step3": "运行验收测试，确保追踪正常",
+        "step4": "切换到生产模式，完成迁移"
+      },
+      "actions": {
+        "viewDashboard": "查看仪表盘",
+        "startAudit": "开始 Audit 扫描"
+      }
+    },
+    "scanProgress": {
+      "title": "🔍 正在进行升级体检",
+      "status": {
+        "inProgress": "进行中"
+      },
+      "steps": {
+        "checkUpgrade": "检查升级状态",
+        "scanScriptTags": "扫描 ScriptTags",
+        "identifyPlatforms": "识别追踪平台",
+        "generateChecklist": "生成迁移清单"
+      },
+      "estimatedTime": "预计耗时约 10 秒，请稍候..."
+    },
     "welcome": {
       "title": "🚀 欢迎使用升级迁移交付平台",
       "subtitle": "升级不丢功能/不丢数据 • 可交付的验收报告 • 上线后有断档告警",
@@ -81,7 +136,27 @@
     },
     "risks": {
       "title": "⚠️ 风险项",
-      "more": "还有 {{count}} 个风险项，查看完整报告了解详情"
+      "more": "还有 {{count}} 个风险项，查看完整报告了解详情",
+      "deprecatedScriptTagOrderStatus": {
+        "name": "订单状态页 ScriptTag（将被废弃）",
+        "description": "检测到 {{count}} 个用于订单状态页的 ScriptTag ({{platform}})，这是 Shopify 废弃公告的主要目标。检测方法：URL 模式匹配",
+        "details": "平台: {{platform}}, 脚本数量: {{count}}"
+      },
+      "deprecatedScriptTag": {
+        "name": "ScriptTag API（建议迁移）",
+        "description": "检测到 {{count}} 个 ScriptTag ({{platform}})，建议迁移到 Web Pixel 以获得更好的兼容性。检测方法：URL 模式匹配",
+        "details": "平台: {{platform}}, 范围: {{scope}}"
+      },
+      "inlineTracking": {
+        "name": "内联追踪代码",
+        "description": "检测到页面源码中包含硬编码的追踪脚本，建议迁移到 Shopify Web Pixel。检测方法：URL 模式匹配与内容模式推断",
+        "details": "检测到平台: {{platforms}}"
+      },
+      "noServerSide": {
+        "name": "建议启用服务端追踪",
+        "description": "对于检测到的支持平台，建议开启 Conversion API 以抵抗广告拦截和提升数据准确性",
+        "details": "支持平台: {{platforms}}"
+      }
     },
     "nextSteps": {
       "title": "🎯 下一步操作",
@@ -121,13 +196,13 @@
     }
   },
   "nav": {
-    "dashboard": "仪表盘",
-    "audit": "审计",
-    "pixels": "像素",
-    "verification": "验证",
+    "dashboard": "首页",
+    "audit": "审计 (Audit)",
+    "pixels": "Pixels",
+    "verification": "验收",
     "monitoring": "监控",
     "settings": "设置",
-    "billing": "计费"
+    "billing": "订阅"
   },
   "deprecation": {
     "scriptTagCreation": {
@@ -282,8 +357,41 @@
     "documentation": "文档"
   },
   "common": {
+    "paidPrompt": {
+      "features": {
+        "pixel_migration": {
+          "name": "一键像素迁移",
+          "desc": "自动生成和配置像素追踪，无需手动编写代码",
+          "cta": "升级到 Starter 开始迁移"
+        },
+        "batch_audit": {
+          "name": "批量 Audit 扫描",
+          "desc": "同时扫描多个店铺，生成统一报告（v1.1 即将推出）",
+          "cta": "批量功能 v1.1 即将推出，升级至 Agency 以在发布后使用"
+        },
+        "export_report": {
+          "name": "报告导出",
+          "desc": "导出 CSV 格式的迁移报告",
+          "cta": "升级到 Growth 或 Agency 解锁导出功能"
+        },
+        "verification": {
+          "name": "验收测试",
+          "desc": "验证迁移配置是否正确工作",
+          "cta": "升级到 Starter 解锁验收功能"
+        }
+      },
+      "compact": "{{name}}需要 {{plan}} 及以上套餐",
+      "current": "当前套餐：",
+      "required": " → 需要："
+    },
+    "add": "添加",
+    "delete": "删除",
+    "enabled": "启用",
+    "disabled": "禁用",
+    "months": "{{count}} 个月",
     "loading": "加载中...",
     "error": "错误",
+    "success": "成功",
     "save": "保存",
     "cancel": "取消",
     "required": "必填",
@@ -296,13 +404,155 @@
     "unknown": "未知",
     "learnMore": "了解更多",
     "unknownAsset": "未知资产",
-    "noDescription": "无说明"
+    "noDescription": "无说明",
+    "months_other": "{{count}} 个月",
+    "unknownError": "未知错误"
+  },
+  "billing": {
+    "pageTitle": "订阅与计费",
+    "successTitle": "订阅成功！",
+    "successMessage": "您的订阅已激活，现在可以享受所有功能了。",
+    "failTitle": "订阅失败",
+    "failPrefix": "操作失败：",
+    "trialBannerTitle": "试用期",
+    "trialBannerMessage": "您正在使用 {{planName}} 的免费试用。试用期剩余 {{days}} 天。",
+    "limitBannerTitle": "已达到订单限额",
+    "limitBannerMessage": "本月订单追踪已达到 {{limit}} 笔上限。请升级套餐以继续追踪更多订单。",
+    "introTitle": "订阅与账单概览",
+    "introDescription": "查看当前套餐、使用量、账单历史，并管理续费与升级。当前套餐包含像素迁移、验收报告与断档告警；服务端 CAPI 投递为可选能力，默认关闭。",
+    "introItems": [
+      "套餐权益与用量一目了然",
+      "支持在 Shopify 账单中心查看发票",
+      "升级后自动解锁对应功能"
+    ],
+    "viewPlan": "查看套餐",
+    "billingCenter": "账单中心",
+    "currentPlan": "当前套餐",
+    "usageTitle": "本月订单追踪",
+    "featuresTitle": "套餐功能",
+    "subscriptionStatus": "订阅状态",
+    "trialing": "试用中",
+    "active": "已激活",
+    "nextBillingDate": "下次扣费日期",
+    "cancelSubscription": "取消订阅",
+    "subscriptionCancelled": "订阅已取消",
+    "cancelledMessage": "您仍可使用至 {{date}}。",
+    "invoiceHistory": "发票/账单历史",
+    "invoiceDescription": "展示当前订阅与一次性购买记录，完整发票请在 Shopify 后台查看。",
+    "goToShopifyBilling": "前往 Shopify 账单中心",
+    "noInvoices": "暂无账单记录。完成首次订阅后，这里会展示发票与账单摘要。",
+    "invoiceTable": {
+      "type": "类型",
+      "item": "项目",
+      "amount": "金额",
+      "status": "状态",
+      "period": "周期/时间",
+      "subscription": "订阅",
+      "oneTime": "一次性购买",
+      "periodTo": "周期至 {{date}}"
+    },
+    "availablePlans": "可用套餐",
+    "current": "当前",
+    "month": "/月",
+    "trialDays": "{{days}} 天免费试用",
+    "downgradeToFree": "降级到免费版",
+    "upgrade": "升级",
+    "downgrade": "降级",
+    "select": "选择",
+    "faq": {
+      "title": "常见问题",
+      "q1": "什么时候开始计费？",
+      "a1": "付费套餐提供 7 天免费试用（Agency 版 14 天）。试用期结束后自动开始计费。",
+      "q2": "可以随时取消吗？",
+      "a2": "是的，您可以随时取消订阅。取消后，当前计费周期结束前仍可使用付费功能。",
+      "q3": "超过订单限额会怎样？",
+      "a3": "达到月度限额后，新订单将不会被追踪。您可以升级套餐来增加限额。",
+      "q4": "如何升级或降级套餐？",
+      "a4": "您可以随时更改套餐。升级立即生效，降级在当前计费周期结束后生效。",
+      "q5": "Agency 版有哪些额外功能？",
+      "a5": "多店管理、批量配置、团队协作、白标报告支持均即将在 v1.1 推出；当前已包含验收报告导出（CSV）、无限像素、专属客户成功经理与 SLA。"
+    },
+    "cancelModal": {
+      "title": "确定要取消订阅吗？",
+      "content": "取消后将降级到免费版。",
+      "confirm": "确定",
+      "cancel": "取消"
+    }
   },
   "plans": {
-    "free": "免费版",
-    "starter": "入门版",
-    "pro": "专业版",
-    "enterprise": "企业版",
+    "free": {
+      "name": "免费计划",
+      "tagline": "小型店铺的基础追踪",
+      "features": {
+        "audit": "Audit 风险报告（但不导出）",
+        "checklist": "迁移清单 + 风险分级 + 替代路径",
+        "deprecation": "明确提示 checkout.liquid/additional scripts 弃用限制",
+        "countdown": "包含废弃倒计时：Plus ({{plusDate}})，非 Plus ({{nonPlusDate}})",
+        "docs": "基础文档支持",
+        "basic": "基础像素事件",
+        "scan": "每日扫描"
+      }
+    },
+    "starter": {
+      "name": "Starter 入门版",
+      "tagline": "像素最小可用迁移（标准事件映射 + 参数完整率）",
+      "features": {
+        "pixel": "1 个像素目的地 (GA4/Meta/TikTok 三选一)",
+        "mapping": "标准事件映射 + 参数完整率检查",
+        "payload": "可下载 payload 证据（验证和存档用）",
+        "wizard": "验收向导（不含报告导出）",
+        "env": "Test/Live 环境切换",
+        "limit": "每月 1,000 笔订单追踪",
+        "retention": "30 天数据保留",
+        "sandbox": "⚠️ Web Pixel 限制说明（strict sandbox）"
+      }
+    },
+    "growth": {
+      "name": "增长计划",
+      "tagline": "成长型商家的高级功能",
+      "features": {
+        "migration": "像素迁移 + 模块发布 + 验收报告导出 (CSV)",
+        "report": "可交付的验收报告（给老板/客户看的证据）",
+        "checklist": "测试清单 + 事件触发记录 + 参数完整率",
+        "consistency": "订单金额/币种一致性验证",
+        "compliance": "隐私合规检查（consent/customerPrivacy）",
+        "reconciliation": "事件对账与验收（事件对账功能）",
+        "alerts": "断档监控与告警（事件量骤降告警、失败率阈值监控）",
+        "limit": "每月 10,000 笔订单追踪",
+        "retention": "90 天数据保留",
+        "unlimited": "无限事件",
+        "priority": "优先支持",
+        "export": "数据导出"
+      }
+    },
+    "agency": {
+      "name": "代理商计划",
+      "tagline": "适用于高交易量商家和代理商",
+      "features": {
+        "unlimited": "无限像素目的地",
+        "support": "Thank you/Order status 升级自检与交付支持",
+        "limit": "每月 100,000 笔订单追踪",
+        "retention": "无限数据保留",
+        "manager": "专属客户成功经理",
+        "sla": "SLA 保障",
+        "multi": "多店铺管理",
+        "api": "API 访问"
+      }
+    },
+    "monitor": {
+      "name": "Monitor 监控版（可选叠加）",
+      "tagline": "断档监控与告警（上线后保障，v1.0 可选功能）",
+      "features": {
+        "drop": "事件量骤降告警",
+        "threshold": "失败率阈值监控",
+        "missing": "purchase 缺参率检测",
+        "logs": "日志留存与查询",
+        "rollback": "版本回滚支持",
+        "channels": "多渠道告警（邮件/Slack/Telegram）",
+        "realtime": "实时事件监控",
+        "note": "⚠️ 注意：此功能不在 PRD v1.0 正式套餐中"
+      }
+    },
     "unknown": "未知"
   },
   "errorPage": {
@@ -313,9 +563,196 @@
     "loadingError": "加载页面时发生错误。",
     "defaultMessage": "发生错误。",
     "unknownError": "发生未知错误。",
-    "retry": "重试"
+    "retry": "重试",
+    "errorCode": "错误代码:",
+    "backToHome": "返回首页",
+    "reload": "重新加载",
+    "loadFailed": "加载失败",
+    "loadDataError": "加载数据时发生错误",
+    "unexpectedError": "抱歉，发生了意外错误。我们的团队已收到通知。",
+    "http": {
+      "400": {
+        "title": "请求无效",
+        "message": "您的请求格式不正确，请检查后重试。"
+      },
+      "401": {
+        "title": "未授权",
+        "message": "您需要登录才能访问此页面。"
+      },
+      "403": {
+        "title": "访问被拒绝",
+        "message": "您没有权限访问此资源。"
+      },
+      "404": {
+        "title": "页面未找到",
+        "message": "您访问的页面不存在或已被移除。"
+      },
+      "429": {
+        "title": "请求过于频繁",
+        "message": "您的请求过于频繁，请稍后再试。"
+      },
+      "500": {
+        "title": "服务器错误",
+        "message": "服务器发生内部错误，请稍后重试。"
+      },
+      "502": {
+        "title": "网关错误",
+        "message": "服务暂时不可用，请稍后重试。"
+      },
+      "503": {
+        "title": "服务不可用",
+        "message": "服务正在维护中，请稍后重试。"
+      },
+      "504": {
+        "title": "网关超时",
+        "message": "请求超时，请检查网络连接后重试。"
+      }
+    }
   },
   "dashboard": {
+    "quickStats": {
+      "title": "快速统计",
+      "configuredPlatforms": "已配置平台",
+      "unit": "个",
+      "weeklyConversions": "本周转化记录",
+      "records": "条",
+      "currentPlan": "当前套餐",
+      "freePlan": "免费版",
+      "moreFeatures": "...更多权益，详见套餐页",
+      "viewPlan": "查看套餐/升级"
+    },
+    "latestScan": {
+      "title": "最新扫描",
+      "emptyTitle": "尚未进行扫描",
+      "emptyDesc": "完成上方第 1 步开始扫描。预计耗时约 10 秒，不会修改任何设置。",
+      "startScan": "开始扫描",
+      "riskHigh": "高风险",
+      "riskMedium": "中风险",
+      "riskLow": "低风险",
+      "scannedAt": "扫描时间: ",
+      "identifiedPlatforms": "识别到的平台:",
+      "noPlatforms": "未识别到追踪平台",
+      "viewReport": "查看完整报告"
+    },
+    "healthScore": {
+      "title": "健康度",
+      "statusCritical": "需要关注",
+      "statusWarning": "有风险",
+      "statusSuccess": "健康",
+      "statusUnknown": "未初始化",
+      "notInitializedTitle": "未初始化",
+      "notInitializedDesc": "完成平台连接后开始评分",
+      "desc": "评分依据：过去 7 天对账差异率 / 漏报率",
+      "descUnknown": "连接平台并产生订单数据后，系统将自动计算健康度评分"
+    },
+    "checklist": {
+      "emptyScanTitle": "暂无迁移清单",
+      "emptyScanDesc": "完成自动扫描后，我们将为您生成迁移清单和优先级建议。",
+      "startScan": "开始扫描",
+      "emptyResultsDesc": "扫描结果中没有需要迁移的项目。",
+      "title": "迁移清单",
+      "emptyTitle": "暂无迁移清单",
+      "emptyDesc": "完成扫描后，我们将为您生成迁移清单和优先级建议。",
+      "preview": "迁移清单预览",
+      "items": "项",
+      "highRisk": "高风险项",
+      "mediumRisk": "中风险项",
+      "lowRisk": "低风险项",
+      "estimatedTotalTime": "预计总时间",
+      "remainingTime": "剩余时间",
+      "progress": "完成进度",
+      "topPriority": "优先级最高的项目",
+      "priority": "优先级 {{level}}/10",
+      "inProgress": "进行中",
+      "pending": "待处理",
+      "startMigration": "开始迁移",
+      "moreItems": "还有 {{count}} 项待处理",
+      "viewFull": "查看完整清单",
+      "high": "高",
+      "medium": "中",
+      "low": "低",
+      "unknown": "待估算"
+    },
+    "dependency": {
+      "title": "依赖关系",
+      "emptyTitle": "暂无依赖关系数据",
+      "overview": "依赖关系概览",
+      "assets": "{{count}} 个资产",
+      "totalEdges": "总依赖关系",
+      "edgesUnit": "条",
+      "avgDependencies": "平均依赖数",
+      "unit": "个",
+      "criticalPath": "关键路径",
+      "riskDistribution": "风险分布",
+      "highRisk": "高风险: {{count}}",
+      "mediumRisk": "中风险: {{count}}",
+      "lowRisk": "低风险: {{count}}",
+      "categoryDistribution": "类别分布",
+      "relations": "依赖关系",
+      "moreRelations": "还有 {{count}} 条依赖关系...",
+      "cycles": "检测到 {{count}} 个循环依赖",
+      "cyclesDesc": "循环依赖可能导致迁移顺序问题，建议手动调整迁移顺序",
+      "viewFull": "查看完整依赖图",
+      "dependsOn": "依赖于",
+      "categories": {
+        "pixel": "像素追踪",
+        "affiliate": "联盟营销",
+        "survey": "问卷调研",
+        "support": "客服支持",
+        "analytics": "分析工具",
+        "other": "其他"
+      }
+    },
+    "setup": {
+      "title": "开始设置",
+      "completed": "{{completed}}/{{total}} 已完成"
+    },
+    "upgradeStatus": {
+      "title": "升级状态",
+      "pendingTitle": "状态待确认",
+      "pendingDesc": "正在加载升级状态信息...",
+      "upgradedLabel": "已升级（新版本）",
+      "notUpgradedLabel": "未升级（旧版本）",
+      "urgency": {
+        "critical": "紧急",
+        "high": "高",
+        "medium": "中",
+        "low": "低",
+        "resolved": "已完成"
+      },
+      "extensibilityStatus": "Checkout Extensibility 状态",
+      "upgradedDesc": "您的店铺已使用新版 Checkout Extensibility",
+      "notUpgradedDesc": "您的店铺仍在使用旧版 Checkout 系统",
+      "newVersion": "新版本",
+      "legacyVersion": "旧版本",
+      "impactTitle": "影响提示：",
+      "impact1": "旧版 ScriptTags 将在截止日期后停止执行；Additional Scripts 将进入只读模式（不可编辑，PII 不可访问）",
+      "impact2": "追踪脚本可能失效，导致转化数据丢失",
+      "impact3": "建议尽快完成迁移以避免追踪中断",
+      "startAudit": "开始 Audit",
+      "deadline": "迁移截止日期",
+      "source": "日期来源：来自 Shopify 官方公告，仅供参考。实际截止日期请以 Shopify Admin 中的提示为准。",
+      "remainingDays": "剩余 {{days}} 天",
+      "remainingDesc": "建议尽快完成迁移以避免功能丢失",
+      "autoUpgradeStart": "自动升级开始",
+      "autoUpgradeDesc": "{{date}} 起（Shopify 会提前30天通知），Shopify 开始自动升级 Plus 商家到新版 TYP/OSP 页面，legacy 定制会丢失。",
+      "viewGuide": "查看 Plus 商家升级指南",
+      "deadlinePassed": "截止日期已过，请立即完成迁移以避免追踪中断。"
+    },
+    "dataConnection": {
+      "title": "数据未接入",
+      "issueIngestionSecret": "Ingestion Key未配置",
+      "issueWebPixel": "Web Pixel未安装",
+      "issueIngestionKey": "Web Pixel配置缺失ingestion_key",
+      "msgBoth": "数据连接未配置：需要配置Ingestion Key并安装Web Pixel才能开始接收追踪数据",
+      "msgSecret": "数据连接未完成：需要配置Ingestion Key",
+      "msgPixel": "数据连接未完成：需要安装Web Pixel",
+      "msgIncomplete": "数据连接配置不完整：Web Pixel配置缺失ingestion_key，请重新同步配置",
+      "actionSettings": "前往设置",
+      "actionInstall": "安装Web Pixel",
+      "actionFix": "修复配置",
+      "issues": "问题："
+    },
     "title": "升级迁移交付平台",
     "subtitle": "Shopify 官方 deadline：Plus 商家 {{date1}} 开始限制，{{date2}} 起自动升级 • 非 Plus 商家 {{date3}} 截止 • 核心：迁移、验收、断档监控 • 可交付的验收报告 • 上线后有断档告警",
     "scriptTagBanner": {
@@ -338,7 +775,8 @@
     "migrationDeadlineBanner": {
       "title": "重要迁移截止日期",
       "action": "了解更多",
-      "disclaimer": "<strong>重要提示：</strong>以下日期来自 Shopify 官方公告，仅供参考。实际截止日期请以 Shopify Admin 中的提示为准。Shopify 可能会更新策略，我们建议您定期查看 Shopify 官方文档。",
+      "helpCenter": "Shopify 帮助中心",
+      "disclaimer": "<strong>重要提示：</strong>以下日期来自 Shopify 官方公告，仅供参考。实际截止日期请以 Shopify Admin 中的提示为准。Shopify 可能会更新策略，我们建议您定期查看 <a>Shopify 帮助中心</a>。",
       "plusMerchant": "<strong>Plus 商家:</strong> <strong>{{date1}}</strong> 开始限制（ScriptTag 停止执行；Additional Scripts 进入只读模式（不可编辑，PII 不可访问），关键节点：升级/限制开始），<strong>{{date2}}</strong> 起 Shopify 开始自动升级（legacy 定制会丢失）。参考 <1>Shopify 帮助中心</1>",
       "plusGuide": "查看 Plus 商家升级指南",
       "nonPlusMerchant": "<strong>非 Plus 商家:</strong> 最晚 <strong>{{date}}</strong> 截止。参考 <1>Shopify 帮助中心</1>",
@@ -352,6 +790,80 @@
         "cta": "开始扫描"
       },
       "migrate": {
+        "testingStep": {
+          "errors": {
+            "parseFailed": "解析响应失败",
+            "validationFailed": "部分平台配置验证失败: {{platforms}}。请检查配置和凭证。",
+            "validationError": "验证过程中发生错误",
+            "switchFailed": "部分平台切换失败: {{platforms}}。请稍后重试。",
+            "switchError": "切换环境时发生错误",
+            "network": "网络错误",
+            "unknown": "未知错误"
+          },
+          "success": {
+            "validationPassed": "所有平台测试环境配置验证通过！测试事件已成功发送。",
+            "switchPassed": "所有平台已切换到生产模式！",
+            "redirecting": "配置验证通过！正在跳转到验收页面..."
+          },
+          "status": {
+            "saved": "配置已保存",
+            "nextStep": "下一步：测试验证",
+            "recommendations": "配置已保存。建议您：",
+            "steps": {
+              "validate": "验证测试环境配置（可选）",
+              "createOrder": "创建一个测试订单",
+              "monitor": "在「监控」页面查看事件是否成功发送",
+              "verify": "在「验收」页面运行验收测试",
+              "switch": "验证无误后，在设置页面将环境切换为「生产模式」"
+            }
+          },
+          "validation": {
+            "title": "测试环境验证",
+            "description": "发送测试事件到各平台，验证配置是否正确",
+            "validating": "验证中...",
+            "sendEvent": "发送测试事件",
+            "eventSent": "测试事件已成功发送",
+            "responseTime": "响应时间: {{time}}ms",
+            "metaCode": "Meta Test Event Code: {{code}}",
+            "metaDesc": "请在 Meta Events Manager 的「测试事件」页面查看此事件。如果看到测试事件，说明配置正确。",
+            "openMeta": "打开 Meta Events Manager",
+            "ga4Debug": "GA4 DebugView",
+            "ga4Desc": "测试事件已发送，请在 GA4 DebugView 中查看实时事件流。",
+            "openGa4": "打开 GA4 DebugView",
+            "errorDetails": "错误详情",
+            "checkList": "请检查：",
+            "checkItems": {
+              "credentials": "平台凭证是否正确",
+              "network": "网络连接是否正常",
+              "api": "平台 API 是否可用"
+            },
+            "eventDetails": "测试事件详情",
+            "eventId": "事件 ID: {{id}}",
+            "eventType": "事件类型: {{type}}",
+            "amount": "测试金额: $1.00 USD"
+          },
+          "production": {
+            "title": "切换到生产模式",
+            "successTitle": "测试验证通过！现在可以切换到生产模式。",
+            "desc": "切换后，事件将发送到实际广告平台，并开始追踪真实订单转化。",
+            "confirmTitle": "切换前请确认：",
+            "confirmItems": {
+              "credentials": "所有平台的凭证已正确配置",
+              "eventSent": "测试事件已成功发送并可在平台中查看",
+              "mapping": "事件映射配置符合您的业务需求",
+              "monitor": "已了解如何查看和监控生产环境事件"
+            },
+            "tip": "💡 提示：切换到生产模式后，建议先运行一次验收测试，确保所有事件正常发送。您可以在「验收向导」页面进行完整的验收测试。",
+            "action": "切换到生产模式并前往验收",
+            "note": "切换后，您可以在「设置」页面随时切换回测试模式或回滚配置。",
+            "validatedTitle": "✅ 配置验证通过！建议您运行验收测试以确保一切正常。",
+            "redirectNote": "系统将在 3 秒后自动跳转到验收页面，您也可以手动点击下方按钮。"
+          },
+          "actions": {
+            "runVerification": "运行验收测试",
+            "complete": "✅ 完成并前往验收"
+          }
+        },
         "label": "迁移设置",
         "description": "配置像素映射并完成验收",
         "cta": "配置迁移"
@@ -360,6 +872,72 @@
         "label": "设置警报",
         "description": "配置健康监控警报",
         "cta": "配置警报"
+      }
+    },
+    "manualSupplement": {
+      "title": "手动分析 Additional Scripts",
+      "desc": "Shopify API 无法自动读取 Additional Scripts 内容。请从 Shopify 后台复制脚本代码，粘贴到下方进行分析。",
+      "privacy": {
+        "title": "隐私提示：请先脱敏再粘贴",
+        "item1": "• 可能包含客户信息、访问令牌或第三方密钥，请在粘贴前删除/替换敏感字段。",
+        "item2": "• 分析在浏览器本地完成，不会上传脚本正文；仅识别出的平台信息会用于生成迁移建议。",
+        "item3": "• 我们不会持久化或日志记录您粘贴的内容；仅在浏览器会话内用于本地分析。",
+        "item4": "• 请勿将脚本内容分享给他人或在公共场所粘贴。"
+      },
+      "deadline": {
+        "title": "Plus：{{plusDate}} / 非 Plus：{{nonPlusDate}} 将失效",
+        "desc": "这是 Thank you / Order status 页面迁移的硬性截止时间。提前粘贴 Additional Scripts 代码并完成迁移，可避免追踪中断。",
+        "disclaimer": "以上日期来自 Shopify 官方公告，仅供参考。实际截止日期请以 Shopify Admin 中的提示为准。Shopify 可能会更新策略，我们建议您定期查看 Shopify 官方文档。",
+        "remaining": "当前剩余：{{text}} — {{desc}}"
+      },
+      "actions": {
+        "migrate": "前往迁移页面",
+        "pixel": "启用/升级 App Pixel"
+      },
+      "howTo": {
+        "title": "如何获取 Additional Scripts：",
+        "step1": "1. 前往 Shopify 后台 → 设置 → 结账",
+        "step2": "2. 找到「订单状态页面」或「Additional Scripts」区域",
+        "step3": "3. 复制其中的所有代码",
+        "step4": "4. 粘贴到下方文本框中"
+      },
+      "buttons": {
+        "upgradeWizard": "从升级向导补充",
+        "guidedInfo": "引导补充信息",
+        "importWizard": "从升级向导导入"
+      },
+      "progress": "分析进度: {{current}} / {{total}}",
+      "addChecklist": "加入清单并添加下一条",
+      "checklist": {
+        "title": "替代方案清单",
+        "exportCSV": "导出替代方案清单 CSV",
+        "remove": "移除",
+        "platform": "平台",
+        "suggestion": "建议",
+        "riskScore": "风险分",
+        "majorRisk": "主要风险",
+        "suggestions": {
+          "webPixel": "Web Pixel 迁移",
+          "uiExtension": "Checkout UI Extension 或需人工复核",
+          "manual": "需人工复核（review & replace）"
+        }
+      },
+      "riskDetails": "风险详情",
+      "migrationSuggestions": {
+        "title": "迁移建议清单",
+        "badge": "人工分析结果",
+        "comprehensive": "综合迁移建议",
+        "configure": "去配置",
+        "viewApp": "查看应用",
+        "tool": "前往迁移工具"
+      },
+      "save": {
+        "title": "保存分析结果",
+        "desc": "将分析结果保存到审计资产记录，方便后续跟踪迁移进度",
+        "saved": "已保存",
+        "processPaste": "直接处理粘贴内容",
+        "processed": "已处理",
+        "saveAudit": "保存到审计记录"
       }
     },
     "intro": {
@@ -375,6 +953,10 @@
       "reportCenter": "查看报告中心"
     },
     "errors": {
+      "invalidPlatform": "无效或缺失的 platform 参数",
+      "validationFailed": "验证失败",
+      "missingDraft": "缺少 draft 参数",
+      "invalidDraft": "draft 格式无效",
       "backendUrlMissing": {
         "title": "⚠️ 严重错误：BACKEND_URL 未在构建时替换",
         "subtitle": "检测到占位符 __BACKEND_URL_PLACEHOLDER__，URL 未在构建时替换",
@@ -430,87 +1012,254 @@
       "title": "报告中心",
       "description": "管理 Audit / Verification / Monitoring 报告导出与历史记录。",
       "cta": "进入报告中心"
+    },
+    "metrics": {
+      "riskDistribution": {
+        "title": "风险分布",
+        "riskLevel": "风险等级",
+        "count": "数量"
+      }
     }
   },
   "scan": {
-    "pageTitle": "Audit 风险报告（免费获客）",
-    "pageSubtitle": "迁移清单 + 风险分级 + 替代路径（Web Pixel / 不可迁移）• 明确提示 checkout.liquid / additional scripts / script tags 在 Thank you/Order status 的弃用与限制 • 可导出 CSV",
+    "notes": {
+      "additionalScripts": "Additional Scripts 需要通过手动粘贴识别，Shopify API 无法自动读取 checkout.liquid 中的 Additional Scripts 内容"
+    },
+    "pageTitle": "Tracking Guardian - 扫描与迁移",
+    "pageSubtitle": "检测、分析并迁移您的追踪脚本",
     "tabs": {
       "auto": "自动扫描",
-      "manual": "手动补充",
+      "manual": "手动分析",
       "checklist": "迁移清单"
     },
     "intro": {
       "manual": {
-        "title": "手动补充 Additional Scripts",
-        "description": "补齐 Shopify API 无法读取的 Additional Scripts，确保报告覆盖 Thank you / Order status。",
+        "title": "手动脚本分析",
+        "description": "分析并迁移来自 checkout 的自定义脚本",
         "items": [
-          "粘贴 Additional Scripts 内容进行分析",
-          "生成完整的迁移清单与风险分级",
-          "支持一键保存到审计记录"
+          "粘贴脚本内容以识别平台",
+          "检测潜在风险和 PII 访问",
+          "获取迁移建议"
         ],
         "action": {
-          "primary": "进入手动分析",
-          "secondary": "查看报告"
+          "primary": "开始分析",
+          "secondary": "查看清单"
         }
       },
       "checklist": {
-        "title": "Audit 迁移清单",
-        "description": "查看风险分级、推荐迁移路径与预估工时，作为迁移交付清单。",
+        "title": "迁移清单",
+        "description": "追踪您的迁移进度",
         "items": [
-          "清单支持 CSV 导出",
-          "标注 Web Pixel / 不可迁移 路径",
-          "优先处理高风险资产"
+          "查看已识别的脚本和风险",
+          "追踪迁移状态",
+          "导出清单为 CSV"
         ],
         "action": {
-          "primary": "查看完整报告",
-          "secondary": "返回扫描"
+          "primary": "查看清单",
+          "secondary": "返回自动扫描"
         }
       },
       "auto": {
-        "title": "Audit 自动扫描",
-        "description": "自动扫描 ScriptTags 与 Web Pixels，生成迁移风险评估和建议。",
+        "title": "自动扫描",
+        "description": "自动扫描您店铺的追踪脚本",
         "items": [
-          "检测已安装像素与平台信号",
-          "识别高风险脚本与阻塞项",
-          "输出迁移路径与工时建议"
+          "检测 ScriptTags 和 Web Pixels",
+          "识别追踪平台",
+          "查看风险评估"
         ],
         "action": {
-          "primary": "开始扫描",
-          "secondary": "手动补充"
+          "primary": "开始自动扫描",
+          "secondary": "手动分析"
         }
       }
     },
+    "analysis": {
+      "risks": {
+        "pii_access": {
+          "name": "检测到 PII（个人身份信息）访问",
+          "description": "脚本可能读取客户{{types}}等敏感信息，需要确保符合隐私法规（GDPR、CCPA）。Web Pixel 沙箱环境无法直接访问这些信息；如确需处理，请按 Shopify 官方能力与审核要求实施（PCD/权限），并最小化数据处理。",
+          "details": "检测到 {{count}} 处 PII 访问: {{types}}"
+        },
+        "window_document_access": {
+          "name": "检测到 window/document 全局对象访问",
+          "description": "脚本使用了 window、document 或 DOM 操作。Web Pixel 运行在受限沙箱中，无法访问这些对象，需要在迁移时使用 Shopify 提供的受控 API 替代（如 analytics.subscribe、settings 等）",
+          "details": "检测到 {{count}} 处访问: {{issues}}"
+        },
+        "blocking_load": {
+          "name": "检测到阻塞加载的代码",
+          "description": "脚本可能阻塞页面渲染，影响用户体验和页面性能。检测到：{{types}}",
+          "details": "检测到 {{count}} 处阻塞代码：{{types}}"
+        },
+        "duplicate_triggers": {
+          "name": "检测到重复触发的事件",
+          "description": "脚本可能多次触发相同事件，导致重复追踪和数据不准确",
+          "details": "检测到 {{count}} 个重复的事件调用"
+        },
+        "additional_scripts_detected": {
+          "name": "Additional Scripts 中检测到追踪代码",
+          "description": "建议迁移到 Web Pixel 以获得更好的兼容性和隐私合规",
+          "details": "检测到平台: {{platforms}}"
+        },
+        "legacy_ua": {
+          "name": "使用旧版 Universal Analytics",
+          "description": "Universal Analytics 已于 2023 年 7 月停止处理数据，请迁移到 GA4"
+        },
+        "inline_script_tags": {
+          "name": "内联 Script 标签",
+          "description": "内联脚本可能影响页面加载性能，建议使用异步加载或 Web Pixel"
+        }
+      },
+      "recommendations": {
+        "google": "ℹ️ **Google Analytics 4**\n  → 推荐：使用 Shopify 的 Google & YouTube 应用进行 Web Pixel 自动设置\n  → 替代：使用 Custom Pixel 进行高级定制",
+        "google_ads": "🎯 **Google Ads 转化追踪**\n  → 迁移到: Shopify 官方 Google & YouTube 应用\n  → 原因: 官方应用原生支持 Enhanced Conversions，Tracking Guardian 不支持 Google Ads CAPI\n  → 链接: https://apps.shopify.com/google",
+        "gtm": "🎯 **Google Tag Manager**\n  → 迁移方案取决于 GTM 内的具体标签:\n    • GA4 事件 → Tracking Guardian Web Pixel\n    • Google Ads → Shopify 官方 Google 应用\n    • Meta Pixel → Tracking Guardian Web Pixel\n  → 建议: 审查 GTM 容器内的标签，分别迁移到对应方案",
+        "meta": "ℹ️ **Meta Pixel (Facebook)**\n  → 推荐：使用 Shopify 的 Facebook & Instagram 应用\n  → 替代：使用 Custom Pixel 进行自定义事件",
+        "tiktok": "ℹ️ **TikTok Pixel**\n  → 推荐：使用 Shopify 的 TikTok 应用\n  → 替代：使用 Custom Pixel",
+        "bing": "⚠️ **Microsoft Advertising (Bing UET)**\n  → 迁移到: Shopify 官方 Microsoft Channel 应用\n  → 原因: Tracking Guardian 不支持 Microsoft Ads 服务端追踪\n  → 链接: https://apps.shopify.com/microsoft-channel\n  → 备选: 在 Shopify 主题中添加 UET 标签（非 Thank you 页面可继续使用）",
+        "clarity": "ℹ️ **Microsoft Clarity**\n  → 无需迁移到服务端: Clarity 是客户端会话回放/热力图工具\n  → 迁移方案: 在 Shopify 主题中添加 Clarity 代码\n  → 注意: Thank you 页面升级后，checkout.liquid 中的 Clarity 代码将失效",
+        "pinterest": "ℹ️ **Pinterest Tag**\n  → 推荐：使用 Shopify 的 Pinterest 应用",
+        "snapchat": "ℹ️ **Snapchat Pixel**\n  → 推荐：使用 Shopify 的 Snapchat Ads 应用",
+        "twitter": "⚠️ **X (Twitter) Pixel**\n  → 无官方 Shopify 应用\n  → 备选方案: 使用第三方集成或手动配置 X Conversions API",
+        "fairing": "📋 **Fairing (Post-purchase Survey)**\n  → 迁移到: Fairing 官方 Shopify 应用（支持 Checkout Extensibility）\n  → 链接: https://apps.shopify.com/fairing\n  → 注意: 如果已安装官方应用，只需更新到最新版本即可自动适配",
+        "kno": "📋 **KnoCommerce (Survey)**\n  → 迁移到: KnoCommerce 官方应用\n  → 链接: https://apps.shopify.com/microsoft-channel\n  → 官方应用会自动适配 Checkout Extensibility",
+        "zigpoll": "📋 **Zigpoll (Survey)**\n  → 迁移到: Zigpoll 官方应用\n  → 链接: https://apps.shopify.com/microsoft-channel",
+        "carthook": "🛒 **CartHook (Post-purchase Upsell)**\n  → 迁移到: CartHook 官方应用（支持 post-purchase extension）\n  → 链接: https://apps.shopify.com/microsoft-channel\n  → 重要: Shopify 的 post-purchase 页面使用独立的 extension API",
+        "aftersell": "🛒 **AfterSell (Upsell)**\n  → 迁移到: AfterSell 官方应用\n  → 链接: https://apps.shopify.com/microsoft-channel\n  → 官方应用已支持 Checkout Extensibility",
+        "reconvert": "🛒 **ReConvert (Upsell & Thank You)**\n  → 迁移到: ReConvert 官方应用（已支持新版 Thank You 页面）\n  → 链接: https://apps.shopify.com/microsoft-channel\n  → 确保更新到最新版本",
+        "zipify": "🛒 **Zipify OneClickUpsell**\n  → 迁移到: Zipify OCU 官方应用（支持 Checkout Extensibility）\n  → 链接: https://apps.shopify.com/microsoft-channel",
+        "refersion": "🤝 **Refersion (Affiliate)**\n  → 迁移到: Refersion 官方应用（支持服务端追踪）\n  → 链接: https://apps.shopify.com/microsoft-channel\n  → 官方应用使用 Webhook 追踪，不依赖客户端脚本",
+        "referralcandy": "🤝 **ReferralCandy**\n  → 迁移到: ReferralCandy 官方应用\n  → 链接: https://apps.shopify.com/microsoft-channel\n  → 官方应用使用 Webhook，无需客户端脚本",
+        "tapfiliate": "🤝 **Tapfiliate (Affiliate)**\n  → 迁移到: Tapfiliate 官方应用或服务端 API 集成\n  → 链接: https://apps.shopify.com/microsoft-channel",
+        "impact": "🤝 **impact.com (Affiliate)**\n  → 建议: 联系 impact.com 支持团队了解 Shopify Checkout Extensibility 迁移方案\n  → impact.com 支持服务端 API 集成，可脱离客户端脚本",
+        "partnerstack": "🤝 **PartnerStack**\n  → 迁移到: PartnerStack 官方应用（支持 Webhook）\n  → 链接: https://apps.shopify.com/microsoft-channel",
+        "hotjar": "🔥 **Hotjar (Heatmaps/Recordings)**\n  → 迁移方案: 在 Shopify 主题中添加 Hotjar 代码\n  → 注意: Thank You 页面升级后，checkout.liquid 中的代码将失效\n  → Hotjar 是客户端行为分析工具，无法使用服务端追踪",
+        "lucky_orange": "🔥 **Lucky Orange**\n  → 迁移方案: 在 Shopify 主题中添加 Lucky Orange 代码\n  → 类似 Hotjar，是客户端行为分析工具\n  → Thank You 页面升级后需要其他集成方式",
+        "klaviyo": "📧 **Klaviyo**\n  → 迁移到: Klaviyo 官方应用\n  → 链接: https://apps.shopify.com/microsoft-channel\n  → 官方应用使用 Webhook 追踪订单，客户端脚本主要用于网站浏览追踪",
+        "attentive": "📱 **Attentive (SMS)**\n  → 迁移到: Attentive 官方应用（支持 Checkout Extensibility）\n  → 链接: https://apps.shopify.com/microsoft-channel\n  → 确保更新到最新版本",
+        "postscript": "📱 **Postscript (SMS)**\n  → 迁移到: Postscript 官方应用（支持新版 Checkout）\n  → 链接: https://apps.shopify.com/microsoft-channel",
+        "default": "ℹ️ **{{platform}}**\n  → 请确认此追踪代码的用途，并评估是否需要迁移到 Web Pixel 或服务端方案",
+        "unknown": "ℹ️ **未检测到已知追踪平台**\n  → 可能是自定义脚本、Survey 工具、Post-purchase upsell 等\n  → 迁移方案:\n    • Survey/表单 → 按 Shopify 官方能力手动迁移\n    • Post-purchase upsell → Shopify 官方 post-purchase 扩展\n    • 自定义追踪 → Custom Pixel 或 Web Pixel\n  → 建议: 确认脚本用途后选择对应迁移方案",
+        "checklist": "\n📋 **迁移清单建议**:\n  1. 优先迁移广告平台（Meta、TikTok）以避免归因数据丢失\n  2. 启用 Web Pixel 并完成测试订单验收\n  3. 验证迁移后数据正常，再删除旧脚本\n  4. 非支持平台（Bing、Pinterest 等）使用官方应用"
+      }
+    },
+    "risk": {
+      "assetList": "审计资产清单",
+      "scoreSummary": "风险评分摘要",
+      "riskScore": "风险分数",
+      "level": {
+        "high": "高风险",
+        "medium": "中风险",
+        "low": "低风险"
+      },
+      "willFailOrBreak": "将失效/将断档",
+      "estimatedFixTime": "预计修复时间",
+      "enablePurchaseFix": "启用 Purchase-only 修复（约 {{time}} 分钟）",
+      "enableFullFunnelFix": "启用 Full-funnel 修复（约 {{time}} 分钟，Growth）",
+      "hiddenAssets": "还有 {{count}} 项高风险资产未显示",
+      "upgradeHint": "升级到 Migration 或更高套餐，查看完整风险清单和迁移建议",
+      "upgradeUnlock": "升级解锁",
+      "recommendedMigration": "推荐迁移方式",
+      "oneClickMigrate": "一键迁移",
+      "viewDetails": "查看详情",
+      "estimatedTime": "预计耗时: ",
+      "highPriority": "高优先级",
+      "mediumPriority": "中优先级",
+      "emptyList": "暂无审计资产。完成扫描后，资产清单将显示在这里。",
+      "category": {
+        "willFail": {
+          "label": "会失效/受限",
+          "desc": "这些资产在升级后将会失效或受到限制，必须优先迁移"
+        },
+        "canReplace": {
+          "label": "可直接替换",
+          "desc": "这些资产可以直接替换为新的实现方式，建议尽快迁移"
+        },
+        "noMigrationNeeded": {
+          "label": "无需迁移",
+          "desc": "这些资产无需立即迁移，可以延后处理或保留"
+        }
+      },
+      "migrationLabel": {
+        "webPixel": {
+          "label": "迁移到 Web Pixel",
+          "desc": "使用 Shopify Web Pixel Extension 替代客户端追踪"
+        },
+        "uiExtension": {
+          "label": "手动迁移",
+          "desc": "页面侧脚本需按 Shopify 官方能力自行迁移"
+        },
+        "serverSide": {
+          "label": "不提供",
+          "desc": "当前版本不提供服务端投递能力"
+        },
+        "none": {
+          "label": "无需迁移",
+          "desc": "此资产无需迁移，可保留或手动处理"
+        }
+      },
+      "assetCategory": {
+        "pixel": "追踪像素",
+        "affiliate": "联盟追踪",
+        "survey": "售后问卷",
+        "support": "客服入口",
+        "analytics": "站内分析",
+        "other": "其他"
+      }
+    },
+    "paidFeature": {
+      "pixelMigration": {
+        "name": "一键像素迁移",
+        "desc": "自动生成和配置像素追踪，无需手动编写代码",
+        "cta": "升级到 Starter 开始迁移"
+      },
+      "batchAudit": {
+        "name": "批量 Audit 扫描",
+        "desc": "同时扫描多个店铺，生成统一报告（v1.1 即将推出）",
+        "cta": "批量功能 v1.1 即将推出，升级至 Agency 以在发布后使用"
+      },
+      "exportReport": {
+        "name": "报告导出",
+        "desc": "导出 CSV 格式的迁移报告",
+        "cta": "升级到 Growth 或 Agency 解锁导出功能"
+      },
+      "verification": {
+        "name": "验收测试",
+        "desc": "验证迁移配置是否正确工作",
+        "cta": "升级到 Starter 解锁验收功能"
+      },
+      "requirement": "当前套餐：<bold>{{current}}</bold> → 需要：<bold>{{required}}</bold>",
+      "requirementCompact": "{{name}}需要 {{plan}} 及以上套餐"
+    },
     "modals": {
       "cleanScriptTag": {
-        "title": "清理 ScriptTag #{{id}}"
+        "title": "清理 ScriptTag {{id}}"
       },
       "guide": {
-        "title": "如何从 Shopify 升级向导获取脚本清单"
+        "title": "迁移指南"
       }
     },
     "errors": {
-      "invalidPixelId": "无效的 WebPixel ID",
-      "invalidPixelFormat": "WebPixel ID 格式不正确",
-      "shopNotFound": "店铺信息未找到",
-      "selectPlatform": "请至少选择一个平台或功能",
-      "processFailed": "处理失败，请稍后重试",
-      "saveFailed": "保存失败：",
+      "invalidPixelId": "无效的 Pixel ID",
+      "invalidPixelFormat": "无效的 Pixel 格式",
+      "shopNotFound": "找不到店铺",
+      "selectPlatform": "请选择一个平台",
+      "processFailed": "处理失败",
+      "saveFailed": "保存失败: ",
       "deleteFailed": "删除失败",
       "upgradeFailed": "升级失败",
       "exportFailed": "导出失败",
-      "browserNotSupported": "浏览器不支持复制功能",
-      "copyFailed": "复制失败，请手动复制",
-      "createDownloadLinkFailed": "导出失败：无法创建下载链接",
+      "browserNotSupported": "浏览器不支持",
+      "copyFailed": "复制失败",
+      "createDownloadLinkFailed": "创建下载链接失败",
       "exportRetry": "导出失败，请重试"
     },
     "success": {
-      "analysisSaved": "分析结果已保存！",
-      "deleted": "删除成功！",
-      "upgraded": "升级成功！",
-      "exportCSV": "扫描报告 CSV 导出成功",
-      "copied": "清单已复制到剪贴板",
-      "exportChecklist": "清单导出成功",
+      "analysisSaved": "分析已保存",
+      "deleted": "删除成功",
+      "upgraded": "升级成功",
+      "exportCSV": "CSV 已导出",
+      "copied": "已复制到剪贴板",
+      "exportChecklist": "清单已导出",
       "assetsCreated": "成功创建 {{count}} 个迁移资产"
     },
     "history": {
@@ -612,12 +1361,12 @@
     },
     "migrationLogic": {
       "scriptTag": {
-        "expired": "⚠️ {{tier}} 商家的 ScriptTag 已于 {{date}} 停止执行！\n\n推荐步骤：1) 启用 App Pixel  2) 完成测试订单并运行验收  3) 手动清理此 ScriptTag（查看指南）",
+        "expired": "⚠️ {{tier}} 商家的 ScriptTag 已于 {{date}} 停止执行！",
         "otherTierExpired": " ({{tier}} 商家: 也已停止执行)",
         "otherTierRemaining": " ({{tier}} 商家: 剩余 {{days}} 天)",
         "creationBlocked": "⚠️ 2025-02-01 起已无法创建新的 ScriptTag。现有脚本仍在运行，但将于 {{date}} 停止执行。",
-        "warning": "⏰ {{tier}} 商家: ScriptTag 将于 {{date}} 停止执行（剩余 {{days}} 天）。\n\n推荐步骤：1) 启用 App Pixel  2) 完成测试订单并运行验收  3) 手动清理此 ScriptTag（查看指南）",
-        "window": "📅 执行窗口期 - {{tier}} 商家截止日期: {{date}}（剩余 {{days}} 天）。\n\n推荐步骤：1) 启用 App Pixel  2) 完成测试订单并运行验收  3) 手动清理此 ScriptTag（查看指南）",
+        "warning": "⏰ {{tier}} 商家: ScriptTag 将于 {{date}} 停止执行（剩余 {{days}} 天）。",
+        "window": "📅 执行窗口期 - {{tier}} 商家截止日期: {{date}}（剩余 {{days}} 天）。",
         "title": "迁移 ScriptTag: {{platform}}",
         "steps": "\n\n推荐步骤：1) 启用 App Pixel  2) 完成测试订单并运行验收  3) 手动清理此 ScriptTag（查看指南）"
       },
@@ -632,7 +1381,6 @@
       "duplicate": {
         "title": "清理重复的 {{platform}} 像素",
         "desc": "检测到 {{count}} 个 {{platform}} 像素配置，可能导致重复追踪。建议只保留一个。",
-        "descWithDelete": "检测到 {{count}} 个 {{platform}} 像素配置，可能导致重复追踪。建议只保留一个。 (可删除 {{deleteCount}} 个)",
         "delete": " (可删除 {{count}} 个)"
       },
       "upgrade": {
@@ -733,49 +1481,6 @@
         }
       }
     },
-    "migrationLogic": {
-      "scriptTag": {
-        "expired": "⚠️ {{tier}} 商家的 ScriptTag 已于 {{date}} 停止执行！",
-        "otherTierExpired": " ({{tier}} 商家: 也已停止执行)",
-        "otherTierRemaining": " ({{tier}} 商家: 剩余 {{days}} 天)",
-        "creationBlocked": "⚠️ 2025-02-01 起已无法创建新的 ScriptTag。现有脚本仍在运行，但将于 {{date}} 停止执行。",
-        "warning": "⏰ {{tier}} 商家: ScriptTag 将于 {{date}} 停止执行（剩余 {{days}} 天）。",
-        "window": "📅 执行窗口期 - {{tier}} 商家截止日期: {{date}}（剩余 {{days}} 天）。",
-        "title": "迁移 ScriptTag: {{platform}}",
-        "steps": "\n\n推荐步骤：1) 启用 App Pixel  2) 完成测试订单并运行验收  3) 手动清理此 ScriptTag（查看指南）"
-      },
-      "pixel": {
-        "official": "{{name}}: 建议使用官方方案",
-        "evaluate": "{{name}}: 需要评估迁移方案",
-        "configure": "配置 {{name}}",
-        "desc": {
-          "notConfigured": "检测到 {{name}} 追踪代码，但尚未配置。{{recommendation}}"
-        }
-      },
-      "duplicate": {
-        "title": "清理重复的 {{platform}} 像素",
-        "desc": "检测到 {{count}} 个 {{platform}} 像素配置，可能导致重复追踪。建议只保留一个。",
-        "delete": " (可删除 {{count}} 个)"
-      },
-      "upgrade": {
-        "title": "升级 App Pixel 配置",
-        "desc": "检测到旧版 Pixel 配置（缺少 shop_domain 或仍使用 ingestion_secret 旧字段）。请重新启用 App Pixel 以升级到新版配置格式。"
-      },
-      "enable": {
-        "title": "启用 App Pixel",
-        "desc": "启用 Web Pixel 以开始接收事件、落库并运行验收。"
-      },
-      "autoUpgrade": {
-        "start": {
-          "title": "⚡ Plus 商家自动升级窗口已开始",
-          "desc": "Shopify 已于 2026年1月（Shopify 会提前30天通知）开始自动将 Plus 商家迁移到新版 Thank you / Order status 页面。旧的 ScriptTags、checkout.liquid 自定义将在自动升级后失效。Additional Scripts 需要通过手动粘贴识别。请立即确认 Web Pixel 配置正确，避免追踪中断。"
-        },
-        "countdown": {
-          "title": "📅 Plus 自动升级倒计时：剩余 {{days}} 天",
-          "desc": "Shopify 将于 2026年1月（Shopify 会提前30天通知）开始自动将 Plus 商家迁移到新版页面。自动升级后，旧的 Additional Scripts、ScriptTags、checkout.liquid 自定义将失效。建议提前完成迁移，确保控制迁移时机。"
-        }
-      }
-    },
     "autoTab": {
       "exportCSV": "导出扫描报告 CSV",
       "scanning": "扫描中...",
@@ -784,7 +1489,8 @@
         "title": "还没有扫描报告",
         "description": "点击开始扫描，我们会自动检测 ScriptTags 和已安装的像素配置，并给出风险等级与迁移建议。预计耗时约 10 秒，不会修改任何设置。",
         "helpText": "关于 Additional Scripts：Shopify API 无法自动读取 checkout.liquid 中的 Additional Scripts。请切换到「手动分析」标签页，粘贴脚本内容进行分析。",
-        "learnMore": "了解更多"
+        "learnMore": "了解更多",
+        "learnMoreUrl": "https://help.shopify.com/zh-CN/manual/pixels/web-pixels"
       },
       "upgradeWindow": {
         "title": "Shopify 升级风险窗口",
@@ -799,27 +1505,12 @@
       "riskDetails": {
         "title": "风险详情",
         "disclaimer": "风险识别基于脚本 URL 和已知平台指纹推断，并非实际脚本内容分析。如需更精确的检测，请在「脚本内容分析」中粘贴实际脚本代码。",
-        "impact": "影响:",
-        "oneClickMigrate": "一键迁移",
-        "freeLimit": "免费版限制：",
-        "freeLimitDesc": "仅显示前 {{limit}} 条高风险项，还有 {{count}} 项未显示。",
-        "upgradeUnlock": "升级解锁完整报告",
-        "purchaseOnlyFix": "启用 Purchase-only 修复（10 分钟）",
-        "estimatedFixTime": "预计修复时间",
-        "basedOnRisk": "基于当前风险项数量和严重程度估算",
-        "upgradeMigration": "升级到 Migration 版",
-        "upgradeMigrationDesc": "可启用 Full-funnel 修复（30 分钟，Growth 套餐），获得完整迁移清单和验收报告。"
+        "impact": "影响: {{impact}}",
+        "oneClickMigrate": "一键迁移"
       },
       "migrationActions": {
         "title": "迁移操作",
-        "pending": "项待处理",
-        "deadline": "截止:",
-        "cleanGuide": "查看清理指南",
-        "removeDuplicate": "删除重复像素",
-        "upgradeConfig": "升级配置",
-        "configurePixel": "配置 Pixel",
-        "noPending": "暂无待处理项目 ✅",
-        "moreItems": "...还有 {{count}} 项"
+        "pendingCount": "{{count}} 项待处理"
       },
       "migrationProgress": {
         "title": "迁移进度",
@@ -861,182 +1552,496 @@
         "pageCustomizationDesc": "• Additional Scripts：需人工梳理并在新体验下重做<br />• Thank you/Order status 自定义逻辑：以 Shopify 官方能力为准",
         "pageCustomizationNote": "说明：",
         "pageCustomizationNoteDesc": "当前版本不提供 Survey/Help/Reorder 等页面模块库，页面侧功能请按 Shopify 官方能力与审核要求实施。"
+      },
+      "suggestMigrationBanner": {
+        "title": "建议进行迁移",
+        "action": "前往迁移工具",
+        "content": "检测到您的店铺存在需要迁移的追踪脚本。建议使用我们的迁移工具将追踪代码更新为 Shopify Web Pixel 格式。"
+      },
+      "csvHeaders": {
+        "serialNumber": "序号",
+        "scriptSummary": "脚本摘要",
+        "identifiedPlatform": "识别平台",
+        "suggestedAlternative": "建议替代方式",
+        "riskScore": "风险评分",
+        "majorRisk": "主要风险",
+        "suggestedAction": "建议措施"
+      },
+      "manualInput": {
+        "webPixelMigration": "Web Pixel 迁移",
+        "checkoutUiExtension": "Checkout UI Extension 或需人工复核",
+        "manualReview": "需人工复核（review & replace）",
+        "displayName": "手动补充: {{name}}",
+        "noSummary": "(无摘要)"
+      },
+      "upgradeRisk": {
+        "title": "Shopify 升级风险窗口",
+        "suggestedActions": "建议操作："
+      },
+      "priority": {
+        "critical": "紧急",
+        "high": "高优先级",
+        "medium": "中优先级",
+        "low": "低优先级",
+        "level": "优先级 {{level}}/10"
+      },
+      "freePlanLimit": "免费版限制：仅显示前 {{limit}} 条高风险项，还有 {{count}} 项未显示。",
+      "estimatedTime": {
+        "title": "预计修复时间",
+        "disclaimer": "基于当前风险项数量和严重程度估算"
+      },
+      "upgradeBanner": {
+        "text": "升级到 Migration 版可启用 Full-funnel 修复（30 分钟，Growth 套餐），获得完整迁移清单和验收报告。"
+      },
+      "deadline": "截止: {{date}}",
+      "progress": {
+        "title": "📊 迁移进度",
+        "percentComplete": "{{percent}}% 完成",
+        "total": "总计: {{count}} 项",
+        "breakdown": "已完成: {{completed}} | 进行中: {{inProgress}} | 待处理: {{pending}}",
+        "estimatedRemaining": "预计剩余时间: {{hours}} 小时 {{minutes}} 分钟"
+      },
+      "nextSteps": {
+        "title": "下一步建议",
+        "allReady": "所有可立即开始的迁移任务已完成！请检查是否有依赖项需要先完成。"
+      },
+      "dependencies": {
+        "waiting": "等待 {{count}} 个依赖项完成"
+      },
+      "utils": {
+        "severity": {
+          "high": "高风险",
+          "medium": "中风险",
+          "low": "低风险",
+          "unknown": "未知"
+        },
+        "status": {
+          "completed": "完成",
+          "completedWithErrors": "完成（有错误）",
+          "failed": "失败",
+          "scanning": "扫描中",
+          "pending": "等待中",
+          "unknown": "未知"
+        },
+        "platform": {
+          "google": "GA4",
+          "meta": "Meta (Facebook) Pixel",
+          "tiktok": "TikTok Pixel",
+          "bing": "Microsoft Ads (Bing) ⚠️",
+          "clarity": "Microsoft Clarity ⚠️",
+          "webhook": "通用 Webhook"
+        }
+      },
+      "analysisResult": {
+        "riskScore": "风险评分",
+        "detectedPlatforms": "检测到的平台",
+        "noPlatforms": "未检测到已知追踪平台",
+        "details": "检测详情",
+        "noDetails": "无检测详情",
+        "confidence": {
+          "high": "高可信度",
+          "medium": "中可信度"
+        }
+      },
+      "migrationActionsCard": {
+        "title": "迁移操作",
+        "pending": "{{count}} 项待处理",
+        "operationComplete": "操作完成",
+        "upgradeComplete": "升级完成",
+        "priority": {
+          "high": "高优先级",
+          "medium": "中优先级",
+          "low": "低优先级"
+        },
+        "deadline": "截止: {{date}}",
+        "estimatedTime": "预计时间: {{time}} 分钟",
+        "cleanGuide": "查看清理指南",
+        "removeDuplicate": "删除重复像素",
+        "upgradeConfig": "升级配置",
+        "configurePixel": "配置 Pixel",
+        "enableAppPixel": "启用 App Pixel"
+      },
+      "manualAnalysis": {
+        "title": "手动分析 Additional Scripts",
+        "description": "Shopify API 无法自动读取 Additional Scripts 内容。请从 Shopify 后台复制脚本代码，粘贴到下方进行分析。",
+        "privacy": {
+          "title": "隐私提示：请先脱敏再粘贴",
+          "points": {
+            "p1": "可能包含客户信息、访问令牌或第三方密钥，请在粘贴前删除/替换敏感字段。",
+            "p2": "分析在浏览器本地完成，不会上传脚本正文；仅识别出的平台信息会用于生成迁移建议。",
+            "p3": "我们不会持久化或日志记录您粘贴的内容；仅在浏览器会话内用于本地分析。"
+          }
+        },
+        "deprecation": {
+          "plus": "Plus：{{plusDate}} / 非 Plus：{{nonPlusDate}} 将失效",
+          "desc": "这是 Thank you / Order status 页面迁移的硬性截止时间。提前粘贴 Additional Scripts 代码并完成迁移，可避免追踪中断。",
+          "important": "重要提示：",
+          "disclaimer": "以上日期来自 Shopify 官方公告，仅供参考。实际截止日期请以 Shopify Admin 中的提示为准。Shopify 可能会更新策略，我们建议您定期查看 Shopify 官方文档。",
+          "remaining": "当前剩余："
+        },
+        "actions": {
+          "migrate": "前往迁移页面",
+          "enablePixel": "启用/升级 App Pixel"
+        },
+        "guide": {
+          "title": "如何获取 Additional Scripts（详细步骤指南）：",
+          "docsRef": "参考文档：",
+          "shopifyDocs": "Shopify 官方文档：Additional Scripts",
+          "screenshotGuide": "📸 截图式操作指南（建议按步骤截图保存）：",
+          "steps": {
+            "step1": {
+              "title": "步骤 1：登录 Shopify Admin 后台",
+              "desc": "访问 https://admin.shopify.com 并使用管理员账号登录",
+              "tip": "📸 截图提示：登录后，建议截图保存当前页面，便于后续参考。截图应包含页面顶部导航栏，确认已成功登录。"
+            },
+            "step2": {
+              "title": "步骤 2：前往设置 → 结账",
+              "desc": "点击左下角的\"设置\"（Settings）图标（齿轮图标）→ 在设置菜单中找到并点击\"结账和订单处理\"（Checkout and order processing）",
+              "tip": "📸 截图提示：找到\"结账和订单处理\"选项后，建议截图保存，确保您找到了正确的位置。截图应包含左侧菜单中的\"结账和订单处理\"选项。",
+              "hint": "💡 提示：如果找不到此选项，请确认您的 Shopify 计划是否支持自定义结账设置。某些基础计划可能不显示此选项。"
+            },
+            "step3": {
+              "title": "步骤 3：找到 Additional Scripts 区域",
+              "desc": "在结账设置页面中，向下滚动找到\"订单状态页面\"（Order status page）部分，查找\"Additional Scripts\"或\"其他脚本\"文本框区域",
+              "tip": "📸 截图提示：找到 Additional Scripts 文本框后，建议先截图保存，确保您找到了正确的位置。如果文本框中有内容，也建议截图保存，以便后续参考。截图应清晰显示文本框的完整内容。",
+              "hint": "💡 提示：如果看不到 Additional Scripts 区域，可能您的店铺已经升级到新版 Thank you / Order status 页面，此时该区域可能已隐藏或移至其他位置。请参考 Shopify 官方文档 确认当前页面版本。",
+              "warning": "⚠️ 重要：Additional Scripts 区域可能位于页面的不同位置，取决于您的 Shopify 版本和主题。如果找不到，请尝试：",
+              "checks": {
+                "c1": "检查页面是否已完全加载",
+                "c2": "尝试使用浏览器的搜索功能（Ctrl+F 或 Cmd+F）搜索\"Additional Scripts\"",
+                "c3": "查看页面底部的\"订单状态页面\"部分"
+              }
+            },
+            "step4": {
+              "title": "步骤 4：复制脚本内容",
+              "desc": "选中 Additional Scripts 文本框中的所有内容（包括所有 <script> 标签和代码），使用 Ctrl+C（Windows）或 Cmd+C（Mac）复制",
+              "warning": "⚠️ 重要：请确保复制完整的脚本内容",
+              "warningPoints": {
+                "p1": "包括所有 <script> 标签的开头和结尾",
+                "p2": "如果脚本内容很长，请使用 Ctrl+A（Windows）或 Cmd+A（Mac）全选后再复制",
+                "p3": "确保没有遗漏任何代码片段"
+              },
+              "hint": "💡 提示：如果脚本内容包含多段代码，请确保全部选中并复制。系统会自动识别和分类多段脚本。"
+            },
+            "step5": {
+              "title": "步骤 5：粘贴并分析",
+              "desc": "将复制的内容粘贴到下方文本框中，系统会自动识别和分析所有追踪脚本",
+              "hint": "💡 提示：系统支持多段脚本自动识别和分类。如果粘贴后没有识别出任何脚本，请检查是否复制了完整内容，或尝试重新复制。"
+            }
+          },
+          "notFound": "提示：如果找不到 Additional Scripts 区域，可能您的店铺尚未配置自定义脚本。某些 Shopify 主题或应用可能会在 Thank you 页面添加追踪代码，这些代码也可能需要迁移。请参考 Shopify 官方文档 了解更多信息。"
+        },
+        "input": {
+          "label": "粘贴脚本内容",
+          "placeholder": "<!-- 示例 -->\n<script>\n  gtag('event', 'purchase', {...});\n  fbq('track', 'Purchase', {...});\n</script>",
+          "help": "支持检测 Google、Meta、TikTok、Bing 等平台的追踪代码",
+          "analyze": "分析脚本",
+          "emptyError": "请输入脚本内容",
+          "lengthError": "脚本内容过长（最多 {{max}} 个字符）。请分段分析或联系支持。",
+          "error": "分析失败，请稍后重试"
+        },
+        "results": {
+          "riskTitle": "风险详情",
+          "recommendationTitle": "迁移建议清单",
+          "manualLabel": "人工分析结果",
+          "generalTitle": "📋 综合迁移建议",
+          "goToMigrate": "前往迁移工具",
+          "viewApp": "查看应用",
+          "configure": "去配置"
+        }
+      },
+      "impactAnalysis": {
+        "title": "📊 迁移影响分析（仅供参考）",
+        "badge": "示例估算",
+        "disclaimer": "<strong>⚠️ 免责声明：</strong>以下为简化示意，仅帮助理解迁移的必要性。实际业务影响因店铺业务模式、流量来源、客户群体、广告账户设置等多种因素而异，本工具无法预测具体数值影响，不构成任何效果保证或承诺。",
+        "monthlyOrders": {
+          "title": "🧮 输入您的月订单量，查看具体影响",
+          "label": "月订单量",
+          "suffix": "{{count}} 单/月"
+        },
+        "loss": {
+          "title": "不迁移会丢失什么？（示意说明）",
+          "events": {
+            "label": "可能受影响的事件",
+            "desc": "{{platformCount}} 平台 × {{orders}} 订单"
+          },
+          "scriptTags": {
+            "label": "受影响 ScriptTag",
+            "desc": "将在截止日停止执行"
+          },
+          "impact": {
+            "label": "实际影响",
+            "title": "因店铺而异",
+            "desc": "取决于流量来源和客户群体"
+          },
+          "platform": {
+            "invalid": "将失效",
+            "reference": "参考值（仅供估算）"
+          },
+          "allInvalid": "当前 ScriptTag 中的追踪代码将在截止日期后全部失效",
+          "warning": "<strong>⚠️ 重要提醒：</strong>ScriptTag 在截止日期后将停止执行，导致其中的追踪代码失效。实际对您业务的影响取决于流量来源、客户群体、广告策略等多种因素，本工具无法预测具体金额影响。建议您结合自身业务情况评估迁移优先级。",
+          "dateSource": "<strong>日期来源说明：</strong>截止日期来自 Shopify 官方公告，仅供参考。实际截止日期请以 Shopify Admin 中的提示为准。Shopify 可能会更新策略，我们建议您定期查看 Shopify 官方文档。"
+        },
+        "gain": {
+          "title": "迁移后能恢复什么？（您的预期收益）",
+          "events": {
+            "label": "每月恢复事件",
+            "desc": "转化追踪功能恢复"
+          },
+          "potential": {
+            "label": "潜在收益（示例）",
+            "title": "确保追踪",
+            "desc": "避免数据中断"
+          },
+          "webPixel": {
+            "label": "Web Pixel",
+            "title": "标准事件",
+            "desc": "合规迁移（v1）"
+          },
+          "platform": {
+            "restored": "✓ 恢复",
+            "desc": "每月 {{orders}} 个转化事件 → 广告平台"
+          },
+          "allRestored": "所有追踪功能将通过 Web Pixel 标准事件映射恢复（v1 最小可用迁移）",
+          "coreValue": "<strong>✅ 迁移的核心价值：</strong>迁移是一次性工作，完成后可确保转化追踪在 ScriptTag 废弃后继续正常工作。v1 提供 Web Pixel 标准事件映射（GA4/Meta/TikTok）。实际追踪效果因店铺情况而异。"
+        },
+        "comparison": {
+          "title": "迁移前后对比",
+          "current": {
+            "label": "当前（不迁移）",
+            "risk": {
+              "high": "高风险",
+              "medium": "中风险",
+              "low": "低风险"
+            },
+            "desc": "{{count}} 个 ScriptTag 将失效"
+          },
+          "after": {
+            "label": "迁移后",
+            "title": "功能恢复",
+            "desc": "Web Pixel 标准事件"
+          },
+          "extra": {
+            "label": "额外收益",
+            "title": "更稳定",
+            "desc": "不受隐私限制影响"
+          },
+          "v1": {
+            "title": "v1 最小可用迁移说明",
+            "content": "✅ v1 支持：Web Pixel 标准事件映射（GA4/Meta/TikTok）<br />✅ 标准事件映射 + 参数完整率检查 + 可下载 payload 证据<br />✅ 验收向导 + 事件参数完整率 + 订单金额/币种一致性验证<br /><span class=\"subdued\">注：实际归因效果因广告账户设置、流量来源等因素而异</span>"
+          }
+        },
+        "action": "立即开始迁移"
+      }
     },
-    "suggestMigrationBanner": {
-      "title": "建议进行迁移",
-      "action": "前往迁移工具",
-      "content": "检测到您的店铺存在需要迁移的追踪脚本。建议使用我们的迁移工具将追踪代码更新为 Shopify Web Pixel 格式。"
+    "manualInput": {
+      "noSummary": "无摘要",
+      "webPixelMigration": "Web Pixel 迁移",
+      "checkoutUiExtension": "Checkout UI Extension",
+      "manualReview": "人工审查",
+      "displayName": "{{name}}"
     },
     "csvHeaders": {
       "serialNumber": "序号",
       "scriptSummary": "脚本摘要",
       "identifiedPlatform": "识别平台",
-      "suggestedAlternative": "建议替代方式",
+      "suggestedAlternative": "建议替代方案",
       "riskScore": "风险评分",
       "majorRisk": "主要风险",
-      "suggestedAction": "建议措施"
+      "suggestedAction": "建议操作"
     },
-    "manualInput": {
-      "webPixelMigration": "Web Pixel 迁移",
-      "checkoutUiExtension": "Checkout UI Extension 或需人工复核",
-      "manualReview": "需人工复核（review & replace）",
-      "displayName": "手动补充: {{name}}",
-      "noSummary": "(无摘要)"
-    },
-    "riskDetails": {
-      "title": "风险详情",
-      "disclaimer": "风险识别基于脚本 URL 和已知平台指纹推断，并非实际脚本内容分析。如需更精确的检测，请在「脚本内容分析」中粘贴实际脚本代码。",
-      "impact": "影响: {{impact}}",
-      "oneClickMigrate": "一键迁移"
-    },
-    "upgradeRisk": {
-      "title": "Shopify 升级风险窗口",
-      "suggestedActions": "建议操作："
-    },
-    "priority": {
-      "critical": "紧急",
-      "high": "高优先级",
-      "medium": "中优先级",
-      "low": "低优先级",
-      "level": "优先级 {{level}}/10"
-    },
-    "freePlanLimit": "免费版限制：仅显示前 {{limit}} 条高风险项，还有 {{count}} 项未显示。",
-    "estimatedTime": {
-      "title": "预计修复时间",
-      "disclaimer": "基于当前风险项数量和严重程度估算"
-    },
-    "upgradeBanner": {
-      "text": "升级到 Migration 版可启用 Full-funnel 修复（30 分钟，Growth 套餐），获得完整迁移清单和验收报告。"
-    },
-    "migrationActions": {
-      "title": "迁移操作",
-      "pendingCount": "{{count}} 项待处理"
-    },
-    "deadline": "截止: {{date}}",
-    "progress": {
-      "title": "📊 迁移进度",
-      "percentComplete": "{{percent}}% 完成",
-      "total": "总计: {{count}} 项",
-      "breakdown": "已完成: {{completed}} | 进行中: {{inProgress}} | 待处理: {{pending}}",
-      "estimatedRemaining": "预计剩余时间: {{hours}} 小时 {{minutes}} 分钟"
-    },
-    "nextSteps": {
-      "title": "下一步建议",
-      "allReady": "所有可立即开始的迁移任务已完成！请检查是否有依赖项需要先完成。"
-    },
-    "dependencies": {
-      "waiting": "等待 {{count}} 个依赖项完成"
-    },
-    "utils": {
-      "severity": {
-        "high": "高风险",
-        "medium": "中风险",
-        "low": "低风险",
-        "unknown": "未知"
+    "manualSupplement": {
+      "title": "脚本内容分析",
+      "desc": "在此粘贴来自「Additional Scripts」或「ScriptTags」的脚本内容。系统将分析其行为，识别平台，并评估风险（PII 访问、阻塞代码等）。",
+      "privacy": {
+        "title": "🔒 隐私与安全分析逻辑",
+        "item1": "• 纯客户端分析：脚本内容首先在您的浏览器中进行分析。",
+        "item2": "• 不执行：脚本仅作为文本进行分析，不会被执行。",
+        "item3": "• 数据最小化：仅保存分析结果（风险、平台）。",
+        "item4": "• PII 过滤：保存前会脱敏检测到的 PII（邮箱、电话）。"
       },
-      "status": {
-        "completed": "完成",
-        "completedWithErrors": "完成（有错误）",
-        "failed": "失败",
-        "scanning": "扫描中",
-        "pending": "等待中",
-        "unknown": "未知"
+      "deadline": {
+        "title": "⚠️ 废弃截止日期：{{plusDate}} (Plus) / {{nonPlusDate}} (Non-Plus)",
+        "desc": "Shopify 将关闭 checkout.liquid 和 Additional Scripts。",
+        "disclaimer": "* 日期以 Shopify 官方公告为准。",
+        "remaining": "状态：{{text}} - {{desc}}"
       },
-      "platform": {
-        "google": "GA4",
-        "meta": "Meta (Facebook) Pixel",
-        "tiktok": "TikTok Pixel",
-        "bing": "Microsoft Ads (Bing) ⚠️",
-        "clarity": "Microsoft Clarity ⚠️",
-        "webhook": "通用 Webhook"
-      }
-    },
-    "impactAnalysis": {
-      "title": "📊 迁移影响分析（仅供参考）",
-      "badge": "示例估算",
-      "disclaimer": "<strong>⚠️ 免责声明：</strong>以下为简化示意，仅帮助理解迁移的必要性。实际业务影响因店铺业务模式、流量来源、客户群体、广告账户设置等多种因素而异，本工具无法预测具体数值影响，不构成任何效果保证或承诺。",
-      "monthlyOrders": {
-        "title": "🧮 输入您的月订单量，查看具体影响",
-        "label": "月订单量",
-        "suffix": "{{count}} 单/月"
+      "actions": {
+        "migrate": "立即迁移",
+        "pixel": "配置 Pixel"
       },
-      "loss": {
-        "title": "不迁移会丢失什么？（示意说明）",
-        "events": {
-          "label": "可能受影响的事件",
-          "desc": "{{platformCount}} 平台 × {{orders}} 订单"
-        },
-        "scriptTags": {
-          "label": "受影响 ScriptTag",
-          "desc": "将在截止日停止执行"
-        },
-        "impact": {
-          "label": "实际影响",
-          "title": "因店铺而异",
-          "desc": "取决于流量来源和客户群体"
-        },
-        "platform": {
-          "invalid": "将失效",
-          "reference": "参考值（仅供估算）"
-        },
-        "allInvalid": "当前 ScriptTag 中的追踪代码将在截止日期后全部失效",
-        "warning": "<strong>⚠️ 重要提醒：</strong>ScriptTag 在截止日期后将停止执行，导致其中的追踪代码失效。实际对您业务的影响取决于流量来源、客户群体、广告策略等多种因素，本工具无法预测具体金额影响。建议您结合自身业务情况评估迁移优先级。",
-        "dateSource": "<strong>日期来源说明：</strong>截止日期来自 Shopify 官方公告，仅供参考。实际截止日期请以 Shopify Admin 中的提示为准。Shopify 可能会更新策略，我们建议您定期查看 Shopify 官方文档。"
+      "howTo": {
+        "title": "使用方法：",
+        "step1": "1. 从 Shopify Admin 复制脚本",
+        "step2": "2. 粘贴到下方编辑器",
+        "step3": "3. 点击「分析脚本」",
+        "step4": "4. 查看风险和迁移建议"
       },
-      "gain": {
-        "title": "迁移后能恢复什么？（您的预期收益）",
-        "events": {
-          "label": "每月恢复事件",
-          "desc": "转化追踪功能恢复"
-        },
-        "potential": {
-          "label": "潜在收益（示例）",
-          "title": "确保追踪",
-          "desc": "避免数据中断"
-        },
-        "webPixel": {
-          "label": "Web Pixel",
-          "title": "标准事件",
-          "desc": "合规迁移（v1）"
-        },
-        "platform": {
-          "restored": "✓ 恢复",
-          "desc": "每月 {{orders}} 个转化事件 → 广告平台"
-        },
-        "allRestored": "所有追踪功能将通过 Web Pixel 标准事件映射恢复（v1 最小可用迁移）",
-        "coreValue": "<strong>✅ 迁移的核心价值：</strong>迁移是一次性工作，完成后可确保转化追踪在 ScriptTag 废弃后继续正常工作。v1 提供 Web Pixel 标准事件映射（GA4/Meta/TikTok）。实际追踪效果因店铺情况而异。"
+      "buttons": {
+        "upgradeWizard": "升级向导指南",
+        "guidedInfo": "引导式录入",
+        "importWizard": "导入向导"
       },
-      "comparison": {
-        "title": "迁移前后对比",
-        "current": {
-          "label": "当前（不迁移）",
-          "risk": {
-            "high": "高风险",
-            "medium": "中风险",
-            "low": "低风险"
-          },
-          "desc": "{{count}} 个 ScriptTag 将失效"
-        },
-        "after": {
-          "label": "迁移后",
-          "title": "功能恢复",
-          "desc": "Web Pixel 标准事件"
-        },
-        "extra": {
-          "label": "额外收益",
-          "title": "更稳定",
-          "desc": "不受隐私限制影响"
-        },
-        "v1": {
-          "title": "v1 最小可用迁移说明",
-          "content": "✅ v1 支持：Web Pixel 标准事件映射（GA4/Meta/TikTok）<br />✅ 标准事件映射 + 参数完整率检查 + 可下载 payload 证据<br />✅ 验收向导 + 事件参数完整率 + 订单金额/币种一致性验证<br /><span class=\"subdued\">注：实际归因效果因广告账户设置、流量来源等因素而异</span>"
+      "progress": "分析中... {{current}}/{{total}}",
+      "addChecklist": "添加到清单",
+      "checklist": {
+        "title": "替换清单",
+        "exportCSV": "导出 CSV",
+        "platform": "平台",
+        "suggestion": "建议",
+        "riskScore": "风险分",
+        "majorRisk": "主要风险",
+        "remove": "移除",
+        "suggestions": {
+          "webPixel": "Web Pixel",
+          "uiExtension": "UI Extension",
+          "manual": "人工审查"
         }
       },
-      "action": "立即开始迁移"
+      "riskDetails": "风险详情",
+      "migrationSuggestions": {
+        "title": "迁移建议",
+        "badge": "AI 生成",
+        "comprehensive": "迁移清单建议",
+        "configure": "配置",
+        "viewApp": "查看应用",
+        "tool": "前往迁移工具"
+      },
+      "save": {
+        "title": "保存分析",
+        "desc": "将此分析结果保存到您的迁移清单中。",
+        "saved": "已保存",
+        "processPaste": "处理粘贴",
+        "processed": "已处理",
+        "saveAudit": "保存到审计"
+      }
     }
-  }
   },
   "verification": {
+    "page": {
+      "title": "验收（Verification）+ 断档监控（Monitoring）",
+      "subtitle": "测试清单 + 事件触发记录 + 参数完整率 + 订单金额/币种一致性 • 隐私合规检查（consent/customerPrivacy）• 验收报告导出（CSV）是核心付费点（给老板/客户看的证据）• Growth 套餐 $79/月 或 Agency 套餐 $199/月",
+      "tabs": {
+        "overview": "验收概览",
+        "pixelLayer": "像素层验收（Web Pixels 标准事件）",
+        "results": "详细结果",
+        "guide": "测试订单指引",
+        "history": "历史记录"
+      },
+      "empty": {
+        "title": "未找到店铺配置",
+        "desc": "请确保应用已正确安装。",
+        "action": "返回首页"
+      },
+      "actions": {
+        "running": "运行中...",
+        "run": "运行验收",
+        "refresh": "刷新",
+        "export": "导出 CSV"
+      },
+      "intro": {
+        "title": "验收流程概览",
+        "desc": "通过测试清单验证事件触发与参数完整率，输出可交付的验收报告。",
+        "items": [
+          "像素层验收覆盖标准事件",
+          "报告支持 CSV 导出"
+        ],
+        "action": "查看验收报告"
+      },
+      "score": {
+        "passRate": "通过率",
+        "passRateDesc": "{{passed}}/{{total}} 项测试通过",
+        "completeness": "参数完整率",
+        "completenessDesc": "事件参数完整程度",
+        "accuracy": "金额准确率",
+        "accuracyDesc": "订单金额与事件一致"
+      },
+      "status": {
+        "title": "验收状态",
+        "time": "验收时间",
+        "type": "验收类型",
+        "full": "完整验收",
+        "quick": "快速验收",
+        "platform": "测试平台",
+        "passed": "通过",
+        "missing": "参数缺失",
+        "failed": "失败"
+      },
+      "banners": {
+        "failed": {
+          "title": "存在失败的测试项",
+          "reasons": "请检查以下可能的原因：",
+          "items": [
+            "Web Pixel 是否已正确安装并启用",
+            "事件是否在结账漏斗中实际触发",
+            "是否有广告拦截器或浏览器策略影响请求发送"
+          ]
+        },
+        "missing": {
+          "title": "部分事件参数不完整",
+          "desc": "某些事件缺少必要参数（如 value 或 currency），可能影响归因效果。请检查订单数据是否完整。"
+        },
+        "passed": {
+          "title": "验收通过",
+          "desc": "🎉 您的追踪配置工作正常！建议定期运行验收以确保持续稳定。"
+        },
+        "attribution": {
+          "title": "重要说明：验收范围与平台归因",
+          "subtitle": "本应用验收侧重于事件触发与数据质量，不保证平台侧归因一致。",
+          "provide": "我们提供：像素事件触发记录、参数完整率、订单金额/币种一致性等验收证据。",
+          "noGuarantee": "我们不保证：平台侧报表中的归因数据与 Shopify 订单数据完全一致。平台侧归因受多种因素影响，包括平台算法、用户隐私设置、跨设备追踪限制、数据处理延迟等。",
+          "report": "验收报告说明：如果验收显示“通过”，表示像素事件在本应用的接收与校验链路中表现正常；平台侧归因可能仍存在差异，这是正常现象。"
+        }
+      },
+      "reconciliation": {
+        "title": "📊 渠道对账",
+        "pixelOnly": "仅 Pixel",
+        "capiOnly": "仅 服务端(规划)",
+        "both": "两者都有",
+        "consentBlocked": "被 Consent 阻止",
+        "issues": "发现一致性问题",
+        "local": {
+          "title": "🔍 本地一致性检查",
+          "desc": "对订单数据进行深度一致性验证，确保 Pixel 与对账结果一致",
+          "checked": "检查订单数",
+          "consistent": "完全一致",
+          "partial": "部分一致",
+          "inconsistent": "不一致",
+          "issuesTitle": "发现不一致订单",
+          "issuesDesc": "以下订单存在关键参数不一致（如金额、币种、事件ID重复等），需要检查配置。"
+        }
+      },
+      "noRun": {
+        "title": "尚未运行验收",
+        "desc": "按照上方的测试指引完成测试订单后，点击「运行验收」分析结果。",
+        "help": "验收会分析过去 24 小时内的事件数据，验证追踪是否正常工作。",
+        "action": "运行验收"
+      },
+      "checklist": {
+        "title": "📝 验收测试清单",
+        "status": {
+          "completed": "已完成",
+          "running": "运行中",
+          "pending": "待运行"
+        },
+        "items": {
+          "passed": "✓ 通过",
+          "partial": "⚠ 部分通过",
+          "failed": "✗ 失败",
+          "missing": "⚠ 参数缺失",
+          "notTested": "未测试"
+        }
+      },
+      "related": {
+        "title": "🔗 相关页面",
+        "settings": "查看设置",
+        "install": "安装 Pixel"
+      },
+      "guideModal": {
+        "title": "测试订单指引",
+        "action": "知道了"
+      }
+    },
     "intro": {
       "title": "验收类型说明",
       "description": "PRD 2.5要求：验收分为两类，请根据您的需求选择相应的验收方式。",
@@ -1111,6 +2116,54 @@
         "steps": "操作步骤",
         "expectedResults": "预期结果"
       }
+    },
+    "start": {
+      "pageTitle": "验收测试清单生成",
+      "subtitle": "生成测试清单（可复制）",
+      "backAction": "返回验收页面",
+      "intro": {
+        "title": "生成测试清单",
+        "description": "将验收步骤整理为清单，便于测试与交付。",
+        "items": [
+          "覆盖像素层标准事件",
+          "补充订单层对账验证",
+          "支持复制或下载 CSV"
+        ]
+      },
+      "banner": {
+        "prdRequirement": "PRD 2.5要求：生成\"测试清单\"用于验收对账。按照以下步骤进行测试，确保像素事件和订单数据的一致性。"
+      },
+      "checklist": {
+        "title": "测试清单",
+        "copy": "复制清单",
+        "downloadCSV": "下载 CSV",
+        "pixelLayerTitle": "像素层验收（Web Pixels 标准事件）",
+        "required": "必需",
+        "optional": "可选",
+        "verificationPoints": "验证点：",
+        "expectedParams": "预期参数：",
+        "orderLayerTitle": "订单层验收（将在后续版本中提供）",
+        "orderLayerBanner": "订单层验收功能正在开发中，将在未来版本中推出。",
+        "expectedFields": "预期字段："
+      },
+      "steps": {
+        "title": "测试步骤",
+        "step1": "进入 Shopify checkout 页面，触发 checkout_started 事件",
+        "step2": "填写联系信息，触发 checkout_contact_info_submitted 事件",
+        "step3": "填写配送信息，触发 checkout_shipping_info_submitted 事件",
+        "step4": "填写支付信息，触发 payment_info_submitted 事件",
+        "step5": "完成订单，触发 checkout_completed 事件",
+        "step6": "在验收页面查看实时事件流，验证 payload 参数完整率",
+        "step7": "对比 Shopify 订单数据与平台事件数据，验证金额/币种一致性"
+      },
+      "nextStep": "下一步",
+      "goToVerification": "前往验收页面",
+      "toast": {
+        "copySuccess": "测试清单已复制到剪贴板",
+        "copyFail": "复制失败，请手动复制",
+        "browserNotSupported": "当前浏览器不支持自动复制"
+      },
+      "shopNotFound": "店铺信息未找到，请重新安装应用。"
     }
   },
   "checklist": {
@@ -1209,6 +2262,16 @@
       "subscription": "订阅计划",
       "alerts": "告警"
     },
+    "subscription": {
+      "currentPlan": "当前计划",
+      "trialDaysRemaining": "试用期剩余 {{days}} 天",
+      "upgradePlan": "升级计划",
+      "upgradeTo": "升级到 {{plan}}",
+      "moreInfoTitle": "账单信息",
+      "moreInfoContent": "您可以访问 <a href=\"/app/billing\">订阅与计费</a> 页面查看完整的账单历史、使用量统计和发票信息。",
+      "comparePlans": "对比计划",
+      "helpText": "需要帮助选择计划？请联系支持。"
+    },
     "intro": {
       "title": "设置总览",
       "description": "配置安全与隐私策略，以及订阅计划。",
@@ -1280,6 +2343,967 @@
     "links": {
       "privacy": "隐私政策",
       "terms": "服务条款"
+    }
+  },
+  "monitoring": {
+    "title": "断档监控与告警",
+    "intro": {
+      "title": "断档监控与告警",
+      "description": "查看近期告警、事件成功率与流失统计；在设置中配置告警通道与阈值。",
+      "items": [
+        "告警列表：最近 30 天触发的异常告警",
+        "近 7 日转化与成功率汇总",
+        "近 24 小时事件流失与成功率"
+      ],
+      "action": "告警配置"
+    },
+    "empty": "未找到店铺信息。",
+    "summary": {
+      "title": "近 7 日汇总",
+      "orders": "订单数",
+      "value": "总金额",
+      "successRate": "成功率",
+      "volume": "总事件量（含全漏斗）"
+    },
+    "recent": {
+      "title": "近 24 小时事件",
+      "total": "总事件",
+      "success": "成功率",
+      "failure": "失败率"
+    },
+    "loss": {
+      "title": "事件流失（24h）",
+      "received": "接收",
+      "rate": "流失率"
+    },
+    "alerts": {
+      "title": "告警列表",
+      "config": "告警配置",
+      "empty": "近期无告警。",
+      "table": {
+        "time": "时间",
+        "type": "类型",
+        "severity": "严重程度",
+        "message": "消息"
+      }
+    }
+  },
+  "pixels": {
+    "list": {
+      "title": "Pixels",
+      "create": "新建 Pixel 配置",
+      "intro": {
+        "title": "像素迁移中心",
+        "desc": "用模板化流程完成像素迁移、测试与回滚，确保事件映射与参数完整率。",
+        "items": [
+          "支持 Test/Live 双环境",
+          "映射 Shopify 标准事件到各平台",
+          "版本管理支持一键回滚"
+        ],
+        "primary": "新建 Pixel 配置",
+        "secondary": "查看测试指引"
+      },
+      "status": {
+        "success": "成功",
+        "fail": "失败",
+        "pending": "处理中",
+        "noRecord": "暂无发送记录"
+      },
+      "env": {
+        "prod": "生产",
+        "test": "测试"
+      },
+      "actions": {
+        "test": "测试",
+        "version": "版本"
+      },
+      "table": {
+        "platform": "平台",
+        "id": "平台 ID",
+        "env": "环境",
+        "lastSent": "最近发送",
+        "version": "版本",
+        "updated": "更新时间",
+        "actions": "操作"
+      },
+      "configured": {
+        "title": "已配置的 Pixel",
+        "empty": "还没有配置 Pixel。点击右上角按钮开始创建。",
+        "create": "创建 Pixel 配置"
+      },
+      "quickActions": {
+        "title": "快速操作",
+        "create": "新建配置",
+        "verify": "前往验收"
+      },
+      "banners": {
+        "eventSource": {
+          "title": "📋 事件源说明",
+          "desc": "PRD 2.3要求：事件源以 Shopify Standard events 为准，再映射到 GA4/Meta/TikTok。",
+          "items": [
+            "Shopify 标准事件：checkout_started, checkout_completed...",
+            "事件映射：系统会自动将 Shopify 标准事件映射到各平台（如 checkout_completed → GA4的purchase、Meta的Purchase、TikTok的CompletePayment）",
+            "Test 指引：可直接复用 Shopify 官方\"测试自定义像素\"的操作路径（进入 checkout 测 checkout_started、填 shipping 测 shipping_submitted 等），详见测试页面指引。"
+          ]
+        }
+      }
+    },
+    "new": {
+      "title": "新建 Pixel 配置",
+      "subtitle": "模板选择 / 凭据 / 映射 / 环境",
+      "back": "返回 Pixels",
+      "shopNotFound": "店铺信息未找到",
+      "shopNotFoundDesc": "未找到店铺信息，请重新安装应用。",
+      "success": "配置已保存，进入测试页面...",
+      "errors": {
+        "placeholder": "检测到占位符：BACKEND_URL 未在构建时替换，像素扩展将无法工作"
+      },
+      "banners": {
+        "placeholder": {
+          "title": "⚠️ 严重错误：检测到占位符，URL 未在构建时替换",
+          "desc": "像素扩展配置中仍包含 __BACKEND_URL_PLACEHOLDER__，这表明构建流程未正确替换占位符。如果占位符未被替换，像素扩展将无法发送事件到后端，导致事件丢失。这是一个严重的配置错误，必须在上线前修复。",
+          "stepsTitle": "修复步骤（必须在生产环境部署前完成）：",
+          "steps": [
+            "在 CI/CD 流程中，部署前必须运行 <code>pnpm ext:inject</code> 或 <code>pnpm deploy:ext</code>",
+            "确保环境变量 <code>SHOPIFY_APP_URL</code> 已正确设置",
+            "验证扩展构建产物中不再包含占位符",
+            "确保该 URL 已在 Web Pixel Extension 的 allowlist 中配置",
+            "禁止直接使用 <code>shopify app deploy</code>，必须使用 <code>pnpm deploy:ext</code>"
+          ],
+          "tip": "💡 提示：如果占位符未被替换，像素扩展会静默禁用事件发送，不会显示错误。这是导致事件丢失的常见原因，必须在生产环境部署前修复。"
+        },
+        "configured": {
+          "title": "✅ BACKEND_URL 已正确配置",
+          "desc": "扩展的 BACKEND_URL 已正确注入。生产环境部署时，请确保始终使用 <code>pnpm deploy:ext</code> 命令，该命令会自动执行 <code>pnpm ext:inject</code> 注入 BACKEND_URL。禁止直接使用 <code>shopify app deploy</code>。",
+          "important": "重要：扩展的 BACKEND_URL 注入是生命线",
+          "importantDesc": "如果占位符未被替换，像素扩展会静默禁用事件发送，不会显示错误。这是导致事件丢失的常见原因，必须在生产环境部署前修复。请在 CI/CD 流程中确保运行 <code>pnpm ext:inject</code> 或 <code>pnpm deploy:ext</code>。"
+        },
+        "sandbox": {
+          "title": "⚠️ Strict Sandbox 能力边界说明（App Review 重要信息）",
+          "desc": "Web Pixel Extension 运行在 strict sandbox (Web Worker) 环境中，这是 Shopify 平台的设计限制。以下能力受限：",
+          "limitations": [
+            "无法访问 DOM 元素、localStorage、sessionStorage、第三方 cookie 等浏览器 API",
+            "部分事件字段可能为 null 或 undefined（如 buyer.email、buyer.phone、deliveryAddress 等），这是平台限制，不是故障"
+          ],
+          "unsupported": {
+            "title": "v1.0 不支持的事件类型（App Review 重要说明）：",
+            "desc": "以下事件在 strict sandbox 中不可用，需要通过订单 webhooks 获取：",
+            "items": [
+              "退款事件（refund）",
+              "订单取消（order_cancelled）",
+              "订单编辑（order_edited）",
+              "订阅订单创建（subscription_created）",
+              "订阅订单更新（subscription_updated）",
+              "订阅订单取消（subscription_cancelled）"
+            ],
+            "note": "这些事件将在 v1.1+ 版本中通过订单 webhooks 实现。",
+            "review": "在 App Review 时，请向 Shopify 说明这些限制是平台设计（strict sandbox 运行在 Web Worker 环境中，无法访问订单生命周期事件），不是应用缺陷。"
+          },
+          "reviewPoints": {
+            "title": "App Review 说明要点：",
+            "desc": "这是 Shopify 平台的设计限制，不是应用故障。验收报告中会自动标注所有因 strict sandbox 限制而无法获取的字段和事件。在 App Review 时，请向 Shopify 说明：",
+            "items": [
+              "Web Pixel Extension 运行在 strict sandbox (Web Worker) 环境中，这是 Shopify 平台的设计",
+              "退款、取消、编辑订单、订阅等事件需要订单 webhooks 才能获取，将在 v1.1+ 版本中实现",
+              "部分字段（如 buyer.email、buyer.phone、deliveryAddress 等）可能为 null，这是平台限制，不是故障"
+            ]
+          }
+        },
+        "upgrade": {
+          "title": "需要升级套餐",
+          "desc": "启用像素迁移需要 Migration ($49/月) 及以上套餐。请先升级后再配置。"
+        }
+      },
+      "intro": {
+        "title": "配置流程概览",
+        "desc": "使用模板快速完成平台配置，先在 Test 环境验证，再切换 Live。",
+        "items": [
+          "模板包含常用事件映射",
+          "凭据支持加密存储",
+          "验证通过后再切 Live"
+        ],
+        "action": "返回 Pixels"
+      }
+    }
+  },
+  "reports": {
+    "title": "报告中心",
+    "subtitle": "查看与导出扫描报告、验收报告",
+    "intro": {
+      "title": "报告中心",
+      "desc": "在此可前往扫描页或验收页查看详情，并导出扫描报告、验收报告（CSV 导出需 Growth 及以上套餐）。",
+      "items": [
+        "扫描报告：在「Audit」页完成扫描后，可导出扫描报告 CSV",
+        "验收报告：在「验收」页运行验收后，可导出验收报告 CSV"
+      ],
+      "actions": {
+        "verify": "前往验收",
+        "scan": "前往扫描"
+      }
+    },
+    "scan": {
+      "title": "扫描报告",
+      "desc": "在「Audit」页完成自动或手动扫描后，可在该页导出扫描报告（CSV）。导出需 Growth 及以上套餐。",
+      "action": "前往扫描页"
+    },
+    "verification": {
+      "title": "验收报告",
+      "desc": "在「验收」页运行验收后，可在此或验收页导出最近一次验收报告（CSV）。导出需 Growth 及以上套餐。",
+      "lastRun": "最近一次验收：{{name}}，{{status}}，{{time}}",
+      "export": "导出验收报告 CSV",
+      "view": "查看详情",
+      "empty": "前往验收页运行验收"
+    },
+    "empty": "未找到店铺配置，请确保应用已正确安装。"
+  },
+  "migrate": {
+    "title": "迁移向导",
+    "subtitle": "从 Legacy Checkout 迁移到 Checkout Extensibility 的完整流程",
+    "intro": {
+      "title": "迁移向导",
+      "description": "按照以下步骤完成从 Legacy Checkout 到 Checkout Extensibility 的迁移",
+      "items": [
+        "扫描现有追踪脚本并评估风险",
+        "配置 Web Pixel 和事件映射",
+        "在结账与订单状态页添加本应用区块",
+        "验收测试并生成报告"
+      ],
+      "action": "开始迁移"
+    },
+    "steps": {
+      "audit": {
+        "title": "1. 扫描与评估",
+        "description": "自动扫描店铺中的追踪脚本，生成迁移清单和风险报告"
+      },
+      "pixels": {
+        "title": "2. 配置像素迁移",
+        "description": "创建 Web Pixel，配置事件映射和平台凭证"
+      },
+      "modules": {
+        "title": "3. 添加结账与订单状态区块",
+        "description": "在 Shopify 结账与客户账户编辑器中添加本应用的 Thank you 页和 Order status 页区块",
+        "warning": "Order status 区块依赖店铺启用 Customer Account",
+        "warningDesc": "Order status 页区块需店铺已启用新版客户账户（Customer Account）或 Checkout API 支持，否则该区块可能不可见。请前往 Shopify 后台开启相关设置。",
+        "openSettings": "打开结账设置",
+        "list": [
+          "打开结账或客户账户编辑器",
+          "在 Thank you 页添加本应用提供的区块",
+          "在 Order status 页添加本应用提供的区块",
+          "保存并发布"
+        ],
+        "themeEditor": "主题编辑器",
+        "markedDone": "我已添加区块"
+      },
+      "verification": {
+        "title": "4. 验收与监控",
+        "description": "运行验收测试，生成报告，设置断档告警",
+        "next": "下一步：验收与监控"
+      }
+    },
+    "banner": {
+      "backendUrl": {
+        "title": "⚠️ 重要：扩展的 BACKEND_URL 注入是生命线",
+        "desc": "生产环境部署时，必须确保 BACKEND_URL 已正确注入到扩展配置中。如果占位符未被替换，像素扩展将无法发送事件到后端，导致事件丢失。",
+        "requirements": "部署流程要求：",
+        "steps": [
+          "在 CI/CD 流程中，部署前必须运行 <code>pnpm ext:inject</code> 或 <code>pnpm deploy:ext</code>",
+          "确保环境变量 <code>SHOPIFY_APP_URL</code> 已正确设置",
+          "部署后验证扩展配置文件中的 URL 已正确注入（不是占位符）"
+        ],
+        "tip": "💡 提示：如果占位符未被替换，像素扩展会静默禁用事件发送，不会显示错误。这是导致事件丢失的常见原因，必须在生产环境部署前修复。"
+      },
+      "sandbox": {
+        "title": "⚠️ Strict Sandbox 能力边界说明",
+        "desc": "Web Pixel 运行在 strict sandbox (Web Worker) 环境中，以下能力受限：",
+        "limitations": [
+          "无法访问 DOM 元素、localStorage、第三方 cookie 等",
+          "部分事件字段可能为 null 或 undefined（如 buyer.email、buyer.phone、deliveryAddress 等），这是平台限制，不是故障",
+          "某些事件类型（refund、order_cancelled、order_edited 等）在 strict sandbox 中不可用，需要通过订单 webhooks 获取"
+        ],
+        "tip": "💡 提示：这是 Shopify 平台的设计限制，不是应用故障。验收报告中会自动标注所有因 strict sandbox 限制而无法获取的字段和事件。"
+      },
+      "completed": {
+        "title": "迁移完成！",
+        "desc": "恭喜！您已完成所有迁移步骤。建议定期运行验收测试以确保追踪持续稳定。",
+        "action": "运行验收测试"
+      },
+      "important": {
+        "title": "重要提示",
+        "subtitle": "Shopify 升级截止日期",
+        "desc": "<strong>重要提示：</strong>以下日期来自 Shopify 官方公告，仅供参考。实际截止日期请以 Shopify Admin 中的提示为准。Shopify 可能会更新策略，我们建议您定期查看 Shopify 官方文档。",
+        "plus": "Plus 店铺：从 2026-01 开始自动升级（legacy 定制会丢失）",
+        "nonPlus": "非 Plus 店铺：最晚 2026-08-26 必须完成升级",
+        "advice": "建议尽早完成迁移，避免在截止日期前匆忙处理。"
+      }
+    },
+    "progress": {
+      "title": "迁移进度",
+      "stepsCompleted": "{{completed}} / {{total}} 个步骤已完成"
+    },
+    "explanation": {
+      "title": "迁移步骤说明",
+      "audit": {
+        "title": "扫描与评估",
+        "desc": "自动扫描 ScriptTags 和 Web Pixels，手动粘贴识别 Additional Scripts，生成迁移清单和风险分级报告。这是免费功能，帮助您了解需要迁移的内容。"
+      },
+      "pixels": {
+        "title": "配置像素迁移",
+        "desc": "创建 Web Pixel Extension，配置事件映射（Shopify 标准事件 → 平台事件），设置平台凭证（GA4/Meta/TikTok）。需要 Starter ($29/月) 及以上套餐。"
+      },
+      "modules": {
+        "title": "添加结账与订单状态区块",
+        "desc": "在 Shopify 结账设置或主题编辑器中打开结账/客户账户自定义，在 Thank you 页和 Order status 页添加本应用提供的区块，保存并发布。Order status 区块需店铺已启用新版客户账户（Customer Account）或 Checkout API 支持，否则该区块可能不可见。详见上方步骤卡片中的操作清单与图示。"
+      },
+      "verification": {
+        "title": "验收与监控",
+        "desc": "运行验收测试验证事件触发和参数完整性，生成可交付的验收报告（CSV），设置断档告警。报告导出需要 Growth ($79/月) 或 Agency ($199/月) 套餐。"
+      }
+    },
+    "buttons": {
+      "start": "开始",
+      "viewDetails": "查看详情",
+      "upgrade": "升级解锁",
+      "requiresStarter": "需要 Starter+",
+      "requiresUpgrade": "需要升级",
+      "completed": "已完成"
+    },
+    "errors": {
+      "shopNotFound": "未找到店铺信息",
+      "appInstalled": "请确保应用已正确安装。"
+    }
+  },
+  "components": {
+    "environmentToggle": {
+      "title": "运行环境",
+      "pixelConfig": "像素配置",
+      "prodEnv": "生产环境",
+      "testEnv": "测试环境",
+      "currentEnv": "当前环境",
+      "testModeDesc": "测试模式：事件发送到测试端点，不影响正式数据",
+      "prodModeDesc": "生产模式：事件发送到正式端点，影响实际追踪数据",
+      "testBtn": "测试",
+      "prodBtn": "生产",
+      "testWarning": "⚠️ 测试模式：事件将发送到平台的测试端点，不会影响正式数据。验证完成后请切换到生产环境。",
+      "prodInfo": "✅ 生产模式：事件将发送到正式端点，影响实际追踪数据。请确保配置正确后再切换到生产环境。",
+      "versionManage": "配置版本管理",
+      "currentVersion": "当前版本: v",
+      "rollback": "一键回滚",
+      "rollbackInfo": "💡 您可以回滚到上一个配置版本。回滚后，当前配置将被上一个版本替换，并创建新的版本记录。",
+      "noRollback": "暂无可回滚的版本",
+      "confirmSwitchTitle": "确认切换到生产环境",
+      "confirmSwitchBtn": "确认切换",
+      "cancel": "取消",
+      "switchMessage": "您即将从<strong>测试环境</strong>切换到<strong>生产环境</strong>。",
+      "importantNote": "重要提示：",
+      "switchWarning1": "生产环境的事件将影响实际的广告归因和转化数据",
+      "switchWarning2": "请确保已在测试环境中验证配置正确",
+      "switchWarning3": "切换后，当前配置版本将自动保存",
+      "confirmContinue": "确定要继续吗？",
+      "confirmRollbackTitle": "确认回滚配置版本",
+      "confirmRollbackBtn": "确认回滚",
+      "rollbackMessage": "确定要回滚到上一个配置版本吗？当前配置将被上一个版本替换。",
+      "rollbackWarning": "回滚操作会生成新的版本记录，建议在回滚前导出当前配置作为备份。"
+    },
+    "configVersionManager": {
+      "title": "配置版本历史",
+      "loading": "加载中...",
+      "noHistory": "暂无版本历史记录",
+      "rollbackToPrev": "回滚到上一版本",
+      "historyDesc": "{{platform}} 的配置版本历史。当前版本：v{{version}}",
+      "version": "版本 {{version}}",
+      "currentVersionBadge": "当前版本",
+      "latestBadge": "最新",
+      "env": "环境：",
+      "client": "客户端：",
+      "server": "服务端：",
+      "enabled": "启用",
+      "disabled": "禁用",
+      "platformId": "平台 ID：",
+      "cannotRollback": "无法回滚：当前配置没有保存的上一个版本，或回滚功能已禁用",
+      "confirmRollbackTitle": "确认回滚配置",
+      "rollbackWarning": "警告：回滚操作将恢复配置到上一个版本",
+      "rollbackMessage": "您即将将 <strong>{{platform}}</strong> 的配置回滚到版本 {{version}}。",
+      "rollbackItem1": "当前配置（版本 {{version}}）将被保存为新的快照",
+      "rollbackItem2": "配置将恢复到上一个版本的状态",
+      "rollbackItem3": "此操作可以再次回滚（恢复到当前版本）"
+    },
+    "reportComparison": {
+      "title": "报告对比",
+      "report1": "报告 1",
+      "report2": "报告 2",
+      "selectReport": "选择报告...",
+      "incomplete": "未完成",
+      "startCompare": "开始对比",
+      "resultTitle": "对比结果",
+      "metricsTitle": "关键指标对比",
+      "metric": "指标",
+      "report1Val": "报告 1",
+      "report2Val": "报告 2",
+      "change": "变化",
+      "platformTitle": "平台对比",
+      "platform": "平台",
+      "passRate1": "报告 1 通过率",
+      "passRate2": "报告 2 通过率",
+      "improvements": "改进建议",
+      "passRate": "通过率",
+      "completeness": "参数完整率",
+      "accuracy": "金额准确率",
+      "totalEvents": "总事件数",
+      "passRateDrop": "通过率有所下降，建议检查最近的配置更改",
+      "accuracyDrop": "金额准确率下降，建议检查订单数据处理逻辑",
+      "failedIncrease": "失败测试数从 {{v1}} 增加到 {{v2}}，需要关注错误日志",
+      "loadFailed": "加载报告失败：",
+      "selectTwo": "请选择两个报告进行对比",
+      "selectDifferent": "请选择两个不同的报告进行对比",
+      "unknownError": "未知错误"
+    }
+  },
+  "forms": {
+    "credentials": {
+      "meta": {
+        "helpText": "在 Meta Events Manager 中生成系统用户访问令牌",
+        "testEventCode": {
+          "label": "Test Event Code (可选)",
+          "helpText": "用于测试模式，生产环境请留空"
+        }
+      },
+      "google": {
+        "measurementId": {
+          "error": "格式应为 G-XXXXXXXXXX",
+          "helpText": "GA4 媒体资源的 Measurement ID。在 GA4 管理后台 > 数据流中找到"
+        },
+        "apiSecret": {
+          "helpText": "在 GA4 > 数据流 > Measurement Protocol API secrets 中创建"
+        }
+      },
+      "tiktok": {
+        "accessToken": {
+          "helpText": "在 TikTok Events Manager 中生成"
+        }
+      }
+    }
+  },
+  "Settings": {
+    "Security": {
+      "Title": "安全设置",
+      "Description": "管理 Pixel 事件关联令牌和数据安全设置。",
+      "IngestionKey": {
+        "Title": "Ingestion Key（关联令牌）",
+        "Description": "用于关联来自 Web Pixel 的事件请求。此令牌帮助我们：",
+        "Benefits": "• 过滤误配置或无效请求（抗噪）\n• 将像素事件与订单正确关联（诊断）\n• 在多店铺场景中识别请求来源",
+        "SecurityNote": "⚠️ 重要安全说明：此令牌在浏览器网络请求中可见，不是强安全边界。真正的安全由多层防护提供：",
+        "SecurityLayers": "• <strong>TLS 加密</strong>：所有数据传输均通过 HTTPS 加密\n• <strong>Origin 验证</strong>：仅接受来自 Shopify checkout 页面的请求（含 Referer/ShopDomain fallback）\n• <strong>完整性校验密钥（HMAC）</strong>：用于完整性校验与基础抗滥用\n• <strong>速率限制</strong>：防止滥用和异常流量\n• <strong>数据最小化</strong>：我们不收集、不处理、不发送终端客户 PII",
+        "BoundaryNote": "<strong>安全边界说明：</strong>此令牌主要用于事件关联和诊断。不要将此令牌视为强安全凭证。",
+        "Status": "状态",
+        "Configured": "已配置",
+        "TokenConfigured": "令牌已配置",
+        "NotConfigured": "未配置",
+        "ReinstallPrompt": "请重新安装应用或点击生成令牌",
+        "RotateToken": "更换令牌",
+        "GenerateToken": "生成令牌",
+        "EventMode": "事件接收校验模式",
+        "Strict": "严格",
+        "Lax": "宽松",
+        "StrictDesc": "Origin 必须过白名单",
+        "LaxDesc": "非白名单/HMAC 失败仍可能被接收",
+        "LaxWarning": "来自非白名单来源或 HMAC 验证失败但未被拒绝的请求仍可能被接收并标为低信任。",
+        "GraceWindow": "<strong>旧令牌仍有效：</strong>之前的令牌将于 {{date}} 失效。在此之前，新旧令牌均可使用。",
+        "GraceWindowEnd": "过渡期结束后，旧令牌将自动失效。",
+        "OldTokenExpired": "<strong>旧令牌已过期：</strong>之前的令牌已自动清理。",
+        "NoTokenError": "<strong>⚠️ 未配置关联令牌：</strong>请立即生成令牌。",
+        "NoTokenDesc": "未配置令牌时，像素事件仍可接收，但完整性信号会下降。",
+        "P0SecurityNote": "⚠️ P0 安全提示：PIXEL_ALLOW_NULL_ORIGIN_WITH_SIGNATURE_ONLY 配置",
+        "P0SecurityDetails": "<strong>生产环境必须显式设置：</strong>\n• <code>PIXEL_ALLOW_NULL_ORIGIN_WITH_SIGNATURE_ONLY</code> 环境变量\n• 若设置为 <code>false</code>，<code>Origin: null</code> 的请求将被拒绝。",
+        "IngestionKeyRisk": "<strong>ingestionKey 可见性风险：</strong>\n• ingestion_key 会下发到像素客户端，属于公开信号\n• 真实订单真实性应以 Shopify webhook/订单对账为准",
+        "MustDoActions": "<strong>必须执行的措施：</strong>\n• <strong>定期轮换 ingestionKey</strong>（建议每 90 天）\n• <strong>监控异常事件接收模式</strong>\n• <strong>如果怀疑滥用，立即更换令牌</strong>",
+        "RotationMechNote": "<strong>令牌轮换机制说明：</strong>更换令牌时，系统会自动保存旧令牌为 previousIngestionSecret，并在 30 分钟内同时接受新旧令牌。",
+        "HowItWorks": "工作原理：",
+        "HowItWorksDesc": "服务端会记录此令牌并将其作为完整性信号。更换令牌后，App Pixel 会自动更新，旧令牌会有 30 分钟的过渡期。",
+        "TokenRotationMech": "<strong>令牌轮换机制：</strong>\n• 更换令牌时，旧令牌会保存为 previousIngestionSecret\n• 旧令牌在 30 分钟内仍可使用\n• 系统会自动同步新令牌到 Web Pixel 配置"
+      },
+      "HMAC": {
+        "Title": "完整性校验监控（过去24小时）",
+        "Description": "实时监控密钥轮换状态和可疑注入活动。",
+        "RotationStatus": "密钥轮换状态",
+        "RotateNow": "立即轮换",
+        "LastRotation": "上次轮换时间",
+        "NeverRotated": "从未轮换",
+        "RotationCount": "轮换次数",
+        "GraceWindowActive": "过渡期进行中：旧密钥将在 {{date}} 失效",
+        "RotationAdviceTitle": "建议：定期轮换密钥以提高安全性",
+        "RotationAdviceDesc": "建议每90天轮换一次密钥。点击'立即轮换'按钮开始轮换。",
+        "RotationAdviceTip": "💡 密钥轮换后，系统会自动同步新密钥。旧密钥将在30分钟内失效。",
+        "RotationWarning": "⚠️ <strong>重要提示：</strong>ingestion_key 是弱秘密。轮换后请对比事件接收情况。",
+        "OverdueWarningTitle": "建议：密钥已超过90天未轮换",
+        "OverdueWarningDesc": "上次轮换时间：{{date}}（{{days}} 天前）。建议定期轮换。",
+        "SuspiciousInjection": "可疑注入告警",
+        "InvalidSignatures": "无效签名次数",
+        "NullOriginRequests": "Null Origin 请求数",
+        "SuspiciousTotal": "可疑活动总数",
+        "LastSuspicious": "最近可疑活动: {{date}}",
+        "HighSuspiciousAlert": "⚠️ 检测到大量可疑活动 - 建议立即采取行动",
+        "HighSuspiciousDesc": "系统检测到 {{count}} 次可疑活动。这可能是密钥泄漏或注入攻击的迹象。",
+        "ImmediateActions": "立即执行的操作：",
+        "ActionRotate": "立即轮换密钥",
+        "ActionCheckLogs": "检查访问日志和事件接收记录",
+        "ActionLeakage": "如果怀疑密钥泄漏，立即更换令牌",
+        "ActionReview": "审查是否有异常来源的请求",
+        "ActionMetrics": "检查'事件丢失率'指标",
+        "MediumSuspiciousAlert": "⚠️ 检测到可疑活动",
+        "MediumSuspiciousDesc": "系统检测到 {{count}} 次可疑活动。建议定期检查访问日志。",
+        "MediumSuspiciousDesc2": "如果无效签名次数持续增加，可能是密钥泄漏的早期迹象。",
+        "NoSuspicious": "✅ 过去24小时内未检测到可疑活动"
+      },
+      "DataRetention": {
+        "Title": "数据保留策略",
+        "Description": "配置数据保留期限。",
+        "Label": "数据保留天数",
+        "Option30": "30 天（推荐用于高流量店铺）",
+        "Option60": "60 天",
+        "Option90": "90 天（默认）",
+        "Option180": "180 天",
+        "Option365": "365 天（最大）",
+        "HelpText": "超过此期限的数据将被自动清理",
+        "InfoTitle": "数据保留说明：",
+        "InfoDesc": "以下数据受保留期限控制：",
+        "InfoItems": "• <strong>转化日志</strong>\n• <strong>像素事件回执</strong>\n• <strong>扫描报告</strong>\n• <strong>对账报告</strong>\n• <strong>失败任务</strong>",
+        "InfoNote": "清理任务每日自动执行。审计日志保留 365 天。",
+        "MinimizationTitle": "数据最小化原则：",
+        "MinimizationDesc": "我们仅存储转化追踪必需的数据。",
+        "PIINote": "<strong>关于 PII：</strong>我们不存储客户 PII（姓名/邮箱/电话/地址）。"
+      },
+      "Privacy": {
+        "Title": "像素隐私与同意逻辑",
+        "Description": "了解像素加载策略与后端过滤逻辑。",
+        "LoadingStrategyTitle": "📋 像素加载策略",
+        "LoadingStrategyDesc": "Web Pixel Extension 加载条件：",
+        "LoadingStrategyItems": "• <strong>analytics = true</strong>：需要 analytics consent\n• <strong>marketing = true</strong>：需要 marketing consent\n• <strong>sale_of_data = \"disabled\"</strong>",
+        "StrategyNote": "<strong>策略说明：</strong>当前配置需要 analytics 或 marketing 同意才能加载像素。后端根据平台合规要求过滤事件。",
+        "BackendFilterTitle": "🔍 后端过滤策略",
+        "BackendFilterDesc": "后端会根据各平台的合规要求进一步过滤事件：",
+        "BackendFilterItems": "• <strong>GA4</strong>：需 analytics 同意\n• <strong>Meta/TikTok</strong>：需 marketing 同意",
+        "DesignReason": "<strong>为什么这样设计？</strong> 提高覆盖率并确保合规。",
+        "ActualEffectTitle": "✅ 实际效果",
+        "ActualEffectDesc": "根据用户的同意状态发送事件。",
+        "ActualEffectItems": "• 仅同意 analytics：仅 GA4\n• 仅同意 marketing：仅 Meta/TikTok\n• 同时同意：所有平台",
+        "ComplianceNote": "后端过滤确保符合 GDPR/CCPA。",
+        "StatsTitle": "📊 查看过滤统计",
+        "StatsDesc": "在 Dashboard 查看发送统计和过滤原因。"
+      },
+      "ConsentStrategy": {
+        "Title": "Consent 策略",
+        "Description": "控制事件过滤策略。",
+        "Label": "策略选择",
+        "Strict": "🔒 严格模式（推荐）",
+        "Balanced": "⚖️ 平衡模式",
+        "HelpTextStrict": "必须有可信的像素回执 + 明确同意。",
+        "HelpTextBalanced": "允许'部分可信'的回执。",
+        "StrictNote": "当前版本仅接收与校验 Web Pixel 事件。",
+        "BalancedNote": "允许信任等级为「部分可信」的回执。",
+        "BalancedAdvice": "建议：欧盟/英国地区推荐使用严格模式。",
+        "UnknownStrategy": "⚠️ 未知策略",
+        "UnknownStrategyDesc": "默认按严格模式处理。",
+        "ModalTitle": "确认切换隐私策略",
+        "ModalContent": "平衡模式允许'部分可信'的回执。",
+        "ModalConfirm": "推荐使用严格模式。确定要切换吗？",
+        "ConfirmAction": "确认切换",
+        "Cancel": "取消"
+      },
+      "Modals": {
+        "RotateTitle": "确认更换关联令牌",
+        "GenerateTitle": "确认生成关联令牌",
+        "RotateAction": "确认更换",
+        "GenerateAction": "确认生成",
+        "RotateDesc": "Web Pixel 将自动更新。",
+        "GenerateDesc": "生成后将自动配置。",
+        "RiskWarning": "⚠️ 轮换后风险提示",
+        "RiskDesc": "旧密钥30分钟内失效。请检查是否有丢单风险。"
+      }
+    }
+  },
+  "Forms": {
+    "Credentials": {
+      "Meta": {
+        "PixelId": {
+          "Label": "Pixel ID",
+          "Placeholder": "1234567890123456"
+        },
+        "AccessToken": {
+          "Label": "Access Token",
+          "HelpText": "Meta Graph API Access Token"
+        },
+        "TestEventCode": {
+          "Label": "测试事件代码 (Test Event Code)",
+          "HelpText": "可选：用于在 Events Manager 中测试事件"
+        }
+      },
+      "Google": {
+        "MeasurementId": {
+          "Label": "Measurement ID",
+          "Placeholder": "G-XXXXXXXXXX",
+          "HelpText": "GA4 Measurement ID",
+          "Error": "格式无效"
+        },
+        "ApiSecret": {
+          "Label": "API Secret",
+          "HelpText": "GA4 Measurement Protocol API Secret"
+        }
+      },
+      "TikTok": {
+        "PixelId": {
+          "Label": "Pixel ID",
+          "Placeholder": "C1234567890123456789"
+        },
+        "AccessToken": {
+          "Label": "Access Token",
+          "HelpText": "TikTok Events API Access Token"
+        }
+      }
+    }
+  },
+  "PrivacyPage": {
+    "Title": "隐私与数据",
+    "Subtitle": "了解本应用如何收集、使用和保护您店铺的数据",
+    "GDPRHistory": "GDPR 请求历史",
+    "Back": "返回",
+    "NoRecords": "暂无记录",
+    "Created": "创建时间：{{date}}",
+    "Completed": "完成时间：{{date}}",
+    "DownloadJSON": "下载 JSON",
+    "Overview": {
+      "Title": "数据处理概览",
+      "Content": "Tracking Guardian 作为<strong>数据处理者</strong>，代表商家处理数据。我们遵循 GDPR/CCPA。",
+      "Note": "本应用不依赖客户 PII。即使 PII 脱敏，核心功能仍可用。"
+    },
+    "Config": {
+      "Title": "📋 您的当前配置",
+      "Strategy": "同意策略",
+      "Strict": "严格模式",
+      "Balanced": "平衡模式"
+    },
+    "DataTypes": {
+      "Title": "收集的数据类型",
+      "PixelEvents": {
+        "Title": "像素事件数据",
+        "Description": "来自 Web Pixel 事件收据，用于诊断和统计",
+        "Items": [
+          "事件 ID/类型",
+          "时间戳",
+          "事件参数（金额、货币等）",
+          "结账令牌（已哈希）"
+        ]
+      },
+      "Consent": {
+        "Title": "客户同意状态",
+        "Description": "尊重客户隐私选择",
+        "Items": [
+          "marketing: 是否同意营销",
+          "analytics: 是否同意分析",
+          "saleOfData: 是否允许数据销售"
+        ]
+      },
+      "TechData": {
+        "Title": "请求相关技术数据",
+        "Content": "为安全、反作弊，我们可能存储 IP、User-Agent 等。保留周期同店铺设置。"
+      }
+    },
+    "Usage": {
+      "Title": "数据用途",
+      "Tracking": {
+        "Title": "转化追踪",
+        "Content": "v1 默认仅基于 Web Pixel 事件。不通过 Admin API 读取订单。"
+      },
+      "Warning": {
+        "Title": "重要：当前版本不提供服务端投递",
+        "Content": "服务端投递默认关闭，仅用于诊断与验收。"
+      },
+      "Reconciliation": {
+        "Title": "对账与诊断",
+        "Content": "比对像素收据与内部日志，发现追踪缺口。"
+      },
+      "Compliance": {
+        "Title": "合规执行",
+        "Content": "根据同意状态自动决定是否发送数据。"
+      },
+      "PixelSending": {
+        "Title": "Web Pixel 数据发送说明",
+        "When": "何时发送",
+        "WhenContent": "仅在客户授予相应同意时发送。",
+        "Fields": "发送字段",
+        "FieldsContent": "仅发送非 PII 数据。不包含姓名/邮箱/电话。",
+        "Consent": "如何跟随 consent 变化",
+        "ConsentContent": "Pixel 订阅 customerPrivacy 变化。"
+      },
+      "Notifications": {
+        "Title": "通知与第三方服务",
+        "Content": "告警功能已禁用。未来可能支持 Slack/Telegram。"
+      }
+    },
+    "Retention": {
+      "Title": "数据保存时长",
+      "Note": "我们遵循数据最小化原则。",
+      "Receipts": "PixelEventReceipt（像素收据）",
+      "ReceiptsDesc": "按店铺设置（默认 90 天）。",
+      "Runs": "VerificationRun（验收运行）",
+      "RunsDesc": "按店铺设置（默认 90 天）。",
+      "Reports": "ScanReport（扫描报告）",
+      "ReportsDesc": "按店铺设置（默认 90 天）。",
+      "Logs": "EventLog / AuditLog（事件与审计日志）",
+      "LogsDesc": "按店铺设置。审计日志保留 365 天。"
+    },
+    "Deletion": {
+      "Title": "数据删除方式",
+      "Desc": "我们支持多种删除方式：",
+      "Uninstall": {
+        "Title": "卸载应用",
+        "Desc": "收到 APP_UNINSTALLED 后 48 小时内删除。"
+      },
+      "GDPR": {
+        "Title": "GDPR 客户数据删除请求",
+        "Desc": "响应 CUSTOMERS_DATA_REQUEST 或 CUSTOMERS_REDACT。"
+      },
+      "Shop": {
+        "Title": "店铺数据删除请求",
+        "Desc": "响应 SHOP_REDACT 删除所有数据。"
+      }
+    },
+    "Security": {
+      "Title": "安全措施",
+      "Transport": {
+        "Title": "传输加密",
+        "Desc": "TLS 1.2+"
+      },
+      "Storage": {
+        "Title": "凭证加密",
+        "Desc": "AES-256-GCM"
+      },
+      "Access": {
+        "Title": "访问控制",
+        "Desc": "Shopify OAuth"
+      }
+    },
+    "GDPRTest": {
+      "Title": "GDPR Webhooks 测试指引",
+      "Desc": "Shopify 要求正确响应强制 webhooks。测试方法：",
+      "Step1": "1. App setup → GDPR Mandatory webhooks",
+      "Step2": "2. 配置 webhook 端点",
+      "Step3": "3. 使用 Shopify CLI 测试",
+      "Success": "本应用已实现所有 GDPR 强制 webhooks 处理程序。"
+    },
+    "ExportDelete": {
+      "Title": "数据导出与删除",
+      "Note": "根据 GDPR/CCPA，您有权导出或删除数据。",
+      "Export": {
+        "Title": "数据导出",
+        "Desc": "导出店铺所有数据。",
+        "JSON": "导出转化数据 (JSON)",
+        "CSV": "导出转化数据 (CSV)",
+        "Events": "导出事件日志 (JSON)",
+        "Note": "大型数据集可能需要几分钟。"
+      },
+      "Delete": {
+        "Title": "数据删除",
+        "Desc": "删除店铺所有数据。不可撤销。",
+        "Warning": "警告：此操作将永久删除所有转化记录、日志和设置。",
+        "Button": "删除所有数据",
+        "ModalTitle": "确认删除所有数据",
+        "ModalContent": "您确定要删除所有数据吗？此操作将永久删除所有记录。",
+        "Irreversible": "此操作不可撤销！",
+        "Confirm": "确认删除",
+        "Error": "删除功能需要后端支持或 GDPR webhook。"
+      },
+      "Status": {
+        "Title": "GDPR 请求状态",
+        "Desc": "查看最近的 GDPR 请求。",
+        "Button": "查看 GDPR 请求历史"
+      }
+    },
+    "Docs": {
+      "Title": "相关文档",
+      "Privacy": "完整隐私政策",
+      "Terms": "服务条款",
+      "ShopifyPrivacy": "Shopify 客户数据保护指南",
+      "ShopifyGDPR": "Shopify GDPR 要求"
+    }
+  },
+  "PublicPrivacy": {
+    "Title": "隐私政策",
+    "Meta": {
+      "AppName": "应用名称",
+      "LastUpdated": "最后更新",
+      "AppDomain": "应用域名"
+    },
+    "Overview": {
+      "Title": "概述",
+      "Content": "{{appName}} 是一个 Shopify 应用，作为<strong>数据处理者</strong>代表商家处理数据。我们遵循 GDPR/CCPA。"
+    },
+    "CollectedData": {
+      "Title": "收集的数据类型",
+      "Orders": "订单数据（ID、金额、货币、商品）",
+      "Consent": "客户同意状态（marketing, analytics, saleOfData）",
+      "NoPII": "我们不收集 PII（姓名、邮箱、电话、地址、支付信息）",
+      "TechData": "请求相关技术数据（IP、User-Agent）",
+      "Session": "会话与鉴权（店铺员工邮箱）"
+    },
+    "Usage": {
+      "Title": "数据用途",
+      "Tracking": "转化追踪（v1 仅基于 Web Pixel 收据，不访问 PCD）",
+      "Reconciliation": "对账与诊断",
+      "Compliance": "合规执行",
+      "PCD": "与 PCD（受保护客户数据）的关系"
+    },
+    "Retention": {
+      "Title": "数据保留",
+      "Content": "遵循数据最小化原则。默认 90 天。"
+    },
+    "Deletion": {
+      "Title": "数据删除",
+      "Content": "卸载应用、GDPR 请求、或店铺数据删除请求。"
+    },
+    "Sharing": {
+      "Title": "第三方共享",
+      "Content": "v1 不向第三方发送服务端事件。告警已禁用。"
+    },
+    "Security": {
+      "Title": "安全措施",
+      "Content": "传输加密、存储加密、访问控制、日志脱敏。"
+    },
+    "Rights": {
+      "Title": "数据主体权利",
+      "Content": "访问权、删除权、更正权、可携带权、反对权。"
+    },
+    "Docs": {
+      "Title": "完整合规文档",
+      "Content": "见应用内「隐私与合规」页。"
+    },
+    "Contact": {
+      "Title": "联系方式",
+      "Content": "通过 Shopify App 支持渠道联系我们。"
+    }
+  },
+  "ScanModals": {
+    "Guidance": {
+      "Title": "ScriptTag 清理指南",
+      "GotIt": "我知道了",
+      "GoToMigration": "前往迁移工具",
+      "UpgradeWizardContent": "您可以从 Shopify Admin 的升级向导中获取脚本清单。",
+      "Step1": "访问升级向导",
+      "Step2": "查看脚本清单",
+      "Step3": "复制脚本内容",
+      "Step4": "粘贴到本页面",
+      "Tip": "💡 提示：建议分批粘贴和分析。",
+      "OpenDocs": "打开 Shopify 升级向导帮助文档",
+      "LimitWarning": "由于 Shopify 权限限制，应用无法直接删除 ScriptTag。",
+      "Steps": {
+        "Pixel": "确认 Web Pixel 已启用",
+        "Creds": "配置像素凭证",
+        "Verify": "验证追踪正常",
+        "Delete": "手动删除 ScriptTag",
+        "Title": "推荐清理步骤："
+      },
+      "NotFound": "找不到创建应用？",
+      "ScriptTagId": "ScriptTag ID: {{id}}",
+      "SafeDelete": "💡 安装 Web Pixel 后，旧的 {{platform}} ScriptTag 可以安全删除。",
+      "Step1Desc": "在 Shopify Admin 中，前往「设置」→「结账和订单处理」→「Thank you / Order status 页面升级」",
+      "Step2Desc": "升级向导会显示当前使用的 Additional Scripts 和 ScriptTags 列表",
+      "Step3Desc": "对于每个脚本，复制其完整内容（包括 URL 或内联代码）",
+      "Step4Desc": "返回本页面，在「脚本内容分析」标签页中粘贴脚本内容，点击「分析脚本」进行识别",
+      "NotFoundDesc": "如果 ScriptTag 是由已卸载的应用创建的残留数据，您可以：",
+      "NotFoundOptions": {
+        "Contact": "联系 Shopify 支持，提供 ScriptTag ID: {{id}}",
+        "API": "使用 Shopify GraphQL API 手动删除（需开发者权限）",
+        "Expire": "等待 ScriptTag 自动过期（Plus 商家将于 {{plusDate}} 停止执行，非 Plus 商家将于 {{nonPlusDate}} 停止执行，请以 Admin 提示为准）"
+      }
+    },
+    "Delete": {
+      "Title": "确认删除",
+      "Content": "您确定要删除 <strong>{{title}}</strong> 吗？",
+      "Warning": "此操作不可撤销。追踪将立即停止。",
+      "Confirm": "确认删除",
+      "Cancel": "取消"
+    }
+  },
+  "PublicSupport": {
+    "Title": "支持与常见问题",
+    "Subtitle": "Tracking Guardian 帮助中心",
+    "Contact": {
+      "Title": "联系与支持",
+      "Content": "需要帮助？请随时联系我们：",
+      "Email": "邮箱：",
+      "DataRights": "数据权利 (GDPR/CCPA)：使用 customers/data_request 或 customers/redact",
+      "StatusPage": "状态页："
+    },
+    "FAQ": {
+      "Title": "常见问题",
+      "PII": {
+        "Q": "需要 PII/PCD 吗？",
+        "A": "我们不收集终端客户 PII..."
+      },
+      "Events": {
+        "Q": "收集哪些事件？",
+        "A": "默认仅 checkout_completed..."
+      },
+      "Consent": {
+        "Q": "如何处理同意？",
+        "A": "客户端遵循 customerPrivacy。"
+      },
+      "Retention": {
+        "Q": "数据保留与删除",
+        "A": "默认 90 天。"
+      }
+    },
+    "Migration": {
+      "Title": "迁移提示",
+      "Tip1": "运行应用内扫描器。",
+      "Tip2": "粘贴 Additional Scripts 进行分析。",
+      "Tip3": "确认 Web Pixel 安装后再删除 ScriptTag。"
+    },
+    "Badges": {
+      "Public": "公开",
+      "NoLogin": "无需登录"
+    }
+  },
+  "PublicTerms": {
+    "Title": "服务条款",
+    "Meta": {
+      "AppName": "应用名称",
+      "LastUpdated": "最后更新",
+      "AppDomain": "应用域名"
+    },
+    "Section1": {
+      "Title": "1. 服务描述",
+      "Content": "{{appName}} 是一款 Shopify 应用，为商家提供 Web Pixel 迁移、验收与诊断服务。包括但不限于：迁移辅助、像素事件验收、追踪缺口监测、扫描与报告功能。具体功能以应用内实际提供为准，我们保留在不影响核心服务的前提下调整功能的权利。"
+    },
+    "Section2": {
+      "Title": "2. 接受条款",
+      "Content": "安装或使用 {{appName}} 即表示您同意受本服务条款约束。如不同意本条款，请勿安装或使用本应用。我们可能不时更新本条款，更新后的条款将在本页面发布，继续使用即视为接受更新。"
+    },
+    "Section3": {
+      "Title": "3. 使用条件",
+      "Content": "您需确保：(a) 拥有在 Shopify 平台运营店铺的合法权利；(b) 遵守 Shopify 平台规则及适用法律法规；(c) 提供的店铺信息真实、准确；(d) 不得利用本应用从事任何非法、欺诈或侵权活动。我们保留在发现违规行为时暂停或终止服务的权利。"
+    },
+    "Section4": {
+      "Title": "4. 免责声明",
+      "Content": "本应用按「现状」提供，不提供任何形式的明示或暗示保证。在法律允许的最大范围内，我们不对因使用或无法使用本应用而产生的任何直接、间接、附带、特殊或后果性损害承担责任，包括但不限于利润损失、数据丢失、业务中断等。我们不对第三方服务（如 Shopify、广告平台）的可用性、准确性负责。"
+    },
+    "Section5": {
+      "Title": "5. 管辖法律",
+      "Content": "本服务条款受中华人民共和国法律管辖（如适用），或您所在地的法律管辖。因本条款产生的争议，双方应尽量协商解决；协商不成的，可向有管辖权的法院提起诉讼。"
+    },
+    "Section6": {
+      "Title": "6. 联系方式与相关文档",
+      "Content": "如有任何关于本服务条款的问题，请通过 <a href=\"mailto:{{email}}\">{{email}}</a> 联系我们。请同时参阅我们的 <a href=\"/privacy\">隐私政策</a> 以了解数据处理与隐私合规信息。"
+    }
+  },
+  "Auth": {
+    "Login": {
+      "Error": "认证过程中发生错误，请重试或联系支持。",
+      "Info": "请通过 Shopify 管理后台访问此应用",
+      "InstalledTitle": "如果您已安装此应用：",
+      "InstalledDesc": "打开 Shopify 管理后台 → 设置 → 应用和销售渠道 → Tracking Guardian",
+      "NotInstalledTitle": "如果您尚未安装：",
+      "NotInstalledDesc": "请从 Shopify App Store 搜索并安装「Tracking Guardian」",
+      "Footer": "根据 Shopify 平台要求，应用必须从 Shopify 管理后台或 App Store 启动，不支持直接访问此页面进行登录。"
     }
   }
 }

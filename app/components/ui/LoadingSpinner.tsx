@@ -1,5 +1,6 @@
 import { Spinner, BlockStack, Text } from "@shopify/polaris";
 import React from "react";
+import { useTranslation } from "react-i18next";
 
 interface LoadingSpinnerProps {
   size?: "small" | "large";
@@ -14,12 +15,14 @@ export function LoadingSpinner({
   fullScreen = false,
   style,
 }: LoadingSpinnerProps) {
+  const { t } = useTranslation();
+  const displayLabel = label || t("common.loading");
   const content = (
     <BlockStack gap="300" align="center" inlineAlign="center">
-      <Spinner size={size} accessibilityLabel={label || "加载中"} />
-      {label && (
+      <Spinner size={size} accessibilityLabel={displayLabel} />
+      {displayLabel && (
         <Text as="p" variant="bodySm" tone="subdued">
-          {label}
+          {displayLabel}
         </Text>
       )}
     </BlockStack>
@@ -132,7 +135,9 @@ interface PageLoadingProps {
   title?: string;
 }
 
-export function PageLoading({ title = "加载中..." }: PageLoadingProps) {
+export function PageLoading({ title }: PageLoadingProps) {
+  const { t } = useTranslation();
+  const displayTitle = title || t("common.loading");
   return (
     <div
       style={{
@@ -144,9 +149,9 @@ export function PageLoading({ title = "加载中..." }: PageLoadingProps) {
         padding: "40px",
       }}
     >
-      <Spinner size="large" accessibilityLabel={title} />
+      <Spinner size="large" accessibilityLabel={displayTitle} />
       <Text as="p" variant="bodyMd" tone="subdued">
-        {title}
+        {displayTitle}
       </Text>
     </div>
   );
@@ -165,10 +170,11 @@ export function LazyLoadWrapper({
   loadingComponent,
   minHeight = "200px",
 }: LazyLoadWrapperProps) {
+  const { t } = useTranslation();
   if (isLoading) {
     return (
       <div style={{ minHeight }}>
-        {loadingComponent || <LoadingSpinner label="加载中..." />}
+        {loadingComponent || <LoadingSpinner label={t("common.loading")} />}
       </div>
     );
   }

@@ -8,6 +8,7 @@ import { getSeverityBadge } from "~/components/scan";
 import { getDateDisplayLabel, DEPRECATION_DATES } from "~/utils/deprecation-dates";
 import type { ScriptAnalysisResult } from "~/services/scanner.server";
 import type { ComponentType } from "react";
+import { useTranslation } from "react-i18next";
 
 interface ScanManualSupplementTabProps {
     shop: { id: string } | null;
@@ -72,55 +73,61 @@ export function ScanManualSupplementTab({
     onRemoveFromReplacementChecklist,
     onExportReplacementChecklistCSV,
 }: ScanManualSupplementTabProps) {
+    const { t } = useTranslation();
     return (
         <BlockStack gap="500">
             <Box paddingBlockStart="400">
                 <Card>
                     <BlockStack gap="400">
                         <Text as="h2" variant="headingMd">
-                            手动分析 Additional Scripts
+                            {t("scan.manualSupplement.title")}
                         </Text>
                         <BlockStack gap="200">
                             <Text as="p" tone="subdued">
-                                Shopify API 无法自动读取 Additional Scripts 内容。
-                                请从 Shopify 后台复制脚本代码，粘贴到下方进行分析。
+                                {t("scan.manualSupplement.desc")}
                             </Text>
-                            <Banner tone="warning" title="隐私提示：请先脱敏再粘贴">
+                            <Banner tone="warning" title={t("scan.manualSupplement.privacy.title")}>
                                 <BlockStack gap="100">
                                     <Text as="p" variant="bodySm">
-                                        • 可能包含客户信息、访问令牌或第三方密钥，请在粘贴前删除/替换敏感字段。
+                                        {t("scan.manualSupplement.privacy.item1")}
                                     </Text>
                                     <Text as="p" variant="bodySm">
-                                        • 分析在浏览器本地完成，不会上传脚本正文；仅识别出的平台信息会用于生成迁移建议。
+                                        {t("scan.manualSupplement.privacy.item2")}
                                     </Text>
                                     <Text as="p" variant="bodySm">
-                                        • 我们不会持久化或日志记录您粘贴的内容；仅在浏览器会话内用于本地分析。
+                                        {t("scan.manualSupplement.privacy.item3")}
                                     </Text>
                                     <Text as="p" variant="bodySm">
-                                        • 请勿将脚本内容分享给他人或在公共场所粘贴。
+                                        {t("scan.manualSupplement.privacy.item4")}
                                     </Text>
                                 </BlockStack>
                             </Banner>
                         </BlockStack>
-                        <Banner tone="critical" title={`Plus：${getDateDisplayLabel(DEPRECATION_DATES.plusScriptTagExecutionOff, "exact")} / 非 Plus：${getDateDisplayLabel(DEPRECATION_DATES.nonPlusScriptTagExecutionOff, "exact")} 将失效`}>
+                        <Banner tone="critical" title={t("scan.manualSupplement.deadline.title", {
+                            plusDate: getDateDisplayLabel(DEPRECATION_DATES.plusScriptTagExecutionOff, "exact"),
+                            nonPlusDate: getDateDisplayLabel(DEPRECATION_DATES.nonPlusScriptTagExecutionOff, "exact")
+                        })}>
                             <BlockStack gap="100">
                                 <Text as="p" variant="bodySm">
-                                    这是 Thank you / Order status 页面迁移的硬性截止时间。提前粘贴 Additional Scripts 代码并完成迁移，可避免追踪中断。
+                                    {t("scan.manualSupplement.deadline.desc")}
                                 </Text>
                                 <Text as="p" variant="bodySm" tone="subdued">
-                                    以上日期来自 Shopify 官方公告，仅供参考。实际截止日期请以 Shopify Admin 中的提示为准。Shopify 可能会更新策略，我们建议您定期查看 Shopify 官方文档。
+                                    {t("scan.manualSupplement.deadline.disclaimer")}
                                 </Text>
                                 {deprecationStatus && (
                                     <Text as="p" variant="bodySm" tone="subdued">
-                                        当前剩余：{deprecationStatus.additionalScripts?.badge.text} — {deprecationStatus.additionalScripts?.description}
+                                        {t("scan.manualSupplement.deadline.remaining", {
+                                            text: deprecationStatus.additionalScripts?.badge.text,
+                                            desc: deprecationStatus.additionalScripts?.description
+                                        })}
                                     </Text>
                                 )}
                                 <InlineStack gap="200">
                                     <Button url="/app/migrate" icon={ArrowRightIcon} size="slim" variant="primary">
-                                        前往迁移页面
+                                        {t("scan.manualSupplement.actions.migrate")}
                                     </Button>
                                     <Button url="/app/migrate#pixel" icon={SettingsIcon} size="slim" variant="secondary">
-                                        启用/升级 App Pixel
+                                        {t("scan.manualSupplement.actions.pixel")}
                                     </Button>
                                 </InlineStack>
                             </BlockStack>
@@ -129,12 +136,12 @@ export function ScanManualSupplementTab({
                             <BlockStack gap="200">
                                 <InlineStack align="space-between" blockAlign="start">
                                     <BlockStack gap="200">
-                                        <Text as="p" fontWeight="semibold">如何获取 Additional Scripts：</Text>
+                                        <Text as="p" fontWeight="semibold">{t("scan.manualSupplement.howTo.title")}</Text>
                                         <Text as="p" variant="bodySm">
-                                            1. 前往 Shopify 后台 → 设置 → 结账
-                                            <br />2. 找到「订单状态页面」或「Additional Scripts」区域
-                                            <br />3. 复制其中的所有代码
-                                            <br />4. 粘贴到下方文本框中
+                                            {t("scan.manualSupplement.howTo.step1")}
+                                            <br />{t("scan.manualSupplement.howTo.step2")}
+                                            <br />{t("scan.manualSupplement.howTo.step3")}
+                                            <br />{t("scan.manualSupplement.howTo.step4")}
                                         </Text>
                                     </BlockStack>
                                     <InlineStack gap="200">
@@ -143,20 +150,20 @@ export function ScanManualSupplementTab({
                                             variant="primary"
                                             size="slim"
                                         >
-                                            从升级向导补充
+                                            {t("scan.manualSupplement.buttons.upgradeWizard")}
                                         </Button>
                                         <Button
                                             onClick={onOpenManualInputWizard}
                                             size="slim"
                                         >
-                                            引导补充信息
+                                            {t("scan.manualSupplement.buttons.guidedInfo")}
                                         </Button>
                                         <Button
-                                            onClick={() => onShowGuidance("从 Shopify 升级向导导入脚本")}
+                                            onClick={() => onShowGuidance(t("scan.manualSupplement.buttons.importWizard"))}
                                             variant="plain"
                                             size="slim"
                                         >
-                                            从升级向导导入
+                                            {t("scan.manualSupplement.buttons.importWizard")}
                                         </Button>
                                     </InlineStack>
                                 </InlineStack>
@@ -187,7 +194,7 @@ export function ScanManualSupplementTab({
                         {analysisProgress && (
                             <Box paddingBlockStart="200">
                                 <Text as="p" variant="bodySm" tone="subdued">
-                                    分析进度: {analysisProgress.current} / {analysisProgress.total}
+                                    {t("scan.manualSupplement.progress", { current: analysisProgress.current, total: analysisProgress.total })}
                                 </Text>
                                 <ProgressBar progress={(analysisProgress.current / analysisProgress.total) * 100} />
                             </Box>
@@ -202,7 +209,7 @@ export function ScanManualSupplementTab({
                         {analysisResult && (
                             <InlineStack gap="200">
                                 <Button onClick={onAddToReplacementChecklist} variant="secondary" size="slim">
-                                    加入清单并添加下一条
+                                    {t("scan.manualSupplement.addChecklist")}
                                 </Button>
                             </InlineStack>
                         )}
@@ -214,10 +221,10 @@ export function ScanManualSupplementTab({
                     <BlockStack gap="400">
                         <InlineStack align="space-between" blockAlign="center">
                             <Text as="h2" variant="headingMd">
-                                替代方案清单
+                                {t("scan.manualSupplement.checklist.title")}
                             </Text>
                             <Button onClick={onExportReplacementChecklistCSV} variant="primary" size="slim">
-                                导出替代方案清单 CSV
+                                {t("scan.manualSupplement.checklist.exportCSV")}
                             </Button>
                         </InlineStack>
                         <BlockStack gap="200">
@@ -228,7 +235,7 @@ export function ScanManualSupplementTab({
                                 const hasDomRisk = item.result.risks.some(
                                     (r) => /window|document|dom/i.test(r.id) || /window|document|dom/i.test(r.name || "")
                                 );
-                                const replacement = hasTracking ? "Web Pixel 迁移" : hasDomRisk ? "Checkout UI Extension 或需人工复核" : "需人工复核（review & replace）";
+                                const replacement = hasTracking ? t("scan.manualSupplement.checklist.suggestions.webPixel") : hasDomRisk ? t("scan.manualSupplement.checklist.suggestions.uiExtension") : t("scan.manualSupplement.checklist.suggestions.manual");
                                 const platforms = item.result.identifiedPlatforms.join(", ") || "-";
                                 const topRisk = item.result.risks[0]?.name || "-";
                                 return (
@@ -245,16 +252,16 @@ export function ScanManualSupplementTab({
                                                 </InlineStack>
                                                 <InlineStack gap="400" wrap>
                                                     <Text as="span" variant="bodySm">
-                                                        平台: {platforms}
+                                                        {t("scan.manualSupplement.checklist.platform")}: {platforms}
                                                     </Text>
                                                     <Text as="span" variant="bodySm">
-                                                        建议: {replacement}
+                                                        {t("scan.manualSupplement.checklist.suggestion")}: {replacement}
                                                     </Text>
                                                     <Text as="span" variant="bodySm">
-                                                        风险分: {item.result.riskScore}
+                                                        {t("scan.manualSupplement.checklist.riskScore")}: {item.result.riskScore}
                                                     </Text>
                                                     <Text as="span" variant="bodySm">
-                                                        主要风险: {topRisk}
+                                                        {t("scan.manualSupplement.checklist.majorRisk")}: {topRisk}
                                                     </Text>
                                                 </InlineStack>
                                             </BlockStack>
@@ -264,7 +271,7 @@ export function ScanManualSupplementTab({
                                                 size="slim"
                                                 onClick={() => onRemoveFromReplacementChecklist(item.id)}
                                             >
-                                                移除
+                                                {t("scan.manualSupplement.checklist.remove")}
                                             </Button>
                                         </InlineStack>
                                     </Box>
@@ -279,7 +286,7 @@ export function ScanManualSupplementTab({
                 <Card>
                     <BlockStack gap="400">
                         <Text as="h2" variant="headingMd">
-                            风险详情
+                            {t("scan.manualSupplement.riskDetails")}
                         </Text>
                         <BlockStack gap="300">
                             {analysisResult.risks.map((risk, index) => (
@@ -291,7 +298,7 @@ export function ScanManualSupplementTab({
                                                     {risk.name}
                                                 </Text>
                                             </InlineStack>
-                                            {getSeverityBadge(risk.severity)}
+                                            {getSeverityBadge(risk.severity, t)}
                                         </InlineStack>
                                         <Text as="p" tone="subdued">
                                             {risk.description}
@@ -313,9 +320,9 @@ export function ScanManualSupplementTab({
                     <BlockStack gap="400">
                         <InlineStack align="space-between">
                             <Text as="h2" variant="headingMd">
-                                迁移建议清单
+                                {t("scan.manualSupplement.migrationSuggestions.title")}
                             </Text>
-                            <Badge tone="info">人工分析结果</Badge>
+                            <Badge tone="info">{t("scan.manualSupplement.migrationSuggestions.badge")}</Badge>
                         </InlineStack>
                         <BlockStack gap="300">
                             {analysisResult.recommendations.map((rec, index) => {
@@ -329,11 +336,11 @@ export function ScanManualSupplementTab({
                                 const url = urlMatch ? urlMatch[1] : null;
                                 const isInternal = title.includes("Google Analytics") || title.includes("Meta Pixel") || title.includes("TikTok");
                                 const isExternal = !!url;
-                                if (rec.includes("迁移清单建议")) {
+                                if (rec.includes("迁移清单建议") || rec.includes("Migration Checklist")) {
                                     return (
                                         <Box key={index} background="bg-surface-secondary" padding="400" borderRadius="200">
                                             <BlockStack gap="200">
-                                                <Text as="h3" variant="headingSm">📋 综合迁移建议</Text>
+                                                <Text as="h3" variant="headingSm">📋 {t("scan.manualSupplement.migrationSuggestions.comprehensive")}</Text>
                                                 <List type="number">
                                                     {details.map((d, i) => {
                                                         const cleanText = d.replace(/^\d+\.\s*/, '').trim();
@@ -359,12 +366,12 @@ export function ScanManualSupplementTab({
                                                 </BlockStack>
                                                 {isInternal && (
                                                     <Button url="/app/migrate" size="slim" icon={ArrowRightIcon}>
-                                                        去配置
+                                                        {t("scan.manualSupplement.migrationSuggestions.configure")}
                                                     </Button>
                                                 )}
                                                 {isExternal && !isInternal && (
                                                     <Button url={url!} external size="slim" icon={ShareIcon}>
-                                                        查看应用
+                                                        {t("scan.manualSupplement.migrationSuggestions.viewApp")}
                                                     </Button>
                                                 )}
                                             </InlineStack>
@@ -375,7 +382,7 @@ export function ScanManualSupplementTab({
                         </BlockStack>
                         <Divider />
                         <Button url="/app/migrate" variant="primary">
-                            前往迁移工具
+                            {t("scan.manualSupplement.migrationSuggestions.tool")}
                         </Button>
                     </BlockStack>
                 </Card>
@@ -386,14 +393,14 @@ export function ScanManualSupplementTab({
                         <InlineStack align="space-between" blockAlign="center">
                             <BlockStack gap="100">
                                 <Text as="h2" variant="headingMd">
-                                    保存分析结果
+                                    {t("scan.manualSupplement.save.title")}
                                 </Text>
                                 <Text as="p" variant="bodySm" tone="subdued">
-                                    将分析结果保存到审计资产记录，方便后续跟踪迁移进度
+                                    {t("scan.manualSupplement.save.desc")}
                                 </Text>
                             </BlockStack>
                             {analysisSaved ? (
-                                <Badge tone="success">已保存</Badge>
+                                <Badge tone="success">{t("scan.manualSupplement.save.saved")}</Badge>
                             ) : null}
                         </InlineStack>
                         {(saveAnalysisFetcherData as { error?: string } | undefined)?.error && (
@@ -425,7 +432,7 @@ export function ScanManualSupplementTab({
                                     icon={CheckCircleIcon}
                                     variant="primary"
                                 >
-                                    {pasteProcessed ? "已处理" : "直接处理粘贴内容"}
+                                    {pasteProcessed ? t("scan.manualSupplement.save.processed") : t("scan.manualSupplement.save.processPaste")}
                                 </Button>
                             )}
                             <Button
@@ -434,7 +441,7 @@ export function ScanManualSupplementTab({
                                 disabled={analysisSaved || (analysisResult.identifiedPlatforms.length === 0 && analysisResult.riskScore === 0)}
                                 icon={CheckCircleIcon}
                             >
-                                {analysisSaved ? "已保存" : "保存到审计记录"}
+                                {analysisSaved ? t("scan.manualSupplement.save.saved") : t("scan.manualSupplement.save.saveAudit")}
                             </Button>
                         </InlineStack>
                     </BlockStack>

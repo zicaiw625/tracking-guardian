@@ -29,6 +29,7 @@ import {
   generateChecklistCSV,
 } from "../utils/verification-checklist";
 import { VERIFICATION_TEST_ITEMS } from "../services/verification.server";
+import { useTranslation } from "react-i18next";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   const { session } = await authenticate.admin(request);
@@ -55,11 +56,13 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 export default function VerificationStartPage() {
   const { shop, testChecklist } = useLoaderData<typeof loader>();
   const { showSuccess, showError } = useToastContext();
+  const { t } = useTranslation();
+
   if (!shop || !testChecklist) {
     return (
-      <Page title="验收测试清单">
+      <Page title={t("verification.start.pageTitle")}>
         <Banner tone="warning">
-          <Text as="p">店铺信息未找到，请重新安装应用。</Text>
+          <Text as="p">{t("verification.start.shopNotFound")}</Text>
         </Banner>
       </Page>
     );
@@ -69,12 +72,12 @@ export default function VerificationStartPage() {
     if (navigator.clipboard && navigator.clipboard.writeText) {
       try {
         await navigator.clipboard.writeText(markdown);
-        showSuccess("测试清单已复制到剪贴板");
+        showSuccess(t("verification.start.toast.copySuccess"));
       } catch {
-        showError("复制失败，请手动复制");
+        showError(t("verification.start.toast.copyFail"));
       }
     } else {
-      showError("当前浏览器不支持自动复制");
+      showError(t("verification.start.toast.browserNotSupported"));
     }
   };
   const handleDownloadCSV = () => {
@@ -87,26 +90,21 @@ export default function VerificationStartPage() {
   };
   return (
     <Page
-      title="验收测试清单生成"
-      subtitle="生成测试清单（可复制）"
-      backAction={{ content: "返回验收页面", url: "/app/verification" }}
+      title={t("verification.start.pageTitle")}
+      subtitle={t("verification.start.subtitle")}
+      backAction={{ content: t("verification.start.backAction"), url: "/app/verification" }}
     >
       <BlockStack gap="500">
         <PageIntroCard
-          title="生成测试清单"
-          description="将验收步骤整理为清单，便于测试与交付。"
-          items={[
-            "覆盖像素层标准事件",
-            "补充订单层对账验证",
-            "支持复制或下载 CSV",
-          ]}
-          primaryAction={{ content: "返回验收页", url: "/app/verification" }}
+          title={t("verification.start.intro.title")}
+          description={t("verification.start.intro.description")}
+          items={t("verification.start.intro.items", { returnObjects: true }) as string[]}
+          primaryAction={{ content: t("verification.start.backAction"), url: "/app/verification" }}
         />
         <Banner tone="info">
           <BlockStack gap="200">
             <Text as="p" variant="bodySm">
-              <strong>PRD 2.5要求：</strong>生成"测试清单"用于验收对账。
-              按照以下步骤进行测试，确保像素事件和订单数据的一致性。
+              {t("verification.start.banner.prdRequirement")}
             </Text>
           </BlockStack>
         </Banner>
@@ -114,7 +112,7 @@ export default function VerificationStartPage() {
           <BlockStack gap="400">
             <InlineStack align="space-between" blockAlign="center">
               <Text as="h2" variant="headingMd">
-                测试清单
+                {t("verification.start.checklist.title")}
               </Text>
               <InlineStack gap="200">
                 <Button
@@ -122,17 +120,17 @@ export default function VerificationStartPage() {
                   onClick={handleCopyChecklist}
                   size="slim"
                 >
-                  复制清单
+                  {t("verification.start.checklist.copy")}
                 </Button>
                 <Button onClick={handleDownloadCSV} size="slim">
-                  下载 CSV
+                  {t("verification.start.checklist.downloadCSV")}
                 </Button>
               </InlineStack>
             </InlineStack>
             <Divider />
             <BlockStack gap="300">
               <Text as="h3" variant="headingSm">
-                像素层验收（Web Pixels 标准事件）
+                {t("verification.start.checklist.pixelLayerTitle")}
               </Text>
               <List type="number">
                 {testChecklist.pixelLayer.map((item: PixelLayerItem, index: number) => (
@@ -143,14 +141,14 @@ export default function VerificationStartPage() {
                           {item.eventName}
                         </Text>
                         <Badge tone={item.required ? "critical" : "info"}>
-                          {item.required ? "必需" : "可选"}
+                          {item.required ? t("verification.start.checklist.required") : t("verification.start.checklist.optional")}
                         </Badge>
                       </InlineStack>
                       <Text as="p" variant="bodySm" tone="subdued">
                         {item.description}
                       </Text>
                       <Text as="p" variant="bodySm">
-                        <strong>验证点：</strong>
+                        <strong>{t("verification.start.checklist.verificationPoints")}</strong>
                         {item.verificationPoints.join("、")}
                       </Text>
                       {item.expectedParams && (
@@ -160,7 +158,7 @@ export default function VerificationStartPage() {
                           background="bg-surface-secondary"
                         >
                           <Text as="p" variant="bodySm" fontWeight="semibold">
-                            预期参数：
+                            {t("verification.start.checklist.expectedParams")}
                           </Text>
                           <List type="bullet">
                             {item.expectedParams?.map((param: string, pIndex: number) => (
@@ -182,11 +180,11 @@ export default function VerificationStartPage() {
             {testChecklist.orderLayer.length > 0 && (
               <BlockStack gap="300">
                 <Text as="h3" variant="headingSm">
-                  订单层验收（将在后续版本中提供）
+                  {t("verification.start.checklist.orderLayerTitle")}
                 </Text>
                 <Banner tone="info">
                   <Text as="p" variant="bodySm">
-                    订单层验收功能正在开发中，将在未来版本中推出。
+                    {t("verification.start.checklist.orderLayerBanner")}
                   </Text>
                 </Banner>
               </BlockStack>
@@ -201,14 +199,14 @@ export default function VerificationStartPage() {
                           {item.eventType}
                         </Text>
                         <Badge tone={item.required ? "critical" : "info"}>
-                          {item.required ? "必需" : "可选"}
+                          {item.required ? t("verification.start.checklist.required") : t("verification.start.checklist.optional")}
                         </Badge>
                       </InlineStack>
                       <Text as="p" variant="bodySm" tone="subdued">
                         {item.description}
                       </Text>
                       <Text as="p" variant="bodySm">
-                        <strong>验证点：</strong>
+                        <strong>{t("verification.start.checklist.verificationPoints")}</strong>
                         {item.verificationPoints.join("、")}
                       </Text>
                       {item.expectedFields && (
@@ -218,7 +216,7 @@ export default function VerificationStartPage() {
                           background="bg-surface-secondary"
                         >
                           <Text as="p" variant="bodySm" fontWeight="semibold">
-                            预期字段：
+                            {t("verification.start.checklist.expectedFields")}
                           </Text>
                           <List type="bullet">
                             {item.expectedFields?.map((field: string, fIndex: number) => (
@@ -239,42 +237,42 @@ export default function VerificationStartPage() {
             <Divider />
             <BlockStack gap="300">
               <Text as="h3" variant="headingSm">
-                测试步骤
+                {t("verification.start.steps.title")}
               </Text>
               <List type="number">
                 <List.Item>
                   <Text as="span" variant="bodySm">
-                    进入 Shopify checkout 页面，触发 checkout_started 事件
+                    {t("verification.start.steps.step1")}
                   </Text>
                 </List.Item>
                 <List.Item>
                   <Text as="span" variant="bodySm">
-                    填写联系信息，触发 checkout_contact_info_submitted 事件
+                    {t("verification.start.steps.step2")}
                   </Text>
                 </List.Item>
                 <List.Item>
                   <Text as="span" variant="bodySm">
-                    填写配送信息，触发 checkout_shipping_info_submitted 事件
+                    {t("verification.start.steps.step3")}
                   </Text>
                 </List.Item>
                 <List.Item>
                   <Text as="span" variant="bodySm">
-                    填写支付信息，触发 payment_info_submitted 事件
+                    {t("verification.start.steps.step4")}
                   </Text>
                 </List.Item>
                 <List.Item>
                   <Text as="span" variant="bodySm">
-                    完成订单，触发 checkout_completed 事件
+                    {t("verification.start.steps.step5")}
                   </Text>
                 </List.Item>
                 <List.Item>
                   <Text as="span" variant="bodySm">
-                    在验收页面查看实时事件流，验证 payload 参数完整率
+                    {t("verification.start.steps.step6")}
                   </Text>
                 </List.Item>
                 <List.Item>
                   <Text as="span" variant="bodySm">
-                    对比 Shopify 订单数据与平台事件数据，验证金额/币种一致性
+                    {t("verification.start.steps.step7")}
                   </Text>
                 </List.Item>
               </List>
@@ -282,10 +280,10 @@ export default function VerificationStartPage() {
             <Divider />
             <BlockStack gap="200">
               <Text as="h3" variant="headingSm">
-                下一步
+                {t("verification.start.nextStep")}
               </Text>
               <Button url="/app/verification" variant="primary">
-                前往验收页面
+                {t("verification.start.goToVerification")}
               </Button>
             </BlockStack>
           </BlockStack>

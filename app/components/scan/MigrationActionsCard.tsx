@@ -2,6 +2,7 @@ import { Card, BlockStack, Box, InlineStack, Text, Badge, Button, Banner } from 
 import { InfoIcon, RefreshIcon, ArrowRightIcon } from "~/components/icons";
 import type { MigrationAction } from "../../services/scanner/types";
 import { getPlatformName } from "./utils";
+import { useTranslation } from "react-i18next";
 
 interface MigrationActionsCardProps {
   migrationActions: MigrationAction[];
@@ -26,15 +27,16 @@ export function MigrationActionsCard({
   deleteFetcherData,
   upgradeFetcherData,
 }: MigrationActionsCardProps) {
+  const { t } = useTranslation();
   if (migrationActions.length === 0) return null;
   return (
     <Card>
       <BlockStack gap="400">
         <InlineStack align="space-between" blockAlign="center">
           <Text as="h2" variant="headingMd">
-            迁移操作
+            {t("scan.migrationActionsCard.title")}
           </Text>
-          <Badge tone="attention">{`${migrationActions.length} 项待处理`}</Badge>
+          <Badge tone="attention">{t("scan.migrationActionsCard.pending", { count: migrationActions.length })}</Badge>
         </InlineStack>
         {deleteFetcherData && (
           <Banner
@@ -42,7 +44,7 @@ export function MigrationActionsCard({
             onDismiss={() => {}}
           >
             <Text as="p">
-              {String(deleteFetcherData.message || deleteFetcherData.error || "操作完成")}
+              {String(deleteFetcherData.message || deleteFetcherData.error || t("scan.migrationActionsCard.operationComplete"))}
             </Text>
           </Banner>
         )}
@@ -52,7 +54,7 @@ export function MigrationActionsCard({
             onDismiss={() => {}}
           >
             <Text as="p">
-              {String(upgradeFetcherData.message || upgradeFetcherData.error || "升级完成")}
+              {String(upgradeFetcherData.message || upgradeFetcherData.error || t("scan.migrationActionsCard.upgradeComplete"))}
             </Text>
           </Banner>
         )}
@@ -69,7 +71,7 @@ export function MigrationActionsCard({
                   <BlockStack gap="100">
                     <InlineStack gap="200" blockAlign="center">
                       <Text as="span" fontWeight="semibold">
-                        {action.title}
+                        {action.titleKey ? t(action.titleKey, action.titleParams) : action.title}
                       </Text>
                       <Badge
                         tone={
@@ -81,18 +83,18 @@ export function MigrationActionsCard({
                         }
                       >
                         {action.priority === "high"
-                          ? "高优先级"
+                          ? t("scan.migrationActionsCard.priority.high")
                           : action.priority === "medium"
-                          ? "中优先级"
-                          : "低优先级"}
+                          ? t("scan.migrationActionsCard.priority.medium")
+                          : t("scan.migrationActionsCard.priority.low")}
                       </Badge>
                     </InlineStack>
                     {action.platform && (
-                      <Badge>{getPlatformName(action.platform)}</Badge>
+                      <Badge>{getPlatformName(action.platform, t)}</Badge>
                     )}
                   </BlockStack>
                   {action.deadline && (
-                    <Badge tone="warning">{`截止: ${action.deadline}`}</Badge>
+                    <Badge tone="warning">{t("scan.migrationActionsCard.deadline", { date: action.deadline })}</Badge>
                   )}
                 </InlineStack>
                 <Text as="p" variant="bodySm" tone="subdued">
@@ -101,7 +103,7 @@ export function MigrationActionsCard({
                 {action.estimatedTimeMinutes && (
                   <InlineStack gap="200" blockAlign="center">
                     <Badge tone="info">
-                      {`预计时间: ${action.estimatedTimeMinutes} 分钟`}
+                      {t("scan.migrationActionsCard.estimatedTime", { time: action.estimatedTimeMinutes })}
                     </Badge>
                   </InlineStack>
                 )}
@@ -114,7 +116,7 @@ export function MigrationActionsCard({
                         onShowScriptTagGuidance(action.scriptTagId!, action.platform)
                       }
                     >
-                      查看清理指南
+                      {t("scan.migrationActionsCard.cleanGuide")}
                     </Button>
                   )}
                   {action.type === "remove_duplicate" && action.webPixelGid && (
@@ -124,27 +126,27 @@ export function MigrationActionsCard({
                       loading={isDeleting && pendingDeleteGid === action.webPixelGid}
                       onClick={() => onDeleteWebPixel(action.webPixelGid!, action.platform)}
                     >
-                      删除重复像素
+                      {t("scan.migrationActionsCard.removeDuplicate")}
                     </Button>
                   )}
-                  {action.type === "configure_pixel" && action.description?.includes("升级") && (
+                  {action.type === "configure_pixel" && action.titleKey === "scan.migrationLogic.upgrade.title" && (
                     <Button
                       size="slim"
                       icon={RefreshIcon}
                       loading={isUpgrading}
                       onClick={onUpgradePixelSettings}
                     >
-                      升级配置
+                      {t("scan.migrationActionsCard.upgradeConfig")}
                     </Button>
                   )}
-                  {action.type === "configure_pixel" && !action.description?.includes("升级") && (
+                  {action.type === "configure_pixel" && action.titleKey !== "scan.migrationLogic.upgrade.title" && (
                     <Button size="slim" url="/app/migrate" icon={ArrowRightIcon}>
-                      配置 Pixel
+                      {t("scan.migrationActionsCard.configurePixel")}
                     </Button>
                   )}
                   {action.type === "enable_capi" && (
                     <Button size="slim" url="/app/migrate" icon={ArrowRightIcon}>
-                      启用 App Pixel
+                      {t("scan.migrationActionsCard.enableAppPixel")}
                     </Button>
                   )}
                 </InlineStack>

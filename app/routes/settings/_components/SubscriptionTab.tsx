@@ -12,8 +12,10 @@ import {
   Button,
   List,
 } from "@shopify/polaris";
+import { useTranslation, Trans } from "react-i18next";
 import { BILLING_PLANS, type PlanId, getUpgradeOptions } from "~/services/billing/plans";
 import { useToastContext } from "~/components/ui";
+import { DEPRECATION_DATES, formatDeadlineDate } from "~/utils/migration-deadlines";
 
 interface SubscriptionTabProps {
   currentPlan: PlanId;
@@ -28,6 +30,7 @@ interface SubscriptionTabProps {
 
 export function SubscriptionTab({ currentPlan, subscriptionStatus }: SubscriptionTabProps) {
   useToastContext();
+  const { t } = useTranslation();
   const [upgradingPlan, setUpgradingPlan] = useState<PlanId | null>(null);
   const handleUpgrade = useCallback((planId: PlanId) => {
     setUpgradingPlan(planId);
@@ -35,6 +38,18 @@ export function SubscriptionTab({ currentPlan, subscriptionStatus }: Subscriptio
   }, []);
   const currentPlanConfig = BILLING_PLANS[currentPlan];
   const upgradeOptions = getUpgradeOptions(currentPlan);
+
+  const renderFeature = (feature: string) => {
+    if (feature === "plans.free.features.countdown") {
+      return t(feature, {
+        plusDate: formatDeadlineDate(DEPRECATION_DATES.plusScriptTagExecutionOff),
+        autoUpgradeDate: formatDeadlineDate(DEPRECATION_DATES.plusAutoUpgradeStart, "month"),
+        nonPlusDate: formatDeadlineDate(DEPRECATION_DATES.nonPlusScriptTagExecutionOff),
+      });
+    }
+    return t(feature);
+  };
+
   return (
     <Layout>
       <Layout.Section>
@@ -42,16 +57,18 @@ export function SubscriptionTab({ currentPlan, subscriptionStatus }: Subscriptio
           <BlockStack gap="400">
             <InlineStack align="space-between">
               <Text as="h2" variant="headingMd">
-                当前计划
+                {t("settings.subscription.currentPlan")}
               </Text>
               <Badge tone={currentPlan === "free" ? "info" : "success"}>
-                {currentPlanConfig.name}
+                {t(currentPlanConfig.name)}
               </Badge>
             </InlineStack>
             {subscriptionStatus?.isTrialing && (
               <Banner tone="info">
                 <Text as="p" variant="bodySm">
-                  试用期剩余 {subscriptionStatus.trialDaysRemaining ?? subscriptionStatus.trialDays ?? 0} 天
+                  {t("settings.subscription.trialDaysRemaining", {
+                    days: subscriptionStatus.trialDaysRemaining ?? subscriptionStatus.trialDays ?? 0,
+                  })}
                 </Text>
               </Banner>
             )}
@@ -67,26 +84,26 @@ export function SubscriptionTab({ currentPlan, subscriptionStatus }: Subscriptio
                 <InlineStack align="space-between">
                   <BlockStack gap="100">
                     <Text as="h3" variant="headingMd">
-                      {currentPlanConfig.name}
+                      {t(currentPlanConfig.name)}
                     </Text>
                     {currentPlanConfig.tagline && (
                       <Text as="p" variant="bodySm" tone="subdued">
-                        {currentPlanConfig.tagline}
+                        {t(currentPlanConfig.tagline)}
                       </Text>
                     )}
                   </BlockStack>
-                  <Badge tone="success">当前计划</Badge>
+                  <Badge tone="success">{t("settings.subscription.currentPlan")}</Badge>
                 </InlineStack>
                 <List type="bullet">
                   {currentPlanConfig.features.map((feature, idx) => (
                     <List.Item key={idx}>
-                      <Text as="span" variant="bodySm">{feature}</Text>
+                      <Text as="span" variant="bodySm">{renderFeature(feature)}</Text>
                     </List.Item>
                   ))}
                 </List>
                 {currentPlanConfig.price > 0 && (
                   <Text as="p" variant="headingMd" fontWeight="bold">
-                    ${currentPlanConfig.price}/月
+                    ${currentPlanConfig.price}/{t("common.months", { count: 1 }).replace("1 ", "")}
                   </Text>
                 )}
               </BlockStack>
@@ -95,7 +112,7 @@ export function SubscriptionTab({ currentPlan, subscriptionStatus }: Subscriptio
               <>
                 <Divider />
                 <Text as="h3" variant="headingMd">
-                  升级套餐
+                  {t("settings.subscription.upgradePlan")}
                 </Text>
                 <BlockStack gap="300">
                   {upgradeOptions.map((planId) => {
@@ -113,22 +130,22 @@ export function SubscriptionTab({ currentPlan, subscriptionStatus }: Subscriptio
                           <InlineStack align="space-between" blockAlign="start">
                             <BlockStack gap="100">
                               <Text as="h4" variant="headingSm">
-                                {planConfig.name}
+                                {t(planConfig.name)}
                               </Text>
                               {planConfig.tagline && (
                                 <Text as="p" variant="bodySm" tone="subdued">
-                                  {planConfig.tagline}
+                                  {t(planConfig.tagline)}
                                 </Text>
                               )}
                             </BlockStack>
                             <Text as="span" variant="headingMd" fontWeight="bold">
-                              ${planConfig.price}/月
+                              ${planConfig.price}/{t("common.months", { count: 1 }).replace("1 ", "")}
                             </Text>
                           </InlineStack>
                           <List type="bullet">
                             {planConfig.features.slice(0, 5).map((feature, idx) => (
                               <List.Item key={idx}>
-                                <Text as="span" variant="bodySm">{feature}</Text>
+                                <Text as="span" variant="bodySm">{renderFeature(feature)}</Text>
                               </List.Item>
                             ))}
                           </List>
@@ -137,7 +154,7 @@ export function SubscriptionTab({ currentPlan, subscriptionStatus }: Subscriptio
                             onClick={() => handleUpgrade(planId)}
                             loading={upgradingPlan === planId}
                           >
-                            升级到 {planConfig.name}
+                            {t("settings.subscription.upgradeTo", { plan: t(planConfig.name) })}
                           </Button>
                         </BlockStack>
                       </Box>
@@ -150,20 +167,22 @@ export function SubscriptionTab({ currentPlan, subscriptionStatus }: Subscriptio
             <Banner tone="info">
               <BlockStack gap="200">
                 <Text as="p" variant="bodySm" fontWeight="semibold">
-                  需要更多计费信息？
+                  {t("settings.subscription.moreInfoTitle")}
                 </Text>
                 <Text as="p" variant="bodySm">
-                  您可以访问 <a href="/app/billing">订阅与计费</a> 页面查看完整的账单历史、使用量统计和发票信息。
+                  <Trans i18nKey="settings.subscription.moreInfoContent">
+                    您可以访问 <a href="/app/billing">订阅与计费</a> 页面查看完整的账单历史、使用量统计和发票信息。
+                  </Trans>
                 </Text>
               </BlockStack>
             </Banner>
             <Divider />
             <Text as="h3" variant="headingMd">
-              套餐对比
+              {t("settings.subscription.comparePlans")}
             </Text>
             <Banner tone="info">
               <Text as="p" variant="bodySm">
-                需要帮助选择套餐？请联系我们的销售团队获取个性化建议。
+                {t("settings.subscription.helpText")}
               </Text>
             </Banner>
           </BlockStack>

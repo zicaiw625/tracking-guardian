@@ -19,6 +19,7 @@ import { PageIntroCard } from "~/components/layout/PageIntroCard";
 import { authenticate } from "~/shopify.server";
 import prisma from "~/db.server";
 import { getPixelEventIngestionUrl } from "~/utils/config.server";
+import { useTranslation, Trans } from "react-i18next";
 
 function extractPlatformFromPayload(payload: Record<string, unknown> | null): string | null {
   if (!payload) return null;
@@ -59,7 +60,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       updatedAt: true,
     },
   });
-  const platforms = Array.from(new Set(pixelConfigs.map((config) => config.platform)));
+  const platforms = Array.from(new Set(pixelConfigs.map((config: any) => config.platform)));
   const recentReceipts = platforms.length
     ? await prisma.pixelEventReceipt.findMany({
         where: {
@@ -74,7 +75,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
         take: 200,
       })
     : [];
-  const latestByKey = recentReceipts.reduce((acc, receipt) => {
+  const latestByKey = recentReceipts.reduce((acc: any, receipt: any) => {
     const payload = receipt.payloadJson as Record<string, unknown> | null;
     const platform = extractPlatformFromPayload(payload);
     if (!platform || !platforms.includes(platform)) return acc;
@@ -101,15 +102,16 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 };
 
 export default function PixelsListPage() {
+  const { t } = useTranslation();
   const { shop, pixelConfigs, latestByKey, backendUrlInfo } = useLoaderData<typeof loader>();
   if (!shop) {
     return (
       <Page title="Pixels">
         <EnhancedEmptyState
           icon="⚠️"
-          title="店铺信息未找到"
-          description="未找到店铺信息，请重新安装应用。"
-          primaryAction={{ content: "返回首页", url: "/app" }}
+          title={t("pixels.list.configured.empty")}
+          description={t("pixels.new.shopNotFoundDesc")}
+          primaryAction={{ content: t("common.back"), url: "/app" }}
         />
       </Page>
     );
@@ -119,11 +121,11 @@ export default function PixelsListPage() {
     const latestAttempt = latestByKey?.[statusKey];
     const statusLabel =
       latestAttempt?.status === "ok"
-        ? { label: "成功", tone: "success" as const }
+        ? { label: t("pixels.list.status.success"), tone: "success" as const }
         : latestAttempt?.status === "fail"
-          ? { label: "失败", tone: "critical" as const }
+          ? { label: t("pixels.list.status.fail"), tone: "critical" as const }
           : latestAttempt?.status === "pending"
-            ? { label: "处理中", tone: "warning" as const }
+            ? { label: t("pixels.list.status.pending"), tone: "warning" as const }
             : null;
     const statusCell = latestAttempt ? (
       <BlockStack gap="100">
@@ -133,91 +135,74 @@ export default function PixelsListPage() {
           <Badge>{latestAttempt.status}</Badge>
         )}
         <Text as="span" variant="bodySm" tone="subdued">
-          {new Date(latestAttempt.createdAt).toLocaleString("zh-CN")}
+          {new Date(latestAttempt.createdAt).toLocaleString()}
         </Text>
       </BlockStack>
     ) : (
       <Text as="span" variant="bodySm" tone="subdued">
-        暂无发送记录
+        {t("pixels.list.status.noRecord")}
       </Text>
     );
     return [
       PLATFORM_LABELS[config.platform] || config.platform,
       config.platformId || "—",
       config.environment === "live" ? (
-        <Badge tone="success">生产</Badge>
+        <Badge tone="success">{t("pixels.list.env.prod")}</Badge>
       ) : (
-        <Badge tone="warning">测试</Badge>
+        <Badge tone="warning">{t("pixels.list.env.test")}</Badge>
       ),
       statusCell,
-      <Badge key={`version-${config.id}`}>{`v${config.configVersion}`}</Badge>,
-      new Date(config.updatedAt).toLocaleString("zh-CN"),
-      <InlineStack key={`actions-${config.id}`} gap="200">
+      <Badge>{`v${config.configVersion}`}</Badge>,
+      new Date(config.updatedAt).toLocaleString(),
+      <InlineStack gap="200">
         <Button size="slim" url={`/app/pixels/${config.id}/test`}>
-          测试
+          {t("pixels.list.actions.test")}
         </Button>
         <Button size="slim" variant="plain" url={`/app/pixels/${config.id}/versions`}>
-          版本
+          {t("pixels.list.actions.version")}
         </Button>
       </InlineStack>,
     ];
   });
   return (
     <Page
-      title="Pixels"
-      primaryAction={{ content: "新建 Pixel 配置", url: "/app/pixels/new" }}
+      title={t("pixels.list.title")}
+      primaryAction={{ content: t("pixels.list.create"), url: "/app/pixels/new" }}
     >
       <BlockStack gap="500">
         <PageIntroCard
-          title="像素迁移中心"
-          description="用模板化流程完成像素迁移、测试与回滚，确保事件映射与参数完整率。"
-          items={[
-            "支持 Test/Live 双环境",
-            "映射 Shopify 标准事件到各平台",
-            "版本管理支持一键回滚",
-          ]}
-          primaryAction={{ content: "新建 Pixel 配置", url: "/app/pixels/new" }}
-          secondaryAction={{ content: "查看测试指引", url: "/app/pixels/new" }}
+          title={t("pixels.list.intro.title")}
+          description={t("pixels.list.intro.desc")}
+          items={t("pixels.list.intro.items", { returnObjects: true }) as string[]}
+          primaryAction={{ content: t("pixels.list.intro.primary"), url: "/app/pixels/new" }}
+          secondaryAction={{ content: t("pixels.list.intro.secondary"), url: "/app/pixels/new" }}
         />
         {backendUrlInfo.placeholderDetected && (
           <Banner tone="critical">
             <BlockStack gap="300">
               <Text as="p" variant="bodySm" fontWeight="semibold">
-                ⚠️ 严重错误：检测到占位符，URL 未在构建时替换
+                {t("pixels.new.banners.placeholder.title")}
               </Text>
               <Text as="p" variant="bodySm">
-                <strong>像素扩展配置中仍包含 __BACKEND_URL_PLACEHOLDER__，这表明构建流程未正确替换占位符。</strong>如果占位符未被替换，像素扩展将无法发送事件到后端，导致事件丢失。这是一个严重的配置错误，必须在上线前修复。
+                 <Trans i18nKey="pixels.new.banners.placeholder.desc" />
               </Text>
               <Text as="p" variant="bodySm" fontWeight="semibold">
-                修复步骤（必须在生产环境部署前完成）：
+                {t("pixels.new.banners.placeholder.stepsTitle")}
               </Text>
               <List type="number">
-                <List.Item>
-                  <Text as="span" variant="bodySm">
-                    在 CI/CD 流程中，部署前必须运行 <code>pnpm ext:inject</code> 或 <code>pnpm deploy:ext</code>
-                  </Text>
-                </List.Item>
-                <List.Item>
-                  <Text as="span" variant="bodySm">
-                    确保环境变量 <code>SHOPIFY_APP_URL</code> 已正确设置
-                  </Text>
-                </List.Item>
-                <List.Item>
-                  <Text as="span" variant="bodySm">
-                    部署后验证扩展配置文件中的 URL 已正确注入（不是占位符）
-                  </Text>
-                </List.Item>
-                <List.Item>
-                  <Text as="span" variant="bodySm">
-                    确保该 URL 已在 Web Pixel Extension 的 allowlist 中配置
-                  </Text>
-                </List.Item>
+                {(t("pixels.new.banners.placeholder.steps", { returnObjects: true }) as string[]).map((step, i) => (
+                  <List.Item key={i}>
+                    <Text as="span" variant="bodySm">
+                       <span dangerouslySetInnerHTML={{ __html: step }} />
+                    </Text>
+                  </List.Item>
+                ))}
               </List>
               <Text as="p" variant="bodySm" tone="subdued">
-                💡 提示：如果占位符未被替换，像素扩展会静默禁用事件发送，不会显示错误。这是导致事件丢失的常见原因，必须在生产环境部署前修复。
+                {t("pixels.new.banners.placeholder.tip")}
               </Text>
               <Button url="/app/pixels/new" variant="primary" size="slim">
-                前往测试页面查看详细检查
+                {t("pixels.list.actions.test")}
               </Button>
             </BlockStack>
           </Banner>
@@ -226,10 +211,10 @@ export default function PixelsListPage() {
           <Banner tone="info">
             <BlockStack gap="200">
               <Text as="p" variant="bodySm" fontWeight="semibold">
-                💡 重要提示：扩展的 BACKEND_URL 注入是生命线
+                {t("pixels.new.banners.configured.important")}
               </Text>
               <Text as="p" variant="bodySm">
-                生产环境部署时，必须确保 BACKEND_URL 已正确注入到扩展配置中。如果占位符未被替换，像素扩展将无法发送事件到后端，导致事件丢失。请在 CI/CD 流程中确保运行 <code>pnpm ext:inject</code> 或 <code>pnpm deploy:ext</code>。
+                 <span dangerouslySetInnerHTML={{ __html: t("pixels.new.banners.configured.importantDesc") }} />
               </Text>
             </BlockStack>
           </Banner>
@@ -237,57 +222,42 @@ export default function PixelsListPage() {
         <Banner tone="warning">
           <BlockStack gap="300">
             <Text as="p" variant="bodySm" fontWeight="semibold">
-              ⚠️ Strict Sandbox 能力边界说明（App Review 重要信息）
+              {t("pixels.new.banners.sandbox.title")}
             </Text>
             <Text as="p" variant="bodySm">
-              Web Pixel 运行在 strict sandbox (Web Worker) 环境中，以下能力受限：
+              {t("pixels.new.banners.sandbox.desc")}
             </Text>
             <List type="bullet">
+              {(t("pixels.new.banners.sandbox.limitations", { returnObjects: true }) as string[]).map((item, i) => (
+                 <List.Item key={i}>
+                    <Text as="span" variant="bodySm">{item}</Text>
+                 </List.Item>
+              ))}
               <List.Item>
                 <Text as="span" variant="bodySm">
-                  无法访问 DOM 元素、localStorage、第三方 cookie 等
-                </Text>
-              </List.Item>
-              <List.Item>
-                <Text as="span" variant="bodySm">
-                  部分事件字段可能为 null 或 undefined（如 buyer.email、buyer.phone、deliveryAddress、shippingAddress、billingAddress 等），这是平台限制，不是故障
-                </Text>
-              </List.Item>
-              <List.Item>
-                <Text as="span" variant="bodySm">
-                  <strong>v1.0 不支持的事件类型：</strong>退款（refund）、订单取消（order_cancelled）、订单编辑（order_edited）、订阅订单（subscription_created、subscription_updated、subscription_cancelled）等事件在 strict sandbox 中不可用，需要通过订单 webhooks 获取。这些事件将在 v1.1+ 版本中通过订单 webhooks 实现
+                   <span dangerouslySetInnerHTML={{ __html: t("pixels.new.banners.sandbox.unsupported.desc") }} />
                 </Text>
               </List.Item>
             </List>
             <Text as="p" variant="bodySm" tone="subdued">
-              💡 提示：这是 Shopify 平台的设计限制，不是应用故障。验收报告中会自动标注所有因 strict sandbox 限制而无法获取的字段和事件。在 App Review 时，请向 Shopify 说明这些限制是平台设计，不是应用缺陷。
+              {t("pixels.new.banners.sandbox.reviewPoints.desc")}
             </Text>
           </BlockStack>
         </Banner>
         <Card>
           <BlockStack gap="300">
             <Text as="h2" variant="headingMd">
-              📋 事件源说明
+              {t("pixels.list.banners.eventSource.title")}
             </Text>
             <Text as="p" variant="bodySm">
-              <strong>PRD 2.3要求：</strong>事件源以 Shopify <strong>Standard events</strong> 为准，再映射到 GA4/Meta/TikTok。
+               <span dangerouslySetInnerHTML={{ __html: t("pixels.list.banners.eventSource.desc") }} />
             </Text>
             <List type="bullet">
-              <List.Item>
-                <Text as="span" variant="bodySm">
-                  <strong>Shopify 标准事件：</strong>checkout_started、checkout_completed、checkout_contact_info_submitted、checkout_shipping_info_submitted、payment_info_submitted、product_added_to_cart、product_viewed、page_viewed 等
-                </Text>
-              </List.Item>
-              <List.Item>
-                <Text as="span" variant="bodySm">
-                  <strong>事件映射：</strong>系统会自动将 Shopify 标准事件映射到各平台对应的事件类型（如 checkout_completed → GA4的purchase、Meta的Purchase、TikTok的CompletePayment）
-                </Text>
-              </List.Item>
-              <List.Item>
-                <Text as="span" variant="bodySm">
-                  <strong>Test 指引：</strong>可直接复用 Shopify 官方"测试自定义像素"的操作路径（进入 checkout 测 checkout_started、填 shipping 测 shipping_submitted 等），详见测试页面指引。
-                </Text>
-              </List.Item>
+               {(t("pixels.list.banners.eventSource.items", { returnObjects: true }) as string[]).map((item, i) => (
+                  <List.Item key={i}>
+                    <Text as="span" variant="bodySm">{item}</Text>
+                  </List.Item>
+               ))}
             </List>
           </BlockStack>
         </Card>
@@ -297,17 +267,17 @@ export default function PixelsListPage() {
             <BlockStack gap="400">
               <InlineStack align="space-between" blockAlign="center">
                 <Text as="h2" variant="headingMd">
-                  已配置的 Pixel
+                  {t("pixels.list.configured.title")}
                 </Text>
-                <Badge tone="success">{`${pixelConfigs.length} 个`}</Badge>
+                <Badge tone="success">{`${pixelConfigs.length} ${t("common.countItems", { count: pixelConfigs.length }).trim()}`}</Badge>
               </InlineStack>
               {pixelConfigs.length === 0 ? (
                 <BlockStack gap="200">
                   <Text as="p" tone="subdued">
-                    还没有配置 Pixel。点击右上角按钮开始创建。
+                    {t("pixels.list.configured.empty")}
                   </Text>
                   <Button variant="primary" url="/app/pixels/new">
-                    创建 Pixel 配置
+                    {t("pixels.list.configured.create")}
                   </Button>
                 </BlockStack>
               ) : (
@@ -320,8 +290,17 @@ export default function PixelsListPage() {
                     "text",
                     "text",
                     "text",
+                    "text",
                   ]}
-                  headings={["平台", "平台 ID", "环境", "最近发送", "版本", "更新时间", "操作"]}
+                  headings={[
+                    t("pixels.list.table.platform"),
+                    t("pixels.list.table.id"),
+                    t("pixels.list.table.env"),
+                    t("pixels.list.table.lastSent"),
+                    t("pixels.list.table.version"),
+                    t("pixels.list.table.updated"),
+                    t("pixels.list.table.actions")
+                  ]}
                   rows={rows}
                 />
               )}
@@ -332,14 +311,14 @@ export default function PixelsListPage() {
           <Card>
             <BlockStack gap="300">
               <Text as="h2" variant="headingMd">
-                快速操作
+                {t("pixels.list.quickActions.title")}
               </Text>
               <BlockStack gap="200">
                 <Button url="/app/pixels/new" variant="primary">
-                  新建配置
+                  {t("pixels.list.quickActions.create")}
                 </Button>
                 <Button url="/app/verification" variant="plain">
-                  前往验收
+                  {t("pixels.list.quickActions.verify")}
                 </Button>
               </BlockStack>
             </BlockStack>

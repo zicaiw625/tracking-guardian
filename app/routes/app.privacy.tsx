@@ -30,6 +30,7 @@ import { useToastContext } from "~/components/ui";
 
 import { authenticate } from "../shopify.server";
 import prisma from "../db.server";
+import { useTranslation, Trans } from "react-i18next";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   const { session } = await authenticate.admin(request);
@@ -83,7 +84,7 @@ function DataTypeCard({
           <Text as="h3" variant="headingSm">
             {title}
           </Text>
-          <Badge tone={tone}>{`${items.length} 项`}</Badge>
+          <Badge tone={tone}>{`${items.length} items`}</Badge>
         </InlineStack>
         <Text as="p" variant="bodySm" tone="subdued">
           {description}
@@ -141,14 +142,16 @@ function CollapsibleSection({
 }
 
 export default function PrivacyPage() {
+  const { t } = useTranslation();
   const { showError } = useToastContext();
   const { shop, appDomain, tab, gdprJobs } = useLoaderData<typeof loader>();
   const isGdprTab = tab === "gdpr";
   const [showDeleteModal, setShowDeleteModal] = useState(false);
+
   return (
     <Page
-      title="隐私与数据"
-      subtitle="了解本应用如何收集、使用和保护您店铺的数据"
+      title={t("PrivacyPage.Title")}
+      subtitle={t("PrivacyPage.Subtitle")}
     >
       <BlockStack gap="500">
         {isGdprTab ? (
@@ -156,15 +159,15 @@ export default function PrivacyPage() {
             <BlockStack gap="300">
               <InlineStack align="space-between" blockAlign="center">
                 <Text as="h2" variant="headingMd">
-                  GDPR 请求历史
+                  {t("PrivacyPage.GDPRHistory")}
                 </Text>
                 <Button url="/app/privacy" variant="secondary">
-                  返回
+                  {t("PrivacyPage.Back")}
                 </Button>
               </InlineStack>
               {gdprJobs.length === 0 ? (
                 <Text as="p" variant="bodySm" tone="subdued">
-                  暂无记录
+                  {t("PrivacyPage.NoRecords")}
                 </Text>
               ) : (
                 <BlockStack gap="300">
@@ -187,11 +190,11 @@ export default function PrivacyPage() {
                             <Badge tone={tone as any}>{job.status}</Badge>
                           </InlineStack>
                           <Text as="p" variant="bodySm" tone="subdued">
-                            创建时间：{createdAt}
+                            {t("PrivacyPage.Created", { date: createdAt })}
                           </Text>
                           {completedAt ? (
                             <Text as="p" variant="bodySm" tone="subdued">
-                              完成时间：{completedAt}
+                              {t("PrivacyPage.Completed", { date: completedAt })}
                             </Text>
                           ) : null}
                           {job.errorMessage ? (
@@ -201,7 +204,7 @@ export default function PrivacyPage() {
                           ) : null}
                           <InlineStack gap="200">
                             <Button url={`/app/gdpr/export/${job.id}`} variant="primary">
-                              下载 JSON
+                              {t("PrivacyPage.DownloadJSON")}
                             </Button>
                           </InlineStack>
                         </BlockStack>
@@ -213,31 +216,31 @@ export default function PrivacyPage() {
             </BlockStack>
           </Card>
         ) : null}
-        <Banner title="数据处理概览" tone="info">
+        <Banner title={t("PrivacyPage.Overview.Title")} tone="info">
           <BlockStack gap="200">
             <p>
-              Tracking Guardian 作为<strong>数据处理者</strong>（Data Processor），
-              代表商家（数据控制者）处理转化追踪数据。我们遵循 GDPR、CCPA 等隐私法规，
-              确保数据安全和合规。
+              <Trans i18nKey="PrivacyPage.Overview.Content" />
             </p>
             <p>
-              本应用不依赖客户 PII；即使 Shopify 将 PII 脱敏为 null，核心功能（事件验证、监控、迁移建议）仍可用。
+              {t("PrivacyPage.Overview.Note")}
             </p>
           </BlockStack>
         </Banner>
         <Card>
           <BlockStack gap="300">
             <Text as="h2" variant="headingMd">
-              📋 您的当前配置
+              {t("PrivacyPage.Config.Title")}
             </Text>
             <InlineStack gap="400" wrap>
               <Box background="bg-surface-secondary" padding="300" borderRadius="200">
                 <BlockStack gap="100">
                   <Text as="span" variant="bodySm" tone="subdued">
-                    同意策略
+                    {t("PrivacyPage.Config.Strategy")}
                   </Text>
                   <Badge tone={shop.consentStrategy === "strict" ? "success" : "info"}>
-                    {shop.consentStrategy === "strict" ? "严格模式" : "平衡模式"}
+                    {shop.consentStrategy === "strict" 
+                      ? t("PrivacyPage.Config.Strict") 
+                      : t("PrivacyPage.Config.Balanced")}
                   </Badge>
                 </BlockStack>
               </Box>
@@ -250,37 +253,28 @@ export default function PrivacyPage() {
               <Text as="h2" variant="headingLg">
                 <InlineStack gap="200" blockAlign="center">
                   <Icon source={InfoIcon} tone="info" />
-                  收集的数据类型
+                  {t("PrivacyPage.DataTypes.Title")}
                 </InlineStack>
               </Text>
               <DataTypeCard
-                title="像素事件数据"
-                description="来自 Web Pixel 事件收据，用于诊断和统计"
-                items={[
-                  "事件 ID 和事件类型",
-                  "事件时间戳",
-                  "事件参数（如订单金额、货币、商品信息等）",
-                  "结账令牌（用于匹配像素事件，已哈希）",
-                ]}
+                title={t("PrivacyPage.DataTypes.PixelEvents.Title")}
+                description={t("PrivacyPage.DataTypes.PixelEvents.Description")}
+                items={t("PrivacyPage.DataTypes.PixelEvents.Items", { returnObjects: true }) as string[]}
                 tone="info"
               />
               <DataTypeCard
-                title="客户同意状态"
-                description="尊重客户隐私选择"
-                items={[
-                  "marketing: 是否同意营销追踪",
-                  "analytics: 是否同意分析追踪",
-                  "saleOfData: 是否允许数据销售（CCPA）",
-                ]}
+                title={t("PrivacyPage.DataTypes.Consent.Title")}
+                description={t("PrivacyPage.DataTypes.Consent.Description")}
+                items={t("PrivacyPage.DataTypes.Consent.Items", { returnObjects: true }) as string[]}
                 tone="success"
               />
               <Card>
                 <BlockStack gap="200">
                   <Text as="h3" variant="headingSm">
-                    请求相关技术数据
+                    {t("PrivacyPage.DataTypes.TechData.Title")}
                   </Text>
                   <Text as="p" variant="bodySm">
-                    为安全、反作弊与验收目的，我们可能存储与请求相关的技术数据（如 IP 地址、User-Agent、page_url、referrer），保留周期与店铺数据保留设置一致，删除方式同 GDPR/webhook 删除策略。
+                    {t("PrivacyPage.DataTypes.TechData.Content")}
                   </Text>
                 </BlockStack>
               </Card>
@@ -291,24 +285,24 @@ export default function PrivacyPage() {
               <Text as="h2" variant="headingLg">
                 <InlineStack gap="200" blockAlign="center">
                   <Icon source={CheckCircleIcon} tone="success" />
-                  数据用途
+                  {t("PrivacyPage.Usage.Title")}
                 </InlineStack>
               </Text>
               <Card>
                 <BlockStack gap="300">
                   <Text as="h3" variant="headingSm">
-                    转化追踪
+                    {t("PrivacyPage.Usage.Tracking.Title")}
                   </Text>
                   <Text as="p" variant="bodySm">
-                    v1 默认仅基于 Web Pixel 客户事件和像素收据（PixelEventReceipt），不通过 Admin API 读取订单，不订阅订单 webhook，也不向第三方平台发送服务端事件。
+                    {t("PrivacyPage.Usage.Tracking.Content")}
                   </Text>
                   <Banner tone="warning">
                     <BlockStack gap="200">
                       <Text as="p" variant="bodySm" fontWeight="semibold">
-                        重要：当前版本不提供服务端投递
+                        {t("PrivacyPage.Usage.Warning.Title")}
                       </Text>
                       <Text as="p" variant="bodySm">
-                        服务端向广告平台投递默认关闭，核心为客户端像素与验收对账。当前版本仅接收与校验 Web Pixel 事件，用于应用内诊断与验收。
+                        {t("PrivacyPage.Usage.Warning.Content")}
                       </Text>
                     </BlockStack>
                   </Banner>
@@ -317,88 +311,76 @@ export default function PrivacyPage() {
               <Card>
                 <BlockStack gap="300">
                   <Text as="h3" variant="headingSm">
-                    对账与诊断
+                    {t("PrivacyPage.Usage.Reconciliation.Title")}
                   </Text>
                   <Text as="p" variant="bodySm">
-                    v1 默认仅基于 Web Pixel 客户事件和像素收据（PixelEventReceipt），不通过 Admin API 读取订单，不订阅订单 webhook。我们通过比对像素事件收据与内部日志，帮助您发现追踪缺口并优化配置。
+                    {t("PrivacyPage.Usage.Reconciliation.Content")}
                   </Text>
                 </BlockStack>
               </Card>
               <Card>
                 <BlockStack gap="300">
                   <Text as="h3" variant="headingSm">
-                    合规执行
+                    {t("PrivacyPage.Usage.Compliance.Title")}
                   </Text>
                   <Text as="p" variant="bodySm">
-                    根据客户的同意状态，自动决定是否向特定平台发送数据，确保符合 GDPR/CCPA。
+                    {t("PrivacyPage.Usage.Compliance.Content")}
                   </Text>
                 </BlockStack>
               </Card>
               <Card>
                 <BlockStack gap="300">
                   <Text as="h3" variant="headingSm">
-                    Web Pixel 数据发送说明
+                    {t("PrivacyPage.Usage.PixelSending.Title")}
                   </Text>
                   <Text as="p" variant="bodySm" fontWeight="semibold">
-                    何时发送
+                    {t("PrivacyPage.Usage.PixelSending.When")}
                   </Text>
                   <Text as="p" variant="bodySm">
-                    当访客在结账或浏览时触发 Shopify 标准事件（如 checkout_completed、page_viewed、product_viewed、checkout_started 等）时，本应用的 Web Pixel 会向本应用后端发送事件；仅在客户已通过 Customer Privacy API 授予相应同意（analytics 或 marketing，依事件类型）时发送。
+                    {t("PrivacyPage.Usage.PixelSending.WhenContent")}
                   </Text>
                   <Text as="p" variant="bodySm" fontWeight="semibold">
-                    发送字段
+                    {t("PrivacyPage.Usage.PixelSending.Fields")}
                   </Text>
                   <Text as="p" variant="bodySm">
-                    仅发送事件类型、时间戳、店铺域名、以及订单/结账相关非 PII（如 orderId、checkoutToken、金额、货币、商品 ID/数量等）。不包含客户姓名、邮箱、电话、地址等个人身份信息。
+                    {t("PrivacyPage.Usage.PixelSending.FieldsContent")}
                   </Text>
                   <Text as="p" variant="bodySm" fontWeight="semibold">
-                    如何跟随 consent 变化
+                    {t("PrivacyPage.Usage.PixelSending.Consent")}
                   </Text>
                   <Text as="p" variant="bodySm">
-                    本 Pixel 声明并依赖 Shopify Customer Privacy API（analytics、marketing）。订阅 visitorConsentCollected 事件；当商户在店铺中更新同意配置或访客更改选择时，Pixel 会更新内部 consent 状态，未同意时对应事件不会发送到后端。
+                    {t("PrivacyPage.Usage.PixelSending.ConsentContent")}
                   </Text>
                 </BlockStack>
               </Card>
               <Card>
                 <BlockStack gap="300">
                   <Text as="h3" variant="headingSm">
-                    通知与第三方服务
+                    {t("PrivacyPage.Usage.Notifications.Title")}
                   </Text>
                   <Text as="p" variant="bodySm">
-                    当前版本中，告警通知功能已禁用。以下服务仅在将来版本或商家显式启用告警功能时使用：
+                    {t("PrivacyPage.Usage.Notifications.Content")}
                   </Text>
-                  <List type="bullet">
-                    <List.Item>
-                      <Text as="span" variant="bodySm">
-                        <strong>Slack Webhook</strong>：发送 JSON 格式的告警数据（店铺域名、告警类型、聚合指标、报告链接）。仅商家级运营数据，不包含订单明细或终端客户信息。
-                      </Text>
-                    </List.Item>
-                    <List.Item>
-                      <Text as="span" variant="bodySm">
-                        <strong>Telegram Bot API</strong>：发送店铺维度告警摘要与指标。不包含订单明细与终端客户信息。
-                      </Text>
-                    </List.Item>
-                  </List>
                 </BlockStack>
               </Card>
             </BlockStack>
           </Layout.Section>
         </Layout>
-        <CollapsibleSection title="数据保存时长" defaultOpen>
+        <CollapsibleSection title={t("PrivacyPage.Retention.Title")} defaultOpen>
           <BlockStack gap="300">
             <Banner tone="info">
-              <p>我们遵循数据最小化原则，仅保存必要的数据，并定期清理过期数据。</p>
+              <p>{t("PrivacyPage.Retention.Note")}</p>
             </Banner>
             <Box background="bg-surface-secondary" padding="400" borderRadius="200">
               <BlockStack gap="300">
                 <InlineStack gap="300" blockAlign="center">
                   <Icon source={ClockIcon} />
                   <Text as="span" fontWeight="semibold">
-                    PixelEventReceipt（像素收据）
+                    {t("PrivacyPage.Retention.Receipts")}
                   </Text>
                 </InlineStack>
                 <Text as="p" variant="bodySm">
-                  按店铺数据保留设置（默认 90 天），用于像素事件匹配与验收。
+                  {t("PrivacyPage.Retention.ReceiptsDesc")}
                 </Text>
               </BlockStack>
             </Box>
@@ -407,11 +389,11 @@ export default function PrivacyPage() {
                 <InlineStack gap="300" blockAlign="center">
                   <Icon source={ClockIcon} />
                   <Text as="span" fontWeight="semibold">
-                    VerificationRun（验收运行）
+                    {t("PrivacyPage.Retention.Runs")}
                   </Text>
                 </InlineStack>
                 <Text as="p" variant="bodySm">
-                  按店铺数据保留设置（默认 90 天），用于验收报告与历史记录。
+                  {t("PrivacyPage.Retention.RunsDesc")}
                 </Text>
               </BlockStack>
             </Box>
@@ -420,11 +402,11 @@ export default function PrivacyPage() {
                 <InlineStack gap="300" blockAlign="center">
                   <Icon source={ClockIcon} />
                   <Text as="span" fontWeight="semibold">
-                    ScanReport（扫描报告）
+                    {t("PrivacyPage.Retention.Reports")}
                   </Text>
                 </InlineStack>
                 <Text as="p" variant="bodySm">
-                  按店铺数据保留设置（默认 90 天），用于迁移审计与风险清单。
+                  {t("PrivacyPage.Retention.ReportsDesc")}
                 </Text>
               </BlockStack>
             </Box>
@@ -433,33 +415,31 @@ export default function PrivacyPage() {
                 <InlineStack gap="300" blockAlign="center">
                   <Icon source={ClockIcon} />
                   <Text as="span" fontWeight="semibold">
-                    EventLog / AuditLog（事件与审计日志）
+                    {t("PrivacyPage.Retention.Logs")}
                   </Text>
                 </InlineStack>
                 <Text as="p" variant="bodySm">
-                  按店铺数据保留设置（默认 90 天）；审计日志至少 180 天或取较大值，用于问题排查与合规审计。
+                  {t("PrivacyPage.Retention.LogsDesc")}
                 </Text>
               </BlockStack>
             </Box>
           </BlockStack>
         </CollapsibleSection>
-        <CollapsibleSection title="数据删除方式">
+        <CollapsibleSection title={t("PrivacyPage.Deletion.Title")}>
           <BlockStack gap="300">
             <Text as="p">
-              我们支持多种数据删除方式，确保您可以随时控制数据：
+              {t("PrivacyPage.Deletion.Desc")}
             </Text>
             <Box background="bg-surface-secondary" padding="400" borderRadius="200">
               <BlockStack gap="300">
                 <InlineStack gap="300" blockAlign="center">
                   <Icon source={DeleteIcon} tone="critical" />
                   <Text as="span" fontWeight="semibold">
-                    卸载应用
+                    {t("PrivacyPage.Deletion.Uninstall.Title")}
                   </Text>
                 </InlineStack>
                 <Text as="p" variant="bodySm">
-                  当您卸载应用时，我们会收到 Shopify 的{" "}
-                  <code>APP_UNINSTALLED</code> webhook，并在 <strong>48 小时内</strong>{" "}
-                  删除与您店铺相关的所有数据。
+                  <Trans i18nKey="PrivacyPage.Deletion.Uninstall.Desc" />
                 </Text>
               </BlockStack>
             </Box>
@@ -468,13 +448,11 @@ export default function PrivacyPage() {
                 <InlineStack gap="300" blockAlign="center">
                   <Icon source={DeleteIcon} tone="critical" />
                   <Text as="span" fontWeight="semibold">
-                    GDPR 客户数据删除请求
+                    {t("PrivacyPage.Deletion.GDPR.Title")}
                   </Text>
                 </InlineStack>
                 <Text as="p" variant="bodySm">
-                  当客户通过 Shopify 请求删除其数据时，我们会收到{" "}
-                  <code>CUSTOMERS_DATA_REQUEST</code> 或{" "}
-                  <code>CUSTOMERS_REDACT</code> webhook，并删除相关的数据。
+                  <Trans i18nKey="PrivacyPage.Deletion.GDPR.Desc" />
                 </Text>
               </BlockStack>
             </Box>
@@ -483,28 +461,28 @@ export default function PrivacyPage() {
                 <InlineStack gap="300" blockAlign="center">
                   <Icon source={DeleteIcon} tone="critical" />
                   <Text as="span" fontWeight="semibold">
-                    店铺数据删除请求
+                    {t("PrivacyPage.Deletion.Shop.Title")}
                   </Text>
                 </InlineStack>
                 <Text as="p" variant="bodySm">
-                  响应 <code>SHOP_REDACT</code> webhook，删除店铺的所有数据。
+                  <Trans i18nKey="PrivacyPage.Deletion.Shop.Desc" />
                 </Text>
               </BlockStack>
             </Box>
           </BlockStack>
         </CollapsibleSection>
-        <CollapsibleSection title="安全措施">
+        <CollapsibleSection title={t("PrivacyPage.Security.Title")}>
           <BlockStack gap="300">
             <Box background="bg-surface-secondary" padding="400" borderRadius="200">
               <BlockStack gap="300">
                 <InlineStack gap="300" blockAlign="center">
                   <Icon source={LockFilledIcon} tone="success" />
                   <Text as="span" fontWeight="semibold">
-                    传输加密
+                    {t("PrivacyPage.Security.Transport.Title")}
                   </Text>
                 </InlineStack>
                 <Text as="p" variant="bodySm">
-                  所有 API 通信均使用 TLS 1.2+ 加密。
+                  {t("PrivacyPage.Security.Transport.Desc")}
                 </Text>
               </BlockStack>
             </Box>
@@ -513,11 +491,11 @@ export default function PrivacyPage() {
                 <InlineStack gap="300" blockAlign="center">
                   <Icon source={LockFilledIcon} tone="success" />
                   <Text as="span" fontWeight="semibold">
-                    凭证加密
+                    {t("PrivacyPage.Security.Storage.Title")}
                   </Text>
                 </InlineStack>
                 <Text as="p" variant="bodySm">
-                  平台 API 密钥（Meta Access Token、TikTok Pixel Code 等）使用 AES-256-GCM 加密存储。
+                  {t("PrivacyPage.Security.Storage.Desc")}
                 </Text>
               </BlockStack>
             </Box>
@@ -526,38 +504,38 @@ export default function PrivacyPage() {
                 <InlineStack gap="300" blockAlign="center">
                   <Icon source={LockFilledIcon} tone="success" />
                   <Text as="span" fontWeight="semibold">
-                    访问控制
+                    {t("PrivacyPage.Security.Access.Title")}
                   </Text>
                 </InlineStack>
                 <Text as="p" variant="bodySm">
-                  通过 Shopify OAuth 验证，确保只有授权的店铺管理员可以访问数据。
+                  {t("PrivacyPage.Security.Access.Desc")}
                 </Text>
               </BlockStack>
             </Box>
           </BlockStack>
         </CollapsibleSection>
-        <CollapsibleSection title="GDPR Webhooks 测试指引">
+        <CollapsibleSection title={t("PrivacyPage.GDPRTest.Title")}>
           <BlockStack gap="300">
             <Text as="p">
-              Shopify 要求应用正确响应 GDPR 相关的强制 webhooks。以下是测试方法：
+              {t("PrivacyPage.GDPRTest.Desc")}
             </Text>
             <Box background="bg-surface-secondary" padding="400" borderRadius="200">
               <BlockStack gap="200">
                 <Text as="span" fontWeight="semibold">
-                  1. 在 Shopify Partners Dashboard 中找到您的应用
+                  {t("PrivacyPage.GDPRTest.Step1")}
                 </Text>
                 <Text as="p" variant="bodySm">
-                  进入 <strong>App setup → GDPR Mandatory webhooks</strong>
+                  <Trans i18nKey="PrivacyPage.GDPRTest.Step1" />
                 </Text>
               </BlockStack>
             </Box>
             <Box background="bg-surface-secondary" padding="400" borderRadius="200">
               <BlockStack gap="200">
                 <Text as="span" fontWeight="semibold">
-                  2. 配置 webhook 端点
+                  {t("PrivacyPage.GDPRTest.Step2")}
                 </Text>
                 <Text as="p" variant="bodySm">
-                  确保以下端点已正确配置：
+                  <Trans i18nKey="PrivacyPage.GDPRTest.Step2" />
                 </Text>
                 <List type="bullet">
                   <List.Item>
@@ -575,10 +553,10 @@ export default function PrivacyPage() {
             <Box background="bg-surface-secondary" padding="400" borderRadius="200">
               <BlockStack gap="200">
                 <Text as="span" fontWeight="semibold">
-                  3. 使用 Shopify CLI 测试
+                  {t("PrivacyPage.GDPRTest.Step3")}
                 </Text>
                 <Text as="p" variant="bodySm">
-                  运行以下命令触发测试 webhook：
+                  <Trans i18nKey="PrivacyPage.GDPRTest.Step3" />
                 </Text>
                 <Box background="bg-surface" padding="200" borderRadius="100">
                   <code>shopify app trigger-webhook --topic customers/data_request</code>
@@ -587,26 +565,25 @@ export default function PrivacyPage() {
             </Box>
             <Banner tone="success">
               <p>
-                本应用已实现所有 GDPR 强制 webhooks 处理程序。
-                详见 <code>app/webhooks/handlers/</code> 目录。
+                <Trans i18nKey="PrivacyPage.GDPRTest.Success" />
               </p>
             </Banner>
           </BlockStack>
         </CollapsibleSection>
-        <CollapsibleSection title="数据导出与删除">
+        <CollapsibleSection title={t("PrivacyPage.ExportDelete.Title")}>
           <BlockStack gap="400">
             <Banner tone="info">
               <Text variant="bodySm" as="span">
-                根据 GDPR 和 CCPA 法规，您有权导出或删除您的数据。我们提供以下工具：
+                {t("PrivacyPage.ExportDelete.Note")}
               </Text>
             </Banner>
             <Card>
               <BlockStack gap="400">
                 <Text variant="headingSm" as="h3">
-                  数据导出
+                  {t("PrivacyPage.ExportDelete.Export.Title")}
                 </Text>
                 <Text variant="bodySm" as="p" tone="subdued">
-                  导出您店铺的所有数据，包括转化记录、事件日志、问卷响应等。
+                  {t("PrivacyPage.ExportDelete.Export.Desc")}
                 </Text>
                 <InlineStack gap="200">
                   <Button
@@ -614,37 +591,37 @@ export default function PrivacyPage() {
                     external
                     variant="primary"
                   >
-                    导出转化数据 (JSON)
+                    {t("PrivacyPage.ExportDelete.Export.JSON")}
                   </Button>
                   <Button
                     url="/api/exports?type=conversions&format=csv"
                     external
                   >
-                    导出转化数据 (CSV)
+                    {t("PrivacyPage.ExportDelete.Export.CSV")}
                   </Button>
                   <Button
                     url="/api/exports?type=events&format=json"
                     external
                   >
-                    导出事件日志 (JSON)
+                    {t("PrivacyPage.ExportDelete.Export.Events")}
                   </Button>
                 </InlineStack>
                 <Text variant="bodySm" as="p" tone="subdued">
-                  导出文件将在浏览器中下载。大型数据集可能需要几分钟时间。
+                  {t("PrivacyPage.ExportDelete.Export.Note")}
                 </Text>
               </BlockStack>
             </Card>
             <Card>
               <BlockStack gap="400">
                 <Text variant="headingSm" as="h3">
-                  数据删除
+                  {t("PrivacyPage.ExportDelete.Delete.Title")}
                 </Text>
                 <Text variant="bodySm" as="p" tone="subdued">
-                  删除您店铺的所有数据。此操作不可撤销，请谨慎操作。
+                  {t("PrivacyPage.ExportDelete.Delete.Desc")}
                 </Text>
                 <Banner tone="critical">
                   <Text variant="bodySm" as="span" fontWeight="semibold">
-                    警告：删除操作将永久删除所有数据，包括：
+                    {t("PrivacyPage.ExportDelete.Delete.Warning")}
                   </Text>
                   <List type="bullet">
                     <List.Item>所有转化记录</List.Item>
@@ -659,18 +636,18 @@ export default function PrivacyPage() {
                     setShowDeleteModal(true);
                   }}
                 >
-                  删除所有数据
+                  {t("PrivacyPage.ExportDelete.Delete.Button")}
                 </Button>
                 <Modal
                   open={showDeleteModal}
                   onClose={() => setShowDeleteModal(false)}
-                  title="确认删除所有数据"
+                  title={t("PrivacyPage.ExportDelete.Delete.ModalTitle")}
                   primaryAction={{
-                    content: "确认删除",
+                    content: t("PrivacyPage.ExportDelete.Delete.Confirm"),
                     destructive: true,
                     onAction: () => {
                       setShowDeleteModal(false);
-                      showError("删除功能需要后端支持，请联系管理员或通过 GDPR webhook 处理");
+                      showError(t("PrivacyPage.ExportDelete.Delete.Error"));
                     },
                   }}
                   secondaryActions={[
@@ -682,7 +659,7 @@ export default function PrivacyPage() {
                 >
                   <Modal.Section>
                     <Text variant="bodyMd" as="p">
-                      您确定要删除所有数据吗？此操作将永久删除：
+                      {t("PrivacyPage.ExportDelete.Delete.ModalContent")}
                     </Text>
                     <List type="bullet">
                       <List.Item>所有转化记录</List.Item>
@@ -691,7 +668,7 @@ export default function PrivacyPage() {
                       <List.Item>所有配置和设置</List.Item>
                     </List>
                     <Text variant="bodyMd" as="p" tone="critical" fontWeight="semibold">
-                      此操作不可撤销！
+                      {t("PrivacyPage.ExportDelete.Delete.Irreversible")}
                     </Text>
                   </Modal.Section>
                 </Modal>
@@ -700,13 +677,13 @@ export default function PrivacyPage() {
             <Card>
               <BlockStack gap="300">
                 <Text variant="headingSm" as="h3">
-                  GDPR 请求状态
+                  {t("PrivacyPage.ExportDelete.Status.Title")}
                 </Text>
                 <Text variant="bodySm" as="p" tone="subdued">
-                  查看最近的 GDPR 数据请求和删除请求状态。
+                  {t("PrivacyPage.ExportDelete.Status.Desc")}
                 </Text>
                 <Button url="/app/privacy?tab=gdpr" variant="secondary">
-                  查看 GDPR 请求历史
+                  {t("PrivacyPage.ExportDelete.Status.Button")}
                 </Button>
               </BlockStack>
             </Card>
@@ -715,27 +692,27 @@ export default function PrivacyPage() {
         <Card>
           <BlockStack gap="300">
             <Text as="h2" variant="headingMd">
-              📚 相关文档
+              {t("PrivacyPage.Docs.Title")}
             </Text>
             <List type="bullet">
               <List.Item>
                 <Link url="/privacy" external>
-                  完整隐私政策
+                  {t("PrivacyPage.Docs.Privacy")}
                 </Link>
               </List.Item>
               <List.Item>
                 <Link url="/terms" external>
-                  服务条款
+                  {t("PrivacyPage.Docs.Terms")}
                 </Link>
               </List.Item>
               <List.Item>
                 <Link url="https://help.shopify.com/en/manual/your-account/privacy" external>
-                  Shopify 客户数据保护指南
+                  {t("PrivacyPage.Docs.ShopifyPrivacy")}
                 </Link>
               </List.Item>
               <List.Item>
                 <Link url="https://help.shopify.com/en/manual/your-account/gdpr" external>
-                  Shopify GDPR 要求
+                  {t("PrivacyPage.Docs.ShopifyGDPR")}
                 </Link>
               </List.Item>
             </List>

@@ -1,17 +1,19 @@
 import { memo, useMemo } from "react";
 import { Card, BlockStack, InlineStack, Text, Box, Badge } from "@shopify/polaris";
 import type { DashboardData } from "~/types/dashboard";
+import { useTranslation } from "react-i18next";
 
 const HealthBadge = memo(function HealthBadge({ status }: { status: DashboardData["healthStatus"] }) {
+  const { t } = useTranslation();
   switch (status) {
     case "critical":
-      return <Badge tone="critical">需要关注</Badge>;
+      return <Badge tone="critical">{t("dashboard.healthScore.statusCritical")}</Badge>;
     case "warning":
-      return <Badge tone="warning">有风险</Badge>;
+      return <Badge tone="warning">{t("dashboard.healthScore.statusWarning")}</Badge>;
     case "success":
-      return <Badge tone="success">健康</Badge>;
+      return <Badge tone="success">{t("dashboard.healthScore.statusSuccess")}</Badge>;
     default:
-      return <Badge tone="info">未初始化</Badge>;
+      return <Badge tone="info">{t("dashboard.healthScore.statusUnknown")}</Badge>;
   }
 });
 
@@ -22,6 +24,7 @@ export const HealthScoreCard = memo(function HealthScoreCard({
   score: number | null;
   status: DashboardData["healthStatus"];
 }) {
+  const { t } = useTranslation();
   const backgroundColor = useMemo(() =>
     score === null
       ? "bg-surface-secondary"
@@ -37,7 +40,7 @@ export const HealthScoreCard = memo(function HealthScoreCard({
       <BlockStack gap="400">
         <InlineStack align="space-between">
           <Text as="h2" variant="headingMd">
-            健康度
+            {t("dashboard.healthScore.title")}
           </Text>
           <HealthBadge status={status} />
         </InlineStack>
@@ -55,10 +58,10 @@ export const HealthScoreCard = memo(function HealthScoreCard({
             ) : (
               <>
                 <Text as="p" variant="headingLg" fontWeight="semibold">
-                  未初始化
+                  {t("dashboard.healthScore.notInitializedTitle")}
                 </Text>
                 <Text as="p" variant="bodySm" tone="subdued">
-                  完成平台连接后开始评分
+                  {t("dashboard.healthScore.notInitializedDesc")}
                 </Text>
               </>
             )}
@@ -66,8 +69,8 @@ export const HealthScoreCard = memo(function HealthScoreCard({
         </Box>
         <Text as="p" variant="bodySm" tone="subdued">
           {score !== null
-            ? "评分依据：过去 7 天对账差异率 / 漏报率"
-            : "连接平台并产生订单数据后，系统将自动计算健康度评分"}
+            ? t("dashboard.healthScore.desc")
+            : t("dashboard.healthScore.descUnknown")}
         </Text>
       </BlockStack>
     </Card>

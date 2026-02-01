@@ -12,6 +12,7 @@ import {
 } from "@shopify/polaris";
 import { useSubmit } from "@remix-run/react";
 import { useState, useCallback, useEffect } from "react";
+import { useTranslation } from "react-i18next";
 import type { AlertConfigDisplay } from "../types";
 
 interface AlertsTabProps {
@@ -21,6 +22,7 @@ interface AlertsTabProps {
 }
 
 export function AlertsTab({ alertConfigs, isSubmitting, alertChannelsEnabled = false }: AlertsTabProps) {
+  const { t } = useTranslation();
   const submit = useSubmit();
   const [configs, setConfigs] = useState<AlertConfigDisplay[]>(alertConfigs);
   useEffect(() => {
@@ -83,17 +85,17 @@ export function AlertsTab({ alertConfigs, isSubmitting, alertChannelsEnabled = f
   return (
     <BlockStack gap="400">
       {!alertChannelsEnabled && (
-        <Banner tone="warning" title="外发通知已关闭">
+        <Banner tone="warning" title={t("settings.alerts.banner.title")}>
           <Text as="p" variant="bodySm">
-            当前版本外发通知（Slack/Telegram/Email）已关闭，仅应用内告警记录生效。如需开启请联系支持或等待后续版本。
+            {t("settings.alerts.banner.content")}
           </Text>
         </Banner>
       )}
       <Card>
         <BlockStack gap="400">
-          <Text as="h2" variant="headingMd">告警配置</Text>
+          <Text as="h2" variant="headingMd">{t("settings.alerts.title")}</Text>
           <Text as="p" tone="subdued">
-            配置告警通道与阈值；当断档或异常触发时将写入告警记录，并可在 Monitoring 页面查看。
+            {t("settings.alerts.description")}
           </Text>
           {configs.length > 0 ? (
             <BlockStack gap="300">
@@ -103,7 +105,7 @@ export function AlertsTab({ alertConfigs, isSubmitting, alertChannelsEnabled = f
                     <InlineStack gap="200">
                       <Text as="span" variant="bodyMd">{c.channel}</Text>
                       <Text as="span" variant="bodySm" tone="subdued">
-                        阈值 {c.discrepancyThreshold}% · {c.isEnabled ? "启用" : "禁用"}
+                        {t("settings.alerts.threshold")} {c.discrepancyThreshold}% · {c.isEnabled ? t("common.enabled") : t("common.disabled")}
                       </Text>
                     </InlineStack>
                     <Button
@@ -112,7 +114,7 @@ export function AlertsTab({ alertConfigs, isSubmitting, alertChannelsEnabled = f
                       onClick={() => handleRemove(c.id)}
                       disabled={isSubmitting}
                     >
-                      删除
+                      {t("common.delete")}
                     </Button>
                   </InlineStack>
                   <Divider />
@@ -120,19 +122,19 @@ export function AlertsTab({ alertConfigs, isSubmitting, alertChannelsEnabled = f
               ))}
             </BlockStack>
           ) : (
-            <Text as="p" tone="subdued">暂无告警通道，请添加。</Text>
+            <Text as="p" tone="subdued">{t("settings.alerts.empty")}</Text>
           )}
           <Divider />
-          <Text as="h3" variant="headingSm">添加告警通道</Text>
+          <Text as="h3" variant="headingSm">{t("settings.alerts.addChannel")}</Text>
           <Select
-            label="通道类型"
+            label={t("settings.alerts.channelType")}
             options={channelOptions}
             value={newChannel}
             onChange={setNewChannel}
           />
           {newChannel === "email" && (
             <TextField
-              label="邮箱"
+              label={t("settings.alerts.email")}
               value={newEmail}
               onChange={setNewEmail}
               type="email"
@@ -141,7 +143,7 @@ export function AlertsTab({ alertConfigs, isSubmitting, alertChannelsEnabled = f
           )}
           {newChannel === "slack" && (
             <TextField
-              label="Webhook URL"
+              label={t("settings.alerts.webhookUrl")}
               value={newWebhookUrl}
               onChange={setNewWebhookUrl}
               type="url"
@@ -151,13 +153,13 @@ export function AlertsTab({ alertConfigs, isSubmitting, alertChannelsEnabled = f
           {newChannel === "telegram" && (
             <BlockStack gap="300">
               <TextField
-                label="Bot Token"
+                label={t("settings.alerts.botToken")}
                 value={newBotToken}
                 onChange={setNewBotToken}
                 autoComplete="off"
               />
               <TextField
-                label="Chat ID"
+                label={t("settings.alerts.chatId")}
                 value={newChatId}
                 onChange={setNewChatId}
                 autoComplete="off"
@@ -165,7 +167,7 @@ export function AlertsTab({ alertConfigs, isSubmitting, alertChannelsEnabled = f
             </BlockStack>
           )}
           <TextField
-            label="对账差异阈值（%）"
+            label={t("settings.alerts.discrepancyThreshold")}
             type="number"
             value={String(newThreshold)}
             onChange={(v) => setNewThreshold(parseInt(v, 10) || 10)}
@@ -174,8 +176,8 @@ export function AlertsTab({ alertConfigs, isSubmitting, alertChannelsEnabled = f
             autoComplete="off"
           />
           <InlineStack gap="300">
-            <Button onClick={handleAdd} disabled={isSubmitting}>添加</Button>
-            <Button variant="primary" onClick={handleSave} loading={isSubmitting}>保存告警配置</Button>
+            <Button onClick={handleAdd} disabled={isSubmitting}>{t("common.add")}</Button>
+            <Button variant="primary" onClick={handleSave} loading={isSubmitting}>{t("settings.alerts.saveConfig")}</Button>
           </InlineStack>
         </BlockStack>
       </Card>

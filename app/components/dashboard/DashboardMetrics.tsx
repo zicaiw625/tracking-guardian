@@ -6,6 +6,7 @@ import { HealthScoreCard } from "./HealthScoreCard";
 import { QuickStatsCard } from "./QuickStatsCard";
 import { MigrationChecklistPreviewCard } from "./MigrationChecklistPreviewCard";
 import type { DashboardData } from "~/types/dashboard";
+import { useTranslation } from "react-i18next";
 
 const DependencyGraphPreview = lazy(() => import("./DependencyGraphPreview").then(module => ({ default: module.DependencyGraphPreview })));
 
@@ -23,6 +24,8 @@ export const DashboardMetrics = memo(function DashboardMetrics({
   data,
   latestScan,
 }: DashboardMetricsProps) {
+  const { t } = useTranslation();
+
   return (
     <>
       <Layout>
@@ -66,10 +69,10 @@ export const DashboardMetrics = memo(function DashboardMetrics({
             <Layout.Section variant="oneHalf">
               <Card>
                 <BlockStack gap="300">
-                  <Text as="h3" variant="headingMd">风险分布</Text>
+                  <Text as="h3" variant="headingMd">{t("dashboard.metrics.riskDistribution.title")}</Text>
                   <DataTable
                     columnContentTypes={["text", "numeric"]}
-                    headings={["风险等级", "数量"]}
+                    headings={[t("dashboard.metrics.riskDistribution.riskLevel"), t("dashboard.metrics.riskDistribution.count")]}
                     rows={Object.entries(data.riskDistribution).map(([level, count]) => [
                       level,
                       String(count),

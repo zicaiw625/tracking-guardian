@@ -1,38 +1,38 @@
 import { json, type LoaderFunctionArgs } from "@remix-run/node";
 import { useLoaderData } from "@remix-run/react";
 import {
-  AppProvider,
   Page,
   Layout,
   Card,
-  BlockStack,
   Text,
-  List,
-  Link,
+  BlockStack,
   InlineStack,
   Badge,
+  Box,
+  Banner,
+  Link,
+  List,
+  AppProvider,
 } from "@shopify/polaris";
-import polarisStyles from "@shopify/polaris/build/esm/styles.css?url";
 import translations from "@shopify/polaris/locales/en.json" with { type: "json" };
 import { getPolarisTranslations } from "../utils/polaris-i18n";
+import { getDynamicCorsHeaders } from "../utils/cors";
 import { PUBLIC_PAGE_HEADERS, addSecurityHeadersToHeaders } from "../utils/security-headers";
-import { getSupportConfig } from "../utils/config.server";
-
-const i18n = getPolarisTranslations(translations);
-
-export const links = () => [{ rel: "stylesheet", href: polarisStyles }];
+import { useTranslation, I18nextProvider } from "react-i18next";
+import i18nGlobal from "../i18n"; // Import global i18n instance
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
-  const url = new URL(request.url);
-  const support = getSupportConfig();
+  const corsHeaders = getDynamicCorsHeaders(request);
   const response = json({
-    host: url.host,
-    contactEmail: support.contactEmail,
-    faqUrl: support.faqUrl,
-    statusPageUrl: support.statusPageUrl,
+    supportEmail: "support@tracking-guardian.com",
+    statusPage: "https://status.tracking-guardian.com",
   });
   const headers = new Headers(response.headers);
+  Object.entries(corsHeaders).forEach(([key, value]) => {
+    headers.set(key, value);
+  });
   addSecurityHeadersToHeaders(headers, PUBLIC_PAGE_HEADERS);
+  
   return new Response(response.body, {
     status: response.status,
     statusText: response.statusText,
@@ -40,123 +40,116 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   });
 };
 
-export default function PublicSupportPage() {
-  const { contactEmail, statusPageUrl } = useLoaderData<typeof loader>();
+function SupportContent() {
+  const { t } = useTranslation();
+  const { supportEmail, statusPage } = useLoaderData<typeof loader>();
+  const i18n = getPolarisTranslations(translations);
+
   return (
     <AppProvider i18n={i18n as any}>
-      <Page title="Support & FAQ" subtitle="Tracking Guardian Help Center">
+      <Page
+        title={t("PublicSupport.Title")}
+        subtitle={t("PublicSupport.Subtitle")}
+        fullWidth
+      >
         <Layout>
           <Layout.Section>
+            <Banner tone="info">
+              <p>
+                {t("PublicSupport.Contact.Content")}
+              </p>
+            </Banner>
+          </Layout.Section>
+
+          <Layout.Section variant="oneThird">
             <Card>
               <BlockStack gap="400">
+                <Text as="h2" variant="headingMd">
+                  {t("PublicSupport.Contact.Title")}
+                </Text>
                 <BlockStack gap="200">
-                  <Text as="h2" variant="headingLg">
-                    Contact & Support
+                  <Text as="p" variant="bodyMd">
+                    {t("PublicSupport.Contact.Email")} <Link url={`mailto:${supportEmail}`}>{supportEmail}</Link>
                   </Text>
-                  <Text as="p">
-                    Need help with checkout/Thank you migration or Web Pixel events? The current version focuses on migration, verification, and gap monitoring; server-side conversion delivery is optional and off by default. Reach out anytime:
+                  <Text as="p" variant="bodyMd" tone="subdued">
+                    {t("PublicSupport.Contact.DataRights")}
                   </Text>
-                  <List type="bullet">
-                    <List.Item>
-                      Email: <Link url={`mailto:${contactEmail}`}>{contactEmail}</Link>
-                    </List.Item>
-                    <List.Item>
-                      Data rights (GDPR/CCPA): use{" "}
-                      <Text as="span" fontWeight="bold">
-                        customers/data_request
-                      </Text>{" "}
-                      or{" "}
-                      <Text as="span" fontWeight="bold">
-                        customers/redact
-                      </Text>{" "}
-                      per Shopify, or email us directly.
-                    </List.Item>
-                    <List.Item>
-                      Status page:{" "}
-                      <Link url={statusPageUrl}>
-                        {statusPageUrl.replace(/^https?:\/\//, "")}
-                      </Link>
-                    </List.Item>
-                    <List.Item>
-                      <Link url="/privacy">Privacy Policy</Link>
-                      {" · "}
-                      <Link url="/terms">Terms of Service</Link>
-                    </List.Item>
-                  </List>
-                </BlockStack>
-                <BlockStack gap="200">
-                  <Text as="h2" variant="headingLg">
-                    Quick FAQ
+                  <Text as="p" variant="bodyMd">
+                    {t("PublicSupport.Contact.StatusPage")} <Link url={statusPage} external>{statusPage}</Link>
                   </Text>
-                  <List type="bullet">
-                    <List.Item>
-                      <Text as="span" fontWeight="bold">
-                        Do you require PII/PCD?
-                      </Text>{" "}
-                      We do not collect end-customer PII, and the public App Store
-                      version does not request Shopify order scopes or access
-                      Protected Customer Data (PCD). Any future features that
-                      rely on order-level reconciliation or Reorder flows will
-                      ship only after explicit PCD approval and with updated
-                      privacy documentation.
-                    </List.Item>
-                    <List.Item>
-                      <Text as="span" fontWeight="bold">
-                        What events are collected?
-                      </Text>{" "}
-                      By default, Web Pixel subscribes to{" "}
-                      <code>checkout_completed</code> only (purchase_only mode). 
-                      Optional full_funnel mode can be enabled by merchants to collect additional events 
-                      (checkout_started, page_viewed, add_to_cart, product_viewed, checkout_contact_info_submitted, 
-                      checkout_shipping_info_submitted, payment_info_submitted) with explicit merchant consent and 
-                      proper privacy policy disclosure.
-                    </List.Item>
-                    <List.Item>
-                      <Text as="span" fontWeight="bold">
-                        How is consent handled?
-                      </Text>{" "}
-                      Client-side consent follows Shopify{" "}
-                      <code>customerPrivacy</code>.
-                    </List.Item>
-                    <List.Item>
-                      <Text as="span" fontWeight="bold">
-                        Data retention & deletion
-                      </Text>{" "}
-                      Defaults to 90 days. All shop data is auto-deleted within 48h
-                      of uninstall via <code>shop/redact</code>.
-                    </List.Item>
-                  </List>
-                </BlockStack>
-                <BlockStack gap="200">
-                  <Text as="h2" variant="headingLg">
-                    Migration tips
-                  </Text>
-                  <List type="bullet">
-                    <List.Item>
-                      Run the in-app scanner to detect ScriptTags/old pixels. The
-                      scanner paginates Shopify results (ScriptTags up to 1000,
-                      Web Pixels up to 200) and warns if limits are hit.
-                    </List.Item>
-                    <List.Item>
-                      For Additional Scripts (Thank you/Order status), paste the
-                      snippet into the manual analyzer on the scan page so nothing
-                      is missed.
-                    </List.Item>
-                    <List.Item>
-                      Confirm the Tracking Guardian Web Pixel is installed from the
-                      “迁移” page; then you can safely remove legacy ScriptTags.
-                    </List.Item>
-                  </List>
                 </BlockStack>
                 <InlineStack gap="200">
-                  <Badge tone="success">Public</Badge>
-                  <Badge tone="info">No login required</Badge>
+                  <Badge tone="success">{t("PublicSupport.Badges.Public")}</Badge>
+                  <Badge tone="info">{t("PublicSupport.Badges.NoLogin")}</Badge>
                 </InlineStack>
               </BlockStack>
             </Card>
           </Layout.Section>
+
+          <Layout.Section>
+            <BlockStack gap="500">
+              <Card>
+                <BlockStack gap="400">
+                  <Text as="h2" variant="headingMd">
+                    {t("PublicSupport.FAQ.Title")}
+                  </Text>
+                  
+                  <BlockStack gap="300">
+                    <Box background="bg-surface-secondary" padding="300" borderRadius="200">
+                      <BlockStack gap="200">
+                        <Text as="h3" variant="headingSm">{t("PublicSupport.FAQ.PII.Q")}</Text>
+                        <Text as="p" variant="bodyMd">{t("PublicSupport.FAQ.PII.A")}</Text>
+                      </BlockStack>
+                    </Box>
+
+                    <Box background="bg-surface-secondary" padding="300" borderRadius="200">
+                      <BlockStack gap="200">
+                        <Text as="h3" variant="headingSm">{t("PublicSupport.FAQ.Events.Q")}</Text>
+                        <Text as="p" variant="bodyMd">{t("PublicSupport.FAQ.Events.A")}</Text>
+                      </BlockStack>
+                    </Box>
+
+                    <Box background="bg-surface-secondary" padding="300" borderRadius="200">
+                      <BlockStack gap="200">
+                        <Text as="h3" variant="headingSm">{t("PublicSupport.FAQ.Consent.Q")}</Text>
+                        <Text as="p" variant="bodyMd">{t("PublicSupport.FAQ.Consent.A")}</Text>
+                      </BlockStack>
+                    </Box>
+
+                    <Box background="bg-surface-secondary" padding="300" borderRadius="200">
+                      <BlockStack gap="200">
+                        <Text as="h3" variant="headingSm">{t("PublicSupport.FAQ.Retention.Q")}</Text>
+                        <Text as="p" variant="bodyMd">{t("PublicSupport.FAQ.Retention.A")}</Text>
+                      </BlockStack>
+                    </Box>
+                  </BlockStack>
+                </BlockStack>
+              </Card>
+
+              <Card>
+                <BlockStack gap="400">
+                  <Text as="h2" variant="headingMd">
+                    {t("PublicSupport.Migration.Title")}
+                  </Text>
+                  <List type="number">
+                    <List.Item>{t("PublicSupport.Migration.Tip1")}</List.Item>
+                    <List.Item>{t("PublicSupport.Migration.Tip2")}</List.Item>
+                    <List.Item>{t("PublicSupport.Migration.Tip3")}</List.Item>
+                  </List>
+                </BlockStack>
+              </Card>
+            </BlockStack>
+          </Layout.Section>
         </Layout>
       </Page>
     </AppProvider>
+  );
+}
+
+export default function PublicSupportPage() {
+  return (
+    <I18nextProvider i18n={i18nGlobal}>
+      <SupportContent />
+    </I18nextProvider>
   );
 }

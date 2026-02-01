@@ -1,4 +1,5 @@
 import { useState, useCallback } from "react";
+import { useTranslation } from "react-i18next";
 import {
   Card,
   Text,
@@ -18,7 +19,24 @@ interface ReportComparisonProps {
   availableRuns: Array<{ runId: string; runName: string; completedAt?: Date }>;
 }
 
+interface ComparisonData {
+  metrics: Array<{
+    label: string;
+    value1: string;
+    value2: string;
+    change: number;
+  }>;
+  platforms: Array<{
+    platform: string;
+    passRate1: number;
+    passRate2: number;
+    change: number;
+  }>;
+  improvements: string[];
+}
+
 export function ReportComparison({ shopId: _shopId, availableRuns }: ReportComparisonProps) {
+  const { t, i18n } = useTranslation();
   const { showError } = useToastContext();
   const [run1Id, setRun1Id] = useState<string>("");
   const [run2Id, setRun2Id] = useState<string>("");
@@ -30,23 +48,23 @@ export function ReportComparison({ shopId: _shopId, availableRuns }: ReportCompa
       try {
         const response = await fetch(`/api/reports?type=verification&runId=${runId}&format=json`);
         if (!response.ok) {
-          throw new Error("加载报告失败");
+          throw new Error(t("components.reportComparison.loadFailed"));
         }
         const data = await response.json();
         setReport(data);
       } catch (error) {
-        showError("加载报告失败：" + (error instanceof Error ? error.message : "未知错误"));
+        showError(t("components.reportComparison.loadFailed") + (error instanceof Error ? error.message : t("components.reportComparison.unknownError")));
       }
     },
-    [showError]
+    [showError, t]
   );
   const handleCompare = useCallback(async () => {
     if (!run1Id || !run2Id) {
-      showError("请选择两个报告进行对比");
+      showError(t("components.reportComparison.selectTwo"));
       return;
     }
     if (run1Id === run2Id) {
-      showError("请选择两个不同的报告进行对比");
+      showError(t("components.reportComparison.selectDifferent"));
       return;
     }
     setIsLoading(true);
@@ -58,21 +76,87 @@ export function ReportComparison({ shopId: _shopId, availableRuns }: ReportCompa
     } finally {
       setIsLoading(false);
     }
-  }, [run1Id, run2Id, handleLoadReport, showError]);
+  }, [run1Id, run2Id, handleLoadReport, showError, t]);
+
+  const generateComparisonData = (
+    report1: VerificationReportData,
+    report2: VerificationReportData
+  ): ComparisonData => {
+    const successRate1 = report1.summary.totalTests > 0 ? (report1.summary.passedTests / report1.summary.totalTests) * 100 : 0;
+    const successRate2 = report2.summary.totalTests > 0 ? (report2.summary.passedTests / report2.summary.totalTests) * 100 : 0;
+    const metrics: ComparisonData["metrics"] = [
+      {
+        label: t("components.reportComparison.passRate"),
+        value1: `${Math.round(successRate1)}%`,
+        value2: `${Math.round(successRate2)}%`,
+        change: successRate2 - successRate1,
+      },
+      {
+        label: t("components.reportComparison.completeness"),
+        value1: "N/A",
+        value2: "N/A",
+        change: 0,
+      },
+      {
+        label: t("components.reportComparison.accuracy"),
+        value1: `${report1.summary.valueAccuracy}%`,
+        value2: `${report2.summary.valueAccuracy}%`,
+        change: report2.summary.valueAccuracy - report1.summary.valueAccuracy,
+      },
+      {
+        label: t("components.reportComparison.totalEvents"),
+        value1: report1.summary.totalTests.toString(),
+        value2: report2.summary.totalTests.toString(),
+        change: report1.summary.totalTests > 0 ? ((report2.summary.totalTests - report1.summary.totalTests) / report1.summary.totalTests) * 100 : 0,
+      },
+    ];
+    const platformStats1 = calculatePlatformStats(report1);
+    const platformStats2 = calculatePlatformStats(report2);
+    const allPlatforms = new Set([
+      ...Object.keys(platformStats1),
+      ...Object.keys(platformStats2),
+    ]);
+    const platforms: ComparisonData["platforms"] = Array.from(allPlatforms).map((platform) => {
+      const stats1 = platformStats1[platform] || { passed: 0, total: 0 };
+      const stats2 = platformStats2[platform] || { passed: 0, total: 0 };
+      const passRate1 = stats1.total > 0 ? (stats1.passed / stats1.total) * 100 : 0;
+      const passRate2 = stats2.total > 0 ? (stats2.passed / stats2.total) * 100 : 0;
+      return {
+        platform,
+        passRate1: Math.round(passRate1),
+        passRate2: Math.round(passRate2),
+        change: passRate2 - passRate1,
+      };
+    });
+    const improvements: string[] = [];
+    const passRate1 = successRate1;
+    const passRate2 = successRate2;
+    if (passRate2 < passRate1) {
+      improvements.push(t("components.reportComparison.passRateDrop"));
+    }
+    if (report2.summary.valueAccuracy < report1.summary.valueAccuracy) {
+      improvements.push(t("components.reportComparison.accuracyDrop"));
+    }
+    if (report2.summary.failedTests > report1.summary.failedTests) {
+      improvements.push(t("components.reportComparison.failedIncrease", { v1: report1.summary.failedTests, v2: report2.summary.failedTests }));
+    }
+    return { metrics, platforms, improvements };
+  }
+
   const comparisonData = report1 && report2 ? generateComparisonData(report1, report2) : null;
   return (
     <Card>
       <BlockStack gap="400">
         <Text as="h3" variant="headingMd">
-          报告对比
+          {t("components.reportComparison.title")}
         </Text>
         <BlockStack gap="300">
           <Select
-            label="报告 1"
+            label={t("components.reportComparison.report1")}
             options={[
-              { label: "选择报告...", value: "" },
+              { label: t("components.reportComparison.selectReport"), value: "" },
               ...availableRuns.map((run) => ({
-                label: `${run.runName} (${run.completedAt ? new Date(run.completedAt).toLocaleDateString("zh-CN") : "未完成"})`,
+                label: `${run.runName} (${run.completedAt ? new Date(run.completedAt).toLocaleDateString(i18n.language === 'zh' ? "zh-CN" : "en-US") : t("components.reportComparison.incomplete")})`,
                 value: run.runId,
               })),
             ]}
@@ -80,11 +164,11 @@ export function ReportComparison({ shopId: _shopId, availableRuns }: ReportCompa
             onChange={setRun1Id}
           />
           <Select
-            label="报告 2"
+            label={t("components.reportComparison.report2")}
             options={[
-              { label: "选择报告...", value: "" },
+              { label: t("components.reportComparison.selectReport"), value: "" },
               ...availableRuns.map((run) => ({
-                label: `${run.runName} (${run.completedAt ? new Date(run.completedAt).toLocaleDateString("zh-CN") : "未完成"})`,
+                label: `${run.runName} (${run.completedAt ? new Date(run.completedAt).toLocaleDateString(i18n.language === 'zh' ? "zh-CN" : "en-US") : t("components.reportComparison.incomplete")})`,
                 value: run.runId,
               })),
             ]}
@@ -97,7 +181,7 @@ export function ReportComparison({ shopId: _shopId, availableRuns }: ReportCompa
             loading={isLoading}
             disabled={!run1Id || !run2Id || run1Id === run2Id}
           >
-            开始对比
+            {t("components.reportComparison.startCompare")}
           </Button>
         </BlockStack>
         {comparisonData && (
@@ -105,16 +189,21 @@ export function ReportComparison({ shopId: _shopId, availableRuns }: ReportCompa
             <Divider />
             <BlockStack gap="400">
               <Text as="h4" variant="headingMd">
-                对比结果
+                {t("components.reportComparison.resultTitle")}
               </Text>
               <Card>
                 <BlockStack gap="300">
                   <Text as="h5" variant="headingSm">
-                    关键指标对比
+                    {t("components.reportComparison.metricsTitle")}
                   </Text>
                   <DataTable
                     columnContentTypes={["text", "text", "text", "text"]}
-                    headings={["指标", "报告 1", "报告 2", "变化"]}
+                    headings={[
+                      t("components.reportComparison.metric"), 
+                      t("components.reportComparison.report1Val"), 
+                      t("components.reportComparison.report2Val"), 
+                      t("components.reportComparison.change")
+                    ]}
                     rows={comparisonData.metrics.map((m) => [
                       m.label,
                       m.value1,
@@ -128,11 +217,16 @@ export function ReportComparison({ shopId: _shopId, availableRuns }: ReportCompa
                 <Card>
                   <BlockStack gap="300">
                     <Text as="h5" variant="headingSm">
-                      平台对比
+                      {t("components.reportComparison.platformTitle")}
                     </Text>
                     <DataTable
                       columnContentTypes={["text", "text", "text", "text"]}
-                      headings={["平台", "报告 1 通过率", "报告 2 通过率", "变化"]}
+                      headings={[
+                        t("components.reportComparison.platform"), 
+                        t("components.reportComparison.passRate1"), 
+                        t("components.reportComparison.passRate2"), 
+                        t("components.reportComparison.change")
+                      ]}
                       rows={comparisonData.platforms.map((p) => [
                         p.platform,
                         `${p.passRate1}%`,
@@ -147,7 +241,7 @@ export function ReportComparison({ shopId: _shopId, availableRuns }: ReportCompa
                 <Banner tone="info">
                   <BlockStack gap="200">
                     <Text as="p" variant="bodyMd" fontWeight="semibold">
-                      改进建议
+                      {t("components.reportComparison.improvements")}
                     </Text>
                     <ul>
                       {comparisonData.improvements.map((suggestion, i) => (
@@ -167,87 +261,6 @@ export function ReportComparison({ shopId: _shopId, availableRuns }: ReportCompa
       </BlockStack>
     </Card>
   );
-}
-
-interface ComparisonData {
-  metrics: Array<{
-    label: string;
-    value1: string;
-    value2: string;
-    change: number;
-  }>;
-  platforms: Array<{
-    platform: string;
-    passRate1: number;
-    passRate2: number;
-    change: number;
-  }>;
-  improvements: string[];
-}
-
-function generateComparisonData(
-  report1: VerificationReportData,
-  report2: VerificationReportData
-): ComparisonData {
-  const successRate1 = report1.summary.totalTests > 0 ? (report1.summary.passedTests / report1.summary.totalTests) * 100 : 0;
-  const successRate2 = report2.summary.totalTests > 0 ? (report2.summary.passedTests / report2.summary.totalTests) * 100 : 0;
-  const metrics: ComparisonData["metrics"] = [
-    {
-      label: "通过率",
-      value1: `${Math.round(successRate1)}%`,
-      value2: `${Math.round(successRate2)}%`,
-      change: successRate2 - successRate1,
-    },
-    {
-      label: "参数完整率",
-      value1: "N/A",
-      value2: "N/A",
-      change: 0,
-    },
-    {
-      label: "金额准确率",
-      value1: `${report1.summary.valueAccuracy}%`,
-      value2: `${report2.summary.valueAccuracy}%`,
-      change: report2.summary.valueAccuracy - report1.summary.valueAccuracy,
-    },
-    {
-      label: "总事件数",
-      value1: report1.summary.totalTests.toString(),
-      value2: report2.summary.totalTests.toString(),
-      change: report1.summary.totalTests > 0 ? ((report2.summary.totalTests - report1.summary.totalTests) / report1.summary.totalTests) * 100 : 0,
-    },
-  ];
-  const platformStats1 = calculatePlatformStats(report1);
-  const platformStats2 = calculatePlatformStats(report2);
-  const allPlatforms = new Set([
-    ...Object.keys(platformStats1),
-    ...Object.keys(platformStats2),
-  ]);
-  const platforms: ComparisonData["platforms"] = Array.from(allPlatforms).map((platform) => {
-    const stats1 = platformStats1[platform] || { passed: 0, total: 0 };
-    const stats2 = platformStats2[platform] || { passed: 0, total: 0 };
-    const passRate1 = stats1.total > 0 ? (stats1.passed / stats1.total) * 100 : 0;
-    const passRate2 = stats2.total > 0 ? (stats2.passed / stats2.total) * 100 : 0;
-    return {
-      platform,
-      passRate1: Math.round(passRate1),
-      passRate2: Math.round(passRate2),
-      change: passRate2 - passRate1,
-    };
-  });
-  const improvements: string[] = [];
-  const passRate1 = successRate1;
-  const passRate2 = successRate2;
-  if (passRate2 < passRate1) {
-    improvements.push("通过率有所下降，建议检查最近的配置更改");
-  }
-  if (report2.summary.valueAccuracy < report1.summary.valueAccuracy) {
-    improvements.push("金额准确率下降，建议检查订单数据处理逻辑");
-  }
-  if (report2.summary.failedTests > report1.summary.failedTests) {
-    improvements.push(`失败测试数从 ${report1.summary.failedTests} 增加到 ${report2.summary.failedTests}，需要关注错误日志`);
-  }
-  return { metrics, platforms, improvements };
 }
 
 function calculatePlatformStats(report: VerificationReportData): Record<

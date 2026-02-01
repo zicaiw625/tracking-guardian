@@ -24,6 +24,7 @@ import prisma from "../db.server";
 import { normalizePlanId, type PlanId } from "../services/billing/plans";
 import { isPlanAtLeast } from "../utils/plans";
 import { validateTestEnvironment, saveWizardDraft, clearWizardDraft } from "../services/migration-wizard.server";
+import { useTranslation, Trans } from "react-i18next";
 
 type MigrationStep = "audit" | "pixels" | "modules" | "verification";
 
@@ -142,7 +143,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     if (!platform || !["google", "meta", "tiktok"].includes(platform)) {
       return json({
         valid: false,
-        message: "无效或缺失的 platform 参数",
+        message: "migrate.errors.invalidPlatform",
       });
     }
     try {
@@ -151,21 +152,21 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     } catch (error) {
       return json({
         valid: false,
-        message: error instanceof Error ? error.message : "验证失败",
-        details: { eventSent: false, error: error instanceof Error ? error.message : "验证失败" },
+        message: error instanceof Error ? error.message : "migrate.errors.validationFailed",
+        details: { eventSent: false, error: error instanceof Error ? error.message : "migrate.errors.validationFailed" },
       }, { status: 500 });
     }
   }
   if (actionType === "saveWizardDraft") {
     const draftRaw = formData.get("draft");
     if (typeof draftRaw !== "string") {
-      return json({ success: false, error: "缺少 draft 参数" }, { status: 400 });
+      return json({ success: false, error: "migrate.errors.missingDraft" }, { status: 400 });
     }
     let draft: Parameters<typeof saveWizardDraft>[1];
     try {
       draft = JSON.parse(draftRaw) as Parameters<typeof saveWizardDraft>[1];
     } catch {
-      return json({ success: false, error: "draft 格式无效" }, { status: 400 });
+      return json({ success: false, error: "migrate.errors.invalidDraft" }, { status: 400 });
     }
     const result = await saveWizardDraft(shop.id, draft);
     return json(result.success ? { success: true } : { success: false, error: result.error });
@@ -194,6 +195,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 };
 
 export default function MigratePage() {
+  const { t } = useTranslation();
   const { shop, planId, steps, customerAccountsStatus } = useLoaderData<typeof loader>();
 
   const getStepProgress = () => {
@@ -206,30 +208,30 @@ export default function MigratePage() {
   const stepConfigs = [
     {
       id: "audit" as MigrationStep,
-      title: "1. 扫描与评估",
-      description: "自动扫描店铺中的追踪脚本，生成迁移清单和风险报告",
+      title: t("migrate.steps.audit.title"),
+      description: t("migrate.steps.audit.description"),
       url: "/app/scan",
       icon: CheckCircleIcon,
     },
     {
       id: "pixels" as MigrationStep,
-      title: "2. 配置像素迁移",
-      description: "创建 Web Pixel，配置事件映射和平台凭证",
+      title: t("migrate.steps.pixels.title"),
+      description: t("migrate.steps.pixels.description"),
       url: "/app/pixels/new",
       icon: CheckCircleIcon,
       requiresPlan: "starter" as PlanId,
     },
     {
       id: "modules" as MigrationStep,
-      title: "3. 添加结账与订单状态区块",
-      description: "在 Shopify 结账与客户账户编辑器中添加本应用的 Thank you 页和 Order status 页区块",
+      title: t("migrate.steps.modules.title"),
+      description: t("migrate.steps.modules.description"),
       requiresPlan: "starter" as PlanId,
       isModulesStep: true,
     },
     {
       id: "verification" as MigrationStep,
-      title: "4. 验收与监控",
-      description: "运行验收测试，生成报告，设置断档告警",
+      title: t("migrate.steps.verification.title"),
+      description: t("migrate.steps.verification.description"),
       url: "/app/verification",
       icon: CheckCircleIcon,
       requiresPlan: "starter" as PlanId,
@@ -238,10 +240,10 @@ export default function MigratePage() {
 
   if (!shop) {
     return (
-      <Page title="迁移向导">
-        <Banner tone="critical" title="未找到店铺信息">
+      <Page title={t("migrate.title")}>
+        <Banner tone="critical" title={t("migrate.errors.shopNotFound")}>
           <Text as="p" variant="bodySm">
-            请确保应用已正确安装。
+            {t("migrate.errors.appInstalled")}
           </Text>
         </Banner>
       </Page>
@@ -249,79 +251,79 @@ export default function MigratePage() {
   }
 
   return (
-    <Page title="迁移向导" subtitle="从 Legacy Checkout 迁移到 Checkout Extensibility 的完整流程">
+    <Page title={t("migrate.title")} subtitle={t("migrate.subtitle")}>
       <BlockStack gap="500">
         <PageIntroCard
-          title="迁移向导"
-          description="按照以下步骤完成从 Legacy Checkout 到 Checkout Extensibility 的迁移"
+          title={t("migrate.intro.title")}
+          description={t("migrate.intro.description")}
           items={[
-            "扫描现有追踪脚本并评估风险",
-            "配置 Web Pixel 和事件映射",
-            "在结账与订单状态页添加本应用区块",
-            "验收测试并生成报告",
+            t("migrate.intro.items.0"),
+            t("migrate.intro.items.1"),
+            t("migrate.intro.items.2"),
+            t("migrate.intro.items.3"),
           ]}
-          primaryAction={{ content: "开始迁移", url: "/app/scan" }}
+          primaryAction={{ content: t("migrate.intro.action"), url: "/app/scan" }}
         />
         <Banner tone="critical">
           <BlockStack gap="200">
             <Text as="p" variant="bodySm" fontWeight="semibold">
-              ⚠️ 重要：扩展的 BACKEND_URL 注入是生命线
+              {t("migrate.banner.backendUrl.title")}
             </Text>
             <Text as="p" variant="bodySm">
-              生产环境部署时，必须确保 BACKEND_URL 已正确注入到扩展配置中。如果占位符未被替换，像素扩展将无法发送事件到后端，导致事件丢失。
+              {t("migrate.banner.backendUrl.desc")}
             </Text>
             <Text as="p" variant="bodySm" fontWeight="semibold">
-              部署流程要求：
+              {t("migrate.banner.backendUrl.requirements")}
             </Text>
             <List type="number">
               <List.Item>
                 <Text as="span" variant="bodySm">
-                  在 CI/CD 流程中，部署前必须运行 <code>pnpm ext:inject</code> 或 <code>pnpm deploy:ext</code>
+                  <Trans i18nKey="migrate.banner.backendUrl.steps.0" components={{ code: <code /> }} />
                 </Text>
               </List.Item>
               <List.Item>
                 <Text as="span" variant="bodySm">
-                  确保环境变量 <code>SHOPIFY_APP_URL</code> 已正确设置
+                  <Trans i18nKey="migrate.banner.backendUrl.steps.1" components={{ code: <code /> }} />
                 </Text>
               </List.Item>
               <List.Item>
                 <Text as="span" variant="bodySm">
-                  部署后验证扩展配置文件中的 URL 已正确注入（不是占位符）
+                  {t("migrate.banner.backendUrl.steps.2")}
                 </Text>
               </List.Item>
             </List>
             <Text as="p" variant="bodySm" tone="subdued">
-              💡 提示：如果占位符未被替换，像素扩展会静默禁用事件发送，不会显示错误。这是导致事件丢失的常见原因，必须在生产环境部署前修复。
+              {t("migrate.banner.backendUrl.tip")}
             </Text>
           </BlockStack>
         </Banner>
         <Banner tone="warning">
           <BlockStack gap="200">
             <Text as="p" variant="bodySm" fontWeight="semibold">
-              ⚠️ Strict Sandbox 能力边界说明
+              {t("migrate.banner.sandbox.title")}
             </Text>
             <Text as="p" variant="bodySm">
-              Web Pixel 运行在 strict sandbox (Web Worker) 环境中，以下能力受限：
+              {t("migrate.banner.sandbox.desc")}
             </Text>
             <List type="bullet">
               <List.Item>
                 <Text as="span" variant="bodySm">
-                  无法访问 DOM 元素、localStorage、第三方 cookie 等
+                  {t("migrate.banner.sandbox.limitations.0")}
                 </Text>
               </List.Item>
               <List.Item>
                 <Text as="span" variant="bodySm">
-                  部分事件字段可能为 null 或 undefined（如 buyer.email、buyer.phone、deliveryAddress 等），这是平台限制，不是故障
+                  {t("migrate.banner.sandbox.limitations.1")}
                 </Text>
               </List.Item>
               <List.Item>
                 <Text as="span" variant="bodySm">
-                  某些事件类型（refund、order_cancelled、order_edited 等）在 strict sandbox 中不可用，需要通过订单 webhooks 获取
+                  {t("migrate.banner.sandbox.limitations.2")}
                 </Text>
               </List.Item>
             </List>
             <Text as="p" variant="bodySm" tone="subdued">
-              💡 提示：这是 Shopify 平台的设计限制，不是应用故障。验收报告中会自动标注所有因 strict sandbox 限制而无法获取的字段和事件。
+              {t("migrate.banner.sandbox.tip")}
             </Text>
           </BlockStack>
         </Banner>
@@ -330,7 +332,7 @@ export default function MigratePage() {
           <BlockStack gap="400">
             <InlineStack align="space-between" blockAlign="center">
               <Text as="h2" variant="headingMd">
-                迁移进度
+                {t("migrate.progress.title")}
               </Text>
               <Badge tone={progress === 100 ? "success" : progress > 0 ? "info" : undefined}>
                 {`${Math.round(progress)}%`}
@@ -338,7 +340,7 @@ export default function MigratePage() {
             </InlineStack>
             <ProgressBar progress={progress} tone={progress === 100 ? "success" : undefined} />
             <Text as="p" variant="bodySm" tone="subdued">
-              {Object.values(steps).filter((s) => s.completed).length} / {Object.keys(steps).length} 个步骤已完成
+              {t("migrate.progress.stepsCompleted", { completed: Object.values(steps).filter((s) => s.completed).length, total: Object.keys(steps).length })}
             </Text>
           </BlockStack>
         </Card>
@@ -368,10 +370,10 @@ export default function MigratePage() {
                           <Text as="h3" variant="headingSm">
                             {stepConfig.title}
                           </Text>
-                          {stepStatus.completed && <Badge tone="success">已完成</Badge>}
+                          {stepStatus.completed && <Badge tone="success">{t("migrate.buttons.completed")}</Badge>}
                           {!canAccess && stepConfig.requiresPlan && (
                             <Badge tone="warning">
-                              {stepConfig.requiresPlan === "starter" ? "需要 Starter+" : "需要升级"}
+                              {stepConfig.requiresPlan === "starter" ? t("migrate.buttons.requiresStarter") : t("migrate.buttons.requiresUpgrade")}
                             </Badge>
                           )}
                         </InlineStack>
@@ -382,17 +384,17 @@ export default function MigratePage() {
                     </InlineStack>
                     <Divider />
                     {isModulesStep && customerAccountsStatus?.enabled === false && (
-                      <Banner tone="warning" title="Order status 区块依赖店铺启用 Customer Account">
+                      <Banner tone="warning" title={t("migrate.steps.modules.warning")}>
                         <BlockStack gap="200">
                           <Text as="p" variant="bodySm">
-                            Order status 页区块需店铺已启用新版客户账户（Customer Account）或 Checkout API 支持，否则该区块可能不可见。请前往 Shopify 后台开启相关设置。
+                            {t("migrate.steps.modules.warningDesc")}
                           </Text>
                           <Button
                             url={shop ? getShopifyAdminUrl(shop.domain, "/settings/checkout") : "#"}
                             external
                             size="slim"
                           >
-                            打开结账设置
+                            {t("migrate.steps.modules.openSettings")}
                           </Button>
                         </BlockStack>
                       </Banner>
@@ -400,34 +402,34 @@ export default function MigratePage() {
                     {isModulesStep && canAccess && !stepStatus.completed && (
                       <>
                         <List type="number">
-                          <List.Item>打开结账或客户账户编辑器</List.Item>
-                          <List.Item>在 Thank you 页添加本应用提供的区块</List.Item>
-                          <List.Item>在 Order status 页添加本应用提供的区块</List.Item>
-                          <List.Item>保存并发布</List.Item>
+                          <List.Item>{t("migrate.steps.modules.list.0")}</List.Item>
+                          <List.Item>{t("migrate.steps.modules.list.1")}</List.Item>
+                          <List.Item>{t("migrate.steps.modules.list.2")}</List.Item>
+                          <List.Item>{t("migrate.steps.modules.list.3")}</List.Item>
                         </List>
                         <InlineStack gap="200">
                           <Button
                             url={shop ? getShopifyAdminUrl(shop.domain, "/settings/checkout") : "#"}
                             external
                           >
-                            结账设置
+                            {t("migrate.steps.modules.openSettings")}
                           </Button>
                           <Button
                             url={shop ? getShopifyAdminUrl(shop.domain, "/themes/current/editor") : "#"}
                             external
                           >
-                            主题编辑器
+                            {t("migrate.steps.modules.themeEditor")}
                           </Button>
                         </InlineStack>
                         <img
                           src="/images/checkout-editor-step-1.svg"
-                          alt="结账编辑器示意"
+                          alt="Checkout Editor"
                           style={{ maxWidth: "100%", height: "auto" }}
                         />
                         <Form method="post">
                           <input type="hidden" name="_action" value="markModulesStepDone" />
                           <Button submit variant="primary">
-                            我已添加区块
+                            {t("migrate.steps.modules.markedDone")}
                           </Button>
                         </Form>
                       </>
@@ -437,7 +439,7 @@ export default function MigratePage() {
                         {canAccess ? (
                           isModulesStep && stepStatus.completed ? (
                             <Button url="/app/verification" variant="secondary">
-                              下一步：验收与监控
+                              {t("migrate.steps.verification.next")}
                             </Button>
                           ) : !isModulesStep ? (
                             <Button
@@ -445,7 +447,7 @@ export default function MigratePage() {
                               variant={stepStatus.completed ? "secondary" : "primary"}
                               icon={stepStatus.completed ? undefined : ArrowRightIcon}
                             >
-                              {stepStatus.completed ? "查看详情" : "开始"}
+                              {stepStatus.completed ? t("migrate.buttons.viewDetails") : t("migrate.buttons.start")}
                             </Button>
                           ) : null
                         ) : (
@@ -454,7 +456,7 @@ export default function MigratePage() {
                             variant="secondary"
                             icon={LockIcon}
                           >
-                            升级解锁
+                            {t("migrate.buttons.upgrade")}
                           </Button>
                         )}
                       </InlineStack>
@@ -467,14 +469,14 @@ export default function MigratePage() {
         </Layout>
 
         {progress === 100 && (
-          <Banner tone="success" title="迁移完成！">
+          <Banner tone="success" title={t("migrate.banner.completed.title")}>
             <BlockStack gap="200">
               <Text as="p" variant="bodySm">
-                恭喜！您已完成所有迁移步骤。建议定期运行验收测试以确保追踪持续稳定。
+                {t("migrate.banner.completed.desc")}
               </Text>
               <InlineStack gap="200">
                 <Button url="/app/verification" variant="primary">
-                  运行验收测试
+                  {t("migrate.banner.completed.action")}
                 </Button>
               </InlineStack>
             </BlockStack>
@@ -484,50 +486,47 @@ export default function MigratePage() {
         <Card>
           <BlockStack gap="400">
             <Text as="h2" variant="headingMd">
-              迁移步骤说明
+              {t("migrate.explanation.title")}
             </Text>
             <Divider />
             <List type="number">
               <List.Item>
                 <BlockStack gap="200">
                   <Text as="span" fontWeight="semibold">
-                    扫描与评估
+                    {t("migrate.explanation.audit.title")}
                   </Text>
                   <Text as="p" variant="bodySm" tone="subdued">
-                    自动扫描 ScriptTags 和 Web Pixels，手动粘贴识别 Additional Scripts，生成迁移清单和风险分级报告。
-                    这是免费功能，帮助您了解需要迁移的内容。
+                    {t("migrate.explanation.audit.desc")}
                   </Text>
                 </BlockStack>
               </List.Item>
               <List.Item>
                 <BlockStack gap="200">
                   <Text as="span" fontWeight="semibold">
-                    配置像素迁移
+                    {t("migrate.explanation.pixels.title")}
                   </Text>
                   <Text as="p" variant="bodySm" tone="subdued">
-                    创建 Web Pixel Extension，配置事件映射（Shopify 标准事件 → 平台事件），
-                    设置平台凭证（GA4/Meta/TikTok）。需要 Starter ($29/月) 及以上套餐。
+                    {t("migrate.explanation.pixels.desc")}
                   </Text>
                 </BlockStack>
               </List.Item>
               <List.Item>
                 <BlockStack gap="200">
                   <Text as="span" fontWeight="semibold">
-                    添加结账与订单状态区块
+                    {t("migrate.explanation.modules.title")}
                   </Text>
                   <Text as="p" variant="bodySm" tone="subdued">
-                    在 Shopify 结账设置或主题编辑器中打开结账/客户账户自定义，在 Thank you 页和 Order status 页添加本应用提供的区块，保存并发布。Order status 区块需店铺已启用新版客户账户（Customer Account）或 Checkout API 支持，否则该区块可能不可见。详见上方步骤卡片中的操作清单与图示。
+                    {t("migrate.explanation.modules.desc")}
                   </Text>
                 </BlockStack>
               </List.Item>
               <List.Item>
                 <BlockStack gap="200">
                   <Text as="span" fontWeight="semibold">
-                    验收与监控
+                    {t("migrate.explanation.verification.title")}
                   </Text>
                   <Text as="p" variant="bodySm" tone="subdued">
-                    运行验收测试验证事件触发和参数完整性，生成可交付的验收报告（CSV），
-                    设置断档告警。报告导出需要 Growth ($79/月) 或 Agency ($199/月) 套餐。
+                    {t("migrate.explanation.verification.desc")}
                   </Text>
                 </BlockStack>
               </List.Item>
@@ -536,28 +535,28 @@ export default function MigratePage() {
         </Card>
 
         <CheckoutCompletedBehaviorHint mode="info" collapsible={true} />
-        <Banner tone="info" title="重要提示">
+        <Banner tone="info" title={t("migrate.banner.important.title")}>
           <BlockStack gap="200">
             <Text as="p" variant="bodySm" fontWeight="semibold">
-              Shopify 升级截止日期
+              {t("migrate.banner.important.subtitle")}
             </Text>
             <Text as="p" variant="bodySm" tone="subdued">
-              <strong>重要提示：</strong>以下日期来自 Shopify 官方公告，仅供参考。实际截止日期请以 Shopify Admin 中的提示为准。Shopify 可能会更新策略，我们建议您定期查看 Shopify 官方文档。
+               <Trans i18nKey="migrate.banner.important.desc" />
             </Text>
             <List type="bullet">
               <List.Item>
                 <Text as="span" variant="bodySm">
-                  Plus 店铺：从 2026-01 开始自动升级（legacy 定制会丢失）
+                  {t("migrate.banner.important.plus")}
                 </Text>
               </List.Item>
               <List.Item>
                 <Text as="span" variant="bodySm">
-                  非 Plus 店铺：最晚 2026-08-26 必须完成升级
+                  {t("migrate.banner.important.nonPlus")}
                 </Text>
               </List.Item>
             </List>
             <Text as="p" variant="bodySm" tone="subdued">
-              建议尽早完成迁移，避免在截止日期前匆忙处理。
+              {t("migrate.banner.important.advice")}
             </Text>
           </BlockStack>
         </Banner>

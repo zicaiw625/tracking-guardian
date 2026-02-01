@@ -1,69 +1,61 @@
-import { Banner, BlockStack, Text, Link } from "@shopify/polaris";
-import { formatDeadlineDate, DEPRECATION_DATES, SHOPIFY_HELP_LINKS } from "~/utils/migration-deadlines";
+import { Banner, BlockStack, Text, Button, InlineStack } from "@shopify/polaris";
+import { Link } from "@remix-run/react";
 import { useTranslation, Trans } from "react-i18next";
+import { DEPRECATION_DATES, formatDeadlineDate } from "../../utils/migration-deadlines";
+import { ArrowRightIcon } from "../icons";
 
-export function MigrationDeadlineBanner({ scriptTagsCount }: { scriptTagsCount: number }) {
+export function MigrationDeadlineBanner() {
   const { t } = useTranslation();
-  const plusDeadline = formatDeadlineDate(DEPRECATION_DATES.plusScriptTagExecutionOff, "exact");
-  const plusAutoUpgrade = formatDeadlineDate(DEPRECATION_DATES.plusAutoUpgradeStart, "month");
-  const nonPlusDeadline = formatDeadlineDate(DEPRECATION_DATES.nonPlusScriptTagExecutionOff, "exact");
+
   return (
-    <Banner
-      title={t("dashboard.migrationDeadlineBanner.title")}
-      tone={scriptTagsCount > 0 ? "warning" : "info"}
-      action={{
-        content: t("dashboard.migrationDeadlineBanner.action"),
-        url: SHOPIFY_HELP_LINKS.UPGRADE_GUIDE,
-        external: true,
-      }}
-    >
-      <BlockStack gap="300">
+    <Banner tone="warning" title={t("dashboard.migrationDeadlineBanner.title")}>
+      <BlockStack gap="200">
+        <BlockStack gap="100">
+          <Text as="p" variant="bodySm">
+            <Trans
+              i18nKey="dashboard.migrationDeadlineBanner.plusDeadline"
+              values={{
+                date: formatDeadlineDate(DEPRECATION_DATES.plusScriptTagExecutionOff, "exact"),
+              }}
+              components={{
+                strong: <strong />,
+              }}
+            />
+          </Text>
+          <Text as="p" variant="bodySm">
+            <Trans
+              i18nKey="dashboard.migrationDeadlineBanner.nonPlusDeadline"
+              values={{
+                date: formatDeadlineDate(DEPRECATION_DATES.nonPlusScriptTagExecutionOff, "exact"),
+              }}
+              components={{
+                strong: <strong />,
+              }}
+            />
+          </Text>
+        </BlockStack>
         <Text as="p" variant="bodySm" tone="subdued">
-          <span dangerouslySetInnerHTML={{ __html: t("dashboard.migrationDeadlineBanner.disclaimer") }} />
+          <Trans
+            i18nKey="dashboard.migrationDeadlineBanner.disclaimer"
+            components={{
+              strong: <strong />,
+              a: (
+                <Link
+                  to="https://help.shopify.com/en/manual/checkout-settings/order-status-page/additional-scripts"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                />
+              ),
+            }}
+          >
+            <strong>Important:</strong> The following dates are from Shopify official announcements for reference only. Please refer to Shopify Admin for actual deadlines. Shopify may update policies, we recommend checking <Link to="https://help.shopify.com/en/manual/checkout-settings/order-status-page/additional-scripts" target="_blank" rel="noopener noreferrer">{t("dashboard.migrationDeadlineBanner.helpCenter")}</Link> regularly.
+          </Trans>
         </Text>
-        <BlockStack gap="100">
-          <Text as="p">
-            <Trans
-              i18nKey="dashboard.migrationDeadlineBanner.plusMerchant"
-              values={{ date1: plusDeadline, date2: plusAutoUpgrade }}
-              components={{
-                1: <Link url={SHOPIFY_HELP_LINKS.UPGRADE_GUIDE} external>Shopify Help Center</Link>,
-                strong: <strong />,
-              }}
-            />
-          </Text>
-          <Text as="p" variant="bodySm" tone="subdued">
-            <Link
-              url={SHOPIFY_HELP_LINKS.UPGRADE_GUIDE}
-              external
-            >
-              {t("dashboard.migrationDeadlineBanner.plusGuide")}
-            </Link>
-          </Text>
-        </BlockStack>
-        <BlockStack gap="100">
-          <Text as="p">
-            <Trans
-              i18nKey="dashboard.migrationDeadlineBanner.nonPlusMerchant"
-              values={{ date: nonPlusDeadline }}
-              components={{
-                1: <Link url={SHOPIFY_HELP_LINKS.UPGRADE_GUIDE} external>Shopify Help Center</Link>,
-                strong: <strong />,
-              }}
-            />
-          </Text>
-          <Text as="p" variant="bodySm" tone="subdued">
-            <Link
-              url={SHOPIFY_HELP_LINKS.UPGRADE_GUIDE}
-              external
-            >
-              {t("dashboard.migrationDeadlineBanner.deprecationSchedule")}
-            </Link>
-          </Text>
-        </BlockStack>
-        <Text as="p" tone="subdued">
-          {t("dashboard.migrationDeadlineBanner.footer")}
-        </Text>
+        <InlineStack align="start">
+          <Button url="/app/migrate" variant="plain" icon={ArrowRightIcon}>
+            {t("dashboard.migrationDeadlineBanner.action")}
+          </Button>
+        </InlineStack>
       </BlockStack>
     </Banner>
   );

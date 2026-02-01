@@ -52,7 +52,7 @@ export function TopBar({
         </Text>
         <InlineStack gap="300" blockAlign="center">
           <InlineStack gap="200" blockAlign="center">
-            <Badge tone={planBadgeTone}>{planConfig.name}</Badge>
+            <Badge tone={planBadgeTone}>{t(planConfig.name)}</Badge>
           </InlineStack>
           <LanguageSwitcher />
           <Popover

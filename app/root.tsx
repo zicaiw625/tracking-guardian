@@ -176,7 +176,7 @@ export function ErrorBoundary() {
           <div className="error-card">
             <h1 className="error-title">{title}</h1>
             <p className="error-message">{message}</p>
-            <p className="error-code">Error Code: {code}</p>
+            <p className="error-code">{t("errorPage.errorCode")} {code}</p>
             <button
               className="error-button"
               onClick={() => window.location.reload()}

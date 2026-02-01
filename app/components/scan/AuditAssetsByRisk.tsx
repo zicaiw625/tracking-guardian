@@ -13,6 +13,7 @@ import {
 import { AlertCircleIcon, CheckCircleIcon, ArrowRightIcon, ClockIcon, LockIcon } from "~/components/icons";
 import type { AuditAssetRecord } from "~/services/audit-asset.server";
 import type { PlanId } from "~/services/billing/plans";
+import { useTranslation } from "react-i18next";
 
 interface AuditAssetsByRiskProps {
   assets: AuditAssetRecord[];
@@ -48,49 +49,6 @@ function determineRiskCategory(
   return "can_replace";
 }
 
-const MIGRATION_LABELS: Record<string, { label: string; description: string; url?: string }> = {
-  web_pixel: {
-    label: "迁移到 Web Pixel",
-    description: "使用 Shopify Web Pixel Extension 替代客户端追踪",
-    url: "/app/migrate",
-  },
-  ui_extension: {
-    label: "手动迁移",
-    description: "页面侧脚本需按 Shopify 官方能力自行迁移",
-    url: "/app/migrate",
-  },
-  server_side: {
-    label: "不提供",
-    description: "当前版本不提供服务端投递能力",
-    url: "/app/migrate",
-  },
-  none: {
-    label: "无需迁移",
-    description: "此资产无需迁移，可保留或手动处理",
-  },
-};
-
-const RISK_CATEGORY_INFO: Record<string, { label: string; tone: "critical" | "warning" | "info" | "success"; description: string; icon: typeof AlertCircleIcon }> = {
-  will_fail: {
-    label: "会失效/受限",
-    tone: "critical",
-    description: "这些资产在升级后将会失效或受到限制，必须优先迁移",
-    icon: AlertCircleIcon,
-  },
-  can_replace: {
-    label: "可直接替换",
-    tone: "warning",
-    description: "这些资产可以直接替换为新的实现方式，建议尽快迁移",
-    icon: AlertCircleIcon,
-  },
-  no_migration_needed: {
-    label: "无需迁移",
-    tone: "success",
-    description: "这些资产无需立即迁移，可以延后处理或保留",
-    icon: CheckCircleIcon,
-  },
-};
-
 export function AuditAssetsByRisk({
   assets,
   onAssetClick,
@@ -98,6 +56,57 @@ export function AuditAssetsByRisk({
   currentPlan = "free",
   freeTierLimit = 3,
 }: AuditAssetsByRiskProps) {
+  const { t } = useTranslation();
+
+  const getRiskCategoryInfo = (category: "will_fail" | "can_replace" | "no_migration_needed") => {
+    const map = {
+      will_fail: {
+        label: t("scan.risk.category.willFail.label"),
+        tone: "critical" as const,
+        description: t("scan.risk.category.willFail.desc"),
+        icon: AlertCircleIcon,
+      },
+      can_replace: {
+        label: t("scan.risk.category.canReplace.label"),
+        tone: "warning" as const,
+        description: t("scan.risk.category.canReplace.desc"),
+        icon: AlertCircleIcon,
+      },
+      no_migration_needed: {
+        label: t("scan.risk.category.noMigrationNeeded.label"),
+        tone: "success" as const,
+        description: t("scan.risk.category.noMigrationNeeded.desc"),
+        icon: CheckCircleIcon,
+      },
+    };
+    return map[category];
+  };
+
+  const getMigrationLabel = (migration: string) => {
+    const map: Record<string, { label: string; description: string; url?: string }> = {
+      web_pixel: {
+        label: t("scan.risk.migrationLabel.webPixel.label"),
+        description: t("scan.risk.migrationLabel.webPixel.desc"),
+        url: "/app/migrate",
+      },
+      ui_extension: {
+        label: t("scan.risk.migrationLabel.uiExtension.label"),
+        description: t("scan.risk.migrationLabel.uiExtension.desc"),
+        url: "/app/migrate",
+      },
+      server_side: {
+        label: t("scan.risk.migrationLabel.serverSide.label"),
+        description: t("scan.risk.migrationLabel.serverSide.desc"),
+        url: "/app/migrate",
+      },
+      none: {
+        label: t("scan.risk.migrationLabel.none.label"),
+        description: t("scan.risk.migrationLabel.none.desc"),
+      },
+    };
+    return map[migration] || map.none;
+  };
+
   const assetsByCategory = {
     will_fail: assets.filter((a) => {
       const category = determineRiskCategory(a, a.riskLevel as "high" | "medium" | "low");
@@ -149,16 +158,29 @@ export function AuditAssetsByRisk({
       window.location.href = `/app/migrate?assetId=${asset.id}`;
     }
   };
+
+  const getAssetCategoryName = (cat: string) => {
+    const map: Record<string, string> = {
+      pixel: t("scan.risk.assetCategory.pixel"),
+      affiliate: t("scan.risk.assetCategory.affiliate"),
+      survey: t("scan.risk.assetCategory.survey"),
+      support: t("scan.risk.assetCategory.support"),
+      analytics: t("scan.risk.assetCategory.analytics"),
+      other: t("scan.risk.assetCategory.other"),
+    };
+    return map[cat] || t("scan.risk.assetCategory.other");
+  };
+
   if (!hasAssets) {
     return (
       <Card>
         <BlockStack gap="400">
           <Text as="h2" variant="headingMd">
-            审计资产清单
+            {t("scan.risk.assetList")}
           </Text>
           <Banner tone="info">
             <Text as="p" variant="bodySm">
-              暂无审计资产。完成扫描后，资产清单将显示在这里。
+              {t("scan.risk.emptyList")}
             </Text>
           </Banner>
         </BlockStack>
@@ -170,14 +192,14 @@ export function AuditAssetsByRisk({
       <BlockStack gap="500">
         <InlineStack align="space-between" blockAlign="center">
           <Text as="h2" variant="headingMd">
-            审计资产清单
+            {t("scan.risk.assetList")}
           </Text>
-          <Badge tone="info">{`${totalAssets} 项`}</Badge>
+          <Badge tone="info">{t("common.countItems", { count: totalAssets })}</Badge>
         </InlineStack>
         <Card>
           <BlockStack gap="300">
             <Text as="h3" variant="headingSm">
-              风险评分摘要
+              {t("scan.risk.scoreSummary")}
             </Text>
             <InlineStack gap="400" wrap>
               <Box minWidth="200px">
@@ -197,10 +219,10 @@ export function AuditAssetsByRisk({
                       {riskScore}
                     </Text>
                     <Text as="p" variant="bodySm">
-                      风险分数
+                      {t("scan.risk.riskScore")}
                     </Text>
                     <Badge tone={riskLevel === "high" ? "critical" : riskLevel === "medium" ? undefined : "success"}>
-                      {riskLevel === "high" ? "高风险" : riskLevel === "medium" ? "中风险" : "低风险"}
+                      {t(`scan.risk.level.${riskLevel}`)}
                     </Badge>
                   </BlockStack>
                 </Box>
@@ -208,15 +230,15 @@ export function AuditAssetsByRisk({
               <Box minWidth="200px">
                 <BlockStack gap="200">
                   <Text as="p" variant="bodySm">
-                    将失效/将断档
+                    {t("scan.risk.willFailOrBreak")}
                   </Text>
                   <Text as="p" variant="headingLg" fontWeight="bold">
-                    {String(totalHighRisk)} 项
+                    {t("common.countItems", { count: totalHighRisk })}
                   </Text>
                   <Text as="p" variant="bodySm">
-                    预计修复时间: {estimatedTimeMinutes < 60
-                      ? `${estimatedTimeMinutes} 分钟`
-                      : `${Math.floor(estimatedTimeMinutes / 60)} 小时 ${estimatedTimeMinutes % 60} 分钟`}
+                    {t("scan.risk.estimatedFixTime")}: {estimatedTimeMinutes < 60
+                      ? t("common.minutes", { count: estimatedTimeMinutes })
+                      : `${Math.floor(estimatedTimeMinutes / 60)} ${t("common.hours")} ${estimatedTimeMinutes % 60} ${t("common.minutes")}`}
                   </Text>
                 </BlockStack>
               </Box>
@@ -230,7 +252,7 @@ export function AuditAssetsByRisk({
                         url="/app/migrate"
                         icon={ArrowRightIcon}
                       >
-                        启用 Purchase-only 修复（约 {String(Math.ceil(estimatedTimeMinutes * 0.3))} 分钟）
+                        {t("scan.risk.enablePurchaseFix", { time: String(Math.ceil(estimatedTimeMinutes * 0.3)) })}
                       </Button>
                       {currentPlan !== "free" && currentPlan !== "starter" && (
                         <Button
@@ -239,7 +261,7 @@ export function AuditAssetsByRisk({
                           url="/app/migrate?mode=full_funnel"
                           icon={ArrowRightIcon}
                         >
-                          启用 Full-funnel 修复（约 {String(Math.ceil(estimatedTimeMinutes * 0.5))} 分钟，Growth）
+                          {t("scan.risk.enableFullFunnelFix", { time: String(Math.ceil(estimatedTimeMinutes * 0.5)) })}
                         </Button>
                       )}
                     </BlockStack>
@@ -253,21 +275,21 @@ export function AuditAssetsByRisk({
           <BlockStack gap="300">
             <InlineStack align="space-between" blockAlign="center">
               <InlineStack gap="200" blockAlign="center">
-                <Icon source={RISK_CATEGORY_INFO.will_fail.icon} tone="critical" />
+                <Icon source={getRiskCategoryInfo("will_fail").icon} tone="critical" />
                 <Text as="h3" variant="headingSm" tone="critical">
-                  {RISK_CATEGORY_INFO.will_fail.label}
+                  {getRiskCategoryInfo("will_fail").label}
                 </Text>
-                <Badge tone="critical">{`${assetsByCategory.will_fail.length} 项`}</Badge>
+                <Badge tone="critical">{t("common.countItems", { count: assetsByCategory.will_fail.length })}</Badge>
               </InlineStack>
             </InlineStack>
             <Banner tone="critical">
               <Text as="p" variant="bodySm">
-                {RISK_CATEGORY_INFO.will_fail.description}
+                {getRiskCategoryInfo("will_fail").description}
               </Text>
             </Banner>
             <BlockStack gap="200">
               {visibleHighRiskAssets.map((asset) => {
-                const migrationInfo = MIGRATION_LABELS[asset.suggestedMigration] || MIGRATION_LABELS.none;
+                const migrationInfo = getMigrationLabel(asset.suggestedMigration);
                 return (
                   <Box
                     key={asset.id}
@@ -280,7 +302,7 @@ export function AuditAssetsByRisk({
                         <BlockStack gap="100">
                           <InlineStack gap="200" blockAlign="center" wrap>
                             <Text as="span" fontWeight="semibold">
-                              {asset.displayName || asset.platform || "未知资产"}
+                              {asset.displayName || asset.platform || t("common.unknownAsset")}
                             </Text>
                             {asset.platform && (
                               <Badge>{asset.platform}</Badge>
@@ -292,7 +314,7 @@ export function AuditAssetsByRisk({
                               if (typeof priority === "number" && priority > 0) {
                                 return (
                                   <Badge tone={priority >= 8 ? "critical" : undefined}>
-                                    {`优先级 ${priority}/10`}
+                                    {t("scan.risk.priority", { level: priority })}
                                   </Badge>
                                 );
                               }
@@ -300,22 +322,17 @@ export function AuditAssetsByRisk({
                             })()}
                           </InlineStack>
                           <Text as="p" variant="bodySm" tone="subdued">
-                            {asset.category === "pixel" ? "追踪像素" :
-                             asset.category === "affiliate" ? "联盟追踪" :
-                             asset.category === "survey" ? "售后问卷" :
-                             asset.category === "support" ? "客服入口" :
-                             asset.category === "analytics" ? "站内分析" :
-                             "其他"}
+                            {getAssetCategoryName(asset.category)}
                           </Text>
                         </BlockStack>
-                        <Badge tone="critical">高风险</Badge>
+                        <Badge tone="critical">{t("scan.risk.level.high")}</Badge>
                       </InlineStack>
                       <Divider />
                       <BlockStack gap="200">
                         <InlineStack align="space-between" blockAlign="center">
                           <BlockStack gap="100">
                             <Text as="p" variant="bodySm" fontWeight="semibold">
-                              推荐迁移方式
+                              {t("scan.risk.recommendedMigration")}
                             </Text>
                             <Text as="p" variant="bodySm" tone="subdued">
                               {migrationInfo.label}
@@ -334,7 +351,7 @@ export function AuditAssetsByRisk({
                                 onAssetClick?.(asset.id);
                               }}
                             >
-                              一键迁移
+                              {t("scan.risk.oneClickMigrate")}
                             </Button>
                           )}
                         </InlineStack>
@@ -346,9 +363,10 @@ export function AuditAssetsByRisk({
                                 <InlineStack gap="200" blockAlign="center">
                                   <Icon source={ClockIcon} />
                                   <Text as="span" variant="bodySm">
-                                    预计耗时: {time < 60
-                                      ? `${time} 分钟`
-                                      : `${Math.floor(time / 60)} 小时 ${time % 60} 分钟`}
+                                    {t("scan.risk.estimatedTime")}
+                                    {time < 60
+                                      ? t("common.minutes", { count: time })
+                                      : `${Math.floor(time / 60)} ${t("common.hours")} ${time % 60} ${t("common.minutes")}`}
                                   </Text>
                                 </InlineStack>
                               );
@@ -360,7 +378,7 @@ export function AuditAssetsByRisk({
                               ? (asset.details as Record<string, unknown>).priority
                               : undefined;
                             if (typeof priority === "number" && priority >= 8) {
-                              return <Badge tone="critical">高优先级</Badge>;
+                              return <Badge tone="critical">{t("scan.risk.highPriority")}</Badge>;
                             }
                             return null;
                           })()}
@@ -382,11 +400,11 @@ export function AuditAssetsByRisk({
                         <InlineStack gap="200" blockAlign="center">
                           <Icon source={LockIcon} tone="subdued" />
                           <Text as="p" variant="bodySm" fontWeight="semibold">
-                            还有 {hiddenHighRiskCount} 项高风险资产未显示
+                            {t("scan.risk.hiddenAssets", { count: hiddenHighRiskCount })}
                           </Text>
                         </InlineStack>
                         <Text as="p" variant="bodySm" tone="subdued">
-                          升级到 Migration 或更高套餐，查看完整风险清单和迁移建议
+                          {t("scan.risk.upgradeHint")}
                         </Text>
                       </BlockStack>
                       <Button
@@ -394,7 +412,7 @@ export function AuditAssetsByRisk({
                         url="/app/billing"
                         icon={ArrowRightIcon}
                       >
-                        升级解锁
+                        {t("scan.risk.upgradeUnlock")}
                       </Button>
                     </InlineStack>
                   </BlockStack>
@@ -409,21 +427,21 @@ export function AuditAssetsByRisk({
             <BlockStack gap="300">
               <InlineStack align="space-between" blockAlign="center">
                 <InlineStack gap="200" blockAlign="center">
-                  <Icon source={RISK_CATEGORY_INFO.can_replace.icon} tone="warning" />
+                  <Icon source={getRiskCategoryInfo("can_replace").icon} tone="warning" />
                   <Text as="h3" variant="headingSm">
-                    {RISK_CATEGORY_INFO.can_replace.label}
+                    {getRiskCategoryInfo("can_replace").label}
                   </Text>
-                  <Badge>{`${assetsByCategory.can_replace.length} 项`}</Badge>
+                  <Badge>{t("common.countItems", { count: assetsByCategory.can_replace.length })}</Badge>
                 </InlineStack>
               </InlineStack>
               <Banner tone="warning">
                 <Text as="p" variant="bodySm">
-                  {RISK_CATEGORY_INFO.can_replace.description}
+                  {getRiskCategoryInfo("can_replace").description}
                 </Text>
               </Banner>
               <BlockStack gap="200">
                 {assetsByCategory.can_replace.map((asset) => {
-                  const migrationInfo = MIGRATION_LABELS[asset.suggestedMigration] || MIGRATION_LABELS.none;
+                  const migrationInfo = getMigrationLabel(asset.suggestedMigration);
                   return (
                     <Box
                       key={asset.id}
@@ -436,7 +454,7 @@ export function AuditAssetsByRisk({
                           <BlockStack gap="100">
                             <InlineStack gap="200" blockAlign="center" wrap>
                               <Text as="span" fontWeight="semibold">
-                                {asset.displayName || asset.platform || "未知资产"}
+                                {asset.displayName || asset.platform || t("common.unknownAsset")}
                               </Text>
                               {asset.platform && (
                                 <Badge>{asset.platform}</Badge>
@@ -448,7 +466,7 @@ export function AuditAssetsByRisk({
                                 if (typeof priority === "number" && priority > 0) {
                                   return (
                                     <Badge tone={priority >= 5 ? undefined : "info"}>
-                                      {`优先级 ${priority}/10`}
+                                      {t("scan.risk.priority", { level: priority })}
                                     </Badge>
                                   );
                                 }
@@ -456,22 +474,17 @@ export function AuditAssetsByRisk({
                               })()}
                             </InlineStack>
                             <Text as="p" variant="bodySm" tone="subdued">
-                              {asset.category === "pixel" ? "追踪像素" :
-                               asset.category === "affiliate" ? "联盟追踪" :
-                               asset.category === "survey" ? "售后问卷" :
-                               asset.category === "support" ? "客服入口" :
-                               asset.category === "analytics" ? "站内分析" :
-                               "其他"}
+                              {getAssetCategoryName(asset.category)}
                             </Text>
                           </BlockStack>
-                          <Badge tone="warning">中风险</Badge>
+                          <Badge tone="warning">{t("scan.risk.level.medium")}</Badge>
                         </InlineStack>
                         <Divider />
                         <BlockStack gap="200">
                           <InlineStack align="space-between" blockAlign="center">
                             <BlockStack gap="100">
                               <Text as="p" variant="bodySm" fontWeight="semibold">
-                                推荐迁移方式
+                                {t("scan.risk.recommendedMigration")}
                               </Text>
                               <Text as="p" variant="bodySm" tone="subdued">
                                 {migrationInfo.label}
@@ -490,7 +503,7 @@ export function AuditAssetsByRisk({
                                   onAssetClick?.(asset.id);
                                 }}
                               >
-                                一键迁移
+                                {t("scan.risk.oneClickMigrate")}
                               </Button>
                             )}
                           </InlineStack>
@@ -502,9 +515,10 @@ export function AuditAssetsByRisk({
                                   <InlineStack gap="200" blockAlign="center">
                                     <Icon source={ClockIcon} />
                                     <Text as="span" variant="bodySm">
-                                      预计耗时: {time < 60
-                                        ? `${time} 分钟`
-                                        : `${Math.floor(time / 60)} 小时 ${time % 60} 分钟`}
+                                      {t("scan.risk.estimatedTime")}
+                                      {time < 60
+                                        ? t("common.minutes", { count: time })
+                                        : `${Math.floor(time / 60)} ${t("common.hours")} ${time % 60} ${t("common.minutes")}`}
                                     </Text>
                                   </InlineStack>
                                 );
@@ -516,7 +530,7 @@ export function AuditAssetsByRisk({
                                 ? (asset.details as Record<string, unknown>).priority
                                 : undefined;
                               if (typeof priority === "number" && priority >= 5 && priority < 8) {
-                                return <Badge>中优先级</Badge>;
+                                return <Badge>{t("scan.risk.mediumPriority")}</Badge>;
                               }
                               return null;
                             })()}
@@ -536,21 +550,21 @@ export function AuditAssetsByRisk({
             <BlockStack gap="300">
               <InlineStack align="space-between" blockAlign="center">
                 <InlineStack gap="200" blockAlign="center">
-                  <Icon source={RISK_CATEGORY_INFO.no_migration_needed.icon} tone="success" />
+                  <Icon source={getRiskCategoryInfo("no_migration_needed").icon} tone="success" />
                   <Text as="h3" variant="headingSm">
-                    {RISK_CATEGORY_INFO.no_migration_needed.label}
+                    {getRiskCategoryInfo("no_migration_needed").label}
                   </Text>
-                  <Badge tone="success">{`${assetsByCategory.no_migration_needed.length} 项`}</Badge>
+                  <Badge tone="success">{t("common.countItems", { count: assetsByCategory.no_migration_needed.length })}</Badge>
                 </InlineStack>
               </InlineStack>
               <Banner tone="success">
                 <Text as="p" variant="bodySm">
-                  {RISK_CATEGORY_INFO.no_migration_needed.description}
+                  {getRiskCategoryInfo("no_migration_needed").description}
                 </Text>
               </Banner>
               <BlockStack gap="200">
                 {assetsByCategory.no_migration_needed.map((asset) => {
-                  const migrationInfo = MIGRATION_LABELS[asset.suggestedMigration] || MIGRATION_LABELS.none;
+                  const migrationInfo = getMigrationLabel(asset.suggestedMigration);
                   return (
                     <Box
                       key={asset.id}
@@ -563,7 +577,7 @@ export function AuditAssetsByRisk({
                           <BlockStack gap="100">
                             <InlineStack gap="200" blockAlign="center" wrap>
                               <Text as="span" fontWeight="semibold">
-                                {asset.displayName || asset.platform || "未知资产"}
+                                {asset.displayName || asset.platform || t("common.unknownAsset")}
                               </Text>
                               {asset.platform && (
                                 <Badge>{asset.platform}</Badge>
@@ -575,7 +589,7 @@ export function AuditAssetsByRisk({
                                 if (typeof priority === "number" && priority > 0) {
                                   return (
                                     <Badge tone="info">
-                                      {`优先级 ${priority}/10`}
+                                      {t("scan.risk.priority", { level: priority })}
                                     </Badge>
                                   );
                                 }
@@ -583,22 +597,17 @@ export function AuditAssetsByRisk({
                               })()}
                             </InlineStack>
                             <Text as="p" variant="bodySm" tone="subdued">
-                              {asset.category === "pixel" ? "追踪像素" :
-                               asset.category === "affiliate" ? "联盟追踪" :
-                               asset.category === "survey" ? "售后问卷" :
-                               asset.category === "support" ? "客服入口" :
-                               asset.category === "analytics" ? "站内分析" :
-                               "其他"}
+                              {getAssetCategoryName(asset.category)}
                             </Text>
                           </BlockStack>
-                          <Badge tone="success">低风险</Badge>
+                          <Badge tone="success">{t("scan.risk.level.low")}</Badge>
                         </InlineStack>
                         <Divider />
                         <BlockStack gap="200">
                           <InlineStack align="space-between" blockAlign="center">
                             <BlockStack gap="100">
                               <Text as="p" variant="bodySm" fontWeight="semibold">
-                                推荐迁移方式
+                                {t("scan.risk.recommendedMigration")}
                               </Text>
                               <Text as="p" variant="bodySm" tone="subdued">
                                 {migrationInfo.label}
@@ -617,7 +626,7 @@ export function AuditAssetsByRisk({
                                   onAssetClick?.(asset.id);
                                 }}
                               >
-                                查看详情
+                                {t("scan.risk.viewDetails")}
                               </Button>
                             )}
                           </InlineStack>
@@ -628,9 +637,10 @@ export function AuditAssetsByRisk({
                                 <InlineStack gap="200" blockAlign="center">
                                   <Icon source={ClockIcon} />
                                   <Text as="span" variant="bodySm">
-                                    预计耗时: {time < 60
-                                      ? `${time} 分钟`
-                                      : `${Math.floor(time / 60)} 小时 ${time % 60} 分钟`}
+                                    {t("scan.risk.estimatedTime")}
+                                    {time < 60
+                                      ? t("common.minutes", { count: time })
+                                      : `${Math.floor(time / 60)} ${t("common.hours")} ${time % 60} ${t("common.minutes")}`}
                                   </Text>
                                 </InlineStack>
                               );

@@ -1,4 +1,5 @@
 import { BlockStack, TextField } from "@shopify/polaris";
+import { useTranslation } from "react-i18next";
 
 export type PlatformType = "meta" | "google" | "tiktok";
 
@@ -39,33 +40,34 @@ interface MetaFormProps {
 }
 
 function MetaForm({ values, onChange, errors, disabled }: MetaFormProps) {
+  const { t } = useTranslation();
   return (
     <BlockStack gap="300">
       <TextField
-        label="Pixel ID"
+        label={t("Forms.Credentials.Meta.PixelId.Label")}
         value={values.pixelId}
         onChange={(v) => onChange({ ...values, pixelId: v })}
         autoComplete="off"
-        placeholder="1234567890123456"
+        placeholder={t("Forms.Credentials.Meta.PixelId.Placeholder")}
         error={errors?.pixelId}
         disabled={disabled}
       />
       <TextField
-        label="Access Token"
+        label={t("Forms.Credentials.Meta.AccessToken.Label")}
         type="password"
         value={values.accessToken}
         onChange={(v) => onChange({ ...values, accessToken: v })}
         autoComplete="off"
-        helpText="在 Meta Events Manager 中生成系统用户访问令牌"
+        helpText={t("Forms.Credentials.Meta.AccessToken.HelpText")}
         error={errors?.accessToken}
         disabled={disabled}
       />
       <TextField
-        label="Test Event Code (可选)"
+        label={t("Forms.Credentials.Meta.TestEventCode.Label")}
         value={values.testEventCode || ""}
         onChange={(v) => onChange({ ...values, testEventCode: v || undefined })}
         autoComplete="off"
-        helpText="用于测试模式，生产环境请留空"
+        helpText={t("Forms.Credentials.Meta.TestEventCode.HelpText")}
         error={errors?.testEventCode}
         disabled={disabled}
       />
@@ -81,30 +83,31 @@ interface GoogleFormProps {
 }
 
 function GoogleForm({ values, onChange, errors, disabled }: GoogleFormProps) {
+  const { t } = useTranslation();
   const measurementIdError =
     errors?.measurementId ||
     (values.measurementId && !values.measurementId.match(/^G-[A-Z0-9]+$/i)
-      ? "格式应为 G-XXXXXXXXXX"
+      ? t("Forms.Credentials.Google.MeasurementId.Error")
       : undefined);
   return (
     <BlockStack gap="300">
       <TextField
-        label="Measurement ID"
+        label={t("Forms.Credentials.Google.MeasurementId.Label")}
         value={values.measurementId}
         onChange={(v) => onChange({ ...values, measurementId: v })}
         autoComplete="off"
-        placeholder="G-XXXXXXXXXX"
-        helpText="GA4 媒体资源的 Measurement ID。在 GA4 管理后台 > 数据流中找到"
+        placeholder={t("Forms.Credentials.Google.MeasurementId.Placeholder")}
+        helpText={t("Forms.Credentials.Google.MeasurementId.HelpText")}
         error={measurementIdError}
         disabled={disabled}
       />
       <TextField
-        label="API Secret"
+        label={t("Forms.Credentials.Google.ApiSecret.Label")}
         type="password"
         value={values.apiSecret}
         onChange={(v) => onChange({ ...values, apiSecret: v })}
         autoComplete="off"
-        helpText="在 GA4 > 数据流 > Measurement Protocol API secrets 中创建"
+        helpText={t("Forms.Credentials.Google.ApiSecret.HelpText")}
         error={errors?.apiSecret}
         disabled={disabled}
       />
@@ -120,24 +123,25 @@ interface TikTokFormProps {
 }
 
 function TikTokForm({ values, onChange, errors, disabled }: TikTokFormProps) {
+  const { t } = useTranslation();
   return (
     <BlockStack gap="300">
       <TextField
-        label="Pixel ID"
+        label={t("Forms.Credentials.TikTok.PixelId.Label")}
         value={values.pixelId}
         onChange={(v) => onChange({ ...values, pixelId: v })}
         autoComplete="off"
-        placeholder="C1234567890123456789"
+        placeholder={t("Forms.Credentials.TikTok.PixelId.Placeholder")}
         error={errors?.pixelId}
         disabled={disabled}
       />
       <TextField
-        label="Access Token"
+        label={t("Forms.Credentials.TikTok.AccessToken.Label")}
         type="password"
         value={values.accessToken}
         onChange={(v) => onChange({ ...values, accessToken: v })}
         autoComplete="off"
-        helpText="在 TikTok Events Manager 中生成"
+        helpText={t("Forms.Credentials.TikTok.AccessToken.HelpText")}
         error={errors?.accessToken}
         disabled={disabled}
       />

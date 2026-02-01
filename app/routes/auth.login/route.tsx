@@ -6,6 +6,8 @@ import polarisStyles from "@shopify/polaris/build/esm/styles.css?url";
 import polarisTranslationsEn from "@shopify/polaris/locales/en.json" with { type: "json" };
 import { login } from "../../shopify.server";
 import { getPolarisTranslations } from "../../utils/polaris-i18n";
+import { useTranslation, I18nextProvider } from "react-i18next";
+import i18nGlobal from "../../i18n";
 
 const i18nEn = getPolarisTranslations(polarisTranslationsEn);
 
@@ -30,8 +32,11 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
         polarisTranslations: i18nEn,
     });
 };
-export default function Auth() {
+
+function AuthContent() {
+    const { t } = useTranslation();
     const { polarisTranslations, hasShopParam, errors } = useLoaderData<typeof loader>();
+    
     return (<AppProvider i18n={polarisTranslations}>
       <Page>
         <Card>
@@ -40,32 +45,39 @@ export default function Auth() {
               Tracking Guardian
             </Text>
             {hasShopParam && errors ? (<Banner tone="critical">
-                <p>认证过程中发生错误，请重试或联系支持。</p>
+                <p>{t("Auth.Login.Error")}</p>
               </Banner>) : (<>
                 <Banner tone="info">
-                  <p>请通过 Shopify 管理后台访问此应用</p>
+                  <p>{t("Auth.Login.Info")}</p>
                 </Banner>
                 <BlockStack gap="300">
                   <Text as="p" variant="bodyMd">
-                    <strong>如果您已安装此应用：</strong>
+                    <strong>{t("Auth.Login.InstalledTitle")}</strong>
                   </Text>
                   <Text as="p" tone="subdued">
-                    打开 Shopify 管理后台 → 设置 → 应用和销售渠道 → Tracking Guardian
+                    {t("Auth.Login.InstalledDesc")}
                   </Text>
                   <Text as="p" variant="bodyMd">
-                    <strong>如果您尚未安装：</strong>
+                    <strong>{t("Auth.Login.NotInstalledTitle")}</strong>
                   </Text>
                   <Text as="p" tone="subdued">
-                    请从 Shopify App Store 搜索并安装「Tracking Guardian」
+                    {t("Auth.Login.NotInstalledDesc")}
                   </Text>
                 </BlockStack>
                 <Text as="p" tone="subdued" variant="bodySm">
-                  根据 Shopify 平台要求，应用必须从 Shopify 管理后台或 App Store 启动，
-                  不支持直接访问此页面进行登录。
+                  {t("Auth.Login.Footer")}
                 </Text>
               </>)}
           </BlockStack>
         </Card>
       </Page>
     </AppProvider>);
+}
+
+export default function Auth() {
+  return (
+    <I18nextProvider i18n={i18nGlobal}>
+      <AuthContent />
+    </I18nextProvider>
+  );
 }

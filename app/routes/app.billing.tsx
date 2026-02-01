@@ -3,29 +3,34 @@ import { json, redirect } from "@remix-run/node";
 import { useLoaderData, useSubmit, useNavigation, useSearchParams, useActionData } from "@remix-run/react";
 import { useEffect, useState } from "react";
 import { Page, Layout, Card, Text, BlockStack, InlineStack, Button, Badge, Box, Divider, Banner, ProgressBar, List, DataTable, Modal } from "@shopify/polaris";
+import { useTranslation } from "react-i18next";
 import { useToastContext } from "~/components/ui";
 import { PageIntroCard } from "~/components/layout/PageIntroCard";
 import { authenticate } from "../shopify.server";
 import prisma from "../db.server";
 import { createSubscription, getSubscriptionStatus, cancelSubscription, checkOrderLimit, handleSubscriptionConfirmation, getBillingHistory, type BillingHistoryItem, type PlanId } from "../services/billing.server";
 import { getUsageHistory } from "../services/billing/usage-history.server";
+import { DEPRECATION_DATES, formatDeadlineDate } from "~/utils/migration-deadlines";
 
 import { assertSafeRedirect } from "../utils/redirect-validation.server";
 import { logger } from "../utils/logger.server";
 import { trackEvent } from "../services/analytics.server";
 import { safeFireAndForget } from "../utils/helpers.server";
+
 export const loader = async ({ request }: LoaderFunctionArgs) => {
     const { BILLING_PLANS, PLAN_IDS } = await import("../services/billing.server");
     const { session, admin } = await authenticate.admin(request);
     const shopDomain = session.shop;
     const url = new URL(request.url);
     const chargeId = url.searchParams.get("charge_id");
+
     if (chargeId) {
         const confirmation = await handleSubscriptionConfirmation(admin, shopDomain, chargeId);
         const shop = await prisma.shop.findUnique({
             where: { shopDomain },
             select: { id: true, shopDomain: true },
         });
+
         if (shop) {
             safeFireAndForget(
                 trackEvent({
@@ -41,6 +46,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
                 })
             );
         }
+
         url.searchParams.delete("charge_id");
         url.searchParams.set("success", confirmation.success ? "true" : "false");
         if (!confirmation.success && confirmation.error) {
@@ -48,10 +54,12 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
         }
         return redirect(`${url.pathname}?${url.searchParams.toString()}`);
     }
+
     const shop = await prisma.shop.findUnique({
         where: { shopDomain },
         select: { id: true, plan: true },
     });
+
     if (!shop) {
         return json({
             shopDomain,
@@ -73,6 +81,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
             billingPortalUrl: `https://${shopDomain}/admin/settings/billing`,
         });
     }
+
     const subscriptionStatus = await getSubscriptionStatus(admin, shopDomain);
     const orderUsage = await checkOrderLimit(shop.id, subscriptionStatus.plan);
     const billingHistory = await getBillingHistory(admin);
@@ -85,6 +94,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       });
       return null;
     });
+
         safeFireAndForget(
         trackEvent({
             shopId: shop.id,
@@ -97,6 +107,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
             },
         })
     );
+
     return json({
         shopDomain,
         subscription: subscriptionStatus,
@@ -109,16 +120,19 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
         billingPortalUrl: `https://${shopDomain}/admin/settings/billing`,
     });
 };
+
 export const action = async ({ request }: ActionFunctionArgs) => {
     try {
         const { session, admin, redirect: shopifyRedirect } = await authenticate.admin(request);
         const shopDomain = session.shop;
         const formData = await request.formData();
         const action = formData.get("_action");
+
         const shop = await prisma.shop.findUnique({
             where: { shopDomain },
             select: { id: true, shopDomain: true },
         });
+
         switch (action) {
         case "subscribe": {
             const planId = formData.get("planId") as PlanId;
@@ -131,6 +145,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
             returnUrlObj.searchParams.set("shop", shopDomain);
 
             const returnUrl = returnUrlObj.toString();
+
             if (shop) {
                 safeFireAndForget(
                     trackEvent({
@@ -141,7 +156,9 @@ export const action = async ({ request }: ActionFunctionArgs) => {
                     })
                 );
             }
+
             const result = await createSubscription(admin, shopDomain, planId, returnUrl, process.env.NODE_ENV !== "production");
+
             if (shop && !result.success) {
                 safeFireAndForget(
                     trackEvent({
@@ -152,6 +169,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
                     })
                 );
             }
+
             if (result.success && result.confirmationUrl) {
                 const allowedDomains = [
                     "admin.shopify.com",
@@ -173,21 +191,22 @@ export const action = async ({ request }: ActionFunctionArgs) => {
                 }
                 return shopifyRedirect(result.confirmationUrl, { target: "_parent" });
             }
+
             return json({
                 success: false,
-                error: result.error || "订阅创建失败",
+                error: result.error || "Subscription creation failed",
             });
         }
         case "cancel": {
             const subscriptionId = formData.get("subscriptionId") as string;
             if (!subscriptionId) {
-                return json({ success: false, error: "缺少订阅 ID" });
+                return json({ success: false, error: "Missing subscription ID" });
             }
             const result = await cancelSubscription(admin, shopDomain, subscriptionId);
             return json(result);
         }
         default:
-            return json({ success: false, error: "未知操作" });
+            return json({ success: false, error: "Unknown action" });
         }
     } catch (error) {
         if (error instanceof Response) {
@@ -198,32 +217,36 @@ export const action = async ({ request }: ActionFunctionArgs) => {
             stack: error instanceof Error ? error.stack : undefined,
         });
         return json(
-            { success: false, error: "认证失败，请刷新页面后重试" },
+            { success: false, error: "Authentication failed, please refresh and try again" },
             { status: 401 }
         );
     }
 };
+
 export default function BillingPage() {
     const loaderData = useLoaderData<typeof loader>();
     const { subscription, usage, plans, planIds, billingHistory, billingPortalUrl } = loaderData;
     const actionData = useActionData<typeof action>();
     const submit = useSubmit();
     const navigation = useNavigation();
+    const { t } = useTranslation();
     const { showSuccess, showError } = useToastContext();
+
     useEffect(() => {
         if (actionData) {
             const data = actionData as { success?: boolean; error?: string; actionType?: string; confirmationUrl?: string };
             if (data.success) {
                 if (data.actionType === "cancel") {
-                    showSuccess("订阅已取消");
+                    showSuccess(t("billing.subscriptionCancelled"));
                 } else {
-                    showSuccess("操作成功");
+                    showSuccess(t("common.operationSuccess"));
                 }
             } else if (data.error) {
-                showError("操作失败：" + data.error);
+                showError(t("billing.failPrefix") + data.error);
             }
         }
-    }, [actionData, showSuccess, showError]);
+    }, [actionData, showSuccess, showError, t]);
+
     const [searchParams] = useSearchParams();
     const isSubmitting = navigation.state === "submitting";
     const showSuccessBanner = searchParams.get("success") === "true";
@@ -240,38 +263,45 @@ export default function BillingPage() {
             submit(formData, { method: "post" });
         }
     }, [upgradePlanId, isSubmitting, showSuccessBanner, showErrorBanner, submit]);
+
     const currentPlan = plans[subscription.plan as PlanId];
     const usagePercent = Math.min((usage.current / usage.limit) * 100, 100);
+
     const dateFormatter = new Intl.DateTimeFormat("zh-CN", {
         dateStyle: "medium",
         timeStyle: "short",
     });
+
     const billingRows = (billingHistory || []).map((item: BillingHistoryItem) => {
         const amount = item.amount !== undefined ? `${item.amount.toFixed(2)} ${item.currency || ""}` : "—";
         const timeframe = item.periodEnd
-            ? `周期至 ${dateFormatter.format(new Date(item.periodEnd))}`
+            ? t("billing.invoiceTable.periodTo", { date: dateFormatter.format(new Date(item.periodEnd)) })
             : item.createdAt
                 ? dateFormatter.format(new Date(item.createdAt))
                 : "—";
+
         return [
-            item.type === "subscription" ? "订阅" : "一次性购买",
-            item.name,
+            item.type === "subscription" ? t("billing.invoiceTable.subscription") : t("billing.invoiceTable.oneTime"),
+            item.name, // Usually plan name, might need translation if it comes from plan name
             amount,
             item.status,
             timeframe,
         ];
     });
+
     const handleSubscribe = (planId: string) => {
         const formData = new FormData();
         formData.append("_action", "subscribe");
         formData.append("planId", planId);
         submit(formData, { method: "post" });
     };
+
     const handleCancel = () => {
         if (!subscription.subscriptionId)
             return;
         setShowCancelModal(true);
     };
+
     const confirmCancel = () => {
         if (!subscription.subscriptionId) {
             setShowCancelModal(false);
@@ -283,56 +313,72 @@ export default function BillingPage() {
         submit(formData, { method: "post" });
         setShowCancelModal(false);
     };
+
     const actionDataTyped = actionData as { success?: boolean; error?: string; confirmationUrl?: string } | undefined;
     const hasError = actionDataTyped && !actionDataTyped.success && actionDataTyped.error;
-    return (<Page title="订阅与计费">
+
+    const renderFeature = (feature: string) => {
+        if (feature === "plans.free.features.countdown") {
+            return t(feature, {
+                plusDate: formatDeadlineDate(DEPRECATION_DATES.plusScriptTagExecutionOff),
+                autoUpgradeDate: formatDeadlineDate(DEPRECATION_DATES.plusAutoUpgradeStart, "month"),
+                nonPlusDate: formatDeadlineDate(DEPRECATION_DATES.nonPlusScriptTagExecutionOff),
+            });
+        }
+        return t(feature);
+    };
+
+    return (<Page title={t("billing.pageTitle")}>
       <BlockStack gap="500">
-        {showSuccessBanner && (<Banner title="订阅成功！" tone="success" onDismiss={() => { }}>
-            <p>您的订阅已激活，现在可以享受所有功能了。</p>
+        {showSuccessBanner && (<Banner title={t("billing.successTitle")} tone="success" onDismiss={() => { }}>
+            <p>{t("billing.successMessage")}</p>
           </Banner>)}
-        {(showErrorBanner && errorMessage) && (<Banner title="订阅失败" tone="critical" onDismiss={() => { }}>
+
+        {(showErrorBanner && errorMessage) && (<Banner title={t("billing.failTitle")} tone="critical" onDismiss={() => { }}>
             <p>{errorMessage}</p>
           </Banner>)}
-        {hasError && (<Banner title="订阅失败" tone="critical" onDismiss={() => { }}>
+
+        {hasError && (<Banner title={t("billing.failTitle")} tone="critical" onDismiss={() => { }}>
             <p>{actionDataTyped.error}</p>
           </Banner>)}
-        {subscription.isTrialing && (<Banner title="试用期" tone="info">
+
+        {subscription.isTrialing && (<Banner title={t("billing.trialBannerTitle")} tone="info">
             <p>
-              您正在使用 {currentPlan.name} 的免费试用。
-              试用期剩余 {(subscription as typeof subscription & { trialDaysRemaining?: number; trialDays?: number }).trialDaysRemaining ?? (subscription as typeof subscription & { trialDaysRemaining?: number; trialDays?: number }).trialDays ?? 0} 天。
+              {t("billing.trialBannerMessage", {
+                planName: t(currentPlan.name),
+                days: (subscription as typeof subscription & { trialDaysRemaining?: number; trialDays?: number }).trialDaysRemaining ?? (subscription as typeof subscription & { trialDaysRemaining?: number; trialDays?: number }).trialDays ?? 0
+              })}
             </p>
           </Banner>)}
-        {usage.exceeded && (<Banner title="已达到订单限额" tone="critical">
+
+        {usage.exceeded && (<Banner title={t("billing.limitBannerTitle")} tone="critical">
             <p>
-              本月订单追踪已达到 {usage.limit} 笔上限。
-              请升级套餐以继续追踪更多订单。
+              {t("billing.limitBannerMessage", { limit: usage.limit })}
             </p>
           </Banner>)}
+
         <PageIntroCard
-          title="订阅与账单概览"
-          description="查看当前套餐、使用量、账单历史，并管理续费与升级。当前套餐包含像素迁移、验收报告与断档告警；服务端 CAPI 投递为可选能力，默认关闭。"
-          items={[
-            "套餐权益与用量一目了然",
-            "支持在 Shopify 账单中心查看发票",
-            "升级后自动解锁对应功能",
-          ]}
-          primaryAction={{ content: "查看套餐", url: "/app/billing" }}
-          secondaryAction={{ content: "账单中心", url: billingPortalUrl }}
+          title={t("billing.introTitle")}
+          description={t("billing.introDescription")}
+          items={t("billing.introItems", { returnObjects: true }) as string[]}
+          primaryAction={{ content: t("billing.viewPlan"), url: "/app/billing" }}
+          secondaryAction={{ content: t("billing.billingCenter"), url: billingPortalUrl }}
         />
+
         <Layout>
           <Layout.Section>
             <Card>
               <BlockStack gap="400">
                 <InlineStack align="space-between">
-                  <Text as="h2" variant="headingMd">当前套餐</Text>
+                  <Text as="h2" variant="headingMd">{t("billing.currentPlan")}</Text>
                   <Badge tone={subscription.hasActiveSubscription ? "success" : "info"}>
-                    {currentPlan.name}
+                    {t(currentPlan.name)}
                   </Badge>
                 </InlineStack>
                 <Divider />
                 <BlockStack gap="200">
                   <InlineStack align="space-between">
-                    <Text as="span" variant="bodySm" tone="subdued">本月订单追踪</Text>
+                    <Text as="span" variant="bodySm" tone="subdued">{t("billing.usageTitle")}</Text>
                     <Text as="span" variant="bodySm">
                       {usage.current.toLocaleString()} / {usage.limit.toLocaleString()}
                     </Text>
@@ -340,20 +386,21 @@ export default function BillingPage() {
                   <ProgressBar progress={usagePercent} tone={usagePercent >= 90 ? "critical" : undefined}/>
                 </BlockStack>
                 <BlockStack gap="200">
-                  <Text as="span" variant="headingSm">套餐功能</Text>
+                  <Text as="span" variant="headingSm">{t("billing.featuresTitle")}</Text>
                   <List>
-                    {currentPlan.features.map((feature, index) => (<List.Item key={index}>{feature}</List.Item>))}
+                    {currentPlan.features.map((feature, index) => (<List.Item key={index}>{renderFeature(feature)}</List.Item>))}
                   </List>
                 </BlockStack>
+
                 {subscription.hasActiveSubscription && subscription.plan !== "free" && (<>
                     <Divider />
                     <BlockStack gap="200">
                       <InlineStack align="space-between">
-                        <Text as="span" tone="subdued">订阅状态</Text>
-                        <Badge tone="success">{subscription.isTrialing ? "试用中" : "已激活"}</Badge>
+                        <Text as="span" tone="subdued">{t("billing.subscriptionStatus")}</Text>
+                        <Badge tone="success">{subscription.isTrialing ? t("billing.trialing") : t("billing.active")}</Badge>
                       </InlineStack>
                       {subscription.currentPeriodEnd && (<InlineStack align="space-between">
-                          <Text as="span" tone="subdued">下次扣费日期</Text>
+                          <Text as="span" tone="subdued">{t("billing.nextBillingDate")}</Text>
                           <Text as="span">
                             {new Date(subscription.currentPeriodEnd).toLocaleDateString("zh-CN")}
                           </Text>
@@ -361,12 +408,12 @@ export default function BillingPage() {
                     </BlockStack>
                     {(subscription as typeof subscription & { status?: string }).status === "ACTIVE" && (
                       <Button variant="plain" tone="critical" onClick={handleCancel} loading={isSubmitting}>
-                        取消订阅
+                        {t("billing.cancelSubscription")}
                       </Button>
                     )}
                     {(subscription as typeof subscription & { status?: string }).status === "CANCELLED" && subscription.currentPeriodEnd && (
-                      <Banner tone="info" title="订阅已取消">
-                        <p>您仍可使用至 {new Date(subscription.currentPeriodEnd).toLocaleDateString("zh-CN")}。</p>
+                      <Banner tone="info" title={t("billing.subscriptionCancelled")}>
+                        <p>{t("billing.cancelledMessage", { date: new Date(subscription.currentPeriodEnd).toLocaleDateString("zh-CN") })}</p>
                       </Banner>
                     )}
                   </>)}
@@ -374,35 +421,44 @@ export default function BillingPage() {
             </Card>
           </Layout.Section>
         </Layout>
+
         <Card>
           <BlockStack gap="400">
             <InlineStack align="space-between" blockAlign="center">
               <BlockStack gap="100">
-                <Text as="h2" variant="headingMd">发票/账单历史</Text>
+                <Text as="h2" variant="headingMd">{t("billing.invoiceHistory")}</Text>
                 <Text as="p" variant="bodySm" tone="subdued">
-                  展示当前订阅与一次性购买记录，完整发票请在 Shopify 后台查看。
+                  {t("billing.invoiceDescription")}
                 </Text>
               </BlockStack>
               <Button url={billingPortalUrl} external>
-                前往 Shopify 账单中心
+                {t("billing.goToShopifyBilling")}
               </Button>
             </InlineStack>
+
             {billingRows.length === 0 ? (
               <Banner tone="info">
                 <Text as="p" variant="bodySm">
-                  暂无账单记录。完成首次订阅后，这里会展示发票与账单摘要。
+                  {t("billing.noInvoices")}
                 </Text>
               </Banner>
             ) : (
               <DataTable
                 columnContentTypes={["text", "text", "text", "text", "text"]}
-                headings={["类型", "项目", "金额", "状态", "周期/时间"]}
+                headings={[
+                    t("billing.invoiceTable.type"),
+                    t("billing.invoiceTable.item"),
+                    t("billing.invoiceTable.amount"),
+                    t("billing.invoiceTable.status"),
+                    t("billing.invoiceTable.period")
+                ]}
                 rows={billingRows}
               />
             )}
           </BlockStack>
         </Card>
-        <Text as="h2" variant="headingMd">可用套餐</Text>
+
+        <Text as="h2" variant="headingMd">{t("billing.availablePlans")}</Text>
         <Layout>
           {planIds.map((planId) => {
             const plan = plans[planId];
@@ -410,33 +466,34 @@ export default function BillingPage() {
             const isCurrentPlan = subscription.plan === planId;
             const isUpgrade = plan.price > (plans[subscription.plan as PlanId]?.price || 0);
             const isDowngrade = plan.price < (plans[subscription.plan as PlanId]?.price || 0);
+
             return (<Layout.Section key={planId} variant="oneThird">
                 <Card>
                   <BlockStack gap="400">
                     <InlineStack align="space-between">
-                      <Text as="h3" variant="headingMd">{plan.name}</Text>
-                      {isCurrentPlan && <Badge tone="success">当前</Badge>}
+                      <Text as="h3" variant="headingMd">{t(plan.name)}</Text>
+                      {isCurrentPlan && <Badge tone="success">{t("billing.current")}</Badge>}
                     </InlineStack>
                     <BlockStack gap="100">
                       <InlineStack align="start" blockAlign="baseline" gap="100">
                         <Text as="span" variant="heading2xl">
                           ${plan.price}
                         </Text>
-                        {plan.price > 0 && (<Text as="span" tone="subdued">/月</Text>)}
+                        {plan.price > 0 && (<Text as="span" tone="subdued">{t("billing.month")}</Text>)}
                       </InlineStack>
                       {"trialDays" in plan && plan.trialDays > 0 && (<Text as="span" variant="bodySm" tone="success">
-                          {plan.trialDays} 天免费试用
+                          {t("billing.trialDays", { days: plan.trialDays })}
                         </Text>)}
                     </BlockStack>
                     <Divider />
                     <List>
-                      {plan.features.map((feature, index) => (<List.Item key={index}>{feature}</List.Item>))}
+                      {plan.features.map((feature, index) => (<List.Item key={index}>{renderFeature(feature)}</List.Item>))}
                     </List>
                     <Box paddingBlockStart="200">
-                      {isCurrentPlan ? (<Button disabled fullWidth>当前套餐</Button>) : plan.price === 0 ? (<Button variant="secondary" fullWidth onClick={handleCancel} loading={isSubmitting} disabled={subscription.plan === "free"}>
-                          降级到免费版
+                      {isCurrentPlan ? (<Button disabled fullWidth>{t("billing.currentPlan")}</Button>) : plan.price === 0 ? (<Button variant="secondary" fullWidth onClick={handleCancel} loading={isSubmitting} disabled={subscription.plan === "free"}>
+                          {t("billing.downgradeToFree")}
                         </Button>) : (<Button variant={isUpgrade ? "primary" : "secondary"} fullWidth onClick={() => handleSubscribe(planId)} loading={isSubmitting}>
-                          {isUpgrade ? "升级" : isDowngrade ? "降级" : "选择"}
+                          {isUpgrade ? t("billing.upgrade") : isDowngrade ? t("billing.downgrade") : t("billing.select")}
                         </Button>)}
                     </Box>
                   </BlockStack>
@@ -444,63 +501,65 @@ export default function BillingPage() {
               </Layout.Section>);
         })}
         </Layout>
+
         <Card>
           <BlockStack gap="400">
-            <Text as="h2" variant="headingMd">常见问题</Text>
+            <Text as="h2" variant="headingMd">{t("billing.faq.title")}</Text>
             <Divider />
             <BlockStack gap="300">
               <BlockStack gap="100">
-                <Text as="span" fontWeight="semibold">什么时候开始计费？</Text>
+                <Text as="span" fontWeight="semibold">{t("billing.faq.q1")}</Text>
                 <Text as="p" tone="subdued">
-                  付费套餐提供 7 天免费试用（Agency 版 14 天）。试用期结束后自动开始计费。
+                  {t("billing.faq.a1")}
                 </Text>
               </BlockStack>
               <BlockStack gap="100">
-                <Text as="span" fontWeight="semibold">可以随时取消吗？</Text>
+                <Text as="span" fontWeight="semibold">{t("billing.faq.q2")}</Text>
                 <Text as="p" tone="subdued">
-                  是的，您可以随时取消订阅。取消后，当前计费周期结束前仍可使用付费功能。
+                  {t("billing.faq.a2")}
                 </Text>
               </BlockStack>
               <BlockStack gap="100">
-                <Text as="span" fontWeight="semibold">超过订单限额会怎样？</Text>
+                <Text as="span" fontWeight="semibold">{t("billing.faq.q3")}</Text>
                 <Text as="p" tone="subdued">
-                  达到月度限额后，新订单将不会被追踪。您可以升级套餐来增加限额。
+                  {t("billing.faq.a3")}
                 </Text>
               </BlockStack>
               <BlockStack gap="100">
-                <Text as="span" fontWeight="semibold">如何升级或降级套餐？</Text>
+                <Text as="span" fontWeight="semibold">{t("billing.faq.q4")}</Text>
                 <Text as="p" tone="subdued">
-                  您可以随时更改套餐。升级立即生效，降级在当前计费周期结束后生效。
+                  {t("billing.faq.a4")}
                 </Text>
               </BlockStack>
               <BlockStack gap="100">
-                <Text as="span" fontWeight="semibold">Agency 版有哪些额外功能？</Text>
+                <Text as="span" fontWeight="semibold">{t("billing.faq.q5")}</Text>
                 <Text as="p" tone="subdued">
-                  多店管理、批量配置、团队协作、白标报告支持均即将在 v1.1 推出；当前已包含验收报告导出（CSV）、无限像素、专属客户成功经理与 SLA。
+                  {t("billing.faq.a5")}
                 </Text>
               </BlockStack>
             </BlockStack>
           </BlockStack>
         </Card>
+
         <Modal
           open={showCancelModal}
           onClose={() => setShowCancelModal(false)}
-          title="确定要取消订阅吗？"
+          title={t("billing.cancelModal.title")}
           primaryAction={{
-            content: "确定",
+            content: t("billing.cancelModal.confirm"),
             destructive: true,
             onAction: confirmCancel,
             loading: isSubmitting,
           }}
           secondaryActions={[
             {
-              content: "取消",
+              content: t("billing.cancelModal.cancel"),
               onAction: () => setShowCancelModal(false),
             },
           ]}
         >
           <Modal.Section>
-            <Text as="p">取消后将降级到免费版。</Text>
+            <Text as="p">{t("billing.cancelModal.content")}</Text>
           </Modal.Section>
         </Modal>
       </BlockStack>

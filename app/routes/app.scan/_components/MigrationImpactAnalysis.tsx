@@ -116,7 +116,7 @@ export function MigrationImpactAnalysis({
                     <InlineStack align="space-between" blockAlign="center">
                       <InlineStack gap="200">
                         <Badge tone="critical">{t("scan.impactAnalysis.loss.platform.invalid")}</Badge>
-                        <Text as="span" fontWeight="semibold">{getPlatformName(platform)}</Text>
+                        <Text as="span" fontWeight="semibold">{getPlatformName(platform, t)}</Text>
                       </InlineStack>
                       <Text as="span" variant="bodySm" tone="critical">
                         {t("scan.impactAnalysis.loss.platform.reference")}

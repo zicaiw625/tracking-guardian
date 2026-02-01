@@ -124,7 +124,7 @@ export function ScanAutoTab({
                     }}
                     secondaryAction={{
                         content: t("scan.autoTab.emptyState.learnMore"),
-                        url: "https://help.shopify.com/en/manual/pixels/web-pixels",
+                        url: t("scan.autoTab.emptyState.learnMoreUrl"),
                     }}
                 />
             )}
@@ -230,11 +230,11 @@ export function ScanAutoTab({
                                                                     : "info"}/>
                                                             <Text as="span" fontWeight="semibold">
                                                                 {item.nameKey ? t(item.nameKey, item.nameParams) : item.name}
-                                                            </Text>
-                                                        </InlineStack>
-                                                        {getSeverityBadge(item.severity)}
-                                                    </InlineStack>
-                                                    <Text as="p" tone="subdued">
+                                                    </Text>
+                                                </InlineStack>
+                                                {getSeverityBadge(item.severity, t)}
+                                            </InlineStack>
+                                            <Text as="p" tone="subdued">
                                                         {item.descriptionKey ? t(item.descriptionKey, item.descriptionParams) : item.description}
                                                     </Text>
                                                     {(item.details || item.detailsKey) && (
@@ -245,9 +245,9 @@ export function ScanAutoTab({
                                                     <InlineStack align="space-between" blockAlign="center">
                                                         <InlineStack gap="200">
                                                             {item.platform && (
-                                                                <Badge>{getPlatformName(item.platform)}</Badge>
-                                                            )}
-                                                            {(item.impact || item.impactKey) && (
+                                                        <Badge>{getPlatformName(item.platform, t)}</Badge>
+                                                    )}
+                                                    {(item.impact || item.impactKey) && (
                                                                 <Text as="span" variant="bodySm" tone="critical">
                                                                     {t("scan.autoTab.riskDetails.impact")} {item.impactKey ? t(item.impactKey, item.impactParams) : item.impact}
                                                                 </Text>
@@ -341,12 +341,12 @@ export function ScanAutoTab({
                                                         {action.priority === "high" ? t("scan.autoTab.upgradeWindow.high") :
                                                          action.priority === "medium" ? t("scan.autoTab.upgradeWindow.medium") : t("scan.autoTab.upgradeWindow.low")}
                                                     </Badge>
-                                                </InlineStack>
-                                                {action.platform && (
-                                                    <Badge>{getPlatformName(action.platform)}</Badge>
-                                                )}
-                                            </BlockStack>
-                                            {action.deadline && (
+                                            </InlineStack>
+                                            {action.platform && (
+                                                <Badge>{getPlatformName(action.platform, t)}</Badge>
+                                            )}
+                                        </BlockStack>
+                                        {action.deadline && (
                                                 <Badge tone="warning">{`${t("scan.autoTab.migrationActions.deadline")} ${action.deadline}`}</Badge>
                                             )}
                                         </InlineStack>

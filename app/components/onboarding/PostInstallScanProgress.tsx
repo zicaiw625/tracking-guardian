@@ -9,6 +9,7 @@ import {
   Badge,
 } from "@shopify/polaris";
 import { useRevalidator } from "@remix-run/react";
+import { useTranslation } from "react-i18next";
 
 interface PostInstallScanProgressProps {
   shopId: string;
@@ -21,18 +22,19 @@ export function PostInstallScanProgress({
   scanStartedAt: _scanStartedAt,
   onComplete,
 }: PostInstallScanProgressProps) {
+  const { t } = useTranslation();
   const [progress, setProgress] = useState(0);
   const [currentStep, setCurrentStep] = useState(0);
   const [, setScanStatus] = useState<"scanning" | "completed" | "error">("scanning");
   const revalidator = useRevalidator();
   const steps = useMemo(
     () => [
-      { label: "检查升级状态", duration: 2000 },
-      { label: "扫描 ScriptTags", duration: 3000 },
-      { label: "识别追踪平台", duration: 2000 },
-      { label: "生成迁移清单", duration: 2000 },
+      { label: t("onboarding.scanProgress.steps.checkUpgrade"), duration: 2000 },
+      { label: t("onboarding.scanProgress.steps.scanScripts"), duration: 3000 },
+      { label: t("onboarding.scanProgress.steps.identifyPlatforms"), duration: 2000 },
+      { label: t("onboarding.scanProgress.steps.generateList"), duration: 2000 },
     ],
-    []
+    [t]
   );
   useEffect(() => {
     let accumulatedTime = 0;
@@ -112,9 +114,9 @@ export function PostInstallScanProgress({
       <BlockStack gap="400">
         <InlineStack align="space-between" blockAlign="center">
           <Text as="h2" variant="headingMd">
-            🔍 正在进行升级体检
+            {t("onboarding.scanProgress.title")}
           </Text>
-          <Badge tone="info">进行中</Badge>
+          <Badge tone="info">{t("onboarding.scanProgress.status.inProgress")}</Badge>
         </InlineStack>
         <ProgressBar progress={progress} size="large" />
         <BlockStack gap="200">
@@ -143,7 +145,7 @@ export function PostInstallScanProgress({
           ))}
         </BlockStack>
         <Text as="p" variant="bodySm" tone="subdued">
-          预计耗时约 10 秒，请稍候...
+          {t("onboarding.scanProgress.estimatedTime")}
         </Text>
       </BlockStack>
     </Card>

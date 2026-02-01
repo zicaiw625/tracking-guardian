@@ -1,84 +1,105 @@
 import { Badge } from "@shopify/polaris";
 import type { TFunction } from "i18next";
 
-export function getPlatformName(platform: string, t?: TFunction): string {
-  if (t) {
-    const key = `scan.utils.platform.${platform}`;
-    const translated = t(key);
-    // If translation returns key (meaning missing), fallback to names map or platform
-    if (translated !== key) return translated;
-  }
-  
-  const names: Record<string, string> = {
-    google: "GA4",
-    meta: "Meta (Facebook) Pixel",
-    tiktok: "TikTok Pixel",
-    bing: "Microsoft Ads (Bing) ⚠️",
-    clarity: "Microsoft Clarity ⚠️",
-    webhook: "通用 Webhook",
-  };
-  return names[platform] || platform;
-}
-
 export function getSeverityBadge(severity: string, t?: TFunction) {
-  const text = t ? {
-      high: t("scan.utils.severity.high"),
-      medium: t("scan.utils.severity.medium"),
-      low: t("scan.utils.severity.low"),
-      unknown: t("scan.utils.severity.unknown")
-  } : {
-      high: "高风险",
-      medium: "中风险",
-      low: "低风险",
-      unknown: "未知"
-  };
+  const text = t
+    ? {
+        high: t("scan.utils.severity.high"),
+        medium: t("scan.utils.severity.medium"),
+        low: t("scan.utils.severity.low"),
+        unknown: t("scan.utils.severity.unknown"),
+      }
+    : {
+        high: "scan.utils.severity.high",
+        medium: "scan.utils.severity.medium",
+        low: "scan.utils.severity.low",
+        unknown: "scan.utils.severity.unknown",
+      };
 
-  switch (severity) {
+  const severityLower = severity?.toLowerCase() || "unknown";
+  // @ts-expect-error - mapping keys might not match enum exactly
+  const badgeContent = text[severityLower] || text.unknown;
+
+  switch (severityLower) {
     case "high":
-      return <Badge tone="critical">{text.high}</Badge>;
+      return <Badge tone="critical">{badgeContent}</Badge>;
     case "medium":
-      return <Badge tone="warning">{text.medium}</Badge>;
+      return <Badge tone="warning">{badgeContent}</Badge>;
     case "low":
-      return <Badge tone="info">{text.low}</Badge>;
+      return <Badge tone="info">{badgeContent}</Badge>;
     default:
-      return <Badge>{text.unknown}</Badge>;
+      return <Badge>{badgeContent}</Badge>;
   }
 }
 
-export function getUpgradeBannerTone(urgency: string): "critical" | "warning" | "info" | "success" {
-  switch (urgency) {
-    case "critical": return "critical";
-    case "high": return "warning";
-    case "medium": return "warning";
-    case "resolved": return "success";
-    default: return "info";
+export function getUpgradeBannerTone(riskScoreOrUrgency: number | string) {
+  if (typeof riskScoreOrUrgency === 'number') {
+    const riskScore = riskScoreOrUrgency;
+    if (riskScore >= 80) return "critical";
+    if (riskScore >= 50) return "warning";
+    return "info";
+  } else {
+    const urgency = riskScoreOrUrgency;
+    if (urgency === "critical") return "critical";
+    if (urgency === "high") return "warning";
+    return "info";
   }
 }
 
-export function getStatusText(status: string | null | undefined, t?: TFunction): string {
-  const text = t ? {
-      completed: t("scan.utils.status.completed"),
-      completedWithErrors: t("scan.utils.status.completedWithErrors"),
-      failed: t("scan.utils.status.failed"),
-      scanning: t("scan.utils.status.scanning"),
-      pending: t("scan.utils.status.pending"),
-      unknown: t("scan.utils.status.unknown")
-  } : {
-      completed: "完成",
-      completedWithErrors: "完成（有错误）",
-      failed: "失败",
-      scanning: "扫描中",
-      pending: "等待中",
-      unknown: "未知"
-  };
+export function getStatusText(status: string, t?: TFunction) {
+  const map = t
+    ? {
+        pending: t("onboarding.progress.status.pending"),
+        processing: t("onboarding.progress.status.processing"),
+        completed: t("onboarding.progress.status.completed"),
+        failed: t("onboarding.progress.status.error"),
+      }
+    : {
+        pending: "onboarding.progress.status.pending",
+        processing: "onboarding.progress.status.processing",
+        completed: "onboarding.progress.status.completed",
+        failed: "onboarding.progress.status.error",
+      };
+  // @ts-expect-error - status string might not be in map keys
+  return map[status] || status;
+}
 
-  if (!status) return text.unknown;
-  switch (status) {
-    case "completed": return text.completed;
-    case "completed_with_errors": return text.completedWithErrors;
-    case "failed": return text.failed;
-    case "scanning": return text.scanning;
-    case "pending": return text.pending;
-    default: return status;
-  }
+export function getPlatformName(platform: string, t?: TFunction) {
+  const map = t
+    ? {
+        "google-analytics": "Google Analytics 4 (GA4)",
+        "facebook-pixel": "Meta (Facebook) Pixel",
+        tiktok: "TikTok Pixel",
+        pinterest: "Pinterest Tag",
+        snapchat: "Snapchat Pixel",
+        bing: "Microsoft (Bing) Ads",
+        twitter: "X (Twitter) Pixel",
+        linkedin: "LinkedIn Insight Tag",
+        criteo: "Criteo OneTag",
+        taboola: "Taboola Pixel",
+        outbrain: "Outbrain Pixel",
+        reddit: "Reddit Pixel",
+        quora: "Quora Pixel",
+        "klaviyo-onsite": "Klaviyo Onsite",
+      }
+    : {
+        "google-analytics": "Google Analytics 4 (GA4)",
+        "facebook-pixel": "Meta (Facebook) Pixel",
+        tiktok: "TikTok Pixel",
+        pinterest: "Pinterest Tag",
+        snapchat: "Snapchat Pixel",
+        bing: "Microsoft (Bing) Ads",
+        twitter: "X (Twitter) Pixel",
+        linkedin: "LinkedIn Insight Tag",
+        criteo: "Criteo OneTag",
+        taboola: "Taboola Pixel",
+        outbrain: "Outbrain Pixel",
+        reddit: "Reddit Pixel",
+        quora: "Quora Pixel",
+        "klaviyo-onsite": "Klaviyo Onsite",
+      };
+
+  const normalized = platform?.toLowerCase().replace(/_/g, "-");
+  // @ts-expect-error - normalized string might not be in map keys
+  return map[normalized] || platform;
 }

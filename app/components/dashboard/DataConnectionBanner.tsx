@@ -1,77 +1,95 @@
-import { Banner, Button, BlockStack, InlineStack, Text } from "@shopify/polaris";
-
-interface DataConnectionBannerProps {
-  hasIngestionSecret: boolean;
-  hasWebPixel: boolean;
-  webPixelHasIngestionKey: boolean;
-  shopDomain: string;
-}
+import { Banner, List, Text, BlockStack, Button } from "@shopify/polaris";
+import { useTranslation } from "react-i18next";
 
 export function DataConnectionBanner({
-  hasIngestionSecret,
-  hasWebPixel,
-  webPixelHasIngestionKey,
-  shopDomain: _shopDomain,
-}: DataConnectionBannerProps) {
-  const issues: string[] = [];
-  if (!hasIngestionSecret) {
-    issues.push("Ingestion Key未配置");
-  }
-  if (!hasWebPixel) {
-    issues.push("Web Pixel未安装");
-  } else if (!webPixelHasIngestionKey) {
-    issues.push("Web Pixel配置缺失ingestion_key");
-  }
-
-  if (issues.length === 0) {
+  issues,
+}: {
+  issues: string[];
+}) {
+  const { t } = useTranslation();
+  if (!issues || issues.length === 0) {
     return null;
   }
-
-  const getMessage = () => {
-    if (!hasIngestionSecret && !hasWebPixel) {
-      return "数据连接未配置：需要配置Ingestion Key并安装Web Pixel才能开始接收追踪数据";
-    }
-    if (!hasIngestionSecret) {
-      return "数据连接未完成：需要配置Ingestion Key";
-    }
-    if (!hasWebPixel) {
-      return "数据连接未完成：需要安装Web Pixel";
-    }
-    return "数据连接配置不完整：Web Pixel配置缺失ingestion_key，请重新同步配置";
+  
+  // Helper to translate specific issue strings if they match known patterns
+  const translateIssue = (issue: string) => {
+    if (issue === "Ingestion Key Not Configured") return t("dashboard.dataConnection.issueIngestionSecret");
+    if (issue === "Web Pixel Not Installed") return t("dashboard.dataConnection.issueWebPixel");
+    if (issue === "Web Pixel Missing ingestion_key") return t("dashboard.dataConnection.issueIngestionKey");
+    return issue;
   };
 
-  const getActionUrl = () => {
-    if (!hasIngestionSecret) {
-      return "/app/settings";
-    }
-    if (!hasWebPixel || !webPixelHasIngestionKey) {
-      return "/app/pixels";
-    }
-    return "/app/settings";
-  };
+  const hasIngestionSecretIssue = issues.includes("Ingestion Key Not Configured");
+  const hasWebPixelIssue = issues.includes("Web Pixel Not Installed");
+  const hasIngestionKeyIssue = issues.includes("Web Pixel Missing ingestion_key");
 
-  const getActionLabel = () => {
-    if (!hasIngestionSecret) {
-      return "前往设置";
-    }
-    if (!hasWebPixel) {
-      return "安装Web Pixel";
-    }
-    return "修复配置";
-  };
+  if (hasIngestionSecretIssue && hasWebPixelIssue) {
+    return (
+      <Banner tone="warning" title={t("dashboard.dataConnection.title")}>
+        <BlockStack gap="200">
+          <Text as="p">
+            {t("dashboard.dataConnection.msgBoth")}
+          </Text>
+          <Button url="/app/settings" variant="primary">
+            {t("dashboard.dataConnection.actionSettings")}
+          </Button>
+        </BlockStack>
+      </Banner>
+    );
+  }
+  if (hasIngestionSecretIssue) {
+    return (
+      <Banner tone="warning" title={t("dashboard.dataConnection.title")}>
+        <BlockStack gap="200">
+          <Text as="p">
+            {t("dashboard.dataConnection.msgSecret")}
+          </Text>
+          <Button url="/app/settings" variant="primary">
+            {t("dashboard.dataConnection.actionSettings")}
+          </Button>
+        </BlockStack>
+      </Banner>
+    );
+  }
+  if (hasWebPixelIssue) {
+    return (
+      <Banner tone="warning" title={t("dashboard.dataConnection.title")}>
+        <BlockStack gap="200">
+          <Text as="p">
+            {t("dashboard.dataConnection.msgPixel")}
+          </Text>
+          <Button url="/app/settings" variant="primary">
+            {t("dashboard.dataConnection.actionInstall")}
+          </Button>
+        </BlockStack>
+      </Banner>
+    );
+  }
+  if (hasIngestionKeyIssue) {
+    return (
+      <Banner tone="warning" title={t("dashboard.dataConnection.title")}>
+        <BlockStack gap="200">
+          <Text as="p">
+            {t("dashboard.dataConnection.msgIncomplete")}
+          </Text>
+          <Button url="/app/settings" variant="primary">
+            {t("dashboard.dataConnection.actionFix")}
+          </Button>
+        </BlockStack>
+      </Banner>
+    );
+  }
 
   return (
-    <Banner tone="critical" title="数据未接入">
+    <Banner tone="warning" title={t("dashboard.dataConnection.title")}>
       <BlockStack gap="200">
-        <Text as="p">{getMessage()}</Text>
-        <Text as="p" variant="bodySm" tone="subdued">
-          问题：{issues.join("、")}
-        </Text>
-        <InlineStack gap="200">
-          <Button variant="primary" url={getActionUrl()}>
-            {getActionLabel()}
-          </Button>
-        </InlineStack>
+        <Text as="p">{t("dashboard.dataConnection.issues")}</Text>
+        <List>
+          {issues.map((issue, index) => (
+            <List.Item key={index}>{translateIssue(issue)}</List.Item>
+          ))}
+        </List>
+        <Button url="/app/settings">{t("dashboard.dataConnection.actionSettings")}</Button>
       </BlockStack>
     </Banner>
   );

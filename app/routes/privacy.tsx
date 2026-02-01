@@ -3,6 +3,8 @@ import { json } from "@remix-run/node";
 import { useLoaderData } from "@remix-run/react";
 import { getDynamicCorsHeaders } from "../utils/cors";
 import { PUBLIC_PAGE_HEADERS, addSecurityHeadersToHeaders } from "../utils/security-headers";
+import { useTranslation, Trans, I18nextProvider } from "react-i18next";
+import i18n from "../i18n"; // Import global i18n instance
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   const corsHeaders = getDynamicCorsHeaders(request);
@@ -23,15 +25,16 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   });
 };
 
-export default function PrivacyPage() {
+function PrivacyContent() {
+  const { t, i18n: i18nInstance } = useTranslation();
   const { appName, appDomain, lastUpdated } = useLoaderData<typeof loader>();
-  
+
   return (
-    <html lang="zh-CN">
+    <html lang={i18nInstance.language || "zh-CN"}>
       <head>
         <meta charSet="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
-        <title>隐私政策 - {appName}</title>
+        <title>{t("PublicPrivacy.Title")} - {appName}</title>
         <style>{`
           * {
             margin: 0;
@@ -126,24 +129,23 @@ export default function PrivacyPage() {
       </head>
       <body>
         <div className="container">
-          <h1>隐私政策</h1>
+          <h1>{t("PublicPrivacy.Title")}</h1>
           <div className="meta">
-            <p><strong>应用名称：</strong>{appName}</p>
-            <p><strong>最后更新：</strong>{lastUpdated}</p>
-            <p><strong>应用域名：</strong><a href={appDomain}>{appDomain}</a></p>
+            <p><strong>{t("PublicPrivacy.Meta.AppName")}：</strong>{appName}</p>
+            <p><strong>{t("PublicPrivacy.Meta.LastUpdated")}：</strong>{lastUpdated}</p>
+            <p><strong>{t("PublicPrivacy.Meta.AppDomain")}：</strong><a href={appDomain}>{appDomain}</a></p>
           </div>
 
           <div className="section">
-            <h2>概述</h2>
+            <h2>{t("PublicPrivacy.Overview.Title")}</h2>
             <p>
-              {appName} 是一个 Shopify 应用，作为<strong>数据处理者</strong>（Data Processor）代表商家（数据控制者）处理转化追踪数据。
-              我们遵循 GDPR、CCPA 等隐私法规，确保数据安全和合规。
+              <Trans i18nKey="PublicPrivacy.Overview.Content" values={{ appName }} />
             </p>
           </div>
 
           <div className="section">
-            <h2>收集的数据类型</h2>
-            <h3>订单数据</h3>
+            <h2>{t("PublicPrivacy.CollectedData.Title")}</h2>
+            <h3>{t("PublicPrivacy.CollectedData.Orders")}</h3>
             <ul>
               <li>订单 ID 和订单号</li>
               <li>订单金额和货币</li>
@@ -151,14 +153,14 @@ export default function PrivacyPage() {
               <li>结账令牌（用于匹配像素事件，已哈希处理）</li>
             </ul>
 
-            <h3>客户同意状态</h3>
+            <h3>{t("PublicPrivacy.CollectedData.Consent")}</h3>
             <ul>
               <li>marketing: 是否同意营销追踪</li>
               <li>analytics: 是否同意分析追踪</li>
               <li>saleOfData: 是否允许数据销售（CCPA）</li>
             </ul>
 
-            <h3>不收集的数据（PII）</h3>
+            <h3>{t("PublicPrivacy.CollectedData.NoPII")}</h3>
             <div className="highlight">
               <p><strong>我们不收集以下个人身份信息：</strong></p>
               <ul>
@@ -170,20 +172,20 @@ export default function PrivacyPage() {
               </ul>
             </div>
 
-            <h3>请求相关技术数据</h3>
+            <h3>{t("PublicPrivacy.CollectedData.TechData")}</h3>
             <p>
               为安全、反作弊与验收目的，我们可能存储与请求相关的技术数据（如 IP 地址、User-Agent、page_url、referrer），保留周期与店铺数据保留设置一致，删除方式同 GDPR/webhook 删除策略。
             </p>
 
-            <h3>会话与鉴权</h3>
+            <h3>{t("PublicPrivacy.CollectedData.Session")}</h3>
             <p>
               为完成 Shopify 鉴权与会话管理，我们可能存储<strong>店铺管理员或员工的标识信息</strong>（例如邮箱）作为会话（Session）数据的一部分。来源为 Shopify OAuth，用途为鉴权与会话维持，保留周期随 Session 过期或按 Shopify 会话策略。前述「不收集的数据」仅针对<strong>终端客户</strong>，不针对商家或店铺员工。
             </p>
           </div>
 
           <div className="section">
-            <h2>数据用途</h2>
-            <h3>转化追踪（当前版本）</h3>
+            <h2>{t("PublicPrivacy.Usage.Title")}</h2>
+            <h3>{t("PublicPrivacy.Usage.Tracking")}</h3>
             <p>
               当前版本中，{appName} 仅基于 Shopify Web Pixel 上报的事件收据（PixelEventReceipt）和本地最小化日志，
               帮助您诊断像素是否正常工作、识别潜在的丢单风险，并在应用内部展示统计和报告。
@@ -200,17 +202,17 @@ export default function PrivacyPage() {
               </p>
             </div>
 
-            <h3>对账与诊断（当前版本）</h3>
+            <h3>{t("PublicPrivacy.Usage.Reconciliation")}</h3>
             <p>
               我们通过比对像素事件收据与内部日志，帮助您发现追踪缺口并优化配置。当用户未给予相应同意导致事件不向任何平台发送时，
               我们仍可能为去重与诊断目的保存<strong>最小元数据</strong>（如事件键、事件类型、时间戳），但<strong>不会</strong>保存商品明细、金额等敏感内容。
               当前版本<strong>不会</strong>从 Shopify Admin API 读取订单数据进行对账。
             </p>
 
-            <h3>合规执行</h3>
+            <h3>{t("PublicPrivacy.Usage.Compliance")}</h3>
             <p>根据客户的同意状态（Shopify <code>customerPrivacy</code>），自动决定是否向特定平台发送事件，确保符合 GDPR/CCPA 等隐私法规。</p>
 
-            <h3>与 PCD（受保护客户数据）的关系</h3>
+            <h3>{t("PublicPrivacy.Usage.PCD")}</h3>
             <p>
               当前公开上架版本<strong>不访问</strong> Shopify Protected Customer Data (PCD)。我们不请求 <code>read_orders</code>，不订阅订单 webhook，不通过 Admin API 读取订单或客户详情，仅基于 Web Pixel 事件收据进行诊断与验收。
               未来如引入基于订单详情的验收/对账或再购等功能，将在获得 Shopify PCD 审批后启用，并更新本隐私政策与应用内说明。
@@ -218,8 +220,8 @@ export default function PrivacyPage() {
           </div>
 
           <div className="section">
-            <h2>数据保留</h2>
-            <p>我们遵循数据最小化原则，仅保存必要的数据，并定期清理过期数据。所有数据类型的保留周期由店铺的数据保留设置控制（默认 90 天）：</p>
+            <h2>{t("PublicPrivacy.Retention.Title")}</h2>
+            <p>{t("PublicPrivacy.Retention.Content")}</p>
             <ul>
               <li><strong>PixelEventReceipt（像素收据）</strong>：按店铺数据保留周期（默认 90 天）</li>
               <li><strong>VerificationRun（验收运行）</strong>：按店铺数据保留周期（默认 90 天）</li>
@@ -229,8 +231,8 @@ export default function PrivacyPage() {
           </div>
 
           <div className="section">
-            <h2>数据删除</h2>
-            <p>我们支持多种数据删除方式：</p>
+            <h2>{t("PublicPrivacy.Deletion.Title")}</h2>
+            <p>{t("PublicPrivacy.Deletion.Content")}</p>
             <ul>
               <li><strong>卸载应用</strong>：收到 <code>APP_UNINSTALLED</code> webhook 后，立即标记为 inactive，并在 48 小时内由定时清理任务删除所有数据</li>
               <li><strong>GDPR 客户数据删除请求</strong>：响应 <code>CUSTOMERS_DATA_REQUEST</code> 或 <code>CUSTOMERS_REDACT</code> webhook</li>
@@ -239,10 +241,10 @@ export default function PrivacyPage() {
           </div>
 
           <div className="section">
-            <h2>第三方共享</h2>
-            <h3>第三方共享</h3>
+            <h2>{t("PublicPrivacy.Sharing.Title")}</h2>
+            <h3>{t("PublicPrivacy.Sharing.Title")}</h3>
             <p>
-              当前版本不向第三方平台发送服务端转化事件。告警通知功能也处于禁用状态。
+              {t("PublicPrivacy.Sharing.Content")}
             </p>
             <h3>通知与告警服务（当前版本已禁用）</h3>
             <p>
@@ -255,7 +257,7 @@ export default function PrivacyPage() {
           </div>
 
           <div className="section">
-            <h2>安全措施</h2>
+            <h2>{t("PublicPrivacy.Security.Title")}</h2>
             <ul>
               <li><strong>传输加密</strong>：所有 API 通信均使用 TLS 1.2+ 加密</li>
               <li><strong>存储加密</strong>：平台凭证、访问令牌使用 AES-256-GCM 加密存储</li>
@@ -266,7 +268,7 @@ export default function PrivacyPage() {
           </div>
 
           <div className="section">
-            <h2>数据主体权利</h2>
+            <h2>{t("PublicPrivacy.Rights.Title")}</h2>
             <p>根据 GDPR 和 CCPA，您享有以下权利：</p>
             <ul>
               <li><strong>访问权</strong>：有权了解我们收集了哪些数据</li>
@@ -279,18 +281,26 @@ export default function PrivacyPage() {
           </div>
 
           <div className="section">
-            <h2>完整合规文档</h2>
-            <p>更多说明见应用内「隐私与合规」页。另见 <a href="/terms">服务条款</a>。</p>
+            <h2>{t("PublicPrivacy.Docs.Title")}</h2>
+            <p>{t("PublicPrivacy.Docs.Content")} 另见 <a href="/terms">服务条款</a>。</p>
           </div>
 
           <div className="section">
-            <h2>联系方式</h2>
+            <h2>{t("PublicPrivacy.Contact.Title")}</h2>
             <p>
-              如有任何关于数据处理或隐私的问题，请通过 Shopify App 内支持渠道联系我们。
+              {t("PublicPrivacy.Contact.Content")}
             </p>
           </div>
         </div>
       </body>
     </html>
+  );
+}
+
+export default function PrivacyPage() {
+  return (
+    <I18nextProvider i18n={i18n}>
+      <PrivacyContent />
+    </I18nextProvider>
   );
 }

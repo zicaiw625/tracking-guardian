@@ -5,6 +5,7 @@ import { AuditPaywallCard } from "~/components/paywall/AuditPaywallCard";
 import { EnhancedEmptyState } from "~/components/ui";
 import type { DependencyGraph } from "~/services/dependency-analysis.server";
 import type { MigrationChecklistItem } from "~/services/migration-checklist.server";
+import { useTranslation } from "react-i18next";
 
 export interface MigrationChecklistTabProps {
   showTabs: boolean;
@@ -25,6 +26,7 @@ export function MigrationChecklistTab({
   handleScan,
   submit,
 }: MigrationChecklistTabProps) {
+  const { t } = useTranslation();
   return (
     <BlockStack gap="500">
       {showTabs && <AuditPaywallCard planId={planIdSafe} />}
@@ -34,9 +36,9 @@ export function MigrationChecklistTab({
             <BlockStack gap="400">
               <EnhancedEmptyState
                 icon="📋"
-                title="暂无迁移清单"
-                description="完成自动扫描后，我们将为您生成迁移清单和优先级建议。"
-                primaryAction={{ content: "开始扫描", onAction: handleScan }}
+                title={t("checklist.emptyScanTitle")}
+                description={t("checklist.emptyScanDesc")}
+                primaryAction={{ content: t("checklist.startScan"), onAction: handleScan }}
               />
             </BlockStack>
           </Card>
@@ -59,8 +61,8 @@ export function MigrationChecklistTab({
             <BlockStack gap="400">
               <EnhancedEmptyState
                 icon="📋"
-                title="暂无迁移清单"
-                description="扫描结果中没有需要迁移的项目。"
+                title={t("checklist.emptyScanTitle")}
+                description={t("checklist.emptyResultsDesc")}
               />
             </BlockStack>
           </Card>

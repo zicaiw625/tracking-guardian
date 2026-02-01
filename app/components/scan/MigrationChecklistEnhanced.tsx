@@ -377,7 +377,7 @@ export function MigrationChecklistEnhanced({
                     : t("checklist.riskLevelText.low");
                 const riskReason = item.riskReasonKey 
                     ? t(item.riskReasonKey, item.riskReasonParams) 
-                    : (item.riskReason || item.description || t("checklist.noReason", "No description"));
+                    : (item.riskReason || item.description || t("common.noDescription"));
                 return [
                   assetNameWithFingerprint,
                   t("checklist.riskReason", { level: riskLevelText, reason: riskReason }),
@@ -431,7 +431,7 @@ export function MigrationChecklistEnhanced({
                         <InlineStack gap="100" blockAlign="center">
                           <Icon source={ClockIcon} tone="subdued" />
                           <Text as="span" variant="bodySm" tone="subdued">
-                            {t("common.loading") === "Loading..." ? "Est. " : "预计 "}{formatTime(item.estimatedTime)}
+                            {t("common.estimated")} {formatTime(item.estimatedTime)}
                           </Text>
                         </InlineStack>
                         <Text as="span" variant="bodySm" tone="subdued">

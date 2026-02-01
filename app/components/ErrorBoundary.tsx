@@ -1,4 +1,5 @@
 import { useRouteError, isRouteErrorResponse, Link } from "@remix-run/react";
+import { useTranslation } from "react-i18next";
 import {
   Page,
   Card,
@@ -27,6 +28,7 @@ export function ErrorCard({
   showRetryButton = false,
   onRetry,
 }: ErrorDisplayProps) {
+  const { t } = useTranslation();
   return (
     <Page>
       <Card>
@@ -36,7 +38,7 @@ export function ErrorCard({
               <Text as="p">{message}</Text>
               {status && (
                 <Text as="p" variant="bodySm" tone="subdued">
-                  错误代码: {status}
+                  {t("errorPage.errorCode")} {status}
                 </Text>
               )}
             </BlockStack>
@@ -44,11 +46,11 @@ export function ErrorCard({
           <InlineStack gap="200">
             {showHomeButton && (
               <Link to="/app">
-                <Button variant="primary">返回首页</Button>
+                <Button variant="primary">{t("errorPage.backToHome")}</Button>
               </Link>
             )}
             {showRetryButton && onRetry && (
-              <Button onClick={onRetry}>重试</Button>
+              <Button onClick={onRetry}>{t("errorPage.retry")}</Button>
             )}
           </InlineStack>
         </BlockStack>
@@ -57,58 +59,30 @@ export function ErrorCard({
   );
 }
 
-const HTTP_ERROR_MESSAGES: Record<number, { title: string; message: string }> = {
-  400: {
-    title: "请求无效",
-    message: "您的请求格式不正确，请检查后重试。",
-  },
-  401: {
-    title: "未授权",
-    message: "您需要登录才能访问此页面。",
-  },
-  403: {
-    title: "访问被拒绝",
-    message: "您没有权限访问此资源。",
-  },
-  404: {
-    title: "页面未找到",
-    message: "您访问的页面不存在或已被移除。",
-  },
-  429: {
-    title: "请求过于频繁",
-    message: "您的请求过于频繁，请稍后再试。",
-  },
-  500: {
-    title: "服务器错误",
-    message: "服务器发生内部错误，请稍后重试。",
-  },
-  502: {
-    title: "网关错误",
-    message: "服务暂时不可用，请稍后重试。",
-  },
-  503: {
-    title: "服务不可用",
-    message: "服务正在维护中，请稍后重试。",
-  },
-  504: {
-    title: "网关超时",
-    message: "请求超时，请检查网络连接后重试。",
-  },
-};
+// Helper to get error info using t function
+function getHttpErrorInfo(status: number, t: (key: string) => string): { title: string; message: string } {
+  const errorKey = `errorPage.http.${status}`;
+  
+  const knownStatuses = [400, 401, 403, 404, 429, 500, 502, 503, 504];
+  if (knownStatuses.includes(status)) {
+     return {
+         title: t(`${errorKey}.title`),
+         message: t(`${errorKey}.message`)
+     };
+  }
 
-function getHttpErrorInfo(status: number): { title: string; message: string } {
-  return (
-    HTTP_ERROR_MESSAGES[status] || {
-      title: `错误 ${status}`,
-      message: "发生了未知错误，请稍后重试。",
-    }
-  );
+  return {
+    title: t("errorPage.unknownError"), // Or maybe just "Error {status}"
+    message: t("errorPage.unknownMessage"),
+  };
 }
 
 export function RouteErrorBoundary() {
   const error = useRouteError();
+  const { t } = useTranslation();
+  
   if (isRouteErrorResponse(error)) {
-    const { title, message } = getHttpErrorInfo(error.status);
+    const { title, message } = getHttpErrorInfo(error.status, t);
     return (
       <ErrorCard
         title={title}
@@ -124,11 +98,11 @@ export function RouteErrorBoundary() {
     const isDev = process.env.NODE_ENV !== "production";
     return (
       <ErrorCard
-        title="发生错误"
+        title={t("errorPage.defaultMessage")}
         message={
           isDev
             ? error.message
-            : "抱歉，发生了意外错误。我们的团队已收到通知。"
+            : t("errorPage.unexpectedError")
         }
         showHomeButton={true}
         showRetryButton={true}
@@ -138,8 +112,8 @@ export function RouteErrorBoundary() {
   }
   return (
     <ErrorCard
-      title="未知错误"
-      message="发生了未知错误，请刷新页面或返回首页。"
+      title={t("errorPage.unknownTitle")}
+      message={t("errorPage.unknownMessage")}
       showHomeButton={true}
       showRetryButton={true}
       onRetry={() => window.location.reload()}
@@ -156,6 +130,7 @@ export function InlineError({
   message: string;
   onRetry?: () => void;
 }) {
+  const { t } = useTranslation();
   return (
     <Box padding="400">
       <Banner title={title} tone="critical">
@@ -163,7 +138,7 @@ export function InlineError({
           <Text as="p">{message}</Text>
           {onRetry && (
             <Button size="slim" onClick={onRetry}>
-              重试
+              {t("errorPage.retry")}
             </Button>
           )}
         </BlockStack>
@@ -206,17 +181,18 @@ export function LoadingError({
   error: Error | string | null;
   onRetry?: () => void;
 }) {
+  const { t } = useTranslation();
   const message =
     typeof error === "string"
       ? error
-      : error?.message || "加载数据时发生错误";
+      : error?.message || t("errorPage.loadDataError");
   return (
-    <Banner title="加载失败" tone="critical">
+    <Banner title={t("errorPage.loadFailed")} tone="critical">
       <BlockStack gap="200">
         <Text as="p">{message}</Text>
         {onRetry && (
           <Button size="slim" onClick={onRetry}>
-            重新加载
+            {t("errorPage.reload")}
           </Button>
         )}
       </BlockStack>

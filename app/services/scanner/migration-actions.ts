@@ -223,8 +223,8 @@ export function generateMigrationActions(result: EnhancedScanResult, shopTier: s
             titleParams: { platform: dup.platform },
             description: `检测到 ${dup.count} 个 ${dup.platform} 像素配置，可能导致重复追踪。建议只保留一个。` +
                 (gidsToDelete.length > 0 ? ` (可删除 ${gidsToDelete.length} 个)` : ""),
-            descriptionKey: "scan.migrationLogic.duplicate.desc",
-            descriptionParams: { count: dup.count, platform: dup.platform },
+            descriptionKey: gidsToDelete.length > 0 ? "scan.migrationLogic.duplicate.descWithDelete" : "scan.migrationLogic.duplicate.desc",
+            descriptionParams: { count: dup.count, platform: dup.platform, deleteCount: gidsToDelete.length },
             // Suffix logic for delete count is simple enough to handle or ignore for now, or add as param if supported.
             // Added `delete` key in JSON, but using it requires composition.
             webPixelGid: gidsToDelete[0],

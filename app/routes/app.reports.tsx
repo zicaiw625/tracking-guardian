@@ -9,6 +9,7 @@ import { getVerificationHistory } from "../services/verification.server";
 import { checkFeatureAccess } from "../services/billing/feature-gates.server";
 import { normalizePlanId, type PlanId } from "../services/billing/plans";
 import { UpgradePrompt } from "~/components/ui/UpgradePrompt";
+import { useTranslation } from "react-i18next";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   const { session } = await authenticate.admin(request);
@@ -41,6 +42,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 };
 
 export default function ReportsPage() {
+  const { t } = useTranslation();
   const { shop, canExportReports, latestRun, gateResult, currentPlan } = useLoaderData<typeof loader>();
 
   const handleExportVerificationCsv = () => {
@@ -50,37 +52,34 @@ export default function ReportsPage() {
 
   return (
     <Page
-      title="报告中心"
-      subtitle="查看与导出扫描报告、验收报告"
+      title={t("reports.title")}
+      subtitle={t("reports.subtitle")}
     >
       <BlockStack gap="500">
         <PageIntroCard
-          title="报告中心"
-          description="在此可前往扫描页或验收页查看详情，并导出扫描报告、验收报告（CSV 导出需 Growth 及以上套餐）。"
-          items={[
-            "扫描报告：在「Audit」页完成扫描后，可导出扫描报告 CSV",
-            "验收报告：在「验收」页运行验收后，可导出验收报告 CSV",
-          ]}
-          primaryAction={{ content: "前往验收", url: "/app/verification" }}
-          secondaryAction={{ content: "前往扫描", url: "/app/scan" }}
+          title={t("reports.intro.title")}
+          description={t("reports.intro.desc")}
+          items={t("reports.intro.items", { returnObjects: true }) as string[]}
+          primaryAction={{ content: t("reports.intro.actions.verify"), url: "/app/verification" }}
+          secondaryAction={{ content: t("reports.intro.actions.scan"), url: "/app/scan" }}
         />
         {!shop ? (
           <Banner tone="warning">
-            未找到店铺配置，请确保应用已正确安装。
+            {t("reports.empty")}
           </Banner>
         ) : (
           <>
             <Card>
               <BlockStack gap="300">
                 <Text as="h2" variant="headingMd">
-                  扫描报告
+                  {t("reports.scan.title")}
                 </Text>
                 <Text as="p" variant="bodySm" tone="subdued">
-                  在「Audit」页完成自动或手动扫描后，可在该页导出扫描报告（CSV）。导出需 Growth 及以上套餐。
+                  {t("reports.scan.desc")}
                 </Text>
                 <InlineStack gap="200">
                   <Button url="/app/scan" variant="primary">
-                    前往扫描页
+                    {t("reports.scan.action")}
                   </Button>
                 </InlineStack>
               </BlockStack>
@@ -88,24 +87,27 @@ export default function ReportsPage() {
             <Card>
               <BlockStack gap="300">
                 <Text as="h2" variant="headingMd">
-                  验收报告
+                  {t("reports.verification.title")}
                 </Text>
                 <Text as="p" variant="bodySm" tone="subdued">
-                  在「验收」页运行验收后，可在此或验收页导出最近一次验收报告（CSV）。导出需 Growth 及以上套餐。
+                  {t("reports.verification.desc")}
                 </Text>
                 {latestRun ? (
                   <BlockStack gap="200">
                     <Text as="p" variant="bodySm">
-                      最近一次验收：{latestRun.runName}，{latestRun.status === "completed" ? "已完成" : latestRun.status}
-                      {latestRun.startedAt ? `，${new Date(latestRun.startedAt).toLocaleString()}` : ""}
+                      {t("reports.verification.lastRun", {
+                        name: latestRun.runName,
+                        status: latestRun.status === "completed" ? t("common.success") : latestRun.status,
+                        time: latestRun.startedAt ? new Date(latestRun.startedAt).toLocaleString() : ""
+                      })}
                     </Text>
                     {canExportReports ? (
                       <InlineStack gap="200">
                         <Button onClick={handleExportVerificationCsv} variant="primary">
-                          导出验收报告 CSV
+                          {t("reports.verification.export")}
                         </Button>
                         <Button url={`/app/verification/report/${latestRun.runId}`} variant="secondary">
-                          查看详情
+                          {t("reports.verification.view")}
                         </Button>
                       </InlineStack>
                     ) : (
@@ -119,7 +121,7 @@ export default function ReportsPage() {
                 ) : (
                   <InlineStack gap="200">
                     <Button url="/app/verification" variant="primary">
-                      前往验收页运行验收
+                      {t("reports.verification.empty")}
                     </Button>
                   </InlineStack>
                 )}

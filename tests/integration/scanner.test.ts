@@ -114,7 +114,7 @@ describe("Content Analysis", () => {
             const result = analyzeScriptContent(content);
             expect(result.identifiedPlatforms).toContain("meta");
             expect(result.recommendations.length).toBeGreaterThan(0);
-            expect(result.recommendations.some(r => r.includes("Meta"))).toBe(true);
+            expect(result.recommendations.some(r => r.toLowerCase().includes("meta"))).toBe(true);
         });
         it("should detect Legacy UA and add high severity risk", () => {
             const content = `

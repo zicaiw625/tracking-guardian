@@ -4,10 +4,16 @@ import { PLATFORM_PATTERNS, getPatternType } from "./patterns";
 import { calculateRiskScore } from "./risk-assessment";
 import { SCRIPT_ANALYSIS_CONFIG } from "../../utils/config.shared";
 import { sanitizeSensitiveInfo } from "../../utils/security";
+import type { TFunction } from "i18next";
 
 const MAX_CONTENT_LENGTH = SCRIPT_ANALYSIS_CONFIG.MAX_CONTENT_LENGTH;
 
-export function analyzeScriptContent(content: string): ScriptAnalysisResult {
+const getT = (t: TFunction | undefined, key: string, options?: any, fallback?: string): string => {
+  if (t) return t(key, options) as unknown as string;
+  return fallback || key;
+};
+
+export function analyzeScriptContent(content: string, t?: TFunction): ScriptAnalysisResult {
     const result: ScriptAnalysisResult = {
         identifiedPlatforms: [],
         platformDetails: [],
@@ -15,18 +21,22 @@ export function analyzeScriptContent(content: string): ScriptAnalysisResult {
         riskScore: 0,
         recommendations: [],
     };
+
     if (!content || content.trim().length === 0) {
         return result;
     }
+
     const trimmedContent = content.trim();
     let contentToAnalyze = trimmedContent;
     if (trimmedContent.length > MAX_CONTENT_LENGTH) {
         contentToAnalyze = trimmedContent.substring(0, MAX_CONTENT_LENGTH);
     }
+
     const platformMatches: Map<string, {
         type: string;
         pattern: string;
     }[]> = new Map();
+
     for (const [platform, patterns] of Object.entries(PLATFORM_PATTERNS)) {
         for (const pattern of patterns) {
             const match = contentToAnalyze.match(pattern);
@@ -46,6 +56,7 @@ export function analyzeScriptContent(content: string): ScriptAnalysisResult {
             }
         }
     }
+
     for (const [platform, matches] of platformMatches.entries()) {
         result.identifiedPlatforms.push(platform);
         for (const match of matches) {
@@ -57,6 +68,7 @@ export function analyzeScriptContent(content: string): ScriptAnalysisResult {
             });
         }
     }
+
     const ga4Match = contentToAnalyze.match(/G-[A-Z0-9]{10,}/gi);
     if (ga4Match) {
         for (const id of ga4Match) {
@@ -74,6 +86,7 @@ export function analyzeScriptContent(content: string): ScriptAnalysisResult {
             }
         }
     }
+
     const metaPixelMatch = contentToAnalyze.match(/(?:pixel[_-]?id|fbq\('init',)\s*['":]?\s*(\d{15,16})/gi);
     if (metaPixelMatch) {
         for (const match of metaPixelMatch) {
@@ -92,6 +105,7 @@ export function analyzeScriptContent(content: string): ScriptAnalysisResult {
             }
         }
     }
+
     const snapPixelMatch = contentToAnalyze.match(/snaptr\s*\(['"]init['"],\s*['"]?([A-Z0-9-]+)['"]?/gi);
     if (snapPixelMatch) {
         for (const match of snapPixelMatch) {
@@ -110,6 +124,7 @@ export function analyzeScriptContent(content: string): ScriptAnalysisResult {
             }
         }
     }
+
     const pinterestTagMatch = contentToAnalyze.match(/pintrk\s*\(['"]load['"],\s*['"]?([A-Z0-9]+)['"]?/gi);
     if (pinterestTagMatch) {
         for (const match of pinterestTagMatch) {
@@ -128,6 +143,7 @@ export function analyzeScriptContent(content: string): ScriptAnalysisResult {
             }
         }
     }
+
     const tiktokPixelMatch = contentToAnalyze.match(/ttq\s*\.\s*load\s*\(['"]?([A-Z0-9]+)['"]?/gi);
     if (tiktokPixelMatch) {
         for (const match of tiktokPixelMatch) {
@@ -146,6 +162,7 @@ export function analyzeScriptContent(content: string): ScriptAnalysisResult {
             }
         }
     }
+
     const piiPatterns = [
         /(?:email|e-mail|mail)\s*[:=]\s*['"]?([^'",\s@]+@[^'",\s]+)/gi,
         /customer\.(?:email|e-mail|contact_email)/gi,
@@ -185,6 +202,7 @@ export function analyzeScriptContent(content: string): ScriptAnalysisResult {
         /(?:ip[_-]?address|ipAddress|clientIp|userIp)\s*[:=]/gi,
         /(?:device[_-]?id|deviceId|device_id|fingerprint)\s*[:=]/gi,
     ];
+
     const piiMatches: string[] = [];
     piiPatterns.forEach(pattern => {
         const matches = contentToAnalyze.match(pattern);
@@ -192,23 +210,40 @@ export function analyzeScriptContent(content: string): ScriptAnalysisResult {
             piiMatches.push(...matches.slice(0, 3));
         }
     });
+
     if (piiMatches.length > 0) {
         const uniqueMatches = [...new Set(piiMatches)];
         const piiTypes: string[] = [];
-        if (uniqueMatches.some(m => /email|mail/i.test(m))) piiTypes.push("邮箱");
-        if (uniqueMatches.some(m => /phone|tel/i.test(m))) piiTypes.push("电话");
-        if (uniqueMatches.some(m => /address|street|city/i.test(m))) piiTypes.push("地址");
-        if (uniqueMatches.some(m => /name/i.test(m))) piiTypes.push("姓名");
-        if (uniqueMatches.some(m => /ssn|credit|card/i.test(m))) piiTypes.push("其他敏感信息");
+        // Since we are moving to translation, we can keep English keys here or use translated values if we want
+        // But for display in "details", we should probably translate them too.
+        // However, these are dynamically detected types.
+        
+        // For simplicity, let's keep hardcoded Chinese here IF t is not provided, 
+        // but if t is provided, we should probably return English keys or translated values?
+        // The original code had "邮箱", "电话" etc.
+        // Let's use getT to translate these types if possible, or just keep them as is for now 
+        // as they are inserted into the translation string via {{types}}.
+        
+        if (uniqueMatches.some(m => /email|mail/i.test(m))) piiTypes.push("Email");
+        if (uniqueMatches.some(m => /phone|tel/i.test(m))) piiTypes.push("Phone");
+        if (uniqueMatches.some(m => /address|street|city/i.test(m))) piiTypes.push("Address");
+        if (uniqueMatches.some(m => /name/i.test(m))) piiTypes.push("Name");
+        if (uniqueMatches.some(m => /ssn|credit|card/i.test(m))) piiTypes.push("Sensitive Info");
+
+        const typesStr = piiTypes.join(", ");
+
         result.risks.push({
             id: "pii_access",
-            name: "检测到 PII（个人身份信息）访问",
-            description: `脚本可能读取客户${piiTypes.join("、")}等敏感信息，需要确保符合隐私法规（GDPR、CCPA）。Web Pixel 沙箱环境无法直接访问这些信息；如确需处理，请按 Shopify 官方能力与审核要求实施（PCD/权限），并最小化数据处理。`,
+            name: getT(t, "scan.analysis.risks.pii_access.name", {}, "检测到 PII（个人身份信息）访问"),
+            description: getT(t, "scan.analysis.risks.pii_access.description", { types: typesStr }, 
+                `脚本可能读取客户${typesStr}等敏感信息，需要确保符合隐私法规（GDPR、CCPA）。Web Pixel 沙箱环境无法直接访问这些信息；如确需处理，请按 Shopify 官方能力与审核要求实施（PCD/权限），并最小化数据处理。`),
             severity: "high" as RiskSeverity,
             points: 35,
-            details: `检测到 ${piiMatches.length} 处 PII 访问: ${piiTypes.join("、")}`,
+            details: getT(t, "scan.analysis.risks.pii_access.details", { count: piiMatches.length, types: typesStr }, 
+                `检测到 ${piiMatches.length} 处 PII 访问: ${typesStr}`),
         });
     }
+
     const globalObjectPatterns = [
         /\bwindow\.(location|history|localStorage|sessionStorage|document|cookie|navigator|screen|innerWidth|innerHeight|outerWidth|outerHeight|scrollX|scrollY|pageXOffset|pageYOffset)/gi,
         /\bwindow\[/gi,
@@ -231,12 +266,14 @@ export function analyzeScriptContent(content: string): ScriptAnalysisResult {
         /\$\s*\(['"]/gi,
         /jQuery\s*\(['"]/gi,
     ];
+
     const windowDocumentMatches: string[] = [];
     const matchTypes = {
         window: [] as string[],
         document: [] as string[],
         dom: [] as string[],
     };
+
     globalObjectPatterns.forEach(pattern => {
         const matches = contentToAnalyze.match(pattern);
         if (matches) {
@@ -252,21 +289,28 @@ export function analyzeScriptContent(content: string): ScriptAnalysisResult {
             });
         }
     });
+
     if (windowDocumentMatches.length > 0) {
         const uniqueMatches = [...new Set(windowDocumentMatches)];
         const issues: string[] = [];
-        if (matchTypes.window.length > 0) issues.push(`window 对象访问 (${matchTypes.window.length} 处)`);
-        if (matchTypes.document.length > 0) issues.push(`document 对象访问 (${matchTypes.document.length} 处)`);
-        if (matchTypes.dom.length > 0) issues.push(`DOM 操作 (${matchTypes.dom.length} 处)`);
+        if (matchTypes.window.length > 0) issues.push(`window object (${matchTypes.window.length})`);
+        if (matchTypes.document.length > 0) issues.push(`document object (${matchTypes.document.length})`);
+        if (matchTypes.dom.length > 0) issues.push(`DOM operations (${matchTypes.dom.length})`);
+        
+        const issuesStr = issues.join(", ");
+
         result.risks.push({
             id: "window_document_access",
-            name: "检测到 window/document 全局对象访问",
-            description: "脚本使用了 window、document 或 DOM 操作。Web Pixel 运行在受限沙箱中，无法访问这些对象，需要在迁移时使用 Shopify 提供的受控 API 替代（如 analytics.subscribe、settings 等）",
+            name: getT(t, "scan.analysis.risks.window_document_access.name", {}, "检测到 window/document 全局对象访问"),
+            description: getT(t, "scan.analysis.risks.window_document_access.description", {}, 
+                "脚本使用了 window、document 或 DOM 操作。Web Pixel 运行在受限沙箱中，无法访问这些对象，需要在迁移时使用 Shopify 提供的受控 API 替代（如 analytics.subscribe、settings 等）"),
             severity: "high" as RiskSeverity,
             points: 40,
-            details: `检测到 ${uniqueMatches.length} 处访问: ${issues.join("、")}`,
+            details: getT(t, "scan.analysis.risks.window_document_access.details", { count: uniqueMatches.length, issues: issuesStr }, 
+                `检测到 ${uniqueMatches.length} 处访问: ${issuesStr}`),
         });
     }
+
     const blockingPatterns = [
         /document\.write\s*\(/gi,
         /document\.writeln\s*\(/gi,
@@ -284,6 +328,7 @@ export function analyzeScriptContent(content: string): ScriptAnalysisResult {
         /document\.cookie\s*=\s*[^;]+/gi,
         /JSON\.parse\s*\([^)]*\)/gi,
     ];
+
     const blockingMatches: string[] = [];
     blockingPatterns.forEach(pattern => {
         const matches = contentToAnalyze.match(pattern);
@@ -291,6 +336,7 @@ export function analyzeScriptContent(content: string): ScriptAnalysisResult {
             blockingMatches.push(...matches.slice(0, 3));
         }
     });
+
     if (blockingMatches.length > 0) {
         const uniqueMatches = [...new Set(blockingMatches)];
         const blockingTypes: string[] = [];
@@ -298,29 +344,36 @@ export function analyzeScriptContent(content: string): ScriptAnalysisResult {
             blockingTypes.push("document.write");
         }
         if (uniqueMatches.some(m => /<script[^>]*(?!.*async)(?!.*defer)/i.test(m))) {
-            blockingTypes.push("同步脚本标签");
+            blockingTypes.push("Sync Script Tag");
         }
         if (uniqueMatches.some(m => /eval|Function/i.test(m))) {
             blockingTypes.push("eval/Function");
         }
         if (uniqueMatches.some(m => /XMLHttpRequest.*false/i.test(m))) {
-            blockingTypes.push("同步 XHR");
+            blockingTypes.push("Sync XHR");
         }
         if (uniqueMatches.some(m => /while.*true/i.test(m))) {
-            blockingTypes.push("可能的无限循环");
+            blockingTypes.push("Infinite Loop");
         }
+        
+        const typesStr = blockingTypes.join(", ");
+
         result.risks.push({
             id: "blocking_load",
-            name: "检测到阻塞加载的代码",
-            description: `脚本可能阻塞页面渲染，影响用户体验和页面性能。检测到：${blockingTypes.join("、")}`,
+            name: getT(t, "scan.analysis.risks.blocking_load.name", {}, "检测到阻塞加载的代码"),
+            description: getT(t, "scan.analysis.risks.blocking_load.description", { types: typesStr }, 
+                `脚本可能阻塞页面渲染，影响用户体验和页面性能。检测到：${typesStr}`),
             severity: "high" as RiskSeverity,
             points: 30,
-            details: `检测到 ${uniqueMatches.length} 处阻塞代码：${blockingTypes.join("、")}`,
+            details: getT(t, "scan.analysis.risks.blocking_load.details", { count: uniqueMatches.length, types: typesStr }, 
+                `检测到 ${uniqueMatches.length} 处阻塞代码：${typesStr}`),
         });
     }
+
     const duplicatePatterns = [
         /(?:fbq|gtag|ttq|pintrk|snaptr)\s*\([^)]*['"](?:track|event|purchase|pageview)['"]/gi,
     ];
+
     const eventCalls: string[] = [];
     for (const pattern of duplicatePatterns) {
         const matches = contentToAnalyze.match(pattern);
@@ -328,290 +381,104 @@ export function analyzeScriptContent(content: string): ScriptAnalysisResult {
             eventCalls.push(...matches);
         }
     }
+
     const eventCounts = new Map<string, number>();
     eventCalls.forEach(call => {
         const normalized = call.toLowerCase().replace(/\s+/g, '');
         eventCounts.set(normalized, (eventCounts.get(normalized) || 0) + 1);
     });
+
     const hasDuplicateTriggers = Array.from(eventCounts.values()).some(count => count > 1);
     if (hasDuplicateTriggers) {
+        const count = Array.from(eventCounts.values()).filter(c => c > 1).length;
         result.risks.push({
             id: "duplicate_triggers",
-            name: "检测到重复触发的事件",
-            description: "脚本可能多次触发相同事件，导致重复追踪和数据不准确",
+            name: getT(t, "scan.analysis.risks.duplicate_triggers.name", {}, "检测到重复触发的事件"),
+            description: getT(t, "scan.analysis.risks.duplicate_triggers.description", {}, "脚本可能多次触发相同事件，导致重复追踪和数据不准确"),
             severity: "medium" as RiskSeverity,
             points: 20,
-            details: `检测到 ${Array.from(eventCounts.values()).filter(c => c > 1).length} 个重复的事件调用`,
+            details: getT(t, "scan.analysis.risks.duplicate_triggers.details", { count }, `检测到 ${count} 个重复的事件调用`),
         });
     }
+
     if (result.identifiedPlatforms.length > 0) {
+        const platformsStr = result.identifiedPlatforms.join(", ");
         result.risks.push({
             id: "additional_scripts_detected",
-            name: "Additional Scripts 中检测到追踪代码",
-            description: "建议迁移到 Web Pixel 以获得更好的兼容性和隐私合规",
+            name: getT(t, "scan.analysis.risks.additional_scripts_detected.name", {}, "Additional Scripts 中检测到追踪代码"),
+            description: getT(t, "scan.analysis.risks.additional_scripts_detected.description", {}, "建议迁移到 Web Pixel 以获得更好的兼容性和隐私合规"),
             severity: "high" as RiskSeverity,
             points: 25,
-            details: `检测到平台: ${result.identifiedPlatforms.join(", ")}`,
+            details: getT(t, "scan.analysis.risks.additional_scripts_detected.details", { platforms: platformsStr }, `检测到平台: ${platformsStr}`),
         });
+
         if (result.identifiedPlatforms.includes("google") && contentToAnalyze.includes("UA-")) {
             result.risks.push({
                 id: "legacy_ua",
-                name: "使用旧版 Universal Analytics",
-                description: "Universal Analytics 已于 2023 年 7 月停止处理数据，请迁移到 GA4",
+                name: getT(t, "scan.analysis.risks.legacy_ua.name", {}, "使用旧版 Universal Analytics"),
+                description: getT(t, "scan.analysis.risks.legacy_ua.description", {}, "Universal Analytics 已于 2023 年 7 月停止处理数据，请迁移到 GA4"),
                 severity: "high" as RiskSeverity,
                 points: 30,
             });
         }
+
         if (contentToAnalyze.includes("<script") && contentToAnalyze.includes("</script>")) {
             result.risks.push({
                 id: "inline_script_tags",
-                name: "内联 Script 标签",
-                description: "内联脚本可能影响页面加载性能，建议使用异步加载或 Web Pixel",
+                name: getT(t, "scan.analysis.risks.inline_script_tags.name", {}, "内联 Script 标签"),
+                description: getT(t, "scan.analysis.risks.inline_script_tags.description", {}, "内联脚本可能影响页面加载性能，建议使用异步加载或 Web Pixel"),
                 severity: "medium" as RiskSeverity,
                 points: 15,
             });
         }
     }
+
     result.riskScore = calculateRiskScore(result.risks);
+
     for (const platform of result.identifiedPlatforms) {
-        switch (platform) {
-            case "google":
-                result.recommendations.push(
-                    "🎯 **Google Analytics (GA4)**\n" +
-                    "  → 迁移到: Tracking Guardian Web Pixel（事件接收/落库/验收）\n" +
-                    "  → 操作: 启用 App Pixel 后完成测试订单并运行验收\n" +
-                    "  → 说明: 服务端投递能力为规划项；v1 以 Web Pixel → /ingest → 验收为主"
-                );
-                break;
-            case "google_ads":
-                result.recommendations.push(
-                    "🎯 **Google Ads 转化追踪**\n" +
-                    "  → 迁移到: Shopify 官方 Google & YouTube 应用\n" +
-                    "  → 原因: 官方应用原生支持 Enhanced Conversions，Tracking Guardian 不支持 Google Ads CAPI\n" +
-                    "  → 链接: https://apps.shopify.com/google",
-                );
-                break;
-            case "gtm":
-                result.recommendations.push(
-                    "🎯 **Google Tag Manager**\n" +
-                    "  → 迁移方案取决于 GTM 内的具体标签:\n" +
-                    "    • GA4 事件 → Tracking Guardian Web Pixel\n" +
-                    "    • Google Ads → Shopify 官方 Google 应用\n" +
-                    "    • Meta Pixel → Tracking Guardian Web Pixel\n" +
-                    "  → 建议: 审查 GTM 容器内的标签，分别迁移到对应方案"
-                );
-                break;
-            case "meta":
-                result.recommendations.push(
-                    "🎯 **Meta Pixel (Facebook/Instagram)**\n" +
-                    "  → 迁移到: Tracking Guardian Web Pixel（事件接收/落库/验收）\n" +
-                    "  → 操作: 启用 App Pixel 后完成测试订单并运行验收\n" +
-                    "  → 说明: 服务端投递能力为规划项；v1 不承诺向广告平台投递"
-                );
-                break;
-            case "tiktok":
-                result.recommendations.push(
-                    "🎯 **TikTok Pixel**\n" +
-                    "  → 迁移到: Tracking Guardian Web Pixel（事件接收/落库/验收）\n" +
-                    "  → 操作: 启用 App Pixel 后完成测试订单并运行验收\n" +
-                    "  → 说明: 服务端投递能力为规划项；v1 不承诺向广告平台投递"
-                );
-                break;
-            case "bing":
-                result.recommendations.push(
-                    "⚠️ **Microsoft Advertising (Bing UET)**\n" +
-                    "  → 迁移到: Shopify 官方 Microsoft Channel 应用\n" +
-                    "  → 原因: Tracking Guardian 不支持 Microsoft Ads 服务端追踪\n" +
-                    "  → 链接: https://apps.shopify.com/microsoft-channel",
-                    "  → 备选: 在 Shopify 主题中添加 UET 标签（非 Thank you 页面可继续使用）"
-                );
-                break;
-            case "clarity":
-                result.recommendations.push(
-                    "ℹ️ **Microsoft Clarity**\n" +
-                    "  → 无需迁移到服务端: Clarity 是客户端会话回放/热力图工具\n" +
-                    "  → 迁移方案: 在 Shopify 主题中添加 Clarity 代码\n" +
-                    "  → 注意: Thank you 页面升级后，checkout.liquid 中的 Clarity 代码将失效"
-                );
-                break;
-            case "pinterest":
-                result.recommendations.push(
-                    "⚠️ **Pinterest Tag**\n" +
-                    "  → 迁移到: Shopify 官方 Pinterest 应用\n" +
-                    "  → 原因: 官方应用支持 Pinterest Conversions API\n" +
-                    "  → 链接: https://apps.shopify.com/pinterest",
-                );
-                break;
-            case "snapchat":
-                result.recommendations.push(
-                    "⚠️ **Snapchat Pixel**\n" +
-                    "  → 迁移到: Shopify 官方 Snapchat Ads 应用\n" +
-                    "  → 链接: https://apps.shopify.com/snapchat-ads",
-                );
-                break;
-            case "twitter":
-                result.recommendations.push(
-                    "⚠️ **X (Twitter) Pixel**\n" +
-                    "  → 无官方 Shopify 应用\n" +
-                    "  → 备选方案: 使用第三方集成或手动配置 X Conversions API"
-                );
-                break;
-            case "fairing":
-                result.recommendations.push(
-                    "📋 **Fairing (Post-purchase Survey)**\n" +
-                    "  → 迁移到: Fairing 官方 Shopify 应用（支持 Checkout Extensibility）\n" +
-                    "  → 链接: https://apps.shopify.com/fairing",
-                    "  → 注意: 如果已安装官方应用，只需更新到最新版本即可自动适配"
-                );
-                break;
-            case "kno":
-                result.recommendations.push(
-                    "📋 **KnoCommerce (Survey)**\n" +
-                    "  → 迁移到: KnoCommerce 官方应用\n" +
-                    "  → 链接: https://apps.shopify.com/microsoft-channel",
-                    "  → 官方应用会自动适配 Checkout Extensibility"
-                );
-                break;
-            case "zigpoll":
-                result.recommendations.push(
-                    "📋 **Zigpoll (Survey)**\n" +
-                    "  → 迁移到: Zigpoll 官方应用\n" +
-                    "  → 链接: https://apps.shopify.com/microsoft-channel",
-                );
-                break;
-            case "carthook":
-                result.recommendations.push(
-                    "🛒 **CartHook (Post-purchase Upsell)**\n" +
-                    "  → 迁移到: CartHook 官方应用（支持 post-purchase extension）\n" +
-                    "  → 链接: https://apps.shopify.com/microsoft-channel",
-                    "  → 重要: Shopify 的 post-purchase 页面使用独立的 extension API"
-                );
-                break;
-            case "aftersell":
-                result.recommendations.push(
-                    "🛒 **AfterSell (Upsell)**\n" +
-                    "  → 迁移到: AfterSell 官方应用\n" +
-                    "  → 链接: https://apps.shopify.com/microsoft-channel",
-                    "  → 官方应用已支持 Checkout Extensibility"
-                );
-                break;
-            case "reconvert":
-                result.recommendations.push(
-                    "🛒 **ReConvert (Upsell & Thank You)**\n" +
-                    "  → 迁移到: ReConvert 官方应用（已支持新版 Thank You 页面）\n" +
-                    "  → 链接: https://apps.shopify.com/microsoft-channel",
-                    "  → 确保更新到最新版本"
-                );
-                break;
-            case "zipify":
-                result.recommendations.push(
-                    "🛒 **Zipify OneClickUpsell**\n" +
-                    "  → 迁移到: Zipify OCU 官方应用（支持 Checkout Extensibility）\n" +
-                    "  → 链接: https://apps.shopify.com/microsoft-channel",
-                );
-                break;
-            case "refersion":
-                result.recommendations.push(
-                    "🤝 **Refersion (Affiliate)**\n" +
-                    "  → 迁移到: Refersion 官方应用（支持服务端追踪）\n" +
-                    "  → 链接: https://apps.shopify.com/microsoft-channel",
-                    "  → 官方应用使用 Webhook 追踪，不依赖客户端脚本"
-                );
-                break;
-            case "referralcandy":
-                result.recommendations.push(
-                    "🤝 **ReferralCandy**\n" +
-                    "  → 迁移到: ReferralCandy 官方应用\n" +
-                    "  → 链接: https://apps.shopify.com/microsoft-channel",
-                    "  → 官方应用使用 Webhook，无需客户端脚本"
-                );
-                break;
-            case "tapfiliate":
-                result.recommendations.push(
-                    "🤝 **Tapfiliate (Affiliate)**\n" +
-                    "  → 迁移到: Tapfiliate 官方应用或服务端 API 集成\n" +
-                    "  → 链接: https://apps.shopify.com/microsoft-channel",
-                );
-                break;
-            case "impact":
-                result.recommendations.push(
-                    "🤝 **impact.com (Affiliate)**\n" +
-                    "  → 建议: 联系 impact.com 支持团队了解 Shopify Checkout Extensibility 迁移方案\n" +
-                    "  → impact.com 支持服务端 API 集成，可脱离客户端脚本"
-                );
-                break;
-            case "partnerstack":
-                result.recommendations.push(
-                    "🤝 **PartnerStack**\n" +
-                    "  → 迁移到: PartnerStack 官方应用（支持 Webhook）\n" +
-                    "  → 链接: https://apps.shopify.com/microsoft-channel",
-                );
-                break;
-            case "hotjar":
-                result.recommendations.push(
-                    "🔥 **Hotjar (Heatmaps/Recordings)**\n" +
-                    "  → 迁移方案: 在 Shopify 主题中添加 Hotjar 代码\n" +
-                    "  → 注意: Thank You 页面升级后，checkout.liquid 中的代码将失效\n" +
-                    "  → Hotjar 是客户端行为分析工具，无法使用服务端追踪"
-                );
-                break;
-            case "lucky_orange":
-                result.recommendations.push(
-                    "🔥 **Lucky Orange**\n" +
-                    "  → 迁移方案: 在 Shopify 主题中添加 Lucky Orange 代码\n" +
-                    "  → 类似 Hotjar，是客户端行为分析工具\n" +
-                    "  → Thank You 页面升级后需要其他集成方式"
-                );
-                break;
-            case "klaviyo":
-                result.recommendations.push(
-                    "📧 **Klaviyo**\n" +
-                    "  → 迁移到: Klaviyo 官方应用\n" +
-                    "  → 链接: https://apps.shopify.com/microsoft-channel",
-                    "  → 官方应用使用 Webhook 追踪订单，客户端脚本主要用于网站浏览追踪"
-                );
-                break;
-            case "attentive":
-                result.recommendations.push(
-                    "📱 **Attentive (SMS)**\n" +
-                    "  → 迁移到: Attentive 官方应用（支持 Checkout Extensibility）\n" +
-                    "  → 链接: https://apps.shopify.com/microsoft-channel",
-                    "  → 确保更新到最新版本"
-                );
-                break;
-            case "postscript":
-                result.recommendations.push(
-                    "📱 **Postscript (SMS)**\n" +
-                    "  → 迁移到: Postscript 官方应用（支持新版 Checkout）\n" +
-                    "  → 链接: https://apps.shopify.com/microsoft-channel",
-                );
-                break;
-            default:
-                result.recommendations.push(
-                    `ℹ️ **${platform}**\n` +
-                    "  → 请确认此追踪代码的用途，并评估是否需要迁移到 Web Pixel 或服务端方案"
-                );
+        const key = `scan.analysis.recommendations.${platform}`;
+        const fallback = `ℹ️ **${platform}**\n  → 请确认此追踪代码的用途，并评估是否需要迁移到 Web Pixel 或服务端方案`;
+        
+        // Check if key exists in predefined list implicitly by checking if it matches known platforms
+        // Or just trust getT to return fallback if key missing (though getT doesn't check existence, t does)
+        // If t is missing, getT returns fallback.
+        
+        // For default case logic:
+        // We can just try to translate using the platform key. 
+        // If translation returns the key itself (meaning missing), we can use the default recommendation.
+        // But t() usually returns key if missing.
+        
+        let recommendation = getT(t, key, {}, "");
+        if (!recommendation || recommendation === key) {
+             recommendation = getT(t, "scan.analysis.recommendations.default", { platform }, fallback);
         }
+        
+        result.recommendations.push(recommendation);
     }
+
     if (result.identifiedPlatforms.length === 0 && contentToAnalyze.length > 100) {
         result.recommendations.push(
+            getT(t, "scan.analysis.recommendations.unknown", {}, 
             "ℹ️ **未检测到已知追踪平台**\n" +
             "  → 可能是自定义脚本、Survey 工具、Post-purchase upsell 等\n" +
             "  → 迁移方案:\n" +
             "    • Survey/表单 → 按 Shopify 官方能力手动迁移\n" +
             "    • Post-purchase upsell → Shopify 官方 post-purchase 扩展\n" +
             "    • 自定义追踪 → Custom Pixel 或 Web Pixel\n" +
-            "  → 建议: 确认脚本用途后选择对应迁移方案"
+            "  → 建议: 确认脚本用途后选择对应迁移方案")
         );
     }
+
     if (result.identifiedPlatforms.length >= 2) {
         result.recommendations.push(
+            getT(t, "scan.analysis.recommendations.checklist", {},
             "\n📋 **迁移清单建议**:\n" +
             "  1. 优先迁移广告平台（Meta、TikTok）以避免归因数据丢失\n" +
-                    "  2. 启用 Web Pixel 并完成测试订单验收\n" +
+            "  2. 启用 Web Pixel 并完成测试订单验收\n" +
             "  3. 验证迁移后数据正常，再删除旧脚本\n" +
-            "  4. 非支持平台（Bing、Pinterest 等）使用官方应用"
+            "  4. 非支持平台（Bing、Pinterest 等）使用官方应用")
         );
     }
+
     return result;
 }

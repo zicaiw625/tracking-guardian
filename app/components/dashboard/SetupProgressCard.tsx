@@ -1,4 +1,5 @@
 import { memo, useMemo } from "react";
+import { useTranslation } from "react-i18next";
 import { Badge, BlockStack, Box, Button, Card, Icon, InlineStack, ProgressBar, Text } from "@shopify/polaris";
 import { CheckCircleIcon } from "~/components/icons";
 import { getSetupProgress, type SetupStep } from "~/types/dashboard";
@@ -10,15 +11,18 @@ export const SetupProgressCard = memo(function SetupProgressCard({
   steps: SetupStep[];
   nextStep: SetupStep | undefined;
 }) {
+  const { t } = useTranslation();
   const progress = useMemo(() => getSetupProgress(steps), [steps]);
   return (
     <Card>
       <BlockStack gap="400">
         <InlineStack align="space-between">
           <Text as="h2" variant="headingMd">
-            开始设置
+            {t("dashboard.setup.title")}
           </Text>
-          <Badge tone="attention">{`${progress.completed}/${progress.total} 已完成`}</Badge>
+          <Badge tone="attention">
+            {t("dashboard.setup.completed", { completed: progress.completed, total: progress.total })}
+          </Badge>
         </InlineStack>
         <ProgressBar progress={progress.percentage} tone="primary" size="small" />
         <BlockStack gap="300">

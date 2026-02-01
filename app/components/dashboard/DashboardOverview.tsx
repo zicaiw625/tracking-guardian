@@ -10,7 +10,6 @@ import { useTranslation, Trans } from "react-i18next";
 
 interface DashboardOverviewProps {
   data: DashboardData;
-  shopDomain: string;
   showWelcomeBanner: boolean;
   showScanProgress: boolean;
   scanStartedAt: Date;
@@ -21,7 +20,6 @@ interface DashboardOverviewProps {
 
 export function DashboardOverview({
   data,
-  shopDomain,
   showWelcomeBanner,
   showScanProgress,
   scanStartedAt,
@@ -45,14 +43,18 @@ export function DashboardOverview({
     secondaryAction: { content: t("dashboard.intro.reportCenter"), url: "/app/reports" },
   };
 
+  const connectionIssues = [];
+  if (data.dataConnection) {
+    if (!data.dataConnection.hasIngestionSecret) connectionIssues.push("Ingestion Key Not Configured");
+    if (!data.dataConnection.hasWebPixel) connectionIssues.push("Web Pixel Not Installed");
+    if (!data.dataConnection.webPixelHasIngestionKey) connectionIssues.push("Web Pixel Missing ingestion_key");
+  }
+
   return (
     <BlockStack gap="500">
       {data.dataConnection && (
         <DataConnectionBanner
-          hasIngestionSecret={data.dataConnection.hasIngestionSecret}
-          hasWebPixel={data.dataConnection.hasWebPixel}
-          webPixelHasIngestionKey={data.dataConnection.webPixelHasIngestionKey}
-          shopDomain={shopDomain}
+          issues={connectionIssues}
         />
       )}
       {backendUrlInfo?.placeholderDetected && (

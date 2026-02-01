@@ -1,4 +1,5 @@
 import { useState, useCallback, useEffect } from "react";
+import { useTranslation, Trans } from "react-i18next";
 import {
   Card,
   BlockStack,
@@ -42,6 +43,7 @@ export function ConfigVersionManager({
   historyEndpoint,
   onRollbackComplete,
 }: ConfigVersionManagerProps) {
+  const { t, i18n } = useTranslation();
   const [versionHistory, setVersionHistory] = useState<{
     currentVersion: number;
     versions: ConfigVersion[];
@@ -97,10 +99,10 @@ export function ConfigVersionManager({
       <Card>
         <BlockStack gap="300">
           <Text as="h2" variant="headingMd">
-            配置版本历史
+            {t("components.configVersionManager.title")}
           </Text>
           <Text as="p" variant="bodySm" tone="subdued">
-            加载中...
+            {t("components.configVersionManager.loading")}
           </Text>
         </BlockStack>
       </Card>
@@ -111,10 +113,10 @@ export function ConfigVersionManager({
       <Card>
         <BlockStack gap="300">
           <Text as="h2" variant="headingMd">
-            配置版本历史
+            {t("components.configVersionManager.title")}
           </Text>
           <Text as="p" variant="bodySm" tone="subdued">
-            暂无版本历史记录
+            {t("components.configVersionManager.noHistory")}
           </Text>
         </BlockStack>
       </Card>
@@ -131,7 +133,7 @@ export function ConfigVersionManager({
         <BlockStack gap="400">
           <InlineStack align="space-between" blockAlign="center">
             <Text as="h2" variant="headingMd">
-              配置版本历史
+              {t("components.configVersionManager.title")}
             </Text>
             {versionHistory.canRollback && (
               <Button
@@ -140,12 +142,15 @@ export function ConfigVersionManager({
                 size="slim"
                 icon={ArrowLeftIcon}
               >
-                回滚到上一版本
+                {t("components.configVersionManager.rollbackToPrev")}
               </Button>
             )}
           </InlineStack>
           <Text as="p" variant="bodySm" tone="subdued">
-            {platformNames[platform]} 的配置版本历史。当前版本：v{versionHistory.currentVersion}
+            {t("components.configVersionManager.historyDesc", {
+              platform: platformNames[platform],
+              version: versionHistory.currentVersion
+            })}
           </Text>
           <Divider />
           <BlockStack gap="300">
@@ -166,19 +171,19 @@ export function ConfigVersionManager({
                       <BlockStack gap="200">
                         <InlineStack gap="200" blockAlign="center">
                           <Text as="span" variant="headingSm" fontWeight="semibold">
-                            版本 {version.version}
+                            {t("components.configVersionManager.version", { version: version.version })}
                           </Text>
                           {isCurrent && (
-                            <Badge tone="success">当前版本</Badge>
+                            <Badge tone="success">{t("components.configVersionManager.currentVersionBadge")}</Badge>
                           )}
                           {isLatest && !isCurrent && (
-                            <Badge tone="info">最新</Badge>
+                            <Badge tone="info">{t("components.configVersionManager.latestBadge")}</Badge>
                           )}
                         </InlineStack>
                         <InlineStack gap="300" blockAlign="center">
                           <Text as="span" variant="bodySm" tone="subdued">
                             <ClockIcon />
-                            {new Date(version.savedAt).toLocaleString("zh-CN")}
+                            {new Date(version.savedAt).toLocaleString(i18n.language === 'zh' ? "zh-CN" : "en-US")}
                           </Text>
                         </InlineStack>
                       </BlockStack>
@@ -187,29 +192,29 @@ export function ConfigVersionManager({
                     <BlockStack gap="200">
                       <InlineStack gap="400" wrap>
                         <Text as="span" variant="bodySm">
-                          <strong>环境：</strong>
+                          <strong>{t("components.configVersionManager.env")}</strong>
                           <Badge>{version.config.environment}</Badge>
                         </Text>
                         <Text as="span" variant="bodySm">
-                          <strong>客户端：</strong>
+                          <strong>{t("components.configVersionManager.client")}</strong>
                           {version.config.clientSideEnabled ? (
-                            <Badge tone="success">启用</Badge>
+                            <Badge tone="success">{t("components.configVersionManager.enabled")}</Badge>
                           ) : (
-                            <Badge>禁用</Badge>
+                            <Badge>{t("components.configVersionManager.disabled")}</Badge>
                           )}
                         </Text>
                         <Text as="span" variant="bodySm">
-                          <strong>服务端：</strong>
+                          <strong>{t("components.configVersionManager.server")}</strong>
                           {version.config.serverSideEnabled ? (
-                            <Badge tone="success">启用</Badge>
+                            <Badge tone="success">{t("components.configVersionManager.enabled")}</Badge>
                           ) : (
-                            <Badge>禁用</Badge>
+                            <Badge>{t("components.configVersionManager.disabled")}</Badge>
                           )}
                         </Text>
                       </InlineStack>
                       {version.config.platformId && (
                         <Text as="span" variant="bodySm" tone="subdued">
-                          <strong>平台 ID：</strong>
+                          <strong>{t("components.configVersionManager.platformId")}</strong>
                           {version.config.platformId}
                         </Text>
                       )}
@@ -222,7 +227,7 @@ export function ConfigVersionManager({
           {!versionHistory.canRollback && versionHistory.versions.length > 1 && (
             <Banner tone="info">
               <Text as="p" variant="bodySm">
-                无法回滚：当前配置没有保存的上一个版本，或回滚功能已禁用
+                {t("components.configVersionManager.cannotRollback")}
               </Text>
             </Banner>
           )}
@@ -231,16 +236,16 @@ export function ConfigVersionManager({
       <Modal
         open={rollbackModalOpen}
         onClose={() => setRollbackModalOpen(false)}
-        title="确认回滚配置"
+        title={t("components.configVersionManager.confirmRollbackTitle")}
         primaryAction={{
-          content: "确认回滚",
+          content: t("components.configVersionManager.confirmRollbackBtn"),
           onAction: handleRollback,
           loading: fetcher.state === "submitting",
           destructive: true,
         }}
         secondaryActions={[
           {
-            content: "取消",
+            content: t("components.environmentToggle.cancel"),
             onAction: () => setRollbackModalOpen(false),
           },
         ]}
@@ -249,23 +254,26 @@ export function ConfigVersionManager({
           <BlockStack gap="400">
             <Banner tone="warning">
               <Text as="p" variant="bodySm" fontWeight="semibold">
-                警告：回滚操作将恢复配置到上一个版本
+                {t("components.configVersionManager.rollbackWarning")}
               </Text>
             </Banner>
             <BlockStack gap="300">
               <Text as="p" variant="bodySm">
-                您即将将 <strong>{platformNames[platform]}</strong> 的配置回滚到版本{" "}
-                {versionHistory.currentVersion - 1}。
+                <Trans 
+                  i18nKey="components.configVersionManager.rollbackMessage" 
+                  values={{ platform: platformNames[platform], version: versionHistory.currentVersion - 1 }}
+                  components={{ strong: <strong /> }}
+                />
               </Text>
               <List>
                 <List.Item>
-                  当前配置（版本 {versionHistory.currentVersion}）将被保存为新的快照
+                  {t("components.configVersionManager.rollbackItem1", { version: versionHistory.currentVersion })}
                 </List.Item>
                 <List.Item>
-                  配置将恢复到上一个版本的状态
+                  {t("components.configVersionManager.rollbackItem2")}
                 </List.Item>
                 <List.Item>
-                  此操作可以再次回滚（恢复到当前版本）
+                  {t("components.configVersionManager.rollbackItem3")}
                 </List.Item>
               </List>
               {fetcher.data && (fetcher.data as { error?: string }).error ? (

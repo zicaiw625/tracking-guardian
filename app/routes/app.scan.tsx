@@ -279,7 +279,8 @@ export function ScanPage({
         const url = URL.createObjectURL(blob);
         const a = document.createElement("a");
         a.href = url;
-        a.download = `additional-scripts-replacement-checklist-${new Date().toISOString().split("T")[0]}.csv`;
+        const date = new Date().toISOString().split("T")[0];
+        a.download = `additional-scripts-replacement-checklist-${date}.csv`;
         a.click();
         URL.revokeObjectURL(url);
     }, [replacementChecklistItems, t]);
@@ -461,7 +462,7 @@ export function ScanPage({
     { id: "migration-checklist", content: t("scan.tabs.checklist") },
   ];
   const visibleTabs = showTabs ? tabs : [];
-  const shouldShowMigrationButtons = showMigrationButtons && (!showTabs || selectedTab === 2 || pageTitle === "Audit 迁移清单");
+  const shouldShowMigrationButtons = showMigrationButtons && (!showTabs || selectedTab === 2);
   const auditAssetCount = useMemo(
     () => (Array.isArray(auditAssets) ? auditAssets.filter((asset): asset is NonNullable<typeof asset> => asset !== null).length : 0),
     [auditAssets]
@@ -517,7 +518,7 @@ export function ScanPage({
             URL.revokeObjectURL(url);
             showSuccess(t("scan.success.exportCSV"));
         } catch (error) {
-            showError(t("scan.errors.exportFailed") + "：" + (error instanceof Error ? error.message : "未知错误"));
+            showError(t("scan.errors.exportFailed") + "：" + (error instanceof Error ? error.message : t("common.unknownError")));
         }
     }, [latestScan, showSuccess, showError, t]);
     const handleCopyChecklist = useCallback(async () => {
@@ -553,7 +554,8 @@ export function ScanPage({
             exportBlobUrlRef.current = url;
             const a = document.createElement("a");
             a.href = url;
-            a.download = `migration-checklist-${new Date().toISOString().split("T")[0]}.txt`;
+            const date = new Date().toISOString().split("T")[0];
+            a.download = `migration-checklist-${date}.txt`;
             try {
                 document.body.appendChild(a);
                 a.click();
@@ -652,7 +654,7 @@ export function ScanPage({
                 migrationProgress={migrationProgress}
                 migrationTimeline={migrationTimeline}
                 dependencyGraph={dependencyGraph}
-                shop={shop}
+                shop={shop as any}
                 scanHistory={scanHistory}
                 monthlyOrders={monthlyOrders}
                 onMonthlyOrdersChange={setMonthlyOrders}
@@ -697,12 +699,12 @@ export function ScanPage({
                 migrationProgress={migrationProgress}
                 migrationTimeline={migrationTimeline as import("~/services/migration-priority.server").MigrationTimeline | null}
                 dependencyGraph={dependencyGraph}
-                _shop={shop}
+                _shop={shop as any}
               />
           {selectedTab === 1 && (
             <Suspense fallback={<Card><BlockStack gap="400"><CardSkeleton lines={4} showTitle /></BlockStack></Card>}>
               <ScanManualSupplementTab
-                shop={shop}
+                shop={shop as any}
                 deprecationStatus={deprecationStatus}
                 scriptContent={scriptContent}
                 setScriptContent={setScriptContent}

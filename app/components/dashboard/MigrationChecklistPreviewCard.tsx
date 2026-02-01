@@ -2,6 +2,7 @@ import { Card, BlockStack, InlineStack, Text, Box, Badge, Divider, Button, Icon 
 import { CheckCircleIcon, ClockIcon, ArrowRightIcon } from "~/components/icons";
 import { EnhancedEmptyState } from "~/components/ui";
 import type { DashboardData } from "~/types/dashboard";
+import { useTranslation } from "react-i18next";
 
 export function MigrationChecklistPreviewCard({
   checklist,
@@ -10,19 +11,20 @@ export function MigrationChecklistPreviewCard({
   checklist: DashboardData["migrationChecklist"];
   estimatedTimeMinutes?: number;
 }) {
+  const { t } = useTranslation();
   if (!checklist || checklist.totalItems === 0) {
     return (
       <Card>
         <BlockStack gap="400">
           <Text as="h2" variant="headingMd">
-            迁移清单
+            {t("dashboard.checklist.title")}
           </Text>
           <EnhancedEmptyState
             icon="📋"
-            title="暂无迁移清单"
-            description="完成扫描后，我们将为您生成迁移清单和优先级建议。"
+            title={t("dashboard.checklist.emptyTitle")}
+            description={t("dashboard.checklist.emptyDesc")}
             primaryAction={{
-              content: "开始扫描",
+              content: t("dashboard.checklist.startScan"),
               url: "/app/scan",
             }}
           />
@@ -34,8 +36,8 @@ export function MigrationChecklistPreviewCard({
   const estimatedMinutes = checklist.estimatedTotalTime % 60;
   const timeText =
     estimatedHours > 0
-      ? `${estimatedHours} 小时 ${estimatedMinutes > 0 ? estimatedMinutes + " 分钟" : ""}`
-      : `${estimatedMinutes} 分钟`;
+      ? `${estimatedHours} h ${estimatedMinutes > 0 ? estimatedMinutes + " m" : ""}`
+      : `${estimatedMinutes} m`;
   const completedItems = checklist.topItems.filter((item) => item.status === "completed").length;
   const remainingItems = checklist.totalItems - completedItems;
   const avgTimePerItem = checklist.totalItems > 0
@@ -46,22 +48,22 @@ export function MigrationChecklistPreviewCard({
   const remainingMinutes = remainingTime % 60;
   const remainingTimeText =
     remainingHours > 0
-      ? `${remainingHours} 小时 ${remainingMinutes > 0 ? remainingMinutes + " 分钟" : ""}`
-      : `${remainingMinutes} 分钟`;
+      ? `${remainingHours} h ${remainingMinutes > 0 ? remainingMinutes + " m" : ""}`
+      : `${remainingMinutes} m`;
   return (
     <Card>
       <BlockStack gap="400">
         <InlineStack align="space-between" blockAlign="center">
           <Text as="h2" variant="headingMd">
-            迁移清单预览
+            {t("dashboard.checklist.preview")}
           </Text>
-          <Badge tone="info">{`${checklist.totalItems} 项`}</Badge>
+          <Badge tone="info">{`${checklist.totalItems} ${t("dashboard.checklist.items")}`}</Badge>
         </InlineStack>
         <Box background="bg-surface-secondary" padding="400" borderRadius="200">
           <BlockStack gap="200">
             <InlineStack align="space-between">
               <Text as="span" variant="bodySm" tone="subdued">
-                高风险项
+                {t("dashboard.checklist.highRisk")}
               </Text>
               <Text as="span" fontWeight="semibold" tone="critical">
                 {checklist.highPriorityItems}
@@ -69,7 +71,7 @@ export function MigrationChecklistPreviewCard({
             </InlineStack>
             <InlineStack align="space-between">
               <Text as="span" variant="bodySm" tone="subdued">
-                中风险项
+                {t("dashboard.checklist.mediumRisk")}
               </Text>
               <Text as="span" fontWeight="semibold">
                 {checklist.mediumPriorityItems}
@@ -77,7 +79,7 @@ export function MigrationChecklistPreviewCard({
             </InlineStack>
             <InlineStack align="space-between">
               <Text as="span" variant="bodySm" tone="subdued">
-                低风险项
+                {t("dashboard.checklist.lowRisk")}
               </Text>
               <Text as="span" fontWeight="semibold" tone="success">
                 {checklist.lowPriorityItems}
@@ -86,7 +88,7 @@ export function MigrationChecklistPreviewCard({
             <Divider />
             <InlineStack align="space-between">
               <Text as="span" variant="bodySm" tone="subdued">
-                预计总时间
+                {t("dashboard.checklist.estimatedTotalTime")}
               </Text>
               <Text as="span" fontWeight="semibold">
                 {timeText}
@@ -95,7 +97,7 @@ export function MigrationChecklistPreviewCard({
             {remainingItems > 0 && (
               <InlineStack align="space-between">
                 <Text as="span" variant="bodySm" tone="subdued">
-                  剩余时间
+                  {t("dashboard.checklist.remainingTime")}
                 </Text>
                 <Text as="span" fontWeight="semibold">
                   {remainingTimeText}
@@ -105,7 +107,7 @@ export function MigrationChecklistPreviewCard({
             {completedItems > 0 && (
               <InlineStack align="space-between">
                 <Text as="span" variant="bodySm" tone="subdued">
-                  完成进度
+                  {t("dashboard.checklist.progress")}
                 </Text>
                 <Text as="span" fontWeight="semibold">
                   {completedItems} / {checklist.totalItems} ({Math.round((completedItems / checklist.totalItems) * 100)}%)
@@ -117,7 +119,7 @@ export function MigrationChecklistPreviewCard({
         {checklist.topItems.length > 0 && (
           <BlockStack gap="300">
             <Text as="h3" variant="headingSm">
-              优先级最高的项目
+              {t("dashboard.checklist.topPriority")}
             </Text>
             <BlockStack gap="200">
               {checklist.topItems.map((item) => {
@@ -127,9 +129,9 @@ export function MigrationChecklistPreviewCard({
                   "info";
                 const estimatedTimeText = item.estimatedTime
                   ? item.estimatedTime < 60
-                    ? `${item.estimatedTime} 分钟`
-                    : `${Math.floor(item.estimatedTime / 60)} 小时 ${item.estimatedTime % 60} 分钟`
-                  : "待估算";
+                    ? `${item.estimatedTime} m`
+                    : `${Math.floor(item.estimatedTime / 60)} h ${item.estimatedTime % 60} m`
+                  : t("dashboard.checklist.unknown");
                 return (
                   <Box
                     key={item.id}
@@ -149,18 +151,18 @@ export function MigrationChecklistPreviewCard({
                                   : "info"
                             }
                           >
-                            {item.riskLevel === "high" ? "高" : item.riskLevel === "medium" ? "中" : "低"}
+                            {item.riskLevel === "high" ? t("dashboard.checklist.high") : item.riskLevel === "medium" ? t("dashboard.checklist.medium") : t("dashboard.checklist.low")}
                           </Badge>
                           {item.priority > 0 && (
                             <Badge tone={priorityBadgeTone}>
-                              {`优先级 ${item.priority}/10`}
+                              {t("dashboard.checklist.priority", { level: item.priority })}
                             </Badge>
                           )}
                           {item.status === "completed" && (
                             <Icon source={CheckCircleIcon} tone="success" />
                           )}
                           {item.status === "in_progress" && (
-                            <Badge tone="info">进行中</Badge>
+                            <Badge tone="info">{t("dashboard.checklist.inProgress")}</Badge>
                           )}
                         </InlineStack>
                         <Text as="span" variant="bodySm" fontWeight="semibold">
@@ -178,7 +180,7 @@ export function MigrationChecklistPreviewCard({
                           size="slim"
                           url={`/app/migrate?asset=${item.id.replace("checklist-", "")}`}
                         >
-                          开始迁移
+                          {t("dashboard.checklist.startMigration")}
                         </Button>
                       )}
                     </InlineStack>
@@ -188,13 +190,13 @@ export function MigrationChecklistPreviewCard({
             </BlockStack>
             {checklist.totalItems > checklist.topItems.length && (
               <Text as="p" variant="bodySm" tone="subdued">
-                还有 {checklist.totalItems - checklist.topItems.length} 项待处理
+                {t("dashboard.checklist.moreItems", { count: checklist.totalItems - checklist.topItems.length })}
               </Text>
             )}
           </BlockStack>
         )}
         <Button url="/app/scan?tab=2" fullWidth icon={ArrowRightIcon}>
-          查看完整清单
+          {t("dashboard.checklist.viewFull")}
         </Button>
       </BlockStack>
     </Card>

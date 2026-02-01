@@ -74,14 +74,14 @@ export function assessRisks(result: EnhancedScanResult): RiskItem[] {
             if (tags.orderStatus.length > 0) {
                 addRisk({
                     id: "deprecated_script_tag_order_status",
-                    name: "订单状态页 ScriptTag（将被废弃）",
+                    name: "Order Status Page ScriptTag (Deprecated)",
                     nameKey: "scan.risks.deprecatedScriptTagOrderStatus.name",
-                    description: `检测到 ${tags.orderStatus.length} 个用于订单状态页的 ScriptTag (${platformName})，这是 Shopify 废弃公告的主要目标。检测方法：URL 模式匹配`,
+                    description: `Detected ${tags.orderStatus.length} ScriptTags for Order Status Page (${platformName}), which is the main target of Shopify's deprecation announcement. Detection method: URL pattern matching`,
                     descriptionKey: "scan.risks.deprecatedScriptTagOrderStatus.description",
                     descriptionParams: { count: tags.orderStatus.length, platform: platformName },
                     severity: "high",
                     points: 30,
-                    details: `平台: ${platformName}, 脚本数量: ${tags.orderStatus.length}`,
+                    details: `Platform: ${platformName}, Script Count: ${tags.orderStatus.length}`,
                     detailsKey: "scan.risks.deprecatedScriptTagOrderStatus.details",
                     detailsParams: { platform: platformName, count: tags.orderStatus.length },
                     platform,
@@ -90,14 +90,14 @@ export function assessRisks(result: EnhancedScanResult): RiskItem[] {
             if (tags.other.length > 0) {
                 addRisk({
                     id: "deprecated_script_tag",
-                    name: "ScriptTag API（建议迁移）",
+                    name: "ScriptTag API (Migration Recommended)",
                     nameKey: "scan.risks.deprecatedScriptTag.name",
-                    description: `检测到 ${tags.other.length} 个 ScriptTag (${platformName})，建议迁移到 Web Pixel 以获得更好的兼容性。检测方法：URL 模式匹配`,
+                    description: `Detected ${tags.other.length} ScriptTags (${platformName}). Migration to Web Pixel is recommended for better compatibility. Detection method: URL pattern matching`,
                     descriptionKey: "scan.risks.deprecatedScriptTag.description",
                     descriptionParams: { count: tags.other.length, platform: platformName },
                     severity: "medium",
                     points: 15,
-                    details: `平台: ${platformName}, 范围: ${tags.other.map(t => t.display_scope || "all").join(", ")}`,
+                    details: `Platform: ${platformName}, Scope: ${tags.other.map(t => t.display_scope || "all").join(", ")}`,
                     detailsKey: "scan.risks.deprecatedScriptTag.details",
                     detailsParams: { platform: platformName, scope: tags.other.map(t => t.display_scope || "all").join(", ") },
                     platform,
@@ -108,13 +108,13 @@ export function assessRisks(result: EnhancedScanResult): RiskItem[] {
     if (result.identifiedPlatforms.length > 0) {
         addRisk({
             id: "inline_tracking",
-            name: "内联追踪代码",
+            name: "Inline Tracking Code",
             nameKey: "scan.risks.inlineTracking.name",
-            description: "检测到页面源码中包含硬编码的追踪脚本，建议迁移到 Shopify Web Pixel。检测方法：URL 模式匹配与内容模式推断",
+            description: "Detected hardcoded tracking scripts in page source. Migration to Shopify Web Pixel is recommended. Detection method: URL pattern matching and content inference",
             descriptionKey: "scan.risks.inlineTracking.description",
             severity: "medium",
             points: 20,
-            details: `检测到平台: ${result.identifiedPlatforms.map(p => PLATFORM_INFO[p]?.name || p).join(", ")}`,
+            details: `Detected Platforms: ${result.identifiedPlatforms.map(p => PLATFORM_INFO[p]?.name || p).join(", ")}`,
             detailsKey: "scan.risks.inlineTracking.details",
             detailsParams: { platforms: result.identifiedPlatforms.map(p => PLATFORM_INFO[p]?.name || p).join(", ") },
         }, "inline_tracking");
@@ -123,13 +123,13 @@ export function assessRisks(result: EnhancedScanResult): RiskItem[] {
     if (supportedPlatforms.length > 0) {
         addRisk({
             id: "no_server_side",
-            name: "建议启用服务端追踪",
+            name: "Server-side Tracking Recommended",
             nameKey: "scan.risks.noServerSide.name",
-            description: "对于检测到的支持平台，建议开启 Conversion API 以抵抗广告拦截和提升数据准确性",
+            description: "For detected supported platforms, enabling Conversion API is recommended to resist ad blockers and improve data accuracy",
             descriptionKey: "scan.risks.noServerSide.description",
             severity: "low",
             points: 10,
-            details: `支持平台: ${supportedPlatforms.map(p => PLATFORM_INFO[p]?.name || p).join(", ")}`,
+            details: `Supported Platforms: ${supportedPlatforms.map(p => PLATFORM_INFO[p]?.name || p).join(", ")}`,
             detailsKey: "scan.risks.noServerSide.details",
             detailsParams: { platforms: supportedPlatforms.map(p => PLATFORM_INFO[p]?.name || p).join(", ") },
         }, "no_server_side");

@@ -2,6 +2,7 @@ import { Card, BlockStack, Text, Box, Badge, InlineStack, Button, Banner } from 
 import { useMemo, type ReactNode } from "react";
 import { ArrowRightIcon } from "~/components/icons";
 import type { DependencyGraph } from "~/services/dependency-analysis.server";
+import { useTranslation } from "react-i18next";
 
 interface DependencyGraphPreviewProps {
   dependencyGraph: DependencyGraph | null;
@@ -17,6 +18,8 @@ interface GraphSummary {
 }
 
 export function DependencyGraphPreview({ dependencyGraph }: DependencyGraphPreviewProps) {
+  const { t } = useTranslation();
+  
   const summary = useMemo<GraphSummary | null>(() => {
     if (!dependencyGraph || dependencyGraph.nodes.length === 0) {
       return null;
@@ -49,30 +52,33 @@ export function DependencyGraphPreview({ dependencyGraph }: DependencyGraphPrevi
       criticalPath,
     };
   }, [dependencyGraph]);
+
   const categoryLabels = {
-    pixel: "像素追踪",
-    affiliate: "联盟营销",
-    survey: "问卷调研",
-    support: "客服支持",
-    analytics: "分析工具",
-    other: "其他",
+    pixel: t("dashboard.dependency.categories.pixel"),
+    affiliate: t("dashboard.dependency.categories.affiliate"),
+    survey: t("dashboard.dependency.categories.survey"),
+    support: t("dashboard.dependency.categories.support"),
+    analytics: t("dashboard.dependency.categories.analytics"),
+    other: t("dashboard.dependency.categories.other"),
   } as const;
+
   const categorySectionData = useMemo<[string, number][] | null>(() => {
     if (!summary || !summary.nodesByCategory || typeof summary.nodesByCategory !== "object" || Object.keys(summary.nodesByCategory).length === 0) {
       return null;
     }
     return Object.entries(summary.nodesByCategory) as [string, number][];
   }, [summary]);
+
   if (!dependencyGraph || dependencyGraph.nodes.length === 0) {
     return (
       <Card>
         <BlockStack gap="400">
           <Text as="h2" variant="headingMd">
-            依赖关系
+            {t("dashboard.dependency.title")}
           </Text>
           <Box padding="400">
             <Text as="p" tone="subdued" alignment="center">
-              暂无依赖关系数据
+              {t("dashboard.dependency.emptyTitle")}
             </Text>
           </Box>
         </BlockStack>
@@ -84,9 +90,9 @@ export function DependencyGraphPreview({ dependencyGraph }: DependencyGraphPrevi
       <BlockStack gap="400">
         <InlineStack align="space-between" blockAlign="center">
           <Text as="h2" variant="headingMd">
-            依赖关系概览
+            {t("dashboard.dependency.overview")}
           </Text>
-          <Badge tone="info">{`${String(summary?.totalNodes || 0)} 个资产`}</Badge>
+          <Badge tone="info">{t("dashboard.dependency.assets", { count: summary?.totalNodes || 0 })}</Badge>
         </InlineStack>
         {summary && (
           <BlockStack gap="400">
@@ -94,48 +100,48 @@ export function DependencyGraphPreview({ dependencyGraph }: DependencyGraphPrevi
               <BlockStack gap="300">
                 <InlineStack align="space-between">
                   <Text as="span" variant="bodySm" tone="subdued">
-                    总依赖关系
+                    {t("dashboard.dependency.totalEdges")}
                   </Text>
                   <Text as="span" fontWeight="semibold">
-                    {summary.totalEdges} 条
+                    {summary.totalEdges} {t("dashboard.dependency.edgesUnit")}
                   </Text>
                 </InlineStack>
                 <InlineStack align="space-between">
                   <Text as="span" variant="bodySm" tone="subdued">
-                    平均依赖数
+                    {t("dashboard.dependency.avgDependencies")}
                   </Text>
                   <Text as="span" fontWeight="semibold">
-                    {summary.avgDependencies} 个
+                    {summary.avgDependencies} {t("dashboard.dependency.unit")}
                   </Text>
                 </InlineStack>
                 <InlineStack align="space-between">
                   <Text as="span" variant="bodySm" tone="subdued">
-                    关键路径
+                    {t("dashboard.dependency.criticalPath")}
                   </Text>
                   <Text as="span" fontWeight="semibold">
-                    {summary.criticalPath} 条
+                    {summary.criticalPath} {t("dashboard.dependency.edgesUnit")}
                   </Text>
                 </InlineStack>
               </BlockStack>
             </Box>
             <BlockStack gap="200">
               <Text as="h3" variant="headingSm">
-                风险分布
+                {t("dashboard.dependency.riskDistribution")}
               </Text>
               <InlineStack gap="200" wrap>
                 {summary.nodesByRisk.high > 0 && (
                   <Badge tone="critical">
-                    {`高风险: ${String(summary.nodesByRisk.high)}`}
+                    {t("dashboard.dependency.highRisk", { count: summary.nodesByRisk.high })}
                   </Badge>
                 )}
                 {summary.nodesByRisk.medium > 0 && (
                   <Badge tone="warning">
-                    {`中风险: ${String(summary.nodesByRisk.medium)}`}
+                    {t("dashboard.dependency.mediumRisk", { count: summary.nodesByRisk.medium })}
                   </Badge>
                 )}
                 {summary.nodesByRisk.low > 0 && (
                   <Badge tone="success">
-                    {`低风险: ${String(summary.nodesByRisk.low)}`}
+                    {t("dashboard.dependency.lowRisk", { count: summary.nodesByRisk.low })}
                   </Badge>
                 )}
               </InlineStack>
@@ -143,7 +149,7 @@ export function DependencyGraphPreview({ dependencyGraph }: DependencyGraphPrevi
             {(categorySectionData !== null && categorySectionData.length > 0 ? (
               <BlockStack gap="200">
                 <Text as="h3" variant="headingSm">
-                  类别分布
+                  {t("dashboard.dependency.categoryDistribution")}
                 </Text>
                 <InlineStack gap="200" wrap>
                   {categorySectionData
@@ -169,10 +175,10 @@ export function DependencyGraphPreview({ dependencyGraph }: DependencyGraphPrevi
               <BlockStack gap="200">
                 <InlineStack align="space-between" blockAlign="center">
                   <Text as="h3" variant="headingSm">
-                    依赖关系
+                    {t("dashboard.dependency.relations")}
                   </Text>
                   <Badge tone="info">
-                    {`${String(dependencyGraph.edges.filter((e) => e.type === "depends_on" || e.type === "blocks" || e.type === "recommended_after").length)} 条`}
+                    {t("dashboard.dependency.edgesUnit") + " " + String(dependencyGraph.edges.filter((e) => e.type === "depends_on" || e.type === "blocks" || e.type === "recommended_after").length)}
                   </Badge>
                 </InlineStack>
                 <Box background="bg-surface-secondary" padding="300" borderRadius="200">
@@ -194,7 +200,7 @@ export function DependencyGraphPreview({ dependencyGraph }: DependencyGraphPrevi
                               <Badge tone={toRiskBadge}>
                                 {String(toNode.platform || toNode.category || toNode.displayName || toNode.id)}
                               </Badge>
-                              <Text as="span" variant="bodySm" tone="subdued">依赖于</Text>
+                              <Text as="span" variant="bodySm" tone="subdued">{t("dashboard.dependency.dependsOn")}</Text>
                               <Badge tone={fromRiskBadge}>
                                 {String(fromNode.platform || fromNode.category || fromNode.displayName || fromNode.id)}
                               </Badge>
@@ -204,7 +210,7 @@ export function DependencyGraphPreview({ dependencyGraph }: DependencyGraphPrevi
                       })}
                     {dependencyGraph.edges.filter((e) => e.type === "depends_on" || e.type === "blocks" || e.type === "recommended_after").length > 5 ? (
                       <Text as="p" variant="bodySm" tone="subdued" alignment="center">
-                        还有 {String(dependencyGraph.edges.filter((e) => e.type === "depends_on" || e.type === "blocks" || e.type === "recommended_after").length - 5)} 条依赖关系...
+                        {t("dashboard.dependency.moreRelations", { count: dependencyGraph.edges.filter((e) => e.type === "depends_on" || e.type === "blocks" || e.type === "recommended_after").length - 5 })}
                       </Text>
                     ) : null}
                   </BlockStack>
@@ -215,16 +221,16 @@ export function DependencyGraphPreview({ dependencyGraph }: DependencyGraphPrevi
               <Banner tone="warning">
                 <BlockStack gap="200">
                   <Text as="p" variant="bodySm" fontWeight="semibold">
-                    检测到 {String(dependencyGraph.cycles.length)} 个循环依赖
+                    {t("dashboard.dependency.cycles", { count: dependencyGraph.cycles.length })}
                   </Text>
                   <Text as="p" variant="bodySm">
-                    循环依赖可能导致迁移顺序问题，建议手动调整迁移顺序
+                    {t("dashboard.dependency.cyclesDesc")}
                   </Text>
                 </BlockStack>
               </Banner>
             ) : null}
             <Button url="/app/scan" fullWidth icon={ArrowRightIcon}>
-              查看完整依赖图
+              {t("dashboard.dependency.viewFull")}
             </Button>
           </BlockStack>
         )}

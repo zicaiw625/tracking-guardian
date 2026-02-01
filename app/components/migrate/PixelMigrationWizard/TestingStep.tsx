@@ -6,6 +6,8 @@ import { CheckoutCompletedBehaviorHint } from "~/components/verification/Checkou
 import type { PlatformType } from "~/types/enums";
 import type { PlatformConfig } from "./useWizardState";
 import { PLATFORM_INFO } from "./constants";
+import { useTranslation } from "react-i18next";
+import { useNavigate } from "@remix-run/react";
 
 interface TestingStepProps {
   selectedPlatforms: Set<PlatformType>;
@@ -22,6 +24,8 @@ export function TestingStep({
   shopId,
   onEnvironmentToggle,
 }: TestingStepProps) {
+  const { t } = useTranslation();
+  const navigate = useNavigate();
   const [isValidating, setIsValidating] = useState(false);
   const [isSwitchingToLive, setIsSwitchingToLive] = useState(false);
   const timeoutRefs = useRef<Array<NodeJS.Timeout>>([]);
@@ -56,7 +60,7 @@ export function TestingStep({
           import("../../../utils/debug-log.client").then(({ debugError }) => {
             debugError(`[PixelMigrationWizard] Failed to parse JSON for ${platform}:`, error);
           });
-          return { valid: false, message: "解析响应失败", details: {} };
+          return { valid: false, message: t("migrate.testingStep.errors.parseFailed"), details: {} };
         });
         return { platform, result: data };
       });
@@ -64,29 +68,29 @@ export function TestingStep({
       validationResults.forEach(({ platform, result }) => {
         results[platform] = {
           valid: result.valid || false,
-          message: result.message || "验证失败",
+          message: result.message || t("migrate.testingStep.errors.validationFailed", { platforms: "" }),
           details: result.details || {},
         };
       });
       setValidationResults(results);
       const allValid = Object.values(results).every((r) => r.valid);
       if (allValid) {
-        showSuccess("所有平台测试环境配置验证通过！测试事件已成功发送。");
+        showSuccess(t("migrate.testingStep.success.validationPassed"));
       } else {
         const failedPlatforms = Object.entries(results)
           .filter(([_, r]) => !r.valid)
           .map(([p]) => PLATFORM_INFO[p as PlatformType]?.name || p)
           .join(", ");
-        showError(`部分平台配置验证失败: ${failedPlatforms}。请检查配置和凭证。`);
+        showError(t("migrate.testingStep.errors.validationFailed", { platforms: failedPlatforms }));
       }
     } catch (error) {
-      showError("验证过程中发生错误");
+      showError(t("migrate.testingStep.errors.validationError"));
       const { debugError } = await import("../../../utils/debug-log.client");
       debugError("[PixelMigrationWizard] Test environment validation error:", error);
     } finally {
       setIsValidating(false);
     }
-  }, [shopId, selectedPlatforms, showSuccess, showError]);
+  }, [shopId, selectedPlatforms, showSuccess, showError, t]);
   const handleSwitchToLive = useCallback(async () => {
     if (!shopId || !onEnvironmentToggle) return;
     setIsSwitchingToLive(true);
@@ -105,14 +109,14 @@ export function TestingStep({
             import("../../../utils/debug-log.client").then(({ debugError }) => {
               debugError(`[PixelMigrationWizard] Failed to parse JSON when switching ${platform} to live:`, error);
             });
-            return { success: false, error: "解析响应失败" };
+            return { success: false, error: t("migrate.testingStep.errors.parseFailed") };
           });
           if (data.success) {
             onEnvironmentToggle(platform, "live");
           }
           return { platform, success: data.success, error: data.error };
         } catch (error) {
-          const errorMessage = error instanceof Error ? error.message : "Unknown error";
+          const errorMessage = error instanceof Error ? error.message : t("migrate.testingStep.errors.unknown");
           const { debugError } = await import("../../../utils/debug-log.client");
           debugError(`[PixelMigrationWizard] Failed to switch platform ${platform}:`, error);
           return { platform, success: false, error: errorMessage };
@@ -121,9 +125,9 @@ export function TestingStep({
       const results = await Promise.all(switchPromises);
       const allSuccess = results.every((r) => r.success);
       if (allSuccess) {
-        showSuccess("所有平台已切换到生产模式！");
+        showSuccess(t("migrate.testingStep.success.switchPassed"));
         const timeout = setTimeout(() => {
-          window.location.href = "/app/verification";
+          navigate("/app/verification");
         }, 1500);
         timeoutRefs.current.push(timeout);
       } else {
@@ -131,19 +135,19 @@ export function TestingStep({
           .filter((r) => !r.success)
           .map((r) => PLATFORM_INFO[r.platform as PlatformType]?.name || r.platform)
           .join(", ");
-        showError(`部分平台切换失败: ${failedPlatforms}。请稍后重试。`);
+        showError(t("migrate.testingStep.errors.switchFailed", { platforms: failedPlatforms }));
       }
     } catch (error) {
-      showError("切换环境时发生错误");
+      showError(t("migrate.testingStep.errors.switchError"));
       const { debugError } = await import("../../../utils/debug-log.client");
       debugError("[PixelMigrationWizard] Switch to live error:", error);
     } finally {
       setIsSwitchingToLive(false);
     }
-  }, [shopId, selectedPlatforms, onEnvironmentToggle, showSuccess, showError]);
+  }, [shopId, selectedPlatforms, onEnvironmentToggle, showSuccess, showError, t, navigate]);
   const handleGoToVerification = useCallback(() => {
-    window.location.href = "/app/verification";
-  }, []);
+    navigate("/app/verification");
+  }, [navigate]);
   const allInTestMode = Array.from(selectedPlatforms).every(
     (platform) => platformConfigs[platform]?.environment === "test"
   );
@@ -157,7 +161,7 @@ export function TestingStep({
       !allInTestMode
     ) {
       timer = setTimeout(() => {
-        showSuccess("配置验证通过！正在跳转到验收页面...");
+        showSuccess(t("migrate.testingStep.success.redirecting"));
         handleGoToVerification();
       }, 3000);
     }
@@ -166,29 +170,29 @@ export function TestingStep({
         clearTimeout(timer);
       }
     };
-  }, [validationResults, isSwitchingToLive, allInTestMode, handleGoToVerification, showSuccess]);
+  }, [validationResults, isSwitchingToLive, allInTestMode, handleGoToVerification, showSuccess, t]);
   return (
     <BlockStack gap="400">
       <InlineStack gap="200" blockAlign="center">
         <Icon source={CheckCircleIcon} tone="success" />
         <Text as="h3" variant="headingMd">
-          配置已保存
+          {t("migrate.testingStep.status.saved")}
         </Text>
       </InlineStack>
       <Banner tone="success">
         <BlockStack gap="200">
           <Text as="p" fontWeight="semibold">
-            下一步：测试验证
+            {t("migrate.testingStep.status.nextStep")}
           </Text>
           <Text as="p" variant="bodySm">
-            配置已保存。建议您：
+            {t("migrate.testingStep.status.recommendations")}
           </Text>
           <List type="number">
-            <List.Item>验证测试环境配置（可选）</List.Item>
-            <List.Item>创建一个测试订单</List.Item>
-            <List.Item>在「监控」页面查看事件是否成功发送</List.Item>
-            <List.Item>在「验收」页面运行验收测试</List.Item>
-            <List.Item>验证无误后，在设置页面将环境切换为「生产模式」</List.Item>
+            <List.Item>{t("migrate.testingStep.status.steps.validate")}</List.Item>
+            <List.Item>{t("migrate.testingStep.status.steps.createOrder")}</List.Item>
+            <List.Item>{t("migrate.testingStep.status.steps.monitor")}</List.Item>
+            <List.Item>{t("migrate.testingStep.status.steps.verify")}</List.Item>
+            <List.Item>{t("migrate.testingStep.status.steps.switch")}</List.Item>
           </List>
         </BlockStack>
       </Banner>
@@ -199,10 +203,10 @@ export function TestingStep({
             <InlineStack align="space-between" blockAlign="center">
               <BlockStack gap="100">
                 <Text as="h4" variant="headingSm">
-                  测试环境验证
+                  {t("migrate.testingStep.validation.title")}
                 </Text>
                 <Text as="p" variant="bodySm" tone="subdued">
-                  发送测试事件到各平台，验证配置是否正确
+                  {t("migrate.testingStep.validation.description")}
                 </Text>
               </BlockStack>
               <Button
@@ -212,7 +216,7 @@ export function TestingStep({
                 loading={isValidating}
                 disabled={isValidating}
               >
-                {isValidating ? "验证中..." : "发送测试事件"}
+                {isValidating ? t("migrate.testingStep.validation.validating") : t("migrate.testingStep.validation.sendEvent")}
               </Button>
             </InlineStack>
             {Object.keys(validationResults).length > 0 && (
@@ -232,7 +236,7 @@ export function TestingStep({
                             tone={result.valid ? "success" : "critical"}
                           />
                           <Text as="span" fontWeight="semibold">
-                            {PLATFORM_INFO[platform]?.name || platform}: {result.message}
+                            {PLATFORM_INFO[platform]?.name || platform}: {t(result.message)}
                           </Text>
                         </InlineStack>
                         {result.details && (
@@ -243,12 +247,12 @@ export function TestingStep({
                                   <InlineStack gap="200" blockAlign="center">
                                     <Icon source={CheckCircleIcon} tone="success" />
                                     <Text as="span" variant="bodySm" fontWeight="semibold">
-                                      测试事件已成功发送
+                                      {t("migrate.testingStep.validation.eventSent")}
                                     </Text>
                                   </InlineStack>
                                   {result.details.responseTime && (
                                     <Text as="span" variant="bodySm" tone="subdued">
-                                      响应时间: {result.details.responseTime}ms
+                                      {t("migrate.testingStep.validation.responseTime", { time: result.details.responseTime })}
                                     </Text>
                                   )}
                                 </BlockStack>
@@ -258,17 +262,16 @@ export function TestingStep({
                               <Banner tone="info">
                                 <BlockStack gap="200">
                                   <Text as="span" variant="bodySm" fontWeight="semibold">
-                                    Meta Test Event Code: {result.details.testEventCode}
+                                    {t("migrate.testingStep.validation.metaCode", { code: result.details.testEventCode })}
                                   </Text>
                                   <Text as="span" variant="bodySm">
-                                    请在 Meta Events Manager 的「测试事件」页面查看此事件。
-                                    如果看到测试事件，说明配置正确。
+                                    {t("migrate.testingStep.validation.metaDesc")}
                                   </Text>
                                   <Link
                                     url="https://business.facebook.com/events_manager2"
                                     external
                                   >
-                                    打开 Meta Events Manager
+                                    {t("migrate.testingStep.validation.openMeta")}
                                   </Link>
                                 </BlockStack>
                               </Banner>
@@ -277,13 +280,13 @@ export function TestingStep({
                               <Banner tone="info">
                                 <BlockStack gap="200">
                                   <Text as="span" variant="bodySm" fontWeight="semibold">
-                                    GA4 DebugView
+                                    {t("migrate.testingStep.validation.ga4Debug")}
                                   </Text>
                                   <Text as="span" variant="bodySm">
-                                    测试事件已发送，请在 GA4 DebugView 中查看实时事件流。
+                                    {t("migrate.testingStep.validation.ga4Desc")}
                                   </Text>
                                   <Link url={result.details.debugViewUrl} external>
-                                    打开 GA4 DebugView
+                                    {t("migrate.testingStep.validation.openGa4")}
                                   </Link>
                                 </BlockStack>
                               </Banner>
@@ -299,18 +302,18 @@ export function TestingStep({
                               <Banner tone="critical">
                                 <BlockStack gap="200">
                                   <Text as="span" variant="bodySm" fontWeight="semibold">
-                                    错误详情
+                                    {t("migrate.testingStep.validation.errorDetails")}
                                   </Text>
                                   <Text as="span" variant="bodySm">
-                                    {result.details.error}
+                                    {t(result.details.error || "")}
                                   </Text>
                                   <Text as="span" variant="bodySm" tone="subdued">
-                                    请检查：
+                                    {t("migrate.testingStep.validation.checkList")}
                                   </Text>
                                   <List type="bullet">
-                                    <List.Item>平台凭证是否正确</List.Item>
-                                    <List.Item>网络连接是否正常</List.Item>
-                                    <List.Item>平台 API 是否可用</List.Item>
+                                    <List.Item>{t("migrate.testingStep.validation.checkItems.credentials")}</List.Item>
+                                    <List.Item>{t("migrate.testingStep.validation.checkItems.network")}</List.Item>
+                                    <List.Item>{t("migrate.testingStep.validation.checkItems.api")}</List.Item>
                                   </List>
                                 </BlockStack>
                               </Banner>
@@ -319,16 +322,16 @@ export function TestingStep({
                               <Box padding="300" background="bg-surface-secondary" borderRadius="200">
                                 <BlockStack gap="200">
                                   <Text as="span" variant="bodySm" fontWeight="semibold">
-                                    测试事件详情
+                                    {t("migrate.testingStep.validation.eventDetails")}
                                   </Text>
                                   <Text as="span" variant="bodySm" tone="subdued">
-                                    事件 ID: test-order-{Date.now()}
+                                    {t("migrate.testingStep.validation.eventId", { id: `test-order-${Date.now()}` })}
                                   </Text>
                                   <Text as="span" variant="bodySm" tone="subdued">
-                                    事件类型: {platformConfigs[platform]?.eventMappings?.checkout_completed || "purchase"}
+                                    {t("migrate.testingStep.validation.eventType", { type: platformConfigs[platform]?.eventMappings?.checkout_completed || "purchase" })}
                                   </Text>
                                   <Text as="span" variant="bodySm" tone="subdued">
-                                    测试金额: $1.00 USD
+                                    {t("migrate.testingStep.validation.amount")}
                                   </Text>
                                 </BlockStack>
                               </Box>
@@ -349,31 +352,30 @@ export function TestingStep({
         <Card>
           <BlockStack gap="400">
             <Text as="h4" variant="headingSm">
-              切换到生产模式
+              {t("migrate.testingStep.production.title")}
             </Text>
             <Banner tone="info">
               <BlockStack gap="300">
                 <Text as="p" variant="bodySm" fontWeight="semibold">
-                  测试验证通过！现在可以切换到生产模式。
+                  {t("migrate.testingStep.production.successTitle")}
                 </Text>
                 <Text as="p" variant="bodySm">
-                  切换后，事件将发送到实际广告平台，并开始追踪真实订单转化。
+                  {t("migrate.testingStep.production.desc")}
                 </Text>
                 <BlockStack gap="200">
                   <Text as="p" variant="bodySm" fontWeight="semibold">
-                    切换前请确认：
+                    {t("migrate.testingStep.production.confirmTitle")}
                   </Text>
                   <List type="bullet">
-                    <List.Item>所有平台的凭证已正确配置</List.Item>
-                    <List.Item>测试事件已成功发送并可在平台中查看</List.Item>
-                    <List.Item>事件映射配置符合您的业务需求</List.Item>
-                    <List.Item>已了解如何查看和监控生产环境事件</List.Item>
+                    <List.Item>{t("migrate.testingStep.production.confirmItems.credentials")}</List.Item>
+                    <List.Item>{t("migrate.testingStep.production.confirmItems.eventSent")}</List.Item>
+                    <List.Item>{t("migrate.testingStep.production.confirmItems.mapping")}</List.Item>
+                    <List.Item>{t("migrate.testingStep.production.confirmItems.monitor")}</List.Item>
                   </List>
                 </BlockStack>
                 <Banner tone="warning">
                   <Text as="p" variant="bodySm">
-                    💡 提示：切换到生产模式后，建议先运行一次验收测试，确保所有事件正常发送。
-                    您可以在「验收向导」页面进行完整的验收测试。
+                    {t("migrate.testingStep.production.tip")}
                   </Text>
                 </Banner>
               </BlockStack>
@@ -384,10 +386,10 @@ export function TestingStep({
               loading={isSwitchingToLive}
               disabled={isSwitchingToLive}
             >
-              切换到生产模式并前往验收
+              {t("migrate.testingStep.production.action")}
             </Button>
             <Text as="p" variant="bodySm" tone="subdued">
-              切换后，您可以在「设置」页面随时切换回测试模式或回滚配置。
+              {t("migrate.testingStep.production.note")}
             </Text>
           </BlockStack>
         </Card>
@@ -397,10 +399,10 @@ export function TestingStep({
         <Banner tone="success">
           <BlockStack gap="200">
             <Text as="p" fontWeight="semibold">
-              ✅ 配置验证通过！建议您运行验收测试以确保一切正常。
+              {t("migrate.testingStep.production.validatedTitle")}
             </Text>
             <Text as="p" variant="bodySm">
-              系统将在 3 秒后自动跳转到验收页面，您也可以手动点击下方按钮。
+              {t("migrate.testingStep.production.redirectNote")}
             </Text>
           </BlockStack>
         </Banner>
@@ -411,7 +413,7 @@ export function TestingStep({
           variant="primary"
           onClick={handleGoToVerification}
         >
-          运行验收测试
+          {t("migrate.testingStep.actions.runVerification")}
         </Button>
         {!allInTestMode && (
           <Button
@@ -419,12 +421,12 @@ export function TestingStep({
             onClick={() => {
               onComplete();
               const timeout = setTimeout(() => {
-                window.location.href = "/app/verification";
+                navigate("/app/verification");
               }, 300);
               timeoutRefs.current.push(timeout);
             }}
           >
-            ✅ 完成并前往验收
+            {t("migrate.testingStep.actions.complete")}
           </Button>
         )}
       </InlineStack>

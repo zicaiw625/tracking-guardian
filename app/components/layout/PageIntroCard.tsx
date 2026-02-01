@@ -5,7 +5,7 @@ interface PageIntroCardProps {
   description: string;
   badge?: { tone?: "info" | "success" | "warning" | "critical" | "attention"; content: string };
   items?: string[];
-  primaryAction?: { content: string; url: string };
+  primaryAction?: { content: string; url?: string; onAction?: () => void };
   secondaryAction?: { content: string; url: string };
 }
 
@@ -35,7 +35,7 @@ export function PageIntroCard({
                 </Button>
               )}
               {primaryAction && (
-                <Button url={primaryAction.url} size="slim" variant="primary">
+                <Button url={primaryAction.url} onClick={primaryAction.onAction} size="slim" variant="primary">
                   {primaryAction.content}
                 </Button>
               )}
