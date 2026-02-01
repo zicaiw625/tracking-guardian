@@ -148,6 +148,8 @@ export default defineConfig({
       "@shopify/polaris",
       "@shopify/shopify-app-remix",
       "@shopify/app-bridge-react",
+      "dom-helpers",
+      "react-transition-group",
     ],
     external: ["html-pdf-node", "undici"],
   },
