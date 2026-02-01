@@ -4,6 +4,7 @@ import { Page, BlockStack, Banner, Tabs, Button, InlineStack, Text, Card, Badge 
 import { PageIntroCard } from "~/components/layout/PageIntroCard";
 import { useToastContext } from "~/components/ui";
 import { getShopifyAdminUrl } from "~/utils/helpers";
+import { useTranslation } from "react-i18next";
 
 import { settingsLoader } from "./loader.server";
 import { settingsAction } from "./actions.server";
@@ -19,6 +20,7 @@ export const loader = settingsLoader;
 export const action = settingsAction;
 
 export default function SettingsPage() {
+  const { t } = useTranslation();
   const { shop, hmacSecurityStats, pixelStrictOrigin, alertChannelsEnabled, typOspStatus } =
     useLoaderData<typeof settingsLoader>();
   const actionData = useActionData<SettingsActionResponse>();
@@ -28,12 +30,12 @@ export default function SettingsPage() {
   useEffect(() => {
     if (actionData) {
       if (actionData.success) {
-        showSuccess(actionData.message || "设置已保存");
+        showSuccess(actionData.message || t("settings.toast.saved"));
       } else if (actionData.error) {
         showError(actionData.error);
       }
     }
-  }, [actionData, showSuccess, showError]);
+  }, [actionData, showSuccess, showError, t]);
   const [searchParams, setSearchParams] = useSearchParams();
   const tabParam = searchParams.get("tab");
   const getTabIndex = (tab: string | null): number => {
@@ -64,53 +66,53 @@ export default function SettingsPage() {
   }, [submit]);
   const isSubmitting = navigation.state === "submitting";
   const tabs = [
-    { id: "security", content: "安全与隐私" },
-    { id: "subscription", content: "订阅计划" },
-    { id: "alerts", content: "告警" },
+    { id: "security", content: t("settings.tabs.security") },
+    { id: "subscription", content: t("settings.tabs.subscription") },
+    { id: "alerts", content: t("settings.tabs.alerts") },
   ];
   return (
-    <Page title="设置">
+    <Page title={t("settings.page.title")}>
       <BlockStack gap="500">
         <PageIntroCard
-          title="设置总览"
-          description="配置安全与隐私策略，以及订阅计划。"
+          title={t("settings.intro.title")}
+          description={t("settings.intro.description")}
           items={[
-            "订阅管理与计费：在「订阅计划」标签页配置，或直接访问「订阅与计费」页面（推荐）",
-            "数据保留与隐私策略在「安全与隐私」标签页",
-            "隐私政策与 GDPR 请求在「隐私」页面",
+            t("settings.intro.items.0"),
+            t("settings.intro.items.1"),
+            t("settings.intro.items.2"),
           ]}
-          primaryAction={{ content: "订阅与计费", url: "/app/billing" }}
-          secondaryAction={{ content: "隐私设置", url: "/app/privacy" }}
+          primaryAction={{ content: t("settings.intro.action.billing"), url: "/app/billing" }}
+          secondaryAction={{ content: t("settings.intro.action.privacy"), url: "/app/privacy" }}
         />
-        <Banner tone="warning" title="重要功能快速访问">
+        <Banner tone="warning" title={t("settings.banner.quickAccess.title")}>
           <BlockStack gap="300">
             <Text as="p" variant="bodySm" fontWeight="semibold">
-              以下功能可通过左侧导航菜单或下方按钮直接访问
+              {t("settings.banner.quickAccess.description")}
             </Text>
             <InlineStack gap="300" wrap>
               <Button url="/app/billing" variant="primary" size="large">
-                订阅与计费
+                {t("settings.intro.action.billing")}
               </Button>
               <Button url="/app/privacy" variant="secondary" size="large">
-                隐私设置
+                {t("settings.intro.action.privacy")}
               </Button>
             </InlineStack>
             <Text as="p" variant="bodySm" tone="subdued">
-              订阅与计费用于管理您的付费计划和账单，隐私设置用于配置数据保护和合规选项。
+              {t("settings.banner.quickAccess.footer")}
             </Text>
           </BlockStack>
         </Banner>
-        <Banner tone="info" title="订阅与计费管理">
+        <Banner tone="info" title={t("settings.banner.billing.title")}>
           <BlockStack gap="200">
             <Text as="p" variant="bodySm">
-              管理您的订阅计划、查看账单历史、升级或降级套餐。您可以在「订阅计划」标签页中查看当前计划详情，或直接访问「订阅与计费」页面进行更详细的管理。
+              {t("settings.banner.billing.description")}
             </Text>
             <InlineStack gap="200">
               <Button url="/app/billing" variant="primary">
-                前往订阅与计费页面
+                {t("settings.banner.billing.action.goToBilling")}
               </Button>
               <Button onClick={() => handleTabChange(1)} variant="secondary">
-                查看订阅计划标签页
+                {t("settings.banner.billing.action.viewTab")}
               </Button>
             </InlineStack>
           </BlockStack>
@@ -119,7 +121,7 @@ export default function SettingsPage() {
           <BlockStack gap="300">
             <InlineStack align="space-between" blockAlign="center">
               <Text as="h2" variant="headingMd">
-                页面模块（Thank you / Order status）
+                {t("settings.card.modules.title")}
               </Text>
               {typOspStatus && (
                 <Badge
@@ -132,24 +134,24 @@ export default function SettingsPage() {
                   }
                 >
                   {typOspStatus.status === "enabled"
-                    ? "已启用"
+                    ? t("settings.card.modules.status.enabled")
                     : typOspStatus.status === "disabled"
-                      ? "未启用"
-                      : "待检测"}
+                      ? t("settings.card.modules.status.disabled")
+                      : t("settings.card.modules.status.unknown")}
                 </Badge>
               )}
             </InlineStack>
             <Text as="p" variant="bodySm" tone="subdued">
-              本应用在 Thank you 页与 Order status 页提供 UI 扩展（发票、问卷、售后链接等）。请在 Shopify 的 Checkout and accounts 编辑器中添加并启用本应用的区块。
+              {t("settings.card.modules.description")}
             </Text>
             {shop?.domain && (
               <Button url={getShopifyAdminUrl(shop.domain, "/settings/checkout")} external variant="primary">
-                打开 Checkout 设置
+                {t("settings.card.modules.action.openSettings")}
               </Button>
             )}
             {typOspStatus?.status === "unknown" && typOspStatus.unknownReason && (
               <Text as="p" variant="bodySm" tone="subdued">
-                状态说明：{typOspStatus.unknownReason === "NOT_PLUS" ? "需 Shopify Plus 或适用计划" : typOspStatus.unknownReason === "NO_EDITOR_ACCESS" ? "需具备 Checkout and accounts 编辑器访问权限" : typOspStatus.unknownReason}
+                {t("settings.card.modules.status.explanation")}{typOspStatus.unknownReason === "NOT_PLUS" ? t("settings.card.modules.reason.notPlus") : typOspStatus.unknownReason === "NO_EDITOR_ACCESS" ? t("settings.card.modules.reason.noAccess") : typOspStatus.unknownReason}
               </Text>
             )}
           </BlockStack>

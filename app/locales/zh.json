@@ -169,7 +169,9 @@
     "optional": "可选",
     "platform": "平台:",
     "hours": "小时",
-    "minutes": "分钟"
+    "minutes": "分钟",
+    "estimated": "预计",
+    "countItems": "{{count}} 项"
   },
   "plans": {
     "free": "免费版",
@@ -306,6 +308,99 @@
     }
   },
   "scan": {
+    "pageTitle": "Audit 风险报告（免费获客）",
+    "pageSubtitle": "迁移清单 + 风险分级 + 替代路径（Web Pixel / 不可迁移）• 明确提示 checkout.liquid / additional scripts / script tags 在 Thank you/Order status 的弃用与限制 • 可导出 CSV",
+    "tabs": {
+      "auto": "自动扫描",
+      "manual": "手动补充",
+      "checklist": "迁移清单"
+    },
+    "intro": {
+      "manual": {
+        "title": "手动补充 Additional Scripts",
+        "description": "补齐 Shopify API 无法读取的 Additional Scripts，确保报告覆盖 Thank you / Order status。",
+        "items": [
+          "粘贴 Additional Scripts 内容进行分析",
+          "生成完整的迁移清单与风险分级",
+          "支持一键保存到审计记录"
+        ],
+        "action": {
+          "primary": "进入手动分析",
+          "secondary": "查看报告"
+        }
+      },
+      "checklist": {
+        "title": "Audit 迁移清单",
+        "description": "查看风险分级、推荐迁移路径与预估工时，作为迁移交付清单。",
+        "items": [
+          "清单支持 CSV 导出",
+          "标注 Web Pixel / 不可迁移 路径",
+          "优先处理高风险资产"
+        ],
+        "action": {
+          "primary": "查看完整报告",
+          "secondary": "返回扫描"
+        }
+      },
+      "auto": {
+        "title": "Audit 自动扫描",
+        "description": "自动扫描 ScriptTags 与 Web Pixels，生成迁移风险评估和建议。",
+        "items": [
+          "检测已安装像素与平台信号",
+          "识别高风险脚本与阻塞项",
+          "输出迁移路径与工时建议"
+        ],
+        "action": {
+          "primary": "开始扫描",
+          "secondary": "手动补充"
+        }
+      }
+    },
+    "modals": {
+      "cleanScriptTag": {
+        "title": "清理 ScriptTag #{{id}}"
+      },
+      "guide": {
+        "title": "如何从 Shopify 升级向导获取脚本清单"
+      }
+    },
+    "errors": {
+      "invalidPixelId": "无效的 WebPixel ID",
+      "invalidPixelFormat": "WebPixel ID 格式不正确",
+      "shopNotFound": "店铺信息未找到",
+      "selectPlatform": "请至少选择一个平台或功能",
+      "processFailed": "处理失败，请稍后重试",
+      "saveFailed": "保存失败：",
+      "deleteFailed": "删除失败",
+      "upgradeFailed": "升级失败",
+      "exportFailed": "导出失败",
+      "browserNotSupported": "浏览器不支持复制功能",
+      "copyFailed": "复制失败，请手动复制",
+      "createDownloadLinkFailed": "导出失败：无法创建下载链接",
+      "exportRetry": "导出失败，请重试"
+    },
+    "success": {
+      "analysisSaved": "分析结果已保存！",
+      "deleted": "删除成功！",
+      "upgraded": "升级成功！",
+      "exportCSV": "扫描报告 CSV 导出成功",
+      "copied": "清单已复制到剪贴板",
+      "exportChecklist": "清单导出成功",
+      "assetsCreated": "成功创建 {{count}} 个迁移资产"
+    },
+    "history": {
+      "title": "扫描历史",
+      "empty": {
+        "title": "暂无扫描历史",
+        "description": "执行扫描后，历史记录将显示在这里。"
+      },
+      "headings": {
+        "time": "扫描时间",
+        "riskScore": "风险分",
+        "platforms": "检测平台",
+        "status": "状态"
+      }
+    },
     "risks": {
       "deprecatedScriptTagOrderStatus": {
         "name": "订单状态页 ScriptTag（将被废弃）",
@@ -808,5 +903,90 @@
     },
     "startMigration": "开始迁移",
     "markComplete": "标记完成"
+  },
+  "settings": {
+    "page": {
+      "title": "设置"
+    },
+    "toast": {
+      "saved": "设置已保存"
+    },
+    "tabs": {
+      "security": "安全与隐私",
+      "subscription": "订阅计划",
+      "alerts": "告警"
+    },
+    "intro": {
+      "title": "设置总览",
+      "description": "配置安全与隐私策略，以及订阅计划。",
+      "items": [
+        "订阅管理与计费：在「订阅计划」标签页配置，或直接访问「订阅与计费」页面（推荐）",
+        "数据保留与隐私策略在「安全与隐私」标签页",
+        "隐私政策与 GDPR 请求在「隐私」页面"
+      ],
+      "action": {
+        "billing": "订阅与计费",
+        "privacy": "隐私设置"
+      }
+    },
+    "banner": {
+      "quickAccess": {
+        "title": "重要功能快速访问",
+        "description": "以下功能可通过左侧导航菜单或下方按钮直接访问",
+        "footer": "订阅与计费用于管理您的付费计划和账单，隐私设置用于配置数据保护和合规选项。"
+      },
+      "billing": {
+        "title": "订阅与计费管理",
+        "description": "管理您的订阅计划、查看账单历史、升级或降级套餐。您可以在「订阅计划」标签页中查看当前计划详情，或直接访问「订阅与计费」页面进行更详细的管理。",
+        "action": {
+          "goToBilling": "前往订阅与计费页面",
+          "viewTab": "查看订阅计划标签页"
+        }
+      }
+    },
+    "card": {
+      "modules": {
+        "title": "页面模块（Thank you / Order status）",
+        "description": "本应用在 Thank you 页与 Order status 页提供 UI 扩展（发票、问卷、售后链接等）。请在 Shopify 的 Checkout and accounts 编辑器中添加并启用本应用的区块。",
+        "action": {
+          "openSettings": "打开 Checkout 设置"
+        },
+        "status": {
+          "enabled": "已启用",
+          "disabled": "未启用",
+          "unknown": "待检测",
+          "explanation": "状态说明："
+        },
+        "reason": {
+          "notPlus": "需 Shopify Plus 或适用计划",
+          "noAccess": "需具备 Checkout and accounts 编辑器访问权限"
+        }
+      }
+    }
+  },
+  "support": {
+    "subtitle": "帮助中心",
+    "intro": {
+      "title": "支持与工单",
+      "description": "遇到迁移、像素、验收问题可通过工单与 FAQ 获取支持。当前版本聚焦迁移与验收，服务端转化投递为可选/后续能力，默认关闭。",
+      "items": [
+        "支持 PII/PCD 与隐私合规咨询",
+        "迁移方案可预约专家协助"
+      ],
+      "action": {
+        "faq": "查看 FAQ",
+        "reports": "导出报告"
+      }
+    },
+    "contact": {
+      "title": "联系我们",
+      "email": "邮箱：",
+      "helpCenter": "帮助中心：",
+      "statusPage": "状态页："
+    },
+    "links": {
+      "privacy": "隐私政策",
+      "terms": "服务条款"
+    }
   }
 }

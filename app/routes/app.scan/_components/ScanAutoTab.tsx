@@ -194,7 +194,7 @@ export function ScanAutoTab({
                             <Text as="h2" variant="headingMd">
                                 {t("scan.autoTab.riskDetails.title")}
                             </Text>
-                            <Badge tone="info">{`${riskItems.length} 项`}</Badge>
+                            <Badge tone="info">{t("common.countItems", { count: riskItems.length })}</Badge>
                         </InlineStack>
                         <Banner tone="info">
                             <Text as="p" variant="bodySm">
@@ -490,7 +490,7 @@ export function ScanAutoTab({
                                                                 <InlineStack gap="100" blockAlign="center">
                                                                     <Icon source={ClockIcon} />
                                                                     <Badge>
-                                                                        {`预计 ${item.asset.estimatedTimeMinutes < 60
+                                                                        {`${t("common.estimated")} ${item.asset.estimatedTimeMinutes < 60
                                                                             ? `${item.asset.estimatedTimeMinutes} ${t("common.minutes")}`
                                                                             : `${Math.floor(item.asset.estimatedTimeMinutes / 60)} ${t("common.hours")} ${item.asset.estimatedTimeMinutes % 60} ${t("common.minutes")}`}`}
                                                                     </Badge>
@@ -500,7 +500,7 @@ export function ScanAutoTab({
                                                                 <InlineStack gap="100" blockAlign="center">
                                                                     <Icon source={ClockIcon} />
                                                                     <Badge>
-                                                                        {`预计 ${item.priority.estimatedTime < 60
+                                                                        {`${t("common.estimated")} ${item.priority.estimatedTime < 60
                                                                             ? `${item.priority.estimatedTime} ${t("common.minutes")}`
                                                                             : `${Math.floor(item.priority.estimatedTime / 60)} ${t("common.hours")} ${item.priority.estimatedTime % 60} ${t("common.minutes")}`}`}
                                                                     </Badge>

@@ -169,7 +169,9 @@
     "optional": "Optional",
     "platform": "Platform:",
     "hours": "hours",
-    "minutes": "minutes"
+    "minutes": "minutes",
+    "estimated": "Estimated",
+    "countItems": "{{count}} items"
   },
   "plans": {
     "free": "Free",
@@ -306,6 +308,99 @@
     }
   },
   "scan": {
+    "pageTitle": "Audit Risk Report (Free Acquisition)",
+    "pageSubtitle": "Migration Checklist + Risk Grading + Alternative Paths (Web Pixel / Non-migratable) • Clear warnings about deprecation/restrictions of checkout.liquid / additional scripts / script tags on Thank you/Order status • CSV Exportable",
+    "tabs": {
+      "auto": "Auto Scan",
+      "manual": "Manual Supplement",
+      "checklist": "Migration Checklist"
+    },
+    "intro": {
+      "manual": {
+        "title": "Manually Supplement Additional Scripts",
+        "description": "Supplement Additional Scripts that Shopify API cannot read, ensuring report covers Thank you / Order status.",
+        "items": [
+          "Paste Additional Scripts content for analysis",
+          "Generate complete migration checklist and risk grading",
+          "One-click save to audit records"
+        ],
+        "action": {
+          "primary": "Enter Manual Analysis",
+          "secondary": "View Report"
+        }
+      },
+      "checklist": {
+        "title": "Audit Migration Checklist",
+        "description": "View risk grading, recommended migration paths, and estimated hours as a migration delivery checklist.",
+        "items": [
+          "Checklist supports CSV export",
+          "Mark Web Pixel / Non-migratable paths",
+          "Prioritize high-risk assets"
+        ],
+        "action": {
+          "primary": "View Full Report",
+          "secondary": "Return to Scan"
+        }
+      },
+      "auto": {
+        "title": "Audit Auto Scan",
+        "description": "Automatically scan ScriptTags and Web Pixels to generate migration risk assessment and recommendations.",
+        "items": [
+          "Detect installed pixels and platform signals",
+          "Identify high-risk scripts and blocking items",
+          "Output migration paths and hour estimates"
+        ],
+        "action": {
+          "primary": "Start Scan",
+          "secondary": "Manual Supplement"
+        }
+      }
+    },
+    "modals": {
+      "cleanScriptTag": {
+        "title": "Clean ScriptTag #{{id}}"
+      },
+      "guide": {
+        "title": "How to get script list from Shopify Upgrade Wizard"
+      }
+    },
+    "errors": {
+      "invalidPixelId": "Invalid WebPixel ID",
+      "invalidPixelFormat": "Incorrect WebPixel ID format",
+      "shopNotFound": "Shop information not found",
+      "selectPlatform": "Please select at least one platform or feature",
+      "processFailed": "Processing failed, please try again later",
+      "saveFailed": "Save failed: ",
+      "deleteFailed": "Delete failed",
+      "upgradeFailed": "Upgrade failed",
+      "exportFailed": "Export failed",
+      "browserNotSupported": "Browser does not support copy function",
+      "copyFailed": "Copy failed, please copy manually",
+      "createDownloadLinkFailed": "Export failed: Cannot create download link",
+      "exportRetry": "Export failed, please retry"
+    },
+    "success": {
+      "analysisSaved": "Analysis result saved!",
+      "deleted": "Delete successful!",
+      "upgraded": "Upgrade successful!",
+      "exportCSV": "Scan report CSV export successful",
+      "copied": "Checklist copied to clipboard",
+      "exportChecklist": "Checklist export successful",
+      "assetsCreated": "Successfully created {{count}} migration assets"
+    },
+    "history": {
+      "title": "Scan History",
+      "empty": {
+        "title": "No Scan History",
+        "description": "History records will appear here after a scan."
+      },
+      "headings": {
+        "time": "Scan Time",
+        "riskScore": "Risk Score",
+        "platforms": "Detected Platforms",
+        "status": "Status"
+      }
+    },
     "risks": {
       "deprecatedScriptTagOrderStatus": {
         "name": "Order Status Page ScriptTag (Deprecated)",
@@ -765,5 +860,90 @@
     },
     "startMigration": "Start Migration",
     "markComplete": "Mark Complete"
+  },
+  "settings": {
+    "page": {
+      "title": "Settings"
+    },
+    "toast": {
+      "saved": "Settings saved"
+    },
+    "tabs": {
+      "security": "Security & Privacy",
+      "subscription": "Subscription Plan",
+      "alerts": "Alerts"
+    },
+    "intro": {
+      "title": "Settings Overview",
+      "description": "Configure security & privacy policies, and subscription plans.",
+      "items": [
+        "Subscription & Billing: Configure in 'Subscription Plan' tab, or visit 'Billing' page directly (Recommended)",
+        "Data retention & privacy policies in 'Security & Privacy' tab",
+        "Privacy policy & GDPR requests in 'Privacy' page"
+      ],
+      "action": {
+        "billing": "Subscription & Billing",
+        "privacy": "Privacy Settings"
+      }
+    },
+    "banner": {
+      "quickAccess": {
+        "title": "Quick Access to Important Features",
+        "description": "The following features can be accessed directly via the left navigation menu or the buttons below",
+        "footer": "Subscription & Billing is for managing your paid plans and invoices. Privacy Settings is for configuring data protection and compliance options."
+      },
+      "billing": {
+        "title": "Subscription & Billing Management",
+        "description": "Manage your subscription plan, view billing history, upgrade or downgrade. You can view current plan details in the 'Subscription Plan' tab, or visit the 'Billing' page for more detailed management.",
+        "action": {
+          "goToBilling": "Go to Billing Page",
+          "viewTab": "View Subscription Tab"
+        }
+      }
+    },
+    "card": {
+      "modules": {
+        "title": "Page Modules (Thank you / Order status)",
+        "description": "This app provides UI extensions (invoices, surveys, post-purchase links, etc.) on Thank you & Order status pages. Please add and enable this app's blocks in Shopify's Checkout and accounts editor.",
+        "action": {
+          "openSettings": "Open Checkout Settings"
+        },
+        "status": {
+          "enabled": "Enabled",
+          "disabled": "Disabled",
+          "unknown": "Pending Check",
+          "explanation": "Status Explanation: "
+        },
+        "reason": {
+          "notPlus": "Shopify Plus or eligible plan required",
+          "noAccess": "Checkout and accounts editor access required"
+        }
+      }
+    }
+  },
+  "support": {
+    "subtitle": "Help Center",
+    "intro": {
+      "title": "Support & Tickets",
+      "description": "Get support for migration, pixel, and verification issues via tickets and FAQ. Current version focuses on migration and verification; server-side conversion delivery is optional/future capability, disabled by default.",
+      "items": [
+        "Support PII/PCD and privacy compliance consultation",
+        "Migration plans can book expert assistance"
+      ],
+      "action": {
+        "faq": "View FAQ",
+        "reports": "Export Reports"
+      }
+    },
+    "contact": {
+      "title": "Contact Us",
+      "email": "Email: ",
+      "helpCenter": "Help Center: ",
+      "statusPage": "Status Page: "
+    },
+    "links": {
+      "privacy": "Privacy Policy",
+      "terms": "Terms of Service"
+    }
   }
 }

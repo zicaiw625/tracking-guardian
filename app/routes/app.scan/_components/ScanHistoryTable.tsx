@@ -1,6 +1,7 @@
 import { Card, Text, BlockStack, DataTable } from "@shopify/polaris";
 import { EnhancedEmptyState } from "~/components/ui";
 import { formatScanHistoryForTable } from "~/utils/scan-format";
+import { useTranslation } from "react-i18next";
 
 interface ScanHistoryTableProps {
   scanHistory: Array<{
@@ -13,6 +14,7 @@ interface ScanHistoryTableProps {
 }
 
 export function ScanHistoryTable({ scanHistory, onStartScan }: ScanHistoryTableProps) {
+  const { t } = useTranslation();
   const processedScanHistory = formatScanHistoryForTable(scanHistory);
 
   if (processedScanHistory.length === 0) {
@@ -20,14 +22,14 @@ export function ScanHistoryTable({ scanHistory, onStartScan }: ScanHistoryTableP
       <Card>
         <BlockStack gap="400">
           <Text as="h2" variant="headingMd">
-            扫描历史
+            {t("scan.history.title")}
           </Text>
           <EnhancedEmptyState
             icon="📋"
-            title="暂无扫描历史"
-            description="执行扫描后，历史记录将显示在这里。"
+            title={t("scan.history.empty.title")}
+            description={t("scan.history.empty.description")}
             primaryAction={{
-              content: "开始扫描",
+              content: t("scan.autoTab.startScan"),
               onAction: onStartScan,
             }}
           />
@@ -40,11 +42,16 @@ export function ScanHistoryTable({ scanHistory, onStartScan }: ScanHistoryTableP
     <Card>
       <BlockStack gap="400">
         <Text as="h2" variant="headingMd">
-          扫描历史
+          {t("scan.history.title")}
         </Text>
         <DataTable
           columnContentTypes={["text", "numeric", "text", "text"]}
-          headings={["扫描时间", "风险分", "检测平台", "状态"]}
+          headings={[
+            t("scan.history.headings.time"),
+            t("scan.history.headings.riskScore"),
+            t("scan.history.headings.platforms"),
+            t("scan.history.headings.status")
+          ]}
           rows={processedScanHistory}
         />
       </BlockStack>
