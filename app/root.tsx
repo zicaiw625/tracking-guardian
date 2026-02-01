@@ -2,6 +2,7 @@ import { Links, Meta, Outlet, Scripts, ScrollRestoration, useRouteError, isRoute
 import { useEffect } from "react";
 import polarisStyles from "@shopify/polaris/build/esm/styles.css?url";
 import { suppressMonorailErrors } from "./utils/suppress-monorail-errors.client";
+import { useTranslation } from "react-i18next";
 
 export const links = () => [{ rel: "stylesheet", href: polarisStyles }];
 
@@ -15,7 +16,9 @@ function PerformanceMonitor() {
 }
 
 export default function App() {
-    return (<html lang="en">
+  const { i18n } = useTranslation();
+  return (
+    <html lang={i18n.language || "en"}>
       <head>
         <meta charSet="utf-8"/>
         <meta name="viewport" content="width=device-width,initial-scale=1"/>
