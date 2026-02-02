@@ -453,14 +453,13 @@ export function getPixelEventIngestionUrl(): {
   };
 } {
   const shopifyAppUrl = process.env.SHOPIFY_APP_URL;
-  const fallbackUrl = "https://tracking-guardian.onrender.com";
   if (!shopifyAppUrl) {
     return {
-      url: fallbackUrl,
+      url: "",
       isConfigured: false,
       isLocalhost: false,
       warning:
-        "SHOPIFY_APP_URL 未配置，使用默认的生产环境 URL。如果您运行在自己的服务器上，请确保在环境变量中设置 SHOPIFY_APP_URL。",
+        "SHOPIFY_APP_URL 未配置。如果您运行在自己的服务器上，请确保在环境变量中设置 SHOPIFY_APP_URL。",
     };
   }
   const placeholderDetected =
@@ -502,10 +501,10 @@ export function getPixelEventIngestionUrl(): {
     };
   } catch {
     return {
-      url: fallbackUrl,
+      url: "",
       isConfigured: false,
       isLocalhost: false,
-      warning: `SHOPIFY_APP_URL 格式无效 (${shopifyAppUrl})，使用默认 URL。`,
+      warning: `SHOPIFY_APP_URL 格式无效 (${shopifyAppUrl})。`,
     };
   }
 }

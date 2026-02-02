@@ -31,19 +31,12 @@ function loadEnv() {
 
 function buildShopifyConfig() {
   loadEnv();
-  const appUrl = process.env.SHOPIFY_APP_URL || process.env.APPLICATION_URL || "https://tracking-guardian.onrender.com";
+  const appUrl = process.env.SHOPIFY_APP_URL || process.env.APPLICATION_URL;
   const isCI = process.env.CI === "true" || process.env.GITHUB_ACTIONS === "true" || process.env.RENDER === "true";
   
   if (!appUrl) {
-    if (isCI) {
-      console.error("❌ SHOPIFY_APP_URL or APPLICATION_URL is required in CI/CD environment!");
-      console.error("   Please set SHOPIFY_APP_URL environment variable to your app's URL.");
-      console.error("   Example: SHOPIFY_APP_URL=https://your-app.onrender.com");
-      process.exit(1);
-    }
-    console.log("⚠️  SHOPIFY_APP_URL not set, using default production URL");
-    console.log("   Note: In production, always set SHOPIFY_APP_URL to avoid configuration issues.");
-    return;
+    console.error("❌ SHOPIFY_APP_URL or APPLICATION_URL is required.");
+    process.exit(1);
   }
 
   try {

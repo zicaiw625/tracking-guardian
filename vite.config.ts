@@ -11,11 +11,13 @@ if (
 }
 
 function getHostname(): string {
-  const appUrl = process.env.SHOPIFY_APP_URL || "https://tracking-guardian.onrender.com";
+  const appUrl = process.env.SHOPIFY_APP_URL || "";
   try {
     return new URL(appUrl).hostname;
   } catch {
-    console.warn(`[Vite] Invalid SHOPIFY_APP_URL: ${appUrl}, using localhost`);
+    if (appUrl) {
+      console.warn(`[Vite] Invalid SHOPIFY_APP_URL: ${appUrl}, using localhost`);
+    }
     return "localhost";
   }
 }

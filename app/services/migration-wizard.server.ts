@@ -447,7 +447,7 @@ export async function validateTestEnvironment(
       };
       const pixelId = credentials.pixelId ?? "";
       const accessToken = credentials.accessToken ?? "";
-      const url = `${PLATFORM_ENDPOINTS.META_GRAPH_API(pixelId)}?access_token=${encodeURIComponent(accessToken)}`;
+      const url = PLATFORM_ENDPOINTS.META_GRAPH_API(pixelId);
       const eventPayload: Record<string, unknown> = {
         event_name: "Purchase",
         event_time: Math.floor(Date.now() / 1000),
@@ -461,7 +461,10 @@ export async function validateTestEnvironment(
       try {
         const res = await fetch(url, {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: { 
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${accessToken}`,
+          },
           body: JSON.stringify(body),
         });
         eventSent = res.ok;

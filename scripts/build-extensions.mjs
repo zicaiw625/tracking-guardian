@@ -118,15 +118,13 @@ function resolveBackendUrl() {
 
 function injectBackendUrl() {
     loadEnv();
-    let backendUrl = process.env.SHOPIFY_APP_URL || resolveBackendUrl() || "https://tracking-guardian.onrender.com";
+    let backendUrl = process.env.SHOPIFY_APP_URL || resolveBackendUrl();
     const isCI = process.env.CI === "true" || process.env.GITHUB_ACTIONS === "true" || process.env.RENDER === "true";
     if (!backendUrl) {
+        console.error("❌ Missing SHOPIFY_APP_URL/RENDER_EXTERNAL_URL/PUBLIC_APP_URL. Refusing to inject BACKEND_URL.");
         if (isCI) {
-            console.error("❌ No valid backend URL found. Set SHOPIFY_APP_URL, RENDER_EXTERNAL_URL, or PUBLIC_APP_URL.");
-            console.error("   Example: SHOPIFY_APP_URL=https://your-app.onrender.com");
             process.exit(1);
         }
-        console.log("⚠️  SHOPIFY_APP_URL not set, no fallback URL available. Skipping injection.");
         return;
     }
     try {
