@@ -60,7 +60,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       updatedAt: true,
     },
   });
-  const platforms = Array.from(new Set(pixelConfigs.map((config: any) => config.platform)));
+  const platforms = Array.from(new Set(pixelConfigs.map((config) => config.platform)));
   const recentReceipts = platforms.length
     ? await prisma.pixelEventReceipt.findMany({
         where: {
@@ -75,7 +75,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
         take: 200,
       })
     : [];
-  const latestByKey = recentReceipts.reduce((acc: any, receipt: any) => {
+  const latestByKey = recentReceipts.reduce((acc, receipt) => {
     const payload = receipt.payloadJson as Record<string, unknown> | null;
     const platform = extractPlatformFromPayload(payload);
     if (!platform || !platforms.includes(platform)) return acc;

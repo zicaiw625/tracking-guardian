@@ -61,7 +61,7 @@ export function generateChecklistText(
   }> | null | undefined,
   shopDomain: string | null | undefined,
   format: "markdown" | "plain",
-  t?: (key: string, options?: any) => string
+  t?: TFunction
 ): string {
   
   const _t = t || ((key: string, _options?: any) => {
