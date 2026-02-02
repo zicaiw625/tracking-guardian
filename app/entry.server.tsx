@@ -8,7 +8,7 @@ import { ensureSecretsValid, enforceSecurityChecks } from "./utils/secrets.serve
 import { validateEncryptionConfig } from "./utils/crypto.server";
 import { validateConfig, logConfigStatus, API_CONFIG } from "./utils/config.server";
 import { logger } from "./utils/logger.server";
-import { EMBEDDED_APP_HEADERS, addSecurityHeadersToHeaders, getProductionSecurityHeaders, validateSecurityHeaders, buildCspHeader, NON_EMBEDDED_PAGE_CSP_DIRECTIVES } from "./utils/security-headers";
+import { EMBEDDED_APP_HEADERS, addSecurityHeadersToHeaders, getProductionSecurityHeaders, validateSecurityHeaders, buildCspHeader, APP_PAGE_CSP_DIRECTIVES } from "./utils/security-headers";
 import { RedisClientFactory } from "./utils/redis-client.server";
 import prisma from "./db.server";
 import { getCorsHeadersPreBody } from "./lib/pixel-events/cors";
@@ -126,7 +126,7 @@ export default async function handleRequest(request: Request, responseStatusCode
     if (shopDomain) frameAncestors.unshift(`https://${shopDomain}`);
     responseHeaders.delete("X-Frame-Options");
     const cspDirectives = {
-      ...NON_EMBEDDED_PAGE_CSP_DIRECTIVES,
+      ...APP_PAGE_CSP_DIRECTIVES,
       "frame-ancestors": frameAncestors,
     };
     responseHeaders.set("Content-Security-Policy", buildCspHeader(cspDirectives));

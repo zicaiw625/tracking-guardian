@@ -25,7 +25,7 @@ vi.mock("../../app/utils/logger.server", () => ({
 
 vi.mock("../../app/utils/security-headers", () => ({
   EMBEDDED_APP_HEADERS: {},
-  NON_EMBEDDED_PAGE_CSP_DIRECTIVES: {
+  APP_PAGE_CSP_DIRECTIVES: {
     "default-src": ["'self'"],
     "script-src": ["'self'", "https://cdn.shopify.com"],
     "style-src": ["'self'", "'unsafe-inline'", "https://cdn.shopify.com"],
@@ -36,9 +36,9 @@ vi.mock("../../app/utils/security-headers", () => ({
       "https://cdn.shopify.com",
       "https://monorail-edge.shopifysvc.com",
     ],
-    "frame-ancestors": ["https://admin.shopify.com"],
+    "frame-ancestors": ["https://admin.shopify.com", "https://*.shopify.com", "https://*.myshopify.com"],
     "base-uri": ["'self'"],
-    "form-action": ["'self'"],
+    "form-action": ["'self'", "https://*.shopify.com", "https://*.myshopify.com"],
     "object-src": ["'none'"],
     "upgrade-insecure-requests": [],
   },
@@ -116,7 +116,7 @@ describe("entry.server embedded headers", () => {
       "Content-Security-Policy": "default-src 'self'; frame-ancestors 'none'",
     });
 
-    const response = await handleRequest(request, 200, responseHeaders, {} as any);
+    const response = (await handleRequest(request, 200, responseHeaders, {} as any)) as Response;
 
     expect(response.headers.get("X-Frame-Options")).toBeNull();
     expect(response.headers.get("Content-Security-Policy")).toContain("https://admin.shopify.com");
@@ -132,7 +132,7 @@ describe("entry.server embedded headers", () => {
       "Content-Security-Policy": "default-src 'self'; frame-ancestors 'none'",
     });
 
-    const response = await handleRequest(request, 200, responseHeaders, {} as any);
+    const response = (await handleRequest(request, 200, responseHeaders, {} as any)) as Response;
 
     expect(response.headers.get("X-Frame-Options")).toBeNull();
     const csp = response.headers.get("Content-Security-Policy") ?? "";

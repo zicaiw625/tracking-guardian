@@ -406,7 +406,8 @@
     "unknownAsset": "未知资产",
     "noDescription": "无说明",
     "months_other": "{{count}} 个月",
-    "unknownError": "未知错误"
+    "unknownError": "未知错误",
+    "months_one": "{{count}} 个月"
   },
   "billing": {
     "pageTitle": "订阅与计费",
@@ -1023,7 +1024,12 @@
   },
   "scan": {
     "notes": {
-      "additionalScripts": "Additional Scripts 需要通过手动粘贴识别，Shopify API 无法自动读取 checkout.liquid 中的 Additional Scripts 内容"
+      "duplicatePixels": "重复像素",
+      "duplicatePixelsDesc": "发现多个相同类型的像素 ({{type}})。这可能导致数据重复。",
+      "remove": "移除",
+      "unknownPixel": "未知像素",
+      "unknownPixelDesc": "此像素格式未识别或为手动安装。",
+      "inspect": "检查"
     },
     "pageTitle": "Tracking Guardian - 扫描与迁移",
     "pageSubtitle": "检测、分析并迁移您的追踪脚本",
@@ -1381,7 +1387,8 @@
       "duplicate": {
         "title": "清理重复的 {{platform}} 像素",
         "desc": "检测到 {{count}} 个 {{platform}} 像素配置，可能导致重复追踪。建议只保留一个。",
-        "delete": " (可删除 {{count}} 个)"
+        "delete": " (可删除 {{count}} 个)",
+        "descWithDelete": "检测到 {{count}} 个 {{platform}} 像素配置，可能导致重复追踪。建议只保留一个。（可删除 {{deleteCount}} 个）"
       },
       "upgrade": {
         "title": "升级 App Pixel 配置",

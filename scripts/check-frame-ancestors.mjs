@@ -10,12 +10,12 @@ function checkFrameAncestors() {
   try {
     const content = readFileSync(securityHeadersFile, "utf-8");
     
-    const cspDirectivesMatch = content.match(/export const NON_EMBEDDED_PAGE_CSP_DIRECTIVES\s*:\s*Record<string,\s*string\[\]>\s*=\s*\{([^}]+)\}/s);
+    const cspDirectivesMatch = content.match(/export const APP_PAGE_CSP_DIRECTIVES\s*:\s*Record<string,\s*string\[\]>\s*=\s*\{([^}]+)\}/s);
     if (!cspDirectivesMatch) {
       checks.push({
         name: "Frame Ancestors CSP Check",
         status: "fail",
-        message: "NON_EMBEDDED_PAGE_CSP_DIRECTIVES object literal not found",
+        message: "APP_PAGE_CSP_DIRECTIVES object literal not found",
       });
       hasErrors = true;
       return;
@@ -27,7 +27,7 @@ function checkFrameAncestors() {
       checks.push({
         name: "Frame Ancestors CSP Check",
         status: "fail",
-        message: "frame-ancestors directive not found in NON_EMBEDDED_PAGE_CSP_DIRECTIVES object literal",
+        message: "frame-ancestors directive not found in APP_PAGE_CSP_DIRECTIVES object literal",
       });
       hasErrors = true;
       return;

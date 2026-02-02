@@ -13,7 +13,7 @@ export const WEBHOOK_CSP_DIRECTIVES: Record<string, string[]> = {
   "frame-ancestors": ["'none'"],
 };
 
-export const NON_EMBEDDED_PAGE_CSP_DIRECTIVES: Record<string, string[]> = {
+export const APP_PAGE_CSP_DIRECTIVES: Record<string, string[]> = {
   "default-src": ["'self'"],
   "script-src": ["'self'", "'unsafe-inline'", "https://cdn.shopify.com"],
   "style-src": ["'self'", "'unsafe-inline'", "https://cdn.shopify.com"],
@@ -24,15 +24,15 @@ export const NON_EMBEDDED_PAGE_CSP_DIRECTIVES: Record<string, string[]> = {
     "https://cdn.shopify.com",
     "https://monorail-edge.shopifysvc.com",
   ],
-  "frame-ancestors": ["https://admin.shopify.com"],
+  "frame-ancestors": ["https://admin.shopify.com", "https://*.shopify.com", "https://*.myshopify.com"],
   "base-uri": ["'self'"],
-  "form-action": ["'self'"],
+  "form-action": ["'self'", "https://*.shopify.com", "https://*.myshopify.com"],
   "object-src": ["'none'"],
   "upgrade-insecure-requests": [],
 };
 
 export function buildCspHeader(
-  directives: Record<string, string[]> = NON_EMBEDDED_PAGE_CSP_DIRECTIVES
+  directives: Record<string, string[]> = APP_PAGE_CSP_DIRECTIVES
 ): string {
   return Object.entries(directives)
     .map(([directive, sources]) => {
@@ -177,13 +177,13 @@ export function validateSecurityHeaders(): {
   if (PUBLIC_PAGE_HEADERS["X-Robots-Tag"] !== "noindex") {
     issues.push("PUBLIC_PAGE_HEADERS should set X-Robots-Tag: noindex");
   }
-  const frameAncestors = NON_EMBEDDED_PAGE_CSP_DIRECTIVES["frame-ancestors"];
+  const frameAncestors = APP_PAGE_CSP_DIRECTIVES["frame-ancestors"];
   if (!frameAncestors || !Array.isArray(frameAncestors)) {
-    issues.push("NON_EMBEDDED_PAGE_CSP_DIRECTIVES.frame-ancestors must be an array");
+    issues.push("APP_PAGE_CSP_DIRECTIVES.frame-ancestors must be an array");
   } else {
     const hasAdminShopify = frameAncestors.includes("https://admin.shopify.com");
     if (!hasAdminShopify) {
-      issues.push("NON_EMBEDDED_PAGE_CSP_DIRECTIVES.frame-ancestors must include https://admin.shopify.com for embedded app compatibility");
+      issues.push("APP_PAGE_CSP_DIRECTIVES.frame-ancestors must include https://admin.shopify.com for embedded app compatibility");
     }
   }
   return {
