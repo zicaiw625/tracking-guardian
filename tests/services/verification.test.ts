@@ -420,7 +420,7 @@ describe("Verification Service", () => {
       expect(result.mimeType).toBe("application/json");
       expect(() => JSON.parse(result.content)).not.toThrow();
     });
-    it("should export CSV report", async () => {
+    it("should fallback to JSON when CSV is requested (V1 Only)", async () => {
       const mockRun = {
         id: "run-1",
         shopId: "shop-1",
@@ -457,13 +457,10 @@ describe("Verification Service", () => {
       };
       vi.mocked(prisma.verificationRun.findUnique).mockResolvedValue(mockRun as any);
       const result = await exportVerificationReport("run-1", "csv");
-      expect(result.filename).toContain(".csv");
-      expect(result.mimeType).toBe("text/csv");
-      expect(result.content).toContain("测试项");
-      expect(result.content).toContain("事件类型");
-      expect(result.content).toContain("平台");
-      expect(result.content).toContain("order-1");
-      expect(result.content).toContain("order-2");
+      // V1 explicitly removed CSV support, so it should fallback to JSON
+      expect(result.filename).toContain(".json");
+      expect(result.mimeType).toBe("application/json");
+      expect(() => JSON.parse(result.content)).not.toThrow();
     });
   });
 });

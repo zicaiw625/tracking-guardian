@@ -7,7 +7,6 @@ import { logger } from "../../utils/logger.server";
 import { cleanupExpiredData } from "../../cron/tasks/cleanup";
 import { validateInput , CronRequestSchema } from "../../schemas/api-schemas";
 import { readTextWithLimit } from "../../utils/body-reader";
-import prisma from "../../db.server";
 
 async function runCronTasks(task: string, requestId: string): Promise<Record<string, unknown>> {
   const results: Record<string, unknown> = {
@@ -42,28 +41,6 @@ async function runCronTasks(task: string, requestId: string): Promise<Record<str
     const { runDispatchWorker } = await import("../../services/dispatch/run-worker.server");
     const dispatchResult = await runDispatchWorker();
     results.dispatch_worker = dispatchResult;
-  }
-
-  if (task === "all" || task === "aggregate_daily") {
-    logger.info("[Cron] Running aggregate_daily", { requestId });
-    const yesterday = new Date();
-    yesterday.setUTCDate(yesterday.getUTCDate() - 1);
-    yesterday.setUTCHours(0, 0, 0, 0);
-    const shops = await prisma.shop.findMany({
-      where: { isActive: true },
-      select: { id: true },
-    });
-    const shopIds = shops.map((s) => s.id);
-    const { batchAggregateMetrics } = await import("../../services/dashboard-aggregation.server");
-    const successCount = await batchAggregateMetrics(shopIds, yesterday);
-    results.aggregate_daily = { shops: shopIds.length, successCount, date: yesterday.toISOString().split("T")[0] };
-  }
-
-  if (task === "all" || task === "alerts") {
-    logger.info("[Cron] Running alerts", { requestId });
-    const { runAlertDetectionForAllShops } = await import("../../services/alert-detection.server");
-    const alertResult = await runAlertDetectionForAllShops();
-    results.alerts = alertResult;
   }
 
   return results;

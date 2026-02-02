@@ -115,16 +115,10 @@ export default function VerificationOrdersPage() {
     );
   }
 
-  const exportUrl = `/api/verification-orders-report.csv?hours=${hours}`;
-
   return (
     <Page
       title="订单层验收"
       backAction={{ content: "验收", url: "/app/verification" }}
-      primaryAction={{
-        content: "导出 CSV",
-        url: exportUrl,
-      }}
     >
       <BlockStack gap="400">
         <Banner tone="info">

@@ -8,10 +8,6 @@ import {
   type PixelEnvironment,
 } from "../services/pixel-rollback.server";
 import { logger } from "../utils/logger.server";
-import { trackEvent } from "../services/analytics.server";
-import { safeFireAndForget } from "../utils/helpers.server";
-import { normalizePlanId } from "../services/billing/plans";
-import { isPlanAtLeast } from "../utils/plans";
 import { isV1SupportedPlatform, getV1Platforms } from "../utils/v1-platforms";
 
 export const action = async ({ request }: ActionFunctionArgs) => {
@@ -62,44 +58,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
           result.previousEnvironment !== "live" &&
           result.newEnvironment === "live"
         ) {
-                    const planId = normalizePlanId(shop.plan ?? "free");
-          const isAgency = isPlanAtLeast(planId, "agency");
-                    let riskScore: number | undefined;
-          let assetCount: number | undefined;
-          try {
-            const latestScan = await prisma.scanReport.findFirst({
-              where: { shopId: shop.id },
-              orderBy: { createdAt: "desc" },
-              select: { riskScore: true },
-            });
-            if (latestScan) {
-              riskScore = latestScan.riskScore;
-              const assets = await prisma.auditAsset.count({
-                where: { shopId: shop.id },
-              });
-              assetCount = assets;
-            }
-          } catch {
-            // no-op: ignore errors when counting assets
-          }
-          safeFireAndForget(
-            trackEvent({
-              shopId: shop.id,
-              shopDomain,
-              event: "cfg_pixel_live_enabled",
-              metadata: {
-                platform,
-                previousEnvironment: result.previousEnvironment,
-                newEnvironment: result.newEnvironment,
-                                plan: shop.plan ?? "free",
-                role: isAgency ? "agency" : "merchant",
-                destination_type: platform,
-                environment: result.newEnvironment,
-                risk_score: riskScore,
-                asset_count: assetCount,
-                              },
-            })
-          );
+          // Analytics removed
         }
         return json({
           success: result.success,

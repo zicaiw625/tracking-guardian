@@ -2,12 +2,9 @@ import prisma from "../db.server";
 import { logger } from "../utils/logger.server";
 import type { AdminApiContext } from "@shopify/shopify-app-remix/server";
 import type { Prisma } from "@prisma/client";
-import { trackEvent } from "./analytics.server";
-import { safeFireAndForget } from "../utils/helpers.server";
-import { normalizePlanId } from "../services/billing/plans";
-import { isPlanAtLeast } from "../utils/plans";
-import { extractPlatformFromPayload } from "../utils/common";
 import { randomUUID } from "crypto";
+import { Platform, EventType, VerificationDefaults } from "../utils/constants";
+import { processReceipt } from "./verification/receipt-processor.server";
 
 export interface VerificationTestItem {
   id: string;
@@ -16,6 +13,8 @@ export interface VerificationTestItem {
   eventType: string;
   required: boolean;
   platforms: string[];
+  steps: string[];
+  expectedEvents: string[];
 }
 
 export const VERIFICATION_TEST_ITEMS: VerificationTestItem[] = [
@@ -23,49 +22,87 @@ export const VERIFICATION_TEST_ITEMS: VerificationTestItem[] = [
     id: "purchase",
     name: "标准购买",
     description: "完成一个包含单个商品的标准订单，验证 purchase 事件触发",
-    eventType: "purchase",
+    eventType: EventType.PURCHASE,
     required: true,
-    platforms: ["google", "meta", "tiktok"],
+    platforms: [Platform.GOOGLE, Platform.META, Platform.TIKTOK],
+    steps: [
+      "在店铺前台浏览商品详情页",
+      "点击「添加到购物车」或「立即购买」",
+      "进入结账页面，填写测试地址",
+      "使用 Bogus Gateway 或测试卡完成支付",
+    ],
+    expectedEvents: ["checkout_completed", "purchase"],
   },
   {
     id: "purchase_multi",
     name: "多商品购买",
     description: "完成一个包含多个不同商品的订单，验证 items 数组完整性",
-    eventType: "purchase",
+    eventType: EventType.PURCHASE,
     required: false,
-    platforms: ["google", "meta", "tiktok"],
+    platforms: [Platform.GOOGLE, Platform.META, Platform.TIKTOK],
+    steps: [
+      "添加商品 A 到购物车",
+      "添加商品 B 到购物车",
+      "进入结账页面完成支付",
+    ],
+    expectedEvents: ["checkout_completed", "purchase"],
   },
   {
     id: "purchase_discount",
     name: "折扣订单",
     description: "使用折扣码完成订单，验证最终金额（原价 - 折扣）计算正确",
-    eventType: "purchase",
+    eventType: EventType.PURCHASE,
     required: false,
-    platforms: ["google", "meta", "tiktok"],
+    platforms: [Platform.GOOGLE, Platform.META, Platform.TIKTOK],
+    steps: [
+      "添加商品到购物车",
+      "在结账页面输入折扣码（如 SAVE10）",
+      "确认金额已更新",
+      "完成支付",
+    ],
+    expectedEvents: ["checkout_completed", "purchase"],
   },
   {
     id: "purchase_shipping",
     name: "含运费订单",
     description: "完成一个包含运费的订单，验证总金额（商品 + 运费）正确",
-    eventType: "purchase",
+    eventType: EventType.PURCHASE,
     required: false,
-    platforms: ["google", "meta", "tiktok"],
+    platforms: [Platform.GOOGLE, Platform.META, Platform.TIKTOK],
+    steps: [
+      "添加商品到购物车",
+      "选择需要运费的配送方式",
+      "完成支付",
+    ],
+    expectedEvents: ["checkout_completed", "purchase"],
   },
   {
     id: "purchase_complex",
     name: "复杂订单（多商品 + 折扣 + 运费）",
     description: "完成一个包含多商品、折扣码和运费的完整订单，验证所有参数正确",
-    eventType: "purchase",
+    eventType: EventType.PURCHASE,
     required: false,
-    platforms: ["google", "meta", "tiktok"],
+    platforms: [Platform.GOOGLE, Platform.META, Platform.TIKTOK],
+    steps: [
+      "添加多个商品",
+      "应用折扣码",
+      "选择付费配送",
+      "完成支付",
+    ],
+    expectedEvents: ["checkout_completed", "purchase"],
   },
   {
     id: "currency_test",
     name: "多币种测试",
     description: "使用非 USD 币种完成订单，验证 currency 参数正确",
-    eventType: "purchase",
+    eventType: EventType.PURCHASE,
     required: false,
-    platforms: ["google", "meta", "tiktok"],
+    platforms: [Platform.GOOGLE, Platform.META, Platform.TIKTOK],
+    steps: [
+      "切换店铺币种（如果支持）或修改测试订单币种",
+      "完成支付",
+    ],
+    expectedEvents: ["checkout_completed", "purchase"],
   },
 ];
 
@@ -244,7 +281,7 @@ export async function analyzeRecentEvents(
     admin?: AdminApiContext;
   } = {}
 ): Promise<VerificationSummary> {
-  const { since = new Date(Date.now() - 24 * 60 * 60 * 1000), platforms } = options;
+  const { since = new Date(Date.now() - VerificationDefaults.WINDOW_MS), platforms } = options;
   const run = await prisma.verificationRun.findUnique({
     where: { id: runId },
     select: {
@@ -266,7 +303,7 @@ export async function analyzeRecentEvents(
       pixelTimestamp: { gte: since },
     },
     orderBy: { pixelTimestamp: "desc" },
-    take: 1000,
+    take: VerificationDefaults.MAX_RECEIPTS,
     select: {
       id: true,
       eventType: true,
@@ -277,6 +314,8 @@ export async function analyzeRecentEvents(
       orderKey: true,
     },
   });
+
+  // Prepare Order Summaries
   const orderKeysFromReceipts = [...new Set(receipts.map((r) => r.orderKey).filter(Boolean) as string[])];
   const orderSummaries = orderKeysFromReceipts.length > 0
     ? await prisma.orderSummary.findMany({
@@ -287,227 +326,106 @@ export async function analyzeRecentEvents(
   const orderSummaryMap = new Map(
     orderSummaries.map((o) => [o.orderId, { totalPrice: Number(o.totalPrice), currency: o.currency }])
   );
+
+  // Prepare Deduplication Data (Bulk Fetch)
+  const purchaseOrderKeys = [...new Set(receipts
+    .filter(r => r.eventType === EventType.PURCHASE && r.orderKey)
+    .map(r => r.orderKey as string)
+  )];
+
+  const historicalReceiptsMap = new Map<string, { eventId: string; createdAt: Date }>();
+  
+  if (purchaseOrderKeys.length > 0) {
+    const minCreatedAt = receipts.reduce((min, r) => r.createdAt < min ? r.createdAt : min, new Date());
+    
+    const historical = await prisma.pixelEventReceipt.findMany({
+      where: {
+        shopId,
+        orderKey: { in: purchaseOrderKeys },
+        eventType: EventType.PURCHASE,
+        createdAt: { lt: minCreatedAt }, 
+      },
+      select: { orderKey: true, eventId: true, createdAt: true },
+    });
+
+    for (const h of historical) {
+      const key = h.orderKey!;
+      if (!historicalReceiptsMap.has(key) || h.createdAt < historicalReceiptsMap.get(key)!.createdAt) {
+        historicalReceiptsMap.set(key, { eventId: h.eventId, createdAt: h.createdAt });
+      }
+    }
+  }
+
+  // Processing
   const results: VerificationEventResult[] = [];
   let passedTests = 0;
   const failedTests = 0;
   let missingParamTests = 0;
   let totalValueAccuracy = 0;
   let valueChecks = 0;
-  const orderIds = new Set<string>();
+  
   const consistencyIssues: Array<{ orderId: string; issue: string; type: "value_mismatch" | "currency_mismatch" | "missing" | "duplicate" }> = [];
   const platformResults: Record<string, { sent: number; failed: number }> = {};
   for (const p of targetPlatforms) {
     platformResults[p] = { sent: 0, failed: 0 };
   }
-  for (const receipt of receipts) {
-    const payload = receipt.payloadJson as Record<string, unknown> | null;
-    const platform = receipt.platform ?? extractPlatformFromPayload(payload);
-    if (!platform || (targetPlatforms.length > 0 && !targetPlatforms.includes(platform))) {
-      continue;
-    }
-    const orderId = receipt.orderKey || (payload?.data as Record<string, unknown>)?.orderId as string | undefined;
-    if (orderId) {
-      orderIds.add(orderId);
-    }
-    const discrepancies: string[] = [];
-    const data = payload?.data as Record<string, unknown> | undefined;
-    let value: number | undefined;
-    let currency: string | undefined;
-    let items: number | undefined;
-    if (payload) {
-      value = data?.value as number | undefined;
-      currency = data?.currency as string | undefined;
-      const dataItems = data?.items as Array<unknown> | undefined;
-      items = dataItems ? dataItems.length : undefined;
-      if (platform === "google") {
-        const events = payload.events as Array<Record<string, unknown>> | undefined;
-        if (events && events.length > 0) {
-          const params = events[0].params as Record<string, unknown> | undefined;
-          value = params?.value as number | undefined;
-          currency = params?.currency as string | undefined;
-          items = Array.isArray(params?.items) ? params.items.length : undefined;
-        }
-      } else if (platform === "meta" || platform === "facebook") {
-        const eventsData = payload.data as Array<Record<string, unknown>> | undefined;
-        if (eventsData && eventsData.length > 0) {
-          const customData = eventsData[0].custom_data as Record<string, unknown> | undefined;
-          value = customData?.value as number | undefined;
-          currency = customData?.currency as string | undefined;
-          items = Array.isArray(customData?.contents) ? customData.contents.length : undefined;
-        }
-      } else if (platform === "tiktok") {
-        const eventsData = payload.data as Array<Record<string, unknown>> | undefined;
-        if (eventsData && eventsData.length > 0) {
-          const properties = eventsData[0].properties as Record<string, unknown> | undefined;
-          value = properties?.value as number | undefined;
-          currency = properties?.currency as string | undefined;
-          items = Array.isArray(properties?.contents) ? properties.contents.length : undefined;
-        }
-      }
-    }
-    const hasValue = value !== undefined && value !== null;
-    const hasCurrency = !!currency;
-    const hasEventId = !!payload?.eventId || !!receipt.id;
+  
+  const sortedReceipts = [...receipts].sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime());
+
+  for (const receipt of sortedReceipts) {
+    const orderId = receipt.orderKey;
     let dedupInfo: { existingEventId?: string; reason?: string } | undefined;
-    if (receipt.eventType !== "purchase") {
-      const hasBasicFields = !!(payload?.eventId ?? receipt.id) && !!(payload?.eventName ?? receipt.eventType);
-      if (hasBasicFields) {
-        passedTests++;
-        const p = platform || "unknown";
-        if (!platformResults[p]) platformResults[p] = { sent: 0, failed: 0 };
-        platformResults[p].sent++;
-        results.push({
-          testItemId: receipt.eventType,
-          eventType: receipt.eventType,
-          platform: p,
-          orderId: orderId || undefined,
-          orderNumber: undefined,
-          status: "success",
-          triggeredAt: receipt.pixelTimestamp,
-          params: { hasEventId },
-          discrepancies: undefined,
-          errors: undefined,
-          dedupInfo: undefined,
-        });
-      } else {
-        missingParamTests++;
-        const p = platform || "unknown";
-        if (!platformResults[p]) platformResults[p] = { sent: 0, failed: 0 };
-        platformResults[p].failed++;
-        const disc: string[] = [];
-        if (!(payload?.eventId ?? receipt.id)) disc.push("缺少 eventId");
-        if (!(payload?.eventName ?? receipt.eventType)) disc.push("缺少 eventName");
-        results.push({
-          testItemId: receipt.eventType,
-          eventType: receipt.eventType,
-          platform: p,
-          orderId: orderId || undefined,
-          orderNumber: undefined,
-          status: "missing_params",
-          triggeredAt: receipt.pixelTimestamp,
-          params: { hasEventId },
-          discrepancies: disc.length > 0 ? disc : undefined,
-          errors: undefined,
-          dedupInfo: undefined,
-        });
-      }
-      continue;
-    }
-    if (orderId && receipt.eventType === "purchase") {
-      const existingReceipt = await prisma.pixelEventReceipt.findFirst({
-        where: {
-          shopId,
-          orderKey: orderId,
-          eventType: "purchase",
-          id: { not: receipt.id },
-          createdAt: { lt: receipt.createdAt },
-        },
-        orderBy: { createdAt: "desc" },
-        select: { eventId: true, createdAt: true },
-        take: 1,
-      });
-      if (existingReceipt) {
+
+    if (orderId && receipt.eventType === EventType.PURCHASE) {
+      if (historicalReceiptsMap.has(orderId)) {
+        const h = historicalReceiptsMap.get(orderId)!;
         dedupInfo = {
-          existingEventId: existingReceipt.eventId,
-          reason: `已在 ${existingReceipt.createdAt.toISOString()} 记录过相同订单事件`,
+          existingEventId: h.eventId,
+          reason: `已在 ${h.createdAt.toISOString()} 记录过相同订单事件`,
         };
+      } else {
+        const payload = receipt.payloadJson as Record<string, unknown> | null;
+        historicalReceiptsMap.set(orderId, { eventId: (payload?.eventId as string) || receipt.id, createdAt: receipt.createdAt });
       }
     }
-    const p = platform || "unknown";
-    if (!platformResults[p]) platformResults[p] = { sent: 0, failed: 0 };
-    if (hasValue && hasCurrency) {
-      if (dedupInfo) {
-        results.push({
-          testItemId: "purchase",
-          eventType: receipt.eventType,
-          platform: p,
-          orderId: orderId || undefined,
-          orderNumber: undefined,
-          status: "deduplicated",
-          triggeredAt: receipt.pixelTimestamp,
-          params: {
-            value: value || undefined,
-            currency: currency || undefined,
-            items: items || undefined,
-            hasEventId,
-          },
-          discrepancies: undefined,
-          errors: undefined,
-          dedupInfo,
-        });
-      } else {
+
+    const orderSummary = orderId ? orderSummaryMap.get(orderId) : undefined;
+    
+    const processed = processReceipt(
+      receipt,
+      orderSummary,
+      dedupInfo,
+      targetPlatforms
+    );
+
+    if (processed) {
+      results.push(processed.result);
+      
+      const p = processed.result.platform;
+      if (!platformResults[p]) platformResults[p] = { sent: 0, failed: 0 };
+
+      if (processed.stats.passed) {
         passedTests++;
-        valueChecks++;
         platformResults[p].sent++;
-        const orderSummary = orderId ? orderSummaryMap.get(orderId) : undefined;
-        if (orderSummary) {
-          const valueMatch = Math.abs((value ?? 0) - orderSummary.totalPrice) < 0.01;
-          const currencyMatch = (currency ?? "").toUpperCase() === (orderSummary.currency ?? "").toUpperCase();
-          if (valueMatch && currencyMatch) {
-            totalValueAccuracy += 100;
-          } else {
-            if (!valueMatch && orderId) {
-              consistencyIssues.push({
-                orderId,
-                issue: `payload value ${value} vs order total ${orderSummary.totalPrice}`,
-                type: "value_mismatch",
-              });
-            }
-            if (!currencyMatch && orderId) {
-              consistencyIssues.push({
-                orderId,
-                issue: `payload currency ${currency} vs order currency ${orderSummary.currency}`,
-                type: "currency_mismatch",
-              });
-            }
-          }
-        } else {
-          totalValueAccuracy += 100;
-        }
-        results.push({
-          testItemId: "purchase",
-          eventType: receipt.eventType,
-          platform: p,
-          orderId: orderId || undefined,
-          orderNumber: undefined,
-          status: "success",
-          triggeredAt: receipt.pixelTimestamp,
-          params: {
-            value: value || undefined,
-            currency: currency || undefined,
-            items: items || undefined,
-            hasEventId,
-          },
-          discrepancies: undefined,
-          errors: undefined,
-          dedupInfo,
-        });
       }
-    } else {
-      missingParamTests++;
-      platformResults[p].failed++;
-      if (!hasValue) discrepancies.push("缺少 value 参数");
-      if (!hasCurrency) discrepancies.push("缺少 currency 参数");
-      results.push({
-        testItemId: "purchase",
-        eventType: receipt.eventType,
-        platform: p,
-        orderId: orderId || undefined,
-        orderNumber: undefined,
-        status: "missing_params",
-        triggeredAt: receipt.pixelTimestamp,
-        params: {
-          value: value || undefined,
-          currency: currency || undefined,
-          items: items || undefined,
-          hasEventId,
-        },
-        discrepancies: discrepancies.length > 0 ? discrepancies : undefined,
-        errors: undefined,
-        dedupInfo,
-      });
+      if (processed.stats.missingParams || processed.stats.failed) {
+        missingParamTests++; 
+        platformResults[p].failed++;
+      }
+      if (processed.stats.valueMatched && processed.stats.currencyMatched) {
+        valueChecks++;
+        totalValueAccuracy += 100;
+      }
+      
+      if (processed.consistencyIssues.length > 0) {
+        consistencyIssues.push(...processed.consistencyIssues);
+      }
     }
   }
+
+  // Restore result order to Newest First (standard for UI)
+  results.sort((a, b) => (b.triggeredAt?.getTime() || 0) - (a.triggeredAt?.getTime() || 0));
+
   const totalTests = results.length;
   const parameterCompleteness =
     totalTests > 0 ? Math.round(((passedTests + missingParamTests) / totalTests) * 100) : 0;
@@ -519,6 +437,7 @@ export async function analyzeRecentEvents(
           consistencyIssues,
         }
       : undefined;
+      
   await prisma.verificationRun.update({
     where: { id: runId },
     data: {
@@ -538,79 +457,7 @@ export async function analyzeRecentEvents(
       eventsJson: results as unknown as Prisma.InputJsonValue,
     },
   });
-  const shop = await prisma.shop.findUnique({
-    where: { id: shopId },
-    select: { shopDomain: true },
-  });
-  if (shop) {
-        const shopRecord = await prisma.shop.findUnique({
-      where: { id: shopId },
-      select: { plan: true },
-    });
-    const planId = normalizePlanId(shopRecord?.plan ?? "free");
-    const isAgency = isPlanAtLeast(planId, "agency");
-    const verificationPassRate = totalTests > 0 ? (passedTests / totalTests) * 100 : 0;
-        const pixelConfigs = await prisma.pixelConfig.findMany({
-      where: {
-        shopId,
-        isActive: true,
-        platform: { in: targetPlatforms },
-      },
-      select: {
-        platform: true,
-        environment: true,
-      },
-      take: 1,
-    });
-    const destinationType = pixelConfigs.length > 0 ? pixelConfigs[0].platform : targetPlatforms[0] || "none";
-    const environment = pixelConfigs.length > 0 ? pixelConfigs[0].environment : "live";
-        const firstEventName = receipts.length > 0 ? receipts[0].eventType : undefined;
-        let riskScore: number | undefined;
-    let assetCount: number | undefined;
-    try {
-      const latestScan = await prisma.scanReport.findFirst({
-        where: { shopId },
-        orderBy: { createdAt: "desc" },
-        select: { riskScore: true },
-      });
-      if (latestScan) {
-        riskScore = latestScan.riskScore;
-        const assets = await prisma.auditAsset.count({
-          where: { shopId },
-        });
-        assetCount = assets;
-      }
-    } catch {
-      // no-op: ignore errors when counting assets
-    }
-        safeFireAndForget(
-      trackEvent({
-        shopId,
-        shopDomain: shop.shopDomain,
-        event: "ver_run_completed",
-        eventId: `ver_run_completed_${runId}`,
-        metadata: {
-          run_id: runId,
-          run_type: run.runType,
-          platforms: targetPlatforms,
-          plan: shopRecord?.plan ?? "free",
-          role: isAgency ? "agency" : "merchant",
-          verification_pass_rate: verificationPassRate,
-          total_tests: totalTests,
-          passed_tests: passedTests,
-          failed_tests: failedTests,
-          missing_param_tests: missingParamTests,
-          parameter_completeness: parameterCompleteness,
-          value_accuracy: valueAccuracy,
-          destination_type: destinationType,
-          environment: environment,
-          first_event_name: firstEventName,
-          risk_score: riskScore,
-          asset_count: assetCount,
-        },
-      })
-    );
-  }
+
   return {
     runId,
     shopId,
@@ -737,42 +584,16 @@ export function generateTestOrderGuide(runType: "quick" | "full" | "custom"): {
 
 export async function exportVerificationReport(
   runId: string,
-  format: "json" | "csv" = "json"
+  _format: "json" | "csv" = "json"
 ): Promise<{ content: string; filename: string; mimeType: string }> {
+  // Only JSON is supported in V1
   const summary = await getVerificationRun(runId);
   if (!summary) {
     throw new Error("Verification run not found");
   }
   const timestamp = new Date().toISOString().split("T")[0];
   const filename = `verification-report-${timestamp}`;
-  if (format === "csv") {
-    const headers = [
-      "测试项",
-      "事件类型",
-      "平台",
-      "订单ID",
-      "状态",
-      "金额",
-      "币种",
-      "问题",
-    ];
-    const rows = summary.results.map((r) => [
-      r.testItemId,
-      r.eventType,
-      r.platform,
-      r.orderId || "",
-      r.status,
-      r.params?.value?.toString() || "",
-      r.params?.currency || "",
-      r.discrepancies?.join("; ") || r.errors?.join("; ") || "",
-    ]);
-    const csvContent = [headers.join(","), ...rows.map((r) => r.join(","))].join("\n");
-    return {
-      content: csvContent,
-      filename: `${filename}.csv`,
-      mimeType: "text/csv",
-    };
-  }
+  
   return {
     content: JSON.stringify(summary, null, 2),
     filename: `${filename}.json`,

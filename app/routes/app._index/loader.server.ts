@@ -1,15 +1,11 @@
 import type { LoaderFunctionArgs } from "@remix-run/node";
 import { json } from "@remix-run/node";
 import { authenticate } from "../../shopify.server";
-import { getDashboardData } from "../../services/dashboard.server";
 import { getPixelEventIngestionUrl } from "../../utils/config.server";
 import prisma from "../../db.server";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   const { session, admin } = await authenticate.admin(request);
-  const data = await getDashboardData(session.shop);
-  const { checkCustomerAccountsEnabled } = await import("../../services/customer-accounts.server");
-  const customerAccountsStatus = await checkCustomerAccountsEnabled(admin);
   const backendUrlInfo = getPixelEventIngestionUrl();
   
   const shopDomain = session.shop;
@@ -57,8 +53,6 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   }
   
   return json({
-    ...data,
-    customerAccountsEnabled: customerAccountsStatus.enabled,
     shopDomain,
     backendUrlInfo,
     dataConnection: {

@@ -1,5 +1,4 @@
 import prisma from "../db.server";
-import { escapeCSV } from "../utils/csv.server";
 import { getVerificationRun, type VerificationSummary, type VerificationEventResult } from "./verification.server";
 
 const STRICT_SANDBOX_FIELD_LIMITATIONS: Record<string, string[]> = {
@@ -290,89 +289,5 @@ export async function generateVerificationReportData(
     completedAt: verificationSummary.completedAt,
     createdAt: run.createdAt,
   };
-}
-
-export function generateVerificationReportCSV(data: VerificationReportData): string {
-  const lines: string[] = [];
-  lines.push("Run ID,Run Name,Shop Domain,Run Type,Status,Platforms,Total Tests,Passed Tests,Failed Tests,Missing Param Tests,Parameter Completeness,Value Accuracy");
-  lines.push(
-    [
-      escapeCSV(data.runId),
-      escapeCSV(data.runName),
-      escapeCSV(data.shopDomain),
-      escapeCSV(data.runType),
-      escapeCSV(data.status),
-      escapeCSV(data.platforms.join(";")),
-      String(data.summary.totalTests),
-      String(data.summary.passedTests),
-      String(data.summary.failedTests),
-      String(data.summary.missingParamTests),
-      escapeCSV(`${data.summary.parameterCompleteness.toFixed(2)}%`),
-      escapeCSV(`${data.summary.valueAccuracy.toFixed(2)}%`),
-    ].join(",")
-  );
-  lines.push("");
-  lines.push("Platform,Sent,Failed");
-  for (const [platform, stats] of Object.entries(data.platformResults)) {
-    lines.push(
-      [
-        escapeCSV(platform),
-        String(stats.sent),
-        String(stats.failed),
-      ].join(",")
-    );
-  }
-  lines.push("");
-  lines.push("Test Item ID,Event Type,Platform,Order ID,Status,Value,Currency,Discrepancies,Errors,Sandbox Limitations");
-  for (const event of data.events) {
-    lines.push(
-      [
-        escapeCSV(event.testItemId || ""),
-        escapeCSV(event.eventType),
-        escapeCSV(event.platform),
-        escapeCSV(event.orderId || ""),
-        escapeCSV(event.status),
-        escapeCSV(event.params?.value?.toFixed(2) || ""),
-        escapeCSV(event.params?.currency || ""),
-        escapeCSV(event.discrepancies?.join("; ") || ""),
-        escapeCSV(event.errors?.join("; ") || ""),
-        escapeCSV(event.sandboxLimitations?.join("; ") || ""),
-      ].join(",")
-    );
-  }
-  if (data.sandboxLimitations) {
-    lines.push("");
-    lines.push("Strict Sandbox Limitations Summary (已自动标注)");
-    lines.push("Web Pixel 运行在 strict sandbox (Web Worker) 环境中，以下能力受限：");
-    lines.push("- 无法访问 DOM 元素");
-    lines.push("- 无法使用 localStorage/sessionStorage");
-    lines.push("- 无法访问第三方 cookie");
-    lines.push("- 无法执行某些浏览器 API");
-    lines.push("- 部分事件字段可能为 null 或 undefined，这是平台限制，不是故障");
-    if (data.sandboxLimitations.missingFields.length > 0) {
-      lines.push("");
-      lines.push("缺失字段（由于 strict sandbox 限制，已自动标注）：");
-      for (const item of data.sandboxLimitations.missingFields) {
-        lines.push(
-          escapeCSV(`事件类型: ${item.eventType}, 缺失字段: ${item.fields.join(", ")}, 原因: ${item.reason}`)
-        );
-      }
-    }
-    if (data.sandboxLimitations.unavailableEvents.length > 0) {
-      lines.push("");
-      lines.push("不可用的事件类型（已自动标注，需要通过订单 webhooks 获取）：");
-      lines.push(data.sandboxLimitations.unavailableEvents.map((e) => escapeCSV(e)).join(", "));
-    }
-    if (data.sandboxLimitations.notes.length > 0) {
-      lines.push("");
-      lines.push("自动标注说明：");
-      for (const note of data.sandboxLimitations.notes) {
-        lines.push(escapeCSV(note));
-      }
-    }
-    lines.push("");
-    lines.push("重要提示：报告中已自动标注所有因 strict sandbox 限制而无法获取的字段和事件。这些限制是 Shopify 平台的设计限制，不是故障。如需获取这些字段或事件，请使用订单 webhooks 或其他 Shopify API。");
-  }
-  return lines.join("\n");
 }
 

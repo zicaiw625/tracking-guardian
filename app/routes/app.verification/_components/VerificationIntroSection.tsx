@@ -10,12 +10,12 @@ import {
   Layout,
   Button,
 } from "@shopify/polaris";
-import { ClipboardIcon, ExportIcon } from "~/components/icons";
+import { ClipboardIcon } from "~/components/icons";
 import { CheckoutExtensibilityWarning } from "~/components/verification/CheckoutExtensibilityWarning";
 import { CheckoutCompletedBehaviorHint } from "~/components/verification/CheckoutCompletedBehaviorHint";
 import { TestGuidePanel } from "~/components/verification/TestGuidePanel";
 import type { TestChecklist } from "~/services/verification-checklist.server";
-import { generateChecklistMarkdown, generateChecklistCSV } from "~/utils/verification-checklist";
+import { generateChecklistMarkdown } from "~/utils/verification-checklist";
 import { useTranslation } from "react-i18next";
 
 export interface VerificationIntroSectionProps {
@@ -228,24 +228,6 @@ export function VerificationIntroSection({
                   }}
                 >
                   {t("verification.intro.checklist.copy")}
-                </Button>
-                <Button
-                  icon={ExportIcon}
-                  size="slim"
-                  onClick={() => {
-                    const checklist: TestChecklist = { ...testChecklist, generatedAt: new Date(testChecklist.generatedAt) };
-                    const csv = generateChecklistCSV(checklist);
-                    const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" });
-                    const url = URL.createObjectURL(blob);
-                    const a = document.createElement("a");
-                    a.href = url;
-                    a.download = `test-checklist-${new Date().toISOString().split("T")[0]}.csv`;
-                    a.click();
-                    URL.revokeObjectURL(url);
-                    showSuccess(t("verification.intro.checklist.exportSuccess"));
-                  }}
-                >
-                  {t("verification.intro.checklist.export")}
                 </Button>
               </InlineStack>
             </InlineStack>

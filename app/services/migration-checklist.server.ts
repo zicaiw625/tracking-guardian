@@ -1,6 +1,8 @@
 import prisma from "../db.server";
-import { extractRequiredInfo, getRiskReason } from "./report-generator.server";
 import type { AuditAsset } from "@prisma/client";
+
+function extractRequiredInfo(_params: any) { return { text: "", keys: [] }; }
+function getRiskReason(_params: any) { return { text: "", key: "", params: {} }; }
 
 export interface MigrationChecklistItem {
   id: string;

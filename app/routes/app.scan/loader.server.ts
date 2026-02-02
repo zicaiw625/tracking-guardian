@@ -19,7 +19,7 @@ import {
     type ShopTier,
     type ShopUpgradeStatus,
 } from "../../utils/deprecation-dates";
-import { getPlanDefinition, normalizePlan, isPlanAtLeast } from "../../utils/plans";
+import { getPlanDefinition, normalizePlan } from "../../utils/plans";
 import {
     validateScriptTagsArray,
     validateRiskItemsArray,
@@ -86,30 +86,6 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
             completedAt: true,
         },
     });
-    if (latestScanRaw?.status === "completed") {
-        const planId = normalizePlan(shop.plan ?? "free");
-        const isAgency = isPlanAtLeast(planId, "agency");
-        const riskScore = latestScanRaw.riskScore ?? 0;
-        const riskItems = validateRiskItemsArray(latestScanRaw.riskItems);
-        const assetCount = riskItems.length;
-        const { trackEvent } = await import("~/services/analytics.server");
-        const { safeFireAndForget } = await import("~/utils/helpers.server");
-        safeFireAndForget(
-            trackEvent({
-                shopId: shop.id,
-                shopDomain: shop.shopDomain,
-                event: "app_audit_completed",
-                eventId: `app_audit_completed_${latestScanRaw.id}`,
-                metadata: {
-                    scanReportId: latestScanRaw.id,
-                    plan: shop.plan ?? "free",
-                    role: isAgency ? "agency" : "merchant",
-                    risk_score: riskScore,
-                    asset_count: assetCount,
-                },
-            })
-        );
-    }
     const shopTier: ShopTier = (shop.shopTier !== null && shop.shopTier !== undefined && isValidShopTier(shop.shopTier))
         ? shop.shopTier
         : "unknown";

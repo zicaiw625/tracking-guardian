@@ -1,7 +1,6 @@
 import type { LoaderFunctionArgs, ActionFunctionArgs } from "@remix-run/node";
 import { json } from "@remix-run/node";
-import { useLoaderData, useSubmit, useActionData } from "@remix-run/react";
-import { useState } from "react";
+import { useLoaderData, useActionData } from "@remix-run/react";
 import {
   Page,
   Layout,
@@ -18,7 +17,6 @@ import {
   List,
   Box,
 } from "@shopify/polaris";
-import { FileIcon } from "~/components/icons";
 import { useToastContext, EnhancedEmptyState } from "~/components/ui";
 import { PageIntroCard } from "~/components/layout/PageIntroCard";
 import { authenticate } from "../shopify.server";
@@ -26,7 +24,6 @@ import prisma from "../db.server";
 import { getVerificationRun } from "../services/verification.server";
 import {
   generateVerificationReportData,
-  generateVerificationReportCSV,
 } from "../services/verification-report.server";
 import {
   checkFeatureAccess,
@@ -34,10 +31,6 @@ import {
 } from "../services/billing/feature-gates.server";
 import { normalizePlanId, type PlanId, planSupportsReportExport } from "../services/billing/plans";
 import { UpgradePrompt } from "~/components/ui/UpgradePrompt";
-import { trackEvent } from "../services/analytics.server";
-import { safeFireAndForget } from "../utils/helpers.server";
-import { sanitizeFilename } from "../utils/responses";
-import { withSecurityHeaders } from "../utils/security-headers";
 
 export const loader = async ({ request, params }: LoaderFunctionArgs) => {
   const { session } = await authenticate.admin(request);
@@ -86,20 +79,6 @@ export const loader = async ({ request, params }: LoaderFunctionArgs) => {
     });
   }
   const reportData = await generateVerificationReportData(shop.id, runId);
-    if (!canExportReports && reportData) {
-    safeFireAndForget(
-      trackEvent({
-        shopId: shop.id,
-        shopDomain,
-        event: "app_paywall_viewed",
-        metadata: {
-          triggerPage: "verification_report",
-          plan: shop.plan ?? "free",
-          runId,
-        },
-      })
-    );
-  }
   const pixelStrictOrigin = ["true", "1", "yes"].includes(
     (process.env.PIXEL_STRICT_ORIGIN ?? "").toLowerCase().trim()
   );
@@ -130,35 +109,16 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
   if (!shop) {
     return json({ success: false, error: "Shop not found" }, { status: 404 });
   }
-  const planId = normalizePlanId(shop.plan || "free") as PlanId;
-  const canExportReports = planSupportsReportExport(planId);
   if (actionType === "export_csv") {
-    if (!canExportReports) {
-      return json({ success: false, error: "需要 Growth 或 Agency 套餐才能导出报告" }, { status: 403 });
-    }
-    const reportData = await generateVerificationReportData(shop.id, runId);
-    if (!reportData) {
-      return json({ success: false, error: "报告数据未找到" }, { status: 404 });
-    }
-    const csv = generateVerificationReportCSV(reportData);
-    const timestamp = new Date().toISOString().split("T")[0];
-    const filename = `verification-report-${shopDomain.replace(/\./g, "_")}-${timestamp}.csv`;
-    return new Response("\uFEFF" + csv, {
-      headers: withSecurityHeaders({
-        "Content-Type": "text/csv; charset=utf-8",
-        "Content-Disposition": `attachment; filename="${sanitizeFilename(filename)}"`,
-      }),
-    });
+    return json({ success: false, error: "Feature removed" }, { status: 400 });
   }
   return json({ success: false, error: "Unknown action" }, { status: 400 });
 };
 
 export default function VerificationReportPage() {
   const { shop, run, reportData, canExportReports, gateResult, currentPlan, pixelStrictOrigin } = useLoaderData<typeof loader>();
-  const submit = useSubmit();
   useActionData<typeof action>();
   useToastContext();
-  const [isExporting, setIsExporting] = useState(false);
   if (!shop) {
     return (
       <Page title="验收报告">
@@ -180,13 +140,6 @@ export default function VerificationReportPage() {
       </Page>
     );
   }
-  const handleExportCSV = () => {
-    setIsExporting(true);
-    const formData = new FormData();
-    formData.append("_action", "export_csv");
-    submit(formData, { method: "post" });
-    setTimeout(() => setIsExporting(false), 2000);
-  };
   const getStatusBadge = (status: string) => {
     switch (status) {
       case "completed":
@@ -208,16 +161,6 @@ export default function VerificationReportPage() {
       title={`验收报告 - ${reportData.runName}`}
       subtitle="PRD 2.5: 导出验收报告（CSV）"
       backAction={{ content: "返回验收页面", url: "/app/verification" }}
-      primaryAction={
-        canExportReports
-          ? {
-              content: "导出 CSV",
-              icon: FileIcon,
-              onAction: handleExportCSV,
-              loading: isExporting,
-            }
-          : undefined
-      }
       secondaryActions={[]}
     >
       <BlockStack gap="500">
@@ -229,7 +172,6 @@ export default function VerificationReportPage() {
             "可用于客户/管理层验收签收",
           ]}
           primaryAction={{ content: "返回验收", url: "/app/verification" }}
-          secondaryAction={{ content: "报告中心", url: "/app/reports" }}
         />
         {!canExportReports && (
           <UpgradePrompt

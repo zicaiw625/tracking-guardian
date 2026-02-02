@@ -60,23 +60,6 @@ export const loader = async ({ request, params }: LoaderFunctionArgs) => {
   }
   const planId = normalizePlanId(shop.plan ?? "free");
   const hasVerificationAccess = planSupportsFeature(planId, "verification");
-    if (!hasVerificationAccess) {
-    const { trackEvent } = await import("~/services/analytics.server");
-    const { safeFireAndForget } = await import("~/utils/helpers.server");
-    safeFireAndForget(
-            trackEvent({
-        shopId: shop.id,
-        shopDomain: shop.shopDomain,
-        event: "app_paywall_viewed",
-        metadata: {
-          triggerPage: "pixels_test",
-          plan: shop.plan ?? "free",
-          pixelConfigId: pixelConfigId,
-          environment: pixelConfig?.environment || "test",
-        },
-      })
-    );
-  }
   const backendUrlInfo = getPixelEventIngestionUrl();
   return json({
     shop: { id: shop.id, domain: shop.shopDomain },

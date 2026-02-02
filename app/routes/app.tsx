@@ -52,7 +52,6 @@ export default function App() {
         <a href="/app/scan">{t("nav.audit")}</a>
         <a href="/app/pixels">{t("nav.pixels")}</a>
         <a href="/app/verification">{t("nav.verification")}</a>
-        <a href="/app/monitoring">{t("nav.monitoring")}</a>
         <a href="/app/settings">{t("nav.settings")}</a>
         <a href="/app/billing">{t("nav.billing")}</a>
       </NavMenu>
