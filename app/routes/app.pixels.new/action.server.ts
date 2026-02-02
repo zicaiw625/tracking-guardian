@@ -4,10 +4,13 @@ import { authenticate } from "../../shopify.server";
 import prisma from "../../db.server";
 import { logger } from "../../utils/logger.server";
 import { generateSimpleId } from "../../utils/helpers";
+import { safeFireAndForget } from "../../utils/helpers.server";
 import { isPlanAtLeast } from "../../utils/plans";
+import { normalizePlanId } from "../../services/billing/plans";
 import { createWebPixel, getExistingWebPixels, isOurWebPixel, updateWebPixel } from "../../services/migration.server";
 import { decryptIngestionSecret, encryptIngestionSecret, isTokenEncrypted } from "../../utils/token-encryption.server";
 import { randomBytes } from "crypto";
+import { trackEvent } from "../../services/analytics.server";
 import { encryptJson } from "../../utils/crypto.server";
 
 const SUPPORTED_PLATFORMS = ["google", "meta", "tiktok"] as const;
@@ -195,7 +198,44 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         }
       }
       if (createdPlatforms.length > 0) {
-        // Analytics removed
+        const planId = normalizePlanId(shop.plan ?? "free");
+        const isAgency = isPlanAtLeast(planId, "agency");
+        const firstPlatform = createdPlatforms[0];
+        let riskScore: number | undefined;
+        let assetCount: number | undefined;
+        try {
+          const latestScan = await prisma.scanReport.findFirst({
+            where: { shopId: shop.id },
+            orderBy: { createdAt: "desc" },
+            select: { riskScore: true },
+          });
+          if (latestScan) {
+            riskScore = latestScan.riskScore;
+            const assets = await prisma.auditAsset.count({
+              where: { shopId: shop.id },
+            });
+            assetCount = assets;
+          }
+        } catch {
+          // no-op: ignore errors when counting assets
+        }
+        safeFireAndForget(
+          trackEvent({
+            shopId: shop.id,
+            shopDomain: shop.shopDomain,
+            event: "cfg_pixel_created",
+            metadata: {
+              count: createdPlatforms.length,
+              platforms: createdPlatforms,
+              plan: shop.plan ?? "free",
+              role: isAgency ? "agency" : "merchant",
+              destination_type: firstPlatform,
+              environment: "test",
+              risk_score: riskScore,
+              asset_count: assetCount,
+            },
+          })
+        );
       }
       return json({ success: true, configIds });
     } catch (error) {

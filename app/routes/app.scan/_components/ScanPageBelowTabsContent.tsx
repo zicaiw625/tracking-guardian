@@ -12,7 +12,7 @@ import {
   ProgressBar,
   Icon,
 } from "@shopify/polaris";
-import { SearchIcon, ArrowRightIcon, RefreshIcon, InfoIcon, ClockIcon, AlertCircleIcon } from "~/components/icons";
+import { ExportIcon, SearchIcon, ArrowRightIcon, RefreshIcon, InfoIcon, ClockIcon, AlertCircleIcon } from "~/components/icons";
 import { CardSkeleton, EnhancedEmptyState } from "~/components/ui";
 import { getPlatformName, getSeverityBadge } from "~/components/scan";
 import { MigrationDependencyGraph } from "~/components/scan/MigrationDependencyGraph";
@@ -80,8 +80,8 @@ export function ScanPageBelowTabsContent({
   latestScan,
   isScanning,
   handleScan,
-  showError: _showError,
-  showSuccess: _showSuccess,
+  showError,
+  showSuccess,
   upgradeStatus,
   identifiedPlatforms,
   scriptTags,
@@ -107,11 +107,44 @@ export function ScanPageBelowTabsContent({
 }: ScanPageBelowTabsContentProps) {
   const { t } = useTranslation();
 
+  const handleExportCSV = async () => {
+    if (!latestScan) return;
+    try {
+      const response = await fetch(`/api/scan-report/csv?reportId=${encodeURIComponent(latestScan.id)}`);
+      if (!response.ok) {
+        let msg = t("scan.errors.exportFailed");
+        try {
+          const errorData = await response.json();
+          msg = errorData.error || msg;
+        } catch {
+          //
+        }
+        showError(msg);
+        return;
+      }
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `scan-report-${latestScan.id}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      showSuccess(t("scan.success.exportSuccess"));
+    } catch (error) {
+      showError(t("scan.errors.exportFailed") + ": " + (error instanceof Error ? error.message : t("common.unknown")));
+    }
+  };
+
   return (
     <Box paddingBlockStart="400">
       <InlineStack align="space-between">
         {latestScan && (
           <InlineStack gap="200">
+            <Button icon={ExportIcon} onClick={handleExportCSV}>
+              {t("scan.autoTab.exportCSV")}
+            </Button>
           </InlineStack>
         )}
         <InlineStack gap="200">

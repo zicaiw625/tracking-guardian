@@ -31,6 +31,7 @@ export default function SupportPage() {
             t("support.intro.items.1"),
           ]}
           primaryAction={faqUrl ? { content: t("support.intro.action.faq"), url: faqUrl } : undefined}
+          secondaryAction={{ content: t("support.intro.action.reports"), url: "/app/reports" }}
         />
         <Layout>
           <Layout.Section>

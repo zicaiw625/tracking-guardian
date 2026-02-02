@@ -14,6 +14,8 @@ import { DEPRECATION_DATES, formatDeadlineDate } from "~/utils/migration-deadlin
 
 import { assertSafeRedirect } from "../utils/redirect-validation.server";
 import { logger } from "../utils/logger.server";
+import { trackEvent } from "../services/analytics.server";
+import { safeFireAndForget } from "../utils/helpers.server";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
     const { BILLING_PLANS, PLAN_IDS } = await import("../services/billing.server");
@@ -30,7 +32,19 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
         });
 
         if (shop) {
-          // Analytics removed
+            safeFireAndForget(
+                trackEvent({
+                    shopId: shop.id,
+                    shopDomain: shop.shopDomain,
+                    event: confirmation.success ? "app_subscription_created" : "app_subscription_failed",
+                    eventId: confirmation.success
+                        ? `app_subscription_created_${chargeId}`
+                        : `app_subscription_failed_${chargeId}`,
+                    metadata: confirmation.success
+                        ? { plan: confirmation.plan }
+                        : { error: confirmation.error },
+                })
+            );
         }
 
         url.searchParams.delete("charge_id");
@@ -81,6 +95,19 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       return null;
     });
 
+        safeFireAndForget(
+        trackEvent({
+            shopId: shop.id,
+            shopDomain,
+            event: "app_paywall_viewed",
+            metadata: {
+                plan: subscriptionStatus.plan,
+                hasActiveSubscription: subscriptionStatus.hasActiveSubscription,
+                triggerPage: "billing",
+            },
+        })
+    );
+
     return json({
         shopDomain,
         subscription: subscriptionStatus,
@@ -119,13 +146,28 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 
             const returnUrl = returnUrlObj.toString();
 
+            if (shop) {
+                safeFireAndForget(
+                    trackEvent({
+                        shopId: shop.id,
+                        shopDomain: shop.shopDomain,
+                        event: "app_upgrade_clicked",
+                        metadata: { planId },
+                    })
+                );
+            }
+
             const result = await createSubscription(admin, shopDomain, planId, returnUrl, process.env.NODE_ENV !== "production");
 
             if (shop && !result.success) {
-                logger.error("Subscription creation failed for existing shop", {
-                    shopId: shop.id,
-                    error: result.error,
-                });
+                safeFireAndForget(
+                    trackEvent({
+                        shopId: shop.id,
+                        shopDomain: shop.shopDomain,
+                        event: "app_subscription_failed",
+                        metadata: { planId, error: result.error },
+                    })
+                );
             }
 
             if (result.success && result.confirmationUrl) {

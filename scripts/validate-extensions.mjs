@@ -71,6 +71,7 @@ function checkForbiddenAPIs() {
     const violations = [];
     const srcDirs = [
         path.join(EXTENSIONS_DIR, "tracking-pixel", "src"),
+        path.join(EXTENSIONS_DIR, "post-checkout-badge", "src"),
     ];
     function scanDirectory(dir) {
         if (!fs.existsSync(dir)) {
@@ -130,6 +131,7 @@ function checkExtensionConfigs() {
     const violations = [];
     const configFiles = [
         path.join(EXTENSIONS_DIR, "tracking-pixel", "shopify.extension.toml"),
+        path.join(EXTENSIONS_DIR, "post-checkout-badge", "shopify.extension.toml"),
     ];
     for (const configFile of configFiles) {
         if (!fs.existsSync(configFile)) {
@@ -182,6 +184,7 @@ function checkSourceStructure() {
     const violations = [];
     const expectedDirs = [
         path.join(EXTENSIONS_DIR, "tracking-pixel", "src"),
+        path.join(EXTENSIONS_DIR, "post-checkout-badge", "src"),
     ];
     for (const dir of expectedDirs) {
         if (!fs.existsSync(dir)) {

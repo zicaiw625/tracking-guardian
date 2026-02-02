@@ -1,6 +1,11 @@
+import { Suspense, lazy } from "react";
 import { Box, BlockStack, Card, DataTable, Text } from "@shopify/polaris";
 import { StatusBadge } from "./VerificationBadges";
-import { EnhancedEmptyState } from "~/components/ui";
+import { EnhancedEmptyState, CardSkeleton } from "~/components/ui";
+
+const ReportComparison = lazy(() =>
+  import("./ReportComparison").then((m) => ({ default: m.ReportComparison }))
+);
 
 export interface VerificationHistoryRun {
   runId: string;
@@ -22,6 +27,7 @@ export interface VerificationHistoryPanelProps {
 export function VerificationHistoryPanel({
   history,
   onRunVerification,
+  shop,
 }: VerificationHistoryPanelProps) {
   return (
     <Box padding="400">
@@ -59,6 +65,18 @@ export function VerificationHistoryPanel({
             )}
           </BlockStack>
         </Card>
+        {history.length >= 2 && shop && (
+          <Suspense fallback={<CardSkeleton lines={3} />}>
+            <ReportComparison
+              shopId={shop.id}
+              availableRuns={history.map((run) => ({
+                runId: run.runId,
+                runName: run.runName || `${run.runType === "full" ? "完整" : "快速"}验收`,
+                completedAt: run.completedAt ? new Date(run.completedAt) : undefined,
+              }))}
+            />
+          </Suspense>
+        )}
       </BlockStack>
     </Box>
   );

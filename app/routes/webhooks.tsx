@@ -7,13 +7,12 @@ import { checkRateLimitAsync, ipKeyExtractor } from "../middleware/rate-limit.se
 import { hashValueSync } from "../utils/crypto.server";
 import { dispatchWebhook, type WebhookContext, type ShopWithPixelConfigs } from "../webhooks";
 import { tryAcquireWebhookLock } from "../webhooks/middleware/idempotency";
-import { HttpHeader } from "../utils/constants";
 
 function getWebhookId(authResult: Awaited<ReturnType<typeof authenticate.webhook>>, request: Request): string | null {
   if (authResult && typeof authResult === "object" && "webhookId" in authResult && typeof authResult.webhookId === "string") {
     return authResult.webhookId;
   }
-  return request.headers.get(HttpHeader.X_SHOPIFY_EVENT_ID) ?? request.headers.get(HttpHeader.X_SHOPIFY_WEBHOOK_ID) ?? null;
+  return request.headers.get("X-Shopify-Event-Id") ?? request.headers.get("X-Shopify-Webhook-Id") ?? null;
 }
 
 export const action = async ({ request }: ActionFunctionArgs) => {
@@ -25,23 +24,21 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     false,
     true
   );
-
   if (ipRateLimit.usingFallback) {
     logger.warn("[Webhook] Redis unavailable for rate limiting, using memory fallback", {
       ipKey: ipKey === "untrusted" || ipKey === "unknown" ? ipKey : hashValueSync(ipKey).slice(0, 12),
-      topic: request.headers.get(HttpHeader.X_SHOPIFY_TOPIC) ?? undefined,
-      shop: request.headers.get(HttpHeader.X_SHOPIFY_SHOP_DOMAIN) ?? undefined,
+      topic: request.headers.get("X-Shopify-Topic") ?? undefined,
+      shop: request.headers.get("X-Shopify-Shop-Domain") ?? undefined,
     });
   }
-
   if (!ipRateLimit.allowed) {
     const ipHash = ipKey === "untrusted" || ipKey === "unknown" ? ipKey : hashValueSync(ipKey).slice(0, 12);
     logger.warn("[Webhook] Rate limit exceeded (IP)", {
       ipHash,
       retryAfter: ipRateLimit.retryAfter,
-      topic: request.headers.get(HttpHeader.X_SHOPIFY_TOPIC) ?? undefined,
-      shop: request.headers.get(HttpHeader.X_SHOPIFY_SHOP_DOMAIN) ?? undefined,
-      webhookId: request.headers.get(HttpHeader.X_SHOPIFY_WEBHOOK_ID) ?? request.headers.get(HttpHeader.X_SHOPIFY_EVENT_ID) ?? undefined,
+      topic: request.headers.get("X-Shopify-Topic") ?? undefined,
+      shop: request.headers.get("X-Shopify-Shop-Domain") ?? undefined,
+      webhookId: request.headers.get("X-Shopify-Webhook-Id") ?? request.headers.get("X-Shopify-Event-Id") ?? undefined,
     });
     return new Response("Too Many Requests", {
       status: 429,
@@ -53,7 +50,6 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       },
     });
   }
-
   let context: WebhookContext;
   try {
     const authResult = await authenticate.webhook(request);
@@ -66,7 +62,6 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       admin: authResult.admin as WebhookContext["admin"],
       session: authResult.session,
     };
-
     const shopTopicKey = `webhook:${context.shop}:${context.topic}`;
     const shopTopicRateLimit = await checkRateLimitAsync(
       shopTopicKey,
@@ -75,7 +70,6 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       false,
       true
     );
-
     if (shopTopicRateLimit.usingFallback) {
       logger.warn("[Webhook] Redis unavailable for rate limiting, using memory fallback", {
         shop: context.shop,
@@ -83,7 +77,6 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         webhookId: context.webhookId ?? undefined,
       });
     }
-
     if (!shopTopicRateLimit.allowed) {
       logger.warn("[Webhook] Rate limit exceeded (shop+topic)", {
         shop: context.shop,
@@ -102,9 +95,59 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       });
     }
   } catch (error) {
-    return handleWebhookError(error, request);
+    const topic = request.headers.get("X-Shopify-Topic") || "unknown";
+    const shopHeader = request.headers.get("X-Shopify-Shop-Domain") || "unknown";
+    const webhookIdHeader = request.headers.get("X-Shopify-Webhook-Id") || request.headers.get("X-Shopify-Event-Id") || "unknown";
+    const hasHmacHeader = !!request.headers.get("X-Shopify-Hmac-Sha256");
+    const hasTopicHeader = !!request.headers.get("X-Shopify-Topic");
+    const hasShopHeader = !!request.headers.get("X-Shopify-Shop-Domain");
+    
+    if (error instanceof Response) {
+      const errorStatus = error.status;
+      if (errorStatus === 401) {
+        logger.warn("[Webhook] HMAC validation failed - returning 401", {
+          topic,
+          shop: shopHeader,
+          webhookId: webhookIdHeader,
+          hint: "If this spikes unexpectedly, ensure no middleware/adapter reads or parses the request body before authenticate.webhook(request). Shopify webhook HMAC verification requires the raw body.",
+        });
+        return new Response("Unauthorized: Invalid HMAC", { status: 401 });
+      }
+      if (errorStatus === 400) {
+        return new Response("Bad Request: Invalid webhook request", { status: 400 });
+      }
+      logger.warn("[Webhook] Authentication error - returning 401", {
+        topic,
+        shop: shopHeader,
+        originalStatus: errorStatus,
+        webhookId: webhookIdHeader,
+      });
+      return new Response("Unauthorized: Invalid HMAC", { status: 401 });
+    }
+    if (error instanceof SyntaxError) {
+      logger.warn("[Webhook] Payload JSON parse error - returning 400", {
+        topic,
+        shop: shopHeader,
+      });
+      return new Response("Bad Request: Invalid JSON", { status: 400 });
+    }
+    if (!hasHmacHeader || !hasTopicHeader || !hasShopHeader) {
+      logger.warn("[Webhook] Missing required headers - returning 400", {
+        topic,
+        shop: shopHeader,
+        hasHmacHeader,
+        hasTopicHeader,
+        hasShopHeader,
+      });
+      return new Response("Bad Request: Missing required headers", { status: 400 });
+    }
+    logger.error("[Webhook] Authentication error:", error, {
+      topic,
+      shop: shopHeader,
+      webhookId: webhookIdHeader,
+    });
+    return new Response("Bad Request: Webhook authentication failed", { status: 400 });
   }
-
   let shopRecord: ShopWithPixelConfigs | null = null;
   try {
     if (context.webhookId) {
@@ -118,7 +161,6 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         return new Response("Temporary error", { status: 500 });
       }
     }
-    
     shopRecord = await prisma.shop.findUnique({
       where: { shopDomain: context.shop },
       select: {
@@ -162,64 +204,5 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   } catch (error) {
     logger.error(`[Webhook] Failed to fetch shop record for ${context.shop}:`, error);
   }
-
   return dispatchWebhook(context, shopRecord, true);
 };
-
-function handleWebhookError(error: unknown, request: Request): Response {
-  const topic = request.headers.get(HttpHeader.X_SHOPIFY_TOPIC) || "unknown";
-  const shopHeader = request.headers.get(HttpHeader.X_SHOPIFY_SHOP_DOMAIN) || "unknown";
-  const webhookIdHeader = request.headers.get(HttpHeader.X_SHOPIFY_WEBHOOK_ID) || request.headers.get(HttpHeader.X_SHOPIFY_EVENT_ID) || "unknown";
-  const hasHmacHeader = !!request.headers.get(HttpHeader.X_SHOPIFY_HMAC);
-  const hasTopicHeader = !!request.headers.get(HttpHeader.X_SHOPIFY_TOPIC);
-  const hasShopHeader = !!request.headers.get(HttpHeader.X_SHOPIFY_SHOP_DOMAIN);
-
-  if (error instanceof Response) {
-    const errorStatus = error.status;
-    if (errorStatus === 401) {
-      logger.warn("[Webhook] HMAC validation failed - returning 401", {
-        topic,
-        shop: shopHeader,
-        webhookId: webhookIdHeader,
-        hint: "If this spikes unexpectedly, ensure no middleware/adapter reads or parses the request body before authenticate.webhook(request). Shopify webhook HMAC verification requires the raw body.",
-      });
-      return new Response("Unauthorized: Invalid HMAC", { status: 401 });
-    }
-    if (errorStatus === 400) {
-      return new Response("Bad Request: Invalid webhook request", { status: 400 });
-    }
-    logger.warn("[Webhook] Authentication error - returning 401", {
-      topic,
-      shop: shopHeader,
-      originalStatus: errorStatus,
-      webhookId: webhookIdHeader,
-    });
-    return new Response("Unauthorized: Invalid HMAC", { status: 401 });
-  }
-
-  if (error instanceof SyntaxError) {
-    logger.warn("[Webhook] Payload JSON parse error - returning 400", {
-      topic,
-      shop: shopHeader,
-    });
-    return new Response("Bad Request: Invalid JSON", { status: 400 });
-  }
-
-  if (!hasHmacHeader || !hasTopicHeader || !hasShopHeader) {
-    logger.warn("[Webhook] Missing required headers - returning 400", {
-      topic,
-      shop: shopHeader,
-      hasHmacHeader,
-      hasTopicHeader,
-      hasShopHeader,
-    });
-    return new Response("Bad Request: Missing required headers", { status: 400 });
-  }
-
-  logger.error("[Webhook] Authentication error:", error, {
-    topic,
-    shop: shopHeader,
-    webhookId: webhookIdHeader,
-  });
-  return new Response("Bad Request: Webhook authentication failed", { status: 400 });
-}

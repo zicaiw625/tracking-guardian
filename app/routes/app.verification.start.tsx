@@ -26,6 +26,7 @@ import {
 } from "../services/verification-checklist.server";
 import {
   generateChecklistMarkdown,
+  generateChecklistCSV,
 } from "../utils/verification-checklist";
 import { VERIFICATION_TEST_ITEMS } from "../services/verification.server";
 import { useTranslation } from "react-i18next";
@@ -79,6 +80,14 @@ export default function VerificationStartPage() {
       showError(t("verification.start.toast.browserNotSupported"));
     }
   };
+  const handleDownloadCSV = () => {
+    const csv = generateChecklistCSV(testChecklist);
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(blob);
+    link.download = `verification-checklist-${new Date().toISOString().split("T")[0]}.csv`;
+    link.click();
+  };
   return (
     <Page
       title={t("verification.start.pageTitle")}
@@ -112,6 +121,9 @@ export default function VerificationStartPage() {
                   size="slim"
                 >
                   {t("verification.start.checklist.copy")}
+                </Button>
+                <Button onClick={handleDownloadCSV} size="slim">
+                  {t("verification.start.checklist.downloadCSV")}
                 </Button>
               </InlineStack>
             </InlineStack>

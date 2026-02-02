@@ -12,6 +12,7 @@ import type { SettingsActionResponse } from "./types";
 import {
   SecurityTab,
   SubscriptionTab,
+  AlertsTab,
 } from "./_components";
 import type { PlanId } from "~/services/billing/plans";
 
@@ -20,7 +21,7 @@ export const action = settingsAction;
 
 export default function SettingsPage() {
   const { t } = useTranslation();
-  const { shop, hmacSecurityStats, pixelStrictOrigin, typOspStatus } =
+  const { shop, hmacSecurityStats, pixelStrictOrigin, alertChannelsEnabled, typOspStatus } =
     useLoaderData<typeof settingsLoader>();
   const actionData = useActionData<SettingsActionResponse>();
   const submit = useSubmit();
@@ -38,6 +39,7 @@ export default function SettingsPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const tabParam = searchParams.get("tab");
   const getTabIndex = (tab: string | null): number => {
+    if (tab === "alerts") return 2;
     if (tab === "billing" || tab === "subscription") return 1;
     if (tab === "security") return 0;
     return 0;
@@ -45,6 +47,7 @@ export default function SettingsPage() {
   const getTabId = (index: number): string => {
     if (index === 0) return "security";
     if (index === 1) return "subscription";
+    if (index === 2) return "alerts";
     return "security";
   };
   const [selectedTab, setSelectedTab] = useState(() => getTabIndex(tabParam));
@@ -65,6 +68,7 @@ export default function SettingsPage() {
   const tabs = [
     { id: "security", content: t("settings.tabs.security") },
     { id: "subscription", content: t("settings.tabs.subscription") },
+    { id: "alerts", content: t("settings.tabs.alerts") },
   ];
   return (
     <Page title={t("settings.page.title")}>
@@ -163,6 +167,13 @@ export default function SettingsPage() {
             />
           )}
           {selectedTab === 1 && <SubscriptionTab currentPlan={shop?.plan as PlanId || "free"} />}
+          {selectedTab === 2 && (
+            <AlertsTab
+              alertConfigs={shop?.alertConfigs ?? []}
+              isSubmitting={isSubmitting}
+              alertChannelsEnabled={alertChannelsEnabled ?? false}
+            />
+          )}
         </Tabs>
       </BlockStack>
     </Page>

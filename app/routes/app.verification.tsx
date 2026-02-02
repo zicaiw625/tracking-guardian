@@ -10,11 +10,11 @@ import {
   BlockStack,
   InlineStack,
   Banner,
+  Badge,
   Tabs,
   Box,
   EmptyState,
   Modal,
-  Badge,
 } from "@shopify/polaris";
 import { useState, useCallback } from "react";
 import { authenticate } from "../shopify.server";
@@ -35,7 +35,6 @@ import {
   startVerificationRun,
   analyzeRecentEvents,
   getVerificationRun,
-  VERIFICATION_TEST_ITEMS,
 } from "~/services/verification.server";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
@@ -53,7 +52,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   });
 
   if (!shop) {
-    return json({ shop: null, latestRun: null, history: [], testItems: [] });
+    return json({ shop: null, latestRun: null, history: [] });
   }
 
   const latestRunRaw = await prisma.verificationRun.findFirst({
@@ -89,8 +88,18 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     completedAt: h.completedAt ? h.completedAt.toISOString() : h.createdAt.toISOString()
   }));
 
-  return json({ shop, latestRun, history, testItems: VERIFICATION_TEST_ITEMS });
+  return json({ shop, latestRun, history });
 };
+
+const TEST_ITEMS = [
+  {
+    id: "purchase_test",
+    name: "Purchase Flow",
+    description: "Test standard purchase flow",
+    steps: ["Add item to cart", "Go to checkout", "Complete purchase"],
+    expectedEvents: ["checkout_completed"]
+  }
+];
 
 export const action = async ({ request }: ActionFunctionArgs) => {
   const { session } = await authenticate.admin(request);
@@ -128,7 +137,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 
 export default function VerificationPage() {
   const { t } = useTranslation();
-  const { shop, latestRun, history, testItems } = useLoaderData<typeof loader>();
+  const { shop, latestRun, history } = useLoaderData<typeof loader>();
   const fetcher = useFetcher();
   const navigate = useNavigate();
   const [selectedTab, setSelectedTab] = useState(0);
@@ -284,7 +293,7 @@ export default function VerificationPage() {
                          <VerificationResultsTable latestRun={latestRun} pixelStrictOrigin={false} />
                       )}
                       {selectedTab === 3 && (
-                        <TestOrderGuide shopDomain={shop.shopDomain} shopId={shop.id} testItems={testItems || []} />
+                        <TestOrderGuide shopDomain={shop.shopDomain} shopId={shop.id} testItems={TEST_ITEMS} />
                       )}
                       {selectedTab === 4 && (
                         <VerificationHistoryPanel history={history} onRunVerification={handleRunVerification} shop={shop} />
@@ -359,7 +368,7 @@ export default function VerificationPage() {
         }}
       >
         <Modal.Section>
-           <TestOrderGuide shopDomain={shop.shopDomain} shopId={shop.id} testItems={testItems || []} />
+           <TestOrderGuide shopDomain={shop.shopDomain} shopId={shop.id} testItems={TEST_ITEMS} />
         </Modal.Section>
       </Modal>
     </Page>
