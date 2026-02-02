@@ -498,7 +498,7 @@ ScriptTag 清理需要商家手动操作：
 提交 App Review 前请确认：
 
 1. **Distribution**：Partner Dashboard → Distribution = **Public (App Store)**（否则 Billing API 不可用）。
-2. **联系方式**：`support@tracking-guardian.app`、`help.tracking-guardian.app`、`status.tracking-guardian.app` 可访问；若为占位符，已在 `app/routes/support.tsx`、`app/routes/app.support.tsx`、`app/services/ui-extension.server.ts` 中改为真实邮箱/域名。
+2. **联系方式**：`zicaiw625@gmail.com`、`help.tracking-guardian.app`、`status.tracking-guardian.app` 可访问；若为占位符，已在 `app/routes/support.tsx`、`app/routes/app.support.tsx`、`app/services/ui-extension.server.ts` 中改为真实邮箱/域名。
 3. **PCD**：若未来版本引入基于订单的数据处理能力，将在 Partner 完成 PCD 申请配置，并准备好 [COMPLIANCE.md](COMPLIANCE.md) 中的「PCD 申请材料要点」作为支撑。
 
 ## Shopify App Store 审核 - Reviewer 快速验收路径

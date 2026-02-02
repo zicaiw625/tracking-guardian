@@ -18,14 +18,16 @@ import translations from "@shopify/polaris/locales/en.json" with { type: "json" 
 import { getPolarisTranslations } from "../utils/polaris-i18n";
 import { getDynamicCorsHeaders } from "../utils/cors";
 import { PUBLIC_PAGE_HEADERS, addSecurityHeadersToHeaders } from "../utils/security-headers";
+import { getSupportConfig } from "../utils/config.server";
 import { useTranslation, I18nextProvider } from "react-i18next";
 import i18nGlobal from "../i18n"; // Import global i18n instance
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   const corsHeaders = getDynamicCorsHeaders(request);
+  const config = getSupportConfig();
   const response = json({
-    supportEmail: "support@tracking-guardian.com",
-    statusPage: "https://status.tracking-guardian.com",
+    supportEmail: config.contactEmail,
+    statusPage: config.statusPageUrl,
   });
   const headers = new Headers(response.headers);
   Object.entries(corsHeaders).forEach(([key, value]) => {

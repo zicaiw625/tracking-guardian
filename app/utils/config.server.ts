@@ -292,7 +292,7 @@ export function getSupportConfig(): {
   statusPageUrl: string;
 } {
   return {
-    contactEmail: getEnv("SUPPORT_EMAIL", "support@tracking-guardian.app"),
+    contactEmail: getEnv("SUPPORT_EMAIL", "zicaiw625@gmail.com"),
     faqUrl: getEnv("SUPPORT_FAQ_URL", "https://help.tracking-guardian.app"),
     statusPageUrl: getEnv("STATUS_PAGE_URL", "https://status.tracking-guardian.app"),
   };
