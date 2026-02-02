@@ -228,12 +228,12 @@ export function ScanPageBelowTabsContent({
         <Card>
           <BlockStack gap="400">
             <InlineStack align="space-between" blockAlign="center">
-              <Text as="h2" variant="headingMd">{t("scan.autoTab.riskDetails.title")}</Text>
+              <Text as="h2" variant="headingMd">{t("scan.riskDetails.title")}</Text>
               <Badge tone="info">{t("common.countItems", { count: riskItems.length })}</Badge>
             </InlineStack>
             <Banner tone="info">
               <Text as="p" variant="bodySm">
-                {t("scan.autoTab.riskDetails.disclaimer")}
+                {t("scan.riskDetails.disclaimer")}
               </Text>
             </Banner>
             {(() => {
@@ -264,9 +264,9 @@ export function ScanPageBelowTabsContent({
                           <InlineStack align="space-between" blockAlign="center">
                             <InlineStack gap="200">
                               {item.platform && <Badge>{getPlatformName(item.platform, t)}</Badge>}
-                              {item.impact && <Text as="span" variant="bodySm" tone="critical">{t("scan.autoTab.riskDetails.impact")} {item.impact}</Text>}
+                              {item.impact && <Text as="span" variant="bodySm" tone="critical">{t("scan.riskDetails.impact")} {item.impact}</Text>}
                             </InlineStack>
-                            <Button url={`/app/migrate${item.platform ? `?platform=${item.platform}` : ""}`} size="slim" icon={ArrowRightIcon}>{t("scan.autoTab.riskDetails.oneClickMigrate")}</Button>
+                            <Button url={`/app/migrate${item.platform ? `?platform=${item.platform}` : ""}`} size="slim" icon={ArrowRightIcon}>{t("scan.riskDetails.oneClickMigrate")}</Button>
                           </InlineStack>
                         </BlockStack>
                       </Box>
@@ -276,11 +276,11 @@ export function ScanPageBelowTabsContent({
                     <Banner tone="warning">
                       <BlockStack gap="200">
                         <Text as="p" variant="bodySm">
-                          <strong>{t("scan.autoTab.riskDetails.freeLimit")}</strong>{t("scan.autoTab.riskDetails.freeLimitDesc", { limit: FREE_AUDIT_LIMIT, count: hiddenCount })}
+                          <strong>{t("scan.riskDetails.freeLimit")}</strong>{t("scan.riskDetails.freeLimitDesc", { limit: FREE_AUDIT_LIMIT, count: hiddenCount })}
                         </Text>
                         <InlineStack gap="200">
-                          <Button url="/app/billing" variant="primary" size="slim">{t("scan.autoTab.riskDetails.upgradeUnlock")}</Button>
-                          <Button url="/app/migrate" size="slim">{t("scan.autoTab.riskDetails.purchaseOnlyFix")}</Button>
+                          <Button url="/app/billing" variant="primary" size="slim">{t("scan.riskDetails.upgradeUnlock")}</Button>
+                          <Button url="/app/migrate" size="slim">{t("scan.riskDetails.purchaseOnlyFix")}</Button>
                         </InlineStack>
                       </BlockStack>
                     </Banner>
@@ -288,16 +288,16 @@ export function ScanPageBelowTabsContent({
                   <Box background="bg-surface-secondary" padding="400" borderRadius="200">
                     <BlockStack gap="300">
                       <InlineStack align="space-between" blockAlign="center">
-                        <Text as="span" fontWeight="semibold">{t("scan.autoTab.riskDetails.estimatedFixTime")}</Text>
+                        <Text as="span" fontWeight="semibold">{t("scan.riskDetails.estimatedFixTime")}</Text>
                         <Badge tone={estimatedTimeMinutes > 60 ? "warning" : "info"}>
                           {estimatedTimeMinutes > 60 ? t("common.time.hoursMinutes", { hours: Math.floor(estimatedTimeMinutes / 60), minutes: estimatedTimeMinutes % 60 }) : t("common.time.minutes", { count: estimatedTimeMinutes })}
                         </Badge>
                       </InlineStack>
-                      <Text as="p" variant="bodySm" tone="subdued">{t("scan.autoTab.riskDetails.basedOnRisk")}</Text>
+                      <Text as="p" variant="bodySm" tone="subdued">{t("scan.riskDetails.basedOnRisk")}</Text>
                       {isFreePlan && (
                         <Banner tone="info">
                           <Text as="p" variant="bodySm">
-                            <strong>{t("scan.autoTab.riskDetails.upgradeMigration")}</strong>{t("scan.autoTab.riskDetails.upgradeMigrationDesc")}
+                            <strong>{t("scan.riskDetails.upgradeMigration")}</strong>{t("scan.riskDetails.upgradeMigrationDesc")}
                           </Text>
                         </Banner>
                       )}
@@ -313,8 +313,8 @@ export function ScanPageBelowTabsContent({
         <Card>
           <BlockStack gap="400">
             <InlineStack align="space-between" blockAlign="center">
-              <Text as="h2" variant="headingMd">{t("scan.autoTab.migrationActions.title")}</Text>
-              <Badge tone="attention">{t("scan.autoTab.migrationActions.pending", { count: migrationActions.length })}</Badge>
+              <Text as="h2" variant="headingMd">{t("scan.migrationActionsCard.title")}</Text>
+              <Badge tone="attention">{t("scan.migrationActionsCard.pending", { count: migrationActions.length })}</Badge>
             </InlineStack>
             <BlockStack gap="300">
               {migrationActions.map((action, index) => (
@@ -330,23 +330,23 @@ export function ScanPageBelowTabsContent({
                         </InlineStack>
                         {action.platform && <Badge>{getPlatformName(action.platform, t)}</Badge>}
                       </BlockStack>
-                      {action.deadline && <Badge tone="warning">{`${t("scan.autoTab.migrationActions.deadline")} ${action.deadline}`}</Badge>}
+                      {action.deadline && <Badge tone="warning">{`${t("scan.migrationActionsCard.deadline")} ${action.deadline}`}</Badge>}
                     </InlineStack>
                     <Text as="p" variant="bodySm" tone="subdued">
                       {action.descriptionKey ? t(action.descriptionKey, action.descriptionParams) : action.description}
                     </Text>
                     <InlineStack gap="200" align="end">
                       {action.type === "migrate_script_tag" && action.scriptTagId != null && (
-                        <Button size="slim" icon={InfoIcon} onClick={() => handleShowScriptTagGuidance(action.scriptTagId!, action.platform)}>{t("scan.autoTab.migrationActions.cleanGuide")}</Button>
+                        <Button size="slim" icon={InfoIcon} onClick={() => handleShowScriptTagGuidance(action.scriptTagId!, action.platform)}>{t("scan.migrationActionsCard.cleanGuide")}</Button>
                       )}
                       {action.type === "remove_duplicate" && action.webPixelGid && (
-                        <Button tone="critical" size="slim" loading={isDeleting && pendingDelete?.gid === action.webPixelGid} onClick={() => handleDeleteWebPixel(action.webPixelGid!, action.platform)}>{t("scan.autoTab.migrationActions.removeDuplicate")}</Button>
+                        <Button tone="critical" size="slim" loading={isDeleting && pendingDelete?.gid === action.webPixelGid} onClick={() => handleDeleteWebPixel(action.webPixelGid!, action.platform)}>{t("scan.migrationActionsCard.removeDuplicate")}</Button>
                       )}
                       {action.type === "configure_pixel" && action.description?.includes("升级") && (
-                        <Button size="slim" icon={RefreshIcon} loading={isUpgrading} onClick={handleUpgradePixelSettings}>{t("scan.autoTab.migrationActions.upgradeConfig")}</Button>
+                        <Button size="slim" icon={RefreshIcon} loading={isUpgrading} onClick={handleUpgradePixelSettings}>{t("scan.migrationActionsCard.upgradeConfig")}</Button>
                       )}
                       {action.type === "configure_pixel" && !action.description?.includes("升级") && (
-                        <Button size="slim" url="/app/migrate" icon={ArrowRightIcon}>{t("scan.autoTab.migrationActions.configurePixel")}</Button>
+                        <Button size="slim" url="/app/migrate" icon={ArrowRightIcon}>{t("scan.migrationActionsCard.configurePixel")}</Button>
                       )}
                     </InlineStack>
                   </BlockStack>

@@ -407,7 +407,14 @@
     "unknownAsset": "Unknown Asset",
     "noDescription": "No description",
     "months_other": "{{count}} months",
-    "unknownError": "Unknown error"
+    "unknownError": "Unknown error",
+    "time": {
+      "hoursMinutes": "{{hours}}h {{minutes}}m",
+      "minutes": "{{count}}m"
+    },
+    "none": "None",
+    "operationSuccess": "Operation successful",
+    "back": "Back"
   },
   "billing": {
     "pageTitle": "Subscription & Billing",
@@ -791,80 +798,6 @@
         "cta": "Start Scan"
       },
       "migrate": {
-        "testingStep": {
-          "errors": {
-            "parseFailed": "Failed to parse response",
-            "validationFailed": "Validation failed for some platforms: {{platforms}}. Please check configuration and credentials.",
-            "validationError": "Error occurred during validation",
-            "switchFailed": "Failed to switch for some platforms: {{platforms}}. Please try again later.",
-            "switchError": "Error occurred during environment switch",
-            "network": "Network error",
-            "unknown": "Unknown error"
-          },
-          "success": {
-            "validationPassed": "All platform test environment configurations validated! Test events sent successfully.",
-            "switchPassed": "All platforms switched to production mode!",
-            "redirecting": "Configuration validated! Redirecting to verification page..."
-          },
-          "status": {
-            "saved": "Configuration Saved",
-            "nextStep": "Next: Test Verification",
-            "recommendations": "Configuration saved. We recommend:",
-            "steps": {
-              "validate": "Validate test environment configuration (optional)",
-              "createOrder": "Create a test order",
-              "monitor": "Check if events are sent successfully in 'Monitoring' page",
-              "verify": "Run verification test in 'Verification' page",
-              "switch": "Switch to 'Production Mode' in settings after verification"
-            }
-          },
-          "validation": {
-            "title": "Test Environment Validation",
-            "description": "Send test events to platforms to verify configuration",
-            "validating": "Validating...",
-            "sendEvent": "Send Test Event",
-            "eventSent": "Test event sent successfully",
-            "responseTime": "Response time: {{time}}ms",
-            "metaCode": "Meta Test Event Code: {{code}}",
-            "metaDesc": "Check this event in 'Test Events' page of Meta Events Manager. If you see the test event, configuration is correct.",
-            "openMeta": "Open Meta Events Manager",
-            "ga4Debug": "GA4 DebugView",
-            "ga4Desc": "Test event sent, check real-time event stream in GA4 DebugView.",
-            "openGa4": "Open GA4 DebugView",
-            "errorDetails": "Error Details",
-            "checkList": "Please check:",
-            "checkItems": {
-              "credentials": "Platform credentials are correct",
-              "network": "Network connection is normal",
-              "api": "Platform API is available"
-            },
-            "eventDetails": "Test Event Details",
-            "eventId": "Event ID: {{id}}",
-            "eventType": "Event Type: {{type}}",
-            "amount": "Test Amount: $1.00 USD"
-          },
-          "production": {
-            "title": "Switch to Production Mode",
-            "successTitle": "Test Validation Passed! Ready to switch to production mode.",
-            "desc": "After switching, events will be sent to actual ad platforms and start tracking real order conversions.",
-            "confirmTitle": "Please confirm before switching:",
-            "confirmItems": {
-              "credentials": "All platform credentials are correctly configured",
-              "eventSent": "Test events sent successfully and visible in platform",
-              "mapping": "Event mapping configuration meets your business needs",
-              "monitor": "Understood how to view and monitor production events"
-            },
-            "tip": "💡 Tip: After switching to production mode, it is recommended to run a verification test to ensure all events are sent normally. You can perform a full verification test in the 'Verification Wizard' page.",
-            "action": "Switch to Production Mode & Go to Verification",
-            "note": "After switching, you can switch back to test mode or rollback configuration in 'Settings' page at any time.",
-            "validatedTitle": "✅ Configuration Validated! Recommended to run verification test.",
-            "redirectNote": "System will automatically redirect to verification page in 3 seconds, or click button below manually."
-          },
-          "actions": {
-            "runVerification": "Run Verification Test",
-            "complete": "✅ Complete & Go to Verification"
-          }
-        },
         "label": "Migration Setup",
         "description": "Configure pixel mapping and complete verification",
         "cta": "Configure Migration"
@@ -1509,12 +1442,6 @@
         "autoUpgradeRisk": "⚠️ Auto-upgrade Risk Window",
         "suggestedActions": "Suggested Actions:"
       },
-      "riskDetails": {
-        "title": "Risk Details",
-        "disclaimer": "Risk identification is based on script URLs and known platform fingerprints, not actual script content analysis. For more accurate detection, please paste actual script code in 'Script Content Analysis'.",
-        "impact": "Impact: {{impact}}",
-        "oneClickMigrate": "One-click Migrate"
-      },
       "migrationActions": {
         "title": "Migration Actions",
         "pendingCount": "{{count}} pending"
@@ -1592,7 +1519,6 @@
         "low": "Low Priority",
         "level": "Priority {{level}}/10"
       },
-      "freePlanLimit": "Free Plan Limit: Only showing top {{limit}} high-risk items. {{count}} items hidden.",
       "estimatedTime": {
         "title": "Estimated Fix Time",
         "disclaimer": "Estimated based on current risk items and severity"
@@ -1614,231 +1540,6 @@
       },
       "dependencies": {
         "waiting": "Waiting for {{count}} dependencies"
-      },
-      "utils": {
-        "severity": {
-          "high": "High Risk",
-          "medium": "Medium Risk",
-          "low": "Low Risk",
-          "unknown": "Unknown"
-        },
-        "status": {
-          "completed": "Completed",
-          "completedWithErrors": "Completed (with errors)",
-          "failed": "Failed",
-          "scanning": "Scanning",
-          "pending": "Pending",
-          "unknown": "Unknown"
-        },
-        "platform": {
-          "google": "GA4",
-          "meta": "Meta (Facebook) Pixel",
-          "tiktok": "TikTok Pixel",
-          "bing": "Microsoft Ads (Bing) ⚠️",
-          "clarity": "Microsoft Clarity ⚠️",
-          "webhook": "Generic Webhook"
-        }
-      },
-      "analysisResult": {
-        "riskScore": "Risk Score",
-        "detectedPlatforms": "Detected Platforms",
-        "noPlatforms": "No known platforms detected",
-        "details": "Detection Details",
-        "noDetails": "No detection details",
-        "confidence": {
-          "high": "High Confidence",
-          "medium": "Medium Confidence"
-        }
-      },
-      "migrationActionsCard": {
-        "title": "Migration Actions",
-        "pending": "{{count}} Pending",
-        "operationComplete": "Operation Complete",
-        "upgradeComplete": "Upgrade Complete",
-        "priority": {
-          "high": "High Priority",
-          "medium": "Medium Priority",
-          "low": "Low Priority"
-        },
-        "deadline": "Deadline: {{date}}",
-        "estimatedTime": "Est. Time: {{time}} min",
-        "cleanGuide": "View Guide",
-        "removeDuplicate": "Remove Duplicate",
-        "upgradeConfig": "Upgrade Config",
-        "configurePixel": "Configure Pixel",
-        "enableAppPixel": "Enable App Pixel"
-      },
-      "manualAnalysis": {
-        "title": "Manual Analysis of Additional Scripts",
-        "description": "Shopify API cannot automatically read Additional Scripts content. Please copy the script code from Shopify Admin and paste it below for analysis.",
-        "privacy": {
-          "title": "Privacy Notice: Please anonymize before pasting",
-          "points": {
-            "p1": "May contain customer info, access tokens, or third-party keys. Please remove/replace sensitive fields before pasting.",
-            "p2": "Analysis is done locally in your browser. Script content is not uploaded; only identified platform info is used for migration suggestions.",
-            "p3": "We do not persist or log your pasted content; it is used only for local analysis within the browser session."
-          }
-        },
-        "deprecation": {
-          "plus": "Plus: {{plusDate}} / Non-Plus: {{nonPlusDate}} will expire",
-          "desc": "This is a hard deadline for Thank you / Order status page migration. Paste Additional Scripts code early and complete migration to avoid tracking interruptions.",
-          "important": "Important:",
-          "disclaimer": "Dates above are from Shopify official announcements for reference only. Please refer to Shopify Admin for actual deadlines. Shopify may update policies; we recommend checking official documentation regularly.",
-          "remaining": "Remaining:"
-        },
-        "actions": {
-          "migrate": "Go to Migration Page",
-          "enablePixel": "Enable/Upgrade App Pixel"
-        },
-        "guide": {
-          "title": "How to get Additional Scripts (Step-by-step Guide):",
-          "docsRef": "Reference Doc:",
-          "shopifyDocs": "Shopify Official Doc: Additional Scripts",
-          "screenshotGuide": "📸 Screenshot Guide (Recommended to save screenshots):",
-          "steps": {
-            "step1": {
-              "title": "Step 1: Log in to Shopify Admin",
-              "desc": "Visit https://admin.shopify.com and log in with admin account",
-              "tip": "📸 Screenshot Tip: After login, take a screenshot of the current page for reference. Include the top navigation bar to confirm successful login."
-            },
-            "step2": {
-              "title": "Step 2: Go to Settings → Checkout",
-              "desc": "Click 'Settings' (gear icon) at bottom left → Find and click 'Checkout and order processing' in the menu",
-              "tip": "📸 Screenshot Tip: After finding 'Checkout and order processing', take a screenshot to ensure you found the correct location.",
-              "hint": "💡 Tip: If you can't find this option, check if your Shopify plan supports custom checkout settings. Some basic plans may not show this."
-            },
-            "step3": {
-              "title": "Step 3: Find Additional Scripts Section",
-              "desc": "Scroll down in Checkout settings to find 'Order status page' section, look for 'Additional Scripts' text box",
-              "tip": "📸 Screenshot Tip: Take a screenshot of the Additional Scripts box. If it has content, ensure the full content is visible.",
-              "hint": "💡 Tip: If you don't see Additional Scripts, your store might be upgraded to the new Thank you / Order status page. Please check Shopify docs to confirm your page version.",
-              "warning": "⚠️ Important: Additional Scripts might be in different locations depending on your Shopify version and theme. If not found, try:",
-              "checks": {
-                "c1": "Check if page is fully loaded",
-                "c2": "Try browser search (Ctrl+F or Cmd+F) for 'Additional Scripts'",
-                "c3": "Check 'Order status page' section at the bottom"
-              }
-            },
-            "step4": {
-              "title": "Step 4: Copy Script Content",
-              "desc": "Select all content in Additional Scripts box (including all <script> tags), use Ctrl+C (Windows) or Cmd+C (Mac) to copy",
-              "warning": "⚠️ Important: Ensure you copy the complete script content",
-              "warningPoints": {
-                "p1": "Include opening and closing <script> tags",
-                "p2": "Use Ctrl+A (Windows) or Cmd+A (Mac) to select all if content is long",
-                "p3": "Ensure no code snippets are missed"
-              },
-              "hint": "💡 Tip: If content has multiple script blocks, ensure all are selected and copied. System automatically identifies multiple scripts."
-            },
-            "step5": {
-              "title": "Step 5: Paste and Analyze",
-              "desc": "Paste copied content into the text box below. System will automatically identify and analyze all tracking scripts",
-              "hint": "💡 Tip: System supports multi-script identification. If no scripts are identified after pasting, check if you copied complete content or try again."
-            }
-          },
-          "notFound": "Tip: If you can't find Additional Scripts, your store might not have custom scripts configured. Some themes or apps might add tracking code to Thank you page, which might also need migration. Refer to Shopify docs for more info."
-        },
-        "input": {
-          "label": "Paste Script Content",
-          "placeholder": "<!-- Example -->\n<script>\n  gtag('event', 'purchase', {...});\n  fbq('track', 'Purchase', {...});\n</script>",
-          "help": "Supports detecting Google, Meta, TikTok, Bing, etc.",
-          "analyze": "Analyze Script",
-          "emptyError": "Please enter script content",
-          "lengthError": "Script content too long (max {{max}} chars). Please analyze in parts or contact support.",
-          "error": "Analysis failed, please try again later"
-        },
-        "results": {
-          "riskTitle": "Risk Details",
-          "recommendationTitle": "Migration Suggestions",
-          "manualLabel": "Manual Analysis Result",
-          "generalTitle": "📋 Comprehensive Migration Suggestions",
-          "goToMigrate": "Go to Migration Tool",
-          "viewApp": "View App",
-          "configure": "Configure"
-        }
-      },
-      "impactAnalysis": {
-        "title": "📊 Migration Impact Analysis (Reference Only)",
-        "badge": "Sample Estimate",
-        "disclaimer": "<strong>⚠️ Disclaimer:</strong> The following is a simplified illustration to help understand the necessity of migration. Actual business impact varies by store business model, traffic sources, customer base, ad account settings, etc. This tool cannot predict specific numerical impact and does not constitute any guarantee of results.",
-        "monthlyOrders": {
-          "title": "🧮 Enter your monthly orders to see specific impact",
-          "label": "Monthly Orders",
-          "suffix": "{{count}} orders/mo"
-        },
-        "loss": {
-          "title": "What will be lost without migration? (Illustration)",
-          "events": {
-            "label": "Potentially Affected Events",
-            "desc": "{{platformCount}} Platforms × {{orders}} Orders"
-          },
-          "scriptTags": {
-            "label": "Affected ScriptTags",
-            "desc": "Will stop execution on deadline"
-          },
-          "impact": {
-            "label": "Actual Impact",
-            "title": "Varies by Store",
-            "desc": "Depends on traffic source and customer base"
-          },
-          "platform": {
-            "invalid": "Will Fail",
-            "reference": "Reference (Estimate Only)"
-          },
-          "allInvalid": "All tracking codes in current ScriptTags will fail after deadline",
-          "warning": "<strong>⚠️ Important:</strong> ScriptTags will stop executing after the deadline, causing tracking codes within them to fail. The actual impact on your business depends on traffic sources, customer base, ad strategies, and other factors. This tool cannot predict the exact financial impact. We recommend evaluating migration priority based on your business situation.",
-          "dateSource": "<strong>Date Source:</strong> Deadlines are from Shopify official announcements for reference only. Please refer to Shopify Admin for actual deadlines. Shopify may update policies, we recommend checking Shopify official documentation regularly."
-        },
-        "gain": {
-          "title": "What will be restored after migration? (Your expected benefits)",
-          "events": {
-            "label": "Monthly Restored Events",
-            "desc": "Conversion tracking restored"
-          },
-          "potential": {
-            "label": "Potential Benefits (Example)",
-            "title": "Ensure Tracking",
-            "desc": "Avoid data interruption"
-          },
-          "webPixel": {
-            "label": "Web Pixel",
-            "title": "Standard Events",
-            "desc": "Compliant Migration (v1)"
-          },
-          "platform": {
-            "restored": "✓ Restored",
-            "desc": "Monthly {{orders}} conversion events → Ad Platforms"
-          },
-          "allRestored": "All tracking functions will be restored via Web Pixel standard event mapping (v1 MVP migration)",
-          "coreValue": "<strong>✅ Core Value of Migration:</strong> Migration is a one-time effort that ensures conversion tracking continues to work after ScriptTag deprecation. v1 provides Web Pixel standard event mapping (GA4/Meta/TikTok). Actual tracking effectiveness varies by store situation."
-        },
-        "comparison": {
-          "title": "Before vs After Migration",
-          "current": {
-            "label": "Current (No Migration)",
-            "risk": {
-              "high": "High Risk",
-              "medium": "Medium Risk",
-              "low": "Low Risk"
-            },
-            "desc": "{{count}} ScriptTags will fail"
-          },
-          "after": {
-            "label": "After Migration",
-            "title": "Function Restored",
-            "desc": "Web Pixel Standard Events"
-          },
-          "extra": {
-            "label": "Extra Benefits",
-            "title": "More Stable",
-            "desc": "Unaffected by privacy restrictions"
-          },
-          "v1": {
-            "title": "v1 MVP Migration Note",
-            "content": "✅ v1 Supports: Web Pixel standard event mapping (GA4/Meta/TikTok)<br />✅ Standard event mapping + Parameter completeness check + Downloadable payload evidence<br />✅ Acceptance wizard + Event parameter completeness + Order amount/currency consistency verification<br /><span class=\"subdued\">Note: Actual attribution effectiveness varies by ad account settings, traffic sources, etc.</span>"
-          }
-        },
-        "action": "Start Migration Now"
       }
     },
     "manualInput": {
@@ -1922,6 +1623,250 @@
         "processed": "Processed",
         "saveAudit": "Save to Audit"
       }
+    },
+    "manualAnalysis": {
+      "title": "Manual Analysis of Additional Scripts",
+      "description": "Shopify API cannot automatically read Additional Scripts content. Please copy the script code from Shopify Admin and paste it below for analysis.",
+      "privacy": {
+        "title": "Privacy Notice: Please anonymize before pasting",
+        "points": {
+          "p1": "May contain customer info, access tokens, or third-party keys. Please remove/replace sensitive fields before pasting.",
+          "p2": "Analysis is done locally in your browser. Script content is not uploaded; only identified platform info is used for migration suggestions.",
+          "p3": "We do not persist or log your pasted content; it is used only for local analysis within the browser session."
+        }
+      },
+      "deprecation": {
+        "plus": "Plus: {{plusDate}} / Non-Plus: {{nonPlusDate}} will expire",
+        "desc": "This is a hard deadline for Thank you / Order status page migration. Paste Additional Scripts code early and complete migration to avoid tracking interruptions.",
+        "important": "Important:",
+        "disclaimer": "Dates above are from Shopify official announcements for reference only. Please refer to Shopify Admin for actual deadlines. Shopify may update policies; we recommend checking official documentation regularly.",
+        "remaining": "Remaining:"
+      },
+      "actions": {
+        "migrate": "Go to Migration Page",
+        "enablePixel": "Enable/Upgrade App Pixel"
+      },
+      "guide": {
+        "title": "How to get Additional Scripts (Step-by-step Guide):",
+        "docsRef": "Reference Doc:",
+        "shopifyDocs": "Shopify Official Doc: Additional Scripts",
+        "screenshotGuide": "📸 Screenshot Guide (Recommended to save screenshots):",
+        "steps": {
+          "step1": {
+            "title": "Step 1: Log in to Shopify Admin",
+            "desc": "Visit https://admin.shopify.com and log in with admin account",
+            "tip": "📸 Screenshot Tip: After login, take a screenshot of the current page for reference. Include the top navigation bar to confirm successful login."
+          },
+          "step2": {
+            "title": "Step 2: Go to Settings → Checkout",
+            "desc": "Click 'Settings' (gear icon) at bottom left → Find and click 'Checkout and order processing' in the menu",
+            "tip": "📸 Screenshot Tip: After finding 'Checkout and order processing', take a screenshot to ensure you found the correct location.",
+            "hint": "💡 Tip: If you can't find this option, check if your Shopify plan supports custom checkout settings. Some basic plans may not show this."
+          },
+          "step3": {
+            "title": "Step 3: Find Additional Scripts Section",
+            "desc": "Scroll down in Checkout settings to find 'Order status page' section, look for 'Additional Scripts' text box",
+            "tip": "📸 Screenshot Tip: Take a screenshot of the Additional Scripts box. If it has content, ensure the full content is visible.",
+            "hint": "💡 Tip: If you don't see Additional Scripts, your store might be upgraded to the new Thank you / Order status page. Please check Shopify docs to confirm your page version.",
+            "warning": "⚠️ Important: Additional Scripts might be in different locations depending on your Shopify version and theme. If not found, try:",
+            "checks": {
+              "c1": "Check if page is fully loaded",
+              "c2": "Try browser search (Ctrl+F or Cmd+F) for 'Additional Scripts'",
+              "c3": "Check 'Order status page' section at the bottom"
+            }
+          },
+          "step4": {
+            "title": "Step 4: Copy Script Content",
+            "desc": "Select all content in Additional Scripts box (including all <script> tags), use Ctrl+C (Windows) or Cmd+C (Mac) to copy",
+            "warning": "⚠️ Important: Ensure you copy the complete script content",
+            "warningPoints": {
+              "p1": "Include opening and closing <script> tags",
+              "p2": "Use Ctrl+A (Windows) or Cmd+A (Mac) to select all if content is long",
+              "p3": "Ensure no code snippets are missed"
+            },
+            "hint": "💡 Tip: If content has multiple script blocks, ensure all are selected and copied. System automatically identifies multiple scripts."
+          },
+          "step5": {
+            "title": "Step 5: Paste and Analyze",
+            "desc": "Paste copied content into the text box below. System will automatically identify and analyze all tracking scripts",
+            "hint": "💡 Tip: System supports multi-script identification. If no scripts are identified after pasting, check if you copied complete content or try again."
+          }
+        },
+        "notFound": "Tip: If you can't find Additional Scripts, your store might not have custom scripts configured. Some themes or apps might add tracking code to Thank you page, which might also need migration. Refer to Shopify docs for more info."
+      },
+      "input": {
+        "label": "Paste Script Content",
+        "placeholder": "<!-- Example -->\n<script>\n  gtag('event', 'purchase', {...});\n  fbq('track', 'Purchase', {...});\n</script>",
+        "help": "Supports detecting Google, Meta, TikTok, Bing, etc.",
+        "analyze": "Analyze Script",
+        "emptyError": "Please enter script content",
+        "lengthError": "Script content too long (max {{max}} chars). Please analyze in parts or contact support.",
+        "error": "Analysis failed, please try again later"
+      },
+      "results": {
+        "riskTitle": "Risk Details",
+        "recommendationTitle": "Migration Suggestions",
+        "manualLabel": "Manual Analysis Result",
+        "generalTitle": "📋 Comprehensive Migration Suggestions",
+        "goToMigrate": "Go to Migration Tool",
+        "viewApp": "View App",
+        "configure": "Configure"
+      }
+    },
+    "migrationActionsCard": {
+      "title": "Migration Actions",
+      "pending": "{{count}} Pending",
+      "operationComplete": "Operation Complete",
+      "upgradeComplete": "Upgrade Complete",
+      "priority": {
+        "high": "High Priority",
+        "medium": "Medium Priority",
+        "low": "Low Priority"
+      },
+      "deadline": "Deadline: {{date}}",
+      "estimatedTime": "Est. Time: {{time}} min",
+      "cleanGuide": "View Guide",
+      "removeDuplicate": "Remove Duplicate",
+      "upgradeConfig": "Upgrade Config",
+      "configurePixel": "Configure Pixel",
+      "enableAppPixel": "Enable App Pixel",
+      "noPending": "No pending items",
+      "moreItems": "{{count}} more items..."
+    },
+    "utils": {
+      "severity": {
+        "high": "High Risk",
+        "medium": "Medium Risk",
+        "low": "Low Risk",
+        "unknown": "Unknown"
+      },
+      "status": {
+        "completed": "Completed",
+        "completedWithErrors": "Completed (with errors)",
+        "failed": "Failed",
+        "scanning": "Scanning",
+        "pending": "Pending",
+        "unknown": "Unknown"
+      },
+      "platform": {
+        "google": "GA4",
+        "meta": "Meta (Facebook) Pixel",
+        "tiktok": "TikTok Pixel",
+        "bing": "Microsoft Ads (Bing) ⚠️",
+        "clarity": "Microsoft Clarity ⚠️",
+        "webhook": "Generic Webhook"
+      }
+    },
+    "impactAnalysis": {
+      "title": "📊 Migration Impact Analysis (Reference Only)",
+      "badge": "Sample Estimate",
+      "disclaimer": "<strong>⚠️ Disclaimer:</strong> The following is a simplified illustration to help understand the necessity of migration. Actual business impact varies by store business model, traffic sources, customer base, ad account settings, etc. This tool cannot predict specific numerical impact and does not constitute any guarantee of results.",
+      "monthlyOrders": {
+        "title": "🧮 Enter your monthly orders to see specific impact",
+        "label": "Monthly Orders",
+        "suffix": "{{count}} orders/mo"
+      },
+      "loss": {
+        "title": "What will be lost without migration? (Illustration)",
+        "events": {
+          "label": "Potentially Affected Events",
+          "desc": "{{platformCount}} Platforms × {{orders}} Orders"
+        },
+        "scriptTags": {
+          "label": "Affected ScriptTags",
+          "desc": "Will stop execution on deadline"
+        },
+        "impact": {
+          "label": "Actual Impact",
+          "title": "Varies by Store",
+          "desc": "Depends on traffic source and customer base"
+        },
+        "platform": {
+          "invalid": "Will Fail",
+          "reference": "Reference (Estimate Only)"
+        },
+        "allInvalid": "All tracking codes in current ScriptTags will fail after deadline",
+        "warning": "<strong>⚠️ Important:</strong> ScriptTags will stop executing after the deadline, causing tracking codes within them to fail. The actual impact on your business depends on traffic sources, customer base, ad strategies, and other factors. This tool cannot predict the exact financial impact. We recommend evaluating migration priority based on your business situation.",
+        "dateSource": "<strong>Date Source:</strong> Deadlines are from Shopify official announcements for reference only. Please refer to Shopify Admin for actual deadlines. Shopify may update policies, we recommend checking Shopify official documentation regularly."
+      },
+      "gain": {
+        "title": "What will be restored after migration? (Your expected benefits)",
+        "events": {
+          "label": "Monthly Restored Events",
+          "desc": "Conversion tracking restored"
+        },
+        "potential": {
+          "label": "Potential Benefits (Example)",
+          "title": "Ensure Tracking",
+          "desc": "Avoid data interruption"
+        },
+        "webPixel": {
+          "label": "Web Pixel",
+          "title": "Standard Events",
+          "desc": "Compliant Migration (v1)"
+        },
+        "platform": {
+          "restored": "✓ Restored",
+          "desc": "Monthly {{orders}} conversion events → Ad Platforms"
+        },
+        "allRestored": "All tracking functions will be restored via Web Pixel standard event mapping (v1 MVP migration)",
+        "coreValue": "<strong>✅ Core Value of Migration:</strong> Migration is a one-time effort that ensures conversion tracking continues to work after ScriptTag deprecation. v1 provides Web Pixel standard event mapping (GA4/Meta/TikTok). Actual tracking effectiveness varies by store situation."
+      },
+      "comparison": {
+        "title": "Before vs After Migration",
+        "current": {
+          "label": "Current (No Migration)",
+          "risk": {
+            "high": "High Risk",
+            "medium": "Medium Risk",
+            "low": "Low Risk"
+          },
+          "desc": "{{count}} ScriptTags will fail"
+        },
+        "after": {
+          "label": "After Migration",
+          "title": "Function Restored",
+          "desc": "Web Pixel Standard Events"
+        },
+        "extra": {
+          "label": "Extra Benefits",
+          "title": "More Stable",
+          "desc": "Unaffected by privacy restrictions"
+        },
+        "v1": {
+          "title": "v1 MVP Migration Note",
+          "content": "✅ v1 Supports: Web Pixel standard event mapping (GA4/Meta/TikTok)<br />✅ Standard event mapping + Parameter completeness check + Downloadable payload evidence<br />✅ Acceptance wizard + Event parameter completeness + Order amount/currency consistency verification<br /><span class=\"subdued\">Note: Actual attribution effectiveness varies by ad account settings, traffic sources, etc.</span>"
+        }
+      },
+      "action": "Start Migration Now"
+    },
+    "analysisResult": {
+      "riskScore": "Risk Score",
+      "detectedPlatforms": "Detected Platforms",
+      "noPlatforms": "No known platforms detected",
+      "details": "Detection Details",
+      "noDetails": "No detection details",
+      "confidence": {
+        "high": "High Confidence",
+        "medium": "Medium Confidence"
+      }
+    },
+    "riskDetails": {
+      "title": "Risk Details",
+      "disclaimer": "Risk identification is based on script URLs and known platform fingerprints, not actual script content analysis. For more accurate detection, please paste actual script code in 'Script Content Analysis'.",
+      "impact": "Impact: {{impact}}",
+      "oneClickMigrate": "One-click Migrate",
+      "freeLimit": "Free Plan Limit: ",
+      "freeLimitDesc": "Showing only top {{limit}} high-risk items, {{count}} more hidden.",
+      "upgradeUnlock": "Upgrade to Unlock All",
+      "purchaseOnlyFix": "Buy Fix Only",
+      "estimatedFixTime": "Estimated Fix Time",
+      "basedOnRisk": "Estimated based on risk count and severity",
+      "upgradeMigration": "Upgrade Migration",
+      "upgradeMigrationDesc": "Upgrade to paid plan to use auto-migration tools."
+    },
+    "actions": {
+      "startMigration": "Start Migration"
     }
   },
   "verification": {
@@ -2255,7 +2200,11 @@
       "dependentsDesc": "Migration of following assets depends on this asset:"
     },
     "startMigration": "Start Migration",
-    "markComplete": "Mark Complete"
+    "markComplete": "Mark Complete",
+    "emptyScanTitle": "No Scan Results",
+    "emptyScanDesc": "Please run a scan first to generate the migration checklist.",
+    "startScan": "Start Scan",
+    "emptyResultsDesc": "No matching results found."
   },
   "settings": {
     "page": {
@@ -2325,6 +2274,24 @@
           "noAccess": "Checkout and accounts editor access required"
         }
       }
+    },
+    "alerts": {
+      "banner": {
+        "title": "Configure Alerts",
+        "content": "Set up monitoring alerts to get notified when data anomalies occur."
+      },
+      "title": "Alert Configuration",
+      "description": "Configure alert channels and thresholds.",
+      "threshold": "Threshold",
+      "empty": "No alert channels",
+      "addChannel": "Add Channel",
+      "channelType": "Channel Type",
+      "email": "Email",
+      "webhookUrl": "Webhook URL",
+      "botToken": "Bot Token",
+      "chatId": "Chat ID",
+      "discrepancyThreshold": "Discrepancy Threshold",
+      "saveConfig": "Save Configuration"
     }
   },
   "support": {
@@ -2677,6 +2644,80 @@
     "errors": {
       "shopNotFound": "Shop not found",
       "appInstalled": "Please ensure app is installed correctly."
+    },
+    "testingStep": {
+      "errors": {
+        "parseFailed": "Failed to parse response",
+        "validationFailed": "Validation failed for some platforms: {{platforms}}. Please check configuration and credentials.",
+        "validationError": "Error occurred during validation",
+        "switchFailed": "Failed to switch for some platforms: {{platforms}}. Please try again later.",
+        "switchError": "Error occurred during environment switch",
+        "network": "Network error",
+        "unknown": "Unknown error"
+      },
+      "success": {
+        "validationPassed": "All platform test environment configurations validated! Test events sent successfully.",
+        "switchPassed": "All platforms switched to production mode!",
+        "redirecting": "Configuration validated! Redirecting to verification page..."
+      },
+      "status": {
+        "saved": "Configuration Saved",
+        "nextStep": "Next: Test Verification",
+        "recommendations": "Configuration saved. We recommend:",
+        "steps": {
+          "validate": "Validate test environment configuration (optional)",
+          "createOrder": "Create a test order",
+          "monitor": "Check if events are sent successfully in 'Monitoring' page",
+          "verify": "Run verification test in 'Verification' page",
+          "switch": "Switch to 'Production Mode' in settings after verification"
+        }
+      },
+      "validation": {
+        "title": "Test Environment Validation",
+        "description": "Send test events to platforms to verify configuration",
+        "validating": "Validating...",
+        "sendEvent": "Send Test Event",
+        "eventSent": "Test event sent successfully",
+        "responseTime": "Response time: {{time}}ms",
+        "metaCode": "Meta Test Event Code: {{code}}",
+        "metaDesc": "Check this event in 'Test Events' page of Meta Events Manager. If you see the test event, configuration is correct.",
+        "openMeta": "Open Meta Events Manager",
+        "ga4Debug": "GA4 DebugView",
+        "ga4Desc": "Test event sent, check real-time event stream in GA4 DebugView.",
+        "openGa4": "Open GA4 DebugView",
+        "errorDetails": "Error Details",
+        "checkList": "Please check:",
+        "checkItems": {
+          "credentials": "Platform credentials are correct",
+          "network": "Network connection is normal",
+          "api": "Platform API is available"
+        },
+        "eventDetails": "Test Event Details",
+        "eventId": "Event ID: {{id}}",
+        "eventType": "Event Type: {{type}}",
+        "amount": "Test Amount: $1.00 USD"
+      },
+      "production": {
+        "title": "Switch to Production Mode",
+        "successTitle": "Test Validation Passed! Ready to switch to production mode.",
+        "desc": "After switching, events will be sent to actual ad platforms and start tracking real order conversions.",
+        "confirmTitle": "Please confirm before switching:",
+        "confirmItems": {
+          "credentials": "All platform credentials are correctly configured",
+          "eventSent": "Test events sent successfully and visible in platform",
+          "mapping": "Event mapping configuration meets your business needs",
+          "monitor": "Understood how to view and monitor production events"
+        },
+        "tip": "💡 Tip: After switching to production mode, it is recommended to run a verification test to ensure all events are sent normally. You can perform a full verification test in the 'Verification Wizard' page.",
+        "action": "Switch to Production Mode & Go to Verification",
+        "note": "After switching, you can switch back to test mode or rollback configuration in 'Settings' page at any time.",
+        "validatedTitle": "✅ Configuration Validated! Recommended to run verification test.",
+        "redirectNote": "System will automatically redirect to verification page in 3 seconds, or click button below manually."
+      },
+      "actions": {
+        "runVerification": "Run Verification Test",
+        "complete": "✅ Complete & Go to Verification"
+      }
     }
   },
   "components": {

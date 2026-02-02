@@ -192,13 +192,13 @@ export function ScanAutoTab({
                     <BlockStack gap="400">
                         <InlineStack align="space-between" blockAlign="center">
                             <Text as="h2" variant="headingMd">
-                                {t("scan.autoTab.riskDetails.title")}
+                                {t("scan.riskDetails.title")}
                             </Text>
                             <Badge tone="info">{t("common.countItems", { count: riskItems.length })}</Badge>
                         </InlineStack>
                         <Banner tone="info">
                             <Text as="p" variant="bodySm">
-                                {t("scan.autoTab.riskDetails.disclaimer")}
+                                {t("scan.riskDetails.disclaimer")}
                             </Text>
                         </Banner>
                         {(() => {
@@ -249,12 +249,12 @@ export function ScanAutoTab({
                                                     )}
                                                     {(item.impact || item.impactKey) && (
                                                                 <Text as="span" variant="bodySm" tone="critical">
-                                                                    {t("scan.autoTab.riskDetails.impact")} {item.impactKey ? t(item.impactKey, item.impactParams) : item.impact}
+                                                                    {t("scan.riskDetails.impact")} {item.impactKey ? t(item.impactKey, item.impactParams) : item.impact}
                                                                 </Text>
                                                             )}
                                                         </InlineStack>
                                                         <Button url={`/app/migrate${item.platform ? `?platform=${item.platform}` : ""}`} size="slim" icon={ArrowRightIcon}>
-                                                            {t("scan.autoTab.riskDetails.oneClickMigrate")}
+                                                            {t("scan.riskDetails.oneClickMigrate")}
                                                         </Button>
                                                     </InlineStack>
                                                 </BlockStack>
@@ -265,7 +265,7 @@ export function ScanAutoTab({
                                         <Banner tone="warning">
                                             <BlockStack gap="200">
                                                 <Text as="p" variant="bodySm">
-                                                    <strong>{t("scan.autoTab.riskDetails.freeLimit")}</strong>{t("scan.autoTab.riskDetails.freeLimitDesc", { limit: FREE_AUDIT_LIMIT, count: hiddenCount })}
+                                                    <strong>{t("scan.riskDetails.freeLimit")}</strong>{t("scan.riskDetails.freeLimitDesc", { limit: FREE_AUDIT_LIMIT, count: hiddenCount })}
                                                 </Text>
                                                 <InlineStack gap="200">
                                                     <Button
@@ -273,13 +273,13 @@ export function ScanAutoTab({
                                                         variant="primary"
                                                         size="slim"
                                                     >
-                                                        {t("scan.autoTab.riskDetails.upgradeUnlock")}
+                                                        {t("scan.riskDetails.upgradeUnlock")}
                                                     </Button>
                                                     <Button
                                                         url="/app/migrate"
                                                         size="slim"
                                                     >
-                                                        {t("scan.autoTab.riskDetails.purchaseOnlyFix")}
+                                                        {t("scan.riskDetails.purchaseOnlyFix")}
                                                     </Button>
                                                 </InlineStack>
                                             </BlockStack>
@@ -289,7 +289,7 @@ export function ScanAutoTab({
                                         <BlockStack gap="300">
                                             <InlineStack align="space-between" blockAlign="center">
                                                 <Text as="span" fontWeight="semibold">
-                                                    {t("scan.autoTab.riskDetails.estimatedFixTime")}
+                                                    {t("scan.riskDetails.estimatedFixTime")}
                                                 </Text>
                                                 <Badge tone={estimatedTimeMinutes > 60 ? "warning" : "info"}>
                                                     {estimatedTimeMinutes > 60
@@ -298,12 +298,12 @@ export function ScanAutoTab({
                                                 </Badge>
                                             </InlineStack>
                                             <Text as="p" variant="bodySm" tone="subdued">
-                                                {t("scan.autoTab.riskDetails.basedOnRisk")}
+                                                {t("scan.riskDetails.basedOnRisk")}
                                             </Text>
                                             {isFreePlan && (
                                                 <Banner tone="info">
                                                     <Text as="p" variant="bodySm">
-                                                        <strong>{t("scan.autoTab.riskDetails.upgradeMigration")}</strong>{t("scan.autoTab.riskDetails.upgradeMigrationDesc")}
+                                                        <strong>{t("scan.riskDetails.upgradeMigration")}</strong>{t("scan.riskDetails.upgradeMigrationDesc")}
                                                     </Text>
                                                 </Banner>
                                             )}
@@ -320,9 +320,9 @@ export function ScanAutoTab({
                     <BlockStack gap="400">
                         <InlineStack align="space-between" blockAlign="center">
                             <Text as="h2" variant="headingMd">
-                                {t("scan.autoTab.migrationActions.title")}
+                                {t("scan.migrationActionsCard.title")}
                             </Text>
-                            <Badge tone="attention">{`${migrationActions.length} ${t("scan.autoTab.migrationActions.pending")}`}</Badge>
+                            <Badge tone="attention">{t("scan.migrationActionsCard.pending", { count: migrationActions.length })}</Badge>
                         </InlineStack>
                         <BlockStack gap="300">
                             {migrationActions.map((action, index) => (
@@ -341,13 +341,13 @@ export function ScanAutoTab({
                                                         {action.priority === "high" ? t("scan.autoTab.upgradeWindow.high") :
                                                          action.priority === "medium" ? t("scan.autoTab.upgradeWindow.medium") : t("scan.autoTab.upgradeWindow.low")}
                                                     </Badge>
-                                            </InlineStack>
-                                            {action.platform && (
-                                                <Badge>{getPlatformName(action.platform, t)}</Badge>
-                                            )}
-                                        </BlockStack>
-                                        {action.deadline && (
-                                                <Badge tone="warning">{`${t("scan.autoTab.migrationActions.deadline")} ${action.deadline}`}</Badge>
+                                                </InlineStack>
+                                                {action.platform && (
+                                                    <Badge>{getPlatformName(action.platform, t)}</Badge>
+                                                )}
+                                            </BlockStack>
+                                            {action.deadline && (
+                                                <Badge tone="warning">{`${t("scan.migrationActionsCard.deadline")} ${action.deadline}`}</Badge>
                                             )}
                                         </InlineStack>
                                         <Text as="p" variant="bodySm" tone="subdued">
@@ -363,7 +363,7 @@ export function ScanAutoTab({
                                                         action.platform
                                                     )}
                                                 >
-                                                    {t("scan.autoTab.migrationActions.cleanGuide")}
+                                                    {t("scan.migrationActionsCard.cleanGuide")}
                                                 </Button>
                                             )}
                                             {action.type === "remove_duplicate" && action.webPixelGid && (
@@ -373,7 +373,7 @@ export function ScanAutoTab({
                                                     loading={isDeleting && pendingDelete?.gid === action.webPixelGid}
                                                     onClick={() => onDeleteWebPixel(action.webPixelGid!, action.platform)}
                                                 >
-                                                    {t("scan.autoTab.migrationActions.removeDuplicate")}
+                                                    {t("scan.migrationActionsCard.removeDuplicate")}
                                                 </Button>
                                             )}
                                             {action.type === "configure_pixel" && action.description?.includes("升级") && (
@@ -383,7 +383,7 @@ export function ScanAutoTab({
                                                     loading={isUpgrading}
                                                     onClick={onUpgradePixelSettings}
                                                 >
-                                                    {t("scan.autoTab.migrationActions.upgradeConfig")}
+                                                    {t("scan.migrationActionsCard.upgradeConfig")}
                                                 </Button>
                                             )}
                                             {action.type === "configure_pixel" && !action.description?.includes("升级") && (
@@ -392,7 +392,7 @@ export function ScanAutoTab({
                                                     url="/app/migrate"
                                                     icon={ArrowRightIcon}
                                                 >
-                                                    {t("scan.autoTab.migrationActions.configurePixel")}
+                                                    {t("scan.migrationActionsCard.configurePixel")}
                                                 </Button>
                                             )}
                                         </InlineStack>
