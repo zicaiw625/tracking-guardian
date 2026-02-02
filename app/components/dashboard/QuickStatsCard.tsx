@@ -44,19 +44,19 @@ export const QuickStatsCard = memo(function QuickStatsCard({
           <InlineStack align="space-between">
             <Text as="span">{t("dashboard.quickStats.currentPlan")}</Text>
             <Badge>
-              {planLabel || (plan === "free" ? t("dashboard.quickStats.freePlan") : plan)}
+              {planLabel ? t(planLabel) : (plan === "free" ? t("dashboard.quickStats.freePlan") : plan)}
             </Badge>
           </InlineStack>
           {planTagline && (
             <Text as="p" variant="bodySm" tone="subdued">
-              {planTagline}
+              {t(planTagline)}
             </Text>
           )}
           {displayFeatures.length > 0 && (
             <List>
               {displayFeatures.map((f, i) => (
                 <List.Item key={i}>
-                  <Text as="span" variant="bodySm">{f}</Text>
+                  <Text as="span" variant="bodySm">{t(f)}</Text>
                 </List.Item>
               ))}
               {hasMoreFeatures && (

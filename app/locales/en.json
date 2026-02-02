@@ -1,4 +1,72 @@
 {
+  "plans": {
+    "free": {
+      "name": "Free",
+      "tagline": "For new merchants",
+      "features": {
+        "audit": "Full Site Script Audit",
+        "checklist": "Smart Migration Checklist",
+        "deprecation": "Deprecation Timeline Alerts",
+        "countdown": "Deadline Countdown",
+        "docs": "Basic Migration Docs"
+      }
+    },
+    "starter": {
+      "name": "Starter",
+      "tagline": "For small businesses",
+      "features": {
+        "pixel": "Web Pixel Setup Wizard",
+        "mapping": "Standard Event Mapping",
+        "payload": "Custom Data Payload",
+        "wizard": "Visual Configuration UI",
+        "env": "Test/Prod Environment",
+        "limit": "1,000 Orders/Month",
+        "retention": "30-Day Data Retention",
+        "sandbox": "Sandbox Environment"
+      }
+    },
+    "growth": {
+      "name": "Growth",
+      "tagline": "For growing businesses",
+      "features": {
+        "migration": "Seamless Migration Assistant",
+        "report": "Detailed Comparison Reports",
+        "checklist": "Migration Progress Tracking",
+        "consistency": "Data Consistency Check",
+        "compliance": "Compliance Check",
+        "reconciliation": "Automated Reconciliation",
+        "alerts": "Data Anomaly Alerts",
+        "limit": "10,000 Orders/Month",
+        "retention": "90-Day Data Retention"
+      }
+    },
+    "monitor": {
+      "name": "Monitor",
+      "tagline": "Data monitoring only",
+      "features": {
+        "drop": "Data Drop-to-Zero Alert",
+        "threshold": "Conversion Rate Alert",
+        "missing": "Missing Parameter Monitor",
+        "logs": "Detailed Error Logs",
+        "rollback": "One-Click Rollback",
+        "channels": "Multi-Channel Notifications",
+        "realtime": "Real-time Dashboard",
+        "note": "Monitoring only, no pixel management"
+      }
+    },
+    "agency": {
+      "name": "Agency",
+      "tagline": "For agencies and large merchants",
+      "features": {
+        "unlimited": "Unlimited Pixels",
+        "support": "Priority Support",
+        "limit": "100,000 Orders/Month",
+        "retention": "365-Day Data Retention",
+        "manager": "Dedicated Account Manager",
+        "sla": "SLA Guarantee"
+      }
+    }
+  },
   "onboarding": {
     "upgradeHealthCheck": {
       "title": "🏥 Upgrade Health Check Report",
