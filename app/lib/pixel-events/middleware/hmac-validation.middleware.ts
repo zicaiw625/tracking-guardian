@@ -27,10 +27,13 @@ export const hmacValidationMiddleware: IngestMiddleware = async (
   const hasAnySecret = Boolean(context.shop.ingestionSecret || context.shop.previousIngestionSecret);
 
   if (context.signature && hasAnySecret && context.timestamp) {
+    const crypto = await import("crypto");
+    const bodyHash = crypto.createHash("sha256").update(context.bodyText!).digest("hex");
+
     const verifyWithToken = async (token: string) => {
       const result = await validatePixelEventHMAC(
         context.request,
-        context.bodyText!,
+        bodyHash,
         token,
         context.shopDomain!,
         context.timestamp!,

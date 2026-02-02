@@ -54,6 +54,37 @@ export async function runDispatchWorker(options?: { maxJobs?: number }): Promise
   let sent = 0;
   let failed = 0;
 
+  const uniquePairs = new Map<string, { shopId: string; platform: string }>();
+  for (const job of jobs) {
+    const platform = DESTINATION_TO_PLATFORM[job.destination];
+    if (platform) {
+      uniquePairs.set(`${job.InternalEvent.shopId}:${platform}`, { shopId: job.InternalEvent.shopId, platform });
+    }
+  }
+
+  const configsMap = new Map<string, { shopId: string; platform: string; credentialsEncrypted: string | null; credentials_legacy: any }>();
+  if (uniquePairs.size > 0) {
+    const configs = await prisma.pixelConfig.findMany({
+      where: {
+        OR: Array.from(uniquePairs.values()).map((p) => ({
+          shopId: p.shopId,
+          platform: p.platform,
+          serverSideEnabled: true,
+          isActive: true,
+        })),
+      },
+      select: {
+        shopId: true,
+        platform: true,
+        credentialsEncrypted: true,
+        credentials_legacy: true,
+      },
+    });
+    for (const c of configs) {
+      configsMap.set(`${c.shopId}:${c.platform}`, c);
+    }
+  }
+
   for (const job of jobs) {
     const platform = DESTINATION_TO_PLATFORM[job.destination];
     if (!platform) {
@@ -61,15 +92,7 @@ export async function runDispatchWorker(options?: { maxJobs?: number }): Promise
       failed++;
       continue;
     }
-    const config = await prisma.pixelConfig.findFirst({
-      where: {
-        shopId: job.InternalEvent.shopId,
-        platform,
-        serverSideEnabled: true,
-        isActive: true,
-      },
-      select: { credentialsEncrypted: true, credentials_legacy: true },
-    });
+    const config = configsMap.get(`${job.InternalEvent.shopId}:${platform}`);
     if (!config) {
       await markFailed(job.id, "No S2S credentials for destination", null, job.attempts + 1);
       failed++;

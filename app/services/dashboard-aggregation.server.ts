@@ -1,7 +1,6 @@
 import { randomUUID } from "crypto";
 import prisma from "../db.server";
 import { logger } from "../utils/logger.server";
-import { parseReceiptPayload, extractPlatformFromPayload, isRecord, isReceiptHmacMatched } from "../utils/common";
 
 export interface DailyAggregatedMetrics {
   shopId: string;
@@ -24,57 +23,86 @@ export async function aggregateDailyMetrics(
   startOfDay.setUTCHours(0, 0, 0, 0);
   const endOfDay = new Date(date);
   endOfDay.setUTCHours(23, 59, 59, 999);
-  const receipts = await prisma.pixelEventReceipt.findMany({
+
+  const [
+    totalEvents,
+    groupedByPlatform,
+    validOrders
+  ] = await Promise.all([
+    // 1. Total Event Volume (all events)
+    prisma.pixelEventReceipt.count({
+      where: {
+        shopId,
+        createdAt: { gte: startOfDay, lte: endOfDay },
+      },
+    }),
+
+    // 2. Platform Breakdown (successful orders only)
+    prisma.pixelEventReceipt.groupBy({
+      by: ["platform"],
+      where: {
+        shopId,
+        createdAt: { gte: startOfDay, lte: endOfDay },
+        eventType: { in: ["purchase", "checkout_completed"] },
+        hmacMatched: true,
+        totalValue: { not: null },
+        currency: { not: null },
+      },
+      _sum: {
+        totalValue: true,
+      },
+      _count: {
+        _all: true,
+      },
+    } as any),
+
+    // 3. Valid Orders stats (for total value and count)
+    prisma.pixelEventReceipt.aggregate({
+      where: {
+        shopId,
+        createdAt: { gte: startOfDay, lte: endOfDay },
+        eventType: { in: ["purchase", "checkout_completed"] },
+        hmacMatched: true,
+        totalValue: { not: null },
+        currency: { not: null },
+      },
+      _sum: {
+        totalValue: true,
+      },
+      _count: {
+        _all: true,
+      },
+    } as any),
+  ]);
+
+  // 4. Calculate Missing Params (hmac matched but missing value/currency)
+  const potentialOrders = await prisma.pixelEventReceipt.count({
     where: {
       shopId,
       createdAt: { gte: startOfDay, lte: endOfDay },
-    },
-    select: { payloadJson: true, createdAt: true, eventType: true },
-    take: 10000,
+      eventType: { in: ["purchase", "checkout_completed"] },
+      hmacMatched: true,
+    } as any,
   });
-  const purchaseReceipts = receipts.filter(
-    (r) => r.eventType === "purchase" || r.eventType === "checkout_completed"
-  );
-  const matchedReceipts = purchaseReceipts.filter((r) => isReceiptHmacMatched(r.payloadJson));
-  const orders: Array<{ platform: string; status: string; value: number }> = [];
-  for (const receipt of matchedReceipts) {
-    const parsed = parseReceiptPayload(receipt.payloadJson);
-    if (!parsed) {
-      const payload = isRecord(receipt.payloadJson) ? receipt.payloadJson : null;
-      const platform = extractPlatformFromPayload(payload) || "unknown";
-      const data = payload && isRecord(payload.data) ? payload.data : null;
-      const value = data && typeof data.value === "number" ? data.value : 0;
-      const hasValue = value > 0;
-      const hasCurrency = data !== null && typeof data.currency === "string" && data.currency.trim().length > 0;
-      orders.push({
-        platform,
-        status: hasValue && hasCurrency ? "ok" : "pending",
-        value,
-      });
-    } else {
-      orders.push({
-        platform: parsed.platform,
-        status: parsed.hasValue && parsed.hasCurrency ? "ok" : "pending",
-        value: parsed.value,
-      });
-    }
-  }
-  const totalOrders = orders.length;
-  const successfulOrders = orders.filter((o) => o.status === "ok").length;
-  const totalValue = orders.reduce((sum, o) => sum + o.value, 0);
+
+  const totalOrders = potentialOrders;
+  const successfulOrders = (validOrders as any)._count._all;
+  const totalValue = (validOrders as any)._sum.totalValue ? Number((validOrders as any)._sum.totalValue) : 0;
   const successRate = totalOrders > 0 ? successfulOrders / totalOrders : 0;
+  const missingParamsRate = totalOrders > 0 ? (totalOrders - successfulOrders) / totalOrders : 0;
+
   const platformBreakdown: Record<string, { count: number; value: number }> = {};
-  for (const order of orders) {
-    if (!platformBreakdown[order.platform]) {
-      platformBreakdown[order.platform] = { count: 0, value: 0 };
-    }
-    platformBreakdown[order.platform].count++;
-    platformBreakdown[order.platform].value += order.value;
+  for (const group of (groupedByPlatform as any[])) {
+    const platform = group.platform || "unknown";
+    platformBreakdown[platform] = {
+      count: group._count._all,
+      value: group._sum.totalValue ? Number(group._sum.totalValue) : 0,
+    };
   }
-  const eventVolume = receipts.length;
-  const ordersWithMissingParams = orders.filter((o) => o.status !== "ok").length;
-  const missingParamsRate = totalOrders > 0 ? ordersWithMissingParams / totalOrders : 0;
+
+  const eventVolume = totalEvents;
   const now = new Date();
+
   await prisma.dailyAggregatedMetrics.upsert({
     where: { shopId_date: { shopId, date: startOfDay } },
     create: {
@@ -99,6 +127,7 @@ export async function aggregateDailyMetrics(
       updatedAt: now,
     },
   });
+
   return {
     shopId,
     date: startOfDay,
@@ -131,79 +160,115 @@ export async function getAggregatedMetrics(
   eventVolumeByType: Record<string, number>;
   totalEventVolume: number;
 }> {
-  const receipts = await prisma.pixelEventReceipt.findMany({
-    where: {
-      shopId,
-      createdAt: {
-        gte: startDate,
-        lte: endDate,
+  const [
+    eventVolumeGrouped,
+    validOrdersGrouped,
+    potentialOrdersGrouped, // For success rate calc
+    allMatchedReceipts
+  ] = await Promise.all([
+    // 1. Event Volume by Type
+    prisma.pixelEventReceipt.groupBy({
+      by: ["eventType"],
+      where: {
+        shopId,
+        createdAt: { gte: startDate, lte: endDate },
       },
-    },
-    select: {
-      payloadJson: true,
-      createdAt: true,
-      eventType: true,
-    },
-    take: 10000,
-  });
-  const purchaseReceipts = receipts.filter(
-    (r) => r.eventType === "purchase" || r.eventType === "checkout_completed"
-  );
+      _count: {
+        _all: true,
+      },
+    }),
+
+    // 2. Platform Breakdown (valid orders)
+    prisma.pixelEventReceipt.groupBy({
+      by: ["platform"],
+      where: {
+        shopId,
+        createdAt: { gte: startDate, lte: endDate },
+        eventType: { in: ["purchase", "checkout_completed"] },
+        hmacMatched: true,
+        totalValue: { not: null },
+        currency: { not: null },
+      },
+      _sum: {
+        totalValue: true,
+      },
+      _count: {
+        _all: true,
+      },
+    } as any),
+
+    // 3. Potential Orders (hmac matched) for success rate denominator
+    prisma.pixelEventReceipt.count({
+      where: {
+        shopId,
+        createdAt: { gte: startDate, lte: endDate },
+        eventType: { in: ["purchase", "checkout_completed"] },
+        hmacMatched: true,
+      } as any,
+    }),
+
+    // 4. Daily Breakdown (fetch light data to aggregate in node)
+    prisma.pixelEventReceipt.findMany({
+      where: {
+        shopId,
+        createdAt: { gte: startDate, lte: endDate },
+        eventType: { in: ["purchase", "checkout_completed"] },
+        hmacMatched: true,
+      } as any,
+      select: {
+        createdAt: true,
+        totalValue: true,
+        currency: true,
+      } as any,
+      take: 50000,
+    }),
+  ]);
+
   const eventVolumeByType: Record<string, number> = {};
-  for (const r of receipts) {
-    const t = r.eventType || "unknown";
-    eventVolumeByType[t] = (eventVolumeByType[t] ?? 0) + 1;
+  let totalEventVolume = 0;
+  for (const group of eventVolumeGrouped) {
+    const type = group.eventType || "unknown";
+    const count = group._count._all;
+    eventVolumeByType[type] = count;
+    totalEventVolume += count;
   }
-  const orders: Array<{ platform: string; status: string; value: number; createdAt: Date }> = [];
-  for (const receipt of purchaseReceipts) {
-    const parsed = parseReceiptPayload(receipt.payloadJson);
-    if (!parsed) {
-      const payload = isRecord(receipt.payloadJson) ? receipt.payloadJson : null;
-      const platform = extractPlatformFromPayload(payload) || "unknown";
-      const data = payload && isRecord(payload.data) ? payload.data : null;
-      const value = data && typeof data.value === "number" ? data.value : 0;
-      const hasValue = value > 0;
-      const hasCurrency = data !== null && typeof data.currency === "string" && data.currency.trim().length > 0;
-      orders.push({
-        platform,
-        status: hasValue && hasCurrency ? "ok" : "pending",
-        value,
-        createdAt: receipt.createdAt,
-      });
-    } else {
-      orders.push({
-        platform: parsed.platform,
-        status: parsed.hasValue && parsed.hasCurrency ? "ok" : "pending",
-        value: parsed.value,
-        createdAt: receipt.createdAt,
-      });
-    }
-  }
-  const totalOrders = orders.length;
-  const successfulOrders = orders.filter((o) => o.status === "ok").length;
-  const totalValue = orders.reduce((sum, o) => sum + o.value, 0);
-  const successRate = totalOrders > 0 ? successfulOrders / totalOrders : 0;
+
   const platformBreakdown: Record<string, { count: number; value: number }> = {};
-  for (const order of orders) {
-    if (!platformBreakdown[order.platform]) {
-      platformBreakdown[order.platform] = { count: 0, value: 0 };
-    }
-    platformBreakdown[order.platform].count++;
-    platformBreakdown[order.platform].value += order.value;
+  let totalValue = 0;
+  let successfulOrdersCount = 0;
+  
+  for (const group of (validOrdersGrouped as any[])) {
+    const platform = group.platform || "unknown";
+    const val = group._sum.totalValue ? Number(group._sum.totalValue) : 0;
+    const cnt = group._count._all;
+    platformBreakdown[platform] = {
+      count: cnt,
+      value: val,
+    };
+    totalValue += val;
+    successfulOrdersCount += cnt;
   }
+
+  const totalOrders = potentialOrdersGrouped;
+  const successRate = totalOrders > 0 ? successfulOrdersCount / totalOrders : 0;
+
   const dailyMap = new Map<string, { orders: number; value: number; successful: number }>();
-  for (const order of orders) {
-    const dateKey = order.createdAt.toISOString().split("T")[0];
+  
+  for (const r of allMatchedReceipts) {
+    const dateKey = (r as any).createdAt.toISOString().split("T")[0];
     if (!dailyMap.has(dateKey)) {
       dailyMap.set(dateKey, { orders: 0, value: 0, successful: 0 });
     }
     const day = dailyMap.get(dateKey)!;
-    day.orders++;
-    day.value += order.value;
-    if (order.status === "ok") {
+    day.orders++; // It is a matched receipt, so it counts as an order attempt
+    
+    const isValid = (r as any).totalValue !== null && (r as any).currency !== null;
+    if (isValid) {
       day.successful++;
+      day.value += Number((r as any).totalValue);
     }
   }
+
   const dailyBreakdown = Array.from(dailyMap.entries())
     .map(([dateKey, stats]) => ({
       date: new Date(dateKey),
@@ -212,6 +277,7 @@ export async function getAggregatedMetrics(
       successRate: stats.orders > 0 ? stats.successful / stats.orders : 0,
     }))
     .sort((a, b) => a.date.getTime() - b.date.getTime());
+
   return {
     totalOrders,
     totalValue,
@@ -219,7 +285,7 @@ export async function getAggregatedMetrics(
     platformBreakdown,
     dailyBreakdown,
     eventVolumeByType,
-    totalEventVolume: receipts.length,
+    totalEventVolume,
   };
 }
 

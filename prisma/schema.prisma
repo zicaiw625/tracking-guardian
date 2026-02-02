@@ -226,6 +226,10 @@ model PixelEventReceipt {
   checkoutFingerprint String?
   orderKey          String?
   altOrderKey       String?
+  hmacMatched       Boolean          @default(false)
+  trustLevel        String           @default("untrusted")
+  totalValue        Decimal?         @db.Decimal(12, 2)
+  currency          String?
   createdAt         DateTime         @default(now())
   Shop              Shop             @relation(fields: [shopId], references: [id], onDelete: Cascade)
   VerificationRun   VerificationRun? @relation(fields: [verificationRunId], references: [id], onDelete: SetNull)
@@ -240,6 +244,7 @@ model PixelEventReceipt {
   @@index([altOrderKey])
   @@index([eventId])
   @@index([platform])
+  @@index([shopId, createdAt, hmacMatched])
 }
 
 model VerificationRun {

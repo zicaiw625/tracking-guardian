@@ -36,25 +36,11 @@ export interface IngestQueueEntry {
 export async function enqueueIngestBatch(entry: IngestQueueEntry): Promise<boolean> {
   try {
     const redis = await getRedisClient();
-    const currentLen = await redis.lLen(QUEUE_KEY);
-    if (currentLen >= MAX_QUEUE_SIZE) {
-      logger.warn("Ingest queue at max size, trimming oldest entries before enqueue", {
-        queueKey: QUEUE_KEY,
-        length: currentLen,
-        maxSize: MAX_QUEUE_SIZE,
-      });
-      await redis.lTrim(QUEUE_KEY, 0, MAX_QUEUE_SIZE - 2);
-    }
     const serialized = JSON.stringify(entry);
-    const len = await redis.lPush(QUEUE_KEY, serialized);
-    if (len > MAX_QUEUE_SIZE) {
-      logger.warn("Ingest queue exceeded max size after enqueue, trimming", {
-        queueKey: QUEUE_KEY,
-        length: len,
-        maxSize: MAX_QUEUE_SIZE,
-      });
-      await redis.lTrim(QUEUE_KEY, 0, MAX_QUEUE_SIZE - 1);
-    }
+    
+    await redis.lPush(QUEUE_KEY, serialized);
+    await redis.lTrim(QUEUE_KEY, 0, MAX_QUEUE_SIZE - 1);
+    
     return true;
   } catch (e) {
     logger.error("Failed to enqueue ingest batch", {
@@ -71,7 +57,6 @@ export async function processIngestQueue(
 ): Promise<{ processed: number; errors: number }> {
   const maxBatches = options?.maxBatches ?? MAX_BATCHES_PER_RUN;
   const { normalizeEvents, deduplicateEvents, distributeEvents } = await import("./ingest-pipeline.server");
-  const { processBatchEvents } = await import("~/services/events/pipeline.server");
   const { API_CONFIG } = await import("~/utils/config.server");
   const redis = await getRedisClient();
   let processed = 0;
@@ -127,33 +112,6 @@ export async function processIngestQueue(
         undefined
       );
 
-      const forPipeline = processedEvents.map((e) => ({
-        payload: e.payload,
-        eventId: e.eventId,
-        destinations: e.destinations,
-      }));
-
-      if (forPipeline.length === 0) {
-        processed++;
-        continue;
-      }
-
-      const results = await processBatchEvents(
-        entry.shopId,
-        forPipeline,
-        entry.environment,
-        { persistOnly: true }
-      );
-      const ok = results.filter((r) => r.success).length;
-      if (ok < forPipeline.length) {
-        logger.error("Worker failed to persist some ingest events", {
-          shopDomain: entry.shopDomain,
-          shopId: entry.shopId,
-          total: forPipeline.length,
-          persisted: ok,
-        });
-        errors++;
-      }
       try {
         const { persistInternalEventsAndDispatchJobs } = await import("~/services/dispatch/internal-event-write.server");
         await persistInternalEventsAndDispatchJobs(

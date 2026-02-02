@@ -2,17 +2,8 @@ import { randomUUID } from "crypto";
 import prisma from "~/db.server";
 import { logger } from "~/utils/logger.server";
 import { billingCache } from "~/utils/cache";
-import { isReceiptHmacMatched } from "~/utils/common";
 import type { PlanId } from "./plans";
 import { getPlanLimit } from "./plans";
-
-function extractPlatformFromPayload(payload: Record<string, unknown> | null): string | null {
-  if (!payload || typeof payload !== "object") return null;
-  const data = payload.data as Record<string, unknown> | undefined;
-  if (!data || typeof data !== "object") return null;
-  const platform = data.platform as string | undefined;
-  return platform || null;
-}
 
 export interface UsageStats {
   currentMonth: {
@@ -58,30 +49,25 @@ export async function getMonthlyUsage(
   const previousMonthOrders = previousUsage?.sentCount || 0;
   
   const platformCounts: Record<string, number> = {};
-  const currentMonthReceipts = await prisma.pixelEventReceipt.findMany({
+  const groupedPlatformCounts = await prisma.pixelEventReceipt.groupBy({
+    by: ["platform"],
     where: {
       shopId,
       createdAt: { gte: currentMonthStart },
       eventType: { in: ["purchase", "checkout_completed"] },
-    },
-    select: {
-      payloadJson: true,
+      hmacMatched: true,
+      totalValue: { not: null },
+      currency: { not: null },
+    } as any,
+    _count: {
+      _all: true,
     },
   });
-  const matchedCurrentMonthReceipts = currentMonthReceipts.filter((r) =>
-    isReceiptHmacMatched(r.payloadJson)
-  );
-  matchedCurrentMonthReceipts.forEach((receipt) => {
-    const payload = receipt.payloadJson as Record<string, unknown> | null;
-    const platform = extractPlatformFromPayload(payload);
-    if (!platform) return;
-    const data = payload?.data as Record<string, unknown> | undefined;
-    const hasValue = data?.value !== undefined && data?.value !== null;
-    const hasCurrency = !!data?.currency;
-    if (hasValue && hasCurrency) {
-      platformCounts[platform] = (platformCounts[platform] || 0) + 1;
-    }
-  });
+
+  for (const group of groupedPlatformCounts) {
+    const platform = group.platform || "unknown";
+    platformCounts[platform] = group._count._all;
+  }
   
   const limit = getPlanLimit(planId);
   const usagePercentage = limit > 0 ? (currentMonthOrders / limit) * 100 : 0;
@@ -97,10 +83,20 @@ export async function getMonthlyUsage(
   } else if (currentMonthOrders > 0) {
     trend = "up";
   }
+
+  const matchedEventsCount = await prisma.pixelEventReceipt.count({
+    where: {
+      shopId,
+      createdAt: { gte: currentMonthStart },
+      eventType: { in: ["purchase", "checkout_completed"] },
+      hmacMatched: true,
+    } as any,
+  });
+
   return {
     currentMonth: {
       orders: currentMonthOrders,
-      events: matchedCurrentMonthReceipts.length,
+      events: matchedEventsCount,
       platforms: platformCounts,
     },
     previousMonth: {
@@ -243,22 +239,15 @@ export async function isOrderAlreadyCounted(
       shopId,
       orderKey: orderId,
       eventType: { in: ["purchase", "checkout_completed"] },
-    },
+      hmacMatched: true,
+      totalValue: { not: null },
+      currency: { not: null },
+    } as any,
     select: {
-      payloadJson: true,
+      id: true,
     },
   });
-  if (receipt) {
-    if (!isReceiptHmacMatched(receipt.payloadJson)) {
-      return false;
-    }
-    const payload = receipt.payloadJson as Record<string, unknown> | null;
-    const data = payload?.data as Record<string, unknown> | undefined;
-    const hasValue = data?.value !== undefined && data?.value !== null;
-    const hasCurrency = !!data?.currency;
-    return hasValue && hasCurrency;
-  }
-  return false;
+  return !!receipt;
 }
 
 export async function incrementMonthlyUsage(

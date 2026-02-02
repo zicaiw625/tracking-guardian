@@ -91,15 +91,6 @@ const ALERT_CHANNELS_ENABLED = ["true", "1", "yes"].includes(
   (process.env.ALERT_CHANNELS_ENABLED ?? "").toLowerCase().trim()
 );
 
-function isValidUrl(s: string): boolean {
-  try {
-    new URL(s);
-    return true;
-  } catch {
-    return false;
-  }
-}
-
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 function isValidEmail(s: string): boolean {
   return EMAIL_REGEX.test(s.trim());

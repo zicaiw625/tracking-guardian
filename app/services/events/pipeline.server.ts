@@ -94,8 +94,7 @@ export async function processEventPipeline(
   payload: PixelEventPayload,
   eventId: string | null,
   destinations: string[] | Array<{ platform: string; configId?: string; platformId?: string }>,
-  _environment?: "test" | "live",
-  _pipelineOptions?: { skipDelivery?: boolean }
+  _environment?: "test" | "live"
 ): Promise<EventPipelineResult> {
   const validation = validateEventPayload(payload);
   if (!validation.valid) {
@@ -284,14 +283,12 @@ export async function processBatchEvents(
     eventId: string | null;
     destinations: string[];
   }>,
-  environment?: "test" | "live",
-  options?: { persistOnly?: boolean }
+  environment?: "test" | "live"
 ): Promise<EventPipelineResult[]> {
   const concurrency = Number(process.env.PIPELINE_CONCURRENCY || 5);
-  const pipelineOptions = options?.persistOnly ? { skipDelivery: true } : undefined;
   return parallelLimit(events, concurrency, async (event) => {
     try {
-      return await processEventPipeline(shopId, event.payload, event.eventId, event.destinations, environment, pipelineOptions);
+      return await processEventPipeline(shopId, event.payload, event.eventId, event.destinations, environment);
     } catch (e) {
       logger.error("processEventPipeline threw", e, { shopId, eventId: event.eventId });
       return { success: false, eventId: event.eventId ?? undefined, destinations: event.destinations, errors: [String(e)] };

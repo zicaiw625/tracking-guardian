@@ -167,29 +167,40 @@ describe("Usage Tracking Service", () => {
   describe("isOrderAlreadyCounted", () => {
     it("should return true when pixelEventReceipt exists with value and currency", async () => {
       vi.mocked(prisma.pixelEventReceipt.findFirst).mockResolvedValue({
-        payloadJson: { hmacMatched: true, data: { value: 10, currency: "USD" } },
+        id: "receipt-1",
       } as any);
       const result = await isOrderAlreadyCounted("shop-123", "order-456");
       expect(result).toBe(true);
+      expect(prisma.pixelEventReceipt.findFirst).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            shopId: "shop-123",
+            orderKey: "order-456",
+            hmacMatched: true,
+            totalValue: { not: null },
+            currency: { not: null },
+          }),
+        })
+      );
     });
     it("should return false when no receipt", async () => {
       vi.mocked(prisma.pixelEventReceipt.findFirst).mockResolvedValue(null);
       const result = await isOrderAlreadyCounted("shop-123", "order-456");
       expect(result).toBe(false);
     });
-    it("should return false when receipt missing value or currency", async () => {
-      vi.mocked(prisma.pixelEventReceipt.findFirst).mockResolvedValue({
-        payloadJson: { data: { currency: "USD" } },
-      } as any);
+    it("should return false when receipt missing value or currency (filtered by DB)", async () => {
+      // The DB query filters out records with null totalValue or currency, so we mock null return
+      vi.mocked(prisma.pixelEventReceipt.findFirst).mockResolvedValue(null);
       const result = await isOrderAlreadyCounted("shop-123", "order-456");
       expect(result).toBe(false);
-    });
-    it("should return false when receipt has null value", async () => {
-      vi.mocked(prisma.pixelEventReceipt.findFirst).mockResolvedValue({
-        payloadJson: { data: { value: null, currency: "USD" } },
-      } as any);
-      const result = await isOrderAlreadyCounted("shop-123", "order-456");
-      expect(result).toBe(false);
+      expect(prisma.pixelEventReceipt.findFirst).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            totalValue: { not: null },
+            currency: { not: null },
+          }),
+        })
+      );
     });
   });
   describe("incrementMonthlyUsage", () => {

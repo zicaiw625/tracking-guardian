@@ -111,7 +111,7 @@ export function extractTimestampHeader(request: Request): number | null {
 
 export async function validatePixelEventHMAC(
   request: Request,
-  bodyText: string,
+  bodyHash: string,
   token: string,
   shopDomain: string,
   payloadTimestamp: number,
@@ -143,7 +143,6 @@ export async function validatePixelEventHMAC(
       trustLevel: "untrusted",
     };
   }
-  const crypto = await import("crypto");
-  const bodyHash = crypto.createHash("sha256").update(bodyText).digest("hex");
+  // bodyHash is now pre-calculated and passed in
   return verifyHMACSignature(signature, token, headerTimestamp, shopDomain, bodyHash, timestampWindowMs);
 }

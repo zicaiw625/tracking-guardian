@@ -188,7 +188,7 @@ describe("HMAC Validation", () => {
       const bodyHash = createBodyHash(bodyText);
       const signature = generateHMACSignature(testToken, timestamp, testShopDomain, bodyHash);
       const request = createValidRequest(signature, timestamp, bodyText);
-      const result = await validatePixelEventHMAC(request, bodyText, testToken, testShopDomain, timestamp, timestampWindowMs);
+      const result = await validatePixelEventHMAC(request, bodyHash, testToken, testShopDomain, timestamp, timestampWindowMs);
       expect(result.valid).toBe(true);
       expect(result.trustLevel).toBe("trusted");
     });

@@ -4,6 +4,7 @@ import { generateEventIdForType, generateOrderMatchKey, createEventNonce, upsert
 import { checkInitialConsent, filterPlatformsByConsent, logConsentFilterMetrics } from "./consent-filter";
 import { hashValueSync } from "~/utils/crypto.server";
 import { logger } from "~/utils/logger.server";
+import { parallelLimit } from "~/utils/helpers";
 import prisma from "~/db.server";
 import { API_CONFIG } from "~/utils/config.server";
 import { getRedisClient } from "~/utils/redis-client.server";
@@ -445,10 +446,10 @@ export async function distributeEvents(
     } else if (!isPurchaseEvent && event.eventId) {
       try {
         const eventType = event.payload.eventName;
-        for (const { platform } of platformsToRecord) {
+        await parallelLimit(platformsToRecord, 5, async ({ platform }: { platform: string }) => {
           await upsertPixelEventReceipt(
             shopId,
-            event.eventId,
+            event.eventId!,
             event.payload,
             origin,
             eventType,
@@ -460,7 +461,7 @@ export async function distributeEvents(
             keyValidation.trustLevel,
             keyValidation.matched
           );
-        }
+        });
       } catch (error) {
         logger.warn(`Failed to write receipt for non-purchase event`, {
           shopId,
