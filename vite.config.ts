@@ -11,7 +11,7 @@ if (
 }
 
 function getHostname(): string {
-  const appUrl = process.env.SHOPIFY_APP_URL || "http://localhost:3000";
+  const appUrl = process.env.SHOPIFY_APP_URL || "https://tracking-guardian.onrender.com";
   try {
     return new URL(appUrl).hostname;
   } catch {

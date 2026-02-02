@@ -456,7 +456,7 @@ export function getPixelEventIngestionUrl(): {
   };
 } {
   const shopifyAppUrl = process.env.SHOPIFY_APP_URL;
-  const fallbackUrl = "https://app.tracking-guardian.com";
+  const fallbackUrl = "https://tracking-guardian.onrender.com";
   if (!shopifyAppUrl) {
     return {
       url: fallbackUrl,

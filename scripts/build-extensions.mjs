@@ -118,7 +118,7 @@ function resolveBackendUrl() {
 
 function injectBackendUrl() {
     loadEnv();
-    let backendUrl = process.env.SHOPIFY_APP_URL || resolveBackendUrl();
+    let backendUrl = process.env.SHOPIFY_APP_URL || resolveBackendUrl() || "https://tracking-guardian.onrender.com";
     const isCI = process.env.CI === "true" || process.env.GITHUB_ACTIONS === "true" || process.env.RENDER === "true";
     if (!backendUrl) {
         if (isCI) {

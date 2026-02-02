@@ -31,7 +31,7 @@ function loadEnv() {
 
 function buildShopifyConfig() {
   loadEnv();
-  const appUrl = process.env.SHOPIFY_APP_URL || process.env.APPLICATION_URL;
+  const appUrl = process.env.SHOPIFY_APP_URL || process.env.APPLICATION_URL || "https://tracking-guardian.onrender.com";
   const isCI = process.env.CI === "true" || process.env.GITHUB_ACTIONS === "true" || process.env.RENDER === "true";
   
   if (!appUrl) {

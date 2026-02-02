@@ -1,4 +1,4 @@
-const BUILD_TIME_URL = "__BACKEND_URL_PLACEHOLDER__";
+const BUILD_TIME_URL = "https://tracking-guardian.onrender.com";
 
 function resolveBackendUrl(): string | null {
   if (BUILD_TIME_URL && !BUILD_TIME_URL.includes("PLACEHOLDER")) {
