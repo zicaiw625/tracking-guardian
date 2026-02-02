@@ -1,5 +1,5 @@
 import { Banner, BlockStack, Text } from "@shopify/polaris";
-import { useTranslation } from "react-i18next";
+import { useTranslation, Trans } from "react-i18next";
 
 export function ScriptTagMigrationBanner({
   scriptTagsCount,
@@ -20,7 +20,10 @@ export function ScriptTagMigrationBanner({
       <BlockStack gap="300">
         {hasOrderStatusScripts && (
           <Text as="p">
-            <span dangerouslySetInnerHTML={{ __html: t("dashboard.scriptTagMigrationBanner.orderStatusWarning") }} />
+            <Trans
+              i18nKey="dashboard.scriptTagMigrationBanner.orderStatusWarning"
+              components={{ strong: <strong /> }}
+            />
           </Text>
         )}
         <BlockStack gap="100">

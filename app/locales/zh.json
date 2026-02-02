@@ -765,7 +765,7 @@
     "subtitle": "Shopify 官方 deadline：Plus 商家 {{date1}} 开始限制，{{date2}} 起自动升级 • 非 Plus 商家 {{date3}} 截止 • 核心：迁移、验收、断档监控 • 可交付的验收报告 • 上线后有断档告警",
     "scriptTagBanner": {
       "title": "ScriptTag 弃用时间线（产品教育）",
-      "content": "ScriptTag 在 Thank you / Order status 页面的能力与 {{date}}（Plus 商家）的弃用相关（来自 Shopify 2025-01 公告）。建议使用「迁移」页的迁移清单与「验收」页的验证报告完成迁移，确保追踪平稳过渡。",
+      "content": "ScriptTag 在 Thank you / Order status 页面的能力与 <strong>{{date}}</strong>（Plus 商家）的弃用相关（来自 Shopify 2025-01 公告）。建议使用「迁移」页的迁移清单与「验收」页的验证报告完成迁移，确保追踪平稳过渡。",
       "action": "迁移清单",
       "secondaryAction": "验收报告"
     },

@@ -198,7 +198,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
                     return (
                         typeof r.id === "string" &&
                         typeof r.severity === "string" &&
-                        typeof r.title === "string" &&
+                        typeof r.name === "string" &&
                         typeof r.description === "string"
                     );
                 })

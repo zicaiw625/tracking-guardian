@@ -1,6 +1,7 @@
 import { logger } from "../utils/logger.server";
 import { PLATFORM_ENDPOINTS } from "../utils/config.shared";
 import prisma from "../db.server";
+import { postJson } from "../utils/http";
 
 export interface AlertPayload {
   alertType: string;
@@ -35,25 +36,32 @@ function buildAlertText(shopDomain: string | null, alert: AlertPayload): string 
   return lines.join("\n");
 }
 
+function validateSlackWebhookUrl(raw: string): { ok: boolean; reason?: string } {
+  try {
+    const u = new URL(raw);
+    if (u.protocol !== "https:") return { ok: false, reason: "Slack webhook must be https" };
+    if (u.hostname !== "hooks.slack.com") return { ok: false, reason: "Slack host must be hooks.slack.com" };
+    if (!u.pathname.startsWith("/services/") && !u.pathname.startsWith("/triggers/")) {
+      return { ok: false, reason: "Slack webhook path must start with /services/ or /triggers/" };
+    }
+    if (u.username || u.password) return { ok: false, reason: "Credentials not allowed in URL" };
+    return { ok: true };
+  } catch {
+    return { ok: false, reason: "Invalid URL format" };
+  }
+}
+
 async function sendSlack(webhookUrl: string, text: string): Promise<void> {
-  const res = await fetch(webhookUrl, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ text }),
-  });
+  const res = await postJson(webhookUrl, { text });
   if (!res.ok) {
-    throw new Error(`Slack ${res.status}: ${await res.text()}`);
+    throw new Error(`Slack ${res.status}: ${JSON.stringify(res.data)}`);
   }
 }
 
 async function sendTelegram(botToken: string, chatId: string, text: string): Promise<void> {
   const url = PLATFORM_ENDPOINTS.TELEGRAM_BOT(botToken);
-  const res = await fetch(url, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ chat_id: chatId, text }),
-  });
-  const data = await res.json().catch(() => ({})) as { ok?: boolean };
+  const res = await postJson(url, { chat_id: chatId, text });
+  const data = res.data as { ok?: boolean };
   if (!res.ok || !data.ok) {
     throw new Error(`Telegram ${res.status}: ${JSON.stringify(data)}`);
   }
@@ -66,22 +74,16 @@ async function sendEmail(to: string, subject: string, text: string): Promise<voi
     logger.warn("[AlertDelivery] Email skipped: RESEND_API_KEY or ALERT_EMAIL_FROM not set");
     return;
   }
-  const res = await fetch("https://api.resend.com/emails", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${apiKey}`,
-    },
-    body: JSON.stringify({
-      from,
-      to: [to],
-      subject,
-      text,
-    }),
+  const res = await postJson("https://api.resend.com/emails", {
+    from,
+    to: [to],
+    subject,
+    text,
+  }, {
+    headers: { Authorization: `Bearer ${apiKey}` }
   });
   if (!res.ok) {
-    const body = await res.text();
-    throw new Error(`Resend ${res.status}: ${body}`);
+    throw new Error(`Resend ${res.status}: ${JSON.stringify(res.data)}`);
   }
 }
 
@@ -127,8 +129,9 @@ export async function sendAlertToChannels(
     try {
       if (config.channel === "slack") {
         const webhookUrl = config.webhookUrl ?? (config.settings?.webhookUrl as string | undefined);
-        if (!webhookUrl || typeof webhookUrl !== "string" || !webhookUrl.trim() || !isValidUrl(webhookUrl)) {
-          logger.warn("[AlertDelivery] Slack config invalid: missing or invalid webhookUrl", { shopId });
+        const validation = webhookUrl ? validateSlackWebhookUrl(webhookUrl) : { ok: false, reason: "Missing webhookUrl" };
+        if (!webhookUrl || typeof webhookUrl !== "string" || !webhookUrl.trim() || !validation.ok) {
+          logger.warn(`[AlertDelivery] Slack config invalid: ${validation.reason || "missing or invalid webhookUrl"}`, { shopId });
           continue;
         }
         await sendSlack(webhookUrl.trim(), text);

@@ -14,7 +14,7 @@ import {
 import { DEPRECATION_DATES, formatDeadlineDate } from "../utils/migration-deadlines";
 import { ScriptTagMigrationBanner } from "~/components/dashboard/ScriptTagMigrationBanner";
 import { MigrationDeadlineBanner } from "~/components/dashboard/MigrationDeadlineBanner";
-import { useTranslation } from "react-i18next";
+import { useTranslation, Trans } from "react-i18next";
 
 const WELCOME_BANNER_DISMISSED_KEY = "tg-welcome-banner-dismissed";
 
@@ -119,9 +119,13 @@ export default function Index() {
         >
           <BlockStack gap="200">
             <Text as="p" variant="bodySm">
-              <span dangerouslySetInnerHTML={{ __html: t("dashboard.scriptTagBanner.content", {
-                  date: `<strong>${formatDeadlineDate(DEPRECATION_DATES.plusScriptTagExecutionOff, "exact")}</strong>`
-              }) }} />
+              <Trans
+                i18nKey="dashboard.scriptTagBanner.content"
+                values={{
+                  date: formatDeadlineDate(DEPRECATION_DATES.plusScriptTagExecutionOff, "exact")
+                }}
+                components={{ strong: <strong /> }}
+              />
             </Text>
           </BlockStack>
         </Banner>

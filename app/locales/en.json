@@ -765,7 +765,7 @@
     "subtitle": "Shopify official deadline: Plus merchants restricted from {{date1}}, auto-upgrade starts {{date2}} • Non-Plus merchants deadline {{date3}} • Core: Migration, Verification, Monitoring • Deliverable Verification Report • Post-launch Monitoring",
     "scriptTagBanner": {
       "title": "ScriptTag Deprecation Timeline (Product Education)",
-      "content": "ScriptTag capabilities on Thank you / Order status pages are related to the {{date}} (Plus merchants) deprecation (from Shopify 2025-01 announcement). It is recommended to use the Migration Checklist on the 'Audit' page and the Verification Report on the 'Verification' page to complete the migration and ensure smooth tracking transition.",
+      "content": "ScriptTag capabilities on Thank you / Order status pages are related to the <strong>{{date}}</strong> (Plus merchants) deprecation (from Shopify 2025-01 announcement). It is recommended to use the Migration Checklist on the 'Audit' page and the Verification Report on the 'Verification' page to complete the migration and ensure smooth tracking transition.",
       "action": "Migration Checklist",
       "secondaryAction": "Verification Report"
     },

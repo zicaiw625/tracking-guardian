@@ -22,6 +22,9 @@ const ALLOWED_OUTBOUND_HOSTS = [
   "*.analyticsdata.googleapis.com",
   "www.googleapis.com",
   "*.googleapis.com",
+  "hooks.slack.com",
+  "api.resend.com",
+  "api.telegram.org",
 ] as const;
 
 function isHostAllowed(hostname: string): boolean {
