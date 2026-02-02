@@ -22,6 +22,8 @@ import {
 } from "~/components/icons";
 import { useTranslation } from "react-i18next";
 
+import { getAggregatedMetrics } from "~/services/dashboard-aggregation.server";
+
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   const { session } = await authenticate.admin(request);
   const shopDomain = session.shop;
@@ -39,21 +41,38 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     return json({ shop: null, stats: null });
   }
 
-  // Dummy stats
+  const now = new Date();
+  const last7DaysStart = new Date(now);
+  last7DaysStart.setDate(now.getDate() - 7);
+  const last24HoursStart = new Date(now);
+  last24HoursStart.setHours(now.getHours() - 24);
+
+  const [metrics7Days, metrics24Hours, currencyRecord] = await Promise.all([
+    getAggregatedMetrics(shop.id, last7DaysStart, now),
+    getAggregatedMetrics(shop.id, last24HoursStart, now),
+    prisma.orderSummary.findFirst({
+        where: { shopId: shop.id },
+        select: { currency: true },
+        orderBy: { createdAt: "desc" }
+    })
+  ]);
+
+  const currency = currencyRecord?.currency || "USD";
+
   const stats = {
     last7Days: {
-      orders: 125,
-      value: "12,450.00",
-      currency: "USD",
-      successRate: 98.5,
-      totalEvents: 4500,
+      orders: metrics7Days.totalOrders,
+      value: metrics7Days.totalValue.toFixed(2),
+      currency: currency,
+      successRate: (metrics7Days.successRate * 100).toFixed(1),
+      totalEvents: metrics7Days.totalEventVolume,
     },
     last24Hours: {
-      totalEvents: 650,
-      successRate: 99.2,
-      failureRate: 0.8,
-      lossRate: 0.5,
-      received: 645,
+      totalEvents: metrics24Hours.totalEventVolume,
+      successRate: (metrics24Hours.successRate * 100).toFixed(1),
+      failureRate: ((1 - metrics24Hours.successRate) * 100).toFixed(1),
+      lossRate: 0,
+      received: metrics24Hours.totalEventVolume,
     },
   };
 

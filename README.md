@@ -56,7 +56,7 @@
 
 ### (C) 页面侧自定义
 
-当前仓库不包含 Thank you / Order status 页面模块库工程，v1 不以页面模块作为交付范围。
+当前仓库包含基础的 Post-checkout Badge 扩展（extensions/post-checkout-badge），用于在 Thank you / Order status 页面展示基础信息。v1 不包含复杂的页面自定义模块。
 
 ### (D) 付费：验收（Verification）+ 断档监控（Monitoring）
 这是产品的"交付件"，也是 Agency 愿意付钱的关键。

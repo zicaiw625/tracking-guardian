@@ -30,7 +30,7 @@ export default function SupportPage() {
             t("support.intro.items.0"),
             t("support.intro.items.1"),
           ]}
-          primaryAction={{ content: t("support.intro.action.faq"), url: faqUrl }}
+          primaryAction={faqUrl ? { content: t("support.intro.action.faq"), url: faqUrl } : undefined}
           secondaryAction={{ content: t("support.intro.action.reports"), url: "/app/reports" }}
         />
         <Layout>
@@ -45,12 +45,16 @@ export default function SupportPage() {
                     <List.Item>
                       {t("support.contact.email")}<Link url={`mailto:${contactEmail}`}>{contactEmail}</Link>
                     </List.Item>
-                    <List.Item>
-                      {t("support.contact.helpCenter")}<Link url={faqUrl} external>{faqUrl}</Link>
-                    </List.Item>
-                    <List.Item>
-                      {t("support.contact.statusPage")}<Link url={statusPageUrl} external>{statusPageUrl.replace(/^https?:\/\//, "")}</Link>
-                    </List.Item>
+                    {faqUrl && (
+                      <List.Item>
+                        {t("support.contact.helpCenter")}<Link url={faqUrl} external>{faqUrl}</Link>
+                      </List.Item>
+                    )}
+                    {statusPageUrl && (
+                      <List.Item>
+                        {t("support.contact.statusPage")}<Link url={statusPageUrl} external>{statusPageUrl.replace(/^https?:\/\//, "")}</Link>
+                      </List.Item>
+                    )}
                     <List.Item>
                       <Link url="/privacy" external>{t("support.links.privacy")}</Link>
                       {" · "}

@@ -11,7 +11,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   const response = json({
     appName: "Tracking Guardian",
     appDomain: process.env.SHOPIFY_APP_URL || process.env.APP_URL || "https://tracking-guardian.onrender.com",
-    lastUpdated: "2025-01-15",
+    lastUpdated: "2026-02-02",
   });
   const headers = new Headers(response.headers);
   Object.entries(corsHeaders).forEach(([key, value]) => {

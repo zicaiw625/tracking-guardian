@@ -30,6 +30,13 @@ import { TestOrderGuide } from "~/components/verification/TestOrderGuide";
 import { PageIntroCard } from "~/components/layout/PageIntroCard";
 import { useTranslation } from "react-i18next";
 
+import {
+  createVerificationRun,
+  startVerificationRun,
+  analyzeRecentEvents,
+  getVerificationRun,
+} from "~/services/verification.server";
+
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   const { session } = await authenticate.admin(request);
   const shopDomain = session.shop;
@@ -51,23 +58,10 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   const latestRunRaw = await prisma.verificationRun.findFirst({
     where: { shopId: shop.id },
     orderBy: { createdAt: "desc" },
-    include: {
-      PixelEventReceipt: true,
-    },
+    select: { id: true },
   });
 
-  const latestRun = latestRunRaw ? {
-    ...latestRunRaw,
-    results: latestRunRaw.PixelEventReceipt.map(r => ({
-      eventType: r.eventType,
-      platform: r.platform,
-      orderId: r.orderKey || undefined,
-      status: "passed",
-      params: undefined,
-      discrepancies: [] as string[],
-      errors: [] as string[]
-    }))
-  } : null;
+  const latestRun = latestRunRaw ? await getVerificationRun(latestRunRaw.id) : null;
 
   const historyRaw = await prisma.verificationRun.findMany({
     where: { shopId: shop.id },
@@ -118,10 +112,27 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     return json({ success: false, error: "Shop not found" }, { status: 404 });
   }
 
-  // Placeholder for triggering verification logic
-  // In a real app, this would call a service to analyze recent events
-  // For now, we'll create a dummy run or return error if no events
-  return json({ success: true, message: "Verification started" });
+  try {
+    // 1. Create a new verification run
+    const runId = await createVerificationRun(shop.id, {
+      runName: "Manual Verification",
+      runType: "quick",
+    });
+
+    // 2. Mark as running
+    await startVerificationRun(runId);
+
+    // 3. Analyze recent events (look back 24 hours)
+    // This will update the run with results and mark it as completed
+    await analyzeRecentEvents(shop.id, runId, {
+      since: new Date(Date.now() - 24 * 60 * 60 * 1000),
+    });
+
+    return json({ success: true, message: "Verification completed", runId });
+  } catch (error) {
+    console.error("Verification failed:", error);
+    return json({ success: false, error: "Verification failed" }, { status: 500 });
+  }
 };
 
 export default function VerificationPage() {
@@ -193,7 +204,7 @@ export default function VerificationPage() {
           content: t("verification.page.actions.export"),
           icon: ExportIcon,
           disabled: !latestRun,
-          onAction: () => window.open(`/app/reports/verification/${latestRun?.id}.csv`, "_blank"),
+          onAction: () => window.open(`/app/reports/verification/${latestRun?.runId}.csv`, "_blank"),
         },
       ]}
     >
@@ -303,7 +314,7 @@ export default function VerificationPage() {
                           {t("verification.page.status.time")}
                         </Text>
                         <Text as="span">
-                          {new Date(latestRun.createdAt).toLocaleString()}
+                          {latestRun.startedAt ? new Date(latestRun.startedAt).toLocaleString() : "-"}
                         </Text>
                       </InlineStack>
                       <InlineStack align="space-between">
