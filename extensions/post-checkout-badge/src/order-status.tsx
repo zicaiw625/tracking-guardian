@@ -11,8 +11,8 @@ export default reactExtension(
   "customer-account.order-status.customer-information.render-after",
   function OrderStatusExtension() {
     const settings = useSettings();
-    const showBanner = settings.show_banner !== false;
-    const bannerTitle = typeof settings.banner_title === "string" && settings.banner_title.trim() ? settings.banner_title : "Tracking Guardian";
+    const showBanner = settings.show_banner === true;
+    const bannerTitle = typeof settings.banner_title === "string" && settings.banner_title.trim() ? settings.banner_title : "";
     const showInvoice = settings.show_invoice_button === true;
     const invoiceText = typeof settings.invoice_button_text === "string" && settings.invoice_button_text.trim() ? settings.invoice_button_text : "发票";
     const invoiceUrl = typeof settings.invoice_url === "string" && settings.invoice_url.trim() ? settings.invoice_url : "";

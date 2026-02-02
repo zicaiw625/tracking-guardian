@@ -24,36 +24,6 @@ export default function App() {
         <meta name="viewport" content="width=device-width,initial-scale=1"/>
         <Meta />
         <Links />
-        <script
-          dangerouslySetInnerHTML={{
-            __html: `
-              (function() {
-                if (typeof window === 'undefined') return;
-                // Suppress Shopify Monorail connection errors early
-                var originalFetch = window.fetch;
-                window.fetch = function(...args) {
-                  var url = args[0] && (typeof args[0] === 'string' ? args[0] : (args[0].url || ''));
-                  if (url && (url.includes('monorail-edge.shopifysvc.com') || url.includes('produce_batch') || url.includes('v1/produce'))) {
-                    return Promise.resolve(new Response(null, { status: 200 }));
-                  }
-                  return originalFetch.apply(this, args).catch(function(err) {
-                     var url = args[0] && (typeof args[0] === 'string' ? args[0] : (args[0].url || ''));
-                     if (url && (url.includes('monorail-edge.shopifysvc.com') || url.includes('produce_batch') || url.includes('v1/produce'))) {
-                       return Promise.resolve(new Response(null, { status: 200 }));
-                     }
-                     throw err;
-                  });
-                };
-                var originalConsoleError = console.error;
-                console.error = function(...args) {
-                  var str = args.map(function(a) { return String(a) }).join(' ');
-                  if (str.includes('monorail-edge.shopifysvc.com') || str.includes('produce_batch') || str.includes('v1/produce')) return;
-                  originalConsoleError.apply(console, args);
-                }
-              })();
-            `,
-          }}
-        />
       </head>
       <body>
         <PerformanceMonitor />

@@ -350,8 +350,11 @@ class RedisClientFactory {
   private async initialize(): Promise<RedisClientWrapper> {
     const redisUrl = process.env.REDIS_URL;
     if (!redisUrl) {
+      if (process.env.NODE_ENV === "production" && process.env.ALLOW_MEMORY_REDIS_IN_PROD !== "true") {
+        throw new Error("REDIS_URL is required in production (rate-limit/locks need shared storage). Set ALLOW_MEMORY_REDIS_IN_PROD=true to bypass.");
+      }
       if (process.env.NODE_ENV === "production") {
-        throw new Error("REDIS_URL is required in production (rate-limit/locks need shared storage)");
+        logger.warn("[REDIS] Using in-memory store in production (ALLOW_MEMORY_REDIS_IN_PROD=true). Multi-instance deployments will have inconsistent state.");
       }
       logger.info("[REDIS] No REDIS_URL configured, using in-memory store");
       this.client = this.fallback;
