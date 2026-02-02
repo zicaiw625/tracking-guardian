@@ -7,29 +7,40 @@ import { ArrowRightIcon } from "../icons";
 export function MigrationDeadlineBanner() {
   const { t } = useTranslation();
 
+  const helpCenterLink = (
+    <Link
+      to="https://help.shopify.com/en/manual/checkout-settings/order-status-page/additional-scripts"
+      target="_blank"
+      rel="noopener noreferrer"
+    />
+  );
+
   return (
     <Banner tone="warning" title={t("dashboard.migrationDeadlineBanner.title")}>
       <BlockStack gap="200">
         <BlockStack gap="100">
           <Text as="p" variant="bodySm">
             <Trans
-              i18nKey="dashboard.migrationDeadlineBanner.plusDeadline"
+              i18nKey="dashboard.migrationDeadlineBanner.plusMerchant"
               values={{
-                date: formatDeadlineDate(DEPRECATION_DATES.plusScriptTagExecutionOff, "exact"),
+                date1: formatDeadlineDate(DEPRECATION_DATES.plusScriptTagExecutionOff, "exact"),
+                date2: formatDeadlineDate(DEPRECATION_DATES.plusAutoUpgradeStart, "exact"),
               }}
               components={{
                 strong: <strong />,
+                1: helpCenterLink,
               }}
             />
           </Text>
           <Text as="p" variant="bodySm">
             <Trans
-              i18nKey="dashboard.migrationDeadlineBanner.nonPlusDeadline"
+              i18nKey="dashboard.migrationDeadlineBanner.nonPlusMerchant"
               values={{
                 date: formatDeadlineDate(DEPRECATION_DATES.nonPlusScriptTagExecutionOff, "exact"),
               }}
               components={{
                 strong: <strong />,
+                1: helpCenterLink,
               }}
             />
           </Text>
@@ -39,13 +50,7 @@ export function MigrationDeadlineBanner() {
             i18nKey="dashboard.migrationDeadlineBanner.disclaimer"
             components={{
               strong: <strong />,
-              a: (
-                <Link
-                  to="https://help.shopify.com/en/manual/checkout-settings/order-status-page/additional-scripts"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                />
-              ),
+              a: helpCenterLink,
             }}
           >
             <strong>Important:</strong> The following dates are from Shopify official announcements for reference only. Please refer to Shopify Admin for actual deadlines. Shopify may update policies, we recommend checking <Link to="https://help.shopify.com/en/manual/checkout-settings/order-status-page/additional-scripts" target="_blank" rel="noopener noreferrer">{t("dashboard.migrationDeadlineBanner.helpCenter")}</Link> regularly.
