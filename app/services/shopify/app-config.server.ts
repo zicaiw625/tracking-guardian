@@ -92,7 +92,7 @@ try {
   const config = {
     apiKey: finalApiKey,
     apiSecretKey: finalApiSecretKey,
-    apiVersion: ApiVersion.July25,
+    apiVersion: ApiVersion.January26,
     scopes,
     appUrl: finalAppUrl,
     authPathPrefix: "/auth",
@@ -116,7 +116,7 @@ try {
       },
     },
     future: {
-      unstable_newEmbeddedAuthStrategy: true,
+      unstable_newEmbeddedAuthStrategy: process.env.SHOPIFY_USE_LEGACY_AUTH !== "true",
     },
   };
   if (process.env.SHOP_CUSTOM_DOMAIN) {
@@ -163,7 +163,7 @@ if (!shopify) {
 }
 
 export default shopify;
-export const apiVersion = ApiVersion.July25;
+export const apiVersion = ApiVersion.January26;
 
 export function addDocumentResponseHeaders(request: Request, headers: Headers): void {
   if (!shopify?.addDocumentResponseHeaders) {

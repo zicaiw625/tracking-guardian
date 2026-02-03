@@ -1,4 +1,4 @@
-api_version = "2025-07"
+api_version = "2026-01"
 uid = "03d3e252-5760-443c-5403-68d2888bbf444a40ddc0"
 type = "web_pixel_extension"
 name = "Tracking Guardian Pixel"

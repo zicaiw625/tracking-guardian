@@ -3,6 +3,8 @@ import { useLoaderData } from "@remix-run/react";
 import { Page, Layout, Card, Text, BlockStack, List, Banner, Button } from "@shopify/polaris";
 import { useState, useEffect, useCallback } from "react";
 import { authenticate } from "../shopify.server";
+import * as fs from "fs";
+import * as path from "path";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   await authenticate.admin(request);
@@ -10,15 +12,33 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   const appUrl = process.env.SHOPIFY_APP_URL || "";
   const backendUrl = process.env.SHOPIFY_APP_URL ? `${process.env.SHOPIFY_APP_URL}/ingest` : "";
   
+  let extensionConfigStatus: "injected" | "placeholder" | "error" = "placeholder";
+  try {
+    const configPath = path.join(process.cwd(), "extensions/shared/config.ts");
+    if (fs.existsSync(configPath)) {
+        const content = fs.readFileSync(configPath, "utf-8");
+        if (content.includes("__BACKEND_URL_PLACEHOLDER__")) {
+            extensionConfigStatus = "placeholder";
+        } else {
+            extensionConfigStatus = "injected";
+        }
+    } else {
+        extensionConfigStatus = "error";
+    }
+  } catch (e) {
+    extensionConfigStatus = "error";
+  }
+
   return json({
     appUrl,
     backendUrl,
     isLocal: appUrl.includes("localhost") || appUrl.includes("127.0.0.1"),
+    extensionConfigStatus,
   });
 };
 
 export default function DiagnosticsPage() {
-  const { appUrl, backendUrl, isLocal } = useLoaderData<typeof loader>();
+  const { appUrl, backendUrl, isLocal, extensionConfigStatus } = useLoaderData<typeof loader>();
   const [corsStatus, setCorsStatus] = useState<"pending" | "success" | "error">("pending");
   const [corsMessage, setCorsMessage] = useState("");
 
@@ -53,6 +73,20 @@ export default function DiagnosticsPage() {
     <Page title="像素连通性诊断">
       <Layout>
         <Layout.Section>
+          {extensionConfigStatus === "placeholder" && (
+            <Banner tone="critical" title="Extension Config Warning">
+              <p>
+                <code>extensions/shared/config.ts</code> contains <code>__BACKEND_URL_PLACEHOLDER__</code>. 
+                You must run <code>pnpm ext:inject</code> before deploying to ensure the correct Backend URL is used.
+              </p>
+            </Banner>
+          )}
+          {extensionConfigStatus === "error" && (
+            <Banner tone="warning" title="Extension Config Check Failed">
+              <p>Could not read <code>extensions/shared/config.ts</code>. Please check file permissions.</p>
+            </Banner>
+          )}
+
           <Card>
             <BlockStack gap="400">
               <Text as="h2" variant="headingMd">配置检查</Text>
@@ -67,7 +101,20 @@ export default function DiagnosticsPage() {
                     <Text as="span" fontWeight="bold">环境:</Text> {isLocal ? "本地开发 (Localhost)" : "生产环境"} 
                     {isLocal && <Text as="span" tone="critical"> (注意：Localhost URL 无法在真实 Web Pixel 环境中工作)</Text>}
                 </List.Item>
+                <List.Item>
+                  <Text as="span" fontWeight="bold">Extension Config Status:</Text> {extensionConfigStatus === "injected" ? "✅ Injected" : "⚠️ Placeholder/Error"}
+                </List.Item>
               </List>
+              
+              <Banner tone="info" title="Network Access Allowlist Required">
+                <p>
+                  Ensure the following URL is added to your <strong>Partner Dashboard &gt; App &gt; Extensions &gt; Web Pixel &gt; Network access</strong>:
+                </p>
+                <p style={{ marginTop: "8px", fontWeight: "bold" }}>{backendUrl}</p>
+                <p style={{ marginTop: "8px" }}>
+                  Without this, the Web Pixel will fail to send events to your backend.
+                </p>
+              </Banner>
             </BlockStack>
           </Card>
           
