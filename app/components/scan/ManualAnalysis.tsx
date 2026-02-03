@@ -19,7 +19,7 @@ import type { ScriptAnalysisResult } from "../../services/scanner/types";
 import { getSeverityBadge } from "./utils";
 import { DEPRECATION_DATES, formatDeadlineDate } from "../../utils/migration-deadlines";
 import { AnalysisResultSummary } from "./AnalysisResultSummary";
-import { useTranslation } from "react-i18next";
+import { useTranslation, Trans } from "react-i18next";
 
 interface DeprecationInfo {
   badge: { text: string };
@@ -181,11 +181,11 @@ export function ManualAnalysis({ deprecationStatus, scriptAnalysisMaxContentLeng
                         {t("scan.manualAnalysis.guide.steps.step1.title")}
                       </Text>
                       <Text as="span" variant="bodySm" tone="subdued">
-                        <span dangerouslySetInnerHTML={{ __html: t("scan.manualAnalysis.guide.steps.step1.desc") }} />
+                        <Trans i18nKey="scan.manualAnalysis.guide.steps.step1.desc" components={{ strong: <strong />, a: <a target="_blank" rel="noopener noreferrer" /> }} />
                       </Text>
                       <Banner tone="info">
                         <Text as="p" variant="bodySm">
-                          <span dangerouslySetInnerHTML={{ __html: t("scan.manualAnalysis.guide.steps.step1.tip") }} />
+                          <Trans i18nKey="scan.manualAnalysis.guide.steps.step1.tip" components={{ strong: <strong />, a: <a target="_blank" rel="noopener noreferrer" /> }} />
                         </Text>
                       </Banner>
                     </BlockStack>
@@ -200,11 +200,11 @@ export function ManualAnalysis({ deprecationStatus, scriptAnalysisMaxContentLeng
                       </Text>
                       <Banner tone="info">
                         <Text as="p" variant="bodySm">
-                          <span dangerouslySetInnerHTML={{ __html: t("scan.manualAnalysis.guide.steps.step2.tip") }} />
+                          <Trans i18nKey="scan.manualAnalysis.guide.steps.step2.tip" components={{ strong: <strong />, a: <a target="_blank" rel="noopener noreferrer" /> }} />
                         </Text>
                       </Banner>
                       <Text as="span" variant="bodySm" tone="subdued">
-                        <span dangerouslySetInnerHTML={{ __html: t("scan.manualAnalysis.guide.steps.step2.hint") }} />
+                        <Trans i18nKey="scan.manualAnalysis.guide.steps.step2.hint" components={{ strong: <strong />, a: <a target="_blank" rel="noopener noreferrer" /> }} />
                       </Text>
                     </BlockStack>
                   </List.Item>
@@ -218,15 +218,15 @@ export function ManualAnalysis({ deprecationStatus, scriptAnalysisMaxContentLeng
                       </Text>
                       <Banner tone="info">
                         <Text as="p" variant="bodySm">
-                          <span dangerouslySetInnerHTML={{ __html: t("scan.manualAnalysis.guide.steps.step3.tip") }} />
+                          <Trans i18nKey="scan.manualAnalysis.guide.steps.step3.tip" components={{ strong: <strong />, a: <a target="_blank" rel="noopener noreferrer" /> }} />
                         </Text>
                       </Banner>
                       <Text as="span" variant="bodySm" tone="subdued">
-                        <span dangerouslySetInnerHTML={{ __html: t("scan.manualAnalysis.guide.steps.step3.hint") }} />
+                        <Trans i18nKey="scan.manualAnalysis.guide.steps.step3.hint" components={{ strong: <strong />, a: <a target="_blank" rel="noopener noreferrer" /> }} />
                       </Text>
                       <Banner tone="warning">
                         <Text as="p" variant="bodySm">
-                          <span dangerouslySetInnerHTML={{ __html: t("scan.manualAnalysis.guide.steps.step3.warning") }} />
+                          <Trans i18nKey="scan.manualAnalysis.guide.steps.step3.warning" components={{ strong: <strong />, a: <a target="_blank" rel="noopener noreferrer" /> }} />
                         </Text>
                         <List type="bullet">
                           <List.Item>
@@ -265,7 +265,7 @@ export function ManualAnalysis({ deprecationStatus, scriptAnalysisMaxContentLeng
                         </Text>
                       </Banner>
                       <Text as="span" variant="bodySm" tone="subdued">
-                        <span dangerouslySetInnerHTML={{ __html: t("scan.manualAnalysis.guide.steps.step4.hint") }} />
+                        <Trans i18nKey="scan.manualAnalysis.guide.steps.step4.hint" components={{ strong: <strong />, a: <a target="_blank" rel="noopener noreferrer" /> }} />
                       </Text>
                     </BlockStack>
                   </List.Item>
@@ -278,14 +278,14 @@ export function ManualAnalysis({ deprecationStatus, scriptAnalysisMaxContentLeng
                         {t("scan.manualAnalysis.guide.steps.step5.desc")}
                       </Text>
                       <Text as="span" variant="bodySm" tone="subdued">
-                        <span dangerouslySetInnerHTML={{ __html: t("scan.manualAnalysis.guide.steps.step5.hint") }} />
+                        <Trans i18nKey="scan.manualAnalysis.guide.steps.step5.hint" components={{ strong: <strong />, a: <a target="_blank" rel="noopener noreferrer" /> }} />
                       </Text>
                     </BlockStack>
                   </List.Item>
                 </List>
                 <Divider />
                 <Text as="p" variant="bodySm" tone="subdued">
-                  <span dangerouslySetInnerHTML={{ __html: t("scan.manualAnalysis.guide.notFound") }} />
+                  <Trans i18nKey="scan.manualAnalysis.guide.notFound" components={{ strong: <strong />, a: <a target="_blank" rel="noopener noreferrer" /> }} />
                 </Text>
               </BlockStack>
             </Banner>

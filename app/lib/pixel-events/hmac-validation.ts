@@ -1,6 +1,22 @@
 import { createHmac, timingSafeEqual } from "crypto";
 import { logger } from "../../utils/logger.server";
 
+/**
+ * HMAC Signature Generation and Verification
+ *
+ * SECURITY NOTE / THREAT MODEL:
+ * The ingestion_key used to generate this HMAC is distributed to the client-side (Web Pixel Extension).
+ * Therefore, this HMAC primarily serves as an INTEGRITY check and rate-limiting helper, not as a strong
+ * authentication mechanism against a determined attacker who can extract the key from the client.
+ *
+ * Trust Level:
+ * - "trusted": Payload integrity verified, originated from a client with the key.
+ * - "untrusted": Signature missing or invalid.
+ *
+ * For strong proof of purchase, server-side reconciliation with Shopify Orders (via Webhooks/Admin API)
+ * is required (planned for v1.1+).
+ */
+
 const HMAC_ALGORITHM = "sha256";
 const HMAC_HEADER = "X-Tracking-Guardian-Signature";
 const TIMESTAMP_HEADER = "X-Tracking-Guardian-Timestamp";

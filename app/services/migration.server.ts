@@ -271,7 +271,7 @@ export function needsSettingsUpgrade(settings: unknown): boolean {
 
 export async function createWebPixel(admin: AdminApiContext, ingestionKey?: string, shopDomain?: string): Promise<CreateWebPixelResult> {
     const pixelSettings = buildWebPixelSettings(ingestionKey || "", shopDomain || "");
-    const settings = JSON.stringify(pixelSettings);
+    // settings should be passed as an object, not stringified
     try {
         const response = await admin.graphql(`
       mutation WebPixelCreate($webPixel: WebPixelInput!) {
@@ -289,7 +289,7 @@ export async function createWebPixel(admin: AdminApiContext, ingestionKey?: stri
       `, {
             variables: {
                 webPixel: {
-                    settings,
+                    settings: pixelSettings,
                 },
             },
         });
@@ -329,7 +329,7 @@ export async function createWebPixel(admin: AdminApiContext, ingestionKey?: stri
 
 export async function updateWebPixel(admin: AdminApiContext, webPixelId: string, ingestionKey?: string, shopDomain?: string, environment: "test" | "live" = "live", mode?: "purchase_only" | "full_funnel"): Promise<CreateWebPixelResult> {
     const pixelSettings = buildWebPixelSettings(ingestionKey || "", shopDomain || "", undefined, environment, mode);
-    const settings = JSON.stringify(pixelSettings);
+    // settings should be passed as an object, not stringified
     try {
         const response = await admin.graphql(`
       mutation WebPixelUpdate($id: ID!, $webPixel: WebPixelInput!) {
@@ -348,7 +348,7 @@ export async function updateWebPixel(admin: AdminApiContext, webPixelId: string,
             variables: {
                 id: webPixelId,
                 webPixel: {
-                    settings,
+                    settings: pixelSettings,
                 },
             },
         });

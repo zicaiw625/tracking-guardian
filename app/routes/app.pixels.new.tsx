@@ -79,7 +79,7 @@ export default function PixelsNewPage() {
                 {(t("pixels.new.banners.placeholder.steps", { returnObjects: true }) as string[]).map((step, i) => (
                   <List.Item key={i}>
                     <Text as="span" variant="bodySm">
-                       <span dangerouslySetInnerHTML={{ __html: step }} />
+                       <Trans defaults={step} components={{ strong: <strong />, a: <a target="_blank" rel="noopener noreferrer" />, code: <code /> }} />
                     </Text>
                   </List.Item>
                 ))}
@@ -97,13 +97,13 @@ export default function PixelsNewPage() {
                 {t("pixels.new.banners.configured.title")}
               </Text>
               <Text as="p" variant="bodySm">
-                 <span dangerouslySetInnerHTML={{ __html: t("pixels.new.banners.configured.desc") }} />
+                 <Trans i18nKey="pixels.new.banners.configured.desc" components={{ strong: <strong />, a: <a target="_blank" rel="noopener noreferrer" /> }} />
               </Text>
               <Text as="p" variant="bodySm" fontWeight="semibold">
                 {t("pixels.new.banners.configured.important")}
               </Text>
               <Text as="p" variant="bodySm">
-                 <span dangerouslySetInnerHTML={{ __html: t("pixels.new.banners.configured.importantDesc") }} />
+                 <Trans i18nKey="pixels.new.banners.configured.importantDesc" components={{ strong: <strong />, a: <a target="_blank" rel="noopener noreferrer" /> }} />
               </Text>
             </BlockStack>
           </Banner>

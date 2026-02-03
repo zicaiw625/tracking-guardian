@@ -10,7 +10,7 @@ import { getShopifyAdminUrl } from "~/utils/helpers";
 import type { MigrationAction } from "~/services/scanner/types";
 import type { UpgradeStatusUI } from "~/utils/deprecation-dates";
 import type { RiskItem } from "~/types";
-import { useTranslation } from "react-i18next";
+import { useTranslation, Trans } from "react-i18next";
 
 interface ScanAutoTabProps {
     // 使用 loader 返回的 latestScan；在内部再按需要进行安全访问
@@ -679,7 +679,7 @@ export function ScanAutoTab({
                                             <BlockStack gap="100">
                                                 <Badge tone="success">{t("scan.autoTab.wizard.officialAlternative")}</Badge>
                                                 <Text as="p" variant="bodySm">
-                                                    <span dangerouslySetInnerHTML={{ __html: t("scan.autoTab.wizard.officialAlternativeDesc") }} />
+                                                    <Trans i18nKey="scan.autoTab.wizard.officialAlternativeDesc" components={{ strong: <strong />, a: <a target="_blank" rel="noopener noreferrer" /> }} />
                                                 </Text>
                                             </BlockStack>
                                         </Box>
@@ -687,7 +687,7 @@ export function ScanAutoTab({
                                             <BlockStack gap="100">
                                                 <Badge tone="info">{t("scan.autoTab.wizard.webPixelAlternative")}</Badge>
                                                 <Text as="p" variant="bodySm">
-                                                    <span dangerouslySetInnerHTML={{ __html: t("scan.autoTab.wizard.webPixelAlternativeDesc") }} />
+                                                    <Trans i18nKey="scan.autoTab.wizard.webPixelAlternativeDesc" components={{ strong: <strong />, a: <a target="_blank" rel="noopener noreferrer" /> }} />
                                                 </Text>
                                             </BlockStack>
                                         </Box>
@@ -695,7 +695,7 @@ export function ScanAutoTab({
                                             <BlockStack gap="100">
                                                 <Badge tone="warning">{t("scan.autoTab.wizard.pageCustomization")}</Badge>
                                                 <Text as="p" variant="bodySm">
-                                                    <span dangerouslySetInnerHTML={{ __html: t("scan.autoTab.wizard.pageCustomizationDesc") }} />
+                                                    <Trans i18nKey="scan.autoTab.wizard.pageCustomizationDesc" components={{ strong: <strong />, a: <a target="_blank" rel="noopener noreferrer" /> }} />
                                                 </Text>
                                                 <Text as="p" variant="bodySm" tone="subdued">
                                                     <strong>{t("scan.autoTab.wizard.pageCustomizationNote")}</strong>{t("scan.autoTab.wizard.pageCustomizationNoteDesc")}

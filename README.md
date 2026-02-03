@@ -174,7 +174,7 @@ pnpm install
 ```env
 SHOPIFY_API_KEY=your_api_key
 SHOPIFY_API_SECRET=your_api_secret
-SCOPES=read_script_tags,read_pixels,write_pixels
+SCOPES=read_script_tags,read_pixels,write_pixels,read_customer_events
 SHOPIFY_APP_URL=https://your-app-url.com
 DATABASE_URL=postgresql://user:password@localhost:5432/tracking_guardian
 ```
@@ -189,7 +189,7 @@ DATABASE_URL=postgresql://user:password@localhost:5432/tracking_guardian
 
 **标准配置（所有环境必须完全一致，包括顺序和拼写）**：
 ```
-SCOPES=read_script_tags,read_pixels,write_pixels
+SCOPES=read_script_tags,read_pixels,write_pixels,read_customer_events
 ```
 
 **⚠️ 关键要求**：
@@ -421,7 +421,7 @@ railway up
 
 **标准配置**（所有环境必须完全一致）：
 ```
-SCOPES=read_script_tags,read_pixels,write_pixels
+SCOPES=read_script_tags,read_pixels,write_pixels,read_customer_events
 ```
 
 **⚠️ 关键要求**：
