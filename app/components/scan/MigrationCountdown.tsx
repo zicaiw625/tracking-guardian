@@ -13,6 +13,7 @@ import {
 } from "@shopify/polaris";
 import { CheckCircleIcon, ClockIcon } from "../icons";
 import { DEPRECATION_DATES, SHOPIFY_HELP_LINKS } from "../../utils/migration-deadlines";
+import { Link } from "@shopify/polaris";
 
 export type ShopTier = "plus" | "non_plus" | "unknown";
 
@@ -192,7 +193,7 @@ export function MigrationCountdown({
                   截止日期：{deadlineLabel}
                 </Text>
                 <Text as="p" variant="bodySm" tone="subdued">
-                  <strong>日期来源：</strong>来自 Shopify 官方公告，仅供参考。实际截止日期请以 Shopify Admin 中的提示为准。Shopify 可能会更新策略，建议定期查看 Shopify 官方文档。
+                  <strong>日期来源：</strong>来自 <Link url={SHOPIFY_HELP_LINKS.UPGRADE_GUIDE} target="_blank">Shopify 官方公告</Link>，仅供参考。实际截止日期请以 Shopify Admin 中的提示为准。Shopify 可能会更新策略，建议定期查看 <Link url={SHOPIFY_HELP_LINKS.CHECKOUT_EXTENSIBILITY} target="_blank">Shopify 官方文档</Link>。
                 </Text>
               </BlockStack>
               <Box
