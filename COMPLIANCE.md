@@ -26,11 +26,6 @@ Tracking Guardian 是一个 Shopify 应用，作为**数据处理者**（Data Pr
 - **数据处理**: 仅存储像素配置元数据（ID、名称、状态），不存储像素代码内容
 - **保留周期**: 配置元数据保留至应用卸载
 
-### `read_customer_events`
-- **用途**: 读取 Shopify Customer Events 中的像素事件，用于验证像素事件是否成功进入 Shopify 系统
-- **数据处理**: 仅用于验证和诊断目的，不存储客户个人信息
-- **保留周期**: 不适用（仅用于实时验证）
-
 ---
 
 ## 数据类型 (Data Types)
@@ -89,7 +84,7 @@ Tracking Guardian 是一个 Shopify 应用，作为**数据处理者**（Data Pr
 
 **当前版本（v1.0）不访问 Protected Customer Data (PCD)**。我们不会通过 Shopify Admin API 读取订单数据、客户信息或其他受保护数据。
 
-- **当前 scopes**：`read_script_tags`、`read_pixels`、`write_pixels`、`read_customer_events`（用于验证像素事件）
+- **当前 scopes**：`read_script_tags`、`read_pixels`、`write_pixels`
 - **不请求的权限**：`read_orders`、`read_customers` 等客户与订单相关权限
 - **不订阅订单相关 webhook**：订单 webhook 处理由 `ORDER_WEBHOOK_ENABLED` 门控关闭，避免误入 PCD 路径
 - **数据来源**：仅基于 Web Pixel 上报的事件收据（PixelEventReceipt）及验收运行记录（VerificationRun）、扫描报告（ScanReport）等进行诊断和统计

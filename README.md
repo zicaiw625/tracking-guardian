@@ -174,7 +174,7 @@ pnpm install
 ```env
 SHOPIFY_API_KEY=your_api_key
 SHOPIFY_API_SECRET=your_api_secret
-SCOPES=read_script_tags,read_pixels,write_pixels,read_customer_events
+SCOPES=read_script_tags,read_pixels,write_pixels
 SHOPIFY_APP_URL=https://your-app-url.com
 DATABASE_URL=postgresql://user:password@localhost:5432/tracking_guardian
 ```
@@ -189,7 +189,7 @@ DATABASE_URL=postgresql://user:password@localhost:5432/tracking_guardian
 
 **标准配置（所有环境必须完全一致，包括顺序和拼写）**：
 ```
-SCOPES=read_script_tags,read_pixels,write_pixels,read_customer_events
+SCOPES=read_script_tags,read_pixels,write_pixels
 ```
 
 **⚠️ 关键要求**：
@@ -201,7 +201,6 @@ SCOPES=read_script_tags,read_pixels,write_pixels,read_customer_events
 - `read_script_tags`：扫描旧版 ScriptTags 用于迁移建议
 - `read_pixels`：查询已安装的 Web Pixel 状态
 - `write_pixels`：创建/更新 App Pixel Extension
-- `read_customer_events`：读取 Web Pixel 产生的客户事件，用于验证事件完整性与诊断
 
 当前版本不申请 `read_orders`，不订阅订单 webhook；验收基于 Web Pixel 的 `checkout_completed` 等标准事件。
 
@@ -410,7 +409,6 @@ railway up
 | `read_script_tags` | 扫描旧版 ScriptTags 用于迁移建议 | `scanner.server.ts` | ✅ 是 |
 | `read_pixels` | 查询已安装的 Web Pixel 状态 | `migration.server.ts` | ✅ 是 |
 | `write_pixels` | 创建/更新 App Pixel Extension | `migration.server.ts` | ✅ 是 |
-| `read_customer_events` | 读取 Web Pixel 产生的客户事件，用于验证事件完整性与诊断 | `pixel-events` 相关服务层 | ✅ 是 |
 
 **权限说明**：所有权限均为当前版本的核心功能所必需，**必须全部包含在 SCOPES 环境变量中**。当前不申请 `read_orders`，不订阅订单 webhook。
 
@@ -423,7 +421,7 @@ railway up
 
 **标准配置**（所有环境必须完全一致）：
 ```
-SCOPES=read_script_tags,read_pixels,write_pixels,read_customer_events
+SCOPES=read_script_tags,read_pixels,write_pixels
 ```
 
 **⚠️ 关键要求**：
