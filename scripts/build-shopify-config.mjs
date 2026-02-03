@@ -35,8 +35,15 @@ function buildShopifyConfig() {
   const isCI = process.env.CI === "true" || process.env.GITHUB_ACTIONS === "true" || process.env.RENDER === "true";
   
   if (!appUrl) {
-    console.warn("⚠️  SHOPIFY_APP_URL not found. Falling back to default production URL.");
-    appUrl = "https://app.tracking-guardian.com";
+    if (isCI) {
+      console.error("❌ CI/Production environment detected: SHOPIFY_APP_URL is required.");
+      console.error("   Automatic fallback is disabled to prevent data leakage.");
+      process.exit(1);
+    }
+    
+    // Local dev fallback only
+    console.warn("⚠️  SHOPIFY_APP_URL not found. Using localhost for development.");
+    appUrl = "http://localhost:3000"; // Safe default for local dev
   }
 
   if (!appUrl) {

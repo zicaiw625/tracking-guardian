@@ -110,6 +110,7 @@ function main() {
   console.log("🔍 Checking Shopify API version consistency...\n");
   const sources = [
     extractTomlApiVersion("shopify.app.toml"),
+    extractTomlApiVersion("shopify.app.toml.template"),
     extractServerApiVersion("app/services/shopify/app-config.server.ts"),
     extractTomlApiVersion("extensions/tracking-pixel/shopify.extension.toml"),
     extractTomlApiVersion("extensions/post-checkout-badge/shopify.extension.toml"),

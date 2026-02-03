@@ -131,8 +131,8 @@ function injectBackendUrl() {
             process.exit(1);
         }
         
-        console.warn("⚠️  SHOPIFY_APP_URL not found in env. Falling back to default production URL (Dev Only).");
-        backendUrl = "https://app.tracking-guardian.com";
+        console.warn("⚠️  SHOPIFY_APP_URL not found in env. Falling back to localhost (Dev Only).");
+        backendUrl = "http://localhost:3000";
     }
 
     if (!backendUrl) {

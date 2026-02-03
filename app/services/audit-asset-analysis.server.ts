@@ -4,6 +4,7 @@ import { PLATFORM_INFO } from "./scanner/patterns";
 import { detectRisksInContent } from "./scanner/risk-detector.server";
 import { getAuditAssets, batchCreateAuditAssets } from "./audit-asset.server";
 import type { AssetCategory, AssetSourceType, RiskLevel, SuggestedMigration } from "./audit-asset.server";
+import { sanitizeSensitiveInfo } from "../utils/security";
 import crypto from "crypto";
 
 export interface ManualPasteAnalysisResult {
@@ -80,8 +81,8 @@ export function analyzeManualPaste(
       displayName: generateDisplayName(category, platform, containerInfo),
       riskLevel,
       suggestedMigration,
-      content: snippet.substring(0, 500),
-      matchedPatterns: analysis.platformDetails.map(d => d.matchedPattern),
+      content: sanitizeSensitiveInfo(snippet).substring(0, 500),
+      matchedPatterns: analysis.platformDetails.map(d => sanitizeSensitiveInfo(d.matchedPattern)),
       confidence,
       detectedRisks: {
         piiAccess: riskDetection.detectedIssues.piiAccess,
