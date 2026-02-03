@@ -214,7 +214,7 @@ export function validateConfig(): ConfigValidationResult {
       if (scopes.length === 0) {
         errors.push("SCOPES must contain at least one scope in production");
       } else {
-        const requiredScopes = ["read_script_tags", "read_pixels", "write_pixels"];
+        const requiredScopes = ["read_script_tags", "read_pixels", "write_pixels", "read_customer_events"];
         const missingScopes = requiredScopes.filter(required => !scopes.includes(required));
         if (missingScopes.length > 0) {
           errors.push(`SCOPES must include all required scopes in production. Missing: ${missingScopes.join(", ")}`);
