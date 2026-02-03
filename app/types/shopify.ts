@@ -55,6 +55,10 @@ export interface ShopQueryResponse {
         shopifyPlus?: boolean;
       };
       checkoutApiSupported?: boolean;
+      domains?: Array<{
+        host: string;
+        url?: string;
+      }>;
     };
   };
   errors?: Array<{ message?: string }>;

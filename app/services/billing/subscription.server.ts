@@ -260,6 +260,8 @@ const GET_SUBSCRIPTION_QUERY = `
             trialDays
             createdAt
             currentPeriodEnd
+            test
+            confirmationUrl
             lineItems {
               id
               plan {
@@ -430,6 +432,34 @@ export async function createSubscription(
     if (currentPlan === planId && currentStatus.hasActiveSubscription) {
       return { success: false, error: "当前已是该套餐，无需重复订阅" };
     }
+
+    // Check for pending subscription for the same plan (prevent reviewer loop)
+    try {
+      const subResponse = await admin.graphql(GET_SUBSCRIPTION_QUERY);
+      const subData = await subResponse.json();
+      const allSubs = subData.data?.appInstallation?.allSubscriptions?.edges?.map((e: any) => e.node) || [];
+      
+      // Find a pending subscription for the requested plan created in the last 15 minutes
+      const fifteenMinutesAgo = new Date(Date.now() - 15 * 60 * 1000);
+      const pendingSub = allSubs.find((sub: any) => {
+          if (sub.status !== "PENDING") return false;
+          const subPlan = detectPlanFromSubscription(sub);
+          const createdAt = new Date(sub.createdAt);
+          return subPlan === planId && createdAt > fifteenMinutesAgo;
+      });
+
+      if (pendingSub && pendingSub.confirmationUrl) {
+          logger.info(`Found pending subscription ${pendingSub.id} for plan ${planId}, reusing confirmationUrl`);
+          return {
+              success: true,
+              confirmationUrl: pendingSub.confirmationUrl,
+              subscriptionId: pendingSub.id,
+          };
+      }
+    } catch (e) {
+      logger.warn("Failed to check pending subscriptions", { error: e instanceof Error ? e.message : String(e) });
+    }
+
     const planInfo = await getShopPlan(admin as AdminApiContext);
     const testMode =
       isTest ||

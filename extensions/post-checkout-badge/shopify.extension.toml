@@ -1,6 +1,7 @@
-api_version = "2026-01"
+api_version = "2025-07"
 
 [[extensions]]
+uid = "0ef1b499-ef12-ed1c-6583-24c125e653182f02af08"
 type = "ui_extension"
 name = "Tracking Guardian Badge"
 handle = "tracking-guardian-badge"

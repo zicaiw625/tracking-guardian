@@ -119,6 +119,13 @@ function resolveBackendUrl() {
 function injectBackendUrl() {
     loadEnv();
     let backendUrl = process.env.SHOPIFY_APP_URL || resolveBackendUrl();
+    
+    // Fallback to production URL if not set (matches pre-deploy-check behavior)
+    if (!backendUrl) {
+        console.warn("⚠️  SHOPIFY_APP_URL not found in env. Falling back to default production URL.");
+        backendUrl = "https://app.tracking-guardian.com";
+    }
+
     const isCI = process.env.CI === "true" || process.env.GITHUB_ACTIONS === "true" || process.env.RENDER === "true";
     if (!backendUrl) {
         console.error("❌ Missing SHOPIFY_APP_URL/RENDER_EXTERNAL_URL/PUBLIC_APP_URL. Refusing to inject BACKEND_URL.");

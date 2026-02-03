@@ -31,9 +31,14 @@ function loadEnv() {
 
 function buildShopifyConfig() {
   loadEnv();
-  const appUrl = process.env.SHOPIFY_APP_URL || process.env.APPLICATION_URL;
+  let appUrl = process.env.SHOPIFY_APP_URL || process.env.APPLICATION_URL;
   const isCI = process.env.CI === "true" || process.env.GITHUB_ACTIONS === "true" || process.env.RENDER === "true";
   
+  if (!appUrl) {
+    console.warn("⚠️  SHOPIFY_APP_URL not found. Falling back to default production URL.");
+    appUrl = "https://app.tracking-guardian.com";
+  }
+
   if (!appUrl) {
     console.error("❌ SHOPIFY_APP_URL or APPLICATION_URL is required.");
     process.exit(1);

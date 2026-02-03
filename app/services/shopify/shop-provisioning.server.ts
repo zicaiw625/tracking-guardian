@@ -25,6 +25,7 @@ interface AfterAuthParams {
 interface ShopInfo {
   primaryDomain: string | null;
   shopTier: ShopTierValue;
+  storefrontDomains: string[];
 }
 
 async function fetchShopInfo(
@@ -33,11 +34,15 @@ async function fetchShopInfo(
 ): Promise<ShopInfo> {
   let primaryDomainHost: string | null = null;
   let shopTier: ShopTierValue = "unknown";
+  let storefrontDomains: string[] = [];
   try {
     const shopQuery = await admin.graphql(`
       query {
         shop {
           primaryDomain {
+            host
+          }
+          domains {
             host
           }
           plan {
@@ -51,6 +56,11 @@ async function fetchShopInfo(
     `);
     const shopData = (await shopQuery.json()) as ShopQueryResponse;
     primaryDomainHost = shopData?.data?.shop?.primaryDomain?.host || null;
+    
+    if (shopData?.data?.shop?.domains) {
+      storefrontDomains = shopData.data.shop.domains.map(d => d.host).filter(Boolean);
+    }
+
     const plan = shopData?.data?.shop?.plan;
     if (plan?.shopifyPlus === true) {
       shopTier = "plus";
@@ -62,6 +72,9 @@ async function fetchShopInfo(
         primaryDomain: primaryDomainHost,
       });
     }
+    logger.info(`[Shop] Fetched ${storefrontDomains.length} domains for ${shopDomain}`, {
+      domains: storefrontDomains.slice(0, 5)
+    });
     logger.info(`[Shop] Determined shopTier for ${shopDomain}`, {
       shopTier,
       isPlus: plan?.shopifyPlus,
@@ -72,7 +85,7 @@ async function fetchShopInfo(
       error: error instanceof Error ? error.message : String(error),
     });
   }
-  return { primaryDomain: primaryDomainHost, shopTier };
+  return { primaryDomain: primaryDomainHost, shopTier, storefrontDomains };
 }
 
 async function upsertShopRecord(
@@ -96,6 +109,7 @@ async function upsertShopRecord(
       uninstalledAt: null,
       ...(shopInfo.primaryDomain && { primaryDomain: shopInfo.primaryDomain }),
       ...(shopInfo.shopTier !== "unknown" && { shopTier: shopInfo.shopTier }),
+      storefrontDomains: shopInfo.storefrontDomains,
     },
     create: {
       id: shopDomain,
@@ -103,7 +117,7 @@ async function upsertShopRecord(
       accessTokenEncrypted: encryptedAccessToken,
       ingestionSecret: newIngestionSecret.encrypted,
       primaryDomain: shopInfo.primaryDomain,
-      storefrontDomains: [],
+      storefrontDomains: shopInfo.storefrontDomains,
       shopTier: shopInfo.shopTier,
       monthlyOrderLimit: 100,
       updatedAt: new Date(),
@@ -358,7 +372,7 @@ export async function handleAfterAuth(
   }
   const shopInfo = admin
     ? await fetchShopInfo(admin, session.shop)
-    : { primaryDomain: null, shopTier: "unknown" as ShopTierValue };
+    : { primaryDomain: null, shopTier: "unknown" as ShopTierValue, storefrontDomains: [] };
   const existingShop = await prisma.shop.findUnique({
     where: { shopDomain: session.shop },
     select: { id: true, installedAt: true },

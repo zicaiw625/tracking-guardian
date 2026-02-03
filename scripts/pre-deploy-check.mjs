@@ -476,6 +476,56 @@ results.push(checkExtensionUrlInjected());
 results.push(checkAllowlistConfiguration());
 results.push(checkPixelNullOriginConfig());
 
+function checkDistForPlaceholder() {
+    const distDir = path.join(__dirname, "../extensions/tracking-pixel/dist");
+    if (!fs.existsSync(distDir)) {
+        return {
+            name: "构建产物检查",
+            passed: true,
+            message: "dist 目录不存在，跳过检查 (CI 环境通常会在 deploy 前构建)",
+        };
+    }
+    
+    const violations = [];
+    const placeholderPattern = /__BACKEND_URL_PLACEHOLDER__/;
+    
+    function scan(dir) {
+        const files = fs.readdirSync(dir, { withFileTypes: true });
+        for (const file of files) {
+            const fullPath = path.join(dir, file.name);
+            if (file.isDirectory()) {
+                scan(fullPath);
+            } else if (file.isFile() && (file.name.endsWith(".js") || file.name.endsWith(".mjs"))) {
+                try {
+                    const content = fs.readFileSync(fullPath, "utf-8");
+                    if (placeholderPattern.test(content)) {
+                        violations.push(path.relative(path.join(__dirname, ".."), fullPath));
+                    }
+                } catch (e) {}
+            }
+        }
+    }
+    
+    scan(distDir);
+    
+    if (violations.length > 0) {
+        return {
+            name: "构建产物检查",
+            passed: false,
+            message: `FATAL: 构建产物中包含未替换的 BACKEND_URL 占位符。这会导致像素在生产环境无法工作。\n   受影响文件: ${violations.join(", ")}\n   请确保在构建前运行了 'pnpm ext:inject'`,
+            isHardError: true,
+        };
+    }
+    
+    return {
+        name: "构建产物检查",
+        passed: true,
+        message: "构建产物中未发现残留的占位符",
+    };
+}
+
+results.push(checkDistForPlaceholder());
+
 console.log("\n🔍 部署前检查结果\n");
 console.log("=".repeat(60));
 
