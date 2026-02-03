@@ -192,6 +192,11 @@ function PrivacyContent() {
               我们<strong>不会</strong>从 Shopify 读取订单明细，也<strong>不会</strong>访问受保护客户数据（Protected Customer Data, PCD）。
             </p>
             <p>
+              我们请求 <code>read_customer_events</code> 权限仅为了支持 Web Pixel 的事件接收与处理能力。
+              此权限用于接收标准像素事件（如 <code>checkout_completed</code>），<strong>不等同于</strong> <code>read_customers</code>。
+              我们<strong>不读取</strong>客户档案（Customer Profile）或敏感 PII（如姓名、地址）。
+            </p>
+            <p>
               <strong>Web Pixel 行为说明</strong>：我们的 Web Pixel 代码不会读取 checkout DOM 中的客户个人信息，只依赖 Shopify 提供的标准事件 payload。我们不会尝试通过 Web Pixel 还原客户身份（如邮箱/电话）。
             </p>
 

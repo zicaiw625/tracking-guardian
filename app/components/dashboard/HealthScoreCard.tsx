@@ -20,9 +20,11 @@ const HealthBadge = memo(function HealthBadge({ status }: { status: DashboardDat
 export const HealthScoreCard = memo(function HealthScoreCard({
   score,
   status,
+  rejectionStats,
 }: {
   score: number | null;
   status: DashboardData["healthStatus"];
+  rejectionStats?: DashboardData["rejectionStats"];
 }) {
   const { t } = useTranslation();
   const backgroundColor = useMemo(() =>
@@ -72,6 +74,19 @@ export const HealthScoreCard = memo(function HealthScoreCard({
             ? t("dashboard.healthScore.desc")
             : t("dashboard.healthScore.descUnknown")}
         </Text>
+        {rejectionStats && rejectionStats.length > 0 && (
+          <Box paddingBlockStart="400" width="100%">
+             <BlockStack gap="200">
+               <Text as="h3" variant="headingSm" tone="critical">Pixel Health (Last 1h)</Text>
+               {rejectionStats.slice(0, 3).map((stat) => (
+                 <InlineStack key={stat.reason} align="space-between">
+                   <Text as="span" variant="bodySm" tone="subdued">{stat.reason}</Text>
+                   <Badge tone="critical">{String(stat.count)}</Badge>
+                 </InlineStack>
+               ))}
+             </BlockStack>
+          </Box>
+        )}
       </BlockStack>
     </Card>
   );

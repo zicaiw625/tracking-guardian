@@ -179,8 +179,13 @@ export function validateConfig(): ConfigValidationResult {
       warnings.push(`${key} not set - ${reason}`);
     }
   }
-  if (isProduction && !process.env.REDIS_URL && process.env.ALLOW_MEMORY_REDIS_IN_PROD !== "true") {
-    errors.push("REDIS_URL is required in production (rate-limit/nonce/idempotency need shared storage). Set ALLOW_MEMORY_REDIS_IN_PROD=true to bypass.");
+  if (isProduction) {
+    if (process.env.ALLOW_MEMORY_REDIS_IN_PROD === "true") {
+      errors.push("ALLOW_MEMORY_REDIS_IN_PROD cannot be true in production. Redis is required for rate-limiting and security.");
+    }
+    if (!process.env.REDIS_URL) {
+      errors.push("REDIS_URL is required in production (rate-limit/nonce/idempotency need shared storage).");
+    }
   }
   if (isProduction && process.env.TRUST_PROXY !== "true") {
     errors.push("TRUST_PROXY must be true in production (required for correct IP rate limiting to prevent self-DoS)");

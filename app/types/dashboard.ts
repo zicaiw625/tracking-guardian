@@ -111,6 +111,11 @@ export interface DashboardData {
     hasWebPixel: boolean;
     webPixelHasIngestionKey: boolean;
   };
+  rejectionStats?: Array<{
+    reason: string;
+    count: number;
+    percentage: number;
+  }>;
 }
 
 export interface SetupStep {

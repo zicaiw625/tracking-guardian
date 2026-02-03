@@ -9,6 +9,7 @@ import { logger } from "../utils/logger.server";
 import { calculateMigrationProgress } from "../utils/migration-progress.server";
 import { getTierDisplayInfo } from "./shop-tier.server";
 import { isValidShopTier } from "../domain/shop/shop.entity";
+import { rejectionTracker } from "../lib/pixel-events/rejection-tracker.server";
 
 export type {
   DashboardData,
@@ -398,6 +399,15 @@ export async function getDashboardData(shopDomain: string): Promise<DashboardDat
   } catch (error) {
     logger.warn("Failed to get active alerts", { shopId: shop.id, error });
   }
+  
+  let rejectionStats: Array<{ reason: string; count: number; percentage: number }> = [];
+  try {
+    // Get stats for the last 1 hour
+    rejectionStats = rejectionTracker.getRejectionStats(shopDomain, 1);
+  } catch (error) {
+    logger.warn("Failed to get rejection stats", { shopId: shop.id, error });
+  }
+
   return {
     shopDomain,
     healthScore: score,
@@ -444,5 +454,6 @@ export async function getDashboardData(shopDomain: string): Promise<DashboardDat
     healthMetrics24h,
     activeAlerts,
     topRiskSources,
+    rejectionStats,
   };
 }

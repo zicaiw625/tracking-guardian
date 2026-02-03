@@ -30,7 +30,11 @@ export const DashboardMetrics = memo(function DashboardMetrics({
     <>
       <Layout>
         <Layout.Section variant="oneThird">
-          <HealthScoreCard score={data.healthScore} status={data.healthStatus} />
+          <HealthScoreCard 
+            score={data.healthScore} 
+            status={data.healthStatus} 
+            rejectionStats={data.rejectionStats}
+          />
         </Layout.Section>
         <Layout.Section variant="oneThird">
           <QuickStatsCard

@@ -26,6 +26,12 @@ Tracking Guardian 是一个 Shopify 应用，作为**数据处理者**（Data Pr
 - **数据处理**: 仅存储像素配置元数据（ID、名称、状态），不存储像素代码内容
 - **保留周期**: 配置元数据保留至应用卸载
 
+### `read_customer_events`
+- **用途**: 用于 Web Pixel / Customer events 相关能力的读取或像素能力配套。
+- **说明**: 此权限用于接收和处理来自 Shopify Web Pixels 的标准事件（如 `checkout_completed`, `page_viewed` 等）。
+- **数据处理**: 我们仅接收事件数据用于分析和验收，**绝不读取**客户档案（Customer Profile）或敏感 PII（如姓名、地址）。此权限不等同于 `read_customers`。
+- **保留周期**: 事件数据按店铺 dataRetentionDays（默认 90 天）保留，之后自动清理。
+
 ---
 
 ## 数据类型 (Data Types)
