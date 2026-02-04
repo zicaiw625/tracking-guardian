@@ -25,7 +25,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     } else {
         extensionConfigStatus = "error";
     }
-  } catch (e) {
+  } catch {
     extensionConfigStatus = "error";
   }
 

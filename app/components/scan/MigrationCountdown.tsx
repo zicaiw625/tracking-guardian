@@ -10,10 +10,10 @@ import {
   Icon,
   Divider,
   Banner,
+  Link,
 } from "@shopify/polaris";
 import { CheckCircleIcon, ClockIcon } from "../icons";
 import { DEPRECATION_DATES, SHOPIFY_HELP_LINKS } from "../../utils/migration-deadlines";
-import { Link } from "@shopify/polaris";
 
 export type ShopTier = "plus" | "non_plus" | "unknown";
 
