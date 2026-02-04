@@ -19,10 +19,10 @@ export function createEncryptedSessionStorage(baseStorage: SessionStorage): Sess
             const sessionWithRefreshToken = session as Session & { refreshToken?: string };
             const cloned = cloneSession(session);
             const clonedWithRefreshToken = cloned as Session & { refreshToken?: string };
-            if (cloned.accessToken) {
+            if (cloned.accessToken && !isTokenEncrypted(cloned.accessToken)) {
                 clonedWithRefreshToken.accessToken = encryptAccessToken(cloned.accessToken);
             }
-            if (sessionWithRefreshToken.refreshToken) {
+            if (sessionWithRefreshToken.refreshToken && !isTokenEncrypted(sessionWithRefreshToken.refreshToken)) {
                 clonedWithRefreshToken.refreshToken = encryptAccessToken(sessionWithRefreshToken.refreshToken);
             }
             return await baseStorage.storeSession(cloned);

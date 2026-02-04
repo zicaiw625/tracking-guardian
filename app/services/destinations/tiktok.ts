@@ -1,3 +1,4 @@
+import { postJson } from "~/utils/http";
 import type { TikTokCredentials } from "~/types";
 import type { InternalEventPayload, SendEventResult } from "./types";
 import { S2S_FETCH_TIMEOUT_MS } from "./types";
@@ -73,16 +74,13 @@ export async function sendEvent(
   }
   const body = { data: { events: [payload] } };
   try {
-    const res = await fetch(TIKTOK_EVENTS_API, {
-      method: "POST",
+    const res = await postJson(TIKTOK_EVENTS_API, body, {
+      timeout: S2S_FETCH_TIMEOUT_MS,
       headers: {
-        "Content-Type": "application/json",
         "Access-Token": accessToken,
       },
-      body: JSON.stringify(body),
-      signal: AbortSignal.timeout(S2S_FETCH_TIMEOUT_MS),
     });
-    const json = await res.json().catch(() => ({}));
+    const json = (res.data && typeof res.data === "object" ? res.data : {}) as Record<string, any>;
     const code = (json as { code?: number }).code;
     if (res.ok && code === 0) {
       return { ok: true, statusCode: res.status };

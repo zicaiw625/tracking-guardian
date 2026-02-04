@@ -1,3 +1,4 @@
+import { postJson } from "~/utils/http";
 import type { MetaCredentials } from "~/types";
 import type { InternalEventPayload, SendEventResult } from "./types";
 import { S2S_FETCH_TIMEOUT_MS } from "./types";
@@ -83,17 +84,15 @@ export async function sendEvent(
   }
   const url = `${META_GRAPH_BASE}/${pixelId}/events`;
   try {
-    const res = await fetch(url, {
-      method: "POST",
+    const res = await postJson(url, body, {
+      timeout: S2S_FETCH_TIMEOUT_MS,
       headers: {
-        "Content-Type": "application/json",
         Authorization: `Bearer ${accessToken}`,
       },
-      body: JSON.stringify(body),
-      signal: AbortSignal.timeout(S2S_FETCH_TIMEOUT_MS),
     });
-    const json = await res.json().catch(() => ({}));
-    if (res.ok && !(json as { error?: unknown }).error) {
+    const json = (res.data && typeof res.data === "object" ? res.data : {}) as Record<string, any>;
+    
+    if (res.ok && !json.error) {
       return { ok: true, statusCode: res.status };
     }
     const errMsg = (json as { error?: { message?: string } }).error?.message ?? res.statusText ?? `HTTP ${res.status}`;

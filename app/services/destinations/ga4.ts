@@ -1,3 +1,4 @@
+import { postJson } from "~/utils/http";
 import type { GoogleCredentials } from "~/types";
 import type { InternalEventPayload, SendEventResult } from "./types";
 import { S2S_FETCH_TIMEOUT_MS } from "./types";
@@ -52,17 +53,14 @@ export async function sendEvent(
   };
   const url = `${GA4_MP_URL}?measurement_id=${encodeURIComponent(measurementId)}&api_secret=${encodeURIComponent(apiSecret)}`;
   try {
-    const res = await fetch(url, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body),
-      signal: AbortSignal.timeout(S2S_FETCH_TIMEOUT_MS),
+    const res = await postJson(url, body, {
+      timeout: S2S_FETCH_TIMEOUT_MS,
     });
     if (res.ok) {
       return { ok: true, statusCode: res.status };
     }
-    const text = await res.text();
-    return { ok: false, statusCode: res.status, error: text || `HTTP ${res.status}` };
+    const errorText = typeof res.data === "string" ? res.data : JSON.stringify(res.data);
+    return { ok: false, statusCode: res.status, error: errorText || `HTTP ${res.status}` };
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     return { ok: false, error: message };

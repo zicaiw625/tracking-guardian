@@ -25,6 +25,7 @@ const ALLOWED_OUTBOUND_HOSTS = [
   "hooks.slack.com",
   "api.resend.com",
   "api.telegram.org",
+  "business-api.tiktok.com",
 ] as const;
 
 function isHostAllowed(hostname: string): boolean {
