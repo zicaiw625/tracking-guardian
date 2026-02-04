@@ -174,16 +174,16 @@ export function validateEncryptionConfig(): {
     return { valid: true, warnings, secretSource };
 }
 const ALGORITHM = "aes-256-gcm";
-export const IV_LENGTH = 16;
-export const IV_LENGTH_V2 = 12;
+export const IV_LENGTH = 12;
+export const IV_LENGTH_V1 = 16;
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 const AUTH_TAG_LENGTH = 16;
 
 export type EncryptionVersion = "v1" | "v2";
 
-export function encrypt(plaintext: string, version: EncryptionVersion = "v1"): string {
+export function encrypt(plaintext: string, version: EncryptionVersion = "v2"): string {
     const key = getEncryptionKey();
-    const ivLength = version === "v2" ? IV_LENGTH_V2 : IV_LENGTH;
+    const ivLength = version === "v2" ? IV_LENGTH : IV_LENGTH_V1;
     const iv = randomBytes(ivLength);
     const cipher = createCipheriv(ALGORITHM, key, iv);
     let encrypted = cipher.update(plaintext, "utf8", "hex");
@@ -202,8 +202,8 @@ export function decrypt(encryptedData: string): string {
     const iv = Buffer.from(ivHex, "hex");
     const ivLength = iv.length;
     
-    if (ivLength !== IV_LENGTH && ivLength !== IV_LENGTH_V2) {
-        throw new Error(`Invalid IV length: ${ivLength} bytes (expected ${IV_LENGTH} for v1 or ${IV_LENGTH_V2} for v2)`);
+    if (ivLength !== IV_LENGTH && ivLength !== IV_LENGTH_V1) {
+        throw new Error(`Invalid IV length: ${ivLength} bytes (expected ${IV_LENGTH_V1} for v1 or ${IV_LENGTH} for v2)`);
     }
     
     const authTag = Buffer.from(authTagHex, "hex");

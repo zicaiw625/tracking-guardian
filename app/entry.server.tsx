@@ -122,7 +122,7 @@ export default async function handleRequest(request: Request, responseStatusCode
       shopCandidate && SecureShopDomainSchema.safeParse(shopCandidate).success
         ? shopCandidate
         : null;
-    const frameAncestors = ["https://admin.shopify.com"];
+    const frameAncestors = ["https://admin.shopify.com", "https://*.myshopify.com", "https://*.shopify.com"];
     if (shopDomain) frameAncestors.unshift(`https://${shopDomain}`);
     responseHeaders.delete("X-Frame-Options");
     const cspDirectives = {

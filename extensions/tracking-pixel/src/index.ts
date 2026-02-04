@@ -22,7 +22,9 @@ register(({ analytics, settings, init, customerPrivacy }: {
     return false;
   })();
   function log(...args: unknown[]): void {
-    if (isDevMode) {
+    // Enable logging if in dev mode OR if debug setting is explicitly enabled
+    const debugEnabled = isDevMode || (settings as any).debug === true || (settings as any).debug === "true";
+    if (debugEnabled) {
       console.log("[Tracking Guardian]", ...args);
     }
   }
