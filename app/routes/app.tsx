@@ -18,26 +18,34 @@ import { useTranslation } from "react-i18next";
 
 export const links = () => [{ rel: "stylesheet", href: polarisStyles }];
 export const loader = async ({ request }: LoaderFunctionArgs) => {
-    const { session } = await authenticate.admin(request);
-    const shopDomain = session.shop;
-    const shop = await prisma.shop.findUnique({
-        where: { shopDomain },
-        select: {
-            id: true,
-            plan: true,
-            shopTier: true,
-            shopTierLastCheckedAt: true,
-        },
-    });
-    
-    const planIdNormalized = normalizePlanId(shop?.plan || "free") as PlanId;
-    
-    return json({
-        apiKey: process.env.SHOPIFY_API_KEY || "",
-        shopDomain,
-        planId: planIdNormalized,
-        currentShopId: shop?.id,
-    });
+    try {
+        const { session } = await authenticate.admin(request);
+        const shopDomain = session.shop;
+        const shop = await prisma.shop.findUnique({
+            where: { shopDomain },
+            select: {
+                id: true,
+                plan: true,
+                shopTier: true,
+                shopTierLastCheckedAt: true,
+            },
+        });
+        
+        const planIdNormalized = normalizePlanId(shop?.plan || "free") as PlanId;
+        
+        return json({
+            apiKey: process.env.SHOPIFY_API_KEY || "",
+            shopDomain,
+            planId: planIdNormalized,
+            currentShopId: shop?.id,
+        });
+    } catch (error) {
+        if (error instanceof Response) {
+            throw error;
+        }
+        console.error("[App Loader] Failed to load app data:", error);
+        throw error;
+    }
 };
 export default function App() {
     const { apiKey, shopDomain, planId, currentShopId } = useLoaderData<typeof loader>();
