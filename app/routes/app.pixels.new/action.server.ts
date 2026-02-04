@@ -12,6 +12,12 @@ import { decryptIngestionSecret, encryptIngestionSecret, isTokenEncrypted } from
 import { randomBytes } from "crypto";
 import { trackEvent } from "../../services/analytics.server";
 import { encryptJson } from "../../utils/crypto.server";
+import { z } from "zod";
+import {
+  GoogleCredentialsInputSchema,
+  MetaCredentialsInputSchema,
+  TikTokCredentialsInputSchema,
+} from "../../schemas/platform-credentials";
 
 const SUPPORTED_PLATFORMS = ["google", "meta", "tiktok"] as const;
 type SupportedPlatform = (typeof SUPPORTED_PLATFORMS)[number];
@@ -50,30 +56,71 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       }, { status: 403 });
     }
     try {
-      const configs = JSON.parse(configsJson) as Array<{
-        platform: string;
-        platformId: string;
-        credentials: Record<string, string>;
-        serverSideEnabled?: boolean;
-        eventMappings: Record<string, string>;
-        environment: "test" | "live";
-      }>;
+      const BaseConfigSchema = z.object({
+        platform: z.string(),
+        platformId: z.string().optional().nullable(),
+        credentials: z.any(),
+        serverSideEnabled: z.boolean().optional(),
+        eventMappings: z.any(),
+        environment: z.string(),
+      });
+
+      const ConfigsArraySchema = z.array(BaseConfigSchema);
+      
+      let configs;
+      try {
+        configs = ConfigsArraySchema.parse(JSON.parse(configsJson));
+      } catch (error) {
+         if (error instanceof z.ZodError) {
+             return json({ success: false, error: `配置格式错误: ${error.issues[0].message}` }, { status: 400 });
+         }
+         // JSON parse error
+         if (error instanceof SyntaxError) {
+             return json({ success: false, error: "无效的 JSON 数据" }, { status: 400 });
+         }
+         throw error;
+      }
+
       const configIds: string[] = [];
       const createdPlatforms: string[] = [];
       for (const config of configs) {
         const platform = config.platform as SupportedPlatform;
+
         if (!SUPPORTED_PLATFORMS.includes(platform)) {
-          return json({
-            success: false,
-            error: `平台 ${config.platform} 尚未在 v1 支持，请仅选择 GA4、Meta 或 TikTok。`,
-          }, { status: 400 });
+           return json({
+             success: false,
+             error: `平台 ${config.platform} 尚未在 v1 支持，请仅选择 GA4、Meta 或 TikTok。`,
+           }, { status: 400 });
         }
+
+        if (!["test", "live"].includes(config.environment)) {
+             return json({ success: false, error: "Invalid environment" }, { status: 400 });
+        }
+        
         const platformIdValue = config.platformId?.trim() || null;
-        const creds = config.credentials ?? {};
+        const creds = (typeof config.credentials === 'object' && config.credentials !== null) ? config.credentials : {};
         const hasCredentials =
           platform === "google"
             ? !!(creds.measurementId?.trim() && creds.apiSecret?.trim())
             : !!(creds.pixelId?.trim() && creds.accessToken?.trim());
+
+        // Validate credentials format if they are considered "present"
+        if (hasCredentials) {
+            let validationResult;
+            if (platform === 'google') {
+                validationResult = GoogleCredentialsInputSchema.safeParse(creds);
+            } else if (platform === 'meta') {
+                 validationResult = MetaCredentialsInputSchema.safeParse(creds);
+            } else if (platform === 'tiktok') {
+                 validationResult = TikTokCredentialsInputSchema.safeParse(creds);
+            }
+            
+            if (validationResult && !validationResult.success) {
+                 const errorMsg = validationResult.error.issues[0].message;
+                 return json({ success: false, error: `${platform} 配置错误: ${errorMsg}` }, { status: 400 });
+            }
+        }
+
         const credentialsEncrypted = hasCredentials
           ? encryptJson(
               platform === "google"

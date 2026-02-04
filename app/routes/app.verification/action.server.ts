@@ -57,7 +57,16 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       if (!itemId || !eventType || !expectedEventsStr) {
         return json({ success: false, error: "缺少必要参数" }, { status: 400 });
       }
-      const expectedEvents = JSON.parse(expectedEventsStr) as string[];
+      let expectedEvents: string[];
+      try {
+        const parsed = JSON.parse(expectedEventsStr);
+        if (!Array.isArray(parsed)) {
+           return json({ success: false, error: "expectedEvents must be an array" }, { status: 400 });
+        }
+        expectedEvents = parsed.map(String);
+      } catch {
+        return json({ success: false, error: "Invalid JSON in expectedEvents" }, { status: 400 });
+      }
       const fiveMinutesAgo = new Date();
       fiveMinutesAgo.setMinutes(fiveMinutesAgo.getMinutes() - 5);
       const receipts = await prisma.pixelEventReceipt.findMany({
