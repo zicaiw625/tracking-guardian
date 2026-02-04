@@ -1,4 +1,4 @@
-import { randomUUID } from "crypto";
+import { randomUUID, createHash } from "crypto";
 import { Prisma } from "@prisma/client";
 import prisma from "~/db.server";
 import { checkInitialConsent } from "~/lib/pixel-events/consent-filter";
@@ -51,7 +51,9 @@ export async function persistInternalEventsAndDispatchJobs(
 
   if (s2sDestinations.length === 0) return;
 
-  const ip = requestContext?.ip ?? null;
+  // Anonymize IP to reduce PII storage risk
+  const rawIp = requestContext?.ip ?? null;
+  const ip = rawIp ? createHash("sha256").update(rawIp).digest("hex") : null;
   const user_agent = requestContext?.user_agent ?? null;
   const page_url = requestContext?.page_url ?? null;
   const referrer = requestContext?.referrer ?? null;

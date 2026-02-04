@@ -9,6 +9,7 @@ import { PIXEL_INGESTION_HEADERS } from "../../utils/security-headers";
 export const PIXEL_CUSTOM_HEADERS = [
   "X-Tracking-Guardian-Timestamp",
   "X-Tracking-Guardian-Signature",
+  "x-shopify-shop-domain",
 ];
 
 export function getCorsHeadersPreBody(request: Request): HeadersInit {

@@ -159,6 +159,31 @@ export const eventValidationMiddleware: IngestMiddleware = async (
   const shopDomain = firstPayload.shopDomain;
   const timestamp = context.batchTimestamp ?? firstPayload.timestamp;
 
+  for (const { payload } of validatedEvents) {
+    if (payload.shopDomain !== shopDomain) {
+      if (shouldRecordRejection(context.isProduction, false, "shop_domain_mismatch")) {
+        rejectionTracker.record({
+          requestId: context.requestId,
+          shopDomain: context.shopDomainHeader,
+          reason: "shop_domain_mismatch",
+          timestamp: Date.now(),
+        });
+      }
+      logger.warn("Mixed shopDomain in batch", {
+        requestId: context.requestId,
+        firstShop: shopDomain,
+        mixedShop: payload.shopDomain,
+      });
+      return {
+        continue: false,
+        response: jsonWithCors(
+          { error: context.isProduction ? "Invalid request" : "Mixed shopDomain in batch" },
+          { status: 400, request: context.request, requestId: context.requestId }
+        ),
+      };
+    }
+  }
+
   if (context.shopDomainHeader !== "unknown" && context.shopDomainHeader !== shopDomain) {
     if (context.isProduction) {
       if (shouldRecordRejection(context.isProduction, false, "shop_domain_mismatch")) {

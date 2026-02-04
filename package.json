@@ -17,7 +17,7 @@
     "db:migrate": "prisma migrate dev",
     "db:deploy": "prisma migrate deploy",
     "db:studio": "prisma studio",
-    "render-build": "pnpm generate && pnpm db:deploy && pnpm shopify:config:build && pnpm ext:inject && pnpm ext:validate && pnpm build",
+    "render-build": "pnpm pre-deploy:check && pnpm generate && pnpm db:deploy && pnpm shopify:config:build && pnpm ext:inject && pnpm ext:validate && pnpm build",
     "pretest": "prisma generate",
     "test": "vitest run",
     "test:watch": "vitest",
