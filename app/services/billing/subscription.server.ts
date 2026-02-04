@@ -261,7 +261,6 @@ const GET_SUBSCRIPTION_QUERY = `
             createdAt
             currentPeriodEnd
             test
-            confirmationUrl
             lineItems {
               id
               plan {
@@ -434,6 +433,9 @@ export async function createSubscription(
     }
 
     // Check for pending subscription for the same plan (prevent reviewer loop)
+    // NOTE: validationUrl is no longer available in AppSubscription query in newer API versions
+    // so we cannot reuse pending subscriptions easily.
+    /*
     try {
       const subResponse = await admin.graphql(GET_SUBSCRIPTION_QUERY);
       const subData = await subResponse.json();
@@ -459,6 +461,7 @@ export async function createSubscription(
     } catch (e) {
       logger.warn("Failed to check pending subscriptions", { error: e instanceof Error ? e.message : String(e) });
     }
+    */
 
     const planInfo = await getShopPlan(admin as AdminApiContext);
     const testMode =
