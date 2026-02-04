@@ -1,4 +1,4 @@
-import { randomUUID } from "crypto";
+import { randomUUID } from "node:crypto";
 import prisma from "../db.server";
 import { logger } from "../utils/logger.server";
 import { sendAlertToChannels } from "./alert-delivery.server";

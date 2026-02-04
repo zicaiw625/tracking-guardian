@@ -1,4 +1,4 @@
-import { randomBytes } from "crypto";
+import { randomBytes } from "node:crypto";
 import { AsyncLocalStorage } from "async_hooks";
 import { hashValueSync } from "./crypto.server";
 
