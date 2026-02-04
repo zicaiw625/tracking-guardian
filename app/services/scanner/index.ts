@@ -40,7 +40,6 @@ export { analyzeScriptContent } from "./content-analysis";
 
 const SCAN_CACHE_TTL_MS = 10 * 60 * 1000;
 const MAX_SCRIPT_TAGS = SCANNER_CONFIG.MAX_SCRIPT_TAGS;
-const MAX_WEB_PIXELS = SCANNER_CONFIG.MAX_WEB_PIXELS;
 const MAX_PAGINATION_ITERATIONS = 50;
 
 function validateGraphQLEdges<T>(edges: unknown): edges is GraphQLEdge<T>[] {
@@ -257,112 +256,61 @@ async function fetchAllScriptTags(admin: AdminApiContext): Promise<ScriptTag[]> 
 
 async function fetchAllWebPixels(admin: AdminApiContext): Promise<WebPixelInfo[]> {
     const allPixels: WebPixelInfo[] = [];
-    let hasNextPage = true;
-    let cursor: string | null = null;
-    let previousCursor: string | null = null;
-    let iterationCount = 0;
     try {
-        while (hasNextPage && iterationCount < MAX_PAGINATION_ITERATIONS) {
-            iterationCount++;
-            const response = await admin.graphql(`
-                query GetWebPixels($cursor: String) {
-                    webPixels(first: 50, after: $cursor) {
-                        edges {
-                            node {
-                                id
-                                settings
-                            }
-                            cursor
-                        }
-                        pageInfo {
-                            hasNextPage
-                            endCursor
-                        }
-                    }
+        const response = await admin.graphql(`
+            query GetWebPixel {
+                webPixel {
+                    id
+                    settings
                 }
-            `, { variables: { cursor } });
-            let data: {
-                data?: {
-                    webPixels?: {
-                        edges?: Array<{
-                            node: WebPixelInfo;
-                            cursor: string;
-                        }>;
-                        pageInfo?: {
-                            hasNextPage: boolean;
-                            endCursor: string | null;
-                        };
-                    };
+            }
+        `);
+        
+        let data: {
+            data?: {
+                webPixel?: {
+                    id: string;
+                    settings?: string | null;
                 };
-                errors?: Array<{ message: string }>;
             };
-            try {
-                data = await response.json();
-            } catch (error) {
-                const errorMessage = error instanceof Error ? error.message : "Unknown error";
-                logger.error("Failed to parse GraphQL response as JSON in fetchAllWebPixels:", errorMessage);
-                if (allPixels.length > 0) {
-                    logger.warn(`Returning ${allPixels.length} WebPixels despite JSON parse error`);
-                }
-                return allPixels;
-            }
-            if (data.errors && data.errors.length > 0) {
-                const errorMessage = data.errors[0]?.message || "Unknown GraphQL error";
-                if (errorMessage.includes("doesn't exist") || errorMessage.includes("access")) {
-                    logger.warn("WebPixels API not available (may need to reinstall app for read_pixels scope):", { error: errorMessage });
-                } else {
-                    logger.error("GraphQL error fetching WebPixels:", { error: errorMessage });
-                }
-                return allPixels;
-            }
-            const webPixelsData = data.data?.webPixels;
-            if (!webPixelsData || typeof webPixelsData !== "object") {
-                logger.warn("Invalid GraphQL response structure for webPixels");
-                return allPixels;
-            }
-            const edges = webPixelsData.edges;
-            if (!validateGraphQLEdges<WebPixelInfo>(edges)) {
-                logger.warn("Invalid edges structure in webPixels GraphQL response");
-                return allPixels;
-            }
-            let pageInfo: GraphQLPageInfo = webPixelsData.pageInfo || { hasNextPage: false, endCursor: null };
-            if (typeof pageInfo !== "object" || pageInfo === null) {
-                logger.warn("Invalid pageInfo structure in webPixels, using defaults");
-                pageInfo = { hasNextPage: false, endCursor: null };
-            }
-            for (const edge of edges) {
-                if (edge?.node?.id) {
-                    allPixels.push({
-                        id: edge.node.id,
-                        settings: edge.node.settings ?? null,
-                    });
-                }
-            }
-            hasNextPage = pageInfo.hasNextPage;
-            cursor = pageInfo.endCursor;
-            if (cursor === previousCursor && hasNextPage) {
-                logger.warn("WebPixels pagination cursor did not advance, stopping to avoid loop");
-                break;
-            }
-            if (edges.length === 0 && hasNextPage) {
-                logger.warn("Received empty edges but hasNextPage is true, stopping to avoid infinite loop");
-                break;
-            }
-            previousCursor = cursor;
-            if (allPixels.length >= MAX_WEB_PIXELS) {
-                logger.warn(`WebPixels pagination limit reached (${MAX_WEB_PIXELS})`);
-                break;
-            }
+            errors?: Array<{ message: string }>;
+        } | undefined;
+        try {
+            data = await response.json();
+        } catch (error) {
+            const errorMessage = error instanceof Error ? error.message : "Unknown error";
+            logger.error("Failed to parse GraphQL response as JSON in fetchAllWebPixels:", errorMessage);
+            return allPixels;
         }
-        if (iterationCount >= MAX_PAGINATION_ITERATIONS) {
-            logger.warn(`WebPixels pagination reached max iterations (${MAX_PAGINATION_ITERATIONS})`);
+
+        if (data.errors && data.errors.length > 0) {
+            const errorMessage = data.errors[0]?.message || "Unknown GraphQL error";
+            if (errorMessage.includes("doesn't exist") || errorMessage.includes("access")) {
+                logger.warn("WebPixel API not available (may need to reinstall app for read_pixels scope):", { error: errorMessage });
+            } else {
+                logger.error("GraphQL error fetching WebPixel:", { error: errorMessage });
+            }
+            return allPixels;
         }
+
+        const webPixel = data.data?.webPixel;
+        if (webPixel && webPixel.id) {
+            let settings = webPixel.settings;
+            if (typeof settings === 'object' && settings !== null) {
+                settings = JSON.stringify(settings);
+            }
+            allPixels.push({
+                id: webPixel.id,
+                settings: settings ?? null,
+            });
+        }
+        
     } catch (error) {
         const errorMessage = error instanceof Error ? error.message : String(error);
         if (errorMessage.includes("doesn't exist") || errorMessage.includes("access")) {
-            logger.warn("WebPixels API call failed (scope issue, app may need reinstall):", { error: errorMessage });
+             logger.warn("WebPixel API call failed (scope issue, app may need reinstall):", { error: errorMessage });
         } else {
-            logger.error("Failed to fetch WebPixels (paginated):", error);
+             logger.error("Failed to fetch WebPixel:", error);
         }
     }
     return allPixels;

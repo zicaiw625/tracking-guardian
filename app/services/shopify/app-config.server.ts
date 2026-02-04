@@ -3,6 +3,7 @@ import {
   ApiVersion,
   AppDistribution,
   shopifyApp,
+  DeliveryMethod,
   type AdminApiContext,
 } from "@shopify/shopify-app-remix/server";
 import { PrismaSessionStorage } from "@shopify/shopify-app-session-storage-prisma";
@@ -98,6 +99,13 @@ try {
     authPathPrefix: "/auth",
     sessionStorage: encryptedSessionStorage,
     distribution: AppDistribution.AppStore,
+    webhooks: {
+      APP_UNINSTALLED: { deliveryMethod: DeliveryMethod.Http, callbackUrl: "/webhooks" },
+      APP_SUBSCRIPTIONS_UPDATE: { deliveryMethod: DeliveryMethod.Http, callbackUrl: "/webhooks" },
+      CUSTOMERS_DATA_REQUEST: { deliveryMethod: DeliveryMethod.Http, callbackUrl: "/webhooks" },
+      CUSTOMERS_REDACT: { deliveryMethod: DeliveryMethod.Http, callbackUrl: "/webhooks" },
+      SHOP_REDACT: { deliveryMethod: DeliveryMethod.Http, callbackUrl: "/webhooks" },
+    } as any,
     hooks: {
       afterAuth: async ({ session, admin }: { session: { shop: string; accessToken?: string }; admin?: AdminApiContext }) => {
         if (shopify) {

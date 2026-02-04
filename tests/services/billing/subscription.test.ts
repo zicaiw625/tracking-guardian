@@ -91,7 +91,6 @@ describe("Subscription Service", () => {
       };
       (mockAdmin.graphql as ReturnType<typeof vi.fn>)
         .mockResolvedValueOnce(mockGetSubscriptionStatus)
-        .mockResolvedValueOnce(mockGetSubscriptionStatus) // Pending check
         .mockResolvedValueOnce(mockGetShopPlan)
         .mockResolvedValueOnce(mockAppSubscriptionCreate);
       vi.mocked(prisma.shop.findUnique).mockResolvedValue({ id: "shop-1" } as any);
@@ -156,7 +155,6 @@ describe("Subscription Service", () => {
       };
       (mockAdmin.graphql as ReturnType<typeof vi.fn>)
         .mockResolvedValueOnce(mockGetSubscriptionStatus)
-        .mockResolvedValueOnce(mockGetSubscriptionStatus) // Pending check
         .mockResolvedValueOnce(mockGetShopPlan)
         .mockResolvedValueOnce(mockAppSubscriptionCreate);
       const result = await createSubscription(
@@ -219,7 +217,6 @@ describe("Subscription Service", () => {
       };
       (mockAdmin.graphql as ReturnType<typeof vi.fn>)
         .mockResolvedValueOnce(mockGetSubscriptionStatus)
-        .mockResolvedValueOnce(mockGetSubscriptionStatus) // Pending check
         .mockResolvedValueOnce(mockGetShopPlan)
         .mockResolvedValueOnce(mockAppSubscriptionCreate);
       vi.mocked(prisma.shop.findUnique).mockResolvedValue({ id: "shop-1" } as any);
