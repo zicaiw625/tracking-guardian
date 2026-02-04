@@ -27,6 +27,7 @@
     "check:webhook-body": "node scripts/check-webhook-body.mjs",
     "lint:graphql-only": "node scripts/check-graphql-only.mjs",
     "security:audit": "node scripts/security-audit.mjs",
+    "audit": "pnpm audit -P --audit-level=moderate",
     "lint:all": "pnpm lint && pnpm typecheck && pnpm check:api-version && pnpm lint:graphql-only",
     "ci:lint": "pnpm lint && pnpm typecheck",
     "ci:test": "pnpm test",

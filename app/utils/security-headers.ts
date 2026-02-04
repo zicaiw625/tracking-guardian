@@ -15,6 +15,12 @@ export const WEBHOOK_CSP_DIRECTIVES: Record<string, string[]> = {
 
 export const APP_PAGE_CSP_DIRECTIVES: Record<string, string[]> = {
   "default-src": ["'self'"],
+  // P1-1: TODO - Migrate to nonce-based CSP to remove 'unsafe-inline'
+  // Currently required for Remix hydration scripts.
+  // Next steps:
+  // 1. Generate nonce in entry.server.tsx
+  // 2. Pass nonce to <Scripts /> in root.tsx
+  // 3. Add nonce to CSP header here
   "script-src": ["'self'", "'unsafe-inline'", "https://cdn.shopify.com"],
   "style-src": ["'self'", "'unsafe-inline'", "https://cdn.shopify.com"],
   "img-src": ["'self'", "data:", "https:", "blob:"],

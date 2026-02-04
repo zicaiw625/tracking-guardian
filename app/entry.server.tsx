@@ -67,7 +67,10 @@ const startupGate = (async () => {
     if (configResult.errors.length > 0) {
       logger.error("Configuration errors:", undefined, { errors: configResult.errors });
       if (process.env.NODE_ENV === "production") {
-        throw new Error(`Configuration errors: ${configResult.errors.join(", ")}`);
+        // P1-2: Force block startup in production if config is invalid
+        const msg = `Configuration errors: ${configResult.errors.join(", ")}`;
+        logger.error(msg); // Ensure it's logged
+        throw new Error(msg);
       }
     }
     if (configResult.warnings.length > 0) {
@@ -122,8 +125,18 @@ export default async function handleRequest(request: Request, responseStatusCode
       shopCandidate && SecureShopDomainSchema.safeParse(shopCandidate).success
         ? shopCandidate
         : null;
-    const frameAncestors = ["https://admin.shopify.com", "https://*.myshopify.com", "https://*.shopify.com"];
-    if (shopDomain) frameAncestors.unshift(`https://${shopDomain}`);
+
+    // P0-1: Strict CSP frame-ancestors
+    // If shop is known, we only allow that specific shop and admin.shopify.com
+    // If not known, we fallback to wildcard but this should be rare for embedded app
+    let frameAncestors = ["https://admin.shopify.com", "https://*.myshopify.com", "https://*.shopify.com"];
+    if (shopDomain) {
+        frameAncestors = [
+            "https://admin.shopify.com",
+            `https://${shopDomain}`
+        ];
+    }
+
     responseHeaders.delete("X-Frame-Options");
     const cspDirectives = {
       ...APP_PAGE_CSP_DIRECTIVES,

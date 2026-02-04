@@ -16,9 +16,7 @@ model Session {
   expires       DateTime?
   accessToken   String
   userId        BigInt?
-  firstName     String?
-  lastName      String?
-  email         String?
+  // P1-3: Data minimization - removed unused PII fields (firstName, lastName, email)
   accountOwner  Boolean   @default(false)
   locale        String?
   collaborator  Boolean?  @default(false)
