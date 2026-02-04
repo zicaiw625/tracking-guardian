@@ -131,9 +131,6 @@ export default defineConfig({
             if (id.includes("@shopify")) {
               return "vendor-shopify";
             }
-            if (id.includes("react") || id.includes("react-dom")) {
-              return "vendor-react";
-            }
             return "vendor";
           }
         },

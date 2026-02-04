@@ -8,6 +8,10 @@ import { cleanupExpiredData } from "../../cron/tasks/cleanup";
 import { validateInput , CronRequestSchema } from "../../schemas/api-schemas";
 import { readTextWithLimit } from "../../utils/body-reader";
 import prisma from "../../db.server";
+import { processIngestQueue } from "../../lib/pixel-events/ingest-queue.server";
+import { runDispatchWorker } from "../../services/dispatch/run-worker.server";
+import { batchAggregateMetrics } from "../../services/dashboard-aggregation.server";
+import { runAlertDetectionForAllShops } from "../../services/alert-detection.server";
 
 async function runCronTasks(task: string, requestId: string): Promise<Record<string, unknown>> {
   const results: Record<string, unknown> = {
@@ -32,14 +36,12 @@ async function runCronTasks(task: string, requestId: string): Promise<Record<str
 
   if (task === "all" || task === "ingest_worker") {
     logger.info("[Cron] Running ingest worker", { requestId });
-    const { processIngestQueue } = await import("../../lib/pixel-events/ingest-queue.server");
     const ingestResult = await processIngestQueue();
     results.ingest_worker = ingestResult;
   }
 
   if (task === "all" || task === "dispatch_worker") {
     logger.info("[Cron] Running dispatch worker", { requestId });
-    const { runDispatchWorker } = await import("../../services/dispatch/run-worker.server");
     const dispatchResult = await runDispatchWorker();
     results.dispatch_worker = dispatchResult;
   }
@@ -54,14 +56,12 @@ async function runCronTasks(task: string, requestId: string): Promise<Record<str
       select: { id: true },
     });
     const shopIds = shops.map((s) => s.id);
-    const { batchAggregateMetrics } = await import("../../services/dashboard-aggregation.server");
     const successCount = await batchAggregateMetrics(shopIds, yesterday);
     results.aggregate_daily = { shops: shopIds.length, successCount, date: yesterday.toISOString().split("T")[0] };
   }
 
   if (task === "all" || task === "alerts") {
     logger.info("[Cron] Running alerts", { requestId });
-    const { runAlertDetectionForAllShops } = await import("../../services/alert-detection.server");
     const alertResult = await runAlertDetectionForAllShops();
     results.alerts = alertResult;
   }
