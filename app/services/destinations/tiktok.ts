@@ -2,7 +2,9 @@ import type { TikTokCredentials } from "~/types";
 import type { InternalEventPayload, SendEventResult } from "./types";
 import { S2S_FETCH_TIMEOUT_MS } from "./types";
 
-const TIKTOK_EVENTS_API = "https://business-api.tiktok.com/open_api/v1.3/event/track";
+const TIKTOK_EVENTS_API = process.env.TIKTOK_API_VERSION
+  ? `https://business-api.tiktok.com/open_api/${process.env.TIKTOK_API_VERSION}/event/track`
+  : "https://business-api.tiktok.com/open_api/v1.3/event/track";
 
 const EVENT_NAME_MAP: Record<string, string> = {
   purchase: "CompletePayment",
@@ -40,6 +42,11 @@ export async function sendEvent(
 ): Promise<SendEventResult> {
   const pixelCode = credentials.pixelId;
   const { accessToken, testEventCode } = credentials;
+
+  if (!event.ip || !event.user_agent) {
+    return { ok: false, error: "Dropped: missing ip or user_agent" };
+  }
+
   const contents = toTiktokContents(event.items);
   const payload: Record<string, unknown> = {
     event: tiktokEventName(event.event_name),

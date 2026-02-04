@@ -2,7 +2,9 @@ import type { MetaCredentials } from "~/types";
 import type { InternalEventPayload, SendEventResult } from "./types";
 import { S2S_FETCH_TIMEOUT_MS } from "./types";
 
-const META_GRAPH_BASE = "https://graph.facebook.com/v18.0";
+const META_GRAPH_BASE = process.env.META_GRAPH_VERSION 
+  ? `https://graph.facebook.com/${process.env.META_GRAPH_VERSION}` 
+  : "https://graph.facebook.com/v20.0";
 
 const EVENT_NAME_MAP: Record<string, string> = {
   purchase: "Purchase",
@@ -46,7 +48,24 @@ export async function sendEvent(
     if (typeof ud.fn === "string") userData.fn = ud.fn;
     if (typeof ud.ln === "string") userData.ln = ud.ln;
   }
+
+  // Add IP and User Agent to user_data (CAPI requirement)
+  if (event.ip) userData.client_ip_address = event.ip;
+  if (event.user_agent) userData.client_user_agent = event.user_agent;
+
   const eventTime = Math.floor(Number(event.timestamp) / 1000);
+
+  // Prepare custom_data for business data
+  const customData: Record<string, unknown> = {
+    value: numericValue(event.value),
+    currency: event.currency ?? "USD",
+  };
+  const contents = toMetaContents(event.items);
+  if (contents.length > 0) {
+    customData.content_ids = contents.map((c) => c.id);
+    customData.contents = contents;
+  }
+
   const payload: Record<string, unknown> = {
     event_name: metaEventName(event.event_name),
     event_time: eventTime,
@@ -54,15 +73,9 @@ export async function sendEvent(
     action_source: "website",
     user_data: userData,
     event_source_url: event.page_url ?? undefined,
-    client_user_agent: event.user_agent ?? undefined,
-    value: numericValue(event.value),
-    currency: event.currency ?? "USD",
+    custom_data: customData,
   };
-  const contents = toMetaContents(event.items);
-  if (contents.length > 0) {
-    payload.content_ids = contents.map((c) => c.id);
-    payload.contents = contents;
-  }
+
   const data = [payload];
   const body: Record<string, unknown> = { data };
   if (testEventCode) {
