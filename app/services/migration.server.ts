@@ -513,6 +513,9 @@ export async function getExistingWebPixels(admin: AdminApiContext): Promise<Arra
         const errorMessage = error instanceof Error ? error.message : String(error);
         if (errorMessage.includes("doesn't exist") || errorMessage.includes("access")) {
             logger.warn("WebPixel API call failed (scope issue, app may need reinstall):", { error: errorMessage });
+        } else if (errorMessage.includes("No web pixel was found for this app")) {
+            logger.info("No Web Pixel found for this app (normal if not yet created)");
+            return pixels;
         } else {
             logger.error("Failed to get Web Pixel:", error);
         }

@@ -309,6 +309,9 @@ async function fetchAllWebPixels(admin: AdminApiContext): Promise<WebPixelInfo[]
         const errorMessage = error instanceof Error ? error.message : String(error);
         if (errorMessage.includes("doesn't exist") || errorMessage.includes("access")) {
              logger.warn("WebPixel API call failed (scope issue, app may need reinstall):", { error: errorMessage });
+        } else if (errorMessage.includes("No web pixel was found for this app")) {
+             logger.info("No Web Pixel found for this app (normal if not yet created)");
+             return allPixels;
         } else {
              logger.error("Failed to fetch WebPixel:", error);
         }
