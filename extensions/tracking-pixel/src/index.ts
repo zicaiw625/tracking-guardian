@@ -42,6 +42,17 @@ register(({ analytics, settings, init, customerPrivacy }: {
       backendUrl,
       placeholderDetected,
     });
+    
+    const missingFeatures: string[] = [];
+    if (typeof TextEncoder === "undefined") missingFeatures.push("TextEncoder");
+    if (typeof URL === "undefined") missingFeatures.push("URL");
+    if (typeof crypto === "undefined" || !crypto.getRandomValues) missingFeatures.push("crypto.getRandomValues");
+    if (typeof crypto !== "undefined" && !crypto.subtle) missingFeatures.push("crypto.subtle");
+
+    if (missingFeatures.length > 0) {
+      log(`⚠️ Environment warning: Missing features [${missingFeatures.join(", ")}]. Pixel may run in degraded mode or fail signature generation.`);
+    }
+
     if (backendUrl) {
       log("Backend URL resolved (硬校验)", {
         backendUrl,

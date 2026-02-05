@@ -269,8 +269,8 @@ export function needsSettingsUpgrade(settings: unknown): boolean {
     return false;
 }
 
-export async function createWebPixel(admin: AdminApiContext, ingestionKey?: string, shopDomain?: string): Promise<CreateWebPixelResult> {
-    const pixelSettings = buildWebPixelSettings(ingestionKey || "", shopDomain || "");
+export async function createWebPixel(admin: AdminApiContext, ingestionKey?: string, shopDomain?: string, environment: "test" | "live" = "live", mode: "purchase_only" | "full_funnel" = "purchase_only"): Promise<CreateWebPixelResult> {
+    const pixelSettings = buildWebPixelSettings(ingestionKey || "", shopDomain || "", undefined, environment, mode);
     // settings should be passed as an object, not stringified
     try {
         const response = await admin.graphql(`

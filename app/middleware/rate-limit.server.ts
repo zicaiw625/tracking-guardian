@@ -415,7 +415,7 @@ export function shopHeaderKeyExtractor(request: Request): string {
     logger.warn("[rate-limit] shopHeaderKeyExtractor called with invalid request");
     return "unknown";
   }
-  const shop = request.headers.get("x-shopify-shop-domain");
+  const shop = request.headers.get("X-Tracking-Guardian-Shop") || request.headers.get("x-shopify-shop-domain");
   if (!shop) {
     return "unknown";
   }
@@ -457,7 +457,7 @@ export function shopDomainIpKeyExtractor(request: Request): string {
     logger.warn("[rate-limit] shopDomainIpKeyExtractor called with invalid request");
     return "unknown:unknown";
   }
-  const shop = request.headers.get("x-shopify-shop-domain");
+  const shop = request.headers.get("X-Tracking-Guardian-Shop") || request.headers.get("x-shopify-shop-domain");
   const ip = ipKeyExtractor(request);
   const sanitizedShop = shop ? shop.replace(/[^a-zA-Z0-9.\-_]/g, "").slice(0, 100) : "unknown";
   return `${sanitizedShop}:${ip}`;

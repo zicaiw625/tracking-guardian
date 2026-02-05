@@ -54,8 +54,9 @@ export async function listPendingJobs(
 }
 
 export function computeNextRetryAt(attempts: number): Date | null {
-  if (attempts >= MAX_ATTEMPTS) return null;
-  const minutes = BACKOFF_MINUTES[attempts] ?? 120;
+  if (attempts > MAX_ATTEMPTS) return null;
+  const index = Math.max(0, attempts - 1);
+  const minutes = BACKOFF_MINUTES[index] ?? 120;
   const d = new Date();
   d.setMinutes(d.getMinutes() + minutes);
   return d;

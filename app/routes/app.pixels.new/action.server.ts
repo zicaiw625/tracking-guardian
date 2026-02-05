@@ -7,7 +7,7 @@ import { generateSimpleId } from "../../utils/helpers";
 import { safeFireAndForget } from "../../utils/helpers.server";
 import { isPlanAtLeast } from "../../utils/plans";
 import { normalizePlanId } from "../../services/billing/plans";
-import { createWebPixel, getExistingWebPixels, isOurWebPixel, updateWebPixel } from "../../services/migration.server";
+import { createWebPixel, getExistingWebPixels, isOurWebPixel, updateWebPixel, syncWebPixelMode } from "../../services/migration.server";
 import { decryptIngestionSecret, encryptIngestionSecret, isTokenEncrypted } from "../../utils/token-encryption.server";
 import { randomBytes } from "crypto";
 import { trackEvent } from "../../services/analytics.server";
@@ -234,9 +234,16 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         ourPixelId = ourPixel?.id ?? null;
       }
       if (ourPixelId) {
-        await updateWebPixel(admin, ourPixelId, ingestionSecret, shopDomain);
+        const globalEnvironment = configs.length > 0 ? (configs[0].environment as "test" | "live") : "live";
+        await syncWebPixelMode(admin, shop.id, shopDomain, ourPixelId, ingestionSecret, globalEnvironment);
       } else {
-        const result = await createWebPixel(admin, ingestionSecret, shopDomain);
+        const globalEnvironment = configs.length > 0 ? (configs[0].environment as "test" | "live") : "live";
+        const fullFunnelEventsList = ["page_viewed", "product_viewed", "product_added_to_cart", "checkout_started"];
+        const globalMode = configs.some(c => 
+            Object.keys(c.eventMappings || {}).some(eventName => fullFunnelEventsList.includes(eventName))
+        ) ? "full_funnel" : "purchase_only";
+        
+        const result = await createWebPixel(admin, ingestionSecret, shopDomain, globalEnvironment, globalMode);
         if (result.success && result.webPixelId) {
           await prisma.shop.update({
             where: { id: shop.id },
