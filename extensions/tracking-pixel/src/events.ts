@@ -318,9 +318,14 @@ export function createEventSender(config: EventSenderConfig) {
       current = [fitted];
       const singleBody = buildBatchBody(current, batchTimestamp);
       if (utf8Length(singleBody) > BATCH_CONFIG.MAX_BATCH_BYTES) {
-        batches.push(current);
+        if (isDevMode) {
+          log(`Event too large (${utf8Length(singleBody)} bytes), dropping: ${e.eventName}`);
+        }
         current = [];
+        continue;
       }
+      batches.push(current);
+      current = [];
     }
     if (current.length > 0) {
       batches.push(current);
@@ -347,6 +352,7 @@ export function createEventSender(config: EventSenderConfig) {
         const headers: Record<string, string> = {
           "Content-Type": "application/json",
           "X-Tracking-Guardian-Timestamp": String(timestamp),
+          "x-shopify-shop-domain": shopDomain,
         };
         if (normalizedIngestionKey) {
           try {

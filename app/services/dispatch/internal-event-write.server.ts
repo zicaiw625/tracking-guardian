@@ -3,6 +3,7 @@ import { Prisma } from "@prisma/client";
 import prisma from "~/db.server";
 import { checkInitialConsent } from "~/lib/pixel-events/consent-filter";
 import { getEffectiveConsentCategory } from "~/utils/platform-consent";
+import { normalizeOrderId } from "~/utils/crypto.server";
 import type { ProcessedEvent } from "~/lib/pixel-events/ingest-pipeline.server";
 import type { IngestRequestContext } from "~/lib/pixel-events/ingest-queue.server";
 import type { DispatchDestination } from "./queue";
@@ -51,9 +52,11 @@ export async function persistInternalEventsAndDispatchJobs(
 
   if (s2sDestinations.length === 0) return;
 
-  // Anonymize IP to reduce PII storage risk
+  // Anonymize IP to reduce PII storage risk - BUT use raw IP for S2S compliance if needed
+  // Meta/TikTok require raw IP. 
+  // TODO: Add retention policy or encryption if PII is a concern.
   const rawIp = requestContext?.ip ?? null;
-  const ip = rawIp ? createHash("sha256").update(rawIp).digest("hex") : null;
+  const ip = rawIp;
   const user_agent = requestContext?.user_agent ?? null;
   const page_url = requestContext?.page_url ?? null;
   const referrer = requestContext?.referrer ?? null;
@@ -72,19 +75,36 @@ export async function persistInternalEventsAndDispatchJobs(
       }
       if (allowedDestinations.length === 0) continue;
 
-      const eventId = event.eventId ?? randomUUID();
       const value = numericValue(event.payload.data?.value ?? 0);
       const currency = event.payload.data?.currency ?? "USD";
       const items = event.payload.data?.items ?? [];
       const transactionId = event.payload.eventName === "checkout_completed" ? (event.payload.data?.orderId ?? event.orderId ?? null) : null;
+      
+      // P0-4: Unify event_id for purchase events to match webhook (orderId)
+      // This prevents duplicate events/dispatch jobs for the same order
+      let eventId = event.eventId ?? randomUUID();
+      if (internalEventName === "purchase" && transactionId) {
+        eventId = normalizeOrderId(transactionId);
+      }
+
       const consentPurposes = event.payload.consent
         ? { marketing: event.payload.consent.marketing, analytics: event.payload.consent.analytics }
         : null;
       const timestampMs = event.payload.timestamp;
       const occurredAt = new Date(timestampMs);
 
-      const internalEvent = await tx.internalEvent.create({
-        data: {
+      // Upsert to avoid duplicates if webhook/pixel race occurs
+      // We prioritize the existing entry if it exists (idempotency)
+      const internalEvent = await tx.internalEvent.upsert({
+        where: {
+          shopId_event_id_event_name: {
+            shopId,
+            event_id: eventId,
+            event_name: internalEventName,
+          }
+        },
+        update: {}, // Do nothing if exists
+        create: {
           id: randomUUID(),
           shopId,
           source: "web_pixel",
@@ -107,18 +127,33 @@ export async function persistInternalEventsAndDispatchJobs(
         },
       });
 
-      for (const destination of allowedDestinations) {
-        await tx.eventDispatchJob.create({
-          data: {
-            id: randomUUID(),
-            internal_event_id: internalEvent.id,
-            destination,
-            status: "PENDING",
-            attempts: 0,
-            next_retry_at: new Date(),
-            updatedAt: new Date(),
-          },
-        });
+      // Only create dispatch jobs if we actually created a new event (or if we want to retry, but usually we don't want duplicate jobs)
+      // However, upsert returns the object whether created or updated. 
+      // If it was updated (already existed), we might already have jobs. 
+      // To avoid duplicate jobs, we should check if jobs exist or just assume if the event existed, jobs were handled.
+      // A simple heuristic: check if occurred_at matches (unlikely to be exact same ms if different source) 
+      // or just check if we can check if it was created. Prisma upsert doesn't tell us.
+      // But since we did update: {}, if it existed, nothing changed.
+      // If we want to strictly avoid duplicate jobs for the SAME event_id, we should check if jobs exist.
+      
+      const existingJobs = await tx.eventDispatchJob.count({
+        where: { internal_event_id: internalEvent.id }
+      });
+
+      if (existingJobs === 0) {
+        for (const destination of allowedDestinations) {
+          await tx.eventDispatchJob.create({
+            data: {
+              id: randomUUID(),
+              internal_event_id: internalEvent.id,
+              destination,
+              status: "PENDING",
+              attempts: 0,
+              next_retry_at: new Date(),
+              updatedAt: new Date(),
+            },
+          });
+        }
       }
     }
   });

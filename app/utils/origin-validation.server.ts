@@ -9,7 +9,8 @@ export function shouldAllowNullOrigin(): boolean {
     const v = process.env.PIXEL_ALLOW_NULL_ORIGIN_WITH_SIGNATURE_ONLY?.toLowerCase().trim();
     if (v === "false" || v === "0") return false;
     if (v === "true" || v === "1") return true;
-    return process.env.NODE_ENV !== "production";
+    // Default to true to allow null origin with signature validation (required for production)
+    return true;
 }
 const ALLOWED_ORIGIN_PATTERNS: Array<{
     pattern: RegExp;
@@ -291,6 +292,13 @@ export function validatePixelOriginForShop(
                 valid: true,
                 reason: "null_origin_allowed",
                 shouldReject: false,
+            };
+        }
+        if (effectiveOrigin === null) {
+            return {
+                valid: false,
+                reason: "missing_origin",
+                shouldReject: true,
             };
         }
         if (!allowNullOrigin) {
