@@ -42,11 +42,20 @@ export async function checkUiModulesLimit(
   _shopId: string,
   _shopPlan: PlanId
 ): Promise<FeatureGateResult> {
+  const hasAccess = isPlanAtLeast(_shopPlan, "starter");
+  if (!hasAccess) {
+    const planConfig = getPlanOrDefault(_shopPlan);
+    return {
+      allowed: false,
+      reason: `UI 模块功能需要 Starter 及以上套餐。当前套餐：${planConfig.name}`,
+      current: 0,
+      limit: 0,
+    };
+  }
   return {
-    allowed: false,
-    reason: "UI 模块功能已移除",
+    allowed: true,
     current: 0,
-    limit: 0,
+    limit: -1, // Unlimited for supported plans
   };
 }
 
@@ -150,10 +159,15 @@ export async function canCreateUiModule(
   _shopId: string,
   _shopPlan: PlanId
 ): Promise<FeatureGateResult> {
-  return {
-    allowed: false,
-    reason: "UI 模块功能已移除",
-  };
+  const hasAccess = isPlanAtLeast(_shopPlan, "starter");
+  if (!hasAccess) {
+    const planConfig = getPlanOrDefault(_shopPlan);
+    return {
+      allowed: false,
+      reason: `UI 模块功能需要 Starter 及以上套餐。当前套餐：${planConfig.name}`,
+    };
+  }
+  return { allowed: true };
 }
 
 export async function getFeatureLimitsSummary(

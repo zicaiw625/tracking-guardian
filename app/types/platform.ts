@@ -102,7 +102,7 @@ export const GoogleCredentialsSchema = z.object({
   measurementId: z
     .string()
     .min(1, "Measurement ID is required")
-    .regex(/^G-[A-Z0-9]+$/i, "Invalid Measurement ID format (should be G-XXXXXXXX)"),
+    .regex(/^G-[A-Z0-9]+$/i, "Invalid Measurement ID format (should start with G- followed by alphanumeric characters)"),
   apiSecret: z.string().min(1, "API Secret is required"),
 });
 

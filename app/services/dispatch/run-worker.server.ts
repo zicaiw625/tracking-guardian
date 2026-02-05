@@ -54,15 +54,20 @@ export async function runDispatchWorker(options?: { maxJobs?: number }): Promise
   let sent = 0;
   let failed = 0;
 
-  const uniquePairs = new Map<string, { shopId: string; platform: string }>();
+  const uniquePairs = new Map<string, { shopId: string; platform: string; environment: string }>();
   for (const job of jobs) {
     const platform = DESTINATION_TO_PLATFORM[job.destination];
     if (platform) {
-      uniquePairs.set(`${job.InternalEvent.shopId}:${platform}`, { shopId: job.InternalEvent.shopId, platform });
+      const environment = job.InternalEvent.environment;
+      uniquePairs.set(`${job.InternalEvent.shopId}:${platform}:${environment}`, {
+        shopId: job.InternalEvent.shopId,
+        platform,
+        environment,
+      });
     }
   }
 
-  const configsMap = new Map<string, { shopId: string; platform: string; credentialsEncrypted: string | null; credentials_legacy: any }>();
+  const configsMap = new Map<string, { shopId: string; platform: string; credentialsEncrypted: string | null; credentials_legacy: any; environment: string }>();
   if (uniquePairs.size > 0) {
     const configs = await prisma.pixelConfig.findMany({
       where: {
@@ -71,6 +76,7 @@ export async function runDispatchWorker(options?: { maxJobs?: number }): Promise
           platform: p.platform,
           serverSideEnabled: true,
           isActive: true,
+          environment: p.environment,
         })),
       },
       select: {
@@ -78,10 +84,11 @@ export async function runDispatchWorker(options?: { maxJobs?: number }): Promise
         platform: true,
         credentialsEncrypted: true,
         credentials_legacy: true,
+        environment: true,
       },
     });
     for (const c of configs) {
-      configsMap.set(`${c.shopId}:${c.platform}`, c);
+      configsMap.set(`${c.shopId}:${c.platform}:${c.environment}`, c);
     }
   }
 
@@ -92,7 +99,8 @@ export async function runDispatchWorker(options?: { maxJobs?: number }): Promise
       failed++;
       continue;
     }
-    const config = configsMap.get(`${job.InternalEvent.shopId}:${platform}`);
+    const environment = job.InternalEvent.environment;
+    const config = configsMap.get(`${job.InternalEvent.shopId}:${platform}:${environment}`);
     if (!config) {
       await markFailed(job.id, "No S2S credentials for destination", null, job.attempts + 1);
       failed++;

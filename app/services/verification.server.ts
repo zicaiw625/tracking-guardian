@@ -287,9 +287,36 @@ export async function analyzeRecentEvents(
   const orderSummaryMap = new Map(
     orderSummaries.map((o) => [o.orderId, { totalPrice: Number(o.totalPrice), currency: o.currency }])
   );
+
+  // Pre-fetch potential duplicates for purchase events (Fix N+1)
+  const purchaseOrderKeys = receipts
+    .filter((r) => r.eventType === "purchase" && r.orderKey)
+    .map((r) => r.orderKey as string);
+  
+  const duplicateMap = new Map<string, Array<{ id: string; createdAt: Date; eventId: string }>>();
+  
+  if (purchaseOrderKeys.length > 0) {
+    const potentialDuplicates = await prisma.pixelEventReceipt.findMany({
+      where: {
+        shopId,
+        eventType: "purchase",
+        orderKey: { in: purchaseOrderKeys },
+      },
+      select: { id: true, orderKey: true, createdAt: true, eventId: true },
+      orderBy: { createdAt: "desc" },
+    });
+    
+    for (const r of potentialDuplicates) {
+      if (!r.orderKey) continue;
+      const list = duplicateMap.get(r.orderKey) || [];
+      list.push(r);
+      duplicateMap.set(r.orderKey, list);
+    }
+  }
+
   const results: VerificationEventResult[] = [];
   let passedTests = 0;
-  const failedTests = 0;
+  let failedTests = 0;
   let missingParamTests = 0;
   let totalValueAccuracy = 0;
   let valueChecks = 0;
@@ -394,23 +421,17 @@ export async function analyzeRecentEvents(
       continue;
     }
     if (orderId && receipt.eventType === "purchase") {
-      const existingReceipt = await prisma.pixelEventReceipt.findFirst({
-        where: {
-          shopId,
-          orderKey: orderId,
-          eventType: "purchase",
-          id: { not: receipt.id },
-          createdAt: { lt: receipt.createdAt },
-        },
-        orderBy: { createdAt: "desc" },
-        select: { eventId: true, createdAt: true },
-        take: 1,
-      });
-      if (existingReceipt) {
-        dedupInfo = {
-          existingEventId: existingReceipt.eventId,
-          reason: `已在 ${existingReceipt.createdAt.toISOString()} 记录过相同订单事件`,
-        };
+      const history = duplicateMap.get(orderId);
+      if (history) {
+        const existingReceipt = history.find(
+          (h) => h.id !== receipt.id && h.createdAt < receipt.createdAt
+        );
+        if (existingReceipt) {
+          dedupInfo = {
+            existingEventId: existingReceipt.eventId,
+            reason: `已在 ${existingReceipt.createdAt.toISOString()} 记录过相同订单事件`,
+          };
+        }
       }
     }
     const p = platform || "unknown";
@@ -436,16 +457,19 @@ export async function analyzeRecentEvents(
           dedupInfo,
         });
       } else {
-        passedTests++;
-        valueChecks++;
         platformResults[p].sent++;
         const orderSummary = orderId ? orderSummaryMap.get(orderId) : undefined;
+        let isFailed = false;
+        let discrepancyNote: string | undefined;
+        
         if (orderSummary) {
+          valueChecks++;
           const valueMatch = Math.abs((value ?? 0) - orderSummary.totalPrice) < 0.01;
           const currencyMatch = (currency ?? "").toUpperCase() === (orderSummary.currency ?? "").toUpperCase();
           if (valueMatch && currencyMatch) {
             totalValueAccuracy += 100;
           } else {
+            isFailed = true;
             if (!valueMatch && orderId) {
               consistencyIssues.push({
                 orderId,
@@ -462,26 +486,53 @@ export async function analyzeRecentEvents(
             }
           }
         } else {
-          totalValueAccuracy += 100;
+          // Fix P1-5: Do not default to 100% accuracy if order summary is missing.
+          // We simply skip the value check and mark as "not verified" for value.
+          discrepancyNote = "无法关联订单详情，跳过金额对账";
         }
-        results.push({
-          testItemId: "purchase",
-          eventType: receipt.eventType,
-          platform: p,
-          orderId: orderId || undefined,
-          orderNumber: undefined,
-          status: "success",
-          triggeredAt: receipt.pixelTimestamp,
-          params: {
-            value: value || undefined,
-            currency: currency || undefined,
-            items: items || undefined,
-            hasEventId,
-          },
-          discrepancies: undefined,
-          errors: undefined,
-          dedupInfo,
-        });
+
+        if (isFailed) {
+          failedTests++;
+          platformResults[p].failed++;
+          results.push({
+            testItemId: "purchase",
+            eventType: receipt.eventType,
+            platform: p,
+            orderId: orderId || undefined,
+            orderNumber: undefined,
+            status: "failed",
+            triggeredAt: receipt.pixelTimestamp,
+            params: {
+              value: value || undefined,
+              currency: currency || undefined,
+              items: items || undefined,
+              hasEventId,
+            },
+            discrepancies: ["金额或币种与订单不一致"],
+            errors: undefined,
+            dedupInfo,
+          });
+        } else {
+          passedTests++;
+          results.push({
+            testItemId: "purchase",
+            eventType: receipt.eventType,
+            platform: p,
+            orderId: orderId || undefined,
+            orderNumber: undefined,
+            status: "success",
+            triggeredAt: receipt.pixelTimestamp,
+            params: {
+              value: value || undefined,
+              currency: currency || undefined,
+              items: items || undefined,
+              hasEventId,
+            },
+            discrepancies: discrepancyNote ? [discrepancyNote] : undefined,
+            errors: undefined,
+            dedupInfo,
+          });
+        }
       }
     } else {
       missingParamTests++;
@@ -511,7 +562,8 @@ export async function analyzeRecentEvents(
   const totalTests = results.length;
   const parameterCompleteness =
     totalTests > 0 ? Math.round(((passedTests + missingParamTests) / totalTests) * 100) : 0;
-  const valueAccuracy = valueChecks > 0 ? Math.round(totalValueAccuracy / valueChecks) : 100;
+  // If no value checks were performed, default to 0 to avoid misleading 100% accuracy
+  const valueAccuracy = valueChecks > 0 ? Math.round(totalValueAccuracy / valueChecks) : 0;
   const reconciliation: VerificationSummary["reconciliation"] | undefined =
     consistencyIssues.length > 0
       ? {

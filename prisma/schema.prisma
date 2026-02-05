@@ -408,6 +408,7 @@ model InternalEvent {
   items            Json?
   user_data_hashed Json?
   consent_purposes Json?
+  environment      String    @default("live")
   createdAt        DateTime  @default(now())
   Shop             Shop      @relation(fields: [shopId], references: [id], onDelete: Cascade)
   EventDispatchJob EventDispatchJob[]

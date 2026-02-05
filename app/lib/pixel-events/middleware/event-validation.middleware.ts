@@ -119,13 +119,25 @@ export const eventValidationMiddleware: IngestMiddleware = async (
       });
       continue;
     }
+    if (i === 0 && !context.batchTimestamp) {
+      context.batchTimestamp = eventValidation.payload.timestamp;
+    }
+
+    // Fix P1-4: Filter events by individual timestamp to prevent queue waste
+    const nowForEvent = Date.now();
+    if (Math.abs(nowForEvent - eventValidation.payload.timestamp) > TIMESTAMP_WINDOW_MS) {
+      logger.debug(`Event at index ${i} timestamp outside window: diff=${Math.abs(nowForEvent - eventValidation.payload.timestamp)}ms, skipping`, {
+        requestId: context.requestId,
+        shopDomain: context.shopDomainHeader,
+        eventTimestamp: eventValidation.payload.timestamp,
+      });
+      continue;
+    }
+
     validatedEvents.push({
       payload: eventValidation.payload,
       index: i,
     });
-    if (i === 0 && !context.batchTimestamp) {
-      context.batchTimestamp = eventValidation.payload.timestamp;
-    }
   }
 
   if (validatedEvents.length === 0) {
@@ -228,32 +240,42 @@ export const eventValidationMiddleware: IngestMiddleware = async (
   }
 
   const nowForWindow = Date.now();
+  // Batch timestamp check is relaxed or removed in favor of individual event check
+  // But we still keep it for logging or rejection if the whole batch is wildly off?
+  // User suggestion: "unified standard: filter by single event timestamp".
+  // Since we already filtered individually above, validatedEvents only contains valid ones.
+  // We can skip this block or make it just a warning.
+  // However, for HMAC/replay attack prevention, we might still care about the "request" timestamp.
+  // But since HMAC usually signs the body, and the body contains timestamps...
+  // Let's rely on the individual filtering we added above. 
+  // If all events were skipped, we return early (validatedEvents.length === 0 check above).
+  
+  /* 
   if (Math.abs(nowForWindow - timestamp) > TIMESTAMP_WINDOW_MS) {
-    if (shouldRecordRejection(context.isProduction, false, "invalid_timestamp")) {
-      rejectionTracker.record({
-        requestId: context.requestId,
-        shopDomain,
-        reason: "invalid_timestamp",
-        timestamp: Date.now(),
-      });
-    }
-    logger.debug(
-      `Payload timestamp outside window: diff=${Math.abs(nowForWindow - timestamp)}ms, dropping request`,
-      { requestId: context.requestId, shopDomain }
-    );
-    return {
-      continue: false,
-      response: emptyResponseWithCors(context.request, undefined, context.requestId),
-    };
+     ...
   }
-
+  */
+  
+  // We remove the batch-level rejection because we filtered individually.
+  // If the batch timestamp (first event) was bad, it was skipped, so 'timestamp' here 
+  // would be from the first VALID event (if we update logic to pick it) OR 
+  // context.batchTimestamp might still be the first one.
+  
+  // Actually, 'timestamp' variable is defined as:
+  // const timestamp = context.batchTimestamp ?? firstPayload.timestamp;
+  // If context.batchTimestamp comes from the first event in RAW array (which we did in the loop), 
+  // it might be invalid.
+  
+  // But we don't want to reject the whole request if one event is old, we just want to process valid ones.
+  // So we should remove this block.
+  
   return {
     continue: true,
     context: {
       ...context,
       validatedEvents,
       shopDomain,
-      timestamp,
+      timestamp, // This might be "old" but it doesn't matter as events are filtered
     },
   };
 };

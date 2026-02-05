@@ -34,6 +34,7 @@ export interface ListPendingJobsResult {
     items: unknown;
     user_data_hashed: unknown;
     consent_purposes: unknown;
+    environment: string;
   };
 }
 
