@@ -7,7 +7,7 @@ import { generateSimpleId } from "../../utils/helpers";
 import { safeFireAndForget } from "../../utils/helpers.server";
 import { isPlanAtLeast } from "../../utils/plans";
 import { normalizePlanId } from "../../services/billing/plans";
-import { createWebPixel, getExistingWebPixels, isOurWebPixel, updateWebPixel, syncWebPixelMode } from "../../services/migration.server";
+import { createWebPixel, getExistingWebPixels, isOurWebPixel, syncWebPixelMode } from "../../services/migration.server";
 import { decryptIngestionSecret, encryptIngestionSecret, isTokenEncrypted } from "../../utils/token-encryption.server";
 import { randomBytes } from "crypto";
 import { trackEvent } from "../../services/analytics.server";

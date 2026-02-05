@@ -138,6 +138,7 @@ export const eventValidationMiddleware: IngestMiddleware = async (
       });
     }
     if (context.isProduction) {
+      // Short-circuit if no valid events (Fix P1-4)
       return {
         continue: false,
         response: jsonWithCors(
@@ -153,6 +154,17 @@ export const eventValidationMiddleware: IngestMiddleware = async (
         { status: 400, request: context.request, requestId: context.requestId }
       ),
     };
+  }
+
+  // Double check if empty after filtering (Fix P1-4: Prevent empty enqueue)
+  if (validatedEvents.length === 0) {
+     return {
+        continue: false,
+        response: jsonWithCors(
+          { error: "No valid events found" },
+          { status: 204, request: context.request, requestId: context.requestId }
+        ),
+      };
   }
 
   const firstPayload = validatedEvents[0].payload;

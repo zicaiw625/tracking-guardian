@@ -1,4 +1,4 @@
-import { randomUUID, createHash } from "crypto";
+import { randomUUID } from "crypto";
 import { Prisma } from "@prisma/client";
 import prisma from "~/db.server";
 import { checkInitialConsent } from "~/lib/pixel-events/consent-filter";

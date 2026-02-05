@@ -170,6 +170,11 @@ export async function upsertPixelEventReceipt(
       }
     }
     let receipt;
+    const trustLevelValue = trustLevel ?? "untrusted";
+    const hmacMatchedValue = hmacMatched ?? false;
+    const totalValue = payloadData?.value ? new Prisma.Decimal(Number(payloadData.value) || 0) : null;
+    const currency = typeof payloadData?.currency === "string" ? payloadData.currency : null;
+
     try {
       receipt = await prisma.pixelEventReceipt.create({
         data: {
@@ -185,6 +190,10 @@ export async function upsertPixelEventReceipt(
           checkoutFingerprint,
           orderKey: extractedOrderKey || null,
           altOrderKey: altOrderKey ?? null,
+          trustLevel: trustLevelValue,
+          hmacMatched: hmacMatchedValue,
+          totalValue: totalValue,
+          currency: currency,
         },
         select: {
           id: true,
@@ -215,6 +224,10 @@ export async function upsertPixelEventReceipt(
               checkoutFingerprint,
               orderKey: extractedOrderKey || null,
               altOrderKey: altOrderKey ?? null,
+              trustLevel: trustLevelValue,
+              hmacMatched: hmacMatchedValue,
+              totalValue: totalValue,
+              currency: currency,
             },
             select: {
               id: true,

@@ -396,7 +396,7 @@ export async function distributeEvents(
       continue;
     }
     
-    const isPurchaseEvent = event.payload.eventName === "checkout_completed";
+    const isPurchaseEvent = (event.payload.eventName as string) === "checkout_completed" || (event.payload.eventName as string) === "purchase";
 
     if (isPurchaseEvent && event.orderId) {
       if (activeVerificationRunId === undefined) {

@@ -56,6 +56,13 @@ export const shopLoadingMiddleware: IngestMiddleware = async (
     };
   }
 
+  // Ensure secrets are decrypted and expiry is respected
+  // Note: getShopForPixelVerificationWithConfigs should handle this, but we reinforce it here per review
+  if (shop.previousIngestionSecret && shop.previousSecretExpiry && new Date() > shop.previousSecretExpiry) {
+    shop.previousIngestionSecret = null;
+  }
+
+
   const shopAllowedDomains = buildShopAllowedDomains({
     shopDomain: shop.shopDomain,
     primaryDomain: shop.primaryDomain,

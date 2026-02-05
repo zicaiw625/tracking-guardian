@@ -225,6 +225,9 @@ export const bodyReaderMiddleware: IngestMiddleware = async (
     const batchData = bodyData as { events: unknown[]; timestamp?: number };
     rawEvents = batchData.events || [];
     batchTimestamp = batchData.timestamp;
+  } else if (Array.isArray(bodyData)) {
+    // Support top-level array (Fix P1-5)
+    rawEvents = bodyData;
   } else {
     rawEvents = [bodyData];
   }

@@ -1,19 +1,11 @@
 import { jsonWithCors } from "../cors";
 import { enqueueIngestBatch } from "../ingest-queue.server";
 import { ipKeyExtractor } from "~/middleware/rate-limit.server";
-import { createHash } from "crypto";
 import type { IngestContext, IngestMiddleware, MiddlewareResult } from "./types";
 
 function clampString(s: string | null | undefined, max: number): string | null {
   if (typeof s !== "string") return null;
   return s.replace(/\0/g, "").slice(0, max);
-}
-
-function anonymizeIp(ip: string | null): string | null {
-  if (!ip) return null;
-  // Use a salt to prevent rainbow table attacks, defaulting if not set
-  const salt = process.env.ENCRYPTION_SALT || "tracking-guardian-ip-salt";
-  return createHash("sha256").update(ip + salt).digest("hex").substring(0, 32);
 }
 
 function sanitizeUrl(urlStr: string | null): string | null {
@@ -47,7 +39,8 @@ export const enqueueMiddleware: IngestMiddleware = async (
   const firstPayload = context.validatedEvents[0]?.payload;
   const pageUrlRaw = typeof firstPayload?.data?.url === "string" ? firstPayload.data.url : null;
   const requestContext = {
-    ip: anonymizeIp(ipKeyExtractor(context.request)),
+    // Keep raw IP for queue/distribution (S2S requirements), will be handled/hashed at storage time if needed
+    ip: ipKeyExtractor(context.request), 
     user_agent: clampString(context.request.headers.get("user-agent"), 512),
     page_url: sanitizeUrl(pageUrlRaw),
     referrer: null as string | null,
