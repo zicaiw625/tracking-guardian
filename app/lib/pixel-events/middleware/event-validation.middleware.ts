@@ -1,4 +1,4 @@
-import { jsonWithCors, emptyResponseWithCors } from "../cors";
+import { jsonWithCors } from "../cors";
 import { validateRequest } from "../validation";
 import { API_CONFIG } from "~/utils/config.server";
 import { logger } from "~/utils/logger.server";
@@ -239,7 +239,6 @@ export const eventValidationMiddleware: IngestMiddleware = async (
     }
   }
 
-  const nowForWindow = Date.now();
   // Batch timestamp check is relaxed or removed in favor of individual event check
   // But we still keep it for logging or rejection if the whole batch is wildly off?
   // User suggestion: "unified standard: filter by single event timestamp".

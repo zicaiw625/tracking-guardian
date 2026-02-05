@@ -3,6 +3,7 @@ import { logger } from "~/utils/logger.server";
 import type { PixelEventPayload, KeyValidationResult } from "./types";
 
 const QUEUE_KEY = "ingest:queue";
+const PROCESSING_KEY = "ingest:processing";
 const MAX_QUEUE_SIZE = 100_000;
 const MAX_BATCHES_PER_RUN = 50;
 
@@ -63,7 +64,7 @@ export async function processIngestQueue(
   let errors = 0;
 
   for (let i = 0; i < maxBatches; i++) {
-    const raw = await redis.rPop(QUEUE_KEY);
+    const raw = await redis.rPopLPush(QUEUE_KEY, PROCESSING_KEY);
     if (!raw) break;
 
     let entry: IngestQueueEntry;
@@ -73,6 +74,8 @@ export async function processIngestQueue(
       logger.warn("Invalid ingest queue entry JSON", {
         error: e instanceof Error ? e.message : String(e),
       });
+      // Invalid JSON, remove from processing queue as it can't be processed
+      await redis.lRem(PROCESSING_KEY, 1, raw);
       errors++;
       continue;
     }
@@ -117,7 +120,8 @@ export async function processIngestQueue(
         await persistInternalEventsAndDispatchJobs(
           entry.shopId,
           processedEvents,
-          entry.requestContext
+          entry.requestContext,
+          entry.environment
         );
       } catch (e) {
         logger.error("Failed to persist InternalEvent and dispatch jobs", {
@@ -125,7 +129,13 @@ export async function processIngestQueue(
           shopDomain: entry.shopDomain,
           error: e instanceof Error ? e.message : String(e),
         });
+        // If persistence fails, we might want to retry. 
+        // For now, we throw so it stays in processing queue (or we could rely on this catch to NOT acknowledge).
+        throw e; 
       }
+      
+      // Success - remove from processing queue (ACK)
+      await redis.lRem(PROCESSING_KEY, 1, raw);
       processed++;
     } catch (e) {
       logger.error("Ingest worker batch failed", {
@@ -135,6 +145,7 @@ export async function processIngestQueue(
         error: e instanceof Error ? e.message : String(e),
       });
       errors++;
+      // We do NOT remove from PROCESSING_KEY here, so it can be recovered later
     }
   }
 

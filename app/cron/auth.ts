@@ -84,7 +84,7 @@ export interface ReplayProtectionResult {
 
 export async function verifyReplayProtection(
   request: Request,
-  secret: string
+  secretOrSecrets: string | string[]
 ): Promise<ReplayProtectionResult> {
   const strictReplay = process.env.CRON_STRICT_REPLAY === "true";
   const isProduction = process.env.NODE_ENV === "production";
@@ -140,22 +140,34 @@ export async function verifyReplayProtection(
   }
 
   const signatureContent = `${method}:${pathname}:${timestampHeader}:${bodyHash}`;
-  const expectedSignature = createHmac("sha256", secret).update(signatureContent).digest("hex");
+  const secrets = Array.isArray(secretOrSecrets) ? secretOrSecrets : [secretOrSecrets];
+  
+  let validSignatureFound = false;
 
-  if (signatureHeader.length !== expectedSignature.length) {
-    return { valid: false, error: "Invalid signature length" };
+  for (const secret of secrets) {
+    if (!secret) continue;
+    const expectedSignature = createHmac("sha256", secret).update(signatureContent).digest("hex");
+
+    if (signatureHeader.length !== expectedSignature.length) {
+      continue;
+    }
+
+    try {
+      const signatureBuffer = Buffer.from(signatureHeader, "hex");
+      const expectedBuffer = Buffer.from(expectedSignature, "hex");
+      const isValid = timingSafeEqual(signatureBuffer, expectedBuffer);
+
+      if (isValid) {
+        validSignatureFound = true;
+        break;
+      }
+    } catch {
+      // Continue to next secret
+    }
   }
 
-  try {
-    const signatureBuffer = Buffer.from(signatureHeader, "hex");
-    const expectedBuffer = Buffer.from(expectedSignature, "hex");
-    const isValid = timingSafeEqual(signatureBuffer, expectedBuffer);
-
-    if (!isValid) {
-      return { valid: false, error: "Invalid signature" };
-    }
-  } catch {
-    return { valid: false, error: "Invalid signature format" };
+  if (!validSignatureFound) {
+    return { valid: false, error: "Invalid signature" };
   }
 
   return { valid: true };

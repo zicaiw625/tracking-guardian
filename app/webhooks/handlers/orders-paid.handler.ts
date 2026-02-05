@@ -4,7 +4,7 @@ import prisma from "../../db.server";
 import { logger } from "../../utils/logger.server";
 import { hashValueSync, normalizeOrderId as normalizeOrderIdForReceipt } from "../../utils/crypto.server";
 import { ORDER_WEBHOOK_ENABLED } from "../../utils/config.server";
-import { evaluatePlatformConsent, evaluatePlatformConsentWithStrategy } from "../../utils/platform-consent";
+import { evaluatePlatformConsentWithStrategy } from "../../utils/platform-consent";
 import type { ConsentState } from "../../utils/platform-consent";
 import type { WebhookContext, WebhookHandlerResult, ShopWithPixelConfigs } from "../types";
 

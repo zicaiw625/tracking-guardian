@@ -1,8 +1,6 @@
 import { randomUUID } from "crypto";
 import { Prisma } from "@prisma/client";
 import prisma from "~/db.server";
-import { checkInitialConsent } from "~/lib/pixel-events/consent-filter";
-import { getEffectiveConsentCategory } from "~/utils/platform-consent";
 import { normalizeOrderId } from "~/utils/crypto.server";
 import type { ProcessedEvent } from "~/lib/pixel-events/ingest-pipeline.server";
 import type { IngestRequestContext } from "~/lib/pixel-events/ingest-queue.server";
@@ -29,7 +27,8 @@ function numericValue(v: unknown): number {
 export async function persistInternalEventsAndDispatchJobs(
   shopId: string,
   processedEvents: ProcessedEvent[],
-  requestContext: IngestRequestContext | undefined
+  requestContext: IngestRequestContext | undefined,
+  environment: "test" | "live"
 ): Promise<void> {
   if (process.env.SERVER_SIDE_CONVERSIONS_ENABLED !== "true") return;
   const s2sConfigs = await prisma.pixelConfig.findMany({
@@ -38,6 +37,7 @@ export async function persistInternalEventsAndDispatchJobs(
       serverSideEnabled: true,
       platform: { in: ["google", "meta", "tiktok"] },
       isActive: true,
+      environment,
     },
     select: { platform: true },
   });
@@ -65,14 +65,17 @@ export async function persistInternalEventsAndDispatchJobs(
     for (const event of processedEvents) {
       const eventName = event.payload.eventName === "checkout_completed" ? "purchase" : event.payload.eventName;
       const internalEventName = toInternalEventName(eventName);
-      const consentResult = checkInitialConsent(event.payload.consent);
+      // Reuse the consent filtering logic from ingestion pipeline
+      // event.platformsToRecord contains platforms that passed consent and config checks
       const allowedDestinations: DispatchDestination[] = [];
-      for (const dest of s2sDestinations) {
-        const platform = dest === "GA4" ? "google" : dest === "META" ? "meta" : "tiktok";
-        const category = getEffectiveConsentCategory(platform, false);
-        if (category === "analytics" && consentResult.hasAnalyticsConsent) allowedDestinations.push(dest);
-        if (category === "marketing" && consentResult.hasMarketingConsent) allowedDestinations.push(dest);
+      
+      for (const platformName of event.destinations) {
+        const dest = destinationsByPlatform[platformName];
+        if (dest && s2sDestinations.includes(dest)) {
+          allowedDestinations.push(dest);
+        }
       }
+
       if (allowedDestinations.length === 0) continue;
 
       const value = numericValue(event.payload.data?.value ?? 0);
@@ -124,6 +127,7 @@ export async function persistInternalEventsAndDispatchJobs(
           items: Array.isArray(items) ? items : [],
           user_data_hashed: Prisma.JsonNull,
           consent_purposes: consentPurposes ?? Prisma.JsonNull,
+          environment,
         },
       });
 

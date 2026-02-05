@@ -5,7 +5,7 @@ const BACKOFF_MINUTES = [1, 5, 30, 120];
 const MAX_ATTEMPTS = BACKOFF_MINUTES.length;
 
 export type DispatchDestination = "GA4" | "META" | "TIKTOK";
-export type DispatchJobStatus = "PENDING" | "SENT" | "FAILED";
+export type DispatchJobStatus = "PENDING" | "SENT" | "FAILED" | "PROCESSING";
 
 export interface ListPendingJobsResult {
   id: string;
@@ -42,15 +42,34 @@ export async function listPendingJobs(
   limit: number,
   now: Date
 ): Promise<ListPendingJobsResult[]> {
+  // Use SKIP LOCKED to avoid race conditions between workers
+  // This requires raw query as Prisma doesn't support SKIP LOCKED natively in findMany yet
+  const lockedJobs = await prisma.$queryRaw<{ id: string }[]>`
+    UPDATE "EventDispatchJob"
+    SET status = 'PROCESSING', "updatedAt" = NOW()
+    WHERE id IN (
+      SELECT id FROM "EventDispatchJob"
+      WHERE status = 'PENDING' AND next_retry_at <= ${now}
+      ORDER BY next_retry_at ASC
+      LIMIT ${limit}
+      FOR UPDATE SKIP LOCKED
+    )
+    RETURNING id
+  `;
+
+  const jobIds = lockedJobs.map((j) => j.id);
+
+  if (jobIds.length === 0) {
+    return [];
+  }
+
   const jobs = await prisma.eventDispatchJob.findMany({
     where: {
-      status: "PENDING",
-      next_retry_at: { lte: now },
+      id: { in: jobIds },
     },
-    orderBy: { next_retry_at: "asc" },
-    take: limit,
     include: { InternalEvent: true },
   });
+
   return jobs as ListPendingJobsResult[];
 }
 

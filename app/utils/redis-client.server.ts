@@ -25,6 +25,8 @@ export interface RedisClientWrapper {
   rPop(key: string): Promise<string | null>;
   lTrim(key: string, start: number, stop: number): Promise<void>;
   lLen(key: string): Promise<number>;
+  lRem(key: string, count: number, element: string): Promise<number>;
+  rPopLPush(source: string, destination: string): Promise<string | null>;
   isConnected(): boolean;
   getConnectionInfo(): ConnectionInfo;
 }
@@ -291,6 +293,34 @@ class InMemoryFallback implements RedisClientWrapper {
   async lLen(key: string): Promise<number> {
     const list = this.listStore.get(key);
     return list ? list.length : 0;
+  }
+  async lRem(key: string, count: number, element: string): Promise<number> {
+    const list = this.listStore.get(key);
+    if (!list) return 0;
+    let removed = 0;
+    if (count > 0) {
+      for (let i = 0; i < list.length && removed < count; i++) {
+        if (list[i] === element) {
+          list.splice(i, 1);
+          removed++;
+          i--;
+        }
+      }
+    } else {
+      // Remove all occurrences (count = 0) or handle negative logic if needed (not implemented)
+      const initialLen = list.length;
+      const newList = list.filter((x) => x !== element);
+      removed = initialLen - newList.length;
+      this.listStore.set(key, newList);
+    }
+    return removed;
+  }
+  async rPopLPush(source: string, destination: string): Promise<string | null> {
+    const value = await this.rPop(source);
+    if (value !== null) {
+      await this.lPush(destination, value);
+    }
+    return value;
   }
   isConnected(): boolean {
     return true;
@@ -641,6 +671,23 @@ class RedisClientFactory {
           return this.fallback.lLen(key);
         }
       },
+      lRem: async (key: string, count: number, element: string): Promise<number> => {
+        try {
+          return await client.lRem(key, count, element);
+        } catch {
+          return this.fallback.lRem(key, count, element);
+        }
+      },
+      rPopLPush: async (source: string, destination: string): Promise<string | null> => {
+        try {
+          if (typeof client.lMove === "function") {
+            return await client.lMove(source, destination, "RIGHT", "LEFT");
+          }
+          return await client.rPopLPush(source, destination);
+        } catch {
+          return this.fallback.rPopLPush(source, destination);
+        }
+      },
       isConnected: (): boolean => {
         return this.connectionInfo.connected;
       },
@@ -709,6 +756,23 @@ class RedisClientFactory {
         await client.lTrim(key, start, stop);
       },
       lLen: async (key: string): Promise<number> => client.lLen(key),
+      lRem: async (key: string, count: number, element: string): Promise<number> => {
+        try {
+          return await client.lRem(key, count, element);
+        } catch {
+          return this.fallback.lRem(key, count, element);
+        }
+      },
+      rPopLPush: async (source: string, destination: string): Promise<string | null> => {
+        try {
+          if (typeof client.lMove === "function") {
+            return await client.lMove(source, destination, "RIGHT", "LEFT");
+          }
+          return await client.rPopLPush(source, destination);
+        } catch {
+          return this.fallback.rPopLPush(source, destination);
+        }
+      },
       isConnected: (): boolean => this.connectionInfo.connected,
       getConnectionInfo: (): ConnectionInfo => ({ ...this.connectionInfo }),
     };
