@@ -82,7 +82,8 @@ export async function sendEvent(
   if (testEventCode) {
     body.test_event_code = testEventCode;
   }
-  const url = `${META_GRAPH_BASE}/${pixelId}/events`;
+  // P0-2: Attach access_token as query parameter as recommended by Meta documentation
+  const url = `${META_GRAPH_BASE}/${pixelId}/events?access_token=${encodeURIComponent(accessToken)}`;
   try {
     const res = await postJson(url, body, {
       timeout: S2S_FETCH_TIMEOUT_MS,

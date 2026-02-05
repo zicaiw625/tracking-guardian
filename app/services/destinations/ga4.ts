@@ -31,7 +31,9 @@ export async function sendEvent(
   const { measurementId, apiSecret } = credentials;
   const clientId = event.client_id ?? `s2s_${event.event_id}`;
   const params: Record<string, unknown> = {
+    // P1-1: Add engagement_time_msec to ensure events are treated as engaging
     engagement_time_msec: 1,
+    session_id: event.transaction_id ? undefined : `1${Date.now()}`, // Simple session fallback if needed, but mainly engagement_time_msec is key
     value: numericValue(event.value),
     currency: event.currency ?? "USD",
   };

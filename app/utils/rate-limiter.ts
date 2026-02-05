@@ -312,8 +312,10 @@ function getClientIP(request: Request): string {
   if (forwardedFor) {
     const ips = forwardedFor.split(",").map(ip => ip.trim()).filter(ip => ip);
     if (ips.length > 0) {
-      const lastIP = ips[ips.length - 1];
-      return sanitizeKeyPart(lastIP);
+      // P1-2: Use the first IP in X-Forwarded-For as it represents the original client IP
+      // taking the last one might result in using a proxy IP, causing incorrect rate limiting
+      const clientIP = ips[0];
+      return sanitizeKeyPart(clientIP);
     }
   }
   return "unknown";

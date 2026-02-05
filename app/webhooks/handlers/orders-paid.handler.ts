@@ -4,7 +4,7 @@ import prisma from "../../db.server";
 import { logger } from "../../utils/logger.server";
 import { hashValueSync, normalizeOrderId as normalizeOrderIdForReceipt } from "../../utils/crypto.server";
 import { ORDER_WEBHOOK_ENABLED } from "../../utils/config.server";
-import { evaluatePlatformConsent } from "../../utils/platform-consent";
+import { evaluatePlatformConsent, evaluatePlatformConsentWithStrategy } from "../../utils/platform-consent";
 import type { ConsentState } from "../../utils/platform-consent";
 import type { WebhookContext, WebhookHandlerResult, ShopWithPixelConfigs } from "../types";
 
@@ -168,7 +168,21 @@ export async function handleOrdersPaid(
     const s2sDestinations: ("GA4" | "META" | "TIKTOK")[] = [];
     for (const dest of allS2sDestinations) {
       const platform = dest === "GA4" ? "google" : dest === "META" ? "meta" : "tiktok";
-      const decision = evaluatePlatformConsent(platform, consentState, true);
+      // P0-1: Google (GA4) is dual-use, but treating as marketing forces marketing consent.
+      // We should pass false for google, or rely on platform config logic if updated.
+      // Here we explicitly set treatAsMarketing = false for google to allow analytics-only consent.
+      const treatAsMarketing = platform !== "google"; 
+      
+      // P0-3: Use evaluatePlatformConsentWithStrategy to support weak/balanced modes
+      // This ensures we don't drop orders just because pixel receipt is missing (e.g. adblocker)
+      const decision = evaluatePlatformConsentWithStrategy(
+        platform, 
+        shopRecord.consentStrategy ?? "strict", // fallback to strict if undefined
+        consentState, 
+        receipt != null, // hasPixelReceipt
+        treatAsMarketing
+      );
+      
       if (decision.allowed) s2sDestinations.push(dest);
     }
 
