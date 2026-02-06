@@ -5,7 +5,18 @@ import { parseDateSafely } from "~/utils/scan-validation";
 import { useTranslation, Trans } from "react-i18next";
 
 export interface ScanPageBannersProps {
-  deprecationStatus: unknown;
+  deprecationStatus: {
+    additionalScripts?: {
+      badge?: {
+        text: string;
+        textKey?: string;
+        textParams?: Record<string, any>;
+      };
+      description?: string;
+      descriptionKey?: string;
+      descriptionParams?: Record<string, any>;
+    };
+  } | null;
   onShowUpgradeGuide: () => void;
   scannerMaxScriptTags: number;
   scannerMaxWebPixels: number;
@@ -13,11 +24,21 @@ export interface ScanPageBannersProps {
   currentWebPixelCount?: number;
   partialRefresh: boolean;
   upgradeStatus: {
-    autoUpgradeInfo?: { isInAutoUpgradeWindow?: boolean; autoUpgradeMessage?: string };
+    autoUpgradeInfo?: {
+      isInAutoUpgradeWindow?: boolean;
+      autoUpgradeMessage?: string;
+      autoUpgradeMessageKey?: string;
+      autoUpgradeMessageParams?: Record<string, any>;
+    };
     title?: string;
+    titleKey?: string;
+    titleParams?: Record<string, any>;
     message?: string;
+    messageKey?: string;
+    messageParams?: Record<string, any>;
     urgency?: string;
     actions?: string[];
+    actionsKeys?: { key: string; params?: Record<string, any> }[];
     lastUpdated?: string | null;
     hasOfficialSignal?: boolean;
   } | null;
@@ -46,14 +67,14 @@ export function ScanPageBanners({
   isAgency,
 }: ScanPageBannersProps) {
   const { t, i18n } = useTranslation();
-  
+
   const resolvePlanText = (text: string | null, type: "name" | "tagline") => {
     // If planId is available, try to look up the translation directly first
     if (planId) {
       const standardKey = `subscriptionPlans.${planId}.${type}`;
       const standardTranslated = t(standardKey);
       if (standardTranslated !== standardKey) return standardTranslated;
-      
+
       const legacyKey = `plans.${planId}.${type}`;
       const legacyTranslated = t(legacyKey);
       if (legacyTranslated !== legacyKey) return legacyTranslated;
@@ -67,12 +88,21 @@ export function ScanPageBanners({
     return translated;
   };
 
-  const dep = deprecationStatus as { additionalScripts?: { badge?: { text: string }; description?: string } } | null;
-  
+  const dep = deprecationStatus;
+
   // Only show pagination warning if we are close to the limits (e.g. > 80%) or if partial refresh occurred
-  const showPaginationWarning = partialRefresh || 
-    (currentScriptTagCount > 0 && currentScriptTagCount >= scannerMaxScriptTags * 0.8) || 
+  const showPaginationWarning = partialRefresh ||
+    (currentScriptTagCount > 0 && currentScriptTagCount >= scannerMaxScriptTags * 0.8) ||
     (currentWebPixelCount > 0 && currentWebPixelCount >= scannerMaxWebPixels * 0.8);
+
+  const getTranslatedText = (
+    text: string | undefined,
+    key: string | undefined,
+    params: Record<string, any> | undefined
+  ) => {
+    if (key) return t(key, params);
+    return text || "";
+  };
 
   return (
     <>
@@ -84,8 +114,16 @@ export function ScanPageBanners({
           {dep?.additionalScripts && (
             <Text as="p" tone="subdued">
               {t("scan.banners.additionalScripts.deadline", {
-                badge: dep.additionalScripts.badge?.text ?? "",
-                desc: dep.additionalScripts.description ?? ""
+                badge: getTranslatedText(
+                  dep.additionalScripts.badge?.text,
+                  dep.additionalScripts.badge?.textKey,
+                  dep.additionalScripts.badge?.textParams
+                ),
+                desc: getTranslatedText(
+                  dep.additionalScripts.description,
+                  dep.additionalScripts.descriptionKey,
+                  dep.additionalScripts.descriptionParams
+                )
               })}
             </Text>
           )}
@@ -96,19 +134,19 @@ export function ScanPageBanners({
       </Banner>
       {showPaginationWarning && (
         <Banner tone="info" title={t("scan.banners.pagination.title")}>
-        <BlockStack gap="200">
-          <Text as="p">
-            {t("scan.banners.pagination.content")}
-          </Text>
-          <List type="bullet">
-            <List.Item>{t("scan.banners.pagination.limitScriptTags", { limit: scannerMaxScriptTags.toLocaleString() })}</List.Item>
-            <List.Item>{t("scan.banners.pagination.limitWebPixels", { limit: scannerMaxWebPixels.toLocaleString() })}</List.Item>
-          </List>
-          <Text as="p" tone="subdued">
-            {t("scan.banners.pagination.footer")}
-          </Text>
-        </BlockStack>
-      </Banner>
+          <BlockStack gap="200">
+            <Text as="p">
+              {t("scan.banners.pagination.content")}
+            </Text>
+            <List type="bullet">
+              <List.Item>{t("scan.banners.pagination.limitScriptTags", { limit: scannerMaxScriptTags.toLocaleString() })}</List.Item>
+              <List.Item>{t("scan.banners.pagination.limitWebPixels", { limit: scannerMaxWebPixels.toLocaleString() })}</List.Item>
+            </List>
+            <Text as="p" tone="subdued">
+              {t("scan.banners.pagination.footer")}
+            </Text>
+          </BlockStack>
+        </Banner>
       )}
       {partialRefresh && (
         <Banner tone="warning" title={t("scan.banners.partialRefresh.title")}>
@@ -122,13 +160,19 @@ export function ScanPageBanners({
           </BlockStack>
         </Banner>
       )}
-      {upgradeStatus?.autoUpgradeInfo?.autoUpgradeMessage && (
+      {(upgradeStatus?.autoUpgradeInfo?.autoUpgradeMessage || upgradeStatus?.autoUpgradeInfo?.autoUpgradeMessageKey) && (
         <Banner
-          title={upgradeStatus.autoUpgradeInfo.isInAutoUpgradeWindow ? t("scan.banners.autoUpgrade.windowOpen") : t("scan.banners.autoUpgrade.windowRisk")}
-          tone={upgradeStatus.autoUpgradeInfo.isInAutoUpgradeWindow ? "critical" : "warning"}
+          title={upgradeStatus.autoUpgradeInfo!.isInAutoUpgradeWindow ? t("scan.banners.autoUpgrade.windowOpen") : t("scan.banners.autoUpgrade.windowRisk")}
+          tone={upgradeStatus.autoUpgradeInfo!.isInAutoUpgradeWindow ? "critical" : "warning"}
         >
           <BlockStack gap="200">
-            <Text as="p">{upgradeStatus.autoUpgradeInfo.autoUpgradeMessage}</Text>
+            <Text as="p">
+              {getTranslatedText(
+                upgradeStatus.autoUpgradeInfo!.autoUpgradeMessage,
+                upgradeStatus.autoUpgradeInfo!.autoUpgradeMessageKey,
+                upgradeStatus.autoUpgradeInfo!.autoUpgradeMessageParams
+              )}
+            </Text>
             <Text as="p" variant="bodySm" tone="subdued">
               <Trans
                 i18nKey="scan.banners.autoUpgrade.officialPath"
@@ -142,15 +186,23 @@ export function ScanPageBanners({
           </BlockStack>
         </Banner>
       )}
-      {upgradeStatus?.title && upgradeStatus?.message && (
-        <Banner title={upgradeStatus.title} tone={getUpgradeBannerTone(upgradeStatus.urgency ?? "info")}>
+      {(upgradeStatus?.title || upgradeStatus?.titleKey) && (upgradeStatus?.message || upgradeStatus?.messageKey) && (
+        <Banner
+          title={getTranslatedText(upgradeStatus.title, upgradeStatus.titleKey, upgradeStatus.titleParams)}
+          tone={getUpgradeBannerTone(upgradeStatus.urgency ?? "info")}
+        >
           <BlockStack gap="200">
-            <Text as="p">{upgradeStatus.message}</Text>
-            {(upgradeStatus.actions?.length ?? 0) > 0 && (
+            <Text as="p">
+              {getTranslatedText(upgradeStatus.message, upgradeStatus.messageKey, upgradeStatus.messageParams)}
+            </Text>
+            {((upgradeStatus.actionsKeys && upgradeStatus.actionsKeys.length > 0) || (upgradeStatus.actions && upgradeStatus.actions.length > 0)) && (
               <BlockStack gap="100">
-                {upgradeStatus.actions!.map((action, idx) => (
+                {(upgradeStatus.actionsKeys && upgradeStatus.actionsKeys.length > 0
+                  ? upgradeStatus.actionsKeys.map((actionKey, idx) => ({ text: t(actionKey.key, actionKey.params), idx }))
+                  : upgradeStatus.actions!.map((action, idx) => ({ text: action, idx }))
+                ).map(({ text, idx }) => (
                   <Text key={idx} as="p" variant="bodySm">
-                    • {action}
+                    • {text}
                   </Text>
                 ))}
               </BlockStack>

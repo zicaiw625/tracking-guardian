@@ -14,8 +14,14 @@ interface ScanManualSupplementTabProps {
     shop: { id: string } | null;
     deprecationStatus: {
         additionalScripts?: {
-            badge: { text: string };
+            badge: {
+                text: string;
+                textKey?: string;
+                textParams?: Record<string, any>;
+            };
             description: string;
+            descriptionKey?: string;
+            descriptionParams?: Record<string, any>;
         };
     } | null;
     scriptContent: string;
@@ -74,6 +80,16 @@ export function ScanManualSupplementTab({
     onExportReplacementChecklistCSV,
 }: ScanManualSupplementTabProps) {
     const { t } = useTranslation();
+
+    const getTranslatedText = (
+        text: string | undefined,
+        key: string | undefined,
+        params: Record<string, any> | undefined
+    ) => {
+        if (key) return t(key, params);
+        return text || "";
+    };
+
     return (
         <BlockStack gap="500">
             <Box paddingBlockStart="400">
@@ -117,8 +133,16 @@ export function ScanManualSupplementTab({
                                 {deprecationStatus && (
                                     <Text as="p" variant="bodySm" tone="subdued">
                                         {t("scan.manualSupplement.deadline.remaining", {
-                                            text: deprecationStatus.additionalScripts?.badge.text,
-                                            desc: deprecationStatus.additionalScripts?.description
+                                            text: getTranslatedText(
+                                                deprecationStatus.additionalScripts?.badge.text,
+                                                deprecationStatus.additionalScripts?.badge.textKey,
+                                                deprecationStatus.additionalScripts?.badge.textParams
+                                            ),
+                                            desc: getTranslatedText(
+                                                deprecationStatus.additionalScripts?.description,
+                                                deprecationStatus.additionalScripts?.descriptionKey,
+                                                deprecationStatus.additionalScripts?.descriptionParams
+                                            )
                                         })}
                                     </Text>
                                 )}
