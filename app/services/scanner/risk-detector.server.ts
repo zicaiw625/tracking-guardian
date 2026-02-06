@@ -35,6 +35,56 @@ export function detectRisksInContent(content: string): RiskDetectionResult {
   };
 }
 
+// P1-2: URL-based risk detection for ScriptTags (where content is not available)
+export function detectRisksInUrl(url: string): RiskDetectionResult {
+  const risks: RiskItem[] = [];
+  const lowerUrl = url.toLowerCase();
+  
+  // Known tracking domains usually imply window/document access when loaded as ScriptTag
+  const knownTrackingDomains = [
+    "facebook.net", "connect.facebook.net", 
+    "google-analytics.com", "googletagmanager.com", 
+    "tiktok.com", "analytics.tiktok.com",
+    "pinterest.com", "pinimg.com",
+    "snapchat.com", "sc-static.net",
+    "clarity.ms", "hotjar.com"
+  ];
+  
+  const isKnownTracker = knownTrackingDomains.some(d => lowerUrl.includes(d));
+  
+  if (isKnownTracker) {
+    risks.push({
+      id: "window_document_access", // Inferred
+      name: "Window/Document Object Access",
+      severity: "medium",
+      points: 20,
+      description: "External tracking script detected via URL. These scripts typically access window/document objects which is restricted in Checkout Extensibility.",
+      recommendation: "Migrate to Web Pixel App Extension",
+    });
+  }
+
+  // External scripts are inherently blocking or network-dependent
+  risks.push({
+    id: "blocking_load",
+    name: "Blocking Script Load",
+    severity: "low",
+    points: 10,
+    description: "External script resource. Network latency may impact page load performance.",
+    recommendation: "Use asynchronous loading or Web Pixel",
+  });
+
+  return {
+    risks,
+    riskScore: isKnownTracker ? 40 : 10,
+    detectedIssues: {
+      piiAccess: false, // Cannot detect from URL
+      windowDocumentAccess: isKnownTracker,
+      blockingLoad: true,
+      duplicateTriggers: false
+    }
+  };
+}
+
 function enhanceRiskDescription(risk: RiskItem, _content: string): RiskItem {
   switch (risk.id) {
     case "pii_access":

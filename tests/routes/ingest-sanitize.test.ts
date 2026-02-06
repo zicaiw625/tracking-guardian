@@ -181,7 +181,7 @@ describe("P0 Fix: checkoutToken and nonce preservation after sanitizePII removal
       expect(mockRedis.setNX).toHaveBeenCalledWith(expectedKey, "1", expect.any(Number));
     });
 
-    it("should fallback to database when Redis fails and detect replay via unique constraint", async () => {
+    it("should fail open (allow event) when Redis fails and NOT fallback to database", async () => {
       const shopId = "shop-123";
       const orderId = "order-123";
       const timestamp = Date.now();
@@ -193,26 +193,12 @@ describe("P0 Fix: checkoutToken and nonce preservation after sanitizePII removal
       };
       vi.mocked(getRedisClientStrict).mockResolvedValue(mockRedis as any);
 
-      vi.mocked(prisma.eventNonce.create).mockResolvedValueOnce({
-        id: "nonce-1",
-        shopId,
-        nonce,
-        eventType,
-        expiresAt: new Date(timestamp + 3600000),
-        createdAt: new Date(),
-      } as any);
-
-      vi.mocked(prisma.eventNonce.create).mockRejectedValueOnce({
-        code: "P2002",
-      } as any);
-
-      const firstResult = await createEventNonce(shopId, orderId, timestamp, nonce, eventType);
-      expect(firstResult.isReplay).toBe(false);
-
-      const secondResult = await createEventNonce(shopId, orderId, timestamp, nonce, eventType);
-      expect(secondResult.isReplay).toBe(true);
-
-      expect(prisma.eventNonce.create).toHaveBeenCalledTimes(2);
+      // We expect createEventNonce to catch the error, log it, and return isReplay: false
+      // It should NOT call prisma.eventNonce.create
+      const result = await createEventNonce(shopId, orderId, timestamp, nonce, eventType);
+      
+      expect(result.isReplay).toBe(false);
+      expect(prisma.eventNonce.create).not.toHaveBeenCalled();
     });
 
     it("should allow different nonces for same order", async () => {

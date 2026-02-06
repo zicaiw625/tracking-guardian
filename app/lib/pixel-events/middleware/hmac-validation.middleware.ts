@@ -14,8 +14,39 @@ const TIMESTAMP_WINDOW_MS = API_CONFIG.TIMESTAMP_WINDOW_MS;
 export const hmacValidationMiddleware: IngestMiddleware = async (
   context: IngestContext
 ): Promise<MiddlewareResult> => {
-  if (!context.shop || !context.bodyText || !context.timestamp) {
+  if (!context.shop || !context.bodyText) {
     return { continue: true, context };
+  }
+
+  const hasAnySecret = Boolean(context.shop.ingestionSecret || context.shop.previousIngestionSecret);
+
+  // P0-1: Enforce timestamp presence in production when signature or secret is present
+  if (context.isProduction && (context.signature || hasAnySecret) && !context.timestamp) {
+    if (shouldRecordRejection(context.isProduction, false, "timestamp_missing")) {
+      rejectionTracker.record({
+        requestId: context.requestId,
+        shopDomain: context.shopDomain!,
+        reason: "timestamp_missing",
+        timestamp: Date.now(),
+      });
+    }
+    metrics.pixelRejection({
+      requestId: context.requestId,
+      shopDomain: context.shopDomain!,
+      reason: "timestamp_missing",
+    });
+    return {
+      continue: false,
+      response: jsonWithCors(
+        { error: "Missing timestamp header" },
+        { status: 403, request: context.request, requestId: context.requestId }
+      ),
+    };
+  }
+
+  if (!context.timestamp) {
+     // In non-production or if no secret/signature (though caught above for prod), allow continuation but it won't be verified
+     return { continue: true, context };
   }
 
   let keyValidation: KeyValidationResult = {
@@ -23,8 +54,6 @@ export const hmacValidationMiddleware: IngestMiddleware = async (
     reason: context.signature ? "hmac_not_verified" : "signature_missing",
     trustLevel: "untrusted",
   };
-
-  const hasAnySecret = Boolean(context.shop.ingestionSecret || context.shop.previousIngestionSecret);
 
   if (context.signature && hasAnySecret && context.timestamp) {
     const crypto = await import("crypto");

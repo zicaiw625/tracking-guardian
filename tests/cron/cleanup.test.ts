@@ -70,19 +70,7 @@ describe("Cleanup Task", () => {
     vi.restoreAllMocks();
   });
   describe("cleanupExpiredData", () => {
-    it("should clean up expired event nonces", async () => {
-      (prisma.eventNonce.deleteMany as ReturnType<typeof vi.fn>).mockResolvedValue({ count: 5 });
-      const result = await cleanupExpiredData();
-      expect(prisma.eventNonce.deleteMany).toHaveBeenCalledWith({
-        where: {
-          expiresAt: { lt: expect.any(Date) },
-        },
-      });
-      expect(result.eventNoncesDeleted).toBe(5);
-      expect(logger.info).toHaveBeenCalledWith(
-        expect.stringContaining("5 expired event nonces")
-      );
-    });
+    // P1-1: EventNonce cleanup removed as table is deleted.
     it("should clean up old GDPR jobs", async () => {
       (prisma.gDPRJob.deleteMany as ReturnType<typeof vi.fn>).mockResolvedValue({ count: 3 });
       const result = await cleanupExpiredData();

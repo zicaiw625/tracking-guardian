@@ -69,7 +69,6 @@ model Shop {
   EventLog                EventLog[]
   MonthlyUsage            MonthlyUsage[]
   MigrationDraft          MigrationDraft?
-  EventNonce              EventNonce[]
   AuditLog                AuditLog[]
   AlertEvent              AlertEvent[]
   DailyAggregatedMetrics   DailyAggregatedMetrics[]
@@ -334,20 +333,6 @@ model MigrationDraft {
 
   @@index([expiresAt])
   @@index([shopId, updatedAt])
-}
-
-model EventNonce {
-  id        String   @id
-  shopId    String
-  nonce     String
-  eventType String
-  createdAt DateTime @default(now())
-  expiresAt DateTime
-  Shop      Shop     @relation(fields: [shopId], references: [id], onDelete: Cascade)
-
-  @@unique([shopId, nonce, eventType])
-  @@index([expiresAt])
-  @@index([shopId])
 }
 
 model GDPRJob {

@@ -8,7 +8,7 @@ import { cleanupExpiredData } from "../../cron/tasks/cleanup";
 import { validateInput , CronRequestSchema } from "../../schemas/api-schemas";
 import { readTextWithLimit } from "../../utils/body-reader";
 import prisma from "../../db.server";
-import { processIngestQueue } from "../../lib/pixel-events/ingest-queue.server";
+import { processIngestQueue, recoverStuckProcessingItems } from "../../lib/pixel-events/ingest-queue.server";
 import { runDispatchWorker } from "../../services/dispatch/run-worker.server";
 import { batchAggregateMetrics } from "../../services/dashboard-aggregation.server";
 import { runAlertDetectionForAllShops } from "../../services/alert-detection.server";
@@ -36,8 +36,13 @@ async function runCronTasks(task: string, requestId: string): Promise<Record<str
 
   if (task === "all" || task === "ingest_worker") {
     logger.info("[Cron] Running ingest worker", { requestId });
+    // P0-2: Recover stuck processing items
+    const recovered = await recoverStuckProcessingItems();
+    if (recovered > 0) {
+      logger.info(`[Cron] Recovered ${recovered} stuck items`, { requestId });
+    }
     const ingestResult = await processIngestQueue();
-    results.ingest_worker = ingestResult;
+    results.ingest_worker = { ...ingestResult, recovered };
   }
 
   if (task === "all" || task === "dispatch_worker") {

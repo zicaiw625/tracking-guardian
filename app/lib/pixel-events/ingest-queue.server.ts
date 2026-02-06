@@ -24,6 +24,7 @@ export interface IngestQueueEntry {
   keyValidation: KeyValidationResult;
   origin: string | null;
   requestContext?: IngestRequestContext;
+  enqueuedAt?: number;
   enabledPixelConfigs?: Array<{
     platform: string;
     id: string;
@@ -37,6 +38,7 @@ export interface IngestQueueEntry {
 export async function enqueueIngestBatch(entry: IngestQueueEntry): Promise<boolean> {
   try {
     const redis = await getRedisClient();
+    entry.enqueuedAt = Date.now();
     const serialized = JSON.stringify(entry);
     
     await redis.lPush(QUEUE_KEY, serialized);
@@ -150,4 +152,44 @@ export async function processIngestQueue(
   }
 
   return { processed, errors };
+}
+
+export async function recoverStuckProcessingItems(limit = 100, maxAgeMs = 15 * 60 * 1000): Promise<number> {
+  const redis = await getRedisClient();
+  let recovered = 0;
+  
+  // Check items at the tail of the processing list (oldest items)
+  while (recovered < limit) {
+    const lastItem = await redis.lIndex(PROCESSING_KEY, -1);
+    if (!lastItem) break;
+    
+    let shouldRecover = false;
+    try {
+      const entry = JSON.parse(lastItem) as IngestQueueEntry;
+      if (entry.enqueuedAt && (Date.now() - entry.enqueuedAt > maxAgeMs)) {
+        shouldRecover = true;
+      } else if (!entry.enqueuedAt) {
+        // Legacy item without timestamp, treat as stuck if it's at the tail
+        shouldRecover = true;
+      }
+    } catch {
+      // Invalid JSON, move it out to avoid blocking
+      shouldRecover = true;
+    }
+    
+    if (shouldRecover) {
+      // Move from Tail of Processing to Head of Queue
+      const moved = await redis.rPopLPush(PROCESSING_KEY, QUEUE_KEY);
+      if (moved) {
+        recovered++;
+        logger.warn("Recovered stuck ingest item", { from: PROCESSING_KEY, to: QUEUE_KEY });
+      } else {
+        break;
+      }
+    } else {
+      // Oldest item is not stuck yet, so newer items won't be either
+      break;
+    }
+  }
+  return recovered;
 }

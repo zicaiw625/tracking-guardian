@@ -3,16 +3,13 @@ import { logger } from "../../utils/logger.server";
 import { cleanupExpiredDrafts } from "../../services/migration-draft.server";
 import { WebhookStatus, GDPRJobStatus } from "../../types/enums";
 import { processShopRedact } from "../../services/gdpr/handlers/shop-redact";
-import { RETENTION_CONFIG } from "../../utils/config.server";
 
-const EVENT_NONCE_EXPIRY_HOURS = RETENTION_CONFIG.NONCE_EXPIRY_MS / (60 * 60 * 1000);
 const GDPR_JOB_RETENTION_DAYS = 30;
 const MIN_AUDIT_LOG_RETENTION_DAYS = 180;
 const UNINSTALL_DELETION_HOURS = 48;
 const CLEANUP_BATCH_SIZE = 1000;
 
 export interface CleanupResult {
-  eventNoncesDeleted: number;
   migrationDraftsDeleted: number;
   gdprJobsDeleted: number;
   shopsProcessed: number;
@@ -48,7 +45,6 @@ async function deleteInBatches(
 
 export async function cleanupExpiredData(): Promise<CleanupResult> {
   const result: CleanupResult = {
-    eventNoncesDeleted: 0,
     migrationDraftsDeleted: 0,
     gdprJobsDeleted: 0,
     shopsProcessed: 0,
@@ -60,23 +56,6 @@ export async function cleanupExpiredData(): Promise<CleanupResult> {
     auditAssetsDeleted: 0,
     internalEventsDeleted: 0,
   };
-
-  try {
-    const eventNonceCutoff = new Date(Date.now() - EVENT_NONCE_EXPIRY_HOURS * 60 * 60 * 1000);
-    const eventNonceResult = await prisma.eventNonce.deleteMany({
-      where: {
-        expiresAt: {
-          lt: eventNonceCutoff,
-        },
-      },
-    });
-    result.eventNoncesDeleted = eventNonceResult.count;
-    if (result.eventNoncesDeleted > 0) {
-      logger.info(`Cleaned up ${result.eventNoncesDeleted} expired event nonces`);
-    }
-  } catch (error) {
-    logger.error("Failed to cleanup expired event nonces", { error });
-  }
 
   try {
     result.migrationDraftsDeleted = await cleanupExpiredDrafts();

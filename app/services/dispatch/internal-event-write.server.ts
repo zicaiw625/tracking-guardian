@@ -1,4 +1,4 @@
-import { randomUUID } from "crypto";
+import { randomUUID, createHash } from "crypto";
 import { Prisma } from "@prisma/client";
 import prisma from "~/db.server";
 import { normalizeOrderId } from "~/utils/crypto.server";
@@ -52,12 +52,24 @@ export async function persistInternalEventsAndDispatchJobs(
 
   if (s2sDestinations.length === 0) return;
 
-  // Anonymize IP to reduce PII storage risk - BUT use raw IP for S2S compliance if needed
-  // Meta/TikTok require raw IP. 
-  // TODO: Add retention policy or encryption if PII is a concern.
+  // P1-3: Anonymize IP and UA for privacy compliance
   const rawIp = requestContext?.ip ?? null;
-  const ip = rawIp;
-  const user_agent = requestContext?.user_agent ?? null;
+  let ip = rawIp;
+  if (ip) {
+    if (ip.includes(".") && ip.split(".").length === 4) {
+      // IPv4: Anonymize last octet (e.g., 1.2.3.4 -> 1.2.3.0)
+      const parts = ip.split(".");
+      parts[3] = "0";
+      ip = parts.join(".");
+    } else {
+      // IPv6 or other: Hash
+      ip = createHash("sha256").update(ip).digest("hex");
+    }
+  }
+  
+  // Hash user agent
+  const rawUa = requestContext?.user_agent ?? null;
+  const user_agent = rawUa ? createHash("sha256").update(rawUa).digest("hex") : null;
   const page_url = requestContext?.page_url ?? null;
   const referrer = requestContext?.referrer ?? null;
 

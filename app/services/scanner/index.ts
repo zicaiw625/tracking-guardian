@@ -16,7 +16,7 @@ import { assessRisks, calculateRiskScore } from "./risk-assessment";
 import { generateMigrationActions } from "./migration-actions";
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 import { analyzeScriptContent } from "./content-analysis";
-import { detectRisksInContent } from "./risk-detector.server";
+import { detectRisksInContent, detectRisksInUrl } from "./risk-detector.server";
 import { refreshTypOspStatus } from "../checkout-profile.server";
 import { logger } from "../../utils/logger.server";
 import type { Prisma } from "@prisma/client";
@@ -681,7 +681,8 @@ export async function scanShopTracking(
             let riskDetection: ReturnType<typeof detectRisksInContent> | null = null;
             if (tag.src) {
                 try {
-                    riskDetection = detectRisksInContent(tag.src);
+                    // P1-2: Use URL-based risk detection for ScriptTags (source URL available, content not available via API)
+                    riskDetection = detectRisksInUrl(tag.src);
                 } catch (error) {
                     logger.warn("Failed to detect risks in ScriptTag", {
                         scriptTagId: tag.id,

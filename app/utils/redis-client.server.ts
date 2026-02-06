@@ -26,6 +26,7 @@ export interface RedisClientWrapper {
   lTrim(key: string, start: number, stop: number): Promise<void>;
   lLen(key: string): Promise<number>;
   lRem(key: string, count: number, element: string): Promise<number>;
+  lIndex(key: string, index: number): Promise<string | null>;
   rPopLPush(source: string, destination: string): Promise<string | null>;
   isConnected(): boolean;
   getConnectionInfo(): ConnectionInfo;
@@ -314,6 +315,12 @@ class InMemoryFallback implements RedisClientWrapper {
       this.listStore.set(key, newList);
     }
     return removed;
+  }
+  async lIndex(key: string, index: number): Promise<string | null> {
+    const list = this.listStore.get(key);
+    if (!list) return null;
+    const idx = index < 0 ? list.length + index : index;
+    return list[idx] || null;
   }
   async rPopLPush(source: string, destination: string): Promise<string | null> {
     const value = await this.rPop(source);
@@ -678,6 +685,13 @@ class RedisClientFactory {
           return this.fallback.lRem(key, count, element);
         }
       },
+      lIndex: async (key: string, index: number): Promise<string | null> => {
+        try {
+          return await client.lIndex(key, index);
+        } catch {
+          return this.fallback.lIndex(key, index);
+        }
+      },
       rPopLPush: async (source: string, destination: string): Promise<string | null> => {
         try {
           if (typeof client.lMove === "function") {
@@ -763,6 +777,7 @@ class RedisClientFactory {
           return this.fallback.lRem(key, count, element);
         }
       },
+      lIndex: async (key: string, index: number): Promise<string | null> => client.lIndex(key, index),
       rPopLPush: async (source: string, destination: string): Promise<string | null> => {
         try {
           if (typeof client.lMove === "function") {

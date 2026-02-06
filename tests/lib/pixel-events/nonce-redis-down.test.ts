@@ -33,8 +33,7 @@ describe("createEventNonce Redis down", () => {
     vi.clearAllMocks();
   });
 
-  it("falls back to DB when Redis strict fails", async () => {
-    (prisma.eventNonce.create as ReturnType<typeof vi.fn>).mockResolvedValueOnce({});
+  it("fails open when Redis strict fails (no DB fallback)", async () => {
     const result = await createEventNonce(
       "shop_1",
       "order_1",
@@ -43,20 +42,8 @@ describe("createEventNonce Redis down", () => {
       "purchase"
     );
     expect(getRedisClientStrict).toHaveBeenCalled();
-    expect(prisma.eventNonce.create).toHaveBeenCalled();
+    expect(prisma.eventNonce.create).not.toHaveBeenCalled();
     expect(result.isReplay).toBe(false);
-  });
-
-  it("returns replay when DB fallback hits unique constraint", async () => {
-    (prisma.eventNonce.create as ReturnType<typeof vi.fn>).mockRejectedValueOnce({ code: "P2002" });
-    const result = await createEventNonce(
-      "shop_1",
-      "order_1",
-      Date.now(),
-      "nonce_1",
-      "purchase"
-    );
-    expect(result.isReplay).toBe(true);
   });
 });
 
