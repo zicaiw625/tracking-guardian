@@ -2,10 +2,9 @@ import { logger } from "../utils/logger.server";
 import { analyzeScriptContent } from "./scanner/content-analysis";
 import { PLATFORM_INFO } from "./scanner/patterns";
 import { detectRisksInContent } from "./scanner/risk-detector.server";
-import { getAuditAssets, batchCreateAuditAssets, generateFingerprint, getAllAuditAssetFingerprints } from "./audit-asset.server";
+import { batchCreateAuditAssets, generateFingerprint } from "./audit-asset.server";
 import type { AssetCategory, AssetSourceType, RiskLevel, SuggestedMigration } from "./audit-asset.server";
 import { sanitizeSensitiveInfo } from "../utils/security";
-import crypto from "crypto";
 
 export interface ManualPasteAnalysisResult {
   assets: Array<{
@@ -659,9 +658,9 @@ export async function processManualPasteAssets(
 ): Promise<{ created: number; updated: number; failed: number; duplicates: number }> {
   try {
     const analysis = analyzeManualPaste(content, shopId);
-    const existingFingerprintsList = await getAllAuditAssetFingerprints(shopId);
-    const existingFingerprints = new Set(existingFingerprintsList);
-    let duplicates = 0;
+    // We no longer filter by existing fingerprints to allow updates (e.g. if risk logic changes)
+    // The batchCreateAuditAssets uses upsert, so it will handle creation vs update.
+    
     const assets = analysis.assets
       .map(asset => {
         const enhancedRiskScore = calculateEnhancedRiskScore(
@@ -696,12 +695,6 @@ export async function processManualPasteAssets(
           asset.platform,
           details
         );
-
-        if (existingFingerprints.has(fingerprint)) {
-          duplicates++;
-          return null;
-        }
-        existingFingerprints.add(fingerprint);
         
         return {
           sourceType: "manual_paste" as AssetSourceType,
@@ -716,10 +709,11 @@ export async function processManualPasteAssets(
         };
       })
       .filter((asset): asset is NonNullable<typeof asset> => asset !== null);
+
     const result = await batchCreateAuditAssets(shopId, assets, scanReportId);
     return {
       ...result,
-      duplicates,
+      duplicates: 0, // We don't track duplicates anymore as we upsert
     };
   } catch (error) {
     logger.error("Failed to process manual paste assets", {

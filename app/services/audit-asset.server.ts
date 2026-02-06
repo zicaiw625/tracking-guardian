@@ -159,103 +159,23 @@ export async function createAuditAsset(
       input.platform,
       input.details
     );
-    const existing = await prisma.auditAsset.findUnique({
-      where: { shopId_fingerprint: { shopId, fingerprint } },
-      select: {
-        id: true,
-        shopId: true,
-        sourceType: true,
-        category: true,
-        platform: true,
-        displayName: true,
-        fingerprint: true,
-        riskLevel: true,
-        suggestedMigration: true,
-        migrationStatus: true,
-        migratedAt: true,
-        details: true,
-        scanReportId: true,
-        createdAt: true,
-        updatedAt: true,
-        priority: true,
-        estimatedTimeMinutes: true,
-      },
-    });
-    if (existing) {
-      const detailsForStorage: Record<string, unknown> = { ...input.details };
-      delete detailsForStorage.content;
-      const updated = await prisma.auditAsset.update({
-        where: { id: existing.id },
-        data: {
-          sourceType: input.sourceType,
-          category: input.category,
-          platform: input.platform,
-          displayName: input.displayName,
-          riskLevel: input.riskLevel || inferRiskLevel(input.category, input.sourceType, input.platform),
-          suggestedMigration: input.suggestedMigration || inferSuggestedMigration(input.category, input.platform),
-          details: detailsForStorage as object,
-          scanReportId: input.scanReportId,
-        },
-        select: {
-          id: true,
-          shopId: true,
-          sourceType: true,
-          category: true,
-          platform: true,
-          displayName: true,
-          fingerprint: true,
-          riskLevel: true,
-          suggestedMigration: true,
-          migrationStatus: true,
-          migratedAt: true,
-          details: true,
-          scanReportId: true,
-        createdAt: true,
-        updatedAt: true,
-        priority: true,
-        estimatedTimeMinutes: true,
-      },
-      });
-      try {
-        await calculatePriorityAndTimeEstimate(updated.id, shopId);
-      } catch (error) {
-        const errorMessage = error instanceof Error ? error.message : String(error);
-        logger.error("Failed to calculate priority/time estimate", error instanceof Error ? error : new Error(String(error)), {
-          assetId: updated.id,
-          shopId,
-          errorMessage,
-        });
-      }
-      logger.info("AuditAsset updated", { id: updated.id, shopId, fingerprint });
-      
-      // Re-fetch to get updated details
-      const reFetchedUpdated = await prisma.auditAsset.findUnique({
-        where: { id: updated.id },
-        select: {
-          id: true,
-          shopId: true,
-          sourceType: true,
-          category: true,
-          platform: true,
-          displayName: true,
-          fingerprint: true,
-          riskLevel: true,
-          suggestedMigration: true,
-          migrationStatus: true,
-          migratedAt: true,
-          details: true,
-          scanReportId: true,
-          createdAt: true,
-          updatedAt: true,
-        }
-      });
-      
-      return reFetchedUpdated ? mapToRecord(reFetchedUpdated) : mapToRecord(updated);
-    }
+
     const detailsForStorage: Record<string, unknown> = { ...input.details };
     delete detailsForStorage.content;
-    const asset = await prisma.auditAsset.create({
-      data: {
+
+    const asset = await prisma.auditAsset.upsert({
+      where: { shopId_fingerprint: { shopId, fingerprint } },
+      update: {
+        sourceType: input.sourceType,
+        category: input.category,
+        platform: input.platform,
+        displayName: input.displayName,
+        riskLevel: input.riskLevel || inferRiskLevel(input.category, input.sourceType, input.platform),
+        suggestedMigration: input.suggestedMigration || inferSuggestedMigration(input.category, input.platform),
+        details: detailsForStorage as object,
+        scanReportId: input.scanReportId,
+      },
+      create: {
         id: randomUUID(),
         shopId,
         sourceType: input.sourceType,
@@ -290,22 +210,26 @@ export async function createAuditAsset(
         estimatedTimeMinutes: true,
       },
     });
-    
-    // Await priority calculation to ensure UI has fresh data immediately
+
     try {
       await calculatePriorityAndTimeEstimate(asset.id, shopId);
     } catch (error) {
-       const errorMessage = error instanceof Error ? error.message : String(error);
-       logger.error("Failed to calculate priority/time estimate", error instanceof Error ? error : new Error(String(error)), {
-         assetId: asset.id,
-         shopId,
-         errorMessage,
-       });
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      logger.error("Failed to calculate priority/time estimate", error instanceof Error ? error : new Error(String(error)), {
+        assetId: asset.id,
+        shopId,
+        errorMessage,
+      });
     }
-    
-    logger.info("AuditAsset created", { id: asset.id, shopId, category: input.category });
-    
-    // Re-fetch to get the updated priority/details
+
+    logger.info("AuditAsset upserted", { id: asset.id, shopId, fingerprint, category: input.category });
+
+    // Re-fetch to get the updated priority/details if needed, but upsert returns updated data
+    // except for priority which is updated async.
+    // If we want the absolutely latest including priority, we might need to fetch again,
+    // but typically the UI can handle the initial state.
+    // However, the original code re-fetched. Let's do it to be safe and consistent with previous behavior
+    // specifically because calculatePriorityAndTimeEstimate updates the DB in background.
     const updatedAsset = await prisma.auditAsset.findUnique({
       where: { id: asset.id },
       select: {
@@ -324,9 +248,11 @@ export async function createAuditAsset(
         scanReportId: true,
         createdAt: true,
         updatedAt: true,
+        priority: true,
+        estimatedTimeMinutes: true,
       }
     });
-    
+
     return updatedAsset ? mapToRecord(updatedAsset) : mapToRecord(asset);
   } catch (error) {
     logger.error("Failed to create AuditAsset", { shopId, error });
@@ -345,86 +271,80 @@ export async function batchCreateAuditAssets(
   let created = 0;
   let updated = 0;
   let failed = 0;
-  // duplicates is not tracked in this implementation as we upsert
-  if (assets.length > 50) {
-    try {
-      await prisma.$transaction(async (tx) => {
-        for (const input of assets) {
-          try {
-            const fingerprint = generateFingerprint(
-              input.sourceType,
-              input.category,
-              input.platform,
-              input.details
-            );
-            const existing = await tx.auditAsset.findUnique({
-              where: { shopId_fingerprint: { shopId, fingerprint } },
-            });
-            const detailsForStorage: Record<string, unknown> = { ...input.details };
-            delete detailsForStorage.content;
-            if (existing) {
-              await tx.auditAsset.update({
-                where: { id: existing.id },
-                data: {
-                  sourceType: input.sourceType,
-                  category: input.category,
-                  platform: input.platform,
-                  displayName: input.displayName,
-                  riskLevel: input.riskLevel || inferRiskLevel(input.category, input.sourceType, input.platform),
-                  suggestedMigration: input.suggestedMigration || inferSuggestedMigration(input.category, input.platform),
-                  details: detailsForStorage as object,
-                  scanReportId: scanReportId || input.scanReportId,
-                },
-              });
-              updated++;
-            } else {
-              await tx.auditAsset.create({
-                data: {
-                  id: randomUUID(),
-                  shopId,
-                  sourceType: input.sourceType,
-                  category: input.category,
-                  platform: input.platform,
-                  displayName: input.displayName,
-                  fingerprint,
-                  riskLevel: input.riskLevel || inferRiskLevel(input.category, input.sourceType, input.platform),
-                  suggestedMigration: input.suggestedMigration || inferSuggestedMigration(input.category, input.platform),
-                  migrationStatus: "pending",
-                  details: detailsForStorage as object,
-                  scanReportId: scanReportId || input.scanReportId,
-                  updatedAt: new Date(),
-                },
-              });
-              created++;
-            }
-          } catch (error) {
-            failed++;
-            logger.warn("Failed to create/update AuditAsset in batch", { shopId, error });
-          }
-        }
-      }, {
-        timeout: 30000,
-      });
-    } catch (error) {
-      logger.error("Batch AuditAssets transaction failed", { shopId, error, count: assets.length });
-      for (const input of assets) {
-        const result = await createAuditAsset(shopId, {
-          ...input,
-          scanReportId: scanReportId || input.scanReportId,
+
+  try {
+    // Use transaction with upsert for all assets
+    const results = await prisma.$transaction(
+      assets.map((input) => {
+        const fingerprint = generateFingerprint(
+          input.sourceType,
+          input.category,
+          input.platform,
+          input.details
+        );
+        const detailsForStorage: Record<string, unknown> = { ...input.details };
+        delete detailsForStorage.content;
+
+        return prisma.auditAsset.upsert({
+          where: { shopId_fingerprint: { shopId, fingerprint } },
+          update: {
+            sourceType: input.sourceType,
+            category: input.category,
+            platform: input.platform,
+            displayName: input.displayName,
+            riskLevel: input.riskLevel || inferRiskLevel(input.category, input.sourceType, input.platform),
+            suggestedMigration: input.suggestedMigration || inferSuggestedMigration(input.category, input.platform),
+            details: detailsForStorage as object,
+            scanReportId: scanReportId || input.scanReportId,
+          },
+          create: {
+            id: randomUUID(),
+            shopId,
+            sourceType: input.sourceType,
+            category: input.category,
+            platform: input.platform,
+            displayName: input.displayName,
+            fingerprint,
+            riskLevel: input.riskLevel || inferRiskLevel(input.category, input.sourceType, input.platform),
+            suggestedMigration: input.suggestedMigration || inferSuggestedMigration(input.category, input.platform),
+            migrationStatus: "pending",
+            details: detailsForStorage as object,
+            scanReportId: scanReportId || input.scanReportId,
+            updatedAt: new Date(),
+          },
         });
-        if (result) {
-          const isNew = Date.now() - result.createdAt.getTime() < 1000;
-          if (isNew) {
-            created++;
-          } else {
-            updated++;
-          }
-        } else {
-          failed++;
-        }
+      })
+    );
+
+    // Count created vs updated based on createdAt
+    const now = Date.now();
+    for (const res of results) {
+      if (now - res.createdAt.getTime() < 2000) { // Allow slight clock skew/processing time
+        created++;
+      } else {
+        updated++;
       }
     }
-  } else {
+
+    // Recalculate priorities for all assets in the shop after batch update
+    // We do this asynchronously to not block the response
+    import("./scanner/priority-calculator").then(async ({ calculatePrioritiesForShop, updateAssetPriority }) => {
+      try {
+        const priorities = await calculatePrioritiesForShop(shopId);
+        // We update priorities sequentially or in smaller batches to avoid locking issues
+        // Since this is background, sequential is fine
+        for (const p of priorities) {
+          await updateAssetPriority(p.assetId, p);
+        }
+        logger.info("Batch priority calculation completed", { shopId, count: priorities.length });
+      } catch (err) {
+        logger.error("Failed to recalculate priorities after batch", { shopId, error: err });
+      }
+    });
+
+  } catch (error) {
+    logger.error("Batch AuditAssets transaction failed, falling back to sequential", { shopId, error, count: assets.length });
+    // Fallback to sequential
     for (const input of assets) {
       const result = await createAuditAsset(shopId, {
         ...input,
@@ -442,6 +362,7 @@ export async function batchCreateAuditAssets(
       }
     }
   }
+
   logger.info("Batch AuditAssets processed", { shopId, created, updated, failed, total: assets.length });
   return { created, updated, failed, duplicates: 0 };
 }
