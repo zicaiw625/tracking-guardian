@@ -749,6 +749,18 @@
       "low": "低",
       "unknown": "待估算"
     },
+    "metrics": {
+      "riskDistribution": {
+        "title": "风险分布",
+        "riskLevel": "风险等级",
+        "count": "数量",
+        "levels": {
+          "high": "高",
+          "medium": "中",
+          "low": "低"
+        }
+      }
+    },
     "dependency": {
       "title": "依赖关系",
       "emptyTitle": "暂无依赖关系数据",

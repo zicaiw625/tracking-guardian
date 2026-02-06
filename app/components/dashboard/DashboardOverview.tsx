@@ -7,6 +7,7 @@ import { PostInstallScanProgress } from "~/components/onboarding/PostInstallScan
 import { isPlanAtLeast } from "~/utils/plans";
 import type { DashboardData } from "~/types/dashboard";
 import { useTranslation, Trans } from "react-i18next";
+import { useNavigate } from "@remix-run/react";
 
 interface DashboardOverviewProps {
   data: DashboardData;
@@ -28,6 +29,7 @@ export function DashboardOverview({
   backendUrlInfo,
 }: DashboardOverviewProps) {
   const { t } = useTranslation();
+  const navigate = useNavigate();
   const introConfig = {
     title: t("dashboard.title"),
     description: t("dashboard.intro.description"),
@@ -123,8 +125,8 @@ export function DashboardOverview({
           estimatedMigrationTimeMinutes={data.estimatedMigrationTimeMinutes || 0}
           scriptTagsCount={data.scriptTagsCount || 0}
           identifiedPlatforms={data.latestScan.identifiedPlatforms || []}
-          onStartAudit={() => window.location.href = "/app/scan"}
-          onViewDashboard={() => window.location.href = "/app"}
+          onStartAudit={() => navigate("/app/scan")}
+          onViewDashboard={() => navigate("/app")}
         />
       )}
       <PageIntroCard

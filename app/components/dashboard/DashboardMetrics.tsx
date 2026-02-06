@@ -77,8 +77,8 @@ export const DashboardMetrics = memo(function DashboardMetrics({
                   <DataTable
                     columnContentTypes={["text", "numeric"]}
                     headings={[t("dashboard.metrics.riskDistribution.riskLevel"), t("dashboard.metrics.riskDistribution.count")]}
-                    rows={Object.entries(data.riskDistribution).map(([level, count]) => [
-                      level,
+                    rows={Object.entries(data.riskDistribution.byRiskLevel).map(([level, count]) => [
+                      t(`dashboard.metrics.riskDistribution.levels.${level}`) || level,
                       String(count),
                     ])}
                   />
