@@ -28,10 +28,6 @@ export function ScanHistoryTable({ scanHistory, onStartScan }: ScanHistoryTableP
             icon="📋"
             title={t("scan.history.empty.title")}
             description={t("scan.history.empty.description")}
-            primaryAction={{
-              content: t("scan.autoTab.startScan"),
-              onAction: onStartScan,
-            }}
           />
         </BlockStack>
       </Card>

@@ -318,7 +318,7 @@ export default function BillingPage() {
     const hasError = actionDataTyped && !actionDataTyped.success && actionDataTyped.error;
 
     const renderFeature = (feature: string) => {
-        if (feature === "plans.free.features.countdown") {
+        if (feature === "subscriptionPlans.free.features.countdown") {
             return t(feature, {
                 plusDate: formatDeadlineDate(DEPRECATION_DATES.plusScriptTagExecutionOff),
                 autoUpgradeDate: formatDeadlineDate(DEPRECATION_DATES.plusAutoUpgradeStart, "month"),

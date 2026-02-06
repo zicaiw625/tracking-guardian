@@ -1,5 +1,5 @@
 {
-  "plans": {
+  "subscriptionPlans": {
     "free": {
       "name": "免费版",
       "tagline": "适合刚起步的商家",
@@ -1047,6 +1047,57 @@
     },
     "pageTitle": "Tracking Guardian - 扫描与迁移",
     "pageSubtitle": "检测、分析并迁移您的追踪脚本",
+    "banners": {
+      "additionalScripts": {
+        "title": "Additional Scripts 需手动粘贴",
+        "content": "Shopify API 无法读取 checkout.liquid / Additional Scripts，请在下方「脚本内容分析」中粘贴原始脚本，确保迁移报告涵盖 Thank you / Order status 页的自定义逻辑。",
+        "deadline": "截止提醒：{{badge}} - {{desc}}",
+        "guide": "查看获取脚本清单的详细步骤"
+      },
+      "pagination": {
+        "title": "扫描分页说明",
+        "content": "Shopify API 结果是分页的，本项目会自动迭代分页，但为了性能会在以下阈值停止并提示：",
+        "limitScriptTags": "ScriptTags 最多处理 {{limit}} 条记录",
+        "limitWebPixels": "Web Pixel 最多处理 {{limit}} 条记录",
+        "footer": "如果商店超过以上数量，请在「手动分析」中粘贴剩余脚本，或联系支持获取完整导出（当前上限可调整，请联系我们）。"
+      },
+      "partialRefresh": {
+        "title": "部分刷新提示",
+        "content": "上次扫描可能因为超时或其他原因未完全覆盖所有资产。",
+        "suggestion": "建议重新进行一次完整扫描以确保数据准确。"
+      },
+      "autoUpgrade": {
+        "windowOpen": "自动升级窗口已开启",
+        "windowRisk": "即将自动升级",
+        "officialPath": "截止日期：{{date1}} - {{date2}} - {{date3}}"
+      },
+      "upgradeStatus": {
+        "pending": "升级状态确认中...",
+        "lastUpdated": "状态变更时间：{{date}}"
+      },
+      "plan": {
+        "title": "⚠️ 当前套餐：{{plan}}",
+        "action": "查看套餐/升级",
+        "starter": {
+            "item1": "启用像素迁移 (Test 环境) → 进入付费试用/订阅 (Starter $29/月)",
+            "item2": "覆盖迁移功能包括：标准事件映射 + 参数完整率检查 + 可下载 payload 证据 (GA4/Meta/TikTok v1 支持)",
+            "item3": "生成验收报告 (CSV) → 付费 (Growth $79/月 或 Agency $199/月)",
+            "item4": "这是“升级项目交付”的核心能力：让商家“敢在发布前点 Live”"
+        },
+        "growth": {
+            "item1": "无缝迁移助手",
+            "item2": "详细数据对比报告"
+        },
+        "pro": {
+            "item1": "无限像素配置",
+            "item2": "优先技术支持"
+        },
+        "agency": {
+            "item1": "专属客户经理",
+            "item2": "SLA 服务保障"
+        }
+      }
+    },
     "tabs": {
       "auto": "自动扫描",
       "manual": "手动分析",

@@ -137,7 +137,7 @@ export function ScanPageBanners({
       )}
       {planId && planLabel && (
         <Banner
-          title={t("scan.banners.plan.title", { plan: planLabel })}
+          title={t("scan.banners.plan.title", { plan: t(planLabel || "") })}
           tone={isGrowthOrAbove ? "info" : "warning"}
           action={{
             content: t("scan.banners.plan.action"),
@@ -146,7 +146,7 @@ export function ScanPageBanners({
         >
           <BlockStack gap="200">
             {planTagline && (
-              <Text as="p" variant="bodySm">{planTagline}</Text>
+              <Text as="p" variant="bodySm">{t(planTagline)}</Text>
             )}
             {!isGrowthOrAbove && (
               <List type="bullet">

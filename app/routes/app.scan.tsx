@@ -11,7 +11,6 @@ import { type ManualInputData } from "~/components/scan/ManualInputWizard";
 import { PageIntroCard } from "~/components/layout/PageIntroCard";
 import { AuditPaywallCard } from "~/components/paywall/AuditPaywallCard";
 import { ScanPageBanners } from "./app.scan/_components/ScanPageBanners";
-import { ScanPageBelowTabsContent } from "./app.scan/_components/ScanPageBelowTabsContent";
 import { ScanPageModals } from "./app.scan/_components/ScanPageModals";
 
 const ScriptCodeEditor = lazy(() => import("~/components/scan/ScriptCodeEditor").then(module => ({ default: module.ScriptCodeEditor })));
@@ -119,7 +118,7 @@ export function ScanPage({
                 t("scan.intro.auto.items.1"),
                 t("scan.intro.auto.items.2"),
             ],
-            primaryAction: { content: t("scan.intro.auto.action.primary"), url: "/app/scan" },
+            // Auto scan tab has its own primary action in the content area (empty state or top bar)
             secondaryAction: { content: t("scan.intro.auto.action.secondary"), url: "/app/scan?tab=1" },
         };
     }, [selectedTab, t]);
@@ -672,35 +671,6 @@ export function ScanPage({
               />
             </Suspense>
           )}
-              <ScanPageBelowTabsContent
-                latestScan={latestScan}
-                isScanning={isScanning}
-                handleScan={handleScan}
-                showError={showError}
-                showSuccess={showSuccess}
-                upgradeStatus={upgradeStatus}
-                identifiedPlatforms={identifiedPlatforms}
-                scriptTags={scriptTags}
-                deprecationStatus={deprecationStatus}
-                planId={planId}
-                planIdSafe={planIdSafe}
-                riskItems={riskItems}
-                migrationActions={migrationActions}
-                handleShowScriptTagGuidance={handleShowScriptTagGuidance}
-                handleDeleteWebPixel={handleDeleteWebPixel}
-                handleUpgradePixelSettings={handleUpgradePixelSettings}
-                isDeleting={isDeleting}
-                pendingDelete={pendingDelete}
-                isUpgrading={isUpgrading}
-                submit={(data, opts) => submit(data, { ...opts, method: opts.method as "get" | "post" })}
-                monthlyOrders={monthlyOrders}
-                setMonthlyOrders={setMonthlyOrders}
-                auditAssets={auditAssets?.filter((a): a is NonNullable<typeof a> => a != null) ?? null}
-                migrationProgress={migrationProgress}
-                migrationTimeline={migrationTimeline as import("~/services/migration-priority.server").MigrationTimeline | null}
-                dependencyGraph={dependencyGraph}
-                _shop={shop as any}
-              />
           {selectedTab === 1 && (
             <Suspense fallback={<Card><BlockStack gap="400"><CardSkeleton lines={4} showTitle /></BlockStack></Card>}>
               <ScanManualSupplementTab

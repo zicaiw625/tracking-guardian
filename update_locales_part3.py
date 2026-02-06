@@ -60,7 +60,7 @@ new_keys_en = {
             "moreInfoContent": "You can visit <a href=\"/app/billing\">Subscription & Billing</a> page to view full billing history, usage stats and invoices."
         }
     },
-    "plans": {
+    "subscriptionPlans": {
         "free": {
             "name": "Free Plan",
             "tagline": "Basic tracking for small stores",

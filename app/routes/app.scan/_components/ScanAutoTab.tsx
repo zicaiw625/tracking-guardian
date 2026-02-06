@@ -86,22 +86,24 @@ export function ScanAutoTab({
 
     return (
         <BlockStack gap="500">
-            <Box paddingBlockStart="400">
-                <InlineStack align="space-between">
-                    {latestScan && (
+            {(latestScan || isScanning) && (
+                <Box paddingBlockStart="400">
+                    <InlineStack align="space-between">
+                        {latestScan && (
+                            <InlineStack gap="200">
+                                <Button icon={ExportIcon} onClick={onExportCSV}>
+                                    {t("scan.autoTab.exportCSV")}
+                                </Button>
+                            </InlineStack>
+                        )}
                         <InlineStack gap="200">
-                            <Button icon={ExportIcon} onClick={onExportCSV}>
-                                {t("scan.autoTab.exportCSV")}
+                            <Button variant="primary" onClick={handleScan} loading={isScanning} icon={SearchIcon}>
+                                {isScanning ? t("scan.autoTab.scanning") : t("scan.autoTab.startScan")}
                             </Button>
                         </InlineStack>
-                    )}
-                    <InlineStack gap="200">
-                        <Button variant="primary" onClick={handleScan} loading={isScanning} icon={SearchIcon}>
-                            {isScanning ? t("scan.autoTab.scanning") : t("scan.autoTab.startScan")}
-                        </Button>
                     </InlineStack>
-                </InlineStack>
-            </Box>
+                </Box>
+            )}
             {isScanning && (
                 <Card>
                     <BlockStack gap="400">
@@ -128,50 +130,10 @@ export function ScanAutoTab({
                     }}
                 />
             )}
-            {latestScan && !isScanning && upgradeStatus && upgradeStatus.title && (
-                <Card>
-                    <BlockStack gap="400">
-                        <InlineStack align="space-between" blockAlign="center">
-                            <Text as="h2" variant="headingMd">
-                                {t("scan.autoTab.upgradeWindow.title")}
-                            </Text>
-                            <Badge tone={upgradeStatus.urgency === "critical" ? "critical" : upgradeStatus.urgency === "high" ? "warning" : "info"}>
-                                {upgradeStatus.urgency === "critical" ? t("scan.autoTab.upgradeWindow.critical") : upgradeStatus.urgency === "high" ? t("scan.autoTab.upgradeWindow.high") : upgradeStatus.urgency === "medium" ? t("scan.autoTab.upgradeWindow.medium") : t("scan.autoTab.upgradeWindow.low")}
-                            </Badge>
-                        </InlineStack>
-                        <Divider />
-                        <Banner tone={upgradeStatus.urgency === "critical" ? "critical" : upgradeStatus.urgency === "high" ? "warning" : "info"} title={upgradeStatus.titleKey ? t(upgradeStatus.titleKey, upgradeStatus.titleParams) : upgradeStatus.title}>
-                            <BlockStack gap="200">
-                                <Text as="p">{upgradeStatus.messageKey ? t(upgradeStatus.messageKey, upgradeStatus.messageParams) : upgradeStatus.message}</Text>
-                                {upgradeStatus.autoUpgradeInfo && (upgradeStatus.autoUpgradeInfo.autoUpgradeMessage || upgradeStatus.autoUpgradeInfo.autoUpgradeMessageKey) && (
-                                    <Banner tone={upgradeStatus.autoUpgradeInfo.isInAutoUpgradeWindow ? "critical" : "warning"} title={upgradeStatus.autoUpgradeInfo.isInAutoUpgradeWindow ? t("scan.autoTab.upgradeWindow.autoUpgradeStarted") : t("scan.autoTab.upgradeWindow.autoUpgradeRisk")}>
-                                        <Text as="p">{upgradeStatus.autoUpgradeInfo.autoUpgradeMessageKey ? t(upgradeStatus.autoUpgradeInfo.autoUpgradeMessageKey, upgradeStatus.autoUpgradeInfo.autoUpgradeMessageParams) : upgradeStatus.autoUpgradeInfo.autoUpgradeMessage}</Text>
-                                    </Banner>
-                                )}
-                                {(upgradeStatus.actionsKeys?.length > 0 || (upgradeStatus.actions && upgradeStatus.actions.length > 0)) && (
-                                    <BlockStack gap="100">
-                                        <Text as="p" fontWeight="semibold">{t("scan.autoTab.upgradeWindow.suggestedActions")}</Text>
-                                        <List>
-                                            {upgradeStatus.actionsKeys && upgradeStatus.actionsKeys.length > 0 ? (
-                                                upgradeStatus.actionsKeys.map((item, idx) => (
-                                                    <List.Item key={idx}>{t(item.key, item.params)}</List.Item>
-                                                ))
-                                            ) : (
-                                                upgradeStatus.actions && upgradeStatus.actions.map((action, idx) => (
-                                                    <List.Item key={idx}>{action}</List.Item>
-                                                ))
-                                            )}
-                                        </List>
-                                    </BlockStack>
-                                )}
-                            </BlockStack>
-                        </Banner>
-                    </BlockStack>
-                </Card>
-            )}
             {latestScan && !isScanning && (
                 <ScanSummaryCards
                     latestScan={latestScan}
+
                     identifiedPlatforms={identifiedPlatforms}
                     scriptTags={scriptTags}
                     deprecationStatus={deprecationStatus}
@@ -418,7 +380,7 @@ export function ScanAutoTab({
                     }}
                 />
             )}
-            {migrationProgress && migrationTimeline && (
+            {latestScan && migrationProgress && migrationTimeline && (
                 <Card>
                     <BlockStack gap="400">
                         <InlineStack align="space-between" blockAlign="center">
@@ -709,7 +671,9 @@ export function ScanAutoTab({
                     </BlockStack>
                 </Card>
             )}
-            <ScanHistoryTable scanHistory={scanHistory} onStartScan={handleScan} />
+            {scanHistory && scanHistory.length > 0 && (
+                <ScanHistoryTable scanHistory={scanHistory} onStartScan={handleScan} />
+            )}
             {latestScan && latestScan.riskScore && latestScan.riskScore > 0 && (
                 <Banner title={t("scan.autoTab.suggestMigrationBanner.title")} tone="warning" action={{ content: t("scan.autoTab.suggestMigrationBanner.action"), url: "/app/migrate" }}>
                     <p>

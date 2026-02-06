@@ -185,7 +185,7 @@ export function VerificationIntroSection({
               {t("verification.intro.upgradeBanner.content3")}
             </Text>
             <Text as="p" variant="bodySm" tone="subdued">
-              {t("verification.intro.upgradeBanner.currentPlan")}<strong>{currentPlan === "free" ? t("plans.free") : currentPlan === "starter" ? t("plans.starter") : currentPlan}</strong>
+              {t("verification.intro.upgradeBanner.currentPlan")}<strong>{currentPlan === "free" ? t("subscriptionPlans.free") : currentPlan === "starter" ? t("subscriptionPlans.starter") : currentPlan}</strong>
             </Text>
           </BlockStack>
         </Banner>
