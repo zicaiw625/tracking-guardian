@@ -1,8 +1,8 @@
-import { randomUUID } from "crypto";
+import { randomUUID, createHash } from "crypto";
 import { Prisma } from "@prisma/client";
 import prisma from "../../db.server";
 import { logger } from "../../utils/logger.server";
-import { hashValueSync, normalizeOrderId as normalizeOrderIdForReceipt } from "../../utils/crypto.server";
+import { hashValueSync, normalizeOrderId as normalizeOrderIdForReceipt, encrypt } from "../../utils/crypto.server";
 import { ORDER_WEBHOOK_ENABLED } from "../../utils/config.server";
 import { evaluatePlatformConsentWithStrategy } from "../../utils/platform-consent";
 import type { ConsentState } from "../../utils/platform-consent";
@@ -48,6 +48,10 @@ interface OrdersPaidPayload {
   email?: string | null;
   billing_address?: { phone?: string | null } | null;
   default_address?: { phone?: string | null } | null;
+  client_details?: {
+    browser_ip?: string | null;
+    user_agent?: string | null;
+  };
 }
 
 function parseOrdersPaidPayload(payload: unknown): {
@@ -57,6 +61,8 @@ function parseOrdersPaidPayload(payload: unknown): {
   items: Array<{ id: string; name: string; price: number; quantity: number }>;
   email: string | null;
   phone: string | null;
+  ip: string | null;
+  user_agent: string | null;
 } | null {
   if (payload == null || typeof payload !== "object") return null;
   const obj = payload as OrdersPaidPayload;
@@ -86,7 +92,9 @@ function parseOrdersPaidPayload(payload: unknown): {
   const email = typeof obj.email === "string" && obj.email.trim() ? obj.email.trim().toLowerCase() : null;
   const phoneRaw = obj.billing_address?.phone ?? obj.default_address?.phone;
   const phone = typeof phoneRaw === "string" && phoneRaw.trim() ? phoneRaw.trim() : null;
-  return { orderId, totalPrice, currency, items, email, phone };
+  const ip = typeof obj.client_details?.browser_ip === "string" ? obj.client_details.browser_ip : null;
+  const user_agent = typeof obj.client_details?.user_agent === "string" ? obj.client_details.user_agent : null;
+  return { orderId, totalPrice, currency, items, email, phone, ip, user_agent };
 }
 
 export async function handleOrdersPaid(
@@ -167,6 +175,11 @@ export async function handleOrdersPaid(
       .filter(Boolean) as ("GA4" | "META" | "TIKTOK")[];
     const s2sDestinations: ("GA4" | "META" | "TIKTOK")[] = [];
     for (const dest of allS2sDestinations) {
+      // P0-2: TikTok requires IP/UA. If missing, skip.
+      if (dest === "TIKTOK" && !parsed.ip && !parsed.user_agent) {
+        continue;
+      }
+
       const platform = dest === "GA4" ? "google" : dest === "META" ? "meta" : "tiktok";
       // P0-1: Google (GA4) is dual-use, but treating as marketing forces marketing consent.
       // We should pass false for google, or rely on platform config logic if updated.
@@ -200,6 +213,19 @@ export async function handleOrdersPaid(
         ? { marketing: consentState.marketing, analytics: consentState.analytics, saleOfDataAllowed: consentState.saleOfDataAllowed }
         : Prisma.JsonNull;
 
+    // Process IP/UA
+    let ip = parsed.ip;
+    if (ip) {
+      if (ip.includes(".") && ip.split(".").length === 4) {
+        const parts = ip.split(".");
+        parts[3] = "0";
+        ip = parts.join(".");
+      } else {
+        ip = createHash("sha256").update(ip).digest("hex");
+      }
+    }
+    const user_agent = parsed.user_agent ? createHash("sha256").update(parsed.user_agent).digest("hex") : null;
+
     const now = Date.now();
     await prisma.$transaction(async (tx) => {
       const internalEvent = await tx.internalEvent.create({
@@ -212,8 +238,10 @@ export async function handleOrdersPaid(
           client_id: null,
           timestamp: BigInt(now),
           occurred_at: new Date(now),
-          ip: null,
-          user_agent: null,
+          ip: ip,
+          ip_encrypted: parsed.ip ? encrypt(parsed.ip) : null,
+          user_agent: user_agent,
+          user_agent_encrypted: parsed.user_agent ? encrypt(parsed.user_agent) : null,
           page_url: null,
           referrer: null,
           querystring: null,

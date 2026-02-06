@@ -1,4 +1,5 @@
 import { postJson } from "~/utils/http";
+import { decrypt } from "~/utils/crypto.server";
 import type { TikTokCredentials } from "~/types";
 import type { InternalEventPayload, SendEventResult } from "./types";
 import { S2S_FETCH_TIMEOUT_MS } from "./types";
@@ -44,7 +45,25 @@ export async function sendEvent(
   const pixelCode = credentials.pixelId;
   const { accessToken, testEventCode } = credentials;
 
-  if (!event.ip || !event.user_agent) {
+  let ip = event.ip;
+  if (event.ip_encrypted) {
+    try {
+      ip = decrypt(event.ip_encrypted);
+    } catch (e) {
+      // Fallback to anonymized IP if decryption fails
+    }
+  }
+
+  let user_agent = event.user_agent;
+  if (event.user_agent_encrypted) {
+    try {
+      user_agent = decrypt(event.user_agent_encrypted);
+    } catch (e) {
+      // Fallback to hashed UA if decryption fails (though likely useless for TikTok)
+    }
+  }
+
+  if (!ip || !user_agent) {
     return { ok: false, error: "Dropped: missing ip or user_agent" };
   }
 
@@ -54,8 +73,8 @@ export async function sendEvent(
     event_id: event.event_id,
     timestamp: new Date(event.occurred_at).toISOString().replace(/\.\d{3}Z$/, "Z"),
     context: {
-      ip: event.ip ?? undefined,
-      user_agent: event.user_agent ?? undefined,
+      ip: ip ?? undefined,
+      user_agent: user_agent ?? undefined,
       page: {
         url: event.page_url ?? undefined,
         referrer: event.referrer ?? undefined,

@@ -24,7 +24,9 @@ export interface ListPendingJobsResult {
     timestamp: bigint;
     occurred_at: Date;
     ip: string | null;
+    ip_encrypted?: string | null;
     user_agent: string | null;
+    user_agent_encrypted?: string | null;
     page_url: string | null;
     referrer: string | null;
     querystring: string | null;

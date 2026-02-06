@@ -383,7 +383,9 @@ model InternalEvent {
   timestamp        BigInt
   occurred_at      DateTime
   ip               String?
+  ip_encrypted     String?
   user_agent       String?
+  user_agent_encrypted String?
   page_url         String?
   referrer         String?
   querystring      String?

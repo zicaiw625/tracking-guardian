@@ -1,7 +1,7 @@
 import { randomUUID, createHash } from "crypto";
 import { Prisma } from "@prisma/client";
 import prisma from "~/db.server";
-import { normalizeOrderId } from "~/utils/crypto.server";
+import { normalizeOrderId, encrypt } from "~/utils/crypto.server";
 import type { ProcessedEvent } from "~/lib/pixel-events/ingest-pipeline.server";
 import type { IngestRequestContext } from "~/lib/pixel-events/ingest-queue.server";
 import type { DispatchDestination } from "./queue";
@@ -54,6 +54,7 @@ export async function persistInternalEventsAndDispatchJobs(
 
   // P1-3: Anonymize IP and UA for privacy compliance
   const rawIp = requestContext?.ip ?? null;
+  const ip_encrypted = rawIp ? encrypt(rawIp) : null;
   let ip = rawIp;
   if (ip) {
     if (ip.includes(".") && ip.split(".").length === 4) {
@@ -69,6 +70,7 @@ export async function persistInternalEventsAndDispatchJobs(
   
   // Hash user agent
   const rawUa = requestContext?.user_agent ?? null;
+  const user_agent_encrypted = rawUa ? encrypt(rawUa) : null;
   const user_agent = rawUa ? createHash("sha256").update(rawUa).digest("hex") : null;
   const page_url = requestContext?.page_url ?? null;
   const referrer = requestContext?.referrer ?? null;
@@ -129,7 +131,9 @@ export async function persistInternalEventsAndDispatchJobs(
           timestamp: BigInt(timestampMs),
           occurred_at: occurredAt,
           ip,
+          ip_encrypted,
           user_agent,
+          user_agent_encrypted,
           page_url,
           referrer,
           querystring: null,
@@ -152,24 +156,20 @@ export async function persistInternalEventsAndDispatchJobs(
       // But since we did update: {}, if it existed, nothing changed.
       // If we want to strictly avoid duplicate jobs for the SAME event_id, we should check if jobs exist.
       
-      const existingJobs = await tx.eventDispatchJob.count({
-        where: { internal_event_id: internalEvent.id }
-      });
-
-      if (existingJobs === 0) {
-        for (const destination of allowedDestinations) {
-          await tx.eventDispatchJob.create({
-            data: {
-              id: randomUUID(),
-              internal_event_id: internalEvent.id,
-              destination,
-              status: "PENDING",
-              attempts: 0,
-              next_retry_at: new Date(),
-              updatedAt: new Date(),
-            },
-          });
-        }
+      // P1-2: Fix race condition using createMany with skipDuplicates
+      if (allowedDestinations.length > 0) {
+        await tx.eventDispatchJob.createMany({
+          data: allowedDestinations.map((destination) => ({
+            id: randomUUID(),
+            internal_event_id: internalEvent.id,
+            destination,
+            status: "PENDING",
+            attempts: 0,
+            next_retry_at: new Date(),
+            updatedAt: new Date(),
+          })),
+          skipDuplicates: true,
+        });
       }
     }
   });

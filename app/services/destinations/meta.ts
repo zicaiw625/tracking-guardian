@@ -1,4 +1,5 @@
 import { postJson } from "~/utils/http";
+import { decrypt } from "~/utils/crypto.server";
 import type { MetaCredentials } from "~/types";
 import type { InternalEventPayload, SendEventResult } from "./types";
 import { S2S_FETCH_TIMEOUT_MS } from "./types";
@@ -51,8 +52,25 @@ export async function sendEvent(
   }
 
   // Add IP and User Agent to user_data (CAPI requirement)
-  if (event.ip) userData.client_ip_address = event.ip;
-  if (event.user_agent) userData.client_user_agent = event.user_agent;
+  let ip = event.ip;
+  if (event.ip_encrypted) {
+    try {
+      ip = decrypt(event.ip_encrypted);
+    } catch (e) {
+      // Fallback
+    }
+  }
+  if (ip) userData.client_ip_address = ip;
+
+  let user_agent = event.user_agent;
+  if (event.user_agent_encrypted) {
+    try {
+      user_agent = decrypt(event.user_agent_encrypted);
+    } catch (e) {
+      // Fallback
+    }
+  }
+  if (user_agent) userData.client_user_agent = user_agent;
 
   const eventTime = Math.floor(Number(event.timestamp) / 1000);
 
