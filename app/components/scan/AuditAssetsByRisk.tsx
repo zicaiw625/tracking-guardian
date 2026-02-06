@@ -14,6 +14,7 @@ import { AlertCircleIcon, CheckCircleIcon, ArrowRightIcon, ClockIcon, LockIcon }
 import type { AuditAssetRecord } from "~/services/audit-asset.server";
 import type { PlanId } from "~/services/billing/plans";
 import { useTranslation } from "react-i18next";
+import { useMemo } from "react";
 
 interface AuditAssetsByRiskProps {
   assets: AuditAssetRecord[];
@@ -21,6 +22,7 @@ interface AuditAssetsByRiskProps {
   onMigrateClick?: (asset: AuditAssetRecord) => void;
   currentPlan?: PlanId;
   freeTierLimit?: number;
+  riskScore?: number;
 }
 
 function determineRiskCategory(
@@ -37,17 +39,38 @@ function determineRiskCategory(
       return "will_fail";
     }
   }
+  if (asset.suggestedMigration === "none" || asset.category === "analytics") {
+    return "no_migration_needed";
+  }
   if (riskLevel === "medium") {
     return "can_replace";
   }
-  if (riskLevel === "low" || asset.suggestedMigration === "none") {
-    return "no_migration_needed";
-  }
-  if (asset.category === "analytics") {
+  if (riskLevel === "low") {
     return "no_migration_needed";
   }
   return "can_replace";
 }
+
+const getEstimatedTime = (asset: AuditAssetRecord): number => {
+  if (typeof asset.estimatedTimeMinutes === "number") {
+    return asset.estimatedTimeMinutes;
+  }
+  if (asset.details && typeof asset.details === "object") {
+    const details = asset.details as Record<string, unknown>;
+    const time = details.estimatedTimeMinutes;
+    if (typeof time === "number") return time;
+  }
+  const riskMap: Record<string, number> = { high: 30, medium: 15, low: 5 };
+  return riskMap[asset.riskLevel || "low"] || 10;
+};
+
+const getPriority = (asset: AuditAssetRecord): number | undefined => {
+  if (typeof asset.priority === "number") return asset.priority;
+  if (asset.details && typeof asset.details === "object") {
+    return (asset.details as Record<string, unknown>).priority as number | undefined;
+  }
+  return undefined;
+};
 
 export function AuditAssetsByRisk({
   assets,
@@ -55,6 +78,7 @@ export function AuditAssetsByRisk({
   onMigrateClick,
   currentPlan = "free",
   freeTierLimit = 3,
+  riskScore: providedRiskScore,
 }: AuditAssetsByRiskProps) {
   const { t } = useTranslation();
 
@@ -107,7 +131,7 @@ export function AuditAssetsByRisk({
     return map[migration] || map.none;
   };
 
-  const assetsByCategory = {
+  const assetsByCategory = useMemo(() => ({
     will_fail: assets.filter((a) => {
       const category = determineRiskCategory(a, a.riskLevel as "high" | "medium" | "low");
       return category === "will_fail";
@@ -120,26 +144,23 @@ export function AuditAssetsByRisk({
       const category = determineRiskCategory(a, a.riskLevel as "high" | "medium" | "low");
       return category === "no_migration_needed";
     }),
-  };
+  }), [assets]);
+
   const highRiskAssets = assetsByCategory.will_fail;
   const mediumRiskAssets = assetsByCategory.can_replace;
   const totalHighRisk = highRiskAssets.length;
   const totalMediumRisk = mediumRiskAssets.length;
-  const riskScore = totalHighRisk * 30 + totalMediumRisk * 15;
+  
+  const calculatedRiskScore = useMemo(() => totalHighRisk * 30 + totalMediumRisk * 15, [totalHighRisk, totalMediumRisk]);
+  const riskScore = providedRiskScore ?? calculatedRiskScore;
   const riskLevel = riskScore >= 60 ? "high" : riskScore >= 30 ? "medium" : "low";
-  const getEstimatedTime = (asset: AuditAssetRecord): number => {
-    if (asset.details && typeof asset.details === "object") {
-      const details = asset.details as Record<string, unknown>;
-      const time = details.estimatedTimeMinutes;
-      if (typeof time === "number") return time;
-    }
-    return asset.riskLevel === "high" ? 30 : 20;
-  };
-  const estimatedTimeMinutes = highRiskAssets.reduce((sum, asset) =>
+  
+  const estimatedTimeMinutes = useMemo(() => highRiskAssets.reduce((sum, asset) =>
     sum + getEstimatedTime(asset), 0
   ) + mediumRiskAssets.reduce((sum, asset) =>
     sum + getEstimatedTime(asset), 0
-  );
+  ), [highRiskAssets, mediumRiskAssets]);
+
   const isFreeTier = currentPlan === "free";
   const visibleHighRiskAssets = isFreeTier
     ? highRiskAssets.slice(0, freeTierLimit)
@@ -308,9 +329,7 @@ export function AuditAssetsByRisk({
                               <Badge>{asset.platform}</Badge>
                             )}
                             {(() => {
-                              const priority = asset.details && typeof asset.details === "object"
-                                ? (asset.details as Record<string, unknown>).priority
-                                : undefined;
+                              const priority = getPriority(asset);
                               if (typeof priority === "number" && priority > 0) {
                                 return (
                                   <Badge tone={priority >= 8 ? "critical" : undefined}>
@@ -374,9 +393,7 @@ export function AuditAssetsByRisk({
                             return null;
                           })()}
                           {(() => {
-                            const priority = asset.details && typeof asset.details === "object"
-                              ? (asset.details as Record<string, unknown>).priority
-                              : undefined;
+                            const priority = getPriority(asset);
                             if (typeof priority === "number" && priority >= 8) {
                               return <Badge tone="critical">{t("scan.risk.highPriority")}</Badge>;
                             }
@@ -460,10 +477,8 @@ export function AuditAssetsByRisk({
                                 <Badge>{asset.platform}</Badge>
                               )}
                               {(() => {
-                                const priority = asset.details && typeof asset.details === "object"
-                                  ? (asset.details as Record<string, unknown>).priority
-                                  : undefined;
-                                if (typeof priority === "number" && priority > 0) {
+                              const priority = getPriority(asset);
+                              if (typeof priority === "number" && priority > 0) {
                                   return (
                                     <Badge tone={priority >= 5 ? undefined : "info"}>
                                       {t("scan.risk.priority", { level: priority })}
@@ -526,10 +541,8 @@ export function AuditAssetsByRisk({
                               return null;
                             })()}
                             {(() => {
-                              const priority = asset.details && typeof asset.details === "object"
-                                ? (asset.details as Record<string, unknown>).priority
-                                : undefined;
-                              if (typeof priority === "number" && priority >= 5 && priority < 8) {
+                            const priority = getPriority(asset);
+                            if (typeof priority === "number" && priority >= 5 && priority < 8) {
                                 return <Badge>{t("scan.risk.mediumPriority")}</Badge>;
                               }
                               return null;
@@ -583,10 +596,8 @@ export function AuditAssetsByRisk({
                                 <Badge>{asset.platform}</Badge>
                               )}
                               {(() => {
-                                const priority = asset.details && typeof asset.details === "object"
-                                  ? (asset.details as Record<string, unknown>).priority
-                                  : undefined;
-                                if (typeof priority === "number" && priority > 0) {
+                              const priority = getPriority(asset);
+                              if (typeof priority === "number" && priority > 0) {
                                   return (
                                     <Badge tone="info">
                                       {t("scan.risk.priority", { level: priority })}

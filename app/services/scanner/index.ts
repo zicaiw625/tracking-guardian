@@ -591,20 +591,10 @@ export async function scanShopTracking(
             timestamp: new Date(),
         });
     }
-    try {
-        result.scriptTags = await fetchAllScriptTags(admin);
-        logger.info(`Found ${result.scriptTags.length} script tags (with pagination)`);
-    } catch (error) {
-        const errorMessage = error instanceof Error ? error.message : "Unknown error";
-        logger.error("Error fetching script tags:", error);
-        errors.push({
-            stage: "script_tags",
-            message: errorMessage,
-            timestamp: new Date(),
-        });
-    }
-    try {
-        const checkoutResponse = await admin.graphql(`
+
+    const [scriptTagsResult, checkoutConfigResult, webPixelsResult] = await Promise.allSettled([
+        fetchAllScriptTags(admin),
+        admin.graphql(`
             query GetCheckoutConfig {
                 shop {
                     checkoutApiSupported
@@ -613,25 +603,42 @@ export async function scanShopTracking(
                     }
                 }
             }
-        `);
-        const checkoutData = await checkoutResponse.json();
-        result.checkoutConfig = checkoutData.data?.shop as CheckoutConfig;
+        `).then(res => res.json()).then(data => data.data?.shop as CheckoutConfig),
+        fetchAllWebPixels(admin)
+    ]);
+
+    if (scriptTagsResult.status === "fulfilled") {
+        result.scriptTags = scriptTagsResult.value;
+        logger.info(`Found ${result.scriptTags.length} script tags (with pagination)`);
+    } else {
+        const errorMessage = scriptTagsResult.reason instanceof Error ? scriptTagsResult.reason.message : "Unknown error";
+        logger.error("Error fetching script tags:", scriptTagsResult.reason);
+        errors.push({
+            stage: "script_tags",
+            message: errorMessage,
+            timestamp: new Date(),
+        });
+    }
+
+    if (checkoutConfigResult.status === "fulfilled") {
+        result.checkoutConfig = checkoutConfigResult.value;
         logger.info(`Checkout config fetched successfully`);
-    } catch (error) {
-        const errorMessage = error instanceof Error ? error.message : "Unknown error";
-        logger.error("Error fetching checkout config:", error);
+    } else {
+        const errorMessage = checkoutConfigResult.reason instanceof Error ? checkoutConfigResult.reason.message : "Unknown error";
+        logger.error("Error fetching checkout config:", checkoutConfigResult.reason);
         errors.push({
             stage: "checkout_config",
             message: errorMessage,
             timestamp: new Date(),
         });
     }
-    try {
-        result.webPixels = await fetchAllWebPixels(admin);
+
+    if (webPixelsResult.status === "fulfilled") {
+        result.webPixels = webPixelsResult.value;
         logger.info(`Found ${result.webPixels.length} web pixels (with pagination)`);
-    } catch (error) {
-        const errorMessage = error instanceof Error ? error.message : "Unknown error";
-        logger.error("Error fetching web pixels:", error);
+    } else {
+        const errorMessage = webPixelsResult.reason instanceof Error ? webPixelsResult.reason.message : "Unknown error";
+        logger.error("Error fetching web pixels:", webPixelsResult.reason);
         errors.push({
             stage: "web_pixels",
             message: errorMessage,

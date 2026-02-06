@@ -14,7 +14,7 @@ import { useTranslation, Trans } from "react-i18next";
 
 export interface ScanPageModalsProps {
   guidanceModalOpen: boolean;
-  guidanceContent: { title: string; platform?: string; scriptTagId?: number } | null;
+  guidanceContent: { title: string; platform?: string; scriptTagId?: number; type?: "upgrade_guide" | "script_tag_guidance" | "import_wizard" } | null;
   closeGuidanceModal: () => void;
   deleteModalOpen: boolean;
   pendingDelete: { type: "webPixel"; id: string; gid: string; title: string } | null;
@@ -27,6 +27,7 @@ export interface ScanPageModalsProps {
   handleManualInputComplete: (data: ManualInputData) => Promise<void>;
   guidedSupplementOpen: boolean;
   setGuidedSupplementOpen: (open: boolean) => void;
+  onGuidedSupplementComplete: (count: number) => void;
   shopId: string;
   showSuccess: (message: string) => void;
 }
@@ -46,8 +47,9 @@ export function ScanPageModals({
   handleManualInputComplete,
   guidedSupplementOpen,
   setGuidedSupplementOpen,
+  onGuidedSupplementComplete,
   shopId,
-  showSuccess,
+  showSuccess: _showSuccess,
 }: ScanPageModalsProps) {
   const { t } = useTranslation();
 
@@ -70,7 +72,7 @@ export function ScanPageModals({
       >
         <Modal.Section>
           <BlockStack gap="400">
-            {guidanceContent?.title?.includes("升级向导") ? (
+            {guidanceContent?.type === "upgrade_guide" || guidanceContent?.title?.includes("升级向导") ? (
               <>
                 <Text as="p" variant="bodyMd">
                   {t("ScanModals.Guidance.UpgradeWizardContent")}
@@ -235,10 +237,7 @@ export function ScanPageModals({
       <GuidedSupplement
         open={guidedSupplementOpen}
         onClose={() => setGuidedSupplementOpen(false)}
-        onComplete={(count) => {
-          showSuccess(`成功创建 ${count} 个迁移资产`);
-          window.location.reload();
-        }}
+        onComplete={onGuidedSupplementComplete}
         shopId={shopId}
       />
     </>

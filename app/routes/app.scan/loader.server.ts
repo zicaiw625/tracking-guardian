@@ -68,6 +68,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
             scriptAnalysisChunkSize: SCRIPT_ANALYSIS_CONFIG.CHUNK_SIZE,
             scannerMaxScriptTags: SCANNER_CONFIG.MAX_SCRIPT_TAGS,
             scannerMaxWebPixels: SCANNER_CONFIG.MAX_WEB_PIXELS,
+            webPixelsCount: 0,
         });
     }
     const latestScanRaw = await prisma.scanReport.findFirst({
@@ -114,6 +115,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
         ? shop.shopTier
         : "unknown";
     let migrationActions: MigrationAction[] = [];
+    let webPixelsCount = 0;
     if (latestScanRaw) {
         try {
             const rawData = latestScanRaw;
@@ -148,6 +150,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
                                 ? p.settings
                                 : null
                         }));
+                    webPixelsCount = webPixels.length;
                 }
             } catch (error) {
                 const errorMessage = error instanceof Error ? error.message : "Unknown error";
@@ -215,36 +218,39 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     const isTypOspStale = !lastTypOspCheck ||
         (lastTypOspCheck && (Date.now() - lastTypOspCheck.getTime()) > sixHoursMs) ||
         shop.typOspPagesEnabled === null;
-    let typOspPagesEnabled = shop.typOspPagesEnabled;
-    let typOspUpdatedAt = lastTypOspCheck;
-    let typOspUnknownReason: string | undefined = shop.typOspStatusReason ?? undefined;
-    let typOspUnknownError: string | undefined;
-    if (admin && isTypOspStale) {
-        try {
-            const typOspResult = await refreshTypOspStatus(admin, shop.id);
-            typOspPagesEnabled = typOspResult.typOspPagesEnabled;
-            typOspUpdatedAt = typOspResult.checkedAt;
-            if (typOspResult.status === "unknown") {
-                typOspUnknownReason = typOspResult.unknownReason;
-                typOspUnknownError = typOspResult.error;
+    const typOspPromise = (async () => {
+        if (admin && isTypOspStale) {
+            try {
+                return await refreshTypOspStatus(admin, shop.id);
+            } catch (error) {
+                return {
+                    status: "unknown" as const,
+                    typOspPagesEnabled: shop.typOspPagesEnabled,
+                    checkedAt: lastTypOspCheck,
+                    error: error instanceof Error ? error.message : "Unknown error",
+                    unknownReason: "API_ERROR",
+                };
             }
         }
-        catch (error) {
-            typOspUnknownReason = "API_ERROR";
-            typOspUnknownError = error instanceof Error ? error.message : "Unknown error";
-        }
-    }
-    const shopUpgradeStatus: ShopUpgradeStatus = {
-        tier: shopTier,
-        typOspPagesEnabled,
-        typOspUpdatedAt,
-        typOspUnknownReason,
-        typOspUnknownError,
-    };
-    const upgradeStatusMessage = getUpgradeStatusMessage(shopUpgradeStatus, hasScriptTags);
+        return {
+            status: "cached" as const,
+            typOspPagesEnabled: shop.typOspPagesEnabled,
+            checkedAt: lastTypOspCheck,
+        };
+    })();
+
     const planId = normalizePlan(shop.plan);
     const planDef = getPlanDefinition(planId);
-    const [migrationTimeline, migrationProgress, dependencyGraph, auditAssets, migrationChecklist] = await Promise.all([
+    
+    const [
+        typOspResult,
+        migrationTimeline,
+        migrationProgress,
+        dependencyGraph,
+        auditAssets,
+        migrationChecklist
+    ] = await Promise.all([
+        typOspPromise,
         generateMigrationTimeline(shop.id).catch((error) => {
             const errorMessage = error instanceof Error ? error.message : String(error);
             const errorStack = error instanceof Error ? error.stack : undefined;
@@ -298,6 +304,25 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
             return null;
         }),
     ]);
+
+    const typOspPagesEnabled = typOspResult.typOspPagesEnabled;
+    const typOspUpdatedAt = typOspResult.checkedAt;
+    let typOspUnknownReason: string | undefined = shop.typOspStatusReason ?? undefined;
+    let typOspUnknownError: string | undefined;
+
+    if (typOspResult.status === "unknown") {
+        typOspUnknownReason = (typOspResult as any).unknownReason;
+        typOspUnknownError = (typOspResult as any).error;
+    }
+
+    const shopUpgradeStatus: ShopUpgradeStatus = {
+        tier: shopTier,
+        typOspPagesEnabled,
+        typOspUpdatedAt,
+        typOspUnknownReason,
+        typOspUnknownError,
+    };
+    const upgradeStatusMessage = getUpgradeStatusMessage(shopUpgradeStatus, hasScriptTags);
     return json({
         shop: { id: shop.id, domain: shopDomain },
         latestScan,
@@ -332,5 +357,6 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
         scriptAnalysisChunkSize: SCRIPT_ANALYSIS_CONFIG.CHUNK_SIZE,
         scannerMaxScriptTags: SCANNER_CONFIG.MAX_SCRIPT_TAGS,
         scannerMaxWebPixels: SCANNER_CONFIG.MAX_WEB_PIXELS,
+        webPixelsCount,
     });
 };

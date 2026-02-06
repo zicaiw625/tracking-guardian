@@ -1,7 +1,6 @@
 import { BlockStack, Box, Card } from "@shopify/polaris";
 import type { SubmitFunction } from "@remix-run/react";
 import { MigrationChecklistEnhanced } from "~/components/scan/MigrationChecklistEnhanced";
-import { AuditPaywallCard } from "~/components/paywall/AuditPaywallCard";
 import { EnhancedEmptyState } from "~/components/ui";
 import type { DependencyGraph } from "~/services/dependency-analysis.server";
 import type { MigrationChecklistItem } from "~/services/migration-checklist.server";
@@ -18,8 +17,8 @@ export interface MigrationChecklistTabProps {
 }
 
 export function MigrationChecklistTab({
-  showTabs,
-  planIdSafe,
+  showTabs: _showTabs,
+  planIdSafe: _planIdSafe,
   latestScan,
   migrationChecklist,
   dependencyGraph,

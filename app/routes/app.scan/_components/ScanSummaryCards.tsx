@@ -32,11 +32,12 @@ export function ScanSummaryCards({
   planIdSafe,
 }: ScanSummaryCardsProps) {
   const { t } = useTranslation();
+  const riskScore = latestScan.riskScore || 0;
   const riskItems = validateRiskItemsArray(latestScan.riskItems);
   const estimatedTime = calculateEstimatedTime(riskItems);
-  const riskBackground = getRiskLevelBackground(latestScan.riskScore);
-  const riskBadgeTone = getRiskLevelBadgeTone(latestScan.riskScore);
-  const riskLevelText = latestScan.riskScore > 60 ? t("scan.summary.riskScore.levels.high") : latestScan.riskScore > 30 ? t("scan.summary.riskScore.levels.med") : t("scan.summary.riskScore.levels.low");
+  const riskBackground = getRiskLevelBackground(riskScore);
+  const riskBadgeTone = getRiskLevelBadgeTone(riskScore);
+  const riskLevelText = riskScore > 60 ? t("scan.summary.riskScore.levels.high") : riskScore > 30 ? t("scan.summary.riskScore.levels.med") : t("scan.summary.riskScore.levels.low");
 
   return (
     <Layout>
@@ -49,7 +50,7 @@ export function ScanSummaryCards({
             <Box background={riskBackground} padding="600" borderRadius="200">
               <BlockStack gap="200" align="center">
                 <Text as="p" variant="heading3xl" fontWeight="bold">
-                  {latestScan.riskScore}
+                  {riskScore}
                 </Text>
                 <Text as="p" variant="bodySm">
                   / 100

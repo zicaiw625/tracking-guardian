@@ -52,7 +52,7 @@ export function ScanPage({
     const tabParam = searchParams.get("tab");
     const tabFromUrl = tabParam === "1" ? 1 : tabParam === "2" ? 2 : 0;
     const effectiveInitialTab = tabParam !== null && tabParam !== "" ? tabFromUrl : initialTab;
-    const { shop, latestScan, scanHistory, deprecationStatus, upgradeStatus, migrationActions, planId, planLabel, planTagline, migrationTimeline, migrationProgress, dependencyGraph, auditAssets, migrationChecklist, scriptAnalysisMaxContentLength, scriptAnalysisChunkSize, scannerMaxScriptTags, scannerMaxWebPixels } = useLoaderData<typeof loader>();
+    const { shop, latestScan, scanHistory, deprecationStatus, upgradeStatus, migrationActions, planId, planLabel, planTagline, migrationTimeline, migrationProgress, dependencyGraph, auditAssets, migrationChecklist, scriptAnalysisMaxContentLength, scriptAnalysisChunkSize, scannerMaxScriptTags, scannerMaxWebPixels, webPixelsCount } = useLoaderData<typeof loader>();
     const actionData = useActionData<typeof action>();
     const submit = useSubmit();
     const navigation = useNavigation();
@@ -66,7 +66,7 @@ export function ScanPage({
     const { scriptContent, setScriptContent, analysisResult, setAnalysisResult, analysisError, isAnalyzing, analysisProgress, handleAnalyzeScript } = scriptAnalysis;
     const [replacementChecklistItems, setReplacementChecklistItems] = useState<Array<{ id: string; contentSummary: string; result: ScriptAnalysisResult }>>([]);
     const [guidanceModalOpen, setGuidanceModalOpen] = useState(false);
-    const [guidanceContent, setGuidanceContent] = useState<{ title: string; platform?: string; scriptTagId?: number } | null>(null);
+    const [guidanceContent, setGuidanceContent] = useState<{ title: string; platform?: string; scriptTagId?: number; type?: "upgrade_guide" | "script_tag_guidance" | "import_wizard" } | null>(null);
     const [manualInputWizardOpen, setManualInputWizardOpen] = useState(false);
     const [guidedSupplementOpen, setGuidedSupplementOpen] = useState(false);
     const [deleteModalOpen, setDeleteModalOpen] = useState(false);
@@ -147,6 +147,7 @@ export function ScanPage({
             title: t("scan.modals.cleanScriptTag.title", { id: scriptTagId }),
             platform,
             scriptTagId,
+            type: "script_tag_guidance",
         });
         setGuidanceModalOpen(true);
     }, [t]);
@@ -215,7 +216,12 @@ export function ScanPage({
         setAnalysisSaved(true);
         const formData = new FormData();
         formData.append("_action", "save_analysis");
-        formData.append("analysisData", JSON.stringify(analysisResult));
+        // Ensure riskScore is an integer
+        const payload = {
+            ...analysisResult,
+            riskScore: Math.round(analysisResult.riskScore || 0)
+        };
+        formData.append("analysisData", JSON.stringify(payload));
         saveAnalysisFetcher.submit(formData, { method: "post" });
     }, [analysisResult, saveAnalysisFetcher, isSavingAnalysis]);
     const handleProcessManualPaste = useCallback(() => {
@@ -322,7 +328,7 @@ export function ScanPage({
                     affiliate: "server_side",
                     reorder: "ui_extension",
                     upsell: "ui_extension",
-                    tracking: "ui_extension",
+                    tracking: "web_pixel",
                 };
                 assets.push({
                     sourceType: data.fromUpgradeWizard ? "merchant_confirmed" : "manual_paste" as const,
@@ -352,35 +358,6 @@ export function ScanPage({
             showError(t("scan.errors.processFailed"));
         }
     }, [shop, showSuccess, showError, submit, t]);
-    const isProcessingPaste = isSavingAnalysis;
-    useEffect(() => {
-        const result = isFetcherResult(saveAnalysisFetcher.data) ? saveAnalysisFetcher.data : undefined;
-        if (!result || saveAnalysisFetcher.state !== "idle" || !isMountedRef.current) return;
-        if (result.success) {
-            if (!analysisSavedRef.current) {
-                analysisSavedRef.current = true;
-            }
-            setAnalysisSaved(true);
-            setPasteProcessed(true);
-            showSuccess(t("scan.success.analysisSaved"));
-            if (reloadTimeoutRef.current) {
-                clearTimeout(reloadTimeoutRef.current);
-            }
-            reloadTimeoutRef.current = setTimeout(() => {
-                window.location.reload();
-            }, 1500);
-        } else if (result.error) {
-            analysisSavedRef.current = false;
-            setAnalysisSaved(false);
-            showError(t("scan.errors.saveFailed") + result.error);
-        }
-    }, [saveAnalysisFetcher.data, saveAnalysisFetcher.state, showSuccess, showError, t]);
-    useEffect(() => {
-        if (analysisResult) {
-            analysisSavedRef.current = false;
-            setAnalysisSaved(false);
-        }
-    }, [analysisResult]);
     const reloadData = useCallback(() => {
         if (isReloadingRef.current || !isMountedRef.current) return;
         if (reloadTimeoutRef.current) {
@@ -397,6 +374,30 @@ export function ScanPage({
         }, 1000);
         reloadTimeoutRef.current = timeoutId;
     }, [submit]);
+    const isProcessingPaste = isSavingAnalysis;
+    useEffect(() => {
+        const result = isFetcherResult(saveAnalysisFetcher.data) ? saveAnalysisFetcher.data : undefined;
+        if (!result || saveAnalysisFetcher.state !== "idle" || !isMountedRef.current) return;
+        if (result.success) {
+            if (!analysisSavedRef.current) {
+                analysisSavedRef.current = true;
+            }
+            setAnalysisSaved(true);
+            setPasteProcessed(true);
+            showSuccess(t("scan.success.analysisSaved"));
+            reloadData();
+        } else if (result.error) {
+            analysisSavedRef.current = false;
+            setAnalysisSaved(false);
+            showError(t("scan.errors.saveFailed") + result.error);
+        }
+    }, [saveAnalysisFetcher.data, saveAnalysisFetcher.state, showSuccess, showError, t, reloadData]);
+    useEffect(() => {
+        if (analysisResult) {
+            analysisSavedRef.current = false;
+            setAnalysisSaved(false);
+        }
+    }, [analysisResult]);
     useEffect(() => {
         const deleteResult = isFetcherResult(deleteFetcher.data) ? deleteFetcher.data : undefined;
         if (!deleteResult || deleteFetcher.state !== "idle" || !isMountedRef.current) return;
@@ -608,11 +609,13 @@ export function ScanPage({
       <ScanPageBanners
         deprecationStatus={deprecationStatus}
         onShowUpgradeGuide={() => {
-          setGuidanceContent({ title: t("scan.modals.guide.title"), platform: undefined });
+          setGuidanceContent({ title: t("scan.modals.guide.title"), platform: undefined, type: "upgrade_guide" });
           setGuidanceModalOpen(true);
         }}
         scannerMaxScriptTags={scannerMaxScriptTags}
         scannerMaxWebPixels={scannerMaxWebPixels}
+        currentScriptTagCount={scriptTags.length}
+        currentWebPixelCount={webPixelsCount}
         partialRefresh={!!showPartialRefresh}
         upgradeStatus={upgradeStatus}
         planId={planId}
@@ -691,7 +694,7 @@ export function ScanPage({
                 onOpenManualInputWizard={() => setManualInputWizardOpen(true)}
                 onAssetsCreated={(count) => {
                     showSuccess(t("scan.success.assetsCreated", { count }));
-                    window.location.reload();
+                    reloadData();
                 }}
                 ScriptCodeEditor={ScriptCodeEditor}
                 analysisSaved={analysisSaved}
@@ -738,6 +741,10 @@ export function ScanPage({
           handleManualInputComplete={handleManualInputComplete}
           guidedSupplementOpen={guidedSupplementOpen}
           setGuidedSupplementOpen={setGuidedSupplementOpen}
+          onGuidedSupplementComplete={(count) => {
+            showSuccess(t("scan.success.assetsCreated", { count }));
+            reloadData();
+          }}
           shopId={shop?.id || ""}
           showSuccess={showSuccess}
         />

@@ -25,7 +25,7 @@ export function MigrationImpactAnalysis({
   const { t } = useTranslation();
   const roiEstimate = calculateROIEstimate(monthlyOrders, identifiedPlatforms.length, scriptTags.length);
 
-  if (latestScan.riskScore === 0) {
+  if (!latestScan.riskScore || latestScan.riskScore === 0) {
     return null;
   }
 

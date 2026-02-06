@@ -54,7 +54,7 @@ export function ScanAutoTab({
     isScanning,
     handleScan,
     onExportCSV,
-    upgradeStatus,
+    upgradeStatus: _upgradeStatus,
     identifiedPlatforms,
     scriptTags,
     deprecationStatus,
@@ -425,6 +425,7 @@ export function ScanAutoTab({
                     }))}
                     currentPlan={planId === "pro" ? "growth" : planId === "free" || planId === "starter" || planId === "growth" || planId === "agency" ? planId : "free"}
                     freeTierLimit={3}
+                    riskScore={latestScan?.riskScore}
                     onAssetClick={(assetId) => {
                         window.location.href = `/app/migrate?asset=${assetId}`;
                     }}
@@ -647,8 +648,8 @@ export function ScanAutoTab({
                                 <Text as="p" fontWeight="semibold">{t("scan.autoTab.wizard.pendingItems")}</Text>
                                 <List type="number">
                                     {migrationActions && migrationActions.length > 0 ? (
-                                        migrationActions.slice(0, MAX_VISIBLE_ACTIONS).map((action) => (
-                                            <List.Item key={`${action.type}-${action.platform || 'unknown'}-${action.scriptTagId || action.webPixelGid || 'no-id'}`}>
+                                        migrationActions.slice(0, MAX_VISIBLE_ACTIONS).map((action, index) => (
+                                            <List.Item key={`${action.type}-${action.platform || 'unknown'}-${action.scriptTagId || action.webPixelGid || 'no-id'}-${index}`}>
                                                 {action.titleKey ? t(action.titleKey, action.titleParams) : action.title}
                                                 {action.platform && ` (${getPlatformName(action.platform, t)})`}
                                                 {action.priority === "high" && " ⚠️"}
@@ -729,7 +730,7 @@ export function ScanAutoTab({
                 <ScanHistoryTable scanHistory={scanHistory} onStartScan={handleScan} />
             )}
 
-            {latestScan && latestScan.riskScore && latestScan.riskScore > 0 && (
+            {latestScan && (latestScan.riskScore || 0) > 0 && (
                 <Banner title={t("scan.autoTab.suggestMigrationBanner.title")} tone="warning" action={{ content: t("scan.autoTab.suggestMigrationBanner.action"), url: "/app/migrate" }}>
                     <p>
                         {t("scan.autoTab.suggestMigrationBanner.content")}

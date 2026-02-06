@@ -6,11 +6,32 @@ import { scanShopTracking, type ScriptAnalysisResult } from "../../services/scan
 import { createAuditAsset, batchCreateAuditAssets, type AuditAssetInput } from "../../services/audit-asset.server";
 import { generateMigrationChecklist } from "../../services/migration-checklist.server";
 import { SAVE_ANALYSIS_LIMITS, PLATFORM_NAME_REGEX } from "../../utils/scan-constants";
+import { z } from "zod";
 import { checkSensitiveInfoInData } from "../../utils/scan-validation";
 import { containsSensitiveInfo, sanitizeSensitiveInfo } from "../../utils/security";
 import { sanitizeFilename } from "../../utils/responses";
 import { logger } from "../../utils/logger.server";
 import type { RiskItem } from "../../types";
+
+const AnalysisDataSchema = z.object({
+    identifiedPlatforms: z.array(z.string().min(SAVE_ANALYSIS_LIMITS.MIN_PLATFORM_NAME_LENGTH).max(SAVE_ANALYSIS_LIMITS.MAX_PLATFORM_NAME_LENGTH).regex(PLATFORM_NAME_REGEX))
+        .max(SAVE_ANALYSIS_LIMITS.MAX_PLATFORMS),
+    platformDetails: z.array(z.object({
+        platform: z.string(),
+        type: z.string(),
+        confidence: z.enum(["high", "medium", "low"]),
+        matchedPattern: z.string()
+    })).max(SAVE_ANALYSIS_LIMITS.MAX_PLATFORM_DETAILS),
+    risks: z.array(z.object({
+        id: z.string(),
+        name: z.string(),
+        description: z.string(),
+        severity: z.enum(["high", "medium", "low"])
+    })).max(SAVE_ANALYSIS_LIMITS.MAX_RISKS),
+    recommendations: z.array(z.string().min(1).max(SAVE_ANALYSIS_LIMITS.MAX_RECOMMENDATION_LENGTH))
+        .max(SAVE_ANALYSIS_LIMITS.MAX_RECOMMENDATIONS),
+    riskScore: z.number().int().min(SAVE_ANALYSIS_LIMITS.MIN_RISK_SCORE).max(SAVE_ANALYSIS_LIMITS.MAX_RISK_SCORE)
+});
 
 export const action = async ({ request }: ActionFunctionArgs) => {
     const { session, admin } = await authenticate.admin(request);
@@ -50,10 +71,19 @@ export const action = async ({ request }: ActionFunctionArgs) => {
                 });
                 return json({ error: "无法解析分析数据：无效的 JSON 格式" }, { status: 400 });
             }
-            if (!parsedData || typeof parsedData !== "object") {
-                return json({ error: "无效的分析数据格式：必须是对象" }, { status: 400 });
+
+            const validationResult = AnalysisDataSchema.safeParse(parsedData);
+            if (!validationResult.success) {
+                const errorMessage = validationResult.error.issues.map((e: z.ZodIssue) => `${e.path.join(".")}: ${e.message}`).join(", ");
+                logger.warn("Analysis data validation failed", {
+                    shopId: shop.id,
+                    error: errorMessage,
+                    actionType: "save_analysis"
+                });
+                return json({ error: `无效的分析数据格式: ${errorMessage}` }, { status: 400 });
             }
-            const data = parsedData as Record<string, unknown>;
+
+            const data = validationResult.data;
             if (checkSensitiveInfoInData(parsedData)) {
                 logger.warn("Analysis data contains potential sensitive information", {
                     shopId: shop.id,
@@ -64,98 +94,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
                     error: "检测到可能包含敏感信息的内容（如 API keys、tokens、客户信息等）。请先脱敏后再保存。"
                 }, { status: 400 });
             }
-            if (!Array.isArray(data.identifiedPlatforms)) {
-                return json({ error: "无效的分析数据格式：identifiedPlatforms 必须是数组" }, { status: 400 });
-            }
-            if (!Array.isArray(data.platformDetails)) {
-                return json({ error: "无效的分析数据格式：platformDetails 必须是数组" }, { status: 400 });
-            }
-            if (!Array.isArray(data.risks)) {
-                return json({ error: "无效的分析数据格式：risks 必须是数组" }, { status: 400 });
-            }
-            if (!Array.isArray(data.recommendations)) {
-                return json({ error: "无效的分析数据格式：recommendations 必须是数组" }, { status: 400 });
-            }
-            if (data.identifiedPlatforms.length > SAVE_ANALYSIS_LIMITS.MAX_PLATFORMS) {
-                return json({
-                    error: `identifiedPlatforms 数组过长（最多 ${SAVE_ANALYSIS_LIMITS.MAX_PLATFORMS} 个）`
-                }, { status: 400 });
-            }
-            if (data.platformDetails.length > SAVE_ANALYSIS_LIMITS.MAX_PLATFORM_DETAILS) {
-                return json({
-                    error: `platformDetails 数组过长（最多 ${SAVE_ANALYSIS_LIMITS.MAX_PLATFORM_DETAILS} 个）`
-                }, { status: 400 });
-            }
-            if (data.risks.length > SAVE_ANALYSIS_LIMITS.MAX_RISKS) {
-                return json({
-                    error: `risks 数组过长（最多 ${SAVE_ANALYSIS_LIMITS.MAX_RISKS} 个）`
-                }, { status: 400 });
-            }
-            if (data.recommendations.length > SAVE_ANALYSIS_LIMITS.MAX_RECOMMENDATIONS) {
-                return json({
-                    error: `recommendations 数组过长（最多 ${SAVE_ANALYSIS_LIMITS.MAX_RECOMMENDATIONS} 个）`
-                }, { status: 400 });
-            }
-            if (
-                typeof data.riskScore !== "number" ||
-                !Number.isFinite(data.riskScore) ||
-                !Number.isInteger(data.riskScore) ||
-                data.riskScore < SAVE_ANALYSIS_LIMITS.MIN_RISK_SCORE ||
-                data.riskScore > SAVE_ANALYSIS_LIMITS.MAX_RISK_SCORE
-            ) {
-                return json({
-                    error: "无效的分析数据格式：riskScore 必须是 0-100 之间的整数"
-                }, { status: 400 });
-            }
-            if (!data.identifiedPlatforms.every((p: unknown) => {
-                return (
-                    typeof p === "string" &&
-                    p.length >= SAVE_ANALYSIS_LIMITS.MIN_PLATFORM_NAME_LENGTH &&
-                    p.length <= SAVE_ANALYSIS_LIMITS.MAX_PLATFORM_NAME_LENGTH &&
-                    PLATFORM_NAME_REGEX.test(p)
-                );
-            })) {
-                return json({
-                    error: `无效的分析数据格式：identifiedPlatforms 中的元素必须是有效的平台名称（小写字母、数字、下划线，${SAVE_ANALYSIS_LIMITS.MIN_PLATFORM_NAME_LENGTH}-${SAVE_ANALYSIS_LIMITS.MAX_PLATFORM_NAME_LENGTH}字符）`
-                }, { status: 400 });
-            }
-            if (!data.platformDetails.every((p: unknown) => {
-                if (typeof p !== "object" || p === null || Array.isArray(p)) return false;
-                const detail = p as Record<string, unknown>;
-                return (
-                    typeof detail.platform === "string" &&
-                    typeof detail.type === "string" &&
-                    typeof detail.confidence === "string" &&
-                    (detail.confidence === "high" || detail.confidence === "medium" || detail.confidence === "low") &&
-                    typeof detail.matchedPattern === "string"
-                );
-            })) {
-                return json({ error: "无效的分析数据格式：platformDetails 中的元素结构不正确" }, { status: 400 });
-            }
-            if (!data.risks.every((r: unknown) => {
-                if (typeof r !== "object" || r === null || Array.isArray(r)) return false;
-                const risk = r as Record<string, unknown>;
-                return (
-                    typeof risk.id === "string" &&
-                    typeof risk.name === "string" &&
-                    typeof risk.description === "string" &&
-                    typeof risk.severity === "string" &&
-                    (risk.severity === "high" || risk.severity === "medium" || risk.severity === "low")
-                );
-            })) {
-                return json({ error: "无效的分析数据格式：risks 中的元素结构不正确" }, { status: 400 });
-            }
-            if (!data.recommendations.every((r: unknown) => {
-                return (
-                    typeof r === "string" &&
-                    r.length > 0 &&
-                    r.length <= SAVE_ANALYSIS_LIMITS.MAX_RECOMMENDATION_LENGTH
-                );
-            })) {
-                return json({
-                    error: `无效的分析数据格式：recommendations 中的元素必须是长度 1-${SAVE_ANALYSIS_LIMITS.MAX_RECOMMENDATION_LENGTH} 的字符串`
-                }, { status: 400 });
-            }
+
             const platformDetailsRaw = data.platformDetails;
             const sanitizedPlatformDetails = Array.isArray(platformDetailsRaw)
                 ? platformDetailsRaw
@@ -247,13 +186,13 @@ export const action = async ({ request }: ActionFunctionArgs) => {
                     });
                 }
             }
-            if (analysisData.identifiedPlatforms.length === 0 && analysisData.riskScore > 0) {
+            if (analysisData.identifiedPlatforms.length === 0) {
                 const risksForDetails = analysisData.risks.slice(0, SAVE_ANALYSIS_LIMITS.MAX_RISKS_IN_DETAILS);
                 const asset = await createAuditAsset(shop.id, {
                     sourceType: "manual_paste",
                     category: "other",
                     displayName: "未识别的脚本",
-                    riskLevel: analysisData.riskScore > 60 ? "high" : "medium",
+                    riskLevel: analysisData.riskScore > 60 ? "high" : analysisData.riskScore > 30 ? "medium" : "low",
                     suggestedMigration: "none",
                     details: {
                         source: "manual_paste",

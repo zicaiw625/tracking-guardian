@@ -9,6 +9,8 @@ export interface ScanPageBannersProps {
   onShowUpgradeGuide: () => void;
   scannerMaxScriptTags: number;
   scannerMaxWebPixels: number;
+  currentScriptTagCount?: number;
+  currentWebPixelCount?: number;
   partialRefresh: boolean;
   upgradeStatus: {
     autoUpgradeInfo?: { isInAutoUpgradeWindow?: boolean; autoUpgradeMessage?: string };
@@ -32,6 +34,8 @@ export function ScanPageBanners({
   onShowUpgradeGuide,
   scannerMaxScriptTags,
   scannerMaxWebPixels,
+  currentScriptTagCount = 0,
+  currentWebPixelCount = 0,
   partialRefresh,
   upgradeStatus,
   planId,
@@ -64,6 +68,12 @@ export function ScanPageBanners({
   };
 
   const dep = deprecationStatus as { additionalScripts?: { badge?: { text: string }; description?: string } } | null;
+  
+  // Only show pagination warning if we are close to the limits (e.g. > 80%) or if partial refresh occurred
+  const showPaginationWarning = partialRefresh || 
+    (currentScriptTagCount > 0 && currentScriptTagCount >= scannerMaxScriptTags * 0.8) || 
+    (currentWebPixelCount > 0 && currentWebPixelCount >= scannerMaxWebPixels * 0.8);
+
   return (
     <>
       <Banner tone="warning" title={t("scan.banners.additionalScripts.title")}>
@@ -84,7 +94,8 @@ export function ScanPageBanners({
           </Button>
         </BlockStack>
       </Banner>
-      <Banner tone="info" title={t("scan.banners.pagination.title")}>
+      {showPaginationWarning && (
+        <Banner tone="info" title={t("scan.banners.pagination.title")}>
         <BlockStack gap="200">
           <Text as="p">
             {t("scan.banners.pagination.content")}
@@ -98,6 +109,7 @@ export function ScanPageBanners({
           </Text>
         </BlockStack>
       </Banner>
+      )}
       {partialRefresh && (
         <Banner tone="warning" title={t("scan.banners.partialRefresh.title")}>
           <BlockStack gap="200">

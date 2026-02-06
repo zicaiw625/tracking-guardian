@@ -49,6 +49,8 @@ export interface AuditAssetRecord {
   scanReportId: string | null;
   createdAt: Date;
   updatedAt: Date;
+  priority: number | null;
+  estimatedTimeMinutes: number | null;
 }
 
 export interface AuditAssetSummary {
@@ -67,12 +69,16 @@ function generateFingerprint(
   platform?: string,
   details?: Record<string, unknown>
 ): string {
+  const detectedPatterns = Array.isArray(details?.detectedPatterns) 
+    ? [...(details.detectedPatterns as string[])].sort() 
+    : [];
+    
   const content = JSON.stringify({
     sourceType,
     category,
     platform: platform || "",
     scriptSrc: details?.scriptSrc || "",
-    detectedPatterns: details?.detectedPatterns || [],
+    detectedPatterns,
   });
   return crypto.createHash("sha256").update(content).digest("hex").slice(0, 32);
 }
@@ -171,6 +177,8 @@ export async function createAuditAsset(
         scanReportId: true,
         createdAt: true,
         updatedAt: true,
+        priority: true,
+        estimatedTimeMinutes: true,
       },
     });
     if (existing) {
@@ -202,20 +210,47 @@ export async function createAuditAsset(
           migratedAt: true,
           details: true,
           scanReportId: true,
-          createdAt: true,
-          updatedAt: true,
-        },
+        createdAt: true,
+        updatedAt: true,
+        priority: true,
+        estimatedTimeMinutes: true,
+      },
       });
-      calculatePriorityAndTimeEstimate(updated.id, shopId).catch((error) => {
+      try {
+        await calculatePriorityAndTimeEstimate(updated.id, shopId);
+      } catch (error) {
         const errorMessage = error instanceof Error ? error.message : String(error);
-        logger.error("Failed to calculate priority/time estimate asynchronously", error instanceof Error ? error : new Error(String(error)), {
+        logger.error("Failed to calculate priority/time estimate", error instanceof Error ? error : new Error(String(error)), {
           assetId: updated.id,
           shopId,
           errorMessage,
         });
-      });
+      }
       logger.info("AuditAsset updated", { id: updated.id, shopId, fingerprint });
-      return mapToRecord(updated);
+      
+      // Re-fetch to get updated details
+      const reFetchedUpdated = await prisma.auditAsset.findUnique({
+        where: { id: updated.id },
+        select: {
+          id: true,
+          shopId: true,
+          sourceType: true,
+          category: true,
+          platform: true,
+          displayName: true,
+          fingerprint: true,
+          riskLevel: true,
+          suggestedMigration: true,
+          migrationStatus: true,
+          migratedAt: true,
+          details: true,
+          scanReportId: true,
+          createdAt: true,
+          updatedAt: true,
+        }
+      });
+      
+      return reFetchedUpdated ? mapToRecord(reFetchedUpdated) : mapToRecord(updated);
     }
     const detailsForStorage: Record<string, unknown> = { ...input.details };
     delete detailsForStorage.content;
@@ -251,18 +286,48 @@ export async function createAuditAsset(
         scanReportId: true,
         createdAt: true,
         updatedAt: true,
+        priority: true,
+        estimatedTimeMinutes: true,
       },
     });
-    calculatePriorityAndTimeEstimate(asset.id, shopId).catch((error) => {
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      logger.error("Failed to calculate priority/time estimate asynchronously", error instanceof Error ? error : new Error(String(error)), {
-        assetId: asset.id,
-        shopId,
-        errorMessage,
-      });
-    });
+    
+    // Await priority calculation to ensure UI has fresh data immediately
+    try {
+      await calculatePriorityAndTimeEstimate(asset.id, shopId);
+    } catch (error) {
+       const errorMessage = error instanceof Error ? error.message : String(error);
+       logger.error("Failed to calculate priority/time estimate", error instanceof Error ? error : new Error(String(error)), {
+         assetId: asset.id,
+         shopId,
+         errorMessage,
+       });
+    }
+    
     logger.info("AuditAsset created", { id: asset.id, shopId, category: input.category });
-    return mapToRecord(asset);
+    
+    // Re-fetch to get the updated priority/details
+    const updatedAsset = await prisma.auditAsset.findUnique({
+      where: { id: asset.id },
+      select: {
+        id: true,
+        shopId: true,
+        sourceType: true,
+        category: true,
+        platform: true,
+        displayName: true,
+        fingerprint: true,
+        riskLevel: true,
+        suggestedMigration: true,
+        migrationStatus: true,
+        migratedAt: true,
+        details: true,
+        scanReportId: true,
+        createdAt: true,
+        updatedAt: true,
+      }
+    });
+    
+    return updatedAsset ? mapToRecord(updatedAsset) : mapToRecord(asset);
   } catch (error) {
     logger.error("Failed to create AuditAsset", { shopId, error });
     return null;
@@ -414,6 +479,8 @@ export async function getAuditAssets(
       scanReportId: true,
       createdAt: true,
       updatedAt: true,
+      priority: true,
+      estimatedTimeMinutes: true,
     },
     orderBy: [
       { riskLevel: "desc" },
@@ -589,6 +656,8 @@ function mapToRecord(asset: {
   scanReportId: string | null;
   createdAt: Date;
   updatedAt: Date;
+  priority?: number | null;
+  estimatedTimeMinutes?: number | null;
 }): AuditAssetRecord {
   return {
     id: asset.id,
@@ -606,5 +675,7 @@ function mapToRecord(asset: {
     scanReportId: asset.scanReportId,
     createdAt: asset.createdAt,
     updatedAt: asset.updatedAt,
+    priority: asset.priority ?? null,
+    estimatedTimeMinutes: asset.estimatedTimeMinutes ?? null,
   };
 }

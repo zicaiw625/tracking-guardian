@@ -434,7 +434,7 @@ export function ScanManualSupplementTab({
                             <Button
                                 onClick={onSaveAnalysis}
                                 loading={isSavingAnalysis}
-                                disabled={analysisSaved || (analysisResult.identifiedPlatforms.length === 0 && analysisResult.riskScore === 0)}
+                                disabled={analysisSaved}
                                 icon={CheckCircleIcon}
                             >
                                 {analysisSaved ? t("scan.manualSupplement.save.saved") : t("scan.manualSupplement.save.saveAudit")}
