@@ -112,7 +112,14 @@ function redactSensitiveFields(
     const lowerKey = key.toLowerCase();
     if (SENSITIVE_FIELDS.some((f) => lowerKey.includes(f.toLowerCase()))) {
       redacted[key] = "[REDACTED]";
-    } else if (typeof value === "object" && value !== null && !Array.isArray(value)) {
+    } else if (Array.isArray(value)) {
+      redacted[key] = value.map((item) => {
+        if (typeof item === "object" && item !== null) {
+          return redactSensitiveFields(item as Record<string, unknown>);
+        }
+        return item;
+      });
+    } else if (typeof value === "object" && value !== null) {
       redacted[key] = redactSensitiveFields(value as Record<string, unknown>);
     } else {
       redacted[key] = value;
@@ -271,6 +278,10 @@ export async function getAuditLogById(id: string): Promise<AuditLogFull | null> 
 }
 
 export async function cleanupOldAuditLogs(retentionDays = 90): Promise<number> {
+  if (retentionDays < 1) {
+    logger.warn("cleanupOldAuditLogs called with invalid retentionDays", { retentionDays });
+    return 0;
+  }
   try {
     const cutoffDate = new Date();
     cutoffDate.setDate(cutoffDate.getDate() - retentionDays);

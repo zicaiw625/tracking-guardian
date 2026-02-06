@@ -2,7 +2,7 @@ import { logger } from "../utils/logger.server";
 import { analyzeScriptContent } from "./scanner/content-analysis";
 import { PLATFORM_INFO } from "./scanner/patterns";
 import { detectRisksInContent } from "./scanner/risk-detector.server";
-import { getAuditAssets, batchCreateAuditAssets } from "./audit-asset.server";
+import { getAuditAssets, batchCreateAuditAssets, generateFingerprint, getAllAuditAssetFingerprints } from "./audit-asset.server";
 import type { AssetCategory, AssetSourceType, RiskLevel, SuggestedMigration } from "./audit-asset.server";
 import { sanitizeSensitiveInfo } from "../utils/security";
 import crypto from "crypto";
@@ -110,7 +110,8 @@ function splitCodeSnippets(content: string): string[] {
   if (scriptMatches && scriptMatches.length > 1) {
     return scriptMatches;
   }
-  const functionBlockPattern = /(?:gtag|fbq|ttq|pintrk|snaptr|dataLayer\.push)\s*\([^)]*\)(?:\s*,\s*\([^)]*\))*/gi;
+  // Improved regex to handle strings containing parentheses
+  const functionBlockPattern = /(?:gtag|fbq|ttq|pintrk|snaptr|dataLayer\.push)\s*\((?:[^()'"]|'[^']*'|"[^"]*")*\)/gi;
   const functionBlocks = content.match(functionBlockPattern);
   if (functionBlocks && functionBlocks.length > 1) {
 
@@ -650,45 +651,7 @@ export function analyzeDependenciesFromContent(
   }
   return dependencyMap;
 }
-function generateContentFingerprint(
-  content: string,
-  category: AssetCategory,
-  platform?: string
-): string {
-  const normalizedContent = content
-    .toLowerCase()
-    .replace(/\s+/g, " ")
-    .replace(/['"]/g, "")
-    .trim();
-  const ids: string[] = [];
-  const ga4Match = normalizedContent.match(/g-([a-z0-9]{10,})/i);
-  if (ga4Match && ga4Match[1]) {
-    const id = ga4Match[1];
-    ids.push(`ga4-${id.slice(-4)}`);
-  }
-  const metaMatch = normalizedContent.match(/(\d{15,16})/);
-  if (metaMatch && metaMatch[1]) {
-    const id = metaMatch[1];
-    ids.push(`meta-${id.slice(-4)}`);
-  }
-  const tiktokMatch = normalizedContent.match(/ttq[^)]*['"]?([a-z0-9]+)['"]?/i);
-  if (tiktokMatch && tiktokMatch[1]) {
-    const id = tiktokMatch[1];
-    ids.push(`tiktok-${id.slice(-4)}`);
-  }
-  const pinterestMatch = normalizedContent.match(/pintrk[^)]*['"]?([a-z0-9]+)['"]?/i);
-  if (pinterestMatch && pinterestMatch[1]) {
-    const id = pinterestMatch[1];
-    ids.push(`pinterest-${id.slice(-4)}`);
-  }
-  const fingerprintContent = JSON.stringify({
-    category,
-    platform: platform || "",
-    ids: ids.sort(),
-    contentHash: crypto.createHash("sha256").update(normalizedContent.substring(0, 200)).digest("hex").slice(0, 16),
-  });
-  return crypto.createHash("sha256").update(fingerprintContent).digest("hex").slice(0, 32);
-}
+
 export async function processManualPasteAssets(
   shopId: string,
   content: string,
@@ -696,25 +659,11 @@ export async function processManualPasteAssets(
 ): Promise<{ created: number; updated: number; failed: number; duplicates: number }> {
   try {
     const analysis = analyzeManualPaste(content, shopId);
-    const existingAssets = await getAuditAssets(shopId);
-    const existingFingerprints = new Set(
-      existingAssets
-        .filter(a => a.fingerprint)
-        .map(a => a.fingerprint!)
-    );
+    const existingFingerprintsList = await getAllAuditAssetFingerprints(shopId);
+    const existingFingerprints = new Set(existingFingerprintsList);
     let duplicates = 0;
     const assets = analysis.assets
       .map(asset => {
-        const fingerprint = generateContentFingerprint(
-          asset.content,
-          asset.category,
-          asset.platform
-        );
-        if (existingFingerprints.has(fingerprint)) {
-          duplicates++;
-          return null;
-        }
-        existingFingerprints.add(fingerprint);
         const enhancedRiskScore = calculateEnhancedRiskScore(
           asset.category,
           asset.platform,
@@ -724,16 +673,11 @@ export async function processManualPasteAssets(
           asset.confidence === "low" ? "hard" : asset.confidence === "medium" ? "medium" : "easy",
           asset.confidence
         );
-        return {
-          sourceType: "manual_paste" as AssetSourceType,
-          category: asset.category,
-          platform: asset.platform,
-          displayName: asset.displayName,
-          fingerprint,
-          riskLevel: asset.riskLevel,
-          suggestedMigration: asset.suggestedMigration,
-          details: {
+
+        const details = {
             matchedPatterns: asset.matchedPatterns,
+            detectedPatterns: asset.matchedPatterns,
+            scriptSrc: asset.content,
             confidence: asset.confidence,
             enhancedRiskScore,
             analyzedAt: new Date().toISOString(),
@@ -744,7 +688,30 @@ export async function processManualPasteAssets(
               duplicateTriggers: asset.detectedRisks.duplicateTriggers,
               riskScore: asset.detectedRisks.riskScore,
             } : undefined,
-          },
+          };
+
+        const fingerprint = generateFingerprint(
+          "manual_paste" as AssetSourceType,
+          asset.category,
+          asset.platform,
+          details
+        );
+
+        if (existingFingerprints.has(fingerprint)) {
+          duplicates++;
+          return null;
+        }
+        existingFingerprints.add(fingerprint);
+        
+        return {
+          sourceType: "manual_paste" as AssetSourceType,
+          category: asset.category,
+          platform: asset.platform,
+          displayName: asset.displayName,
+          fingerprint,
+          riskLevel: asset.riskLevel,
+          suggestedMigration: asset.suggestedMigration,
+          details,
           scanReportId,
         };
       })

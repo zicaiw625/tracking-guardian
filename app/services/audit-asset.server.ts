@@ -63,7 +63,7 @@ export interface AuditAssetSummary {
   completedMigrations: number;
 }
 
-function generateFingerprint(
+export function generateFingerprint(
   sourceType: AssetSourceType,
   category: AssetCategory,
   platform?: string,
@@ -345,7 +345,7 @@ export async function batchCreateAuditAssets(
   let created = 0;
   let updated = 0;
   let failed = 0;
-  const duplicates = 0;
+  // duplicates is not tracked in this implementation as we upsert
   if (assets.length > 50) {
     try {
       await prisma.$transaction(async (tx) => {
@@ -442,10 +442,20 @@ export async function batchCreateAuditAssets(
       }
     }
   }
-  logger.info("Batch AuditAssets processed", { shopId, created, updated, failed, duplicates, total: assets.length });
-  return { created, updated, failed, duplicates };
+  logger.info("Batch AuditAssets processed", { shopId, created, updated, failed, total: assets.length });
+  return { created, updated, failed, duplicates: 0 };
 }
 
+
+export async function getAllAuditAssetFingerprints(shopId: string): Promise<string[]> {
+  const assets = await prisma.auditAsset.findMany({
+    where: { shopId },
+    select: { fingerprint: true },
+  });
+  return assets
+    .map(a => a.fingerprint)
+    .filter((f): f is string => f !== null);
+}
 
 export async function getAuditAssets(
   shopId: string,
