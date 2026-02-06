@@ -182,11 +182,7 @@ export function ScanManualSupplementTab({
                                 onAnalyze={handleAnalyzeScript}
                                 analysisResult={analysisResult}
                                 isAnalyzing={isAnalyzing}
-                                placeholder={`<!-- 示例 -->
-<script>
-  gtag('event', 'purchase', {...});
-  fbq('track', 'Purchase', {...});
-</script>`}
+                                placeholder={t("scan.manualSupplement.editorPlaceholder")}
                                 enableRealtimeAnalysis={false}
                                 enableBatchPaste={true}
                             />

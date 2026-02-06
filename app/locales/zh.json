@@ -1,4 +1,10 @@
 {
+  "plans": {
+    "starter": {
+      "name": "入门版",
+      "tagline": "扫描报告 + 基础建议"
+    }
+  },
   "subscriptionPlans": {
     "free": {
       "name": "免费版",
@@ -13,7 +19,7 @@
     },
     "starter": {
       "name": "入门版",
-      "tagline": "适合小型商家",
+      "tagline": "扫描报告 + 基础建议",
       "features": {
         "pixel": "Web Pixel 配置向导",
         "mapping": "标准事件映射",
@@ -570,8 +576,8 @@
       }
     },
     "starter": {
-      "name": "Starter 入门版",
-      "tagline": "像素最小可用迁移（标准事件映射 + 参数完整率）",
+      "name": "入门版",
+      "tagline": "扫描报告 + 基础建议",
       "features": {
         "pixel": "1 个像素目的地 (GA4/Meta/TikTok 三选一)",
         "mapping": "标准事件映射 + 参数完整率检查",
@@ -753,12 +759,7 @@
       "riskDistribution": {
         "title": "风险分布",
         "riskLevel": "风险等级",
-        "count": "数量",
-        "levels": {
-          "high": "高",
-          "medium": "中",
-          "low": "低"
-        }
+        "count": "数量"
       }
     },
     "dependency": {
@@ -1027,13 +1028,6 @@
       "title": "报告中心",
       "description": "管理 Audit / Verification / Monitoring 报告导出与历史记录。",
       "cta": "进入报告中心"
-    },
-    "metrics": {
-      "riskDistribution": {
-        "title": "风险分布",
-        "riskLevel": "风险等级",
-        "count": "数量"
-      }
     }
   },
   "scan": {
@@ -1050,51 +1044,51 @@
     "banners": {
       "additionalScripts": {
         "title": "Additional Scripts 需手动粘贴",
-        "content": "Shopify API 无法读取 checkout.liquid / Additional Scripts，请在下方「脚本内容分析」中粘贴原始脚本，确保迁移报告涵盖 Thank you / Order status 页的自定义逻辑。",
-        "deadline": "截止提醒：{{badge}} - {{desc}}",
-        "guide": "查看获取脚本清单的详细步骤"
+        "content": "Shopify API 无法读取 checkout.liquid / Additional Scripts。请在下方「脚本内容分析」中粘贴原始脚本，确保迁移报告涵盖 Thank you / Order status 页的自定义逻辑。",
+        "deadline": "截止提醒：{{badge}} — {{desc}}",
+        "guide": "📋 查看获取脚本清单的详细步骤"
       },
       "pagination": {
         "title": "扫描分页说明",
-        "content": "Shopify API 结果是分页的，本项目会自动迭代分页，但为了性能会在以下阈值停止并提示：",
+        "content": "Shopify API 结果是分页的。本扫描会自动迭代页面，但为了性能会在以下阈值停止并提示：",
         "limitScriptTags": "ScriptTags 最多处理 {{limit}} 条记录",
         "limitWebPixels": "Web Pixel 最多处理 {{limit}} 条记录",
         "footer": "如果商店超过以上数量，请在「手动分析」中粘贴剩余脚本，或联系支持获取完整导出（当前上限可调整，请联系我们）。"
       },
       "partialRefresh": {
-        "title": "部分刷新提示",
-        "content": "上次扫描可能因为超时或其他原因未完全覆盖所有资产。",
-        "suggestion": "建议重新进行一次完整扫描以确保数据准确。"
+        "title": "部分数据刷新失败",
+        "content": "扫描使用了缓存数据，但无法刷新 Web Pixels 信息。Web Pixels、重复像素检测和迁移操作建议可能不完整。",
+        "suggestion": "建议：点击「开始扫描」按钮重新执行完整扫描以获取最新数据。"
       },
       "autoUpgrade": {
-        "windowOpen": "自动升级窗口已开启",
-        "windowRisk": "即将自动升级",
-        "officialPath": "截止日期：{{date1}} - {{date2}} - {{date3}}"
+        "windowOpen": "⚡ Plus 商家自动升级窗口已开始",
+        "windowRisk": "⚠️ Plus 商家自动升级风险窗口",
+        "officialPath": "<strong>Shopify 官方升级路径：</strong>使用 blocks + web pixels 替代 legacy customizations。Plus 商家：{{date1}}（日期来自 Shopify 官方公告，请以 Admin 提示为准）截止，{{date2}}（日期来自 Shopify 官方公告，请以 Admin 提示为准）自动升级会丢失 legacy 自定义。非 Plus 商家：{{date3}}（日期来自 Shopify 官方公告，请以 Admin 提示为准）截止。"
       },
       "upgradeStatus": {
-        "pending": "升级状态确认中...",
-        "lastUpdated": "状态变更时间：{{date}}"
+        "pending": "提示：我们尚未完成一次有效的升级状态检测。请稍后重试、重新授权应用，或等待后台定时任务自动刷新。",
+        "lastUpdated": "状态更新时间: {{date}}"
       },
       "plan": {
-        "title": "⚠️ 当前套餐：{{plan}}",
+        "title": "当前套餐: {{plan}}",
         "action": "查看套餐/升级",
         "starter": {
-            "item1": "启用像素迁移 (Test 环境) → 进入付费试用/订阅 (Starter $29/月)",
-            "item2": "覆盖迁移功能包括：标准事件映射 + 参数完整率检查 + 可下载 payload 证据 (GA4/Meta/TikTok v1 支持)",
-            "item3": "生成验收报告 (CSV) → 付费 (Growth $79/月 或 Agency $199/月)",
-            "item4": "这是“升级项目交付”的核心能力：让商家“敢在发布前点 Live”"
+          "item1": "<strong>启用像素迁移（Test 环境）</strong> → 进入付费试用/订阅（Starter $29/月）",
+          "item2": "像素迁移功能包括：标准事件映射 + 参数完整率检查 + 可下载 payload 证据（GA4/Meta/TikTok v1 支持）",
+          "item3": "<strong>生成验收报告（CSV）</strong> → 付费（Growth $79/月 或 Agency $199/月）",
+          "item4": "这是\"升级项目交付\"的核心能力：让商家\"敢点发布/敢切 Live\""
         },
         "growth": {
-            "item1": "无缝迁移助手",
-            "item2": "详细数据对比报告"
+          "item1": "当前可用：Web Pixel 标准事件映射（v1 最小可用迁移）",
+          "item2": "升级到 Pro 以解锁事件对账与高级告警能力"
         },
         "pro": {
-            "item1": "无限像素配置",
-            "item2": "优先技术支持"
+          "item1": "已解锁多渠道像素 + 事件对账",
+          "item2": "多店铺、白标、团队协作即将在 v1.1 推出，可升级至 Agency 以在发布后使用"
         },
         "agency": {
-            "item1": "专属客户经理",
-            "item2": "SLA 服务保障"
+          "item1": "多店铺、白标、团队协作即将在 v1.1 推出；当前已解锁无限像素、验收报告导出与 SLA",
+          "item2": "如需迁移托管，可在支持渠道提交工单"
         }
       }
     },
@@ -1502,57 +1496,6 @@
         "count": "已安装数量"
       }
     },
-    "banners": {
-      "additionalScripts": {
-        "title": "Additional Scripts 需手动粘贴",
-        "content": "Shopify API 无法读取 checkout.liquid / Additional Scripts。请在下方「脚本内容分析」中粘贴原始脚本，确保迁移报告涵盖 Thank you / Order status 页的自定义逻辑。",
-        "deadline": "截止提醒：{{badge}} — {{desc}}",
-        "guide": "📋 查看获取脚本清单的详细步骤"
-      },
-      "pagination": {
-        "title": "扫描分页说明",
-        "content": "Shopify API 结果是分页的。本扫描会自动迭代页面，但为了性能会在以下阈值停止并提示：",
-        "limitScriptTags": "ScriptTags 最多处理 {{limit}} 条记录",
-        "limitWebPixels": "Web Pixel 最多处理 {{limit}} 条记录",
-        "footer": "如果商店超过以上数量，请在「手动分析」中粘贴剩余脚本，或联系支持获取完整导出（当前上限可调整，请联系我们）。"
-      },
-      "partialRefresh": {
-        "title": "部分数据刷新失败",
-        "content": "扫描使用了缓存数据，但无法刷新 Web Pixels 信息。Web Pixels、重复像素检测和迁移操作建议可能不完整。",
-        "suggestion": "建议：点击「开始扫描」按钮重新执行完整扫描以获取最新数据。"
-      },
-      "autoUpgrade": {
-        "windowOpen": "⚡ Plus 商家自动升级窗口已开始",
-        "windowRisk": "⚠️ Plus 商家自动升级风险窗口",
-        "officialPath": "<strong>Shopify 官方升级路径：</strong>使用 blocks + web pixels 替代 legacy customizations。Plus 商家：{{date1}}（日期来自 Shopify 官方公告，请以 Admin 提示为准）截止，{{date2}}（日期来自 Shopify 官方公告，请以 Admin 提示为准）自动升级会丢失 legacy 自定义。非 Plus 商家：{{date3}}（日期来自 Shopify 官方公告，请以 Admin 提示为准）截止。"
-      },
-      "upgradeStatus": {
-        "pending": "提示：我们尚未完成一次有效的升级状态检测。请稍后重试、重新授权应用，或等待后台定时任务自动刷新。",
-        "lastUpdated": "状态更新时间: {{date}}"
-      },
-      "plan": {
-        "title": "当前套餐：{{plan}}",
-        "action": "查看套餐/升级",
-        "starter": {
-          "item1": "<strong>启用像素迁移（Test 环境）</strong> → 进入付费试用/订阅（Starter $29/月）",
-          "item2": "像素迁移功能包括：标准事件映射 + 参数完整率检查 + 可下载 payload 证据（GA4/Meta/TikTok v1 支持）",
-          "item3": "<strong>生成验收报告（CSV）</strong> → 付费（Growth $79/月 或 Agency $199/月）",
-          "item4": "这是\"升级项目交付\"的核心能力：让商家\"敢点发布/敢切 Live\""
-        },
-        "growth": {
-          "item1": "当前可用：Web Pixel 标准事件映射（v1 最小可用迁移）",
-          "item2": "升级到 Pro 以解锁事件对账与高级告警能力"
-        },
-        "pro": {
-          "item1": "已解锁多渠道像素 + 事件对账",
-          "item2": "多店铺、白标、团队协作即将在 v1.1 推出，可升级至 Agency 以在发布后使用"
-        },
-        "agency": {
-          "item1": "多店铺、白标、团队协作即将在 v1.1 推出；当前已解锁无限像素、验收报告导出与 SLA",
-          "item2": "如需迁移托管，可在支持渠道提交工单"
-        }
-      }
-    },
     "autoTab": {
       "exportCSV": "导出扫描报告 CSV",
       "scanning": "扫描中...",
@@ -1637,9 +1580,10 @@
         "webPixelMigration": "Web Pixel 迁移",
         "checkoutUiExtension": "Checkout UI Extension 或需人工复核",
         "manualReview": "需人工复核（review & replace）",
-        "displayName": "手动补充: {{name}}",
-        "noSummary": "(无摘要)"
-      },
+      "displayName": "手动补充: {{name}}",
+      "noSummary": "(无摘要)",
+      "editorPlaceholder": "<!-- 示例 -->\n<script>\n  gtag('event', 'purchase', {...});\n  fbq('track', 'Purchase', {...});\n</script>"
+    },
       "upgradeRisk": {
         "title": "Shopify 升级风险窗口",
         "suggestedActions": "建议操作："

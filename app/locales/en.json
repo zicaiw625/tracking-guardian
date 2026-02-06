@@ -1,4 +1,10 @@
 {
+  "plans": {
+    "starter": {
+      "name": "Starter",
+      "tagline": "For small businesses"
+    }
+  },
   "subscriptionPlans": {
     "free": {
       "name": "Free",

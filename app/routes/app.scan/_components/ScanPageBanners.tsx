@@ -42,6 +42,27 @@ export function ScanPageBanners({
   isAgency,
 }: ScanPageBannersProps) {
   const { t, i18n } = useTranslation();
+  
+  const resolvePlanText = (text: string | null, type: "name" | "tagline") => {
+    // If planId is available, try to look up the translation directly first
+    if (planId) {
+      const standardKey = `subscriptionPlans.${planId}.${type}`;
+      const standardTranslated = t(standardKey);
+      if (standardTranslated !== standardKey) return standardTranslated;
+      
+      const legacyKey = `plans.${planId}.${type}`;
+      const legacyTranslated = t(legacyKey);
+      if (legacyTranslated !== legacyKey) return legacyTranslated;
+    }
+
+    if (!text) return "";
+    const translated = t(text);
+    // If translation found (and not just the key returned), return it
+    if (translated !== text) return translated;
+
+    return translated;
+  };
+
   const dep = deprecationStatus as { additionalScripts?: { badge?: { text: string }; description?: string } } | null;
   return (
     <>
@@ -137,7 +158,7 @@ export function ScanPageBanners({
       )}
       {planId && planLabel && (
         <Banner
-          title={t("scan.banners.plan.title", { plan: t(planLabel || "") })}
+          title={t("scan.banners.plan.title", { plan: resolvePlanText(planLabel, "name") })}
           tone={isGrowthOrAbove ? "info" : "warning"}
           action={{
             content: t("scan.banners.plan.action"),
@@ -146,7 +167,7 @@ export function ScanPageBanners({
         >
           <BlockStack gap="200">
             {planTagline && (
-              <Text as="p" variant="bodySm">{t(planTagline)}</Text>
+              <Text as="p" variant="bodySm">{resolvePlanText(planTagline, "tagline")}</Text>
             )}
             {!isGrowthOrAbove && (
               <List type="bullet">

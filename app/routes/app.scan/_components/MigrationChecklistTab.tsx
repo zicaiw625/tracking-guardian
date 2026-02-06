@@ -29,7 +29,6 @@ export function MigrationChecklistTab({
   const { t } = useTranslation();
   return (
     <BlockStack gap="500">
-      {showTabs && <AuditPaywallCard planId={planIdSafe} />}
       <Box paddingBlockStart="400">
         {!latestScan ? (
           <Card>

@@ -84,37 +84,13 @@ export function ScanAutoTab({
 }: ScanAutoTabProps) {
     const { t } = useTranslation();
 
-    return (
-        <BlockStack gap="500">
-            {(latestScan || isScanning) && (
-                <Box paddingBlockStart="400">
-                    <InlineStack align="space-between">
-                        {latestScan && (
-                            <InlineStack gap="200">
-                                <Button icon={ExportIcon} onClick={onExportCSV}>
-                                    {t("scan.autoTab.exportCSV")}
-                                </Button>
-                            </InlineStack>
-                        )}
-                        <InlineStack gap="200">
-                            <Button variant="primary" onClick={handleScan} loading={isScanning} icon={SearchIcon}>
-                                {isScanning ? t("scan.autoTab.scanning") : t("scan.autoTab.startScan")}
-                            </Button>
-                        </InlineStack>
-                    </InlineStack>
-                </Box>
-            )}
-            {isScanning && (
-                <Card>
-                    <BlockStack gap="400">
-                        <CardSkeleton lines={4} showTitle={true} />
-                        <Box paddingBlockStart="200">
-                            <ProgressBar progress={75} tone="primary"/>
-                        </Box>
-                    </BlockStack>
-                </Card>
-            )}
-            {!latestScan && !isScanning && (
+    const hasScanData = !!latestScan;
+    const showResults = hasScanData && !isScanning;
+    const showEmptyState = !hasScanData && !isScanning;
+
+    if (showEmptyState) {
+        return (
+            <BlockStack gap="500">
                 <EnhancedEmptyState
                     icon="🔍"
                     title={t("scan.autoTab.emptyState.title")}
@@ -129,74 +105,146 @@ export function ScanAutoTab({
                         url: t("scan.autoTab.emptyState.learnMoreUrl"),
                     }}
                 />
-            )}
-            {latestScan && !isScanning && (
-                <ScanSummaryCards
-                    latestScan={latestScan}
+                
+                {migrationProgress && migrationTimeline && (
+                    <Card>
+                        <BlockStack gap="400">
+                            <InlineStack align="space-between" blockAlign="center">
+                                <Text as="h2" variant="headingMd">
+                                    {t("scan.autoTab.migrationProgress.title")}
+                                </Text>
+                                <Badge tone={migrationProgress.completionRate === 100 ? "success" : "attention"}>
+                                    {`${Math.round(migrationProgress.completionRate)}% ${t("scan.autoTab.migrationProgress.completed")}`}
+                                </Badge>
+                            </InlineStack>
+                            <BlockStack gap="300">
+                                <ProgressBar
+                                    progress={migrationProgress.completionRate}
+                                    tone={migrationProgress.completionRate === 100 ? "success" : "primary"}
+                                    size="medium"
+                                />
+                                <InlineStack gap="400" align="space-between" wrap>
+                                    <BlockStack gap="100">
+                                        <Text as="span" variant="bodySm" tone="subdued">
+                                            {t("scan.autoTab.migrationProgress.total", { count: migrationProgress.total })}
+                                        </Text>
+                                        <Text as="span" variant="bodySm" tone="subdued">
+                                            {t("scan.autoTab.migrationProgress.stats", { completed: migrationProgress.completed, inProgress: migrationProgress.inProgress, pending: migrationProgress.pending })}
+                                        </Text>
+                                    </BlockStack>
+                                </InlineStack>
+                            </BlockStack>
+                        </BlockStack>
+                    </Card>
+                )}
 
-                    identifiedPlatforms={identifiedPlatforms}
-                    scriptTags={scriptTags}
-                    deprecationStatus={deprecationStatus}
-                    planIdSafe={planIdSafe}
-                />
+                {scanHistory && scanHistory.length > 0 && (
+                    <ScanHistoryTable scanHistory={scanHistory} onStartScan={handleScan} />
+                )}
+            </BlockStack>
+        );
+    }
+
+    return (
+        <BlockStack gap="500">
+            {(showResults || isScanning) && (
+                <Box paddingBlockStart="400">
+                    <InlineStack align="space-between">
+                        {showResults && (
+                            <InlineStack gap="200">
+                                <Button icon={ExportIcon} onClick={onExportCSV}>
+                                    {t("scan.autoTab.exportCSV")}
+                                </Button>
+                            </InlineStack>
+                        )}
+                        <InlineStack gap="200">
+                            <Button variant="primary" onClick={handleScan} loading={isScanning} icon={SearchIcon}>
+                                {isScanning ? t("scan.autoTab.scanning") : t("scan.autoTab.startScan")}
+                            </Button>
+                        </InlineStack>
+                    </InlineStack>
+                </Box>
             )}
-            {latestScan && !isScanning && latestScan.riskScore && latestScan.riskScore > 0 && (
-                <MigrationImpactAnalysis
-                    latestScan={latestScan}
-                    identifiedPlatforms={identifiedPlatforms}
-                    scriptTags={scriptTags}
-                    monthlyOrders={monthlyOrders}
-                    onMonthlyOrdersChange={onMonthlyOrdersChange}
-                />
-            )}
-            {latestScan && riskItems.length > 0 && !isScanning && (
+
+            {isScanning && (
                 <Card>
                     <BlockStack gap="400">
-                        <InlineStack align="space-between" blockAlign="center">
-                            <Text as="h2" variant="headingMd">
-                                {t("scan.riskDetails.title")}
-                            </Text>
-                            <Badge tone="info">{t("common.countItems", { count: riskItems.length })}</Badge>
-                        </InlineStack>
-                        <Banner tone="info">
-                            <Text as="p" variant="bodySm">
-                                {t("scan.riskDetails.disclaimer")}
-                            </Text>
-                        </Banner>
-                        {(() => {
-                            const isFreePlan = planId === "free";
-                            const FREE_AUDIT_LIMIT = 3;
-                            const highRiskItems = riskItems.filter(item => item.severity === "high");
-                            const displayedItems = isFreePlan
-                                ? highRiskItems.slice(0, FREE_AUDIT_LIMIT)
-                                : riskItems;
-                            const hiddenCount = isFreePlan
-                                ? Math.max(0, riskItems.length - FREE_AUDIT_LIMIT)
-                                : 0;
-                            const estimatedTimeMinutes = riskItems.reduce((sum, item) => {
-                                const timeMap = { high: 30, medium: 15, low: 5 };
-                                return sum + (timeMap[item.severity] || 10);
-                            }, 0);
-                            return (
-                                <>
-                                    <BlockStack gap="300">
-                                        {displayedItems.map((item, index) => (
-                                            <Box key={index} background="bg-surface-secondary" padding="400" borderRadius="200">
-                                                <BlockStack gap="300">
-                                                    <InlineStack align="space-between">
-                                                        <InlineStack gap="200">
-                                                            <Icon source={AlertCircleIcon} tone={item.severity === "high"
-                                                                ? "critical"
-                                                                : item.severity === "medium"
-                                                                    ? "warning"
-                                                                    : "info"}/>
-                                                            <Text as="span" fontWeight="semibold">
-                                                                {item.nameKey ? t(item.nameKey, item.nameParams) : item.name}
-                                                    </Text>
-                                                </InlineStack>
-                                                {getSeverityBadge(item.severity, t)}
-                                            </InlineStack>
-                                            <Text as="p" tone="subdued">
+                        <CardSkeleton lines={4} showTitle={true} />
+                        <Box paddingBlockStart="200">
+                            <ProgressBar progress={75} tone="primary"/>
+                        </Box>
+                    </BlockStack>
+                </Card>
+            )}
+
+            {showResults && !showEmptyState && (
+                <>
+                    <ScanSummaryCards
+                        latestScan={latestScan}
+                        identifiedPlatforms={identifiedPlatforms}
+                        scriptTags={scriptTags}
+                        deprecationStatus={deprecationStatus}
+                        planIdSafe={planIdSafe}
+                    />
+
+                    {latestScan.riskScore > 0 && (
+                        <MigrationImpactAnalysis
+                            latestScan={latestScan}
+                            identifiedPlatforms={identifiedPlatforms}
+                            scriptTags={scriptTags}
+                            monthlyOrders={monthlyOrders}
+                            onMonthlyOrdersChange={onMonthlyOrdersChange}
+                        />
+                    )}
+
+                    {riskItems.length > 0 && (
+                        <Card>
+                            <BlockStack gap="400">
+                                <InlineStack align="space-between" blockAlign="center">
+                                    <Text as="h2" variant="headingMd">
+                                        {t("scan.riskDetails.title")}
+                                    </Text>
+                                    <Badge tone="info">{t("common.countItems", { count: riskItems.length })}</Badge>
+                                </InlineStack>
+                                <Banner tone="info">
+                                    <Text as="p" variant="bodySm">
+                                        {t("scan.riskDetails.disclaimer")}
+                                    </Text>
+                                </Banner>
+                                {(() => {
+                                    const isFreePlan = planId === "free";
+                                    const FREE_AUDIT_LIMIT = 3;
+                                    const highRiskItems = riskItems.filter(item => item.severity === "high");
+                                    const displayedItems = isFreePlan
+                                        ? highRiskItems.slice(0, FREE_AUDIT_LIMIT)
+                                        : riskItems;
+                                    const hiddenCount = isFreePlan
+                                        ? Math.max(0, riskItems.length - FREE_AUDIT_LIMIT)
+                                        : 0;
+                                    const estimatedTimeMinutes = riskItems.reduce((sum, item) => {
+                                        const timeMap = { high: 30, medium: 15, low: 5 };
+                                        return sum + (timeMap[item.severity] || 10);
+                                    }, 0);
+                                    return (
+                                        <>
+                                            <BlockStack gap="300">
+                                                {displayedItems.map((item, index) => (
+                                                    <Box key={index} background="bg-surface-secondary" padding="400" borderRadius="200">
+                                                        <BlockStack gap="300">
+                                                            <InlineStack align="space-between">
+                                                                <InlineStack gap="200">
+                                                                    <Icon source={AlertCircleIcon} tone={item.severity === "high"
+                                                                        ? "critical"
+                                                                        : item.severity === "medium"
+                                                                            ? "warning"
+                                                                            : "info"}/>
+                                                                    <Text as="span" fontWeight="semibold">
+                                                                        {item.nameKey ? t(item.nameKey, item.nameParams) : item.name}
+                                                            </Text>
+                                                        </InlineStack>
+                                                        {getSeverityBadge(item.severity, t)}
+                                                    </InlineStack>
+                                                    <Text as="p" tone="subdued">
                                                         {item.descriptionKey ? t(item.descriptionKey, item.descriptionParams) : item.description}
                                                     </Text>
                                                     {(item.details || item.detailsKey) && (
@@ -207,9 +255,9 @@ export function ScanAutoTab({
                                                     <InlineStack align="space-between" blockAlign="center">
                                                         <InlineStack gap="200">
                                                             {item.platform && (
-                                                        <Badge>{getPlatformName(item.platform, t)}</Badge>
-                                                    )}
-                                                    {(item.impact || item.impactKey) && (
+                                                                <Badge>{getPlatformName(item.platform, t)}</Badge>
+                                                            )}
+                                                            {(item.impact || item.impactKey) && (
                                                                 <Text as="span" variant="bodySm" tone="critical">
                                                                     {t("scan.riskDetails.impact")} {item.impactKey ? t(item.impactKey, item.impactParams) : item.impact}
                                                                 </Text>
@@ -277,7 +325,8 @@ export function ScanAutoTab({
                     </BlockStack>
                 </Card>
             )}
-            {latestScan && migrationActions && migrationActions.length > 0 && !isScanning && (
+
+            {migrationActions && migrationActions.length > 0 && (
                 <Card>
                     <BlockStack gap="400">
                         <InlineStack align="space-between" blockAlign="center">
@@ -365,7 +414,8 @@ export function ScanAutoTab({
                     </BlockStack>
                 </Card>
             )}
-            {latestScan && auditAssets && Array.isArray(auditAssets) && auditAssets.length > 0 && !isScanning && (
+
+            {auditAssets && Array.isArray(auditAssets) && auditAssets.length > 0 && (
                 <AuditAssetsByRisk
                     assets={auditAssets.filter((a): a is NonNullable<typeof a> => a !== null).map((asset: any) => ({
                         ...asset,
@@ -380,7 +430,8 @@ export function ScanAutoTab({
                     }}
                 />
             )}
-            {latestScan && migrationProgress && migrationTimeline && (
+
+            {migrationProgress && migrationTimeline && (
                 <Card>
                     <BlockStack gap="400">
                         <InlineStack align="space-between" blockAlign="center">
@@ -520,160 +571,164 @@ export function ScanAutoTab({
                     </BlockStack>
                 </Card>
             )}
-            {latestScan && !isScanning && (
-                <Card>
-                    <BlockStack gap="400">
-                        <InlineStack align="space-between" blockAlign="center">
-                            <Text as="h2" variant="headingMd">
-                                {t("scan.autoTab.wizard.title")}
-                            </Text>
-                            <Badge tone="info">{t("scan.autoTab.wizard.badge")}</Badge>
-                        </InlineStack>
-                        <Text as="p" tone="subdued">
-                            {t("scan.autoTab.wizard.description")}
+
+            <Card>
+                <BlockStack gap="400">
+                    <InlineStack align="space-between" blockAlign="center">
+                        <Text as="h2" variant="headingMd">
+                            {t("scan.autoTab.wizard.title")}
                         </Text>
-                        <Divider />
-                        <BlockStack gap="300">
-                            <Text as="h3" variant="headingSm">
-                                {t("scan.autoTab.wizard.webPixelTitle")}
-                            </Text>
-                            <Text as="p" variant="bodySm" tone="subdued">
-                                {t("scan.autoTab.wizard.webPixelDesc")}
-                            </Text>
-                            <InlineStack gap="300" wrap>
-                                <Button
-                                    url={shop?.domain ? getShopifyAdminUrl(shop.domain, "/settings/notifications") : "#"}
-                                    disabled={!shop?.domain}
-                                    external
-                                    icon={ShareIcon}
-                                >
-                                    {t("scan.autoTab.wizard.managePixels")}
-                                </Button>
-                                <Button
-                                    url="/app/migrate"
-                                    icon={ArrowRightIcon}
-                                >
-                                    {t("scan.autoTab.wizard.configureInApp")}
-                                </Button>
-                            </InlineStack>
-                        </BlockStack>
-                        <Divider />
-                        <BlockStack gap="300">
-                            <Text as="h3" variant="headingSm">
-                                {t("scan.autoTab.wizard.checkoutEditorTitle")}
-                            </Text>
-                            <Text as="p" variant="bodySm" tone="subdued">
-                                {t("scan.autoTab.wizard.checkoutEditorDesc")}
-                            </Text>
-                            <InlineStack gap="300" wrap>
-                                <Button
-                                    url={shop?.domain ? getShopifyAdminUrl(shop.domain, "/themes/current/editor") : "#"}
-                                    disabled={!shop?.domain}
-                                    external
-                                    icon={ShareIcon}
-                                >
-                                    {t("scan.autoTab.wizard.openEditor")}
-                                </Button>
-                                <Button
-                                    url="https://shopify.dev/docs/apps/online-store/checkout-extensibility"
-                                    external
-                                    icon={InfoIcon}
-                                >
-                                    {t("scan.autoTab.wizard.viewDocs")}
-                                </Button>
-                            </InlineStack>
-                        </BlockStack>
-                        <Divider />
-                        <BlockStack gap="300">
-                            <Text as="h3" variant="headingSm">
-                                {t("scan.autoTab.wizard.checklistTitle")}
-                            </Text>
-                            <Text as="p" variant="bodySm" tone="subdued">
-                                {t("scan.autoTab.wizard.checklistDesc")}
-                            </Text>
-                            <Box background="bg-surface-secondary" padding="400" borderRadius="200">
-                                <BlockStack gap="200">
-                                    <Text as="p" fontWeight="semibold">{t("scan.autoTab.wizard.pendingItems")}</Text>
-                                    <List type="number">
-                                        {migrationActions && migrationActions.length > 0 ? (
-                                            migrationActions.slice(0, MAX_VISIBLE_ACTIONS).map((action) => (
-                                                <List.Item key={`${action.type}-${action.platform || 'unknown'}-${action.scriptTagId || action.webPixelGid || 'no-id'}`}>
-                                                    {action.titleKey ? t(action.titleKey, action.titleParams) : action.title}
-                                                    {action.platform && ` (${getPlatformName(action.platform, t)})`}
-                                                    {action.priority === "high" && " ⚠️"}
-                                                </List.Item>
-                                            ))
-                                        ) : (
-                                            <List.Item>{t("scan.autoTab.migrationActions.noPending")}</List.Item>
-                                        )}
-                                        {migrationActions && migrationActions.length > MAX_VISIBLE_ACTIONS && (
-                                            <List.Item>{t("scan.autoTab.migrationActions.moreItems", { count: migrationActions.length - MAX_VISIBLE_ACTIONS })}</List.Item>
-                                        )}
-                                    </List>
-                                    <InlineStack gap="200" align="end">
-                                        <Button
-                                            icon={ClipboardIcon}
-                                            loading={isCopying}
-                                            onClick={onCopyChecklist}
-                                        >
-                                            {t("scan.autoTab.wizard.copyChecklist")}
-                                        </Button>
-                                        <Button
-                                            icon={ExportIcon}
-                                            loading={isExporting}
-                                            onClick={onExportChecklist}
-                                        >
-                                            {t("scan.autoTab.wizard.exportText")}
-                                        </Button>
-                                    </InlineStack>
-                                </BlockStack>
-                            </Box>
-                        </BlockStack>
-                        <Divider />
-                        <BlockStack gap="300">
-                            <Text as="h3" variant="headingSm">
-                                {t("scan.autoTab.wizard.alternativesTitle")}
-                            </Text>
-                            <Box background="bg-surface-secondary" padding="400" borderRadius="200">
-                                <BlockStack gap="300">
-                                    <InlineStack gap="400" wrap>
-                                        <Box minWidth="200px">
-                                            <BlockStack gap="100">
-                                                <Badge tone="success">{t("scan.autoTab.wizard.officialAlternative")}</Badge>
-                                                <Text as="p" variant="bodySm">
-                                                    <Trans i18nKey="scan.autoTab.wizard.officialAlternativeDesc" components={{ strong: <strong />, a: <a target="_blank" rel="noopener noreferrer" /> }} />
-                                                </Text>
-                                            </BlockStack>
-                                        </Box>
-                                        <Box minWidth="200px">
-                                            <BlockStack gap="100">
-                                                <Badge tone="info">{t("scan.autoTab.wizard.webPixelAlternative")}</Badge>
-                                                <Text as="p" variant="bodySm">
-                                                    <Trans i18nKey="scan.autoTab.wizard.webPixelAlternativeDesc" components={{ strong: <strong />, a: <a target="_blank" rel="noopener noreferrer" /> }} />
-                                                </Text>
-                                            </BlockStack>
-                                        </Box>
-                                        <Box minWidth="200px">
-                                            <BlockStack gap="100">
-                                                <Badge tone="warning">{t("scan.autoTab.wizard.pageCustomization")}</Badge>
-                                                <Text as="p" variant="bodySm">
-                                                    <Trans i18nKey="scan.autoTab.wizard.pageCustomizationDesc" components={{ strong: <strong />, a: <a target="_blank" rel="noopener noreferrer" /> }} />
-                                                </Text>
-                                                <Text as="p" variant="bodySm" tone="subdued">
-                                                    <strong>{t("scan.autoTab.wizard.pageCustomizationNote")}</strong>{t("scan.autoTab.wizard.pageCustomizationNoteDesc")}
-                                                </Text>
-                                            </BlockStack>
-                                        </Box>
-                                    </InlineStack>
-                                </BlockStack>
-                            </Box>
-                        </BlockStack>
+                        <Badge tone="info">{t("scan.autoTab.wizard.badge")}</Badge>
+                    </InlineStack>
+                    <Text as="p" tone="subdued">
+                        {t("scan.autoTab.wizard.description")}
+                    </Text>
+                    <Divider />
+                    <BlockStack gap="300">
+                        <Text as="h3" variant="headingSm">
+                            {t("scan.autoTab.wizard.webPixelTitle")}
+                        </Text>
+                        <Text as="p" variant="bodySm" tone="subdued">
+                            {t("scan.autoTab.wizard.webPixelDesc")}
+                        </Text>
+                        <InlineStack gap="300" wrap>
+                            <Button
+                                url={shop?.domain ? getShopifyAdminUrl(shop.domain, "/settings/notifications") : "#"}
+                                disabled={!shop?.domain}
+                                external
+                                icon={ShareIcon}
+                            >
+                                {t("scan.autoTab.wizard.managePixels")}
+                            </Button>
+                            <Button
+                                url="/app/migrate"
+                                icon={ArrowRightIcon}
+                            >
+                                {t("scan.autoTab.wizard.configureInApp")}
+                            </Button>
+                        </InlineStack>
                     </BlockStack>
-                </Card>
+                    <Divider />
+                    <BlockStack gap="300">
+                        <Text as="h3" variant="headingSm">
+                            {t("scan.autoTab.wizard.checkoutEditorTitle")}
+                        </Text>
+                        <Text as="p" variant="bodySm" tone="subdued">
+                            {t("scan.autoTab.wizard.checkoutEditorDesc")}
+                        </Text>
+                        <InlineStack gap="300" wrap>
+                            <Button
+                                url={shop?.domain ? getShopifyAdminUrl(shop.domain, "/themes/current/editor") : "#"}
+                                disabled={!shop?.domain}
+                                external
+                                icon={ShareIcon}
+                            >
+                                {t("scan.autoTab.wizard.openEditor")}
+                            </Button>
+                            <Button
+                                url="https://shopify.dev/docs/apps/online-store/checkout-extensibility"
+                                external
+                                icon={InfoIcon}
+                            >
+                                {t("scan.autoTab.wizard.viewDocs")}
+                            </Button>
+                        </InlineStack>
+                    </BlockStack>
+                    <Divider />
+                    <BlockStack gap="300">
+                        <Text as="h3" variant="headingSm">
+                            {t("scan.autoTab.wizard.checklistTitle")}
+                        </Text>
+                        <Text as="p" variant="bodySm" tone="subdued">
+                            {t("scan.autoTab.wizard.checklistDesc")}
+                        </Text>
+                        <Box background="bg-surface-secondary" padding="400" borderRadius="200">
+                            <BlockStack gap="200">
+                                <Text as="p" fontWeight="semibold">{t("scan.autoTab.wizard.pendingItems")}</Text>
+                                <List type="number">
+                                    {migrationActions && migrationActions.length > 0 ? (
+                                        migrationActions.slice(0, MAX_VISIBLE_ACTIONS).map((action) => (
+                                            <List.Item key={`${action.type}-${action.platform || 'unknown'}-${action.scriptTagId || action.webPixelGid || 'no-id'}`}>
+                                                {action.titleKey ? t(action.titleKey, action.titleParams) : action.title}
+                                                {action.platform && ` (${getPlatformName(action.platform, t)})`}
+                                                {action.priority === "high" && " ⚠️"}
+                                            </List.Item>
+                                        ))
+                                    ) : (
+                                        <List.Item>{t("scan.autoTab.migrationActions.noPending")}</List.Item>
+                                    )}
+                                    {migrationActions && migrationActions.length > MAX_VISIBLE_ACTIONS && (
+                                        <List.Item>{t("scan.autoTab.migrationActions.moreItems", { count: migrationActions.length - MAX_VISIBLE_ACTIONS })}</List.Item>
+                                    )}
+                                </List>
+                                <InlineStack gap="200" align="end">
+                                    <Button
+                                        icon={ClipboardIcon}
+                                        loading={isCopying}
+                                        onClick={onCopyChecklist}
+                                    >
+                                        {t("scan.autoTab.wizard.copyChecklist")}
+                                    </Button>
+                                    <Button
+                                        icon={ExportIcon}
+                                        loading={isExporting}
+                                        onClick={onExportChecklist}
+                                    >
+                                        {t("scan.autoTab.wizard.exportText")}
+                                    </Button>
+                                </InlineStack>
+                            </BlockStack>
+                        </Box>
+                    </BlockStack>
+                    <Divider />
+                    <BlockStack gap="300">
+                        <Text as="h3" variant="headingSm">
+                            {t("scan.autoTab.wizard.alternativesTitle")}
+                        </Text>
+                        <Box background="bg-surface-secondary" padding="400" borderRadius="200">
+                            <BlockStack gap="300">
+                                <InlineStack gap="400" wrap>
+                                    <Box minWidth="200px">
+                                        <BlockStack gap="100">
+                                            <Badge tone="success">{t("scan.autoTab.wizard.officialAlternative")}</Badge>
+                                            <Text as="p" variant="bodySm">
+                                                <Trans i18nKey="scan.autoTab.wizard.officialAlternativeDesc" components={{ strong: <strong />, a: <a target="_blank" rel="noopener noreferrer" /> }} />
+                                            </Text>
+                                        </BlockStack>
+                                    </Box>
+                                    <Box minWidth="200px">
+                                        <BlockStack gap="100">
+                                            <Badge tone="info">{t("scan.autoTab.wizard.webPixelAlternative")}</Badge>
+                                            <Text as="p" variant="bodySm">
+                                                <Trans i18nKey="scan.autoTab.wizard.webPixelAlternativeDesc" components={{ strong: <strong />, a: <a target="_blank" rel="noopener noreferrer" /> }} />
+                                            </Text>
+                                        </BlockStack>
+                                    </Box>
+                                    <Box minWidth="200px">
+                                        <BlockStack gap="100">
+                                            <Badge tone="warning">{t("scan.autoTab.wizard.pageCustomization")}</Badge>
+                                            <Text as="p" variant="bodySm">
+                                                <Trans i18nKey="scan.autoTab.wizard.pageCustomizationDesc" components={{ strong: <strong />, a: <a target="_blank" rel="noopener noreferrer" /> }} />
+                                            </Text>
+                                            <Text as="p" variant="bodySm" tone="subdued">
+                                                <strong>{t("scan.autoTab.wizard.pageCustomizationNote")}</strong>{t("scan.autoTab.wizard.pageCustomizationNoteDesc")}
+                                            </Text>
+                                        </BlockStack>
+                                    </Box>
+                                </InlineStack>
+                            </BlockStack>
+                        </Box>
+                    </BlockStack>
+                </BlockStack>
+            </Card>
+                
+                </>
             )}
+
             {scanHistory && scanHistory.length > 0 && (
                 <ScanHistoryTable scanHistory={scanHistory} onStartScan={handleScan} />
             )}
+
             {latestScan && latestScan.riskScore && latestScan.riskScore > 0 && (
                 <Banner title={t("scan.autoTab.suggestMigrationBanner.title")} tone="warning" action={{ content: t("scan.autoTab.suggestMigrationBanner.action"), url: "/app/migrate" }}>
                     <p>
