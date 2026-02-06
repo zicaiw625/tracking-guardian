@@ -56,7 +56,6 @@ vi.mock("../../app/utils/logger.server", () => ({
 
 import { cleanupExpiredData } from "../../app/cron/tasks/cleanup";
 import prisma from "../../app/db.server";
-import { logger } from "../../app/utils/logger.server";
 
 describe("Cleanup Task", () => {
   beforeEach(() => {

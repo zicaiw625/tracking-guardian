@@ -9,6 +9,8 @@ import type { DashboardData } from "~/types/dashboard";
 import { useTranslation, Trans } from "react-i18next";
 import { useNavigate } from "@remix-run/react";
 
+import { ConnectionIssue } from "~/types/connection-issues";
+
 interface DashboardOverviewProps {
   data: DashboardData;
   showWelcomeBanner: boolean;
@@ -17,6 +19,7 @@ interface DashboardOverviewProps {
   onDismissWelcomeBanner: () => void;
   onScanComplete: () => void;
   backendUrlInfo?: { placeholderDetected?: boolean };
+  onFixPixel?: () => void;
 }
 
 export function DashboardOverview({
@@ -27,6 +30,7 @@ export function DashboardOverview({
   onDismissWelcomeBanner,
   onScanComplete,
   backendUrlInfo,
+  onFixPixel,
 }: DashboardOverviewProps) {
   const { t } = useTranslation();
   const navigate = useNavigate();
@@ -45,11 +49,11 @@ export function DashboardOverview({
     secondaryAction: { content: t("dashboard.intro.reportCenter"), url: "/app/reports" },
   };
 
-  const connectionIssues = [];
+  const connectionIssues: ConnectionIssue[] = [];
   if (data.dataConnection) {
-    if (!data.dataConnection.hasIngestionSecret) connectionIssues.push("Ingestion Key Not Configured");
-    if (!data.dataConnection.hasWebPixel) connectionIssues.push("Web Pixel Not Installed");
-    if (!data.dataConnection.webPixelHasIngestionKey) connectionIssues.push("Web Pixel Missing ingestion_key");
+    if (!data.dataConnection.hasIngestionSecret) connectionIssues.push(ConnectionIssue.INGESTION_SECRET_MISSING);
+    if (!data.dataConnection.hasWebPixel) connectionIssues.push(ConnectionIssue.WEB_PIXEL_NOT_INSTALLED);
+    if (!data.dataConnection.webPixelHasIngestionKey) connectionIssues.push(ConnectionIssue.WEB_PIXEL_MISSING_INGESTION_KEY);
   }
 
   return (
@@ -57,6 +61,7 @@ export function DashboardOverview({
       {data.dataConnection && (
         <DataConnectionBanner
           issues={connectionIssues}
+          onFixPixel={onFixPixel}
         />
       )}
       {backendUrlInfo?.placeholderDetected && (

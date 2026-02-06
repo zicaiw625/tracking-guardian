@@ -835,6 +835,7 @@
       "msgBoth": "数据连接未配置：需要配置Ingestion Key并安装Web Pixel才能开始接收追踪数据",
       "msgSecret": "数据连接未完成：需要配置Ingestion Key",
       "msgPixel": "数据连接未完成：需要安装Web Pixel",
+      "scanHint": "提示：即使未安装 Web Pixel，您仍可进行 ScriptTag 风险扫描。",
       "msgIncomplete": "数据连接配置不完整：Web Pixel配置缺失ingestion_key，请重新同步配置",
       "actionSettings": "前往设置",
       "actionInstall": "安装Web Pixel",

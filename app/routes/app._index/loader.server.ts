@@ -4,6 +4,7 @@ import { authenticate } from "../../shopify.server";
 import { getDashboardData } from "../../services/dashboard.server";
 import { getPixelEventIngestionUrl } from "../../utils/config.server";
 import prisma from "../../db.server";
+import { logger } from "../../utils/logger.server";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   const { session, admin } = await authenticate.admin(request);
@@ -33,7 +34,8 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
         try {
           const settings = JSON.parse(p.settings || "{}");
           return isOurWebPixel(settings, shopDomain);
-        } catch {
+        } catch (e) {
+          logger.warn("Failed to parse pixel settings", { error: e, pixelId: p.id });
           return false;
         }
       });
@@ -46,13 +48,14 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
             if (!needsSettingsUpgrade(pixelSettings)) {
               webPixelHasIngestionKey = typeof pixelSettings.ingestion_key === "string" && pixelSettings.ingestion_key.length > 0;
             }
-          } catch {
+          } catch (e) {
+            logger.warn("Failed to parse our pixel settings", { error: e, pixelId: ourPixel.id });
             webPixelHasIngestionKey = false;
           }
         }
       }
-    } catch {
-      void 0;
+    } catch (e) {
+      logger.error("Failed to check existing web pixels", e, { shopDomain });
     }
   }
   

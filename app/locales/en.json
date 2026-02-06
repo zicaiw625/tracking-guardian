@@ -823,6 +823,7 @@
       "msgBoth": "Data connection not configured: Configure Ingestion Key and install Web Pixel to receive data",
       "msgSecret": "Data connection incomplete: Configure Ingestion Key",
       "msgPixel": "Data connection incomplete: Install Web Pixel",
+      "scanHint": "Note: You can still perform ScriptTag risk scan even without Web Pixel installed.",
       "msgIncomplete": "Data connection incomplete: Web Pixel missing ingestion_key, please resync",
       "actionSettings": "Go to Settings",
       "actionInstall": "Install Web Pixel",

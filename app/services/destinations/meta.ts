@@ -56,7 +56,7 @@ export async function sendEvent(
   if (event.ip_encrypted) {
     try {
       ip = decrypt(event.ip_encrypted);
-    } catch (e) {
+    } catch {
       // Fallback
     }
   }
@@ -66,7 +66,7 @@ export async function sendEvent(
   if (event.user_agent_encrypted) {
     try {
       user_agent = decrypt(event.user_agent_encrypted);
-    } catch (e) {
+    } catch {
       // Fallback
     }
   }

@@ -1,10 +1,13 @@
 import { Banner, List, Text, BlockStack, Button } from "@shopify/polaris";
 import { useTranslation } from "react-i18next";
+import { ConnectionIssue } from "~/types/connection-issues";
 
 export function DataConnectionBanner({
   issues,
+  onFixPixel,
 }: {
-  issues: string[];
+  issues: ConnectionIssue[];
+  onFixPixel?: () => void;
 }) {
   const { t } = useTranslation();
   if (!issues || issues.length === 0) {
@@ -12,16 +15,16 @@ export function DataConnectionBanner({
   }
   
   // Helper to translate specific issue strings if they match known patterns
-  const translateIssue = (issue: string) => {
-    if (issue === "Ingestion Key Not Configured") return t("dashboard.dataConnection.issueIngestionSecret");
-    if (issue === "Web Pixel Not Installed") return t("dashboard.dataConnection.issueWebPixel");
-    if (issue === "Web Pixel Missing ingestion_key") return t("dashboard.dataConnection.issueIngestionKey");
+  const translateIssue = (issue: ConnectionIssue) => {
+    if (issue === ConnectionIssue.INGESTION_SECRET_MISSING) return t("dashboard.dataConnection.issueIngestionSecret");
+    if (issue === ConnectionIssue.WEB_PIXEL_NOT_INSTALLED) return t("dashboard.dataConnection.issueWebPixel");
+    if (issue === ConnectionIssue.WEB_PIXEL_MISSING_INGESTION_KEY) return t("dashboard.dataConnection.issueIngestionKey");
     return issue;
   };
 
-  const hasIngestionSecretIssue = issues.includes("Ingestion Key Not Configured");
-  const hasWebPixelIssue = issues.includes("Web Pixel Not Installed");
-  const hasIngestionKeyIssue = issues.includes("Web Pixel Missing ingestion_key");
+  const hasIngestionSecretIssue = issues.includes(ConnectionIssue.INGESTION_SECRET_MISSING);
+  const hasWebPixelIssue = issues.includes(ConnectionIssue.WEB_PIXEL_NOT_INSTALLED);
+  const hasIngestionKeyIssue = issues.includes(ConnectionIssue.WEB_PIXEL_MISSING_INGESTION_KEY);
 
   if (hasIngestionSecretIssue && hasWebPixelIssue) {
     return (
@@ -58,9 +61,12 @@ export function DataConnectionBanner({
           <Text as="p">
             {t("dashboard.dataConnection.msgPixel")}
           </Text>
-          <Button url="/app/settings" variant="primary">
+          <Button url="/app/pixels/new" variant="primary">
             {t("dashboard.dataConnection.actionInstall")}
           </Button>
+          <Text as="p" variant="bodySm" tone="subdued">
+             {t("dashboard.dataConnection.scanHint")}
+          </Text>
         </BlockStack>
       </Banner>
     );
@@ -72,9 +78,15 @@ export function DataConnectionBanner({
           <Text as="p">
             {t("dashboard.dataConnection.msgIncomplete")}
           </Text>
-          <Button url="/app/settings" variant="primary">
-            {t("dashboard.dataConnection.actionFix")}
-          </Button>
+          {onFixPixel ? (
+            <Button onClick={onFixPixel} variant="primary">
+              {t("dashboard.dataConnection.actionFix")}
+            </Button>
+          ) : (
+            <Button url="/app/scan" variant="primary">
+              {t("dashboard.dataConnection.actionFix")}
+            </Button>
+          )}
         </BlockStack>
       </Banner>
     );

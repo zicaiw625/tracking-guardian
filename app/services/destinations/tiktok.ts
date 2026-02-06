@@ -49,7 +49,7 @@ export async function sendEvent(
   if (event.ip_encrypted) {
     try {
       ip = decrypt(event.ip_encrypted);
-    } catch (e) {
+    } catch {
       // Fallback to anonymized IP if decryption fails
     }
   }
@@ -58,7 +58,7 @@ export async function sendEvent(
   if (event.user_agent_encrypted) {
     try {
       user_agent = decrypt(event.user_agent_encrypted);
-    } catch (e) {
+    } catch {
       // Fallback to hashed UA if decryption fails (though likely useless for TikTok)
     }
   }

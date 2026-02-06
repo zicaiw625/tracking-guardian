@@ -199,73 +199,130 @@ export async function getDashboardData(shopDomain: string): Promise<DashboardDat
   const settings = (shop as { settings?: unknown }).settings && typeof (shop as { settings?: unknown }).settings === 'object' ? (shop as { settings?: unknown }).settings as Record<string, unknown> : null;
   const alertConfigs = settings?.alertConfigs && Array.isArray(settings.alertConfigs) ? settings.alertConfigs : [];
   const hasAlertConfig = alertConfigs.length > 0;
-  const { score, status, factors } = await calculateHealthScore(
-    shop.id,
-    [],
-    enabledPixelConfigsCount
-  );
   const planId = normalizePlan(shop.plan);
   const planDef = getPlanDefinition(planId);
   const latestScan = shop.ScanReports?.[0];
   const scriptTagAnalysis = latestScan ? analyzeScriptTags(latestScan.scriptTags) : { count: 0, hasOrderStatusScripts: false };
-  let estimatedMigrationTimeMinutes = 30;
-  try {
-    const migrationTimeline = await generateMigrationTimeline(shop.id);
-    if (migrationTimeline && migrationTimeline.totalEstimatedTime > 0) {
-      estimatedMigrationTimeMinutes = migrationTimeline.totalEstimatedTime;
-    } else if (latestScan) {
-      estimatedMigrationTimeMinutes = Math.max(
-        30,
-        scriptTagAnalysis.count * 15 +
-          ((latestScan.identifiedPlatforms as string[]) || []).length * 10
-      );
-    }
-  } catch (error) {
-    logger.error("Failed to calculate migration timeline", { shopId: shop.id, error });
-    if (latestScan) {
-      estimatedMigrationTimeMinutes = Math.max(
-        30,
-        scriptTagAnalysis.count * 15 +
-          ((latestScan.identifiedPlatforms as string[]) || []).length * 10
-      );
-    }
-  }
-  const isNewInstall = shop.installedAt &&
-    (Date.now() - shop.installedAt.getTime()) < 24 * 60 * 60 * 1000;
-  const showOnboarding = isNewInstall && (
-    !latestScan ||
-    latestScan.status === "pending" ||
-    latestScan.status === "scanning"
-  );
-  let migrationChecklist = null;
-  let dependencyGraph = null;
-  let riskDistribution = null;
-  if (latestScan) {
-    try {
-      migrationChecklist = await getMigrationChecklist(shop.id, false);
-    } catch (error) {
-      logger.error("Failed to get migration checklist", { shopId: shop.id, error });
-    }
-    try {
-      dependencyGraph = await analyzeDependencies(shop.id);
-    } catch (error) {
-      logger.error("Failed to analyze dependencies", { shopId: shop.id, error });
-    }
-    try {
-      const assetSummary = await getAuditAssetSummary(shop.id);
-      riskDistribution = {
-        byRiskLevel: {
-          high: assetSummary.byRiskLevel.high,
-          medium: assetSummary.byRiskLevel.medium,
-          low: assetSummary.byRiskLevel.low,
-        },
-        byCategory: assetSummary.byCategory,
-        byPlatform: assetSummary.byPlatform || {},
-      };
-    } catch (error) {
-      logger.error("Failed to get risk distribution", { shopId: shop.id, error });
-    }
-  }
+
+  // Parallelize independent data fetching
+  const [
+    healthScoreResult,
+    migrationTimeline,
+    migrationChecklist,
+    dependencyGraph,
+    assetSummary,
+    healthMetrics24h,
+    activeAlerts,
+    rejectionStats,
+    migrationProgress
+  ] = await Promise.all([
+    // 1. Health Score
+    calculateHealthScore(shop.id, [], enabledPixelConfigsCount),
+    
+    // 2. Migration Timeline
+    (async () => {
+      try {
+        return await generateMigrationTimeline(shop.id);
+      } catch (error) {
+        logger.error("Failed to calculate migration timeline", { shopId: shop.id, error });
+        return null;
+      }
+    })(),
+
+    // 3. Migration Checklist
+    (async () => {
+      if (!latestScan) return null;
+      try {
+        return await getMigrationChecklist(shop.id, false);
+      } catch (error) {
+        logger.error("Failed to get migration checklist", { shopId: shop.id, error });
+        return null;
+      }
+    })(),
+
+    // 4. Dependency Graph
+    (async () => {
+      if (!latestScan) return null;
+      try {
+        return await analyzeDependencies(shop.id);
+      } catch (error) {
+        logger.error("Failed to analyze dependencies", { shopId: shop.id, error });
+        return null;
+      }
+    })(),
+
+    // 5. Asset Summary (Risk Distribution & Top Sources)
+    (async () => {
+      if (!latestScan) return null;
+      try {
+        return await getAuditAssetSummary(shop.id);
+      } catch (error) {
+        logger.error("Failed to get risk distribution", { shopId: shop.id, error });
+        return null;
+      }
+    })(),
+
+    // 6. 24h Health Metrics
+    (async () => {
+      try {
+        const monitoringStats = await getEventMonitoringStats(shop.id, 24);
+        return {
+          successRate: monitoringStats.successRate,
+          failureRate: monitoringStats.failureRate,
+          totalEvents: monitoringStats.totalEvents,
+        };
+      } catch (error) {
+        logger.warn("Failed to get 24h health metrics", { shopId: shop.id, error });
+        return null;
+      }
+    })(),
+
+    // 7. Active Alerts
+    (async () => {
+      try {
+        const sevenDaysAgo = new Date();
+        sevenDaysAgo.setUTCDate(sevenDaysAgo.getUTCDate() - 7);
+        const alertEvents = await prisma.alertEvent.findMany({
+          where: { shopId: shop.id, sentAt: { gte: sevenDaysAgo } },
+          orderBy: { sentAt: "desc" },
+          take: 20,
+        });
+        return alertEvents.map((e) => ({
+          id: e.id,
+          type: e.alertType,
+          severity: e.severity as "critical" | "warning" | "info",
+          message: e.message,
+          triggeredAt: e.sentAt,
+        }));
+      } catch (error) {
+        logger.warn("Failed to get active alerts", { shopId: shop.id, error });
+        return [];
+      }
+    })(),
+
+    // 8. Rejection Stats
+    (async () => {
+      try {
+        return rejectionTracker.getRejectionStats(shopDomain, 1);
+      } catch (error) {
+        logger.warn("Failed to get rejection stats", { shopId: shop.id, error });
+        return [];
+      }
+    })(),
+
+    // 9. Migration Progress
+    (async () => {
+      try {
+        return await calculateMigrationProgress(shop.id);
+      } catch (error) {
+        logger.error("Failed to calculate migration progress", { shopId: shop.id, error });
+        return undefined;
+      }
+    })()
+  ]);
+
+  const { score, status, factors } = healthScoreResult;
+
   const shopTier = (shop.shopTier !== null && shop.shopTier !== undefined && isValidShopTier(shop.shopTier))
     ? shop.shopTier
     : "unknown";
@@ -292,12 +349,7 @@ export async function getDashboardData(shopDomain: string): Promise<DashboardDat
     daysRemaining,
     urgency,
   };
-  let migrationProgress;
-  try {
-    migrationProgress = await calculateMigrationProgress(shop.id);
-  } catch (error) {
-    logger.error("Failed to calculate migration progress", { shopId: shop.id, error });
-  }
+
   const riskScore = latestScan?.riskScore ?? null;
   let riskLevel: "high" | "medium" | "low" | null = null;
   if (riskScore !== null) {
@@ -309,103 +361,94 @@ export async function getDashboardData(shopDomain: string): Promise<DashboardDat
       riskLevel = "low";
     }
   }
-    let topRiskSources: Array<{ source: string; count: number; category: string }> = [];
-  try {
-    if (latestScan) {
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      const assetSummary = await getAuditAssetSummary(shop.id);
-      const categoryLabels: Record<string, string> = {
-        pixel: "像素追踪",
-        affiliate: "联盟营销",
-        survey: "问卷调研",
-        support: "客服支持",
-        analytics: "分析工具",
-        other: "其他",
-      };
-            const highRiskByCategory = await prisma.auditAsset.groupBy({
-        by: ["category"],
-        where: {
-          shopId: shop.id,
-          riskLevel: "high",
-        },
-        _count: true,
-      });
-            const highRiskByPlatform = await prisma.auditAsset.groupBy({
-        by: ["platform"],
-        where: {
-          shopId: shop.id,
-          riskLevel: "high",
-          platform: { not: null },
-        },
-        _count: true,
-      });
-            const allSources: Array<{ source: string; count: number; category: string }> = [];
-      highRiskByCategory.forEach((item) => {
-        allSources.push({
-          source: categoryLabels[item.category] || item.category,
-          count: item._count,
-          category: item.category,
-        });
-      });
-      highRiskByPlatform.forEach((item) => {
-        if (item.platform) {
-          allSources.push({
-            source: item.platform,
-            count: item._count,
-            category: "platform",
-          });
-        }
-      });
-            topRiskSources = allSources
-        .sort((a, b) => b.count - a.count)
-        .slice(0, 3);
-    }
-  } catch (error) {
-    logger.warn("Failed to get top risk sources", { shopId: shop.id, error });
+
+  let estimatedMigrationTimeMinutes = 30;
+  if (migrationTimeline && migrationTimeline.totalEstimatedTime > 0) {
+    estimatedMigrationTimeMinutes = migrationTimeline.totalEstimatedTime;
+  } else if (latestScan) {
+    estimatedMigrationTimeMinutes = Math.max(
+      30,
+      scriptTagAnalysis.count * 15 +
+        ((latestScan.identifiedPlatforms as string[]) || []).length * 10
+    );
   }
-    let healthMetrics24h = null;
-  let activeAlerts: Array<{
-    id: string;
-    type: string;
-    severity: "critical" | "warning" | "info";
-    message: string;
-    triggeredAt: Date;
-  }> = [];
-  try {
-    const monitoringStats = await getEventMonitoringStats(shop.id, 24);
-    healthMetrics24h = {
-      successRate: monitoringStats.successRate,
-      failureRate: monitoringStats.failureRate,
-      totalEvents: monitoringStats.totalEvents,
+
+  const isNewInstall = shop.installedAt &&
+    (Date.now() - shop.installedAt.getTime()) < 24 * 60 * 60 * 1000;
+  const showOnboarding = isNewInstall && (
+    !latestScan ||
+    latestScan.status === "pending" ||
+    latestScan.status === "scanning"
+  );
+
+  let riskDistribution = null;
+  let topRiskSources: Array<{ source: string; count: number; category: string }> = [];
+
+  if (assetSummary) {
+    riskDistribution = {
+      byRiskLevel: {
+        high: assetSummary.byRiskLevel.high,
+        medium: assetSummary.byRiskLevel.medium,
+        low: assetSummary.byRiskLevel.low,
+      },
+      byCategory: assetSummary.byCategory,
+      byPlatform: assetSummary.byPlatform || {},
     };
-  } catch (error) {
-    logger.warn("Failed to get 24h health metrics", { shopId: shop.id, error });
-  }
-  try {
-    const sevenDaysAgo = new Date();
-    sevenDaysAgo.setUTCDate(sevenDaysAgo.getUTCDate() - 7);
-    const alertEvents = await prisma.alertEvent.findMany({
-      where: { shopId: shop.id, sentAt: { gte: sevenDaysAgo } },
-      orderBy: { sentAt: "desc" },
-      take: 20,
-    });
-    activeAlerts = alertEvents.map((e) => ({
-      id: e.id,
-      type: e.alertType,
-      severity: e.severity as "critical" | "warning" | "info",
-      message: e.message,
-      triggeredAt: e.sentAt,
-    }));
-  } catch (error) {
-    logger.warn("Failed to get active alerts", { shopId: shop.id, error });
-  }
-  
-  let rejectionStats: Array<{ reason: string; count: number; percentage: number }> = [];
-  try {
-    // Get stats for the last 1 hour
-    rejectionStats = rejectionTracker.getRejectionStats(shopDomain, 1);
-  } catch (error) {
-    logger.warn("Failed to get rejection stats", { shopId: shop.id, error });
+
+    try {
+        const categoryLabels: Record<string, string> = {
+          pixel: "像素追踪",
+          affiliate: "联盟营销",
+          survey: "问卷调研",
+          support: "客服支持",
+          analytics: "分析工具",
+          other: "其他",
+        };
+        
+        // Note: We need to query Prisma for breakdown details as getAuditAssetSummary aggregates them
+        // To avoid another query, we can rely on what we have or do a lightweight query if absolutely needed.
+        // For now, let's keep the original logic but optimized.
+        // Actually, the original code did separate queries for topRiskSources. 
+        // Let's bring that logic inside the parallel block or keep it separate if it's complex.
+        // The original code did: group by category and group by platform.
+        // We can move this to a parallel block too, but let's keep it simple for now and do it here if assetSummary exists.
+        
+        const [highRiskByCategory, highRiskByPlatform] = await Promise.all([
+           prisma.auditAsset.groupBy({
+            by: ["category"],
+            where: { shopId: shop.id, riskLevel: "high" },
+            _count: true,
+          }),
+           prisma.auditAsset.groupBy({
+            by: ["platform"],
+            where: { shopId: shop.id, riskLevel: "high", platform: { not: null } },
+            _count: true,
+          })
+        ]);
+
+        const allSources: Array<{ source: string; count: number; category: string }> = [];
+        highRiskByCategory.forEach((item) => {
+          allSources.push({
+            source: categoryLabels[item.category] || item.category,
+            count: item._count,
+            category: item.category,
+          });
+        });
+        highRiskByPlatform.forEach((item) => {
+          if (item.platform) {
+            allSources.push({
+              source: item.platform,
+              count: item._count,
+              category: "platform",
+            });
+          }
+        });
+        topRiskSources = allSources
+          .sort((a, b) => b.count - a.count)
+          .slice(0, 3);
+    } catch (error) {
+       logger.warn("Failed to get top risk sources", { shopId: shop.id, error });
+    }
   }
 
   return {
