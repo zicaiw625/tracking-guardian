@@ -29,14 +29,26 @@ export function VerificationWizard({
   onStartTest,
   onComplete,
 }: VerificationWizardProps) {
-  const [completedItems, setCompletedItems] = useState<Set<string>>(new Set());
+  const [completedItems, setCompletedItems] = useState<Set<string>>(() => {
+    if (typeof window === "undefined") return new Set();
+    try {
+      const saved = localStorage.getItem(`verification_wizard_${_shopId}`);
+      return saved ? new Set(JSON.parse(saved)) : new Set();
+    } catch {
+      return new Set();
+    }
+  });
+
   const handleItemComplete = useCallback((itemId: string) => {
     setCompletedItems((prev) => {
       const next = new Set(prev);
       next.add(itemId);
+      if (typeof window !== "undefined") {
+        localStorage.setItem(`verification_wizard_${_shopId}`, JSON.stringify(Array.from(next)));
+      }
       return next;
     });
-  }, []);
+  }, [_shopId]);
   const progress = testChecklist.items.length > 0
     ? (completedItems.size / testChecklist.items.length) * 100
     : 0;

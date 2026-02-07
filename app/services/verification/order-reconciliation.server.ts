@@ -1,49 +1,5 @@
 import prisma from "../../db.server";
-import { extractPlatformFromPayload } from "../../utils/common";
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return value !== null && typeof value === "object" && !Array.isArray(value);
-}
-
-function extractValueCurrencyFromReceipt(
-  payload: unknown
-): { value: number; currency: string } | null {
-  if (!isRecord(payload)) return null;
-  const data = payload.data as Record<string, unknown> | undefined;
-  let value: number | undefined = data?.value as number | undefined;
-  let currency: string | undefined = data?.currency as string | undefined;
-  if (payload) {
-    if (typeof value !== "number" && data) {
-      value = data.value as number | undefined;
-      currency = data.currency as string | undefined;
-    }
-    const platform = extractPlatformFromPayload(payload);
-    if (platform === "google") {
-      const events = payload.events as Array<Record<string, unknown>> | undefined;
-      if (events?.length) {
-        const params = events[0].params as Record<string, unknown> | undefined;
-        if (params?.value !== undefined) value = params.value as number;
-        if (params?.currency) currency = String(params.currency);
-      }
-    } else if (platform === "meta" || platform === "facebook") {
-      const eventsData = payload.data as Array<Record<string, unknown>> | undefined;
-      if (eventsData?.length) {
-        const customData = eventsData[0].custom_data as Record<string, unknown> | undefined;
-        if (customData?.value !== undefined) value = customData.value as number;
-        if (customData?.currency) currency = String(customData.currency);
-      }
-    } else if (platform === "tiktok") {
-      const eventsData = payload.data as Array<Record<string, unknown>> | undefined;
-      if (eventsData?.length) {
-        const properties = eventsData[0].properties as Record<string, unknown> | undefined;
-        if (properties?.value !== undefined) value = properties.value as number;
-        if (properties?.currency) currency = String(properties.currency);
-      }
-    }
-  }
-  if (value === undefined || value === null || currency === undefined || currency === "") return null;
-  return { value: Number(value), currency: String(currency).trim() };
-}
+import { extractEventData } from "../../utils/receipt-parser";
 
 export interface PixelVsOrderReconciliationResult {
   totalOrders: number;
@@ -72,7 +28,8 @@ export async function performPixelVsOrderReconciliation(
   const [orders, receipts] = await Promise.all([
     prisma.orderSummary.findMany({
       where: { shopId, createdAt: { gte: periodStart, lte: periodEnd } },
-      select: { orderId: true, totalPrice: true, currency: true },
+      select: { orderId: true, totalPrice: true, currency: true, createdAt: true },
+      orderBy: { createdAt: "desc" },
       take: 10000,
     }),
     prisma.pixelEventReceipt.findMany({
@@ -83,19 +40,36 @@ export async function performPixelVsOrderReconciliation(
         orderKey: { not: null },
       },
       orderBy: { pixelTimestamp: "desc" },
-      select: { orderKey: true, payloadJson: true },
+      select: { orderKey: true, payloadJson: true, pixelTimestamp: true },
       take: 10000,
     }),
   ]);
 
+  const LIMIT = 10000;
+  const limitReached = orders.length >= LIMIT || receipts.length >= LIMIT;
+
+  let effectiveOrders = orders;
+  let effectiveReceipts = receipts;
+
+  if (limitReached && orders.length > 0 && receipts.length > 0) {
+    const oldestOrderDate = orders[orders.length - 1].createdAt;
+    const oldestReceiptDate = receipts[receipts.length - 1].pixelTimestamp;
+    
+    // Use the more recent of the two oldest dates as the cutoff
+    const safeCutoffDate = oldestOrderDate > oldestReceiptDate ? oldestOrderDate : oldestReceiptDate;
+    
+    effectiveOrders = orders.filter(o => o.createdAt >= safeCutoffDate);
+    effectiveReceipts = receipts.filter(r => r.pixelTimestamp >= safeCutoffDate);
+  }
+
   const orderMap = new Map(
-    orders.map((o) => [o.orderId, { totalPrice: Number(o.totalPrice), currency: o.currency }])
+    effectiveOrders.map((o) => [o.orderId, { totalPrice: Number(o.totalPrice), currency: o.currency }])
   );
   const receiptOrderKeys = new Set(
-    receipts.map((r) => r.orderKey).filter((k): k is string => !!k)
+    effectiveReceipts.map((r) => r.orderKey).filter((k): k is string => !!k)
   );
   const ordersWithPixel = receiptOrderKeys.size;
-  const missingOrderIds = orders
+  const missingOrderIds = effectiveOrders
     .filter((o) => !receiptOrderKeys.has(o.orderId))
     .map((o) => ({
       orderId: o.orderId,
@@ -105,31 +79,31 @@ export async function performPixelVsOrderReconciliation(
 
   const valueMismatches: PixelVsOrderReconciliationResult["valueMismatches"] = [];
   const seenOrderKeys = new Set<string>();
-  for (const receipt of receipts) {
+  for (const receipt of effectiveReceipts) {
     const orderKey = receipt.orderKey;
     if (!orderKey || seenOrderKeys.has(orderKey)) continue;
     seenOrderKeys.add(orderKey);
     const orderRow = orderMap.get(orderKey);
     if (!orderRow) continue;
-    const vc = extractValueCurrencyFromReceipt(receipt.payloadJson);
-    if (!vc) continue;
+    const { value, currency } = extractEventData(receipt.payloadJson);
+    if (value === undefined || currency === undefined) continue;
     const orderValue = orderRow.totalPrice;
     const orderCurrency = orderRow.currency;
-    const valueMatch = Math.abs(vc.value - orderValue) < 0.01;
+    const valueMatch = Math.abs(value - orderValue) < 0.01;
     const currencyMatch =
-      (vc.currency || "").toUpperCase() === (orderCurrency || "").toUpperCase();
+      (currency || "").toUpperCase() === (orderCurrency || "").toUpperCase();
     if (!valueMatch || !currencyMatch) {
       valueMismatches.push({
         orderId: orderKey,
         orderValue,
         orderCurrency,
-        pixelValue: vc.value,
-        pixelCurrency: vc.currency,
+        pixelValue: value,
+        pixelCurrency: currency,
       });
     }
   }
 
-  const totalOrders = orders.length;
+  const totalOrders = effectiveOrders.length;
   const discrepancyRate =
     totalOrders > 0 ? (missingOrderIds.length / totalOrders) * 100 : 0;
 

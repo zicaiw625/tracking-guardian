@@ -3556,5 +3556,77 @@
       "NotInstalledDesc": "请从 Shopify App Store 搜索并安装「Tracking Guardian」",
       "Footer": "根据 Shopify 平台要求，应用必须从 Shopify 管理后台或 App Store 启动，不支持直接访问此页面进行登录。"
     }
+  },
+  "verification": {
+    "title": "事件详细结果",
+    "exportJson": "导出 JSON",
+    "limitWarning": "⚠️ 结果可能不完整：已达到单次验证的最大事件数量限制（1000条）。部分早期事件可能未包含在本次分析中。建议缩短验证时间窗口或联系支持团队。",
+    "originWarningTitle": "事件接收校验：当前为宽松的 Origin 校验",
+    "originWarningBody": "来自非白名单来源或 HMAC 验证失败但未被拒绝的请求仍可能被接收并标为低信任。建议在部署环境设置 PIXEL_STRICT_ORIGIN=true 并配置 Origin 白名单。",
+    "strictLimitTitle": "⚠️ Strict Sandbox 限制说明（已自动标注）",
+    "toggleDetailsShow": "查看详细说明",
+    "toggleDetailsHide": "收起详细说明",
+    "sandboxDescription": "Web Pixel 运行在 strict sandbox (Web Worker) 环境中，无法访问 DOM、localStorage、第三方 cookie 等，部分字段可能不可用。如果某些字段为 null 或缺失，可能是由于 strict sandbox 限制，这是平台限制，不是故障。报告中已自动标注所有因 strict sandbox 限制而无法获取的字段和事件。",
+    "limitFieldsTitle": "已知限制字段（可能为 null，已自动标注）：",
+    "unavailableEventsTitle": "不可用的事件类型（已自动标注，需要通过订单 webhooks 获取）：",
+    "autoTagNote": "💡 <strong>自动标注说明：</strong>报告中已自动标注所有因 strict sandbox 限制而无法获取的字段和事件。这些限制是 Shopify 平台的设计限制，不是故障。如需获取这些字段或事件，请使用订单 webhooks 或其他 Shopify API。",
+    "tableHeadings": {
+      "eventType": "事件类型",
+      "platform": "平台",
+      "orderId": "订单ID",
+      "status": "状态",
+      "value": "金额",
+      "currency": "币种",
+      "issues": "问题",
+      "sandboxLimitations": "Sandbox限制（已自动标注）"
+    },
+    "emptyStateCompleted": "本次验收未检测到任何事件数据。请确保在测试期间触发了相关事件（如购买、加购等），并检查 Pixel 是否正确安装。",
+    "emptyStateInit": "暂无验收结果数据。请先运行验收测试。"
+  },
+  "riskReport": {
+    "title": "风险概览",
+    "riskScore": "风险分数",
+    "summaryTitle": "统计摘要",
+    "totalItems": "总计: <strong>{{count}}</strong> 项资产",
+    "highRisk": "高风险",
+    "mediumRisk": "中风险",
+    "lowRisk": "低风险",
+    "estimatedTime": "预计迁移时间: <strong>{{time}}</strong> 分钟",
+    "categoryWillFail": "会失效/受限的项",
+    "categoryCanReplace": "可直接替换的项",
+    "categoryNoMigration": "无需迁移的项",
+    "platform": "平台: {{platform}}",
+    "estTimeItem": "预计时间: {{time}} 分钟",
+    "suggestedMigration": "推荐迁移方式: {{method}}",
+    "migrationMethods": {
+      "web_pixel": "Web Pixel",
+      "ui_extension": "UI Extension"
+    },
+    "scriptEditor": {
+      "title": "脚本代码编辑器",
+      "copy": "复制",
+      "copied": "已复制",
+      "showPreview": "显示预览",
+      "hidePreview": "隐藏预览",
+      "fragmentsDetected": "检测到 {{count}} 个脚本片段，将分别分析",
+      "fragmentLabel": "片段 {{index}}",
+      "realtimeAnalysis": "💡 实时分析已启用，输入内容后会自动分析（延迟 500ms）",
+      "howToCopyTitle": "如何从 Shopify Admin 复制脚本？",
+      "step1": "前往 Shopify 后台 → 设置 → 结账",
+      "step2": "找到「Additional scripts」部分",
+      "step3": "复制所有脚本内容并粘贴到下方",
+      "inputLabel": "粘贴脚本内容",
+      "placeholder": "支持检测 Google、Meta、TikTok、Pinterest 等平台的追踪代码",
+      "codePreviewTitle": "代码高亮预览：",
+      "analyzeButton": "分析脚本",
+      "preview": {
+        "title": "实时识别结果",
+        "platformCount": "{{count}} 个平台",
+        "highConfidence": "高置信度",
+        "mediumConfidence": "中置信度",
+        "detectedType": "检测到: {{type}}",
+        "riskScore": "风险评分"
+      }
+    }
   }
 }

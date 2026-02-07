@@ -6,8 +6,10 @@ import { trackEvent } from "./analytics.server";
 import { safeFireAndForget } from "../utils/helpers.server";
 import { normalizePlanId } from "../services/billing/plans";
 import { isPlanAtLeast } from "../utils/plans";
-import { extractPlatformFromPayload } from "../utils/common";
 import { randomUUID } from "crypto";
+import { extractEventData } from "../utils/receipt-parser";
+import { performEnhancedChannelReconciliation } from "./verification/channel-reconciliation.server";
+import { z } from "zod";
 
 export interface VerificationTestItem {
   id: string;
@@ -114,6 +116,7 @@ export interface VerificationSummary {
   valueAccuracy: number;
   results: VerificationEventResult[];
   platformResults?: Record<string, { sent: number; failed: number }>;
+  limitReached?: boolean;
   reconciliation?: {
     pixelVsCapi: {
       pixelOnly: number;
@@ -138,6 +141,7 @@ export interface VerificationSummary {
       }>;
     };
   };
+  reconciliationError?: string;
 }
 
 export async function createVerificationRun(
@@ -189,6 +193,31 @@ export async function startVerificationRun(runId: string): Promise<void> {
   });
 }
 
+// Define Zod schema for runtime validation of stored JSON
+const VerificationEventResultSchema = z.object({
+  testItemId: z.string(),
+  eventType: z.string(),
+  platform: z.string(),
+  status: z.string(), // Allow string to be forward compatible, though typed as enum in TS
+  orderId: z.string().optional(),
+  orderNumber: z.string().optional(),
+  triggeredAt: z.string().or(z.date()).optional().transform(val => val ? new Date(val) : undefined),
+  params: z.record(z.string(), z.unknown()).optional(),
+  shopifyOrder: z.object({
+    value: z.number(),
+    currency: z.string(),
+    itemCount: z.number()
+  }).optional(),
+  discrepancies: z.array(z.string()).optional(),
+  errors: z.array(z.string()).optional(),
+  dedupInfo: z.object({
+    existingEventId: z.string().optional(),
+    reason: z.string().optional()
+  }).optional()
+}).passthrough();
+
+const EventsJsonSchema = z.array(VerificationEventResultSchema);
+
 export async function getVerificationRun(runId: string): Promise<VerificationSummary | null> {
   const run = await prisma.verificationRun.findUnique({
     where: { id: runId },
@@ -210,7 +239,27 @@ export async function getVerificationRun(runId: string): Promise<VerificationSum
   });
   if (!run) return null;
   const summary = run.summaryJson as Record<string, unknown> | null;
-  const events = ((run.eventsJson as unknown) as VerificationEventResult[]) || [];
+  
+  let events: VerificationEventResult[] = [];
+  try {
+    // Safe parsing of eventsJson
+    if (run.eventsJson) {
+      // Prisma Json can be anything, ensure it's an array first
+      const parsed = EventsJsonSchema.safeParse(run.eventsJson);
+      if (parsed.success) {
+        events = parsed.data as unknown as VerificationEventResult[];
+      } else {
+        logger.warn("Validation failed for eventsJson", { runId, errors: parsed.error.format() });
+        // Fallback: try to cast if it looks like an array, or empty
+        if (Array.isArray(run.eventsJson)) {
+             events = run.eventsJson as unknown as VerificationEventResult[];
+        }
+      }
+    }
+  } catch (e) {
+      logger.error("Unexpected error parsing eventsJson", { runId, error: e });
+  }
+
   const reconciliation = summary?.reconciliation as VerificationSummary["reconciliation"] | undefined;
   const platformResults = (summary?.platformResults as Record<string, { sent: number; failed: number }>) || undefined;
   return {
@@ -231,7 +280,9 @@ export async function getVerificationRun(runId: string): Promise<VerificationSum
     valueAccuracy: (summary?.valueAccuracy as number) || 0,
     results: events,
     platformResults,
+    limitReached: (summary?.limitReached as boolean) || false,
     reconciliation,
+    reconciliationError: summary?.reconciliationError as string | undefined,
   };
 }
 
@@ -245,6 +296,7 @@ export async function analyzeRecentEvents(
   } = {}
 ): Promise<VerificationSummary> {
   const { since = new Date(Date.now() - 24 * 60 * 60 * 1000), platforms } = options;
+  const LIMIT = 1000;
   const run = await prisma.verificationRun.findUnique({
     where: { id: runId },
     select: {
@@ -266,7 +318,7 @@ export async function analyzeRecentEvents(
       pixelTimestamp: { gte: since },
     },
     orderBy: { pixelTimestamp: "desc" },
-    take: 1000,
+    take: LIMIT,
     select: {
       id: true,
       eventType: true,
@@ -275,12 +327,16 @@ export async function analyzeRecentEvents(
       pixelTimestamp: true,
       createdAt: true,
       orderKey: true,
+      totalValue: true,
+      currency: true,
     },
   });
+  const limitReached = receipts.length >= LIMIT;
+
   const orderKeysFromReceipts = [...new Set(receipts.map((r) => {
     if (r.orderKey) return r.orderKey;
-    const payload = r.payloadJson as Record<string, unknown> | null;
-    return (payload?.data as Record<string, unknown>)?.orderId as string | undefined;
+    const { orderId } = extractEventData(r.payloadJson);
+    return orderId;
   }).filter(Boolean) as string[])];
   const orderSummaries = orderKeysFromReceipts.length > 0
     ? await prisma.orderSummary.findMany({
@@ -297,7 +353,7 @@ export async function analyzeRecentEvents(
     .filter((r) => r.eventType === "purchase" && r.orderKey)
     .map((r) => r.orderKey as string);
   
-  const duplicateMap = new Map<string, Array<{ id: string; createdAt: Date; eventId: string }>>();
+  const duplicateMap = new Map<string, Array<{ id: string; createdAt: Date; pixelTimestamp: Date; eventId: string }>>();
   
   if (purchaseOrderKeys.length > 0) {
     const potentialDuplicates = await prisma.pixelEventReceipt.findMany({
@@ -306,8 +362,8 @@ export async function analyzeRecentEvents(
         eventType: "purchase",
         orderKey: { in: purchaseOrderKeys },
       },
-      select: { id: true, orderKey: true, createdAt: true, eventId: true },
-      orderBy: { createdAt: "desc" },
+      select: { id: true, orderKey: true, createdAt: true, pixelTimestamp: true, eventId: true },
+      orderBy: { pixelTimestamp: "desc" },
     });
     
     for (const r of potentialDuplicates) {
@@ -327,12 +383,67 @@ export async function analyzeRecentEvents(
   const orderIds = new Set<string>();
   const consistencyIssues: Array<{ orderId: string; issue: string; type: "value_mismatch" | "currency_mismatch" | "missing" | "duplicate" }> = [];
   const platformResults: Record<string, { sent: number; failed: number }> = {};
+  
+  // Perform Order Reconciliation to find missing orders
+  const hours = Math.ceil((Date.now() - since.getTime()) / (60 * 60 * 1000));
+  let reconciliationError: string | undefined;
+  let reconciliationLimitReached = false;
+  try {
+    const reconciliationResult = await performEnhancedChannelReconciliation(shopId, Math.max(1, hours), targetPlatforms);
+    reconciliationLimitReached = reconciliationResult.summary.limitReached;
+    
+    // Add missing orders to results and consistencyIssues
+    for (const platformComp of reconciliationResult.platforms) {
+      const p = platformComp.platform;
+      
+      for (const missing of platformComp.stats.missingOrders) {
+        failedTests++;
+        
+        if (!platformResults[p]) platformResults[p] = { sent: 0, failed: 0 };
+        platformResults[p].failed++;
+        
+        results.push({
+          testItemId: "purchase_completeness",
+          eventType: "purchase",
+          platform: p,
+          orderId: missing.orderId,
+          status: "failed",
+          triggeredAt: undefined, // No event triggered
+          params: {
+             value: missing.orderValue,
+             currency: missing.currency
+          },
+          discrepancies: ["订单未被追踪 (漏单)"],
+          errors: ["Missing Pixel Event"]
+        });
+
+        consistencyIssues.push({
+          orderId: missing.orderId,
+          issue: `[${p}] 漏单: 订单金额 ${missing.orderValue} ${missing.currency} 未被追踪`,
+          type: "missing"
+        });
+      }
+    }
+  } catch (e) {
+    logger.error("Failed to perform reconciliation in verification run", { error: e });
+    reconciliationError = e instanceof Error ? e.message : "Unknown reconciliation error";
+  }
+
   for (const p of targetPlatforms) {
-    platformResults[p] = { sent: 0, failed: 0 };
+    if (!platformResults[p]) {
+      platformResults[p] = { sent: 0, failed: 0 };
+    }
   }
   for (const receipt of receipts) {
     const payload = receipt.payloadJson as Record<string, unknown> | null;
-    const platform = receipt.platform ?? extractPlatformFromPayload(payload);
+    const { value: parsedValue, currency: parsedCurrency, items, platform: extractedPlatform } = extractEventData(payload);
+    
+    // Prefer DB columns (indexed/cached), fallback to parsed JSON
+    const value = receipt.totalValue ? Number(receipt.totalValue) : parsedValue;
+    const currency = receipt.currency || parsedCurrency;
+    
+    const platform = receipt.platform ?? extractedPlatform;
+    
     if (!platform || (targetPlatforms.length > 0 && !targetPlatforms.includes(platform))) {
       continue;
     }
@@ -341,41 +452,6 @@ export async function analyzeRecentEvents(
       orderIds.add(orderId);
     }
     const discrepancies: string[] = [];
-    const data = payload?.data as Record<string, unknown> | undefined;
-    let value: number | undefined;
-    let currency: string | undefined;
-    let items: number | undefined;
-    if (payload) {
-      value = data?.value != null ? Number(data.value) : undefined;
-      currency = data?.currency as string | undefined;
-      const dataItems = data?.items as Array<unknown> | undefined;
-      items = dataItems ? dataItems.length : undefined;
-      if (platform === "google") {
-        const events = payload.events as Array<Record<string, unknown>> | undefined;
-        if (events && events.length > 0) {
-          const params = events[0].params as Record<string, unknown> | undefined;
-          value = params?.value != null ? Number(params.value) : undefined;
-          currency = params?.currency as string | undefined;
-          items = Array.isArray(params?.items) ? params.items.length : undefined;
-        }
-      } else if (platform === "meta" || platform === "facebook") {
-        const eventsData = payload.data as Array<Record<string, unknown>> | undefined;
-        if (eventsData && eventsData.length > 0) {
-          const customData = eventsData[0].custom_data as Record<string, unknown> | undefined;
-          value = customData?.value != null ? Number(customData.value) : undefined;
-          currency = customData?.currency as string | undefined;
-          items = Array.isArray(customData?.contents) ? customData.contents.length : undefined;
-        }
-      } else if (platform === "tiktok") {
-        const eventsData = payload.data as Array<Record<string, unknown>> | undefined;
-        if (eventsData && eventsData.length > 0) {
-          const properties = eventsData[0].properties as Record<string, unknown> | undefined;
-          value = properties?.value != null ? Number(properties.value) : undefined;
-          currency = properties?.currency as string | undefined;
-          items = Array.isArray(properties?.contents) ? properties.contents.length : undefined;
-        }
-      }
-    }
     const hasValue = value !== undefined && value !== null;
     const hasCurrency = !!currency;
     const hasEventId = !!payload?.eventId || !!receipt.id;
@@ -428,12 +504,12 @@ export async function analyzeRecentEvents(
       const history = duplicateMap.get(orderId);
       if (history) {
         const existingReceipt = history.find(
-          (h) => h.id !== receipt.id && h.createdAt < receipt.createdAt
+          (h) => h.id !== receipt.id && h.pixelTimestamp < receipt.pixelTimestamp
         );
         if (existingReceipt) {
           dedupInfo = {
             existingEventId: existingReceipt.eventId,
-            reason: `已在 ${existingReceipt.createdAt.toISOString()} 记录过相同订单事件`,
+            reason: `已在 ${existingReceipt.pixelTimestamp.toISOString()} 记录过相同订单事件`,
           };
         }
       }
@@ -468,31 +544,43 @@ export async function analyzeRecentEvents(
         
         if (orderSummary) {
           valueChecks++;
-          const valueMatch = Math.abs((value ?? 0) - orderSummary.totalPrice) < 0.01;
+          const hasPixelValue = value !== undefined && value !== null;
+          const valueMatch = hasPixelValue && Math.abs((value as number) - orderSummary.totalPrice) < 0.01;
           const currencyMatch = (currency ?? "").toUpperCase() === (orderSummary.currency ?? "").toUpperCase();
           if (valueMatch && currencyMatch) {
             totalValueAccuracy += 100;
           } else {
             isFailed = true;
-            if (!valueMatch && orderId) {
+            if (!hasPixelValue) {
+                const msg = `Pixel 事件缺失金额数据`;
+                consistencyIssues.push({ orderId: orderId!, issue: msg, type: "value_mismatch" });
+                if (!discrepancyNote) discrepancyNote = msg;
+                else discrepancyNote += `; ${msg}`;
+            } else if (!valueMatch && orderId) {
+              const msg = `金额不一致: Pixel=${value}, Order=${orderSummary.totalPrice}`;
               consistencyIssues.push({
                 orderId,
-                issue: `payload value ${value} vs order total ${orderSummary.totalPrice}`,
+                issue: msg,
                 type: "value_mismatch",
               });
+              if (!discrepancyNote) discrepancyNote = msg;
+              else discrepancyNote += `; ${msg}`;
             }
             if (!currencyMatch && orderId) {
+              const msg = `币种不一致: Pixel=${currency}, Order=${orderSummary.currency}`;
               consistencyIssues.push({
                 orderId,
-                issue: `payload currency ${currency} vs order currency ${orderSummary.currency}`,
+                issue: msg,
                 type: "currency_mismatch",
               });
+              if (!discrepancyNote) discrepancyNote = msg;
+              else discrepancyNote += `; ${msg}`;
             }
           }
         } else {
           // Fix P1-5: Do not default to 100% accuracy if order summary is missing.
           // We simply skip the value check and mark as "not verified" for value.
-          discrepancyNote = "无法关联订单详情，跳过金额对账";
+          discrepancyNote = "订单详情尚未同步（请等待1-2分钟后重试），跳过金额对账";
         }
 
         if (isFailed) {
@@ -512,7 +600,7 @@ export async function analyzeRecentEvents(
               items: items || undefined,
               hasEventId,
             },
-            discrepancies: ["金额或币种与订单不一致"],
+            discrepancies: discrepancyNote ? [discrepancyNote] : ["金额或币种与订单不一致"],
             errors: undefined,
             dedupInfo,
           });
@@ -617,6 +705,8 @@ export async function analyzeRecentEvents(
         valueAccuracy,
         platformResults,
         reconciliation,
+        limitReached: limitReached || reconciliationLimitReached,
+        reconciliationError,
       },
       eventsJson: results as unknown as Prisma.InputJsonValue,
     },
@@ -712,7 +802,9 @@ export async function analyzeRecentEvents(
     valueAccuracy,
     results,
     platformResults,
+    limitReached,
     reconciliation,
+    reconciliationError,
   };
 }
 

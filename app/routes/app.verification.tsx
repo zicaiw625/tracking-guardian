@@ -45,6 +45,8 @@ interface VerificationRunSummary {
   missingParamTests: number;
 }
 
+import { safeFireAndForget } from "~/utils/helpers.server";
+
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   const { session } = await authenticate.admin(request);
   const shopDomain = session.shop;
@@ -94,7 +96,12 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   });
 
   const history = historyRaw.map(h => {
-    const summary = (h.summaryJson || {}) as unknown as VerificationRunSummary;
+    let summary: VerificationRunSummary = {} as VerificationRunSummary;
+    try {
+      summary = (h.summaryJson || {}) as unknown as VerificationRunSummary;
+    } catch (e) {
+      console.error(`Failed to parse summaryJson for run ${h.id}`, e);
+    }
     return {
       runId: h.id,
       runName: h.runName,
@@ -140,7 +147,10 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     const expectedEventsRaw = formData.get("expectedEvents") as string;
     let expectedEvents: string[] = [];
     try {
-      expectedEvents = expectedEventsRaw ? JSON.parse(expectedEventsRaw) : [];
+      const parsed = expectedEventsRaw ? JSON.parse(expectedEventsRaw) : [];
+      if (Array.isArray(parsed)) {
+        expectedEvents = parsed;
+      }
     } catch (e) {
       console.error("Failed to parse expectedEvents:", e);
       return json({ success: false, error: "Invalid event data format" }, { status: 400 });
@@ -181,13 +191,14 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       // 2. Mark as running
       await startVerificationRun(runId);
 
-      // 3. Analyze recent events (look back 24 hours)
-      // This will update the run with results and mark it as completed
-      await analyzeRecentEvents(shop.id, runId, {
-        since: new Date(Date.now() - 24 * 60 * 60 * 1000),
-      });
+      // 3. Analyze recent events (look back 24 hours) - Run in background
+      safeFireAndForget(
+        analyzeRecentEvents(shop.id, runId, {
+          since: new Date(Date.now() - 24 * 60 * 60 * 1000),
+        })
+      );
 
-      return json({ success: true, message: "Verification completed", runId });
+      return json({ success: true, message: "Verification started", runId });
     } catch (error) {
       console.error("Verification failed:", error);
       const errorMessage = error instanceof Error ? error.message : "Verification failed";
@@ -225,7 +236,7 @@ export default function VerificationPage() {
   useEffect(() => {
     if (fetcher.data) {
       if (fetcher.data.success) {
-        showSuccess(t("verification.page.actions.runSuccess") || "Verification completed");
+        showSuccess(t("verification.page.actions.runStarted") || "Verification started");
       } else if (fetcher.data.error) {
         showError(fetcher.data.error);
       }
@@ -263,6 +274,8 @@ export default function VerificationPage() {
         (latestRun.passedTests / latestRun.totalTests) * 100
       )
     : 0;
+  
+  const passRateDisplay = latestRun && latestRun.totalTests > 0 ? `${passRate}%` : "-";
 
   return (
     <Page
@@ -303,7 +316,7 @@ export default function VerificationPage() {
 
         {latestRun ? (
           <BlockStack gap="400">
-            {passRate < 100 && (
+            {passRate < 100 && latestRun.totalTests > 0 && (
               <Banner tone="warning" title={t("verification.page.banners.failed.title")}>
                 <p>{t("verification.page.banners.failed.reasons")}</p>
                 <ul>
@@ -313,7 +326,7 @@ export default function VerificationPage() {
                 </ul>
               </Banner>
             )}
-            {passRate === 100 && (
+            {passRate === 100 && latestRun.totalTests > 0 && (
               <Banner tone="success" title={t("verification.page.banners.passed.title")}>
                 <p>{t("verification.page.banners.passed.desc")}</p>
               </Banner>
@@ -329,12 +342,12 @@ export default function VerificationPage() {
                           <InlineStack gap="400" align="space-between">
                             <ScoreCard
                               title={t("verification.page.score.passRate")}
-                              score={`${passRate}%`}
+                              score={passRateDisplay}
                               description={t("verification.page.score.passRateDesc", {
                                 passed: latestRun.passedTests,
                                 total: latestRun.totalTests,
                               })}
-                              tone={passRate === 100 ? "success" : "critical"}
+                              tone={passRate === 100 && latestRun.totalTests > 0 ? "success" : "critical"}
                             />
                             <ScoreCard
                               title={t("verification.page.score.completeness")}

@@ -53,6 +53,18 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   });
 };
 
+export function ErrorBoundary() {
+  const { t } = useTranslation();
+  return (
+    <Page>
+      <Banner tone="critical" title={t("verification.start.error.title") || "Page Error"}>
+        <p>{t("verification.start.error.description") || "An unexpected error occurred while loading the start page."}</p>
+        <Button onClick={() => window.location.reload()}>Reload</Button>
+      </Banner>
+    </Page>
+  );
+}
+
 export default function VerificationStartPage() {
   const { shop, testChecklist } = useLoaderData<typeof loader>();
   const { showSuccess, showError } = useToastContext();

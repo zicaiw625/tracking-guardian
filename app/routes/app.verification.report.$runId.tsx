@@ -157,6 +157,18 @@ import { useTranslation } from "react-i18next";
 
 // ... existing imports ...
 
+export function ErrorBoundary() {
+  const { t } = useTranslation();
+  return (
+    <Page>
+      <Banner tone="critical" title={t("verification.report.error.title") || "Report Error"}>
+        <p>{t("verification.report.error.description") || "An unexpected error occurred while loading the report."}</p>
+        <Button onClick={() => window.location.reload()}>Reload</Button>
+      </Banner>
+    </Page>
+  );
+}
+
 export default function VerificationReportPage() {
   const { shop, run, reportData, canExportReports, gateResult, currentPlan, pixelStrictOrigin } = useLoaderData<typeof loader>();
   const submit = useSubmit();
@@ -239,6 +251,23 @@ export default function VerificationReportPage() {
           primaryAction={{ content: t("verification.report.actions.back"), url: "/app/verification" }}
           secondaryAction={{ content: t("verification.report.actions.reportCenter"), url: "/app/reports" }}
         />
+        {reportData.limitReached && (
+            <Banner tone="warning" title={t("verification.report.limitReached.title") || "Data Limit Reached"}>
+                <Text as="p" variant="bodySm">
+                    {t("verification.report.limitReached.description") || "The analysis was limited to the most recent 1000 events. Some older events might not be included in this report."}
+                </Text>
+            </Banner>
+        )}
+        {reportData.reconciliationError && (
+            <Banner tone="critical" title={t("verification.report.reconciliationError.title") || "Reconciliation Failed"}>
+                <Text as="p" variant="bodySm">
+                    {t("verification.report.reconciliationError.description") || "The order reconciliation process failed. Missing orders detection might be incomplete."}
+                </Text>
+                <Text as="p" variant="bodySm" tone="subdued">
+                    {reportData.reconciliationError}
+                </Text>
+            </Banner>
+        )}
         {!canExportReports && (
           <UpgradePrompt
             feature="verification"

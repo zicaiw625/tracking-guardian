@@ -3555,5 +3555,77 @@
       "NotInstalledDesc": "Search and install 'Tracking Guardian' from Shopify App Store",
       "Footer": "Per Shopify requirements, apps must be launched from Shopify Admin or App Store. Direct login from this page is not supported."
     }
+  },
+  "verification": {
+    "title": "Verification Results",
+    "exportJson": "Export JSON",
+    "limitWarning": "⚠️ Results may be incomplete: Max event limit (1000) reached. Some earlier events may be missing. Consider shortening the time window or contacting support.",
+    "originWarningTitle": "Event Origin Check: Currently Loose Origin Check",
+    "originWarningBody": "Requests from non-whitelisted origins or with failed HMAC may still be accepted and marked as low trust. It is recommended to set PIXEL_STRICT_ORIGIN=true and configure Origin whitelist in production.",
+    "strictLimitTitle": "⚠️ Strict Sandbox Limitations (Automatically Tagged)",
+    "toggleDetailsShow": "Show Details",
+    "toggleDetailsHide": "Hide Details",
+    "sandboxDescription": "Web Pixel runs in a strict sandbox (Web Worker) environment and cannot access DOM, localStorage, third-party cookies, etc. Some fields may be unavailable. If fields are null or missing, it may be due to platform limitations, not a bug. The report automatically tags such fields and events.",
+    "limitFieldsTitle": "Known Limited Fields (May be null, automatically tagged):",
+    "unavailableEventsTitle": "Unavailable Event Types (Automatically tagged, require order webhooks):",
+    "autoTagNote": "💡 <strong>Auto-tagging Note:</strong> The report has automatically tagged fields/events unavailable due to strict sandbox. These are Shopify platform limitations, not bugs. Use order webhooks or other Shopify APIs to retrieve them.",
+    "tableHeadings": {
+      "eventType": "Event Type",
+      "platform": "Platform",
+      "orderId": "Order ID",
+      "status": "Status",
+      "value": "Value",
+      "currency": "Currency",
+      "issues": "Issues",
+      "sandboxLimitations": "Sandbox Limitations (Auto-tagged)"
+    },
+    "emptyStateCompleted": "No event data detected. Please ensure relevant events (e.g., purchase, add to cart) are triggered during testing and check Pixel installation.",
+    "emptyStateInit": "No verification results yet. Please run a test first."
+  },
+  "riskReport": {
+    "title": "Risk Overview",
+    "riskScore": "Risk Score",
+    "summaryTitle": "Summary",
+    "totalItems": "Total: <strong>{{count}}</strong> assets",
+    "highRisk": "High Risk",
+    "mediumRisk": "Medium Risk",
+    "lowRisk": "Low Risk",
+    "estimatedTime": "Est. Migration Time: <strong>{{time}}</strong> min",
+    "categoryWillFail": "Items that will fail/be limited",
+    "categoryCanReplace": "Items with direct replacements",
+    "categoryNoMigration": "No migration needed",
+    "platform": "Platform: {{platform}}",
+    "estTimeItem": "Est. Time: {{time}} min",
+    "suggestedMigration": "Suggested Migration: {{method}}",
+    "migrationMethods": {
+      "web_pixel": "Web Pixel",
+      "ui_extension": "UI Extension"
+    },
+    "scriptEditor": {
+      "title": "Script Code Editor",
+      "copy": "Copy",
+      "copied": "Copied",
+      "showPreview": "Show Preview",
+      "hidePreview": "Hide Preview",
+      "fragmentsDetected": "Detected {{count}} script fragments, will analyze separately",
+      "fragmentLabel": "Fragment {{index}}",
+      "realtimeAnalysis": "💡 Real-time analysis enabled. Will analyze automatically after input (500ms delay)",
+      "howToCopyTitle": "How to copy scripts from Shopify Admin?",
+      "step1": "Go to Shopify Admin → Settings → Checkout",
+      "step2": "Find the 'Additional scripts' section",
+      "step3": "Copy all script content and paste below",
+      "inputLabel": "Paste script content",
+      "placeholder": "Supports detection of Google, Meta, TikTok, Pinterest, etc.",
+      "codePreviewTitle": "Code Highlight Preview:",
+      "analyzeButton": "Analyze Script",
+      "preview": {
+        "title": "Real-time Identification",
+        "platformCount": "{{count}} platforms",
+        "highConfidence": "High Confidence",
+        "mediumConfidence": "Medium Confidence",
+        "detectedType": "Detected: {{type}}",
+        "riskScore": "Risk Score"
+      }
+    }
   }
 }

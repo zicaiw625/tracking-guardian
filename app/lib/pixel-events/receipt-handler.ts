@@ -263,7 +263,9 @@ export async function upsertPixelEventReceipt(
           receipt = existing;
         }
       } else {
-        throw createError;
+        // P0: Idempotency - if it already exists (P2002) and not a verification run, treat as success.
+        // This avoids error logs for duplicate events (e.g. client retries).
+        return { success: true, eventId };
       }
     }
     try {
@@ -277,8 +279,12 @@ export async function upsertPixelEventReceipt(
           await redis.set(altDedupKey, "1", { EX: ttlSeconds }).catch(() => {});
         }
       }
-    } catch {
-      void 0;
+    } catch (redisErr) {
+      logger.warn("Failed to set Redis deduplication key after receipt creation", {
+        shopId,
+        eventId,
+        error: String(redisErr)
+      });
     }
     return { success: true, eventId };
   } catch (error) {
