@@ -75,7 +75,7 @@ export interface VerificationEventResult {
   platform: string;
   orderId?: string;
   orderNumber?: string;
-  status: "success" | "failed" | "missing_params" | "not_tested" | "deduplicated";
+  status: "success" | "failed" | "missing_params" | "not_tested" | "deduplicated" | "warning";
   triggeredAt?: Date;
   params?: {
     value?: number;
@@ -520,7 +520,7 @@ export async function analyzeRecentEvents(
             platform: p,
             orderId: orderId || undefined,
             orderNumber: undefined,
-            status: "success",
+            status: discrepancyNote ? "warning" : "success",
             triggeredAt: receipt.pixelTimestamp,
             params: {
               value: value || undefined,
@@ -532,6 +532,33 @@ export async function analyzeRecentEvents(
             errors: undefined,
             dedupInfo,
           });
+
+          // Check for specific test scenarios
+          if (items && items > 1) {
+             results.push({
+              testItemId: "purchase_multi",
+              eventType: "purchase (multi-item)",
+              platform: p,
+              orderId: orderId || undefined,
+              status: "success",
+              triggeredAt: receipt.pixelTimestamp,
+              params: { items },
+             });
+             passedTests++; 
+          }
+          
+          if (currency && currency !== "USD") { 
+             results.push({
+              testItemId: "currency_test",
+              eventType: "purchase (currency)",
+              platform: p,
+              orderId: orderId || undefined,
+              status: "success",
+              triggeredAt: receipt.pixelTimestamp,
+              params: { currency },
+             });
+             passedTests++;
+          }
         }
       }
     } else {
@@ -787,6 +814,8 @@ export function generateTestOrderGuide(runType: "quick" | "full" | "custom"): {
   };
 }
 
+import { escapeCSV } from "../utils/csv.server";
+
 export async function exportVerificationReport(
   runId: string,
   format: "json" | "csv" = "json"
@@ -809,14 +838,14 @@ export async function exportVerificationReport(
       "问题",
     ];
     const rows = summary.results.map((r) => [
-      r.testItemId,
-      r.eventType,
-      r.platform,
-      r.orderId || "",
-      r.status,
-      r.params?.value?.toString() || "",
-      r.params?.currency || "",
-      r.discrepancies?.join("; ") || r.errors?.join("; ") || "",
+      escapeCSV(r.testItemId),
+      escapeCSV(r.eventType),
+      escapeCSV(r.platform),
+      escapeCSV(r.orderId || ""),
+      escapeCSV(r.status),
+      escapeCSV(r.params?.value?.toString() || ""),
+      escapeCSV(r.params?.currency || ""),
+      escapeCSV(r.discrepancies?.join("; ") || r.errors?.join("; ") || ""),
     ]);
     const csvContent = [headers.join(","), ...rows.map((r) => r.join(","))].join("\n");
     return {

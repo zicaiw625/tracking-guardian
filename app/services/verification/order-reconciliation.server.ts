@@ -73,6 +73,7 @@ export async function performPixelVsOrderReconciliation(
     prisma.orderSummary.findMany({
       where: { shopId, createdAt: { gte: periodStart, lte: periodEnd } },
       select: { orderId: true, totalPrice: true, currency: true },
+      take: 10000,
     }),
     prisma.pixelEventReceipt.findMany({
       where: {
@@ -81,7 +82,9 @@ export async function performPixelVsOrderReconciliation(
         pixelTimestamp: { gte: periodStart, lte: periodEnd },
         orderKey: { not: null },
       },
+      orderBy: { pixelTimestamp: "desc" },
       select: { orderKey: true, payloadJson: true },
+      take: 10000,
     }),
   ]);
 

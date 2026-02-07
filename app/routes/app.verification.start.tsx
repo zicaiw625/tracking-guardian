@@ -189,7 +189,7 @@ export default function VerificationStartPage() {
                 </Banner>
               </BlockStack>
             )}
-            {false && testChecklist?.orderLayer && (testChecklist?.orderLayer?.length ?? 0) > 0 && (
+            {testChecklist?.orderLayer && (testChecklist?.orderLayer?.length ?? 0) > 0 && (
               <List type="number">
                 {testChecklist?.orderLayer?.map((item: OrderLayerItem, index: number) => (
                   <List.Item key={index}>

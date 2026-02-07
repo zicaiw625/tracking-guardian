@@ -1,5 +1,5 @@
-import React from "react";
-import { Box, Banner, BlockStack, Button, Card, DataTable, InlineStack, List, Text } from "@shopify/polaris";
+import React, { useState } from "react";
+import { Box, Banner, BlockStack, Button, Card, DataTable, InlineStack, List, Text, Collapsible } from "@shopify/polaris";
 import { ExportIcon } from "~/components/icons";
 import { StatusBadge } from "./VerificationBadges";
 
@@ -14,7 +14,11 @@ export interface VerificationEventResult {
 }
 
 export interface VerificationResultsTableProps {
-  latestRun: { results: VerificationEventResult[] } | null;
+  latestRun: {
+    results: VerificationEventResult[];
+    status?: string;
+    totalTests?: number;
+  } | null;
   pixelStrictOrigin: boolean;
 }
 
@@ -32,13 +36,14 @@ function buildLimitations(r: VerificationEventResult): string[] {
   const limitations: string[] = [];
   if (r.status === "missing_params" && r.discrepancies) {
     const missingFields = r.discrepancies.filter((d) =>
-      d.includes("missing") || d.includes("null") || d.includes("undefined")
+      d.includes("missing") || d.includes("null") || d.includes("undefined") || d.includes("缺少")
     );
     if (missingFields.length > 0) {
       const knownFields = KNOWN_LIMITATIONS[r.eventType] || [];
       const fieldNames = missingFields
         .map((d) => {
-          const match = d.match(/(?:missing|null|undefined)\s+([a-zA-Z_][a-zA-Z0-9_.]*)/i);
+          // Match English "missing field" or Chinese "缺少 field"
+          const match = d.match(/(?:missing|null|undefined|缺少)\s+([a-zA-Z_][a-zA-Z0-9_.]*)/i);
           return match ? match[1] : d;
         })
         .filter((f) => f.length > 0);
@@ -65,6 +70,8 @@ export function VerificationResultsTable({
   latestRun,
   pixelStrictOrigin,
 }: VerificationResultsTableProps) {
+  const [showStrictLimits, setShowStrictLimits] = useState(false);
+
   const handleExportJson = () => {
     if (!latestRun?.results?.length) return;
     const data = JSON.stringify(latestRun.results, null, 2);
@@ -99,53 +106,63 @@ export function VerificationResultsTable({
                       事件接收校验：当前为宽松的 Origin 校验
                     </Text>
                     <Text as="p" variant="bodySm">
-                      来自非白名单来源或 HMAC 验证失败但未被拒绝的请求仍可能被接收并标为低信任，验收报告中的事件可能包含此类数据。若需更高准确性，建议在部署环境设置 PIXEL_STRICT_ORIGIN=true 并配置好 Origin 白名单。
+                      来自非白名单来源或 HMAC 验证失败但未被拒绝的请求仍可能被接收并标为低信任。建议在部署环境设置 PIXEL_STRICT_ORIGIN=true 并配置 Origin 白名单。
                     </Text>
                   </BlockStack>
                 </Banner>
               )}
               <Banner tone="warning">
                 <BlockStack gap="200">
-                  <Text as="p" variant="bodySm" fontWeight="semibold">
-                    ⚠️ Strict Sandbox 限制说明（已自动标注）
-                  </Text>
-                  <Text as="p" variant="bodySm">
-                    Web Pixel 运行在 strict sandbox (Web Worker) 环境中，无法访问 DOM、localStorage、第三方 cookie 等，部分字段可能不可用。如果某些字段为 null 或缺失，可能是由于 strict sandbox 限制，这是平台限制，不是故障。报告中已自动标注所有因 strict sandbox 限制而无法获取的字段和事件。
-                  </Text>
-                  <Text as="p" variant="bodySm" fontWeight="semibold">
-                    已知限制字段（可能为 null，已自动标注）：
-                  </Text>
-                  <List type="bullet">
-                    <List.Item>
-                      <Text as="span" variant="bodySm">
-                        <strong>checkout_completed / checkout_started：</strong>buyer.email, buyer.phone, deliveryAddress, shippingAddress, billingAddress（这些字段在 Web Worker 环境中不可用，这是平台限制）
+                  <InlineStack align="space-between" blockAlign="center">
+                    <Text as="p" variant="bodySm" fontWeight="semibold">
+                      ⚠️ Strict Sandbox 限制说明（已自动标注）
+                    </Text>
+                    <Button variant="plain" onClick={() => setShowStrictLimits(!showStrictLimits)}>
+                      {showStrictLimits ? "收起详细说明" : "查看详细说明"}
+                    </Button>
+                  </InlineStack>
+                  
+                  <Collapsible open={showStrictLimits} id="strict-limits-collapsible">
+                    <BlockStack gap="200">
+                      <Text as="p" variant="bodySm">
+                        Web Pixel 运行在 strict sandbox (Web Worker) 环境中，无法访问 DOM、localStorage、第三方 cookie 等，部分字段可能不可用。如果某些字段为 null 或缺失，可能是由于 strict sandbox 限制，这是平台限制，不是故障。报告中已自动标注所有因 strict sandbox 限制而无法获取的字段和事件。
                       </Text>
-                    </List.Item>
-                    <List.Item>
-                      <Text as="span" variant="bodySm">
-                        <strong>checkout_contact_info_submitted：</strong>buyer.email, buyer.phone（这些字段在 Web Worker 环境中不可用，这是平台限制）
+                      <Text as="p" variant="bodySm" fontWeight="semibold">
+                        已知限制字段（可能为 null，已自动标注）：
                       </Text>
-                    </List.Item>
-                    <List.Item>
-                      <Text as="span" variant="bodySm">
-                        <strong>checkout_shipping_info_submitted：</strong>deliveryAddress, shippingAddress（这些字段在 Web Worker 环境中不可用，这是平台限制）
+                      <List type="bullet">
+                        <List.Item>
+                          <Text as="span" variant="bodySm">
+                            <strong>checkout_completed / checkout_started：</strong>buyer.email, buyer.phone, deliveryAddress, shippingAddress, billingAddress（这些字段在 Web Worker 环境中不可用，这是平台限制）
+                          </Text>
+                        </List.Item>
+                        <List.Item>
+                          <Text as="span" variant="bodySm">
+                            <strong>checkout_contact_info_submitted：</strong>buyer.email, buyer.phone（这些字段在 Web Worker 环境中不可用，这是平台限制）
+                          </Text>
+                        </List.Item>
+                        <List.Item>
+                          <Text as="span" variant="bodySm">
+                            <strong>checkout_shipping_info_submitted：</strong>deliveryAddress, shippingAddress（这些字段在 Web Worker 环境中不可用，这是平台限制）
+                          </Text>
+                        </List.Item>
+                        <List.Item>
+                          <Text as="span" variant="bodySm">
+                            <strong>payment_info_submitted：</strong>billingAddress（这些字段在 Web Worker 环境中不可用，这是平台限制）
+                          </Text>
+                        </List.Item>
+                      </List>
+                      <Text as="p" variant="bodySm" fontWeight="semibold">
+                        不可用的事件类型（已自动标注，需要通过订单 webhooks 获取）：
                       </Text>
-                    </List.Item>
-                    <List.Item>
-                      <Text as="span" variant="bodySm">
-                        <strong>payment_info_submitted：</strong>billingAddress（这些字段在 Web Worker 环境中不可用，这是平台限制）
+                      <Text as="p" variant="bodySm">
+                        refund, order_cancelled, order_edited, subscription_created, subscription_updated, subscription_cancelled（这些事件在 strict sandbox 中不可用，需要通过订单 webhooks 获取）
                       </Text>
-                    </List.Item>
-                  </List>
-                  <Text as="p" variant="bodySm" fontWeight="semibold">
-                    不可用的事件类型（已自动标注，需要通过订单 webhooks 获取）：
-                  </Text>
-                  <Text as="p" variant="bodySm">
-                    refund, order_cancelled, order_edited, subscription_created, subscription_updated, subscription_cancelled（这些事件在 strict sandbox 中不可用，需要通过订单 webhooks 获取）
-                  </Text>
-                  <Text as="p" variant="bodySm" tone="subdued">
-                    💡 <strong>自动标注说明：</strong>报告中已自动标注所有因 strict sandbox 限制而无法获取的字段和事件。这些限制是 Shopify 平台的设计限制，不是故障。如需获取这些字段或事件，请使用订单 webhooks 或其他 Shopify API。
-                  </Text>
+                      <Text as="p" variant="bodySm" tone="subdued">
+                        💡 <strong>自动标注说明：</strong>报告中已自动标注所有因 strict sandbox 限制而无法获取的字段和事件。这些限制是 Shopify 平台的设计限制，不是故障。如需获取这些字段或事件，请使用订单 webhooks 或其他 Shopify API。
+                      </Text>
+                    </BlockStack>
+                  </Collapsible>
                 </BlockStack>
               </Banner>
               <DataTable
@@ -167,8 +184,12 @@ export function VerificationResultsTable({
               />
             </>
           ) : (
-            <Banner tone="info">
-              <Text as="p">暂无验收结果数据。请先运行验收测试。</Text>
+            <Banner tone={latestRun?.status === 'completed' ? 'warning' : 'info'}>
+              <Text as="p">
+                {latestRun?.status === 'completed'
+                  ? "本次验收未检测到任何事件数据。请确保在测试期间触发了相关事件（如购买、加购等），并检查 Pixel 是否正确安装。"
+                  : "暂无验收结果数据。请先运行验收测试。"}
+              </Text>
             </Banner>
           )}
         </BlockStack>

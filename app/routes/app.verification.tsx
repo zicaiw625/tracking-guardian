@@ -1,6 +1,6 @@
 import type { LoaderFunctionArgs, ActionFunctionArgs } from "@remix-run/node";
 import { json } from "@remix-run/node";
-import { useLoaderData, useFetcher, useNavigate } from "@remix-run/react";
+import { useLoaderData, useFetcher, useNavigate, useSearchParams } from "@remix-run/react";
 import {
   Page,
   Layout,
@@ -16,10 +16,11 @@ import {
   EmptyState,
   Modal,
 } from "@shopify/polaris";
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { authenticate } from "../shopify.server";
 import prisma from "../db.server";
 import { RefreshIcon, ExportIcon } from "~/components/icons";
+import { useToastContext } from "~/components/ui";
 import {
   VerificationResultsTable,
 } from "~/components/verification/VerificationResultsTable";
@@ -29,6 +30,7 @@ import {
 import { TestOrderGuide } from "~/components/verification/TestOrderGuide";
 import { PageIntroCard } from "~/components/layout/PageIntroCard";
 import { useTranslation } from "react-i18next";
+import type { VerificationHistoryRun } from "~/components/verification/VerificationHistoryPanel";
 
 import {
   createVerificationRun,
@@ -73,25 +75,29 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       status: true,
       runType: true,
       completedAt: true,
-      runName: true
+      runName: true,
+      summaryJson: true,
     },
   });
 
-  const history = historyRaw.map(h => ({
-    runId: h.id,
-    runName: h.runName,
-    runType: h.runType as "quick" | "full" | "custom",
-    status: h.status,
-    passedTests: 0,
-    failedTests: 0,
-    missingParamTests: 0,
-    completedAt: h.completedAt ? h.completedAt.toISOString() : h.createdAt.toISOString()
-  }));
+  const history = historyRaw.map(h => {
+    const summary = h.summaryJson as any;
+    return {
+      runId: h.id,
+      runName: h.runName,
+      runType: h.runType as "quick" | "full" | "custom",
+      status: h.status,
+      passedTests: summary?.passedTests || 0,
+      failedTests: summary?.failedTests || 0,
+      missingParamTests: summary?.missingParamTests || 0,
+      completedAt: h.completedAt ? h.completedAt.toISOString() : h.createdAt.toISOString()
+    };
+  });
 
   return json({ shop, latestRun, history });
 };
 
-const TEST_ITEMS = [
+const GUIDE_TEST_ITEMS = [
   {
     id: "purchase_test",
     name: "Purchase Flow",
@@ -110,6 +116,45 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 
   if (!shop) {
     return json({ success: false, error: "Shop not found" }, { status: 404 });
+  }
+
+  const formData = await request.formData();
+  const actionType = formData.get("_action");
+
+  if (actionType === "verifyTestItem") {
+    const itemId = formData.get("itemId") as string;
+    // const eventType = formData.get("eventType") as string; // Currently unused in check, we use expectedEvents
+    const expectedEventsRaw = formData.get("expectedEvents") as string;
+    let expectedEvents: string[] = [];
+    try {
+      expectedEvents = expectedEventsRaw ? JSON.parse(expectedEventsRaw) : [];
+    } catch (e) {
+      console.error("Failed to parse expectedEvents:", e);
+      return json({ success: false, error: "Invalid event data" }, { status: 400 });
+    }
+
+    // Check for recent events (last 1 hour)
+    const recentEvents = await prisma.pixelEventReceipt.findMany({
+      where: {
+        shopId: shop.id,
+        eventType: { in: expectedEvents },
+        createdAt: { gte: new Date(Date.now() - 60 * 60 * 1000) },
+      },
+      select: { eventType: true },
+    });
+
+    const foundEventTypes = new Set(recentEvents.map((e) => e.eventType));
+    const missingEvents = expectedEvents.filter((e: string) => !foundEventTypes.has(e));
+    const verified = missingEvents.length === 0;
+
+    return json({
+      success: true,
+      itemId,
+      verified,
+      eventsFound: foundEventTypes.size,
+      expectedEvents: expectedEvents.length,
+      missingEvents,
+    });
   }
 
   try {
@@ -138,13 +183,35 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 export default function VerificationPage() {
   const { t } = useTranslation();
   const { shop, latestRun, history } = useLoaderData<typeof loader>();
-  const fetcher = useFetcher();
+  const fetcher = useFetcher<any>();
   const navigate = useNavigate();
-  const [selectedTab, setSelectedTab] = useState(0);
-  const [isRunning, setIsRunning] = useState(false);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const { showSuccess, showError } = useToastContext();
+  
+  const selectedTab = parseInt(searchParams.get("tab") || "0", 10);
   const [showGuide, setShowGuide] = useState(false);
 
-  const handleTabChange = useCallback((selectedTabIndex: number) => setSelectedTab(selectedTabIndex), []);
+  const isRunning = fetcher.state !== "idle" && fetcher.formMethod === "post";
+
+  const handleTabChange = useCallback(
+    (selectedTabIndex: number) => {
+      setSearchParams((prev) => {
+        prev.set("tab", selectedTabIndex.toString());
+        return prev;
+      });
+    },
+    [setSearchParams]
+  );
+
+  useEffect(() => {
+    if (fetcher.data) {
+      if (fetcher.data.success) {
+        showSuccess(t("verification.page.actions.runSuccess") || "Verification completed");
+      } else if (fetcher.data.error) {
+        showError(fetcher.data.error);
+      }
+    }
+  }, [fetcher.data, showSuccess, showError, t]);
 
   const tabs = [
     { id: "overview", content: t("verification.page.tabs.overview") },
@@ -155,12 +222,7 @@ export default function VerificationPage() {
   ];
 
   const handleRunVerification = () => {
-    setIsRunning(true);
-    // Simulate verification delay
-    setTimeout(() => {
-      fetcher.submit({ _action: "runVerification" }, { method: "post" });
-      setIsRunning(false);
-    }, 2000);
+    fetcher.submit({ _action: "runVerification" }, { method: "post" });
   };
 
   if (!shop) {
@@ -177,11 +239,9 @@ export default function VerificationPage() {
     );
   }
 
-  const passRate = latestRun
+  const passRate = latestRun && latestRun.totalTests > 0
     ? Math.round(
-        (latestRun.results.filter((r: any) => r.status === "passed").length /
-          latestRun.results.length) *
-          100
+        (latestRun.passedTests / latestRun.totalTests) * 100
       )
     : 0;
 
@@ -204,7 +264,7 @@ export default function VerificationPage() {
           content: t("verification.page.actions.export"),
           icon: ExportIcon,
           disabled: !latestRun,
-          onAction: () => window.open(`/app/reports/verification/${latestRun?.runId}.csv`, "_blank"),
+          onAction: () => window.open(`/api/reports?type=verification&runId=${latestRun?.runId}&format=csv`, "_blank"),
         },
       ]}
     >
@@ -218,7 +278,7 @@ export default function VerificationPage() {
           ]}
           primaryAction={{
             content: t("verification.page.intro.action"),
-            onAction: () => setSelectedTab(2), // Jump to results
+            onAction: () => handleTabChange(2), // Jump to results
           }}
         />
 
@@ -252,8 +312,8 @@ export default function VerificationPage() {
                               title={t("verification.page.score.passRate")}
                               score={`${passRate}%`}
                               description={t("verification.page.score.passRateDesc", {
-                                passed: latestRun.results.filter((r: any) => r.status === "passed").length,
-                                total: latestRun.results.length,
+                                passed: latestRun.passedTests,
+                                total: latestRun.totalTests,
                               })}
                               tone={passRate === 100 ? "success" : "critical"}
                             />
@@ -293,10 +353,10 @@ export default function VerificationPage() {
                          <VerificationResultsTable latestRun={latestRun} pixelStrictOrigin={false} />
                       )}
                       {selectedTab === 3 && (
-                        <TestOrderGuide shopDomain={shop.shopDomain} shopId={shop.id} testItems={TEST_ITEMS} />
+                        <TestOrderGuide shopDomain={shop.shopDomain} shopId={shop.id} testItems={GUIDE_TEST_ITEMS} />
                       )}
                       {selectedTab === 4 && (
-                        <VerificationHistoryPanel history={history} onRunVerification={handleRunVerification} shop={shop} />
+                        <VerificationHistoryPanel history={history as VerificationHistoryRun[]} onRunVerification={handleRunVerification} shop={shop} />
                       )}
                     </Box>
                   </Tabs>
@@ -368,7 +428,7 @@ export default function VerificationPage() {
         }}
       >
         <Modal.Section>
-           <TestOrderGuide shopDomain={shop.shopDomain} shopId={shop.id} testItems={TEST_ITEMS} />
+           <TestOrderGuide shopDomain={shop.shopDomain} shopId={shop.id} testItems={GUIDE_TEST_ITEMS} />
         </Modal.Section>
       </Modal>
     </Page>
@@ -400,5 +460,16 @@ function ScoreCard({
         </Text>
       </BlockStack>
     </div>
+  );
+}
+
+export function ErrorBoundary() {
+  return (
+    <Page>
+      <Banner tone="critical" title="Verification page error">
+        <p>An unexpected error occurred while loading the verification page.</p>
+        <Button onClick={() => window.location.reload()}>Reload</Button>
+      </Banner>
+    </Page>
   );
 }

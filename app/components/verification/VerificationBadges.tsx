@@ -46,6 +46,10 @@ export function StatusBadge({ status }: { status: string }) {
       return <Badge tone="critical">失败</Badge>;
     case "missing_params":
       return <Badge tone="warning">参数缺失</Badge>;
+    case "warning":
+      return <Badge tone="warning">需注意</Badge>;
+    case "deduplicated":
+      return <Badge tone="info">重复已去重</Badge>;
     case "not_tested":
       return <Badge>未测试</Badge>;
     case "completed":
