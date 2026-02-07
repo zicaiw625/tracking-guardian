@@ -91,16 +91,22 @@ export interface AuditLogFull extends AuditLogSummary {
   metadata: unknown;
 }
 
-const SENSITIVE_FIELDS = [
-  "accessToken",
-  "access_token",
-  "apiSecret",
-  "api_secret",
-  "password",
-  "token",
-  "secret",
-  "credentials",
-  "credentialsEncrypted",
+const SENSITIVE_PATTERNS = [
+  /password/i,
+  /secret/i,
+  /token/i,
+  /credential/i,
+  /key/i,
+  /auth/i,
+];
+
+const SAFE_SUFFIXES = [
+  "_at", "At",
+  "_id", "Id",
+  "_count", "Count",
+  "_num", "Num",
+  "_type", "Type",
+  "_by", "By",
 ];
 
 function redactSensitiveFields(
@@ -109,11 +115,21 @@ function redactSensitiveFields(
   if (!obj) return obj;
   const redacted: Record<string, unknown> = {};
   for (const [key, value] of Object.entries(obj)) {
-    const lowerKey = key.toLowerCase();
-    if (SENSITIVE_FIELDS.some((f) => lowerKey.includes(f.toLowerCase()))) {
+    // 1. Check if the key ends with a safe suffix (e.g. created_at, user_id, token_count)
+    const isSafeSuffix = SAFE_SUFFIXES.some((suffix) => key.endsWith(suffix));
+    
+    // 2. Check if the key matches a sensitive pattern
+    const isSensitivePattern = !isSafeSuffix && SENSITIVE_PATTERNS.some((pattern) => pattern.test(key));
+
+    if (isSensitivePattern) {
       redacted[key] = "[REDACTED]";
+    } else if (value instanceof Date) {
+      redacted[key] = value.toISOString();
     } else if (Array.isArray(value)) {
       redacted[key] = value.map((item) => {
+        if (item instanceof Date) {
+          return item.toISOString();
+        }
         if (typeof item === "object" && item !== null) {
           return redactSensitiveFields(item as Record<string, unknown>);
         }
@@ -128,8 +144,12 @@ function redactSensitiveFields(
   return redacted;
 }
 
-export function extractRequestContext(_request: Request): Record<string, never> {
-  return {};
+export function extractRequestContext(request: Request): Record<string, string | undefined> {
+  return {
+    ip: request.headers.get("x-forwarded-for") || request.headers.get("x-real-ip") || undefined,
+    userAgent: request.headers.get("user-agent") || undefined,
+    requestId: request.headers.get("x-request-id") || undefined,
+  };
 }
 
 export async function createAuditLogEntry(
@@ -146,12 +166,14 @@ export async function createAuditLogEntry(
         action: entry.action,
         resourceType: entry.resourceType,
         resourceId: entry.resourceId || null,
-        previousValue: (entry.previousValue ? (redactSensitiveFields(entry.previousValue) as Prisma.JsonValue) : Prisma.JsonNull) as Prisma.InputJsonValue,
-        newValue: (entry.newValue ? (redactSensitiveFields(entry.newValue) as Prisma.JsonValue) : Prisma.JsonNull) as Prisma.InputJsonValue,
-        metadata: (entry.metadata != null ? (entry.metadata as Prisma.JsonValue) : Prisma.JsonNull) as Prisma.InputJsonValue,
+        previousValue: entry.previousValue ? (redactSensitiveFields(entry.previousValue) as Prisma.InputJsonValue) : Prisma.JsonNull,
+        newValue: entry.newValue ? (redactSensitiveFields(entry.newValue) as Prisma.InputJsonValue) : Prisma.JsonNull,
+        metadata: entry.metadata ? (entry.metadata as Prisma.InputJsonValue) : Prisma.JsonNull,
       },
     });
   } catch (error) {
+    // We intentionally swallow the error here to prevent audit logging failures
+    // from blocking the main business logic.
     logger.error("Failed to create audit log entry", {
       shopId,
       action: entry.action,
@@ -173,9 +195,9 @@ export async function batchCreateAuditLogs(
       action: entry.action,
       resourceType: entry.resourceType,
       resourceId: entry.resourceId || null,
-      previousValue: (entry.previousValue ? (redactSensitiveFields(entry.previousValue) as Prisma.JsonValue) : Prisma.JsonNull) as Prisma.InputJsonValue,
-      newValue: (entry.newValue ? (redactSensitiveFields(entry.newValue) as Prisma.JsonValue) : Prisma.JsonNull) as Prisma.InputJsonValue,
-      metadata: (entry.metadata != null ? (entry.metadata as Prisma.JsonValue) : Prisma.JsonNull) as Prisma.InputJsonValue,
+      previousValue: entry.previousValue ? (redactSensitiveFields(entry.previousValue) as Prisma.InputJsonValue) : Prisma.JsonNull,
+      newValue: entry.newValue ? (redactSensitiveFields(entry.newValue) as Prisma.InputJsonValue) : Prisma.JsonNull,
+      metadata: entry.metadata ? (entry.metadata as Prisma.InputJsonValue) : Prisma.JsonNull,
     }));
     await prisma.auditLog.createMany({
       data,

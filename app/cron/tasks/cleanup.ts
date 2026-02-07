@@ -3,6 +3,7 @@ import { logger } from "../../utils/logger.server";
 import { cleanupExpiredDrafts } from "../../services/migration-draft.server";
 import { WebhookStatus, GDPRJobStatus } from "../../types/enums";
 import { processShopRedact } from "../../services/gdpr/handlers/shop-redact";
+import { cleanupOldJobs, failStuckJobs } from "../../services/batch-audit.server";
 
 const GDPR_JOB_RETENTION_DAYS = 30;
 const MIN_AUDIT_LOG_RETENTION_DAYS = 180;
@@ -20,6 +21,7 @@ export interface CleanupResult {
   uninstalledShopsDeleted: number;
   auditAssetsDeleted: number;
   internalEventsDeleted: number;
+  batchAuditJobsDeleted: number;
 }
 
 async function deleteInBatches(
@@ -55,7 +57,19 @@ export async function cleanupExpiredData(): Promise<CleanupResult> {
     uninstalledShopsDeleted: 0,
     auditAssetsDeleted: 0,
     internalEventsDeleted: 0,
+    batchAuditJobsDeleted: 0,
   };
+
+  try {
+    const deletedJobs = await cleanupOldJobs();
+    const stuckJobs = await failStuckJobs();
+    result.batchAuditJobsDeleted = deletedJobs + stuckJobs;
+    if (result.batchAuditJobsDeleted > 0) {
+      logger.info(`Cleaned up ${deletedJobs} old batch audit jobs and failed ${stuckJobs} stuck jobs`);
+    }
+  } catch (error) {
+    logger.error("Failed to cleanup batch audit jobs", { error });
+  }
 
   try {
     result.migrationDraftsDeleted = await cleanupExpiredDrafts();

@@ -236,11 +236,11 @@ export function analyzeScriptContent(content: string, t?: TFunction): ScriptAnal
             id: "pii_access",
             name: getT(t, "scan.analysis.risks.pii_access.name", {}, "检测到 PII（个人身份信息）访问"),
             description: getT(t, "scan.analysis.risks.pii_access.description", { types: typesStr }, 
-                `脚本可能读取客户${typesStr}等敏感信息，需要确保符合隐私法规（GDPR、CCPA）。Web Pixel 沙箱环境无法直接访问这些信息；如确需处理，请按 Shopify 官方能力与审核要求实施（PCD/权限），并最小化数据处理。`),
+                "脚本可能读取客户敏感信息"),
             severity: "high" as RiskSeverity,
             points: 35,
             details: getT(t, "scan.analysis.risks.pii_access.details", { count: piiMatches.length, types: typesStr }, 
-                `检测到 ${piiMatches.length} 处 PII 访问: ${typesStr}`),
+                `检测到 ${piiMatches.length} 处 PII 访问`),
         });
     }
 
@@ -303,11 +303,11 @@ export function analyzeScriptContent(content: string, t?: TFunction): ScriptAnal
             id: "window_document_access",
             name: getT(t, "scan.analysis.risks.window_document_access.name", {}, "检测到 window/document 全局对象访问"),
             description: getT(t, "scan.analysis.risks.window_document_access.description", {}, 
-                "脚本使用了 window、document 或 DOM 操作。Web Pixel 运行在受限沙箱中，无法访问这些对象，需要在迁移时使用 Shopify 提供的受控 API 替代（如 analytics.subscribe、settings 等）"),
+                "脚本使用了 window、document 或 DOM 操作"),
             severity: "high" as RiskSeverity,
             points: 40,
             details: getT(t, "scan.analysis.risks.window_document_access.details", { count: uniqueMatches.length, issues: issuesStr }, 
-                `检测到 ${uniqueMatches.length} 处访问: ${issuesStr}`),
+                `检测到 ${uniqueMatches.length} 处访问`),
         });
     }
 
@@ -362,11 +362,11 @@ export function analyzeScriptContent(content: string, t?: TFunction): ScriptAnal
             id: "blocking_load",
             name: getT(t, "scan.analysis.risks.blocking_load.name", {}, "检测到阻塞加载的代码"),
             description: getT(t, "scan.analysis.risks.blocking_load.description", { types: typesStr }, 
-                `脚本可能阻塞页面渲染，影响用户体验和页面性能。检测到：${typesStr}`),
+                "脚本可能阻塞页面渲染"),
             severity: "high" as RiskSeverity,
             points: 30,
             details: getT(t, "scan.analysis.risks.blocking_load.details", { count: uniqueMatches.length, types: typesStr }, 
-                `检测到 ${uniqueMatches.length} 处阻塞代码：${typesStr}`),
+                `检测到 ${uniqueMatches.length} 处阻塞代码`),
         });
     }
 
@@ -394,7 +394,7 @@ export function analyzeScriptContent(content: string, t?: TFunction): ScriptAnal
         result.risks.push({
             id: "duplicate_triggers",
             name: getT(t, "scan.analysis.risks.duplicate_triggers.name", {}, "检测到重复触发的事件"),
-            description: getT(t, "scan.analysis.risks.duplicate_triggers.description", {}, "脚本可能多次触发相同事件，导致重复追踪和数据不准确"),
+            description: getT(t, "scan.analysis.risks.duplicate_triggers.description", {}, "脚本可能多次触发相同事件"),
             severity: "medium" as RiskSeverity,
             points: 20,
             details: getT(t, "scan.analysis.risks.duplicate_triggers.details", { count }, `检测到 ${count} 个重复的事件调用`),
@@ -406,7 +406,7 @@ export function analyzeScriptContent(content: string, t?: TFunction): ScriptAnal
         result.risks.push({
             id: "additional_scripts_detected",
             name: getT(t, "scan.analysis.risks.additional_scripts_detected.name", {}, "Additional Scripts 中检测到追踪代码"),
-            description: getT(t, "scan.analysis.risks.additional_scripts_detected.description", {}, "建议迁移到 Web Pixel 以获得更好的兼容性和隐私合规"),
+            description: getT(t, "scan.analysis.risks.additional_scripts_detected.description", {}, "建议迁移到 Web Pixel"),
             severity: "high" as RiskSeverity,
             points: 25,
             details: getT(t, "scan.analysis.risks.additional_scripts_detected.details", { platforms: platformsStr }, `检测到平台: ${platformsStr}`),
@@ -416,7 +416,7 @@ export function analyzeScriptContent(content: string, t?: TFunction): ScriptAnal
             result.risks.push({
                 id: "legacy_ua",
                 name: getT(t, "scan.analysis.risks.legacy_ua.name", {}, "使用旧版 Universal Analytics"),
-                description: getT(t, "scan.analysis.risks.legacy_ua.description", {}, "Universal Analytics 已于 2023 年 7 月停止处理数据，请迁移到 GA4"),
+                description: getT(t, "scan.analysis.risks.legacy_ua.description", {}, "Universal Analytics 已于 2023 年 7 月停止处理数据"),
                 severity: "high" as RiskSeverity,
                 points: 30,
             });
@@ -426,7 +426,7 @@ export function analyzeScriptContent(content: string, t?: TFunction): ScriptAnal
             result.risks.push({
                 id: "inline_script_tags",
                 name: getT(t, "scan.analysis.risks.inline_script_tags.name", {}, "内联 Script 标签"),
-                description: getT(t, "scan.analysis.risks.inline_script_tags.description", {}, "内联脚本可能影响页面加载性能，建议使用异步加载或 Web Pixel"),
+                description: getT(t, "scan.analysis.risks.inline_script_tags.description", {}, "内联脚本可能影响页面加载性能"),
                 severity: "medium" as RiskSeverity,
                 points: 15,
             });
@@ -437,7 +437,6 @@ export function analyzeScriptContent(content: string, t?: TFunction): ScriptAnal
 
     for (const platform of result.identifiedPlatforms) {
         const key = `scan.analysis.recommendations.${platform}`;
-        const fallback = `ℹ️ **${platform}**\n  → 请确认此追踪代码的用途，并评估是否需要迁移到 Web Pixel 或服务端方案`;
         
         // Check if key exists in predefined list implicitly by checking if it matches known platforms
         // Or just trust getT to return fallback if key missing (though getT doesn't check existence, t does)
@@ -450,7 +449,7 @@ export function analyzeScriptContent(content: string, t?: TFunction): ScriptAnal
         
         let recommendation = getT(t, key, {}, "");
         if (!recommendation || recommendation === key) {
-             recommendation = getT(t, "scan.analysis.recommendations.default", { platform }, fallback);
+             recommendation = getT(t, "scan.analysis.recommendations.default", { platform }, `请确认此 ${platform} 追踪代码的用途`);
         }
         
         result.recommendations.push(recommendation);
@@ -459,24 +458,14 @@ export function analyzeScriptContent(content: string, t?: TFunction): ScriptAnal
     if (result.identifiedPlatforms.length === 0 && contentToAnalyze.length > 100) {
         result.recommendations.push(
             getT(t, "scan.analysis.recommendations.unknown", {}, 
-            "ℹ️ **未检测到已知追踪平台**\n" +
-            "  → 可能是自定义脚本、Survey 工具、Post-purchase upsell 等\n" +
-            "  → 迁移方案:\n" +
-            "    • Survey/表单 → 按 Shopify 官方能力手动迁移\n" +
-            "    • Post-purchase upsell → Shopify 官方 post-purchase 扩展\n" +
-            "    • 自定义追踪 → Custom Pixel 或 Web Pixel\n" +
-            "  → 建议: 确认脚本用途后选择对应迁移方案")
+            "未检测到已知追踪平台")
         );
     }
 
     if (result.identifiedPlatforms.length >= 2) {
         result.recommendations.push(
             getT(t, "scan.analysis.recommendations.checklist", {},
-            "\n📋 **迁移清单建议**:\n" +
-            "  1. 优先迁移广告平台（Meta、TikTok）以避免归因数据丢失\n" +
-            "  2. 启用 Web Pixel 并完成测试订单验收\n" +
-            "  3. 验证迁移后数据正常，再删除旧脚本\n" +
-            "  4. 非支持平台（Bing、Pinterest 等）使用官方应用")
+            "迁移清单建议")
         );
     }
 

@@ -74,6 +74,7 @@ model Shop {
   DailyAggregatedMetrics   DailyAggregatedMetrics[]
   OrderSummary             OrderSummary[]
   InternalEvent            InternalEvent[]
+  BatchAuditJob            BatchAuditJob[]
 }
 
 model OrderSummary {
@@ -423,3 +424,20 @@ model EventDispatchJob {
   @@index([status, next_retry_at])
 }
 
+
+model BatchAuditJob {
+  id          String   @id
+  shopId      String
+  requesterId String
+  status      String   @default("pending")
+  progress    Int      @default(0)
+  result      Json?
+  error       String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  Shop        Shop     @relation(fields: [shopId], references: [id], onDelete: Cascade)
+
+  @@index([shopId])
+  @@index([status])
+  @@index([createdAt])
+}

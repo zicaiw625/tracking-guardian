@@ -1,9 +1,79 @@
 {
   "plans": {
+    "free": {
+      "name": "免费计划",
+      "tagline": "小型店铺的基础追踪",
+      "features": {
+        "audit": "Audit 风险报告（但不导出）",
+        "checklist": "迁移清单 + 风险分级 + 替代路径",
+        "deprecation": "明确提示 checkout.liquid/additional scripts 弃用限制",
+        "countdown": "包含废弃倒计时：Plus ({{plusDate}})，非 Plus ({{nonPlusDate}})",
+        "docs": "基础文档支持",
+        "basic": "基础像素事件",
+        "scan": "每日扫描"
+      }
+    },
     "starter": {
       "name": "入门版",
-      "tagline": "扫描报告 + 基础建议"
-    }
+      "tagline": "扫描报告 + 基础建议",
+      "features": {
+        "pixel": "1 个像素目的地 (GA4/Meta/TikTok 三选一)",
+        "mapping": "标准事件映射 + 参数完整率检查",
+        "payload": "可下载 payload 证据（验证和存档用）",
+        "wizard": "验收向导（不含报告导出）",
+        "env": "Test/Live 环境切换",
+        "limit": "每月 1,000 笔订单追踪",
+        "retention": "30 天数据保留",
+        "sandbox": "⚠️ Web Pixel 限制说明（strict sandbox）"
+      }
+    },
+    "growth": {
+      "name": "增长计划",
+      "tagline": "成长型商家的高级功能",
+      "features": {
+        "migration": "像素迁移 + 模块发布 + 验收报告导出 (CSV)",
+        "report": "可交付的验收报告（给老板/客户看的证据）",
+        "checklist": "测试清单 + 事件触发记录 + 参数完整率",
+        "consistency": "订单金额/币种一致性验证",
+        "compliance": "隐私合规检查（consent/customerPrivacy）",
+        "reconciliation": "事件对账与验收（事件对账功能）",
+        "alerts": "断档监控与告警（事件量骤降告警、失败率阈值监控）",
+        "limit": "每月 10,000 笔订单追踪",
+        "retention": "90 天数据保留",
+        "unlimited": "无限事件",
+        "priority": "优先支持",
+        "export": "数据导出"
+      }
+    },
+    "agency": {
+      "name": "代理商计划",
+      "tagline": "适用于高交易量商家和代理商",
+      "features": {
+        "unlimited": "无限像素目的地",
+        "support": "Thank you/Order status 升级自检与交付支持",
+        "limit": "每月 100,000 笔订单追踪",
+        "retention": "无限数据保留",
+        "manager": "专属客户成功经理",
+        "sla": "SLA 保障",
+        "multi": "多店铺管理",
+        "api": "API 访问"
+      }
+    },
+    "monitor": {
+      "name": "Monitor 监控版（可选叠加）",
+      "tagline": "断档监控与告警（上线后保障，v1.0 可选功能）",
+      "features": {
+        "drop": "事件量骤降告警",
+        "threshold": "失败率阈值监控",
+        "missing": "purchase 缺参率检测",
+        "logs": "日志留存与查询",
+        "rollback": "版本回滚支持",
+        "channels": "多渠道告警（邮件/Slack/Telegram）",
+        "realtime": "实时事件监控",
+        "note": "⚠️ 注意：此功能不在 PRD v1.0 正式套餐中"
+      }
+    },
+    "unknown": "未知"
   },
   "subscriptionPlans": {
     "free": {
@@ -560,82 +630,6 @@
       "confirm": "确定",
       "cancel": "取消"
     }
-  },
-  "plans": {
-    "free": {
-      "name": "免费计划",
-      "tagline": "小型店铺的基础追踪",
-      "features": {
-        "audit": "Audit 风险报告（但不导出）",
-        "checklist": "迁移清单 + 风险分级 + 替代路径",
-        "deprecation": "明确提示 checkout.liquid/additional scripts 弃用限制",
-        "countdown": "包含废弃倒计时：Plus ({{plusDate}})，非 Plus ({{nonPlusDate}})",
-        "docs": "基础文档支持",
-        "basic": "基础像素事件",
-        "scan": "每日扫描"
-      }
-    },
-    "starter": {
-      "name": "入门版",
-      "tagline": "扫描报告 + 基础建议",
-      "features": {
-        "pixel": "1 个像素目的地 (GA4/Meta/TikTok 三选一)",
-        "mapping": "标准事件映射 + 参数完整率检查",
-        "payload": "可下载 payload 证据（验证和存档用）",
-        "wizard": "验收向导（不含报告导出）",
-        "env": "Test/Live 环境切换",
-        "limit": "每月 1,000 笔订单追踪",
-        "retention": "30 天数据保留",
-        "sandbox": "⚠️ Web Pixel 限制说明（strict sandbox）"
-      }
-    },
-    "growth": {
-      "name": "增长计划",
-      "tagline": "成长型商家的高级功能",
-      "features": {
-        "migration": "像素迁移 + 模块发布 + 验收报告导出 (CSV)",
-        "report": "可交付的验收报告（给老板/客户看的证据）",
-        "checklist": "测试清单 + 事件触发记录 + 参数完整率",
-        "consistency": "订单金额/币种一致性验证",
-        "compliance": "隐私合规检查（consent/customerPrivacy）",
-        "reconciliation": "事件对账与验收（事件对账功能）",
-        "alerts": "断档监控与告警（事件量骤降告警、失败率阈值监控）",
-        "limit": "每月 10,000 笔订单追踪",
-        "retention": "90 天数据保留",
-        "unlimited": "无限事件",
-        "priority": "优先支持",
-        "export": "数据导出"
-      }
-    },
-    "agency": {
-      "name": "代理商计划",
-      "tagline": "适用于高交易量商家和代理商",
-      "features": {
-        "unlimited": "无限像素目的地",
-        "support": "Thank you/Order status 升级自检与交付支持",
-        "limit": "每月 100,000 笔订单追踪",
-        "retention": "无限数据保留",
-        "manager": "专属客户成功经理",
-        "sla": "SLA 保障",
-        "multi": "多店铺管理",
-        "api": "API 访问"
-      }
-    },
-    "monitor": {
-      "name": "Monitor 监控版（可选叠加）",
-      "tagline": "断档监控与告警（上线后保障，v1.0 可选功能）",
-      "features": {
-        "drop": "事件量骤降告警",
-        "threshold": "失败率阈值监控",
-        "missing": "purchase 缺参率检测",
-        "logs": "日志留存与查询",
-        "rollback": "版本回滚支持",
-        "channels": "多渠道告警（邮件/Slack/Telegram）",
-        "realtime": "实时事件监控",
-        "note": "⚠️ 注意：此功能不在 PRD v1.0 正式套餐中"
-      }
-    },
-    "unknown": "未知"
   },
   "errorPage": {
     "unknownTitle": "发生未知错误",
@@ -1580,10 +1574,10 @@
         "webPixelMigration": "Web Pixel 迁移",
         "checkoutUiExtension": "Checkout UI Extension 或需人工复核",
         "manualReview": "需人工复核（review & replace）",
-      "displayName": "手动补充: {{name}}",
-      "noSummary": "(无摘要)",
-      "editorPlaceholder": "<!-- 示例 -->\n<script>\n  gtag('event', 'purchase', {...});\n  fbq('track', 'Purchase', {...});\n</script>"
-    },
+        "displayName": "手动补充: {{name}}",
+        "noSummary": "(无摘要)",
+        "editorPlaceholder": "<!-- 示例 -->\n<script>\n  gtag('event', 'purchase', {...});\n  fbq('track', 'Purchase', {...});\n</script>"
+      },
       "upgradeRisk": {
         "title": "Shopify 升级风险窗口",
         "suggestedActions": "建议操作："

@@ -278,19 +278,20 @@ async function fetchAllWebPixels(admin: AdminApiContext): Promise<WebPixelInfo[]
         try {
             data = await response.json();
         } catch (error) {
-            const errorMessage = error instanceof Error ? error.message : "Unknown error";
+            const errorMessage = error instanceof Error ? error.message : String(error);
             logger.error("Failed to parse GraphQL response as JSON in fetchAllWebPixels:", errorMessage);
-            return allPixels;
+            throw new Error(`Failed to parse WebPixel response: ${errorMessage}`);
         }
 
         if (data.errors && data.errors.length > 0) {
             const errorMessage = data.errors[0]?.message || "Unknown GraphQL error";
             if (errorMessage.includes("doesn't exist") || errorMessage.includes("access")) {
                 logger.warn("WebPixel API not available (may need to reinstall app for read_pixels scope):", { error: errorMessage });
+                throw new Error(`WebPixel API access denied: ${errorMessage}. Please reinstall the app to update permissions.`);
             } else {
                 logger.error("GraphQL error fetching WebPixel:", { error: errorMessage });
+                throw new Error(`GraphQL error fetching WebPixel: ${errorMessage}`);
             }
-            return allPixels;
         }
 
         const webPixel = data.data?.webPixel;
@@ -309,11 +310,13 @@ async function fetchAllWebPixels(admin: AdminApiContext): Promise<WebPixelInfo[]
         const errorMessage = error instanceof Error ? error.message : String(error);
         if (errorMessage.includes("doesn't exist") || errorMessage.includes("access")) {
              logger.warn("WebPixel API call failed (scope issue, app may need reinstall):", { error: errorMessage });
+             throw new Error(`WebPixel API access denied: ${errorMessage}. Please reinstall the app.`);
         } else if (errorMessage.includes("No web pixel was found for this app")) {
              logger.info("No Web Pixel found for this app (normal if not yet created)");
              return allPixels;
         } else {
              logger.error("Failed to fetch WebPixel:", error);
+             throw error;
         }
     }
     return allPixels;

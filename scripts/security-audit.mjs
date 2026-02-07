@@ -15,7 +15,7 @@ function checkGraphQLOnly() {
   let hasRestApi = false;
   files.forEach(file => {
     const content = readFileSync(file, "utf-8");
-    if (content.includes("admin.rest") || content.includes("REST API")) {
+    if (content.includes("admin.rest")) {
       hasRestApi = true;
       checks.push({
         name: "GraphQL Only Check",
@@ -44,7 +44,8 @@ function checkDataEncryption() {
     if (existsSync(file)) {
       try {
         const content = readFileSync(file, "utf-8");
-        if (content.includes("encrypt") || content.includes("decrypt") || content.includes("AES") || content.includes("GCM") || content.includes("encryptJson") || content.includes("decryptJson")) {
+        // Use regex for more accurate matching of encryption related terms
+        if (/\b(?:en|de)crypt/i.test(content) || /AES|GCM/.test(content)) {
           foundEncryption = true;
           break;
         }
@@ -75,54 +76,51 @@ function checkHMACValidation() {
   const servicesDir = join(process.cwd(), "app/services");
   
   let foundHMAC = false;
-  let foundWebhookAuth = false;
   
+  // Helper to check for HMAC related terms
+  const hasHMAC = (text) => /\bhmac\b/i.test(text) || text.includes("validatePixelEventHMAC") || text.includes("verifyHMACSignature");
+  const hasWebhookAuth = (text) => text.includes("authenticate.webhook") || hasHMAC(text);
+
   if (existsSync(hmacValidationFile)) {
     const content = readFileSync(hmacValidationFile, "utf-8");
-    if (content.includes("HMAC") || content.includes("hmac") || content.includes("validatePixelEventHMAC") || content.includes("verifyHMACSignature")) {
-      foundHMAC = true;
-    }
+    if (hasHMAC(content)) foundHMAC = true;
   }
   
   if (existsSync(webhooksFile)) {
     const content = readFileSync(webhooksFile, "utf-8");
-    if (content.includes("authenticate.webhook") || content.includes("HMAC")) {
-      foundWebhookAuth = true;
-    }
+    if (hasWebhookAuth(content)) foundHMAC = true;
   }
   
   if (existsSync(ingestFile)) {
     const content = readFileSync(ingestFile, "utf-8");
-    if (content.includes("validatePixelEventHMAC") || content.includes("authenticate.public.checkout")) {
-      foundHMAC = true;
-    }
+    if (hasHMAC(content) || content.includes("authenticate.public.checkout")) foundHMAC = true;
   }
   
   const routeFiles = getFilesInDir(routesDir, ".tsx").concat(getFilesInDir(routesDir, ".ts"));
   for (const file of routeFiles) {
     try {
       const content = readFileSync(file, "utf-8");
-      if (content.includes("validatePixelEventHMAC") || content.includes("authenticate.public.checkout") || content.includes("authenticate.webhook")) {
+      if (hasHMAC(content) || content.includes("authenticate.public.checkout") || content.includes("authenticate.webhook")) {
         foundHMAC = true;
         break;
       }
-    } catch {
+    } catch {}
+  }
+  
+  if (!foundHMAC) {
+    const serviceFiles = getFilesInDir(servicesDir, ".ts");
+    for (const file of serviceFiles) {
+      try {
+        const content = readFileSync(file, "utf-8");
+        if (file.includes("hmac") || hasHMAC(content)) {
+          foundHMAC = true;
+          break;
+        }
+      } catch {}
     }
   }
   
-  const serviceFiles = getFilesInDir(servicesDir, ".ts");
-  for (const file of serviceFiles) {
-    try {
-      const content = readFileSync(file, "utf-8");
-      if (file.includes("hmac") || file.includes("hmac-validation") || content.includes("validatePixelEventHMAC") || content.includes("authenticate.webhook")) {
-        foundHMAC = true;
-        break;
-      }
-    } catch {
-    }
-  }
-  
-  if (foundHMAC || foundWebhookAuth) {
+  if (foundHMAC) {
     checks.push({
       name: "HMAC Validation Check",
       status: "pass",

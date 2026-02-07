@@ -69,17 +69,31 @@ export function generateFingerprint(
   platform?: string,
   details?: Record<string, unknown>
 ): string {
+  // If fullContentHash is available (from analysis), use it as the primary source of truth for uniqueness
+  if (details?.fullContentHash && typeof details.fullContentHash === 'string') {
+    return details.fullContentHash;
+  }
+
   const detectedPatterns = Array.isArray(details?.detectedPatterns) 
     ? [...(details.detectedPatterns as string[])].sort() 
     : [];
     
-  const content = JSON.stringify({
-    sourceType,
-    category,
-    platform: platform || "",
-    scriptSrc: details?.scriptSrc || "",
-    detectedPatterns,
-  });
+  // For api_scan, we want to distinguish between different script tags or web pixels
+  // We use scriptTagId, id, or src as a unique identifier if available
+  const uniqueId = details?.scriptTagId || details?.id || details?.src || "";
+
+  // Create a deterministic string representation to avoid JSON.stringify key order issues
+  const fingerprintParts = [
+    `category:${category}`,
+    `detectedPatterns:${detectedPatterns.join(',')}`,
+    `platform:${platform || ""}`,
+    `scriptSrc:${details?.scriptSrc || ""}`,
+    `sourceType:${sourceType}`,
+    `uniqueId:${String(uniqueId)}`
+  ];
+
+  // Sort parts to ensure determinism even if construction order changes
+  const content = fingerprintParts.sort().join('|');
   return crypto.createHash("sha256").update(content).digest("hex").slice(0, 32);
 }
 
@@ -131,21 +145,22 @@ async function calculatePriorityAndTimeEstimate(
   }
 }
 
+const RISK_RULES: Array<{
+  condition: (c: AssetCategory, s: AssetSourceType, p?: string) => boolean;
+  level: RiskLevel;
+}> = [
+  { condition: (c, s) => s === "api_scan" && c === "pixel", level: "high" },
+  { condition: (c, s) => s === "manual_paste" && c === "pixel", level: "high" },
+  { condition: (c) => ["survey", "support"].includes(c), level: "medium" },
+];
+
 function inferRiskLevel(
   category: AssetCategory,
   sourceType: AssetSourceType,
-  _platform?: string
+  platform?: string
 ): RiskLevel {
-  if (sourceType === "api_scan" && category === "pixel") {
-    return "high";
-  }
-  if (sourceType === "manual_paste" && category === "pixel") {
-    return "high";
-  }
-  if (category === "survey" || category === "support") {
-    return "medium";
-  }
-  return "medium";
+  const match = RISK_RULES.find((r) => r.condition(category, sourceType, platform));
+  return match ? match.level : "medium";
 }
 
 export async function createAuditAsset(

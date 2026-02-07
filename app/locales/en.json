@@ -1,9 +1,79 @@
 {
   "plans": {
+    "free": {
+      "name": "Free Plan",
+      "tagline": "Basic tracking for small stores",
+      "features": {
+        "audit": "Audit Risk Report (No Export)",
+        "checklist": "Migration Checklist + Risk Grading + Alternatives",
+        "deprecation": "Clear warnings about checkout.liquid/additional scripts deprecation",
+        "countdown": "Includes countdown to deprecation: Plus ({{plusDate}}), Non-Plus ({{nonPlusDate}})",
+        "docs": "Basic Documentation Support",
+        "basic": "Basic Pixel Events",
+        "scan": "Daily Scan"
+      }
+    },
     "starter": {
       "name": "Starter",
-      "tagline": "For small businesses"
-    }
+      "tagline": "Minimum Viable Pixel Migration (Standard Mapping + Parameter Completeness)",
+      "features": {
+        "pixel": "1 Pixel Destination (Choose GA4/Meta/TikTok)",
+        "mapping": "Standard Event Mapping + Parameter Completeness Check",
+        "payload": "Downloadable Payload Evidence (For Verification/Archive)",
+        "wizard": "Verification Wizard (No Report Export)",
+        "env": "Test/Live Environment Switching",
+        "limit": "1,000 Orders/Month Tracking",
+        "retention": "30 Days Data Retention",
+        "sandbox": "⚠️ Web Pixel Limitations (strict sandbox)"
+      }
+    },
+    "growth": {
+      "name": "Growth Plan",
+      "tagline": "Advanced features for growing businesses",
+      "features": {
+        "migration": "Pixel Migration + Module Publish + Verification Report Export (CSV)",
+        "report": "Deliverable Verification Report (Evidence for Boss/Clients)",
+        "checklist": "Test Checklist + Event Trigger Records + Parameter Completeness",
+        "consistency": "Order Amount/Currency Consistency Verification",
+        "compliance": "Privacy Compliance Check (consent/customerPrivacy)",
+        "reconciliation": "Event Reconciliation & Verification",
+        "alerts": "Outage Monitoring & Alerts (Volume Drop, Failure Rate Thresholds)",
+        "limit": "10,000 Orders/Month Tracking",
+        "retention": "90 Days Data Retention",
+        "unlimited": "Unlimited Events",
+        "priority": "Priority Support",
+        "export": "Data Export"
+      }
+    },
+    "agency": {
+      "name": "Agency Plan",
+      "tagline": "For high volume merchants and agencies",
+      "features": {
+        "unlimited": "Unlimited Pixel Destinations",
+        "support": "Thank you/Order status Upgrade Self-check & Delivery Support",
+        "limit": "100,000 Orders/Month Tracking",
+        "retention": "Unlimited Data Retention",
+        "manager": "Dedicated Customer Success Manager",
+        "sla": "SLA Guarantee",
+        "multi": "Multi-store Management",
+        "api": "API Access"
+      }
+    },
+    "monitor": {
+      "name": "Monitor (Optional Add-on)",
+      "tagline": "Outage Monitoring & Alerts (Post-launch Assurance, v1.0 Optional)",
+      "features": {
+        "drop": "Event Volume Drop Alerts",
+        "threshold": "Failure Rate Threshold Monitoring",
+        "missing": "Purchase Parameter Missing Rate Detection",
+        "logs": "Log Retention & Query",
+        "rollback": "Version Rollback Support",
+        "channels": "Multi-channel Alerts (Email/Slack/Telegram)",
+        "realtime": "Real-time Event Monitoring",
+        "note": "⚠️ Note: Not in PRD v1.0 Official Plans"
+      }
+    },
+    "unknown": "Unknown"
   },
   "subscriptionPlans": {
     "free": {
@@ -561,82 +631,6 @@
       "cancel": "Cancel"
     }
   },
-  "plans": {
-    "free": {
-      "name": "Free Plan",
-      "tagline": "Basic tracking for small stores",
-      "features": {
-        "audit": "Audit Risk Report (No Export)",
-        "checklist": "Migration Checklist + Risk Grading + Alternatives",
-        "deprecation": "Clear warnings about checkout.liquid/additional scripts deprecation",
-        "countdown": "Includes countdown to deprecation: Plus ({{plusDate}}), Non-Plus ({{nonPlusDate}})",
-        "docs": "Basic Documentation Support",
-        "basic": "Basic Pixel Events",
-        "scan": "Daily Scan"
-      }
-    },
-    "starter": {
-      "name": "Starter",
-      "tagline": "Minimum Viable Pixel Migration (Standard Mapping + Parameter Completeness)",
-      "features": {
-        "pixel": "1 Pixel Destination (Choose GA4/Meta/TikTok)",
-        "mapping": "Standard Event Mapping + Parameter Completeness Check",
-        "payload": "Downloadable Payload Evidence (For Verification/Archive)",
-        "wizard": "Verification Wizard (No Report Export)",
-        "env": "Test/Live Environment Switching",
-        "limit": "1,000 Orders/Month Tracking",
-        "retention": "30 Days Data Retention",
-        "sandbox": "⚠️ Web Pixel Limitations (strict sandbox)"
-      }
-    },
-    "growth": {
-      "name": "Growth Plan",
-      "tagline": "Advanced features for growing businesses",
-      "features": {
-        "migration": "Pixel Migration + Module Publish + Verification Report Export (CSV)",
-        "report": "Deliverable Verification Report (Evidence for Boss/Clients)",
-        "checklist": "Test Checklist + Event Trigger Records + Parameter Completeness",
-        "consistency": "Order Amount/Currency Consistency Verification",
-        "compliance": "Privacy Compliance Check (consent/customerPrivacy)",
-        "reconciliation": "Event Reconciliation & Verification",
-        "alerts": "Outage Monitoring & Alerts (Volume Drop, Failure Rate Thresholds)",
-        "limit": "10,000 Orders/Month Tracking",
-        "retention": "90 Days Data Retention",
-        "unlimited": "Unlimited Events",
-        "priority": "Priority Support",
-        "export": "Data Export"
-      }
-    },
-    "agency": {
-      "name": "Agency Plan",
-      "tagline": "For high volume merchants and agencies",
-      "features": {
-        "unlimited": "Unlimited Pixel Destinations",
-        "support": "Thank you/Order status Upgrade Self-check & Delivery Support",
-        "limit": "100,000 Orders/Month Tracking",
-        "retention": "Unlimited Data Retention",
-        "manager": "Dedicated Customer Success Manager",
-        "sla": "SLA Guarantee",
-        "multi": "Multi-store Management",
-        "api": "API Access"
-      }
-    },
-    "monitor": {
-      "name": "Monitor (Optional Add-on)",
-      "tagline": "Outage Monitoring & Alerts (Post-launch Assurance, v1.0 Optional)",
-      "features": {
-        "drop": "Event Volume Drop Alerts",
-        "threshold": "Failure Rate Threshold Monitoring",
-        "missing": "Purchase Parameter Missing Rate Detection",
-        "logs": "Log Retention & Query",
-        "rollback": "Version Rollback Support",
-        "channels": "Multi-channel Alerts (Email/Slack/Telegram)",
-        "realtime": "Real-time Event Monitoring",
-        "note": "⚠️ Note: Not in PRD v1.0 Official Plans"
-      }
-    },
-    "unknown": "Unknown"
-  },
   "errorPage": {
     "unknownTitle": "Unknown Error",
     "unknownMessage": "The system encountered an unexpected problem. Please try again later.",
@@ -1090,37 +1084,37 @@
     "analysis": {
       "risks": {
         "pii_access": {
-          "name": "PII (Personally Identifiable Information) Access Detected",
-          "description": "Script may be accessing sensitive customer information like {{types}}. Ensure compliance with privacy regulations (GDPR, CCPA). Web Pixel sandbox cannot access this directly.",
-          "details": "Detected {{count}} PII access(es): {{types}}"
+          "name": "PII Access Detected",
+          "description": "Script may access sensitive customer info like {{types}}. Ensure GDPR/CCPA compliance. Web Pixel sandbox cannot access this directly; use Shopify official APIs (PCD/Permissions) and minimize data processing.",
+          "details": "Detected {{count}} PII access points: {{types}}"
         },
         "window_document_access": {
-          "name": "Global Object (window/document) Access Detected",
-          "description": "Script uses window, document, or DOM operations. Web Pixel runs in a sandbox and cannot access these. Use Shopify provided APIs instead.",
-          "details": "Detected {{count}} access(es): {{issues}}"
+          "name": "Global window/document Access Detected",
+          "description": "Script uses window, document, or DOM operations. Web Pixel runs in a restricted sandbox and cannot access these. Use Shopify controlled APIs (analytics.subscribe, settings, etc.) instead.",
+          "details": "Detected {{count}} access points: {{issues}}"
         },
         "blocking_load": {
           "name": "Blocking Code Detected",
-          "description": "Script may block page rendering, affecting user experience and performance. Detected: {{types}}",
-          "details": "Detected {{count}} blocking code(s): {{types}}"
+          "description": "Script may block page rendering, impacting UX and performance. Detected: {{types}}",
+          "details": "Detected {{count}} blocking code points: {{types}}"
         },
         "duplicate_triggers": {
-          "name": "Duplicate Event Triggers Detected",
-          "description": "Script may trigger the same event multiple times, leading to duplicate tracking.",
-          "details": "Detected {{count}} duplicate event call(s)"
+          "name": "Duplicate Event Triggers",
+          "description": "Script may trigger the same event multiple times, causing duplicate tracking and inaccurate data.",
+          "details": "Detected {{count}} duplicate event calls"
         },
         "additional_scripts_detected": {
-          "name": "Tracking Code in Additional Scripts Detected",
-          "description": "Recommended to migrate to Web Pixel for better compatibility and privacy compliance.",
+          "name": "Tracking Code in Additional Scripts",
+          "description": "Recommend migrating to Web Pixel for better compatibility and privacy compliance.",
           "details": "Detected platforms: {{platforms}}"
         },
         "legacy_ua": {
-          "name": "Legacy Universal Analytics Detected",
+          "name": "Legacy Universal Analytics",
           "description": "Universal Analytics stopped processing data in July 2023. Please migrate to GA4."
         },
         "inline_script_tags": {
-          "name": "Inline Script Tags Detected",
-          "description": "Inline scripts may affect page load performance. Suggest using async loading or Web Pixel."
+          "name": "Inline Script Tags",
+          "description": "Inline scripts may impact page load performance. Recommend using async loading or Web Pixel."
         }
       },
       "recommendations": {
@@ -1151,9 +1145,9 @@
         "klaviyo": "📧 **Klaviyo**\n  → Migrate to: Klaviyo Official App\n  → Link: https://apps.shopify.com/microsoft-channel\n  → Official app uses Webhook for orders, client script mainly for browsing",
         "attentive": "📱 **Attentive (SMS)**\n  → Migrate to: Attentive Official App (Supports Checkout Extensibility)\n  → Link: https://apps.shopify.com/microsoft-channel\n  → Ensure update to latest version",
         "postscript": "📱 **Postscript (SMS)**\n  → Migrate to: Postscript Official App (Supports new Checkout)\n  → Link: https://apps.shopify.com/microsoft-channel",
-        "default": "ℹ️ **{{platform}}**\n  → Please confirm the purpose of this tracking code and evaluate if migration to Web Pixel or Server-side solution is needed",
-        "unknown": "ℹ️ **Unknown Tracking Platform**\n  → Could be custom script, Survey tool, Post-purchase upsell, etc.\n  → Migration options:\n    • Survey/Forms → Manual migration using Shopify features\n    • Post-purchase upsell → Shopify official post-purchase extensions\n    • Custom tracking → Custom Pixel or Web Pixel\n  → Suggestion: Confirm script usage then choose appropriate migration path",
-        "checklist": "\n📋 **Migration Checklist**:\n  1. Prioritize migrating ad platforms (Meta, TikTok) to avoid attribution loss\n  2. Enable Web Pixel and complete test order verification\n  3. Verify data after migration, then delete old scripts\n  4. Use official apps for unsupported platforms (Bing, Pinterest, etc.)"
+        "default": "ℹ️ **{{platform}}**\n  → Please confirm the purpose of this tracking code and evaluate migration to Web Pixel or Server-side solutions.",
+        "unknown": "ℹ️ **No Known Tracking Platform Detected**\n  → Could be custom scripts, Survey tools, Post-purchase upsell, etc.\n  → Migration Options:\n    • Survey/Forms → Manually migrate using Shopify official capabilities\n    • Post-purchase upsell → Shopify official post-purchase extension\n    • Custom Tracking → Custom Pixel or Web Pixel\n  → Recommendation: Identify script purpose and choose corresponding migration path.",
+        "checklist": "\n📋 **Migration Checklist**:\n  1. Prioritize migrating ad platforms (Meta, TikTok) to avoid attribution loss\n  2. Enable Web Pixel and complete test order verification\n  3. Verify data after migration before removing old scripts\n  4. Use official apps for unsupported platforms (Bing, Pinterest, etc.)"
       }
     },
     "risk": {
