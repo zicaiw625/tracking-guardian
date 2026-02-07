@@ -1940,6 +1940,139 @@
     }
   },
   "verification": {
+    "report": {
+      "pageTitle": "验收报告 - {{runName}}",
+      "subtitle": "PRD 2.5: 导出验收报告（CSV）",
+      "notFound": {
+        "title": "报告未找到",
+        "description": "验收运行记录不存在或无权访问。",
+        "action": "返回验收页面"
+      },
+      "shopNotFound": "店铺信息未找到，请重新安装应用。",
+      "actions": {
+        "back": "返回验收页面",
+        "export": "导出 CSV",
+        "exporting": "导出中...",
+        "reportCenter": "报告中心"
+      },
+      "intro": {
+        "title": "验收报告说明",
+        "description": "报告用于交付验收结果，包含事件触发、参数完整率与一致性检查。",
+        "items": [
+          "支持 CSV 导出",
+          "可用于客户/管理层验收签收"
+        ]
+      },
+      "status": {
+        "completed": "已完成",
+        "running": "进行中",
+        "failed": "失败",
+        "pending": "待开始"
+      },
+      "info": {
+        "title": "报告信息",
+        "name": "报告名称",
+        "type": "测试类型",
+        "completedAt": "完成时间",
+        "types": {
+          "quick": "快速测试",
+          "full": "完整测试",
+          "custom": "自定义测试"
+        },
+        "notStarted": "未开始"
+      },
+      "summary": {
+        "title": "测试摘要",
+        "totalTests": "总测试数",
+        "passed": "通过",
+        "failed": "失败",
+        "completeness": "参数完整率",
+        "accuracy": "金额准确率"
+      },
+      "platformStats": {
+        "title": "平台统计",
+        "platform": "平台",
+        "sent": "成功发送",
+        "failed": "发送失败",
+        "successRate": "成功率"
+      },
+      "events": {
+        "title": "事件详情",
+        "table": {
+          "testItem": "测试项",
+          "eventType": "事件类型",
+          "platform": "平台",
+          "orderId": "订单ID",
+          "status": "状态",
+          "amount": "金额",
+          "currency": "币种",
+          "issues": "问题",
+          "limitations": "Sandbox限制"
+        },
+        "more": "仅显示前 50 条事件，完整数据请导出报告查看。"
+      },
+      "sandbox": {
+        "title": "Strict Sandbox 限制说明",
+        "banner": {
+            "title": "⚠️ Web Pixel 运行在 Strict Sandbox (Web Worker) 环境中",
+            "desc": "Web Pixel 运行在 strict sandbox (Web Worker) 环境中，以下能力受限："
+        },
+        "limitations": [
+            "无法访问 DOM 元素",
+            "无法使用 localStorage/sessionStorage",
+            "无法访问第三方 cookie",
+            "无法执行某些浏览器 API",
+            "部分事件字段可能为 null 或 undefined，这是平台限制，不是故障"
+        ],
+        "missingFields": {
+            "title": "缺失字段（由于 strict sandbox 限制，已自动标注）",
+            "desc": "以下字段因 strict sandbox 限制而无法获取，这是平台限制，不是故障。报告中已自动标注这些限制。哪些事件/哪些字段拿不到已在报告中自动标注，减少纠纷。",
+            "eventType": "事件类型：",
+            "fields": "缺失字段（已自动标注）：",
+            "reason": "原因："
+        },
+        "unavailableEvents": {
+            "title": "不可用的事件类型（已自动标注）",
+            "desc": "以下事件类型在 strict sandbox 中不可用，需要通过订单 webhooks 获取。报告中已自动标注这些限制。哪些事件/哪些字段拿不到已在报告中自动标注，减少纠纷。"
+        },
+        "autoLabel": {
+            "title": "自动标注说明"
+        },
+        "infoBanner": {
+            "p1": "💡 <strong>注意：</strong>以下事件包含发往平台的请求 payload 证据链。如果某些字段（如姓名、邮箱、电话、地址）为 null，可能是由于 PCD (Protected Customer Data) 需要额外 scope 审批（2025-12-10 起生效）或用户未同意 consent。这是 Shopify 平台的合规行为，不是故障。",
+            "p2": "⚠️ <strong>checkout_completed 事件触发行为说明（重要）：</strong>",
+            "p3": "<strong>checkout_completed</strong> 不一定在 Thank you 页触发，且通常只触发一次。当存在 upsell 或 post-purchase offer 时，事件会在第一层 upsell 页触发，且不会在 Thank you 页再次触发。这是 Shopify 的预期行为，不是故障。如果页面加载失败或用户快速离开，事件可能不会触发。验收报告会标注事件触发位置和可能缺失的原因，帮助区分\"正常缺失\"和\"实际故障\"。",
+            "p4": "⚠️ <strong>Strict Sandbox 限制（已自动标注）：</strong>Web Pixel 运行在 strict sandbox (Web Worker) 环境中，无法访问 DOM、localStorage、第三方 cookie 等，部分字段可能不可用。报告中已自动标注所有因 strict sandbox 限制而无法获取的字段和事件。如果某些字段为 null 或缺失，可能是由于 strict sandbox 限制，这是平台限制，不是故障。哪些事件/哪些字段拿不到已在报告中自动标注，减少纠纷。详细说明请查看下方的\"Strict Sandbox 限制说明\"部分。",
+            "knownLimits": "已知限制字段（可能为 null，已自动标注）：",
+            "limitsList": [
+                "<strong>checkout_completed / checkout_started：</strong>buyer.email, buyer.phone, deliveryAddress, shippingAddress, billingAddress（这些字段在 Web Worker 环境中不可用，这是平台限制，不是故障。已在报告中自动标注）",
+                "<strong>checkout_contact_info_submitted：</strong>buyer.email, buyer.phone（这些字段在 Web Worker 环境中不可用，这是平台限制，不是故障。已在报告中自动标注）",
+                "<strong>checkout_shipping_info_submitted：</strong>deliveryAddress, shippingAddress（这些字段在 Web Worker 环境中不可用，这是平台限制，不是故障。已在报告中自动标注）",
+                "<strong>payment_info_submitted：</strong>billingAddress（这些字段在 Web Worker 环境中不可用，这是平台限制，不是故障。已在报告中自动标注）"
+            ],
+            "unavailableEventsTitle": "不可用的事件类型（已自动标注，需要通过订单 webhooks 获取）：",
+            "unavailableEventsDesc": "refund, order_cancelled, order_edited, subscription_created, subscription_updated, subscription_cancelled（这些事件在 strict sandbox 中不可用，需要通过订单 webhooks 获取。已在报告中自动标注）",
+            "autoLabelDesc": "💡 <strong>自动标注说明：</strong>报告中已自动标注所有因 strict sandbox 限制而无法获取的字段和事件。这些限制是 Shopify 平台的设计限制，不是故障。哪些事件/哪些字段拿不到已在报告中自动标注，减少纠纷。如需获取这些字段或事件，请使用订单 webhooks 或其他 Shopify API。详细说明请查看下方的\"Strict Sandbox 限制说明\"部分。"
+        }
+      },
+      "reconciliation": {
+        "title": "渠道对账结果",
+        "local": {
+            "title": "本地一致性检查",
+            "total": "检查订单数",
+            "consistent": "一致",
+            "inconsistent": "不一致"
+        }
+      },
+      "upgrade": {
+          "desc": "导出报告需要升级：验收报告导出（CSV）是核心付费点，需要 Growth ($79/月) 或 Agency ($199/月) 套餐。",
+          "action": "升级解锁"
+      },
+       "originWarning": {
+           "title": "事件接收校验：当前为宽松的 Origin 校验",
+           "desc": "来自非白名单或 HMAC 验证失败但未拒的请求仍可能被接收并标为低信任，验收报告可能包含此类事件。若需更高准确性，建议在部署环境设置 <code>PIXEL_STRICT_ORIGIN=true</code> 并配置 Origin 白名单。"
+       }
+    },
     "page": {
       "title": "验收（Verification）+ 断档监控（Monitoring）",
       "subtitle": "测试清单 + 事件触发记录 + 参数完整率 + 订单金额/币种一致性 • 隐私合规检查（consent/customerPrivacy）• 验收报告导出（CSV）是核心付费点（给老板/客户看的证据）• Growth 套餐 $79/月 或 Agency 套餐 $199/月",

@@ -277,7 +277,11 @@ export async function analyzeRecentEvents(
       orderKey: true,
     },
   });
-  const orderKeysFromReceipts = [...new Set(receipts.map((r) => r.orderKey).filter(Boolean) as string[])];
+  const orderKeysFromReceipts = [...new Set(receipts.map((r) => {
+    if (r.orderKey) return r.orderKey;
+    const payload = r.payloadJson as Record<string, unknown> | null;
+    return (payload?.data as Record<string, unknown>)?.orderId as string | undefined;
+  }).filter(Boolean) as string[])];
   const orderSummaries = orderKeysFromReceipts.length > 0
     ? await prisma.orderSummary.findMany({
         where: { shopId, orderId: { in: orderKeysFromReceipts } },
@@ -342,7 +346,7 @@ export async function analyzeRecentEvents(
     let currency: string | undefined;
     let items: number | undefined;
     if (payload) {
-      value = data?.value as number | undefined;
+      value = data?.value != null ? Number(data.value) : undefined;
       currency = data?.currency as string | undefined;
       const dataItems = data?.items as Array<unknown> | undefined;
       items = dataItems ? dataItems.length : undefined;
@@ -350,7 +354,7 @@ export async function analyzeRecentEvents(
         const events = payload.events as Array<Record<string, unknown>> | undefined;
         if (events && events.length > 0) {
           const params = events[0].params as Record<string, unknown> | undefined;
-          value = params?.value as number | undefined;
+          value = params?.value != null ? Number(params.value) : undefined;
           currency = params?.currency as string | undefined;
           items = Array.isArray(params?.items) ? params.items.length : undefined;
         }
@@ -358,7 +362,7 @@ export async function analyzeRecentEvents(
         const eventsData = payload.data as Array<Record<string, unknown>> | undefined;
         if (eventsData && eventsData.length > 0) {
           const customData = eventsData[0].custom_data as Record<string, unknown> | undefined;
-          value = customData?.value as number | undefined;
+          value = customData?.value != null ? Number(customData.value) : undefined;
           currency = customData?.currency as string | undefined;
           items = Array.isArray(customData?.contents) ? customData.contents.length : undefined;
         }
@@ -366,7 +370,7 @@ export async function analyzeRecentEvents(
         const eventsData = payload.data as Array<Record<string, unknown>> | undefined;
         if (eventsData && eventsData.length > 0) {
           const properties = eventsData[0].properties as Record<string, unknown> | undefined;
-          value = properties?.value as number | undefined;
+          value = properties?.value != null ? Number(properties.value) : undefined;
           currency = properties?.currency as string | undefined;
           items = Array.isArray(properties?.contents) ? properties.contents.length : undefined;
         }
@@ -377,7 +381,7 @@ export async function analyzeRecentEvents(
     const hasEventId = !!payload?.eventId || !!receipt.id;
     let dedupInfo: { existingEventId?: string; reason?: string } | undefined;
     if (receipt.eventType !== "purchase") {
-      const hasBasicFields = !!(payload?.eventId ?? receipt.id) && !!(payload?.eventName ?? receipt.eventType);
+      const hasBasicFields = !!payload?.eventId && !!(payload?.eventName ?? receipt.eventType);
       if (hasBasicFields) {
         passedTests++;
         const p = platform || "unknown";
@@ -402,7 +406,7 @@ export async function analyzeRecentEvents(
         if (!platformResults[p]) platformResults[p] = { sent: 0, failed: 0 };
         platformResults[p].failed++;
         const disc: string[] = [];
-        if (!(payload?.eventId ?? receipt.id)) disc.push("缺少 eventId");
+        if (!payload?.eventId) disc.push("缺少 eventId");
         if (!(payload?.eventName ?? receipt.eventType)) disc.push("缺少 eventName");
         results.push({
           testItemId: receipt.eventType,

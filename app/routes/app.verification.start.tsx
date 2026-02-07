@@ -133,8 +133,8 @@ export default function VerificationStartPage() {
                 {t("verification.start.checklist.pixelLayerTitle")}
               </Text>
               <List type="number">
-                {testChecklist.pixelLayer.map((item: PixelLayerItem, index: number) => (
-                  <List.Item key={index}>
+                {testChecklist.pixelLayer.map((item: PixelLayerItem) => (
+                  <List.Item key={item.eventName}>
                     <BlockStack gap="100">
                       <InlineStack gap="200" blockAlign="center">
                         <Text as="span" variant="bodyMd" fontWeight="semibold">
@@ -161,8 +161,8 @@ export default function VerificationStartPage() {
                             {t("verification.start.checklist.expectedParams")}
                           </Text>
                           <List type="bullet">
-                            {item.expectedParams?.map((param: string, pIndex: number) => (
-                              <List.Item key={pIndex}>
+                            {item.expectedParams?.map((param: string) => (
+                              <List.Item key={param}>
                                 <Text as="span" variant="bodySm">
                                   {param}
                                 </Text>
@@ -177,62 +177,62 @@ export default function VerificationStartPage() {
               </List>
             </BlockStack>
             <Divider />
-            {testChecklist.orderLayer.length > 0 && (
-              <BlockStack gap="300">
-                <Text as="h3" variant="headingSm">
-                  {t("verification.start.checklist.orderLayerTitle")}
-                </Text>
-                <Banner tone="info">
-                  <Text as="p" variant="bodySm">
-                    {t("verification.start.checklist.orderLayerBanner")}
+            {testChecklist?.orderLayer && testChecklist.orderLayer.length > 0 && (
+              <>
+                <BlockStack gap="300">
+                  <Text as="h3" variant="headingSm">
+                    {t("verification.start.checklist.orderLayerTitle")}
                   </Text>
-                </Banner>
-              </BlockStack>
-            )}
-            {testChecklist?.orderLayer && (testChecklist?.orderLayer?.length ?? 0) > 0 && (
-              <List type="number">
-                {testChecklist?.orderLayer?.map((item: OrderLayerItem, index: number) => (
-                  <List.Item key={index}>
-                    <BlockStack gap="100">
-                      <InlineStack gap="200" blockAlign="center">
-                        <Text as="span" variant="bodyMd" fontWeight="semibold">
-                          {item.eventType}
-                        </Text>
-                        <Badge tone={item.required ? "critical" : "info"}>
-                          {item.required ? t("verification.start.checklist.required") : t("verification.start.checklist.optional")}
-                        </Badge>
-                      </InlineStack>
-                      <Text as="p" variant="bodySm" tone="subdued">
-                        {item.description}
-                      </Text>
-                      <Text as="p" variant="bodySm">
-                        <strong>{t("verification.start.checklist.verificationPoints")}</strong>
-                        {item.verificationPoints.join("、")}
-                      </Text>
-                      {item.expectedFields && (
-                        <Box
-                          padding="300"
-                          borderRadius="200"
-                          background="bg-surface-secondary"
-                        >
-                          <Text as="p" variant="bodySm" fontWeight="semibold">
-                            {t("verification.start.checklist.expectedFields")}
+                  <Banner tone="info">
+                    <Text as="p" variant="bodySm">
+                      {t("verification.start.checklist.orderLayerBanner")}
+                    </Text>
+                  </Banner>
+                </BlockStack>
+                <List type="number">
+                  {testChecklist.orderLayer.map((item: OrderLayerItem) => (
+                    <List.Item key={item.eventType}>
+                      <BlockStack gap="100">
+                        <InlineStack gap="200" blockAlign="center">
+                          <Text as="span" variant="bodyMd" fontWeight="semibold">
+                            {item.eventType}
                           </Text>
-                          <List type="bullet">
-                            {item.expectedFields?.map((field: string, fIndex: number) => (
-                              <List.Item key={fIndex}>
-                                <Text as="span" variant="bodySm">
-                                  {field}
-                                </Text>
-                              </List.Item>
-                            ))}
-                          </List>
-                        </Box>
-                      )}
-                    </BlockStack>
-                  </List.Item>
-                ))}
-              </List>
+                          <Badge tone={item.required ? "critical" : "info"}>
+                            {item.required ? t("verification.start.checklist.required") : t("verification.start.checklist.optional")}
+                          </Badge>
+                        </InlineStack>
+                        <Text as="p" variant="bodySm" tone="subdued">
+                          {item.description}
+                        </Text>
+                        <Text as="p" variant="bodySm">
+                          <strong>{t("verification.start.checklist.verificationPoints")}</strong>
+                          {item.verificationPoints.join("、")}
+                        </Text>
+                        {item.expectedFields && (
+                          <Box
+                            padding="300"
+                            borderRadius="200"
+                            background="bg-surface-secondary"
+                          >
+                            <Text as="p" variant="bodySm" fontWeight="semibold">
+                              {t("verification.start.checklist.expectedFields")}
+                            </Text>
+                            <List type="bullet">
+                              {item.expectedFields?.map((field: string) => (
+                                <List.Item key={field}>
+                                  <Text as="span" variant="bodySm">
+                                    {field}
+                                  </Text>
+                                </List.Item>
+                              ))}
+                            </List>
+                          </Box>
+                        )}
+                      </BlockStack>
+                    </List.Item>
+                  ))}
+                </List>
+              </>
             )}
             <Divider />
             <BlockStack gap="300">

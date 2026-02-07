@@ -39,6 +39,12 @@ import {
   getVerificationRun,
 } from "~/services/verification.server";
 
+interface VerificationRunSummary {
+  passedTests: number;
+  failedTests: number;
+  missingParamTests: number;
+}
+
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   const { session } = await authenticate.admin(request);
   const shopDomain = session.shop;
@@ -63,7 +69,14 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     select: { id: true },
   });
 
-  const latestRun = latestRunRaw ? await getVerificationRun(latestRunRaw.id) : null;
+  let latestRun = null;
+  if (latestRunRaw) {
+    try {
+      latestRun = await getVerificationRun(latestRunRaw.id);
+    } catch (e) {
+      console.error("Failed to get latest verification run:", e);
+    }
+  }
 
   const historyRaw = await prisma.verificationRun.findMany({
     where: { shopId: shop.id },
@@ -81,7 +94,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   });
 
   const history = historyRaw.map(h => {
-    const summary = h.summaryJson as any;
+    const summary = (h.summaryJson || {}) as unknown as VerificationRunSummary;
     return {
       runId: h.id,
       runName: h.runName,
@@ -130,7 +143,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       expectedEvents = expectedEventsRaw ? JSON.parse(expectedEventsRaw) : [];
     } catch (e) {
       console.error("Failed to parse expectedEvents:", e);
-      return json({ success: false, error: "Invalid event data" }, { status: 400 });
+      return json({ success: false, error: "Invalid event data format" }, { status: 400 });
     }
 
     // Check for recent events (last 1 hour)
@@ -157,27 +170,32 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     });
   }
 
-  try {
-    // 1. Create a new verification run
-    const runId = await createVerificationRun(shop.id, {
-      runName: "Manual Verification",
-      runType: "quick",
-    });
+  if (actionType === "runVerification") {
+    try {
+      // 1. Create a new verification run
+      const runId = await createVerificationRun(shop.id, {
+        runName: "Manual Verification",
+        runType: "quick",
+      });
 
-    // 2. Mark as running
-    await startVerificationRun(runId);
+      // 2. Mark as running
+      await startVerificationRun(runId);
 
-    // 3. Analyze recent events (look back 24 hours)
-    // This will update the run with results and mark it as completed
-    await analyzeRecentEvents(shop.id, runId, {
-      since: new Date(Date.now() - 24 * 60 * 60 * 1000),
-    });
+      // 3. Analyze recent events (look back 24 hours)
+      // This will update the run with results and mark it as completed
+      await analyzeRecentEvents(shop.id, runId, {
+        since: new Date(Date.now() - 24 * 60 * 60 * 1000),
+      });
 
-    return json({ success: true, message: "Verification completed", runId });
-  } catch (error) {
-    console.error("Verification failed:", error);
-    return json({ success: false, error: "Verification failed" }, { status: 500 });
+      return json({ success: true, message: "Verification completed", runId });
+    } catch (error) {
+      console.error("Verification failed:", error);
+      const errorMessage = error instanceof Error ? error.message : "Verification failed";
+      return json({ success: false, error: errorMessage }, { status: 500 });
+    }
   }
+
+  return json({ success: false, error: "Unknown action" }, { status: 400 });
 };
 
 export default function VerificationPage() {
@@ -188,7 +206,8 @@ export default function VerificationPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const { showSuccess, showError } = useToastContext();
   
-  const selectedTab = parseInt(searchParams.get("tab") || "0", 10);
+  const tabParam = searchParams.get("tab");
+  const selectedTab = tabParam ? Math.max(0, parseInt(tabParam, 10) || 0) : 0;
   const [showGuide, setShowGuide] = useState(false);
 
   const isRunning = fetcher.state !== "idle" && fetcher.formMethod === "post";
@@ -444,21 +463,23 @@ function ScoreCard({
   title: string;
   score: string;
   description: string;
-  tone?: "success" | "critical" | "warning" | "attention";
+  tone?: "success" | "critical";
 }) {
   return (
-    <div style={{ flex: 1, padding: "1rem", background: "var(--p-surface)", borderRadius: "var(--p-border-radius-2)", border: "1px solid var(--p-border-subdued)" }}>
-      <BlockStack gap="200" align="center">
-        <Text as="h3" variant="headingSm" tone="subdued">
-          {title}
-        </Text>
-        <Text as="p" variant="heading2xl" tone={tone as any}>
-          {score}
-        </Text>
-        <Text as="p" variant="bodySm" tone="subdued" alignment="center">
-          {description}
-        </Text>
-      </BlockStack>
+    <div style={{ flex: 1 }}>
+      <Card>
+        <BlockStack gap="200" align="center">
+          <Text as="h3" variant="headingSm" tone="subdued">
+            {title}
+          </Text>
+          <Text as="p" variant="heading2xl" tone={tone}>
+            {score}
+          </Text>
+          <Text as="p" variant="bodySm" tone="subdued" alignment="center">
+            {description}
+          </Text>
+        </BlockStack>
+      </Card>
     </div>
   );
 }

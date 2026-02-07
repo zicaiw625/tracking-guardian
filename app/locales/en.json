@@ -1939,6 +1939,139 @@
     }
   },
   "verification": {
+    "report": {
+      "pageTitle": "Verification Report - {{runName}}",
+      "subtitle": "PRD 2.5: Export Verification Report (CSV)",
+      "notFound": {
+        "title": "Report Not Found",
+        "description": "Verification run record does not exist or you do not have permission.",
+        "action": "Back to Verification"
+      },
+      "shopNotFound": "Shop information not found, please reinstall the app.",
+      "actions": {
+        "back": "Back to Verification",
+        "export": "Export CSV",
+        "exporting": "Exporting...",
+        "reportCenter": "Report Center"
+      },
+      "intro": {
+        "title": "Verification Report Guide",
+        "description": "The report is used to deliver verification results, including event triggers, parameter completeness, and consistency checks.",
+        "items": [
+          "Supports CSV Export",
+          "Suitable for client/management sign-off"
+        ]
+      },
+      "status": {
+        "completed": "Completed",
+        "running": "Running",
+        "failed": "Failed",
+        "pending": "Pending"
+      },
+      "info": {
+        "title": "Report Info",
+        "name": "Report Name",
+        "type": "Test Type",
+        "completedAt": "Completed At",
+        "types": {
+          "quick": "Quick Test",
+          "full": "Full Test",
+          "custom": "Custom Test"
+        },
+        "notStarted": "Not Started"
+      },
+      "summary": {
+        "title": "Test Summary",
+        "totalTests": "Total Tests",
+        "passed": "Passed",
+        "failed": "Failed",
+        "completeness": "Parameter Completeness",
+        "accuracy": "Value Accuracy"
+      },
+      "platformStats": {
+        "title": "Platform Statistics",
+        "platform": "Platform",
+        "sent": "Sent",
+        "failed": "Failed",
+        "successRate": "Success Rate"
+      },
+      "events": {
+        "title": "Event Details",
+        "table": {
+          "testItem": "Test Item",
+          "eventType": "Event Type",
+          "platform": "Platform",
+          "orderId": "Order ID",
+          "status": "Status",
+          "amount": "Amount",
+          "currency": "Currency",
+          "issues": "Issues",
+          "limitations": "Sandbox Limits"
+        },
+        "more": "Showing only first 50 events, please export report for full data."
+      },
+      "sandbox": {
+        "title": "Strict Sandbox Limitations",
+        "banner": {
+            "title": "⚠️ Web Pixel runs in Strict Sandbox (Web Worker)",
+            "desc": "Web Pixel runs in strict sandbox (Web Worker) environment, with the following limitations:"
+        },
+        "limitations": [
+            "Cannot access DOM elements",
+            "Cannot use localStorage/sessionStorage",
+            "Cannot access third-party cookies",
+            "Cannot execute certain browser APIs",
+            "Some event fields may be null or undefined, this is a platform limitation, not a bug"
+        ],
+        "missingFields": {
+            "title": "Missing Fields (Automatically labeled due to strict sandbox)",
+            "desc": "The following fields are unavailable due to strict sandbox limitations. This is a platform limitation, not a bug. These limitations are automatically labeled in the report to reduce disputes.",
+            "eventType": "Event Type:",
+            "fields": "Missing Fields (Auto-labeled):",
+            "reason": "Reason:"
+        },
+        "unavailableEvents": {
+            "title": "Unavailable Event Types (Automatically labeled)",
+            "desc": "The following event types are unavailable in strict sandbox and need to be retrieved via order webhooks. These limitations are automatically labeled in the report."
+        },
+        "autoLabel": {
+            "title": "Auto-labeling Explanation"
+        },
+        "infoBanner": {
+            "p1": "💡 <strong>Note:</strong> The following events contain payload evidence chains sent to platforms. If certain fields (like name, email, phone, address) are null, it may be due to PCD (Protected Customer Data) requiring extra scope approval (effective from 2025-12-10) or user consent not granted. This is Shopify platform compliance behavior, not a bug.",
+            "p2": "⚠️ <strong>checkout_completed Event Trigger Behavior (Important):</strong>",
+            "p3": "<strong>checkout_completed</strong> does not always trigger on the Thank You page, and usually triggers only once. When upsell or post-purchase offers exist, the event triggers on the first upsell page and will not trigger again on the Thank You page. This is expected Shopify behavior, not a bug. If the page fails to load or the user leaves quickly, the event may not trigger. The verification report marks event trigger locations and possible reasons for missing events to help distinguish 'normal missing' from 'actual bugs'.",
+            "p4": "⚠️ <strong>Strict Sandbox Limitations (Auto-labeled):</strong> Web Pixel runs in a strict sandbox (Web Worker) environment and cannot access DOM, localStorage, third-party cookies, etc. Some fields may be unavailable. The report automatically labels all fields and events unavailable due to strict sandbox limitations. If some fields are null or missing, it may be due to strict sandbox limitations, which is a platform limitation, not a bug. Which events/fields are unavailable are automatically labeled in the report to reduce disputes. See 'Strict Sandbox Limitations' section below for details.",
+            "knownLimits": "Known Limited Fields (May be null, auto-labeled):",
+            "limitsList": [
+                "<strong>checkout_completed / checkout_started:</strong> buyer.email, buyer.phone, deliveryAddress, shippingAddress, billingAddress (These fields are unavailable in Web Worker environment, this is a platform limitation, not a bug. Auto-labeled in report)",
+                "<strong>checkout_contact_info_submitted:</strong> buyer.email, buyer.phone (These fields are unavailable in Web Worker environment, this is a platform limitation, not a bug. Auto-labeled in report)",
+                "<strong>checkout_shipping_info_submitted:</strong> deliveryAddress, shippingAddress (These fields are unavailable in Web Worker environment, this is a platform limitation, not a bug. Auto-labeled in report)",
+                "<strong>payment_info_submitted:</strong> billingAddress (These fields are unavailable in Web Worker environment, this is a platform limitation, not a bug. Auto-labeled in report)"
+            ],
+            "unavailableEventsTitle": "Unavailable Event Types (Auto-labeled, require order webhooks):",
+            "unavailableEventsDesc": "refund, order_cancelled, order_edited, subscription_created, subscription_updated, subscription_cancelled (These events are unavailable in strict sandbox and require order webhooks. Auto-labeled in report)",
+            "autoLabelDesc": "💡 <strong>Auto-labeling Explanation:</strong> The report automatically labels all fields and events unavailable due to strict sandbox limitations. These limitations are Shopify platform design limitations, not bugs. Which events/fields are unavailable are automatically labeled in the report to reduce disputes. To access these fields or events, please use order webhooks or other Shopify APIs. See 'Strict Sandbox Limitations' section below for details."
+        }
+      },
+      "reconciliation": {
+        "title": "Channel Reconciliation Results",
+        "local": {
+            "title": "Local Consistency Check",
+            "total": "Orders Checked",
+            "consistent": "Consistent",
+            "inconsistent": "Inconsistent"
+        }
+      },
+      "upgrade": {
+          "desc": "Exporting report requires upgrade: Verification report export (CSV) is a core paid feature, requiring Growth ($79/mo) or Agency ($199/mo) plan.",
+          "action": "Upgrade to Unlock"
+      },
+       "originWarning": {
+           "title": "Event Reception Validation: Currently using loose Origin validation",
+           "desc": "Requests from non-whitelisted origins or with failed HMAC validation (but not rejected) may still be received and marked as low trust. The verification report may include such events. For higher accuracy, it is recommended to set <code>PIXEL_STRICT_ORIGIN=true</code> in the deployment environment and configure the Origin whitelist."
+       }
+    },
     "page": {
       "title": "Verification + Monitoring",
       "subtitle": "Test Checklist + Event Trigger Log + Parameter Completeness + Order Value/Currency Consistency • Privacy Compliance (consent/customerPrivacy) • Verification Report Export (CSV) is a core paid feature (evidence for boss/clients) • Growth Plan $79/mo or Agency Plan $199/mo",
