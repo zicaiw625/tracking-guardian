@@ -285,6 +285,30 @@ export async function upsertPixelEventReceipt(
     logger.warn(`Failed to write PixelEventReceipt for event ${eventType}`, {
       error: String(error),
     });
+
+    // P0: Fallback to Redis for deduplication even if DB write fails
+    // This ensures we don't process the same purchase twice in the short term
+    if (eventType === "purchase" && extractedOrderKey) {
+      try {
+        const redis = await getRedisClient();
+        const ttlSeconds = 7 * 24 * 60 * 60;
+        const dedupKey = `dedup:purchase:${shopId}:${extractedOrderKey}`;
+        await redis.set(dedupKey, "1", { EX: ttlSeconds }).catch(() => {});
+        if (altOrderKey && altOrderKey !== extractedOrderKey) {
+          const altDedupKey = `dedup:purchase:${shopId}:${altOrderKey}`;
+          await redis.set(altDedupKey, "1", { EX: ttlSeconds }).catch(() => {});
+        }
+        logger.info(`Fallback: Wrote purchase deduplication key to Redis after DB failure`, {
+          shopId,
+          orderKey: extractedOrderKey
+        });
+      } catch (redisError) {
+        logger.warn(`Failed to write fallback Redis key after DB failure`, {
+           error: String(redisError)
+        });
+      }
+    }
+
     return { success: false, eventId };
   }
 }

@@ -4,8 +4,10 @@ import type { PixelEventPayload, KeyValidationResult } from "./types";
 
 const QUEUE_KEY = "ingest:queue";
 const PROCESSING_KEY = "ingest:processing";
+const DLQ_KEY = "ingest:dlq";
 const MAX_QUEUE_SIZE = 100_000;
 const MAX_BATCHES_PER_RUN = 50;
+const MAX_RETRIES = 5;
 
 export interface IngestRequestContext {
   ip?: string | null;
@@ -25,6 +27,7 @@ export interface IngestQueueEntry {
   origin: string | null;
   requestContext?: IngestRequestContext;
   enqueuedAt?: number;
+  retryCount?: number;
   enabledPixelConfigs?: Array<{
     platform: string;
     id: string;
@@ -140,14 +143,43 @@ export async function processIngestQueue(
       await redis.lRem(PROCESSING_KEY, 1, raw);
       processed++;
     } catch (e) {
+      const currentRetry = entry.retryCount || 0;
       logger.error("Ingest worker batch failed", {
         requestId: entry.requestId,
         shopDomain: entry.shopDomain,
         shopId: entry.shopId,
+        retryCount: currentRetry,
         error: e instanceof Error ? e.message : String(e),
       });
+      
+      try {
+        if (currentRetry >= MAX_RETRIES) {
+          logger.warn(`Ingest batch exceeded max retries (${MAX_RETRIES}), moving to DLQ`, {
+            requestId: entry.requestId,
+            shopDomain: entry.shopDomain
+          });
+          entry.retryCount = currentRetry + 1;
+          await redis.lPush(DLQ_KEY, JSON.stringify(entry));
+          await redis.lRem(PROCESSING_KEY, 1, raw);
+        } else {
+          // Re-queue with incremented retry count
+          // Push to Head of Queue (will be processed last, acting as backoff)
+          entry.retryCount = currentRetry + 1;
+          await redis.lPush(QUEUE_KEY, JSON.stringify(entry));
+          await redis.lRem(PROCESSING_KEY, 1, raw);
+        }
+      } catch (queueError) {
+        logger.error("Failed to handle failed ingest batch (DLQ/Retry)", {
+          requestId: entry.requestId,
+          error: queueError instanceof Error ? queueError.message : String(queueError)
+        });
+        // If we fail here, we leave it in PROCESSING_KEY. 
+        // It will be picked up by recoverStuckProcessingItems later, 
+        // effectively resetting its retry loop (since we couldn't update the JSON).
+        // This is a safe fallback.
+      }
+      
       errors++;
-      // We do NOT remove from PROCESSING_KEY here, so it can be recovered later
     }
   }
 
