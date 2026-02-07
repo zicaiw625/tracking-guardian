@@ -77,9 +77,9 @@ export function AlertsTab({ alertConfigs, isSubmitting, alertChannelsEnabled = f
   }, [newChannel, newEmail, newWebhookUrl, newBotToken, newChatId, newThreshold]);
 
   const channelOptions = [
-    { label: "Email", value: "email" },
-    { label: "Slack", value: "slack" },
-    { label: "Telegram", value: "telegram" },
+    { label: t("settings.alerts.channels.email"), value: "email" },
+    { label: t("settings.alerts.channels.slack"), value: "slack" },
+    { label: t("settings.alerts.channels.telegram"), value: "telegram" },
   ];
 
   return (

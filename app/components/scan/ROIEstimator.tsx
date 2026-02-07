@@ -14,6 +14,8 @@ import {
 } from "@shopify/polaris";
 import { AlertCircleIcon, CheckCircleIcon, ArrowRightIcon } from "~/components/icons";
 import type { ScriptTag } from "../../types";
+import { useTranslation } from "react-i18next";
+
 interface ROIEstimatorProps {
   riskScore: number;
   scriptTags: ScriptTag[];
@@ -29,6 +31,7 @@ export function ROIEstimator({
   monthlyOrders,
   onMonthlyOrdersChange,
 }: ROIEstimatorProps) {
+  const { t } = useTranslation();
   const roiEstimate = useMemo(() => {
     const platforms = identifiedPlatforms.length || 1;
     const scriptTagCount = scriptTags.length;
@@ -47,24 +50,23 @@ export function ROIEstimator({
       <BlockStack gap="400">
         <InlineStack align="space-between" blockAlign="center">
           <Text as="h2" variant="headingMd">
-            📊 迁移影响分析（仅供参考）
+            {t("roiEstimator.title")}
           </Text>
-          <Badge tone="info">示例估算</Badge>
+          <Badge tone="info">{t("roiEstimator.badge")}</Badge>
         </InlineStack>
         <Banner tone="warning">
           <Text as="p" variant="bodySm">
-            <strong>⚠️ 免责声明：</strong>以下为简化示意，仅帮助理解迁移的必要性。
-            实际业务影响因店铺业务模式、流量来源、客户群体、广告账户设置等多种因素而异，
-            本工具无法预测具体数值影响，不构成任何效果保证或承诺。
+            <strong>{t("roiEstimator.disclaimer.title")}</strong>
+            {t("roiEstimator.disclaimer.content")}
           </Text>
         </Banner>
         <Box background="bg-surface-secondary" padding="400" borderRadius="200">
           <BlockStack gap="300">
             <Text as="p" fontWeight="semibold">
-              🧮 输入您的月订单量，查看具体影响
+              {t("roiEstimator.input.label")}
             </Text>
             <RangeSlider
-              label="月订单量"
+              label={t("roiEstimator.input.sliderLabel")}
               value={monthlyOrders}
               onChange={(value) => onMonthlyOrdersChange(value as number)}
               output
@@ -73,7 +75,7 @@ export function ROIEstimator({
               step={100}
               suffix={
                 <Text as="span" variant="bodySm">
-                  {monthlyOrders} 单/月
+                  {monthlyOrders} {t("roiEstimator.input.unit")}
                 </Text>
               }
             />
@@ -84,46 +86,49 @@ export function ROIEstimator({
             <InlineStack gap="200" blockAlign="center">
               <Icon source={AlertCircleIcon} tone="critical" />
               <Text as="h3" variant="headingMd" tone="critical">
-                不迁移会丢失什么？（示意说明）
+                {t("roiEstimator.impact.title")}
               </Text>
             </InlineStack>
             <InlineStack gap="400" align="space-between" wrap>
               <Box background="bg-surface" padding="300" borderRadius="100" minWidth="150px">
                 <BlockStack gap="100">
                   <Text as="p" variant="bodySm" tone="subdued">
-                    可能受影响的事件
+                    {t("roiEstimator.impact.events.label")}
                   </Text>
                   <Text as="p" variant="headingLg" fontWeight="bold" tone="critical">
                     {roiEstimate.eventsLostPerMonth.toLocaleString()}
                   </Text>
                   <Text as="p" variant="bodySm" tone="critical">
-                    {roiEstimate.platforms} 平台 × {monthlyOrders} 订单
+                    {t("roiEstimator.impact.events.detail", {
+                      platforms: roiEstimate.platforms,
+                      orders: monthlyOrders,
+                    })}
                   </Text>
                 </BlockStack>
               </Box>
               <Box background="bg-surface" padding="300" borderRadius="100" minWidth="150px">
                 <BlockStack gap="100">
                   <Text as="p" variant="bodySm" tone="subdued">
-                    受影响 ScriptTag
+                    {t("roiEstimator.impact.scripts.label")}
                   </Text>
                   <Text as="p" variant="headingLg" fontWeight="bold" tone="critical">
                     {roiEstimate.scriptTagCount}
                   </Text>
                   <Text as="p" variant="bodySm" tone="critical">
-                    将在截止日停止执行
+                    {t("roiEstimator.impact.scripts.detail")}
                   </Text>
                 </BlockStack>
               </Box>
               <Box background="bg-surface" padding="300" borderRadius="100" minWidth="150px">
                 <BlockStack gap="100">
                   <Text as="p" variant="bodySm" tone="subdued">
-                    实际影响
+                    {t("roiEstimator.impact.actual.label")}
                   </Text>
                   <Text as="p" variant="headingLg" fontWeight="bold" tone="caution">
-                    因店铺而异
+                    {t("roiEstimator.impact.actual.value")}
                   </Text>
                   <Text as="p" variant="bodySm" tone="subdued">
-                    取决于流量来源和客户群体
+                    {t("roiEstimator.impact.actual.detail")}
                   </Text>
                 </BlockStack>
               </Box>
@@ -136,46 +141,46 @@ export function ROIEstimator({
             <InlineStack gap="200" blockAlign="center">
               <Icon source={CheckCircleIcon} tone="success" />
               <Text as="h3" variant="headingMd" tone="success">
-                迁移后能恢复什么？（您的预期收益）
+                {t("roiEstimator.recovery.title")}
               </Text>
             </InlineStack>
             <InlineStack gap="400" align="space-between" wrap>
               <Box background="bg-surface" padding="300" borderRadius="100" minWidth="150px">
                 <BlockStack gap="100">
                   <Text as="p" variant="bodySm" tone="subdued">
-                    每月恢复事件
+                    {t("roiEstimator.recovery.events.label")}
                   </Text>
                   <Text as="p" variant="headingLg" fontWeight="bold" tone="success">
                     {roiEstimate.eventsLostPerMonth.toLocaleString()}
                   </Text>
                   <Text as="p" variant="bodySm" tone="success">
-                    转化追踪功能恢复
+                    {t("roiEstimator.recovery.events.detail")}
                   </Text>
                 </BlockStack>
               </Box>
               <Box background="bg-surface" padding="300" borderRadius="100" minWidth="150px">
                 <BlockStack gap="100">
                   <Text as="p" variant="bodySm" tone="subdued">
-                    潜在收益（示例）
+                    {t("roiEstimator.recovery.potential.label")}
                   </Text>
                   <Text as="p" variant="headingLg" fontWeight="bold" tone="success">
-                    确保追踪
+                    {t("roiEstimator.recovery.potential.value")}
                   </Text>
                   <Text as="p" variant="bodySm" tone="success">
-                    避免数据中断
+                    {t("roiEstimator.recovery.potential.detail")}
                   </Text>
                 </BlockStack>
               </Box>
               <Box background="bg-surface" padding="300" borderRadius="100" minWidth="150px">
                 <BlockStack gap="100">
                   <Text as="p" variant="bodySm" tone="subdued">
-                    验收与监控
+                    {t("roiEstimator.recovery.monitoring.label")}
                   </Text>
                   <Text as="p" variant="headingLg" fontWeight="bold" tone="success">
-                    更可靠
+                    {t("roiEstimator.recovery.monitoring.value")}
                   </Text>
                   <Text as="p" variant="bodySm" tone="success">
-                    可验证可交付
+                    {t("roiEstimator.recovery.monitoring.detail")}
                   </Text>
                 </BlockStack>
               </Box>
@@ -185,7 +190,7 @@ export function ROIEstimator({
         <Divider />
         <BlockStack gap="300">
           <Text as="h3" variant="headingMd">
-            迁移前后对比
+            {t("roiEstimator.comparison.title")}
           </Text>
           <InlineStack gap="400" align="space-between" wrap={false}>
             <Box
@@ -196,13 +201,17 @@ export function ROIEstimator({
             >
               <BlockStack gap="100">
                 <Text as="p" variant="bodySm" tone="subdued">
-                  当前（不迁移）
+                  {t("roiEstimator.comparison.current.label")}
                 </Text>
                 <Text as="p" variant="headingLg" fontWeight="bold" tone="critical">
-                  {riskScore > 60 ? "高风险" : riskScore > 30 ? "中风险" : "低风险"}
+                  {riskScore > 60
+                    ? t("roiEstimator.comparison.current.risk.high")
+                    : riskScore > 30
+                    ? t("roiEstimator.comparison.current.risk.medium")
+                    : t("roiEstimator.comparison.current.risk.low")}
                 </Text>
                 <Text as="p" variant="bodySm" tone="critical">
-                  {scriptTags.length} 个 ScriptTag 将失效
+                  {t("roiEstimator.comparison.current.detail", { count: scriptTags.length })}
                 </Text>
               </BlockStack>
             </Box>
@@ -217,13 +226,13 @@ export function ROIEstimator({
             >
               <BlockStack gap="100">
                 <Text as="p" variant="bodySm" tone="subdued">
-                  迁移后
+                  {t("roiEstimator.comparison.after.label")}
                 </Text>
                 <Text as="p" variant="headingLg" fontWeight="bold" tone="success">
-                  功能恢复
+                  {t("roiEstimator.comparison.after.value")}
                 </Text>
                 <Text as="p" variant="bodySm" tone="success">
-                  Web Pixel + 验收闭环
+                  {t("roiEstimator.comparison.after.detail")}
                 </Text>
               </BlockStack>
             </Box>
@@ -238,34 +247,34 @@ export function ROIEstimator({
             >
               <BlockStack gap="100">
                 <Text as="p" variant="bodySm" tone="subdued">
-                  额外收益
+                  {t("roiEstimator.comparison.extra.label")}
                 </Text>
                 <Text as="p" variant="headingLg" fontWeight="bold" tone="success">
-                  更稳定
+                  {t("roiEstimator.comparison.extra.value")}
                 </Text>
                 <Text as="p" variant="bodySm" tone="success">
-                  不受隐私限制影响
+                  {t("roiEstimator.comparison.extra.detail")}
                 </Text>
               </BlockStack>
             </Box>
           </InlineStack>
-          <Banner tone="info" title="验收与监控带来的确定性">
+          <Banner tone="info" title={t("roiEstimator.benefits.title")}>
             <Text as="p" variant="bodySm">
-              ✅ 升级后可快速确认事件是否持续触发
+              ✅ {t("roiEstimator.benefits.list.item1")}
               <br />
-              ✅ 通过事件收据与参数完整率定位问题
+              ✅ {t("roiEstimator.benefits.list.item2")}
               <br />
-              ✅ 断档监控与告警降低上线后维护成本
+              ✅ {t("roiEstimator.benefits.list.item3")}
               <br />
               <Text as="span" tone="subdued">
-                注：广告平台侧归因效果以平台数据为准
+                {t("roiEstimator.benefits.note")}
               </Text>
             </Text>
           </Banner>
         </BlockStack>
         <InlineStack align="end" gap="200">
           <Button url="/app/migrate" variant="primary">
-            立即开始迁移
+            {t("roiEstimator.action")}
           </Button>
         </InlineStack>
       </BlockStack>

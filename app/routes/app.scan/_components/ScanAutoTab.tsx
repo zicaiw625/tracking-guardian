@@ -387,7 +387,7 @@ export function ScanAutoTab({
                                                     {t("scan.migrationActionsCard.removeDuplicate")}
                                                 </Button>
                                             )}
-                                            {action.type === "configure_pixel" && action.description?.includes("升级") && (
+                                            {action.type === "configure_pixel" && action.titleKey === "scan.migrationLogic.upgrade.title" && (
                                                 <Button
                                                     size="slim"
                                                     icon={RefreshIcon}
@@ -397,7 +397,7 @@ export function ScanAutoTab({
                                                     {t("scan.migrationActionsCard.upgradeConfig")}
                                                 </Button>
                                             )}
-                                            {action.type === "configure_pixel" && !action.description?.includes("升级") && (
+                                            {action.type === "configure_pixel" && action.titleKey !== "scan.migrationLogic.upgrade.title" && (
                                                 <Button
                                                     size="slim"
                                                     url="/app/migrate"

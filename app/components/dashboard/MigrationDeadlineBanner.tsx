@@ -5,11 +5,13 @@ import { DEPRECATION_DATES, formatDeadlineDate } from "../../utils/migration-dea
 import { ArrowRightIcon } from "../icons";
 
 export function MigrationDeadlineBanner() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const lang = i18n.language.startsWith('zh') ? 'zh-CN' : 'en';
+  const helpUrl = `https://help.shopify.com/${lang}/manual/checkout-settings/order-status-page/additional-scripts`;
 
   const helpCenterLink = (
     <Link
-      to="https://help.shopify.com/en/manual/checkout-settings/order-status-page/additional-scripts"
+      to={helpUrl}
       target="_blank"
       rel="noopener noreferrer"
     />
@@ -53,7 +55,7 @@ export function MigrationDeadlineBanner() {
               a: helpCenterLink,
             }}
           >
-            <strong>Important:</strong> The following dates are from Shopify official announcements for reference only. Please refer to Shopify Admin for actual deadlines. Shopify may update policies, we recommend checking <Link to="https://help.shopify.com/en/manual/checkout-settings/order-status-page/additional-scripts" target="_blank" rel="noopener noreferrer">{t("dashboard.migrationDeadlineBanner.helpCenter")}</Link> regularly.
+            <strong>Important:</strong> The following dates are from Shopify official announcements for reference only. Please refer to Shopify Admin for actual deadlines. Shopify may update policies, we recommend checking <Link to={helpUrl} target="_blank" rel="noopener noreferrer">{t("dashboard.migrationDeadlineBanner.helpCenter")}</Link> regularly.
           </Trans>
         </Text>
         <InlineStack align="start">

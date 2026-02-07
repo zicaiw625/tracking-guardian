@@ -27,6 +27,7 @@ import {
     type AuditAssetInput
 } from "../audit-asset.server";
 import { sanitizeScriptTags } from "../../utils/url-sanitize.server";
+import type { TFunction } from "i18next";
 
 export type {
     WebPixelInfo,
@@ -517,7 +518,7 @@ export async function getCachedScanResult(
 export async function scanShopTracking(
     admin: AdminApiContext,
     shopId: string,
-    options: { force?: boolean; cacheTtlMs?: number } = {}
+    options: { force?: boolean; cacheTtlMs?: number; t?: TFunction } = {}
 ): Promise<EnhancedScanResult> {
     function safeJsonClone<T>(obj: T): T {
       try {
@@ -527,7 +528,7 @@ export async function scanShopTracking(
         return obj;
       }
     }
-    const { force = false, cacheTtlMs = SCAN_CACHE_TTL_MS } = options;
+    const { force = false, cacheTtlMs = SCAN_CACHE_TTL_MS, t } = options;
     const shop = await prisma.shop.findUnique({
         where: { id: shopId },
         select: { shopTier: true }
@@ -653,7 +654,7 @@ export async function scanShopTracking(
     logger.info(`Identified platforms: ${result.identifiedPlatforms.join(", ") || "none"}`);
     result.duplicatePixels = detectDuplicatePixels(result);
     logger.info(`Duplicate pixels found: ${result.duplicatePixels.length}`);
-    result.riskItems = assessRisks(result);
+    result.riskItems = assessRisks(result, t);
     result.riskScore = calculateRiskScore(result.riskItems);
     logger.info(`Risk assessment complete: score=${result.riskScore}, items=${result.riskItems.length}`);
     result.migrationActions = generateMigrationActions(result, shopTier);
@@ -692,7 +693,7 @@ export async function scanShopTracking(
             if (tag.src) {
                 try {
                     // P1-2: Use URL-based risk detection for ScriptTags (source URL available, content not available via API)
-                    riskDetection = detectRisksInUrl(tag.src);
+                    riskDetection = detectRisksInUrl(tag.src, t);
                 } catch (error) {
                     logger.warn("Failed to detect risks in ScriptTag", {
                         scriptTagId: tag.id,

@@ -77,7 +77,7 @@ export const HealthScoreCard = memo(function HealthScoreCard({
         {rejectionStats && rejectionStats.length > 0 && (
           <Box paddingBlockStart="400" width="100%">
              <BlockStack gap="200">
-               <Text as="h3" variant="headingSm" tone="critical">Pixel Health (Last 1h)</Text>
+               <Text as="h3" variant="headingSm" tone="critical">{t("dashboard.healthScore.pixelHealthTitle")}</Text>
                {rejectionStats.slice(0, 3).map((stat) => (
                  <InlineStack key={stat.reason} align="space-between">
                    <Text as="span" variant="bodySm" tone="subdued">{stat.reason}</Text>

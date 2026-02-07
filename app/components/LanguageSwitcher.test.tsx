@@ -6,6 +6,10 @@ import { LanguageSwitcher } from "./LanguageSwitcher";
 import { AppProvider } from "@shopify/polaris";
 import enTranslations from "../locales/en.json";
 
+const { submitMock } = vi.hoisted(() => ({
+  submitMock: vi.fn(),
+}));
+
 // Mock Polaris Popover to bypass portal/positioning logic
 vi.mock("@shopify/polaris", async (importOriginal) => {
   const actual: any = await importOriginal();
@@ -17,6 +21,17 @@ vi.mock("@shopify/polaris", async (importOriginal) => {
         {active && <div data-testid="popover-content">{children}</div>}
       </div>
     ),
+  };
+});
+
+vi.mock("@remix-run/react", async (importOriginal) => {
+  const actual: any = await importOriginal();
+  return {
+    ...actual,
+    useFetcher: () => ({
+      submit: submitMock,
+      state: "idle",
+    }),
   };
 });
 
@@ -115,6 +130,7 @@ describe("LanguageSwitcher", () => {
       fireEvent.click(chineseOption);
     });
 
+    expect(submitMock).toHaveBeenCalled();
     expect(changeLanguageMock).toHaveBeenCalledWith("zh");
   });
 
@@ -148,6 +164,7 @@ describe("LanguageSwitcher", () => {
       fireEvent.click(englishOption);
     });
 
+    expect(submitMock).toHaveBeenCalled();
     expect(changeLanguageMock).toHaveBeenCalledWith("en");
   });
 });

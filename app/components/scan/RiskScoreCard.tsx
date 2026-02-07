@@ -5,12 +5,15 @@ interface RiskScoreCardProps {
   createdAt: string;
 }
 
+import { useTranslation } from "react-i18next";
+
 export function RiskScoreCard({ riskScore, createdAt }: RiskScoreCardProps) {
+  const { t, i18n } = useTranslation();
   return (
     <Card>
       <BlockStack gap="400">
         <Text as="h2" variant="headingMd">
-          风险评分
+          {t("scan.riskScore")}
         </Text>
         <Box
           background={
@@ -33,7 +36,7 @@ export function RiskScoreCard({ riskScore, createdAt }: RiskScoreCardProps) {
           </BlockStack>
         </Box>
         <Text as="p" variant="bodySm" tone="subdued">
-          扫描时间: {new Date(createdAt).toLocaleString("zh-CN")}
+          {t("scan.scanTime")}: {new Date(createdAt).toLocaleString(i18n.language)}
         </Text>
       </BlockStack>
     </Card>

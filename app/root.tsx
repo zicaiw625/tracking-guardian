@@ -1,10 +1,18 @@
-import { Links, Meta, Outlet, Scripts, ScrollRestoration, useRouteError, isRouteErrorResponse } from "@remix-run/react";
+import { Links, Meta, Outlet, Scripts, ScrollRestoration, useRouteError, isRouteErrorResponse, useLoaderData } from "@remix-run/react";
 import { useEffect } from "react";
 import polarisStyles from "@shopify/polaris/build/esm/styles.css?url";
 import { suppressMonorailErrors } from "./utils/suppress-monorail-errors.client";
 import { useTranslation } from "react-i18next";
+import { useChangeLanguage } from "remix-i18next/react";
+import { json, type LoaderFunctionArgs } from "@remix-run/node";
+import { i18nServer } from "./i18n.server";
 
 export const links = () => [{ rel: "stylesheet", href: polarisStyles }];
+
+export async function loader({ request }: LoaderFunctionArgs) {
+  const locale = await i18nServer.getLocale(request);
+  return json({ locale });
+}
 
 function PerformanceMonitor() {
   useEffect(() => {
@@ -16,9 +24,10 @@ function PerformanceMonitor() {
 }
 
 export default function App() {
-  const { i18n } = useTranslation();
+  const { locale } = useLoaderData<typeof loader>();
+  useChangeLanguage(locale);
   return (
-    <html lang={i18n.language || "en"}>
+    <html lang={locale}>
       <head>
         <meta charSet="utf-8"/>
         <meta name="viewport" content="width=device-width,initial-scale=1"/>

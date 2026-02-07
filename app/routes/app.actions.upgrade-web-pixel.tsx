@@ -10,8 +10,10 @@ import {
 } from "../services/migration.server";
 import { decryptIngestionSecret } from "../utils/token-encryption.server";
 import { logger } from "../utils/logger.server";
+import { i18nServer } from "../i18n.server";
 
 export const action = async ({ request }: ActionFunctionArgs) => {
+    const t = await i18nServer.getFixedT(request);
     const { admin, session } = await authenticate.admin(request);
     if (request.method !== "POST") {
         return json({ success: false, error: "Method not allowed" }, { status: 405 });
@@ -29,7 +31,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         if (!shop) {
             return json({
                 success: false,
-                error: "店铺未找到",
+                error: t("scan.errors.shopNotFound"),
             }, { status: 404 });
         }
         let ingestionKey = "";
@@ -45,14 +47,14 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         if (!ingestionKey) {
             return json({
                 success: false,
-                error: "无法获取 ingestion key，请重新安装应用",
+                error: t("scan.errors.ingestionKeyMissing"),
             }, { status: 400 });
         }
         const webPixels = await getExistingWebPixels(admin);
         if (webPixels.length === 0) {
             return json({
                 success: false,
-                error: "未找到 Web Pixel，请先安装 Pixel",
+                error: t("scan.errors.webPixelNotFound"),
             }, { status: 404 });
         }
         const pixelsToUpgrade: Array<{
@@ -78,7 +80,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         if (pixelsToUpgrade.length === 0) {
             return json({
                 success: true,
-                message: "所有 Pixel 配置已是最新版本，无需升级",
+                message: t("scan.success.noUpgradeNeeded"),
                 upgradedCount: 0,
             });
         }
@@ -115,13 +117,13 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         if (failures.length === 0) {
             return json({
                 success: true,
-                message: `成功升级 ${successCount} 个 Pixel 配置`,
+                message: t("scan.success.upgradeSuccess", { count: successCount }),
                 upgradedCount: successCount,
             });
         }
         return json({
             success: false,
-            message: `升级了 ${successCount}/${results.length} 个 Pixel 配置`,
+            message: t("scan.errors.upgradePartial", { success: successCount, total: results.length }),
             upgradedCount: successCount,
             failures: failures.map(f => ({
                 pixelId: f.pixelId,
@@ -132,7 +134,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         logger.error("Upgrade WebPixel action error", error);
         return json({
             success: false,
-            error: error instanceof Error ? error.message : "服务器错误",
+            error: error instanceof Error ? error.message : t("common.serverError"),
         }, { status: 500 });
     }
 };

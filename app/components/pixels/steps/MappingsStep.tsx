@@ -1,6 +1,7 @@
 import { Card, BlockStack, Text, Banner, List, Divider } from "@shopify/polaris";
 import { EventMappingEditor } from "~/components/migrate/EventMappingEditor";
 import type { SupportedPlatform, PlatformConfig } from "../constants";
+import { useTranslation } from "react-i18next";
 
 interface MappingsStepProps {
   selectedPlatforms: Set<SupportedPlatform>;
@@ -17,124 +18,126 @@ export function MappingsStep({
   platformConfigs,
   onEventMappingUpdate,
 }: MappingsStepProps) {
+  const { t } = useTranslation();
+
   return (
     <Card>
       <BlockStack gap="400">
         <Text as="h3" variant="headingMd">
-          配置事件映射
+          {t("newPixelWizard.mappingsStep.title")}
         </Text>
         <Text as="p" tone="subdued">
-          将 Shopify 事件映射到各平台事件。您可以基于推荐映射进行调整。
+          {t("newPixelWizard.mappingsStep.description")}
         </Text>
         <Banner tone="warning">
           <BlockStack gap="300">
             <Text as="p" variant="bodySm" fontWeight="semibold">
-              ⚠️ Strict Sandbox 能力边界说明（App Review 重要信息）
+              {t("newPixelWizard.mappingsStep.sandboxWarning.title")}
             </Text>
             <Text as="p" variant="bodySm">
-              Web Pixel 运行在 strict sandbox (Web Worker) 环境中，以下能力受限：
+              {t("newPixelWizard.mappingsStep.sandboxWarning.description")}
             </Text>
             <List type="bullet">
               <List.Item>
                 <Text as="span" variant="bodySm">
-                  无法访问 DOM 元素
+                  {t("newPixelWizard.mappingsStep.sandboxWarning.limitations.dom")}
                 </Text>
               </List.Item>
               <List.Item>
                 <Text as="span" variant="bodySm">
-                  无法使用 localStorage/sessionStorage
+                  {t("newPixelWizard.mappingsStep.sandboxWarning.limitations.storage")}
                 </Text>
               </List.Item>
               <List.Item>
                 <Text as="span" variant="bodySm">
-                  无法访问第三方 cookie
+                  {t("newPixelWizard.mappingsStep.sandboxWarning.limitations.cookie")}
                 </Text>
               </List.Item>
               <List.Item>
                 <Text as="span" variant="bodySm">
-                  无法执行某些浏览器 API
+                  {t("newPixelWizard.mappingsStep.sandboxWarning.limitations.api")}
                 </Text>
               </List.Item>
             </List>
             <Divider />
             <Text as="p" variant="bodySm" fontWeight="semibold">
-              v1.0 支持的事件类型：
+              {t("newPixelWizard.mappingsStep.supportedEvents.title")}
             </Text>
             <List type="bullet">
               <List.Item>
                 <Text as="span" variant="bodySm">
-                  ✅ checkout_started（开始结账）
+                  {t("newPixelWizard.mappingsStep.supportedEvents.items.checkout_started")}
                 </Text>
               </List.Item>
               <List.Item>
                 <Text as="span" variant="bodySm">
-                  ✅ checkout_completed（完成购买）
+                  {t("newPixelWizard.mappingsStep.supportedEvents.items.checkout_completed")}
                 </Text>
               </List.Item>
               <List.Item>
                 <Text as="span" variant="bodySm">
-                  ✅ checkout_contact_info_submitted（提交联系信息）
+                  {t("newPixelWizard.mappingsStep.supportedEvents.items.checkout_contact_info_submitted")}
                 </Text>
               </List.Item>
               <List.Item>
                 <Text as="span" variant="bodySm">
-                  ✅ checkout_shipping_info_submitted（提交配送信息）
+                  {t("newPixelWizard.mappingsStep.supportedEvents.items.checkout_shipping_info_submitted")}
                 </Text>
               </List.Item>
               <List.Item>
                 <Text as="span" variant="bodySm">
-                  ✅ payment_info_submitted（提交支付信息）
+                  {t("newPixelWizard.mappingsStep.supportedEvents.items.payment_info_submitted")}
                 </Text>
               </List.Item>
               <List.Item>
                 <Text as="span" variant="bodySm">
-                  ✅ product_added_to_cart（加入购物车）
+                  {t("newPixelWizard.mappingsStep.supportedEvents.items.product_added_to_cart")}
                 </Text>
               </List.Item>
               <List.Item>
                 <Text as="span" variant="bodySm">
-                  ✅ product_viewed（商品浏览）
+                  {t("newPixelWizard.mappingsStep.supportedEvents.items.product_viewed")}
                 </Text>
               </List.Item>
               <List.Item>
                 <Text as="span" variant="bodySm">
-                  ✅ page_viewed（页面浏览）
+                  {t("newPixelWizard.mappingsStep.supportedEvents.items.page_viewed")}
                 </Text>
               </List.Item>
             </List>
             <Divider />
             <Text as="p" variant="bodySm" fontWeight="semibold" tone="critical">
-              ❌ v1.0 不支持的事件类型（需要通过订单 webhooks 获取）：
+              {t("newPixelWizard.mappingsStep.unsupportedEvents.title")}
             </Text>
             <List type="bullet">
               <List.Item>
                 <Text as="span" variant="bodySm">
-                  refund（退款）
+                  {t("newPixelWizard.mappingsStep.unsupportedEvents.items.refund")}
                 </Text>
               </List.Item>
               <List.Item>
                 <Text as="span" variant="bodySm">
-                  order_cancelled（订单取消）
+                  {t("newPixelWizard.mappingsStep.unsupportedEvents.items.order_cancelled")}
                 </Text>
               </List.Item>
               <List.Item>
                 <Text as="span" variant="bodySm">
-                  order_edited（订单编辑）
+                  {t("newPixelWizard.mappingsStep.unsupportedEvents.items.order_edited")}
                 </Text>
               </List.Item>
               <List.Item>
                 <Text as="span" variant="bodySm">
-                  subscription_updated（订阅更新）
+                  {t("newPixelWizard.mappingsStep.unsupportedEvents.items.subscription_updated")}
                 </Text>
               </List.Item>
               <List.Item>
                 <Text as="span" variant="bodySm">
-                  subscription_cancelled（订阅取消）
+                  {t("newPixelWizard.mappingsStep.unsupportedEvents.items.subscription_cancelled")}
                 </Text>
               </List.Item>
             </List>
             <Text as="p" variant="bodySm" tone="subdued">
-              💡 原因：Web Pixel Extension 运行在 strict sandbox 环境，只能订阅 Shopify 标准 checkout 漏斗事件。退款、取消、编辑订单、订阅等事件需要订单 webhooks 或后台定时对账才能获取，将在 v1.1+ 版本中通过订单 webhooks 实现（严格做 PII 最小化）。
+              {t("newPixelWizard.mappingsStep.unsupportedEvents.reason")}
             </Text>
           </BlockStack>
         </Banner>

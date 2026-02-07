@@ -100,22 +100,22 @@ export function VerificationResultsTable({
                       <List type="bullet">
                         <List.Item>
                           <Text as="span" variant="bodySm">
-                            <strong>checkout_completed / checkout_started：</strong>buyer.email, buyer.phone, deliveryAddress, shippingAddress, billingAddress（这些字段在 Web Worker 环境中不可用，这是平台限制）
+                            <strong>checkout_completed / checkout_started: </strong>{t("verification.limitFields.checkout_completed")}
                           </Text>
                         </List.Item>
                         <List.Item>
                           <Text as="span" variant="bodySm">
-                            <strong>checkout_contact_info_submitted：</strong>buyer.email, buyer.phone（这些字段在 Web Worker 环境中不可用，这是平台限制）
+                            <strong>checkout_contact_info_submitted: </strong>{t("verification.limitFields.checkout_contact_info_submitted")}
                           </Text>
                         </List.Item>
                         <List.Item>
                           <Text as="span" variant="bodySm">
-                            <strong>checkout_shipping_info_submitted：</strong>deliveryAddress, shippingAddress（这些字段在 Web Worker 环境中不可用，这是平台限制）
+                            <strong>checkout_shipping_info_submitted: </strong>{t("verification.limitFields.checkout_shipping_info_submitted")}
                           </Text>
                         </List.Item>
                         <List.Item>
                           <Text as="span" variant="bodySm">
-                            <strong>payment_info_submitted：</strong>billingAddress（这些字段在 Web Worker 环境中不可用，这是平台限制）
+                            <strong>payment_info_submitted: </strong>{t("verification.limitFields.payment_info_submitted")}
                           </Text>
                         </List.Item>
                       </List>
@@ -123,7 +123,7 @@ export function VerificationResultsTable({
                         {t("verification.unavailableEventsTitle")}
                       </Text>
                       <Text as="p" variant="bodySm">
-                        refund, order_cancelled, order_edited, subscription_created, subscription_updated, subscription_cancelled（这些事件在 strict sandbox 中不可用，需要通过订单 webhooks 获取）
+                        {t("verification.unavailableEvents.description")}
                       </Text>
                       <Text as="p" variant="bodySm" tone="subdued">
                         <Trans i18nKey="verification.autoTagNote" components={{ strong: <strong /> }} />
@@ -145,7 +145,7 @@ export function VerificationResultsTable({
                   t("verification.tableHeadings.sandboxLimitations"),
                 ]}
                 rows={latestRun.results.map((r) => {
-                  const limitations = getEventSandboxLimitations(r);
+                  const limitations = getEventSandboxLimitations(r, t);
                   return [
                     r.eventType,
                     r.platform,

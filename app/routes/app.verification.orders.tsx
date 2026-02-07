@@ -17,12 +17,7 @@ import { authenticate } from "../shopify.server";
 import prisma from "../db.server";
 import { performPixelVsOrderReconciliation } from "../services/verification/order-reconciliation.server";
 import { PCD_CONFIG } from "../utils/config.server";
-
-const HOUR_OPTIONS = [
-  { label: "最近 24 小时", value: "24" },
-  { label: "最近 72 小时", value: "72" },
-  { label: "最近 7 天", value: "168" },
-];
+import { useTranslation } from "react-i18next";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   const { session } = await authenticate.admin(request);
@@ -58,8 +53,15 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 };
 
 export default function VerificationOrdersPage() {
+  const { t } = useTranslation();
   const { shop, reconciliation, hours, pcdDisabled } = useLoaderData<typeof loader>();
   const [searchParams, setSearchParams] = useSearchParams();
+
+  const HOUR_OPTIONS = [
+    { label: t("verification.orders.overview.options.24h"), value: "24" },
+    { label: t("verification.orders.overview.options.72h"), value: "72" },
+    { label: t("verification.orders.overview.options.7d"), value: "168" },
+  ];
 
   const handleHoursChange = (value: string) => {
     const next = new URLSearchParams(searchParams);
@@ -69,12 +71,12 @@ export default function VerificationOrdersPage() {
 
   if (!shop) {
     return (
-      <Page title="订单层验收">
+      <Page title={t("verification.orders.title")}>
         <Banner tone="warning">
-          <Text as="p">店铺信息未找到，请重新安装应用。</Text>
+          <Text as="p">{t("verification.orders.shopNotFound")}</Text>
         </Banner>
         <Button url="/app/verification" variant="primary">
-          返回验收页面
+          {t("verification.orders.returnToVerification")}
         </Button>
       </Page>
     );
@@ -82,20 +84,20 @@ export default function VerificationOrdersPage() {
 
   if (pcdDisabled) {
     return (
-      <Page title="订单层验收" backAction={{ content: "验收", url: "/app/verification" }}>
+      <Page title={t("verification.orders.title")} backAction={{ content: t("verification.orders.backAction"), url: "/app/verification" }}>
         <BlockStack gap="400">
           <Banner tone="warning">
             <BlockStack gap="200">
               <Text as="p" variant="bodySm" fontWeight="semibold">
-                当前未启用订单对账
+                {t("verification.orders.pcdDisabled.title")}
               </Text>
               <Text as="p" variant="bodySm">
-                订单层验收依赖 Shopify 订单数据，需获得 PCD（Protected Customer Data）审批后启用。当前版本仅提供像素收据层验收，请在「验收」页使用像素层验收与报告导出。
+                {t("verification.orders.pcdDisabled.desc")}
               </Text>
             </BlockStack>
           </Banner>
           <Button url="/app/verification" variant="primary">
-            返回验收页面
+            {t("verification.orders.returnToVerification")}
           </Button>
         </BlockStack>
       </Page>
@@ -104,12 +106,12 @@ export default function VerificationOrdersPage() {
 
   if (!reconciliation) {
     return (
-      <Page title="订单层验收">
+      <Page title={t("verification.orders.title")}>
         <Banner tone="warning">
-          <Text as="p">店铺信息未找到，请重新安装应用。</Text>
+          <Text as="p">{t("verification.orders.shopNotFound")}</Text>
         </Banner>
         <Button url="/app/verification" variant="primary">
-          返回验收页面
+          {t("verification.orders.returnToVerification")}
         </Button>
       </Page>
     );
@@ -119,10 +121,10 @@ export default function VerificationOrdersPage() {
 
   return (
     <Page
-      title="订单层验收"
-      backAction={{ content: "验收", url: "/app/verification" }}
+      title={t("verification.orders.title")}
+      backAction={{ content: t("verification.orders.backAction"), url: "/app/verification" }}
       primaryAction={{
-        content: "导出 CSV",
+        content: t("verification.orders.export"),
         url: exportUrl,
       }}
     >
@@ -138,11 +140,11 @@ export default function VerificationOrdersPage() {
           <BlockStack gap="400">
             <InlineStack align="space-between" blockAlign="center" gap="400">
               <Text as="h2" variant="headingMd">
-                对账概览
+                {t("verification.orders.overview.title")}
               </Text>
               <InlineStack gap="200" blockAlign="center">
                 <Text as="span" variant="bodySm" tone="subdued">
-                  时间窗
+                  {t("verification.orders.overview.timeWindow")}
                 </Text>
                 <Select
                   label=""
@@ -157,7 +159,7 @@ export default function VerificationOrdersPage() {
               <Box padding="300" background="bg-surface-secondary" borderRadius="200" minWidth="140px">
                 <BlockStack gap="100">
                   <Text as="span" variant="bodySm" tone="subdued">
-                    总订单数
+                    {t("verification.orders.overview.totalOrders")}
                   </Text>
                   <Text as="p" variant="headingLg">
                     {reconciliation.totalOrders}
@@ -167,7 +169,7 @@ export default function VerificationOrdersPage() {
               <Box padding="300" background="bg-surface-secondary" borderRadius="200" minWidth="140px">
                 <BlockStack gap="100">
                   <Text as="span" variant="bodySm" tone="subdued">
-                    有像素订单数
+                    {t("verification.orders.overview.ordersWithPixel")}
                   </Text>
                   <Text as="p" variant="headingLg">
                     {reconciliation.ordersWithPixel}
@@ -177,7 +179,7 @@ export default function VerificationOrdersPage() {
               <Box padding="300" background="bg-surface-secondary" borderRadius="200" minWidth="140px">
                 <BlockStack gap="100">
                   <Text as="span" variant="bodySm" tone="subdued">
-                    差异率
+                    {t("verification.orders.overview.discrepancyRate")}
                   </Text>
                   <Text as="p" variant="headingLg">
                     {reconciliation.discrepancyRate}%
@@ -186,7 +188,10 @@ export default function VerificationOrdersPage() {
               </Box>
             </InlineStack>
             <Text as="p" variant="bodySm" tone="subdued">
-              统计区间：{typeof reconciliation.periodStart === "string" ? reconciliation.periodStart : new Date(reconciliation.periodStart).toISOString()} 至 {typeof reconciliation.periodEnd === "string" ? reconciliation.periodEnd : new Date(reconciliation.periodEnd).toISOString()}
+              {t("verification.orders.overview.period", { 
+                start: typeof reconciliation.periodStart === "string" ? reconciliation.periodStart : new Date(reconciliation.periodStart).toISOString(),
+                end: typeof reconciliation.periodEnd === "string" ? reconciliation.periodEnd : new Date(reconciliation.periodEnd).toISOString()
+              })}
             </Text>
           </BlockStack>
         </Card>
@@ -194,11 +199,11 @@ export default function VerificationOrdersPage() {
           <Card>
             <BlockStack gap="300">
               <Text as="h2" variant="headingMd">
-                有订单无像素（丢单）
+                {t("verification.orders.missingOrders.title")}
               </Text>
               <DataTable
                 columnContentTypes={["text", "numeric", "text"]}
-                headings={["订单 ID", "金额", "币种"]}
+                headings={[t("verification.orders.missingOrders.table.orderId"), t("verification.orders.missingOrders.table.amount"), t("verification.orders.missingOrders.table.currency")]}
                 rows={reconciliation.missingOrderIds.slice(0, 100).map((r) => [
                   r.orderId,
                   String(r.totalPrice),
@@ -207,7 +212,7 @@ export default function VerificationOrdersPage() {
               />
               {reconciliation.missingOrderIds.length > 100 && (
                 <Text as="p" variant="bodySm" tone="subdued">
-                  仅展示前 100 条，完整列表请导出 CSV。
+                  {t("verification.orders.missingOrders.more")}
                 </Text>
               )}
             </BlockStack>
@@ -217,11 +222,17 @@ export default function VerificationOrdersPage() {
           <Card>
             <BlockStack gap="300">
               <Text as="h2" variant="headingMd">
-                金额/币种不一致
+                {t("verification.orders.valueMismatch.title")}
               </Text>
               <DataTable
                 columnContentTypes={["text", "numeric", "text", "numeric", "text"]}
-                headings={["订单 ID", "订单金额", "订单币种", "像素金额", "像素币种"]}
+                headings={[
+                  t("verification.orders.valueMismatch.table.orderId"), 
+                  t("verification.orders.valueMismatch.table.orderValue"), 
+                  t("verification.orders.valueMismatch.table.orderCurrency"), 
+                  t("verification.orders.valueMismatch.table.pixelValue"), 
+                  t("verification.orders.valueMismatch.table.pixelCurrency")
+                ]}
                 rows={reconciliation.valueMismatches.slice(0, 50).map((r) => [
                   r.orderId,
                   String(r.orderValue),
@@ -232,7 +243,7 @@ export default function VerificationOrdersPage() {
               />
               {reconciliation.valueMismatches.length > 50 && (
                 <Text as="p" variant="bodySm" tone="subdued">
-                  仅展示前 50 条，完整列表请导出 CSV。
+                  {t("verification.orders.valueMismatch.more")}
                 </Text>
               )}
             </BlockStack>
@@ -242,10 +253,10 @@ export default function VerificationOrdersPage() {
           <Card>
             <BlockStack gap="200">
               <Text as="p" variant="bodyMd">
-                当前时间窗内暂无订单记录。订单层对账为可选能力，需启用订单 webhook 并正常接收后再查看；或扩大时间窗。
+                {t("verification.orders.noOrders")}
               </Text>
               <Button url="/app/verification" variant="primary">
-                返回验收页面
+                {t("verification.orders.returnToVerification")}
               </Button>
             </BlockStack>
           </Card>

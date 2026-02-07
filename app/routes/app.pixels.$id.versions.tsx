@@ -11,6 +11,8 @@ import { getConfigVersionHistory, rollbackConfig } from "~/services/pixel-config
 import type { Platform } from "~/services/migration.server";
 import type { PlatformType } from "~/types/enums";
 import { logger } from "~/utils/logger.server";
+import { useTranslation } from "react-i18next";
+import { i18nServer } from "~/i18n.server";
 
 export const loader = async ({ request, params }: LoaderFunctionArgs) => {
   const { session } = await authenticate.admin(request);
@@ -46,10 +48,11 @@ export const loader = async ({ request, params }: LoaderFunctionArgs) => {
 
 export const action = async ({ request, params }: ActionFunctionArgs) => {
   const { session } = await authenticate.admin(request);
+  const t = await i18nServer.getFixedT(request);
   const shopDomain = session.shop;
   const pixelConfigId = params.id;
   if (!pixelConfigId) {
-    return json({ success: false, error: "缺少配置 ID" }, { status: 400 });
+    return json({ success: false, error: t("pixels.versions.errors.missingConfigId") }, { status: 400 });
   }
   const shop = await prisma.shop.findUnique({
     where: { shopDomain },
@@ -66,7 +69,7 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
     },
   });
   if (!pixelConfig) {
-    return json({ success: false, error: "配置不存在" }, { status: 404 });
+    return json({ success: false, error: t("pixels.versions.errors.configNotFound") }, { status: 404 });
   }
   const formData = await request.formData();
   const actionType = formData.get("_action");
@@ -75,14 +78,14 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
       const platform = (pixelConfig.platform && ["meta", "google", "tiktok"].includes(pixelConfig.platform) ? pixelConfig.platform : "meta") as Platform;
       const history = await getConfigVersionHistory(shop.id, platform, pixelConfig.environment as "test" | "live");
       if (!history) {
-        return json({ success: false, error: "配置不存在" }, { status: 404 });
+        return json({ success: false, error: t("pixels.versions.errors.configNotFound") }, { status: 404 });
       }
       return json({ success: true, history });
     } catch (error) {
       logger.error("Failed to get config version history", error);
       return json({
         success: false,
-        error: error instanceof Error ? error.message : "获取版本历史失败",
+        error: error instanceof Error ? error.message : t("pixels.versions.errors.historyFailed"),
       }, { status: 500 });
     }
   }
@@ -95,7 +98,7 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
       logger.error("Failed to rollback config", error);
       return json({
         success: false,
-        error: error instanceof Error ? error.message : "回滚失败",
+        error: error instanceof Error ? error.message : t("pixels.versions.errors.rollbackFailed"),
       }, { status: 500 });
     }
   }
@@ -103,41 +106,42 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
 };
 
 export default function PixelVersionsPage() {
+  const { t } = useTranslation();
   const { shop, pixelConfig } = useLoaderData<typeof loader>();
   if (!shop || !pixelConfig) {
     return (
-      <Page title="版本历史">
+      <Page title={t("pixels.versions.title")}>
         <EnhancedEmptyState
           icon="⚠️"
-          title="配置不存在"
-          description="未找到对应的 Pixel 配置，请返回列表重新选择。"
-          primaryAction={{ content: "返回 Pixels", url: "/app/pixels" }}
+          title={t("pixels.versions.configNotFound.title") || "Config Not Found"}
+          description={t("pixels.versions.configNotFound.desc") || "Pixel config not found."}
+          primaryAction={{ content: t("pixels.versions.back"), url: "/app/pixels" }}
         />
       </Page>
     );
   }
   return (
     <Page
-      title="版本历史"
-      subtitle="查看配置版本并回滚"
-      backAction={{ content: "返回 Pixels", url: "/app/pixels" }}
+      title={t("pixels.versions.title")}
+      subtitle={t("pixels.versions.subtitle")}
+      backAction={{ content: t("pixels.versions.back"), url: "/app/pixels" }}
     >
       <PageIntroCard
-        title="版本管理"
-        description="查看历史配置并在必要时回滚，确保 Live 环境可恢复。"
+        title={t("pixels.versions.intro.title")}
+        description={t("pixels.versions.intro.desc")}
         items={[
-          "每次回滚会生成新的版本快照",
-          "建议先在 Test 环境验证",
+          t("pixels.versions.intro.items.0"),
+          t("pixels.versions.intro.items.1"),
         ]}
-        primaryAction={{ content: "返回 Pixels", url: "/app/pixels" }}
+        primaryAction={{ content: t("pixels.versions.back"), url: "/app/pixels" }}
       />
       <Card>
         <BlockStack gap="300">
           <Text as="h2" variant="headingMd">
-            当前配置
+            {t("pixels.versions.currentConfig.title")}
           </Text>
           <Text as="p" tone="subdued">
-            平台：{pixelConfig.platform}，环境：{pixelConfig.environment}，版本：v{String(pixelConfig.configVersion)}
+            {t("pixels.versions.currentConfig.desc", { platform: pixelConfig.platform, environment: pixelConfig.environment, version: pixelConfig.configVersion })}
           </Text>
         </BlockStack>
       </Card>
@@ -150,7 +154,7 @@ export default function PixelVersionsPage() {
       <Banner tone="info">
         <BlockStack gap="200">
           <Text as="p" variant="bodySm">
-            回滚后会创建新的版本快照，方便再次恢复。
+            {t("pixels.versions.rollbackBanner")}
           </Text>
         </BlockStack>
       </Banner>

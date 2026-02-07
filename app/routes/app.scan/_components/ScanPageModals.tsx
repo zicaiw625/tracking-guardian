@@ -72,7 +72,7 @@ export function ScanPageModals({
       >
         <Modal.Section>
           <BlockStack gap="400">
-            {guidanceContent?.type === "upgrade_guide" || guidanceContent?.title?.includes("升级向导") ? (
+            {guidanceContent?.type === "upgrade_guide" ? (
               <>
                 <Text as="p" variant="bodyMd">
                   {t("ScanModals.Guidance.UpgradeWizardContent")}
@@ -128,22 +128,22 @@ export function ScanPageModals({
                   <List type="number">
                     <List.Item>
                       <Text as="span">
-                        <strong>{t("ScanModals.Guidance.Steps.Pixel")}</strong>：在「迁移」页面确认 Tracking Guardian Pixel 已安装并正常运行
+                        <strong>{t("ScanModals.Guidance.Steps.Pixel")}</strong>：{t("ScanModals.Guidance.Steps.PixelDesc")}
                       </Text>
                     </List.Item>
                     <List.Item>
                       <Text as="span">
-                        <strong>{t("ScanModals.Guidance.Steps.Creds")}</strong>：在「迁移」页面配置相应平台的像素 ID（GA4/Meta/TikTok）
+                        <strong>{t("ScanModals.Guidance.Steps.Creds")}</strong>：{t("ScanModals.Guidance.Steps.CredsDesc")}
                       </Text>
                     </List.Item>
                     <List.Item>
                       <Text as="span">
-                        <strong>{t("ScanModals.Guidance.Steps.Verify")}</strong>：完成一次测试订单，在「监控」页面确认事件已收到
+                        <strong>{t("ScanModals.Guidance.Steps.Verify")}</strong>：{t("ScanModals.Guidance.Steps.VerifyDesc")}
                       </Text>
                     </List.Item>
                     <List.Item>
                       <Text as="span">
-                        <strong>{t("ScanModals.Guidance.Steps.Delete")}</strong>：前往 Shopify 后台 → 设置 → 应用和销售渠道，找到创建该 ScriptTag 的应用并卸载
+                        <strong>{t("ScanModals.Guidance.Steps.Delete")}</strong>：{t("ScanModals.Guidance.Steps.DeleteDesc")}
                       </Text>
                     </List.Item>
                   </List>

@@ -32,12 +32,6 @@ function extractPlatformFromPayload(payload: Record<string, unknown> | null): st
   return null;
 }
 
-const PLATFORM_LABELS: Record<string, string> = {
-  google: "Google Analytics 4",
-  meta: "Meta (Facebook)",
-  tiktok: "TikTok",
-};
-
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   const { session } = await authenticate.admin(request);
   const shopDomain = session.shop;
@@ -106,7 +100,7 @@ export default function PixelsListPage() {
   const { shop, pixelConfigs, latestByKey, backendUrlInfo } = useLoaderData<typeof loader>();
   if (!shop) {
     return (
-      <Page title="Pixels">
+      <Page title={t("pixels.list.title")}>
         <EnhancedEmptyState
           icon="⚠️"
           title={t("pixels.list.configured.empty")}
@@ -144,7 +138,7 @@ export default function PixelsListPage() {
       </Text>
     );
     return [
-      PLATFORM_LABELS[config.platform] || config.platform,
+      t(`platforms.${config.platform}`) || config.platform,
       config.platformId || "—",
       config.environment === "live" ? (
         <Badge tone="success">{t("pixels.list.env.prod")}</Badge>

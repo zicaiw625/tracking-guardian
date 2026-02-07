@@ -1,6 +1,7 @@
 import type { ActionFunctionArgs } from "@remix-run/node";
 import { json } from "@remix-run/node";
 import { authenticate } from "../../shopify.server";
+import { i18nServer } from "../../i18n.server";
 import prisma from "../../db.server";
 import { scanShopTracking, type ScriptAnalysisResult } from "../../services/scanner.server";
 import { createAuditAsset, batchCreateAuditAssets, type AuditAssetInput } from "../../services/audit-asset.server";
@@ -315,38 +316,56 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     }
     if (actionType === "export_checklist_csv") {
         try {
+            const t = await i18nServer.getFixedT(request);
             const checklist = await generateMigrationChecklist(shop.id);
             const formatEstimatedTime = (minutes: number) => {
                 if (minutes < 60) {
-                    return `${minutes} 分钟`;
+                    return `${minutes} ${t("scan.csv.minutes")}`;
                 }
                 const hours = Math.floor(minutes / 60);
                 const mins = minutes % 60;
-                return mins > 0 ? `${hours} 小时 ${mins} 分钟` : `${hours} 小时`;
+                return mins > 0 
+                    ? `${hours} ${t("scan.csv.hours")} ${mins} ${t("scan.csv.minutes")}` 
+                    : `${hours} ${t("scan.csv.hours")}`;
             };
             const migrationTypeLabels: Record<string, string> = {
-                web_pixel: "Web Pixel",
-                ui_extension: "手动迁移",
-                server_side: "Not available",
-                none: "External redirect / not supported",
+                web_pixel: t("scan.csv.migrationTypes.web_pixel"),
+                ui_extension: t("scan.csv.migrationTypes.ui_extension"),
+                server_side: t("scan.csv.migrationTypes.server_side"),
+                none: t("scan.csv.migrationTypes.none"),
             };
             const csvLines: string[] = [];
-            csvLines.push("迁移清单");
-            csvLines.push(`店铺: ${shopDomain}`);
-            csvLines.push(`生成时间: ${new Date().toLocaleString("zh-CN")}`);
-            csvLines.push(`待迁移项: ${checklist.totalItems}`);
-            csvLines.push(`高风险项: ${checklist.highPriorityItems}`);
-            csvLines.push(`中风险项: ${checklist.mediumPriorityItems}`);
-            csvLines.push(`低风险项: ${checklist.lowPriorityItems}`);
-            csvLines.push(`预计总时间: ${Math.floor(checklist.estimatedTotalTime / 60)} 小时 ${checklist.estimatedTotalTime % 60} 分钟`);
+            csvLines.push(t("scan.csv.title"));
+            csvLines.push(`${t("scan.csv.shop")}: ${shopDomain}`);
+            
+            const locale = await i18nServer.getLocale(request);
+            const dateStr = new Date().toLocaleString(locale === 'zh' ? 'zh-CN' : 'en-US');
+            csvLines.push(`${t("scan.csv.generatedAt")}: ${dateStr}`);
+            
+            csvLines.push(`${t("scan.csv.totalItems")}: ${checklist.totalItems}`);
+            csvLines.push(`${t("scan.csv.highRisk")}: ${checklist.highPriorityItems}`);
+            csvLines.push(`${t("scan.csv.mediumRisk")}: ${checklist.mediumPriorityItems}`);
+            csvLines.push(`${t("scan.csv.lowRisk")}: ${checklist.lowPriorityItems}`);
+            csvLines.push(`${t("scan.csv.estimatedTime")}: ${Math.floor(checklist.estimatedTotalTime / 60)} ${t("scan.csv.hours")} ${checklist.estimatedTotalTime % 60} ${t("scan.csv.minutes")}`);
             csvLines.push("");
-            csvLines.push("资产名称/指纹,风险等级+原因,推荐迁移路径,预估工时+需要的信息");
+            csvLines.push(`${t("scan.csv.headers.assetName")},${t("scan.csv.headers.riskLevel")},${t("scan.csv.headers.migrationPath")},${t("scan.csv.headers.estimatedTimeAndInfo")}`);
             checklist.items.forEach((item) => {
                 const fingerprint = item.fingerprint ? `(${item.fingerprint.substring(0, 8)}...)` : "";
                 const assetName = `${item.title} ${fingerprint}`.trim();
-                const riskDisplay = `${item.riskLevel} - ${item.riskReason}`;
+                
+                const riskReasonText = item.riskReasonKey 
+                    ? t(item.riskReasonKey, item.riskReasonParams) 
+                    : item.riskReason;
+                const riskDisplay = `${item.riskLevel} - ${riskReasonText}`;
+                
                 const migrationPath = migrationTypeLabels[item.suggestedMigration] || item.suggestedMigration;
-                const timeAndInfo = `${formatEstimatedTime(item.estimatedTime)} | ${item.requiredInfo}`;
+                
+                let requiredInfoText = item.requiredInfo;
+                if (item.requiredInfoKeys && item.requiredInfoKeys.length > 0) {
+                    requiredInfoText = item.requiredInfoKeys.map(k => t(k.key, k.params)).join("; ");
+                }
+                
+                const timeAndInfo = `${formatEstimatedTime(item.estimatedTime)} | ${requiredInfoText}`;
                 const row = [
                     assetName,
                     riskDisplay,
@@ -376,7 +395,8 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         return json({ error: "不支持的操作类型" }, { status: 400 });
     }
     try {
-        const scanResult = await scanShopTracking(admin, shop.id);
+        const t = await i18nServer.getFixedT(request);
+        const scanResult = await scanShopTracking(admin, shop.id, { t });
         return json({
             success: true,
             actionType: "scan",

@@ -3,6 +3,11 @@ import { renderToPipeableStream } from "react-dom/server";
 import { RemixServer } from "@remix-run/react";
 import { createReadableStreamFromReadable, type EntryContext, } from "@remix-run/node";
 import { isbot } from "isbot";
+import { createInstance } from "i18next";
+import { I18nextProvider, initReactI18next } from "react-i18next";
+import { i18nServer } from "./i18n.server";
+import en from "./locales/en.json";
+import zh from "./locales/zh.json";
 import { addDocumentResponseHeaders } from "./shopify.server";
 import { ensureSecretsValid, enforceSecurityChecks } from "./utils/secrets.server";
 import { validateEncryptionConfig } from "./utils/crypto.server";
@@ -150,9 +155,32 @@ export default async function handleRequest(request: Request, responseStatusCode
     addSecurityHeadersToHeaders(responseHeaders, documentSecurityHeaders);
     const userAgent = request.headers.get("user-agent");
     const callbackName = isbot(userAgent ?? "") ? "onAllReady" : "onShellReady";
+
+    const instance = createInstance();
+    const lng = await i18nServer.getLocale(request);
+    const ns = remixContext?.routeModules
+      ? i18nServer.getRouteNamespaces(remixContext)
+      : ["translation"];
+
+    await instance
+        .use(initReactI18next)
+        .init({
+            lng,
+            ns,
+            fallbackLng: "en",
+            resources: {
+                en: { translation: en },
+                zh: { translation: zh },
+            },
+        });
+
     return new Promise((resolve, reject) => {
         let abortTimeoutId: NodeJS.Timeout | null = null;
-        const { pipe, abort } = renderToPipeableStream(<RemixServer context={remixContext} url={request.url} abortDelay={ABORT_DELAY}/>, {
+        const { pipe, abort } = renderToPipeableStream(
+            <I18nextProvider i18n={instance}>
+                <RemixServer context={remixContext} url={request.url} abortDelay={ABORT_DELAY}/>
+            </I18nextProvider>,
+            {
             [callbackName]: () => {
                 const body = new PassThrough();
                 const stream = createReadableStreamFromReadable(body);

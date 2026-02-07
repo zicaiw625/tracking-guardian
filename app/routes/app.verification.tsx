@@ -38,6 +38,7 @@ import {
   analyzeRecentEvents,
   getVerificationRun,
 } from "~/services/verification.server";
+import { i18nServer } from "~/i18n.server";
 
 interface VerificationRunSummary {
   passedTests: number;
@@ -117,17 +118,8 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   return json({ shop, latestRun, history });
 };
 
-const GUIDE_TEST_ITEMS = [
-  {
-    id: "purchase_test",
-    name: "Purchase Flow",
-    description: "Test standard purchase flow",
-    steps: ["Add item to cart", "Go to checkout", "Complete purchase"],
-    expectedEvents: ["checkout_completed"]
-  }
-];
-
 export const action = async ({ request }: ActionFunctionArgs) => {
+  const t = await i18nServer.getFixedT(request);
   const { session } = await authenticate.admin(request);
   const shopDomain = session.shop;
   const shop = await prisma.shop.findUnique({
@@ -135,7 +127,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   });
 
   if (!shop) {
-    return json({ success: false, error: "Shop not found" }, { status: 404 });
+    return json({ success: false, error: t("verification.errors.shopNotFound") }, { status: 404 });
   }
 
   const formData = await request.formData();
@@ -153,7 +145,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       }
     } catch (e) {
       console.error("Failed to parse expectedEvents:", e);
-      return json({ success: false, error: "Invalid event data format" }, { status: 400 });
+      return json({ success: false, error: t("verification.errors.invalidEventData") }, { status: 400 });
     }
 
     // Check for recent events (last 1 hour)
@@ -198,15 +190,15 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         })
       );
 
-      return json({ success: true, message: "Verification started", runId });
+      return json({ success: true, message: t("verification.page.actions.runStarted"), runId });
     } catch (error) {
       console.error("Verification failed:", error);
-      const errorMessage = error instanceof Error ? error.message : "Verification failed";
+      const errorMessage = error instanceof Error ? error.message : t("verification.errors.verificationFailed");
       return json({ success: false, error: errorMessage }, { status: 500 });
     }
   }
 
-  return json({ success: false, error: "Unknown action" }, { status: 400 });
+  return json({ success: false, error: t("verification.errors.unknownAction") }, { status: 400 });
 };
 
 export default function VerificationPage() {
@@ -216,6 +208,20 @@ export default function VerificationPage() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const { showSuccess, showError } = useToastContext();
+  
+  const guideTestItems = [
+    {
+      id: "purchase_test",
+      name: t("verification.testItems.purchase_test.name"),
+      description: t("verification.testItems.purchase_test.description"),
+      steps: [
+        t("verification.testItems.purchase_test.steps.0"),
+        t("verification.testItems.purchase_test.steps.1"),
+        t("verification.testItems.purchase_test.steps.2")
+      ],
+      expectedEvents: ["checkout_completed"]
+    }
+  ];
   
   const tabParam = searchParams.get("tab");
   const selectedTab = tabParam ? Math.max(0, parseInt(tabParam, 10) || 0) : 0;
@@ -385,7 +391,7 @@ export default function VerificationPage() {
                          <VerificationResultsTable latestRun={latestRun} pixelStrictOrigin={false} />
                       )}
                       {selectedTab === 3 && (
-                        <TestOrderGuide shopDomain={shop.shopDomain} shopId={shop.id} testItems={GUIDE_TEST_ITEMS} />
+                        <TestOrderGuide shopDomain={shop.shopDomain} shopId={shop.id} testItems={guideTestItems} />
                       )}
                       {selectedTab === 4 && (
                         <VerificationHistoryPanel history={history as VerificationHistoryRun[]} onRunVerification={handleRunVerification} shop={shop} />
@@ -460,7 +466,7 @@ export default function VerificationPage() {
         }}
       >
         <Modal.Section>
-           <TestOrderGuide shopDomain={shop.shopDomain} shopId={shop.id} testItems={GUIDE_TEST_ITEMS} />
+           <TestOrderGuide shopDomain={shop.shopDomain} shopId={shop.id} testItems={guideTestItems} />
         </Modal.Section>
       </Modal>
     </Page>
@@ -498,11 +504,12 @@ function ScoreCard({
 }
 
 export function ErrorBoundary() {
+  const { t } = useTranslation();
   return (
     <Page>
-      <Banner tone="critical" title="Verification page error">
-        <p>An unexpected error occurred while loading the verification page.</p>
-        <Button onClick={() => window.location.reload()}>Reload</Button>
+      <Banner tone="critical" title={t("verification.page.error.title")}>
+        <p>{t("verification.page.error.description")}</p>
+        <Button onClick={() => window.location.reload()}>{t("verification.page.error.reload")}</Button>
       </Banner>
     </Page>
   );

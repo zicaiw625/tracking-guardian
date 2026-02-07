@@ -1,6 +1,12 @@
 import type { RiskItem, RiskSeverity, ScriptTag } from "../../types";
 import type { EnhancedScanResult } from "./types";
 import { PLATFORM_INFO, identifyPlatformFromSrc } from "./patterns";
+import type { TFunction } from "i18next";
+
+const getT = (t: TFunction | undefined, key: string, options?: any, fallback?: string): string => {
+  if (t) return t(key, options) as unknown as string;
+  return fallback || key;
+};
 
 interface RiskRule {
     id: string;
@@ -41,7 +47,7 @@ export const RISK_RULES: RiskRule[] = [
     },
 ];
 
-export function assessRisks(result: EnhancedScanResult): RiskItem[] {
+export function assessRisks(result: EnhancedScanResult, t?: TFunction): RiskItem[] {
     const risks: RiskItem[] = [];
     const seenRiskKeys = new Set<string>();
     function addRisk(risk: RiskItem, dedupeKey?: string): void {
@@ -74,14 +80,14 @@ export function assessRisks(result: EnhancedScanResult): RiskItem[] {
             if (tags.orderStatus.length > 0) {
                 addRisk({
                     id: "deprecated_script_tag_order_status",
-                    name: "Order Status Page ScriptTag (Deprecated)",
+                    name: getT(t, "scan.risks.deprecatedScriptTagOrderStatus.name", {}, "Order Status Page ScriptTag (Deprecated)"),
                     nameKey: "scan.risks.deprecatedScriptTagOrderStatus.name",
-                    description: `Detected ${tags.orderStatus.length} ScriptTags for Order Status Page (${platformName}), which is the main target of Shopify's deprecation announcement. Detection method: URL pattern matching`,
+                    description: getT(t, "scan.risks.deprecatedScriptTagOrderStatus.description", { count: tags.orderStatus.length, platform: platformName }, `Detected ${tags.orderStatus.length} ScriptTags for Order Status Page (${platformName}), which is the main target of Shopify's deprecation announcement. Detection method: URL pattern matching`),
                     descriptionKey: "scan.risks.deprecatedScriptTagOrderStatus.description",
                     descriptionParams: { count: tags.orderStatus.length, platform: platformName },
                     severity: "high",
                     points: 30,
-                    details: `Platform: ${platformName}, Script Count: ${tags.orderStatus.length}`,
+                    details: getT(t, "scan.risks.deprecatedScriptTagOrderStatus.details", { platform: platformName, count: tags.orderStatus.length }, `Platform: ${platformName}, Script Count: ${tags.orderStatus.length}`),
                     detailsKey: "scan.risks.deprecatedScriptTagOrderStatus.details",
                     detailsParams: { platform: platformName, count: tags.orderStatus.length },
                     platform,
@@ -90,14 +96,14 @@ export function assessRisks(result: EnhancedScanResult): RiskItem[] {
             if (tags.other.length > 0) {
                 addRisk({
                     id: "deprecated_script_tag",
-                    name: "ScriptTag API (Migration Recommended)",
+                    name: getT(t, "scan.risks.deprecatedScriptTag.name", {}, "ScriptTag API (Migration Recommended)"),
                     nameKey: "scan.risks.deprecatedScriptTag.name",
-                    description: `Detected ${tags.other.length} ScriptTags (${platformName}). Migration to Web Pixel is recommended for better compatibility. Detection method: URL pattern matching`,
+                    description: getT(t, "scan.risks.deprecatedScriptTag.description", { count: tags.other.length, platform: platformName }, `Detected ${tags.other.length} ScriptTags (${platformName}). Migration to Web Pixel is recommended for better compatibility. Detection method: URL pattern matching`),
                     descriptionKey: "scan.risks.deprecatedScriptTag.description",
                     descriptionParams: { count: tags.other.length, platform: platformName },
                     severity: "medium",
                     points: 15,
-                    details: `Platform: ${platformName}, Scope: ${tags.other.map(t => t.display_scope || "all").join(", ")}`,
+                    details: getT(t, "scan.risks.deprecatedScriptTag.details", { platform: platformName, scope: tags.other.map(t => t.display_scope || "all").join(", ") }, `Platform: ${platformName}, Scope: ${tags.other.map(t => t.display_scope || "all").join(", ")}`),
                     detailsKey: "scan.risks.deprecatedScriptTag.details",
                     detailsParams: { platform: platformName, scope: tags.other.map(t => t.display_scope || "all").join(", ") },
                     platform,
@@ -106,32 +112,34 @@ export function assessRisks(result: EnhancedScanResult): RiskItem[] {
         }
     }
     if (result.identifiedPlatforms.length > 0) {
+        const platformsStr = result.identifiedPlatforms.map(p => PLATFORM_INFO[p]?.name || p).join(", ");
         addRisk({
             id: "inline_tracking",
-            name: "Inline Tracking Code",
+            name: getT(t, "scan.risks.inlineTracking.name", {}, "Inline Tracking Code"),
             nameKey: "scan.risks.inlineTracking.name",
-            description: "Detected hardcoded tracking scripts in page source. Migration to Shopify Web Pixel is recommended. Detection method: URL pattern matching and content inference",
+            description: getT(t, "scan.risks.inlineTracking.description", {}, "Detected hardcoded tracking scripts in page source. Migration to Shopify Web Pixel is recommended. Detection method: URL pattern matching and content inference"),
             descriptionKey: "scan.risks.inlineTracking.description",
             severity: "medium",
             points: 20,
-            details: `Detected Platforms: ${result.identifiedPlatforms.map(p => PLATFORM_INFO[p]?.name || p).join(", ")}`,
+            details: getT(t, "scan.risks.inlineTracking.details", { platforms: platformsStr }, `Detected Platforms: ${platformsStr}`),
             detailsKey: "scan.risks.inlineTracking.details",
-            detailsParams: { platforms: result.identifiedPlatforms.map(p => PLATFORM_INFO[p]?.name || p).join(", ") },
+            detailsParams: { platforms: platformsStr },
         }, "inline_tracking");
     }
     const supportedPlatforms = result.identifiedPlatforms.filter(p => PLATFORM_INFO[p]?.supportLevel === "supported");
     if (supportedPlatforms.length > 0) {
+        const platformsStr = supportedPlatforms.map(p => PLATFORM_INFO[p]?.name || p).join(", ");
         addRisk({
             id: "no_server_side",
-            name: "Server-side Tracking Recommended",
+            name: getT(t, "scan.risks.noServerSide.name", {}, "Server-side Tracking Recommended"),
             nameKey: "scan.risks.noServerSide.name",
-            description: "For detected supported platforms, enabling Conversion API is recommended to resist ad blockers and improve data accuracy",
+            description: getT(t, "scan.risks.noServerSide.description", {}, "For detected supported platforms, enabling Conversion API is recommended to resist ad blockers and improve data accuracy"),
             descriptionKey: "scan.risks.noServerSide.description",
             severity: "low",
             points: 10,
-            details: `Supported Platforms: ${supportedPlatforms.map(p => PLATFORM_INFO[p]?.name || p).join(", ")}`,
+            details: getT(t, "scan.risks.noServerSide.details", { platforms: platformsStr }, `Supported Platforms: ${platformsStr}`),
             detailsKey: "scan.risks.noServerSide.details",
-            detailsParams: { platforms: supportedPlatforms.map(p => PLATFORM_INFO[p]?.name || p).join(", ") },
+            detailsParams: { platforms: platformsStr },
         }, "no_server_side");
     }
     return risks;

@@ -161,9 +161,9 @@ export function ErrorBoundary() {
   const { t } = useTranslation();
   return (
     <Page>
-      <Banner tone="critical" title={t("verification.report.error.title") || "Report Error"}>
-        <p>{t("verification.report.error.description") || "An unexpected error occurred while loading the report."}</p>
-        <Button onClick={() => window.location.reload()}>Reload</Button>
+      <Banner tone="critical" title={t("verification.report.error.title")}>
+        <p>{t("verification.report.error.description")}</p>
+        <Button onClick={() => window.location.reload()}>{t("verification.report.error.reload")}</Button>
       </Banner>
     </Page>
   );
@@ -252,16 +252,16 @@ export default function VerificationReportPage() {
           secondaryAction={{ content: t("verification.report.actions.reportCenter"), url: "/app/reports" }}
         />
         {reportData.limitReached && (
-            <Banner tone="warning" title={t("verification.report.limitReached.title") || "Data Limit Reached"}>
+            <Banner tone="warning" title={t("verification.report.limitReached.title")}>
                 <Text as="p" variant="bodySm">
-                    {t("verification.report.limitReached.description") || "The analysis was limited to the most recent 1000 events. Some older events might not be included in this report."}
+                    {t("verification.report.limitReached.description")}
                 </Text>
             </Banner>
         )}
         {reportData.reconciliationError && (
-            <Banner tone="critical" title={t("verification.report.reconciliationError.title") || "Reconciliation Failed"}>
+            <Banner tone="critical" title={t("verification.report.reconciliationError.title")}>
                 <Text as="p" variant="bodySm">
-                    {t("verification.report.reconciliationError.description") || "The order reconciliation process failed. Missing orders detection might be incomplete."}
+                    {t("verification.report.reconciliationError.description")}
                 </Text>
                 <Text as="p" variant="bodySm" tone="subdued">
                     {reportData.reconciliationError}

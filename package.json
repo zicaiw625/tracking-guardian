@@ -67,6 +67,7 @@
     "react-dom": "^18.2.0",
     "react-i18next": "^16.5.4",
     "redis": "^4.6.13",
+    "remix-i18next": "^7.4.2",
     "zod": "^4.2.1"
   },
   "devDependencies": {

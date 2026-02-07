@@ -14,13 +14,14 @@ import {
 } from "@shopify/polaris";
 import { CheckCircleIcon, ClockIcon } from "../icons";
 import { DEPRECATION_DATES, SHOPIFY_HELP_LINKS } from "../../utils/migration-deadlines";
+import { useTranslation, Trans } from "react-i18next";
 
 export type ShopTier = "plus" | "non_plus" | "unknown";
 
 export interface CountdownMilestone {
   date: Date;
-  label: string;
-  description: string;
+  labelKey: string;
+  descriptionKey: string;
   isPassed: boolean;
   isNext: boolean;
   tier: "all" | "plus" | "non_plus";
@@ -35,35 +36,35 @@ export interface MigrationCountdownProps {
   lastCheckedAt?: Date | null;
 }
 
-const MILESTONES: Omit<CountdownMilestone, "isPassed" | "isNext">[] = [
+const MILESTONES_DATA = [
   {
     date: DEPRECATION_DATES.scriptTagCreationBlocked,
-    label: "ScriptTag 创建禁止",
-    description: `无法在 TYP/OSP 页面创建新的 ScriptTag（参考 ${SHOPIFY_HELP_LINKS.UPGRADE_GUIDE}）。日期来自 Shopify 官方公告，仅供参考，实际截止日期请以 Shopify Admin 中的提示为准。`,
-    tier: "all",
+    labelKey: "migrationCountdown.milestones.scriptTagBlocked.label",
+    descriptionKey: "migrationCountdown.milestones.scriptTagBlocked.desc",
+    tier: "all" as const,
   },
   {
     date: DEPRECATION_DATES.plusScriptTagExecutionOff,
-    label: "Plus 限制开始",
-    description: `Plus 商家开始受到升级限制（参考 ${SHOPIFY_HELP_LINKS.UPGRADE_GUIDE}）。日期来自 Shopify 官方公告，仅供参考，实际截止日期请以 Shopify Admin 中的提示为准。`,
-    tier: "plus",
+    labelKey: "migrationCountdown.milestones.plusRestriction.label",
+    descriptionKey: "migrationCountdown.milestones.plusRestriction.desc",
+    tier: "plus" as const,
   },
   {
     date: DEPRECATION_DATES.plusAutoUpgradeStart,
-    label: "Plus 自动升级开始",
-    description: `Shopify 开始自动升级 Plus 商家页面，legacy 定制会丢失（参考 ${SHOPIFY_HELP_LINKS.UPGRADE_GUIDE}）。日期来自 Shopify 官方公告，仅供参考，实际截止日期请以 Shopify Admin 中的提示为准。`,
-    tier: "plus",
+    labelKey: "migrationCountdown.milestones.plusAutoUpgrade.label",
+    descriptionKey: "migrationCountdown.milestones.plusAutoUpgrade.desc",
+    tier: "plus" as const,
   },
   {
     date: DEPRECATION_DATES.nonPlusScriptTagExecutionOff,
-    label: "非 Plus 截止日期",
-    description: `所有非 Plus 商家的旧版追踪功能完全停止（参考 ${SHOPIFY_HELP_LINKS.UPGRADE_GUIDE}）。日期来自 Shopify 官方公告，仅供参考，实际截止日期请以 Shopify Admin 中的提示为准。`,
-    tier: "non_plus",
+    labelKey: "migrationCountdown.milestones.nonPlusDeadline.label",
+    descriptionKey: "migrationCountdown.milestones.nonPlusDeadline.desc",
+    tier: "non_plus" as const,
   },
 ];
 
 function getMilestones(shopTier: ShopTier, now: Date = new Date()): CountdownMilestone[] {
-  const applicableMilestones = MILESTONES.filter(
+  const applicableMilestones = MILESTONES_DATA.filter(
     (m) => m.tier === "all" || m.tier === shopTier || shopTier === "unknown"
   );
   let foundNext = false;
@@ -122,6 +123,7 @@ export function MigrationCountdown({
   platformCount = 0,
   lastCheckedAt,
 }: MigrationCountdownProps) {
+  const { t, i18n } = useTranslation();
   const now = new Date();
   const deadline = getDeadline(shopTier);
   const daysRemaining = getDaysRemaining(deadline, now);
@@ -129,12 +131,19 @@ export function MigrationCountdown({
   const milestones = getMilestones(shopTier, now);
   const urgencyTone = getUrgencyTone(daysRemaining);
   const urgencyBg = getUrgencyBackground(daysRemaining);
-  const tierLabel = shopTier === "plus" ? "Shopify Plus" : shopTier === "non_plus" ? "标准版" : "未知";
-  const deadlineLabel = deadline.toLocaleDateString("zh-CN", {
+  
+  const tierLabel = shopTier === "plus" 
+    ? t("migrationCountdown.tier.plus") 
+    : shopTier === "non_plus" 
+      ? t("migrationCountdown.tier.standard") 
+      : t("migrationCountdown.tier.unknown");
+      
+  const deadlineLabel = deadline.toLocaleDateString(i18n.language, {
     year: "numeric",
     month: "long",
     day: "numeric",
   });
+
   if (isUpgraded === true) {
     return (
       <Card>
@@ -150,19 +159,19 @@ export function MigrationCountdown({
               </Box>
               <BlockStack gap="050">
                 <Text as="h2" variant="headingMd">
-                  ✅ 迁移已完成
+                  {t("migrationCountdown.status.completed")}
                 </Text>
                 <Text as="p" variant="bodySm" tone="subdued">
-                  您的店铺已升级到新版 Thank you / Order status 页面
+                  {t("migrationCountdown.status.upgradedDesc")}
                 </Text>
               </BlockStack>
             </InlineStack>
-            <Badge tone="success">已就绪</Badge>
+            <Badge tone="success">{t("migrationCountdown.status.ready")}</Badge>
           </InlineStack>
           {hasScriptTags && (
             <Banner tone="info">
               <Text as="p" variant="bodySm">
-                检测到 {scriptTagCount} 个旧版 ScriptTag。这些脚本已不再执行，建议清理以保持配置整洁。
+                {t("migrationCountdown.status.legacyScriptTagsDetected", { count: scriptTagCount })}
               </Text>
             </Banner>
           )}
@@ -170,6 +179,7 @@ export function MigrationCountdown({
       </Card>
     );
   }
+
   return (
     <Card>
       <BlockStack gap="500">
@@ -183,17 +193,24 @@ export function MigrationCountdown({
               <BlockStack gap="200">
                 <InlineStack gap="200" blockAlign="center">
                   <Text as="span" variant="bodyMd" fontWeight="semibold">
-                    ⏰ 迁移倒计时
+                    {t("migrationCountdown.title")}
                   </Text>
                   <Badge tone={shopTier === "plus" ? "attention" : "info"}>
                     {tierLabel}
                   </Badge>
                 </InlineStack>
                 <Text as="p" variant="bodySm" tone="subdued">
-                  截止日期：{deadlineLabel}
+                  {t("migrationCountdown.deadline", { date: deadlineLabel })}
                 </Text>
                 <Text as="p" variant="bodySm" tone="subdued">
-                  <strong>日期来源：</strong>来自 <Link url={SHOPIFY_HELP_LINKS.UPGRADE_GUIDE} target="_blank">Shopify 官方公告</Link>，仅供参考。实际截止日期请以 Shopify Admin 中的提示为准。Shopify 可能会更新策略，建议定期查看 <Link url={SHOPIFY_HELP_LINKS.CHECKOUT_EXTENSIBILITY} target="_blank">Shopify 官方文档</Link>。
+                  <Trans
+                    i18nKey="migrationCountdown.source"
+                    components={{
+                      strong: <strong />,
+                      1: <Link url={SHOPIFY_HELP_LINKS.UPGRADE_GUIDE} target="_blank" />,
+                      3: <Link url={SHOPIFY_HELP_LINKS.CHECKOUT_EXTENSIBILITY} target="_blank" />
+                    }}
+                  />
                 </Text>
               </BlockStack>
               <Box
@@ -209,11 +226,11 @@ export function MigrationCountdown({
                     fontWeight="bold"
                     alignment="center"
                   >
-                    {daysRemaining <= 0 ? "已过期" : daysRemaining}
+                    {daysRemaining <= 0 ? t("migrationCountdown.expired") : daysRemaining}
                   </Text>
                   {daysRemaining > 0 && (
                     <Text as="p" variant="bodySm" tone="subdued">
-                      天
+                      {t("migrationCountdown.days")}
                     </Text>
                   )}
                 </BlockStack>
@@ -222,7 +239,7 @@ export function MigrationCountdown({
             <BlockStack gap="200">
               <InlineStack align="space-between">
                 <Text as="span" variant="bodySm">
-                  时间进度
+                  {t("migrationCountdown.progress")}
                 </Text>
                 <Text as="span" variant="bodySm" fontWeight="semibold">
                   {progressPercentage.toFixed(0)}%
@@ -239,7 +256,7 @@ export function MigrationCountdown({
                 <Box background="bg-surface" padding="300" borderRadius="100">
                   <BlockStack gap="050">
                     <Text as="p" variant="bodySm" tone="subdued">
-                      待迁移 ScriptTag
+                      {t("migrationCountdown.pendingScriptTags")}
                     </Text>
                     <Text as="p" variant="headingMd" fontWeight="bold" tone="critical">
                       {scriptTagCount}
@@ -249,7 +266,7 @@ export function MigrationCountdown({
                 <Box background="bg-surface" padding="300" borderRadius="100">
                   <BlockStack gap="050">
                     <Text as="p" variant="bodySm" tone="subdued">
-                      涉及平台
+                      {t("migrationCountdown.platformsInvolved")}
                     </Text>
                     <Text as="p" variant="headingMd" fontWeight="bold" tone="caution">
                       {platformCount}
@@ -259,12 +276,13 @@ export function MigrationCountdown({
                 <Box background="bg-surface" padding="300" borderRadius="100">
                   <BlockStack gap="050">
                     <Text as="p" variant="bodySm" tone="subdued">
-                      紧急程度
+                      {t("migrationCountdown.urgency")}
                     </Text>
                     <Badge tone={urgencyTone}>
-                      {daysRemaining <= 0 ? "已过期" :
-                       daysRemaining <= 30 ? "紧急" :
-                       daysRemaining <= 90 ? "警告" : "正常"}
+                      {daysRemaining <= 0 ? t("migrationCountdown.expired") :
+                       daysRemaining <= 30 ? t("migrationCountdown.urgencyLevels.critical") :
+                       daysRemaining <= 90 ? t("migrationCountdown.urgencyLevels.warning") : 
+                       t("migrationCountdown.urgencyLevels.normal")}
                     </Badge>
                   </BlockStack>
                 </Box>
@@ -273,26 +291,26 @@ export function MigrationCountdown({
           </BlockStack>
         </Box>
         {daysRemaining <= 30 && daysRemaining > 0 && (
-          <Banner tone="critical" title="⚠️ 紧急迁移提醒">
+          <Banner tone="critical" title={t("migrationCountdown.banner.urgent.title")}>
             <BlockStack gap="200">
               <Text as="p">
-                距离截止日期仅剩 {daysRemaining} 天！请立即开始迁移以避免追踪中断。
+                {t("migrationCountdown.banner.urgent.desc", { days: daysRemaining })}
               </Text>
               {shopTier === "plus" && (
                 <Text as="p" variant="bodySm" tone="subdued">
-                  Plus 商家提示：2026年1月起（Shopify 会提前30天通知，日期来自 Shopify 官方公告，请以 Admin 提示为准），Shopify 将开始自动升级未迁移的店铺，届时旧版脚本将被清除。
+                  {t("migrationCountdown.banner.plusHint")}
                 </Text>
               )}
             </BlockStack>
           </Banner>
         )}
         {daysRemaining <= 0 && (
-          <Banner tone="critical" title="🚨 截止日期已过">
+          <Banner tone="critical" title={t("migrationCountdown.banner.expired.title")}>
             <BlockStack gap="200">
               <Text as="p">
                 {shopTier === "plus"
-                  ? "Plus 商家的 ScriptTag 已停止执行；Additional Scripts 已进入只读模式（不可编辑，PII 不可访问）。请立即完成迁移！"
-                  : "迁移截止日期已过。请尽快完成迁移以恢复追踪功能。"}
+                  ? t("migrationCountdown.banner.expired.plusDesc")
+                  : t("migrationCountdown.banner.expired.nonPlusDesc")}
               </Text>
             </BlockStack>
           </Banner>
@@ -300,7 +318,7 @@ export function MigrationCountdown({
         <Divider />
         <BlockStack gap="300">
           <Text as="h3" variant="headingSm">
-            📅 关键里程碑
+            {t("migrationCountdown.milestonesTitle")}
           </Text>
           <BlockStack gap="200">
             {milestones.map((milestone, index) => (
@@ -334,19 +352,24 @@ export function MigrationCountdown({
                           variant="bodySm"
                           fontWeight={milestone.isNext ? "bold" : "regular"}
                         >
-                          {milestone.label}
+                          {t(milestone.labelKey)}
                         </Text>
                         {milestone.isNext && (
-                          <Badge tone="info" size="small">下一个</Badge>
+                          <Badge tone="info" size="small">{t("migrationCountdown.next")}</Badge>
                         )}
                         {milestone.tier !== "all" && (
                           <Badge tone={milestone.tier === "plus" ? "attention" : "info"} size="small">
-                            {milestone.tier === "plus" ? "Plus" : "非 Plus"}
+                            {milestone.tier === "plus" ? "Plus" : t("migrationCountdown.tier.standard").replace("版", "")}
                           </Badge>
                         )}
                       </InlineStack>
                       <Text as="span" variant="bodySm" tone="subdued">
-                        {milestone.description}
+                        <Trans
+                          i18nKey={milestone.descriptionKey}
+                          components={{
+                            1: <Link url={SHOPIFY_HELP_LINKS.UPGRADE_GUIDE} target="_blank" />
+                          }}
+                        />
                       </Text>
                     </BlockStack>
                   </InlineStack>
@@ -356,7 +379,7 @@ export function MigrationCountdown({
                     fontWeight={milestone.isNext ? "bold" : "regular"}
                     tone={milestone.isPassed ? "subdued" : undefined}
                   >
-                    {milestone.date.toLocaleDateString("zh-CN", {
+                    {milestone.date.toLocaleDateString(i18n.language, {
                       year: "numeric",
                       month: "short",
                       day: "numeric",
@@ -370,12 +393,12 @@ export function MigrationCountdown({
         <Divider />
         <InlineStack align="end" gap="200">
           <Button url="/app/migrate" variant="primary">
-            {daysRemaining <= 30 ? "🚀 立即迁移" : "开始迁移"}
+            {daysRemaining <= 30 ? t("migrationCountdown.actions.migrateNow") : t("migrationCountdown.actions.startMigrate")}
           </Button>
         </InlineStack>
         {lastCheckedAt && (
           <Text as="p" variant="bodySm" tone="subdued" alignment="end">
-            状态更新时间：{new Date(lastCheckedAt).toLocaleString("zh-CN")}
+            {t("migrationCountdown.lastUpdated", { date: new Date(lastCheckedAt).toLocaleString(i18n.language) })}
           </Text>
         )}
       </BlockStack>

@@ -3,8 +3,10 @@ import { json } from "@remix-run/node";
 import { authenticate } from "../shopify.server";
 import { deleteWebPixel, deleteMultipleWebPixels } from "../services/admin-mutations.server";
 import { logger } from "../utils/logger.server";
+import { i18nServer } from "../i18n.server";
 
 export const action = async ({ request }: ActionFunctionArgs) => {
+    const t = await i18nServer.getFixedT(request);
     const { admin, session } = await authenticate.admin(request);
     if (request.method !== "POST") {
         return json({ success: false, error: "Method not allowed" }, { status: 405 });
@@ -43,7 +45,9 @@ export const action = async ({ request }: ActionFunctionArgs) => {
                 deletedCount: successCount,
                 totalAttempted: results.length,
                 failures: failures.length > 0 ? failures : undefined,
-                message: `删除了 ${successCount}/${results.length} 个重复像素${kept ? `，保留了 ${kept}` : ""}`,
+                message: kept 
+                    ? t("scan.success.deletePartialWithKept", { success: successCount, total: results.length, kept })
+                    : t("scan.success.deletePartial", { success: successCount, total: results.length }),
             });
         }
         if (!webPixelGid) {
@@ -65,7 +69,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
             return json({
                 success: true,
                 deletedId: result.deletedId,
-                message: "WebPixel 删除成功",
+                message: t("scan.success.deleteSuccess"),
             });
         }
         if (result.userErrors && result.userErrors.length > 0) {
@@ -73,28 +77,28 @@ export const action = async ({ request }: ActionFunctionArgs) => {
             if (firstError.message.includes("not found")) {
                 return json({
                     success: false,
-                    error: "WebPixel 不存在或已被删除",
+                    error: t("scan.errors.webPixelNotFoundOrDeleted"),
                     details: result.userErrors,
                 }, { status: 404 });
             }
             if (firstError.message.includes("permission") || firstError.message.includes("access")) {
                 return json({
                     success: false,
-                    error: "缺少删除权限，请确认应用已获得 write_pixels 权限",
+                    error: t("scan.errors.deletePermissionDenied"),
                     details: result.userErrors,
                 }, { status: 403 });
             }
         }
         return json({
             success: false,
-            error: result.error || "删除失败",
+            error: result.error || t("scan.errors.deleteFailed"),
             details: result.userErrors,
         }, { status: 400 });
     } catch (error) {
         logger.error("Delete WebPixel action error", error);
         return json({
             success: false,
-            error: error instanceof Error ? error.message : "服务器错误",
+            error: error instanceof Error ? error.message : t("common.serverError"),
         }, { status: 500 });
     }
 };

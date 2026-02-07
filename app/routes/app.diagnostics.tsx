@@ -5,6 +5,7 @@ import { useState, useEffect, useCallback } from "react";
 import { authenticate } from "../shopify.server";
 import * as fs from "fs";
 import * as path from "path";
+import { useTranslation, Trans } from "react-i18next";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   await authenticate.admin(request);
@@ -38,13 +39,14 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 };
 
 export default function DiagnosticsPage() {
+  const { t } = useTranslation();
   const { appUrl, backendUrl, isLocal, extensionConfigStatus } = useLoaderData<typeof loader>();
   const [corsStatus, setCorsStatus] = useState<"pending" | "success" | "error">("pending");
   const [corsMessage, setCorsMessage] = useState("");
 
   const checkCors = useCallback(async () => {
     setCorsStatus("pending");
-    setCorsMessage("正在检查连通性...");
+    setCorsMessage(t("diagnostics.cors.status.pending"));
     try {
       const start = Date.now();
       const res = await fetch(`${backendUrl}?check=true`, {
@@ -54,65 +56,66 @@ export default function DiagnosticsPage() {
       
       if (res.ok || res.status === 204 || res.status === 200) {
         setCorsStatus("success");
-        setCorsMessage(`连接成功 (${end - start}ms)`);
+        setCorsMessage(t("diagnostics.cors.status.success", { ms: end - start }));
       } else {
         setCorsStatus("error");
-        setCorsMessage(`连接失败: HTTP ${res.status}`);
+        setCorsMessage(t("diagnostics.cors.status.fail", { status: res.status }));
       }
     } catch (e) {
       setCorsStatus("error");
-      setCorsMessage(`连接错误: ${e instanceof Error ? e.message : String(e)}. 可能是 CORS 配置问题或网络不通。`);
+      setCorsMessage(t("diagnostics.cors.status.error", { error: e instanceof Error ? e.message : String(e) }));
     }
-  }, [backendUrl]);
+  }, [backendUrl, t]);
 
   useEffect(() => {
     checkCors();
   }, [checkCors]);
 
   return (
-    <Page title="像素连通性诊断">
+    <Page title={t("diagnostics.pageTitle")}>
       <Layout>
         <Layout.Section>
           {extensionConfigStatus === "placeholder" && (
-            <Banner tone="critical" title="Extension Config Warning">
+            <Banner tone="critical" title={t("diagnostics.extensionConfig.warning.title")}>
               <p>
-                <code>extensions/shared/config.ts</code> contains <code>__BACKEND_URL_PLACEHOLDER__</code>. 
-                You must run <code>pnpm ext:inject</code> before deploying to ensure the correct Backend URL is used.
+                <Trans i18nKey="diagnostics.extensionConfig.warning.desc" components={{ code: <code /> }} />
               </p>
             </Banner>
           )}
           {extensionConfigStatus === "error" && (
-            <Banner tone="warning" title="Extension Config Check Failed">
-              <p>Could not read <code>extensions/shared/config.ts</code>. Please check file permissions.</p>
+            <Banner tone="warning" title={t("diagnostics.extensionConfig.error.title")}>
+              <p>
+                <Trans i18nKey="diagnostics.extensionConfig.error.desc" components={{ code: <code /> }} />
+              </p>
             </Banner>
           )}
 
           <Card>
             <BlockStack gap="400">
-              <Text as="h2" variant="headingMd">配置检查</Text>
+              <Text as="h2" variant="headingMd">{t("diagnostics.configCheck.title")}</Text>
               <List>
                 <List.Item>
-                  <Text as="span" fontWeight="bold">SHOPIFY_APP_URL:</Text> {appUrl || "未设置 ❌"}
+                  <Text as="span" fontWeight="bold">{t("diagnostics.configCheck.items.appUrl")}</Text> {appUrl || t("diagnostics.configCheck.items.unset")}
                 </List.Item>
                 <List.Item>
-                  <Text as="span" fontWeight="bold">Pixel Backend URL:</Text> {backendUrl || "未设置 ❌"}
+                  <Text as="span" fontWeight="bold">{t("diagnostics.configCheck.items.backendUrl")}</Text> {backendUrl || t("diagnostics.configCheck.items.unset")}
                 </List.Item>
                 <List.Item>
-                    <Text as="span" fontWeight="bold">环境:</Text> {isLocal ? "本地开发 (Localhost)" : "生产环境"} 
-                    {isLocal && <Text as="span" tone="critical"> (注意：Localhost URL 无法在真实 Web Pixel 环境中工作)</Text>}
+                    <Text as="span" fontWeight="bold">{t("diagnostics.configCheck.items.env.label")}</Text> {isLocal ? t("diagnostics.configCheck.items.env.local") : t("diagnostics.configCheck.items.env.production")} 
+                    {isLocal && <Text as="span" tone="critical">{t("diagnostics.configCheck.items.env.localWarning")}</Text>}
                 </List.Item>
                 <List.Item>
-                  <Text as="span" fontWeight="bold">Extension Config Status:</Text> {extensionConfigStatus === "injected" ? "✅ Injected" : "⚠️ Placeholder/Error"}
+                  <Text as="span" fontWeight="bold">{t("diagnostics.extensionConfig.status.label")}</Text> {extensionConfigStatus === "injected" ? t("diagnostics.extensionConfig.status.injected") : t("diagnostics.extensionConfig.status.placeholder")}
                 </List.Item>
               </List>
               
-              <Banner tone="info" title="Network Access Allowlist Required">
+              <Banner tone="info" title={t("diagnostics.networkAccess.title")}>
                 <p>
-                  Ensure the following URL is added to your <strong>Partner Dashboard &gt; App &gt; Extensions &gt; Web Pixel &gt; Network access</strong>:
+                  <Trans i18nKey="diagnostics.networkAccess.desc" components={{ strong: <strong /> }} />
                 </p>
                 <p style={{ marginTop: "8px", fontWeight: "bold" }}>{backendUrl}</p>
                 <p style={{ marginTop: "8px" }}>
-                  Without this, the Web Pixel will fail to send events to your backend.
+                  {t("diagnostics.networkAccess.fail")}
                 </p>
               </Banner>
             </BlockStack>
@@ -120,17 +123,16 @@ export default function DiagnosticsPage() {
           
           <Card>
              <BlockStack gap="400">
-                <Text as="h2" variant="headingMd">连通性测试 (CORS)</Text>
+                <Text as="h2" variant="headingMd">{t("diagnostics.cors.title")}</Text>
                 <Banner
                     tone={corsStatus === "success" ? "success" : corsStatus === "error" ? "critical" : "info"}
                 >
                     {corsMessage}
                 </Banner>
-                <Button onClick={checkCors} loading={corsStatus === "pending"}>重新测试</Button>
+                <Button onClick={checkCors} loading={corsStatus === "pending"}>{t("diagnostics.cors.actions.retest")}</Button>
                 
                 <Text as="p" variant="bodySm" tone="subdued">
-                    此测试模拟从浏览器（类似于 Web Pixel 环境）向后端发送跨域请求。如果失败，说明 CORS 配置有误或后端不可达。
-                    请确保 `extensions/tracking-pixel/src/index.ts` 中的 `BACKEND_URL` 与上述 URL 一致，且 Shopify App URL 已配置为 HTTPS。
+                    {t("diagnostics.cors.help")}
                 </Text>
              </BlockStack>
           </Card>

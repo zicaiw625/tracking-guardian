@@ -299,7 +299,7 @@ export function ScriptCodeEditor({
               multiline={12}
               autoComplete="off"
               placeholder={placeholder || t("scriptEditor.placeholder")}
-              helpText="支持检测 Google、Meta、TikTok、Pinterest 等平台的追踪代码"
+              helpText={t("scriptEditor.helpText")}
             />
             {value && showPreview && (
               <BlockStack gap="300">

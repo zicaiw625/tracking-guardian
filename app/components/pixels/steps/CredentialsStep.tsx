@@ -8,6 +8,7 @@ import {
   type MetaCredentials,
   type TikTokCredentials,
 } from "~/components/forms/PlatformCredentialsForm";
+import { useTranslation } from "react-i18next";
 
 interface CredentialsStepProps {
   selectedPlatforms: Set<SupportedPlatform>;
@@ -59,14 +60,16 @@ export function CredentialsStep({
   platformConfigs,
   onCredentialsChange,
 }: CredentialsStepProps) {
+  const { t } = useTranslation();
+
   return (
     <Card>
       <BlockStack gap="400">
         <Text as="h3" variant="headingMd">
-          平台凭证（可选）
+          {t("newPixelWizard.credentialsStep.title")}
         </Text>
         <Text as="p" tone="subdued">
-          当前版本不进行服务端投递；凭证可保存用于后续能力规划。
+          {t("newPixelWizard.credentialsStep.description")}
         </Text>
         {Array.from(selectedPlatforms).map((platform) => {
           const config = platformConfigs[platform];

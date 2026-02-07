@@ -57,9 +57,9 @@ export function ErrorBoundary() {
   const { t } = useTranslation();
   return (
     <Page>
-      <Banner tone="critical" title={t("verification.start.error.title") || "Page Error"}>
-        <p>{t("verification.start.error.description") || "An unexpected error occurred while loading the start page."}</p>
-        <Button onClick={() => window.location.reload()}>Reload</Button>
+      <Banner tone="critical" title={t("verification.start.error.title")}>
+        <p>{t("verification.start.error.description")}</p>
+        <Button onClick={() => window.location.reload()}>{t("verification.start.error.reload")}</Button>
       </Banner>
     </Page>
   );

@@ -1,4 +1,6 @@
 
+import type { TFunction } from "i18next";
+
 export const STRICT_SANDBOX_FIELD_LIMITATIONS: Record<string, string[]> = {
   checkout_completed: ["buyer.email", "buyer.phone", "deliveryAddress", "shippingAddress", "billingAddress"],
   checkout_started: ["buyer.email", "buyer.phone", "deliveryAddress", "shippingAddress", "billingAddress"],
@@ -26,13 +28,25 @@ export interface VerificationEventResultLike {
   params?: { value?: number };
 }
 
-export function getEventSandboxLimitations(result: VerificationEventResultLike): string[] {
+export function getEventSandboxLimitations(result: VerificationEventResultLike, t?: TFunction): string[] {
   const limitations: string[] = [];
   const eventType = result.eventType;
   const knownLimitations = STRICT_SANDBOX_FIELD_LIMITATIONS[eventType] || [];
   
+  const translate = (key: string, options?: any, fallback?: string) => {
+    if (!t) {
+      return fallback || key;
+    }
+    const result = t(key, options);
+    return typeof result === "string" ? result : fallback || key;
+  };
+  
   if (STRICT_SANDBOX_UNAVAILABLE_EVENTS.includes(eventType)) {
-    limitations.push(`Strict sandbox 限制：${eventType} 事件在 Web Pixel strict sandbox 环境中不可用，需要通过订单 webhooks 获取`);
+    limitations.push(translate(
+      "verification.limits.strictSandbox", 
+      { eventType }, 
+      `Strict sandbox 限制：${eventType} 事件在 Web Pixel strict sandbox 环境中不可用，需要通过订单 webhooks 获取`
+    ));
     return limitations;
   }
   
@@ -51,13 +65,23 @@ export function getEventSandboxLimitations(result: VerificationEventResultLike):
     });
     
     if (missingKnownFields.length > 0) {
-      limitations.push(`Strict sandbox 已知限制：${eventType} 事件在 Web Worker 环境中无法获取以下字段：${missingKnownFields.join(", ")}。这是平台限制，不是故障。`);
+      limitations.push(translate(
+        "verification.limits.missingKnownFields",
+        { eventType, fields: missingKnownFields.join(", ") },
+        `Strict sandbox 已知限制：${eventType} 事件在 Web Worker 环境中无法获取以下字段：${missingKnownFields.join(", ")}。这是平台限制，不是故障。`
+      ));
     } else if (result.status === "missing_params" || result.status === "failed") {
-      limitations.push(`Strict sandbox 已知限制：${eventType} 事件在 Web Worker 环境中可能无法获取以下字段（可能为 null）：${knownLimitations.join(", ")}。这是平台限制，不是故障。`);
+      limitations.push(translate(
+        "verification.limits.potentialMissingKnownFields",
+        { eventType, fields: knownLimitations.join(", ") },
+        `Strict sandbox 已知限制：${eventType} 事件在 Web Worker 环境中可能无法获取以下字段（可能为 null）：${knownLimitations.join(", ")}。这是平台限制，不是故障。`
+      ));
     } else {
-      // Logic for "success" but potentially null fields (not explicit failure) is usually handled by UI hints, but here we can add a note if needed.
-      // In original code, it added a note for success too.
-      limitations.push(`Strict sandbox 已知限制：${eventType} 事件在 Web Worker 环境中以下字段可能为 null（这是平台限制，不是故障）：${knownLimitations.join(", ")}。已自动标注。`);
+      limitations.push(translate(
+        "verification.limits.nullFields",
+        { eventType, fields: knownLimitations.join(", ") },
+        `Strict sandbox 已知限制：${eventType} 事件在 Web Worker 环境中以下字段可能为 null（这是平台限制，不是故障）：${knownLimitations.join(", ")}。已自动标注。`
+      ));
     }
   }
   
@@ -74,18 +98,23 @@ export function getEventSandboxLimitations(result: VerificationEventResultLike):
       const knownFields = fieldNames.filter(f => knownLimitations.some(kl => f.includes(kl) || kl.includes(f)));
       const unknownFields = fieldNames.filter(f => !knownFields.includes(f));
       
-      // Note: The original code logic for "knownFields" inside this block was slightly duplicative with above.
-      // But we keep it to catch fields explicitly reported as missing in discrepancies.
-      
       if (unknownFields.length > 0) {
-        limitations.push(`Strict sandbox 限制：以下字段在 Web Worker 环境中不可用：${unknownFields.join(", ")}`);
+        limitations.push(translate(
+          "verification.limits.unavailableFields",
+          { fields: unknownFields.join(", ") },
+          `Strict sandbox 限制：以下字段在 Web Worker 环境中不可用：${unknownFields.join(", ")}`
+        ));
       }
     }
   }
   
   if (result.eventType === "checkout_completed" || result.eventType === "checkout_started") {
     if (!result.params?.value && result.status !== "success") {
-      limitations.push("Strict sandbox 限制：某些 checkout 事件在 Web Worker 环境中可能无法获取完整的 value 字段");
+      limitations.push(translate(
+        "verification.limits.incompleteValue",
+        {},
+        "Strict sandbox 限制：某些 checkout 事件在 Web Worker 环境中可能无法获取完整的 value 字段"
+      ));
     }
   }
   

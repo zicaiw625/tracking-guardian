@@ -15,6 +15,7 @@ import {
 import { CheckCircleIcon, PlayIcon } from "~/components/icons";
 import type { TestChecklist } from "~/services/verification-checklist.server";
 import { CheckoutCompletedBehaviorHint } from "./CheckoutCompletedBehaviorHint";
+import { useTranslation, Trans } from "react-i18next";
 
 export interface VerificationWizardProps {
   shopId: string;
@@ -29,6 +30,7 @@ export function VerificationWizard({
   onStartTest,
   onComplete,
 }: VerificationWizardProps) {
+  const { t } = useTranslation();
   const [completedItems, setCompletedItems] = useState<Set<string>>(() => {
     if (typeof window === "undefined") return new Set();
     try {
@@ -59,7 +61,7 @@ export function VerificationWizard({
         <BlockStack gap="400">
           <InlineStack align="space-between">
             <Text variant="headingMd" as="h2">
-              验收测试向导
+              {t("verification.wizard.title")}
             </Text>
             <Badge tone={allCompleted ? "success" : "info"}>
               {`${completedItems.size} / ${testChecklist.items.length}`}
@@ -69,7 +71,7 @@ export function VerificationWizard({
             <BlockStack gap="200">
               <InlineStack align="space-between">
                 <Text variant="bodyMd" as="span">
-                  完成进度
+                  {t("verification.wizard.progress")}
                 </Text>
                 <Text variant="headingSm" as="span">
                   {Math.round(progress)}%
@@ -79,39 +81,39 @@ export function VerificationWizard({
             </BlockStack>
           </Box>
           <Divider />
-          <Banner tone="info" title="重要提示：v1.0 验收范围（符合 PRD 4.5 要求）">
+          <Banner tone="info" title={t("verification.wizard.banner.title")}>
             <BlockStack gap="200">
               <Text variant="bodySm" as="p">
-                <strong>v1.0 验收范围：</strong>v1.0 版本仅支持 checkout/purchase 漏斗事件的验收，包括：
+                <Trans i18nKey="verification.wizard.banner.scope" components={{ strong: <strong /> }} />
               </Text>
               <List type="bullet">
-                <List.Item>✅ checkout_started（开始结账）</List.Item>
-                <List.Item>✅ checkout_completed（完成购买）</List.Item>
-                <List.Item>✅ checkout_contact_info_submitted（提交联系信息）</List.Item>
-                <List.Item>✅ checkout_shipping_info_submitted（提交配送信息）</List.Item>
-                <List.Item>✅ payment_info_submitted（提交支付信息）</List.Item>
-                <List.Item>✅ product_added_to_cart（加入购物车）</List.Item>
-                <List.Item>✅ product_viewed（商品浏览）</List.Item>
-                <List.Item>✅ page_viewed（页面浏览）</List.Item>
+                <List.Item>{t("verification.wizard.banner.items.checkout_started")}</List.Item>
+                <List.Item>{t("verification.wizard.banner.items.checkout_completed")}</List.Item>
+                <List.Item>{t("verification.wizard.banner.items.checkout_contact_info_submitted")}</List.Item>
+                <List.Item>{t("verification.wizard.banner.items.checkout_shipping_info_submitted")}</List.Item>
+                <List.Item>{t("verification.wizard.banner.items.payment_info_submitted")}</List.Item>
+                <List.Item>{t("verification.wizard.banner.items.product_added_to_cart")}</List.Item>
+                <List.Item>{t("verification.wizard.banner.items.product_viewed")}</List.Item>
+                <List.Item>{t("verification.wizard.banner.items.page_viewed")}</List.Item>
               </List>
               <Text variant="bodySm" as="p" tone="critical">
-                <strong>⚠️ v1.0 不支持的事件类型：</strong>退款（refund）、订单取消（cancel）、订单编辑（order_edit）、订阅（subscription）等事件在 v1.0 中不可验收。
+                <Trans i18nKey="verification.wizard.banner.unsupported" components={{ strong: <strong /> }} />
               </Text>
               <Text variant="bodySm" as="p">
-                <strong>原因：</strong>Web Pixel Extension 运行在 strict sandbox 环境，只能订阅 Shopify 标准 checkout 漏斗事件。退款、取消、编辑订单、订阅等事件需要订单 webhooks 或后台定时对账才能获取，将在 v1.1+ 版本中通过订单相关 webhooks（orders/updated, refunds/create 等）实现。
+                <Trans i18nKey="verification.wizard.banner.reason" components={{ strong: <strong /> }} />
               </Text>
               <Text variant="bodySm" as="p">
-                <strong>checkout_completed 事件触发位置：</strong>在有 upsell/post-purchase 时，该事件可能在第一个 upsell 页触发，而不是在 Thank you 页。如果触发页加载失败，则可能完全不触发。
+                <Trans i18nKey="verification.wizard.banner.trigger" components={{ strong: <strong /> }} />
               </Text>
               <Text variant="bodySm" as="p">
-                <strong>Web Pixel 隐私与 consent：</strong>在需要 consent 的地区，回调会在 consent 后执行，之前注册的事件会 replay。
+                <Trans i18nKey="verification.wizard.banner.consent" components={{ strong: <strong /> }} />
               </Text>
             </BlockStack>
           </Banner>
           <CheckoutCompletedBehaviorHint mode="info" collapsible={true} />
           <BlockStack gap="300">
             <Text variant="headingSm" as="h3">
-              测试清单
+              {t("verification.wizard.checklist.title")}
             </Text>
             <List>
               {testChecklist.items.map((item, index) => {
@@ -134,7 +136,7 @@ export function VerificationWizard({
                             {index + 1}. {item.name}
                           </Text>
                         </InlineStack>
-                        {isCompleted && <Badge tone="success">已完成</Badge>}
+                        {isCompleted && <Badge tone="success">{t("verification.wizard.status.completed")}</Badge>}
                       </InlineStack>
                       {item.description && (
                         <Text variant="bodySm" as="span" tone="subdued">
@@ -144,7 +146,7 @@ export function VerificationWizard({
                       {item.expectedResults && item.expectedResults.length > 0 && (
                         <Box>
                           <Text variant="bodySm" as="span" fontWeight="semibold">
-                            预期结果:
+                            {t("verification.wizard.expectedResult")}
                           </Text>
                           <InlineStack gap="100">
                             {item.expectedResults.map((result) => (
@@ -160,7 +162,7 @@ export function VerificationWizard({
                           size="slim"
                           onClick={() => handleItemComplete(item.id)}
                         >
-                          标记为已完成
+                          {t("verification.wizard.actions.markComplete")}
                         </Button>
                       )}
                     </BlockStack>
@@ -173,10 +175,10 @@ export function VerificationWizard({
             <Banner tone="success">
               <BlockStack gap="200">
                 <Text variant="bodyMd" as="span" fontWeight="semibold">
-                  所有测试项已完成！
+                  {t("verification.wizard.completion.title")}
                 </Text>
                 <Text variant="bodySm" as="span">
-                  您可以继续查看事件详情或生成验收报告。
+                  {t("verification.wizard.completion.desc")}
                 </Text>
               </BlockStack>
             </Banner>
@@ -185,12 +187,12 @@ export function VerificationWizard({
           <InlineStack align="end">
             {onStartTest && (
               <Button onClick={onStartTest} icon={PlayIcon}>
-                开始测试
+                {t("verification.wizard.actions.startTest")}
               </Button>
             )}
             {allCompleted && onComplete && (
               <Button onClick={onComplete} variant="primary">
-                完成验收
+                {t("verification.wizard.actions.finish")}
               </Button>
             )}
           </InlineStack>

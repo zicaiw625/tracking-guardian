@@ -13,6 +13,7 @@ import { ShareIcon, ArrowRightIcon, ClipboardIcon, ExportIcon } from "~/componen
 import type { MigrationAction } from "../../services/scanner/types";
 import { getPlatformName } from "./utils";
 import { getShopifyAdminUrl } from "../../utils/helpers";
+import { useTranslation, Trans } from "react-i18next";
 
 interface MigrationWizardProps {
   migrationActions: MigrationAction[];
@@ -20,39 +21,47 @@ interface MigrationWizardProps {
 }
 
 export function MigrationWizard({ migrationActions, shopDomain }: MigrationWizardProps) {
+  const { t } = useTranslation();
+
+  const getPriorityLabel = (priority: string) => {
+    switch (priority) {
+      case "high": return t("migrationWizard.checklist.content.priority.high");
+      case "medium": return t("migrationWizard.checklist.content.priority.medium");
+      default: return t("migrationWizard.checklist.content.priority.low");
+    }
+  };
+
   const handleCopyChecklist = () => {
     const checklist = [
-      "# 迁移清单",
-      `店铺: ${shopDomain || "未知"}`,
-      `生成时间: ${new Date().toLocaleString("zh-CN")}`,
+      `# ${t("migrationWizard.checklist.content.header")}`,
+      `${t("migrationWizard.checklist.content.shop")}: ${shopDomain || t("migrationWizard.checklist.content.unknown")}`,
+      `${t("migrationWizard.checklist.content.generatedAt")}: ${new Date().toLocaleString()}`,
       "",
-      "## 待处理项目",
+      `## ${t("migrationWizard.checklist.content.pendingHeader")}`,
       ...(migrationActions?.map(
         (a, i) =>
-          `${i + 1}. [${a.priority === "high" ? "高" : a.priority === "medium" ? "中" : "低"}] ${
+          `${i + 1}. [${getPriorityLabel(a.priority)}] ${
             a.title
           }${a.platform ? ` (${a.platform})` : ""}`
-      ) || ["无"]),
+      ) || [t("migrationWizard.checklist.noPending")]),
       "",
-      "## 快速链接",
-      shopDomain ? `- Pixels 管理: ${getShopifyAdminUrl(shopDomain, "/settings/notifications")}` : "- Pixels 管理: (需要店铺域名)",
-      "- 应用迁移工具: /app/migrate",
+      `## ${t("migrationWizard.checklist.content.quickLinks")}`,
+      shopDomain ? `- ${t("migrationWizard.checklist.content.pixelManagement")}: ${getShopifyAdminUrl(shopDomain, "/settings/notifications")}` : `- ${t("migrationWizard.checklist.content.pixelManagement")}: ${t("migrationWizard.checklist.content.needDomain")}`,
+      `- ${t("migrationWizard.checklist.content.migrationTool")}: /app/migrate`,
     ].join("\n");
     navigator.clipboard.writeText(checklist);
   };
   const handleExportChecklist = () => {
     const checklist = [
-      "迁移清单",
-      `店铺: ${shopDomain || "未知"}`,
-      `生成时间: ${new Date().toLocaleString("zh-CN")}`,
+      t("migrationWizard.checklist.content.header"),
+      `${t("migrationWizard.checklist.content.shop")}: ${shopDomain || t("migrationWizard.checklist.content.unknown")}`,
+      `${t("migrationWizard.checklist.content.generatedAt")}: ${new Date().toLocaleString()}`,
       "",
-      "待处理项目:",
+      `${t("migrationWizard.checklist.content.pendingHeader")}:`,
       ...(migrationActions?.map(
         (a, i) =>
-          `${i + 1}. [${
-            a.priority === "high" ? "高优先级" : a.priority === "medium" ? "中优先级" : "低优先级"
-          }] ${a.title}${a.platform ? ` (${a.platform})` : ""}`
-      ) || ["无"]),
+          `${i + 1}. [${getPriorityLabel(a.priority)}] ${a.title}${a.platform ? ` (${a.platform})` : ""}`
+      ) || [t("migrationWizard.checklist.noPending")]),
     ].join("\n");
     const blob = new Blob([checklist], { type: "text/plain" });
     const url = URL.createObjectURL(blob);
@@ -67,20 +76,20 @@ export function MigrationWizard({ migrationActions, shopDomain }: MigrationWizar
       <BlockStack gap="400">
         <InlineStack align="space-between" blockAlign="center">
           <Text as="h2" variant="headingMd">
-            🧭 迁移向导
+            🧭 {t("migrationWizard.title")}
           </Text>
-          <Badge tone="info">P1-3 迁移闭环</Badge>
+          <Badge tone="info">{t("migrationWizard.badge")}</Badge>
         </InlineStack>
         <Text as="p" tone="subdued">
-          根据扫描结果，以下是完成迁移所需的步骤。点击各项可直接跳转到对应位置。
+          {t("migrationWizard.description")}
         </Text>
         <Divider />
         <BlockStack gap="300">
           <Text as="h3" variant="headingSm">
-            📦 Web Pixel 设置
+            📦 {t("migrationWizard.webPixel.title")}
           </Text>
           <Text as="p" variant="bodySm" tone="subdued">
-            Web Pixel 是 Shopify 推荐的客户端追踪方式，替代传统 ScriptTag。
+            {t("migrationWizard.webPixel.description")}
           </Text>
           <InlineStack gap="300" wrap>
             <Button
@@ -89,25 +98,25 @@ export function MigrationWizard({ migrationActions, shopDomain }: MigrationWizar
               icon={ShareIcon}
               disabled={!shopDomain}
             >
-              管理 Pixels（Shopify 后台）
+              {t("migrationWizard.webPixel.manage")}
             </Button>
             <Button url="/app/migrate" icon={ArrowRightIcon}>
-              在应用内配置 Pixel
+              {t("migrationWizard.webPixel.configure")}
             </Button>
           </InlineStack>
         </BlockStack>
         <Divider />
         <BlockStack gap="300">
           <Text as="h3" variant="headingSm">
-            📋 迁移清单
+            📋 {t("migrationWizard.checklist.title")}
           </Text>
           <Text as="p" variant="bodySm" tone="subdued">
-            生成可导出的迁移步骤清单，方便团队协作或记录进度。
+            {t("migrationWizard.checklist.description")}
           </Text>
           <Box background="bg-surface-secondary" padding="400" borderRadius="200">
             <BlockStack gap="200">
               <Text as="p" fontWeight="semibold">
-                待迁移项目：
+                {t("migrationWizard.checklist.pendingItems")}
               </Text>
               <List type="number">
                 {migrationActions && migrationActions.length > 0 ? (
@@ -119,18 +128,18 @@ export function MigrationWizard({ migrationActions, shopDomain }: MigrationWizar
                     </List.Item>
                   ))
                 ) : (
-                  <List.Item>暂无待处理项目 ✅</List.Item>
+                  <List.Item>{t("migrationWizard.checklist.noPending")}</List.Item>
                 )}
                 {migrationActions && migrationActions.length > 5 && (
-                  <List.Item>...还有 {migrationActions.length - 5} 项</List.Item>
+                  <List.Item>{t("migrationWizard.checklist.moreItems", { count: migrationActions.length - 5 })}</List.Item>
                 )}
               </List>
               <InlineStack gap="200" align="end">
                 <Button icon={ClipboardIcon} onClick={handleCopyChecklist}>
-                  复制清单
+                  {t("migrationWizard.checklist.copy")}
                 </Button>
                 <Button icon={ExportIcon} onClick={handleExportChecklist}>
-                  导出清单
+                  {t("migrationWizard.checklist.export")}
                 </Button>
               </InlineStack>
             </BlockStack>
@@ -139,35 +148,32 @@ export function MigrationWizard({ migrationActions, shopDomain }: MigrationWizar
         <Divider />
         <BlockStack gap="300">
           <Text as="h3" variant="headingSm">
-            🔄 替代方案一览
+            🔄 {t("migrationWizard.alternatives.title")}
           </Text>
           <Box background="bg-surface-secondary" padding="400" borderRadius="200">
             <BlockStack gap="300">
               <InlineStack gap="400" wrap>
                 <Box minWidth="200px">
                   <BlockStack gap="100">
-                    <Badge tone="success">官方替代</Badge>
+                    <Badge tone="success">{t("migrationWizard.alternatives.official.badge")}</Badge>
                     <Text as="p" variant="bodySm">
-                      • Shopify Pixels（客户端）
-                      <br />• Customer Events API
+                      <Trans i18nKey="migrationWizard.alternatives.official.text" components={{ br: <br /> }} />
                     </Text>
                   </BlockStack>
                 </Box>
                 <Box minWidth="200px">
                   <BlockStack gap="100">
-                    <Badge tone="info">Web Pixel 替代</Badge>
+                    <Badge tone="info">{t("migrationWizard.alternatives.webPixel.badge")}</Badge>
                     <Text as="p" variant="bodySm">
-                      • ScriptTag → Web Pixel
-                      <br />• checkout.liquid → Pixel + Extension
+                      <Trans i18nKey="migrationWizard.alternatives.webPixel.text" components={{ br: <br /> }} />
                     </Text>
                   </BlockStack>
                 </Box>
                 <Box minWidth="200px">
                   <BlockStack gap="100">
-                    <Badge tone="warning">UI Extension 替代</Badge>
+                    <Badge tone="warning">{t("migrationWizard.alternatives.uiExtension.badge")}</Badge>
                     <Text as="p" variant="bodySm">
-                      • Additional Scripts → Checkout UI
-                      <br />• Order Status 脚本 → TYP Extension
+                      <Trans i18nKey="migrationWizard.alternatives.uiExtension.text" components={{ br: <br /> }} />
                     </Text>
                   </BlockStack>
                 </Box>

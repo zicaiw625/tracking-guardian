@@ -21,7 +21,7 @@ export default function SupportPage() {
   const { t } = useTranslation();
   const { contactEmail, faqUrl, statusPageUrl } = useLoaderData<typeof loader>();
   return (
-    <Page title="Support" subtitle={t("support.subtitle")}>
+    <Page title={t("support.title")} subtitle={t("support.subtitle")}>
       <BlockStack gap="500">
         <PageIntroCard
           title={t("support.intro.title")}

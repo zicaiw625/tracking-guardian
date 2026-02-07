@@ -65,41 +65,44 @@ export function getStatusText(status: string, t?: TFunction) {
 }
 
 export function getPlatformName(platform: string, t?: TFunction) {
-  const map = t
-    ? {
-        "google-analytics": "Google Analytics 4 (GA4)",
-        "facebook-pixel": "Meta (Facebook) Pixel",
-        tiktok: "TikTok Pixel",
-        pinterest: "Pinterest Tag",
-        snapchat: "Snapchat Pixel",
-        bing: "Microsoft (Bing) Ads",
-        twitter: "X (Twitter) Pixel",
-        linkedin: "LinkedIn Insight Tag",
-        criteo: "Criteo OneTag",
-        taboola: "Taboola Pixel",
-        outbrain: "Outbrain Pixel",
-        reddit: "Reddit Pixel",
-        quora: "Quora Pixel",
-        "klaviyo-onsite": "Klaviyo Onsite",
-      }
-    : {
-        "google-analytics": "Google Analytics 4 (GA4)",
-        "facebook-pixel": "Meta (Facebook) Pixel",
-        tiktok: "TikTok Pixel",
-        pinterest: "Pinterest Tag",
-        snapchat: "Snapchat Pixel",
-        bing: "Microsoft (Bing) Ads",
-        twitter: "X (Twitter) Pixel",
-        linkedin: "LinkedIn Insight Tag",
-        criteo: "Criteo OneTag",
-        taboola: "Taboola Pixel",
-        outbrain: "Outbrain Pixel",
-        reddit: "Reddit Pixel",
-        quora: "Quora Pixel",
-        "klaviyo-onsite": "Klaviyo Onsite",
-      };
-
   const normalized = platform?.toLowerCase().replace(/_/g, "-");
-  // @ts-expect-error - normalized string might not be in map keys
+
+  if (t) {
+    const map: Record<string, string> = {
+      "google-analytics": t("platforms.google-analytics"),
+      "facebook-pixel": t("platforms.facebook-pixel"),
+      "tiktok": t("platforms.tiktok"),
+      "pinterest": t("platforms.pinterest"),
+      "snapchat": t("platforms.snapchat"),
+      "bing": t("platforms.bing"),
+      "twitter": t("platforms.twitter"),
+      "linkedin": t("platforms.linkedin"),
+      "criteo": t("platforms.criteo"),
+      "taboola": t("platforms.taboola"),
+      "outbrain": t("platforms.outbrain"),
+      "reddit": t("platforms.reddit"),
+      "quora": t("platforms.quora"),
+      "klaviyo-onsite": t("platforms.klaviyo-onsite"),
+    };
+    return map[normalized] || platform;
+  }
+
+  const map: Record<string, string> = {
+    "google-analytics": "Google Analytics 4 (GA4)",
+    "facebook-pixel": "Meta (Facebook) Pixel",
+    "tiktok": "TikTok Pixel",
+    "pinterest": "Pinterest Tag",
+    "snapchat": "Snapchat Pixel",
+    "bing": "Microsoft (Bing) Ads",
+    "twitter": "X (Twitter) Pixel",
+    "linkedin": "LinkedIn Insight Tag",
+    "criteo": "Criteo OneTag",
+    "taboola": "Taboola Pixel",
+    "outbrain": "Outbrain Pixel",
+    "reddit": "Reddit Pixel",
+    "quora": "Quora Pixel",
+    "klaviyo-onsite": "Klaviyo Onsite",
+  };
+
   return map[normalized] || platform;
 }
